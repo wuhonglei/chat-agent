@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ai-doc-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - CHROMA_HOST=chroma
+      - CHROMA_PORT=8000
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    volumes:
+      - ./backend/data:/app/data
+      - ./backend/logs:/app/logs
+    depends_on:
+      - chroma
+      - redis
+    networks:
+      - ai-doc-network
+    restart: unless-stopped
+
+  chroma:
+    image: chromadb/chroma:latest
+    container_name: ai-doc-chroma
+    ports:
+      - "8001:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=/chroma/chroma
+      - ANONYMIZED_TELEMETRY=FALSE
+    networks:
+      - ai-doc-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: ai-doc-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - ai-doc-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ai-doc-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    networks:
+      - ai-doc-network
+    restart: unless-stopped
+
+volumes:
+  chroma_data:
+  redis_data:
+
+networks:
+  ai-doc-network:
+    driver: bridge
