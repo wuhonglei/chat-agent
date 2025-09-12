@@ -15,7 +15,7 @@ from app.services.reranker import Reranker
 
 class ChatService:
     """Handle chat interactions with RAG"""
-    
+
     def __init__(self, vector_store: VectorStore):
         self.vector_store = vector_store
         self.client = AsyncOpenAI(
@@ -23,7 +23,7 @@ class ChatService:
             base_url=settings.DEEPSEEK_API_BASE,
         )
         self.reranker = Reranker()
-    
+
     async def process_message(
         self,
         message: str,
@@ -36,27 +36,31 @@ class ChatService:
             # Search knowledge base if enabled
             sources = []
             context = ""
-            
+
             if use_knowledge_base:
                 # Search for relevant documents
-                search_results = await self.vector_store.search(message, top_k=settings.SEARCH_TOP_K)
-                
+                search_results = await self.vector_store.search(
+                    message, top_k=settings.SEARCH_TOP_K
+                )
+
                 # Rerank results
                 if search_results:
                     search_results = await self.reranker.rerank(message, search_results)
-                    
+
                     # Build context from top results
-                    for result in search_results[:settings.RERANK_TOP_K]:
+                    for result in search_results[: settings.RERANK_TOP_K]:
                         context += f"\n---\n{result.content}\n"
-                        sources.append({
-                            "content": result.content[:200] + "...",
-                            "document_name": result.metadata.get("document_name", "Unknown"),
-                            "score": result.score,
-                        })
-            
+                        sources.append(
+                            {
+                                "content": result.content[:200] + "...",
+                                "document_name": result.metadata.get("document_name", "Unknown"),
+                                "score": result.score,
+                            }
+                        )
+
             # Build prompt
             prompt = self._build_prompt(message, context, history)
-            
+
             # Get response from LLM
             response = await self.client.chat.completions.create(
                 model=settings.DEEPSEEK_MODEL,
@@ -64,20 +68,20 @@ class ChatService:
                 temperature=0.7,
                 max_tokens=2000,
             )
-            
+
             answer = response.choices[0].message.content
-            
+
             return ChatResponse(
                 message=answer,
                 sources=sources,
                 session_id=session_id,
                 timestamp=datetime.now(),
             )
-            
+
         except Exception as e:
             logger.error(f"Failed to process message: {e}")
             raise
-    
+
     async def stream_message(
         self,
         message: str,
@@ -90,27 +94,31 @@ class ChatService:
             # Search knowledge base if enabled
             context = ""
             sources = []
-            
+
             if use_knowledge_base:
                 # Search for relevant documents
-                search_results = await self.vector_store.search(message, top_k=settings.SEARCH_TOP_K)
-                
+                search_results = await self.vector_store.search(
+                    message, top_k=settings.SEARCH_TOP_K
+                )
+
                 # Rerank results
                 if search_results:
                     search_results = await self.reranker.rerank(message, search_results)
-                    
+
                     # Build context from top results
-                    for result in search_results[:settings.RERANK_TOP_K]:
+                    for result in search_results[: settings.RERANK_TOP_K]:
                         context += f"\n---\n{result.content}\n"
-                        sources.append({
-                            "content": result.content[:200] + "...",
-                            "document_name": result.metadata.get("document_name", "Unknown"),
-                            "score": result.score,
-                        })
-            
+                        sources.append(
+                            {
+                                "content": result.content[:200] + "...",
+                                "document_name": result.metadata.get("document_name", "Unknown"),
+                                "score": result.score,
+                            }
+                        )
+
             # Build prompt
             prompt = self._build_prompt(message, context, history)
-            
+
             # Stream response from LLM
             stream = await self.client.chat.completions.create(
                 model=settings.DEEPSEEK_MODEL,
@@ -119,23 +127,23 @@ class ChatService:
                 max_tokens=2000,
                 stream=True,
             )
-            
+
             # First, send sources
             if sources:
                 yield f"data: {json.dumps({'type': 'sources', 'data': sources})}\n\n"
-            
+
             # Stream answer chunks
             async for chunk in stream:
                 if chunk.choices[0].delta.content:
                     yield f"data: {json.dumps({'type': 'content', 'data': chunk.choices[0].delta.content})}\n\n"
-            
+
             # Send done signal
             yield f"data: {json.dumps({'type': 'done'})}\n\n"
-            
+
         except Exception as e:
             logger.error(f"Failed to stream message: {e}")
             yield f"data: {json.dumps({'type': 'error', 'data': str(e)})}\n\n"
-    
+
     def _build_prompt(
         self,
         message: str,
@@ -150,17 +158,14 @@ class ChatService:
 2. 如果文档中没有相关信息，请诚实地告诉用户你无法从现有文档中找到答案
 3. 保持回答简洁、准确、专业
 4. 使用中文回答"""
-        
+
         messages = [{"role": "system", "content": system_prompt}]
-        
+
         # Add history if available
         if history:
             for msg in history[-5:]:  # Keep last 5 messages for context
-                messages.append({
-                    "role": msg.role,
-                    "content": msg.content
-                })
-        
+                messages.append({"role": msg.role, "content": msg.content})
+
         # Add context and current message
         if context:
             user_prompt = f"""基于以下文档内容回答问题：
@@ -173,7 +178,7 @@ class ChatService:
 请提供准确的回答。"""
         else:
             user_prompt = message
-        
+
         messages.append({"role": "user", "content": user_prompt})
-        
+
         return messages

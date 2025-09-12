@@ -52,6 +52,7 @@ dependencies = [
     # Monitoring & Logging
     "loguru>=0.7.0",
     "prometheus-client>=0.19.0",
+    "black>=25.1.0",
 ]
 
 [project.optional-dependencies]

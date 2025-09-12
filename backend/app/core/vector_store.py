@@ -32,25 +32,23 @@ class VectorStore:
             # Initialize embeddings (using local model for MVP)
             self.embeddings = HuggingFaceEmbeddings(
                 model_name="BAAI/bge-base-zh-v1.5",
-                model_kwargs={'device': 'cpu'},
-                encode_kwargs={'normalize_embeddings': True}
+                model_kwargs={"device": "cpu"},
+                encode_kwargs={"normalize_embeddings": True},
             )
 
             # Initialize Chroma client
             os.makedirs(settings.CHROMA_PERSIST_DIRECTORY, exist_ok=True)
             self.client = chromadb.PersistentClient(
                 path=settings.CHROMA_PERSIST_DIRECTORY,
-                settings=ChromaSettings(anonymized_telemetry=False)
+                settings=ChromaSettings(anonymized_telemetry=False),
             )
 
             # Get or create collection
             self.collection = self.client.get_or_create_collection(
-                name=settings.CHROMA_COLLECTION_NAME,
-                metadata={"hnsw:space": "cosine"}
+                name=settings.CHROMA_COLLECTION_NAME, metadata={"hnsw:space": "cosine"}
             )
 
-            logger.info(
-                f"Vector store initialized with {self.collection.count()} documents")
+            logger.info(f"Vector store initialized with {self.collection.count()} documents")
 
         except Exception as e:
             logger.error(f"Failed to initialize vector store: {e}")
@@ -86,8 +84,7 @@ class VectorStore:
                 metadatas=metadatas,
             )
 
-            logger.info(
-                f"Added document {document.name} with {len(chunks)} chunks")
+            logger.info(f"Added document {document.name} with {len(chunks)} chunks")
             return ids
 
         except Exception as e:
@@ -114,13 +111,13 @@ class VectorStore:
 
             # Format results
             search_results = []
-            for i in range(len(results['ids'][0])):
+            for i in range(len(results["ids"][0])):
                 search_results.append(
                     SearchResult(
-                        content=results['documents'][0][i],
-                        metadata=results['metadatas'][0][i],
+                        content=results["documents"][0][i],
+                        metadata=results["metadatas"][0][i],
                         # Convert distance to similarity
-                        score=1 - results['distances'][0][i],
+                        score=1 - results["distances"][0][i],
                     )
                 )
 
@@ -134,14 +131,11 @@ class VectorStore:
         """Delete document from vector store"""
         try:
             # Get all chunk IDs for this document
-            results = self.collection.get(
-                where={"document_id": document_id}
-            )
+            results = self.collection.get(where={"document_id": document_id})
 
-            if results['ids']:
-                self.collection.delete(ids=results['ids'])
-                logger.info(
-                    f"Deleted {len(results['ids'])} chunks for document {document_id}")
+            if results["ids"]:
+                self.collection.delete(ids=results["ids"])
+                logger.info(f"Deleted {len(results['ids'])} chunks for document {document_id}")
 
         except Exception as e:
             logger.error(f"Failed to delete document: {e}")
@@ -151,19 +145,19 @@ class VectorStore:
         """Get list of all documents in the store"""
         try:
             # Get unique documents
-            all_metadata = self.collection.get()['metadatas']
+            all_metadata = self.collection.get()["metadatas"]
             documents = {}
 
             for metadata in all_metadata:
-                doc_id = metadata['document_id']
+                doc_id = metadata["document_id"]
                 if doc_id not in documents:
                     documents[doc_id] = {
-                        'id': doc_id,
-                        'name': metadata['document_name'],
-                        'source': metadata.get('source', 'local'),
-                        'chunks': 0
+                        "id": doc_id,
+                        "name": metadata["document_name"],
+                        "source": metadata.get("source", "local"),
+                        "chunks": 0,
                     }
-                documents[doc_id]['chunks'] += 1
+                documents[doc_id]["chunks"] += 1
 
             return list(documents.values())
 

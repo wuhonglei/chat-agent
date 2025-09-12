@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 class ChatMessage(BaseModel):
     """Chat message model"""
+
     role: str = Field(..., description="Message role (user/assistant)")
     content: str = Field(..., description="Message content")
     timestamp: datetime = Field(default_factory=datetime.now, description="Message timestamp")
@@ -16,6 +17,7 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     """Chat request model"""
+
     message: str = Field(..., description="User message")
     session_id: Optional[str] = Field(None, description="Session ID for context")
     history: List[ChatMessage] = Field(default_factory=list, description="Chat history")
@@ -25,6 +27,7 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     """Chat response model"""
+
     message: str = Field(..., description="Assistant response")
     sources: List[Dict[str, Any]] = Field(default_factory=list, description="Source documents")
     session_id: str = Field(..., description="Session ID")
@@ -33,6 +36,7 @@ class ChatResponse(BaseModel):
 
 class ChatSession(BaseModel):
     """Chat session model"""
+
     id: str = Field(..., description="Session ID")
     messages: List[ChatMessage] = Field(default_factory=list, description="Session messages")
     created_at: datetime = Field(default_factory=datetime.now, description="Session creation time")

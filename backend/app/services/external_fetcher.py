@@ -53,23 +53,22 @@ class ExternalDocumentFetcher:
 
             # Get page content
             page = self.confluence_client.get_page_by_id(
-                page_id,
-                expand='body.storage,version,space'
+                page_id, expand="body.storage,version,space"
             )
 
             # Extract content
-            html_content = page['body']['storage']['value']
-            soup = BeautifulSoup(html_content, 'html.parser')
+            html_content = page["body"]["storage"]["value"]
+            soup = BeautifulSoup(html_content, "html.parser")
             text_content = soup.get_text()
 
             # Build metadata
             metadata = {
-                'title': page['title'],
-                'space': page['space']['name'],
-                'version': page['version']['number'],
-                'last_updated': page['version']['when'],
-                'author': page['version']['by']['displayName'],
-                'url': url,
+                "title": page["title"],
+                "space": page["space"]["name"],
+                "version": page["version"]["number"],
+                "last_updated": page["version"]["when"],
+                "author": page["version"]["by"]["displayName"],
+                "url": url,
             }
 
             return text_content, metadata
@@ -96,14 +95,13 @@ class ExternalDocumentFetcher:
                 if response.status_code == 200:
                     content = response.text
                     metadata = {
-                        'title': f"Google Doc {doc_id}",
-                        'url': url,
-                        'doc_id': doc_id,
+                        "title": f"Google Doc {doc_id}",
+                        "url": url,
+                        "doc_id": doc_id,
                     }
                     return content, metadata
                 else:
-                    raise ValueError(
-                        f"Failed to fetch Google Doc: {response.status_code}")
+                    raise ValueError(f"Failed to fetch Google Doc: {response.status_code}")
 
         except Exception as e:
             logger.error(f"Failed to fetch Google Doc: {e}")
@@ -119,7 +117,9 @@ class ExternalDocumentFetcher:
             # TODO: Implement proper Google Slides API integration
 
             # Fetch public presentation as text
-            export_url = f"https://docs.google.com/presentation/d/{presentation_id}/export?format=txt"
+            export_url = (
+                f"https://docs.google.com/presentation/d/{presentation_id}/export?format=txt"
+            )
 
             async with httpx.AsyncClient() as client:
                 response = await client.get(export_url)
@@ -127,14 +127,13 @@ class ExternalDocumentFetcher:
                 if response.status_code == 200:
                     content = response.text
                     metadata = {
-                        'title': f"Google Slides {presentation_id}",
-                        'url': url,
-                        'presentation_id': presentation_id,
+                        "title": f"Google Slides {presentation_id}",
+                        "url": url,
+                        "presentation_id": presentation_id,
                     }
                     return content, metadata
                 else:
-                    raise ValueError(
-                        f"Failed to fetch Google Slides: {response.status_code}")
+                    raise ValueError(f"Failed to fetch Google Slides: {response.status_code}")
 
         except Exception as e:
             logger.error(f"Failed to fetch Google Slides: {e}")
@@ -143,13 +142,13 @@ class ExternalDocumentFetcher:
     def _extract_confluence_page_id(self, url: str) -> str:
         """Extract page ID from Confluence URL"""
         # Pattern for Confluence Cloud URLs
-        pattern = r'/pages/(\d+)/'
+        pattern = r"/pages/(\d+)/"
         match = re.search(pattern, url)
         if match:
             return match.group(1)
 
         # Try alternative pattern
-        pattern = r'pageId=(\d+)'
+        pattern = r"pageId=(\d+)"
         match = re.search(pattern, url)
         if match:
             return match.group(1)
@@ -158,7 +157,7 @@ class ExternalDocumentFetcher:
 
     def _extract_google_doc_id(self, url: str) -> str:
         """Extract document ID from Google Docs URL"""
-        pattern = r'/document/d/([a-zA-Z0-9-_]+)'
+        pattern = r"/document/d/([a-zA-Z0-9-_]+)"
         match = re.search(pattern, url)
         if match:
             return match.group(1)
@@ -166,7 +165,7 @@ class ExternalDocumentFetcher:
 
     def _extract_google_slides_id(self, url: str) -> str:
         """Extract presentation ID from Google Slides URL"""
-        pattern = r'/presentation/d/([a-zA-Z0-9-_]+)'
+        pattern = r"/presentation/d/([a-zA-Z0-9-_]+)"
         match = re.search(pattern, url)
         if match:
             return match.group(1)

@@ -19,13 +19,13 @@ async def chat(request: Request, chat_request: ChatRequest) -> ChatResponse:
     try:
         # Get or create session ID
         session_id = chat_request.session_id or str(uuid.uuid4())
-        
+
         # Get vector store
         vector_store = request.app.state.vector_store
-        
+
         # Initialize chat service
         chat_service = ChatService(vector_store)
-        
+
         # Process message
         response = await chat_service.process_message(
             message=chat_request.message,
@@ -33,9 +33,9 @@ async def chat(request: Request, chat_request: ChatRequest) -> ChatResponse:
             history=chat_request.history,
             use_knowledge_base=chat_request.use_knowledge_base,
         )
-        
+
         return response
-        
+
     except Exception as e:
         logger.error(f"Chat processing failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -47,13 +47,13 @@ async def chat_stream(request: Request, chat_request: ChatRequest):
     try:
         # Get or create session ID
         session_id = chat_request.session_id or str(uuid.uuid4())
-        
+
         # Get vector store
         vector_store = request.app.state.vector_store
-        
+
         # Initialize chat service
         chat_service = ChatService(vector_store)
-        
+
         # Stream response
         async def generate() -> AsyncGenerator[str, None]:
             async for chunk in chat_service.stream_message(
@@ -63,12 +63,12 @@ async def chat_stream(request: Request, chat_request: ChatRequest):
                 use_knowledge_base=chat_request.use_knowledge_base,
             ):
                 yield chunk
-        
+
         return StreamingResponse(
             generate(),
             media_type="text/event-stream",
         )
-        
+
     except Exception as e:
         logger.error(f"Chat streaming failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -80,7 +80,7 @@ async def get_session(session_id: str) -> ChatSession:
     try:
         # TODO: Implement session storage and retrieval
         raise HTTPException(status_code=501, detail="Session management not implemented yet")
-        
+
     except Exception as e:
         logger.error(f"Failed to get session: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -92,7 +92,7 @@ async def delete_session(session_id: str):
     try:
         # TODO: Implement session deletion
         raise HTTPException(status_code=501, detail="Session management not implemented yet")
-        
+
     except Exception as e:
         logger.error(f"Failed to delete session: {e}")
         raise HTTPException(status_code=500, detail=str(e))

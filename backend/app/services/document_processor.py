@@ -17,10 +17,10 @@ from app.services.external_fetcher import ExternalDocumentFetcher
 
 class DocumentProcessor:
     """Process various document formats"""
-    
+
     def __init__(self):
         self.external_fetcher = ExternalDocumentFetcher()
-    
+
     async def process_file(
         self,
         file_path: str,
@@ -31,7 +31,7 @@ class DocumentProcessor:
         try:
             # Extract content based on file type
             file_extension = filename.split(".")[-1].lower()
-            
+
             if file_extension == "pdf":
                 content = self._extract_pdf(file_path)
             elif file_extension == "docx":
@@ -42,7 +42,7 @@ class DocumentProcessor:
                 content = self._extract_markdown(file_path)
             else:
                 raise ValueError(f"Unsupported file type: {file_extension}")
-            
+
             # Create document
             document = Document(
                 id=doc_id,
@@ -57,13 +57,13 @@ class DocumentProcessor:
                 created_at=datetime.now(),
                 updated_at=datetime.now(),
             )
-            
+
             return document
-            
+
         except Exception as e:
             logger.error(f"Failed to process file {filename}: {e}")
             raise
-    
+
     async def process_url(
         self,
         url: str,
@@ -72,7 +72,7 @@ class DocumentProcessor:
         """Process external document from URL"""
         try:
             doc_id = str(uuid.uuid4())
-            
+
             # Fetch content based on source
             if source == DocumentSource.CONFLUENCE:
                 content, metadata = await self.external_fetcher.fetch_confluence(url)
@@ -85,7 +85,7 @@ class DocumentProcessor:
                 name = metadata.get("title", "Google Slides")
             else:
                 raise ValueError(f"Unsupported external source: {source}")
-            
+
             # Create document
             document = Document(
                 id=doc_id,
@@ -98,13 +98,13 @@ class DocumentProcessor:
                 created_at=datetime.now(),
                 updated_at=datetime.now(),
             )
-            
+
             return document
-            
+
         except Exception as e:
             logger.error(f"Failed to process URL {url}: {e}")
             raise
-    
+
     def _extract_pdf(self, file_path: str) -> str:
         """Extract text from PDF"""
         text = ""
@@ -114,24 +114,25 @@ class DocumentProcessor:
                 page = pdf_reader.pages[page_num]
                 text += page.extract_text() + "\n"
         return text
-    
+
     def _extract_docx(self, file_path: str) -> str:
         """Extract text from Word document"""
         doc = DocxDocument(file_path)
         text = "\n".join([paragraph.text for paragraph in doc.paragraphs])
         return text
-    
+
     def _extract_text(self, file_path: str) -> str:
         """Extract text from plain text file"""
         with open(file_path, "r", encoding="utf-8") as file:
             return file.read()
-    
+
     def _extract_markdown(self, file_path: str) -> str:
         """Extract text from markdown file"""
         with open(file_path, "r", encoding="utf-8") as file:
             md_content = file.read()
             # Convert to plain text
             from bs4 import BeautifulSoup
+
             html = markdown(md_content)
             soup = BeautifulSoup(html, "html.parser")
             return soup.get_text()
