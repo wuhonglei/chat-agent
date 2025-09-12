@@ -14,10 +14,7 @@
     "sourceType": "module",
     "project": "./tsconfig.json"
   },
-  "plugins": [
-    "react-refresh",
-    "@typescript-eslint"
-  ],
+  "plugins": ["react-refresh", "@typescript-eslint"],
   "rules": {
     "react-refresh/only-export-components": "warn",
     "@typescript-eslint/no-explicit-any": "warn",

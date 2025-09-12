@@ -31,6 +31,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.13",
     "@tailwindcss/typography": "^0.5.10",
+    "@tailwindcss/vite": "^4.1.13",
     "@types/lodash": "^4.14.202",
     "@types/node": "^20.10.5",
     "@types/react": "^18.2.43",
