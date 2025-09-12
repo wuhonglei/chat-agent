@@ -1,6 +1,0 @@
-.menu-item {
-  ::global(.ant-menu-item) {
-    padding-left: 0;
-    padding-right: 0;
-  }
-}

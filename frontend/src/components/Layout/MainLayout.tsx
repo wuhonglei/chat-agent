@@ -10,6 +10,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import styles from "./mainLayout.module.css";
 
 const { Sider, Header } = Layout;
+const collapsedWidth = 64;
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -50,7 +51,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         collapsed
         theme="light"
         trigger={null}
-        collapsedWidth={64}
+        collapsedWidth={collapsedWidth}
         style={{ backgroundColor: "#F3F4F6" }}
         className="shadow-md flex flex-col items-center"
       >
@@ -59,15 +60,15 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           alt="logo"
           width={36}
           height={36}
-          className="rounded-full"
+          className="rounded-full mx-auto my-4"
         />
         <Menu
           mode="vertical"
           items={menuItems}
           onClick={handleMenuClick}
           selectedKeys={[location.pathname]}
+          style={{ backgroundColor: "transparent", width: collapsedWidth }}
           className={classNames("border-r-0", styles["menu-item"])}
-          style={{ backgroundColor: "transparent", width: "100%" }}
         />
       </Sider>
       <Layout>{children}</Layout>
