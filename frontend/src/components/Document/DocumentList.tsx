@@ -1,26 +1,26 @@
-import React, { useEffect } from "react";
 import {
-  Table,
-  Button,
-  Tag,
-  Popconfirm,
-  Space,
-  message,
-  TableProps,
-} from "antd";
-import {
+  CloudOutlined,
   DeleteOutlined,
   FileTextOutlined,
-  CloudOutlined,
   LinkOutlined,
 } from "@ant-design/icons";
+import {
+  Button,
+  message,
+  Popconfirm,
+  Space,
+  Table,
+  TableProps,
+  Tag,
+} from "antd";
+import dayjs from "dayjs";
+import React, { useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import {
-  fetchDocuments,
   deleteDocument,
+  fetchDocuments,
 } from "../../store/slices/documentSlice";
 import { Document, DocumentSource } from "../../types";
-import dayjs from "dayjs";
 
 const DocumentList: React.FC = () => {
   const dispatch = useAppDispatch();

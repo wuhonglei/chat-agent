@@ -1,6 +1,6 @@
+import { LoadingOutlined, SendOutlined } from "@ant-design/icons";
+import { Button, Input, Space, Switch } from "antd";
 import React, { useState } from "react";
-import { Input, Button, Switch, Space } from "antd";
-import { SendOutlined, LoadingOutlined } from "@ant-design/icons";
 
 const { TextArea } = Input;
 

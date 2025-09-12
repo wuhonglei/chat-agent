@@ -1,13 +1,12 @@
-import React, { useState } from "react";
-import { Card, Tabs, Button, Modal, Input, Select, Form, message } from "antd";
+import DocumentList from "@/components/Document/DocumentList";
+import DocumentUpload from "@/components/Document/DocumentUpload";
+import { useAppDispatch } from "@/store/hooks";
+import { importFromUrl } from "@/store/slices/documentSlice";
+import { DocumentSource } from "@/types";
 import { CloudUploadOutlined } from "@ant-design/icons";
-import DocumentUpload from "../components/Document/DocumentUpload";
-import DocumentList from "../components/Document/DocumentList";
-import { useAppDispatch } from "../store/hooks";
-import { importFromUrl } from "../store/slices/documentSlice";
-import { DocumentSource } from "../types";
+import { Button, Card, Form, Input, message, Modal, Select, Tabs } from "antd";
+import React, { useState } from "react";
 
-const { TabPane } = Tabs;
 const { Option } = Select;
 
 const DocumentsPage: React.FC = () => {
@@ -26,8 +25,9 @@ const DocumentsPage: React.FC = () => {
       message.success("文档导入成功");
       setImportModalVisible(false);
       form.resetFields();
-    } catch (error: any) {
-      message.error("导入失败: " + error.message);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "未知错误";
+      message.error("导入失败: " + errorMessage);
     } finally {
       setImportLoading(false);
     }
@@ -47,14 +47,21 @@ const DocumentsPage: React.FC = () => {
           </Button>
         </div>
 
-        <Tabs defaultActiveKey="list">
-          <TabPane tab="文档列表" key="list">
-            <DocumentList />
-          </TabPane>
-          <TabPane tab="上传文档" key="upload">
-            <DocumentUpload />
-          </TabPane>
-        </Tabs>
+        <Tabs
+          defaultActiveKey="list"
+          items={[
+            {
+              label: "文档列表",
+              key: "list",
+              children: <DocumentList />,
+            },
+            {
+              label: "上传文档",
+              key: "upload",
+              children: <DocumentUpload />,
+            },
+          ]}
+        />
       </Card>
 
       {/* Import Modal */}

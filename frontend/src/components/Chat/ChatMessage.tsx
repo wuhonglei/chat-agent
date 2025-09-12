@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from "react";
+import { RobotOutlined, UserOutlined } from "@ant-design/icons";
 import { Avatar, Card } from "antd";
-import { UserOutlined, RobotOutlined } from "@ant-design/icons";
+import dayjs from "dayjs";
+import React, { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
-import dayjs from "dayjs";
+import remarkGfm from "remark-gfm";
 import { ChatMessage as ChatMessageType } from "../../types";
 
 interface ChatMessageProps {
@@ -68,7 +68,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
         className={`${isUser ? "bg-blue-500" : "bg-green-500"}`}
       />
       <Card
-        className={`flex-1 max-w-[70%] ${
+        className={`max-w-[70%] ${
           isUser ? "bg-blue-50" : "bg-gray-50"
         } animate-slide-up`}
         styles={{ body: { padding: "12px 16px" } }}

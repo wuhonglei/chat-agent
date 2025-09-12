@@ -1,6 +1,6 @@
-import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Layout } from "antd";
+import React from "react";
+import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
 import MainLayout from "./components/Layout/MainLayout";
 import ChatPage from "./pages/ChatPage";
 import DocumentsPage from "./pages/DocumentsPage";
@@ -12,7 +12,7 @@ const App: React.FC = () => {
   return (
     <Router>
       <MainLayout>
-        <Content className="min-h-screen bg-gray-50">
+        <Content className="h-full bg-gray-50">
           <Routes>
             <Route path="/" element={<ChatPage />} />
             <Route path="/chat" element={<ChatPage />} />

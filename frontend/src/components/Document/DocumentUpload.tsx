@@ -1,7 +1,7 @@
-import React, { useCallback } from "react";
-import { Upload, message, Progress, UploadProps } from "antd";
 import { InboxOutlined } from "@ant-design/icons";
+import { message, Progress, Upload, UploadProps } from "antd";
 import { RcFile } from "antd/es/upload";
+import React, { useCallback } from "react";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { uploadDocument } from "../../store/slices/documentSlice";
 

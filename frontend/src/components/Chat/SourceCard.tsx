@@ -1,6 +1,6 @@
-import React from "react";
-import { Card, Tag, Tooltip } from "antd";
 import { FileTextOutlined, LinkOutlined } from "@ant-design/icons";
+import { Card, Tag, Tooltip } from "antd";
+import React from "react";
 import { SearchSource } from "../../types";
 
 interface SourceCardProps {

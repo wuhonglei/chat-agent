@@ -1,9 +1,9 @@
+import { fetchEventSource } from "@microsoft/fetch-event-source";
 import axios, {
   AxiosInstance,
-  InternalAxiosRequestConfig,
   AxiosResponse,
+  InternalAxiosRequestConfig,
 } from "axios";
-import { fetchEventSource } from "@microsoft/fetch-event-source";
 import {
   ChatRequest,
   ChatResponse,

@@ -1,15 +1,15 @@
-import React, { useEffect, useState } from "react";
-import { Card, Statistic, Button, Row, Col, message, Spin } from "antd";
+import { knowledgeBaseAPI } from "@/services/api";
+import { KnowledgeBaseStats } from "@/types";
 import {
-  DatabaseOutlined,
-  FileTextOutlined,
   CloudDownloadOutlined,
-  ShareAltOutlined,
+  DatabaseOutlined,
   ExportOutlined,
+  FileTextOutlined,
   ReloadOutlined,
+  ShareAltOutlined,
 } from "@ant-design/icons";
-import { knowledgeBaseAPI } from "../services/api";
-import { KnowledgeBaseStats } from "../types";
+import { Button, Card, Col, message, Row, Spin, Statistic } from "antd";
+import React, { useEffect, useState } from "react";
 
 const KnowledgeBasePage: React.FC = () => {
   const [stats, setStats] = useState<KnowledgeBaseStats | null>(null);

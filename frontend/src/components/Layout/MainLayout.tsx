@@ -1,17 +1,15 @@
-import React, { ReactNode } from "react";
-import { Layout, Menu, Button, MenuProps } from "antd";
-import { useNavigate, useLocation } from "react-router-dom";
 import {
-  MessageOutlined,
-  FileTextOutlined,
   DatabaseOutlined,
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
+  FileTextOutlined,
+  MessageOutlined,
 } from "@ant-design/icons";
-import { useAppDispatch, useAppSelector } from "../../store/hooks";
-import { toggleSidebar } from "../../store/slices/uiSlice";
+import { Layout, Menu, MenuProps } from "antd";
+import classNames from "classnames";
+import React, { ReactNode, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import styles from "./mainLayout.module.css";
 
-const { Header, Sider } = Layout;
+const { Sider, Header } = Layout;
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -20,8 +18,8 @@ interface MainLayoutProps {
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const dispatch = useAppDispatch();
-  const { sidebarCollapsed } = useAppSelector((state) => state.ui);
+  const [collapsed, setCollapsed] = useState(false);
+  const isChatPage = ["/", "/chat"].includes(location.pathname);
 
   const menuItems: MenuProps["items"] = [
     {
@@ -46,42 +44,33 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   };
 
   return (
-    <Layout className="min-h-screen">
+    <Layout className="h-screen">
+      {/* 左侧导航 */}
       <Sider
+        collapsed
+        theme="light"
         trigger={null}
-        collapsible
-        collapsed={sidebarCollapsed}
-        className="bg-white shadow-md"
+        collapsedWidth={64}
+        style={{ backgroundColor: "#F3F4F6" }}
+        className="shadow-md flex flex-col items-center"
       >
-        <div className="h-16 flex items-center justify-center border-b">
-          <h1
-            className={`font-bold text-lg text-primary-600 ${sidebarCollapsed ? "text-sm" : ""}`}
-          >
-            {sidebarCollapsed ? "AI" : "AI Doc Q&A"}
-          </h1>
-        </div>
+        <img
+          src="/logo.png"
+          alt="logo"
+          width={36}
+          height={36}
+          className="rounded-full"
+        />
         <Menu
-          mode="inline"
-          selectedKeys={[location.pathname]}
+          mode="vertical"
           items={menuItems}
           onClick={handleMenuClick}
-          className="border-r-0"
+          selectedKeys={[location.pathname]}
+          className={classNames("border-r-0", styles["menu-item"])}
+          style={{ backgroundColor: "transparent", width: "100%" }}
         />
       </Sider>
-      <Layout>
-        <Header className="bg-white px-4 shadow-sm flex items-center">
-          <Button
-            type="text"
-            icon={
-              sidebarCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />
-            }
-            onClick={() => dispatch(toggleSidebar())}
-            className="text-lg"
-          />
-          <span className="ml-4 text-lg font-medium">智能文档问答系统</span>
-        </Header>
-        {children}
-      </Layout>
+      <Layout>{children}</Layout>
     </Layout>
   );
 };
