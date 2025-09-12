@@ -113,8 +113,8 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 在 `.env` 文件中配置：
 
 ```env
-DEEPSEEK_API_KEY=your_api_key
-DEEPSEEK_MODEL=deepseek-chat
+LLM_API_KEY=your_api_key
+LLM_MODEL=deepseek-chat
 DEEPSEEK_EMBEDDING_MODEL=deepseek-embed
 ```
 

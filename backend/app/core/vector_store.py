@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Tuple
 import chromadb
 from chromadb.config import Settings as ChromaSettings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.embeddings import DashScopeEmbeddings
 from loguru import logger
 
 from app.core.config import settings
@@ -30,10 +30,9 @@ class VectorStore:
         """Initialize vector store and embeddings"""
         try:
             # Initialize embeddings (using local model for MVP)
-            self.embeddings = HuggingFaceEmbeddings(
-                model_name="BAAI/bge-base-zh-v1.5",
-                model_kwargs={"device": "cpu"},
-                encode_kwargs={"normalize_embeddings": True},
+            self.embeddings = DashScopeEmbeddings(
+                model=settings.EMBEDDING_MODEL,  # 或者使用 text-embedding-v2
+                dashscope_api_key=settings.EMBEDDING_API_KEY
             )
 
             # Initialize Chroma client
@@ -45,10 +44,12 @@ class VectorStore:
 
             # Get or create collection
             self.collection = self.client.get_or_create_collection(
-                name=settings.CHROMA_COLLECTION_NAME, metadata={"hnsw:space": "cosine"}
+                name=settings.CHROMA_COLLECTION_NAME, metadata={
+                    "hnsw:space": "cosine"}
             )
 
-            logger.info(f"Vector store initialized with {self.collection.count()} documents")
+            logger.info(
+                f"Vector store initialized with {self.collection.count()} documents")
 
         except Exception as e:
             logger.error(f"Failed to initialize vector store: {e}")
@@ -84,7 +85,8 @@ class VectorStore:
                 metadatas=metadatas,
             )
 
-            logger.info(f"Added document {document.name} with {len(chunks)} chunks")
+            logger.info(
+                f"Added document {document.name} with {len(chunks)} chunks")
             return ids
 
         except Exception as e:
@@ -135,7 +137,8 @@ class VectorStore:
 
             if results["ids"]:
                 self.collection.delete(ids=results["ids"])
-                logger.info(f"Deleted {len(results['ids'])} chunks for document {document_id}")
+                logger.info(
+                    f"Deleted {len(results['ids'])} chunks for document {document_id}")
 
         except Exception as e:
             logger.error(f"Failed to delete document: {e}")

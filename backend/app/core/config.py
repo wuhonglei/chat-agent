@@ -17,7 +17,8 @@ class Settings(BaseSettings):
     PORT: int = 8000
 
     # CORS
-    CORS_ORIGINS: Union[List[str], str] = ["http://localhost:3000", "http://localhost:5173"]
+    CORS_ORIGINS: Union[List[str], str] = [
+        "http://localhost:3000", "http://localhost:5173"]
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
@@ -28,11 +29,15 @@ class Settings(BaseSettings):
             return [origin.strip() for origin in v.split(",")]
         return v
 
-    # DeepSeek API
-    DEEPSEEK_API_KEY: str
-    DEEPSEEK_API_BASE: str = "https://api.deepseek.com/v1"
-    DEEPSEEK_MODEL: str = "deepseek-chat"
-    DEEPSEEK_EMBEDDING_MODEL: str = "deepseek-embed"
+    # LLM Model API
+    LLM_API_KEY: str
+    LLM_API_BASE: str = "https://api.deepseek.com/v1"
+    LLM_MODEL: str = "deepseek-chat"
+
+    # Embedding Model API
+    EMBEDDING_API_KEY: str
+    EMBEDDING_API_BASE: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    EMBEDDING_MODEL: str = "text-embedding-v4"
 
     # Chroma
     CHROMA_HOST: str = "localhost"

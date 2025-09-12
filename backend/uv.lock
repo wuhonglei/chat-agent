@@ -21,6 +21,7 @@ dependencies = [
     { name = "chardet" },
     { name = "chromadb" },
     { name = "cryptography" },
+    { name = "dashscope" },
     { name = "fastapi" },
     { name = "google-api-python-client" },
     { name = "google-auth-httplib2" },
@@ -76,6 +77,7 @@ requires-dist = [
     { name = "chardet", specifier = ">=5.2.0" },
     { name = "chromadb", specifier = ">=0.4.22" },
     { name = "cryptography", specifier = ">=41.0.0" },
+    { name = "dashscope", specifier = ">=1.24.4" },
     { name = "fastapi", specifier = ">=0.109.0" },
     { name = "google-api-python-client", specifier = ">=2.100.0" },
     { name = "google-auth-httplib2", specifier = ">=0.2.0" },
@@ -833,6 +835,21 @@ wheels = [
     { url = "https://mirrors.aliyun.com/pypi/packages/1c/c5/8c59d6b7c7b439ba4fc8d0cab868027fd095f215031bc123c3a070962912/cryptography-45.0.7-pp311-pypy311_pp73-manylinux_2_34_aarch64.whl", hash = "sha256:2f641b64acc00811da98df63df7d59fd4706c0df449da71cb7ac39a0732b40ae" },
     { url = "https://mirrors.aliyun.com/pypi/packages/55/32/05385c86d6ca9ab0b4d5bb442d2e3d85e727939a11f3e163fc776ce5eb40/cryptography-45.0.7-pp311-pypy311_pp73-manylinux_2_34_x86_64.whl", hash = "sha256:f5414a788ecc6ee6bc58560e85ca624258a55ca434884445440a810796ea0e0b" },
     { url = "https://mirrors.aliyun.com/pypi/packages/23/87/7ce86f3fa14bc11a5a48c30d8103c26e09b6465f8d8e9d74cf7a0714f043/cryptography-45.0.7-pp311-pypy311_pp73-win_amd64.whl", hash = "sha256:1f3d56f73595376f4244646dd5c5870c14c196949807be39e79e7bd9bac3da63" },
+]
+
+[[package]]
+name = "dashscope"
+version = "1.24.4"
+source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }
+dependencies = [
+    { name = "aiohttp" },
+    { name = "certifi" },
+    { name = "cryptography" },
+    { name = "requests" },
+    { name = "websocket-client" },
+]
+wheels = [
+    { url = "https://mirrors.aliyun.com/pypi/packages/8f/bc/b8d6ada59f40d7bca184b4dc4d9489c00b20bae937503ed6c5ddb7e7c95b/dashscope-1.24.4-py3-none-any.whl", hash = "sha256:e4a8f39784784bc329c38f847dd1e20cdc8f28620ed620403c06d3009371ec1a" },
 ]
 
 [[package]]

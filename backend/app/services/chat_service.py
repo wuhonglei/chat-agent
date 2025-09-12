@@ -19,8 +19,8 @@ class ChatService:
     def __init__(self, vector_store: VectorStore):
         self.vector_store = vector_store
         self.client = AsyncOpenAI(
-            api_key=settings.DEEPSEEK_API_KEY,
-            base_url=settings.DEEPSEEK_API_BASE,
+            api_key=settings.LLM_API_KEY,
+            base_url=settings.LLM_API_BASE,
         )
         self.reranker = Reranker()
 
@@ -63,7 +63,7 @@ class ChatService:
 
             # Get response from LLM
             response = await self.client.chat.completions.create(
-                model=settings.DEEPSEEK_MODEL,
+                model=settings.LLM_MODEL,
                 messages=prompt,
                 temperature=0.7,
                 max_tokens=2000,
@@ -121,7 +121,7 @@ class ChatService:
 
             # Stream response from LLM
             stream = await self.client.chat.completions.create(
-                model=settings.DEEPSEEK_MODEL,
+                model=settings.LLM_MODEL,
                 messages=prompt,
                 temperature=0.7,
                 max_tokens=2000,
