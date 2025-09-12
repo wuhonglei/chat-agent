@@ -68,6 +68,7 @@ cp .env.example .env
 ```
 
 配置项：
+
 - `VITE_API_BASE_URL`: 后端 API 地址
 
 ### 安装依赖
@@ -118,6 +119,7 @@ docker run -d \
 ### 手动部署
 
 1. 构建生产版本：
+
 ```bash
 npm run build
 ```

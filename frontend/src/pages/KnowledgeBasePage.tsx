@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react'
-import { Card, Statistic, Button, Row, Col, message, Spin } from 'antd'
+import React, { useEffect, useState } from "react";
+import { Card, Statistic, Button, Row, Col, message, Spin } from "antd";
 import {
   DatabaseOutlined,
   FileTextOutlined,
@@ -7,63 +7,63 @@ import {
   ShareAltOutlined,
   ExportOutlined,
   ReloadOutlined,
-} from '@ant-design/icons'
-import { knowledgeBaseAPI } from '../services/api'
-import { KnowledgeBaseStats } from '../types'
+} from "@ant-design/icons";
+import { knowledgeBaseAPI } from "../services/api";
+import { KnowledgeBaseStats } from "../types";
 
 const KnowledgeBasePage: React.FC = () => {
-  const [stats, setStats] = useState<KnowledgeBaseStats | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [exporting, setExporting] = useState(false)
+  const [stats, setStats] = useState<KnowledgeBaseStats | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const fetchStats = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const response = await knowledgeBaseAPI.getStats()
-      setStats(response.data)
+      const response = await knowledgeBaseAPI.getStats();
+      setStats(response.data);
     } catch (error) {
-      message.error('获取统计信息失败')
+      message.error("获取统计信息失败");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchStats()
-  }, [])
+    fetchStats();
+  }, []);
 
   const handleExport = async () => {
-    setExporting(true)
+    setExporting(true);
     try {
-      const response = await knowledgeBaseAPI.exportKnowledgeBase()
-      
+      const response = await knowledgeBaseAPI.exportKnowledgeBase();
+
       // Create download link
-      const url = window.URL.createObjectURL(new Blob([response.data]))
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `knowledge_base_${Date.now()}.zip`)
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      
-      message.success('知识库导出成功')
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `knowledge_base_${Date.now()}.zip`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      message.success("知识库导出成功");
     } catch (error: any) {
-      message.error('导出失败: ' + error.message)
+      message.error("导出失败: " + error.message);
     } finally {
-      setExporting(false)
+      setExporting(false);
     }
-  }
+  };
 
   const handleShare = async () => {
-    message.info('分享功能开发中...')
-  }
+    message.info("分享功能开发中...");
+  };
 
   if (loading && !stats) {
     return (
       <div className="flex justify-center items-center h-96">
         <Spin size="large" />
       </div>
-    )
+    );
   }
 
   return (
@@ -107,7 +107,7 @@ const KnowledgeBasePage: React.FC = () => {
               <Statistic
                 title="本地文档"
                 value={stats?.sources?.local || 0}
-                valueStyle={{ color: '#3f8600' }}
+                valueStyle={{ color: "#3f8600" }}
                 suffix="篇"
               />
             </Card>
@@ -121,7 +121,7 @@ const KnowledgeBasePage: React.FC = () => {
                   (stats?.sources?.google_docs || 0) +
                   (stats?.sources?.google_slides || 0)
                 }
-                valueStyle={{ color: '#1890ff' }}
+                valueStyle={{ color: "#1890ff" }}
                 suffix="篇"
               />
             </Card>
@@ -137,7 +137,7 @@ const KnowledgeBasePage: React.FC = () => {
                 className="text-center cursor-pointer"
                 onClick={handleExport}
               >
-                <ExportOutlined style={{ fontSize: 32, color: '#1890ff' }} />
+                <ExportOutlined style={{ fontSize: 32, color: "#1890ff" }} />
                 <div className="mt-2">
                   <h3 className="font-medium">导出知识库</h3>
                   <p className="text-gray-500 text-sm mt-1">
@@ -151,9 +151,11 @@ const KnowledgeBasePage: React.FC = () => {
               <Card
                 hoverable
                 className="text-center cursor-pointer opacity-50"
-                style={{ cursor: 'not-allowed' }}
+                style={{ cursor: "not-allowed" }}
               >
-                <CloudDownloadOutlined style={{ fontSize: 32, color: '#52c41a' }} />
+                <CloudDownloadOutlined
+                  style={{ fontSize: 32, color: "#52c41a" }}
+                />
                 <div className="mt-2">
                   <h3 className="font-medium">导入知识库</h3>
                   <p className="text-gray-500 text-sm mt-1">
@@ -168,7 +170,7 @@ const KnowledgeBasePage: React.FC = () => {
                 className="text-center cursor-pointer"
                 onClick={handleShare}
               >
-                <ShareAltOutlined style={{ fontSize: 32, color: '#fa8c16' }} />
+                <ShareAltOutlined style={{ fontSize: 32, color: "#fa8c16" }} />
                 <div className="mt-2">
                   <h3 className="font-medium">分享知识库</h3>
                   <p className="text-gray-500 text-sm mt-1">
@@ -221,7 +223,7 @@ const KnowledgeBasePage: React.FC = () => {
         )}
       </Card>
     </div>
-  )
-}
+  );
+};
 
-export default KnowledgeBasePage
+export default KnowledgeBasePage;

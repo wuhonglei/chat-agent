@@ -1,12 +1,12 @@
-import React from 'react'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import { Layout } from 'antd'
-import MainLayout from './components/Layout/MainLayout'
-import ChatPage from './pages/ChatPage'
-import DocumentsPage from './pages/DocumentsPage'
-import KnowledgeBasePage from './pages/KnowledgeBasePage'
+import React from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { Layout } from "antd";
+import MainLayout from "./components/Layout/MainLayout";
+import ChatPage from "./pages/ChatPage";
+import DocumentsPage from "./pages/DocumentsPage";
+import KnowledgeBasePage from "./pages/KnowledgeBasePage";
 
-const { Content } = Layout
+const { Content } = Layout;
 
 const App: React.FC = () => {
   return (
@@ -22,7 +22,7 @@ const App: React.FC = () => {
         </Content>
       </MainLayout>
     </Router>
-  )
-}
+  );
+};
 
-export default App
+export default App;

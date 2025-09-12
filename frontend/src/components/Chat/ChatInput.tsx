@@ -1,32 +1,36 @@
-import React, { useState } from 'react'
-import { Input, Button, Switch, Space } from 'antd'
-import { SendOutlined, LoadingOutlined } from '@ant-design/icons'
+import React, { useState } from "react";
+import { Input, Button, Switch, Space } from "antd";
+import { SendOutlined, LoadingOutlined } from "@ant-design/icons";
 
-const { TextArea } = Input
+const { TextArea } = Input;
 
 interface ChatInputProps {
-  onSend: (message: string, useKnowledgeBase: boolean) => void
-  isLoading: boolean
-  isStreaming: boolean
+  onSend: (message: string, useKnowledgeBase: boolean) => void;
+  isLoading: boolean;
+  isStreaming: boolean;
 }
 
-const ChatInput: React.FC<ChatInputProps> = ({ onSend, isLoading, isStreaming }) => {
-  const [message, setMessage] = useState('')
-  const [useKnowledgeBase, setUseKnowledgeBase] = useState(true)
+const ChatInput: React.FC<ChatInputProps> = ({
+  onSend,
+  isLoading,
+  isStreaming,
+}) => {
+  const [message, setMessage] = useState("");
+  const [useKnowledgeBase, setUseKnowledgeBase] = useState(true);
 
   const handleSend = () => {
     if (message.trim() && !isLoading && !isStreaming) {
-      onSend(message, useKnowledgeBase)
-      setMessage('')
+      onSend(message, useKnowledgeBase);
+      setMessage("");
     }
-  }
+  };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSend()
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
     }
-  }
+  };
 
   return (
     <div className="p-4 bg-white border-t">
@@ -52,7 +56,9 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, isLoading, isStreaming })
         />
         <Button
           type="primary"
-          icon={isLoading || isStreaming ? <LoadingOutlined /> : <SendOutlined />}
+          icon={
+            isLoading || isStreaming ? <LoadingOutlined /> : <SendOutlined />
+          }
           onClick={handleSend}
           disabled={!message.trim() || isLoading || isStreaming}
           className="self-end"
@@ -61,7 +67,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, isLoading, isStreaming })
         </Button>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default ChatInput
+export default ChatInput;

@@ -1,14 +1,14 @@
-import React from 'react'
-import { Card, Tag, Tooltip } from 'antd'
-import { FileTextOutlined, LinkOutlined } from '@ant-design/icons'
-import { SearchSource } from '../../types'
+import React from "react";
+import { Card, Tag, Tooltip } from "antd";
+import { FileTextOutlined, LinkOutlined } from "@ant-design/icons";
+import { SearchSource } from "../../types";
 
 interface SourceCardProps {
-  sources: SearchSource[]
+  sources: SearchSource[];
 }
 
 const SourceCard: React.FC<SourceCardProps> = ({ sources }) => {
-  if (!sources || sources.length === 0) return null
+  if (!sources || sources.length === 0) return null;
 
   return (
     <div className="mt-4">
@@ -19,7 +19,7 @@ const SourceCard: React.FC<SourceCardProps> = ({ sources }) => {
             key={index}
             size="small"
             className="hover:shadow-md transition-shadow cursor-pointer"
-            bodyStyle={{ padding: '8px 12px' }}
+            styles={{ body: { padding: "8px 12px" } }}
           >
             <div className="flex items-start gap-2">
               <FileTextOutlined className="text-blue-500 mt-1" />
@@ -46,7 +46,7 @@ const SourceCard: React.FC<SourceCardProps> = ({ sources }) => {
         ))}
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default SourceCard
+export default SourceCard;

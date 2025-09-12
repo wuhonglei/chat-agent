@@ -1,34 +1,37 @@
-import React, { useState } from 'react'
-import { Card, Tabs, Button, Modal, Input, Select, Form, message } from 'antd'
-import { CloudUploadOutlined } from '@ant-design/icons'
-import DocumentUpload from '../components/Document/DocumentUpload'
-import DocumentList from '../components/Document/DocumentList'
-import { useAppDispatch } from '../store/hooks'
-import { importFromUrl } from '../store/slices/documentSlice'
-import { DocumentSource } from '../types'
+import React, { useState } from "react";
+import { Card, Tabs, Button, Modal, Input, Select, Form, message } from "antd";
+import { CloudUploadOutlined } from "@ant-design/icons";
+import DocumentUpload from "../components/Document/DocumentUpload";
+import DocumentList from "../components/Document/DocumentList";
+import { useAppDispatch } from "../store/hooks";
+import { importFromUrl } from "../store/slices/documentSlice";
+import { DocumentSource } from "../types";
 
-const { TabPane } = Tabs
-const { Option } = Select
+const { TabPane } = Tabs;
+const { Option } = Select;
 
 const DocumentsPage: React.FC = () => {
-  const dispatch = useAppDispatch()
-  const [importModalVisible, setImportModalVisible] = useState(false)
-  const [importLoading, setImportLoading] = useState(false)
-  const [form] = Form.useForm()
+  const dispatch = useAppDispatch();
+  const [importModalVisible, setImportModalVisible] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
+  const [form] = Form.useForm();
 
-  const handleImportFromUrl = async (values: { url: string; source: DocumentSource }) => {
-    setImportLoading(true)
+  const handleImportFromUrl = async (values: {
+    url: string;
+    source: DocumentSource;
+  }) => {
+    setImportLoading(true);
     try {
-      await dispatch(importFromUrl(values)).unwrap()
-      message.success('文档导入成功')
-      setImportModalVisible(false)
-      form.resetFields()
+      await dispatch(importFromUrl(values)).unwrap();
+      message.success("文档导入成功");
+      setImportModalVisible(false);
+      form.resetFields();
     } catch (error: any) {
-      message.error('导入失败: ' + error.message)
+      message.error("导入失败: " + error.message);
     } finally {
-      setImportLoading(false)
+      setImportLoading(false);
     }
-  }
+  };
 
   return (
     <div className="p-4">
@@ -61,20 +64,18 @@ const DocumentsPage: React.FC = () => {
         onCancel={() => setImportModalVisible(false)}
         footer={null}
       >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleImportFromUrl}
-        >
+        <Form form={form} layout="vertical" onFinish={handleImportFromUrl}>
           <Form.Item
             name="source"
             label="文档来源"
-            rules={[{ required: true, message: '请选择文档来源' }]}
+            rules={[{ required: true, message: "请选择文档来源" }]}
           >
             <Select placeholder="选择文档来源">
               <Option value={DocumentSource.CONFLUENCE}>Confluence</Option>
               <Option value={DocumentSource.GOOGLE_DOCS}>Google Docs</Option>
-              <Option value={DocumentSource.GOOGLE_SLIDES}>Google Slides</Option>
+              <Option value={DocumentSource.GOOGLE_SLIDES}>
+                Google Slides
+              </Option>
             </Select>
           </Form.Item>
 
@@ -82,8 +83,8 @@ const DocumentsPage: React.FC = () => {
             name="url"
             label="文档链接"
             rules={[
-              { required: true, message: '请输入文档链接' },
-              { type: 'url', message: '请输入有效的URL' },
+              { required: true, message: "请输入文档链接" },
+              { type: "url", message: "请输入有效的URL" },
             ]}
           >
             <Input placeholder="https://..." />
@@ -102,7 +103,7 @@ const DocumentsPage: React.FC = () => {
         </Form>
       </Modal>
     </div>
-  )
-}
+  );
+};
 
-export default DocumentsPage
+export default DocumentsPage;

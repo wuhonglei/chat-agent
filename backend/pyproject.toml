@@ -11,16 +11,13 @@ dependencies = [
     "python-multipart>=0.0.6",
     "pydantic>=2.5.0",
     "pydantic-settings>=2.1.0",
-    
     # RAG & Vector Database
     "langchain>=0.1.0",
     "langchain-community>=0.1.0",
     "chromadb>=0.4.22",
-    
     # DeepSeek Integration
-    "openai>=1.10.0",  # DeepSeek uses OpenAI-compatible API
+    "openai>=1.10.0", # DeepSeek uses OpenAI-compatible API
     "tiktoken>=0.5.2",
-    
     # Document Processing
     "pypdf>=4.0.0",
     "python-docx>=1.1.0",
@@ -28,37 +25,30 @@ dependencies = [
     "beautifulsoup4>=4.12.0",
     "chardet>=5.2.0",
     "unstructured>=0.11.0",
-    
     # External Document Integration
-    "atlassian-python-api>=3.41.0",  # Confluence
+    "atlassian-python-api>=3.41.0", # Confluence
     "google-api-python-client>=2.100.0",
     "google-auth-httplib2>=0.2.0",
     "google-auth-oauthlib>=1.2.0",
-    
     # Search & Retrieval Enhancement
-    "rank-bm25>=0.2.2",  # BM25 keyword search
-    "sentence-transformers>=2.2.0",  # For reranking
-    
+    "rank-bm25>=0.2.2", # BM25 keyword search
+    "sentence-transformers>=2.2.0", # For reranking
     # Storage & Cache
     "redis>=5.0.0",
     "aiofiles>=23.2.0",
     "python-dotenv>=1.0.0",
-    
     # HTTP & Async
     "httpx>=0.25.0",
     "aiohttp>=3.9.0",
     "tenacity>=8.2.0",
-    
     # Utils
     "tqdm>=4.66.0",
     "python-dateutil>=2.8.0",
     "pytz>=2023.3",
-    
     # Security
     "python-jose[cryptography]>=3.3.0",
     "passlib[bcrypt]>=1.7.4",
     "cryptography>=41.0.0",
-    
     # Monitoring & Logging
     "loguru>=0.7.0",
     "prometheus-client>=0.19.0",
@@ -79,6 +69,9 @@ dev = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
 
 [tool.uv]
 index-url = "https://mirrors.aliyun.com/pypi/simple/"
