@@ -50,7 +50,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           onChange={(e) => setMessage(e.target.value)}
           onKeyPress={handleKeyPress}
           placeholder="输入您的问题..."
-          autoSize={{ minRows: 1, maxRows: 4 }}
+          autoSize={{ minRows: 2, maxRows: 4 }}
           disabled={isLoading || isStreaming}
           className="flex-1"
         />

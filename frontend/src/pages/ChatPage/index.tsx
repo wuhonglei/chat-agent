@@ -98,9 +98,9 @@ const ChatPage: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
+    <div className="flex flex-col h-full bg-white">
       {/* Chat area */}
-      <div className="h-full flex-1 flex flex-col">
+      <div className="lg:w-3/4 xl:w-2/4 mx-auto h-full flex-1 flex flex-col">
         <Card
           className="m-4 mb-0 flex-1 overflow-hidden flex flex-col"
           style={{ border: "none" }}
