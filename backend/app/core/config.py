@@ -1,6 +1,6 @@
 """Application configuration"""
 
-from typing import List
+from typing import List, Union
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
@@ -17,11 +17,13 @@ class Settings(BaseSettings):
     PORT: int = 8000
 
     # CORS
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173"]
+    CORS_ORIGINS: Union[List[str], str] = ["http://localhost:3000", "http://localhost:5173"]
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def parse_cors_origins(cls, v):
+        if v is None or v == "":
+            return ["http://localhost:3000", "http://localhost:5173"]
         if isinstance(v, str):
             return [origin.strip() for origin in v.split(",")]
         return v
@@ -40,13 +42,15 @@ class Settings(BaseSettings):
 
     # Document Processing
     MAX_FILE_SIZE_MB: int = 50
-    ALLOWED_EXTENSIONS: List[str] = ["pdf", "docx", "txt", "md"]
+    ALLOWED_EXTENSIONS: Union[List[str], str] = ["pdf", "docx", "txt", "md"]
     CHUNK_SIZE: int = 1000
     CHUNK_OVERLAP: int = 200
 
     @field_validator("ALLOWED_EXTENSIONS", mode="before")
     @classmethod
     def parse_allowed_extensions(cls, v):
+        if v is None or v == "":
+            return ["pdf", "docx", "txt", "md"]
         if isinstance(v, str):
             return [ext.strip() for ext in v.split(",")]
         return v
@@ -90,6 +94,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
+        env_ignore_empty = True
 
 
 settings = Settings()
