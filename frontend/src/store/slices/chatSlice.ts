@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
 import { chatAPI } from '../../services/api'
-import { ChatMessage, ChatResponse, SearchSource } from '../../types'
+import { ChatMessage, SearchSource } from '../../types'
 
 interface ChatState {
   messages: ChatMessage[]

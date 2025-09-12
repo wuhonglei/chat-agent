@@ -1,26 +1,4 @@
-@import 'tailwindcss/base';
-@import 'tailwindcss/components';
-@import 'tailwindcss/utilities';
-
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #555;
-}
+@import "tailwindcss";
 
 /* Ant Design overrides */
 .ant-layout-sider {
@@ -96,42 +74,42 @@
 }
 
 .typing-cursor::after {
-  content: '|';
+  content: "|";
   animation: typing-cursor 1s infinite;
   color: #1890ff;
   font-weight: bold;
 }
 
-/* Line clamp utility */
+/* Line clamp utility - Using modern CSS */
 .line-clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
   overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  max-height: 3.2em; /* Approximately 2 lines */
 }
 
 .line-clamp-3 {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
   overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  max-height: 4.8em; /* Approximately 3 lines */
 }
 
 /* Loading dots animation */
 @keyframes loading-dots {
   0% {
-    content: '.';
+    content: ".";
   }
   33% {
-    content: '..';
+    content: "..";
   }
   66% {
-    content: '...';
+    content: "...";
   }
 }
 
 .loading-dots::after {
-  content: '.';
+  content: ".";
   animation: loading-dots 1.5s infinite;
 }
 
