@@ -1,0 +1,12 @@
+.container {
+  container-type: inline-size;
+  container-name: container;
+}
+
+@container container (min-width: 784px) {
+  .child-container {
+    --padding-horizontal: calc((100cqw - 768px) / 2);
+    padding-left: var(--padding-horizontal);
+    padding-right: var(--padding-horizontal);
+  }
+}

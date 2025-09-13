@@ -1,5 +1,4 @@
-import { LoadingOutlined, SendOutlined } from "@ant-design/icons";
-import { Button, Input, Space, Switch } from "antd";
+import { Input, Space, Switch } from "antd";
 import classNames from "classnames";
 import React, { useState } from "react";
 
@@ -59,17 +58,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
           disabled={isLoading || isStreaming}
           className="flex-1"
         />
-        <Button
-          type="primary"
-          icon={
-            isLoading || isStreaming ? <LoadingOutlined /> : <SendOutlined />
-          }
-          onClick={handleSend}
-          disabled={!message.trim() || isLoading || isStreaming}
-          className="self-end"
-        >
-          发送
-        </Button>
       </div>
     </div>
   );

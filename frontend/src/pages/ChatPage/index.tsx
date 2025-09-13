@@ -12,7 +12,7 @@ import { ChatMessage as ChatMessageType, StreamMessage } from "@/types";
 import { Card, Empty, Spin } from "antd";
 import classNames from "classnames";
 import React, { useEffect, useRef, useState } from "react";
-import { usePaddingHorizontal } from "./hooks";
+import styles from "./index.module.css";
 
 const ChatPage: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -21,7 +21,6 @@ const ChatPage: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [streamController, setStreamController] =
     useState<AbortController | null>(null);
-  const paddingHorizontal = usePaddingHorizontal(messagesEndRef.current);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -100,7 +99,7 @@ const ChatPage: React.FC = () => {
       <Card
         className="m-4 mb-0 flex-1 overflow-hidden flex flex-col"
         classNames={{
-          body: classNames("flex flex-col h-full"),
+          body: classNames("flex flex-col h-full", styles.container),
         }}
         style={{
           border: "none",
@@ -108,11 +107,10 @@ const ChatPage: React.FC = () => {
       >
         {/* Messages */}
         <div
-          className="flex-1 overflow-y-auto px-2"
-          style={{
-            paddingLeft: `${paddingHorizontal}px`,
-            paddingRight: `${paddingHorizontal}px`,
-          }}
+          className={classNames(
+            "flex-1 overflow-y-auto px-2",
+            styles["child-container"]
+          )}
         >
           {!hasMessage ? (
             <Empty description="开始提问吧" className="mt-20" />
@@ -141,13 +139,10 @@ const ChatPage: React.FC = () => {
 
         {/* Input */}
         <ChatInput
-          onSend={handleSendMessage}
           isLoading={isLoading}
           isStreaming={isStreaming}
-          style={{
-            paddingLeft: `${paddingHorizontal}px`,
-            paddingRight: `${paddingHorizontal}px`,
-          }}
+          onSend={handleSendMessage}
+          className={styles["child-container"]}
         />
       </Card>
       {/* Sources panel */}
