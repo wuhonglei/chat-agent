@@ -67,8 +67,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           items={menuItems}
           onClick={handleMenuClick}
           selectedKeys={[location.pathname]}
-          style={{ backgroundColor: "transparent", width: collapsedWidth }}
-          className={classNames("border-r-0", styles["menu-item"])}
+          className={classNames(styles["menu-item"])}
+          style={{
+            backgroundColor: "transparent",
+            width: collapsedWidth,
+            border: "none",
+          }}
         />
       </Sider>
       <Layout>{children}</Layout>

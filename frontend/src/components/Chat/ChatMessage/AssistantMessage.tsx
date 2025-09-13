@@ -1,28 +1,25 @@
-import { RobotOutlined, UserOutlined } from "@ant-design/icons";
-import { Avatar, Card } from "antd";
-import dayjs from "dayjs";
+import laughingImgUrl from "@/assets/imgs/laughing.webp";
+import { ChatMessage as ChatMessageType } from "@/types";
 import React, { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import remarkGfm from "remark-gfm";
-import { ChatMessage as ChatMessageType } from "../../types";
-
-interface ChatMessageProps {
+import styles from "./assistantMessage.module.css";
+interface AssistantMessageProps {
   message: ChatMessageType;
   isStreaming?: boolean;
 }
 
-const ChatMessage: React.FC<ChatMessageProps> = ({
+const AssistantMessage: React.FC<AssistantMessageProps> = ({
   message,
   isStreaming = false,
 }) => {
   const [displayContent, setDisplayContent] = useState("");
-  const isUser = message.role === "user";
 
   // Typing effect
   useEffect(() => {
-    if (!isUser && isStreaming && message.content) {
+    if (isStreaming && message.content) {
       let index = 0;
       const timer = setInterval(() => {
         if (index <= message.content.length) {
@@ -36,7 +33,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     } else {
       setDisplayContent(message.content);
     }
-  }, [message.content, isStreaming, isUser]);
+  }, [message.content, isStreaming]);
 
   const components = {
     code({ node, inline, className, children, ...props }: any) {
@@ -62,36 +59,23 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   };
 
   return (
-    <div className={`flex gap-3 mb-4 ${isUser ? "flex-row-reverse" : ""}`}>
-      <Avatar
-        icon={isUser ? <UserOutlined /> : <RobotOutlined />}
-        className={`${isUser ? "bg-blue-500" : "bg-green-500"}`}
+    <div className="flex flex-col gap-3 mb-4">
+      <img
+        src={laughingImgUrl}
+        alt="assistant"
+        width={24}
+        height={24}
+        className="rounded-full"
       />
-      <Card
-        className={`max-w-[70%] ${
-          isUser ? "bg-blue-50" : "bg-gray-50"
-        } animate-slide-up`}
-        styles={{ body: { padding: "12px 16px" } }}
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={components}
+        className={styles["markdown-body"]}
       >
-        <div className="prose prose-sm max-w-none">
-          {isUser ? (
-            <p className="mb-0">{displayContent}</p>
-          ) : (
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              components={components}
-              className="markdown-body"
-            >
-              {displayContent}
-            </ReactMarkdown>
-          )}
-        </div>
-        <div className="text-xs text-gray-400 mt-2">
-          {dayjs(message.timestamp).format("HH:mm:ss")}
-        </div>
-      </Card>
+        {displayContent}
+      </ReactMarkdown>
     </div>
   );
 };
 
-export default ChatMessage;
+export default AssistantMessage;

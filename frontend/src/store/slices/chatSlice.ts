@@ -1,23 +1,23 @@
+import { chatAPI } from "@/services/api";
+import { ChatMessage, SearchSource } from "@/types";
 import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { chatAPI } from "../../services/api";
-import { ChatMessage, SearchSource } from "../../types";
 
 interface ChatState {
   messages: ChatMessage[];
+  hasMessage: boolean;
   sessionId: string | null;
   isLoading: boolean;
   isStreaming: boolean;
   error: string | null;
-  sources: SearchSource[];
 }
 
 const initialState: ChatState = {
   messages: [],
+  hasMessage: false,
   sessionId: null,
   isLoading: false,
   isStreaming: false,
   error: null,
-  sources: [],
 };
 
 // Async thunks
@@ -38,7 +38,7 @@ export const sendMessage = createAsyncThunk(
       use_knowledge_base: useKnowledgeBase,
     });
     return response.data;
-  },
+  }
 );
 
 const chatSlice = createSlice({
@@ -47,10 +47,11 @@ const chatSlice = createSlice({
   reducers: {
     addMessage: (state, action: PayloadAction<ChatMessage>) => {
       state.messages.push(action.payload);
+      state.hasMessage = true;
     },
-    clearMessages: (state) => {
+    clearMessages: state => {
       state.messages = [];
-      state.sources = [];
+      state.hasMessage = false;
     },
     setSessionId: (state, action: PayloadAction<string>) => {
       state.sessionId = action.payload;
@@ -59,7 +60,7 @@ const chatSlice = createSlice({
       state.isStreaming = action.payload;
     },
     setSources: (state, action: PayloadAction<SearchSource[]>) => {
-      state.sources = action.payload;
+      state.messages[state.messages.length - 1].sources = action.payload;
     },
     appendToLastMessage: (state, action: PayloadAction<string>) => {
       if (state.messages.length > 0) {
@@ -69,29 +70,32 @@ const chatSlice = createSlice({
         }
       }
     },
-    clearError: (state) => {
+    clearError: state => {
       state.error = null;
     },
   },
-  extraReducers: (builder) => {
+  extraReducers: builder => {
     builder
-      .addCase(sendMessage.pending, (state) => {
+      .addCase(sendMessage.pending, state => {
         state.isLoading = true;
         state.error = null;
+        console.info("sendMessage.pending");
       })
       .addCase(sendMessage.fulfilled, (state, action) => {
         state.isLoading = false;
         state.messages.push({
           role: "assistant",
           content: action.payload.message,
+          sources: action.payload.sources || [],
           timestamp: action.payload.timestamp,
         });
-        state.sources = action.payload.sources || [];
         state.sessionId = action.payload.session_id;
+        console.info("sendMessage.fulfilled");
       })
       .addCase(sendMessage.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.error.message || "Failed to send message";
+        console.info("sendMessage.rejected");
       });
   },
 });

@@ -1,5 +1,5 @@
+import { Notification } from "@/types";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { Notification } from "../../types";
 
 interface UIState {
   theme: "light" | "dark";
@@ -19,10 +19,10 @@ const uiSlice = createSlice({
   name: "ui",
   initialState,
   reducers: {
-    toggleTheme: (state) => {
+    toggleTheme: state => {
       state.theme = state.theme === "light" ? "dark" : "light";
     },
-    toggleSidebar: (state) => {
+    toggleSidebar: state => {
       state.sidebarCollapsed = !state.sidebarCollapsed;
     },
     setActiveMenu: (state, action: PayloadAction<string>) => {
@@ -30,7 +30,7 @@ const uiSlice = createSlice({
     },
     addNotification: (
       state,
-      action: PayloadAction<Omit<Notification, "id">>,
+      action: PayloadAction<Omit<Notification, "id">>
     ) => {
       state.notifications.push({
         id: Date.now(),
@@ -39,7 +39,7 @@ const uiSlice = createSlice({
     },
     removeNotification: (state, action: PayloadAction<string | number>) => {
       state.notifications = state.notifications.filter(
-        (n) => n.id !== action.payload,
+        n => n.id !== action.payload
       );
     },
   },

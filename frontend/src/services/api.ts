@@ -29,9 +29,9 @@ apiClient.interceptors.request.use(
     // Add token or other auth headers here if needed
     return config;
   },
-  (error) => {
+  error => {
     return Promise.reject(error);
-  },
+  }
 );
 
 // Response interceptor
@@ -39,7 +39,7 @@ apiClient.interceptors.response.use(
   (response: AxiosResponse) => {
     return response;
   },
-  (error) => {
+  error => {
     if (error.response) {
       console.error("API Error:", error.response.data);
     } else if (error.request) {
@@ -48,14 +48,14 @@ apiClient.interceptors.response.use(
       console.error("Error:", error.message);
     }
     return Promise.reject(error);
-  },
+  }
 );
 
 // Chat API
 export const chatAPI = {
   // Send message
   sendMessage: async (
-    data: ChatRequest,
+    data: ChatRequest
   ): Promise<AxiosResponse<ChatResponse>> => {
     return await apiClient.post("/api/chat", data);
   },
@@ -65,7 +65,7 @@ export const chatAPI = {
     data: ChatRequest,
     onMessage: (message: StreamMessage) => void,
     onError: (error: Error) => void,
-    onClose: () => void,
+    onClose: () => void
   ): Promise<AbortController> => {
     const ctrl = new AbortController();
 
@@ -100,7 +100,7 @@ export const chatAPI = {
 
   // Get session history
   getSession: async (
-    sessionId: string,
+    sessionId: string
   ): Promise<AxiosResponse<ChatSession>> => {
     return await apiClient.get(`/api/chat/sessions/${sessionId}`);
   },
@@ -121,7 +121,7 @@ export const documentAPI = {
   // Upload document
   uploadDocument: async (
     formData: FormData,
-    onUploadProgress?: (progressEvent: any) => void,
+    onUploadProgress?: (progressEvent: any) => void
   ): Promise<AxiosResponse<Document>> => {
     return await apiClient.post("/api/documents/upload", formData, {
       headers: {
@@ -134,7 +134,7 @@ export const documentAPI = {
   // Import from URL
   importFromUrl: async (
     url: string,
-    source: DocumentSource,
+    source: DocumentSource
   ): Promise<AxiosResponse<Document>> => {
     return await apiClient.post("/api/documents/import-url", null, {
       params: { url, source },

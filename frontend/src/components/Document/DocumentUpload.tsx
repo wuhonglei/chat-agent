@@ -10,7 +10,7 @@ const { Dragger } = Upload;
 const DocumentUpload: React.FC = () => {
   const dispatch = useAppDispatch();
   const { isUploading, uploadProgress } = useAppSelector(
-    (state) => state.document,
+    state => state.document
   );
 
   const handleUpload = useCallback(
@@ -38,7 +38,7 @@ const DocumentUpload: React.FC = () => {
 
       return false; // Prevent default upload
     },
-    [dispatch],
+    [dispatch]
   );
 
   const uploadProps: UploadProps = {

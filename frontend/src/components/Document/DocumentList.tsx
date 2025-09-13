@@ -24,7 +24,7 @@ import { Document, DocumentSource } from "../../types";
 
 const DocumentList: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { documents, isLoading } = useAppSelector((state) => state.document);
+  const { documents, isLoading } = useAppSelector(state => state.document);
 
   useEffect(() => {
     dispatch(fetchDocuments());
@@ -141,7 +141,7 @@ const DocumentList: React.FC = () => {
         pagination={{
           pageSize: 10,
           showSizeChanger: true,
-          showTotal: (total) => `共 ${total} 个文档`,
+          showTotal: total => `共 ${total} 个文档`,
         }}
       />
     </div>

@@ -1,27 +1,27 @@
 import ChatInput from "@/components/Chat/ChatInput";
 import ChatMessage from "@/components/Chat/ChatMessage";
-import SourceCard from "@/components/Chat/SourceCard";
 import { chatAPI } from "@/services/api";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   addMessage,
   appendToLastMessage,
-  clearMessages,
   setSources,
   setStreaming,
 } from "@/store/slices/chatSlice";
 import { ChatMessage as ChatMessageType, StreamMessage } from "@/types";
-import { ClearOutlined } from "@ant-design/icons";
-import { Button, Card, Empty, Spin } from "antd";
+import { Card, Empty, Spin } from "antd";
+import classNames from "classnames";
 import React, { useEffect, useRef, useState } from "react";
+import { usePaddingHorizontal } from "./hooks";
 
 const ChatPage: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { messages, isLoading, isStreaming, sources, sessionId } =
-    useAppSelector((state) => state.chat);
+  const { messages, hasMessage, isLoading, isStreaming, sessionId } =
+    useAppSelector(state => state.chat);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [streamController, setStreamController] =
     useState<AbortController | null>(null);
+  const paddingHorizontal = usePaddingHorizontal(messagesEndRef.current);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -33,7 +33,7 @@ const ChatPage: React.FC = () => {
 
   const handleSendMessage = async (
     message: string,
-    useKnowledgeBase: boolean,
+    useKnowledgeBase: boolean
   ) => {
     // Add user message
     const userMessage: ChatMessageType = {
@@ -64,23 +64,28 @@ const ChatPage: React.FC = () => {
         (data: StreamMessage) => {
           // Handle streaming data
           if (data.type === "content") {
+            // 回答内容
             dispatch(appendToLastMessage(data.data));
           } else if (data.type === "sources") {
+            // 知识库搜索结果
             dispatch(setSources(data.data));
           } else if (data.type === "done") {
+            // 流结束
             dispatch(setStreaming(false));
             setStreamController(null);
           }
         },
         (error: Error) => {
+          // 流错误
           console.error("Stream error:", error);
           dispatch(setStreaming(false));
           setStreamController(null);
         },
         () => {
+          // 流结束
           dispatch(setStreaming(false));
           setStreamController(null);
-        },
+        }
       );
       setStreamController(controller);
     } catch (error) {
@@ -89,80 +94,64 @@ const ChatPage: React.FC = () => {
     }
   };
 
-  const handleClearChat = () => {
-    if (streamController) {
-      streamController.abort();
-      setStreamController(null);
-    }
-    dispatch(clearMessages());
-  };
-
   return (
     <div className="flex flex-col h-full bg-white">
       {/* Chat area */}
-      <div className="lg:w-3/4 xl:w-2/4 mx-auto h-full flex-1 flex flex-col">
-        <Card
-          className="m-4 mb-0 flex-1 overflow-hidden flex flex-col"
-          style={{ border: "none" }}
-          styles={{
-            body: {
-              padding: 0,
-              height: "100%",
-              display: "flex",
-              flexDirection: "column",
-            },
+      <Card
+        className="m-4 mb-0 flex-1 overflow-hidden flex flex-col"
+        classNames={{
+          body: classNames("flex flex-col h-full"),
+        }}
+        style={{
+          border: "none",
+        }}
+      >
+        {/* Messages */}
+        <div
+          className="flex-1 overflow-y-auto px-2"
+          style={{
+            paddingLeft: `${paddingHorizontal}px`,
+            paddingRight: `${paddingHorizontal}px`,
           }}
         >
-          {/* Header */}
-          <div className="h-16 px-4 py-3 border-b flex justify-between items-center">
-            <h2 className="text-lg font-medium">智能问答</h2>
-            <Button
-              icon={<ClearOutlined />}
-              onClick={handleClearChat}
-              disabled={isStreaming}
-            >
-              清空对话
-            </Button>
-          </div>
+          {!hasMessage ? (
+            <Empty description="开始提问吧" className="mt-20" />
+          ) : (
+            <>
+              {messages.map((message, index) => (
+                <ChatMessage
+                  key={index}
+                  message={message}
+                  isStreaming={
+                    isStreaming &&
+                    index === messages.length - 1 &&
+                    message.role === "assistant"
+                  }
+                />
+              ))}
+              {isLoading && (
+                <div className="text-center py-4">
+                  <Spin tip="思考中..." />
+                </div>
+              )}
+            </>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
 
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4">
-            {messages.length === 0 ? (
-              <Empty description="开始提问吧" className="mt-20" />
-            ) : (
-              <>
-                {messages.map((message, index) => (
-                  <ChatMessage
-                    key={index}
-                    message={message}
-                    isStreaming={
-                      isStreaming &&
-                      index === messages.length - 1 &&
-                      message.role === "assistant"
-                    }
-                  />
-                ))}
-                {isLoading && (
-                  <div className="text-center py-4">
-                    <Spin tip="思考中..." />
-                  </div>
-                )}
-              </>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Input */}
-          <ChatInput
-            onSend={handleSendMessage}
-            isLoading={isLoading}
-            isStreaming={isStreaming}
-          />
-        </Card>
-      </div>
-
+        {/* Input */}
+        <ChatInput
+          onSend={handleSendMessage}
+          isLoading={isLoading}
+          isStreaming={isStreaming}
+          style={{
+            paddingLeft: `${paddingHorizontal}px`,
+            paddingRight: `${paddingHorizontal}px`,
+          }}
+        />
+      </Card>
       {/* Sources panel */}
-      {sources.length > 0 && (
+      {/* {sources.length > 0 && (
         <div className="w-96 p-4 pl-0">
           <Card
             title="参考来源"
@@ -172,7 +161,7 @@ const ChatPage: React.FC = () => {
             <SourceCard sources={sources} />
           </Card>
         </div>
-      )}
+      )} */}
     </div>
   );
 };

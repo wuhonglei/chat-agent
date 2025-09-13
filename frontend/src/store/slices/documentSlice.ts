@@ -1,6 +1,6 @@
+import { documentAPI } from "@/services/api";
+import { Document, DocumentSource } from "@/types";
 import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { documentAPI } from "../../services/api";
-import { Document, DocumentSource } from "../../types";
 
 interface DocumentState {
   documents: Document[];
@@ -44,7 +44,7 @@ export const fetchDocuments = createAsyncThunk(
   async () => {
     const response = await documentAPI.getDocuments();
     return response.data;
-  },
+  }
 );
 
 export const uploadDocument = createAsyncThunk(
@@ -54,7 +54,7 @@ export const uploadDocument = createAsyncThunk(
     formData.append("file", file);
     const response = await documentAPI.uploadDocument(formData);
     return response.data;
-  },
+  }
 );
 
 export const deleteDocument = createAsyncThunk(
@@ -62,7 +62,7 @@ export const deleteDocument = createAsyncThunk(
   async (documentId: string) => {
     await documentAPI.deleteDocument(documentId);
     return documentId;
-  },
+  }
 );
 
 export const importFromUrl = createAsyncThunk(
@@ -70,7 +70,7 @@ export const importFromUrl = createAsyncThunk(
   async ({ url, source }: { url: string; source: DocumentSource }) => {
     const response = await documentAPI.importFromUrl(url, source);
     return response.data;
-  },
+  }
 );
 
 const documentSlice = createSlice({
@@ -80,17 +80,17 @@ const documentSlice = createSlice({
     setUploadProgress: (state, action: PayloadAction<number>) => {
       state.uploadProgress = action.payload;
     },
-    clearError: (state) => {
+    clearError: state => {
       state.error = null;
     },
     updateStats: (state, action: PayloadAction<DocumentState["stats"]>) => {
       state.stats = action.payload;
     },
   },
-  extraReducers: (builder) => {
+  extraReducers: builder => {
     builder
       // Fetch documents
-      .addCase(fetchDocuments.pending, (state) => {
+      .addCase(fetchDocuments.pending, state => {
         state.isLoading = true;
         state.error = null;
       })
@@ -103,7 +103,7 @@ const documentSlice = createSlice({
         state.error = action.error.message || "Failed to fetch documents";
       })
       // Upload document
-      .addCase(uploadDocument.pending, (state) => {
+      .addCase(uploadDocument.pending, state => {
         state.isUploading = true;
         state.uploadProgress = 0;
         state.error = null;
@@ -121,11 +121,11 @@ const documentSlice = createSlice({
       // Delete document
       .addCase(deleteDocument.fulfilled, (state, action) => {
         state.documents = state.documents.filter(
-          (doc) => doc.id !== action.payload,
+          doc => doc.id !== action.payload
         );
       })
       // Import from URL
-      .addCase(importFromUrl.pending, (state) => {
+      .addCase(importFromUrl.pending, state => {
         state.isUploading = true;
         state.error = null;
       })

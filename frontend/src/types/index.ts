@@ -31,6 +31,7 @@ export interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
   timestamp: string;
+  sources?: SearchSource[];
   metadata?: Record<string, any>;
 }
 
