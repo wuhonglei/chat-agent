@@ -58,8 +58,11 @@ class ChatService:
                             }
                         )
 
-            # Build prompt
-            prompt = self._build_prompt(message, context, history)
+                # Build prompt
+                prompt = self._build_prompt_with_context(
+                    message, context, history)
+            else:
+                prompt = self._build_prompt_without_context(message, history)
 
             # Get response from LLM
             response = await self.client.chat.completions.create(
@@ -116,8 +119,11 @@ class ChatService:
                             }
                         )
 
-            # Build prompt
-            prompt = self._build_prompt(message, context, history)
+                # Build prompt
+                prompt = self._build_prompt_with_context(
+                    message, context, history)
+            else:
+                prompt = self._build_prompt_without_context(message, history)
 
             # Stream response from LLM
             stream = await self.client.chat.completions.create(
@@ -144,13 +150,13 @@ class ChatService:
             logger.error(f"Failed to stream message: {e}")
             yield f"data: {json.dumps({'type': 'error', 'data': str(e)})}\n\n"
 
-    def _build_prompt(
+    def _build_prompt_with_context(
         self,
         message: str,
         context: str,
         history: Optional[List[ChatMessage]] = None,
     ) -> List[dict]:
-        """Build prompt for LLM"""
+        """Build prompt for LLM with context"""
         system_prompt = """你是一个智能文档问答助手。你的任务是基于提供的文档内容回答用户的问题。
 
 规则：
@@ -181,4 +187,22 @@ class ChatService:
 
         messages.append({"role": "user", "content": user_prompt})
 
+        return messages
+
+    def _build_prompt_without_context(
+        self,
+        message: str,
+        history: Optional[List[ChatMessage]] = None,
+    ) -> List[dict]:
+        """Build prompt for LLM without context"""
+        system_prompt = """You are a helpful assistant.
+        """
+        messages = [{"role": "system", "content": system_prompt}]
+
+        # Add history if available
+        if history:
+            for msg in history[-5:]:  # Keep last 5 messages for context
+                messages.append({"role": msg.role, "content": msg.content})
+
+        messages.append({"role": "user", "content": message})
         return messages
