@@ -5,25 +5,28 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   addMessage,
   appendToLastMessage,
+  clearLastMessage,
+  setLoading,
   setSources,
   setStreaming,
 } from "@/store/slices/chatSlice";
 import { ChatMessage as ChatMessageType, StreamMessage } from "@/types";
-import { Card, Empty, Spin } from "antd";
+import { Card, Empty } from "antd";
 import classNames from "classnames";
-import React, { useEffect, useRef, useState } from "react";
+import { isEmpty } from "lodash-es";
+import React, { useEffect, useRef } from "react";
 import styles from "./index.module.css";
 
 const ChatPage: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { messages, hasMessage, isLoading, isStreaming, sessionId } =
-    useAppSelector(state => state.chat);
+  const { messages, isLoading, isStreaming, sessionId } = useAppSelector(
+    state => state.chat
+  );
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [streamController, setStreamController] =
-    useState<AbortController | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   useEffect(() => {
@@ -34,6 +37,11 @@ const ChatPage: React.FC = () => {
     message: string,
     useKnowledgeBase: boolean
   ) => {
+    if (abortControllerRef.current && isStreaming) {
+      abortControllerRef.current.abort();
+      dispatch(clearLastMessage());
+    }
+
     // Add user message
     const userMessage: ChatMessageType = {
       role: "user",
@@ -50,10 +58,13 @@ const ChatPage: React.FC = () => {
     };
     dispatch(addMessage(assistantMessage));
     dispatch(setStreaming(true));
+    dispatch(setLoading(true));
 
     try {
+      abortControllerRef.current = new AbortController();
+
       // Start streaming
-      const controller = await chatAPI.streamMessage(
+      await chatAPI.streamMessage(
         {
           message,
           session_id: sessionId || undefined,
@@ -65,28 +76,27 @@ const ChatPage: React.FC = () => {
           if (data.type === "content") {
             // 回答内容
             dispatch(appendToLastMessage(data.data));
+            dispatch(setLoading(false));
           } else if (data.type === "sources") {
             // 知识库搜索结果
             dispatch(setSources(data.data));
           } else if (data.type === "done") {
             // 流结束
             dispatch(setStreaming(false));
-            setStreamController(null);
+            dispatch(setLoading(false));
           }
         },
         (error: Error) => {
           // 流错误
           console.error("Stream error:", error);
           dispatch(setStreaming(false));
-          setStreamController(null);
         },
         () => {
           // 流结束
           dispatch(setStreaming(false));
-          setStreamController(null);
-        }
+        },
+        abortControllerRef.current!
       );
-      setStreamController(controller);
     } catch (error) {
       console.error("Failed to send message:", error);
       dispatch(setStreaming(false));
@@ -112,7 +122,7 @@ const ChatPage: React.FC = () => {
             styles["child-container"]
           )}
         >
-          {!hasMessage ? (
+          {isEmpty(messages) ? (
             <Empty description="开始提问吧" className="mt-20" />
           ) : (
             <>
@@ -125,13 +135,14 @@ const ChatPage: React.FC = () => {
                     index === messages.length - 1 &&
                     message.role === "assistant"
                   }
+                  isLoading={
+                    isLoading &&
+                    index === messages.length - 1 &&
+                    message.role === "assistant"
+                  }
+                  onSourceClick={() => {}}
                 />
               ))}
-              {isLoading && (
-                <div className="text-center py-4">
-                  <Spin tip="思考中..." />
-                </div>
-              )}
             </>
           )}
           <div ref={messagesEndRef} />

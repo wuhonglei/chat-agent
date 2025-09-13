@@ -4,7 +4,6 @@ import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 interface ChatState {
   messages: ChatMessage[];
-  hasMessage: boolean;
   sessionId: string | null;
   isLoading: boolean;
   isStreaming: boolean;
@@ -13,7 +12,6 @@ interface ChatState {
 
 const initialState: ChatState = {
   messages: [],
-  hasMessage: false,
   sessionId: null,
   isLoading: false,
   isStreaming: false,
@@ -47,17 +45,28 @@ const chatSlice = createSlice({
   reducers: {
     addMessage: (state, action: PayloadAction<ChatMessage>) => {
       state.messages.push(action.payload);
-      state.hasMessage = true;
+    },
+    clearLastMessage: state => {
+      if (state.messages.length === 0) {
+        return;
+      }
+
+      const lastMessage = state.messages[state.messages.length - 1];
+      if (lastMessage.role === "assistant" && !lastMessage.content) {
+        state.messages.pop();
+      }
     },
     clearMessages: state => {
       state.messages = [];
-      state.hasMessage = false;
     },
     setSessionId: (state, action: PayloadAction<string>) => {
       state.sessionId = action.payload;
     },
     setStreaming: (state, action: PayloadAction<boolean>) => {
       state.isStreaming = action.payload;
+    },
+    setLoading: (state, action: PayloadAction<boolean>) => {
+      state.isLoading = action.payload;
     },
     setSources: (state, action: PayloadAction<SearchSource[]>) => {
       state.messages[state.messages.length - 1].sources = action.payload;
@@ -105,9 +114,11 @@ export const {
   clearMessages,
   setSessionId,
   setStreaming,
+  setLoading,
   setSources,
   appendToLastMessage,
   clearError,
+  clearLastMessage,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;

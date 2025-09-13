@@ -1,6 +1,7 @@
-import { Input, Space, Switch } from "antd";
+import { Input, Switch } from "antd";
 import classNames from "classnames";
 import React, { useState } from "react";
+import styles from "./index.module.css";
 
 const { TextArea } = Input;
 
@@ -23,8 +24,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const [useKnowledgeBase, setUseKnowledgeBase] = useState(true);
 
   const handleSend = () => {
-    if (message.trim() && !isLoading && !isStreaming) {
-      onSend(message, useKnowledgeBase);
+    if (message.trim()) {
+      onSend(message.trim(), useKnowledgeBase);
       setMessage("");
     }
   };
@@ -37,27 +38,25 @@ const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   return (
-    <div className={classNames("p-4 bg-white", className)} style={style}>
-      <div className="mb-2">
-        <Space>
-          <span className="text-gray-600">使用知识库：</span>
-          <Switch
-            checked={useKnowledgeBase}
-            onChange={setUseKnowledgeBase}
-            disabled={isLoading || isStreaming}
-          />
-        </Space>
-      </div>
-      <div className="flex gap-2">
+    <div className={classNames("p-4 bg-white gap-2", className)} style={style}>
+      <div
+        className={classNames(
+          "flex flex-col gap-2 p-3",
+          styles["input-container"]
+        )}
+      >
         <TextArea
           value={message}
-          onChange={e => setMessage(e.target.value)}
-          onKeyPress={handleKeyPress}
-          placeholder="输入您的问题..."
+          placeholder="发消息"
+          className={classNames(styles.input)}
+          onKeyUp={handleKeyPress}
           autoSize={{ minRows: 2, maxRows: 4 }}
-          disabled={isLoading || isStreaming}
-          className="flex-1"
+          onChange={e => setMessage(e.target.value)}
         />
+        <div>
+          <span className="text-gray-600">使用知识库：</span>
+          <Switch checked={useKnowledgeBase} onChange={setUseKnowledgeBase} />
+        </div>
       </div>
     </div>
   );

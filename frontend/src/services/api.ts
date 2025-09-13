@@ -65,17 +65,16 @@ export const chatAPI = {
     data: ChatRequest,
     onMessage: (message: StreamMessage) => void,
     onError: (error: Error) => void,
-    onClose: () => void
-  ): Promise<AbortController> => {
-    const ctrl = new AbortController();
-
+    onClose: () => void,
+    abortController: AbortController
+  ): Promise<void> => {
     await fetchEventSource(`${apiClient.defaults.baseURL}/api/chat/stream`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(data),
-      signal: ctrl.signal,
+      signal: abortController.signal,
       onmessage(event) {
         if (event.data) {
           try {
@@ -95,7 +94,7 @@ export const chatAPI = {
       },
     });
 
-    return ctrl;
+    return;
   },
 
   // Get session history

@@ -1,0 +1,11 @@
+.source-abstract {
+  border: 1px solid #ebebeb;
+  color: #787878;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 500;
+
+  &:hover {
+    background-color: #f0f0f0;
+  }
+}

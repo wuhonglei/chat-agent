@@ -1,17 +1,22 @@
 import laughingImgUrl from "@/assets/imgs/laughing.webp";
 import { ChatMessage as ChatMessageType } from "@/types";
 import { useDebounce } from "ahooks";
+import { Spin } from "antd";
 import classNames from "classnames";
+import { isEmpty } from "lodash-es";
 import React from "react";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vs } from "react-syntax-highlighter/dist/esm/styles/prism";
 import remarkGfm from "remark-gfm";
+import SourceAbstract from "./SourceAbstract";
 import styles from "./assistantMessage.module.css";
 
 interface AssistantMessageProps {
   message: ChatMessageType;
   isStreaming?: boolean;
+  isLoading?: boolean;
+  onSourceClick: () => void;
 }
 
 const components = {
@@ -35,6 +40,8 @@ const components = {
 const AssistantMessage: React.FC<AssistantMessageProps> = ({
   message,
   isStreaming = false,
+  isLoading = false,
+  onSourceClick,
 }) => {
   const displayContent = useDebounce(message.content, {
     wait: isStreaming && message.content ? 20 : 0,
@@ -43,19 +50,31 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
   return (
     <div className="flex flex-col gap-3 mb-4">
       <img
-        src={laughingImgUrl}
-        alt="assistant"
         width={24}
         height={24}
+        alt="assistant"
+        src={laughingImgUrl}
         className="rounded-full"
       />
-      <ReactMarkdown
-        components={components}
-        remarkPlugins={[remarkGfm]}
-        className={styles["markdown-body"]}
-      >
-        {displayContent}
-      </ReactMarkdown>
+      {isLoading ? (
+        <div className="flex justify-start items-center">
+          <Spin size="small" />{" "}
+          <span className="ml-2 text-gray-500">搜索中...</span>
+        </div>
+      ) : (
+        <>
+          <ReactMarkdown
+            components={components}
+            remarkPlugins={[remarkGfm]}
+            className={styles["markdown-body"]}
+          >
+            {displayContent}
+          </ReactMarkdown>
+          {!isEmpty(message.sources) && (
+            <SourceAbstract sources={message.sources} onClick={onSourceClick} />
+          )}
+        </>
+      )}
     </div>
   );
 };
