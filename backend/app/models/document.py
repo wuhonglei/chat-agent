@@ -30,13 +30,19 @@ class Document(BaseModel):
 
     id: str = Field(..., description="Document ID")
     name: str = Field(..., description="Document name")
-    source: DocumentSource = Field(DocumentSource.LOCAL, description="Document source")
-    source_url: Optional[str] = Field(None, description="Source URL for external documents")
+    source: DocumentSource = Field(
+        DocumentSource.LOCAL, description="Document source")
+    source_url: Optional[str] = Field(
+        None, description="Source URL for external documents")
     content: str = Field(..., description="Document content")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Document metadata")
-    status: DocumentStatus = Field(DocumentStatus.PENDING, description="Processing status")
-    created_at: datetime = Field(default_factory=datetime.now, description="Creation timestamp")
-    updated_at: datetime = Field(default_factory=datetime.now, description="Update timestamp")
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict, description="Document metadata")
+    status: DocumentStatus = Field(
+        DocumentStatus.PENDING, description="Processing status")
+    created_at: datetime = Field(
+        default_factory=datetime.now, description="Creation timestamp")
+    updated_at: datetime = Field(
+        default_factory=datetime.now, description="Update timestamp")
     chunk_count: int = Field(0, description="Number of chunks")
 
     class Config:
@@ -47,9 +53,12 @@ class DocumentUpload(BaseModel):
     """Document upload request"""
 
     name: str = Field(..., description="Document name")
-    content: Optional[str] = Field(None, description="Document content (for text uploads)")
-    source_url: Optional[str] = Field(None, description="External document URL")
-    source: DocumentSource = Field(DocumentSource.LOCAL, description="Document source")
+    content: Optional[str] = Field(
+        None, description="Document content (for text uploads)")
+    source_url: Optional[str] = Field(
+        None, description="External document URL")
+    source: DocumentSource = Field(
+        DocumentSource.LOCAL, description="Document source")
 
 
 class DocumentResponse(BaseModel):
@@ -72,4 +81,5 @@ class SearchResult(BaseModel):
     metadata: Dict[str, Any] = Field(..., description="Chunk metadata")
     score: float = Field(..., description="Relevance score")
     document_id: Optional[str] = Field(None, description="Source document ID")
-    document_name: Optional[str] = Field(None, description="Source document name")
+    document_name: Optional[str] = Field(
+        None, description="Source document name")

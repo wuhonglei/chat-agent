@@ -1,5 +1,6 @@
 """Document management endpoints"""
 
+from datetime import datetime
 import os
 import uuid
 from typing import List
@@ -24,7 +25,8 @@ async def upload_document(
         # Validate file extension
         file_extension = file.filename.split(".")[-1].lower()
         if file_extension not in settings.ALLOWED_EXTENSIONS:
-            raise HTTPException(status_code=400, detail=f"File type {file_extension} not supported")
+            raise HTTPException(
+                status_code=400, detail=f"File type {file_extension} not supported")
 
         # Check file size
         file_content = await file.read()
@@ -37,7 +39,8 @@ async def upload_document(
 
         # Save file
         doc_id = str(uuid.uuid4())
-        file_path = os.path.join(settings.UPLOAD_DIR, f"{doc_id}_{file.filename}")
+        file_path = os.path.join(
+            settings.UPLOAD_DIR, f"{doc_id}_{file.filename}")
         os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
         with open(file_path, "wb") as f:
@@ -52,14 +55,15 @@ async def upload_document(
         chunk_ids = await vector_store.add_document(document)
         document.chunk_count = len(chunk_ids)
 
-        logger.info(f"Document {file.filename} uploaded and processed successfully")
+        logger.info(
+            f"Document {file.filename} uploaded and processed successfully")
 
         return DocumentResponse(
             id=document.id,
             name=document.name,
-            source=document.source.value,
+            source=document.source,
             source_url=document.source_url,
-            status=document.status.value,
+            status=document.status,
             chunk_count=document.chunk_count,
             created_at=document.created_at,
             updated_at=document.updated_at,
@@ -92,9 +96,9 @@ async def import_from_url(
         return DocumentResponse(
             id=document.id,
             name=document.name,
-            source=document.source.value,
+            source=document.source,
             source_url=document.source_url,
-            status=document.status.value,
+            status=document.status,
             chunk_count=document.chunk_count,
             created_at=document.created_at,
             updated_at=document.updated_at,
@@ -119,7 +123,7 @@ async def list_documents(request: Request) -> List[DocumentResponse]:
                 name=doc["name"],
                 source=doc["source"],
                 source_url=None,  # TODO: Store and retrieve source URLs
-                status=DocumentStatus.COMPLETED.value,
+                status=DocumentStatus.COMPLETED,
                 chunk_count=doc["chunks"],
                 created_at=datetime.now(),  # TODO: Store and retrieve timestamps
                 updated_at=datetime.now(),
