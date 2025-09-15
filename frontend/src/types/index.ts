@@ -107,3 +107,8 @@ export interface Notification {
   description?: string;
   duration?: number;
 }
+
+export interface SourceData {
+  index: number;
+  sources: SearchSource[];
+}

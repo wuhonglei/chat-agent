@@ -1,6 +1,6 @@
 import laughingImgUrl from "@/assets/imgs/laughing.webp";
 import { ChatMessage as ChatMessageType } from "@/types";
-import { useDebounce } from "ahooks";
+import { useDebounce, useThrottle } from "ahooks";
 import { Spin } from "antd";
 import classNames from "classnames";
 import { isEmpty } from "lodash-es";
@@ -43,22 +43,15 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
   isLoading = false,
   onSourceClick,
 }) => {
-  const displayContent = useDebounce(message.content, {
-    wait: 0,
+  const displayContent = useThrottle(message.content, {
+    wait: 100,
   });
 
   return (
     <div className="flex flex-col gap-3 mb-4">
-      <img
-        width={24}
-        height={24}
-        alt="assistant"
-        src={laughingImgUrl}
-        className="rounded-full"
-      />
       {isLoading ? (
         <div className="flex justify-start items-center">
-          <Spin size="small" />{" "}
+          <Spin size="small" />
           <span className="ml-2 text-gray-500">搜索中...</span>
         </div>
       ) : (
