@@ -11,12 +11,17 @@ import {
   setSources,
   setStreaming,
 } from "@/store/slices/chatSlice";
-import { ChatMessage as ChatMessageType, SearchSource, StreamMessage } from "@/types";
+import {
+  ChatMessage as ChatMessageType,
+  SearchSource,
+  StreamMessage,
+} from "@/types";
 import { Card, Empty, Layout } from "antd";
 import classNames from "classnames";
 import { isEmpty } from "lodash-es";
 import React, { useEffect, useRef, useState } from "react";
 import styles from "./index.module.css";
+import { SourceData } from "./interface";
 
 const { Sider } = Layout;
 
@@ -27,7 +32,7 @@ const ChatPage: React.FC = () => {
   );
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const [sources, setCurrentSources] = useState<SearchSource[]>([]);
+  const [sourceData, setSourceData] = useState<SourceData | undefined>();
 
   const scrollToBottom = () => {
     // messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -107,12 +112,16 @@ const ChatPage: React.FC = () => {
     }
   };
 
-  function handleSourceClick(message: ChatMessageType) {
-    setCurrentSources(message.sources || []);
+  function handleSourceClick(index: number, message: ChatMessageType) {
+    if (sourceData?.index === index) {
+      setSourceData(undefined);
+    } else {
+      setSourceData({ index, sources: message.sources || [] });
+    }
   }
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex h-full bg-white">
       {/* Chat area */}
       <Card
         className="m-4 mb-0 flex-1 overflow-hidden flex flex-col"
@@ -148,7 +157,7 @@ const ChatPage: React.FC = () => {
                     index === messages.length - 1 &&
                     message.role === "assistant"
                   }
-                  onSourceClick={() => handleSourceClick(message)}
+                  onSourceClick={() => handleSourceClick(index, message)}
                 />
               ))}
             </>
@@ -165,23 +174,25 @@ const ChatPage: React.FC = () => {
         />
       </Card>
       {/* Sources panel */}
-      {!isEmpty(sources) && (
-        <Sider
+      <Sider
         width={400}
         theme="light"
         trigger={null}
         collapsedWidth={0}
+        collapsed={isEmpty(sourceData)}
         className="shadow-md flex flex-col items-center"
       >
-          <Card
-            title="参考来源"
-            className="h-full overflow-y-auto"
-            styles={{ body: { padding: "16px" } }}
-          >
-            <SourceCard sources={sources} />
-          </Card>
-        </Sider>
-      )}
+        <Card
+          title="参考资料"
+          className="h-full overflow-y-auto"
+          style={{ borderRadius: "none" }}
+          styles={{
+            body: { padding: "16px" },
+          }}
+        >
+          <SourceCard sources={sourceData?.sources} />
+        </Card>
+      </Sider>
     </div>
   );
 };
