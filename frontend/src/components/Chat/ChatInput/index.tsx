@@ -30,13 +30,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-
   return (
     <div className={classNames("p-4 bg-white gap-2", className)} style={style}>
       <div
@@ -46,10 +39,11 @@ const ChatInput: React.FC<ChatInputProps> = ({
         )}
       >
         <TextArea
+          autoFocus
           value={message}
           placeholder="发消息"
+          onPressEnter={handleSend}
           className={classNames(styles.input)}
-          onKeyUp={handleKeyPress}
           autoSize={{ minRows: 2, maxRows: 4 }}
           onChange={e => setMessage(e.target.value)}
         />
