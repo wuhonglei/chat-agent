@@ -44,7 +44,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
   onSourceClick,
 }) => {
   const displayContent = useDebounce(message.content, {
-    wait: isStreaming && message.content ? 20 : 0,
+    wait: 0,
   });
 
   return (

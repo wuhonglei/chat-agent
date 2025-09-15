@@ -21,7 +21,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   style,
 }) => {
   const [message, setMessage] = useState("");
-  const [useKnowledgeBase, setUseKnowledgeBase] = useState(true);
+  const [useKnowledgeBase, setUseKnowledgeBase] = useState(false);
 
   const handleSend = () => {
     if (message.trim()) {
