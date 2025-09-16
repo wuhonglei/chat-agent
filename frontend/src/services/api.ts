@@ -4,6 +4,7 @@ import axios, {
   AxiosResponse,
   InternalAxiosRequestConfig,
 } from "axios";
+
 import {
   ChatRequest,
   ChatResponse,
@@ -13,6 +14,7 @@ import {
   KnowledgeBaseStats,
   StreamMessage,
 } from "../types";
+import snakecaseKeys from "snakecase-keys";
 
 // Create axios instance
 const apiClient: AxiosInstance = axios.create({
@@ -57,7 +59,7 @@ export const chatAPI = {
   sendMessage: async (
     data: ChatRequest
   ): Promise<AxiosResponse<ChatResponse>> => {
-    return await apiClient.post("/api/chat", data);
+    return await apiClient.post("/api/chat", snakecaseKeys(data as any));
   },
 
   // Stream message
@@ -73,7 +75,7 @@ export const chatAPI = {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify(snakecaseKeys(data as any)),
       signal: abortController.signal,
       onmessage(event) {
         if (event.data) {

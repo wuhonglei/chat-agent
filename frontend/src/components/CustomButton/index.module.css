@@ -1,0 +1,9 @@
+.button {
+  border-radius: 10px;
+  border-width: 1px;
+  border-style: solid;
+
+  cursor: pointer;
+  /* 禁用文本选择 */
+  user-select: none;
+}

@@ -9,14 +9,18 @@ import {
   setStreaming,
 } from "@/store/slices/chatSlice";
 import { chatAPI } from "@/services/api";
-import { ChatMessage as ChatMessageType, StreamMessage } from "@/types";
+import {
+  ChatInputFormValues,
+  ChatMessage as ChatMessageType,
+  StreamMessage,
+} from "@/types";
 
 export interface UseChatMessageOptions {
   historyLimit?: number;
 }
 
 export interface UseChatMessageReturn {
-  sendMessage: (message: string, useKnowledgeBase: boolean) => Promise<void>;
+  sendMessage: (values: ChatInputFormValues) => Promise<void>;
   abortMessage: () => void;
   isStreaming: boolean;
   isLoading: boolean;
@@ -34,10 +38,7 @@ export const useChatMessage = (
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const sendMessage = async (
-    message: string,
-    useKnowledgeBase: boolean
-  ): Promise<void> => {
+  const sendMessage = async (values: ChatInputFormValues): Promise<void> => {
     // 如果正在流式传输，先中止当前请求
     if (abortControllerRef.current && isStreaming) {
       abortControllerRef.current.abort();
@@ -47,7 +48,7 @@ export const useChatMessage = (
     // 添加用户消息
     const userMessage: ChatMessageType = {
       role: "user",
-      content: message,
+      content: values.message,
       timestamp: new Date().toISOString(),
     };
     dispatch(addMessage(userMessage));
@@ -68,9 +69,8 @@ export const useChatMessage = (
       // 开始流式传输
       await chatAPI.streamMessage(
         {
-          message,
-          session_id: sessionId || undefined,
-          use_knowledge_base: useKnowledgeBase,
+          ...values,
+          sessionId: sessionId || undefined,
           history: messages.slice(-historyLimit), // 发送最后几条消息作为上下文
         },
         (data: StreamMessage) => {

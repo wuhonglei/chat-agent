@@ -35,10 +35,14 @@ export interface ChatMessage {
   metadata?: Record<string, any>;
 }
 
-export interface ChatRequest {
+export interface ChatInputFormValues {
   message: string;
-  session_id?: string;
-  use_knowledge_base: boolean;
+  thinkMode: boolean;
+  useKnowledgeBase: boolean;
+}
+
+export interface ChatRequest extends ChatInputFormValues {
+  sessionId?: string;
   history?: ChatMessage[];
   stream?: boolean;
 }

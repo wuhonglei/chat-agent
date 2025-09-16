@@ -45,9 +45,9 @@ const ChatPage: React.FC = () => {
         />
         {/* Input area */}
         <ChatInput
+          onSend={sendMessage}
           isLoading={isLoading}
           isStreaming={isStreaming}
-          onSend={sendMessage}
           className={styles["child-container"]}
         />
       </Card>

@@ -32,8 +32,9 @@ export const sendMessage = createAsyncThunk(
   }) => {
     const response = await chatAPI.sendMessage({
       message,
-      session_id: sessionId,
-      use_knowledge_base: useKnowledgeBase,
+      thinkMode: false,
+      sessionId: sessionId,
+      useKnowledgeBase: useKnowledgeBase,
     });
     return response.data;
   }
