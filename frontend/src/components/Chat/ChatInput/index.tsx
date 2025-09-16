@@ -1,4 +1,4 @@
-import { Input, Switch } from "antd";
+import { Button, ConfigProvider, Input, Switch } from "antd";
 import classNames from "classnames";
 import React, { useState } from "react";
 import styles from "./index.module.css";
@@ -48,6 +48,11 @@ const ChatInput: React.FC<ChatInputProps> = ({
           onChange={e => setMessage(e.target.value)}
         />
         <div>
+          <ConfigProvider wave={{ disabled: true }}>
+            <Button type="default" shape="round">
+              深度思考
+            </Button>
+          </ConfigProvider>
           <span className="text-gray-600">使用知识库：</span>
           <Switch checked={useKnowledgeBase} onChange={setUseKnowledgeBase} />
         </div>
