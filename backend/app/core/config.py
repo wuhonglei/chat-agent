@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     LLM_API_KEY: str
     LLM_API_BASE: str = "https://api.deepseek.com/v1"
     LLM_MODEL: str = "deepseek-chat"
+    LLM_THINK_MODEL: str = "deepseek-reasoner"
 
     # Embedding Model API
     EMBEDDING_API_KEY: str

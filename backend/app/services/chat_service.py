@@ -30,6 +30,7 @@ class ChatService:
         session_id: str,
         history: List[ChatMessage] = None,
         use_knowledge_base: bool = True,
+        think_mode: bool = False,
     ) -> ChatResponse:
         """Process a chat message and return response"""
         try:
@@ -66,7 +67,7 @@ class ChatService:
 
             # Get response from LLM
             response = await self.client.chat.completions.create(
-                model=settings.LLM_MODEL,
+                model=settings.LLM_THINK_MODEL if think_mode else settings.LLM_MODEL,
                 messages=prompt,
                 temperature=0.7,
                 max_tokens=2000,
@@ -91,6 +92,7 @@ class ChatService:
         session_id: str,
         history: List[ChatMessage] = None,
         use_knowledge_base: bool = True,
+        think_mode: bool = False,
     ) -> AsyncGenerator[str, None]:
         """Stream chat response"""
         try:
@@ -127,10 +129,8 @@ class ChatService:
 
             # Stream response from LLM
             stream = await self.client.chat.completions.create(
-                model=settings.LLM_MODEL,
+                model=settings.LLM_THINK_MODEL if think_mode else settings.LLM_MODEL,
                 messages=prompt,
-                temperature=0.7,
-                max_tokens=2000,
                 stream=True,
             )
 
@@ -140,6 +140,7 @@ class ChatService:
 
             # Stream answer chunks
             async for chunk in stream:
+                logger.info(f"Stream chunk: {chunk}")
                 if chunk.choices[0].delta.content:
                     yield f"data: {json.dumps({'type': 'content', 'data': chunk.choices[0].delta.content})}\n\n"
 

@@ -61,6 +61,7 @@ async def chat_stream(request: Request, chat_request: ChatRequest):
                 session_id=session_id,
                 history=chat_request.history,
                 use_knowledge_base=chat_request.use_knowledge_base,
+                think_mode=chat_request.think_mode,
             ):
                 yield chunk
 
