@@ -12,6 +12,7 @@ from app.core.vector_store import VectorStore
 from app.models.chat import ChatMessage, ChatResponse
 from app.services.reranker import Reranker
 
+
 class ChatService:
     """Handle chat interactions with RAG"""
 
@@ -90,7 +91,7 @@ class ChatService:
         message: str,
         session_id: str,
         history: List[ChatMessage] = None,
-        use_knowledge_base: bool = True,
+        use_knowledge_base: bool = False,
         think_mode: bool = False,
     ) -> AsyncGenerator[str, None]:
         """Stream chat response"""

@@ -1,5 +1,5 @@
 import { chatAPI } from "@/services/api";
-import { ChatMessage, SearchSource } from "@/types";
+import { ChatInputFormValues, ChatMessage, SearchSource } from "@/types";
 import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 interface ChatState {
@@ -23,21 +23,8 @@ const initialState: ChatState = {
 // Async thunks
 export const sendMessage = createAsyncThunk(
   "chat/sendMessage",
-  async ({
-    message,
-    sessionId,
-    useKnowledgeBase = true,
-  }: {
-    message: string;
-    sessionId?: string;
-    useKnowledgeBase?: boolean;
-  }) => {
-    const response = await chatAPI.sendMessage({
-      message,
-      thinkMode: false,
-      sessionId: sessionId,
-      useKnowledgeBase: useKnowledgeBase,
-    });
+  async (data: ChatInputFormValues & { sessionId: string }) => {
+    const response = await chatAPI.sendMessage(data);
     return response.data;
   }
 );

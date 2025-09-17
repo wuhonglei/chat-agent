@@ -40,6 +40,7 @@ export interface ChatInputFormValues {
   message: string;
   thinkMode: boolean;
   useKnowledgeBase: boolean;
+  useNetwork: boolean;
 }
 
 export interface ChatRequest extends ChatInputFormValues {
