@@ -5,7 +5,7 @@ import styles from "./index.module.css";
 import CustomButton from "@/components/CustomButton";
 import LogoSvg from "@/assets/svg/DsIcon.svg?react";
 import { ChatInputFormValues } from "@/types";
-import { DownOutlined, GlobalOutlined } from "@ant-design/icons";
+import { GlobalOutlined } from "@ant-design/icons";
 
 const { TextArea } = Input;
 
@@ -72,39 +72,20 @@ const ChatInput: React.FC<ChatInputProps> = ({
               initialValue={false}
               valuePropName="active"
             >
-              <CustomButton icon={<LogoSvg />}>深度思考</CustomButton>
+              <CustomButton size="small" icon={<LogoSvg />}>
+                深度思考
+              </CustomButton>
             </Form.Item>
-            <Dropdown
-              open
-              placement="topRight"
-              menu={{
-                items: [
-                  {
-                    label: (
-                      <div className="flex gap-2 hover:text-blue-500">
-                        <GlobalOutlined />
-                        互联网
-                      </div>
-                    ),
-                    key: "thinkMode",
-                  },
-                ],
-              }}
-            >
-              <a onClick={e => e.preventDefault()}>
-                <Space>
-                  Hover me
-                  <DownOutlined />
-                </Space>
-              </a>
-            </Dropdown>
-            {/* <Form.Item
+            <Form.Item
+              name="useNetwork"
+              trigger="onClick"
               initialValue={false}
-              valuePropName="checked"
-              name="useKnowledgeBase"
+              valuePropName="active"
             >
-              <Switch />
-            </Form.Item> */}
+              <CustomButton size="small" icon={<GlobalOutlined />}>
+                联网搜索
+              </CustomButton>
+            </Form.Item>
           </div>
         </Form>
       </ConfigProvider>
