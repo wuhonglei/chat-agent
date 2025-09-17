@@ -39,8 +39,12 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
     event.preventDefault();
     const values = form.getFieldsValue();
-    if (values.message.trim()) {
-      onSend(values);
+    const { message } = values;
+    if (message.trim()) {
+      onSend({
+        ...values,
+        message: message.trim(),
+      });
       form.resetFields(["message"]);
     }
   };
@@ -72,7 +76,11 @@ const ChatInput: React.FC<ChatInputProps> = ({
               initialValue={false}
               valuePropName="active"
             >
-              <CustomButton size="small" icon={<LogoSvg />}>
+              <CustomButton
+                size="small"
+                icon={<LogoSvg />}
+                tooltip="先思考后回答, 解决推理问题"
+              >
                 深度思考
               </CustomButton>
             </Form.Item>
@@ -82,7 +90,11 @@ const ChatInput: React.FC<ChatInputProps> = ({
               initialValue={false}
               valuePropName="active"
             >
-              <CustomButton size="small" icon={<GlobalOutlined />}>
+              <CustomButton
+                size="small"
+                icon={<GlobalOutlined />}
+                tooltip="按需搜索网页"
+              >
                 联网搜索
               </CustomButton>
             </Form.Item>
