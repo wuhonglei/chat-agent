@@ -8,6 +8,7 @@
 - **智能问答**：基于 RAG 技术的精准文档问答
 - **向量检索**：使用 ChromaDB 进行高效向量存储和检索
 - **外部集成**：支持 Confluence、Google Workspace 等外部文档源
+- **联网搜索**：支持联网搜索，通过 [tavily](https://www.tavily.com/) 获取最新信息
 - **混合搜索**：结合向量检索和 BM25 关键词搜索，提高检索准确性
 - **重排序**：使用 Sentence Transformers 对检索结果进行重排序
 - **缓存机制**：Redis 缓存提升响应速度
