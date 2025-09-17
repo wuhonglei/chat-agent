@@ -1,10 +1,11 @@
-import { Input, Switch, Form, ConfigProvider } from "antd";
+import { Input, Switch, Form, ConfigProvider, Dropdown, Space } from "antd";
 import classNames from "classnames";
 import React from "react";
 import styles from "./index.module.css";
 import CustomButton from "@/components/CustomButton";
 import LogoSvg from "@/assets/svg/DsIcon.svg?react";
 import { ChatInputFormValues } from "@/types";
+import { DownOutlined, GlobalOutlined } from "@ant-design/icons";
 
 const { TextArea } = Input;
 
@@ -73,13 +74,37 @@ const ChatInput: React.FC<ChatInputProps> = ({
             >
               <CustomButton icon={<LogoSvg />}>深度思考</CustomButton>
             </Form.Item>
-            <Form.Item
+            <Dropdown
+              open
+              placement="topRight"
+              menu={{
+                items: [
+                  {
+                    label: (
+                      <div className="flex gap-2 hover:text-blue-500">
+                        <GlobalOutlined />
+                        互联网
+                      </div>
+                    ),
+                    key: "thinkMode",
+                  },
+                ],
+              }}
+            >
+              <a onClick={e => e.preventDefault()}>
+                <Space>
+                  Hover me
+                  <DownOutlined />
+                </Space>
+              </a>
+            </Dropdown>
+            {/* <Form.Item
               initialValue={false}
               valuePropName="checked"
               name="useKnowledgeBase"
             >
               <Switch />
-            </Form.Item>
+            </Form.Item> */}
           </div>
         </Form>
       </ConfigProvider>
