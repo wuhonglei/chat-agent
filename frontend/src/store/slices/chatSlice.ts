@@ -7,6 +7,7 @@ interface ChatState {
   sessionId: string | null;
   isLoading: boolean;
   isStreaming: boolean;
+  isReasoning: boolean;
   error: string | null;
 }
 
@@ -15,6 +16,7 @@ const initialState: ChatState = {
   sessionId: null,
   isLoading: false,
   isStreaming: false,
+  isReasoning: false,
   error: null,
 };
 
@@ -69,6 +71,9 @@ const chatSlice = createSlice({
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.isLoading = action.payload;
     },
+    setReasoning: (state, action: PayloadAction<boolean>) => {
+      state.isReasoning = action.payload;
+    },
     setSources: (state, action: PayloadAction<SearchSource[]>) => {
       state.messages[state.messages.length - 1].sources = action.payload;
     },
@@ -77,6 +82,14 @@ const chatSlice = createSlice({
         const lastMessage = state.messages[state.messages.length - 1];
         if (lastMessage.role === "assistant") {
           lastMessage.content += action.payload;
+        }
+      }
+    },
+    appendToLastMessageReasoning: (state, action: PayloadAction<string>) => {
+      if (state.messages.length > 0) {
+        const lastMessage = state.messages[state.messages.length - 1];
+        if (lastMessage.role === "assistant") {
+          lastMessage.reasoning += action.payload;
         }
       }
     },
@@ -94,6 +107,7 @@ const chatSlice = createSlice({
       .addCase(sendMessage.fulfilled, (state, action) => {
         state.isLoading = false;
         state.messages.push({
+          reasoning: "",
           role: "assistant",
           content: action.payload.message,
           sources: action.payload.sources || [],
@@ -118,6 +132,8 @@ export const {
   setLoading,
   setSources,
   appendToLastMessage,
+  appendToLastMessageReasoning,
+  setReasoning,
   clearError,
   clearLastMessage,
 } = chatSlice.actions;

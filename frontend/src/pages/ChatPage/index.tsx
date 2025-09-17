@@ -12,7 +12,7 @@ import SourceSider from "@/components/Chat/SourceSider";
 
 const ChatPage: React.FC = () => {
   const { messages } = useAppSelector(state => state.chat);
-  const { sendMessage, isStreaming, isLoading } = useChatMessage();
+  const { sendMessage, isStreaming, isLoading, isReasoning } = useChatMessage();
   const [sourceData, setSourceData] = useState<SourceData | undefined>();
 
   function handleSourceClick(index: number, message: ChatMessageType) {
@@ -40,6 +40,7 @@ const ChatPage: React.FC = () => {
           messages={messages}
           isLoading={isLoading}
           isStreaming={isStreaming}
+          isReasoning={isReasoning}
           onSourceClick={handleSourceClick}
           className={styles["child-container"]}
         />

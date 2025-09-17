@@ -1,6 +1,5 @@
 /* Markdown styles */
 .markdown-body {
-  font-size: 16px;
   line-height: 1.6;
 }
 
@@ -46,4 +45,8 @@
   margin: 8px 0;
   border-radius: 6px;
   overflow-x: auto;
+}
+
+.markdown-body hr {
+  color: var(--color-gray-500);
 }

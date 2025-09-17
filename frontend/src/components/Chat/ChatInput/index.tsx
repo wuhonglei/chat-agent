@@ -44,17 +44,12 @@ const ChatInput: React.FC<ChatInputProps> = ({
     }
   };
 
-  const handleValuesChange = (changedFields: any, allFields: any) => {
-    console.log(changedFields, allFields);
-  };
-
   return (
     <div className={classNames("p-4", className)} style={style}>
       <ConfigProvider theme={{ components: { Form: { itemMarginBottom: 0 } } }}>
         <Form
           form={form}
           layout="vertical"
-          onValuesChange={handleValuesChange}
           className={classNames(
             "flex flex-col gap-3",
             styles["input-container"]

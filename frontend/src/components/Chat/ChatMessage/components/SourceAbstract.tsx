@@ -2,7 +2,7 @@ import { SearchSource } from "@/types";
 import { RightOutlined } from "@ant-design/icons";
 import classNames from "classnames";
 import { isEmpty } from "lodash-es";
-import styles from "./SourceAbstract.module.css";
+import styles from "./css/SourceAbstract.module.css";
 
 type Props = {
   onClick: () => void;

@@ -30,6 +30,7 @@ export enum DocumentStatus {
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
+  reasoning?: string;
   timestamp: string;
   sources?: SearchSource[];
   metadata?: Record<string, any>;
@@ -99,7 +100,7 @@ export interface ApiError {
 
 // Stream types
 export interface StreamMessage {
-  type: "content" | "sources" | "done" | "error";
+  type: "reasoning" | "content" | "sources" | "done" | "error";
   data?: any;
 }
 

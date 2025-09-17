@@ -12,7 +12,6 @@ from app.core.vector_store import VectorStore
 from app.models.chat import ChatMessage, ChatResponse
 from app.services.reranker import Reranker
 
-
 class ChatService:
     """Handle chat interactions with RAG"""
 
@@ -140,8 +139,9 @@ class ChatService:
 
             # Stream answer chunks
             async for chunk in stream:
-                logger.info(f"Stream chunk: {chunk}")
-                if chunk.choices[0].delta.content:
+                if think_mode and chunk.choices[0].delta.reasoning_content:
+                    yield f"data: {json.dumps({'type': 'reasoning', 'data': chunk.choices[0].delta.reasoning_content})}\n\n"
+                elif chunk.choices[0].delta.content:
                     yield f"data: {json.dumps({'type': 'content', 'data': chunk.choices[0].delta.content})}\n\n"
 
             # Send done signal
@@ -196,8 +196,7 @@ class ChatService:
         history: Optional[List[ChatMessage]] = None,
     ) -> List[dict]:
         """Build prompt for LLM without context"""
-        system_prompt = """You are a helpful assistant.
-        """
+        system_prompt = """You are a helpful assistant."""
         messages = [{"role": "system", "content": system_prompt}]
 
         # Add history if available

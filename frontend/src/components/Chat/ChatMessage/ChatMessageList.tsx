@@ -9,6 +9,7 @@ interface ChatMessageListProps {
   messages: ChatMessageType[];
   isLoading?: boolean;
   isStreaming?: boolean;
+  isReasoning?: boolean;
   className?: string;
   onSourceClick: (index: number, message: ChatMessageType) => void;
 }
@@ -17,6 +18,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
   messages,
   isLoading = false,
   isStreaming = false,
+  isReasoning = false,
   className,
   onSourceClick,
 }) => {
@@ -42,6 +44,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
           message={message}
           isLoading={isLoading && index === messages.length - 1}
           isStreaming={isStreaming && index === messages.length - 1}
+          isReasoning={isReasoning && index === messages.length - 1}
           onSourceClick={() => onSourceClick(index, message)}
         />
       ))}

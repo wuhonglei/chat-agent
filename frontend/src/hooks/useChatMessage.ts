@@ -3,8 +3,10 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   addMessage,
   appendToLastMessage,
+  appendToLastMessageReasoning,
   clearLastMessage,
   setLoading,
+  setReasoning,
   setSources,
   setStreaming,
 } from "@/store/slices/chatSlice";
@@ -22,8 +24,9 @@ export interface UseChatMessageOptions {
 export interface UseChatMessageReturn {
   sendMessage: (values: ChatInputFormValues) => Promise<void>;
   abortMessage: () => void;
-  isStreaming: boolean;
   isLoading: boolean;
+  isStreaming: boolean;
+  isReasoning: boolean;
 }
 
 export const useChatMessage = (
@@ -32,11 +35,16 @@ export const useChatMessage = (
   const { historyLimit = 10 } = options;
 
   const dispatch = useAppDispatch();
-  const { messages, isLoading, isStreaming, sessionId } = useAppSelector(
-    state => state.chat
-  );
+  const { messages, isLoading, isStreaming, isReasoning, sessionId } =
+    useAppSelector(state => state.chat);
 
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  const resetState = () => {
+    dispatch(setStreaming(false));
+    dispatch(setLoading(false));
+    dispatch(setReasoning(false));
+  };
 
   const sendMessage = async (values: ChatInputFormValues): Promise<void> => {
     // 如果正在流式传输，先中止当前请求
@@ -57,6 +65,7 @@ export const useChatMessage = (
     const assistantMessage: ChatMessageType = {
       role: "assistant",
       content: "",
+      reasoning: "",
       timestamp: new Date().toISOString(),
     };
     dispatch(addMessage(assistantMessage));
@@ -74,37 +83,38 @@ export const useChatMessage = (
           history: messages.slice(-historyLimit), // 发送最后几条消息作为上下文
         },
         (data: StreamMessage) => {
-          // 处理流式数据
-          if (data.type === "content") {
+          if (data.type === "reasoning") {
+            // 思考内容
+            dispatch(appendToLastMessageReasoning(data.data));
+            dispatch(setReasoning(true));
+            dispatch(setLoading(false));
+          } else if (data.type === "content") {
             // 回答内容
             dispatch(appendToLastMessage(data.data));
             dispatch(setLoading(false));
+            dispatch(setReasoning(false));
           } else if (data.type === "sources") {
             // 知识库搜索结果
             dispatch(setSources(data.data));
           } else if (data.type === "done") {
             // 流结束
-            dispatch(setStreaming(false));
-            dispatch(setLoading(false));
+            resetState();
           }
         },
         (error: Error) => {
           // 流错误
           console.error("Stream error:", error);
-          dispatch(setStreaming(false));
-          dispatch(setLoading(false));
+          resetState();
         },
         () => {
           // 流结束
-          dispatch(setStreaming(false));
-          dispatch(setLoading(false));
+          resetState();
         },
         abortControllerRef.current
       );
     } catch (error) {
       console.error("Failed to send message:", error);
-      dispatch(setStreaming(false));
-      dispatch(setLoading(false));
+      resetState();
     }
   };
 
@@ -112,8 +122,7 @@ export const useChatMessage = (
     if (abortControllerRef.current && isStreaming) {
       abortControllerRef.current.abort();
       dispatch(clearLastMessage());
-      dispatch(setStreaming(false));
-      dispatch(setLoading(false));
+      resetState();
     }
   };
 
@@ -122,5 +131,6 @@ export const useChatMessage = (
     abortMessage,
     isStreaming,
     isLoading,
+    isReasoning,
   };
 };

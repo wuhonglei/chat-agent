@@ -5,15 +5,17 @@ import UserMessage from "./components/UserMessage";
 
 interface ChatMessageItemProps {
   message: ChatMessageType;
-  isStreaming?: boolean;
-  isLoading?: boolean;
+  isStreaming: boolean;
+  isLoading: boolean;
+  isReasoning: boolean;
   onSourceClick: () => void;
 }
 
 const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   message,
-  isStreaming = false,
-  isLoading = false,
+  isStreaming,
+  isLoading,
+  isReasoning,
   onSourceClick,
 }) => {
   const isUser = message.role === "user";
@@ -23,8 +25,9 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   ) : (
     <AssistantMessage
       message={message}
-      isStreaming={isStreaming}
       isLoading={isLoading}
+      isStreaming={isStreaming}
+      isReasoning={isReasoning}
       onSourceClick={onSourceClick}
     />
   );
