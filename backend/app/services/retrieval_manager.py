@@ -2,7 +2,6 @@
 
 import asyncio
 import time
-from typing import List
 
 from loguru import logger
 
@@ -41,9 +40,7 @@ class RetrievalManager:
         for source in request.sources:
             retriever = self.factory.get_retriever(source)
             if retriever:
-                task = asyncio.create_task(
-                    self._retrieve_from_source(retriever, request, source)
-                )
+                task = asyncio.create_task(self._retrieve_from_source(retriever, request, source))
                 tasks.append(task)
                 sources_used.append(source)
             else:
@@ -85,7 +82,7 @@ class RetrievalManager:
 
     async def _retrieve_from_source(
         self, retriever, request: RetrievalRequest, source: RetrievalSource
-    ) -> List[RetrievalResult]:
+    ) -> list[RetrievalResult]:
         """Retrieve from a single source with error handling"""
         try:
             return await retriever.retrieve(request)
@@ -97,7 +94,7 @@ class RetrievalManager:
         """Check health of all retrieval sources"""
         return await self.factory.health_check()
 
-    def get_available_sources(self) -> List[RetrievalSource]:
+    def get_available_sources(self) -> list[RetrievalSource]:
         """Get list of available retrieval sources"""
         return self.factory.get_available_retrievers()
 

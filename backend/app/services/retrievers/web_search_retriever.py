@@ -1,12 +1,10 @@
 """Web search retriever using Tavily Search"""
 
 import asyncio
-from typing import List
 
 from loguru import logger
 from tavily import TavilyClient
 
-from app.core.config import settings
 from app.models.retrieval import RetrievalRequest, RetrievalResult, RetrievalSource
 from app.services.retrievers.base import BaseRetriever
 
@@ -18,7 +16,7 @@ class WebSearchRetriever(BaseRetriever):
         super().__init__("WebSearch")
         self.client = TavilyClient(api_key=api_key)
 
-    async def retrieve(self, request: RetrievalRequest) -> List[RetrievalResult]:
+    async def retrieve(self, request: RetrievalRequest) -> list[RetrievalResult]:
         """Retrieve from web search"""
         try:
             # Run Tavily search in thread pool since it's synchronous
@@ -84,9 +82,7 @@ class WebSearchRetriever(BaseRetriever):
             loop = asyncio.get_event_loop()
             response = await loop.run_in_executor(
                 None,
-                lambda: self.client.search(
-                    query="test", search_depth="basic", max_results=1
-                ),
+                lambda: self.client.search(query="test", search_depth="basic", max_results=1),
             )
             return "results" in response
         except Exception as e:

@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -22,11 +22,11 @@ class RetrievalResult(BaseModel):
     """Single retrieval result"""
 
     content: str
-    title: Optional[str] = None
-    url: Optional[str] = None
+    title: str | None = None
+    url: str | None = None
     source: RetrievalSource
     score: float = 0.0
-    metadata: Dict[str, Any] = {}
+    metadata: dict[str, Any] = {}
     retrieved_at: datetime = datetime.now()
 
 
@@ -34,18 +34,18 @@ class RetrievalRequest(BaseModel):
     """Request for retrieval"""
 
     query: str
-    sources: List[RetrievalSource] = [RetrievalSource.VECTOR_STORE]
+    sources: list[RetrievalSource] = [RetrievalSource.VECTOR_STORE]
     max_results: int = 5
     min_score: float = 0.0
-    metadata_filters: Dict[str, Any] = {}
+    metadata_filters: dict[str, Any] = {}
 
 
 class RetrievalResponse(BaseModel):
     """Response from retrieval system"""
 
-    results: List[RetrievalResult]
+    results: list[RetrievalResult]
     query: str
     total_results: int
-    sources_used: List[RetrievalSource]
+    sources_used: list[RetrievalSource]
     processing_time_ms: float
     timestamp: datetime = datetime.now()

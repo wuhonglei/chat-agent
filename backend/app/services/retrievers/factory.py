@@ -1,7 +1,5 @@
 """Retriever factory for creating and managing retrievers"""
 
-from typing import Dict, List, Optional
-
 from loguru import logger
 
 from app.core.config import settings
@@ -15,9 +13,9 @@ from app.services.retrievers.web_search_retriever import WebSearchRetriever
 class RetrieverFactory:
     """Factory for creating and managing retrievers"""
 
-    def __init__(self, vector_store: Optional[VectorStore] = None):
+    def __init__(self, vector_store: VectorStore | None = None):
         self.vector_store = vector_store
-        self._retrievers: Dict[RetrievalSource, BaseRetriever] = {}
+        self._retrievers: dict[RetrievalSource, BaseRetriever] = {}
         self._init_retrievers()
 
     def _init_retrievers(self):
@@ -45,19 +43,19 @@ class RetrieverFactory:
         except Exception as e:
             logger.error(f"Failed to initialize retrievers: {e}")
 
-    def get_retriever(self, source: RetrievalSource) -> Optional[BaseRetriever]:
+    def get_retriever(self, source: RetrievalSource) -> BaseRetriever | None:
         """Get retriever for a specific source"""
         return self._retrievers.get(source)
 
-    def get_available_retrievers(self) -> List[RetrievalSource]:
+    def get_available_retrievers(self) -> list[RetrievalSource]:
         """Get list of available retrieval sources"""
         return list(self._retrievers.keys())
 
-    def get_all_retrievers(self) -> Dict[RetrievalSource, BaseRetriever]:
+    def get_all_retrievers(self) -> dict[RetrievalSource, BaseRetriever]:
         """Get all available retrievers"""
         return self._retrievers.copy()
 
-    async def health_check(self) -> Dict[RetrievalSource, bool]:
+    async def health_check(self) -> dict[RetrievalSource, bool]:
         """Check health of all retrievers"""
         health_status = {}
         for source, retriever in self._retrievers.items():

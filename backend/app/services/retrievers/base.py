@@ -1,7 +1,6 @@
 """Base retriever interface"""
 
 from abc import ABC, abstractmethod
-from typing import List
 
 from app.models.retrieval import RetrievalRequest, RetrievalResult
 
@@ -13,7 +12,7 @@ class BaseRetriever(ABC):
         self.name = name
 
     @abstractmethod
-    async def retrieve(self, request: RetrievalRequest) -> List[RetrievalResult]:
+    async def retrieve(self, request: RetrievalRequest) -> list[RetrievalResult]:
         """
         Retrieve relevant documents/content based on the request
 

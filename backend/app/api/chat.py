@@ -1,7 +1,7 @@
 """Chat endpoints for Q&A"""
 
 import uuid
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -82,8 +82,7 @@ async def get_session(session_id: str) -> ChatSession:
     """Get chat session history"""
     try:
         # TODO: Implement session storage and retrieval
-        raise HTTPException(
-            status_code=501, detail="Session management not implemented yet")
+        raise HTTPException(status_code=501, detail="Session management not implemented yet")
 
     except Exception as e:
         logger.error(f"Failed to get session: {e}")
@@ -95,8 +94,7 @@ async def delete_session(session_id: str):
     """Delete chat session"""
     try:
         # TODO: Implement session deletion
-        raise HTTPException(
-            status_code=501, detail="Session management not implemented yet")
+        raise HTTPException(status_code=501, detail="Session management not implemented yet")
 
     except Exception as e:
         logger.error(f"Failed to delete session: {e}")

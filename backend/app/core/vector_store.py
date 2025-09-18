@@ -1,7 +1,6 @@
 """Vector store management for RAG"""
 
 import os
-from typing import Dict, List, Optional, Tuple
 
 import chromadb
 from chromadb.config import Settings as ChromaSettings
@@ -32,7 +31,7 @@ class VectorStore:
             # Initialize embeddings (using local model for MVP)
             self.embeddings = DashScopeEmbeddings(
                 model=settings.EMBEDDING_MODEL,  # 或者使用 text-embedding-v2
-                dashscope_api_key=settings.EMBEDDING_API_KEY
+                dashscope_api_key=settings.EMBEDDING_API_KEY,
             )
 
             # Initialize Chroma client
@@ -44,18 +43,16 @@ class VectorStore:
 
             # Get or create collection
             self.collection = self.client.get_or_create_collection(
-                name=settings.CHROMA_COLLECTION_NAME, metadata={
-                    "hnsw:space": "cosine"}
+                name=settings.CHROMA_COLLECTION_NAME, metadata={"hnsw:space": "cosine"}
             )
 
-            logger.info(
-                f"Vector store initialized with {self.collection.count()} documents")
+            logger.info(f"Vector store initialized with {self.collection.count()} documents")
 
         except Exception as e:
             logger.error(f"Failed to initialize vector store: {e}")
             raise
 
-    async def add_document(self, document: Document) -> List[str]:
+    async def add_document(self, document: Document) -> list[str]:
         """Add document to vector store"""
         try:
             # Split document into chunks
@@ -85,8 +82,7 @@ class VectorStore:
                 metadatas=metadatas,
             )
 
-            logger.info(
-                f"Added document {document.name} with {len(chunks)} chunks")
+            logger.info(f"Added document {document.name} with {len(chunks)} chunks")
             return ids
 
         except Exception as e:
@@ -97,8 +93,8 @@ class VectorStore:
         self,
         query: str,
         top_k: int = settings.SEARCH_TOP_K,
-        filter_dict: Optional[Dict] = None,
-    ) -> List[SearchResult]:
+        filter_dict: dict | None = None,
+    ) -> list[SearchResult]:
         """Search for relevant documents"""
         try:
             # Generate query embedding
@@ -137,14 +133,13 @@ class VectorStore:
 
             if results["ids"]:
                 self.collection.delete(ids=results["ids"])
-                logger.info(
-                    f"Deleted {len(results['ids'])} chunks for document {document_id}")
+                logger.info(f"Deleted {len(results['ids'])} chunks for document {document_id}")
 
         except Exception as e:
             logger.error(f"Failed to delete document: {e}")
             raise
 
-    async def get_document_list(self) -> List[Dict]:
+    async def get_document_list(self) -> list[dict]:
         """Get list of all documents in the store"""
         try:
             # Get unique documents

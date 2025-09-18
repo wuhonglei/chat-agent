@@ -1,15 +1,15 @@
 """Document management endpoints"""
 
-from datetime import datetime
 import os
 import uuid
-from typing import List
+from datetime import datetime
 
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from loguru import logger
 
 from app.core.config import settings
-from app.models.document import Document, DocumentResponse, DocumentSource, DocumentStatus
+from app.models.document import DocumentResponse, DocumentSource, DocumentStatus
+
 # Document processor functionality temporarily removed
 
 router = APIRouter()
@@ -25,8 +25,7 @@ async def upload_document(
         # Validate file extension
         file_extension = file.filename.split(".")[-1].lower()
         if file_extension not in settings.ALLOWED_EXTENSIONS:
-            raise HTTPException(
-                status_code=400, detail=f"File type {file_extension} not supported")
+            raise HTTPException(status_code=400, detail=f"File type {file_extension} not supported")
 
         # Check file size
         file_content = await file.read()
@@ -39,8 +38,7 @@ async def upload_document(
 
         # Save file
         doc_id = str(uuid.uuid4())
-        file_path = os.path.join(
-            settings.UPLOAD_DIR, f"{doc_id}_{file.filename}")
+        file_path = os.path.join(settings.UPLOAD_DIR, f"{doc_id}_{file.filename}")
         os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
         with open(file_path, "wb") as f:
@@ -56,8 +54,7 @@ async def upload_document(
         chunk_ids = await vector_store.add_document(document)
         document.chunk_count = len(chunk_ids)
 
-        logger.info(
-            f"Document {file.filename} uploaded and processed successfully")
+        logger.info(f"Document {file.filename} uploaded and processed successfully")
 
         return DocumentResponse(
             id=document.id,
@@ -111,8 +108,8 @@ async def import_from_url(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("", response_model=List[DocumentResponse])
-async def list_documents(request: Request) -> List[DocumentResponse]:
+@router.get("", response_model=list[DocumentResponse])
+async def list_documents(request: Request) -> list[DocumentResponse]:
     """List all documents"""
     try:
         vector_store = request.app.state.vector_store

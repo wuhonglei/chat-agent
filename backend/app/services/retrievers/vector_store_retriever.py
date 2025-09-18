@@ -1,7 +1,5 @@
 """Vector store retriever implementation"""
 
-from typing import List
-
 from loguru import logger
 
 from app.core.vector_store import VectorStore
@@ -16,7 +14,7 @@ class VectorStoreRetriever(BaseRetriever):
         super().__init__("VectorStore")
         self.vector_store = vector_store
 
-    async def retrieve(self, request: RetrievalRequest) -> List[RetrievalResult]:
+    async def retrieve(self, request: RetrievalRequest) -> list[RetrievalResult]:
         """Retrieve from vector store"""
         try:
             # Search vector store

@@ -1,8 +1,8 @@
 """Chat service for RAG-based Q&A"""
 
 import json
+from collections.abc import AsyncGenerator
 from datetime import datetime
-from typing import AsyncGenerator, List, Optional
 
 from loguru import logger
 from openai import AsyncOpenAI
@@ -31,7 +31,7 @@ class ChatService:
         self,
         message: str,
         session_id: str,
-        history: List[ChatMessage] = None,
+        history: list[ChatMessage] = None,
         use_knowledge_base: bool = False,
         use_web_search: bool = False,
         think_mode: bool = False,
@@ -69,24 +69,28 @@ class ChatService:
                         # Convert to legacy format for reranker
                         legacy_results = []
                         for result in all_results:
-                            legacy_result = type('Result', (), {
-                                'content': result.content,
-                                'score': result.score,
-                                'metadata': result.metadata
-                            })()
+                            legacy_result = type(
+                                "Result",
+                                (),
+                                {
+                                    "content": result.content,
+                                    "score": result.score,
+                                    "metadata": result.metadata,
+                                },
+                            )()
                             legacy_results.append(legacy_result)
 
                         # Rerank results
                         reranked_results = await self.reranker.rerank(message, legacy_results)
 
                         # Take top results after reranking
-                        top_results = reranked_results[:settings.RERANK_TOP_K]
+                        top_results = reranked_results[: settings.RERANK_TOP_K]
                     else:
-                        top_results = all_results[:settings.RERANK_TOP_K]
+                        top_results = all_results[: settings.RERANK_TOP_K]
 
                     # Build context and sources
                     for result in top_results:
-                        if hasattr(result, 'content'):  # Reranked result
+                        if hasattr(result, "content"):  # Reranked result
                             content = result.content
                             metadata = result.metadata
                             score = result.score
@@ -97,13 +101,21 @@ class ChatService:
 
                         context += f"\n---\n来源: {result.source if hasattr(result, 'source') else '知识库'}\n{content}\n"
 
-                        sources.append({
-                            "content": content[:200] + "...",
-                            "title": result.title if hasattr(result, 'title') else metadata.get("document_name", "Unknown"),
-                            "url": result.url if hasattr(result, 'url') else None,
-                            "source": result.source if hasattr(result, 'source') else "knowledge_base",
-                            "score": score,
-                        })
+                        sources.append(
+                            {
+                                "content": content[:200] + "...",
+                                "title": (
+                                    result.title
+                                    if hasattr(result, "title")
+                                    else metadata.get("document_name", "Unknown")
+                                ),
+                                "url": result.url if hasattr(result, "url") else None,
+                                "source": (
+                                    result.source if hasattr(result, "source") else "knowledge_base"
+                                ),
+                                "score": score,
+                            }
+                        )
 
                 # Build prompt with context
                 prompt = self._build_prompt_with_context(message, context, history)
@@ -135,7 +147,7 @@ class ChatService:
         self,
         message: str,
         session_id: str,
-        history: List[ChatMessage] = None,
+        history: list[ChatMessage] = None,
         use_knowledge_base: bool = False,
         think_mode: bool = False,
     ) -> AsyncGenerator[str, None]:
@@ -176,8 +188,8 @@ class ChatService:
         self,
         message: str,
         context: str,
-        history: Optional[List[ChatMessage]] = None,
-    ) -> List[dict]:
+        history: list[ChatMessage] | None = None,
+    ) -> list[dict]:
         """Build prompt for LLM with context"""
         system_prompt = """你是一个智能文档问答助手。你的任务是基于提供的文档内容回答用户的问题。
 
@@ -214,8 +226,8 @@ class ChatService:
     def _build_prompt_without_context(
         self,
         message: str,
-        history: Optional[List[ChatMessage]] = None,
-    ) -> List[dict]:
+        history: list[ChatMessage] | None = None,
+    ) -> list[dict]:
         """Build prompt for LLM without context"""
         system_prompt = """You are a helpful assistant."""
         messages = [{"role": "system", "content": system_prompt}]

@@ -1,7 +1,5 @@
 """Application configuration"""
 
-from typing import List, Union
-
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
@@ -17,8 +15,7 @@ class Settings(BaseSettings):
     PORT: int = 8000
 
     # CORS
-    CORS_ORIGINS: Union[List[str], str] = [
-        "http://localhost:3000", "http://localhost:5173"]
+    CORS_ORIGINS: list[str] | str = ["http://localhost:3000", "http://localhost:5173"]
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
@@ -48,7 +45,7 @@ class Settings(BaseSettings):
 
     # Document Processing
     MAX_FILE_SIZE_MB: int = 50
-    ALLOWED_EXTENSIONS: Union[List[str], str] = ["pdf", "docx", "txt", "md"]
+    ALLOWED_EXTENSIONS: list[str] | str = ["pdf", "docx", "txt", "md"]
     CHUNK_SIZE: int = 1000
     CHUNK_OVERLAP: int = 200
 

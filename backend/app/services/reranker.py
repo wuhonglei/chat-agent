@@ -1,7 +1,5 @@
 """Reranker service for improving search results"""
 
-from typing import List
-
 from rank_bm25 import BM25Okapi
 from sentence_transformers import CrossEncoder
 
@@ -25,9 +23,9 @@ class Reranker:
     async def rerank(
         self,
         query: str,
-        results: List[SearchResult],
+        results: list[SearchResult],
         top_k: int = None,
-    ) -> List[SearchResult]:
+    ) -> list[SearchResult]:
         """Rerank search results based on query"""
         if not results:
             return results
@@ -44,9 +42,9 @@ class Reranker:
     def _rerank_with_cross_encoder(
         self,
         query: str,
-        results: List[SearchResult],
+        results: list[SearchResult],
         top_k: int,
-    ) -> List[SearchResult]:
+    ) -> list[SearchResult]:
         """Rerank using cross-encoder model"""
         # Prepare pairs for cross-encoder
         pairs = [[query, result.content] for result in results]
@@ -67,9 +65,9 @@ class Reranker:
     def _rerank_with_bm25(
         self,
         query: str,
-        results: List[SearchResult],
+        results: list[SearchResult],
         top_k: int,
-    ) -> List[SearchResult]:
+    ) -> list[SearchResult]:
         """Rerank using BM25 algorithm"""
         # Tokenize documents
         tokenized_docs = [result.content.split() for result in results]
