@@ -32,8 +32,8 @@ class WebSearchRetriever(BaseRetriever):
                     search_depth="advanced",
                     # Tavily max is typically 10
                     max_results=min(request.max_results, 10),
-                    include_answer=True,
-                    include_raw_content=True,
+                    include_answer=False,
+                    include_raw_content=False,
                 ),
             )
 
@@ -73,7 +73,8 @@ class WebSearchRetriever(BaseRetriever):
                 )
                 results.insert(0, answer_result)  # Put answer first
 
-            logger.info(f"Web search retrieved {len(results)} results for query: {request.query}")
+            logger.info(
+                f"Web search retrieved {len(results)} results for query: {request.query}")
             return results
 
         except Exception as e:
@@ -87,7 +88,8 @@ class WebSearchRetriever(BaseRetriever):
             loop = asyncio.get_event_loop()
             response = await loop.run_in_executor(
                 None,
-                lambda: self.client.search(query="test", search_depth="basic", max_results=1),
+                lambda: self.client.search(
+                    query="test", search_depth="basic", max_results=1),
             )
             return "results" in response
         except Exception as e:

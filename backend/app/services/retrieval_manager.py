@@ -40,7 +40,8 @@ class RetrievalManager:
         for source in request.sources:
             retriever = self.factory.get_retriever(source)
             if retriever:
-                task = asyncio.create_task(self._retrieve_from_source(retriever, request, source))
+                task = asyncio.create_task(
+                    self._retrieve_from_source(retriever, request, source))
                 tasks.append(task)
                 sources_used.append(source)
             else:
@@ -63,7 +64,8 @@ class RetrievalManager:
         # Limit results
         final_results = all_results[: request.max_results]
 
-        processing_time = (time.time() - start_time) * 1000  # Convert to milliseconds
+        processing_time = (time.time() - start_time) * \
+            1000  # Convert to milliseconds
 
         response = RetrievalResponse(
             results=final_results,

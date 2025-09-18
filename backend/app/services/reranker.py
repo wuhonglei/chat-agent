@@ -1,10 +1,12 @@
 """Reranker service for improving search results"""
 
 from rank_bm25 import BM25Okapi
-from sentence_transformers import CrossEncoder
+import dashscope
+from loguru import logger
+from http import HTTPStatus
 
 from app.core.config import settings
-from app.models.document import SearchResult
+from app.models.retrieval import RetrievalResult
 
 
 class Reranker:
@@ -13,19 +15,14 @@ class Reranker:
     def __init__(self):
         # Initialize cross-encoder for reranking
         # Using a lightweight model for MVP
-        self.cross_encoder = None
-        try:
-            self.cross_encoder = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
-        except:
-            # Fallback to BM25 if cross-encoder fails to load
-            pass
+        pass
 
     async def rerank(
         self,
         query: str,
-        results: list[SearchResult],
+        results: list[RetrievalResult],
         top_k: int = None,
-    ) -> list[SearchResult]:
+    ) -> list[RetrievalResult]:
         """Rerank search results based on query"""
         if not results:
             return results
@@ -33,41 +30,51 @@ class Reranker:
         top_k = top_k or settings.RERANK_TOP_K
 
         # If cross-encoder is available, use it
-        if self.cross_encoder:
-            return self._rerank_with_cross_encoder(query, results, top_k)
+        if settings.RE_RANK_MODEL:
+            return self._rerank_with_dashscope(query, results, top_k)
         else:
             # Fallback to BM25 reranking
             return self._rerank_with_bm25(query, results, top_k)
 
-    def _rerank_with_cross_encoder(
+    def _rerank_with_dashscope(
         self,
         query: str,
-        results: list[SearchResult],
+        results: list[RetrievalResult],
         top_k: int,
-    ) -> list[SearchResult]:
+    ) -> list[RetrievalResult]:
         """Rerank using cross-encoder model"""
         # Prepare pairs for cross-encoder
-        pairs = [[query, result.content] for result in results]
+        documents = [result.content for result in results]
 
         # Get scores from cross-encoder
-        scores = self.cross_encoder.predict(pairs)
+        resp = dashscope.TextReRank.call(
+            model=settings.RE_RANK_MODEL,
+            api_key=settings.RE_RANK_API_KEY,
+            query=query,
+            documents=documents,
+            top_n=top_k,
+            return_documents=False
+        )
 
-        # Update scores and sort
-        for i, result in enumerate(results):
-            # Combine original score with reranking score
-            result.score = 0.3 * result.score + 0.7 * float(scores[i])
+        if resp.status_code != HTTPStatus.OK:
+            logger.error(
+                f"Failed to rerank with dashscope: {resp.status_code}")
+            return results[:top_k]
 
-        # Sort by new scores
-        results.sort(key=lambda x: x.score, reverse=True)
+        new_results = []
+        for result in resp.output.results:
+            if result.relevance_score >= settings.MIN_RELEVANCE_SCORE:
+                results[result.index].score = result.relevance_score
+                new_results.append(results[result.index])
 
-        return results[:top_k]
+        return new_results[:top_k]
 
     def _rerank_with_bm25(
         self,
         query: str,
-        results: list[SearchResult],
+        results: list[RetrievalResult],
         top_k: int,
-    ) -> list[SearchResult]:
+    ) -> list[RetrievalResult]:
         """Rerank using BM25 algorithm"""
         # Tokenize documents
         tokenized_docs = [result.content.split() for result in results]
@@ -92,6 +99,7 @@ class Reranker:
         results.sort(key=lambda x: x.score, reverse=True)
 
         # Filter by minimum relevance score
-        filtered_results = [r for r in results if r.score >= settings.MIN_RELEVANCE_SCORE]
+        filtered_results = [r for r in results if r.score >=
+                            settings.MIN_RELEVANCE_SCORE]
 
         return filtered_results[:top_k] if filtered_results else results[:top_k]

@@ -50,7 +50,7 @@ TAVILY_API_KEY=your_tavily_api_key
 
 ### 2. API 使用示例
 
-#### 聊天接口（支持联网搜索）
+#### 聊天接口（支持多源检索）
 
 ```bash
 # 仅使用知识库
@@ -58,8 +58,10 @@ curl -X POST "http://localhost:8000/api/chat" \
   -H "Content-Type: application/json" \
   -d '{
     "message": "什么是人工智能？",
-    "use_knowledge_base": true,
-    "use_web_search": false
+    "source_config": {
+      "knowledge_base": true,
+      "web_search": false
+    }
   }'
 
 # 仅使用联网搜索
@@ -67,8 +69,10 @@ curl -X POST "http://localhost:8000/api/chat" \
   -H "Content-Type: application/json" \
   -d '{
     "message": "2024年最新的AI发展趋势",
-    "use_knowledge_base": false,
-    "use_web_search": true
+    "source_config": {
+      "knowledge_base": false,
+      "web_search": true
+    }
   }'
 
 # 同时使用知识库和联网搜索
@@ -76,8 +80,49 @@ curl -X POST "http://localhost:8000/api/chat" \
   -H "Content-Type: application/json" \
   -d '{
     "message": "结合内部文档和最新资讯，分析AI在我们公司的应用前景",
-    "use_knowledge_base": true,
-    "use_web_search": true
+    "source_config": {
+      "knowledge_base": true,
+      "web_search": true
+    }
+  }'
+
+# 带会话历史和思考模式
+curl -X POST "http://localhost:8000/api/chat" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "基于之前的讨论，深入分析这个问题",
+    "session_id": "uuid-string",
+    "think_mode": true,
+    "history": [
+      {
+        "role": "user",
+        "content": "什么是深度学习？"
+      },
+      {
+        "role": "assistant",
+        "content": "深度学习是机器学习的一个分支..."
+      }
+    ],
+    "source_config": {
+      "knowledge_base": true,
+      "web_search": true
+    }
+  }'
+```
+
+#### 流式聊天接口
+
+```bash
+# 流式响应
+curl -X POST "http://localhost:8000/api/chat/stream" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "详细解释深度学习的原理",
+    "session_id": "uuid-string",
+    "source_config": {
+      "knowledge_base": true,
+      "web_search": false
+    }
   }'
 ```
 

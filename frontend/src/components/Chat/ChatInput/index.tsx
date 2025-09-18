@@ -1,4 +1,4 @@
-import { Input, Switch, Form, ConfigProvider, Dropdown, Space } from "antd";
+import { Input, Form, ConfigProvider } from "antd";
 import classNames from "classnames";
 import React from "react";
 import styles from "./index.module.css";
@@ -56,7 +56,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
         <Form
           form={form}
           layout="vertical"
-          onValuesChange={console.info}
           className={classNames(
             "flex flex-col gap-3",
             styles["input-container"]

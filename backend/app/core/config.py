@@ -15,7 +15,8 @@ class Settings(BaseSettings):
     PORT: int = 8000
 
     # CORS
-    CORS_ORIGINS: list[str] | str = ["http://localhost:3000", "http://localhost:5173"]
+    CORS_ORIGINS: list[str] | str = [
+        "http://localhost:3000", "http://localhost:5173"]
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
@@ -36,6 +37,11 @@ class Settings(BaseSettings):
     EMBEDDING_API_KEY: str
     EMBEDDING_API_BASE: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     EMBEDDING_MODEL: str = "text-embedding-v4"
+
+    # Re-rank API Configuration
+    RE_RANK_API_KEY: str
+    RE_RANK_API_BASE: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    RE_RANK_MODEL: str
 
     # Chroma
     CHROMA_HOST: str = "localhost"

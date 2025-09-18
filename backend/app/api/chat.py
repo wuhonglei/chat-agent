@@ -17,6 +17,7 @@ router = APIRouter()
 async def chat(request: Request, chat_request: ChatRequest) -> ChatResponse:
     """Process chat message and return response"""
     try:
+        logger.info(f"Chat request: {chat_request}")
         # Get or create session ID
         session_id = chat_request.session_id or str(uuid.uuid4())
 
@@ -80,7 +81,8 @@ async def get_session(session_id: str) -> ChatSession:
     """Get chat session history"""
     try:
         # TODO: Implement session storage and retrieval
-        raise HTTPException(status_code=501, detail="Session management not implemented yet")
+        raise HTTPException(
+            status_code=501, detail="Session management not implemented yet")
 
     except Exception as e:
         logger.error(f"Failed to get session: {e}")
@@ -92,7 +94,8 @@ async def delete_session(session_id: str):
     """Delete chat session"""
     try:
         # TODO: Implement session deletion
-        raise HTTPException(status_code=501, detail="Session management not implemented yet")
+        raise HTTPException(
+            status_code=501, detail="Session management not implemented yet")
 
     except Exception as e:
         logger.error(f"Failed to delete session: {e}")

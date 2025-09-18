@@ -62,22 +62,8 @@ class ChatService:
                 # Apply reranking to all results combined
                 all_results = retrieval_response.results
                 if len(all_results) > 1:
-                    # Convert to legacy format for reranker
-                    legacy_results = []
-                    for result in all_results:
-                        legacy_result = type(
-                            "Result",
-                            (),
-                            {
-                                "content": result.content,
-                                "score": result.score,
-                                "metadata": result.metadata,
-                            },
-                        )()
-                        legacy_results.append(legacy_result)
-
                     # Rerank results
-                    reranked_results = await self.reranker.rerank(message, legacy_results)
+                    reranked_results = await self.reranker.rerank(message, all_results)
 
                     # Take top results after reranking
                     top_results = reranked_results[: settings.RERANK_TOP_K]
@@ -107,7 +93,8 @@ class ChatService:
                             ),
                             "url": result.url if hasattr(result, "url") else None,
                             "source": (
-                                result.source if hasattr(result, "source") else "knowledge_base"
+                                result.source if hasattr(
+                                    result, "source") else "knowledge_base"
                             ),
                             "score": score,
                         }
@@ -134,7 +121,8 @@ class ChatService:
 
             # Build prompt based on whether context is available
             if context:
-                prompt = self._build_prompt_with_context(message, context, history)
+                prompt = self._build_prompt_with_context(
+                    message, context, history)
             else:
                 prompt = self._build_prompt_without_context(message, history)
 
@@ -177,7 +165,8 @@ class ChatService:
 
             # Build prompt based on whether context is available
             if context:
-                prompt = self._build_prompt_with_context(message, context, history)
+                prompt = self._build_prompt_with_context(
+                    message, context, history)
             else:
                 prompt = self._build_prompt_without_context(message, history)
 
