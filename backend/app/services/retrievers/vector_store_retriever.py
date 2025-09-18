@@ -29,7 +29,7 @@ class VectorStoreRetriever(BaseRetriever):
                     retrieval_result = RetrievalResult(
                         content=result.content,
                         title=result.metadata.get("document_name"),
-                        source=RetrievalSource.VECTOR_STORE,
+                        source=RetrievalSource.KNOWLEDGE_BASE,
                         score=result.score,
                         metadata={
                             "document_id": result.metadata.get("document_id"),

@@ -23,7 +23,7 @@ class RetrieverFactory:
         try:
             # Vector store retriever
             if self.vector_store:
-                self._retrievers[RetrievalSource.VECTOR_STORE] = VectorStoreRetriever(
+                self._retrievers[RetrievalSource.KNOWLEDGE_BASE] = VectorStoreRetriever(
                     self.vector_store
                 )
                 logger.info("Vector store retriever initialized")

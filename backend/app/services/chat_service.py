@@ -32,11 +32,13 @@ class ChatService:
         retrieval_sources = []
         if source_config.web_search:
             retrieval_sources.append(RetrievalSource.WEB_SEARCH)
-        if source_config.vector_store:
-            retrieval_sources.append(RetrievalSource.VECTOR_STORE)
+        if source_config.knowledge_base:
+            retrieval_sources.append(RetrievalSource.KNOWLEDGE_BASE)
         return retrieval_sources
 
-    async def _perform_retrieval(self, message: str, source_config: SourceConfig) -> tuple[str, list[dict]]:
+    async def _perform_retrieval(
+        self, message: str, source_config: SourceConfig
+    ) -> tuple[str, list[dict]]:
         """Perform retrieval and return context and sources"""
         sources = []
         context = ""
@@ -105,8 +107,7 @@ class ChatService:
                             ),
                             "url": result.url if hasattr(result, "url") else None,
                             "source": (
-                                result.source if hasattr(
-                                    result, "source") else "knowledge_base"
+                                result.source if hasattr(result, "source") else "knowledge_base"
                             ),
                             "score": score,
                         }
@@ -133,8 +134,7 @@ class ChatService:
 
             # Build prompt based on whether context is available
             if context:
-                prompt = self._build_prompt_with_context(
-                    message, context, history)
+                prompt = self._build_prompt_with_context(message, context, history)
             else:
                 prompt = self._build_prompt_without_context(message, history)
 
@@ -177,8 +177,7 @@ class ChatService:
 
             # Build prompt based on whether context is available
             if context:
-                prompt = self._build_prompt_with_context(
-                    message, context, history)
+                prompt = self._build_prompt_with_context(message, context, history)
             else:
                 prompt = self._build_prompt_without_context(message, history)
 

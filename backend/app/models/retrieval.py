@@ -10,7 +10,7 @@ from pydantic import BaseModel
 class RetrievalSource(str, Enum):
     """Enumeration of retrieval sources"""
 
-    VECTOR_STORE = "vector_store"
+    KNOWLEDGE_BASE = "knowledge_base"
     WEB_SEARCH = "web_search"
     CONFLUENCE = "confluence"
     GOOGLE_DOCS = "google_docs"
@@ -34,7 +34,7 @@ class RetrievalRequest(BaseModel):
     """Request for retrieval"""
 
     query: str
-    sources: list[RetrievalSource] = [RetrievalSource.VECTOR_STORE]
+    sources: list[RetrievalSource] = []
     max_results: int = 5
     min_score: float = 0.0
     metadata_filters: dict[str, Any] = {}
