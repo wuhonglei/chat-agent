@@ -54,8 +54,7 @@ async def import_knowledge_base(request: Request):
     """Import knowledge base from uploaded file"""
     try:
         # TODO: Implement knowledge base import
-        raise HTTPException(
-            status_code=501, detail="Knowledge base import not implemented yet")
+        raise HTTPException(status_code=501, detail="Knowledge base import not implemented yet")
 
     except Exception as e:
         logger.error(f"Failed to import knowledge base: {e}")
@@ -68,8 +67,7 @@ async def create_share_link(request: Request):
     try:
         # TODO: Implement sharing functionality
         # This would generate a unique link that others can use to access the knowledge base
-        raise HTTPException(
-            status_code=501, detail="Knowledge base sharing not implemented yet")
+        raise HTTPException(status_code=501, detail="Knowledge base sharing not implemented yet")
 
     except Exception as e:
         logger.error(f"Failed to create share link: {e}")

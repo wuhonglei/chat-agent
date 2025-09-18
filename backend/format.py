@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Code formatting script using ruff and black
+Code formatting script using ruff
 """
 
 import os
@@ -40,7 +40,7 @@ def run_command(cmd, description):
 
 def check_tools():
     """Check if required tools are installed"""
-    tools = ["ruff", "black"]
+    tools = ["ruff"]
     missing_tools = []
 
     for tool in tools:
@@ -61,7 +61,7 @@ def check_tools():
 
 
 def format_code(target_path="."):
-    """Format code using ruff and black"""
+    """Format code using ruff"""
     target_path = Path(target_path).resolve()
 
     if not target_path.exists():
@@ -82,10 +82,6 @@ def format_code(target_path="."):
 
         print("\n=== Ruff formatting ===")
         if not run_command(["ruff", "format", "."], "Ruff formatting"):
-            success = False
-
-        print("\n=== Black formatting ===")
-        if not run_command(["black", "."], "Black formatting"):
             success = False
 
         return success

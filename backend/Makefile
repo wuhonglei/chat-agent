@@ -3,7 +3,7 @@
 # Default target
 help:
 	@echo "Available commands:"
-	@echo "  format     - Format code with ruff and black"
+	@echo "  format     - Format code with ruff"
 	@echo "  lint       - Run linting checks"
 	@echo "  check      - Run type checking with mypy"
 	@echo "  install    - Install dependencies"
@@ -24,13 +24,10 @@ dev:
 format:
 	python format.py
 
-# Quick format using individual tools
+# Quick format using ruff
 format-ruff:
 	python -m ruff check --fix app/
 	python -m ruff format app/
-
-format-black:
-	python -m black app/
 
 # Linting
 lint:
