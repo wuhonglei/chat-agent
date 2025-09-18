@@ -33,6 +33,7 @@ dependencies = [
     # Search & Retrieval Enhancement
     "rank-bm25>=0.2.2", # BM25 keyword search
     "sentence-transformers>=2.2.0", # For reranking
+    "tavily-python>=0.3.0", # Web search
     # Storage & Cache
     "redis>=5.0.0",
     "aiofiles>=23.2.0",

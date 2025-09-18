@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
-from app.api import chat, documents, health, knowledge_base
+from app.api import chat, documents, health, knowledge_base, retrieval
 from app.core.config import settings
 from app.core.vector_store import VectorStore
 
@@ -47,9 +47,13 @@ app.add_middleware(
 
 # Include routers
 app.include_router(health.router, prefix="/api/health", tags=["health"])
-app.include_router(documents.router, prefix="/api/documents", tags=["documents"])
+app.include_router(
+    documents.router, prefix="/api/documents", tags=["documents"])
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
-app.include_router(knowledge_base.router, prefix="/api/knowledge-base", tags=["knowledge-base"])
+app.include_router(knowledge_base.router,
+                   prefix="/api/knowledge-base", tags=["knowledge-base"])
+app.include_router(
+    retrieval.router, prefix="/api/retrieval", tags=["retrieval"])
 
 
 @app.get("/")

@@ -10,7 +10,7 @@ from loguru import logger
 
 from app.core.config import settings
 from app.models.document import Document, DocumentResponse, DocumentSource, DocumentStatus
-from app.services.document_processor import DocumentProcessor
+# Document processor functionality temporarily removed
 
 router = APIRouter()
 
@@ -46,9 +46,10 @@ async def upload_document(
         with open(file_path, "wb") as f:
             f.write(file_content)
 
-        # Process document
-        processor = DocumentProcessor()
-        document = await processor.process_file(file_path, doc_id, file.filename)
+        # Process document - temporarily disabled
+        # processor = DocumentProcessor()
+        # document = await processor.process_file(file_path, doc_id, file.filename)
+        raise HTTPException(status_code=501, detail="Document processing temporarily disabled")
 
         # Add to vector store
         vector_store = request.app.state.vector_store
@@ -82,9 +83,10 @@ async def import_from_url(
 ) -> DocumentResponse:
     """Import document from external URL"""
     try:
-        # Process external document
-        processor = DocumentProcessor()
-        document = await processor.process_url(url, source)
+        # Process external document - temporarily disabled
+        # processor = DocumentProcessor()
+        # document = await processor.process_url(url, source)
+        raise HTTPException(status_code=501, detail="External document import temporarily disabled")
 
         # Add to vector store
         vector_store = request.app.state.vector_store

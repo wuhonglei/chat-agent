@@ -10,7 +10,9 @@ from openai import AsyncOpenAI
 from app.core.config import settings
 from app.core.vector_store import VectorStore
 from app.models.chat import ChatMessage, ChatResponse
+from app.models.retrieval import RetrievalRequest, RetrievalSource
 from app.services.reranker import Reranker
+from app.services.retrieval_manager import RetrievalManager
 
 
 class ChatService:
@@ -23,45 +25,88 @@ class ChatService:
             base_url=settings.LLM_API_BASE,
         )
         self.reranker = Reranker()
+        self.retrieval_manager = RetrievalManager(vector_store)
 
     async def process_message(
         self,
         message: str,
         session_id: str,
         history: List[ChatMessage] = None,
-        use_knowledge_base: bool = True,
+        use_knowledge_base: bool = False,
+        use_web_search: bool = False,
         think_mode: bool = False,
     ) -> ChatResponse:
         """Process a chat message and return response"""
         try:
-            # Search knowledge base if enabled
             sources = []
             context = ""
 
-            if use_knowledge_base:
-                # Search for relevant documents
-                search_results = await self.vector_store.search(
-                    message, top_k=settings.SEARCH_TOP_K
+            # Use enhanced retrieval system if knowledge base or web search is enabled
+            if use_knowledge_base or use_web_search:
+                # Determine retrieval sources
+                retrieval_sources = []
+                if use_knowledge_base:
+                    retrieval_sources.append(RetrievalSource.VECTOR_STORE)
+                if use_web_search:
+                    retrieval_sources.append(RetrievalSource.WEB_SEARCH)
+
+                # Create retrieval request
+                retrieval_request = RetrievalRequest(
+                    query=message,
+                    sources=retrieval_sources,
+                    max_results=settings.SEARCH_TOP_K,
+                    min_score=settings.MIN_RELEVANCE_SCORE,
                 )
 
-                # Rerank results
-                if search_results:
-                    search_results = await self.reranker.rerank(message, search_results)
+                # Perform retrieval
+                retrieval_response = await self.retrieval_manager.retrieve(retrieval_request)
 
-                    # Build context from top results
-                    for result in search_results[: settings.RERANK_TOP_K]:
-                        context += f"\n---\n{result.content}\n"
-                        sources.append(
-                            {
-                                "content": result.content[:200] + "...",
-                                "document_name": result.metadata.get("document_name", "Unknown"),
-                                "score": result.score,
-                            }
-                        )
+                # Process retrieval results
+                if retrieval_response.results:
+                    # Apply reranking to all results combined
+                    all_results = retrieval_response.results
+                    if len(all_results) > 1:
+                        # Convert to legacy format for reranker
+                        legacy_results = []
+                        for result in all_results:
+                            legacy_result = type('Result', (), {
+                                'content': result.content,
+                                'score': result.score,
+                                'metadata': result.metadata
+                            })()
+                            legacy_results.append(legacy_result)
 
-                # Build prompt
-                prompt = self._build_prompt_with_context(
-                    message, context, history)
+                        # Rerank results
+                        reranked_results = await self.reranker.rerank(message, legacy_results)
+
+                        # Take top results after reranking
+                        top_results = reranked_results[:settings.RERANK_TOP_K]
+                    else:
+                        top_results = all_results[:settings.RERANK_TOP_K]
+
+                    # Build context and sources
+                    for result in top_results:
+                        if hasattr(result, 'content'):  # Reranked result
+                            content = result.content
+                            metadata = result.metadata
+                            score = result.score
+                        else:  # Original retrieval result
+                            content = result.content
+                            metadata = result.metadata
+                            score = result.score
+
+                        context += f"\n---\n来源: {result.source if hasattr(result, 'source') else '知识库'}\n{content}\n"
+
+                        sources.append({
+                            "content": content[:200] + "...",
+                            "title": result.title if hasattr(result, 'title') else metadata.get("document_name", "Unknown"),
+                            "url": result.url if hasattr(result, 'url') else None,
+                            "source": result.source if hasattr(result, 'source') else "knowledge_base",
+                            "score": score,
+                        })
+
+                # Build prompt with context
+                prompt = self._build_prompt_with_context(message, context, history)
             else:
                 prompt = self._build_prompt_without_context(message, history)
 
@@ -100,32 +145,7 @@ class ChatService:
             context = ""
             sources = []
 
-            if use_knowledge_base:
-                # Search for relevant documents
-                search_results = await self.vector_store.search(
-                    message, top_k=settings.SEARCH_TOP_K
-                )
-
-                # Rerank results
-                if search_results:
-                    search_results = await self.reranker.rerank(message, search_results)
-
-                    # Build context from top results
-                    for result in search_results[: settings.RERANK_TOP_K]:
-                        context += f"\n---\n{result.content}\n"
-                        sources.append(
-                            {
-                                "content": result.content[:200] + "...",
-                                "document_name": result.metadata.get("document_name", "Unknown"),
-                                "score": result.score,
-                            }
-                        )
-
-                # Build prompt
-                prompt = self._build_prompt_with_context(
-                    message, context, history)
-            else:
-                prompt = self._build_prompt_without_context(message, history)
+            prompt = self._build_prompt_without_context(message, history)
 
             # Stream response from LLM
             stream = await self.client.chat.completions.create(

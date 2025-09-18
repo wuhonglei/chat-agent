@@ -9,7 +9,11 @@ const components = {
   code({ node, inline, className, children, ...props }: any) {
     const match = /language-(\w+)/.exec(className || "");
     return !inline && match ? (
-      <SyntaxHighlighter style={vs} language={match[1]} {...props}>
+      <SyntaxHighlighter
+        style={{ ...vs, backgroundColor: "#a9F9F9" }}
+        language={match[1]}
+        {...props}
+      >
         {String(children).replace(/\n$/, "")}
       </SyntaxHighlighter>
     ) : (

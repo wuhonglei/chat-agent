@@ -26,7 +26,9 @@ class ChatRequest(BaseModel):
     history: List[ChatMessage] = Field(
         default_factory=list, description="Chat history")
     use_knowledge_base: bool = Field(
-        True, description="Whether to use knowledge base")
+        False, description="Whether to use knowledge base")
+    use_web_search: bool = Field(
+        False, description="Whether to use web search")
     think_mode: bool = Field(False, description="Whether to use think mode")
     stream: bool = Field(False, description="Whether to stream response")
 
