@@ -36,11 +36,14 @@ export interface ChatMessage {
   metadata?: Record<string, any>;
 }
 
+export interface RetrieverSource {
+  web_search: boolean;
+}
+
 export interface ChatInputFormValues {
   message: string;
   thinkMode: boolean;
-  useKnowledgeBase: boolean;
-  useNetwork: boolean;
+  sourceConfig: RetrieverSource;
 }
 
 export interface ChatRequest extends ChatInputFormValues {

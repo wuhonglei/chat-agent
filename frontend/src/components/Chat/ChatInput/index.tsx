@@ -6,6 +6,7 @@ import CustomButton from "@/components/CustomButton";
 import LogoSvg from "@/assets/svg/DsIcon.svg?react";
 import { ChatInputFormValues } from "@/types";
 import { GlobalOutlined } from "@ant-design/icons";
+import { names } from "./constant";
 
 const { TextArea } = Input;
 
@@ -55,6 +56,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
         <Form
           form={form}
           layout="vertical"
+          onValuesChange={console.info}
           className={classNames(
             "flex flex-col gap-3",
             styles["input-container"]
@@ -71,7 +73,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           </Form.Item>
           <div className="flex items-center gap-2">
             <Form.Item
-              name="thinkMode"
+              name={names.deepThink}
               trigger="onClick"
               initialValue={false}
               valuePropName="active"
@@ -85,10 +87,10 @@ const ChatInput: React.FC<ChatInputProps> = ({
               </CustomButton>
             </Form.Item>
             <Form.Item
-              name="useNetwork"
               trigger="onClick"
               initialValue={false}
               valuePropName="active"
+              name={names.webSearch}
             >
               <CustomButton
                 size="small"

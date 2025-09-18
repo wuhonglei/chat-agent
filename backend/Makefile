@@ -10,6 +10,7 @@ help:
 	@echo "  dev        - Install with dev dependencies"
 	@echo "  clean      - Clean temporary files"
 	@echo "  test       - Run tests"
+	@echo "  start      - Start the application"
 
 # Install dependencies
 install:
@@ -54,3 +55,7 @@ clean:
 
 # All checks (format, lint, type check)
 all: format lint check
+
+# Start the application
+start:
+	uvicorn app.main:app --reload --host 0.0.0.0 --port 8000

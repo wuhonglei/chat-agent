@@ -9,7 +9,7 @@ from openai import AsyncOpenAI
 
 from app.core.config import settings
 from app.core.vector_store import VectorStore
-from app.models.chat import ChatMessage, ChatResponse
+from app.models.chat import ChatMessage, ChatResponse, SourceConfig
 from app.models.retrieval import RetrievalRequest, RetrievalSource
 from app.services.reranker import Reranker
 from app.services.retrieval_manager import RetrievalManager
@@ -27,29 +27,35 @@ class ChatService:
         self.reranker = Reranker()
         self.retrieval_manager = RetrievalManager(vector_store)
 
+    def get_retrieval_sources(self, source_config: SourceConfig) -> list[RetrievalSource]:
+        """Get retrieval sources"""
+        retrieval_sources = []
+        if source_config.web_search:
+            retrieval_sources.append(RetrievalSource.WEB_SEARCH)
+        if source_config.vector_store:
+            retrieval_sources.append(RetrievalSource.VECTOR_STORE)
+        return retrieval_sources
+
     async def process_message(
         self,
         message: str,
         session_id: str,
         history: list[ChatMessage] = None,
-        use_knowledge_base: bool = False,
-        use_web_search: bool = False,
+        source_config: SourceConfig = None,
         think_mode: bool = False,
     ) -> ChatResponse:
         """Process a chat message and return response"""
         try:
+            # Set default source config if not provided
+            if source_config is None:
+                source_config = SourceConfig()
+
             sources = []
             context = ""
 
-            # Use enhanced retrieval system if knowledge base or web search is enabled
-            if use_knowledge_base or use_web_search:
-                # Determine retrieval sources
-                retrieval_sources = []
-                if use_knowledge_base:
-                    retrieval_sources.append(RetrievalSource.VECTOR_STORE)
-                if use_web_search:
-                    retrieval_sources.append(RetrievalSource.WEB_SEARCH)
-
+            retrieval_sources = self.get_retrieval_sources(source_config)
+            # Use enhanced retrieval system if web search is enabled
+            if retrieval_sources:
                 # Create retrieval request
                 retrieval_request = RetrievalRequest(
                     query=message,
@@ -111,14 +117,16 @@ class ChatService:
                                 ),
                                 "url": result.url if hasattr(result, "url") else None,
                                 "source": (
-                                    result.source if hasattr(result, "source") else "knowledge_base"
+                                    result.source if hasattr(
+                                        result, "source") else "knowledge_base"
                                 ),
                                 "score": score,
                             }
                         )
 
                 # Build prompt with context
-                prompt = self._build_prompt_with_context(message, context, history)
+                prompt = self._build_prompt_with_context(
+                    message, context, history)
             else:
                 prompt = self._build_prompt_without_context(message, history)
 
@@ -148,14 +156,14 @@ class ChatService:
         message: str,
         session_id: str,
         history: list[ChatMessage] = None,
-        use_knowledge_base: bool = False,
+        source_config: SourceConfig = None,
         think_mode: bool = False,
     ) -> AsyncGenerator[str, None]:
         """Stream chat response"""
         try:
-            # Search knowledge base if enabled
-            context = ""
-            sources = []
+            # Set default source config if not provided
+            if source_config is None:
+                source_config = SourceConfig()
 
             prompt = self._build_prompt_without_context(message, history)
 
@@ -165,10 +173,6 @@ class ChatService:
                 messages=prompt,
                 stream=True,
             )
-
-            # First, send sources
-            if sources:
-                yield f"data: {json.dumps({'type': 'sources', 'data': sources})}\n\n"
 
             # Stream answer chunks
             async for chunk in stream:

@@ -31,8 +31,7 @@ async def chat(request: Request, chat_request: ChatRequest) -> ChatResponse:
             message=chat_request.message,
             session_id=session_id,
             history=chat_request.history,
-            use_knowledge_base=chat_request.use_knowledge_base,
-            use_web_search=chat_request.use_web_search,
+            source_config=chat_request.source_config,
             think_mode=chat_request.think_mode,
         )
 
@@ -62,8 +61,7 @@ async def chat_stream(request: Request, chat_request: ChatRequest):
                 message=chat_request.message,
                 session_id=session_id,
                 history=chat_request.history,
-                use_knowledge_base=chat_request.use_knowledge_base,
-                think_mode=chat_request.think_mode,
+                source_config=chat_request.source_config,
             ):
                 yield chunk
 
@@ -82,7 +80,8 @@ async def get_session(session_id: str) -> ChatSession:
     """Get chat session history"""
     try:
         # TODO: Implement session storage and retrieval
-        raise HTTPException(status_code=501, detail="Session management not implemented yet")
+        raise HTTPException(
+            status_code=501, detail="Session management not implemented yet")
 
     except Exception as e:
         logger.error(f"Failed to get session: {e}")
@@ -94,7 +93,8 @@ async def delete_session(session_id: str):
     """Delete chat session"""
     try:
         # TODO: Implement session deletion
-        raise HTTPException(status_code=501, detail="Session management not implemented yet")
+        raise HTTPException(
+            status_code=501, detail="Session management not implemented yet")
 
     except Exception as e:
         logger.error(f"Failed to delete session: {e}")
