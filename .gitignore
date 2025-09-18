@@ -36,7 +36,6 @@ dist-ssr/
 *.local
 
 # IDE
-.vscode/
 .idea/
 *.swp
 *.swo
