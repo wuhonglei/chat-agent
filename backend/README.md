@@ -7,8 +7,9 @@
 - **文档管理**：支持 PDF、Word、Markdown、纯文本等多种格式文档上传和解析
 - **智能问答**：基于 RAG 技术的精准文档问答
 - **向量检索**：使用 ChromaDB 进行高效向量存储和检索
-- **外部集成**：支持 Confluence、Google Workspace 等外部文档源
+- **外部集成**：支持 Confluence、Google Workspace 等企业内部文档知识库
 - **联网搜索**：支持联网搜索，通过 [tavily](https://www.tavily.com/) 获取最新信息
+- **本地文件搜索**: 支持对用户上传的文件(全部文件或指定文件)进行检索
 - **混合搜索**：结合向量检索和 BM25 关键词搜索，提高检索准确性
 - **重排序**：使用 Sentence Transformers 对检索结果进行重排序
 - **缓存机制**：Redis 缓存提升响应速度
