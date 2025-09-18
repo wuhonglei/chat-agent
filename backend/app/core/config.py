@@ -90,7 +90,7 @@ class Settings(BaseSettings):
     # Search
     SEARCH_TOP_K: int = 5
     RERANK_TOP_K: int = 3
-    MIN_RELEVANCE_SCORE: float = 0.7
+    MIN_RELEVANCE_SCORE: float = 0.3
 
     # Logging
     LOG_LEVEL: str = "INFO"
