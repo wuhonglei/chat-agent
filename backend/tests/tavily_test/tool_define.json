@@ -1,0 +1,139 @@
+{
+  "description": "Input for [TavilySearch]",
+  "properties": {
+    "query": {
+      "description": "Search query to look up",
+      "title": "Query",
+      "type": "string"
+    },
+    "include_domains": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": [],
+      "description": "A list of domains to restrict search results to.\n\n        Use this parameter when:\n        1. The user explicitly requests information from specific websites (e.g., \"Find climate data from nasa.gov\")\n        2. The user mentions an organization or company without specifying the domain (e.g., \"Find information about iPhones from Apple\")\n\n        In both cases, you should determine the appropriate domains (e.g., [\"nasa.gov\"] or [\"apple.com\"]) and set this parameter.\n\n        Results will ONLY come from the specified domains - no other sources will be included.\n        Default is None (no domain restriction).\n        ",
+      "title": "Include Domains"
+    },
+    "exclude_domains": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": [],
+      "description": "A list of domains to exclude from search results.\n\n        Use this parameter when:\n        1. The user explicitly requests to avoid certain websites (e.g., \"Find information about climate change but not from twitter.com\")\n        2. The user mentions not wanting results from specific organizations without naming the domain (e.g., \"Find phone reviews but nothing from Apple\")\n\n        In both cases, you should determine the appropriate domains to exclude (e.g., [\"twitter.com\"] or [\"apple.com\"]) and set this parameter.\n\n        Results will filter out all content from the specified domains.\n        Default is None (no domain exclusion).\n        ",
+      "title": "Exclude Domains"
+    },
+    "search_depth": {
+      "anyOf": [
+        {
+          "enum": ["basic", "advanced"],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "basic",
+      "description": "Controls search thoroughness and result comprehensiveness.\n    \n        Use \"basic\" for simple queries requiring quick, straightforward answers.\n        \n        Use \"advanced\" (default) for complex queries, specialized topics, \n        rare information, or when in-depth analysis is needed.\n        ",
+      "title": "Search Depth"
+    },
+    "include_images": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "False",
+      "description": "Determines if the search returns relevant images along with text results.\n   \n        Set to True when the user explicitly requests visuals or when images would \n        significantly enhance understanding (e.g., \"Show me what black holes look like,\" \n        \"Find pictures of Renaissance art\").\n        \n        Leave as False (default) for most informational queries where text is sufficient.\n        ",
+      "title": "Include Images"
+    },
+    "time_range": {
+      "anyOf": [
+        {
+          "enum": ["day", "week", "month", "year"],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "None",
+      "description": "Limits results to content published within a specific timeframe.\n        \n        ONLY set this when the user explicitly mentions a time period \n        (e.g., \"latest AI news,\" \"articles from last week\").\n        \n        For less popular or niche topics, use broader time ranges \n        (\"month\" or \"year\") to ensure sufficient relevant results.\n   \n        Options: \"day\" (24h), \"week\" (7d), \"month\" (30d), \"year\" (365d).\n        \n        Default is None.\n        ",
+      "title": "Time Range"
+    },
+    "topic": {
+      "anyOf": [
+        {
+          "enum": ["general", "news", "finance"],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "general",
+      "description": "Specifies search category for optimized results.\n   \n        Use \"general\" (default) for most queries, INCLUDING those with terms like \n        \"latest,\" \"newest,\" or \"recent\" when referring to general information.\n\n        Use \"finance\" for markets, investments, economic data, or financial news.\n\n        Use \"news\" ONLY for politics, sports, or major current events covered by \n        mainstream media - NOT simply because a query asks for \"new\" information.\n        ",
+      "title": "Topic"
+    },
+    "include_favicon": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "False",
+      "description": "Determines whether to include favicon URLs for each search result.\n        \n        When enabled, each search result will include the website's favicon URL,\n        which can be useful for:\n        - Building rich UI interfaces with visual website indicators\n        - Providing visual cues about the source's credibility or brand\n        - Creating bookmark-like displays with recognizable site icons\n        \n        Set to True when creating user interfaces that benefit from visual branding\n        or when favicon information enhances the user experience.\n        \n        Default is False to minimize response size and API usage.\n        ",
+      "title": "Include Favicon"
+    },
+    "start_date": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "None",
+      "description": "Filters search results to include only content published on or after this date.\n        \n        Use this parameter when you need to:\n        - Find recent developments or updates on a topic\n        - Exclude outdated information from search results\n        - Focus on content within a specific timeframe\n        - Combine with end_date to create a custom date range\n        \n        Format must be YYYY-MM-DD (e.g., \"2024-01-15\" for January 15, 2024).\n        \n        Examples:\n        - \"2024-01-01\" - Results from January 1, 2024 onwards\n        - \"2023-12-25\" - Results from December 25, 2023 onwards\n        \n        When combined with end_date, creates a precise date range filter.\n        \n        Default is None (no start date restriction).\n        ",
+      "title": "Start Date"
+    },
+    "end_date": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "None",
+      "description": "Filters search results to include only content published on or before this date.\n        \n        Use this parameter when you need to:\n        - Exclude content published after a certain date\n        - Study historical information or past events\n        - Research how topics were covered during specific time periods\n        - Combine with start_date to create a custom date range\n        \n        Format must be YYYY-MM-DD (e.g., \"2024-03-31\" for March 31, 2024).\n        \n        Examples:\n        - \"2024-03-31\" - Results up to and including March 31, 2024\n        - \"2023-12-31\" - Results up to and including December 31, 2023\n        \n        When combined with start_date, creates a precise date range filter.\n        For example: start_date=\"2024-01-01\", end_date=\"2024-03-31\" \n        returns results from Q1 2024 only.\n        \n        Default is None (no end date restriction).\n        ",
+      "title": "End Date"
+    }
+  },
+  "required": ["query"],
+  "title": "TavilySearchInput",
+  "type": "object"
+}
