@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "rehype-external-links": "^3.0.0",
     "uuid": "^13.0.0"
   }
 }

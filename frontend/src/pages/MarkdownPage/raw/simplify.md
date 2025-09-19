@@ -16,9 +16,13 @@
 
 ### 表格
 
-| 表头 1 | 表头 2 | 表头 3 |
-| ------- | ------- | ------- |
-| 数据 1 | 数据 2 | 数据 3 |
+| 问题 | 可能原因 | 解决办法 | 解决办法 |  解决办法 |
+|------|----------|----------|----------|----------|
+| 导入后是字符串不是组件 | defaultExport 配置为 url / 版本旧 | 显式加 ?react 或检查插件配置 | 显式加 ?react 或检查插件配置 | 显式加 ?react 或检查插件配置 |
+| TypeScript 报错不能找到模块 | 没有声明 d.ts | 添加 svg.d.ts | 添加 svg.d.ts | 添加 svg.d.ts |
+| 颜色改不了 | SVG 内部路径硬编码 fill | 用 replaceAttrValues 或手动清理 | 用 replaceAttrValues 或手动清理 |
+| 体积大 | 太多重复图标组件 | 动态导入 + icon 模式 + currentColor | 动态导入 + icon 模式 + currentColor | 动态导入 + icon 模式 + currentColor |
+| SSR 报 window 未定义 | 其他插件处理了 svg | 确认顺序 / enforce pre | 确认顺序 / enforce pre | 确认顺序 / enforce pre |
 
 ### 链接
 
