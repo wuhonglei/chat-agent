@@ -7,18 +7,17 @@ help:
 	@echo "  lint       - Run linting checks"
 	@echo "  check      - Run type checking with mypy"
 	@echo "  install    - Install dependencies"
-	@echo "  dev        - Install with dev dependencies"
+	@echo "  dev        - Start the application"
 	@echo "  clean      - Clean temporary files"
 	@echo "  test       - Run tests"
-	@echo "  start      - Start the application"
 
 # Install dependencies
 install:
-	uv sync
-
-# Install with dev dependencies
-dev:
 	uv sync --extra dev
+
+# Start the application
+dev:
+	uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 # Format code
 format:
@@ -52,7 +51,3 @@ clean:
 
 # All checks (format, lint, type check)
 all: format lint check
-
-# Start the application
-start:
-	uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
