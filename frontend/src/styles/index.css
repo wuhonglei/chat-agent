@@ -1,5 +1,6 @@
 @layer theme, base, components, utilities;
 @import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
 @import "tailwindcss/utilities.css" layer(utilities);
 
 @theme {
@@ -28,81 +29,4 @@
   --color-gray-800: #1f2937;
   --color-gray-900: #111827;
   --color-gray-950: #030712;
-}
-
-/* Typing animation */
-@keyframes typing-cursor {
-  0% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0;
-  }
-  100% {
-    opacity: 1;
-  }
-}
-
-/* Line clamp utility - Using modern CSS */
-.line-clamp-2 {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: block;
-  max-height: 3.2em; /* Approximately 2 lines */
-}
-
-.line-clamp-3 {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: block;
-  max-height: 4.8em; /* Approximately 3 lines */
-}
-
-/* Loading dots animation */
-@keyframes loading-dots {
-  0% {
-    content: ".";
-  }
-  33% {
-    content: "..";
-  }
-  66% {
-    content: "...";
-  }
-}
-
-.loading-dots::after {
-  content: ".";
-  animation: loading-dots 1.5s infinite;
-}
-
-/* Chat message animations */
-.message-enter {
-  opacity: 0;
-  transform: translateY(20px);
-}
-
-.message-enter-active {
-  opacity: 1;
-  transform: translateY(0);
-  transition:
-    opacity 300ms,
-    transform 300ms;
-}
-
-/* Source card hover effect */
-.source-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-/* Drag and drop styles */
-.drag-active {
-  border-color: #1890ff !important;
-  background-color: #e6f4ff !important;
-}
-
-.drag-reject {
-  border-color: #ff4d4f !important;
-  background-color: #fff2f0 !important;
 }
