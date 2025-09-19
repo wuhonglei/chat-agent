@@ -3,7 +3,7 @@ import { useThrottle } from "ahooks";
 import { Spin } from "antd";
 import React from "react";
 import ReasoningBlock from "./ReasoningBlock";
-import MarkdownContainer from "./MarkdownContainer";
+import MarkdownContainer from "@/components/Chat/MarkdownContainer";
 import SourceAbstract from "./SourceAbstract";
 
 interface AssistantMessageProps {

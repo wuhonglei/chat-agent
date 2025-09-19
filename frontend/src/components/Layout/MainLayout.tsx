@@ -1,15 +1,16 @@
 import {
   DatabaseOutlined,
+  FileMarkdownOutlined,
   FileTextOutlined,
   MessageOutlined,
 } from "@ant-design/icons";
 import { Layout, Menu, MenuProps } from "antd";
 import classNames from "classnames";
-import React, { ReactNode, useState } from "react";
+import React, { ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import styles from "./mainLayout.module.css";
 
-const { Sider, Header } = Layout;
+const { Sider } = Layout;
 const collapsedWidth = 64;
 
 interface MainLayoutProps {
@@ -19,8 +20,6 @@ interface MainLayoutProps {
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [collapsed, setCollapsed] = useState(false);
-  const isChatPage = ["/", "/chat"].includes(location.pathname);
 
   const menuItems: MenuProps["items"] = [
     {
@@ -37,6 +36,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       key: "/knowledge-base",
       icon: <DatabaseOutlined />,
       label: "知识库",
+    },
+    {
+      key: "/markdown",
+      icon: <FileMarkdownOutlined />,
+      label: "Markdown",
     },
   ];
 

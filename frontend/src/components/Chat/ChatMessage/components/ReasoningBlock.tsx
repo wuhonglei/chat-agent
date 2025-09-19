@@ -1,7 +1,7 @@
 import { Collapse, Divider } from "antd";
 import { useThrottle } from "ahooks";
 import styles from "./css/ReasoningBlock.module.css";
-import MarkdownContainer from "./MarkdownContainer";
+import MarkdownContainer from "@/components/Chat/MarkdownContainer";
 import ThinkingIcon from "@/assets/svg/dsIcon.svg?react";
 
 type Props = {
