@@ -2,7 +2,9 @@ import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vs } from "react-syntax-highlighter/dist/esm/styles/prism";
 import remarkGfm from "remark-gfm";
+import rehypeKatex from "rehype-katex";
 import classNames from "classnames";
+import "katex/dist/katex.min.css"; // `rehype-katex` does not import the CSS for you
 import styles from "./css/MarkdownContainer.module.css";
 
 const customStyle = {
@@ -56,6 +58,7 @@ export default function MarkdownContainer({ children, className }: Props) {
     <ReactMarkdown
       components={components}
       remarkPlugins={[remarkGfm]}
+      rehypePlugins={[rehypeKatex]}
       className={classNames(styles["markdown-body"], className)}
     >
       {children}
