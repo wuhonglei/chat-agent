@@ -1,15 +1,15 @@
-# AI Doc Q&A System - 智能文档问答系统
+# AI Assistant Platform - 智能助手平台
 
-基于 RAG (Retrieval Augmented Generation) 技术的企业级知识库问答系统，支持本地文档和云端协作文档的智能检索与问答。
+基于 RAG (Retrieval Augmented Generation) 技术的企业级智能助手平台，集成多源搜索、智能问答、文档分析等功能，支持本地文档、云端协作文档和网络资源的智能检索与深度分析。
 
 ## 🌟 主要特性
 
-- 📄 **多格式支持**: PDF、Word、Markdown 等本地文档
-- 🔗 **外部集成**: Confluence、Google Docs、Google Slides
-- 🤖 **智能问答**: 基于 DeepSeek 大模型的精准回答
-- 🔍 **混合检索**: 向量检索 + 关键词检索 + 重排序
-- 💬 **多轮对话**: 支持上下文记忆的连续对话
-- 📦 **知识库管理**: 文档增删改查、导出分享
+- 🔍 **多源搜索**: 联网搜索、Confluence 内网搜索、Google Docs/Slides 搜索
+- 📄 **文档处理**: PDF、Word、Markdown 等本地文档的深度分析
+- 🤖 **智能问答**: 基于 DeepSeek 大模型的精准回答与深度推理
+- 🔗 **外部集成**: 支持 Confluence、Google Docs、Google Slides 等平台
+- 💬 **交互体验**: 多轮对话、实时中断、智能滚动、输入折叠
+- 📊 **可视化支持**: Mermaid 流程图、思维导图渲染
 - 🎨 **优秀交互**: 打字机效果、引用高亮、拖拽上传
 
 ## 🚀 快速开始
