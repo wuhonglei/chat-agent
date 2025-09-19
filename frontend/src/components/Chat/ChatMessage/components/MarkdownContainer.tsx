@@ -5,12 +5,24 @@ import remarkGfm from "remark-gfm";
 import classNames from "classnames";
 import styles from "./css/MarkdownContainer.module.css";
 
+const customStyle = {
+  backgroundColor: "#F8F9FA",
+  border: "none",
+  borderRadius: "12px",
+  marginTop: 0,
+};
+
 const components = {
   code({ node, inline, className, children, ...props }: any) {
     const match = /language-(\w+)/.exec(className || "");
+
+    console.info("vs", vs);
+    console.info("node", node);
+
     return !inline && match ? (
       <SyntaxHighlighter
-        style={{ ...vs, backgroundColor: "#a9F9F9" }}
+        style={vs}
+        customStyle={customStyle}
         language={match[1]}
         {...props}
       >
@@ -18,7 +30,10 @@ const components = {
       </SyntaxHighlighter>
     ) : (
       <code
-        className={classNames(className, "bg-gray-100 px-1 py-0.5 rounded")}
+        className={classNames(
+          className,
+          "bg-gray-100 px-1 py-0.5 text-sm rounded"
+        )}
         {...props}
       >
         {children}
