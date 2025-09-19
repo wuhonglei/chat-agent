@@ -1,7 +1,8 @@
 import React from "react";
-import ChatPage from "../pages/ChatPage";
-import DocumentsPage from "../pages/DocumentsPage";
-import KnowledgeBasePage from "../pages/KnowledgeBasePage";
+import ChatPage from "@/pages/ChatPage";
+import DocumentsPage from "@/pages/DocumentsPage";
+import KnowledgeBasePage from "@/pages/KnowledgeBasePage";
+import MarkdownPage from "@/pages/MarkdownPage";
 
 export interface RouteConfig {
   path: string;
@@ -24,5 +25,9 @@ export const routes: RouteConfig[] = [
   {
     path: "/knowledge-base",
     element: <KnowledgeBasePage />,
+  },
+  {
+    path: "/markdown",
+    element: <MarkdownPage />,
   },
 ];
