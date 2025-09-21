@@ -32,15 +32,14 @@ export default function ReasoningBlock({ isReasoning, reasoning }: Props) {
               {isReasoning ? "深度思考中" : "已完成深度思考"}
             </span>
           ),
-          styles: { header: { padding: 0, justifyContent: "flex-start" } },
+          styles: {
+            header: { padding: 0, justifyContent: "flex-start" },
+            body: { padding: 0 },
+          },
           classNames: { header: styles.header },
           children: (
-            <section className="flex relative">
-              <Divider
-                type="vertical"
-                style={{ height: "auto", marginLeft: 0, marginRight: "12px" }}
-              />
-              <div className="absolute top-0 -left-2 bg-white py-1">
+            <section className="flex gap-1 mt-3">
+              <div className="flex flex-col bg-white py-1 w-4 items-center gap-1 pb-3">
                 {isReasoning ? (
                   <img
                     alt="thinking"
@@ -52,8 +51,16 @@ export default function ReasoningBlock({ isReasoning, reasoning }: Props) {
                 ) : (
                   <ThinkingIcon className="w-4 h-4 text-blue-500" />
                 )}
+                <Divider
+                  type="vertical"
+                  style={{
+                    flex: 1,
+                    marginLeft: 0,
+                    marginRight: 0,
+                  }}
+                />
               </div>
-              <MarkdownContainer className="text-gray-600 flex-1">
+              <MarkdownContainer className="flex-1 text-gray-600 text-sm">
                 {displayReasoning}
               </MarkdownContainer>
             </section>

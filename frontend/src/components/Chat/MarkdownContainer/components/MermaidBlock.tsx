@@ -5,7 +5,6 @@ import GrayContainer, { CopyButton } from "./GrayContainer";
 import { Segmented } from "antd";
 import NormalCode from "./NormalCode";
 import classNames from "classnames";
-import { useSize } from "ahooks";
 
 type Props = {
   code: string;
