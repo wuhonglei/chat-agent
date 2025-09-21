@@ -3,7 +3,7 @@ import classNames from "classnames";
 import React from "react";
 import styles from "./index.module.css";
 import CustomButton from "@/components/CustomButton";
-import LogoSvg from "@/assets/svg/DsIcon.svg?react";
+import ThinkModeIcon from "@/assets/svg/ThinkModeIcon.svg?react";
 import { ChatInputFormValues } from "@/types";
 import { GlobalOutlined } from "@ant-design/icons";
 import { names } from "./constant";
@@ -79,7 +79,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
             >
               <CustomButton
                 size="small"
-                icon={<LogoSvg />}
+                icon={<ThinkModeIcon />}
                 tooltip="先思考后回答, 解决推理问题"
               >
                 深度思考

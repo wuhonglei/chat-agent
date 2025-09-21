@@ -1,6 +1,6 @@
 import { ChatMessage as ChatMessageType } from "@/types";
 import { useThrottle } from "ahooks";
-import { Spin } from "antd";
+import { Button, Spin } from "antd";
 import React from "react";
 import ReasoningBlock from "./ReasoningBlock";
 import MarkdownContainer from "@/components/Chat/MarkdownContainer";
@@ -26,7 +26,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
   });
 
   return (
-    <div className="flex flex-col gap-3 mb-4">
+    <div className="flex flex-col gap-3 mb-4 items-start">
       {isLoading ? (
         <div className="flex justify-start items-center">
           <Spin size="small" />
@@ -36,12 +36,20 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
         <>
           <ReasoningBlock
             isReasoning={isReasoning}
+            sources={message.sources}
             reasoning={message.reasoning}
+            onSourceClick={onSourceClick}
           />
           <MarkdownContainer className="text-base">
             {displayContent}
           </MarkdownContainer>
-          <SourceAbstract sources={message.sources} onClick={onSourceClick} />
+          {!isStreaming && (
+            <SourceAbstract
+              mode="postSource"
+              sources={message.sources}
+              onClick={onSourceClick}
+            />
+          )}
         </>
       )}
     </div>

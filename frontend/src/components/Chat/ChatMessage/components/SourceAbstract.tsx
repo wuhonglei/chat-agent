@@ -1,28 +1,64 @@
 import { SearchSource } from "@/types";
 import { RightOutlined } from "@ant-design/icons";
-import classNames from "classnames";
 import { isEmpty } from "lodash-es";
-import styles from "./css/SourceAbstract.module.css";
+import CustomButton, { CustomButtonProps } from "@/components/CustomButton";
+import SearchIcon from "@/assets/svg/SearchIcon.svg?react";
+import classNames from "classnames";
+import { Avatar, ConfigProvider } from "antd";
+import { useWebIconUrls } from "@/hooks";
 
-type Props = {
-  onClick: () => void;
+interface Props extends Omit<CustomButtonProps, "children"> {
+  mode: "preSource" | "postSource";
   sources: SearchSource[] | undefined;
-};
+}
 
-export default function SourceAbstract({ sources, onClick }: Props) {
+const maxIcons = 3;
+
+export default function SourceAbstract({ sources, mode, ...props }: Props) {
+  const urlIcons = useWebIconUrls(sources, maxIcons);
   if (isEmpty(sources)) {
     return null;
   }
 
-  return (
-    <section>
-      <span
-        onClick={onClick}
-        className={classNames("py-2 px-2.5", styles["source-abstract"])}
-      >
+  const urlIconsGroup = (
+    <ConfigProvider
+      theme={{ components: { Avatar: { groupBorderColor: "transparent" } } }}
+    >
+      <Avatar.Group size={16} max={{ count: maxIcons }} className="ml-1">
+        {urlIcons.map((url: string, index: number) => (
+          <Avatar
+            style={{ backgroundColor: "#fff" }}
+            key={index}
+            src={url}
+            className="bg-white"
+          />
+        ))}
+      </Avatar.Group>
+    </ConfigProvider>
+  );
+
+  const children =
+    mode === "preSource" ? (
+      <>
+        <SearchIcon className="w-4 h-4 text-blue-500 mr-1" />
+        已阅读 {sources?.length} 篇资料
+        {urlIconsGroup}
+      </>
+    ) : (
+      <>
+        {urlIconsGroup}
         {sources?.length} 篇资料
-        <RightOutlined className="ml-1" />
-      </span>
-    </section>
+      </>
+    );
+
+  return (
+    <CustomButton
+      {...props}
+      className={classNames("text-gray-600", props.className)}
+      size="small"
+    >
+      {children}
+      <RightOutlined className="ml-1" />
+    </CustomButton>
   );
 }

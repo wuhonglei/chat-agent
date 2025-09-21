@@ -3,12 +3,12 @@ import styles from "./index.module.css";
 import classNames from "classnames";
 import { Tooltip } from "antd";
 
-type CustomButtonProps = {
+export type CustomButtonProps = {
   active?: boolean;
   bordered?: boolean;
   size?: "small" | "medium" | "large";
   icon?: React.ReactNode;
-  children: React.ReactNode;
+  children?: React.ReactNode;
   onClick?: (active: boolean) => void;
   className?: string;
   tooltip?: string;
@@ -39,7 +39,7 @@ export default function CustomButton({
           className
         )}
       >
-        {icon && <div className="mr-1">{icon}</div>}
+        {icon && <span className="mr-1">{icon}</span>}
         {children}
       </div>
     </Tooltip>

@@ -3,3 +3,4 @@ export type {
   UseChatMessageOptions,
   UseChatMessageReturn,
 } from "./useChatMessage";
+export { useWebIconUrls } from "./useWebIcon";

@@ -74,7 +74,7 @@ export interface SearchSource {
   document_id?: string;
   score: number;
   metadata?: Record<string, any>;
-  source_url?: string;
+  url?: string;
 }
 
 // Knowledge base types
