@@ -5,6 +5,7 @@ import GrayContainer, { CopyButton } from "./GrayContainer";
 import { Segmented } from "antd";
 import NormalCode from "./NormalCode";
 import classNames from "classnames";
+import { useSize } from "ahooks";
 
 type Props = {
   code: string;
@@ -16,6 +17,7 @@ mermaid.initialize({
   startOnLoad: false,
   theme: "default",
   securityLevel: "loose",
+  suppressErrorRendering: true,
 });
 
 const options = [
@@ -63,7 +65,7 @@ export default function MermaidBlock({ code, style }: Props) {
     >
       <div
         ref={ref}
-        style={style}
+        style={{ ...style }}
         className={classNames(
           "mermaid mx-auto min-h-[300px]",
           activeKey !== "svg" && "hidden"
