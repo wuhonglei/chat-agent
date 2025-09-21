@@ -1,3 +1,6 @@
 .code-meta {
   padding: 0 1em;
+  background-color: #ececee;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
 }
