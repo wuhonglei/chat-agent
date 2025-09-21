@@ -43,9 +43,7 @@ export default function MermaidBlock({ code, style }: Props) {
         }
       })
       .catch(error => {
-        if (ref.current) {
-          ref.current.innerHTML = `<pre>${code}</pre>`;
-        }
+        // console.warn(error);
       });
   }, [code]);
 
@@ -67,7 +65,7 @@ export default function MermaidBlock({ code, style }: Props) {
         ref={ref}
         style={style}
         className={classNames(
-          "mermaid mx-auto",
+          "mermaid mx-auto min-h-[300px]",
           activeKey !== "svg" && "hidden"
         )}
       />
