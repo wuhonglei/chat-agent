@@ -24,7 +24,7 @@ class ChatService:
             api_key=settings.LLM_API_KEY,
             base_url=settings.LLM_API_BASE,
         )
-        self.reranker = Reranker()
+        self.reranker = Reranker(settings)
         self.retrieval_manager = RetrievalManager(vector_store)
 
     def get_retrieval_sources(self, source_config: SourceConfig) -> list[RetrievalSource]:
@@ -61,11 +61,8 @@ class ChatService:
             if retrieval_response.results:
                 # Apply reranking to all results combined
                 all_results = retrieval_response.results
-                if settings.USE_RERANK:
-                    # Rerank results
-                    top_results = await self.reranker.rerank(message, all_results)
-                else:
-                    top_results = all_results
+                # Rerank results
+                top_results = await self.reranker.rerank(message, all_results)
 
                 # Build context and sources
                 for result in top_results:

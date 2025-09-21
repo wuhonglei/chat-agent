@@ -26,7 +26,7 @@ class Reranker:
         top_k: int = None,
     ) -> list[RetrievalResult]:
         """Rerank search results based on query"""
-        if not results or len(results) <= 1:
+        if not self.config.USE_RERANK or len(results) <= 1:
             return results
 
         top_k = top_k or self.config.RERANK_TOP_K
