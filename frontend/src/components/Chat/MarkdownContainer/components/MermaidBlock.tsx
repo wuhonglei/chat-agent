@@ -1,6 +1,10 @@
 import mermaid from "mermaid";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
+import GrayContainer, { CopyButton } from "./GrayContainer";
+import { Segmented } from "antd";
+import NormalCode from "./NormalCode";
+import classNames from "classnames";
 
 type Props = {
   code: string;
@@ -14,9 +18,21 @@ mermaid.initialize({
   securityLevel: "loose",
 });
 
+const options = [
+  {
+    label: "预览",
+    value: "svg",
+  },
+  {
+    label: "代码",
+    value: "code",
+  },
+];
+
 export default function MermaidBlock({ code, style }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const idRef = useRef<string>(`mermaid-${uuidv4()}`);
+  const [activeKey, setActiveKey] = useState<string>(options[0].value);
 
   useEffect(() => {
     mermaid
@@ -27,12 +43,40 @@ export default function MermaidBlock({ code, style }: Props) {
         }
       })
       .catch(error => {
-        console.error("Mermaid rendering error:", error);
         if (ref.current) {
           ref.current.innerHTML = `<pre>${code}</pre>`;
         }
       });
   }, [code]);
 
-  return <div ref={ref} className="mermaid" style={style} />;
+  return (
+    <GrayContainer
+      header={
+        <>
+          <Segmented
+            shape="round"
+            options={options}
+            value={activeKey}
+            onChange={setActiveKey}
+          />
+          <CopyButton children={code} />
+        </>
+      }
+    >
+      <div
+        ref={ref}
+        style={style}
+        className={classNames(
+          "mermaid mx-auto",
+          activeKey !== "svg" && "hidden"
+        )}
+      />
+      <NormalCode
+        language="mermaid"
+        style={activeKey !== "code" ? { display: "none" } : {}}
+      >
+        {code}
+      </NormalCode>
+    </GrayContainer>
+  );
 }

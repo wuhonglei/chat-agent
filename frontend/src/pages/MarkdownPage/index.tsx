@@ -40,9 +40,7 @@ export default function MarkdownPage() {
         onChange={key => setActiveKey(key)}
         style={{ paddingLeft: "32px" }}
       />
-      <MarkdownContainer
-        className={classNames(styles.container, "flex-1 py-8")}
-      >
+      <MarkdownContainer className={classNames(styles.container, "flex-1")}>
         {content[activeKey]}
       </MarkdownContainer>
     </div>

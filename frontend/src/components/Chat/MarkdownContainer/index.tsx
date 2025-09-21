@@ -11,6 +11,10 @@ import InlineCode from "./components/InlineCode";
 import NormalCode from "./components/NormalCode";
 
 import classNames from "classnames";
+import GrayContainer, {
+  LanguageLabel,
+  CopyButton,
+} from "./components/GrayContainer";
 
 const CustomCodeBlock = ({ inline, className, children }: any) => {
   const match = /language-(\w+)/.exec(className || "");
@@ -27,9 +31,16 @@ const CustomCodeBlock = ({ inline, className, children }: any) => {
   }
 
   return (
-    <NormalCode language={language} showLanguage={true}>
-      {code}
-    </NormalCode>
+    <GrayContainer
+      header={
+        <>
+          <LanguageLabel children={language} />
+          <CopyButton children={code} />
+        </>
+      }
+    >
+      <NormalCode language={language}>{code}</NormalCode>
+    </GrayContainer>
   );
 };
 
