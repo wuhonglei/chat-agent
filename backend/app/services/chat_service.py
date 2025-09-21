@@ -61,14 +61,11 @@ class ChatService:
             if retrieval_response.results:
                 # Apply reranking to all results combined
                 all_results = retrieval_response.results
-                if len(all_results) > 1:
+                if settings.USE_RERANK:
                     # Rerank results
-                    reranked_results = await self.reranker.rerank(message, all_results)
-
-                    # Take top results after reranking
-                    top_results = reranked_results[: settings.RERANK_TOP_K]
+                    top_results = await self.reranker.rerank(message, all_results)
                 else:
-                    top_results = all_results[: settings.RERANK_TOP_K]
+                    top_results = all_results
 
                 # Build context and sources
                 for result in top_results:

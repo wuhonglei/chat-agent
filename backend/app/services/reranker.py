@@ -12,7 +12,9 @@ from app.models.retrieval import RetrievalResult
 class Reranker:
     """Rerank search results for better relevance"""
 
-    def __init__(self):
+    def __init__(self, config=None):
+        # 使用依赖注入模式，允许传入配置或使用默认配置
+        self.config = config or settings
         # Initialize cross-encoder for reranking
         # Using a lightweight model for MVP
         pass
@@ -24,13 +26,13 @@ class Reranker:
         top_k: int = None,
     ) -> list[RetrievalResult]:
         """Rerank search results based on query"""
-        if not results:
+        if not results or len(results) <= 1:
             return results
 
-        top_k = top_k or settings.RERANK_TOP_K
+        top_k = top_k or self.config.RERANK_TOP_K
 
         # If cross-encoder is available, use it
-        if settings.RE_RANK_MODEL:
+        if self.config.RE_RANK_MODEL:
             return self._rerank_with_dashscope(query, results, top_k)
         else:
             # Fallback to BM25 reranking
@@ -48,8 +50,8 @@ class Reranker:
 
         # Get scores from cross-encoder
         resp = dashscope.TextReRank.call(
-            model=settings.RE_RANK_MODEL,
-            api_key=settings.RE_RANK_API_KEY,
+            model=self.config.RE_RANK_MODEL,
+            api_key=self.config.RE_RANK_API_KEY,
             query=query,
             documents=documents,
             top_n=top_k,
@@ -63,7 +65,7 @@ class Reranker:
 
         new_results = []
         for result in resp.output.results:
-            if result.relevance_score >= settings.MIN_RELEVANCE_SCORE:
+            if result.relevance_score >= self.config.MIN_RELEVANCE_SCORE:
                 results[result.index].score = result.relevance_score
                 new_results.append(results[result.index])
 
@@ -100,6 +102,6 @@ class Reranker:
 
         # Filter by minimum relevance score
         filtered_results = [r for r in results if r.score >=
-                            settings.MIN_RELEVANCE_SCORE]
+                            self.config.MIN_RELEVANCE_SCORE]
 
         return filtered_results[:top_k] if filtered_results else results[:top_k]

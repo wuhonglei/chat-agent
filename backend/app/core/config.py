@@ -88,7 +88,8 @@ class Settings(BaseSettings):
     TEMP_DIR: str = "./data/temp"
 
     # Search
-    SEARCH_TOP_K: int = 5
+    SEARCH_TOP_K: int = 10
+    USE_RERANK: bool = True
     RERANK_TOP_K: int = 3
     MIN_RELEVANCE_SCORE: float = 0.3
 
