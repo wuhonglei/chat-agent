@@ -24,17 +24,30 @@ export default function SourceSider({ sourceData, onClose }: Props) {
       <Card
         title={
           <div className="flex items-center justify-between">
-            <span>参考资料</span>
+            <span>搜索结果</span>
             <Button type="text" icon={<CloseOutlined />} onClick={onClose} />
           </div>
         }
-        className="h-full overflow-y-auto"
+        className="h-full overflow-y-auto flex flex-col"
         style={{ borderRadius: 0 }}
         styles={{
-          body: { padding: "16px" },
+          body: {
+            padding: 8,
+            width: 400,
+            flex: 1,
+            height: 0,
+            overflowY: "auto",
+            gap: 6,
+          },
         }}
       >
-        <SourceCard sources={sourceData?.sources} />
+        {sourceData?.sources.map((source, index) => (
+          <SourceCard
+            source={source}
+            rank={index + 1}
+            key={source.document_id}
+          />
+        ))}
       </Card>
     </Layout.Sider>
   );

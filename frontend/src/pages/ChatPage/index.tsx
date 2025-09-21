@@ -34,6 +34,12 @@ const ChatPage: React.FC = () => {
         style={{
           border: "none",
         }}
+        styles={{
+          body: {
+            paddingLeft: 0,
+            paddingRight: 0,
+          },
+        }}
       >
         {/* Messages */}
         <ChatMessageList

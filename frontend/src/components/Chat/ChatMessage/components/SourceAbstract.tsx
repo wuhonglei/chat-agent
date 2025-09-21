@@ -41,13 +41,13 @@ export default function SourceAbstract({ sources, mode, ...props }: Props) {
     mode === "preSource" ? (
       <>
         <SearchIcon className="w-4 h-4 text-blue-500 mr-1" />
-        已阅读 {sources?.length} 篇资料
+        已阅读 {sources?.length} 个网页
         {urlIconsGroup}
       </>
     ) : (
       <>
         {urlIconsGroup}
-        {sources?.length} 篇资料
+        <span className="ml-1">{sources?.length} 个网页</span>
       </>
     );
 

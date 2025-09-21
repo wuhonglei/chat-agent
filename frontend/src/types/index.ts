@@ -70,7 +70,7 @@ export interface ChatSession {
 // Search types
 export interface SearchSource {
   content: string;
-  document_name: string;
+  title: string;
   document_id?: string;
   score: number;
   metadata?: Record<string, any>;
