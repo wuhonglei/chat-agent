@@ -26,7 +26,7 @@ const SourceCard: React.FC<SourceCardProps> = ({ rank, source }) => {
           <Avatar size={18} src={getWebIconUrl(source.url)} />
           <span title={source.url}>{getWebMainDomain(source.url, true)}</span>
         </div>
-        <div className="flex items-center justify-center rounded-full bg-gray-200 h-4.5 w-4.5 text-xs">
+        <div className="flex items-center justify-center rounded-full bg-gray-200 px-1 py-px text-xs">
           {rank}
         </div>
       </div>
