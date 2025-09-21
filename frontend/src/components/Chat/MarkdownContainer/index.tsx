@@ -5,11 +5,12 @@ import rehypeRaw from "rehype-raw";
 import rehypeExternalLinks from "rehype-external-links";
 import remarkMath from "remark-math";
 import MermaidBlock from "./components/MermaidBlock";
-import classNames from "classnames";
 import "katex/dist/katex.min.css";
 import styles from "./index.module.css";
 import InlineCode from "./components/InlineCode";
 import NormalCode from "./components/NormalCode";
+
+import classNames from "classnames";
 
 const CustomCodeBlock = ({ inline, className, children }: any) => {
   const match = /language-(\w+)/.exec(className || "");
@@ -17,7 +18,7 @@ const CustomCodeBlock = ({ inline, className, children }: any) => {
   const language = match ? match[1] : "";
 
   // 处理 Mermaid 代码块
-  if (!inline && match && match[1] === "mermaid") {
+  if (!inline && language === "mermaid") {
     return <MermaidBlock code={code} />;
   }
 
