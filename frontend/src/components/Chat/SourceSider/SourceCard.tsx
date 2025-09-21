@@ -1,9 +1,9 @@
 import { SearchSource } from "@/types";
-import { Avatar, Card, Typography } from "antd";
+import { Avatar, Typography } from "antd";
 import React from "react";
 import { getWebIconUrl, getWebMainDomain } from "@/utils";
 
-const { Title, Paragraph, Text } = Typography;
+const { Title, Paragraph } = Typography;
 
 interface SourceCardProps {
   rank: number;
@@ -15,7 +15,7 @@ const SourceCard: React.FC<SourceCardProps> = ({ rank, source }) => {
   console.log(source);
   return (
     <div
-      className="flex flex-col p-3 gap-[6px] cursor-pointer rounded-lg hover:bg-gray-100 transition-all duration-300"
+      className="flex flex-col p-3 gap-[6px] cursor-pointer rounded-lg hover:bg-gray-100 transition"
       onClick={() => {
         window.open(source.url, "_blank");
       }}
