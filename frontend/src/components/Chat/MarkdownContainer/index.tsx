@@ -26,7 +26,11 @@ const CustomCodeBlock = ({ inline, className, children }: any) => {
     return <InlineCode>{children}</InlineCode>;
   }
 
-  return <NormalCode language={language}>{code}</NormalCode>;
+  return (
+    <NormalCode language={language} showLanguage={true}>
+      {code}
+    </NormalCode>
+  );
 };
 
 type Props = {

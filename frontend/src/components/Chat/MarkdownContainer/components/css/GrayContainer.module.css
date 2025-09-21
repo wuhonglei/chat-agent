@@ -1,0 +1,11 @@
+.container {
+  border-radius: 12px;
+  background-color: #f8f9fa;
+}
+
+.code-meta {
+  padding: 0 1em;
+  background-color: #ececee;
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
+}
