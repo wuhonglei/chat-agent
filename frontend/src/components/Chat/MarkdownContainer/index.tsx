@@ -22,16 +22,7 @@ const CustomCodeBlock = ({ inline, className, children }: any) => {
   }
 
   if (inline || !language) {
-    return (
-      <InlineCode
-        className={classNames(
-          className,
-          "bg-gray-100 px-1 py-0.5 text-sm rounded"
-        )}
-      >
-        {children}
-      </InlineCode>
-    );
+    return <InlineCode>{children}</InlineCode>;
   }
 
   return <NormalCode language={language}>{code}</NormalCode>;

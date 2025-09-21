@@ -3,6 +3,7 @@ import { vs } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 type Props = {
   language: string;
+  style?: React.CSSProperties;
   children: string | string[];
 };
 
@@ -13,14 +14,14 @@ const customStyle = {
   marginTop: 0,
 };
 
-export default function NormalCode({ children, language }: Props) {
+export default function NormalCode({ children, language, style }: Props) {
   return (
     <SyntaxHighlighter
       style={vs}
       PreTag="div"
       children={children}
       language={language}
-      customStyle={customStyle}
+      customStyle={{ ...customStyle, ...style }}
     />
   );
 }

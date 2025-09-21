@@ -2,6 +2,11 @@ import mermaid from "mermaid";
 import { useEffect, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
 
+type Props = {
+  code: string;
+  style?: React.CSSProperties;
+};
+
 // 初始化 Mermaid
 mermaid.initialize({
   startOnLoad: false,
@@ -9,7 +14,7 @@ mermaid.initialize({
   securityLevel: "loose",
 });
 
-export default function MermaidBlock({ code }: { code: string }) {
+export default function MermaidBlock({ code, style }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const idRef = useRef<string>(`mermaid-${uuidv4()}`);
 
@@ -32,5 +37,5 @@ export default function MermaidBlock({ code }: { code: string }) {
     }
   }, [code]);
 
-  return <div ref={ref} className="mermaid" />;
+  return <div ref={ref} className="mermaid" style={style} />;
 }
