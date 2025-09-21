@@ -12,8 +12,11 @@ export function getWebMainDomain(
 ) {
   if (!url) return "";
   const urlObj = new URL(url);
-  let hostname = urlObj.hostname;
-  hostname = hostname.replace(/^(www|m|mobile)\./, "");
-  hostname = hostname.split(".")[0];
-  return capitalizeFirstLetter ? capitalize(hostname) : hostname;
+  const hostname = urlObj.hostname;
+  const hostnamePart = hostname.split(".");
+  if (hostnamePart.length > 2) {
+    hostnamePart.shift(); // 移除顶级域名
+  }
+  const mainDomain = hostnamePart[0];
+  return capitalizeFirstLetter ? capitalize(mainDomain) : mainDomain;
 }

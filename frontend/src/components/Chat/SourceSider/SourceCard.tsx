@@ -24,7 +24,7 @@ const SourceCard: React.FC<SourceCardProps> = ({ rank, source }) => {
       <div className="flex justify-between items-center text-gray-600">
         <div className="flex items-center gap-2">
           <Avatar size={18} src={getWebIconUrl(source.url)} />
-          <span>{getWebMainDomain(source.url, true)}</span>
+          <span title={source.url}>{getWebMainDomain(source.url, true)}</span>
         </div>
         <div className="flex items-center justify-center rounded-full bg-gray-200 h-4.5 w-4.5 text-xs">
           {rank}
