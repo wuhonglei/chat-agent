@@ -10,7 +10,7 @@ type Props = {
 // 初始化 Mermaid
 mermaid.initialize({
   startOnLoad: false,
-  theme: "forest",
+  theme: "default",
   securityLevel: "loose",
 });
 
