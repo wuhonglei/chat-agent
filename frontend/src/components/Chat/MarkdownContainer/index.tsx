@@ -1,91 +1,40 @@
 import ReactMarkdown from "react-markdown";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { vs } from "react-syntax-highlighter/dist/esm/styles/prism";
 import remarkGfm from "remark-gfm";
 import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
 import rehypeExternalLinks from "rehype-external-links";
 import remarkMath from "remark-math";
-import mermaid from "mermaid";
+import MermaidBlock from "./components/MermaidBlock";
 import classNames from "classnames";
-import { useEffect, useRef } from "react";
-import { v4 as uuidv4 } from "uuid";
 import "katex/dist/katex.min.css";
 import styles from "./index.module.css";
+import InlineCode from "./components/InlineCode";
+import NormalCode from "./components/NormalCode";
 
-// 初始化 Mermaid
-mermaid.initialize({
-  startOnLoad: false,
-  theme: "forest",
-  securityLevel: "loose",
-});
-
-const customStyle = {
-  backgroundColor: "#F8F9FA",
-  border: "none",
-  borderRadius: "12px",
-  marginTop: 0,
-};
-
-const MermaidBlock = ({ code }: { code: string }) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const idRef = useRef<string>(`mermaid-${uuidv4()}`);
-
-  useEffect(() => {
-    if (ref.current) {
-      mermaid
-        .render(idRef.current, code)
-        .then(result => {
-          if (ref.current) {
-            console.info("result", result);
-            ref.current.innerHTML = result.svg;
-          }
-        })
-        .catch(error => {
-          console.error("Mermaid rendering error:", error);
-          if (ref.current) {
-            ref.current.innerHTML = `<pre>${code}</pre>`;
-          }
-        });
-    }
-  }, [code]);
-
-  return <div ref={ref} className="mermaid" />;
-};
-
-const CustomCodeBlock = ({ inline, className, children, ...rest }: any) => {
+const CustomCodeBlock = ({ inline, className, children }: any) => {
   const match = /language-(\w+)/.exec(className || "");
   const code = String(children).replace(/\n$/, "");
+  const language = match ? match[1] : "";
 
   // 处理 Mermaid 代码块
   if (!inline && match && match[1] === "mermaid") {
     return <MermaidBlock code={code} />;
   }
 
-  if (inline || !match) {
+  if (inline || !language) {
     return (
-      <code
-        {...rest}
+      <InlineCode
         className={classNames(
           className,
           "bg-gray-100 px-1 py-0.5 text-sm rounded"
         )}
       >
         {children}
-      </code>
+      </InlineCode>
     );
   }
 
-  return (
-    <SyntaxHighlighter
-      {...rest}
-      style={vs}
-      PreTag="div"
-      children={code}
-      language={match[1]}
-      customStyle={customStyle}
-    />
-  );
+  return <NormalCode language={language}>{code}</NormalCode>;
 };
 
 type Props = {
