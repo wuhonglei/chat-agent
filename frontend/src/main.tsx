@@ -9,7 +9,15 @@ import "./styles/index.css";
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <Provider store={store}>
-      <ConfigProvider theme={{ token: { colorPrimary: "#2356F6" } }}>
+      <ConfigProvider
+        theme={{
+          token: {
+            colorPrimary: "#2356F6",
+            fontFamily: "inherit",
+            fontFamilyCode: "inherit",
+          },
+        }}
+      >
         <App />
       </ConfigProvider>
     </Provider>

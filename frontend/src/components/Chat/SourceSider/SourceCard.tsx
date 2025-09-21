@@ -26,14 +26,14 @@ const SourceCard: React.FC<SourceCardProps> = ({ rank, source }) => {
           <Avatar size={18} src={getWebIconUrl(source.url)} />
           <span>{getWebMainDomain(source.url, true)}</span>
         </div>
-        <div className="rounded-full bg-gray-200 h-4.5 w-4.5 flex items-center justify-center">
+        <div className="flex items-center justify-center rounded-full bg-gray-200 h-4.5 w-4.5 text-xs">
           {rank}
         </div>
       </div>
       {/* 第二行: 文章标题 */}
       <Title
         level={5}
-        style={{ margin: 0 }}
+        style={{ margin: 0, fontWeight: 500 }}
         ellipsis={{ rows: 2, expandable: false }}
       >
         {source.title}

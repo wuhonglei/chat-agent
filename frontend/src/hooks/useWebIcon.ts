@@ -5,7 +5,6 @@ export function useWebIconUrls(
   sources: { url?: string }[] | undefined,
   max: number
 ) {
-  console.info(sources);
   const urls = (sources || []).map(source => source.url);
   const urlsString = JSON.stringify(urls);
   return useMemo(() => {
