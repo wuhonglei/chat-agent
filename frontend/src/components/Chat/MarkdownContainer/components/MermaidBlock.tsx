@@ -66,7 +66,7 @@ export default function MermaidBlock({ code, style }: Props) {
         ref={ref}
         style={{ ...style }}
         className={classNames(
-          "mermaid mx-auto min-h-[300px]",
+          "mermaid mx-auto",
           activeKey !== "svg" && "hidden"
         )}
       />
