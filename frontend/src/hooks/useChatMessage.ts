@@ -5,6 +5,7 @@ import {
   appendToLastMessage,
   appendToLastMessageReasoning,
   clearLastMessage,
+  prependToLastMessage,
   setLoading,
   setReasoning,
   setSources,
@@ -14,11 +15,25 @@ import { chatAPI } from "@/services/api";
 import {
   ChatInputFormValues,
   ChatMessage as ChatMessageType,
+  SearchSource,
   StreamMessage,
 } from "@/types";
 
 export interface UseChatMessageOptions {
   historyLimit?: number;
+}
+
+/**
+ * 构建脚注定义
+ * @param footnotes 脚注列表
+ * @returns 脚注定义
+ */
+function buildFootnoteDefinition(sources: SearchSource[]): string {
+  return sources
+    .map(
+      (source, index) => `[^CITE:${index + 1}]: ${source.title || index + 1}`
+    )
+    .join("\n");
 }
 
 export interface UseChatMessageReturn {
@@ -96,6 +111,7 @@ export const useChatMessage = (
           } else if (data.type === "sources") {
             // 知识库搜索结果
             dispatch(setSources(data.data));
+            dispatch(prependToLastMessage(buildFootnoteDefinition(data.data)));
           } else if (data.type === "done") {
             // 流结束
             resetState();

@@ -79,7 +79,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           }}
         />
       </Sider>
-      <Layout className="h-full overflow-y-auto">{children}</Layout>
+      <Layout className="h-full">{children}</Layout>
     </Layout>
   );
 };

@@ -1,6 +1,7 @@
 import { chatAPI } from "@/services/api";
 import { ChatInputFormValues, ChatMessage, SearchSource } from "@/types";
 import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { isEmpty } from "lodash-es";
 
 interface ChatState {
   messages: ChatMessage[];
@@ -29,6 +30,19 @@ export const sendMessage = createAsyncThunk(
   }
 );
 
+/**
+ * 检查消息列表中最后一个消息是否为助手消息
+ * @param messages
+ * @returns
+ */
+function lastMessageCheck(messages: ChatMessage[]): ChatMessage | undefined {
+  if (isEmpty(messages)) {
+    return undefined;
+  }
+
+  return messages.at(-1)?.role === "assistant" ? messages.at(-1) : undefined;
+}
+
 const chatSlice = createSlice({
   name: "chat",
   initialState,
@@ -37,12 +51,8 @@ const chatSlice = createSlice({
       state.messages.push(action.payload);
     },
     clearLastMessage: state => {
-      if (state.messages.length === 0) {
-        return;
-      }
-
-      const lastMessage = state.messages[state.messages.length - 1];
-      if (lastMessage.role === "assistant" && !lastMessage.content) {
+      const lastMessage = lastMessageCheck(state.messages);
+      if (lastMessage && !lastMessage.content) {
         state.messages.pop();
       }
     },
@@ -64,20 +74,22 @@ const chatSlice = createSlice({
     setSources: (state, action: PayloadAction<SearchSource[]>) => {
       state.messages[state.messages.length - 1].sources = action.payload;
     },
+    prependToLastMessage: (state, action: PayloadAction<string>) => {
+      const lastMessage = lastMessageCheck(state.messages);
+      if (lastMessage) {
+        lastMessage.content = action.payload + lastMessage.content;
+      }
+    },
     appendToLastMessage: (state, action: PayloadAction<string>) => {
-      if (state.messages.length > 0) {
-        const lastMessage = state.messages[state.messages.length - 1];
-        if (lastMessage.role === "assistant") {
-          lastMessage.content += action.payload;
-        }
+      const lastMessage = lastMessageCheck(state.messages);
+      if (lastMessage) {
+        lastMessage.content += action.payload;
       }
     },
     appendToLastMessageReasoning: (state, action: PayloadAction<string>) => {
-      if (state.messages.length > 0) {
-        const lastMessage = state.messages[state.messages.length - 1];
-        if (lastMessage.role === "assistant") {
-          lastMessage.reasoning += action.payload;
-        }
+      const lastMessage = lastMessageCheck(state.messages);
+      if (lastMessage) {
+        lastMessage.reasoning += action.payload;
       }
     },
     clearError: state => {
@@ -118,6 +130,7 @@ export const {
   setStreaming,
   setLoading,
   setSources,
+  prependToLastMessage,
   appendToLastMessage,
   appendToLastMessageReasoning,
   setReasoning,

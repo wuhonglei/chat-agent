@@ -2,6 +2,7 @@ import { SearchSource } from "@/types";
 import { Avatar, Typography } from "antd";
 import React, { memo } from "react";
 import { getWebIconUrl, getWebMainDomain } from "@/utils";
+import RoundTag from "@/components/RoundTag";
 
 const { Title, Paragraph } = Typography;
 
@@ -25,9 +26,7 @@ const SourceCard: React.FC<SourceCardProps> = ({ rank, source }) => {
           <Avatar size={18} src={getWebIconUrl(source.url)} />
           <span title={source.url}>{getWebMainDomain(source.url, true)}</span>
         </div>
-        <div className="flex items-center justify-center rounded-full bg-gray-200 px-1 py-px text-xs">
-          {rank}
-        </div>
+        <RoundTag>{rank}</RoundTag>
       </div>
       {/* 第二行: 文章标题 */}
       <Title

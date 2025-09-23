@@ -22,14 +22,17 @@ JavaScript 是另一种流行的编程语言[^3]，主要用于前端开发但�
 
 ## 多个引用示例
 
-React 是一个用于构建用户界面的 JavaScript 库[^1][^2]，由 Facebook 开发和维护[^3]。
+React 是一个用于构建用户界面的 JavaScript 库[^CITE:1][^CITE:2]，由 Facebook 开发和维护[^CITE:3]。
 
-## 引用说明
+[^1]: Python 官方文档 (https://docs.python.org)
+[^2]: Python 编程指南
+[^3]: JavaScript MDN 文档
+[^4]: Node.js 官方网站
 
-[^1] 来源：Python 官方文档 (https://docs.python.org)
-[^2] 来源：Python 编程指南
-[^3] 来源：JavaScript MDN 文档
-[^4] 来源：Node.js 官方网站
+[^CITE:1]: Python 官方文档 (https://docs.python.org)
+[^CITE:2]: Python 编程指南
+[^CITE:3]: JavaScript MDN 文档
+[^CITE:4]: Node.js 官方网站
 
 ### 表格
 
