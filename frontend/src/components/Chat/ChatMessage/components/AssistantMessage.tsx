@@ -40,7 +40,10 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
             reasoning={message.reasoning}
             onSourceClick={onSourceClick}
           />
-          <MarkdownContainer className="text-base">
+          <MarkdownContainer
+            className="text-base w-full"
+            sources={message.sources}
+          >
             {displayContent}
           </MarkdownContainer>
           {!isStreaming && (

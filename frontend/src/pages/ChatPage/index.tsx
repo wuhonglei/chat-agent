@@ -1,30 +1,32 @@
 import ChatInput from "@/components/Chat/ChatInput";
 import { ChatMessageList } from "@/components/Chat/ChatMessage";
-import { useAppSelector } from "@/store/hooks";
 import { useChatMessage } from "@/hooks";
+import { useMemoizedFn } from "ahooks";
 import { ChatMessage as ChatMessageType } from "@/types";
 import { Card } from "antd";
 import classNames from "classnames";
-import React, { useCallback, useState } from "react";
+import React, { useState } from "react";
 import { SourceData } from "@/types";
 import styles from "./index.module.css";
 import SourceSider from "@/components/Chat/SourceSider";
 
 const ChatPage: React.FC = () => {
-  const { messages } = useAppSelector(state => state.chat);
   const { sendMessage, isStreaming, isLoading, isReasoning } = useChatMessage();
   const [sourceData, setSourceData] = useState<SourceData | undefined>();
 
-  const handleSourceClick = useCallback(
+  const handleSourceClick = useMemoizedFn(
     (index: number, message: ChatMessageType) => {
       if (sourceData?.index === index) {
         setSourceData(undefined);
       } else {
         setSourceData({ index, sources: message.sources || [] });
       }
-    },
-    [sourceData]
+    }
   );
+
+  const handleCloseSource = useMemoizedFn(() => {
+    setSourceData(undefined);
+  });
 
   return (
     <div className="flex h-full bg-white">
@@ -46,7 +48,6 @@ const ChatPage: React.FC = () => {
       >
         {/* Messages */}
         <ChatMessageList
-          messages={messages}
           isLoading={isLoading}
           isStreaming={isStreaming}
           isReasoning={isReasoning}
@@ -62,10 +63,7 @@ const ChatPage: React.FC = () => {
         />
       </Card>
       {/* Sources panel */}
-      <SourceSider
-        sourceData={sourceData}
-        onClose={() => setSourceData(undefined)}
-      />
+      <SourceSider sourceData={sourceData} onClose={handleCloseSource} />
     </div>
   );
 };

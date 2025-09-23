@@ -51,7 +51,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   return (
-    <div className={classNames("p-4", className)} style={style}>
+    <div className={classNames("py-4", className)} style={style}>
       <ConfigProvider theme={{ components: { Form: { itemMarginBottom: 0 } } }}>
         <Form
           form={form}

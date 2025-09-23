@@ -4,9 +4,9 @@ import ChatMessageItem from "./ChatMessageItem";
 import { isEmpty } from "lodash-es";
 import { Empty } from "antd";
 import classNames from "classnames";
+import { useAppSelector } from "@/store/hooks";
 
 interface ChatMessageListProps {
-  messages: ChatMessageType[];
   isLoading?: boolean;
   isStreaming?: boolean;
   isReasoning?: boolean;
@@ -15,15 +15,14 @@ interface ChatMessageListProps {
 }
 
 const ChatMessageList: React.FC<ChatMessageListProps> = ({
-  messages,
   isLoading = false,
   isStreaming = false,
   isReasoning = false,
   className,
   onSourceClick,
 }) => {
+  const { messages } = useAppSelector(state => state.chat);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
   if (isEmpty(messages)) {
     return (
       <Empty
@@ -41,11 +40,12 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
       {messages.map((message, index) => (
         <ChatMessageItem
           key={index}
+          index={index}
           message={message}
+          onSourceClick={onSourceClick}
           isLoading={isLoading && index === messages.length - 1}
           isStreaming={isStreaming && index === messages.length - 1}
           isReasoning={isReasoning && index === messages.length - 1}
-          onSourceClick={() => onSourceClick(index, message)}
         />
       ))}
       <div ref={messagesEndRef} />

@@ -3,19 +3,31 @@ import { Avatar, Typography } from "antd";
 import React, { memo } from "react";
 import { getWebIconUrl, getWebMainDomain } from "@/utils";
 import RoundTag from "@/components/RoundTag";
+import classNames from "classnames";
 
 const { Title, Paragraph } = Typography;
 
 interface SourceCardProps {
-  rank: number;
-  source: SearchSource;
+  rank?: number;
+  hoverable?: boolean;
+  className?: string;
+  source: SearchSource | undefined;
 }
 
-const SourceCard: React.FC<SourceCardProps> = ({ rank, source }) => {
+const SourceCard: React.FC<SourceCardProps> = ({
+  rank,
+  source,
+  className,
+  hoverable = true,
+}) => {
   if (!source) return null;
   return (
     <div
-      className="flex flex-col p-3 gap-[6px] cursor-pointer rounded-lg hover:bg-gray-100 transition"
+      className={classNames(
+        "flex flex-col p-3 gap-[6px] cursor-pointer rounded-lg",
+        hoverable && "hover:bg-gray-100 transition",
+        className
+      )}
       onClick={() => {
         window.open(source.url, "_blank");
       }}
@@ -26,7 +38,7 @@ const SourceCard: React.FC<SourceCardProps> = ({ rank, source }) => {
           <Avatar size={18} src={getWebIconUrl(source.url)} />
           <span title={source.url}>{getWebMainDomain(source.url, true)}</span>
         </div>
-        <RoundTag>{rank}</RoundTag>
+        {rank && <RoundTag>{rank}</RoundTag>}
       </div>
       {/* 第二行: 文章标题 */}
       <Title

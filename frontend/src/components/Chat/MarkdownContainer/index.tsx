@@ -19,6 +19,8 @@ import { Popover } from "antd";
 import RoundTag from "@/components/RoundTag";
 
 import classNames from "classnames";
+import SourceCard from "../SourceSider/SourceCard";
+import { SearchSource } from "@/types";
 
 interface CustomCodeBlockProps {
   inline?: boolean;
@@ -58,8 +60,10 @@ const CustomCodeBlock = ({
   );
 };
 
-const CustomSup = (props: { children: React.ReactNode | string }) => {
-  const { children } = props;
+const CustomSup = (props: any) => {
+  const { children, sources } = props;
+
+  // 检查 children 是否是 React 元素并且有 props
   const href = children?.props?.href || "";
   const isCite = href.startsWith("#user-content-fn-cite:");
 
@@ -67,21 +71,36 @@ const CustomSup = (props: { children: React.ReactNode | string }) => {
     return React.createElement("sup", {}, children);
   }
 
-  const index = href.split("#user-content-fn-cite:")[1];
+  const index = Number(href.split("#user-content-fn-cite:")[1]);
 
   return (
-    <Popover content={index}>
+    <Popover
+      styles={{
+        body: {
+          padding: 0,
+          width: 400,
+        },
+      }}
+      content={
+        <SourceCard
+          rank={index}
+          hoverable={false}
+          source={sources?.[index - 1]}
+        />
+      }
+    >
       <RoundTag interactive>{index}</RoundTag>
     </Popover>
   );
 };
 
 type Props = {
-  children: string | undefined;
   className?: string;
+  sources?: SearchSource[];
+  children: string | undefined;
 };
 
-const MarkdownContainer = ({ children, className }: Props) => {
+const MarkdownContainer = ({ children, className, sources }: Props) => {
   if (!children) {
     return null;
   }
@@ -90,7 +109,7 @@ const MarkdownContainer = ({ children, className }: Props) => {
     <ReactMarkdown
       components={{
         code: CustomCodeBlock,
-        sup: CustomSup,
+        // sup: props => <CustomSup {...props} sources={sources} />,
       }}
       rehypePlugins={[
         rehypeRaw,

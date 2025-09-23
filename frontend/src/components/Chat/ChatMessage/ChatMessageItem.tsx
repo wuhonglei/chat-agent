@@ -2,16 +2,19 @@ import { ChatMessage as ChatMessageType } from "@/types";
 import React from "react";
 import AssistantMessage from "./components/AssistantMessage";
 import UserMessage from "./components/UserMessage";
+import { useMemoizedFn } from "ahooks";
 
 interface ChatMessageItemProps {
+  index: number;
   message: ChatMessageType;
   isStreaming: boolean;
   isLoading: boolean;
   isReasoning: boolean;
-  onSourceClick: () => void;
+  onSourceClick: (index: number, message: ChatMessageType) => void;
 }
 
 const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
+  index,
   message,
   isStreaming,
   isLoading,
@@ -19,6 +22,9 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   onSourceClick,
 }) => {
   const isUser = message.role === "user";
+  const handleSourceClick = useMemoizedFn(() => {
+    onSourceClick(index, message);
+  });
 
   return isUser ? (
     <UserMessage message={message} />
@@ -28,7 +34,7 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
       isLoading={isLoading}
       isStreaming={isStreaming}
       isReasoning={isReasoning}
-      onSourceClick={onSourceClick}
+      onSourceClick={handleSourceClick}
     />
   );
 };

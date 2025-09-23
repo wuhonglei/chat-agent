@@ -43,11 +43,7 @@ const SourceSider = ({ sourceData, onClose }: Props) => {
         }}
       >
         {sourceData?.sources.map((source, index) => (
-          <SourceCard
-            source={source}
-            rank={index + 1}
-            key={source.document_id}
-          />
+          <SourceCard source={source} rank={index + 1} key={index} />
         ))}
       </Card>
     </Layout.Sider>
