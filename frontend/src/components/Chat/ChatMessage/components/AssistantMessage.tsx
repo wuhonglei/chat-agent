@@ -1,6 +1,6 @@
 import { ChatMessage as ChatMessageType } from "@/types";
 import { useThrottle } from "ahooks";
-import { Button, Spin } from "antd";
+import { Spin } from "antd";
 import React from "react";
 import ReasoningBlock from "./ReasoningBlock";
 import MarkdownContainer from "@/components/Chat/MarkdownContainer";
@@ -56,4 +56,4 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
   );
 };
 
-export default AssistantMessage;
+export default React.memo(AssistantMessage);

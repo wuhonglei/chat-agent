@@ -1,3 +1,4 @@
+import React from "react";
 import MarkdownContainer from "@/components/Chat/MarkdownContainer";
 import styles from "./index.module.css";
 import simplify from "./raw/simplify.md?raw";
@@ -28,7 +29,7 @@ const content = {
   [items[2]?.key]: mermaid,
 };
 
-export default function MarkdownPage() {
+const MarkdownPage = () => {
   const [activeKey, setActiveKey] = useState(items[0].key);
 
   return (
@@ -48,3 +49,5 @@ export default function MarkdownPage() {
     </div>
   );
 }
+
+export default React.memo(MarkdownPage);

@@ -20,11 +20,13 @@ type LanguageLabelProps = {
   className?: string;
 };
 
-export const LanguageLabel = ({ children, className }: LanguageLabelProps) => {
+const LanguageLabelComponent = ({ children, className }: LanguageLabelProps) => {
   return <span className={classNames("text-sm", className)}>{children}</span>;
 };
 
-export const CopyButton = ({ children }: CopyButtonProps) => {
+export const LanguageLabel = React.memo(LanguageLabelComponent);
+
+const CopyButtonComponent = ({ children }: CopyButtonProps) => {
   const { copied, onClick: onCopyClick } = useCopyClick({
     copyConfig: { text: children },
   });
@@ -43,7 +45,9 @@ export const CopyButton = ({ children }: CopyButtonProps) => {
   );
 };
 
-export default function GrayContainer({ header, children, className }: Props) {
+export const CopyButton = React.memo(CopyButtonComponent);
+
+const GrayContainer = ({ header, children, className }: Props) => {
   return (
     <div
       className={classNames(
@@ -66,3 +70,5 @@ export default function GrayContainer({ header, children, className }: Props) {
     </div>
   );
 }
+
+export default React.memo(GrayContainer);

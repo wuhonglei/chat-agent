@@ -5,7 +5,7 @@ import { useChatMessage } from "@/hooks";
 import { ChatMessage as ChatMessageType } from "@/types";
 import { Card } from "antd";
 import classNames from "classnames";
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import { SourceData } from "@/types";
 import styles from "./index.module.css";
 import SourceSider from "@/components/Chat/SourceSider";
@@ -15,13 +15,16 @@ const ChatPage: React.FC = () => {
   const { sendMessage, isStreaming, isLoading, isReasoning } = useChatMessage();
   const [sourceData, setSourceData] = useState<SourceData | undefined>();
 
-  function handleSourceClick(index: number, message: ChatMessageType) {
-    if (sourceData?.index === index) {
-      setSourceData(undefined);
-    } else {
-      setSourceData({ index, sources: message.sources || [] });
-    }
-  }
+  const handleSourceClick = useCallback(
+    (index: number, message: ChatMessageType) => {
+      if (sourceData?.index === index) {
+        setSourceData(undefined);
+      } else {
+        setSourceData({ index, sources: message.sources || [] });
+      }
+    },
+    [sourceData]
+  );
 
   return (
     <div className="flex h-full bg-white">
@@ -67,4 +70,4 @@ const ChatPage: React.FC = () => {
   );
 };
 
-export default ChatPage;
+export default React.memo(ChatPage);

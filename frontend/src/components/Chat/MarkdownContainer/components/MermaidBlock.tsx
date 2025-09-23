@@ -1,3 +1,4 @@
+import React from "react";
 import mermaid from "mermaid";
 import { useEffect, useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
@@ -30,7 +31,7 @@ const options = [
   },
 ];
 
-export default function MermaidBlock({ code, style }: Props) {
+const MermaidBlock = ({ code, style }: Props) => {
   const ref = useRef<HTMLDivElement>(null);
   const idRef = useRef<string>(`mermaid-${uuidv4()}`);
   const [activeKey, setActiveKey] = useState<string>(options[0].value);
@@ -79,3 +80,5 @@ export default function MermaidBlock({ code, style }: Props) {
     </GrayContainer>
   );
 }
+
+export default React.memo(MermaidBlock);

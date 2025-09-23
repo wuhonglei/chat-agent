@@ -1,3 +1,4 @@
+import React from "react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vs } from "react-syntax-highlighter/dist/esm/styles/prism";
 
@@ -15,7 +16,7 @@ const customStyle = {
   backgroundColor: "inherit",
 };
 
-export default function NormalCode({ children, language, style }: Props) {
+const NormalCode = ({ children, language, style }: Props) => {
   return (
     <SyntaxHighlighter
       style={vs}
@@ -29,3 +30,5 @@ export default function NormalCode({ children, language, style }: Props) {
     />
   );
 }
+
+export default React.memo(NormalCode);

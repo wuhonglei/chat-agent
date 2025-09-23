@@ -33,4 +33,4 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   );
 };
 
-export default ChatMessageItem;
+export default React.memo(ChatMessageItem);

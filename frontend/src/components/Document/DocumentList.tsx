@@ -148,4 +148,4 @@ const DocumentList: React.FC = () => {
   );
 };
 
-export default DocumentList;
+export default React.memo(DocumentList);

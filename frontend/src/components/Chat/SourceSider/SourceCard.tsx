@@ -1,6 +1,6 @@
 import { SearchSource } from "@/types";
 import { Avatar, Typography } from "antd";
-import React from "react";
+import React, { memo } from "react";
 import { getWebIconUrl, getWebMainDomain } from "@/utils";
 
 const { Title, Paragraph } = Typography;
@@ -12,7 +12,6 @@ interface SourceCardProps {
 
 const SourceCard: React.FC<SourceCardProps> = ({ rank, source }) => {
   if (!source) return null;
-  console.log(source);
   return (
     <div
       className="flex flex-col p-3 gap-[6px] cursor-pointer rounded-lg hover:bg-gray-100 transition"
@@ -49,4 +48,4 @@ const SourceCard: React.FC<SourceCardProps> = ({ rank, source }) => {
   );
 };
 
-export default SourceCard;
+export default memo(SourceCard);

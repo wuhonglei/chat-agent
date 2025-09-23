@@ -53,4 +53,4 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
   );
 };
 
-export default ChatMessageList;
+export default React.memo(ChatMessageList);

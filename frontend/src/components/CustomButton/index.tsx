@@ -14,7 +14,7 @@ export type CustomButtonProps = {
   tooltip?: string;
 };
 
-export default function CustomButton({
+const CustomButton = ({
   active = false,
   bordered = true,
   size = "medium",
@@ -23,7 +23,7 @@ export default function CustomButton({
   onClick,
   className,
   tooltip,
-}: CustomButtonProps) {
+}: CustomButtonProps) => {
   return (
     <Tooltip title={tooltip}>
       <div
@@ -44,4 +44,6 @@ export default function CustomButton({
       </div>
     </Tooltip>
   );
-}
+};
+
+export default React.memo(CustomButton);

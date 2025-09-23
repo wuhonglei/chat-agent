@@ -226,4 +226,4 @@ const KnowledgeBasePage: React.FC = () => {
   );
 };
 
-export default KnowledgeBasePage;
+export default React.memo(KnowledgeBasePage);

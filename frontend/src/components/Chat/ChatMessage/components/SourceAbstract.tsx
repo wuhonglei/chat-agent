@@ -6,6 +6,7 @@ import SearchIcon from "@/assets/svg/SearchIcon.svg?react";
 import classNames from "classnames";
 import { Avatar, ConfigProvider } from "antd";
 import { useWebIconUrls } from "@/hooks";
+import React from "react";
 
 interface Props extends Omit<CustomButtonProps, "children"> {
   mode: "preSource" | "postSource";
@@ -14,7 +15,7 @@ interface Props extends Omit<CustomButtonProps, "children"> {
 
 const maxIcons = 3;
 
-export default function SourceAbstract({ sources, mode, ...props }: Props) {
+const SourceAbstract = ({ sources, mode, ...props }: Props) => {
   const urlIcons = useWebIconUrls(sources, maxIcons);
   if (isEmpty(sources)) {
     return null;
@@ -62,3 +63,5 @@ export default function SourceAbstract({ sources, mode, ...props }: Props) {
     </CustomButton>
   );
 }
+
+export default React.memo(SourceAbstract);

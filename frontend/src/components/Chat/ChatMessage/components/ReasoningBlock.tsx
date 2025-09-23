@@ -5,6 +5,7 @@ import MarkdownContainer from "@/components/Chat/MarkdownContainer";
 import ThinkModeIcon from "@/assets/svg/ThinkModeIcon.svg?react";
 import { SearchSource } from "@/types";
 import SourceAbstract from "./SourceAbstract";
+import React from "react";
 
 type Props = {
   isReasoning: boolean;
@@ -13,12 +14,12 @@ type Props = {
   onSourceClick: () => void;
 };
 
-export default function ReasoningBlock({
+const ReasoningBlock = ({
   isReasoning,
   sources,
   reasoning,
   onSourceClick,
-}: Props) {
+}: Props) => {
   const displayReasoning = useThrottle(reasoning, {
     wait: 100,
   });
@@ -95,4 +96,6 @@ export default function ReasoningBlock({
       ]}
     />
   );
-}
+};
+
+export default React.memo(ReasoningBlock);

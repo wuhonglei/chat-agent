@@ -1,3 +1,4 @@
+import React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeKatex from "rehype-katex";
@@ -49,7 +50,7 @@ type Props = {
   className?: string;
 };
 
-export default function MarkdownContainer({ children, className }: Props) {
+const MarkdownContainer = ({ children, className }: Props) => {
   if (!children) {
     return null;
   }
@@ -77,3 +78,5 @@ export default function MarkdownContainer({ children, className }: Props) {
     </ReactMarkdown>
   );
 }
+
+export default React.memo(MarkdownContainer);

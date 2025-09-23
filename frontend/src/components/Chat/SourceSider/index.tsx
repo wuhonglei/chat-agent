@@ -1,3 +1,4 @@
+import React from "react";
 import { SourceData } from "@/types";
 import { Layout } from "antd";
 import { isEmpty } from "lodash-es";
@@ -11,7 +12,7 @@ type Props = {
   sourceData: SourceData | undefined;
 };
 
-export default function SourceSider({ sourceData, onClose }: Props) {
+const SourceSider = ({ sourceData, onClose }: Props) => {
   return (
     <Layout.Sider
       width={400}
@@ -52,3 +53,5 @@ export default function SourceSider({ sourceData, onClose }: Props) {
     </Layout.Sider>
   );
 }
+
+export default React.memo(SourceSider);

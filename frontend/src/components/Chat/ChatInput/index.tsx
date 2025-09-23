@@ -106,4 +106,4 @@ const ChatInput: React.FC<ChatInputProps> = ({
   );
 };
 
-export default ChatInput;
+export default React.memo(ChatInput);

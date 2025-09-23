@@ -7,7 +7,7 @@ type Props = {
   children: React.ReactNode;
 };
 
-export default function InlineCode({ className, children, style }: Props) {
+const InlineCode = ({ className, children, style }: Props) => {
   return (
     <code
       className={classNames(
@@ -20,3 +20,5 @@ export default function InlineCode({ className, children, style }: Props) {
     </code>
   );
 }
+
+export default React.memo(InlineCode);

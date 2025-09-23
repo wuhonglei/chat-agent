@@ -71,4 +71,4 @@ const DocumentUpload: React.FC = () => {
   );
 };
 
-export default DocumentUpload;
+export default React.memo(DocumentUpload);

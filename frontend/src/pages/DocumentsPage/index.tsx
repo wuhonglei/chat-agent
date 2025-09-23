@@ -113,4 +113,4 @@ const DocumentsPage: React.FC = () => {
   );
 };
 
-export default DocumentsPage;
+export default React.memo(DocumentsPage);

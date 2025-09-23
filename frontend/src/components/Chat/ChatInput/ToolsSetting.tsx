@@ -2,13 +2,14 @@ import { Dropdown } from "antd";
 import { Space } from "antd";
 import { DownOutlined, GlobalOutlined } from "@ant-design/icons";
 import CustomButton from "@/components/CustomButton";
+import React from "react";
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
 
-export default function ToolsSetting({ open, onOpenChange }: Props) {
+const ToolsSetting = ({ open, onOpenChange }: Props) => {
   return (
     <Dropdown
       open={open}
@@ -42,3 +43,5 @@ export default function ToolsSetting({ open, onOpenChange }: Props) {
     </Dropdown>
   );
 }
+
+export default React.memo(ToolsSetting);
