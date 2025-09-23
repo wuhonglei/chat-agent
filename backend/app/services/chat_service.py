@@ -66,30 +66,17 @@ class ChatService:
 
                 # Build context and sources
                 for result in top_results:
-                    if hasattr(result, "content"):  # Reranked result
-                        content = result.content
-                        metadata = result.metadata
-                        score = result.score
-                    else:  # Original retrieval result
-                        content = result.content
-                        metadata = result.metadata
-                        score = result.score
+                    content = result.content
+                    score = result.score
 
-                    context += f"\n---\n来源: {result.source if hasattr(result, 'source') else '知识库'}\n{content}\n"
+                    context += f"\n---\n来源: {result.source}\n{content}\n"
 
                     sources.append(
                         {
                             "content": content[:200] + "...",
-                            "title": (
-                                result.title
-                                if hasattr(result, "title")
-                                else metadata.get("document_name", "Unknown")
-                            ),
-                            "url": result.url if hasattr(result, "url") else None,
-                            "source": (
-                                result.source if hasattr(
-                                    result, "source") else "knowledge_base"
-                            ),
+                            "title": result.title,
+                            "url": result.url,
+                            "source": result.source,
                             "score": score,
                         }
                     )
@@ -195,13 +182,16 @@ class ChatService:
         history: list[ChatMessage] | None = None,
     ) -> list[dict]:
         """Build prompt for LLM with context"""
-        system_prompt = """你是一个智能文档问答助手。你的任务是基于提供的文档内容回答用户的问题。
+        system_prompt = """你是一个智能问答助手。你的任务是基于提供的参考资料回答用户的问题。
 
 规则：
-1. 如果文档中包含相关信息，请基于文档内容回答，并指出信息来源
-2. 如果文档中没有相关信息，请诚实地告诉用户你无法从现有文档中找到答案
-3. 保持回答简洁、准确、专业
-4. 使用中文回答"""
+1. 仔细分析提供的参考资料，这些资料可能来自知识库文档或实时网络搜索
+2. 如果是网络搜索结果，请注意信息的时效性和来源可靠性
+3. 基于参考资料回答时，请明确指出信息来源（如具体文档名称或网站）
+4. 如果参考资料中没有相关信息，请诚实告知用户，并根据你的知识提供可能的建议
+5. 保持回答准确、专业、有条理
+6. 优先使用参考资料中的信息，确保答案的准确性
+7. 使用中文回答"""
 
         messages = [{"role": "system", "content": system_prompt}]
 
@@ -212,14 +202,14 @@ class ChatService:
 
         # Add context and current message
         if context:
-            user_prompt = f"""基于以下文档内容回答问题：
+            user_prompt = f"""基于以下参考资料回答问题：
 
-文档内容：
+参考资料：
 {context}
 
 用户问题：{message}
 
-请提供准确的回答。"""
+请基于上述参考资料提供准确、详细的回答。如果参考资料中包含多个来源，请综合各个来源的信息。"""
         else:
             user_prompt = message
 
