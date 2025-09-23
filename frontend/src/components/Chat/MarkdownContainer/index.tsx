@@ -28,71 +28,82 @@ interface CustomCodeBlockProps {
   children?: React.ReactNode;
 }
 
-const CustomCodeBlock = ({
-  inline,
-  className,
-  children,
-}: CustomCodeBlockProps) => {
-  const match = /language-(\w+)/.exec(className || "");
-  const code = String(children).replace(/\n$/, "");
-  const language = match ? match[1] : "";
+const CustomCodeBlock = memo(
+  ({ inline, className, children }: CustomCodeBlockProps) => {
+    const match = /language-(\w+)/.exec(className || "");
+    const code = String(children).replace(/\n$/, "");
+    const language = match ? match[1] : "";
 
-  // 处理 Mermaid 代码块
-  if (!inline && language === "mermaid") {
-    return <MermaidBlock code={code} />;
+    // 处理 Mermaid 代码块
+    if (!inline && language === "mermaid") {
+      return <MermaidBlock code={code} />;
+    }
+
+    if (inline || !language) {
+      return <InlineCode>{code}</InlineCode>;
+    }
+
+    return (
+      <GrayContainer
+        header={
+          <>
+            <LanguageLabel children={language} />
+            <CopyButton children={code} />
+          </>
+        }
+      >
+        <NormalCode language={language}>{code}</NormalCode>
+      </GrayContainer>
+    );
   }
+);
 
-  if (inline || !language) {
-    return <InlineCode>{children}</InlineCode>;
+const CustomSup = memo(
+  ({
+    children,
+    sources,
+  }: {
+    children?: React.ReactNode;
+    sources: SearchSource[] | undefined;
+  }) => {
+    // 检查 children 是否是 React 元素并且有 props
+    const href = (children as React.ReactElement)?.props?.href || "";
+    const isCite = href.startsWith("#user-content-fn-cite:");
+
+    if (!isCite) {
+      return React.createElement("sup", {}, children);
+    }
+
+    const index = Number(href.split("#user-content-fn-cite:")[1]);
+
+    return (
+      <Popover
+        styles={{
+          body: {
+            padding: 0,
+            width: 400,
+          },
+        }}
+        content={
+          <SourceCard
+            rank={index}
+            hoverable={false}
+            source={sources?.[index - 1]}
+          />
+        }
+      >
+        <RoundTag
+          interactive
+          onClick={() => {
+            window.open(sources?.[index - 1]?.url, "_blank");
+          }}
+        >
+          {index}
+        </RoundTag>
+      </Popover>
+    );
   }
-
-  return (
-    <GrayContainer
-      header={
-        <>
-          <LanguageLabel children={language} />
-          <CopyButton children={code} />
-        </>
-      }
-    >
-      <NormalCode language={language}>{code}</NormalCode>
-    </GrayContainer>
-  );
-};
-
-const CustomSup = (props: any) => {
-  const { children, sources } = props;
-
-  // 检查 children 是否是 React 元素并且有 props
-  const href = children?.props?.href || "";
-  const isCite = href.startsWith("#user-content-fn-cite:");
-
-  if (!isCite) {
-    return React.createElement("sup", {}, children);
-  }
-
-  const index = Number(href.split("#user-content-fn-cite:")[1]);
-
-  return (
-    <Popover
-      styles={{
-        body: {
-          padding: 0,
-          width: 400,
-        },
-      }}
-      content={
-        <SourceCard
-          rank={index}
-          hoverable={false}
-          source={sources?.[index - 1]}
-        />
-      }
-    >
-      <RoundTag interactive>{index}</RoundTag>
-    </Popover>
-  );
-};
+);
 
 type Props = {
   className?: string;
@@ -101,6 +112,11 @@ type Props = {
 };
 
 const MarkdownContainer = ({ children, className, sources }: Props) => {
+  const SupComponent = React.useCallback(
+    (props: any) => <CustomSup {...props} sources={sources} />,
+    [sources]
+  );
+
   if (!children) {
     return null;
   }
@@ -109,7 +125,7 @@ const MarkdownContainer = ({ children, className, sources }: Props) => {
     <ReactMarkdown
       components={{
         code: CustomCodeBlock,
-        // sup: props => <CustomSup {...props} sources={sources} />,
+        sup: SupComponent,
       }}
       rehypePlugins={[
         rehypeRaw,

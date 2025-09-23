@@ -21,7 +21,7 @@ export default function RoundTag({
   return (
     <button
       className={classNames(
-        "rounded-full leading-4.5 px-1 min-w-4.5 text-center text-xs bg-gray-200 transition",
+        "rounded-full h-4.5 px-1 min-w-4.5 text-center not-italic text-xs bg-gray-200 transition",
         interactive && "hover:bg-gray-300 cursor-pointer",
         className
       )}
