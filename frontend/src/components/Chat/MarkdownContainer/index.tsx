@@ -1,6 +1,7 @@
-import React from "react";
+import { memo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkRehype from "remark-rehype";
 import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
 import rehypeExternalLinks from "rehype-external-links";
@@ -71,7 +72,7 @@ const MarkdownContainer = ({ children, className }: Props) => {
           },
         ],
       ]} // HTML 生成阶段, 处理已转换的 HTML 树，在渲染前进行最终处理
-      remarkPlugins={[remarkGfm, remarkMath]} // Markdown 解析阶段, 处理原始 Markdown 文本，转换成 AST（抽象语法树）
+      remarkPlugins={[remarkGfm, remarkRehype, remarkMath]} // Markdown 解析阶段, 处理原始 Markdown 文本，转换成 AST（抽象语法树）
       className={classNames(styles["markdown-body"], className)}
     >
       {children}
@@ -79,4 +80,4 @@ const MarkdownContainer = ({ children, className }: Props) => {
   );
 };
 
-export default React.memo(MarkdownContainer);
+export default memo(MarkdownContainer);
