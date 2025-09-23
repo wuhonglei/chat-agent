@@ -29,6 +29,6 @@ const NormalCode = ({ children, language, style }: Props) => {
       }}
     />
   );
-}
+};
 
 export default React.memo(NormalCode);

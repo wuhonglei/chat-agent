@@ -62,6 +62,6 @@ const SourceAbstract = ({ sources, mode, ...props }: Props) => {
       <RightOutlined className="ml-1" />
     </CustomButton>
   );
-}
+};
 
 export default React.memo(SourceAbstract);

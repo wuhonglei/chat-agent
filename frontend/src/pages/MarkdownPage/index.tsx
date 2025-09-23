@@ -48,6 +48,6 @@ const MarkdownPage = () => {
       </MarkdownContainer>
     </div>
   );
-}
+};
 
 export default React.memo(MarkdownPage);

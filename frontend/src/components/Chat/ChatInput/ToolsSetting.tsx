@@ -42,6 +42,6 @@ const ToolsSetting = ({ open, onOpenChange }: Props) => {
       </a>
     </Dropdown>
   );
-}
+};
 
 export default React.memo(ToolsSetting);

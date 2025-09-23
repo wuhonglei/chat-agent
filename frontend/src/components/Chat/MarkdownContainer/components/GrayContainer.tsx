@@ -20,7 +20,10 @@ type LanguageLabelProps = {
   className?: string;
 };
 
-const LanguageLabelComponent = ({ children, className }: LanguageLabelProps) => {
+const LanguageLabelComponent = ({
+  children,
+  className,
+}: LanguageLabelProps) => {
   return <span className={classNames("text-sm", className)}>{children}</span>;
 };
 
@@ -69,6 +72,6 @@ const GrayContainer = ({ header, children, className }: Props) => {
       {children}
     </div>
   );
-}
+};
 
 export default React.memo(GrayContainer);

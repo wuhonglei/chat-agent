@@ -79,6 +79,6 @@ const MermaidBlock = ({ code, style }: Props) => {
       </NormalCode>
     </GrayContainer>
   );
-}
+};
 
 export default React.memo(MermaidBlock);

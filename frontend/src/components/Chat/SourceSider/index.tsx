@@ -52,6 +52,6 @@ const SourceSider = ({ sourceData, onClose }: Props) => {
       </Card>
     </Layout.Sider>
   );
-}
+};
 
 export default React.memo(SourceSider);

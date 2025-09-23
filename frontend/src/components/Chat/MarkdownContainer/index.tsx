@@ -77,6 +77,6 @@ const MarkdownContainer = ({ children, className }: Props) => {
       {children}
     </ReactMarkdown>
   );
-}
+};
 
 export default React.memo(MarkdownContainer);

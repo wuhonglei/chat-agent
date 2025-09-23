@@ -19,6 +19,6 @@ const InlineCode = ({ className, children, style }: Props) => {
       {children}
     </code>
   );
-}
+};
 
 export default React.memo(InlineCode);
