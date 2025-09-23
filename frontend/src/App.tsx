@@ -8,7 +8,9 @@ const { Content } = Layout;
 
 const App: React.FC = () => {
   return (
-    <BrowserRouter>
+    <BrowserRouter
+      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+    >
       <MainLayout>
         <Content className="h-full bg-gray-50">
           <Routes>
