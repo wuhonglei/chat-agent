@@ -5,7 +5,7 @@ import styles from "./index.module.css";
 import CustomButton from "@/components/CustomButton";
 import ThinkModeIcon from "@/assets/svg/ThinkModeIcon.svg?react";
 import { ChatInputFormValues } from "@/types";
-import { GlobalOutlined } from "@ant-design/icons";
+import ToolsSetting from "./ToolsSetting";
 import { names } from "./constant";
 
 const { TextArea } = Input;
@@ -85,20 +85,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
                 深度思考
               </CustomButton>
             </Form.Item>
-            <Form.Item
-              trigger="onClick"
-              initialValue={false}
-              valuePropName="active"
-              name={names.webSearch}
-            >
-              <CustomButton
-                size="small"
-                icon={<GlobalOutlined />}
-                tooltip="按需搜索网页"
-              >
-                联网搜索
-              </CustomButton>
-            </Form.Item>
+            <ToolsSetting />
           </div>
         </Form>
       </ConfigProvider>

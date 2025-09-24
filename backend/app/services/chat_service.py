@@ -32,6 +32,10 @@ class ChatService:
         retrieval_sources = []
         if source_config.web_search:
             retrieval_sources.append(RetrievalSource.WEB_SEARCH)
+        if source_config.confluence:
+            retrieval_sources.append(RetrievalSource.CONFLUENCE)
+        if source_config.google_docs:
+            retrieval_sources.append(RetrievalSource.GOOGLE_DOCS)
         if source_config.knowledge_base:
             retrieval_sources.append(RetrievalSource.KNOWLEDGE_BASE)
         return retrieval_sources
