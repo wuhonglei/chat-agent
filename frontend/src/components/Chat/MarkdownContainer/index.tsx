@@ -1,4 +1,4 @@
-import React, { memo } from "react";
+import React, { memo, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeKatex from "rehype-katex";
@@ -69,6 +69,7 @@ const CustomSup = memo(
     // 检查 children 是否是 React 元素并且有 props
     const href = (children as React.ReactElement)?.props?.href || "";
     const isCite = href.startsWith("#user-content-fn-cite:");
+    const tagRef = useRef(null);
 
     if (!isCite) {
       return React.createElement("sup", {}, children);
@@ -91,8 +92,10 @@ const CustomSup = memo(
             source={sources?.[index - 1]}
           />
         }
+        getPopupContainer={() => tagRef.current || document.body}
       >
         <RoundTag
+          ref={tagRef}
           interactive
           onClick={() => {
             window.open(sources?.[index - 1]?.url, "_blank");
