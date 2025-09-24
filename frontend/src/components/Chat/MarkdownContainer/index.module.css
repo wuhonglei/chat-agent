@@ -51,7 +51,6 @@
 }
 
 /* 隐藏自定义的脚注定义列表 */
-.markdown-body
-  :global(.footnotes[data-footnotes] li[id^="user-content-fn-cite:"]) {
+.markdown-body :global(.footnotes[data-footnotes]) {
   display: none;
 }
