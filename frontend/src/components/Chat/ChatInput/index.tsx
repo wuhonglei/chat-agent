@@ -2,7 +2,7 @@ import { Input, Form, ConfigProvider } from "antd";
 import classNames from "classnames";
 import React from "react";
 import styles from "./index.module.css";
-import CustomButton from "@/components/CustomButton";
+import CustomButton from "@/components/common/CustomButton";
 import ThinkModeIcon from "@/assets/svg/ThinkModeIcon.svg?react";
 import { ChatInputFormValues } from "@/types";
 import ToolsSetting from "./ToolsSetting";

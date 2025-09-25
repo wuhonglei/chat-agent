@@ -11,16 +11,14 @@ import styles from "./index.module.css";
 import InlineCode from "./components/InlineCode";
 import NormalCode from "./components/NormalCode";
 
-import GrayContainer, {
-  LanguageLabel,
-  CopyButton,
-} from "./components/GrayContainer";
+import GrayContainer, { LanguageLabel } from "./components/GrayContainer";
 import { Popover } from "antd";
-import RoundTag from "@/components/RoundTag";
+import RoundTag from "@/components/common/RoundTag";
 
 import classNames from "classnames";
 import SourceCard from "../SourceSider/SourceCard";
 import { SearchSource } from "@/types";
+import CopyButton from "@/components/common/CopyButton";
 
 interface CustomCodeBlockProps {
   inline?: boolean;
@@ -48,7 +46,7 @@ const CustomCodeBlock = memo(
         header={
           <>
             <LanguageLabel children={language} />
-            <CopyButton children={code} />
+            <CopyButton text={code} />
           </>
         }
       >

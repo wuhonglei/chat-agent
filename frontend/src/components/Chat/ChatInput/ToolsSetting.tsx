@@ -1,5 +1,5 @@
 import { Avatar, Dropdown, Form, Switch } from "antd";
-import CustomButton from "@/components/CustomButton";
+import CustomButton from "@/components/common/CustomButton";
 import SettingIcon from "@/assets/svg/SettingIcon.svg?react";
 import tavilyUrl from "@/assets/imgs/tavily.png";
 import confluenceUrl from "@/assets/imgs/confluence.png";
@@ -10,7 +10,7 @@ import { names } from "./constant";
 
 const menuItems = [
   {
-    label: "互联网",
+    label: "联网搜索",
     key: names.webSearch.at(-1),
     name: names.webSearch,
     icon: tavilyUrl,

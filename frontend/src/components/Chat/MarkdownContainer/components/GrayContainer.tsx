@@ -1,18 +1,11 @@
 import React from "react";
 import styles from "./css/GrayContainer.module.css";
 import classNames from "classnames";
-import { Button } from "antd";
-import useCopyClick from "antd/es/typography/hooks/useCopyClick";
-import { CheckOutlined, CopyOutlined } from "@ant-design/icons";
 
 type Props = {
   header?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
-};
-
-type CopyButtonProps = {
-  children: string;
 };
 
 type LanguageLabelProps = {
@@ -28,27 +21,6 @@ const LanguageLabelComponent = ({
 };
 
 export const LanguageLabel = React.memo(LanguageLabelComponent);
-
-const CopyButtonComponent = ({ children }: CopyButtonProps) => {
-  const { copied, onClick: onCopyClick } = useCopyClick({
-    copyConfig: { text: children },
-  });
-
-  return (
-    <Button
-      type="text"
-      size="small"
-      className="p-0"
-      onClick={() => onCopyClick()}
-      title={copied ? "已复制" : "复制"}
-      icon={copied ? <CheckOutlined /> : <CopyOutlined />}
-    >
-      复制
-    </Button>
-  );
-};
-
-export const CopyButton = React.memo(CopyButtonComponent);
 
 const GrayContainer = ({ header, children, className }: Props) => {
   return (

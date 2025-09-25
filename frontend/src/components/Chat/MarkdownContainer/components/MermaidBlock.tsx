@@ -2,10 +2,11 @@ import React from "react";
 import mermaid from "mermaid";
 import { useEffect, useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
-import GrayContainer, { CopyButton } from "./GrayContainer";
+import GrayContainer from "./GrayContainer";
 import { Segmented } from "antd";
 import NormalCode from "./NormalCode";
 import classNames from "classnames";
+import CopyButton from "@/components/common/CopyButton";
 
 type Props = {
   code: string;
@@ -59,7 +60,7 @@ const MermaidBlock = ({ code, style }: Props) => {
             value={activeKey}
             onChange={setActiveKey}
           />
-          <CopyButton children={code} />
+          <CopyButton text={code} />
         </>
       }
     >

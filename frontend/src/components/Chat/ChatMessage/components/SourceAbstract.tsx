@@ -1,7 +1,9 @@
 import { SearchSource } from "@/types";
 import { RightOutlined } from "@ant-design/icons";
 import { isEmpty } from "lodash-es";
-import CustomButton, { CustomButtonProps } from "@/components/CustomButton";
+import CustomButton, {
+  CustomButtonProps,
+} from "@/components/common/CustomButton";
 import SearchIcon from "@/assets/svg/SearchIcon.svg?react";
 import classNames from "classnames";
 import { Avatar, ConfigProvider } from "antd";

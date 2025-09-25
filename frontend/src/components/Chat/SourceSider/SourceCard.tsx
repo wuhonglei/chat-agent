@@ -2,7 +2,7 @@ import { SearchSource } from "@/types";
 import { Avatar, Typography } from "antd";
 import React, { memo } from "react";
 import { getWebIconUrl, getWebMainDomain } from "@/utils";
-import RoundTag from "@/components/RoundTag";
+import RoundTag from "@/components/common/RoundTag";
 import classNames from "classnames";
 
 const { Title, Paragraph } = Typography;
