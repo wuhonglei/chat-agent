@@ -51,7 +51,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   return (
-    <div className={classNames("py-4", className)} style={style}>
+    <div className={classNames("pb-4", className)} style={style}>
       <ConfigProvider theme={{ components: { Form: { itemMarginBottom: 0 } } }}>
         <Form
           form={form}
@@ -72,10 +72,10 @@ const ChatInput: React.FC<ChatInputProps> = ({
           </Form.Item>
           <div className="flex items-center gap-2">
             <Form.Item
-              name={names.deepThink}
               trigger="onClick"
               initialValue={false}
               valuePropName="active"
+              name={names.thinkMode}
             >
               <CustomButton
                 size="small"

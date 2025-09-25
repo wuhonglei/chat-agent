@@ -36,7 +36,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
   }
 
   return (
-    <div className={classNames("flex-1 overflow-y-auto px-2", className)}>
+    <div className={classNames("flex-1 overflow-y-auto px-2 pb-4", className)}>
       {messages.map((message, index) => (
         <ChatMessageItem
           key={index}
