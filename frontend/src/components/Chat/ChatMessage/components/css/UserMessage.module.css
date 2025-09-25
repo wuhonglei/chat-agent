@@ -1,0 +1,7 @@
+.container .operation {
+  opacity: 0;
+}
+
+.container:hover .operation {
+  opacity: 1;
+}

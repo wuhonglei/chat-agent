@@ -9,16 +9,22 @@ interface CopyButtonProps extends ButtonProps {
 }
 
 const CopyButton = (props: CopyButtonProps) => {
-  const { children = "复制", text, icon = <CopyIcon />, ...rest } = props;
+  const {
+    text,
+    children = "复制",
+    icon = <CopyIcon />,
+    type = "text",
+    size = "small",
+    ...rest
+  } = props;
   const { copied, onClick: onCopyClick } = useCopyClick({
     copyConfig: { text },
   });
 
   return (
     <Button
-      type="text"
-      size="small"
-      className="p-0"
+      type={type}
+      size={size}
       onClick={() => onCopyClick()}
       title={copied ? "已复制" : "复制"}
       icon={copied ? <CheckOutlined /> : icon}
