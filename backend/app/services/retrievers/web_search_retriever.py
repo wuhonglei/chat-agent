@@ -34,6 +34,7 @@ class WebSearchRetriever(BaseRetriever):
                     max_results=min(request.max_results, 10),
                     include_answer=False,
                     include_raw_content=False,
+                    auto_parameters=True
                 ),
             )
 
