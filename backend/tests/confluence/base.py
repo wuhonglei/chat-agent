@@ -4,6 +4,7 @@ import logging
 import re
 import warnings
 from typing import Any, Protocol
+from urllib.parse import quote
 
 from bs4 import BeautifulSoup, Tag
 from markdownify import markdownify as md
@@ -295,7 +296,7 @@ class BasePreprocessor:
                     # Create img tag with download URL
                     img_tag = soup.new_tag("img")
                     # Construct the download URL for the attachment
-                    img_tag["src"] = f"{image_prefix}/{filename}"
+                    img_tag["src"] = f"{image_prefix}/{quote(filename)}"
 
                     # Copy width attribute if present
                     if image_element.has_attr("ac:width"):

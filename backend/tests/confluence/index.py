@@ -23,7 +23,7 @@ confluence_client = Confluence(
 
 preprocessor = BasePreprocessor(base_url=base_url)
 
-title = '前端'
+title = '【PRD】DAP V7.0 Display & Video 360 solution'
 # CQL搜索返回的是结果集
 search_results = confluence_client.cql(f"""
 siteSearch ~ "f{title}"
