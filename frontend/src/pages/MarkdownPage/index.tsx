@@ -4,6 +4,7 @@ import styles from "./index.module.css";
 import simplify from "./raw/simplify.md?raw";
 import reactMarkdown from "./raw/react-markdown.md?raw";
 import mermaid from "./raw/mermaid.md?raw";
+import code from "./raw/code.md?raw";
 import { Tabs } from "antd";
 import { useState } from "react";
 import classNames from "classnames";
@@ -21,12 +22,17 @@ const items = [
     key: "3",
     label: "Mermaid",
   },
+  {
+    key: "4",
+    label: "Code",
+  },
 ];
 
 const content = {
   [items[0]?.key]: simplify,
   [items[1]?.key]: reactMarkdown,
   [items[2]?.key]: mermaid,
+  [items[3]?.key]: code,
 };
 
 const MarkdownPage = () => {

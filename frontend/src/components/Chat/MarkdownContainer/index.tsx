@@ -19,6 +19,7 @@ import classNames from "classnames";
 import SourceCard from "../SourceSider/SourceCard";
 import { SearchSource } from "@/types";
 import CopyButton from "@/components/common/CopyButton";
+import { useLanguage } from "./hooks";
 
 interface CustomCodeBlockProps {
   inline?: boolean;
@@ -28,17 +29,16 @@ interface CustomCodeBlockProps {
 
 const CustomCodeBlock = memo(
   ({ inline, className, children }: CustomCodeBlockProps) => {
-    const match = /language-(\w+)/.exec(className || "");
     const code = String(children).replace(/\n$/, "");
-    const language = match ? match[1] : "";
-
-    // 处理 Mermaid 代码块
-    if (!inline && language === "mermaid") {
-      return <MermaidBlock code={code} />;
-    }
+    const language = useLanguage(className, code, inline);
 
     if (inline || !language) {
       return <InlineCode>{code}</InlineCode>;
+    }
+
+    // 处理 Mermaid 代码块
+    if (language === "mermaid") {
+      return <MermaidBlock code={code} />;
     }
 
     return (
