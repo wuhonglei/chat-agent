@@ -26,7 +26,7 @@ preprocessor = BasePreprocessor(base_url=base_url)
 title = '【PRD】DAP V7.0 Display & Video 360 solution'
 # CQL搜索返回的是结果集
 search_results = confluence_client.cql(f"""
-siteSearch ~ "f{title}"
+siteSearch ~ "{title}"
 """)
 
 # 从结果集中获取页面

@@ -55,6 +55,7 @@ class MemoryVectorStore(BaseVectorStore):
                 {
                     "document_id": document.id,
                     "document_name": document.name,
+                    "document_url": document.source_url,
                     "source": document.source,
                     "chunk_index": i,
                     "total_chunks": len(chunks),

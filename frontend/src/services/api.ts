@@ -94,6 +94,7 @@ export const chatAPI = {
       onclose() {
         onClose();
       },
+      openWhenHidden: true,
     });
 
     return;

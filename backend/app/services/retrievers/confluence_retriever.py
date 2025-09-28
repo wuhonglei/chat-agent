@@ -35,6 +35,7 @@ class ConfluenceRetriever(BaseRetriever):
         self.preprocessor = BasePreprocessor(
             base_url=self.api_config["url"],
         )
+        self.base_url = self.api_config["url"].rstrip('/')
         self.initialize()
 
     def initialize(self):
@@ -73,7 +74,7 @@ class ConfluenceRetriever(BaseRetriever):
         )
         return response.choices[0].message.content.strip()
 
-    def post_process_keywords(self, content: str) -> list[str]:
+    def post_process_keywords(self, content: str) -> str:
         """Post process the keywords"""
         # 移除可能的前置 "Keywords:" 文本
         prefix = "Keywords:"
@@ -83,7 +84,7 @@ class ConfluenceRetriever(BaseRetriever):
         # 按逗号分割并清理每个关键词
         keywords = [keyword.strip()
                     for keyword in content.split(",") if keyword.strip()]
-        return keywords
+        return ' '.join(keywords)
 
     async def _get_page_content(self, page_id: str, timeout: int = 30) -> ConfluencePageDetail | None:
         """异步获取单个页面的内容，带超时控制"""
@@ -173,12 +174,16 @@ class ConfluenceRetriever(BaseRetriever):
 
             # 提取页面内容
             markdown = self._extract_page_content(page_content)
+            # 组装完整的URL
+            webui_path = page_content.get('_links', {}).get('webui', '')
+            source_url = f"{self.base_url}{webui_path}" if webui_path else ''
+
             document = Document(
                 content=markdown,
                 id=page_id,
                 name=page_content.get('title', ''),
                 source=DocumentSource.CONFLUENCE,
-                source_url=page_content.get('_links', {}).get('webui', ''),
+                source_url=source_url,
             )
             documents.append(document)
 
@@ -190,6 +195,7 @@ class ConfluenceRetriever(BaseRetriever):
             # 1. 生成关键词
             keywords_res = await self.query_to_keywords(request.query)
             keywords = self.post_process_keywords(keywords_res)
+            logger.info(f"query:{request.query}, keywords:{keywords}")
 
             # 2. 搜索页面
             search_results = self.client.cql(f"""siteSearch ~ "{keywords}" """)
@@ -223,6 +229,7 @@ class ConfluenceRetriever(BaseRetriever):
                         source=RetrievalSource.CONFLUENCE,
                         score=result.score,
                         metadata=result.metadata,
+                        url=result.metadata.get("document_url"),
                     ))
 
             logger.info(

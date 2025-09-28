@@ -83,13 +83,7 @@ const CustomSup = memo(
             width: 400,
           },
         }}
-        content={
-          <SourceCard
-            rank={index}
-            hoverable={false}
-            source={sources?.[index - 1]}
-          />
-        }
+        content={<SourceCard hoverable={false} source={sources?.[index - 1]} />}
         getPopupContainer={() => tagRef.current || document.body}
       >
         <RoundTag
