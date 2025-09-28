@@ -37,7 +37,7 @@ class ConfluenceRetriever(BaseRetriever):
         )
         self.initialize()
 
-    async def initialize(self):
+    def initialize(self):
         """Initialize the Confluence Client"""
         self.client = Confluence(
             url=self.api_config["url"],

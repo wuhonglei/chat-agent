@@ -25,10 +25,9 @@ async def chat(request: Request, chat_request: ChatRequest) -> ChatResponse:
 
         # Get vector store
         state = cast(AppState, request.app.state)
-        vector_manager = state.vector_manager
 
         # Initialize chat service
-        chat_service = ChatService(vector_manager)
+        chat_service = ChatService(state.vector_manager)
 
         # Process message
         response = await chat_service.process_message(

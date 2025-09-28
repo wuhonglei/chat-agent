@@ -21,7 +21,7 @@ class RetrieverFactory:
     def _init_retrievers(self):
         """Initialize available retrievers"""
         try:
-            if hasattr(settings, "CONFLUENCE_URL") and settings.CONFLUENCE_URL and hasattr(settings, "CONFLUENCE_PERSONAL_TOKEN") and settings.CONFLUENCE_PERSONAL_TOKEN:
+            if settings.CONFLUENCE_URL and settings.CONFLUENCE_PERSONAL_TOKEN:
                 self._retrievers[RetrievalSource.CONFLUENCE] = ConfluenceRetriever(
                     api_config={
                         "url": settings.CONFLUENCE_URL,
@@ -32,7 +32,7 @@ class RetrieverFactory:
                 logger.info("Confluence retriever initialized")
 
             # Web search retriever
-            if hasattr(settings, "TAVILY_API_KEY") and settings.TAVILY_API_KEY:
+            if settings.TAVILY_API_KEY:
                 self._retrievers[RetrievalSource.WEB_SEARCH] = WebSearchRetriever(
                     settings.TAVILY_API_KEY
                 )

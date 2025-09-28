@@ -20,7 +20,7 @@ class WebSearchRetriever(BaseRetriever):
         self.client = None
         self.initialize()
 
-    async def initialize(self):
+    def initialize(self):
         """Initialize the Tavily Client"""
         self.client = AsyncTavilyClient(api_key=self.api_key)
         logger.info("Tavily Client initialized")

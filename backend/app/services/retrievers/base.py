@@ -12,7 +12,7 @@ class BaseRetriever(ABC):
         self.name = name
 
     @abstractmethod
-    async def initialize(self):
+    def initialize(self):
         """Initialize the retriever"""
         pass
 

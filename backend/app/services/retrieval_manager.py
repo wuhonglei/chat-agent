@@ -23,8 +23,8 @@ class RetrievalManager:
     """Manager for coordinating retrieval from multiple sources"""
 
     def __init__(self, vector_manager: VectorManager):
-        self.factory = RetrieverFactory(vector_manager)
         self.config = settings
+        self.factory = RetrieverFactory(vector_manager)
 
     async def retrieve(self, request: RetrievalRequest) -> RetrievalResponse:
         """
