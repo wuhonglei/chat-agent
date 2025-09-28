@@ -65,7 +65,7 @@ const UserMessage: React.FC<UserMessageProps> = ({
       )}
       <div
         className={classNames(
-          "h-6 w-full flex items-center justify-end gap-2 transition",
+          "h-6 w-full flex items-center justify-end gap-2 transition duration-300",
           !isEditing && styles.operation
         )}
       >
