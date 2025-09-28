@@ -2,6 +2,7 @@
 
 import uuid
 from collections.abc import AsyncGenerator
+from typing import cast
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -9,6 +10,7 @@ from loguru import logger
 
 from app.models.chat import ChatRequest, ChatResponse, ChatSession
 from app.services.chat_service import ChatService
+from app.models.app_state import AppState
 
 router = APIRouter()
 
@@ -22,10 +24,11 @@ async def chat(request: Request, chat_request: ChatRequest) -> ChatResponse:
         session_id = chat_request.session_id or str(uuid.uuid4())
 
         # Get vector store
-        vector_store = request.app.state.vector_store
+        state = cast(AppState, request.app.state)
+        vector_manager = state.vector_manager
 
         # Initialize chat service
-        chat_service = ChatService(vector_store)
+        chat_service = ChatService(vector_manager)
 
         # Process message
         response = await chat_service.process_message(
@@ -51,10 +54,11 @@ async def chat_stream(request: Request, chat_request: ChatRequest):
         session_id = chat_request.session_id or str(uuid.uuid4())
 
         # Get vector store
-        vector_store = request.app.state.vector_store
+        state = cast(AppState, request.app.state)
+        vector_manager = state.vector_manager
 
         # Initialize chat service
-        chat_service = ChatService(vector_store)
+        chat_service = ChatService(vector_manager)
 
         # Stream response
         async def generate() -> AsyncGenerator[str, None]:

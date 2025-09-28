@@ -30,26 +30,31 @@ class Document(BaseModel):
 
     id: str = Field(..., description="Document ID")
     name: str = Field(..., description="Document name")
-    source: DocumentSource = Field(DocumentSource.LOCAL, description="Document source")
-    source_url: str | None = Field(None, description="Source URL for external documents")
+    source: DocumentSource = Field(
+        DocumentSource.LOCAL, description="Document source")
+    source_url: str | None = Field(
+        None, description="Source URL for external documents")
     content: str = Field(..., description="Document content")
-    metadata: dict[str, Any] = Field(default_factory=dict, description="Document metadata")
-    status: DocumentStatus = Field(DocumentStatus.PENDING, description="Processing status")
-    created_at: datetime = Field(default_factory=datetime.now, description="Creation timestamp")
-    updated_at: datetime = Field(default_factory=datetime.now, description="Update timestamp")
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Document metadata")
+    status: DocumentStatus = Field(
+        DocumentStatus.PENDING, description="Processing status")
+    created_at: datetime = Field(
+        default_factory=datetime.now, description="Creation timestamp")
+    updated_at: datetime = Field(
+        default_factory=datetime.now, description="Update timestamp")
     chunk_count: int = Field(0, description="Number of chunks")
-
-    class Config:
-        use_enum_values = True
 
 
 class DocumentUpload(BaseModel):
     """Document upload request"""
 
     name: str = Field(..., description="Document name")
-    content: str | None = Field(None, description="Document content (for text uploads)")
+    content: str | None = Field(
+        None, description="Document content (for text uploads)")
     source_url: str | None = Field(None, description="External document URL")
-    source: DocumentSource = Field(DocumentSource.LOCAL, description="Document source")
+    source: DocumentSource = Field(
+        DocumentSource.LOCAL, description="Document source")
 
 
 class DocumentResponse(BaseModel):

@@ -8,24 +8,22 @@ from loguru import logger
 from openai import AsyncOpenAI
 
 from app.core.config import settings
-from app.core.vector_store import VectorStore
+from app.core.vector_store import VectorManager
 from app.models.chat import ChatMessage, ChatResponse, SourceConfig
 from app.models.retrieval import RetrievalRequest, RetrievalSource
-from app.services.reranker import Reranker
 from app.services.retrieval_manager import RetrievalManager
 
 
 class ChatService:
     """Handle chat interactions with RAG"""
 
-    def __init__(self, vector_store: VectorStore):
-        self.vector_store = vector_store
+    def __init__(self, vector_manager: VectorManager):
+        self.vector_manager = vector_manager
         self.client = AsyncOpenAI(
             api_key=settings.LLM_API_KEY,
             base_url=settings.LLM_API_BASE,
         )
-        self.reranker = Reranker(settings)
-        self.retrieval_manager = RetrievalManager(vector_store)
+        self.retrieval_manager = RetrievalManager(vector_manager)
 
     def get_retrieval_sources(self, source_config: SourceConfig) -> list[RetrievalSource]:
         """Get retrieval sources"""
@@ -63,10 +61,8 @@ class ChatService:
 
             # Process retrieval results
             if retrieval_response.results:
-                # Apply reranking to all results combined
-                all_results = retrieval_response.results
-                # Rerank results
-                top_results = await self.reranker.rerank(message, all_results)
+                # Results are already reranked by RetrievalManager
+                top_results = retrieval_response.results
 
                 # Build context and sources with numbered references
                 for i, result in enumerate(top_results, 1):
@@ -161,15 +157,15 @@ class ChatService:
             else:
                 prompt = self._build_prompt_without_context(message, history)
 
+            if sources:
+                yield f"data: {json.dumps({'type': 'sources', 'data': sources})}\n\n"
+
             # Stream response from LLM
             stream = await self.client.chat.completions.create(
                 model=settings.LLM_THINK_MODEL if think_mode else settings.LLM_MODEL,
                 messages=prompt,
                 stream=True,
             )
-
-            if sources:
-                yield f"data: {json.dumps({'type': 'sources', 'data': sources})}\n\n"
 
             # Stream answer chunks
             async for chunk in stream:

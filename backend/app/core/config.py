@@ -66,8 +66,7 @@ class Settings(BaseSettings):
 
     # External Integrations
     CONFLUENCE_URL: str = ""
-    CONFLUENCE_USERNAME: str = ""
-    CONFLUENCE_API_TOKEN: str = ""
+    CONFLUENCE_PERSONAL_TOKEN: str = ""
 
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""

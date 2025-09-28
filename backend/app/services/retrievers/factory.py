@@ -3,30 +3,33 @@
 from loguru import logger
 
 from app.core.config import settings
-from app.core.vector_store import VectorStore
+from app.core.vector_store import VectorManager
 from app.models.retrieval import RetrievalSource
 from app.services.retrievers.base import BaseRetriever
-from app.services.retrievers.vector_store_retriever import VectorStoreRetriever
+from app.services.retrievers.confluence_retriever import ConfluenceRetriever
 from app.services.retrievers.web_search_retriever import WebSearchRetriever
 
 
 class RetrieverFactory:
     """Factory for creating and managing retrievers"""
 
-    def __init__(self, vector_store: VectorStore | None = None):
-        self.vector_store = vector_store
+    def __init__(self, vector_manager: VectorManager):
         self._retrievers: dict[RetrievalSource, BaseRetriever] = {}
+        self.vector_manager = vector_manager
         self._init_retrievers()
 
     def _init_retrievers(self):
         """Initialize available retrievers"""
         try:
-            # Vector store retriever
-            if self.vector_store:
-                self._retrievers[RetrievalSource.KNOWLEDGE_BASE] = VectorStoreRetriever(
-                    self.vector_store
+            if hasattr(settings, "CONFLUENCE_URL") and settings.CONFLUENCE_URL and hasattr(settings, "CONFLUENCE_PERSONAL_TOKEN") and settings.CONFLUENCE_PERSONAL_TOKEN:
+                self._retrievers[RetrievalSource.CONFLUENCE] = ConfluenceRetriever(
+                    api_config={
+                        "url": settings.CONFLUENCE_URL,
+                        "token": settings.CONFLUENCE_PERSONAL_TOKEN
+                    },
+                    vector_manager=self.vector_manager
                 )
-                logger.info("Vector store retriever initialized")
+                logger.info("Confluence retriever initialized")
 
             # Web search retriever
             if hasattr(settings, "TAVILY_API_KEY") and settings.TAVILY_API_KEY:
@@ -34,11 +37,6 @@ class RetrieverFactory:
                     settings.TAVILY_API_KEY
                 )
                 logger.info("Web search retriever initialized")
-
-            # TODO: Add other retrievers as they're implemented
-            # - Confluence retriever
-            # - Google Docs retriever
-            # - PDF files retriever
 
         except Exception as e:
             logger.error(f"Failed to initialize retrievers: {e}")

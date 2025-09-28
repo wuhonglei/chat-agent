@@ -2,24 +2,25 @@
 
 from loguru import logger
 
-from app.core.vector_store import VectorStore
+from app.core.vector_store import VectorManager, VectorStoreType
 from app.models.retrieval import RetrievalRequest, RetrievalResult, RetrievalSource
 from app.services.retrievers.base import BaseRetriever
 
 
 class VectorStoreRetriever(BaseRetriever):
-    """Retriever for vector store (knowledge base)"""
+    """Retriever for vector manager"""
 
-    def __init__(self, vector_store: VectorStore):
-        super().__init__("VectorStore")
-        self.vector_store = vector_store
+    def __init__(self, vector_manager: VectorManager, store_type: VectorStoreType):
+        super().__init__("VectorManager")
+        self.vector_manager = vector_manager
+        self.store_type = store_type
 
     async def retrieve(self, request: RetrievalRequest) -> list[RetrievalResult]:
-        """Retrieve from vector store"""
+        """Retrieve from vector manager"""
         try:
-            # Search vector store
-            search_results = await self.vector_store.search(
-                request.query, top_k=request.max_results
+            # Search vector manager
+            search_results = await self.vector_manager.search(
+                request.query, top_k=request.max_results, store_type=self.store_type
             )
 
             # Convert to retrieval results
@@ -40,19 +41,20 @@ class VectorStoreRetriever(BaseRetriever):
                     )
                     results.append(retrieval_result)
 
-            logger.info(f"Vector store retrieved {len(results)} results for query: {request.query}")
+            logger.info(
+                f"Vector manager retrieved {len(results)} results for query: {request.query}")
             return results
 
         except Exception as e:
-            logger.error(f"Vector store retrieval failed: {e}")
+            logger.error(f"Vector manager retrieval failed: {e}")
             return []
 
     async def health_check(self) -> bool:
-        """Check vector store health"""
+        """Check vector manager health"""
         try:
             # Try a simple search to verify connection
-            await self.vector_store.search("test", top_k=1)
+            await self.vector_manager.search("test", top_k=1)
             return True
         except Exception as e:
-            logger.error(f"Vector store health check failed: {e}")
+            logger.error(f"Vector manager health check failed: {e}")
             return False

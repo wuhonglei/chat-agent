@@ -1,38 +1,31 @@
-"""Vector store management for RAG"""
+"""Persistent vector store implementation using Chroma"""
 
 import os
+from typing import Optional
 
 import chromadb
 from chromadb.config import Settings as ChromaSettings
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import DashScopeEmbeddings
 from loguru import logger
 
+from app.core.vector_store.base_vector_store import BaseVectorStore
 from app.core.config import settings
 from app.models.document import Document, SearchResult
 
 
-class VectorStore:
-    """Manages vector storage and retrieval using Chroma"""
+class PersistentVectorStore(BaseVectorStore):
+    """Manages persistent vector storage and retrieval using Chroma"""
 
     def __init__(self):
+        super().__init__()
         self.client = None
         self.collection = None
-        self.embeddings = None
-        self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=settings.CHUNK_SIZE,
-            chunk_overlap=settings.CHUNK_OVERLAP,
-            length_function=len,
-        )
+        self.collection_name = settings.CHROMA_COLLECTION_NAME
 
     async def initialize(self):
         """Initialize vector store and embeddings"""
         try:
-            # Initialize embeddings (using local model for MVP)
-            self.embeddings = DashScopeEmbeddings(
-                model=settings.EMBEDDING_MODEL,  # 或者使用 text-embedding-v2
-                dashscope_api_key=settings.EMBEDDING_API_KEY,
-            )
+            # Initialize embeddings
+            await self.initialize_embeddings()
 
             # Initialize Chroma client
             os.makedirs(settings.CHROMA_PERSIST_DIRECTORY, exist_ok=True)
@@ -43,23 +36,26 @@ class VectorStore:
 
             # Get or create collection
             self.collection = self.client.get_or_create_collection(
-                name=settings.CHROMA_COLLECTION_NAME, metadata={"hnsw:space": "cosine"}
+                name=self.collection_name,
+                metadata={"hnsw:space": "cosine"}
             )
 
-            logger.info(f"Vector store initialized with {self.collection.count()} documents")
+            logger.info(
+                f"Persistent vector store initialized with {self.collection.count()} documents"
+            )
 
         except Exception as e:
-            logger.error(f"Failed to initialize vector store: {e}")
+            logger.error(f"Failed to initialize persistent vector store: {e}")
             raise
 
     async def add_document(self, document: Document) -> list[str]:
         """Add document to vector store"""
         try:
             # Split document into chunks
-            chunks = self.text_splitter.split_text(document.content)
+            chunks = self.split_text(document.content)
 
             # Generate embeddings
-            embeddings = self.embeddings.embed_documents(chunks)
+            embeddings = self.embed_documents(chunks)
 
             # Prepare data for Chroma
             ids = [f"{document.id}_{i}" for i in range(len(chunks))]
@@ -82,23 +78,25 @@ class VectorStore:
                 metadatas=metadatas,
             )
 
-            logger.info(f"Added document {document.name} with {len(chunks)} chunks")
+            logger.info(
+                f"Added document {document.name} with {len(chunks)} chunks to persistent store"
+            )
             return ids
 
         except Exception as e:
-            logger.error(f"Failed to add document: {e}")
+            logger.error(f"Failed to add document to persistent store: {e}")
             raise
 
     async def search(
         self,
         query: str,
         top_k: int = settings.SEARCH_TOP_K,
-        filter_dict: dict | None = None,
+        filter_dict: Optional[dict] = None,
     ) -> list[SearchResult]:
         """Search for relevant documents"""
         try:
             # Generate query embedding
-            query_embedding = self.embeddings.embed_query(query)
+            query_embedding = self.embed_query(query)
 
             # Search in collection
             results = self.collection.query(
@@ -122,7 +120,7 @@ class VectorStore:
             return search_results
 
         except Exception as e:
-            logger.error(f"Search failed: {e}")
+            logger.error(f"Search failed in persistent store: {e}")
             raise
 
     async def delete_document(self, document_id: str):
@@ -133,10 +131,13 @@ class VectorStore:
 
             if results["ids"]:
                 self.collection.delete(ids=results["ids"])
-                logger.info(f"Deleted {len(results['ids'])} chunks for document {document_id}")
+                logger.info(
+                    f"Deleted {len(results['ids'])} chunks for document {document_id} from persistent store"
+                )
 
         except Exception as e:
-            logger.error(f"Failed to delete document: {e}")
+            logger.error(
+                f"Failed to delete document from persistent store: {e}")
             raise
 
     async def get_document_list(self) -> list[dict]:
@@ -160,9 +161,10 @@ class VectorStore:
             return list(documents.values())
 
         except Exception as e:
-            logger.error(f"Failed to get document list: {e}")
+            logger.error(
+                f"Failed to get document list from persistent store: {e}")
             raise
 
     async def close(self):
         """Close vector store connections"""
-        logger.info("Vector store closed")
+        logger.info("Persistent vector store closed")

@@ -1,9 +1,7 @@
 """Web search retriever using Tavily Search"""
 
-import asyncio
-
 from loguru import logger
-from tavily import TavilyClient
+from tavily import AsyncTavilyClient
 
 from app.models.retrieval import (
     RetrievalRequest,
@@ -18,27 +16,45 @@ class WebSearchRetriever(BaseRetriever):
 
     def __init__(self, api_key: str):
         super().__init__("WebSearch")
-        self.client = TavilyClient(api_key=api_key)
+        self.api_key = api_key
+        self.client = None
+        self.initialize()
+
+    async def initialize(self):
+        """Initialize the Tavily Client"""
+        self.client = AsyncTavilyClient(api_key=self.api_key)
+        logger.info("Tavily Client initialized")
 
     async def retrieve(self, request: RetrievalRequest) -> list[RetrievalResult]:
         """Retrieve from web search"""
         try:
-            # Run Tavily search in thread pool since it's synchronous
-            loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(
-                None,
-                lambda: self.client.search(
-                    query=request.query,
-                    search_depth="advanced",
-                    # Tavily max is typically 10
-                    max_results=min(request.max_results, 10),
-                    include_answer=False,
-                    include_raw_content=False,
-                    auto_parameters=True
-                ),
+            # Use async Tavily client directly
+            response = await self.client.search(
+                query=request.query,
+                search_depth="advanced",
+                # Tavily max is typically 10
+                max_results=min(request.max_results, 10),
+                include_answer=False,
+                include_raw_content=False,
+                auto_parameters=True
             )
 
             results = []
+
+            # Add answer if available
+            if response.get("answer"):
+                answer_result = RetrievalResult(
+                    content=response["answer"],
+                    title="Web Search Answer",
+                    source=RetrievalSource.WEB_SEARCH,
+                    score=1.0,  # High score for direct answers
+                    metadata={
+                        "type": "answer",
+                        "search_engine": "tavily",
+                        "query": request.query,
+                    },
+                )
+                results.append(answer_result)
 
             # Process search results
             for result in response.get("results", []):
@@ -59,21 +75,6 @@ class WebSearchRetriever(BaseRetriever):
                     )
                     results.append(retrieval_result)
 
-            # Add answer if available
-            if response.get("answer"):
-                answer_result = RetrievalResult(
-                    content=response["answer"],
-                    title="Web Search Answer",
-                    source=RetrievalSource.WEB_SEARCH,
-                    score=1.0,  # High score for direct answers
-                    metadata={
-                        "type": "answer",
-                        "search_engine": "tavily",
-                        "query": request.query,
-                    },
-                )
-                results.insert(0, answer_result)  # Put answer first
-
             logger.info(
                 f"Web search retrieved {len(results)} results for query: {request.query}")
             return results
@@ -85,12 +86,9 @@ class WebSearchRetriever(BaseRetriever):
     async def health_check(self) -> bool:
         """Check Tavily API health"""
         try:
-            # Run a simple test search
-            loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(
-                None,
-                lambda: self.client.search(
-                    query="test", search_depth="basic", max_results=1),
+            # Use async Tavily client directly
+            response = await self.client.search(
+                query="test", search_depth="basic", max_results=1
             )
             return "results" in response
         except Exception as e:

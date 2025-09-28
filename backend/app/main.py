@@ -1,6 +1,7 @@
 """Main FastAPI application"""
 
 from contextlib import asynccontextmanager
+from typing import cast
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,7 +9,8 @@ from loguru import logger
 
 from app.api import chat, documents, health, knowledge_base, retrieval
 from app.core.config import settings
-from app.core.vector_store import VectorStore
+from app.core.vector_store import initialize_vector_manager
+from app.models.app_state import AppState
 
 
 @asynccontextmanager
@@ -17,17 +19,17 @@ async def lifespan(app: FastAPI):
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
 
     # Initialize vector store
-    vector_store = VectorStore()
-    await vector_store.initialize()
-    app.state.vector_store = vector_store
+    app.state.vector_manager = await initialize_vector_manager()
 
     logger.info("Application startup complete")
 
     yield
 
     # Cleanup
+    state = cast(AppState, app.state)
+    if state.vector_manager:
+        await state.vector_manager.close()
     logger.info("Shutting down application")
-    await vector_store.close()
 
 
 app = FastAPI(

@@ -3,12 +3,14 @@
 import os
 import uuid
 from datetime import datetime
+from typing import cast
 
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from loguru import logger
 
 from app.core.config import settings
 from app.models.document import DocumentResponse, DocumentSource, DocumentStatus
+from app.models.app_state import AppState
 
 # Document processor functionality temporarily removed
 
@@ -25,7 +27,8 @@ async def upload_document(
         # Validate file extension
         file_extension = file.filename.split(".")[-1].lower()
         if file_extension not in settings.ALLOWED_EXTENSIONS:
-            raise HTTPException(status_code=400, detail=f"File type {file_extension} not supported")
+            raise HTTPException(
+                status_code=400, detail=f"File type {file_extension} not supported")
 
         # Check file size
         file_content = await file.read()
@@ -38,7 +41,8 @@ async def upload_document(
 
         # Save file
         doc_id = str(uuid.uuid4())
-        file_path = os.path.join(settings.UPLOAD_DIR, f"{doc_id}_{file.filename}")
+        file_path = os.path.join(
+            settings.UPLOAD_DIR, f"{doc_id}_{file.filename}")
         os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
         with open(file_path, "wb") as f:
@@ -47,14 +51,17 @@ async def upload_document(
         # Process document - temporarily disabled
         # processor = DocumentProcessor()
         # document = await processor.process_file(file_path, doc_id, file.filename)
-        raise HTTPException(status_code=501, detail="Document processing temporarily disabled")
+        raise HTTPException(
+            status_code=501, detail="Document processing temporarily disabled")
 
         # Add to vector store
-        vector_store = request.app.state.vector_store
+        state = cast(AppState, request.app.state)
+        vector_store = state.vector_store
         chunk_ids = await vector_store.add_document(document)
         document.chunk_count = len(chunk_ids)
 
-        logger.info(f"Document {file.filename} uploaded and processed successfully")
+        logger.info(
+            f"Document {file.filename} uploaded and processed successfully")
 
         return DocumentResponse(
             id=document.id,
@@ -83,10 +90,12 @@ async def import_from_url(
         # Process external document - temporarily disabled
         # processor = DocumentProcessor()
         # document = await processor.process_url(url, source)
-        raise HTTPException(status_code=501, detail="External document import temporarily disabled")
+        raise HTTPException(
+            status_code=501, detail="External document import temporarily disabled")
 
         # Add to vector store
-        vector_store = request.app.state.vector_store
+        state = cast(AppState, request.app.state)
+        vector_store = state.vector_store
         chunk_ids = await vector_store.add_document(document)
         document.chunk_count = len(chunk_ids)
 

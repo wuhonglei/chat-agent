@@ -1,7 +1,14 @@
-def say_hello(name):
-    output = f"Hello, {name}!"
-    print(output[-4:])
+
+class Test():
+    def __init__(self):
+        self.initialize()
+
+    def initialize(self):
+        self.name = 'whl'
+
+    def say_hello(self):
+        print(f"Hello, {self.name}!")
 
 
-name = "John"
-say_hello(name)
+test = Test()
+print(test.name)

@@ -12,6 +12,11 @@ class BaseRetriever(ABC):
         self.name = name
 
     @abstractmethod
+    async def initialize(self):
+        """Initialize the retriever"""
+        pass
+
+    @abstractmethod
     async def retrieve(self, request: RetrievalRequest) -> list[RetrievalResult]:
         """
         Retrieve relevant documents/content based on the request

@@ -4,10 +4,13 @@ import io
 import json
 import zipfile
 from datetime import datetime
+from typing import cast
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from loguru import logger
+
+from app.models.app_state import AppState
 
 router = APIRouter()
 
@@ -16,7 +19,8 @@ router = APIRouter()
 async def export_knowledge_base(request: Request):
     """Export knowledge base as downloadable file"""
     try:
-        vector_store = request.app.state.vector_store
+        state = cast(AppState, request.app.state)
+        vector_store = state.vector_store
 
         # Get all documents
         documents = await vector_store.get_document_list()
@@ -54,7 +58,8 @@ async def import_knowledge_base(request: Request):
     """Import knowledge base from uploaded file"""
     try:
         # TODO: Implement knowledge base import
-        raise HTTPException(status_code=501, detail="Knowledge base import not implemented yet")
+        raise HTTPException(
+            status_code=501, detail="Knowledge base import not implemented yet")
 
     except Exception as e:
         logger.error(f"Failed to import knowledge base: {e}")
@@ -67,7 +72,8 @@ async def create_share_link(request: Request):
     try:
         # TODO: Implement sharing functionality
         # This would generate a unique link that others can use to access the knowledge base
-        raise HTTPException(status_code=501, detail="Knowledge base sharing not implemented yet")
+        raise HTTPException(
+            status_code=501, detail="Knowledge base sharing not implemented yet")
 
     except Exception as e:
         logger.error(f"Failed to create share link: {e}")
@@ -78,7 +84,8 @@ async def create_share_link(request: Request):
 async def get_knowledge_base_stats(request: Request):
     """Get knowledge base statistics"""
     try:
-        vector_store = request.app.state.vector_store
+        state = cast(AppState, request.app.state)
+        vector_store = state.vector_store
         documents = await vector_store.get_document_list()
 
         total_chunks = sum(doc["chunks"] for doc in documents)

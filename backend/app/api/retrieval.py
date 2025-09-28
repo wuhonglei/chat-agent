@@ -1,10 +1,13 @@
 """Retrieval system endpoints"""
 
+from typing import cast
+
 from fastapi import APIRouter, HTTPException, Request
 from loguru import logger
 
 from app.models.retrieval import RetrievalRequest, RetrievalResponse
 from app.services.retrieval_manager import RetrievalManager
+from app.models.app_state import AppState
 
 router = APIRouter()
 
@@ -13,11 +16,12 @@ router = APIRouter()
 async def search(request: Request, retrieval_request: RetrievalRequest) -> RetrievalResponse:
     """Search across multiple retrieval sources"""
     try:
-        # Get vector store
-        vector_store = request.app.state.vector_store
+        # Get vector manager
+        state = cast(AppState, request.app.state)
+        vector_manager = state.vector_manager
 
         # Initialize retrieval manager
-        retrieval_manager = RetrievalManager(vector_store)
+        retrieval_manager = RetrievalManager(vector_manager)
 
         # Perform search
         response = await retrieval_manager.retrieve(retrieval_request)
@@ -33,11 +37,12 @@ async def search(request: Request, retrieval_request: RetrievalRequest) -> Retri
 async def health_check(request: Request):
     """Check health of all retrieval sources"""
     try:
-        # Get vector store
-        vector_store = request.app.state.vector_store
+        # Get vector manager
+        state = cast(AppState, request.app.state)
+        vector_manager = state.vector_manager
 
         # Initialize retrieval manager
-        retrieval_manager = RetrievalManager(vector_store)
+        retrieval_manager = RetrievalManager(vector_manager)
 
         # Check health
         health_status = await retrieval_manager.health_check()
@@ -57,11 +62,12 @@ async def health_check(request: Request):
 async def get_sources(request: Request):
     """Get available retrieval sources"""
     try:
-        # Get vector store
-        vector_store = request.app.state.vector_store
+        # Get vector manager
+        state = cast(AppState, request.app.state)
+        vector_manager = state.vector_manager
 
         # Initialize retrieval manager
-        retrieval_manager = RetrievalManager(vector_store)
+        retrieval_manager = RetrievalManager(vector_manager)
 
         return {
             "available_sources": retrieval_manager.get_available_sources(),
@@ -76,11 +82,12 @@ async def get_sources(request: Request):
 async def reload_retrievers(request: Request):
     """Reload all retrievers (for configuration changes)"""
     try:
-        # Get vector store
-        vector_store = request.app.state.vector_store
+        # Get vector manager
+        state = cast(AppState, request.app.state)
+        vector_manager = state.vector_manager
 
         # Initialize retrieval manager
-        retrieval_manager = RetrievalManager(vector_store)
+        retrieval_manager = RetrievalManager(vector_manager)
 
         # Reload retrievers
         retrieval_manager.reload_retrievers()
