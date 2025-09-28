@@ -11,6 +11,7 @@ interface ChatMessageItemProps {
   isLoading: boolean;
   isReasoning: boolean;
   onSourceClick: (index: number, message: ChatMessageType) => void;
+  onEditMessage: (index: number, content: string) => void;
 }
 
 const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
@@ -20,14 +21,18 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   isLoading,
   isReasoning,
   onSourceClick,
+  onEditMessage,
 }) => {
   const isUser = message.role === "user";
   const handleSourceClick = useMemoizedFn(() => {
     onSourceClick(index, message);
   });
+  const handleEditMessage = useMemoizedFn((content: string) => {
+    onEditMessage(index, content);
+  });
 
   return isUser ? (
-    <UserMessage message={message} />
+    <UserMessage message={message} onEditMessage={handleEditMessage} />
   ) : (
     <AssistantMessage
       message={message}

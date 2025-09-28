@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   addMessage,
+  addMessageAtIndex,
   appendToLastMessage,
   appendToLastMessageReasoning,
   clearLastMessage,
@@ -18,6 +19,8 @@ import {
   SearchSource,
   StreamMessage,
 } from "@/types";
+
+import { isNil } from "lodash-es";
 
 export interface UseChatMessageOptions {
   historyLimit?: number;
@@ -37,7 +40,7 @@ function buildFootnoteDefinition(sources: SearchSource[]): string {
 }
 
 export interface UseChatMessageReturn {
-  sendMessage: (values: ChatInputFormValues) => Promise<void>;
+  sendMessage: (values: ChatInputFormValues, index?: number) => Promise<void>;
   abortMessage: () => void;
   isLoading: boolean;
   isStreaming: boolean;
@@ -61,7 +64,10 @@ export const useChatMessage = (
     dispatch(setReasoning(false));
   };
 
-  const sendMessage = async (values: ChatInputFormValues): Promise<void> => {
+  const sendMessage = async (
+    values: ChatInputFormValues,
+    index?: number
+  ): Promise<void> => {
     // 如果正在流式传输，先中止当前请求
     if (abortControllerRef.current && isStreaming) {
       abortControllerRef.current.abort();
@@ -74,7 +80,11 @@ export const useChatMessage = (
       content: values.message,
       timestamp: new Date().toISOString(),
     };
-    dispatch(addMessage(userMessage));
+    dispatch(
+      isNil(index)
+        ? addMessage(userMessage)
+        : addMessageAtIndex({ message: userMessage, index })
+    );
 
     // 添加空的助手消息用于流式传输
     const assistantMessage: ChatMessageType = {

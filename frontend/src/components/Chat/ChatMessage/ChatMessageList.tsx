@@ -12,6 +12,7 @@ interface ChatMessageListProps {
   isReasoning?: boolean;
   className?: string;
   onSourceClick: (index: number, message: ChatMessageType) => void;
+  onEditMessage: (index: number, content: string) => void;
 }
 
 const ChatMessageList: React.FC<ChatMessageListProps> = ({
@@ -20,6 +21,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
   isReasoning = false,
   className,
   onSourceClick,
+  onEditMessage,
 }) => {
   const { messages } = useAppSelector(state => state.chat);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -43,6 +45,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
           index={index}
           message={message}
           onSourceClick={onSourceClick}
+          onEditMessage={onEditMessage}
           isLoading={isLoading && index === messages.length - 1}
           isStreaming={isStreaming && index === messages.length - 1}
           isReasoning={isReasoning && index === messages.length - 1}

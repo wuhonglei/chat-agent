@@ -5,7 +5,7 @@ export function useWebIconUrls(
   sources: { url?: string; favicon?: string }[] | undefined,
   max: number
 ) {
-  const sourcesString = JSON.stringify(sources);
+  const sourcesString = JSON.stringify(sources || []);
   return useMemo(() => {
     const newUrls = JSON.parse(sourcesString);
     return newUrls

@@ -1,4 +1,4 @@
-import { Input, Form, ConfigProvider } from "antd";
+import { Input, Form, ConfigProvider, FormInstance } from "antd";
 import classNames from "classnames";
 import React from "react";
 import styles from "./index.module.css";
@@ -7,6 +7,7 @@ import ThinkModeIcon from "@/assets/svg/ThinkModeIcon.svg?react";
 import { ChatInputFormValues } from "@/types";
 import ToolsSetting from "./ToolsSetting";
 import { names } from "./constant";
+import { isInputEnter } from "@/utils";
 
 const { TextArea } = Input;
 
@@ -16,6 +17,7 @@ interface ChatInputProps {
   className?: string;
   style?: React.CSSProperties;
   onSend: (values: ChatInputFormValues) => void;
+  form: FormInstance<ChatInputFormValues>;
 }
 
 const ChatInput: React.FC<ChatInputProps> = ({
@@ -24,21 +26,14 @@ const ChatInput: React.FC<ChatInputProps> = ({
   isStreaming,
   className,
   style,
+  form,
 }) => {
-  const [form] = Form.useForm<ChatInputFormValues>();
-
   const handleSend = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // 只有按下回车键才发送, 组合键shift+enter不发送
-    if (event.key !== "Enter" || event.shiftKey) {
+    if (!isInputEnter(event)) {
       return;
     }
 
-    // 中文输入法下，按下回车键不发送
-    if (event.nativeEvent.isComposing) {
-      return;
-    }
-
-    event.preventDefault();
+    event.preventDefault(); // 阻止默认行为, 避免产生新行
     const values = form.getFieldsValue();
     const { message } = values;
     if (message.trim()) {

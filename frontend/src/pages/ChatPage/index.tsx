@@ -2,8 +2,8 @@ import ChatInput from "@/components/Chat/ChatInput";
 import { ChatMessageList } from "@/components/Chat/ChatMessage";
 import { useChatMessage } from "@/hooks";
 import { useMemoizedFn } from "ahooks";
-import { ChatMessage as ChatMessageType } from "@/types";
-import { Card } from "antd";
+import { ChatInputFormValues, ChatMessage as ChatMessageType } from "@/types";
+import { Card, Form } from "antd";
 import classNames from "classnames";
 import React, { useState } from "react";
 import { SourceData } from "@/types";
@@ -13,6 +13,7 @@ import SourceSider from "@/components/Chat/SourceSider";
 const ChatPage: React.FC = () => {
   const { sendMessage, isStreaming, isLoading, isReasoning } = useChatMessage();
   const [sourceData, setSourceData] = useState<SourceData | undefined>();
+  const [form] = Form.useForm<ChatInputFormValues>();
 
   const handleSourceClick = useMemoizedFn(
     (index: number, message: ChatMessageType) => {
@@ -23,6 +24,10 @@ const ChatPage: React.FC = () => {
       }
     }
   );
+
+  const handleEditMessage = useMemoizedFn((index: number, content: string) => {
+    sendMessage({ ...form.getFieldsValue(), message: content }, index);
+  });
 
   const handleCloseSource = useMemoizedFn(() => {
     setSourceData(undefined);
@@ -52,10 +57,12 @@ const ChatPage: React.FC = () => {
           isStreaming={isStreaming}
           isReasoning={isReasoning}
           onSourceClick={handleSourceClick}
+          onEditMessage={handleEditMessage}
           className={styles["child-container"]}
         />
         {/* Input area */}
         <ChatInput
+          form={form}
           onSend={sendMessage}
           isLoading={isLoading}
           isStreaming={isStreaming}

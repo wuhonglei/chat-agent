@@ -50,6 +50,15 @@ const chatSlice = createSlice({
     addMessage: (state, action: PayloadAction<ChatMessage>) => {
       state.messages.push(action.payload);
     },
+    addMessageAtIndex: (
+      state,
+      action: PayloadAction<{ message: ChatMessage; index: number }>
+    ) => {
+      // 插入到指定位置
+      state.messages.splice(action.payload.index, 0, action.payload.message);
+      // 清除该位置之后的所有消息
+      state.messages.length = action.payload.index + 1;
+    },
     clearLastMessage: state => {
       const lastMessage = lastMessageCheck(state.messages);
       if (lastMessage && !lastMessage.content) {
@@ -125,6 +134,7 @@ const chatSlice = createSlice({
 
 export const {
   addMessage,
+  addMessageAtIndex,
   clearMessages,
   setSessionId,
   setStreaming,
