@@ -75,6 +75,7 @@ export interface SearchSource {
   score: number;
   metadata?: Record<string, any>;
   url?: string;
+  favicon?: string;
 }
 
 // Knowledge base types

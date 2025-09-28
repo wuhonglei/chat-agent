@@ -83,6 +83,7 @@ class ChatService:
                             "url": result.url,
                             "source": result.source,
                             "score": score,
+                            "favicon": result.metadata.get("favicon"),
                             "reference_id": i,  # Add reference ID for citation
                         }
                     )

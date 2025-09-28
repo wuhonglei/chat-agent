@@ -66,8 +66,8 @@ class BasePreprocessor:
             soup = BeautifulSoup(html_content, "html.parser")
 
             # Process user mentions
-            self._process_user_mentions_in_soup(soup, confluence_client)
-            self._process_user_profile_macros_in_soup(soup, confluence_client)
+            # self._process_user_mentions_in_soup(soup, confluence_client)
+            # self._process_user_profile_macros_in_soup(soup, confluence_client)
             # Process code macros
             self._process_code_macros_in_soup(soup)
             # Process time tags

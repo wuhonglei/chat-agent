@@ -1,10 +1,13 @@
 import { capitalize } from "lodash-es";
 
 export function getWebIconUrl(url: string | undefined, size: number = 32) {
-  console.info("url", url);
   if (!url) return "";
-  const urlObj = new URL(url);
-  return `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=${size}`;
+  try {
+    const urlObj = new URL(url);
+    return `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=${size}`;
+  } catch (error) {
+    return "";
+  }
 }
 
 export function getWebMainDomain(

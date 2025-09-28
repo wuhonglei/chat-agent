@@ -36,7 +36,8 @@ class WebSearchRetriever(BaseRetriever):
                 max_results=min(request.max_results, 10),
                 include_answer=False,
                 include_raw_content=False,
-                auto_parameters=True
+                auto_parameters=True,
+                include_favicon=True
             )
 
             results = []
@@ -52,6 +53,7 @@ class WebSearchRetriever(BaseRetriever):
                         "type": "answer",
                         "search_engine": "tavily",
                         "query": request.query,
+                        "favicon": response.get("favicon"),
                     },
                 )
                 results.append(answer_result)

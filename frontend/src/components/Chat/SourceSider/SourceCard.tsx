@@ -35,7 +35,7 @@ const SourceCard: React.FC<SourceCardProps> = ({
       {/* 第一行: 来源 */}
       <div className="flex justify-between items-center text-gray-600">
         <div className="flex items-center gap-2">
-          <Avatar size={18} src={getWebIconUrl(source.url)} />
+          <Avatar size={18} src={source.favicon || getWebIconUrl(source.url)} />
           <span title={source.url}>{getWebMainDomain(source.url, true)}</span>
         </div>
         {rank && <RoundTag>{rank}</RoundTag>}
