@@ -7,6 +7,7 @@ from app.models.retrieval import (
     RetrievalRequest,
     RetrievalResult,
     RetrievalSource,
+    WebSearchMetadata,
 )
 from app.models.tavily import TavilySearchResponse
 from app.services.retrievers.base import BaseRetriever
@@ -47,33 +48,39 @@ class WebSearchRetriever(BaseRetriever):
 
             # Add answer if available
             if response.answer:
+                # 构建类型化的 WebSearch metadata for answer
+                answer_metadata = WebSearchMetadata(
+                    search_engine="tavily",
+                    type="answer",
+                )
+
                 answer_result = RetrievalResult(
                     content=response.answer,
                     title="Web Search Answer",
                     source=RetrievalSource.WEB_SEARCH,
                     score=1.0,  # High score for direct answers
-                    metadata={
-                        "type": "answer",
-                        "search_engine": "tavily",
-                        "query": response.query,
-                    },
+                    metadata=answer_metadata.model_dump(exclude_none=True),
                 )
                 results.append(answer_result)
 
             # Process search results
             for result in response.results:
                 if result.score >= request.min_score:
+                    # 构建类型化的 WebSearch metadata
+                    web_search_metadata = WebSearchMetadata(
+                        favicon=result.favicon,
+                        search_engine="tavily",
+                        type="snippet",
+                    )
+
                     retrieval_result = RetrievalResult(
                         content=result.content,
                         title=result.title,
                         url=result.url,
                         source=RetrievalSource.WEB_SEARCH,
                         score=result.score,
-                        metadata={
-                            "favicon": result.favicon,
-                            "raw_content": result.raw_content,
-                            "search_engine": "tavily",
-                        },
+                        metadata=web_search_metadata.model_dump(
+                            exclude_none=True),
                     )
                     results.append(retrieval_result)
 

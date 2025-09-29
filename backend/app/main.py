@@ -1,13 +1,12 @@
 """Main FastAPI application"""
 
 from contextlib import asynccontextmanager
-from typing import cast
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
-from app.api import chat, documents, health, knowledge_base, retrieval
+from app.api import chat, health
 from app.core.config import settings
 
 
@@ -41,8 +40,6 @@ app.add_middleware(
 # Include routers
 app.include_router(health.router, prefix="/api/health", tags=["health"])
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
-app.include_router(
-    retrieval.router, prefix="/api/retrieval", tags=["retrieval"])
 
 
 @app.get("/")

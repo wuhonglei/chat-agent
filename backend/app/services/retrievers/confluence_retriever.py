@@ -10,12 +10,13 @@ from app.models.retrieval import (
     RetrievalRequest,
     RetrievalResult,
     RetrievalSource,
+    ConfluenceMetadata,
 )
 from app.core.config import settings
 from app.services.retrievers.base import BaseRetriever
 from app.services.retrievers.utils import BasePreprocessor
 from app.utils.common import remove_leading_whitespace
-from app.models.confluence import ConfluencePageDetail
+from app.models.confluence import ConfluencePageDetail, ConfluenceCQLSearchResponse
 from app.models.document import Document, DocumentSource
 
 
@@ -106,12 +107,18 @@ class ConfluenceRetriever(BaseRetriever):
             logger.error(f"Failed to get page {page_id}: {e}")
             return None
 
-    def get_page_ids(self, search_results: dict) -> list[str]:
+    def get_page_ids(self, search_results: ConfluenceCQLSearchResponse) -> list[str]:
         """Get page IDs from search results"""
-        pages = search_results.get('results', [])
-        if not pages:
+        # Parse search results into typed model
+        try:
+            cql_response = search_results
+            if not cql_response.results:
+                return []
+            return [result.content.id for result in cql_response.results if result.content.id]
+        except Exception as e:
+            logger.warning(
+                f"Failed to parse CQL response, falling back to dict access: {e}")
             return []
-        return [page.get('content', {}).get('id') for page in pages if page.get('content', {}).get('id')]
 
     async def _fetch_pages_concurrently(self, page_ids: list[str]) -> list[ConfluencePageDetail | Exception | None]:
         """并发获取多个页面的内容"""
@@ -145,9 +152,9 @@ class ConfluenceRetriever(BaseRetriever):
             logger.warning(f"Failed to extract content from page: {e}")
             return ""
 
-    def _process_page_results(self, page_details: list[ConfluencePageDetail | Exception | None], page_ids: list[str]) -> tuple[list[RetrievalResult], dict]:
+    def _process_page_results(self, page_details: list[ConfluencePageDetail | Exception | None], page_ids: list[str]) -> tuple[list[Document], dict]:
         """处理页面获取结果并生成检索结果"""
-        documents = []
+        documents: list[Document] = []
         stats = {"success": 0, "error": 0, "timeout": 0}
 
         for i, page_detail in enumerate(page_details):
@@ -204,9 +211,11 @@ class ConfluenceRetriever(BaseRetriever):
             logger.info(f"query:{request.query}, keywords:{keywords}")
 
             # 2. 搜索页面
-            search_results = self.client.cql(
+            search_results_dict = self.client.cql(
                 f"""siteSearch ~ "{keywords}" """, limit=request.max_results)
+            search_results = ConfluenceCQLSearchResponse(**search_results_dict)
             page_ids = self.get_page_ids(search_results)
+            id_to_result = search_results.id_to_result
 
             if not page_ids:
                 logger.info("No valid page IDs found")
@@ -222,6 +231,13 @@ class ConfluenceRetriever(BaseRetriever):
             # 5. 直接转换为检索结果（不进行 embedding 排序）
             final_results = []
             for i, document in enumerate(documents, 1):
+                # 构建类型化的 Confluence metadata
+                confluence_metadata = ConfluenceMetadata(
+                    document_id=document.id,
+                    snippet=id_to_result[document.id].snippet,
+                    **document.metadata,
+                )
+
                 # 使用 CQL 的原始顺序
                 final_results.append(RetrievalResult(
                     content=document.content,
@@ -229,12 +245,7 @@ class ConfluenceRetriever(BaseRetriever):
                     url=document.source_url,
                     source=RetrievalSource.CONFLUENCE,
                     score=1 / i,  # 倒排分数，将由 reranker 重新评分
-                    metadata={
-                        "document_id": document.id,
-                        "last_modified_time": document.metadata.get("last_modified_time"),
-                        "last_modifier_name": document.metadata.get("last_modifier_name"),
-                    },
-                    url=document.source_url,
+                    metadata=confluence_metadata.model_dump(exclude_none=True),
                 ))
 
             logger.info(

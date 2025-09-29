@@ -1,6 +1,6 @@
 
-from typing import Any, Optional
-from datetime import datetime
+import html
+from typing import Any, Optional, Dict
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -89,6 +89,77 @@ class ConfluenceHistory(BaseModel):
     """Confluence history structure"""
     lastUpdated: Optional[ConfluenceHistoryLastUpdated] = None
     createdDate: Optional[str] = None  # ISO datetime string
+
+
+class ConfluenceCQLSearchContent(BaseModel):
+    """Content structure in CQL search result"""
+
+    id: str
+    type: str  # "page" or other content types
+    status: str  # "current" etc
+    title: str
+    restrictions: Dict[str, Any] = Field(default_factory=dict)
+    links: Optional[ConfluencePageLinks] = Field(default=None, alias="_links")
+    expandable: Optional[ConfluencePageExpandable] = Field(
+        default=None, alias="_expandable")
+
+
+class ConfluenceCQLResultContainer(BaseModel):
+    """Container info in CQL search result"""
+
+    title: str
+    displayUrl: str
+
+
+class ConfluenceCQLSearchResult(BaseModel):
+    """Single CQL search result structure"""
+
+    content: ConfluenceCQLSearchContent
+    title: str  # HTML with highlights like @@@hl@@@keyword@@@endhl@@@
+    excerpt: Optional[str] = None  # Content excerpt with highlights
+    url: str  # Relative URL path
+    resultGlobalContainer: Optional[ConfluenceCQLResultContainer] = None
+    entityType: str  # "content"
+    iconCssClass: str  # "aui-icon content-type-page"
+    lastModified: str  # ISO datetime string
+    friendlyLastModified: str  # Human readable date
+    timestamp: int  # Unix timestamp in milliseconds
+
+    @property
+    def snippet(self) -> str:
+        """Get clean snippet without highlight markers
+
+        Removes @@@hl@@@ and @@@endhl@@@ markers from excerpt and unescapes HTML entities
+        """
+        highlight_start = '@@@hl@@@'
+        highlight_end = '@@@endhl@@@'
+        if not self.excerpt or highlight_start not in self.excerpt or highlight_end not in self.excerpt:
+            return ""
+
+        # Remove highlight markers
+        clean_text = self.excerpt.replace(
+            highlight_start, "").replace(highlight_end, "")
+
+        # Unescape HTML entities using Python's built-in html module
+        clean_text = html.unescape(clean_text)
+        return clean_text.strip()
+
+
+class ConfluenceCQLSearchResponse(BaseModel):
+    """CQL search response structure"""
+
+    results: list[ConfluenceCQLSearchResult] = Field(default_factory=list)
+    start: int = 0
+    limit: int = 25
+    size: int = 0
+    totalSize: Optional[int] = None
+    cqlQuery: Optional[str] = None
+    searchDuration: Optional[int] = None
+
+    @property
+    def id_to_result(self) -> dict[str, ConfluenceCQLSearchResult]:
+        """Get the result map by id"""
+        return {result.content.id: result for result in self.results}
 
 
 class ConfluencePageDetail(BaseModel):

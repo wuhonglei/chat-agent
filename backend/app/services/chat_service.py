@@ -76,7 +76,7 @@ class ChatService:
 
                     sources.append(
                         ChatSource(**{
-                            "content": content[:200] + "...",
+                            "content": result.metadata.get("snippet") or content[:200] + "...",
                             "title": result.title,
                             "url": result.url,
                             "source": result.source,
@@ -156,7 +156,9 @@ class ChatService:
                 prompt = self._build_prompt_without_context(message, history)
 
             if sources:
-                yield f"data: {json.dumps({'type': 'sources', 'data': sources})}\n\n"
+                # Convert ChatSource objects to dictionaries for JSON serialization
+                sources_dict = [source.model_dump() for source in sources]
+                yield f"data: {json.dumps({'type': 'sources', 'data': sources_dict})}\n\n"
 
             # Stream response from LLM
             stream = await self.client.chat.completions.create(

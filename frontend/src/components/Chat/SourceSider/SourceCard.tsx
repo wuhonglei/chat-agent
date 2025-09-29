@@ -53,6 +53,7 @@ const SourceCard: React.FC<SourceCardProps> = ({
         ellipsis={{ rows: 2, expandable: false }}
         style={{ margin: 0 }}
       >
+        {/* 使用 MarkdownContainer 渲染时，信息密度较低，可能出现前面 2 行展示内容过少问题 */}
         {source.content}
       </Paragraph>
     </div>
