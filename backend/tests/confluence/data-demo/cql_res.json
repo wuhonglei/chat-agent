@@ -1,0 +1,39 @@
+{
+  "content": {
+    "id": "1421988888",
+    "type": "page",
+    "status": "current",
+    "title": "【PRD】DAP V7.0 Display & Video 360 solution",
+    "restrictions": {},
+    "_links": {
+      "webui": "/pages/viewpage.action?pageId=1421988888",
+      "tinyui": "/x/GNTBV",
+      "self": "https://confluence.shopee.io/rest/api/content/1421988888"
+    },
+    "_expandable": {
+      "container": "",
+      "metadata": "",
+      "extensions": "",
+      "operations": "",
+      "children": "",
+      "history": "/rest/api/content/1421988888/history",
+      "ancestors": "",
+      "body": "",
+      "version": "",
+      "descendants": "",
+      "space": "/rest/api/space/SOP"
+    }
+  },
+  "title": "【@@@hl@@@PRD@@@endhl@@@】@@@hl@@@DAP@@@endhl@@@ @@@hl@@@V7.0@@@endhl@@@ @@@hl@@@Display@@@endhl@@@ &amp; @@@hl@@@Video@@@endhl@@@ @@@hl@@@360@@@endhl@@@ @@@hl@@@solution@@@endhl@@@",
+  "excerpt": ": https://docs.google.com/document/d/1-17kz8Ii0IxlSJp0QkYdHviHQMrFKmG0-dqJlyg6P0c/edit?resourcekey=0-EZd9NK5Cz6rwkLuSiEG41A#\n\nUI 设计稿：待补充\n\n\n业务背景\n\n\n@@@hl@@@Display@@@endhl@@@ &amp; @@@hl@@@Video@@@endhl@@@ @@@hl@@@360@@@endhl@@@ is one of the products in Google Marketing &hellip; \n\nUser access control\n\nRole management\n\n\n新增页面模块\n\nAd account模块增加 @@@hl@@@Display@@@endhl@@@ &amp; @@@hl@@@video@@@endhl@@@ @@@hl@@@360@@@endhl@@@，用于控制对应role下用户是否可见该页面\n\nData source模块增加 @@@hl@@@Display@@@endhl@@@ &amp; @@@hl@@@video@@@endhl@@@ @@@hl@@@360@@@endhl@@@ creative，用于控制对应",
+  "url": "/pages/viewpage.action?pageId=1421988888",
+  "resultGlobalContainer": {
+    "title": "Shopee Operation Platform",
+    "displayUrl": "/display/SOP"
+  },
+  "entityType": "content",
+  "iconCssClass": "aui-icon content-type-page",
+  "lastModified": "2024-08-21T17:54:57.000+08:00",
+  "friendlyLastModified": "2024-08-21",
+  "timestamp": 1724234097000
+}
