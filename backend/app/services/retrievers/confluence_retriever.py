@@ -93,7 +93,7 @@ class ConfluenceRetriever(BaseRetriever):
                 asyncio.to_thread(
                     self.client.get_page_by_id,
                     page_id,
-                    expand='body.storage'
+                    expand='body.storage,version,history.lastUpdated'
                 ),
                 timeout=timeout
             )
@@ -176,12 +176,20 @@ class ConfluenceRetriever(BaseRetriever):
             webui_path = page_detail.links.webui if page_detail.links else ''
             source_url = f"{self.base_url}{webui_path}" if webui_path else ''
 
+            # 提取最后修改时间和修改人信息
+            last_modified_time = page_detail.get_last_modified_time()
+            last_modifier_name = page_detail.get_last_modifier_name()
+
             document = Document(
                 content=markdown,
                 id=page_id,
                 name=page_detail.title,
                 source=DocumentSource.CONFLUENCE,
                 source_url=source_url,
+                metadata={
+                    "last_modified_time": last_modified_time,
+                    "last_modifier_name": last_modifier_name,
+                }
             )
             documents.append(document)
 
@@ -218,12 +226,13 @@ class ConfluenceRetriever(BaseRetriever):
                 final_results.append(RetrievalResult(
                     content=document.content,
                     title=document.name,
+                    url=document.source_url,
                     source=RetrievalSource.CONFLUENCE,
                     score=1 / i,  # 倒排分数，将由 reranker 重新评分
                     metadata={
                         "document_id": document.id,
-                        "document_url": document.source_url,
-                        "source": document.source
+                        "last_modified_time": document.metadata.get("last_modified_time"),
+                        "last_modifier_name": document.metadata.get("last_modifier_name"),
                     },
                     url=document.source_url,
                 ))

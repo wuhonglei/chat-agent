@@ -1,7 +1,7 @@
 """Chat models"""
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -41,11 +41,26 @@ class ChatRequest(BaseModel):
     stream: bool = Field(False, description="Whether to stream response")
 
 
+class ChatSource(BaseModel):
+    """Chat source reference model"""
+
+    content: str = Field(..., description="Source content snippet")
+    title: str = Field(..., description="Source title")
+    url: Optional[str] = Field(None, description="Source URL")
+    source: str = Field(...,
+                        description="Source type (e.g., confluence, web, google_docs)")
+    score: float = Field(..., description="Relevance score")
+    metadata: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional metadata (favicon, last_modified_time, last_modifier_name, etc.)"
+    )
+
+
 class ChatResponse(BaseModel):
     """Chat response model"""
 
     message: str = Field(..., description="Assistant response")
-    sources: list[dict[str, Any]] = Field(
+    sources: list[ChatSource] = Field(
         default_factory=list, description="Source documents")
     session_id: str = Field(..., description="Session ID")
     timestamp: datetime = Field(

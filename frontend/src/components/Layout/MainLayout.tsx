@@ -28,16 +28,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       label: "智能问答",
     },
     {
-      key: "/documents",
-      icon: <FileTextOutlined />,
-      label: "文档管理",
-    },
-    {
-      key: "/knowledge-base",
-      icon: <DatabaseOutlined />,
-      label: "知识库",
-    },
-    {
       key: "/markdown",
       icon: <FileMarkdownOutlined />,
       label: "Markdown",

@@ -8,6 +8,7 @@ from app.models.retrieval import (
     RetrievalResult,
     RetrievalSource,
 )
+from app.models.tavily import TavilySearchResponse
 from app.services.retrievers.base import BaseRetriever
 
 
@@ -29,7 +30,7 @@ class WebSearchRetriever(BaseRetriever):
         """Retrieve from web search"""
         try:
             # Use async Tavily client directly
-            response = await self.client.search(
+            response_dict = await self.client.search(
                 query=request.query,
                 search_depth="advanced",
                 chunks_per_source=5,
@@ -40,39 +41,38 @@ class WebSearchRetriever(BaseRetriever):
                 include_favicon=True
             )
 
+            # Parse response into typed model
+            response = TavilySearchResponse(**response_dict)
             results = []
 
             # Add answer if available
-            if response.get("answer"):
+            if response.answer:
                 answer_result = RetrievalResult(
-                    content=response["answer"],
+                    content=response.answer,
                     title="Web Search Answer",
                     source=RetrievalSource.WEB_SEARCH,
                     score=1.0,  # High score for direct answers
                     metadata={
                         "type": "answer",
                         "search_engine": "tavily",
-                        "query": request.query,
-                        "favicon": response.get("favicon"),
+                        "query": response.query,
                     },
                 )
                 results.append(answer_result)
 
             # Process search results
-            for result in response.get("results", []):
-                score = result.get("score", 0.0)
-                if score >= request.min_score:
+            for result in response.results:
+                if result.score >= request.min_score:
                     retrieval_result = RetrievalResult(
-                        content=result.get("content", ""),
-                        title=result.get("title", ""),
-                        url=result.get("url", ""),
+                        content=result.content,
+                        title=result.title,
+                        url=result.url,
                         source=RetrievalSource.WEB_SEARCH,
-                        score=score,
+                        score=result.score,
                         metadata={
-                            "published_date": result.get("published_date"),
-                            "raw_content": result.get("raw_content", ""),
+                            "favicon": result.favicon,
+                            "raw_content": result.raw_content,
                             "search_engine": "tavily",
-                            **result,
                         },
                     )
                     results.append(retrieval_result)

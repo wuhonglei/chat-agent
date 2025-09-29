@@ -49,12 +49,8 @@ async def chat_stream(request: Request, chat_request: ChatRequest):
         # Get or create session ID
         session_id = chat_request.session_id or str(uuid.uuid4())
 
-        # Get vector store
-        state = cast(AppState, request.app.state)
-        vector_manager = state.vector_manager
-
         # Initialize chat service
-        chat_service = ChatService(vector_manager)
+        chat_service = ChatService()
 
         # Stream response
         async def generate() -> AsyncGenerator[str, None]:

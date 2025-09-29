@@ -15,6 +15,8 @@ const ChatPage: React.FC = () => {
   const [sourceData, setSourceData] = useState<SourceData | undefined>();
   const [form] = Form.useForm<ChatInputFormValues>();
 
+  console.info("sourceData", sourceData);
+
   const handleSourceClick = useMemoizedFn(
     (index: number, message: ChatMessageType) => {
       if (sourceData?.index === index) {

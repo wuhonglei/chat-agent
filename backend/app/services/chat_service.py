@@ -8,8 +8,7 @@ from loguru import logger
 from openai import AsyncOpenAI
 
 from app.core.config import settings
-from app.core.vector_store import VectorManager
-from app.models.chat import ChatMessage, ChatResponse, SourceConfig
+from app.models.chat import ChatMessage, ChatResponse, ChatSource, SourceConfig
 from app.models.retrieval import RetrievalRequest, RetrievalSource
 from app.services.retrieval_manager import RetrievalManager
 
@@ -39,9 +38,9 @@ class ChatService:
 
     async def _perform_retrieval(
         self, message: str, source_config: SourceConfig
-    ) -> tuple[str, list[dict]]:
+    ) -> tuple[str, list[ChatSource]]:
         """Perform retrieval and return context and sources"""
-        sources = []
+        sources: list[ChatSource] = []
         context = ""
 
         retrieval_sources = self.get_retrieval_sources(source_config)
@@ -76,15 +75,14 @@ class ChatService:
                     context += f"\n---\n{source_info}\n{content}\n"
 
                     sources.append(
-                        {
+                        ChatSource(**{
                             "content": content[:200] + "...",
                             "title": result.title,
                             "url": result.url,
                             "source": result.source,
                             "score": score,
-                            "favicon": result.metadata.get("favicon"),
-                            "reference_id": i,  # Add reference ID for citation
-                        }
+                            "metadata": result.metadata
+                        })
                     )
 
         return context, sources
