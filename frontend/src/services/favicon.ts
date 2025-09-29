@@ -1,23 +1,19 @@
 export const checkGoogleFavIconsAvailable = async (): Promise<boolean> => {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒超时
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const timeoutId = setTimeout(() => {
+      reject(new Error("Google Favicons API 检测超时"));
+    }, 5000);
 
-    const response = await fetch(
-      "https://www.google.com/s2/favicons?domain=www.baidu.com",
-      {
-        signal: controller.signal,
-        mode: "cors",
-        method: "GET",
-      }
-    );
+    img.onload = () => {
+      clearTimeout(timeoutId);
+      resolve(true);
+    };
+    img.onerror = () => {
+      clearTimeout(timeoutId);
+      resolve(false);
+    };
 
-    clearTimeout(timeoutId);
-
-    // 检查响应状态码是否成功 (2xx)
-    return response.ok;
-  } catch (error) {
-    console.error("Google Favicons API 检测失败:", error);
-    return false;
-  }
+    img.src = "https://www.google.com/s2/favicons?domain=www.baidu.com";
+  });
 };

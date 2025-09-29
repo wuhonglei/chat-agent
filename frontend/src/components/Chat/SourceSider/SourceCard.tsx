@@ -2,14 +2,15 @@ import { SearchSource } from "@/interfaces";
 import { Avatar, Divider, Typography } from "antd";
 import React, { memo } from "react";
 import {
-  getWebIconUrl,
   getWebMainDomain,
   isFromConfluence,
   isFromWebSearch,
+  getSortedIconUrl,
 } from "@/utils";
 import RoundTag from "@/components/common/RoundTag";
 import classNames from "classnames";
 import dayjs from "dayjs";
+import { useAppSelector } from "@/store/hooks";
 
 const { Title, Paragraph } = Typography;
 
@@ -26,7 +27,10 @@ const SourceCard: React.FC<SourceCardProps> = ({
   className,
   hoverable = true,
 }) => {
+  const { googleFavIconsAvailable } = useAppSelector(state => state.global);
+
   if (!source) return null;
+
   return (
     <div
       className={classNames(
@@ -41,7 +45,14 @@ const SourceCard: React.FC<SourceCardProps> = ({
       {/* 第一行: 来源 */}
       <div className="flex justify-between items-center text-gray-600">
         <div className="flex items-center gap-2">
-          <Avatar size={18} src={source.favicon || getWebIconUrl(source.url)} />
+          <Avatar
+            size={18}
+            src={getSortedIconUrl(
+              source.url,
+              source.favicon,
+              googleFavIconsAvailable
+            )}
+          />
           {isFromWebSearch(source.source) && (
             <span title={source.url}>{getWebMainDomain(source.url, true)}</span>
           )}

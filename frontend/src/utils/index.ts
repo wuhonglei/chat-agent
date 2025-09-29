@@ -21,6 +21,17 @@ export function getWebIconUrl(url: string | undefined, size: number = 32) {
   }
 }
 
+export function getSortedIconUrl(
+  url: string | undefined,
+  favicon: string | undefined,
+  googleFavIconsAvailable: boolean
+) {
+  if (googleFavIconsAvailable) {
+    return getWebIconUrl(url) || favicon;
+  }
+  return favicon || getWebIconUrl(url);
+}
+
 export function getWebMainDomain(
   url: string | undefined,
   capitalizeFirstLetter: boolean = false

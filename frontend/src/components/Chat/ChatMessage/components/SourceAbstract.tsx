@@ -9,6 +9,7 @@ import classNames from "classnames";
 import { Avatar, ConfigProvider } from "antd";
 import { useWebIconUrls } from "@/hooks";
 import React from "react";
+import { useAppSelector } from "@/store/hooks";
 
 interface Props extends Omit<CustomButtonProps, "children"> {
   mode: "preSource" | "postSource";
@@ -18,7 +19,11 @@ interface Props extends Omit<CustomButtonProps, "children"> {
 const maxIcons = 3;
 
 const SourceAbstract = ({ sources, mode, ...props }: Props) => {
-  const urlIcons = useWebIconUrls(sources, maxIcons);
+  const { googleFavIconsAvailable } = useAppSelector(state => state.global);
+  const urlIcons = useWebIconUrls(sources, {
+    max: maxIcons,
+    googleFavIconsAvailable,
+  });
   if (isEmpty(sources)) {
     return null;
   }
