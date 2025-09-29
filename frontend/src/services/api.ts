@@ -15,6 +15,7 @@ import {
   StreamMessage,
 } from "../types";
 import snakecaseKeys from "snakecase-keys";
+import camelcaseKeys from "camelcase-keys";
 
 // Create axios instance
 const apiClient: AxiosInstance = axios.create({
@@ -75,12 +76,15 @@ export const chatAPI = {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(snakecaseKeys(data as any)),
+      body: JSON.stringify(snakecaseKeys(data as any, { deep: true })),
       signal: abortController.signal,
       onmessage(event) {
         if (event.data) {
           try {
-            const parsed: StreamMessage = JSON.parse(event.data);
+            const parsed: StreamMessage = camelcaseKeys(
+              JSON.parse(event.data),
+              { deep: true }
+            );
             onMessage(parsed);
           } catch (e) {
             console.error("Failed to parse message:", e);
