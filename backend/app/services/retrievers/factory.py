@@ -3,7 +3,6 @@
 from loguru import logger
 
 from app.core.config import settings
-from app.core.vector_store import VectorManager
 from app.models.retrieval import RetrievalSource
 from app.services.retrievers.base import BaseRetriever
 from app.services.retrievers.confluence_retriever import ConfluenceRetriever
@@ -13,9 +12,8 @@ from app.services.retrievers.web_search_retriever import WebSearchRetriever
 class RetrieverFactory:
     """Factory for creating and managing retrievers"""
 
-    def __init__(self, vector_manager: VectorManager):
+    def __init__(self):
         self._retrievers: dict[RetrievalSource, BaseRetriever] = {}
-        self.vector_manager = vector_manager
         self._init_retrievers()
 
     def _init_retrievers(self):

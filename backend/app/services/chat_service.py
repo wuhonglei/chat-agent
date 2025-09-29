@@ -17,13 +17,12 @@ from app.services.retrieval_manager import RetrievalManager
 class ChatService:
     """Handle chat interactions with RAG"""
 
-    def __init__(self, vector_manager: VectorManager):
-        self.vector_manager = vector_manager
+    def __init__(self,):
         self.client = AsyncOpenAI(
             api_key=settings.LLM_API_KEY,
             base_url=settings.LLM_API_BASE,
         )
-        self.retrieval_manager = RetrievalManager(vector_manager)
+        self.retrieval_manager = RetrievalManager()
 
     def get_retrieval_sources(self, source_config: SourceConfig) -> list[RetrievalSource]:
         """Get retrieval sources"""

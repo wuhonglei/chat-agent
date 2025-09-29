@@ -23,11 +23,8 @@ async def chat(request: Request, chat_request: ChatRequest) -> ChatResponse:
         # Get or create session ID
         session_id = chat_request.session_id or str(uuid.uuid4())
 
-        # Get vector store
-        state = cast(AppState, request.app.state)
-
         # Initialize chat service
-        chat_service = ChatService(state.vector_manager)
+        chat_service = ChatService()
 
         # Process message
         response = await chat_service.process_message(

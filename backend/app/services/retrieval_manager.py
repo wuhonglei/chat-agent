@@ -20,9 +20,9 @@ from app.services.retrievers.reranker import Reranker
 class RetrievalManager:
     """Manager for coordinating retrieval from multiple sources"""
 
-    def __init__(self, vector_manager: VectorManager):
+    def __init__(self):
         self.config = settings
-        self.factory = RetrieverFactory(vector_manager)
+        self.factory = RetrieverFactory()
         self.reranker = Reranker()
 
     async def retrieve(self, request: RetrievalRequest) -> RetrievalResponse:
