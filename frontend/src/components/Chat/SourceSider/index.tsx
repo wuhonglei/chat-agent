@@ -1,5 +1,5 @@
 import React from "react";
-import { SourceData } from "@/types";
+import { SourceData } from "@/interfaces";
 import { Layout } from "antd";
 import { isEmpty } from "lodash-es";
 import { Card } from "antd";

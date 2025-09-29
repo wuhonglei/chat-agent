@@ -32,7 +32,7 @@ const menuItems = [
 const ToolsSetting = () => {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLDivElement>(null);
-  const sourceConfig = Form.useWatch("source_config");
+  const sourceConfig = Form.useWatch("sourceConfig");
   const icons = useMemo(() => {
     return menuItems
       .filter(item => sourceConfig?.[item.key!])

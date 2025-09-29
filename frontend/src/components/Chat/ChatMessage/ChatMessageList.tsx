@@ -1,4 +1,4 @@
-import { ChatMessage as ChatMessageType } from "@/types";
+import { ChatMessage as ChatMessageType } from "@/interfaces";
 import React, { useRef } from "react";
 import ChatMessageItem from "./ChatMessageItem";
 import { isEmpty } from "lodash-es";

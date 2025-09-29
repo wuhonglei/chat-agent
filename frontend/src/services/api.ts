@@ -9,11 +9,8 @@ import {
   ChatRequest,
   ChatResponse,
   ChatSession,
-  Document,
-  DocumentSource,
-  KnowledgeBaseStats,
   StreamMessage,
-} from "../types";
+} from "@/interfaces";
 import { isPlainObject } from "lodash-es";
 import snakecaseKeys from "snakecase-keys";
 import camelcaseKeys from "camelcase-keys";
@@ -137,76 +134,6 @@ export const chatAPI = {
   // Delete session
   deleteSession: async (sessionId: string): Promise<AxiosResponse> => {
     return await apiClient.delete(`/api/chat/sessions/${sessionId}`);
-  },
-};
-
-// Document API
-export const documentAPI = {
-  // Get documents list
-  getDocuments: async (): Promise<AxiosResponse<Document[]>> => {
-    return await apiClient.get("/api/documents");
-  },
-
-  // Upload document
-  uploadDocument: async (
-    formData: FormData,
-    onUploadProgress?: (progressEvent: {
-      loaded: number;
-      total?: number;
-    }) => void
-  ): Promise<AxiosResponse<Document>> => {
-    return await apiClient.post("/api/documents/upload", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-      onUploadProgress,
-    });
-  },
-
-  // Import from URL
-  importFromUrl: async (
-    url: string,
-    source: DocumentSource
-  ): Promise<AxiosResponse<Document>> => {
-    return await apiClient.post("/api/documents/import-url", null, {
-      params: { url, source },
-    });
-  },
-
-  // Delete document
-  deleteDocument: async (documentId: string): Promise<AxiosResponse> => {
-    return await apiClient.delete(`/api/documents/${documentId}`);
-  },
-};
-
-// Knowledge Base API
-export const knowledgeBaseAPI = {
-  // Export knowledge base
-  exportKnowledgeBase: async (): Promise<AxiosResponse<Blob>> => {
-    return await apiClient.get("/api/knowledge-base/export", {
-      responseType: "blob",
-    });
-  },
-
-  // Import knowledge base
-  importKnowledgeBase: async (file: File): Promise<AxiosResponse> => {
-    const formData = new FormData();
-    formData.append("file", file);
-    return await apiClient.post("/api/knowledge-base/import", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
-  },
-
-  // Create share link
-  createShareLink: async (): Promise<AxiosResponse<{ link: string }>> => {
-    return await apiClient.get("/api/knowledge-base/share");
-  },
-
-  // Get statistics
-  getStats: async (): Promise<AxiosResponse<KnowledgeBaseStats>> => {
-    return await apiClient.get("/api/knowledge-base/stats");
   },
 };
 

@@ -1,4 +1,4 @@
-import { ChatMessage as ChatMessageType } from "@/types";
+import { ChatMessage as ChatMessageType } from "@/interfaces";
 import { useThrottle } from "ahooks";
 import { Spin } from "antd";
 import React from "react";

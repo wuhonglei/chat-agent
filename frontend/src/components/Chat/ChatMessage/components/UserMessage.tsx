@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Button, Card, Input } from "antd";
-import { ChatMessage as ChatMessageType } from "@/types";
+import { ChatMessage as ChatMessageType } from "@/interfaces";
 import { EditOutlined } from "@ant-design/icons";
 import CopyButton from "@/components/common/CopyButton";
 import styles from "./css/UserMessage.module.css";

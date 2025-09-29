@@ -50,9 +50,11 @@ class ChatSource(BaseModel):
     source: str = Field(...,
                         description="Source type (e.g., confluence, web, google_docs)")
     score: float = Field(..., description="Relevance score")
+    favicon: Optional[str] = Field(
+        None, description="Web search source favicon")
     metadata: dict[str, Any] = Field(
         default_factory=dict,
-        description="Additional metadata (favicon, last_modified_time, last_modifier_name, etc.)"
+        description="Additional metadata (last_modified_time, last_modifier_name, etc.)"
     )
 
 

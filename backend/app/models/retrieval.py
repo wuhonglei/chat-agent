@@ -31,6 +31,10 @@ class ConfluenceMetadata(BaseModel):
         None, description="Unique document identifier")
     snippet: Optional[str] = Field(
         None, description="Snippet of the document")
+    space_key: Optional[str] = Field(
+        None, description="Space key")
+    space_name: Optional[str] = Field(
+        None, description="Space name")
 
 
 class WebSearchMetadata(BaseModel):

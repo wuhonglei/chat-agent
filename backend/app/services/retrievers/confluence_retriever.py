@@ -235,6 +235,8 @@ class ConfluenceRetriever(BaseRetriever):
                 confluence_metadata = ConfluenceMetadata(
                     document_id=document.id,
                     snippet=id_to_result[document.id].snippet,
+                    space_key=id_to_result[document.id].space_key,
+                    space_name=id_to_result[document.id].space_name,
                     **document.metadata,
                 )
 

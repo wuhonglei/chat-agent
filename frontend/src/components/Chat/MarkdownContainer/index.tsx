@@ -17,7 +17,7 @@ import RoundTag from "@/components/common/RoundTag";
 
 import classNames from "classnames";
 import SourceCard from "../SourceSider/SourceCard";
-import { SearchSource } from "@/types";
+import { SearchSource } from "@/interfaces";
 import CopyButton from "@/components/common/CopyButton";
 import { useLanguage } from "./hooks";
 

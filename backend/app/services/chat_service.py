@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.models.chat import ChatMessage, ChatResponse, ChatSource, SourceConfig
 from app.models.retrieval import RetrievalRequest, RetrievalSource
 from app.services.retrieval_manager import RetrievalManager
+from app.utils.common import exclude_fields
 
 
 class ChatService:
@@ -81,7 +82,8 @@ class ChatService:
                             "url": result.url,
                             "source": result.source,
                             "score": score,
-                            "metadata": result.metadata
+                            "favicon": result.metadata.get("favicon"),
+                            "metadata": exclude_fields(result.metadata, ["favicon", "snippet"])
                         })
                     )
 

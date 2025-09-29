@@ -18,7 +18,7 @@ import {
   ChatMessage as ChatMessageType,
   SearchSource,
   StreamMessage,
-} from "@/types";
+} from "@/interfaces";
 
 import { isNil } from "lodash-es";
 

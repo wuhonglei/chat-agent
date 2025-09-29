@@ -2,11 +2,14 @@ import ChatInput from "@/components/Chat/ChatInput";
 import { ChatMessageList } from "@/components/Chat/ChatMessage";
 import { useChatMessage } from "@/hooks";
 import { useMemoizedFn } from "ahooks";
-import { ChatInputFormValues, ChatMessage as ChatMessageType } from "@/types";
+import {
+  ChatInputFormValues,
+  ChatMessage as ChatMessageType,
+} from "@/interfaces";
 import { Card, Form } from "antd";
 import classNames from "classnames";
 import React, { useState } from "react";
-import { SourceData } from "@/types";
+import { SourceData } from "@/interfaces";
 import styles from "./index.module.css";
 import SourceSider from "@/components/Chat/SourceSider";
 

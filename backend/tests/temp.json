@@ -1,121 +1,39 @@
 {
-  "id": "2228767988",
-  "type": "page",
-  "status": "current",
-  "title": "chatbot项目 AI工程团队职责明确",
-  "history": {
-    "lastUpdated": {
-      "by": {
-        "type": "known",
-        "username": "xieweidong@shopee.com",
-        "userKey": "ff808081806d78ff01806e4e8b23000d",
-        "profilePicture": {
-          "path": "/images/icons/profilepics/default.svg",
-          "width": 48,
-          "height": 48,
-          "isDefault": "True"
-        },
-        "displayName": "Weidong Xie",
-        "_links": {
-          "self": "https://confluence.shopee.io/rest/api/user?key=ff808081806d78ff01806e4e8b23000d"
-        },
-        "_expandable": {
-          "status": ""
-        }
-      },
-      "when": "2024-04-01T16:53:23.000+08:00",
-      "message": "",
-      "number": 39,
-      "minorEdit": "False",
-      "hidden": "False",
-      "_links": {
-        "self": "https://confluence.shopee.io/rest/experimental/content/2228767988/version/39"
-      },
-      "_expandable": {
-        "content": "/rest/api/content/2228767988"
-      }
-    },
-    "latest": "True",
-    "createdBy": {
-      "type": "known",
-      "username": "xieweidong@shopee.com",
-      "userKey": "ff808081806d78ff01806e4e8b23000d",
-      "profilePicture": {
-        "path": "/images/icons/profilepics/default.svg",
-        "width": 48,
-        "height": 48,
-        "isDefault": "True"
-      },
-      "displayName": "Weidong Xie",
-      "_links": {
-        "self": "https://confluence.shopee.io/rest/api/user?key=ff808081806d78ff01806e4e8b23000d"
-      },
-      "_expandable": {
-        "status": ""
-      }
-    },
-    "createdDate": "2024-03-25T15:50:01.000+08:00",
+  "content": {
+    "id": "1421988888",
+    "type": "page",
+    "status": "current",
+    "title": "【PRD】DAP V7.0 Display & Video 360 solution",
+    "restrictions": {},
     "_links": {
-      "self": "https://confluence.shopee.io/rest/api/content/2228767988/history"
+      "webui": "/pages/viewpage.action?pageId=1421988888",
+      "tinyui": "/x/GNTBV",
+      "self": "https://confluence.shopee.io/rest/api/content/1421988888"
     },
     "_expandable": {
-      "previousVersion": "",
-      "contributors": "",
-      "nextVersion": ""
+      "container": "",
+      "metadata": "",
+      "extensions": "",
+      "operations": "",
+      "children": "",
+      "history": "/rest/api/content/1421988888/history",
+      "ancestors": "",
+      "body": "",
+      "version": "",
+      "descendants": "",
+      "space": "/rest/api/space/SOP"
     }
   },
-  "version": {
-    "by": {
-      "type": "known",
-      "username": "xieweidong@shopee.com",
-      "userKey": "ff808081806d78ff01806e4e8b23000d",
-      "profilePicture": {
-        "path": "/images/icons/profilepics/default.svg",
-        "width": 48,
-        "height": 48,
-        "isDefault": "True"
-      },
-      "displayName": "Weidong Xie",
-      "_links": {
-        "self": "https://confluence.shopee.io/rest/api/user?key=ff808081806d78ff01806e4e8b23000d"
-      },
-      "_expandable": {
-        "status": ""
-      }
-    },
-    "when": "2024-04-01T16:53:23.000+08:00",
-    "message": "",
-    "number": 39,
-    "minorEdit": "False",
-    "hidden": "False",
-    "_links": {
-      "self": "https://confluence.shopee.io/rest/experimental/content/2228767988/version/39"
-    },
-    "_expandable": {
-      "content": "/rest/api/content/2228767988"
-    }
+  "title": "【@@@hl@@@PRD@@@endhl@@@】@@@hl@@@DAP@@@endhl@@@ @@@hl@@@V7.0@@@endhl@@@ @@@hl@@@Display@@@endhl@@@ &amp; @@@hl@@@Video@@@endhl@@@ @@@hl@@@360@@@endhl@@@ @@@hl@@@solution@@@endhl@@@",
+  "excerpt": ": https://docs.google.com/document/d/1-17kz8Ii0IxlSJp0QkYdHviHQMrFKmG0-dqJlyg6P0c/edit?resourcekey=0-EZd9NK5Cz6rwkLuSiEG41A#\n\nUI 设计稿：待补充\n\n\n业务背景\n\n\n@@@hl@@@Display@@@endhl@@@ &amp; @@@hl@@@Video@@@endhl@@@ @@@hl@@@360@@@endhl@@@ is one of the products in Google Marketing &hellip; \n\nUser access control\n\nRole management\n\n\n新增页面模块\n\nAd account模块增加 @@@hl@@@Display@@@endhl@@@ &amp; @@@hl@@@video@@@endhl@@@ @@@hl@@@360@@@endhl@@@，用于控制对应role下用户是否可见该页面\n\nData source模块增加 @@@hl@@@Display@@@endhl@@@ &amp; @@@hl@@@video@@@endhl@@@ @@@hl@@@360@@@endhl@@@ creative，用于控制对应",
+  "url": "/pages/viewpage.action?pageId=1421988888",
+  "resultGlobalContainer": {
+    "title": "Shopee Operation Platform",
+    "displayUrl": "/display/SOP"
   },
-  "extensions": {
-    "position": 3
-  },
-  "_links": {
-    "webui": "/pages/viewpage.action?pageId=2228767988",
-    "edit": "/pages/resumedraft.action?draftId=2228767988&draftShareId=592a8e8a-68a6-491e-8064-f575be20e1bc",
-    "tinyui": "/x/9EzYh",
-    "collection": "/rest/api/content",
-    "base": "https://confluence.shopee.io",
-    "context": "",
-    "self": "https://confluence.shopee.io/rest/api/content/2228767988"
-  },
-  "_expandable": {
-    "container": "/rest/api/space/AI",
-    "metadata": "",
-    "operations": "",
-    "children": "/rest/api/content/2228767988/child",
-    "restrictions": "/rest/api/content/2228767988/restriction/byOperation",
-    "ancestors": "",
-    "body": "",
-    "descendants": "/rest/api/content/2228767988/descendant",
-    "space": "/rest/api/space/AI"
-  }
+  "entityType": "content",
+  "iconCssClass": "aui-icon content-type-page",
+  "lastModified": "2024-08-21T17:54:57.000+08:00",
+  "friendlyLastModified": "2024-08-21",
+  "timestamp": 1724234097000
 }

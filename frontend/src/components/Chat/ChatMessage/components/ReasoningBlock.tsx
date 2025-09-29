@@ -3,7 +3,7 @@ import { useThrottle } from "ahooks";
 import styles from "./css/ReasoningBlock.module.css";
 import MarkdownContainer from "@/components/Chat/MarkdownContainer";
 import ThinkModeIcon from "@/assets/svg/ThinkModeIcon.svg?react";
-import { SearchSource } from "@/types";
+import { SearchSource } from "@/interfaces";
 import SourceAbstract from "./SourceAbstract";
 import React from "react";
 

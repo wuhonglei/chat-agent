@@ -4,7 +4,7 @@ import React from "react";
 import styles from "./index.module.css";
 import CustomButton from "@/components/common/CustomButton";
 import ThinkModeIcon from "@/assets/svg/ThinkModeIcon.svg?react";
-import { ChatInputFormValues } from "@/types";
+import { ChatInputFormValues } from "@/interfaces";
 import ToolsSetting from "./ToolsSetting";
 import { names } from "./constant";
 import { isInputEnter } from "@/utils";

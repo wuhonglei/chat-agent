@@ -1,5 +1,5 @@
 import { chatAPI } from "@/services/api";
-import { ChatInputFormValues, ChatMessage, SearchSource } from "@/types";
+import { ChatInputFormValues, ChatMessage, SearchSource } from "@/interfaces";
 import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { isEmpty } from "lodash-es";
 

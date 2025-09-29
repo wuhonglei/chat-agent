@@ -1,32 +1,6 @@
-// Document types
-export interface Document {
-  id: string;
-  name: string;
-  source: DocumentSource;
-  source_url?: string;
-  content?: string;
-  metadata?: Record<string, any>;
-  status: DocumentStatus;
-  created_at: string;
-  updated_at: string;
-  chunk_count: number;
-}
-
-export enum DocumentSource {
-  LOCAL = "local",
-  CONFLUENCE = "confluence",
-  GOOGLE_DOCS = "google_docs",
-  GOOGLE_SLIDES = "google_slides",
-}
-
-export enum DocumentStatus {
-  PENDING = "pending",
-  PROCESSING = "processing",
-  COMPLETED = "completed",
-  FAILED = "failed",
-}
-
 // Chat types
+import { SearchSourceType } from "@/constants";
+
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
@@ -57,16 +31,23 @@ export interface ChatRequest extends ChatInputFormValues {
 export interface ChatResponse {
   message: string;
   sources: SearchSource[];
-  session_id: string;
+  sessionId: string;
   timestamp: string;
 }
 
 export interface ChatSession {
   id: string;
   messages: ChatMessage[];
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
   metadata?: Record<string, any>;
+}
+
+export interface SearchSourceMetaData {
+  lastModifiedTime?: string; // "2025-09-26T15:48:43.000+08:00";
+  lastModifierName?: string; // "张三";
+  spaceKey?: string;
+  spaceName?: string;
 }
 
 // Search types
@@ -76,19 +57,8 @@ export interface SearchSource {
   score: number;
   url?: string;
   favicon?: string;
-  metadata?: Record<string, any>;
-}
-
-// Knowledge base types
-export interface KnowledgeBaseStats {
-  document_count: number;
-  total_chunks: number;
-  sources: {
-    local: number;
-    confluence: number;
-    google_docs: number;
-    google_slides: number;
-  };
+  source: SearchSourceType;
+  metadata: SearchSourceMetaData;
 }
 
 // API types

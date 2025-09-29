@@ -1,4 +1,5 @@
 import { capitalize } from "lodash-es";
+import { SearchSourceType } from "@/constants";
 
 /**
  * 私有域名到公共域名的映射
@@ -47,4 +48,12 @@ export function isInputEnter(event: React.KeyboardEvent<HTMLTextAreaElement>) {
   }
 
   return true;
+}
+
+export function isFromConfluence(sourceType: SearchSourceType) {
+  return sourceType === SearchSourceType.CONFLUENCE;
+}
+
+export function isFromWebSearch(sourceType: SearchSourceType) {
+  return sourceType === SearchSourceType.WEB_SEARCH;
 }

@@ -37,6 +37,7 @@ if not pages:
 
 print(f"Found {len(pages)} page(s)")
 for i, page in enumerate(pages[:1]):
+    print(page)
     # 获取第一个页面的内容
     # CQL 搜索结果中的页面内容在 content 字段里
     page_id = page.get('content', {}).get('id')

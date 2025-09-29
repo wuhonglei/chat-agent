@@ -1,4 +1,4 @@
-import { ChatMessage as ChatMessageType } from "@/types";
+import { ChatMessage as ChatMessageType } from "@/interfaces";
 import React from "react";
 import AssistantMessage from "./components/AssistantMessage";
 import UserMessage from "./components/UserMessage";

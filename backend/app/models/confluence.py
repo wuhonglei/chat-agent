@@ -99,16 +99,17 @@ class ConfluenceCQLSearchContent(BaseModel):
     status: str  # "current" etc
     title: str
     restrictions: Dict[str, Any] = Field(default_factory=dict)
-    links: Optional[ConfluencePageLinks] = Field(default=None, alias="_links")
-    expandable: Optional[ConfluencePageExpandable] = Field(
-        default=None, alias="_expandable")
+    links: ConfluencePageLinks = Field(
+        default_factory=dict, alias="_links")
+    expandable: ConfluencePageExpandable = Field(
+        default_factory=dict, alias="_expandable")
 
 
 class ConfluenceCQLResultContainer(BaseModel):
     """Container info in CQL search result"""
 
-    title: str
-    displayUrl: str
+    title: str  # "Shopee Operation Platform",
+    displayUrl: str  # "/display/SOP"
 
 
 class ConfluenceCQLSearchResult(BaseModel):
@@ -118,7 +119,8 @@ class ConfluenceCQLSearchResult(BaseModel):
     title: str  # HTML with highlights like @@@hl@@@keyword@@@endhl@@@
     excerpt: Optional[str] = None  # Content excerpt with highlights
     url: str  # Relative URL path
-    resultGlobalContainer: Optional[ConfluenceCQLResultContainer] = None
+    resultGlobalContainer: ConfluenceCQLResultContainer = Field(
+        default_factory=dict)
     entityType: str  # "content"
     iconCssClass: str  # "aui-icon content-type-page"
     lastModified: str  # ISO datetime string
@@ -143,6 +145,16 @@ class ConfluenceCQLSearchResult(BaseModel):
         # Unescape HTML entities using Python's built-in html module
         clean_text = html.unescape(clean_text)
         return clean_text.strip()
+
+    @property
+    def space_key(self) -> Optional[str]:
+        """Get the space key"""
+        return self.resultGlobalContainer.displayUrl.split('/')[-1]
+
+    @property
+    def space_name(self) -> Optional[str]:
+        """Get the space name"""
+        return self.resultGlobalContainer.title
 
 
 class ConfluenceCQLSearchResponse(BaseModel):

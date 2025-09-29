@@ -1,4 +1,4 @@
-import { SearchSource } from "@/types";
+import { SearchSource } from "@/interfaces";
 import { RightOutlined } from "@ant-design/icons";
 import { isEmpty } from "lodash-es";
 import CustomButton, {
