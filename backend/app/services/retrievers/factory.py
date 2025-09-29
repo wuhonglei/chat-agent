@@ -26,8 +26,7 @@ class RetrieverFactory:
                     api_config={
                         "url": settings.CONFLUENCE_URL,
                         "token": settings.CONFLUENCE_PERSONAL_TOKEN
-                    },
-                    vector_manager=self.vector_manager
+                    }
                 )
                 logger.info("Confluence retriever initialized")
 

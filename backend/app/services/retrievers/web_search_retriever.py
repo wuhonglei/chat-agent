@@ -32,7 +32,7 @@ class WebSearchRetriever(BaseRetriever):
             response = await self.client.search(
                 query=request.query,
                 search_depth="advanced",
-                # Tavily max is typically 10
+                chunks_per_source=5,
                 max_results=min(request.max_results, 10),
                 include_answer=False,
                 include_raw_content=False,
@@ -77,6 +77,8 @@ class WebSearchRetriever(BaseRetriever):
                     )
                     results.append(retrieval_result)
 
+            results.sort(key=lambda x: x.score, reverse=True)
+            results = results[:request.max_results]
             logger.info(
                 f"Web search retrieved {len(results)} results for query: {request.query}")
             return results

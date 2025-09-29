@@ -1,10 +1,20 @@
 import { capitalize } from "lodash-es";
 
+/**
+ * 私有域名到公共域名的映射
+ */
+const hostnameToPublic = {
+  "confluence.shopee.io": "www.atlassian.com",
+};
+type PrivateDomains = keyof typeof hostnameToPublic;
+
 export function getWebIconUrl(url: string | undefined, size: number = 32) {
   if (!url) return "";
   try {
     const urlObj = new URL(url);
-    return `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=${size}`;
+    const hostname =
+      hostnameToPublic[urlObj.hostname as PrivateDomains] || urlObj.hostname;
+    return `https://www.google.com/s2/favicons?domain=${hostname}&sz=${size}`;
   } catch (error) {
     return "";
   }

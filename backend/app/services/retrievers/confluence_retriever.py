@@ -14,7 +14,6 @@ from app.models.retrieval import (
 from app.core.config import settings
 from app.services.retrievers.base import BaseRetriever
 from app.services.retrievers.utils import BasePreprocessor
-from app.core.vector_store import VectorManager
 from app.utils.common import remove_leading_whitespace
 from app.models.confluence import ConfluencePageDetail
 from app.models.document import Document, DocumentSource
@@ -23,10 +22,9 @@ from app.models.document import Document, DocumentSource
 class ConfluenceRetriever(BaseRetriever):
     """Retriever for Confluence"""
 
-    def __init__(self, api_config: dict, vector_manager: VectorManager):
+    def __init__(self, api_config: dict):
         super().__init__("Confluence")
         self.api_config = api_config
-        self.vector_manager = vector_manager
         self.client = None
         self.llm_client = None
         # 并发控制参数
@@ -91,7 +89,7 @@ class ConfluenceRetriever(BaseRetriever):
         try:
             # 使用 asyncio.to_thread 将同步的 Confluence API 调用包装为异步
             # 并添加超时控制
-            full_page = await asyncio.wait_for(
+            full_page_dict = await asyncio.wait_for(
                 asyncio.to_thread(
                     self.client.get_page_by_id,
                     page_id,
@@ -99,7 +97,8 @@ class ConfluenceRetriever(BaseRetriever):
                 ),
                 timeout=timeout
             )
-            return full_page
+            # 将字典转换为 ConfluencePageDetail 实例
+            return ConfluencePageDetail(**full_page_dict)
         except asyncio.TimeoutError:
             logger.warning(f"Timeout getting page {page_id} after {timeout}s")
             return None
@@ -130,15 +129,14 @@ class ConfluenceRetriever(BaseRetriever):
         page_tasks = [get_page_with_semaphore(page_id) for page_id in page_ids]
         return await asyncio.gather(*page_tasks, return_exceptions=True)
 
-    def _extract_page_content(self, page_content: ConfluencePageDetail) -> str:
+    def _extract_page_content(self, page_detail: ConfluencePageDetail) -> str:
         """从页面内容中提取文本"""
         try:
             # 从 Confluence 页面内容中提取文本
-            body = page_content.get('body', {}).get(
-                'storage', {}).get('value', '')
+            body = page_detail.body.storage.value
             processed_html, processed_markdown = self.preprocessor.process_html_content(
                 html_content=body,
-                page_id=page_content.get('content', {}).get('id', ''),
+                page_id=page_detail.id,
                 confluence_client=self.client,
             )
 
@@ -147,41 +145,41 @@ class ConfluenceRetriever(BaseRetriever):
             logger.warning(f"Failed to extract content from page: {e}")
             return ""
 
-    def _process_page_results(self, page_contents: list, page_ids: list[str]) -> tuple[list[RetrievalResult], dict]:
+    def _process_page_results(self, page_details: list[ConfluencePageDetail | Exception | None], page_ids: list[str]) -> tuple[list[RetrievalResult], dict]:
         """处理页面获取结果并生成检索结果"""
         documents = []
         stats = {"success": 0, "error": 0, "timeout": 0}
 
-        for i, page_content in enumerate(page_contents):
+        for i, page_detail in enumerate(page_details):
             page_id = page_ids[i]
 
             # 处理异常情况
-            if isinstance(page_content, Exception):
+            if isinstance(page_detail, Exception):
                 stats["error"] += 1
-                if isinstance(page_content, asyncio.TimeoutError):
+                if isinstance(page_detail, asyncio.TimeoutError):
                     stats["timeout"] += 1
                     logger.warning(f"Timeout getting page {page_id}")
                 else:
                     logger.error(
-                        f"Failed to get page {page_id}: {page_content}")
+                        f"Failed to get page {page_id}: {page_detail}")
                 continue
 
-            if page_content is None:
+            if page_detail is None:
                 stats["error"] += 1
                 continue
 
             stats["success"] += 1
 
             # 提取页面内容
-            markdown = self._extract_page_content(page_content)
+            markdown = self._extract_page_content(page_detail)
             # 组装完整的URL
-            webui_path = page_content.get('_links', {}).get('webui', '')
+            webui_path = page_detail.links.webui if page_detail.links else ''
             source_url = f"{self.base_url}{webui_path}" if webui_path else ''
 
             document = Document(
                 content=markdown,
                 id=page_id,
-                name=page_content.get('title', ''),
+                name=page_detail.title,
                 source=DocumentSource.CONFLUENCE,
                 source_url=source_url,
             )
@@ -198,44 +196,46 @@ class ConfluenceRetriever(BaseRetriever):
             logger.info(f"query:{request.query}, keywords:{keywords}")
 
             # 2. 搜索页面
-            search_results = self.client.cql(f"""siteSearch ~ "{keywords}" """)
+            search_results = self.client.cql(
+                f"""siteSearch ~ "{keywords}" """, limit=request.max_results)
             page_ids = self.get_page_ids(search_results)
 
             if not page_ids:
                 logger.info("No valid page IDs found")
                 return []
 
-            # 3. 并发获取页面内容
-            page_contents = await self._fetch_pages_concurrently(page_ids)
+            # 3. 获取页面内容
+            page_details = await self._fetch_pages_concurrently(page_ids)
 
-            # 4. 构造文档
+            # 4. 处理文档并转换为检索结果
             documents, stats = self._process_page_results(
-                page_contents, page_ids)
+                page_details, page_ids)
 
-            # 5. 批量添加文档
-            await self.vector_manager.memory.batch_add_documents(documents)
-
-            # 6. 搜索文档
-            search_results = await self.vector_manager.memory.search(
-                request.query, top_k=request.max_results)
-
-            # 7. 转换为检索结果
+            # 5. 直接转换为检索结果（不进行 embedding 排序）
             final_results = []
-            for result in search_results:
-                if result.score >= request.min_score:
-                    final_results.append(RetrievalResult(
-                        content=result.content,
-                        title=result.document_name,
-                        source=RetrievalSource.CONFLUENCE,
-                        score=result.score,
-                        metadata=result.metadata,
-                        url=result.metadata.get("document_url"),
-                    ))
+            for i, document in enumerate(documents, 1):
+                # 使用 CQL 的原始顺序
+                final_results.append(RetrievalResult(
+                    content=document.content,
+                    title=document.name,
+                    source=RetrievalSource.CONFLUENCE,
+                    score=1 / i,  # 倒排分数，将由 reranker 重新评分
+                    metadata={
+                        "document_id": document.id,
+                        "document_url": document.source_url,
+                        "source": document.source
+                    },
+                    url=document.source_url,
+                ))
 
             logger.info(
                 f"Page retrieval completed: {stats['success']} success, "
                 f"{stats['error']} errors, {stats['timeout']} timeouts"
             )
+
+            # 返回所有结果，让 RetrievalManager 的 reranker 进行排序
+            final_results.sort(key=lambda x: x.score, reverse=True)
+            final_results = final_results[:request.max_results]
             return final_results
 
         except Exception as e:
