@@ -14,6 +14,7 @@ import {
   KnowledgeBaseStats,
   StreamMessage,
 } from "../types";
+import { isPlainObject } from "lodash-es";
 import snakecaseKeys from "snakecase-keys";
 import camelcaseKeys from "camelcase-keys";
 
@@ -26,9 +27,17 @@ const apiClient: AxiosInstance = axios.create({
   },
 });
 
-// Request interceptor
+// Request interceptor - Convert all request data to snake_case
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    // Convert request data to snake_case
+    if (isPlainObject(config.data) && !(config.data instanceof FormData)) {
+      config.data = snakecaseKeys(config.data, { deep: true });
+    }
+    // Convert params to snake_case
+    if (isPlainObject(config.params)) {
+      config.params = snakecaseKeys(config.params, { deep: true });
+    }
     // Add token or other auth headers here if needed
     return config;
   },
@@ -37,13 +46,23 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Response interceptor
+// Response interceptor - Convert all response data to camelCase
 apiClient.interceptors.response.use(
   (response: AxiosResponse) => {
+    // Convert response data to camelCase
+    if (isPlainObject(response.data) && !(response.data instanceof Blob)) {
+      response.data = camelcaseKeys(response.data, { deep: true });
+    }
     return response;
   },
   error => {
     if (error.response) {
+      // Convert error response to camelCase
+      if (isPlainObject(error.response.data)) {
+        error.response.data = camelcaseKeys(error.response.data, {
+          deep: true,
+        });
+      }
       console.error("API Error:", error.response.data);
     } else if (error.request) {
       console.error("Network Error:", error.request);
@@ -60,7 +79,7 @@ export const chatAPI = {
   sendMessage: async (
     data: ChatRequest
   ): Promise<AxiosResponse<ChatResponse>> => {
-    return await apiClient.post("/api/chat", snakecaseKeys(data as any));
+    return await apiClient.post("/api/chat", data);
   },
 
   // Stream message
@@ -76,7 +95,11 @@ export const chatAPI = {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(snakecaseKeys(data as any, { deep: true })),
+      body: JSON.stringify(
+        snakecaseKeys(data as unknown as Record<string, unknown>, {
+          deep: true,
+        })
+      ),
       signal: abortController.signal,
       onmessage(event) {
         if (event.data) {
@@ -127,7 +150,10 @@ export const documentAPI = {
   // Upload document
   uploadDocument: async (
     formData: FormData,
-    onUploadProgress?: (progressEvent: any) => void
+    onUploadProgress?: (progressEvent: {
+      loaded: number;
+      total?: number;
+    }) => void
   ): Promise<AxiosResponse<Document>> => {
     return await apiClient.post("/api/documents/upload", formData, {
       headers: {

@@ -37,7 +37,9 @@ export interface ChatMessage {
 }
 
 export interface RetrieverSource {
-  web_search: boolean;
+  webSearch: boolean;
+  confluence: boolean;
+  googleDocs: boolean;
 }
 
 export interface ChatInputFormValues {
@@ -71,11 +73,10 @@ export interface ChatSession {
 export interface SearchSource {
   content: string;
   title: string;
-  document_id?: string;
   score: number;
-  metadata?: Record<string, any>;
   url?: string;
   favicon?: string;
+  metadata?: Record<string, any>;
 }
 
 // Knowledge base types

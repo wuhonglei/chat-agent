@@ -1,6 +1,6 @@
 export const names = {
   thinkMode: ["thinkMode"],
-  webSearch: ["source_config", "web_search"],
-  confluence: ["source_config", "confluence"],
-  googleDocs: ["source_config", "google_docs"],
+  webSearch: ["sourceConfig", "webSearch"],
+  confluence: ["sourceConfig", "confluence"],
+  googleDocs: ["sourceConfig", "googleDocs"],
 };
