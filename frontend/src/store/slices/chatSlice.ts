@@ -1,6 +1,5 @@
-import { chatAPI } from "@/services/api";
-import { ChatInputFormValues, ChatMessage, SearchSource } from "@/interfaces";
-import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { ChatMessage, SearchSource } from "@/interfaces";
+import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { isEmpty } from "lodash-es";
 
 interface ChatState {
@@ -20,15 +19,6 @@ const initialState: ChatState = {
   isReasoning: false,
   error: null,
 };
-
-// Async thunks
-export const sendMessage = createAsyncThunk(
-  "chat/sendMessage",
-  async (data: ChatInputFormValues & { sessionId: string }) => {
-    const response = await chatAPI.sendMessage(data);
-    return response.data;
-  }
-);
 
 /**
  * 检查消息列表中最后一个消息是否为助手消息
@@ -104,31 +94,6 @@ const chatSlice = createSlice({
     clearError: state => {
       state.error = null;
     },
-  },
-  extraReducers: builder => {
-    builder
-      .addCase(sendMessage.pending, state => {
-        state.isLoading = true;
-        state.error = null;
-        console.info("sendMessage.pending");
-      })
-      .addCase(sendMessage.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.messages.push({
-          reasoning: "",
-          role: "assistant",
-          content: action.payload.message,
-          sources: action.payload.sources || [],
-          timestamp: action.payload.timestamp,
-        });
-        state.sessionId = action.payload.session_id;
-        console.info("sendMessage.fulfilled");
-      })
-      .addCase(sendMessage.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.error.message || "Failed to send message";
-        console.info("sendMessage.rejected");
-      });
   },
 });
 

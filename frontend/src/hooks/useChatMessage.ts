@@ -12,7 +12,7 @@ import {
   setSources,
   setStreaming,
 } from "@/store/slices/chatSlice";
-import { chatAPI } from "@/services/api";
+import { chatAPI } from "@/services";
 import {
   ChatInputFormValues,
   ChatMessage as ChatMessageType,
