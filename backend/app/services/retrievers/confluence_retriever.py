@@ -141,6 +141,9 @@ class ConfluenceRetriever(BaseRetriever):
         try:
             # 从 Confluence 页面内容中提取文本
             body = page_detail.body.storage.value
+            if not body:
+                return ""
+
             processed_html, processed_markdown = self.preprocessor.process_html_content(
                 html_content=body,
                 page_id=page_detail.id,
@@ -179,6 +182,9 @@ class ConfluenceRetriever(BaseRetriever):
 
             # 提取页面内容
             markdown = self._extract_page_content(page_detail)
+            if not markdown:
+                continue
+
             # 组装完整的URL
             webui_path = page_detail.links.webui if page_detail.links else ''
             source_url = f"{self.base_url}{webui_path}" if webui_path else ''
