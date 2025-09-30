@@ -8,20 +8,10 @@ import httpx
 from typing import Optional, Dict, Any, List
 from fastmcp import FastMCP
 from pydantic import BaseModel, Field
+from config import config
 
 # 创建 MCP 实例
 mcp = FastMCP("和风天气 🌤️")
-
-# 配置模型
-
-
-class WeatherConfig(BaseModel):
-    api_key: str = Field(..., description="和风天气 API Key")
-    base_url: str = Field(
-        default="https://devapi.qweather.com", description="API 基础 URL")
-    timeout: int = Field(default=10, description="请求超时时间（秒）")
-
-# 天气数据模型
 
 
 class WeatherNow(BaseModel):
@@ -81,20 +71,12 @@ class WeatherResponse(BaseModel):
     refer: Dict[str, Any] = Field(..., description="数据来源信息")
 
 
-# 全局配置
-config = WeatherConfig(
-    api_key=os.getenv("QWEATHER_API_KEY", ""),
-    base_url=os.getenv("QWEATHER_BASE_URL", "https://devapi.qweather.com"),
-    timeout=int(os.getenv("QWEATHER_TIMEOUT", "10"))
-)
-
-
 async def make_request(endpoint: str, params: Dict[str, Any]) -> Dict[str, Any]:
     """发送 HTTP 请求到和风天气 API"""
-    url = f"{config.base_url}{endpoint}"
-    params["key"] = config.api_key
+    url = f"{config.QWEATHER_BASE_URL}{endpoint}"
+    params["key"] = config.QWEATHER_API_KEY
 
-    async with httpx.AsyncClient(timeout=config.timeout) as client:
+    async with httpx.AsyncClient(timeout=config.QWEATHER_TIMEOUT) as client:
         try:
             response = await client.get(url, params=params)
             response.raise_for_status()

@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings
-from pydantic import field_validator
+from pydantic import field_validator, ConfigDict
 
 
 class Settings(BaseSettings):
@@ -13,10 +13,11 @@ class Settings(BaseSettings):
             raise ValueError('QWEATHER_BASE_URL 必须以 http:// 或 https:// 开头')
         return v
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
-        env_ignore_empty = True
+    model_config = ConfigDict(
+        env_file=".env",
+        case_sensitive=True,
+        env_ignore_empty=True
+    )
 
 
 config = Settings()
