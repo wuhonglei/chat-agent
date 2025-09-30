@@ -47,13 +47,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         trigger={null}
         collapsedWidth={collapsedWidth}
         style={{ backgroundColor: "#F3F4F6" }}
-        className="shadow-md flex flex-col items-center"
+        className="shadow-xs flex flex-col items-center"
       >
         <img
           src="/logo.png"
           alt="logo"
-          width={36}
-          height={36}
+          width={32}
+          height={32}
           className="mx-auto my-4"
         />
         <Menu
@@ -69,7 +69,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           }}
         />
       </Sider>
-      <Layout className="h-full">{children}</Layout>
+      <Layout className="h-full bg-gray-50">{children}</Layout>
     </Layout>
   );
 };

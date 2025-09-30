@@ -61,7 +61,7 @@ const ChatPage: React.FC = () => {
   };
 
   return (
-    <div className="flex h-full bg-white">
+    <div className="flex h-full">
       {/* Chat area */}
       <Card
         className="flex-1"
@@ -70,6 +70,7 @@ const ChatPage: React.FC = () => {
         }}
         style={{
           border: "none",
+          backgroundColor: "transparent",
         }}
         styles={{
           body: {
@@ -80,7 +81,7 @@ const ChatPage: React.FC = () => {
       >
         {isEmpty(messages) ? (
           <WelcomePage
-            className={classNames(styles["input-container"], "my-auto")}
+            className={classNames("my-auto pb-12", styles["input-container"])}
           >
             <ChatInput {...chatInputProps} className="w-full shadow-lg" />
           </WelcomePage>

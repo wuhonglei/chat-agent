@@ -75,7 +75,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
         form={form}
         layout="vertical"
         className={classNames(
-          "flex flex-col gap-3",
+          "flex flex-col gap-3 bg-white",
           styles["input-container"],
           className
         )}
