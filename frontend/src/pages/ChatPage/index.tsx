@@ -70,7 +70,6 @@ const ChatPage: React.FC = () => {
         }}
         style={{
           border: "none",
-          backgroundColor: "transparent",
         }}
         styles={{
           body: {

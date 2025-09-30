@@ -66,7 +66,7 @@ const ReasoningBlock = ({
                 onClick={onSourceClick}
               />
               <div className="flex gap-1">
-                <div className="flex flex-col bg-white py-1 w-4 items-center gap-1 pb-3">
+                <div className="flex flex-col py-1 w-4 items-center gap-1 pb-3">
                   {isReasoning ? (
                     <img
                       alt="thinking"

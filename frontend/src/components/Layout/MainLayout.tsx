@@ -46,8 +46,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         theme="light"
         trigger={null}
         collapsedWidth={collapsedWidth}
-        style={{ backgroundColor: "#F3F4F6" }}
-        className="shadow-xs flex flex-col items-center"
+        className="flex flex-col items-center border-r-1"
+        style={{
+          borderColor: "#E2E2E2",
+        }}
       >
         <img
           src="/logo.png"
@@ -69,7 +71,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           }}
         />
       </Sider>
-      <Layout className="h-full bg-gray-50">{children}</Layout>
+      <Layout className="h-full bg-white">{children}</Layout>
     </Layout>
   );
 };
