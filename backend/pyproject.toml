@@ -55,6 +55,7 @@ dependencies = [
     "prometheus-client>=0.19.0",
     "dashscope>=1.24.4",
     "markdownify>=1.2.0",
+    "fastmcp>=2.12.4",
 ]
 
 [project.optional-dependencies]
