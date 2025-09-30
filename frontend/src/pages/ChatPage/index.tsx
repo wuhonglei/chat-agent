@@ -8,18 +8,21 @@ import {
 } from "@/interfaces";
 import { Card, Form } from "antd";
 import classNames from "classnames";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { SourceData } from "@/interfaces";
 import styles from "./index.module.css";
 import SourceSider from "@/components/Chat/SourceSider";
+import WelcomePage from "@/components/Chat/WelcomePage";
+import { isEmpty } from "lodash-es";
 
 const ChatPage: React.FC = () => {
   const {
-    sendMessage,
-    reSendMessage,
+    messages,
     isStreaming,
     isLoading,
     isReasoning,
+    sendMessage,
+    reSendMessage,
     abortMessage,
   } = useChatMessage();
   const [sourceData, setSourceData] = useState<SourceData | undefined>();
@@ -49,6 +52,14 @@ const ChatPage: React.FC = () => {
     setSourceData(undefined);
   });
 
+  const chatInputProps = {
+    form,
+    onStop: abortMessage,
+    onSend: sendMessage,
+    isLoading: isLoading,
+    isStreaming: isStreaming,
+  };
+
   return (
     <div className="flex h-full bg-white">
       {/* Chat area */}
@@ -67,25 +78,30 @@ const ChatPage: React.FC = () => {
           },
         }}
       >
-        {/* Messages */}
-        <ChatMessageList
-          isLoading={isLoading}
-          isStreaming={isStreaming}
-          isReasoning={isReasoning}
-          onReSend={handleReSend}
-          onSourceClick={handleSourceClick}
-          onEditMessage={handleEditMessage}
-          className={styles["child-container"]}
-        />
-        {/* Input area */}
-        <ChatInput
-          form={form}
-          onStop={abortMessage}
-          onSend={sendMessage}
-          isLoading={isLoading}
-          isStreaming={isStreaming}
-          className={styles["child-container"]}
-        />
+        {isEmpty(messages) ? (
+          <WelcomePage
+            className={classNames(styles["input-container"], "my-auto")}
+          >
+            <ChatInput {...chatInputProps} className="w-full shadow-lg" />
+          </WelcomePage>
+        ) : (
+          <>
+            <ChatMessageList
+              isLoading={isLoading}
+              isStreaming={isStreaming}
+              isReasoning={isReasoning}
+              onReSend={handleReSend}
+              onSourceClick={handleSourceClick}
+              onEditMessage={handleEditMessage}
+              className={styles["markdown-container"]}
+            />
+            {/* Input area */}
+            <ChatInput
+              {...chatInputProps}
+              className={styles["input-container"]}
+            />
+          </>
+        )}
       </Card>
       {/* Sources panel */}
       <SourceSider sourceData={sourceData} onClose={handleCloseSource} />

@@ -70,65 +70,65 @@ const ChatInput: React.FC<ChatInputProps> = ({
   });
 
   return (
-    <div className={classNames("pb-4", className)} style={style}>
-      <ConfigProvider theme={{ components: { Form: { itemMarginBottom: 0 } } }}>
-        <Form
-          form={form}
-          layout="vertical"
-          className={classNames(
-            "flex flex-col gap-3",
-            styles["input-container"]
-          )}
-        >
-          <Form.Item name={names.message} initialValue={undefined}>
-            <TextArea
-              autoFocus
-              placeholder="给 DeepSeek 发送消息"
-              onPressEnter={handlePressEnter}
-              className={classNames(styles.input)}
-              autoSize={{ minRows: 2.5, maxRows: 4 }}
-            />
-          </Form.Item>
-          <div className="flex items-center gap-2 justify-between">
-            {/* 左侧 */}
-            <div className="flex items-center gap-2">
-              <Form.Item
-                trigger="onClick"
-                initialValue={false}
-                valuePropName="active"
-                name={names.thinkMode}
-              >
-                <CustomButton
-                  size="middle"
-                  icon={<ThinkModeIcon />}
-                  tooltip="先思考后回答, 解决推理问题"
-                >
-                  深度思考
-                </CustomButton>
-              </Form.Item>
-              <ToolsSetting />
-            </div>
-            {/* 右侧 */}
-            <div className="flex items-center gap-2">
-              <Button
+    <ConfigProvider theme={{ components: { Form: { itemMarginBottom: 0 } } }}>
+      <Form
+        form={form}
+        layout="vertical"
+        className={classNames(
+          "flex flex-col gap-3",
+          styles["input-container"],
+          className
+        )}
+        style={style}
+      >
+        <Form.Item name={names.message} initialValue={undefined}>
+          <TextArea
+            autoFocus
+            placeholder="给 DeepSeek 发送消息"
+            onPressEnter={handlePressEnter}
+            className={classNames(styles.input)}
+            autoSize={{ minRows: 2.5, maxRows: 4 }}
+          />
+        </Form.Item>
+        <div className="flex items-center gap-2 justify-between">
+          {/* 左侧 */}
+          <div className="flex items-center gap-2">
+            <Form.Item
+              trigger="onClick"
+              initialValue={false}
+              valuePropName="active"
+              name={names.thinkMode}
+            >
+              <CustomButton
                 size="middle"
-                shape="round"
-                type="primary"
-                icon={
-                  isStreamingState(buttonState) ? (
-                    <SquareIcon />
-                  ) : (
-                    <ArrowUpOutlined />
-                  )
-                }
-                onClick={handleBtnClick}
-                disabled={isButtonDisabled(buttonState)}
-              />
-            </div>
+                icon={<ThinkModeIcon />}
+                tooltip="先思考后回答, 解决推理问题"
+              >
+                深度思考
+              </CustomButton>
+            </Form.Item>
+            <ToolsSetting />
           </div>
-        </Form>
-      </ConfigProvider>
-    </div>
+          {/* 右侧 */}
+          <div className="flex items-center gap-2">
+            <Button
+              size="middle"
+              shape="round"
+              type="primary"
+              icon={
+                isStreamingState(buttonState) ? (
+                  <SquareIcon />
+                ) : (
+                  <ArrowUpOutlined />
+                )
+              }
+              onClick={handleBtnClick}
+              disabled={isButtonDisabled(buttonState)}
+            />
+          </div>
+        </div>
+      </Form>
+    </ConfigProvider>
   );
 };
 

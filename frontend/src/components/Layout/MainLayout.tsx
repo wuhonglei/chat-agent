@@ -54,7 +54,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           alt="logo"
           width={36}
           height={36}
-          className="rounded-full mx-auto my-4"
+          className="mx-auto my-4"
         />
         <Menu
           mode="vertical"

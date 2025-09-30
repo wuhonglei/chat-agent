@@ -27,17 +27,6 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
 }) => {
   const { messages } = useAppSelector(state => state.chat);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  if (isEmpty(messages)) {
-    return (
-      <Empty
-        description="开始提问吧"
-        className={classNames(
-          "flex-1 flex flex-col items-center justify-center",
-          className
-        )}
-      />
-    );
-  }
 
   return (
     <div className={classNames("flex-1 overflow-y-auto px-2 pb-4", className)}>

@@ -41,10 +41,11 @@ function buildFootnoteDefinition(sources: SearchSource[]): string {
 }
 
 export interface UseChatMessageReturn {
-  abortMessage: () => void;
   isLoading: boolean;
   isStreaming: boolean;
   isReasoning: boolean;
+  messages: ChatMessageType[];
+  abortMessage: () => void;
   reSendMessage: (
     index: number,
     message: ChatMessageType,
@@ -182,5 +183,6 @@ export const useChatMessage = (
     isLoading,
     isReasoning,
     reSendMessage,
+    messages,
   };
 };
