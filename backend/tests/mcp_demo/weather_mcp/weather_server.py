@@ -3,7 +3,6 @@
 基于和风天气 API 提供天气查询服务
 """
 
-import os
 import httpx
 from typing import Optional, Dict, Any, List
 from fastmcp import FastMCP
@@ -87,7 +86,7 @@ async def make_request(endpoint: str, params: Dict[str, Any]) -> Dict[str, Any]:
             raise Exception(f"请求处理失败: {e}")
 
 
-@mcp.tool
+@mcp.tool(name="get_current_weather")
 async def get_current_weather(
     location: str = Field(...,
                           description="位置信息，可以是 LocationID（如：101010100）或经纬度坐标（如：116.41,39.92）"),
@@ -105,7 +104,7 @@ async def get_current_weather(
     Returns:
         实时天气数据
     """
-    if not config.api_key:
+    if not config.QWEATHER_API_KEY:
         return {"error": "请设置 QWEATHER_API_KEY 环境变量"}
 
     params = {
@@ -121,7 +120,7 @@ async def get_current_weather(
         return {"error": str(e)}
 
 
-@mcp.tool
+@mcp.tool(name="get_weather_forecast")
 async def get_weather_forecast(
     location: str = Field(..., description="位置信息，可以是 LocationID 或经纬度坐标"),
     days: str = Field(default="7d", description="预报天数，支持 3d、7d、10d、15d、30d"),
@@ -140,7 +139,7 @@ async def get_weather_forecast(
     Returns:
         天气预报数据
     """
-    if not config.api_key:
+    if not config.QWEATHER_API_KEY:
         return {"error": "请设置 QWEATHER_API_KEY 环境变量"}
 
     # 验证天数参数
@@ -161,7 +160,7 @@ async def get_weather_forecast(
         return {"error": str(e)}
 
 
-@mcp.tool
+@mcp.tool(name="search_city")
 async def search_city(
     location: str = Field(..., description="城市名称，如：北京、上海、广州等"),
     adm: str = Field(default="", description="行政区划，如：北京、上海、广东等"),
@@ -182,7 +181,7 @@ async def search_city(
     Returns:
         城市位置信息列表
     """
-    if not config.api_key:
+    if not config.QWEATHER_API_KEY:
         return {"error": "请设置 QWEATHER_API_KEY 环境变量"}
 
     params = {
@@ -200,7 +199,7 @@ async def search_city(
         return {"error": str(e)}
 
 
-@mcp.tool
+@mcp.tool(name="get_weather_alerts")
 async def get_weather_alerts(
     location: str = Field(..., description="位置信息，可以是 LocationID 或经纬度坐标"),
     lang: str = Field(default="zh", description="多语言设置")
@@ -215,7 +214,7 @@ async def get_weather_alerts(
     Returns:
         天气预警数据
     """
-    if not config.api_key:
+    if not config.QWEATHER_API_KEY:
         return {"error": "请设置 QWEATHER_API_KEY 环境变量"}
 
     params = {
@@ -230,7 +229,7 @@ async def get_weather_alerts(
         return {"error": str(e)}
 
 
-@mcp.tool
+@mcp.tool(name="get_air_quality")
 async def get_air_quality(
     location: str = Field(..., description="位置信息，可以是 LocationID 或经纬度坐标"),
     lang: str = Field(default="zh", description="多语言设置")
@@ -245,7 +244,7 @@ async def get_air_quality(
     Returns:
         空气质量数据
     """
-    if not config.api_key:
+    if not config.QWEATHER_API_KEY:
         return {"error": "请设置 QWEATHER_API_KEY 环境变量"}
 
     params = {
@@ -260,4 +259,20 @@ async def get_air_quality(
         return {"error": str(e)}
 
 if __name__ == "__main__":
-    mcp.run()
+    import sys
+    import argparse
+
+    parser = argparse.ArgumentParser(description="和风天气 MCP Server")
+    parser.add_argument("--transport", choices=["http", "stdio"], default="http",
+                        help="传输方式：http 或 stdio")
+    parser.add_argument("--port", type=int, default=8000,
+                        help="HTTP 模式下的端口号")
+
+    args = parser.parse_args()
+
+    if args.transport == "stdio":
+        # Stdio 模式：通过标准输入输出与客户端通信
+        mcp.run(transport="stdio")
+    else:
+        # HTTP 模式：启动 HTTP 服务器
+        mcp.run(host="0.0.0.0", port=args.port)

@@ -1,239 +1,175 @@
-# 和风天气 MCP Server
+# 和风天气 MCP Server 使用说明
 
-基于和风天气 API 的 Model Context Protocol (MCP) 服务器，提供丰富的天气查询功能。
+## 概述
 
-## 功能特性
+这是一个基于和风天气 API 的 MCP (Model Context Protocol) Server，提供天气查询服务。
 
-- 🌤️ **实时天气查询** - 获取当前天气状况
-- 📅 **天气预报** - 支持 3天、7天、10天、15天、30天预报
-- 🏙️ **城市搜索** - 根据城市名称搜索位置信息
-- ⚠️ **天气预警** - 获取天气预警信息
-- 🌬️ **空气质量** - 查询空气质量数据
-- 🌍 **多语言支持** - 支持中文、英文等多种语言
-- 📏 **单位选择** - 支持公制和英制单位
+## 文件结构
 
-## 安装和配置
+- `weather_server.py` - MCP Server 实现，提供天气查询工具
+- `weather_client.py` - MCP Client 实现，用于调用 Server 的工具
+- `config.py` - 配置文件，管理环境变量
+- `test_weather.py` - 直接测试天气 API 功能的脚本
 
-### 1. 安装依赖
+## 环境配置
 
-确保已安装 `fastmcp` 和 `httpx`：
+### 1. 设置环境变量
 
-```bash
-pip install fastmcp httpx
-```
-
-### 2. 获取 API Key
-
-1. 访问 [和风天气开发平台](https://dev.qweather.com/)
-2. 注册账号并创建项目
-3. 获取 API Key
-
-### 3. 配置环境变量
-
-复制 `.env.example` 为 `.env` 并填入您的 API Key：
+创建 `.env` 文件或设置环境变量：
 
 ```bash
-cp .env.example .env
-```
-
-编辑 `.env` 文件：
-
-```env
+# 和风天气 API 配置
 QWEATHER_API_KEY=your_api_key_here
 QWEATHER_BASE_URL=https://devapi.qweather.com
 QWEATHER_TIMEOUT=10
 ```
 
-### 4. 运行服务器
+### 2. 获取 API Key
+
+1. 访问 [和风天气开发者平台](https://dev.qweather.com/)
+2. 注册账号并创建应用
+3. 获取 API Key
+
+## 使用方法
+
+### 方法一：使用 MCP Client/Server 模式
+
+#### 1. 启动 MCP Server
 
 ```bash
-python weather.py
+cd tests/mcp_demo/weather_mcp
+python weather_server.py
 ```
 
-## API 工具说明
+Server 将在 `http://localhost:8000/mcp` 启动。
 
-### 1. get_current_weather - 获取实时天气
+#### 2. 运行 MCP Client
 
-获取指定位置的实时天气信息。
-
-**参数：**
-- `location` (必填): 位置信息，可以是 LocationID（如：101010100）或经纬度坐标（如：116.41,39.92）
-- `lang` (可选): 多语言设置，支持 zh（中文）、en（英文）等，默认为 zh
-- `unit` (可选): 单位设置，m（公制）或 i（英制），默认为 m
-
-**示例：**
-```python
-# 使用 LocationID 查询北京天气
-result = await get_current_weather(location="101010100")
-
-# 使用经纬度查询上海天气
-result = await get_current_weather(location="121.47,31.23")
-
-# 使用英文和英制单位
-result = await get_current_weather(
-    location="101010100", 
-    lang="en", 
-    unit="i"
-)
+```bash
+python weather_client.py
 ```
 
-### 2. get_weather_forecast - 获取天气预报
+### 方法二：直接测试 API 功能
 
-获取指定位置的天气预报信息。
-
-**参数：**
-- `location` (必填): 位置信息
-- `days` (可选): 预报天数，支持 3d、7d、10d、15d、30d，默认为 7d
-- `lang` (可选): 多语言设置，默认为 zh
-- `unit` (可选): 单位设置，默认为 m
-
-**示例：**
-```python
-# 获取7天天气预报
-result = await get_weather_forecast(location="101010100", days="7d")
-
-# 获取15天天气预报
-result = await get_weather_forecast(location="101010100", days="15d")
+```bash
+python test_weather.py
 ```
 
-### 3. search_city - 搜索城市
+## 可用的工具
 
-根据城市名称搜索位置信息。
+### 1. search_city - 搜索城市位置信息
 
-**参数：**
-- `location` (必填): 城市名称，如：北京、上海、广州等
-- `adm` (可选): 行政区划，如：北京、上海、广东等
-- `range` (可选): 搜索范围，cn（中国）、world（全球），默认为 cn
-- `number` (可选): 返回结果数量，最多20个，默认为 10
-- `lang` (可选): 多语言设置，默认为 zh
-
-**示例：**
 ```python
-# 搜索北京
-result = await search_city(location="北京")
+result = await client.call_tool("search_city", {
+    "location": "北京",
+    "adm": "",
+    "range": "cn",
+    "number": 10,
+    "lang": "zh"
+})
+```
 
-# 搜索上海，限制在上海市范围内
-result = await search_city(location="上海", adm="上海")
+### 2. get_current_weather - 获取实时天气
 
-# 搜索全球的 London
-result = await search_city(location="London", range="world")
+```python
+result = await client.call_tool("get_current_weather", {
+    "location": "101010100",  # 北京的 LocationID
+    "lang": "zh",
+    "unit": "m"
+})
+```
+
+### 3. get_weather_forecast - 获取天气预报
+
+```python
+result = await client.call_tool("get_weather_forecast", {
+    "location": "101010100",
+    "days": "7d",  # 支持 3d, 7d, 10d, 15d, 30d
+    "lang": "zh",
+    "unit": "m"
+})
 ```
 
 ### 4. get_weather_alerts - 获取天气预警
 
-获取指定位置的天气预警信息。
-
-**参数：**
-- `location` (必填): 位置信息
-- `lang` (可选): 多语言设置，默认为 zh
-
-**示例：**
 ```python
-result = await get_weather_alerts(location="101010100")
+result = await client.call_tool("get_weather_alerts", {
+    "location": "101010100",
+    "lang": "zh"
+})
 ```
 
 ### 5. get_air_quality - 获取空气质量
 
-获取指定位置的空气质量信息。
-
-**参数：**
-- `location` (必填): 位置信息
-- `lang` (可选): 多语言设置，默认为 zh
-
-**示例：**
 ```python
-result = await get_air_quality(location="101010100")
+result = await client.call_tool("get_air_quality", {
+    "location": "101010100",
+    "lang": "zh"
+})
 ```
 
-## 数据字段说明
+## 参数说明
 
-### 实时天气数据 (WeatherNow)
+### location 参数
+- 可以是 LocationID（如：101010100）
+- 也可以是经纬度坐标（如：116.41,39.92）
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| obsTime | str | 观测时间 |
-| temp | str | 温度 |
-| feelsLike | str | 体感温度 |
-| icon | str | 天气图标代码 |
-| text | str | 天气状况文字描述 |
-| wind360 | str | 风向360度 |
-| windDir | str | 风向 |
-| windScale | str | 风力等级 |
-| windSpeed | str | 风速 |
-| humidity | str | 相对湿度 |
-| precip | str | 降水量 |
-| pressure | str | 大气压强 |
-| vis | str | 能见度 |
-| cloud | str | 云量 |
-| dew | str | 露点温度 |
+### lang 参数
+- `zh` - 中文（默认）
+- `en` - 英文
 
-### 天气预报数据 (WeatherDaily)
+### unit 参数
+- `m` - 公制单位（默认）
+- `i` - 英制单位
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| fxDate | str | 预报日期 |
-| sunrise | str | 日出时间 |
-| sunset | str | 日落时间 |
-| moonrise | str | 月出时间 |
-| moonset | str | 月落时间 |
-| moonPhase | str | 月相 |
-| moonPhaseIcon | str | 月相图标 |
-| tempMax | str | 最高温度 |
-| tempMin | str | 最低温度 |
-| iconDay | str | 白天天气图标 |
-| textDay | str | 白天天气状况 |
-| iconNight | str | 夜间天气图标 |
-| textNight | str | 夜间天气状况 |
-| wind360Day | str | 白天风向360度 |
-| windDirDay | str | 白天风向 |
-| windScaleDay | str | 白天风力等级 |
-| windSpeedDay | str | 白天风速 |
-| wind360Night | str | 夜间风向360度 |
-| windDirNight | str | 夜间风向 |
-| windScaleNight | str | 夜间风力等级 |
-| windSpeedNight | str | 夜间风速 |
-| precip | str | 降水量 |
-| uvIndex | str | 紫外线指数 |
-| humidity | str | 相对湿度 |
-| pressure | str | 大气压强 |
-| vis | str | 能见度 |
-| cloud | str | 云量 |
+### days 参数（仅天气预报）
+- `3d` - 3天预报
+- `7d` - 7天预报（默认）
+- `10d` - 10天预报
+- `15d` - 15天预报
+- `30d` - 30天预报
 
-## 错误处理
+## 常见问题
 
-所有 API 调用都会返回统一的响应格式：
+### 1. API Key 错误
+确保设置了正确的 `QWEATHER_API_KEY` 环境变量。
 
-**成功响应：**
+### 2. 网络连接问题
+检查网络连接和防火墙设置。
+
+### 3. 服务器未启动
+确保 MCP Server 正在运行在 `http://localhost:8000/mcp`。
+
+### 4. 位置 ID 不正确
+可以使用 `search_city` 工具先搜索城市获取正确的 LocationID。
+
+## 示例输出
+
 ```json
 {
   "code": "200",
-  "updateTime": "2024-02-08T13:39+08:00",
-  "fxLink": "https://www.qweather.com/weather/beijing-101010100.html",
-  "now": { ... },
-  "refer": { ... }
+  "updateTime": "2024-01-01T12:00+08:00",
+  "fxLink": "http://hfx.link/1abc",
+  "now": {
+    "obsTime": "2024-01-01T12:00+08:00",
+    "temp": "15",
+    "feelsLike": "13",
+    "icon": "100",
+    "text": "晴",
+    "wind360": "0",
+    "windDir": "北风",
+    "windScale": "1",
+    "windSpeed": "3",
+    "humidity": "65",
+    "precip": "0.0",
+    "pressure": "1020",
+    "vis": "16",
+    "cloud": "10",
+    "dew": "8"
+  },
+  "refer": {
+    "sources": ["Weather China"],
+    "license": ["Commercial license"]
+  }
 }
 ```
-
-**错误响应：**
-```json
-{
-  "error": "错误描述信息"
-}
-```
-
-## 注意事项
-
-1. **API Key 配置**: 必须设置 `QWEATHER_API_KEY` 环境变量
-2. **API Base URL 配置**: 必须设置 `QWEATHER_BASE_URL` 环境变量
-3. **请求超时时间配置**: 必须设置 `QWEATHER_TIMEOUT` 环境变量
-3. **请求限制**: 注意和风天气 API 的调用频率限制
-4. **数据延迟**: 实况数据有 5-20 分钟延迟
-5. **免费额度**: 对非商业用户完全免费
-6. **LocationID**: 建议使用 LocationID 而不是经纬度坐标，查询更准确
-
-## 相关链接
-
-- [和风天气开发平台](https://dev.qweather.com/)
-- [和风天气 API 文档](https://dev.qweather.com/docs/api/)
-- [FastMCP 文档](https://github.com/jlowin/fastmcp)
-
