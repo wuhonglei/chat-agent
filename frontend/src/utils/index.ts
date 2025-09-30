@@ -1,5 +1,5 @@
 import { capitalize } from "lodash-es";
-import { SearchSourceType } from "@/constants";
+import { RoleType, SearchSourceType } from "@/constants";
 
 /**
  * 私有域名到公共域名的映射
@@ -67,4 +67,16 @@ export function isFromConfluence(sourceType: SearchSourceType) {
 
 export function isFromWebSearch(sourceType: SearchSourceType) {
   return sourceType === SearchSourceType.WEB_SEARCH;
+}
+
+export function isUserRole(role: RoleType) {
+  return role === "user";
+}
+
+export function isAssistantRole(role: RoleType) {
+  return role === "assistant";
+}
+
+export function isSystemRole(role: RoleType) {
+  return role === "system";
 }

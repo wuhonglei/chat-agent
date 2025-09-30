@@ -8,7 +8,7 @@ import SearchIcon from "@/assets/svg/SearchIcon.svg?react";
 import classNames from "classnames";
 import { Avatar, ConfigProvider } from "antd";
 import { useWebIconUrls } from "@/hooks";
-import React from "react";
+import React, { memo } from "react";
 import { useAppSelector } from "@/store/hooks";
 
 interface Props extends Omit<CustomButtonProps, "children"> {
@@ -18,17 +18,12 @@ interface Props extends Omit<CustomButtonProps, "children"> {
 
 const maxIcons = 3;
 
-const SourceAbstract = ({ sources, mode, ...props }: Props) => {
-  const { googleFavIconsAvailable } = useAppSelector(state => state.global);
-  const urlIcons = useWebIconUrls(sources, {
-    max: maxIcons,
-    googleFavIconsAvailable,
-  });
-  if (isEmpty(sources)) {
+const UrlIconGroup = memo(({ urlIcons }: { urlIcons: string[] }) => {
+  if (isEmpty(urlIcons)) {
     return null;
   }
 
-  const urlIconsGroup = (
+  return (
     <ConfigProvider
       theme={{ components: { Avatar: { groupBorderColor: "transparent" } } }}
     >
@@ -44,25 +39,38 @@ const SourceAbstract = ({ sources, mode, ...props }: Props) => {
       </Avatar.Group>
     </ConfigProvider>
   );
+});
 
+const SourceAbstract = ({ sources, mode, ...props }: Props) => {
+  const { googleFavIconsAvailable } = useAppSelector(state => state.global);
+  const urlIcons = useWebIconUrls(sources, {
+    max: maxIcons,
+    googleFavIconsAvailable,
+  });
+
+  if (isEmpty(sources)) {
+    return null;
+  }
+
+  const icons = <UrlIconGroup urlIcons={urlIcons} />;
   const children =
     mode === "preSource" ? (
       <>
         <SearchIcon className="w-4 h-4 text-blue-500 mr-1" />
         已阅读 {sources?.length} 个网页
-        {urlIconsGroup}
+        {icons}
       </>
     ) : (
       <>
-        {urlIconsGroup}
+        {icons}
         <span className="ml-1">{sources?.length} 个网页</span>
       </>
     );
 
   return (
     <CustomButton
-      {...props}
       size="middle"
+      {...props}
       className={classNames("text-gray-600", props.className)}
     >
       {children}

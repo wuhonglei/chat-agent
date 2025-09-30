@@ -4,7 +4,7 @@ import { Spin } from "antd";
 import React from "react";
 import ReasoningBlock from "./ReasoningBlock";
 import MarkdownContainer from "@/components/Chat/MarkdownContainer";
-import SourceAbstract from "./SourceAbstract";
+import AssistantOperation from "./AssistantOperation";
 
 interface AssistantMessageProps {
   message: ChatMessageType;
@@ -12,6 +12,7 @@ interface AssistantMessageProps {
   isLoading: boolean;
   isReasoning: boolean;
   onSourceClick: () => void;
+  onReSend: () => void;
 }
 
 const AssistantMessage: React.FC<AssistantMessageProps> = ({
@@ -20,13 +21,14 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
   isStreaming,
   isLoading,
   onSourceClick,
+  onReSend,
 }) => {
   const displayContent = useThrottle(message.content, {
     wait: 100,
   });
 
   return (
-    <div className="flex flex-col gap-2 mt-4 items-start">
+    <div className={"flex flex-col mt-4 items-start"}>
       {isLoading ? (
         <div className="flex justify-start items-center">
           <Spin size="small" />
@@ -34,25 +36,27 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
         </div>
       ) : (
         <>
+          {/* 渲染思考内容 */}
           <ReasoningBlock
             isReasoning={isReasoning}
             sources={message.sources}
             reasoning={message.reasoning}
             onSourceClick={onSourceClick}
           />
+          {/* 渲染模型返回的内容 */}
           <MarkdownContainer
             className="text-base w-full"
             sources={message.sources}
           >
             {displayContent}
           </MarkdownContainer>
-          {!isStreaming && (
-            <SourceAbstract
-              mode="postSource"
-              sources={message.sources}
-              onClick={onSourceClick}
-            />
-          )}
+          {/* 渲染操作按钮 */}
+          <AssistantOperation
+            message={message}
+            onReSend={onReSend}
+            isStreaming={isStreaming}
+            onSourceClick={onSourceClick}
+          />
         </>
       )}
     </div>

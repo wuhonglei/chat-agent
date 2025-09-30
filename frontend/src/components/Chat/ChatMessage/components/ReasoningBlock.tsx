@@ -24,13 +24,14 @@ const ReasoningBlock = ({
     wait: 100,
   });
 
+  // 没有思考内容时，则显示来源
   if (!reasoning) {
     return (
       <SourceAbstract
         sources={sources}
         mode="preSource"
         bordered={false}
-        className="-ml-2"
+        className="-ml-4"
         onClick={onSourceClick}
       />
     );
@@ -56,12 +57,12 @@ const ReasoningBlock = ({
           },
           classNames: { header: styles.header },
           children: (
-            <section className="flex flex-col gap-1 mt-3 items-start">
+            <section className="flex flex-col gap-1 mt-2 items-start">
               <SourceAbstract
                 sources={sources}
                 mode="preSource"
                 bordered={false}
-                className="-ml-2"
+                className="-ml-4"
                 onClick={onSourceClick}
               />
               <div className="flex gap-1">

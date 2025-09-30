@@ -1,8 +1,8 @@
 // Chat types
-import { SearchSourceType } from "@/constants";
+import { RoleType, SearchSourceType } from "@/constants";
 
 export interface ChatMessage {
-  role: "user" | "assistant" | "system";
+  role: RoleType;
   content: string;
   reasoning?: string;
   timestamp: string;

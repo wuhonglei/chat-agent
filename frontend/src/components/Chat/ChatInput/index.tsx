@@ -83,7 +83,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           <Form.Item name={names.message} initialValue={undefined}>
             <TextArea
               autoFocus
-              placeholder="发消息"
+              placeholder="给 DeepSeek 发送消息"
               onPressEnter={handlePressEnter}
               className={classNames(styles.input)}
               autoSize={{ minRows: 2.5, maxRows: 4 }}

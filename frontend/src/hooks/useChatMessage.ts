@@ -21,6 +21,7 @@ import {
 } from "@/interfaces";
 
 import { isNil } from "lodash-es";
+import { isUserRole } from "@/utils";
 
 export interface UseChatMessageOptions {
   historyLimit?: number;
@@ -40,11 +41,16 @@ function buildFootnoteDefinition(sources: SearchSource[]): string {
 }
 
 export interface UseChatMessageReturn {
-  sendMessage: (values: ChatInputFormValues, index?: number) => Promise<void>;
   abortMessage: () => void;
   isLoading: boolean;
   isStreaming: boolean;
   isReasoning: boolean;
+  reSendMessage: (
+    index: number,
+    message: ChatMessageType,
+    formData: Omit<ChatInputFormValues, "message">
+  ) => Promise<void>;
+  sendMessage: (values: ChatInputFormValues, index?: number) => Promise<void>;
 }
 
 export const useChatMessage = (
@@ -144,6 +150,23 @@ export const useChatMessage = (
     }
   };
 
+  const reSendMessage = async (
+    index: number,
+    message: ChatMessageType,
+    formData: Omit<ChatInputFormValues, "message">
+  ): Promise<void> => {
+    if (isUserRole(message.role)) {
+      sendMessage({ ...formData, message: message.content }, index);
+    } else {
+      // 如果是助手消息，则重新发送上一个用户消息
+      const newIndex = index - 1;
+      sendMessage(
+        { ...formData, message: messages[newIndex].content },
+        newIndex
+      );
+    }
+  };
+
   const abortMessage = (): void => {
     if (abortControllerRef.current && isStreaming) {
       abortControllerRef.current.abort();
@@ -158,5 +181,6 @@ export const useChatMessage = (
     isStreaming,
     isLoading,
     isReasoning,
+    reSendMessage,
   };
 };

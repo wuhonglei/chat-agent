@@ -12,6 +12,7 @@ interface ChatMessageItemProps {
   isReasoning: boolean;
   onSourceClick: (index: number, message: ChatMessageType) => void;
   onEditMessage: (index: number, content: string) => void;
+  onReSend: (index: number, message: ChatMessageType) => void;
 }
 
 const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
@@ -22,6 +23,7 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   isReasoning,
   onSourceClick,
   onEditMessage,
+  onReSend,
 }) => {
   const isUser = message.role === "user";
   const handleSourceClick = useMemoizedFn(() => {
@@ -29,6 +31,9 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   });
   const handleEditMessage = useMemoizedFn((content: string) => {
     onEditMessage(index, content);
+  });
+  const handleReSend = useMemoizedFn(() => {
+    onReSend(index, message);
   });
 
   return isUser ? (
@@ -39,6 +44,7 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
       isLoading={isLoading}
       isStreaming={isStreaming}
       isReasoning={isReasoning}
+      onReSend={handleReSend}
       onSourceClick={handleSourceClick}
     />
   );

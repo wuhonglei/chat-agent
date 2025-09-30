@@ -14,8 +14,14 @@ import styles from "./index.module.css";
 import SourceSider from "@/components/Chat/SourceSider";
 
 const ChatPage: React.FC = () => {
-  const { sendMessage, isStreaming, isLoading, isReasoning, abortMessage } =
-    useChatMessage();
+  const {
+    sendMessage,
+    reSendMessage,
+    isStreaming,
+    isLoading,
+    isReasoning,
+    abortMessage,
+  } = useChatMessage();
   const [sourceData, setSourceData] = useState<SourceData | undefined>();
   const [form] = Form.useForm<ChatInputFormValues>();
 
@@ -32,6 +38,12 @@ const ChatPage: React.FC = () => {
   const handleEditMessage = useMemoizedFn((index: number, content: string) => {
     sendMessage({ ...form.getFieldsValue(), message: content }, index);
   });
+
+  const handleReSend = useMemoizedFn(
+    (index: number, message: ChatMessageType) => {
+      reSendMessage(index, message, form.getFieldsValue());
+    }
+  );
 
   const handleCloseSource = useMemoizedFn(() => {
     setSourceData(undefined);
@@ -60,6 +72,7 @@ const ChatPage: React.FC = () => {
           isLoading={isLoading}
           isStreaming={isStreaming}
           isReasoning={isReasoning}
+          onReSend={handleReSend}
           onSourceClick={handleSourceClick}
           onEditMessage={handleEditMessage}
           className={styles["child-container"]}
