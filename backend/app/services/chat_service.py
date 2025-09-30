@@ -133,6 +133,13 @@ class ChatService:
             logger.error(f"Failed to process message: {e}")
             raise
 
+    @staticmethod
+    def _format_sse_message(msg_type: str, data=None) -> str:
+        """Format SSE (Server-Sent Events) message"""
+        if data is None:
+            return f"data: {json.dumps({'type': msg_type})}\n\n"
+        return f"data: {json.dumps({'type': msg_type, 'data': data}, ensure_ascii=False)}\n\n"
+
     async def stream_message(
         self,
         message: str,
@@ -160,7 +167,7 @@ class ChatService:
             if sources:
                 # Convert ChatSource objects to dictionaries for JSON serialization
                 sources_dict = [source.model_dump() for source in sources]
-                yield f"data: {json.dumps({'type': 'sources', 'data': sources_dict})}\n\n"
+                yield self._format_sse_message('sources', sources_dict)
 
             # Stream response from LLM
             stream = await self.client.chat.completions.create(
@@ -172,16 +179,16 @@ class ChatService:
             # Stream answer chunks
             async for chunk in stream:
                 if think_mode and chunk.choices[0].delta.reasoning_content:
-                    yield f"data: {json.dumps({'type': 'reasoning', 'data': chunk.choices[0].delta.reasoning_content})}\n\n"
+                    yield self._format_sse_message('reasoning', chunk.choices[0].delta.reasoning_content)
                 elif chunk.choices[0].delta.content:
-                    yield f"data: {json.dumps({'type': 'content', 'data': chunk.choices[0].delta.content})}\n\n"
+                    yield self._format_sse_message('content', chunk.choices[0].delta.content)
 
             # Send done signal
-            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            yield self._format_sse_message('done')
 
         except Exception as e:
             logger.error(f"Failed to stream message: {e}")
-            yield f"data: {json.dumps({'type': 'error', 'data': str(e)})}\n\n"
+            yield self._format_sse_message('error', str(e))
 
     def _build_prompt_with_context(
         self,

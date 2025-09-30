@@ -46,6 +46,15 @@ class Reranker:
                 f"Reranking with BM25")
             return await self._rerank_with_bm25(query, results, top_k)
 
+    def compose_document(self, result: RetrievalResult) -> str:
+        """Compose document for reranking"""
+        context = []
+        if result.title:
+            context.append(f'title: {result.title}')
+        if result.content:
+            context.append(f'content: {result.content}')
+        return "\n".join(context)
+
     async def _rerank_with_dashscope(
         self,
         query: str,
@@ -65,7 +74,10 @@ class Reranker:
         """
         try:
             # Prepare documents for cross-encoder
-            documents = [result.content for result in results]
+            documents = [
+                self.compose_document(result)
+                for result in results
+            ]
 
             # Get scores from cross-encoder asynchronously
             def _call_dashscope():
@@ -119,7 +131,10 @@ class Reranker:
         """
         try:
             # Tokenize documents
-            tokenized_docs = [result.content.split() for result in results]
+            tokenized_docs = [
+                self.compose_document(result).split()
+                for result in results
+            ]
 
             # Initialize BM25
             bm25 = BM25Okapi(tokenized_docs)
