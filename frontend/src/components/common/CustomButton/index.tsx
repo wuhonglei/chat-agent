@@ -2,11 +2,12 @@ import React, { forwardRef } from "react";
 import styles from "./index.module.css";
 import classNames from "classnames";
 import { Tooltip } from "antd";
+import { SizeType } from "antd/es/config-provider/SizeContext";
 
 export type CustomButtonProps = {
   active?: boolean;
   bordered?: boolean;
-  size?: "small" | "medium" | "large";
+  size?: SizeType;
   icon?: React.ReactNode;
   children?: React.ReactNode;
   onClick?: (active: boolean) => void;
@@ -19,7 +20,7 @@ const CustomButton = forwardRef<HTMLDivElement, CustomButtonProps>(
     {
       active = false,
       bordered = true,
-      size = "medium",
+      size = "middle",
       icon = null,
       children,
       onClick,

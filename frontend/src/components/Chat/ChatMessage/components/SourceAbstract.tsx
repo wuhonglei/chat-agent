@@ -62,8 +62,8 @@ const SourceAbstract = ({ sources, mode, ...props }: Props) => {
   return (
     <CustomButton
       {...props}
+      size="middle"
       className={classNames("text-gray-600", props.className)}
-      size="small"
     >
       {children}
       <RightOutlined className="ml-1" />

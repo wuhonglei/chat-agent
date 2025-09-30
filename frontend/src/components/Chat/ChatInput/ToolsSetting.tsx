@@ -69,7 +69,7 @@ const ToolsSetting = () => {
         })),
       }}
     >
-      <CustomButton bordered ref={buttonRef} size="small" className="gap-px">
+      <CustomButton bordered ref={buttonRef} size="middle" className="gap-px">
         <SettingIcon className="text-base" />
         <Avatar.Group>
           {icons.map(icon => (

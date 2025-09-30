@@ -1,13 +1,18 @@
-import { Input, Form, ConfigProvider, FormInstance } from "antd";
+import { Input, Form, ConfigProvider, FormInstance, Button } from "antd";
 import classNames from "classnames";
 import React from "react";
 import styles from "./index.module.css";
 import CustomButton from "@/components/common/CustomButton";
 import ThinkModeIcon from "@/assets/svg/ThinkModeIcon.svg?react";
+import SquareIcon from "@/assets/svg/SquareIcon.svg?react";
 import { ChatInputFormValues } from "@/interfaces";
 import ToolsSetting from "./ToolsSetting";
 import { names } from "./constant";
 import { isInputEnter } from "@/utils";
+import { ArrowUpOutlined } from "@ant-design/icons";
+import { useButtonState } from "./hooks";
+import { isButtonDisabled, isStreamingState } from "./util";
+import { useMemoizedFn } from "ahooks";
 
 const { TextArea } = Input;
 
@@ -17,33 +22,52 @@ interface ChatInputProps {
   className?: string;
   style?: React.CSSProperties;
   onSend: (values: ChatInputFormValues) => void;
+  onStop: () => void;
   form: FormInstance<ChatInputFormValues>;
 }
 
 const ChatInput: React.FC<ChatInputProps> = ({
   onSend,
+  onStop,
   isLoading,
   isStreaming,
   className,
   style,
   form,
 }) => {
-  const handleSend = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (!isInputEnter(event)) {
+  const message = Form.useWatch(names.message, form);
+  const buttonState = useButtonState(message, isStreaming);
+  const handleSend = useMemoizedFn(() => {
+    const values = form.getFieldsValue();
+    const message = (values.message || "").trim();
+    if (message) {
+      onSend({
+        ...values,
+        message: message,
+      });
+      form.resetFields([names.message]);
+    }
+  });
+
+  const handlePressEnter = useMemoizedFn(
+    (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (!isInputEnter(event)) {
+        return;
+      }
+      event.preventDefault(); // 阻止默认行为, 避免产生新行
+      handleSend();
+    }
+  );
+
+  const handleBtnClick = useMemoizedFn(() => {
+    // 停止流式传输
+    if (isStreamingState(buttonState)) {
+      onStop();
       return;
     }
 
-    event.preventDefault(); // 阻止默认行为, 避免产生新行
-    const values = form.getFieldsValue();
-    const { message } = values;
-    if (message.trim()) {
-      onSend({
-        ...values,
-        message: message.trim(),
-      });
-      form.resetFields(["message"]);
-    }
-  };
+    handleSend();
+  });
 
   return (
     <div className={classNames("pb-4", className)} style={style}>
@@ -56,31 +80,51 @@ const ChatInput: React.FC<ChatInputProps> = ({
             styles["input-container"]
           )}
         >
-          <Form.Item name="message" initialValue={undefined}>
+          <Form.Item name={names.message} initialValue={undefined}>
             <TextArea
               autoFocus
               placeholder="发消息"
-              onPressEnter={handleSend}
+              onPressEnter={handlePressEnter}
               className={classNames(styles.input)}
-              autoSize={{ minRows: 2, maxRows: 4 }}
+              autoSize={{ minRows: 2.5, maxRows: 4 }}
             />
           </Form.Item>
-          <div className="flex items-center gap-2">
-            <Form.Item
-              trigger="onClick"
-              initialValue={false}
-              valuePropName="active"
-              name={names.thinkMode}
-            >
-              <CustomButton
-                size="small"
-                icon={<ThinkModeIcon />}
-                tooltip="先思考后回答, 解决推理问题"
+          <div className="flex items-center gap-2 justify-between">
+            {/* 左侧 */}
+            <div className="flex items-center gap-2">
+              <Form.Item
+                trigger="onClick"
+                initialValue={false}
+                valuePropName="active"
+                name={names.thinkMode}
               >
-                深度思考
-              </CustomButton>
-            </Form.Item>
-            <ToolsSetting />
+                <CustomButton
+                  size="middle"
+                  icon={<ThinkModeIcon />}
+                  tooltip="先思考后回答, 解决推理问题"
+                >
+                  深度思考
+                </CustomButton>
+              </Form.Item>
+              <ToolsSetting />
+            </div>
+            {/* 右侧 */}
+            <div className="flex items-center gap-2">
+              <Button
+                size="middle"
+                shape="round"
+                type="primary"
+                icon={
+                  isStreamingState(buttonState) ? (
+                    <SquareIcon />
+                  ) : (
+                    <ArrowUpOutlined />
+                  )
+                }
+                onClick={handleBtnClick}
+                disabled={isButtonDisabled(buttonState)}
+              />
+            </div>
           </div>
         </Form>
       </ConfigProvider>

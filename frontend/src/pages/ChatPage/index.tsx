@@ -14,11 +14,10 @@ import styles from "./index.module.css";
 import SourceSider from "@/components/Chat/SourceSider";
 
 const ChatPage: React.FC = () => {
-  const { sendMessage, isStreaming, isLoading, isReasoning } = useChatMessage();
+  const { sendMessage, isStreaming, isLoading, isReasoning, abortMessage } =
+    useChatMessage();
   const [sourceData, setSourceData] = useState<SourceData | undefined>();
   const [form] = Form.useForm<ChatInputFormValues>();
-
-  console.info("sourceData", sourceData);
 
   const handleSourceClick = useMemoizedFn(
     (index: number, message: ChatMessageType) => {
@@ -68,6 +67,7 @@ const ChatPage: React.FC = () => {
         {/* Input area */}
         <ChatInput
           form={form}
+          onStop={abortMessage}
           onSend={sendMessage}
           isLoading={isLoading}
           isStreaming={isStreaming}

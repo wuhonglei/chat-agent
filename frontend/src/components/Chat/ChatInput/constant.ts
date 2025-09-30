@@ -1,6 +1,15 @@
+import { NamePath } from "rc-field-form/es/interface";
+
 export const names = {
-  thinkMode: ["thinkMode"],
-  webSearch: ["sourceConfig", "webSearch"],
-  confluence: ["sourceConfig", "confluence"],
-  googleDocs: ["sourceConfig", "googleDocs"],
+  message: ["message"] as NamePath,
+  thinkMode: ["thinkMode"] as NamePath,
+  webSearch: ["sourceConfig", "webSearch"] as NamePath,
+  confluence: ["sourceConfig", "confluence"] as NamePath,
+  googleDocs: ["sourceConfig", "googleDocs"] as NamePath,
 };
+
+export enum ButtonState {
+  WaitingType = "WaitingType",
+  Typing = "Typing",
+  Streaming = "Streaming",
+}
