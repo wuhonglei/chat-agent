@@ -86,6 +86,39 @@ async def make_request(endpoint: str, params: Dict[str, Any]) -> Dict[str, Any]:
             raise Exception(f"请求处理失败: {e}")
 
 
+@mcp.tool(name="search_city")
+async def search_city(
+    location: str = Field(..., description="需要查询地区的名称，支持文字、以英文逗号分隔的经度,纬度坐标（十进制，最多支持小数点后两位）、LocationID或Adcode（仅限中国城市）。例如 location=北京 或 location=116.41,39.92"),
+    adm: Optional[str] = Field(
+        default="", description="城市的上级行政区划，可设定只在某个行政区划范围内进行搜索，用于排除重名城市或对结果进行过滤。例如 adm=beijing"),
+    range: Optional[str] = Field(
+        default="cn", description="搜索范围，可设定只在某个国家或地区范围内进行搜索，国家和地区名称需使用ISO 3166 所定义的国家代码。如果不设置此参数，搜索范围将在所有城市。例如 range=cn"),
+    number: Optional[int] = Field(
+        default=3, description="返回结果的数量，取值范围1-20，默认返回3个结果。"),
+    lang: Optional[str] = Field(
+        default="zh", description="多语言设置，支持 zh（中文）、en（英文）等")
+) -> Dict[str, Any]:
+    """
+    搜索城市信息
+    """
+    if not config.QWEATHER_API_KEY:
+        return {"error": "请设置 QWEATHER_API_KEY 环境变量"}
+
+    params = {
+        "location": location,
+        "adm": adm,
+        "range": range,
+        "number": number,
+        "lang": lang
+    }
+
+    try:
+        data = await make_request("/geo/v2/city/lookup", params)
+        return data
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @mcp.tool(name="get_current_weather")
 async def get_current_weather(
     location: str = Field(...,
@@ -155,45 +188,6 @@ async def get_weather_forecast(
 
     try:
         data = await make_request(f"/v7/weather/{days}", params)
-        return data
-    except Exception as e:
-        return {"error": str(e)}
-
-
-@mcp.tool(name="search_city")
-async def search_city(
-    location: str = Field(..., description="城市名称，如：北京、上海、广州等"),
-    adm: str = Field(default="", description="行政区划，如：北京、上海、广东等"),
-    range: str = Field(default="cn", description="搜索范围，cn（中国）、world（全球）"),
-    number: int = Field(default=10, description="返回结果数量，最多20个"),
-    lang: str = Field(default="zh", description="多语言设置")
-) -> Dict[str, Any]:
-    """
-    搜索城市位置信息
-
-    Args:
-        location: 城市名称
-        adm: 行政区划
-        range: 搜索范围
-        number: 返回结果数量
-        lang: 多语言设置
-
-    Returns:
-        城市位置信息列表
-    """
-    if not config.QWEATHER_API_KEY:
-        return {"error": "请设置 QWEATHER_API_KEY 环境变量"}
-
-    params = {
-        "location": location,
-        "adm": adm,
-        "range": range,
-        "number": min(number, 20),  # 限制最多20个结果
-        "lang": lang
-    }
-
-    try:
-        data = await make_request("/v2/city/lookup", params)
         return data
     except Exception as e:
         return {"error": str(e)}

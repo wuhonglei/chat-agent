@@ -9,49 +9,16 @@ import sys
 from fastmcp import Client
 from fastmcp.client.transports import PythonStdioTransport, UvStdioTransport
 import json
+from pathlib import Path
+
+current_dir = Path(__file__).parent
 
 
-async def test_stdio_client():
-    """测试 stdio 模式的客户端"""
-    print("🌤️ 测试 Stdio 模式的 MCP Client")
-    print("=" * 50)
-
-    try:
-        # 使用 PythonStdioTransport 连接到 server
-        transport = PythonStdioTransport(
-            script_path="weather_server.py",
-            args=["--transport", "stdio"]
-        )
-
-        # 创建客户端
-        client = Client(transport=transport)
-
-        async with client:
-            print("✅ 成功连接到 stdio server")
-
-            # 测试工具调用
-            print("\n1. 测试城市搜索...")
-            result = await client.call_tool(
-                name="search_city",
-                arguments={
-                     "location": "北京",
-                    "number": 3
-                })
-            print(result)
-            print(f"搜索结果: {json.dumps(result, ensure_ascii=False, indent=2)}")
-
-            print("\n2. 测试实时天气...")
-            result = await client.call_tool("get_current_weather", {
-                "location": "101010100"
-            })
-            print(f"实时天气: {json.dumps(result, ensure_ascii=False, indent=2)}")
-
-        print("\n✅ 测试完成！")
-
-    except Exception as e:
-        print(f"❌ 测试失败: {e}")
-        import traceback
-        traceback.print_exc()
+def get_result_data(result):
+    data = getattr(result, 'data', None)
+    if data:
+        return json.dumps(data, ensure_ascii=False, indent=2)
+    return None
 
 
 async def test_simple_stdio():
@@ -62,9 +29,10 @@ async def test_simple_stdio():
     try:
         # 使用字符串路径创建 transport（会自动推断为 PythonStdioTransport）
         # 注意：直接使用脚本路径，参数会在 PythonStdioTransport 中处理
+        server_path = current_dir / "weather_server.py"
         client = Client(transport=UvStdioTransport(
             command="python3",
-            args=["weather_server.py", "--transport", "stdio"],
+            args=[str(server_path), "--transport", "stdio"],
         ))
 
         async with client:
@@ -76,25 +44,45 @@ async def test_simple_stdio():
             for tool in tools:
                 print(f"  - {tool.name}: {tool.description}")
 
-            # 测试一个简单的工具调用
-            print("\n测试城市搜索...")
+            print("\n1. 测试搜索城市...")
             result = await client.call_tool("search_city", {
-                "location": "上海",
-                "number": 2
+                "location": "深圳"
             })
-            # 处理 CallToolResult 对象
-            if hasattr(result, 'content') and result.content:
-                content = result.content[0].text if result.content else "无内容"
-                try:
-                    # 尝试解析 JSON 内容
-                    import json
-                    parsed_content = json.loads(content)
-                    print(
-                        f"搜索结果: {json.dumps(parsed_content, ensure_ascii=False, indent=2)}")
-                except json.JSONDecodeError:
-                    print(f"搜索结果: {content}")
-            else:
-                print(f"搜索结果: {result}")
+            data = get_result_data(result)
+            print(f"搜索城市: {data}")
+
+            location_id = result.data['location'][0]['id']
+
+            print("\n2. 测试当前天气...")
+            result = await client.call_tool("get_current_weather", {
+                "location": location_id,
+                "lang": "zh",
+                "unit": "m"
+            })
+            data = get_result_data(result)
+            print(f"当前天气: {data}")
+
+            print("\n3. 测试天气预报...")
+            result = await client.call_tool("get_weather_forecast", {
+                "location": location_id,
+                "days": "7d"
+            })
+            data = get_result_data(result)
+            print(f"天气预报: {data}")
+
+            print("\n4. 测试天气预警...")
+            result = await client.call_tool("get_weather_alerts", {
+                "location": location_id,
+            })
+            data = get_result_data(result)
+            print(f"天气预警: {data}")
+
+            print("\n5. 测试空气质量...")
+            result = await client.call_tool("get_air_quality", {
+                "location": location_id,
+            })
+            data = get_result_data(result)
+            print(f"空气质量: {data}")
 
         print("\n✅ 简单测试完成！")
 
@@ -108,12 +96,5 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Stdio 协议测试")
-    parser.add_argument("--mode", choices=["client", "simple"], default="simple",
-                        help="测试模式：client 或 simple")
-
     args = parser.parse_args()
-
-    if args.mode == "client":
-        asyncio.run(test_stdio_client())
-    else:
-        asyncio.run(test_simple_stdio())
+    asyncio.run(test_simple_stdio())

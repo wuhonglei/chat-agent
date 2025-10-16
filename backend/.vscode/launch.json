@@ -27,7 +27,7 @@
       "program": "${file}",
       "console": "integratedTerminal",
       "env": {
-        "PYTHONPATH": "${fileDirname}"
+        "PYTHONPATH": "${workspaceFolder}"
       }
     }
   ]
