@@ -38,16 +38,18 @@ QWEATHER_TIMEOUT=10
 
 ```bash
 cd tests/mcp_demo/weather_mcp
-python weather_server.py
+python weather_server.py --transport stdio
 ```
 
-Server 将在 `http://localhost:8000/mcp` 启动。
+Server 将在 stdio 模式下启动。
 
 #### 2. 运行 MCP Client
 
 ```bash
-python weather_client.py
+python weather_client.py --transport stdio
 ```
+
+Client 将在 stdio 模式下连接到 Server。
 
 ### 方法二：直接测试 API 功能
 

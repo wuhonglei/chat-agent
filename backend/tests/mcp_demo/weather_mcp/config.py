@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
 from pydantic import field_validator, ConfigDict
+from pathlib import Path
 
 
 class Settings(BaseSettings):
@@ -14,7 +15,7 @@ class Settings(BaseSettings):
         return v
 
     model_config = ConfigDict(
-        env_file=".env",
+        env_file=Path(__file__).parent / '.env',
         case_sensitive=True,
         env_ignore_empty=True
     )
