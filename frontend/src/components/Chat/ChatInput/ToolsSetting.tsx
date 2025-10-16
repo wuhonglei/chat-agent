@@ -49,8 +49,9 @@ const ToolsSetting = () => {
   return (
     <Dropdown
       open={open}
-      onOpenChange={handleOpenChange}
+      placement="topLeft"
       trigger={["click"]}
+      onOpenChange={handleOpenChange}
       getPopupContainer={() => buttonRef.current || document.body}
       menu={{
         items: menuItems.map(item => ({
