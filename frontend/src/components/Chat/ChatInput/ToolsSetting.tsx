@@ -21,12 +21,12 @@ const menuItems = [
     name: names.confluence,
     icon: confluenceUrl,
   },
-  {
-    label: "Google Docs",
-    key: names.googleDocs.at(-1),
-    name: names.googleDocs,
-    icon: googleDocsUrl,
-  },
+  // {
+  //   label: "Google Docs",
+  //   key: names.googleDocs.at(-1),
+  //   name: names.googleDocs,
+  //   icon: googleDocsUrl,
+  // },
 ];
 
 const ToolsSetting = () => {

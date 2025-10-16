@@ -4,11 +4,11 @@ Stdio 协议使用示例
 """
 
 import asyncio
-import subprocess
-import sys
+from typing import Literal
 from fastmcp import Client
-from fastmcp.client.transports import PythonStdioTransport, UvStdioTransport
+from fastmcp.client.transports import FastMCPTransport
 import json
+from weather_server import mcp
 from pathlib import Path
 
 current_dir = Path(__file__).parent
@@ -21,22 +21,20 @@ def get_result_data(result):
     return None
 
 
-async def test_simple_stdio():
-    """简单的 stdio 测试"""
-    print("\n🔧 简单的 Stdio 测试")
-    print("=" * 30)
-
+async def test_simple(transport: Literal['stdio', 'http']):
     try:
-        # 使用字符串路径创建 transport（会自动推断为 PythonStdioTransport）
-        # 注意：直接使用脚本路径，参数会在 PythonStdioTransport 中处理
-        server_path = current_dir / "weather_server.py"
-        client = Client(transport=UvStdioTransport(
-            command="python3",
-            args=[str(server_path), "--transport", "stdio"],
+        client = Client(transport=FastMCPTransport(
+            mcp=mcp,
         ))
 
         async with client:
-            print("✅ 成功连接到 stdio server")
+            print(f"✅ 成功连接到 {transport} server")
+
+            # 获取可用资源列表
+            print("\n可用资源:")
+            resources = await client.list_resources()
+            for resource in resources:
+                print(f"  - {resource.uri}: {resource.description}")
 
             # 获取可用工具列表
             print("\n可用工具:")
@@ -96,5 +94,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Stdio 协议测试")
+    parser.add_argument("--transport", choices=["stdio", "http"], default="stdio",
+                        help="传输方式，支持 stdio（标准输入输出）、http（HTTP）")
     args = parser.parse_args()
-    asyncio.run(test_simple_stdio())
+    asyncio.run(test_simple(args.transport))

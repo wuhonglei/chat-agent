@@ -253,13 +253,15 @@ async def get_air_quality(
         return {"error": str(e)}
 
 if __name__ == "__main__":
-    import sys
+    with open('./log.txt', 'a') as f:
+        f.write("Starting weather server in  mode...\n")
+
     import argparse
 
     parser = argparse.ArgumentParser(description="和风天气 MCP Server")
     parser.add_argument("--transport", choices=["http", "stdio"], default="http",
                         help="传输方式：http 或 stdio")
-    parser.add_argument("--port", type=int, default=8000,
+    parser.add_argument("--port", type=int, default=8001,
                         help="HTTP 模式下的端口号")
 
     args = parser.parse_args()
@@ -269,4 +271,4 @@ if __name__ == "__main__":
         mcp.run(transport="stdio")
     else:
         # HTTP 模式：启动 HTTP 服务器
-        mcp.run(host="0.0.0.0", port=args.port)
+        mcp.run(transport="http", port=args.port)
