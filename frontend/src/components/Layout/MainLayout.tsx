@@ -1,13 +1,8 @@
-import {
-  DatabaseOutlined,
-  FileMarkdownOutlined,
-  FileTextOutlined,
-  MessageOutlined,
-} from "@ant-design/icons";
+import { FileMarkdownOutlined, MessageOutlined } from "@ant-design/icons";
 import { Layout, Menu, MenuProps } from "antd";
 import classNames from "classnames";
 import React, { ReactNode } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import styles from "./mainLayout.module.css";
 
 const { Sider } = Layout;
@@ -51,13 +46,15 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           borderColor: "#E2E2E2",
         }}
       >
-        <img
-          src="/logo.png"
-          alt="logo"
-          width={32}
-          height={32}
-          className="mx-auto my-4"
-        />
+        <Link to="/">
+          <img
+            src="/logo.png"
+            alt="logo"
+            width={32}
+            height={32}
+            className="mx-auto my-4"
+          />
+        </Link>
         <Menu
           mode="vertical"
           items={menuItems}
