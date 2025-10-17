@@ -15,9 +15,13 @@ class Settings(BaseSettings):
         return v
 
     model_config = ConfigDict(
+        # .env 文件作为可选配置源，优先从环境变量读取
         env_file=Path(__file__).parent / '.env',
+        env_file_encoding='utf-8',
         case_sensitive=True,
-        env_ignore_empty=True
+        env_ignore_empty=True,
+        # 允许从进程环境变量中读取配置
+        extra='ignore'
     )
 
 

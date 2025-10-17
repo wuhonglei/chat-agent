@@ -30,6 +30,30 @@
       "env": {
         "PYTHONPATH": "${workspaceFolder}"
       }
+    },
+    {
+      "name": "Python: Current File Dir",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "cwd": "${fileDirname}",
+      "env": {
+        "PYTHONPATH": "${fileDirname}"
+      }
+    },
+    {
+      "name": "Debug MCP Client",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "mcp_demo.mcp_client",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/tests",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/tests"
+      }
     }
   ]
 }

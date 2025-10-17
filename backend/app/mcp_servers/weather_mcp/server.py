@@ -1,13 +1,42 @@
 """
 和风天气 MCP Server
 基于和风天气 API 提供天气查询服务
+文档地址: https://dev.qweather.com/docs/start/
 """
 
 import httpx
 from typing import Optional, Dict, Any, List
 from fastmcp import FastMCP
 from pydantic import BaseModel, Field
-from .config import config
+
+from pydantic_settings import BaseSettings
+from pydantic import field_validator, ConfigDict
+from pathlib import Path
+
+
+class Settings(BaseSettings):
+    QWEATHER_API_KEY: str
+    QWEATHER_BASE_URL: str
+    QWEATHER_TIMEOUT: int = 10
+
+    @field_validator('QWEATHER_BASE_URL')
+    def check_qweather_base_url(cls, v):
+        if not v.startswith('http://') and not v.startswith('https://'):
+            raise ValueError('QWEATHER_BASE_URL 必须以 http:// 或 https:// 开头')
+        return v
+
+    model_config = ConfigDict(
+        # .env 文件作为可选配置源，优先从环境变量读取
+        env_file=Path(__file__).parent / '.env',
+        env_file_encoding='utf-8',
+        case_sensitive=True,
+        env_ignore_empty=True,
+        # 允许从进程环境变量中读取配置
+        extra='ignore'
+    )
+
+
+config = Settings()
 
 # 创建 MCP 实例
 mcp = FastMCP("weather-mcp")
@@ -88,7 +117,8 @@ async def make_request(endpoint: str, params: Dict[str, Any]) -> Dict[str, Any]:
 
 @mcp.tool(name="search_city")
 async def search_city(
-    location: str = Field(..., description="需要查询地区的名称，支持文字、以英文逗号分隔的经度,纬度坐标（十进制，最多支持小数点后两位）、LocationID或Adcode（仅限中国城市）。例如 location=北京 或 location=116.41,39.92"),
+    location: str = Field(...,
+                          description="需要查询地区的名称，支持文字。例如 location=北京"),
     adm: Optional[str] = Field(
         default="", description="城市的上级行政区划，可设定只在某个行政区划范围内进行搜索，用于排除重名城市或对结果进行过滤。例如 adm=beijing"),
     range: Optional[str] = Field(
@@ -101,9 +131,6 @@ async def search_city(
     """
     搜索城市信息
     """
-    if not config.QWEATHER_API_KEY:
-        return {"error": "请设置 QWEATHER_API_KEY 环境变量"}
-
     params = {
         "location": location,
         "adm": adm,
@@ -129,9 +156,6 @@ async def get_current_weather(
     """
     获取实时天气信息
     """
-    if not config.QWEATHER_API_KEY:
-        return {"error": "请设置 QWEATHER_API_KEY 环境变量"}
-
     params = {
         "location": location,
         "lang": lang,
@@ -155,9 +179,6 @@ async def get_weather_forecast(
     """
     获取天气预报信息
     """
-    if not config.QWEATHER_API_KEY:
-        return {"error": "请设置 QWEATHER_API_KEY 环境变量"}
-
     # 验证天数参数
     valid_days = ["3d", "7d", "10d", "15d", "30d"]
     if days not in valid_days:
@@ -184,9 +205,6 @@ async def get_weather_alerts(
     """
     获取天气预警信息
     """
-    if not config.QWEATHER_API_KEY:
-        return {"error": "请设置 QWEATHER_API_KEY 环境变量"}
-
     params = {
         "location": location,
         "lang": lang
@@ -207,9 +225,6 @@ async def get_air_quality(
     """
     获取空气质量信息
     """
-    if not config.QWEATHER_API_KEY:
-        return {"error": "请设置 QWEATHER_API_KEY 环境变量"}
-
     params = {
         "location": location,
         "lang": lang
@@ -222,9 +237,6 @@ async def get_air_quality(
         return {"error": str(e)}
 
 if __name__ == "__main__":
-    with open('./log.txt', 'a') as f:
-        f.write("Starting weather server in  mode...\n")
-
     import argparse
 
     parser = argparse.ArgumentParser(description="和风天气 MCP Server")
