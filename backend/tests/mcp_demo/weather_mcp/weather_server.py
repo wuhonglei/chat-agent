@@ -7,10 +7,10 @@ import httpx
 from typing import Optional, Dict, Any, List
 from fastmcp import FastMCP
 from pydantic import BaseModel, Field
-from config import config
+from .config import config
 
 # 创建 MCP 实例
-mcp = FastMCP("和风天气 🌤️")
+mcp = FastMCP("weather-mcp")
 
 
 class WeatherNow(BaseModel):
