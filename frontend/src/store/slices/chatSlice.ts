@@ -1,4 +1,5 @@
 import { ChatMessage, SearchSource } from "@/interfaces";
+import { buildFootnoteDefinition } from "@/utils";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { isEmpty } from "lodash-es";
 
@@ -85,7 +86,20 @@ const chatSlice = createSlice({
         lastMessage.content += action.payload;
       }
     },
-    appendToLastMessageReasoning: (state, action: PayloadAction<string>) => {
+    prependSourceToLastReasoningMessage: (
+      state,
+      action: PayloadAction<SearchSource[] | undefined>
+    ) => {
+      const lastMessage = lastMessageCheck(state.messages);
+      if (lastMessage) {
+        const source = isEmpty(action.payload)
+          ? lastMessage.sources
+          : action.payload;
+        const sourceStr = buildFootnoteDefinition(source || []);
+        lastMessage.reasoning = sourceStr + lastMessage.reasoning;
+      }
+    },
+    appendToLastReasoningMessage: (state, action: PayloadAction<string>) => {
       const lastMessage = lastMessageCheck(state.messages);
       if (lastMessage) {
         lastMessage.reasoning += action.payload;
@@ -107,7 +121,8 @@ export const {
   setSources,
   prependToLastMessage,
   appendToLastMessage,
-  appendToLastMessageReasoning,
+  prependSourceToLastReasoningMessage,
+  appendToLastReasoningMessage,
   setReasoning,
   clearError,
   clearLastMessage,

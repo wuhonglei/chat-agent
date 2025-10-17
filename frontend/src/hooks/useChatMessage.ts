@@ -4,7 +4,8 @@ import {
   addMessage,
   addMessageAtIndex,
   appendToLastMessage,
-  appendToLastMessageReasoning,
+  appendToLastReasoningMessage,
+  prependSourceToLastReasoningMessage,
   clearLastMessage,
   prependToLastMessage,
   setLoading,
@@ -21,23 +22,10 @@ import {
 } from "@/interfaces";
 
 import { isNil } from "lodash-es";
-import { isUserRole } from "@/utils";
+import { buildFootnoteDefinition, isUserRole } from "@/utils";
 
 export interface UseChatMessageOptions {
   historyLimit?: number;
-}
-
-/**
- * 构建脚注定义
- * @param footnotes 脚注列表
- * @returns 脚注定义
- */
-function buildFootnoteDefinition(sources: SearchSource[]): string {
-  return sources
-    .map(
-      (source, index) => `[^CITE:${index + 1}]: ${source.title || index + 1}`
-    )
-    .join("\n");
 }
 
 export interface UseChatMessageReturn {
@@ -117,7 +105,8 @@ export const useChatMessage = (
         (data: StreamMessage) => {
           if (data.type === "reasoning") {
             // 思考内容
-            dispatch(appendToLastMessageReasoning(data.data));
+            dispatch(appendToLastReasoningMessage(data.data));
+            dispatch(prependSourceToLastReasoningMessage());
             dispatch(setReasoning(true));
             dispatch(setLoading(false));
           } else if (data.type === "content") {

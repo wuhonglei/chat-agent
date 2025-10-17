@@ -1,5 +1,19 @@
 import { capitalize } from "lodash-es";
 import { RoleType, SearchSourceType } from "@/constants";
+import { SearchSource } from "@/interfaces";
+
+/**
+ * 构建脚注定义
+ * @param footnotes 脚注列表
+ * @returns 脚注定义
+ */
+export function buildFootnoteDefinition(sources: SearchSource[]): string {
+  return sources
+    .map(
+      (source, index) => `[^CITE:${index + 1}]: ${source.title || index + 1}`
+    )
+    .join("\n");
+}
 
 /**
  * 私有域名到公共域名的映射

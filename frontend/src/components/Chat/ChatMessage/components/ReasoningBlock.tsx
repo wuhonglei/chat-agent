@@ -87,7 +87,10 @@ const ReasoningBlock = ({
                     }}
                   />
                 </div>
-                <MarkdownContainer className="flex-1 text-gray-600 text-sm">
+                <MarkdownContainer
+                  sources={sources}
+                  className="flex-1 text-gray-600 text-sm"
+                >
                   {displayReasoning}
                 </MarkdownContainer>
               </div>
