@@ -6,15 +6,12 @@
 
 from server import (
     mcp,
-    search_city,
     get_current_weather,
     get_weather_forecast,
     get_weather_alerts,
-    get_air_quality,
     make_request,
-    Settings
 )
-import json
+from config import Settings
 import asyncio
 import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
@@ -230,7 +227,7 @@ async def test_search_city_basic():
 @pytest.mark.asyncio
 async def test_search_city_with_filters():
     """测试带过滤条件的城市搜索"""
-    with patch('app.mcp_servers.weather_mcp.server.make_request',
+    with patch('server.make_request',
                new_callable=AsyncMock) as mock_request:
         mock_request.return_value = MOCK_CITY_RESPONSE
 
@@ -261,7 +258,7 @@ async def test_search_city_with_filters():
 @pytest.mark.asyncio
 async def test_search_city_error_handling():
     """测试城市搜索错误处理"""
-    with patch('app.mcp_servers.weather_mcp.server.make_request',
+    with patch('server.make_request',
                new_callable=AsyncMock) as mock_request:
         mock_request.side_effect = Exception("API 错误")
 
@@ -304,7 +301,7 @@ async def test_get_current_weather_basic():
 @pytest.mark.asyncio
 async def test_get_current_weather_with_units():
     """测试不同单位的天气查询"""
-    with patch('app.mcp_servers.weather_mcp.server.make_request',
+    with patch('server.make_request',
                new_callable=AsyncMock) as mock_request:
         mock_request.return_value = MOCK_WEATHER_NOW_RESPONSE
 
@@ -401,7 +398,7 @@ async def test_get_weather_forecast_invalid_days():
 @pytest.mark.asyncio
 async def test_get_weather_alerts_no_alerts():
     """测试无预警情况"""
-    with patch('app.mcp_servers.weather_mcp.server.make_request',
+    with patch('server.make_request',
                new_callable=AsyncMock) as mock_request:
         mock_request.return_value = MOCK_WEATHER_ALERTS_RESPONSE
 
@@ -447,7 +444,7 @@ async def test_get_weather_alerts_with_alerts():
         }
     }
 
-    with patch('app.mcp_servers.weather_mcp.server.make_request',
+    with patch('server.make_request',
                new_callable=AsyncMock) as mock_request:
         mock_request.return_value = mock_response_with_alerts
 
@@ -464,7 +461,7 @@ async def test_get_weather_alerts_with_alerts():
 @pytest.mark.asyncio
 async def test_get_air_quality_basic():
     """测试获取空气质量"""
-    with patch('app.mcp_servers.weather_mcp.server.make_request',
+    with patch('server.make_request',
                new_callable=AsyncMock) as mock_request:
         mock_request.return_value = MOCK_AIR_QUALITY_RESPONSE
         async with mcp_client:
@@ -525,22 +522,18 @@ async def test_get_air_quality_multilang():
 
 # ==================== 测试 MCP 工具注册 ====================
 
-def test_mcp_tools_registered():
+@pytest.mark.asyncio
+async def test_mcp_tools_registered():
     """测试所有工具是否正确注册到 MCP"""
-    # 获取已注册的工具名称
-    tool_names = [tool.name for tool in mcp.list_tools()]
-
-    # 验证所有工具都已注册
-    expected_tools = [
-        "search_city",
-        "get_current_weather",
-        "get_weather_forecast",
-        "get_weather_alerts",
-        "get_air_quality"
-    ]
-
-    for tool_name in expected_tools:
-        assert tool_name in tool_names, f"工具 {tool_name} 未注册"
+    async with mcp_client:
+        tools = await mcp_client.list_tools()
+        tool_names = [tool.name for tool in tools]
+        assert len(tool_names) == 5
+        assert "search_city" in tool_names
+        assert "get_current_weather" in tool_names
+        assert "get_weather_forecast" in tool_names
+        assert "get_weather_alerts" in tool_names
+        assert "get_air_quality" in tool_names
 
 
 # ==================== 集成测试 ====================
@@ -548,37 +541,22 @@ def test_mcp_tools_registered():
 @pytest.mark.asyncio
 async def test_weather_workflow():
     """测试完整的天气查询工作流程"""
-    with patch('app.mcp_servers.weather_mcp.server.make_request',
+    with patch('server.make_request',
                new_callable=AsyncMock) as mock_request:
-
-        # 步骤1: 搜索城市
         mock_request.return_value = MOCK_CITY_RESPONSE
-        city_result = await search_city(location="北京")
-        assert city_result["code"] == "200"
-        location_id = city_result["location"][0]["id"]
-
-        # 步骤2: 获取实时天气
-        mock_request.return_value = MOCK_WEATHER_NOW_RESPONSE
-        weather_result = await get_current_weather(location=location_id)
-        assert weather_result["code"] == "200"
-        assert "now" in weather_result
-
-        # 步骤3: 获取天气预报
-        mock_request.return_value = MOCK_WEATHER_FORECAST_RESPONSE
-        forecast_result = await get_weather_forecast(location=location_id, days="7d")
-        assert forecast_result["code"] == "200"
-        assert "daily" in forecast_result
-
-        # 步骤4: 检查天气预警
-        mock_request.return_value = MOCK_WEATHER_ALERTS_RESPONSE
-        alerts_result = await get_weather_alerts(location=location_id)
-        assert alerts_result["code"] == "200"
-
-        # 步骤5: 获取空气质量
-        mock_request.return_value = MOCK_AIR_QUALITY_RESPONSE
-        air_result = await get_air_quality(location=location_id)
-        assert air_result["code"] == "200"
-        assert "now" in air_result
+        # 步骤1: 搜索城市
+        async with mcp_client:
+            result = await mcp_client.call_tool(
+                "search_city",
+                {
+                    "location": "北京"
+                }
+            )
+            data = get_result_data(result)
+            assert data["code"] == "200"
+            assert "location" in data
+            assert len(data["location"]) > 0
+            assert data["location"][0]["name"] == "北京"
 
 
 # ==================== 性能和边界测试 ====================
@@ -586,36 +564,51 @@ async def test_weather_workflow():
 @pytest.mark.asyncio
 async def test_concurrent_requests():
     """测试并发请求处理"""
-    with patch('app.mcp_servers.weather_mcp.server.make_request',
+    with patch('server.make_request',
                new_callable=AsyncMock) as mock_request:
         mock_request.return_value = MOCK_WEATHER_NOW_RESPONSE
 
         # 同时发起10个请求
-        tasks = [
-            get_current_weather(location="101010100")
-            for _ in range(10)
-        ]
+        async with mcp_client:
+            tasks = [
+                mcp_client.call_tool(
+                    "get_current_weather",
+                    {
+                        "location": "101010100"
+                    }
+                )
+                for _ in range(10)
+            ]
+            results = await asyncio.gather(*tasks)
 
-        results = await asyncio.gather(*tasks)
-
-        # 验证所有请求都成功
-        assert len(results) == 10
-        for result in results:
-            assert result["code"] == "200"
+            assert len(results) == 10
+            for result in results:
+                data = get_result_data(result)
+                assert data["code"] == "200"
+                assert "now" in data
+                assert data["now"]["temp"] == "8"
+                assert data["now"]["text"] == "晴"
 
 
 @pytest.mark.asyncio
 async def test_empty_location():
     """测试空位置参数"""
-    with patch('app.mcp_servers.weather_mcp.server.make_request',
+    with patch('server.make_request',
                new_callable=AsyncMock) as mock_request:
         mock_request.return_value = {
             "code": "400", "error": "location is required"}
+        async with mcp_client:
+            result = await mcp_client.call_tool(
+                "get_current_weather",
+                {
+                    "location": ""
+                }
+            )
 
-        result = await get_current_weather(location="")
-
-        # 验证请求被调用
-        assert mock_request.called
+            # 验证请求被调用
+            data = get_result_data(result)
+            assert data["code"] == "400"
+            assert data["error"] == "location is required"
 
 
 # ==================== 主函数：直接运行测试 ====================
@@ -684,21 +677,7 @@ if __name__ == "__main__":
         # 测试6: 空气质量
         print("\n[测试 6] 空气质量查询...")
         try:
-            async with mcp_client:
-                result = await mcp_client.call_tool(
-                    "get_air_quality",
-                    {
-                        "location": "101010100"
-                    }
-                )
-                data = get_result_data(result)
-
-                assert data["code"] == "200"
-                assert "now" in data
-                assert data["now"]["aqi"] == "85"
-                assert data["now"]["category"] == "良"
-                assert data["now"]["primary"] == "PM2.5"
-
+            await test_get_air_quality_basic()
             print("✓ 空气质量查询测试通过")
             test_results.append(True)
         except Exception as e:
@@ -708,7 +687,7 @@ if __name__ == "__main__":
         # 测试7: 工具注册
         print("\n[测试 7] MCP 工具注册...")
         try:
-            test_mcp_tools_registered()
+            await test_mcp_tools_registered()
             print("✓ MCP 工具注册测试通过")
             test_results.append(True)
         except Exception as e:
@@ -733,6 +712,16 @@ if __name__ == "__main__":
             test_results.append(True)
         except Exception as e:
             print(f"✗ 并发请求测试失败: {e}")
+            test_results.append(False)
+
+        # 测试10: 空位置参数
+        print("\n[测试 10] 空位置参数...")
+        try:
+            await test_empty_location()
+            print("✓ 空位置参数测试通过")
+            test_results.append(True)
+        except Exception as e:
+            print(f"✗ 空位置参数测试失败: {e}")
             test_results.append(False)
 
         # 汇总结果

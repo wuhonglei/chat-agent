@@ -5,98 +5,21 @@
 """
 
 import httpx
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from fastmcp import FastMCP
-from pydantic import BaseModel, Field
+from pydantic import Field
 
-from pydantic_settings import BaseSettings
-from pydantic import field_validator, ConfigDict
-from pathlib import Path
-
-
-class Settings(BaseSettings):
-    QWEATHER_API_KEY: str
-    QWEATHER_BASE_URL: str
-    QWEATHER_TIMEOUT: int = 10
-
-    @field_validator('QWEATHER_BASE_URL')
-    def check_qweather_base_url(cls, v):
-        if not v.startswith('http://') and not v.startswith('https://'):
-            raise ValueError('QWEATHER_BASE_URL 必须以 http:// 或 https:// 开头')
-        return v
-
-    model_config = ConfigDict(
-        # .env 文件作为可选配置源，优先从环境变量读取
-        env_file=Path(__file__).parent / '.env',
-        env_file_encoding='utf-8',
-        case_sensitive=True,
-        env_ignore_empty=True,
-        # 允许从进程环境变量中读取配置
-        extra='ignore'
-    )
-
-
-config = Settings()
+try:
+    # 尝试相对导入（当作为模块运行时）
+    from .config import config
+    from .models import WeatherNow, WeatherDaily, WeatherResponse
+except ImportError:
+    # 绝对导入（当直接运行时）
+    from config import config
+    from models import WeatherNow, WeatherDaily, WeatherResponse
 
 # 创建 MCP 实例
 mcp = FastMCP("weather-mcp")
-
-
-class WeatherNow(BaseModel):
-    obsTime: str = Field(..., description="观测时间")
-    temp: str = Field(..., description="温度")
-    feelsLike: str = Field(..., description="体感温度")
-    icon: str = Field(..., description="天气图标代码")
-    text: str = Field(..., description="天气状况文字描述")
-    wind360: str = Field(..., description="风向360度")
-    windDir: str = Field(..., description="风向")
-    windScale: str = Field(..., description="风力等级")
-    windSpeed: str = Field(..., description="风速")
-    humidity: str = Field(..., description="相对湿度")
-    precip: str = Field(..., description="降水量")
-    pressure: str = Field(..., description="大气压强")
-    vis: str = Field(..., description="能见度")
-    cloud: str = Field(..., description="云量")
-    dew: str = Field(..., description="露点温度")
-
-
-class WeatherDaily(BaseModel):
-    fxDate: str = Field(..., description="预报日期")
-    sunrise: str = Field(..., description="日出时间")
-    sunset: str = Field(..., description="日落时间")
-    moonrise: str = Field(..., description="月出时间")
-    moonset: str = Field(..., description="月落时间")
-    moonPhase: str = Field(..., description="月相")
-    moonPhaseIcon: str = Field(..., description="月相图标")
-    tempMax: str = Field(..., description="最高温度")
-    tempMin: str = Field(..., description="最低温度")
-    iconDay: str = Field(..., description="白天天气图标")
-    textDay: str = Field(..., description="白天天气状况")
-    iconNight: str = Field(..., description="夜间天气图标")
-    textNight: str = Field(..., description="夜间天气状况")
-    wind360Day: str = Field(..., description="白天风向360度")
-    windDirDay: str = Field(..., description="白天风向")
-    windScaleDay: str = Field(..., description="白天风力等级")
-    windSpeedDay: str = Field(..., description="白天风速")
-    wind360Night: str = Field(..., description="夜间风向360度")
-    windDirNight: str = Field(..., description="夜间风向")
-    windScaleNight: str = Field(..., description="夜间风力等级")
-    windSpeedNight: str = Field(..., description="夜间风速")
-    precip: str = Field(..., description="降水量")
-    uvIndex: str = Field(..., description="紫外线指数")
-    humidity: str = Field(..., description="相对湿度")
-    pressure: str = Field(..., description="大气压强")
-    vis: str = Field(..., description="能见度")
-    cloud: str = Field(..., description="云量")
-
-
-class WeatherResponse(BaseModel):
-    code: str = Field(..., description="状态码")
-    updateTime: str = Field(..., description="API 更新时间")
-    fxLink: str = Field(..., description="和风天气链接")
-    now: Optional[WeatherNow] = Field(None, description="实时天气数据")
-    daily: Optional[List[WeatherDaily]] = Field(None, description="天气预报数据")
-    refer: Dict[str, Any] = Field(..., description="数据来源信息")
 
 
 async def make_request(endpoint: str, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -124,7 +47,7 @@ async def search_city(
     range: Optional[str] = Field(
         default="cn", description="搜索范围，可设定只在某个国家或地区范围内进行搜索，国家和地区名称需使用ISO 3166 所定义的国家代码。如果不设置此参数，搜索范围将在所有城市。例如 range=cn"),
     number: Optional[int] = Field(
-        default=3, description="返回结果的数量，取值范围1-20，默认返回3个结果。"),
+        default=1, description="返回结果的数量，取值范围1-20，默认返回 1 个结果。"),
     lang: Optional[str] = Field(
         default="zh", description="多语言设置，支持 zh（中文）、en（英文）等")
 ) -> Dict[str, Any]:
