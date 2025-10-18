@@ -6,6 +6,31 @@ from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 
 
+class WeatherCommonResponse(BaseModel):
+    code: str = Field(..., description="状态码")
+    refer: Dict[str, Any] = Field(..., description="数据来源信息")
+
+
+class City(BaseModel):
+    name: str = Field(..., description="城市名称")
+    id: str = Field(..., description="城市ID")
+    lat: str = Field(..., description="纬度")
+    lon: str = Field(..., description="经度")
+    adm2: str = Field(..., description="二级行政区")
+    adm1: str = Field(..., description="一级行政区")
+    country: str = Field(..., description="国家")
+    tz: str = Field(..., description="时区")
+    utcOffset: str = Field(..., description="UTC偏移")
+    isDst: str = Field(..., description="是否夏令时")
+    type: str = Field(..., description="类型")
+    rank: str = Field(..., description="排名")
+    fxLink: str = Field(..., description="和风天气链接")
+
+
+class CitySearchResponse(WeatherCommonResponse):
+    location: List[City] = Field(..., description="城市列表")
+
+
 class WeatherNow(BaseModel):
     obsTime: str = Field(..., description="观测时间")
     temp: str = Field(..., description="温度")
@@ -22,6 +47,12 @@ class WeatherNow(BaseModel):
     vis: str = Field(..., description="能见度")
     cloud: str = Field(..., description="云量")
     dew: str = Field(..., description="露点温度")
+
+
+class WeatherNowResponse(WeatherCommonResponse):
+    now: WeatherNow = Field(..., description="实时天气数据")
+    updateTime: str = Field(..., description="API更新时间")
+    fxLink: str = Field(..., description="和风天气链接")
 
 
 class WeatherDaily(BaseModel):
@@ -54,10 +85,32 @@ class WeatherDaily(BaseModel):
     cloud: str = Field(..., description="云量")
 
 
-class WeatherResponse(BaseModel):
-    code: str = Field(..., description="状态码")
-    updateTime: str = Field(..., description="API 更新时间")
+class WeatherDailyResponse(WeatherCommonResponse):
+    daily: List[WeatherDaily] = Field(..., description="天气预报数据")
+    updateTime: str = Field(..., description="API更新时间")
     fxLink: str = Field(..., description="和风天气链接")
-    now: Optional[WeatherNow] = Field(None, description="实时天气数据")
-    daily: Optional[List[WeatherDaily]] = Field(None, description="天气预报数据")
-    refer: Dict[str, Any] = Field(..., description="数据来源信息")
+
+
+class WeatherAlert(BaseModel):
+    id: str = Field(..., description="预警ID")
+    sender: str = Field(..., description="发布机构")
+    pubTime: str = Field(..., description="发布时间")
+    title: str = Field(..., description="预警标题")
+    startTime: str = Field(..., description="开始时间")
+    endTime: str = Field(..., description="结束时间")
+    status: str = Field(..., description="状态")
+    level: str = Field(..., description="等级")
+    severity: str = Field(..., description="严重程度")
+    severityColor: str = Field(..., description="严重程度颜色")
+    type: str = Field(..., description="类型代码")
+    typeName: str = Field(..., description="类型名称")
+    urgency: str = Field(..., description="紧急程度")
+    certainty: str = Field(..., description="确定性")
+    text: str = Field(..., description="预警内容")
+    related: str = Field(..., description="相关信息")
+
+
+class WeatherAlertResponse(WeatherCommonResponse):
+    warning: List[WeatherAlert] = Field(..., description="天气预警数据")
+    updateTime: str = Field(..., description="API更新时间")
+    fxLink: str = Field(..., description="和风天气链接")

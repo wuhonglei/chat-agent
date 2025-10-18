@@ -153,8 +153,7 @@ async def chat_with_deepseek(
                 # 执行 MCP 工具
                 tool_result = await execute_mcp_tool(client, tool_name, tool_args)
 
-                print(f"结果: {tool_result[:200]}..." if len(
-                    tool_result) > 200 else f"结果: {tool_result}")
+                print(tool_result)
 
                 # 将工具结果添加到消息历史
                 messages.append({
@@ -185,8 +184,8 @@ async def main():
                 "transport": "http",
             },
             "weather-mcp": {
-                "command": "uv",
-                "args": ["run", "-m", "mcp_demo.weather_mcp.weather_server", "--transport", "stdio"],
+                "command": "fastmcp",
+                "args": ["run", "mcp_demo/weather_mcp/weather_server.py:mcp", "--transport", "stdio"],
                 "env": {
                     "QWEATHER_API_KEY": os.getenv("QWEATHER_API_KEY", "32de48c2fba5456cb0239c6b4f7d29ac"),
                     "QWEATHER_BASE_URL": os.getenv("QWEATHER_BASE_URL", "https://pb6hewdvet.re.qweatherapi.com"),
@@ -231,12 +230,12 @@ async def main():
         print("\n" + "="*60)
 
         # 示例 2: 搜索并查询
-        await chat_with_deepseek(
-            client=client,
-            deepseek_client=deepseek_client,
-            user_message="搜索一下 2024 年人工智能的最新进展",
-            mcp_tools=tools
-        )
+        # await chat_with_deepseek(
+        #     client=client,
+        #     deepseek_client=deepseek_client,
+        #     user_message="搜索一下 2024 年人工智能的最新进展",
+        #     mcp_tools=tools
+        # )
 
         end_time = time.time()
         print(f"\n总耗时: {end_time - start_time:.2f} 秒")
