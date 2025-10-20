@@ -7,7 +7,7 @@ export interface ChatMessage {
   reasoning?: string;
   timestamp: string;
   sources?: SearchSource[];
-  metadata?: Record<string, any>;
+  metadata: Omit<ChatInputFormValues, "message">;
 }
 
 export interface RetrieverSource {

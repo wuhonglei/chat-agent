@@ -87,6 +87,7 @@ export const useChatMessage = (
       content: "",
       reasoning: "",
       timestamp: new Date().toISOString(),
+      metadata: omit(values, ["message"]),
     };
     dispatch(addMessage(assistantMessage));
     dispatch(setStreaming(true));
@@ -106,7 +107,6 @@ export const useChatMessage = (
           if (data.type === "reasoning") {
             // 思考内容
             dispatch(appendToLastReasoningMessage(data.data));
-            dispatch(prependSourceToLastReasoningMessage());
             dispatch(setReasoning(true));
             dispatch(setLoading(false));
           } else if (data.type === "content") {
@@ -117,6 +117,7 @@ export const useChatMessage = (
           } else if (data.type === "sources") {
             // 知识库搜索结果
             dispatch(setSources(data.data));
+            dispatch(prependSourceToLastReasoningMessage(data.data));
             dispatch(prependToLastMessage(buildFootnoteDefinition(data.data)));
           } else if (data.type === "done") {
             // 流结束

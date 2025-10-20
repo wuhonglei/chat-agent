@@ -88,14 +88,11 @@ const chatSlice = createSlice({
     },
     prependSourceToLastReasoningMessage: (
       state,
-      action: PayloadAction<SearchSource[] | undefined>
+      action: PayloadAction<SearchSource[]>
     ) => {
       const lastMessage = lastMessageCheck(state.messages);
-      if (lastMessage) {
-        const source = isEmpty(action.payload)
-          ? lastMessage.sources
-          : action.payload;
-        const sourceStr = buildFootnoteDefinition(source || []);
+      if (lastMessage && lastMessage.metadata.thinkMode) {
+        const sourceStr = buildFootnoteDefinition(action.payload);
         lastMessage.reasoning = sourceStr + lastMessage.reasoning;
       }
     },
