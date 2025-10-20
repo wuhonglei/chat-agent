@@ -84,10 +84,10 @@ const ChatInput: React.FC<ChatInputProps> = ({
         <Form.Item name={names.message} initialValue={undefined}>
           <TextArea
             autoFocus
+            autoSize={{ minRows: 2.5 }}
             placeholder="给 DeepSeek 发送消息"
             onPressEnter={handlePressEnter}
             className={classNames(styles.input)}
-            autoSize={{ minRows: 2.5, maxRows: 4 }}
           />
         </Form.Item>
         <div className="flex items-center gap-2 justify-between">

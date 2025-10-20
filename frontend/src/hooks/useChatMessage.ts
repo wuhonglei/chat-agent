@@ -17,11 +17,10 @@ import { chatAPI } from "@/services";
 import {
   ChatInputFormValues,
   ChatMessage as ChatMessageType,
-  SearchSource,
   StreamMessage,
 } from "@/interfaces";
 
-import { isNil } from "lodash-es";
+import { isNil, omit } from "lodash-es";
 import { buildFootnoteDefinition, isUserRole } from "@/utils";
 
 export interface UseChatMessageOptions {
@@ -74,6 +73,7 @@ export const useChatMessage = (
       role: "user",
       content: values.message,
       timestamp: new Date().toISOString(),
+      metadata: omit(values, ["message"]),
     };
     dispatch(
       isNil(index)
