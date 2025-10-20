@@ -117,8 +117,9 @@ export const useChatMessage = (
           } else if (data.type === "sources") {
             // 知识库搜索结果
             dispatch(setSources(data.data));
-            dispatch(prependSourceToLastReasoningMessage(data.data));
-            dispatch(prependToLastMessage(buildFootnoteDefinition(data.data)));
+            const sourceStr = buildFootnoteDefinition(data.data);
+            dispatch(prependSourceToLastReasoningMessage(sourceStr));
+            dispatch(prependToLastMessage(sourceStr));
           } else if (data.type === "done") {
             // 流结束
             resetState();
