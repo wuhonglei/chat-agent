@@ -70,21 +70,7 @@ class ChatService:
                 return assistant_message.content or "", sources
 
             # Add assistant message to conversation
-            messages.append({
-                "role": "assistant",
-                "content": assistant_message.content,
-                "tool_calls": [
-                    {
-                        "id": tc.id,
-                        "type": tc.type,
-                        "function": {
-                            "name": tc.function.name,
-                            "arguments": tc.function.arguments
-                        }
-                    }
-                    for tc in assistant_message.tool_calls
-                ]
-            })
+            messages.append(assistant_message.model_dump(exclude_none=True))
 
             # Execute tool calls
             for tool_call in assistant_message.tool_calls:
@@ -102,20 +88,8 @@ class ChatService:
                     messages.append({
                         "role": "tool",
                         "tool_call_id": tool_call.id,
-                        "content": str(result)
+                        "content": self.mcp_manager.format_mcp_result(result)
                     })
-
-                    # Add to sources if applicable
-                    sources.append(ChatSource(
-                        content=str(result)[
-                            :200] + "..." if len(str(result)) > 200 else str(result),
-                        title=f"MCP Tool: {tool_name}",
-                        url=None,
-                        source="mcp_tool",
-                        score=1.0,
-                        metadata={"tool_name": tool_name,
-                                  "arguments": arguments}
-                    ))
 
                 except Exception as e:
                     logger.error(f"Failed to call tool {tool_name}: {e}")
@@ -223,6 +197,7 @@ class ChatService:
 
                 # Get MCP tools for LLM
                 tools = await self.mcp_manager.get_tools_for_llm() if self.mcp_manager and self.mcp_manager._initialized else []
+                logger.info(f"MCP tools: {tools}")
 
                 # Call LLM with tools
                 answer, sources = await self._call_llm_with_tools(prompt, model, tools)
