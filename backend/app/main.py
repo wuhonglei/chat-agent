@@ -8,6 +8,7 @@ from loguru import logger
 
 from app.api import chat, health
 from app.core.config import settings
+from app.mcp.mcp_client import get_mcp_manager
 
 
 @asynccontextmanager
@@ -16,6 +17,8 @@ async def lifespan(app: FastAPI):
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
 
     logger.info("Application startup complete")
+
+    app.state.mcp_manager = await get_mcp_manager()
 
     yield
 

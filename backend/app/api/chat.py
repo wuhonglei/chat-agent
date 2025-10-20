@@ -22,9 +22,9 @@ async def chat(request: Request, chat_request: ChatRequest) -> ChatResponse:
         logger.info(f"Chat request: {chat_request}")
         # Get or create session ID
         session_id = chat_request.session_id or str(uuid.uuid4())
-
+        state = cast(AppState, request.app.state)
         # Initialize chat service
-        chat_service = ChatService()
+        chat_service = ChatService(mcp_manager=state.mcp_manager)
 
         # Process message
         response = await chat_service.process_message(
@@ -48,9 +48,10 @@ async def chat_stream(request: Request, chat_request: ChatRequest):
     try:
         # Get or create session ID
         session_id = chat_request.session_id or str(uuid.uuid4())
+        state = cast(AppState, request.app.state)
 
         # Initialize chat service
-        chat_service = ChatService()
+        chat_service = ChatService(mcp_manager=state.mcp_manager)
 
         # Stream response
         async def generate() -> AsyncGenerator[str, None]:
