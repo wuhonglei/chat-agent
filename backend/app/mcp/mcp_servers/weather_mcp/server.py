@@ -325,20 +325,20 @@ async def main():
         print(result)
 
 if __name__ == "__main__":
-    asyncio.run(main())
-    # import argparse
+    # asyncio.run(main())
+    import argparse
 
-    # parser = argparse.ArgumentParser(description="和风天气 MCP Server")
-    # parser.add_argument("--transport", choices=["http", "stdio"], default="http",
-    #                     help="传输方式：http 或 stdio")
-    # parser.add_argument("--port", type=int, default=8001,
-    #                     help="HTTP 模式下的端口号")
+    parser = argparse.ArgumentParser(description="和风天气 MCP Server")
+    parser.add_argument("--transport", choices=["http", "stdio"], default="http",
+                        help="传输方式：http 或 stdio")
+    parser.add_argument("--port", type=int, default=8001,
+                        help="HTTP 模式下的端口号")
 
-    # args = parser.parse_args()
+    args = parser.parse_args()
 
-    # if args.transport == "stdio":
-    #     # Stdio 模式：通过标准输入输出与客户端通信
-    #     mcp.run(transport="stdio")
-    # else:
-    #     # HTTP 模式：启动 HTTP 服务器
-    #     mcp.run(transport="http", port=args.port)
+    if args.transport == "stdio":
+        # Stdio 模式：通过标准输入输出与客户端通信
+        mcp.run(transport="stdio")
+    else:
+        # HTTP 模式：启动 HTTP 服务器
+        mcp.run(transport="http", port=args.port)

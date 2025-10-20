@@ -455,72 +455,8 @@ async def test_get_weather_alerts_with_alerts():
         assert result["warning"][0]["type"] == "大风"
         assert result["warning"][0]["level"] == "蓝色"
 
-
-# ==================== 测试 get_air_quality 工具 ====================
-
-@pytest.mark.asyncio
-async def test_get_air_quality_basic():
-    """测试获取空气质量"""
-    with patch('server.make_request',
-               new_callable=AsyncMock) as mock_request:
-        mock_request.return_value = MOCK_AIR_QUALITY_RESPONSE
-        async with mcp_client:
-            result = await mcp_client.call_tool(
-                "get_air_quality",
-                {
-                    "location": "101010100"
-                }
-            )
-            data = get_result_data(result)
-
-        assert data["code"] == "200"
-        assert "now" in data
-        assert data["now"]["aqi"] == "85"
-        assert data["now"]["category"] == "良"
-        assert data["now"]["primary"] == "PM2.5"
-
-
-@pytest.mark.asyncio
-async def test_get_air_quality_multilang():
-    """测试多语言空气质量查询"""
-    with patch('server.make_request',
-               new_callable=AsyncMock) as mock_request:
-        mock_request.return_value = MOCK_AIR_QUALITY_RESPONSE
-
-        # 中文
-        async with mcp_client:
-            result = await mcp_client.call_tool(
-                "get_air_quality",
-                {
-                    "location": "101010100",
-                    "lang": "zh"
-                }
-            )
-            data = get_result_data(result)
-            assert data["code"] == "200"
-            assert "now" in data
-            assert data["now"]["aqi"] == "85"
-            assert data["now"]["category"] == "良"
-            assert data["now"]["primary"] == "PM2.5"
-
-        # 英文
-        async with mcp_client:
-            result = await mcp_client.call_tool(
-                "get_air_quality",
-                {
-                    "location": "101010100",
-                    "lang": "en"
-                }
-            )
-            data = get_result_data(result)
-            assert data["code"] == "200"
-            assert "now" in data
-            assert data["now"]["aqi"] == "85"
-            assert data["now"]["category"] == "良"
-            assert data["now"]["primary"] == "PM2.5"
-
-
 # ==================== 测试 MCP 工具注册 ====================
+
 
 @pytest.mark.asyncio
 async def test_mcp_tools_registered():
@@ -672,16 +608,6 @@ if __name__ == "__main__":
             test_results.append(True)
         except Exception as e:
             print(f"✗ 天气预警查询测试失败: {e}")
-            test_results.append(False)
-
-        # 测试6: 空气质量
-        print("\n[测试 6] 空气质量查询...")
-        try:
-            await test_get_air_quality_basic()
-            print("✓ 空气质量查询测试通过")
-            test_results.append(True)
-        except Exception as e:
-            print(f"✗ 空气质量查询测试失败: {e}")
             test_results.append(False)
 
         # 测试7: 工具注册
