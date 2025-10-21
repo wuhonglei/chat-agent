@@ -42,10 +42,6 @@ async def tavily_search(
         default=None, description="Will return all results after the specified start date. Format: YYYY-MM-DD"),
     end_date: Optional[str] = Field(
         default=None, description="Will return all results before the specified end date. Format: YYYY-MM-DD"),
-    include_answer: Optional[str] = Field(
-        default=False, description="Include an LLM-generated answer. Options: False, True/'basic', 'advanced'"),
-    include_raw_content: Optional[str] = Field(
-        default=False, description="Include the cleaned and parsed HTML content. Options: False, True/'markdown', 'text'"),
     include_images: Optional[bool] = Field(
         default=False, description="Also perform an image search and include the results in the response"),
     include_image_descriptions: Optional[bool] = Field(
@@ -65,10 +61,6 @@ async def tavily_search(
     Ideal for gathering current information, news, and detailed web content analysis.
     """
     try:
-        # Validate country parameter (not handled by Pydantic)
-        if country and topic != "general":
-            raise ValueError("country 参数仅在 topic 为 'general' 时可用")
-
         # Use AsyncTavilyClient.search method
         response = await client.search(
             query=query,
@@ -80,8 +72,6 @@ async def tavily_search(
             time_range=time_range,
             start_date=start_date,
             end_date=end_date,
-            include_answer=include_answer,
-            include_raw_content=include_raw_content,
             include_images=include_images,
             include_image_descriptions=include_image_descriptions,
             include_favicon=include_favicon,
