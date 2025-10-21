@@ -8,7 +8,7 @@ from loguru import logger
 from typing import Dict, List, Optional, Any
 from contextlib import asynccontextmanager
 from fastmcp import Client
-from fastmcp.client.transports import FastMCPTransport
+from fastmcp.client.transports import FastMCPTransport, StreamableHttpTransport
 from fastmcp import FastMCP
 
 # 导入 MCP servers
@@ -18,6 +18,12 @@ from app.mcp.mcp_servers.tavily_mcp.server import mcp as tavily_mcp
 
 mcp_config = {
     "mcpServers": {
+        "context7": {
+            "url": "https://mcp.context7.com/mcp",
+            "headers": {
+                "CONTEXT7_API_KEY": "ctx7sk-23e02d48-44b5-47c5-a705-09cdf771a69b"
+            }
+        },
         "weather-mcp": weather_mcp,
         "tavily-mcp": tavily_mcp,
     }
@@ -51,9 +57,24 @@ class MCPClientManager:
         # 为每个 server 创建 client
         for server_name, server_instance in self.servers.items():
             try:
-                # 使用 FastMCPTransport 创建本地连接
-                transport = FastMCPTransport(server_instance) if isinstance(
-                    server_instance, FastMCP) else server_instance
+                # 根据服务器类型选择不同的传输方式
+                if isinstance(server_instance, FastMCP):
+                    # 本地 FastMCP 服务器
+                    transport = FastMCPTransport(server_instance)
+                    logger.info(f"使用 FastMCPTransport 连接本地服务器: {server_name}")
+                elif isinstance(server_instance, dict) and "url" in server_instance:
+                    # 远程 HTTP 服务器
+                    transport = StreamableHttpTransport(
+                        url=server_instance["url"],
+                        headers=server_instance.get("headers", {})
+                    )
+                    logger.info(
+                        f"使用 StreamableHttpTransport 连接远程服务器: {server_name}")
+                else:
+                    # 其他类型的服务器实例
+                    transport = server_instance
+                    logger.info(f"使用自定义传输方式连接服务器: {server_name}")
+
                 client = Client(transport=transport)
                 self.clients[server_name] = client
 
