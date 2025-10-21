@@ -190,6 +190,30 @@ class MCPClientManager:
             logger.error(f"✗ 工具 {tool_name} 执行失败: {e}")
             raise
 
+    @staticmethod
+    def format_mcp_result(result: Any) -> str:
+        """
+        格式化 MCP 结果
+        """
+        # 处理结果
+        if hasattr(result, 'content'):
+            # 如果结果有 content 属性
+            if isinstance(result.content, list):
+                # 如果是列表，提取所有文本内容
+                text_parts = []
+                for item in result.content:
+                    if hasattr(item, 'text'):
+                        text_parts.append(item.text)
+                    elif isinstance(item, dict) and 'text' in item:
+                        text_parts.append(item['text'])
+                return "\n".join(text_parts)
+            elif hasattr(result.content, 'text'):
+                return result.content.text
+            else:
+                return str(result.content)
+        else:
+            return str(result)
+
     async def get_tool_info(self, tool_name: str) -> Optional[Any]:
         """
         获取工具的详细信息

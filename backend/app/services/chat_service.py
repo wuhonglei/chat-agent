@@ -6,6 +6,7 @@ from datetime import datetime
 
 from loguru import logger
 from openai import AsyncOpenAI
+from openai.types.chat import ChatCompletionMessage
 
 from app.core.config import settings
 from app.models.chat import ChatMessage, ChatResponse, ChatSource, SourceConfig
@@ -44,76 +45,31 @@ class ChatService:
         config_dict = source_config.model_dump()
         return any(value is True for value in config_dict.values())
 
-    async def _call_llm_with_tools_streaming(
+    async def _call_llm_with_tools(
         self,
         messages: list[dict],
         model: str,
         tools: list[dict],
-    ) -> AsyncGenerator[tuple[str, list[ChatSource], bool], None]:
-        """Call LLM with MCP tools and handle tool calls with streaming support"""
+    ) -> tuple[str, list[ChatSource]]:
+        """Call LLM with MCP tools and handle tool calls (non-streaming)"""
         sources: list[ChatSource] = []
         max_iterations = 5  # Prevent infinite loops
-        is_streaming = True
 
         for iteration in range(max_iterations):
-            # First, try streaming to see if tools are needed
-            if is_streaming:
-                try:
-                    stream = await self.client.chat.completions.create(
-                        model=model,
-                        messages=messages,
-                        tools=tools if tools else None,
-                        stream=True,
-                    )
+            # Call LLM with tools
+            response = await self.client.chat.completions.create(
+                model=model,
+                messages=messages,
+                tools=tools if tools else None,
+                stream=False,
+            )
+            assistant_message: ChatCompletionMessage = response.choices[0].message
 
-                    # Collect streaming response to check for tool calls
-                    full_content = ""
-                    tool_calls = []
+            # If no tool calls, return the response
+            if not assistant_message.tool_calls:
+                return assistant_message.content or "", sources
 
-                    async for chunk in stream:
-                        if chunk.choices[0].delta.content:
-                            full_content += chunk.choices[0].delta.content
-                            # Yield content as we stream
-                            yield chunk.choices[0].delta.content, sources, True
-
-                        # Check if there are tool calls in this chunk
-                        if chunk.choices[0].delta.tool_calls:
-                            tool_calls.extend(
-                                chunk.choices[0].delta.tool_calls)
-
-                    # If no tool calls, we're done
-                    if not tool_calls:
-                        return
-
-                    # If we have tool calls, switch to non-streaming mode
-                    is_streaming = False
-                    # Reconstruct the assistant message for tool call handling
-                    assistant_message = type('obj', (object,), {
-                        'content': full_content,
-                        'tool_calls': tool_calls
-                    })()
-
-                except Exception as e:
-                    logger.error(
-                        f"Streaming failed, falling back to non-streaming: {e}")
-                    is_streaming = False
-
-            if not is_streaming:
-                # Fallback to non-streaming for tool calls
-                response = await self.client.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    tools=tools if tools else None,
-                    stream=False,
-                )
-                assistant_message = response.choices[0].message
-
-                # If no tool calls in non-streaming mode, stream the response
-                if not assistant_message.tool_calls:
-                    yield assistant_message.content or "", sources, True
-                    return
-
-            # Handle tool calls (non-streaming path)
+            # Handle tool calls
             messages.append(assistant_message.model_dump(exclude_none=True))
 
             # Execute tool calls
@@ -132,7 +88,7 @@ class ChatService:
                     messages.append({
                         "role": "tool",
                         "tool_call_id": tool_call.id,
-                        "content": str(result)
+                        "content": self.mcp_manager.format_mcp_result(result)
                     })
 
                 except Exception as e:
@@ -143,8 +99,8 @@ class ChatService:
                         "content": f"Error calling tool: {str(e)}"
                     })
 
-        # If we hit max iterations, return last response
-        yield "Maximum tool call iterations reached. Please try rephrasing your question.", sources, False
+        # If we hit max iterations, return error message
+        return "Maximum tool call iterations reached. Please try rephrasing your question.", sources
 
     async def _perform_retrieval(
         self, message: str, source_config: SourceConfig
@@ -240,19 +196,18 @@ class ChatService:
                     sources_dict = [source.model_dump() for source in sources]
                     yield self._format_sse_message('sources', sources_dict)
 
-                # Stream response from LLM
-                stream = await self.client.chat.completions.create(
+                # Get response from LLM (non-streaming)
+                response = await self.client.chat.completions.create(
                     model=model,
                     messages=prompt,
-                    stream=True,
+                    stream=False,
                 )
 
-                # Stream answer chunks
-                async for chunk in stream:
-                    if think_mode and chunk.choices[0].delta.reasoning_content:
-                        yield self._format_sse_message('reasoning', chunk.choices[0].delta.reasoning_content)
-                    elif chunk.choices[0].delta.content:
-                        yield self._format_sse_message('content', chunk.choices[0].delta.content)
+                # Send response content
+                content = response.choices[0].message.content or ""
+                if think_mode and hasattr(response.choices[0].message, 'reasoning_content'):
+                    yield self._format_sse_message('reasoning', response.choices[0].message.reasoning_content)
+                yield self._format_sse_message('content', content)
             else:
                 # Use MCP tools - let LLM decide whether to call tools
                 prompt = self._build_prompt_without_context(message, history)
@@ -260,18 +215,17 @@ class ChatService:
                 # Get MCP tools for LLM
                 tools = await self.mcp_manager.get_tools_for_llm() if self.mcp_manager and self.mcp_manager._initialized else []
 
-                # Use intelligent streaming with tools
-                async for content_chunk, tool_sources, is_streaming in self._call_llm_with_tools_streaming(prompt, model, tools):
-                    # Update sources if we have new tool sources
-                    if tool_sources and tool_sources != sources:
-                        sources = tool_sources
-                        sources_dict = [source.model_dump()
-                                        for source in sources]
-                        yield self._format_sse_message('sources', sources_dict)
+                # Call LLM with tools (non-streaming)
+                content, tool_sources = await self._call_llm_with_tools(prompt, model, tools)
 
-                    # Stream content chunks
-                    if content_chunk:
-                        yield self._format_sse_message('content', content_chunk)
+                # Update sources if we have tool sources
+                if tool_sources:
+                    sources = tool_sources
+                    sources_dict = [source.model_dump() for source in sources]
+                    yield self._format_sse_message('sources', sources_dict)
+
+                # Send content
+                yield self._format_sse_message('content', content)
 
             # Send done signal
             yield self._format_sse_message('done')
