@@ -8,38 +8,11 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from loguru import logger
 
-from app.models.chat import ChatRequest, ChatResponse, ChatSession
+from app.models.chat import ChatRequest, ChatSession
 from app.services.chat_service import ChatService
 from app.models.app_state import AppState
 
 router = APIRouter()
-
-
-@router.post("", response_model=ChatResponse)
-async def chat(request: Request, chat_request: ChatRequest) -> ChatResponse:
-    """Process chat message and return response"""
-    try:
-        logger.info(f"Chat request: {chat_request}")
-        # Get or create session ID
-        session_id = chat_request.session_id or str(uuid.uuid4())
-        state = cast(AppState, request.app.state)
-        # Initialize chat service
-        chat_service = ChatService(mcp_manager=state.mcp_manager)
-
-        # Process message
-        response = await chat_service.process_message(
-            message=chat_request.message,
-            session_id=session_id,
-            history=chat_request.history,
-            source_config=chat_request.source_config,
-            think_mode=chat_request.think_mode,
-        )
-
-        return response
-
-    except Exception as e:
-        logger.error(f"Chat processing failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/stream")

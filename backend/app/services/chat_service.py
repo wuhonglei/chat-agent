@@ -44,47 +44,77 @@ class ChatService:
         config_dict = source_config.model_dump()
         return any(value is True for value in config_dict.values())
 
-    async def _call_llm_with_tools(
+    async def _call_llm_with_tools_streaming(
         self,
         messages: list[dict],
         model: str,
         tools: list[dict],
-    ) -> tuple[str, list[ChatSource]]:
-        """Call LLM with MCP tools and handle tool calls"""
+    ) -> AsyncGenerator[tuple[str, list[ChatSource], bool], None]:
+        """Call LLM with MCP tools and handle tool calls with streaming support"""
         sources: list[ChatSource] = []
         max_iterations = 5  # Prevent infinite loops
+        is_streaming = True
 
-        for _ in range(max_iterations):
-            # Call LLM with tools
-            response = await self.client.chat.completions.create(
-                model=model,
-                messages=messages,
-                tools=tools if tools else None,
-                stream=False,
-            )
+        for iteration in range(max_iterations):
+            # First, try streaming to see if tools are needed
+            if is_streaming:
+                try:
+                    stream = await self.client.chat.completions.create(
+                        model=model,
+                        messages=messages,
+                        tools=tools if tools else None,
+                        stream=True,
+                    )
 
-            assistant_message = response.choices[0].message
+                    # Collect streaming response to check for tool calls
+                    full_content = ""
+                    tool_calls = []
 
-            # If no tool calls, return the response
-            if not assistant_message.tool_calls:
-                return assistant_message.content or "", sources
+                    async for chunk in stream:
+                        if chunk.choices[0].delta.content:
+                            full_content += chunk.choices[0].delta.content
+                            # Yield content as we stream
+                            yield chunk.choices[0].delta.content, sources, True
 
-            # Add assistant message to conversation
-            messages.append({
-                "role": "assistant",
-                "content": assistant_message.content,
-                "tool_calls": [
-                    {
-                        "id": tc.id,
-                        "type": tc.type,
-                        "function": {
-                            "name": tc.function.name,
-                            "arguments": tc.function.arguments
-                        }
-                    }
-                    for tc in assistant_message.tool_calls
-                ]
-            })
+                        # Check if there are tool calls in this chunk
+                        if chunk.choices[0].delta.tool_calls:
+                            tool_calls.extend(
+                                chunk.choices[0].delta.tool_calls)
+
+                    # If no tool calls, we're done
+                    if not tool_calls:
+                        return
+
+                    # If we have tool calls, switch to non-streaming mode
+                    is_streaming = False
+                    # Reconstruct the assistant message for tool call handling
+                    assistant_message = type('obj', (object,), {
+                        'content': full_content,
+                        'tool_calls': tool_calls
+                    })()
+
+                except Exception as e:
+                    logger.error(
+                        f"Streaming failed, falling back to non-streaming: {e}")
+                    is_streaming = False
+
+            if not is_streaming:
+                # Fallback to non-streaming for tool calls
+                response = await self.client.chat.completions.create(
+                    model=model,
+                    messages=messages,
+                    tools=tools if tools else None,
+                    stream=False,
+                )
+                assistant_message = response.choices[0].message
+
+                # If no tool calls in non-streaming mode, stream the response
+                if not assistant_message.tool_calls:
+                    yield assistant_message.content or "", sources, True
+                    return
+
+            # Handle tool calls (non-streaming path)
+            messages.append(assistant_message.model_dump(exclude_none=True))
 
             # Execute tool calls
             for tool_call in assistant_message.tool_calls:
@@ -105,18 +135,6 @@ class ChatService:
                         "content": str(result)
                     })
 
-                    # Add to sources if applicable
-                    sources.append(ChatSource(
-                        content=str(result)[
-                            :200] + "..." if len(str(result)) > 200 else str(result),
-                        title=f"MCP Tool: {tool_name}",
-                        url=None,
-                        source="mcp_tool",
-                        score=1.0,
-                        metadata={"tool_name": tool_name,
-                                  "arguments": arguments}
-                    ))
-
                 except Exception as e:
                     logger.error(f"Failed to call tool {tool_name}: {e}")
                     messages.append({
@@ -126,7 +144,7 @@ class ChatService:
                     })
 
         # If we hit max iterations, return last response
-        return "Maximum tool call iterations reached. Please try rephrasing your question.", sources
+        yield "Maximum tool call iterations reached. Please try rephrasing your question.", sources, False
 
     async def _perform_retrieval(
         self, message: str, source_config: SourceConfig
@@ -179,64 +197,6 @@ class ChatService:
                     )
 
         return context, sources
-
-    async def process_message(
-        self,
-        message: str,
-        session_id: str,
-        history: list[ChatMessage] = None,
-        source_config: SourceConfig = None,
-        think_mode: bool = False,
-    ) -> ChatResponse:
-        """Process a chat message and return response"""
-        try:
-            # Set default source config if not provided
-            if source_config is None:
-                source_config = SourceConfig()
-
-            # Choose between retrieval and MCP tool calling
-            model = settings.LLM_THINK_MODEL if think_mode else settings.LLM_MODEL
-
-            if self._has_enabled_sources(source_config):
-                # Use retrieval if any source is enabled in config
-                context, sources = await self._perform_retrieval(message, source_config)
-
-                # Build prompt based on whether context is available
-                if context:
-                    prompt = self._build_prompt_with_context(
-                        message, context, history)
-                else:
-                    prompt = self._build_prompt_without_context(
-                        message, history)
-
-                # Get response from LLM
-                response = await self.client.chat.completions.create(
-                    model=model,
-                    messages=prompt,
-                    stream=False,
-                )
-
-                answer = response.choices[0].message.content
-            else:
-                # Use MCP tools - let LLM decide whether to call tools
-                prompt = self._build_prompt_without_context(message, history)
-
-                # Get MCP tools for LLM
-                tools = await self.mcp_manager.get_tools_for_llm() if self.mcp_manager and self.mcp_manager._initialized else []
-
-                # Call LLM with tools
-                answer, sources = await self._call_llm_with_tools(prompt, model, tools)
-
-            return ChatResponse(
-                message=answer,
-                sources=sources,
-                session_id=session_id,
-                timestamp=datetime.now(),
-            )
-
-        except Exception as e:
-            logger.error(f"Failed to process message: {e}")
-            raise
 
     @staticmethod
     def _format_sse_message(msg_type: str, data=None) -> str:
@@ -300,17 +260,18 @@ class ChatService:
                 # Get MCP tools for LLM
                 tools = await self.mcp_manager.get_tools_for_llm() if self.mcp_manager and self.mcp_manager._initialized else []
 
-                # For streaming with tools, we need to handle it differently
-                # First call without streaming to handle tool calls
-                answer, tool_sources = await self._call_llm_with_tools(prompt, model, tools)
+                # Use intelligent streaming with tools
+                async for content_chunk, tool_sources, is_streaming in self._call_llm_with_tools_streaming(prompt, model, tools):
+                    # Update sources if we have new tool sources
+                    if tool_sources and tool_sources != sources:
+                        sources = tool_sources
+                        sources_dict = [source.model_dump()
+                                        for source in sources]
+                        yield self._format_sse_message('sources', sources_dict)
 
-                if tool_sources:
-                    sources_dict = [source.model_dump()
-                                    for source in tool_sources]
-                    yield self._format_sse_message('sources', sources_dict)
-
-                # Stream the final answer
-                yield self._format_sse_message('content', answer)
+                    # Stream content chunks
+                    if content_chunk:
+                        yield self._format_sse_message('content', content_chunk)
 
             # Send done signal
             yield self._format_sse_message('done')
