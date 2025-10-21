@@ -67,7 +67,7 @@ async def tavily_search(
             auto_parameters=auto_parameters,
             topic=topic,
             search_depth=search_depth,
-            chunks_per_source=chunks_per_source if search_depth == "advanced" else None,
+            chunks_per_source=chunks_per_source,
             max_results=max_results,
             time_range=time_range,
             start_date=start_date,
