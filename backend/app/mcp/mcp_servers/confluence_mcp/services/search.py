@@ -1,5 +1,6 @@
 """Module for Confluence search operations."""
 
+import html
 import logging
 
 from ..models.confluence import (
@@ -79,21 +80,36 @@ class SearchMixin(ConfluenceClient):
                 if result_item.get("content", {}).get("id") == page.id:
                     excerpt = result_item.get("excerpt", "")
                     if excerpt:
-                        # Process the excerpt as HTML content
-                        space_key = page.space.key if page.space else ""
-                        _, processed_markdown = self.preprocessor.process_html_content(
-                            excerpt,
-                            space_key=space_key,
-                            confluence_client=self.confluence,
-                        )
                         # Create a new page with processed content
-                        page.content = processed_markdown
+                        page.excerpt = self.remove_excerpt_highlight(excerpt)
                     break
 
             processed_pages.append(page)
 
         # Return the list of result pages with processed content
         return processed_pages
+
+    @staticmethod
+    def remove_excerpt_highlight(excerpt: str) -> str:
+        """
+        Remove the highlight from the excerpt.
+        """
+        """Get clean snippet without highlight markers
+
+        Removes @@@hl@@@ and @@@endhl@@@ markers from excerpt and unescapes HTML entities
+        """
+        highlight_start = '@@@hl@@@'
+        highlight_end = '@@@endhl@@@'
+        if not excerpt or highlight_start not in excerpt or highlight_end not in excerpt:
+            return ""
+
+        # Remove highlight markers
+        clean_text = excerpt.replace(
+            highlight_start, "").replace(highlight_end, "")
+
+        # Unescape HTML entities using Python's built-in html module
+        clean_text = html.unescape(clean_text)
+        return clean_text.strip()
 
     @handle_atlassian_api_errors("Confluence API")
     def search_user(

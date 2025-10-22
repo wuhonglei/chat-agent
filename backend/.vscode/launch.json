@@ -42,6 +42,18 @@
       "env": {
         "PYTHONPATH": "${workspaceFolder}"
       }
+    },
+    {
+      "name": "Debug Confluence MCP Server",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "app.mcp.mcp_servers.confluence_mcp.test_server",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      }
     }
   ]
 }

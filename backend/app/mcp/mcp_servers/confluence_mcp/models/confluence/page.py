@@ -61,7 +61,8 @@ class ConfluenceVersion(ApiModel, TimestampMixin):
 
     def to_simplified_dict(self) -> dict[str, Any]:
         """Convert to simplified dictionary for API response."""
-        result = {"number": self.number, "when": self.format_timestamp(self.when)}
+        result = {"number": self.number,
+                  "when": self.format_timestamp(self.when)}
 
         if self.message:
             result["message"] = self.message
@@ -85,6 +86,7 @@ class ConfluencePage(ApiModel, TimestampMixin):
     type: str = "page"  # "page", "blogpost", etc.
     status: str = "current"
     space: ConfluenceSpace | None = None
+    excerpt: str = EMPTY_STRING
     content: str = EMPTY_STRING
     content_format: str = "view"  # "view", "storage", etc.
     created: str = EMPTY_STRING
@@ -139,7 +141,8 @@ class ConfluencePage(ApiModel, TimestampMixin):
                     # Extract space key from REST API path
                     if space_path.startswith("/rest/api/space/"):
                         space_key = space_path.split("/rest/api/space/")[1]
-                        space_data = {"key": space_key, "name": f"Space {space_key}"}
+                        space_data = {"key": space_key,
+                                      "name": f"Space {space_key}"}
 
         # Create space model
         space = ConfluenceSpace.from_api_response(space_data)
@@ -155,7 +158,8 @@ class ConfluencePage(ApiModel, TimestampMixin):
         elif include_body and "body" in data:
             body = data.get("body", {})
             if content_format in body:
-                content = body.get(content_format, {}).get("value", EMPTY_STRING)
+                content = body.get(content_format, {}).get(
+                    "value", EMPTY_STRING)
 
         # Adjust content_format if convert_to_markdown is False and content is processed HTML
         convert_to_markdown = kwargs.get("convert_to_markdown", True)
@@ -259,7 +263,8 @@ class ConfluencePage(ApiModel, TimestampMixin):
 
         # Add content if it's not empty
         if self.content and self.content_format:
-            result["content"] = {"value": self.content, "format": self.content_format}
+            result["content"] = {"value": self.content,
+                                 "format": self.content_format}
 
         # Add ancestors if there are any
         if self.ancestors:

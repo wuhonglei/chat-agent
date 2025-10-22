@@ -5,68 +5,24 @@ import logging
 
 from fastmcp import FastMCP
 from pydantic import Field
-from .services import ConfluenceFetcher, ConfluenceConfig
+from .services import ConfluenceFetcher
 from .config import config
-from .models.confluence import ConfluencePage
 
 
 logger = logging.getLogger(__name__)
 
 mcp = FastMCP(
     name="Confluence MCP Service",
+    description="Provides tools for interacting with Atlassian Confluence.",
 )
-
-confluence_fetcher = ConfluenceFetcher(config=ConfluenceConfig(
-    url=config.CONFLUENCE_URL,
-    personal_token=config.CONFLUENCE_PERSONAL_TOKEN,
-    auth_type=config.AUTH_TYPE,
-))
+confluence_fetcher = ConfluenceFetcher(config={
+    'url': config.CONFLUENCE_URL,
+    'personal_token': config.CONFLUENCE_PERSONAL_TOKEN,
+})
 
 
-async def _confluence_get_page(
-    page_id: str | None = Field(
-        description=(
-            "Confluence page ID (numeric ID, can be found in the page URL). "
-            "For example, in the URL 'https://example.atlassian.net/wiki/spaces/TEAM/pages/123456789/Page+Title', "
-            "the page ID is '123456789'. "
-            "Provide this OR both 'title' and 'space_key'. If page_id is provided, title and space_key will be ignored."
-        ),
-        default=None,
-    ),
-    title: str | None = Field(
-        description=(
-            "The exact title of the Confluence page. Use this with 'space_key' if 'page_id' is not known."
-        ),
-        default=None,
-    ),
-    space_key: str | None = Field(
-        description=(
-            "The key of the Confluence space where the page resides (e.g., 'DEV', 'TEAM'). Required if using 'title'."
-        ),
-        default=None,
-    ),
-) -> ConfluencePage:
-    """Get content of a specific Confluence page by its ID, or by its title and space key.
-
-    Args:
-        page_id: Confluence page ID. If provided, 'title' and 'space_key' are ignored.
-        title: The exact title of the page. Must be used with 'space_key'.
-        space_key: The key of the space. Must be used with 'title'.
-        convert_to_markdown: Convert content to markdown (true) or keep raw HTML (false).
-
-    Returns:
-        ConfluencePage object representing the page content, or an error if not found or parameters are invalid.
-    """
-    if page_id:
-        return await confluence_fetcher.get_page_content(page_id)
-    elif title and space_key:
-        return await confluence_fetcher.get_page_by_title(space_key, title)
-    raise ValueError(
-        "Either 'page_id' OR both 'title' and 'space_key' must be provided.")
-
-
-@mcp.tool()
-async def confluence_search(
+@mcp.tool(tags={"confluence", "read"})
+async def search(
     query: str = Field(
         description=(
             "Search query - can be either a simple text (e.g. 'project documentation') or a CQL query string. "
@@ -103,7 +59,7 @@ async def confluence_search(
         ),
         default=None,
     ),
-) -> list[ConfluencePage]:
+) -> str:
     """Search Confluence content using simple terms or CQL.
 
     Args:
@@ -113,7 +69,7 @@ async def confluence_search(
         spaces_filter: Comma-separated list of space keys to filter by.
 
     Returns:
-        List of ConfluencePage objects representing the search results.
+        JSON string representing a list of simplified Confluence page objects.
     """
     # Check if the query is a simple search term or already a CQL query
     if query and not any(
@@ -140,11 +96,12 @@ async def confluence_search(
         pages = confluence_fetcher.search(
             query, limit=limit, spaces_filter=spaces_filter
         )
-    return pages
+    search_results = [page.to_simplified_dict() for page in pages]
+    return json.dumps(search_results, indent=2, ensure_ascii=False)
 
 
-@mcp.tool()
-async def confluence_get_page(
+@mcp.tool(tags={"confluence", "read"})
+async def get_page(
     page_id: str | None = Field(
         description=(
             "Confluence page ID (numeric ID, can be found in the page URL). "
@@ -166,22 +123,83 @@ async def confluence_get_page(
         ),
         default=None,
     ),
-) -> ConfluencePage:
+    include_metadata: bool = Field(
+        description="Whether to include page metadata such as creation date, last update, version, and labels.",
+        default=True,
+    ),
+    convert_to_markdown: bool = Field(
+        description=(
+            "Whether to convert page to markdown (true) or keep it in raw HTML format (false). "
+            "Raw HTML can reveal macros (like dates) not visible in markdown, but CAUTION: "
+            "using HTML significantly increases token usage in AI responses."
+        ),
+        default=True,
+    ),
+) -> str:
     """Get content of a specific Confluence page by its ID, or by its title and space key.
 
     Args:
         page_id: Confluence page ID. If provided, 'title' and 'space_key' are ignored.
         title: The exact title of the page. Must be used with 'space_key'.
         space_key: The key of the space. Must be used with 'title'.
+        include_metadata: Whether to include page metadata.
+        convert_to_markdown: Convert content to markdown (true) or keep raw HTML (false).
 
     Returns:
-        ConfluencePage object representing the page content and/or metadata, or an error if not found or parameters are invalid.
+        JSON string representing the page content and/or metadata, or an error if not found or parameters are invalid.
     """
-    return await _confluence_get_page(page_id, title, space_key)
+    page_object = None
+
+    if page_id:
+        if title or space_key:
+            logger.warning(
+                "page_id was provided; title and space_key parameters will be ignored."
+            )
+        try:
+            page_object = confluence_fetcher.get_page_content(
+                page_id, convert_to_markdown=convert_to_markdown
+            )
+        except Exception as e:
+            logger.error(f"Error fetching page by ID '{page_id}': {e}")
+            return json.dumps(
+                {"error": f"Failed to retrieve page by ID '{page_id}': {e}"},
+                indent=2,
+                ensure_ascii=False,
+            )
+    elif title and space_key:
+        page_object = confluence_fetcher.get_page_by_title(
+            space_key, title, convert_to_markdown=convert_to_markdown
+        )
+        if not page_object:
+            return json.dumps(
+                {
+                    "error": f"Page with title '{title}' not found in space '{space_key}'."
+                },
+                indent=2,
+                ensure_ascii=False,
+            )
+    else:
+        raise ValueError(
+            "Either 'page_id' OR both 'title' and 'space_key' must be provided."
+        )
+
+    if not page_object:
+        return json.dumps(
+            {"error": "Page not found with the provided identifiers."},
+            indent=2,
+            ensure_ascii=False,
+        )
+
+    if include_metadata:
+        result = {"metadata": page_object.to_simplified_dict()}
+    else:
+        result = {"content": {"value": page_object.content}}
+
+    return json.dumps(result, indent=2, ensure_ascii=False)
 
 
-@mcp.tool()
-async def confluence_get_page_children(
+@mcp.tool(tags={"confluence", "read"})
+async def get_page_children(
     parent_id: str = Field(
         description="The ID of the parent page whose children you want to retrieve"
     ),
@@ -205,7 +223,7 @@ async def confluence_get_page_children(
     ),
     start: int = Field(
         description="Starting index for pagination (0-based)", default=0, ge=0),
-) -> list[ConfluencePage]:
+) -> str:
     """Get child pages of a specific Confluence page.
 
     Args:
@@ -217,7 +235,7 @@ async def confluence_get_page_children(
         start: Starting index for pagination.
 
     Returns:
-        List of ConfluencePage objects representing the child pages.
+        JSON string representing a list of child page objects.
     """
     if include_content and "body" not in expand:
         expand = f"{expand},body.storage" if expand else "body.storage"
@@ -231,16 +249,25 @@ async def confluence_get_page_children(
             convert_to_markdown=convert_to_markdown,
         )
         child_pages = [page.to_simplified_dict() for page in pages]
-        return child_pages
+        result = {
+            "parent_id": parent_id,
+            "count": len(child_pages),
+            "limit_requested": limit,
+            "start_requested": start,
+            "results": child_pages,
+        }
     except Exception as e:
         logger.error(
             f"Error getting/processing children for page ID {parent_id}: {e}",
             exc_info=True,
         )
-        raise Exception(f"Failed to get child pages: {e}") from e
+        result = {"error": f"Failed to get child pages: {e}"}
+
+    return json.dumps(result, indent=2, ensure_ascii=False)
 
 
-if __name__ == "__main__":
+def main():
+    """Main entry point for the Confluence MCP Server."""
     import argparse
 
     parser = argparse.ArgumentParser(description="Confluence MCP Server")
@@ -257,3 +284,7 @@ if __name__ == "__main__":
     else:
         # HTTP mode: start HTTP server
         mcp.run(transport="http", port=args.port)
+
+
+if __name__ == "__main__":
+    main()

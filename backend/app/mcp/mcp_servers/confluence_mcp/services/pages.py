@@ -70,7 +70,7 @@ class PagesMixin(ConfluenceClient):
             space_key = page.get("space", {}).get("key", "")
             content = page["body"]["storage"]["value"]
             processed_html, processed_markdown = self.preprocessor.process_html_content(
-                content, space_key=space_key, confluence_client=self.confluence
+                content, page_id=page_id, space_key=space_key, confluence_client=self.confluence
             )
 
             # Use the appropriate content format based on the convert_to_markdown flag
