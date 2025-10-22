@@ -10,12 +10,9 @@ from fastmcp import FastMCP
 from pydantic import Field
 from tavily import AsyncTavilyClient
 
-try:
-    from .config import config
-    from .models import TavilySearchResponse, TavilyExtractResponse, TavilyCrawlResponse, TavilyMapResponse
-except ImportError:
-    from config import config
-    from models import TavilySearchResponse, TavilyExtractResponse, TavilyCrawlResponse, TavilyMapResponse
+# 需要在 tavily_mcp 目录的上层执行: uv run -m tavily_mcp.server
+from .config import config
+from .models import TavilySearchResponse, TavilyExtractResponse, TavilyCrawlResponse, TavilyMapResponse
 
 # Create MCP instance and Tavily client
 mcp = FastMCP("tavily-mcp")

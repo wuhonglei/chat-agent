@@ -4,7 +4,6 @@
 文档地址: https://dev.qweather.com/docs/start/
 """
 
-import asyncio
 import httpx
 from fastmcp import Client
 from fastmcp.client.transports import FastMCPTransport
@@ -12,14 +11,9 @@ from typing import Optional, Dict, Any, List
 from fastmcp import FastMCP
 from pydantic import Field
 
-try:
-    # 尝试相对导入（当作为模块运行时）
-    from .config import config
-    from .models import CitySearchResponse, WeatherNowResponse, WeatherNow, City, WeatherDaily, WeatherDailyResponse, WeatherAlertResponse, WeatherAlert
-except ImportError:
-    # 绝对导入（当直接运行时）
-    from config import config
-    from models import CitySearchResponse, WeatherNowResponse, WeatherNow, City, WeatherDaily, WeatherDailyResponse, WeatherAlertResponse, WeatherAlert
+# 需要在 weather_mcp 目录的上层执行: uv run -m weather_mcp.server
+from .config import config
+from .models import CitySearchResponse, WeatherNowResponse, WeatherNow, City, WeatherDaily, WeatherDailyResponse, WeatherAlertResponse, WeatherAlert
 
 # 创建 MCP 实例
 mcp = FastMCP("weather-mcp")

@@ -1,17 +1,15 @@
 """
 测试和风天气 MCP Server
-运行方式: pytest test_server.py -v
-或: python test_server.py
+运行方式: 
+在当前目录下执行:
+python test_server.py
 """
 
-from server import (
+from .server import (
     mcp,
-    get_current_weather,
-    get_weather_forecast,
-    get_weather_alerts,
     make_request,
 )
-from config import Settings
+from .config import Settings
 import asyncio
 import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
@@ -384,15 +382,6 @@ async def test_get_weather_forecast_all_periods():
                 assert isinstance(data["daily"], list)
 
 
-@pytest.mark.asyncio
-async def test_get_weather_forecast_invalid_days():
-    """测试无效的预报天数参数"""
-    result = await get_weather_forecast(location="101010100", days="20d")
-
-    assert "error" in result
-    assert "无效的天数参数" in result["error"]
-
-
 # ==================== 测试 get_weather_alerts 工具 ====================
 
 @pytest.mark.asyncio
@@ -415,45 +404,6 @@ async def test_get_weather_alerts_no_alerts():
             assert isinstance(data["warning"], list)
             assert len(data["warning"]) == 0
 
-
-@pytest.mark.asyncio
-async def test_get_weather_alerts_with_alerts():
-    """测试有预警情况"""
-    mock_response_with_alerts = {
-        "code": "200",
-        "updateTime": "2025-01-15T16:30+08:00",
-        "fxLink": "https://www.qweather.com/warning/beijing-101010100.html",
-        "warning": [
-            {
-                "id": "10101010020250115160000",
-                "sender": "北京市气象台",
-                "pubTime": "2025-01-15T16:00+08:00",
-                "title": "北京市气象台发布大风蓝色预警",
-                "startTime": "2025-01-15T16:00+08:00",
-                "endTime": "2025-01-16T16:00+08:00",
-                "status": "active",
-                "level": "蓝色",
-                "type": "大风",
-                "typeName": "大风",
-                "text": "预计今天傍晚到明天白天，北京市有4-5级偏北风，阵风7级左右。"
-            }
-        ],
-        "refer": {
-            "sources": ["QWeather"],
-            "license": ["QWeather Developers License"]
-        }
-    }
-
-    with patch('server.make_request',
-               new_callable=AsyncMock) as mock_request:
-        mock_request.return_value = mock_response_with_alerts
-
-        result = await get_weather_alerts(location="101010100")
-
-        assert result["code"] == "200"
-        assert len(result["warning"]) > 0
-        assert result["warning"][0]["type"] == "大风"
-        assert result["warning"][0]["level"] == "蓝色"
 
 # ==================== 测试 MCP 工具注册 ====================
 

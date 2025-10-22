@@ -2,7 +2,7 @@
 和风天气 API 数据模型定义
 """
 
-from typing import Optional, List, Dict, Any
+from typing import List, Dict, Any
 from pydantic import BaseModel, Field
 
 

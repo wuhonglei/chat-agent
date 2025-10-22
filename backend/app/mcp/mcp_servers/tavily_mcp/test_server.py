@@ -6,15 +6,8 @@ Run this to verify the server is working correctly
 import asyncio
 from fastmcp import Client
 
-try:
-    from .config import config
-    from .server import mcp, tavily_search, tavily_extract, tavily_map
-    from .models import TavilySearchResponse, TavilyExtractResponse, TavilyMapResponse
-except ImportError:
-    from config import config
-    from server import mcp, tavily_search, tavily_extract, tavily_map
-    from models import TavilySearchResponse, TavilyExtractResponse, TavilyMapResponse
-
+from .config import config
+from .server import mcp
 client = Client(mcp)
 
 
