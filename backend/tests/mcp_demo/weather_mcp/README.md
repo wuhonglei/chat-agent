@@ -4,110 +4,172 @@
 
 这是一个基于和风天气 API 的 MCP (Model Context Protocol) Server，提供天气查询服务。
 
+官方文档：https://dev.qweather.com/docs/start/
+
 ## 文件结构
 
-- `weather_server.py` - MCP Server 实现，提供天气查询工具
-- `weather_client.py` - MCP Client 实现，用于调用 Server 的工具
-- `config.py` - 配置文件，管理环境变量
-- `test_weather.py` - 直接测试天气 API 功能的脚本
+- `server.py` - MCP Server 实现，提供天气查询工具
+- `config.py` - 配置模块，使用 Pydantic Settings 管理环境变量
 
 ## 环境配置
 
-### 1. 设置环境变量
-
-创建 `.env` 文件或设置环境变量：
-
-```bash
-# 和风天气 API 配置
-QWEATHER_API_KEY=your_api_key_here
-QWEATHER_BASE_URL=https://devapi.qweather.com
-QWEATHER_TIMEOUT=10
-```
-
-### 2. 获取 API Key
+### 1. 获取 API Key
 
 1. 访问 [和风天气开发者平台](https://dev.qweather.com/)
 2. 注册账号并创建应用
-3. 获取 API Key
+3. 获取 API Key（免费版或付费版）
+
+### 2. 配置环境变量
+
+创建 `.env` 文件或设置系统环境变量：
+
+```bash
+# 必需配置
+QWEATHER_API_KEY=your_api_key_here
+QWEATHER_BASE_URL=https://devapi.qweather.com
+
+# 可选配置
+QWEATHER_TIMEOUT=10
+```
+
+**重要提示**：
+- `QWEATHER_API_KEY` 和 `QWEATHER_BASE_URL` 是必需的，缺少任一项会导致程序启动失败
+- 配置通过 Pydantic Settings 加载，优先使用环境变量，其次使用 `.env` 文件
+- `QWEATHER_BASE_URL` 必须以 `http://` 或 `https://` 开头
 
 ## 使用方法
 
-### 方法一：使用 MCP Client/Server 模式
+### 启动 MCP Server
 
-#### 1. 启动 MCP Server
+Server 支持两种传输模式：
 
-```bash
-cd tests/mcp_demo/weather_mcp
-python weather_server.py --transport stdio
-```
-
-Server 将在 stdio 模式下启动。
-
-#### 2. 运行 MCP Client
+#### 1. HTTP 模式（默认）
 
 ```bash
-python weather_client.py --transport stdio
+python server.py --transport http --port 8001
 ```
 
-Client 将在 stdio 模式下连接到 Server。
+Server 将在 `http://localhost:8001` 启动 HTTP 服务。
 
-### 方法二：直接测试 API 功能
+#### 2. Stdio 模式
 
 ```bash
-python test_weather.py
+python server.py --transport stdio
 ```
 
-## 可用的工具
+Server 将通过标准输入输出与 MCP 客户端通信，适用于集成到其他应用中。
+
+### 命令行参数
+
+- `--transport`: 传输方式，可选 `http` 或 `stdio`（默认：`http`）
+- `--port`: HTTP 模式下的端口号（默认：`8001`）
+
+## 可用的工具（Tools）
+
+Server 提供以下 5 个 MCP 工具：
 
 ### 1. search_city - 搜索城市位置信息
 
+根据城市名称或坐标搜索城市信息，获取 LocationID。
+
+**参数：**
+- `location` (必需): 城市名称、经纬度坐标、LocationID 或 Adcode
+  - 示例：`"北京"` 或 `"116.41,39.92"`
+- `adm` (可选): 上级行政区划，用于过滤重名城市
+  - 默认值：`""`
+- `range` (可选): 搜索范围（ISO 3166 国家代码）
+  - 默认值：`"cn"`
+- `number` (可选): 返回结果数量（1-20）
+  - 默认值：`3`
+- `lang` (可选): 语言设置
+  - 默认值：`"zh"`
+
+**示例：**
 ```python
-result = await client.call_tool("search_city", {
+{
     "location": "北京",
-    "adm": "",
     "range": "cn",
-    "number": 10,
+    "number": 3,
     "lang": "zh"
-})
+}
 ```
 
 ### 2. get_current_weather - 获取实时天气
 
+获取指定位置的实时天气信息。
+
+**参数：**
+- `location` (必需): LocationID 或经纬度坐标
+  - 示例：`"101010100"` 或 `"116.41,39.92"`
+- `lang` (可选): 语言设置
+  - 默认值：`"zh"`
+- `unit` (可选): 单位设置（`m`=公制，`i`=英制）
+  - 默认值：`"m"`
+
+**示例：**
 ```python
-result = await client.call_tool("get_current_weather", {
-    "location": "101010100",  # 北京的 LocationID
+{
+    "location": "101010100",
     "lang": "zh",
     "unit": "m"
-})
+}
 ```
 
 ### 3. get_weather_forecast - 获取天气预报
 
+获取指定位置的天气预报信息。
+
+**参数：**
+- `location` (必需): LocationID 或经纬度坐标
+- `days` (可选): 预报天数，支持 `3d`、`7d`、`10d`、`15d`、`30d`
+  - 默认值：`"7d"`
+- `lang` (可选): 语言设置
+  - 默认值：`"zh"`
+- `unit` (可选): 单位设置
+  - 默认值：`"m"`
+
+**示例：**
 ```python
-result = await client.call_tool("get_weather_forecast", {
+{
     "location": "101010100",
-    "days": "7d",  # 支持 3d, 7d, 10d, 15d, 30d
+    "days": "7d",
     "lang": "zh",
     "unit": "m"
-})
+}
 ```
 
 ### 4. get_weather_alerts - 获取天气预警
 
+获取指定位置的天气灾害预警信息。
+
+**参数：**
+- `location` (必需): LocationID 或经纬度坐标
+- `lang` (可选): 语言设置
+  - 默认值：`"zh"`
+
+**示例：**
 ```python
-result = await client.call_tool("get_weather_alerts", {
+{
     "location": "101010100",
     "lang": "zh"
-})
+}
 ```
 
 ### 5. get_air_quality - 获取空气质量
 
+获取指定位置的实时空气质量信息。
+
+**参数：**
+- `location` (必需): LocationID 或经纬度坐标
+- `lang` (可选): 语言设置
+  - 默认值：`"zh"`
+
+**示例：**
 ```python
-result = await client.call_tool("get_air_quality", {
+{
     "location": "101010100",
     "lang": "zh"
-})
+}
 ```
 
 ## 参数说明
@@ -131,19 +193,62 @@ result = await client.call_tool("get_air_quality", {
 - `15d` - 15天预报
 - `30d` - 30天预报
 
+## 技术特性
+
+### 配置管理
+- 使用 **Pydantic Settings** 进行配置管理
+- 支持从环境变量和 `.env` 文件加载配置
+- 启动时自动验证必需配置项
+- 自动验证 `QWEATHER_BASE_URL` 格式
+
+### 错误处理
+- 所有工具都有统一的异常处理机制
+- API 请求失败会返回友好的错误信息
+- HTTP 超时设置可配置（默认 10 秒）
+
+### 数据模型
+- 使用 Pydantic 定义严格的数据模型
+- 支持类型提示和自动验证
+- 模型包括：`WeatherNow`、`WeatherDaily`、`WeatherResponse`
+
 ## 常见问题
 
-### 1. API Key 错误
-确保设置了正确的 `QWEATHER_API_KEY` 环境变量。
+### 1. 程序启动失败：ValidationError
 
-### 2. 网络连接问题
-检查网络连接和防火墙设置。
+**原因**：缺少必需的环境变量 `QWEATHER_API_KEY` 或 `QWEATHER_BASE_URL`
 
-### 3. 服务器未启动
-确保 MCP Server 正在运行在 `http://localhost:8000/mcp`。
+**解决方案**：
+- 确保设置了所有必需的环境变量
+- 检查 `.env` 文件是否在正确的目录下
+- 验证环境变量值格式是否正确
 
-### 4. 位置 ID 不正确
-可以使用 `search_city` 工具先搜索城市获取正确的 LocationID。
+### 2. API 请求失败
+
+**可能原因**：
+- API Key 无效或已过期
+- 网络连接问题
+- 请求超出 API 配额限制
+
+**解决方案**：
+- 检查 API Key 是否有效
+- 确认网络连接正常
+- 查看和风天气控制台的 API 调用配额
+
+### 3. LocationID 不正确
+
+**解决方案**：
+- 先使用 `search_city` 工具搜索城市
+- 从返回结果中获取正确的 LocationID
+- LocationID 通常是 9 位数字（如：`101010100`）
+
+### 4. QWEATHER_BASE_URL 格式错误
+
+**错误信息**：`QWEATHER_BASE_URL 必须以 http:// 或 https:// 开头`
+
+**解决方案**：
+- 确保 URL 以 `http://` 或 `https://` 开头
+- 开发环境使用：`https://devapi.qweather.com`
+- 生产环境使用：`https://api.qweather.com`
 
 ## 示例输出
 

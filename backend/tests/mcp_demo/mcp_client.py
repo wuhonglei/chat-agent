@@ -126,16 +126,17 @@ async def chat_with_deepseek(
 
         # 调用 DeepSeek API
         response = deepseek_client.chat.completions.create(
-            model="deepseek-chat",
+            model="deepseek-reasoner",
             messages=messages,
-            tools=openai_tools,
-            tool_choice="auto"
+            tools=openai_tools if openai_tools else None
         )
 
         assistant_message = response.choices[0].message
+        assistant_message_dict = assistant_message.model_dump(
+            exclude_none=True)
 
         # 将助手消息添加到历史
-        messages.append(assistant_message)
+        messages.append(assistant_message_dict)
 
         # 检查是否需要调用工具
         if assistant_message.tool_calls:
@@ -153,7 +154,7 @@ async def chat_with_deepseek(
                 # 执行 MCP 工具
                 tool_result = await execute_mcp_tool(client, tool_name, tool_args)
 
-                print(tool_result)
+                print(f'tool_result: {tool_result}')
 
                 # 将工具结果添加到消息历史
                 messages.append({
@@ -179,13 +180,13 @@ async def main():
     # 1. 配置 MCP 服务器
     config = {
         "mcpServers": {
-            "tavily-remote-mcp": {
-                "url": "https://mcp.tavily.com/mcp/?tavilyApiKey=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",
-                "transport": "http",
+            "tavily-mcp": {
+                "command": "fastmcp",
+                "args": ["run", "mcp_demo/tavily_mcp/server.py:mcp", "--transport", "stdio"],
             },
             "weather-mcp": {
                 "command": "fastmcp",
-                "args": ["run", "mcp_demo/weather_mcp/weather_server.py:mcp", "--transport", "stdio"],
+                "args": ["run", "mcp_demo/weather_mcp/server.py:mcp", "--transport", "stdio"],
                 "env": {
                     "QWEATHER_API_KEY": os.getenv("QWEATHER_API_KEY", "32de48c2fba5456cb0239c6b4f7d29ac"),
                     "QWEATHER_BASE_URL": os.getenv("QWEATHER_BASE_URL", "https://pb6hewdvet.re.qweatherapi.com"),
@@ -197,6 +198,7 @@ async def main():
 
     mcp_config = MCPConfig.from_dict(config)
     client = Client(transport=mcp_config)
+    await client.__aenter__()
 
     # 2. 初始化 DeepSeek 客户端
     deepseek_client = OpenAI(
@@ -205,40 +207,46 @@ async def main():
         base_url="https://api.deepseek.com/v1"
     )
 
-    async with client:
-        # 3. 获取 MCP 工具列表
-        print("正在获取 MCP 工具列表...")
-        tools = await client.list_tools()
+    # 3. 获取 MCP 工具列表
+    print("正在获取 MCP 工具列表...")
+    tools = await client.list_tools()
 
-        print(f"\n可用的 MCP 工具 ({len(tools)} 个):")
-        for i, tool in enumerate(tools, 1):
-            print(f"{i}. {tool.name}: {tool.description}")
+    print(f"\n可用的 MCP 工具 ({len(tools)} 个):")
+    for i, tool in enumerate(tools, 1):
+        print(f"{i}. {tool.name}: {tool.description}")
 
-        # 4. 使用 DeepSeek API 调用工具
-        print("\n" + "="*60)
-        print("开始 DeepSeek + MCP Tools 演示")
-        print("="*60)
+    # 4. 使用 DeepSeek API 调用工具
+    print("\n" + "="*60)
+    print("开始 DeepSeek + MCP Tools 演示")
+    print("="*60)
 
-        # 示例 1: 查询天气
-        await chat_with_deepseek(
-            client=client,
-            deepseek_client=deepseek_client,
-            user_message="北京今天天气怎么样？",
-            mcp_tools=tools
-        )
+    await chat_with_deepseek(
+        client=client,
+        deepseek_client=deepseek_client,
+        user_message="请深入分析人工智能的发展趋势",
+        mcp_tools=tools
+    )
 
-        print("\n" + "="*60)
+    # 示例 1: 搜索并查询
+    await chat_with_deepseek(
+        client=client,
+        deepseek_client=deepseek_client,
+        user_message="搜索一下 2025 年人工智能的最新进展, 并深入分析开发者应如何把握这些机会",
+        mcp_tools=tools
+    )
 
-        # 示例 2: 搜索并查询
-        # await chat_with_deepseek(
-        #     client=client,
-        #     deepseek_client=deepseek_client,
-        #     user_message="搜索一下 2024 年人工智能的最新进展",
-        #     mcp_tools=tools
-        # )
+    # 示例 2: 查询天气
+    await chat_with_deepseek(
+        client=client,
+        deepseek_client=deepseek_client,
+        user_message="北京今天天气怎么样？",
+        mcp_tools=tools
+    )
 
-        end_time = time.time()
-        print(f"\n总耗时: {end_time - start_time:.2f} 秒")
+    print("\n" + "="*60)
+
+    end_time = time.time()
+    print(f"\n总耗时: {end_time - start_time:.2f} 秒")
 
 
 if __name__ == "__main__":

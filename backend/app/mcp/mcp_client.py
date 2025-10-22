@@ -5,10 +5,11 @@
 
 import asyncio
 from loguru import logger
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, AsyncGenerator
 from contextlib import asynccontextmanager
 from fastmcp import Client
 from fastmcp.client.transports import FastMCPTransport, StreamableHttpTransport
+from fastmcp.client.transports import StdioTransport
 from fastmcp import FastMCP
 
 # 导入 MCP servers
@@ -70,6 +71,10 @@ class MCPClientManager:
                     )
                     logger.info(
                         f"使用 StreamableHttpTransport 连接远程服务器: {server_name}")
+                elif isinstance(server_instance, dict) and "command" in server_instance:
+                    # 远程 FastMCP 服务器
+                    transport = StdioTransport(**server_instance)
+                    logger.info(f"使用 FastMCPTransport 连接远程服务器: {server_name}")
                 else:
                     # 其他类型的服务器实例
                     transport = server_instance
@@ -86,10 +91,9 @@ class MCPClientManager:
         # 建立连接并构建工具映射
         for server_name, client in self.clients.items():
             try:
-                await client.__aenter__()
-
                 # 获取该 server 的所有工具
-                tools = await client.list_tools()
+                async with client:
+                    tools = await client.list_tools()
                 for tool in tools:
                     tool_name = tool.name
                     if tool_name in self.tools_map:
@@ -114,14 +118,6 @@ class MCPClientManager:
     async def cleanup(self) -> None:
         """清理所有连接"""
         logger.info("开始清理 MCP Client Manager...")
-
-        for server_name, client in self.clients.items():
-            try:
-                await client.__aexit__(None, None, None)
-                logger.info(f"✓ 已断开 {server_name}")
-            except Exception as e:
-                logger.error(f"✗ 断开 {server_name} 时出错: {e}")
-
         self.clients.clear()
         self.tools_map.clear()
         self._initialized = False
@@ -140,7 +136,8 @@ class MCPClientManager:
         all_tools = {}
         for server_name, client in self.clients.items():
             try:
-                tools = await client.list_tools()
+                async with client:
+                    tools = await client.list_tools()
                 all_tools[server_name] = tools
             except Exception as e:
                 logger.error(f"获取 {server_name} 的工具列表失败: {e}")
@@ -183,7 +180,8 @@ class MCPClientManager:
 
         try:
             logger.info(f"调用工具: {tool_name} (来自 {server_name})")
-            result = await client.call_tool(tool_name, arguments or {})
+            async with client:
+                result = await client.call_tool(tool_name, arguments or {})
             logger.info(f"✓ 工具 {tool_name} 执行成功")
             return result
         except Exception as e:
@@ -233,7 +231,8 @@ class MCPClientManager:
         server_name = self.tools_map[tool_name]
         client = self.clients[server_name]
 
-        tools = await client.list_tools()
+        async with client:
+            tools = await client.list_tools()
         for tool in tools:
             if tool.name == tool_name:
                 return tool
@@ -281,7 +280,8 @@ class MCPClientManager:
         for server_name, client in self.clients.items():
             try:
                 # 尝试列出工具来检查连接是否正常
-                await client.list_tools()
+                async with client:
+                    await client.list_tools()
                 health_status[server_name] = True
                 logger.info(f"✓ {server_name} 健康检查通过")
             except Exception as e:
