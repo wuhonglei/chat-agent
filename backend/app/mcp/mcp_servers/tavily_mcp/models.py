@@ -26,8 +26,9 @@ class TavilyImage(BaseModel):
 
 class TavilyAutoParameters(BaseModel):
     """自动参数配置"""
-    topic: str = Field(..., description="搜索主题类别")
-    search_depth: str = Field(..., description="搜索深度")
+    topic: Optional[str] = Field(None, description="搜索主题类别")
+    search_depth: Optional[str] = Field(None, description="搜索深度")
+    time_range: Optional[str] = Field(None, description="时间范围")
 
 
 class TavilySearchResponse(BaseModel):

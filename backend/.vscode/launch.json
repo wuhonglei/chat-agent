@@ -32,27 +32,15 @@
       }
     },
     {
-      "name": "Python: Current File Dir",
-      "type": "debugpy",
-      "request": "launch",
-      "program": "${file}",
-      "console": "integratedTerminal",
-      "justMyCode": false,
-      "cwd": "${fileDirname}",
-      "env": {
-        "PYTHONPATH": "${fileDirname}"
-      }
-    },
-    {
       "name": "Debug MCP Client",
       "type": "debugpy",
       "request": "launch",
-      "module": "mcp_demo.mcp_client",
+      "module": "app.mcp.test_mcp_client",
       "console": "integratedTerminal",
-      "cwd": "${workspaceFolder}/tests",
+      "cwd": "${workspaceFolder}",
       "justMyCode": false,
       "env": {
-        "PYTHONPATH": "${workspaceFolder}/tests"
+        "PYTHONPATH": "${workspaceFolder}"
       }
     }
   ]
