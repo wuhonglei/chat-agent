@@ -11,7 +11,15 @@ from openai.types.chat import ChatCompletionMessageToolCall
 from dotenv import load_dotenv
 from pathlib import Path
 from typing import List, Dict, Any
+from pydantic import BaseModel
+from tqdm import tqdm
+
 load_dotenv(Path(__file__).parent.parent.parent / ".env")
+
+
+class UserMessage(BaseModel):
+    message: str
+    tool_calls: List[Dict[str, Any]]
 
 
 async def execute_single_tool(tool_call: ChatCompletionMessageToolCall, mcp_client_manager: MCPClientManager):
@@ -27,37 +35,21 @@ async def execute_single_tool(tool_call: ChatCompletionMessageToolCall, mcp_clie
     return result
 
 
-async def chat_with_deepseek(
+async def chat_with_deepseek_single(
     mcp_client_manager: MCPClientManager,
     deepseek_client: AsyncOpenAI,
-    user_message: str,
+    user_message: UserMessage,
     tools: List[Dict[str, Any]],
     max_iterations: int = 5
-) -> str:
-    """
-    使用 DeepSeek API 处理对话，并在需要时调用 MCP 工具
-
-    Args:
-        mcp_client_manager: MCP 客户端管理器
-        deepseek_client: DeepSeek API 客户端
-        user_message: 用户消息
-        tools: MCP 工具列表
-        max_iterations: 最大迭代次数
-
-    Returns:
-        最终回复
-    """
-
+) -> bool:
     # 初始化对话历史
     messages = [
-        {"role": "user", "content": user_message}
+        {"role": "user", "content": user_message.message}
     ]
-
-    print(f"\n{'='*60}")
-    print(f"用户: {user_message}")
+    print(f"用户: {user_message.message}")
     print(f"{'='*60}\n")
+    used_tools = {}
 
-    # 迭代处理
     for iteration in range(max_iterations):
         print(f"--- 迭代 {iteration + 1} ---")
 
@@ -82,6 +74,9 @@ async def chat_with_deepseek(
             # 执行所有工具调用
             tasks = []
             for tool_call in assistant_message.tool_calls:
+                tool_name = tool_call.function.name
+                tool_arguments = json.loads(tool_call.function.arguments)
+                used_tools[tool_name] = tool_arguments
                 tasks.append(execute_single_tool(
                     tool_call, mcp_client_manager))
             tool_results = await asyncio.gather(*tasks)
@@ -95,12 +90,51 @@ async def chat_with_deepseek(
         else:
             # 没有工具调用，返回最终答案
             final_response = assistant_message.content
+            messages.append({
+                "role": "assistant",
+                "content": final_response
+            })
             print(f"\n{'='*60}")
             print(f"DeepSeek 回复: {final_response}")
             print(f"{'='*60}\n")
-            return final_response
 
-    return "达到最大迭代次数，未能获得最终答案"
+    # 判断 UserMessage.tool_calls 列表中的每个工具 name 或 arguments 是否在 messages 中存在
+    for tool_call in user_message.tool_calls:
+        if tool_call['name'] not in used_tools:
+            raise ValueError(f"未找到工具调用: {tool_call}")
+        if tool_call['arguments'] and tool_call['arguments'] not in used_tools[tool_call['name']]:
+            raise ValueError(f"未找到工具调用参数: {tool_call['arguments']}")
+
+    return True
+
+
+async def chat_with_deepseek(
+    mcp_client_manager: MCPClientManager,
+    deepseek_client: AsyncOpenAI,
+    user_messages: List[UserMessage],
+    tools: List[Dict[str, Any]],
+    max_iterations: int = 5
+) -> List[bool]:
+    """
+    使用 DeepSeek API 处理对话，并在需要时调用 MCP 工具
+
+    Args:
+        mcp_client_manager: MCP 客户端管理器
+        deepseek_client: DeepSeek API 客户端
+        user_message: 用户消息
+        tools: MCP 工具列表
+        max_iterations: 最大迭代次数
+
+    Returns:
+        最终回复
+    """
+    tasks = []
+    for user_message in tqdm(user_messages, desc="处理用户消息"):
+        task = chat_with_deepseek_single(
+            mcp_client_manager, deepseek_client, user_message, tools, max_iterations)
+        tasks.append(task)
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    return results
 
 
 async def test_mcp_client():
@@ -121,37 +155,46 @@ async def test_mcp_client():
     print("开始 DeepSeek + MCP Tools 演示")
     print("="*60)
 
-    # 提示词中明确进行深入思考，但是传入了 tools，此时模型仍只会使用 chat 模式
-    # await chat_with_deepseek(
-    #     mcp_client_manager=mcp_client_manager,
-    #     deepseek_client=deepseek_client,
-    #     user_message="请深入分析人工智能的发展趋势",
-    #     tools=tools
-    # )
-
-    # 搜索并查询
-    # await chat_with_deepseek(
-    #     mcp_client_manager=mcp_client_manager,
-    #     deepseek_client=deepseek_client,
-    #     user_message="搜索一下 2025 年人工智能的最新进展, 并深入分析开发者应如何把握这些机会",
-    #     tools=tools
-    # )
-
     # 查询 Confluence
-    await chat_with_deepseek(
+    user_messages = [
+        UserMessage(
+            message="请深入分析人工智能的发展趋势",
+            tool_calls=[{
+                    "name": "tavily_search",
+            }]),
+        UserMessage(
+            message="搜索一下 2025 年人工智能的最新进展",
+            tool_calls=[{
+                    "name": "tavily_search",
+            }]),
+        UserMessage(
+            message="请查询 Confluence 中关于 ai agent 的最新进展",
+            tool_calls=[{
+                    "name": "confluence_search"
+            }]
+        ),
+        UserMessage(
+            message="北京今天天气怎么样？",
+            tool_calls=[{
+                    "name": "search_city",
+            }]
+        )
+    ]
+    results = await chat_with_deepseek(
         mcp_client_manager=mcp_client_manager,
         deepseek_client=deepseek_client,
-        user_message="请查询 Confluence 中关于 ai agent 的最新进展",
+        user_messages=user_messages,
         tools=tools
     )
-
-    # 查询天气
-    # await chat_with_deepseek(
-    #     mcp_client_manager=mcp_client_manager,
-    #     deepseek_client=deepseek_client,
-    #     user_message="北京今天天气怎么样？",
-    #     tools=tools
-    # )
+    # 判断 results 中正确的数量
+    correct_count = 0
+    for i, result in enumerate(results):
+        if isinstance(result, Exception):
+            print(f"第 {i+1} 个用户消息处理失败: {type(result).__name__}: {result}")
+        elif result is True:
+            correct_count += 1
+    print(f"成功处理的用户消息数量: {correct_count}")
+    print(f"失败处理的用户消息数量: {len(results) - correct_count}")
 
 
 if __name__ == "__main__":
