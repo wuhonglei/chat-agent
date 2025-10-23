@@ -1,6 +1,10 @@
 """Health check endpoints"""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Request
+from typing import cast
+from app.models.app_state import AppState
+from loguru import logger
+
 
 router = APIRouter()
 
@@ -11,14 +15,23 @@ async def health_check():
     return {"status": "healthy"}
 
 
-@router.get("/ready")
-async def readiness_check():
-    """Readiness check for Kubernetes"""
-    # TODO: Check if all services are ready
-    return {"status": "ready"}
+@router.get("/mcp")
+async def mcp_health_check(request: Request):
+    """MCP health check"""
+    state = cast(AppState, request.app.state)
+    try:
+        return await state.mcp_manager.health_check()
+    except Exception as e:
+        logger.error(f"MCP health check failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/live")
-async def liveness_check():
-    """Liveness check for Kubernetes"""
-    return {"status": "alive"}
+@router.get("/mcp_config")
+async def mcp_config(request: Request):
+    """Get MCP config for FE"""
+    state = cast(AppState, request.app.state)
+    try:
+        return await state.mcp_manager.get_mcp_config_for_fe()
+    except Exception as e:
+        logger.error(f"Get MCP config for FE failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
