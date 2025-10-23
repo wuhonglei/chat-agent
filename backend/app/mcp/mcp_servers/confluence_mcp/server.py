@@ -102,6 +102,10 @@ async def shopee_confluence_search(
         ),
         default=None,
     ),
+    include_content: bool = Field(
+        description="Whether to fetch detailed content for each page",
+        default=True,
+    ),
 ) -> list[ConfluencePage]:
     """Search Shopee internal company knowledge base Confluence content using simple terms or CQL queries."""
     # Check if the query is a simple search term or already a CQL query
@@ -132,6 +136,32 @@ async def shopee_confluence_search(
             confluence_fetcher.search,
             query, limit=limit, spaces_filter=spaces_filter
         )
+
+    # If include_content is True, fetch detailed content for each page
+    if include_content and pages:
+        logger.info(f"Fetching detailed content for {len(pages)} pages")
+
+        async def fetch_page_content(page: ConfluencePage) -> ConfluencePage:
+            """Fetch detailed content for a single page with error handling."""
+            try:
+                detailed_page = await _confluence_get_page(page_id=page.id)
+                # Preserve the original search result metadata (excerpt, etc.)
+                detailed_page.excerpt = page.excerpt
+                return detailed_page
+            except Exception as e:
+                logger.warning(
+                    f"Failed to fetch detailed content for page {page.id} ({page.title}): {e}")
+                # Return the original page if detailed content fetch fails
+                return page
+
+        # Fetch detailed content for all pages concurrently
+        pages = await asyncio.gather(
+            *[fetch_page_content(page) for page in pages],
+        )
+
+        logger.info(
+            f"Successfully fetched detailed content for {len(pages)} pages")
+
     return pages
 
 

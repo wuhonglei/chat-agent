@@ -56,7 +56,7 @@ class PagesMixin(ConfluenceClient):
                 )
                 page = v2_adapter.get_page(
                     page_id=page_id,
-                    expand="body.storage,version,space,children.attachment",
+                    expand="body.storage,version,space",
                 )
             else:
                 logger.debug(
@@ -64,7 +64,7 @@ class PagesMixin(ConfluenceClient):
                 )
                 page = self.confluence.get_page_by_id(
                     page_id=page_id,
-                    expand="body.storage,version,space,children.attachment",
+                    expand="body.storage,version,space",
                 )
 
             space_key = page.get("space", {}).get("key", "")
