@@ -115,8 +115,12 @@ async def chat_with_deepseek_single(
     for tool_call in user_message.tool_calls:
         if tool_call['name'] not in used_tools:
             raise ValueError(f"未找到工具调用: {tool_call}")
-        if tool_call.get('arguments') and tool_call['arguments'] not in used_tools[tool_call['name']]:
-            raise ValueError(f"未找到工具调用参数: {tool_call['arguments']}")
+        if tool_call.get('arguments'):
+            # 将字典转换为可比较的格式进行比较
+            tool_args = tool_call['arguments']
+            used_args = used_tools[tool_call['name']]
+            if tool_args != used_args:
+                raise ValueError(f"未找到工具调用参数: {tool_call['arguments']}")
 
     return True
 
@@ -170,40 +174,46 @@ async def test_mcp_client():
 
     # 查询 Confluence
     user_messages = [
+        # UserMessage(
+        #     message="请深入分析人工智能的发展趋势",
+        #     tool_calls=[{
+        #             "name": "tavily_search",
+        #     }]),
+        # UserMessage(
+        #     message="搜索一下 2025 年人工智能的最新进展",
+        #     tool_calls=[{
+        #             "name": "tavily_search",
+        #     }]),
+        # UserMessage(
+        #     message="请查询 Confluence 中关于 ai agent 的最新进展",
+        #     tool_calls=[{
+        #             "name": "shopee_confluence_search"
+        #     }]
+        # ),
+        # UserMessage(
+        #     message="请查询公司内部 ai agent 有关的项目",
+        #     tool_calls=[{
+        #             "name": "shopee_confluence_search"
+        #     }]
+        # ),
+        # UserMessage(
+        #     message="请查询内网和外网 ai agent 有关的项目",
+        #     tool_calls=[{
+        #             "name": "shopee_confluence_search"
+        #     }]
+        # ),
         UserMessage(
-            message="请深入分析人工智能的发展趋势",
+            message="帮我总结下面网页内容: https://confluence.shopee.io/display/MKT/01+FE+code+specification",
             tool_calls=[{
-                    "name": "tavily_search",
-            }]),
-        UserMessage(
-            message="搜索一下 2025 年人工智能的最新进展",
-            tool_calls=[{
-                    "name": "tavily_search",
-            }]),
-        UserMessage(
-            message="请查询 Confluence 中关于 ai agent 的最新进展",
-            tool_calls=[{
-                    "name": "shopee_confluence_search"
+                    "name": "shopee_confluence_get_page"
             }]
         ),
-        UserMessage(
-            message="请查询公司内部 ai agent 有关的项目",
-            tool_calls=[{
-                    "name": "shopee_confluence_search"
-            }]
-        ),
-        UserMessage(
-            message="请查询内部 ai agent 有关的项目",
-            tool_calls=[{
-                    "name": "shopee_confluence_search"
-            }]
-        ),
-        UserMessage(
-            message="北京今天天气怎么样？",
-            tool_calls=[{
-                    "name": "search_city",
-            }]
-        )
+        # UserMessage(
+        #     message="北京今天天气怎么样？",
+        #     tool_calls=[{
+        #             "name": "search_city",
+        #     }]
+        # )
     ]
     results = await chat_with_deepseek(
         mcp_client_manager=mcp_client_manager,
