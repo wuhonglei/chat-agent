@@ -34,7 +34,7 @@ const ToolsSetting = () => {
         <>
           <Form.Item
             colon={false}
-            label="智能选择工具"
+            label={<span className="font-bold">智能选择工具</span>}
             valuePropName="checked"
             name={names.mcpAutoMode}
           >

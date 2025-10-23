@@ -19,9 +19,7 @@ export interface ChatMessage {
 }
 
 export interface RetrieverSource {
-  webSearch: boolean;
-  confluence: boolean;
-  googleDocs: boolean;
+  [key: string]: boolean;
 }
 
 export interface ChatInputFormValues {
