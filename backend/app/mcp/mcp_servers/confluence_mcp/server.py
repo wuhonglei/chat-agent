@@ -150,8 +150,8 @@ async def confluence_get_page(
     page_id: str | None = Field(
         description=(
             "Confluence page ID (numeric ID, can be found in the page URL). "
-            "For example, in the URL 'https://example.atlassian.net/wiki/spaces/TEAM/pages/123456789/Page+Title', "
-            "the page ID is '123456789'. "
+            "For example, in the URL 'https://confluence.shopee.io/pages/viewpage.action?pageId=1234567890', "
+            "the page ID is '1234567890'. "
             "Provide this OR both 'title' and 'space_key'. If page_id is provided, title and space_key will be ignored."
         ),
         default=None,
@@ -159,12 +159,16 @@ async def confluence_get_page(
     title: str | None = Field(
         description=(
             "The exact title of the Confluence page. Use this with 'space_key' if 'page_id' is not known."
+            "For example, in the URL 'https://confluence.shopee.io/display/MKT/01+FE+code+specification', "
+            "the title is '01 FE code specification'."
         ),
         default=None,
     ),
     space_key: str | None = Field(
         description=(
             "The key of the Confluence space where the page resides (e.g., 'DEV', 'TEAM'). Required if using 'title'."
+            "For example, in the URL 'https://confluence.shopee.io/display/MKT/01+FE+code+specification', "
+            "the space key is 'MKT'."
         ),
         default=None,
     ),

@@ -156,28 +156,34 @@ async def test_mcp_client():
 
     # 查询 Confluence
     user_messages = [
+        # UserMessage(
+        #     message="请深入分析人工智能的发展趋势",
+        #     tool_calls=[{
+        #             "name": "tavily_search",
+        #     }]),
+        # UserMessage(
+        #     message="搜索一下 2025 年人工智能的最新进展",
+        #     tool_calls=[{
+        #             "name": "tavily_search",
+        #     }]),
+        # UserMessage(
+        #     message="请查询 Confluence 中关于 ai agent 的最新进展",
+        #     tool_calls=[{
+        #             "name": "confluence_search"
+        #     }]
+        # ),
         UserMessage(
-            message="请深入分析人工智能的发展趋势",
-            tool_calls=[{
-                    "name": "tavily_search",
-            }]),
-        UserMessage(
-            message="搜索一下 2025 年人工智能的最新进展",
-            tool_calls=[{
-                    "name": "tavily_search",
-            }]),
-        UserMessage(
-            message="请查询 Confluence 中关于 ai agent 的最新进展",
+            message="请查询公司内部 ai agent 有关的项目",
             tool_calls=[{
                     "name": "confluence_search"
             }]
         ),
-        UserMessage(
-            message="北京今天天气怎么样？",
-            tool_calls=[{
-                    "name": "search_city",
-            }]
-        )
+        # UserMessage(
+        #     message="北京今天天气怎么样？",
+        #     tool_calls=[{
+        #             "name": "search_city",
+        #     }]
+        # )
     ]
     results = await chat_with_deepseek(
         mcp_client_manager=mcp_client_manager,
