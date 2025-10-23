@@ -12,7 +12,7 @@ from .models.confluence import ConfluencePage
 logger = logging.getLogger(__name__)
 
 mcp = FastMCP(
-    name="Shopee Confluence MCP Service",
+    name="Shopee Internal Company Knowledge Base Confluence MCP Service",
 )
 
 confluence_fetcher = ConfluenceFetcher(config=ConfluenceConfig(
@@ -65,10 +65,10 @@ async def _confluence_get_page(
 
 
 @mcp.tool()
-async def confluence_search(
+async def shopee_confluence_search(
     query: str = Field(
         description=(
-            "Search query - can be either a simple text (e.g. 'project documentation') or a CQL query string. "
+            "Search query for Shopee internal company knowledge base Confluence - can be either simple text (e.g. 'project documentation') or CQL query string. "
             "Simple queries use 'siteSearch' by default, to mimic the WebUI search, with an automatic fallback "
             "to 'text' search if not supported. Examples of CQL:\n"
             "- Basic search: 'type=page AND space=DEV'\n"
@@ -96,14 +96,14 @@ async def confluence_search(
     ),
     spaces_filter: str | None = Field(
         description=(
-            "(Optional) Comma-separated list of space keys to filter results by. "
+            "(Optional) Comma-separated list of Shopee internal company knowledge base Confluence space keys to filter results by. "
             "Overrides the environment variable CONFLUENCE_SPACES_FILTER if provided. "
             "Use empty string to disable filtering."
         ),
         default=None,
     ),
 ) -> list[ConfluencePage]:
-    """Search Confluence content using simple terms or CQL."""
+    """Search Shopee internal company knowledge base Confluence content using simple terms or CQL queries."""
     # Check if the query is a simple search term or already a CQL query
     if query and not any(
         x in query for x in ["=", "~", ">", "<", " AND ", " OR ", "currentUser()"]
@@ -136,10 +136,10 @@ async def confluence_search(
 
 
 @mcp.tool()
-async def confluence_get_page(
+async def shopee_confluence_get_page(
     page_id: str | None = Field(
         description=(
-            "Confluence page ID (numeric ID, can be found in the page URL). "
+            "Shopee internal company knowledge base Confluence page ID (numeric ID, can be found in the page URL). "
             "For example, in the URL 'https://confluence.shopee.io/pages/viewpage.action?pageId=1234567890', "
             "the page ID is '1234567890'. "
             "Provide this OR both 'title' and 'space_key'. If page_id is provided, title and space_key will be ignored."
@@ -148,7 +148,7 @@ async def confluence_get_page(
     ),
     title: str | None = Field(
         description=(
-            "The exact title of the Confluence page. Use this with 'space_key' if 'page_id' is not known."
+            "The exact title of the Shopee internal company knowledge base Confluence page. Use this with 'space_key' if 'page_id' is not known. "
             "For example, in the URL 'https://confluence.shopee.io/display/MKT/01+FE+code+specification', "
             "the title is '01 FE code specification'."
         ),
@@ -156,21 +156,21 @@ async def confluence_get_page(
     ),
     space_key: str | None = Field(
         description=(
-            "The key of the Confluence space where the page resides (e.g., 'DEV', 'TEAM'). Required if using 'title'."
+            "The key of the Shopee internal company knowledge base Confluence space where the page resides (e.g., 'DEV', 'TEAM'). Required if using 'title'. "
             "For example, in the URL 'https://confluence.shopee.io/display/MKT/01+FE+code+specification', "
             "the space key is 'MKT'."
         ),
         default=None,
     ),
 ) -> ConfluencePage:
-    """Get content of a specific Confluence page by its ID, or by its title and space key."""
+    """Get content of a specific page from Shopee internal company knowledge base Confluence by its ID, or by its title and space key."""
     return await _confluence_get_page(page_id, title, space_key)
 
 
 @mcp.tool()
-async def confluence_get_page_children(
+async def shopee_confluence_get_page_children(
     parent_id: str = Field(
-        description="The ID of the parent page whose children you want to retrieve"
+        description="The ID of the parent page from Shopee internal company knowledge base Confluence whose children you want to retrieve"
     ),
     expand: str = Field(
         description="Fields to expand in the response (e.g., 'version', 'body.storage')",
@@ -193,7 +193,7 @@ async def confluence_get_page_children(
     start: int = Field(
         description="Starting index for pagination (0-based)", default=0, ge=0),
 ) -> list[ConfluencePage]:
-    """Get child pages of a specific Confluence page."""
+    """Get child pages of a specific page from Shopee internal company knowledge base Confluence."""
     if include_content and "body" not in expand:
         expand = f"{expand},body.storage" if expand else "body.storage"
 
