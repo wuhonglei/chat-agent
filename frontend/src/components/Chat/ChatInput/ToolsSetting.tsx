@@ -1,84 +1,98 @@
-import { Avatar, Dropdown, Form, Switch } from "antd";
+import { Avatar, Form, Popover, Switch } from "antd";
 import CustomButton from "@/components/common/CustomButton";
 import SettingIcon from "@/assets/svg/SettingIcon.svg?react";
-import tavilyUrl from "@/assets/imgs/tavily.png";
-import confluenceUrl from "@/assets/imgs/confluence.png";
-import googleDocsUrl from "@/assets/imgs/googleDocs.png";
 import React, { useState, useRef, useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
+import { useAppSelector } from "@/store/hooks";
 import { names } from "./constant";
-
-const menuItems = [
-  {
-    label: "联网搜索",
-    key: names.webSearch.at(-1),
-    name: names.webSearch,
-    icon: tavilyUrl,
-  },
-  {
-    label: "Confluence",
-    key: names.confluence.at(-1),
-    name: names.confluence,
-    icon: confluenceUrl,
-  },
-  // {
-  //   label: "Google Docs",
-  //   key: names.googleDocs.at(-1),
-  //   name: names.googleDocs,
-  //   icon: googleDocsUrl,
-  // },
-];
+import classNames from "classnames";
 
 const ToolsSetting = () => {
   const [open, setOpen] = useState(false);
+  const mcpConfig = useAppSelector(state => state.global.mcpConfig);
   const buttonRef = useRef<HTMLDivElement>(null);
-  const sourceConfig = Form.useWatch("sourceConfig");
+  const mcpAutoMode = Form.useWatch<boolean>(names.mcpAutoMode);
+  const sourceConfig = Form.useWatch(names.sourceConfig);
   const icons = useMemo(() => {
-    return menuItems
-      .filter(item => sourceConfig?.[item.key!])
+    return mcpConfig
+      .filter(item => sourceConfig?.[item.id])
       .map(item => item.icon);
-  }, [sourceConfig]);
+  }, [sourceConfig, mcpConfig]);
 
-  const handleOpenChange = useMemoizedFn((newState, info) => {
-    if (info.source === "menu") {
-      return;
-    }
+  const handleOpenChange = useMemoizedFn(newState => {
     setOpen(newState);
   });
 
   return (
-    <Dropdown
+    <Popover
       open={open}
       placement="topLeft"
       trigger={["click"]}
       onOpenChange={handleOpenChange}
       getPopupContainer={() => buttonRef.current || document.body}
-      menu={{
-        items: menuItems.map(item => ({
-          label: (
-            <section className="flex items-center justify-between gap-4 h-7">
-              <div className="flex items-center gap-2">
-                <img src={item.icon} alt={item.label} className="w-4 h-4" />
-                <span>{item.label}</span>
-              </div>
-              <Form.Item noStyle valuePropName="checked" name={item.name}>
-                <Switch />
+      content={
+        <>
+          <Form.Item
+            colon={false}
+            label="智能选择工具"
+            valuePropName="checked"
+            name={names.mcpAutoMode}
+          >
+            <Switch />
+          </Form.Item>
+          {mcpConfig.map(item => (
+            <section
+              key={item.id}
+              className={classNames(
+                "flex items-center justify-between gap-4 h-8 rounded-lg ml-2 p-2 pr-2 hover:bg-blue-100 transition duration-300"
+              )}
+            >
+              <Form.Item
+                tooltip={{
+                  title: item.description,
+                }}
+                colon={false}
+                label={
+                  <div className="flex items-center gap-2">
+                    <img src={item.icon} alt={item.id} className="w-4 h-4" />
+                    <span className={mcpAutoMode ? "text-gray-300" : ""}>
+                      {item.name}
+                    </span>
+                  </div>
+                }
+                labelAlign="left"
+                labelCol={{ span: 18 }}
+                wrapperCol={{ span: 6 }}
+                className="w-full"
+                valuePropName="checked"
+                name={[...names.sourceConfig, item.id]}
+              >
+                <Switch disabled={mcpAutoMode} />
               </Form.Item>
             </section>
-          ),
-          key: item.key!,
-        })),
-      }}
-    >
-      <CustomButton bordered ref={buttonRef} size="middle" className="gap-px">
-        <SettingIcon className="text-base" />
-        <Avatar.Group>
-          {icons.map(icon => (
-            <Avatar shape="circle" src={icon} key={icon} size={16} />
           ))}
-        </Avatar.Group>
+        </>
+      }
+    >
+      <CustomButton
+        bordered
+        ref={buttonRef}
+        size="middle"
+        className="gap-px"
+        active={mcpAutoMode}
+      >
+        <SettingIcon className="text-base" />
+        {mcpAutoMode ? (
+          <>智能选择</>
+        ) : (
+          <Avatar.Group>
+            {icons.map(icon => (
+              <Avatar shape="circle" src={icon} key={icon} size={16} />
+            ))}
+          </Avatar.Group>
+        )}
       </CustomButton>
-    </Dropdown>
+    </Popover>
   );
 };
 

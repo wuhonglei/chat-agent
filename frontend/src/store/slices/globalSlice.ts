@@ -1,5 +1,6 @@
 import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { checkGoogleFavIconsAvailable } from "@/services";
+import { checkGoogleFavIconsAvailable, healthAPI } from "@/services";
+import { MCPConfigItem } from "@/interfaces";
 
 // 检测 Google Fav icons API 是否可用
 export const checkGoogleFavIconsAvailability = createAsyncThunk(
@@ -11,18 +12,30 @@ export const checkGoogleFavIconsAvailability = createAsyncThunk(
   }
 );
 
+// 获取 MCP 配置
+export const getMCPConfig = createAsyncThunk(
+  "global/getMCPConfig",
+  async (_, { dispatch }) => {
+    const mcpConfig = await healthAPI.getMCPConfig();
+    dispatch(setMCPConfig(mcpConfig));
+  }
+);
 const globalSlice = createSlice({
   name: "global",
   initialState: {
     googleFavIconsAvailable: false,
+    mcpConfig: [] as MCPConfigItem[],
   },
   reducers: {
     setGoogleFavIconsAvailable: (state, action: PayloadAction<boolean>) => {
       state.googleFavIconsAvailable = action.payload;
     },
+    setMCPConfig: (state, action: PayloadAction<MCPConfigItem[]>) => {
+      state.mcpConfig = action.payload;
+    },
   },
 });
 
-export const { setGoogleFavIconsAvailable } = globalSlice.actions;
+export const { setGoogleFavIconsAvailable, setMCPConfig } = globalSlice.actions;
 
 export default globalSlice.reducer;

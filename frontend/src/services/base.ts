@@ -38,12 +38,12 @@ apiClient.interceptors.request.use(
 
 // Response interceptor - Convert all response data to camelCase
 apiClient.interceptors.response.use(
-  (response: AxiosResponse) => {
+  (response: AxiosResponse["data"]) => {
     // Convert response data to camelCase
     if (isPlainObject(response.data) && !(response.data instanceof Blob)) {
       response.data = camelcaseKeys(response.data, { deep: true });
     }
-    return response;
+    return response.data;
   },
   error => {
     if (error.response) {

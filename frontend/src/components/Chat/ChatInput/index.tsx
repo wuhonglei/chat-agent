@@ -1,7 +1,7 @@
 import { Input, Form, ConfigProvider, FormInstance, Button } from "antd";
 import classNames from "classnames";
 import React from "react";
-import styles from "./index.module.css";
+import styles from "./css/index.module.css";
 import CustomButton from "@/components/common/CustomButton";
 import ThinkModeIcon from "@/assets/svg/ThinkModeIcon.svg?react";
 import SquareIcon from "@/assets/svg/SquareIcon.svg?react";
@@ -73,7 +73,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
     <ConfigProvider theme={{ components: { Form: { itemMarginBottom: 0 } } }}>
       <Form
         form={form}
-        layout="vertical"
+        layout="horizontal"
         className={classNames(
           "flex flex-col gap-3 bg-white",
           styles["input-container"],
@@ -81,7 +81,11 @@ const ChatInput: React.FC<ChatInputProps> = ({
         )}
         style={style}
       >
-        <Form.Item name={names.message} initialValue={undefined}>
+        <Form.Item
+          className="mr-0"
+          name={names.message}
+          initialValue={undefined}
+        >
           <TextArea
             autoFocus
             autoSize={{ minRows: 2.5 }}
@@ -107,6 +111,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
                 深度思考
               </CustomButton>
             </Form.Item>
+            {/* 工具设置 */}
             <ToolsSetting />
           </div>
           {/* 右侧 */}

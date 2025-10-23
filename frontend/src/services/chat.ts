@@ -6,6 +6,7 @@ import {
   ChatResponse,
   ChatSession,
   StreamMessage,
+  MCPConfigItem,
 } from "@/interfaces";
 import { apiClient } from "./base";
 import snakecaseKeys from "snakecase-keys";
@@ -85,8 +86,13 @@ export const healthAPI = {
     return await apiClient.get("/api/health");
   },
 
-  // Ready check
-  checkReady: async (): Promise<AxiosResponse<{ status: string }>> => {
-    return await apiClient.get("/api/health/ready");
+  // MCP health check
+  checkMCPHealth: async (): Promise<AxiosResponse<{ status: string }>> => {
+    return await apiClient.get("/api/health/mcp");
+  },
+
+  // MCP config
+  getMCPConfig: async (): Promise<MCPConfigItem[]> => {
+    return await apiClient.get("/api/health/mcp_config");
   },
 };

@@ -37,22 +37,22 @@ mcp_config_for_fe: List[MCPConfigForFeDict] = [{
     'id': 'context7',
     'name': 'Context7',
     'icon': 'https://context7.com/favicon.ico',
-    'description': 'Up-to-date Docs for LLMs and AI code editors',
+    'description': '为 LLM 和 AI 代码编辑器提供最新文档',
 }, {
     'id': 'confluence-mcp',
     'name': 'Confluence',
     'icon': 'https://www.atlassian.com/favicon.ico',
-    'description': 'Shopee internal company knowledge base',
+    'description': 'Shopee 内部公司知识库',
 }, {
     'id': 'weather-mcp',
     'name': '天气',
     'icon': 'https://www.qweather.com/favicon.ico',
-    'description': 'Weather information',
+    'description': '天气信息',
 }, {
     'id': 'tavily-mcp',
     'name': '联网搜索',
     'icon': 'https://www.tavily.com/favicon.ico',
-    'description': 'Web search',
+    'description': '网络搜索',
 }]
 
 

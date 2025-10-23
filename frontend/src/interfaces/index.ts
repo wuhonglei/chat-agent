@@ -1,6 +1,14 @@
 // Chat types
 import { RoleType, SearchSourceType } from "@/constants";
 
+export interface MCPConfigItem {
+  id: string;
+  name: string;
+  icon: string;
+  online: boolean;
+  description: string;
+}
+
 export interface ChatMessage {
   role: RoleType;
   content: string;
