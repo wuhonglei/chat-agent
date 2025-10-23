@@ -15,6 +15,7 @@ from fastmcp import FastMCP
 # 导入 MCP servers
 from app.mcp.mcp_servers.weather_mcp.server import mcp as weather_mcp
 from app.mcp.mcp_servers.tavily_mcp.server import mcp as tavily_mcp
+from app.mcp.mcp_servers.confluence_mcp.server import mcp as mcp_confluence
 
 
 mcp_config = {
@@ -25,6 +26,7 @@ mcp_config = {
                 "CONTEXT7_API_KEY": "ctx7sk-23e02d48-44b5-47c5-a705-09cdf771a69b"
             }
         },
+        "confluence-mcp": mcp_confluence,
         "weather-mcp": weather_mcp,
         "tavily-mcp": tavily_mcp,
     }

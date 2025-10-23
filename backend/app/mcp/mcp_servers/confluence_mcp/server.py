@@ -233,8 +233,7 @@ async def confluence_get_page_children(
             expand=expand,
             convert_to_markdown=convert_to_markdown,
         )
-        child_pages = [page.to_simplified_dict() for page in pages]
-        return child_pages
+        return pages
     except Exception as e:
         logger.error(
             f"Error getting/processing children for page ID {parent_id}: {e}",

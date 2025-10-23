@@ -6,16 +6,30 @@ import os
 import json
 import asyncio
 from .mcp_client import get_mcp_manager, MCPClientManager
-from openai import OpenAI
+from openai import AsyncOpenAI
+from openai.types.chat import ChatCompletionMessageToolCall
 from dotenv import load_dotenv
 from pathlib import Path
 from typing import List, Dict, Any
 load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
 
+async def execute_single_tool(tool_call: ChatCompletionMessageToolCall, mcp_client_manager: MCPClientManager):
+    """
+    执行单个工具调用
+    """
+    tool_name = tool_call.function.name
+    tool_args = json.loads(tool_call.function.arguments)
+    print(f"执行工具: {tool_name}, 参数: {tool_args}")
+    result = await mcp_client_manager.call_tool(tool_name, tool_args)
+    print(f"工具结果:")
+    print(result.data)
+    return result
+
+
 async def chat_with_deepseek(
     mcp_client_manager: MCPClientManager,
-    deepseek_client: OpenAI,
+    deepseek_client: AsyncOpenAI,
     user_message: str,
     tools: List[Dict[str, Any]],
     max_iterations: int = 5
@@ -48,7 +62,7 @@ async def chat_with_deepseek(
         print(f"--- 迭代 {iteration + 1} ---")
 
         # 调用 DeepSeek API
-        response = deepseek_client.chat.completions.create(
+        response = await deepseek_client.chat.completions.create(
             model="deepseek-reasoner",
             messages=messages,
             tools=tools if tools else None
@@ -66,20 +80,13 @@ async def chat_with_deepseek(
             print(f"\n需要调用 {len(assistant_message.tool_calls)} 个工具:")
 
             # 执行所有工具调用
+            tasks = []
             for tool_call in assistant_message.tool_calls:
-                tool_name = tool_call.function.name
-                tool_args = json.loads(tool_call.function.arguments)
-
-                print(f"\n调用工具: {tool_name}")
-                print(
-                    f"参数: {json.dumps(tool_args, ensure_ascii=False, indent=2)}")
-
-                # 执行 MCP 工具
-                tool_result = await mcp_client_manager.call_tool(tool_name, tool_args)
-
-                print(f'tool_result: {tool_result}')
-
-                # 将工具结果添加到消息历史
+                tasks.append(execute_single_tool(
+                    tool_call, mcp_client_manager))
+            tool_results = await asyncio.gather(*tasks)
+            for tool_result in tool_results:
+                print(f'工具结果: {tool_result}')
                 messages.append({
                     "role": "tool",
                     "tool_call_id": tool_call.id,
@@ -99,7 +106,7 @@ async def chat_with_deepseek(
 async def test_mcp_client():
     mcp_client_manager = await get_mcp_manager()
     tools = await mcp_client_manager.get_tools_for_llm()
-    deepseek_client = OpenAI(
+    deepseek_client = AsyncOpenAI(
         api_key=os.getenv("LLM_API_KEY"),
         base_url="https://api.deepseek.com/v1"
     )
@@ -114,28 +121,37 @@ async def test_mcp_client():
     print("开始 DeepSeek + MCP Tools 演示")
     print("="*60)
 
+    # 提示词中明确进行深入思考，但是传入了 tools，此时模型仍只会使用 chat 模式
+    # await chat_with_deepseek(
+    #     mcp_client_manager=mcp_client_manager,
+    #     deepseek_client=deepseek_client,
+    #     user_message="请深入分析人工智能的发展趋势",
+    #     tools=tools
+    # )
+
+    # 搜索并查询
+    # await chat_with_deepseek(
+    #     mcp_client_manager=mcp_client_manager,
+    #     deepseek_client=deepseek_client,
+    #     user_message="搜索一下 2025 年人工智能的最新进展, 并深入分析开发者应如何把握这些机会",
+    #     tools=tools
+    # )
+
+    # 查询 Confluence
     await chat_with_deepseek(
         mcp_client_manager=mcp_client_manager,
         deepseek_client=deepseek_client,
-        user_message="请深入分析人工智能的发展趋势",
+        user_message="请查询 Confluence 中关于 ai agent 的最新进展",
         tools=tools
     )
 
-    # 示例 1: 搜索并查询
-    await chat_with_deepseek(
-        mcp_client_manager=mcp_client_manager,
-        deepseek_client=deepseek_client,
-        user_message="搜索一下 2025 年人工智能的最新进展, 并深入分析开发者应如何把握这些机会",
-        tools=tools
-    )
-
-    # 示例 2: 查询天气
-    await chat_with_deepseek(
-        mcp_client_manager=mcp_client_manager,
-        deepseek_client=deepseek_client,
-        user_message="北京今天天气怎么样？",
-        tools=tools
-    )
+    # 查询天气
+    # await chat_with_deepseek(
+    #     mcp_client_manager=mcp_client_manager,
+    #     deepseek_client=deepseek_client,
+    #     user_message="北京今天天气怎么样？",
+    #     tools=tools
+    # )
 
 
 if __name__ == "__main__":

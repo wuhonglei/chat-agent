@@ -3,6 +3,7 @@
 import logging
 import re
 import warnings
+from urllib.parse import quote
 
 from bs4 import BeautifulSoup, Tag
 from markdownify import markdownify as md
