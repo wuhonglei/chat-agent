@@ -12,7 +12,6 @@ from dotenv import load_dotenv
 from pathlib import Path
 from typing import List, Dict, Any
 from pydantic import BaseModel
-from tqdm import tqdm
 
 load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
@@ -102,7 +101,7 @@ async def chat_with_deepseek_single(
     for tool_call in user_message.tool_calls:
         if tool_call['name'] not in used_tools:
             raise ValueError(f"未找到工具调用: {tool_call}")
-        if tool_call['arguments'] and tool_call['arguments'] not in used_tools[tool_call['name']]:
+        if tool_call.get('arguments') and tool_call['arguments'] not in used_tools[tool_call['name']]:
             raise ValueError(f"未找到工具调用参数: {tool_call['arguments']}")
 
     return True
@@ -129,7 +128,7 @@ async def chat_with_deepseek(
         最终回复
     """
     tasks = []
-    for user_message in tqdm(user_messages, desc="处理用户消息"):
+    for user_message in user_messages:
         task = chat_with_deepseek_single(
             mcp_client_manager, deepseek_client, user_message, tools, max_iterations)
         tasks.append(task)
