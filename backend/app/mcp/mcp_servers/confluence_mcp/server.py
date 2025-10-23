@@ -1,8 +1,7 @@
 """Confluence FastMCP server instance and tool definitions."""
 
-import json
 import logging
-
+import asyncio
 from fastmcp import FastMCP
 from pydantic import Field
 from .services import ConfluenceFetcher, ConfluenceConfig
@@ -58,9 +57,9 @@ async def _confluence_get_page(
         ConfluencePage object representing the page content, or an error if not found or parameters are invalid.
     """
     if page_id:
-        return await confluence_fetcher.get_page_content(page_id)
+        return await asyncio.to_thread(confluence_fetcher.get_page_content, page_id)
     elif title and space_key:
-        return await confluence_fetcher.get_page_by_title(space_key, title)
+        return await asyncio.to_thread(confluence_fetcher.get_page_by_title, space_key, title)
     raise ValueError(
         "Either 'page_id' OR both 'title' and 'space_key' must be provided.")
 
@@ -125,7 +124,8 @@ async def confluence_search(
             logger.info(
                 f"Converting simple search term to CQL using siteSearch: {query}"
             )
-            pages = confluence_fetcher.search(
+            pages = await asyncio.to_thread(
+                confluence_fetcher.search,
                 query, limit=limit, spaces_filter=spaces_filter
             )
         except Exception as e:
@@ -133,11 +133,13 @@ async def confluence_search(
                 f"siteSearch failed ('{e}'), falling back to text search.")
             query = f'text ~ "{original_query}"'
             logger.info(f"Falling back to text search with CQL: {query}")
-            pages = confluence_fetcher.search(
+            pages = await asyncio.to_thread(
+                confluence_fetcher.search,
                 query, limit=limit, spaces_filter=spaces_filter
             )
     else:
-        pages = confluence_fetcher.search(
+        pages = await asyncio.to_thread(
+            confluence_fetcher.search,
             query, limit=limit, spaces_filter=spaces_filter
         )
     return pages
@@ -223,7 +225,8 @@ async def confluence_get_page_children(
         expand = f"{expand},body.storage" if expand else "body.storage"
 
     try:
-        pages = confluence_fetcher.get_page_children(
+        pages = await asyncio.to_thread(
+            confluence_fetcher.get_page_children,
             page_id=parent_id,
             start=start,
             limit=limit,
