@@ -16,7 +16,9 @@ from .config import config
 from .models import CitySearchResponse, WeatherNowResponse, WeatherNow, City, WeatherDaily, WeatherDailyResponse, WeatherAlertResponse, WeatherAlert
 
 # 创建 MCP 实例
-mcp = FastMCP("weather-mcp")
+mcp = FastMCP(
+    name="Weather MCP Service",
+)
 
 
 async def make_request(endpoint: str, params: Dict[str, Any]) -> dict[str, Any]:

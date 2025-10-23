@@ -5,7 +5,6 @@ uv run -m app.mcp.test_mcp_client
 import os
 import json
 import asyncio
-from .mcp_client import get_mcp_manager, MCPClientManager
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletionMessageToolCall
 from dotenv import load_dotenv
@@ -13,6 +12,8 @@ from pathlib import Path
 from typing import List, Dict, Any
 from pydantic import BaseModel
 from loguru import logger
+
+from app.mcp.mcp_client import get_mcp_manager, MCPClientManager
 
 load_dotenv(Path(__file__).parent.parent.parent / ".env")
 

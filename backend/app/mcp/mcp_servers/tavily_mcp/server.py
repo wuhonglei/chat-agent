@@ -15,7 +15,9 @@ from .config import config
 from .models import TavilySearchResponse, TavilyExtractResponse, TavilyCrawlResponse, TavilyMapResponse
 
 # Create MCP instance and Tavily client
-mcp = FastMCP("tavily-mcp")
+mcp = FastMCP(
+    name="Tavily Search MCP Service",
+)
 client = AsyncTavilyClient(api_key=config.TAVILY_API_KEY)
 
 

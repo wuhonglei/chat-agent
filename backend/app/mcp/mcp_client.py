@@ -4,8 +4,9 @@
 """
 
 import asyncio
+import copy
 from loguru import logger
-from typing import Dict, List, Optional, Any, AsyncGenerator
+from typing import Dict, List, Optional, Any
 from contextlib import asynccontextmanager
 from fastmcp import Client
 from fastmcp.client.transports import FastMCPTransport, StreamableHttpTransport
@@ -16,21 +17,43 @@ from fastmcp import FastMCP
 from app.mcp.mcp_servers.weather_mcp.server import mcp as weather_mcp
 from app.mcp.mcp_servers.tavily_mcp.server import mcp as tavily_mcp
 from app.mcp.mcp_servers.confluence_mcp.server import mcp as mcp_confluence
-
+from app.models.mcp import MCPConfigForFeDict
 
 mcp_config = {
     "mcpServers": {
-        # "context7": {
-        #     "url": "https://mcp.context7.com/mcp",
-        #     "headers": {
-        #         "CONTEXT7_API_KEY": "ctx7sk-23e02d48-44b5-47c5-a705-09cdf771a69b"
-        #     }
-        # },
+        "context7": {
+            "url": "https://mcp.context7.com/mcp",
+            "headers": {
+                "CONTEXT7_API_KEY": "ctx7sk-23e02d48-44b5-47c5-a705-09cdf771a69b"
+            }
+        },
         "confluence-mcp": mcp_confluence,
         "weather-mcp": weather_mcp,
         "tavily-mcp": tavily_mcp,
     }
 }
+
+mcp_config_for_fe: List[MCPConfigForFeDict] = [{
+    'id': 'context7',
+    'name': 'Context7',
+    'icon': 'https://context7.com/favicon.ico',
+    'description': 'Up-to-date Docs for LLMs and AI code editors',
+}, {
+    'id': 'confluence-mcp',
+    'name': 'Confluence',
+    'icon': 'https://www.atlassian.com/favicon.ico',
+    'description': 'Shopee internal company knowledge base',
+}, {
+    'id': 'weather-mcp',
+    'name': '天气',
+    'icon': 'https://www.qweather.com/favicon.ico',
+    'description': 'Weather information',
+}, {
+    'id': 'tavily-mcp',
+    'name': '联网搜索',
+    'icon': 'https://www.tavily.com/favicon.ico',
+    'description': 'Web search',
+}]
 
 
 class MCPClientManager:
@@ -291,6 +314,22 @@ class MCPClientManager:
                 logger.error(f"✗ {server_name} 健康检查失败: {e}")
 
         return health_status
+
+    async def get_mcp_config_for_fe(self) -> List[MCPConfigForFeDict]:
+        """
+        获取用于前端展示的 MCP 配置
+
+        Returns:
+            List[Dict[str, Any]]: MCP 配置列表
+        """
+        if not self._initialized:
+            raise RuntimeError("MCPClientManager 未初始化，请先调用 initialize()")
+
+        health_status = await self.health_check()
+        mcp_config_for_fe_copy = copy.deepcopy(mcp_config_for_fe)
+        for server in mcp_config_for_fe_copy:
+            server['online'] = health_status.get(server['id'], False)
+        return mcp_config_for_fe_copy
 
     async def get_tools_for_llm(self) -> List[Dict[str, Any]]:
         """

@@ -10,7 +10,7 @@ client = Client(mcp)
 
 async def test_search():
     async with client:
-        result = await client.call_tool("confluence_search", {
+        result = await client.call_tool("shopee_confluence_search", {
             "query": "siteSearch ~ \"ai agent\"",
             "limit": 3
         })
@@ -19,7 +19,7 @@ async def test_search():
 
 async def test_get_page_children():
     async with client:
-        result = await client.call_tool("confluence_get_page_children", {
+        result = await client.call_tool("shopee_confluence_get_page_children", {
             "parent_id": "106730201"
         })
     pprint(result.data)
@@ -27,7 +27,7 @@ async def test_get_page_children():
 
 async def test_get_page_content():
     async with client:
-        result = await client.call_tool("confluence_get_page", {
+        result = await client.call_tool("shopee_confluence_get_page", {
             "page_id": "2923648424"
         })
     print(result.data)
