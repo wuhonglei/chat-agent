@@ -186,8 +186,14 @@ async def test_mcp_client():
         #             "name": "confluence_search"
         #     }]
         # ),
+        # UserMessage(
+        #     message="请查询公司内部 ai agent 有关的项目",
+        #     tool_calls=[{
+        #             "name": "confluence_search"
+        #     }]
+        # ),
         UserMessage(
-            message="请查询公司内部 ai agent 有关的项目",
+            message="请查询内部 ai agent 有关的项目",
             tool_calls=[{
                     "name": "confluence_search"
             }]

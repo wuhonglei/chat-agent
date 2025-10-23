@@ -20,12 +20,12 @@ from app.mcp.mcp_servers.confluence_mcp.server import mcp as mcp_confluence
 
 mcp_config = {
     "mcpServers": {
-        "context7": {
-            "url": "https://mcp.context7.com/mcp",
-            "headers": {
-                "CONTEXT7_API_KEY": "ctx7sk-23e02d48-44b5-47c5-a705-09cdf771a69b"
-            }
-        },
+        # "context7": {
+        #     "url": "https://mcp.context7.com/mcp",
+        #     "headers": {
+        #         "CONTEXT7_API_KEY": "ctx7sk-23e02d48-44b5-47c5-a705-09cdf771a69b"
+        #     }
+        # },
         "confluence-mcp": mcp_confluence,
         "weather-mcp": weather_mcp,
         "tavily-mcp": tavily_mcp,

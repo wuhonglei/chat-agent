@@ -103,17 +103,7 @@ async def confluence_search(
         default=None,
     ),
 ) -> list[ConfluencePage]:
-    """Search Confluence content using simple terms or CQL.
-
-    Args:
-        ctx: The FastMCP context.
-        query: Search query - can be simple text or a CQL query string.
-        limit: Maximum number of results (1-50).
-        spaces_filter: Comma-separated list of space keys to filter by.
-
-    Returns:
-        List of ConfluencePage objects representing the search results.
-    """
+    """Search Confluence content using simple terms or CQL."""
     # Check if the query is a simple search term or already a CQL query
     if query and not any(
         x in query for x in ["=", "~", ">", "<", " AND ", " OR ", "currentUser()"]
@@ -173,16 +163,7 @@ async def confluence_get_page(
         default=None,
     ),
 ) -> ConfluencePage:
-    """Get content of a specific Confluence page by its ID, or by its title and space key.
-
-    Args:
-        page_id: Confluence page ID. If provided, 'title' and 'space_key' are ignored.
-        title: The exact title of the page. Must be used with 'space_key'.
-        space_key: The key of the space. Must be used with 'title'.
-
-    Returns:
-        ConfluencePage object representing the page content and/or metadata, or an error if not found or parameters are invalid.
-    """
+    """Get content of a specific Confluence page by its ID, or by its title and space key."""
     return await _confluence_get_page(page_id, title, space_key)
 
 
@@ -212,19 +193,7 @@ async def confluence_get_page_children(
     start: int = Field(
         description="Starting index for pagination (0-based)", default=0, ge=0),
 ) -> list[ConfluencePage]:
-    """Get child pages of a specific Confluence page.
-
-    Args:
-        parent_id: The ID of the parent page.
-        expand: Fields to expand.
-        limit: Maximum number of child pages.
-        include_content: Whether to include page content.
-        convert_to_markdown: Convert content to markdown if include_content is true.
-        start: Starting index for pagination.
-
-    Returns:
-        List of ConfluencePage objects representing the child pages.
-    """
+    """Get child pages of a specific Confluence page."""
     if include_content and "body" not in expand:
         expand = f"{expand},body.storage" if expand else "body.storage"
 
