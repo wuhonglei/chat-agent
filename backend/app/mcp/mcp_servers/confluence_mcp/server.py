@@ -12,7 +12,7 @@ from .models.confluence import ConfluencePage
 logger = logging.getLogger(__name__)
 
 mcp = FastMCP(
-    name="Confluence MCP Service",
+    name="Shopee Confluence MCP Service",
 )
 
 confluence_fetcher = ConfluenceFetcher(config=ConfluenceConfig(

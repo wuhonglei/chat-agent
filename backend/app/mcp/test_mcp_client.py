@@ -12,8 +12,19 @@ from dotenv import load_dotenv
 from pathlib import Path
 from typing import List, Dict, Any
 from pydantic import BaseModel
+from loguru import logger
 
 load_dotenv(Path(__file__).parent.parent.parent / ".env")
+
+# 配置 logger 同时输出到控制台和日志文件
+logger.add(
+    Path(__file__).parent / "logs/{time:YYYY-MM-DD HH:mm:ss}.txt",
+    level="INFO",
+    format="| {time:YYYY-MM-DD HH:mm:ss} | {level} | {message}",
+    rotation="10 MB",
+    retention="7 days",
+    encoding="utf-8"
+)
 
 
 class UserMessage(BaseModel):
@@ -27,10 +38,12 @@ async def execute_single_tool(tool_call: ChatCompletionMessageToolCall, mcp_clie
     """
     tool_name = tool_call.function.name
     tool_args = json.loads(tool_call.function.arguments)
-    print(f"执行工具: {tool_name}, 参数: {tool_args}")
+    logger.info(f"执行工具: {tool_name}, 参数: {tool_args}")
     result = await mcp_client_manager.call_tool(tool_name, tool_args)
-    print(f"工具结果:")
-    print(result.data)
+    logger.info(f"工具结果:")
+    result_str = mcp_client_manager.format_mcp_result(result)
+    logger.info(result_str[:200] + "..." + result_str[-200:]
+                if len(result_str) > 200 else result_str)
     return result
 
 
@@ -45,12 +58,12 @@ async def chat_with_deepseek_single(
     messages = [
         {"role": "user", "content": user_message.message}
     ]
-    print(f"用户: {user_message.message}")
-    print(f"{'='*60}\n")
+    logger.info(f"用户: {user_message.message}")
+    logger.info(f"{'='*60}\n")
     used_tools = {}
 
     for iteration in range(max_iterations):
-        print(f"--- 迭代 {iteration + 1} ---")
+        logger.info(f"--- 迭代 {iteration + 1} ---")
 
         # 调用 DeepSeek API
         response = await deepseek_client.chat.completions.create(
@@ -68,7 +81,7 @@ async def chat_with_deepseek_single(
 
         # 检查是否需要调用工具
         if assistant_message.tool_calls:
-            print(f"\n需要调用 {len(assistant_message.tool_calls)} 个工具:")
+            logger.info(f"\n需要调用 {len(assistant_message.tool_calls)} 个工具:")
 
             # 执行所有工具调用
             tasks = []
@@ -80,7 +93,6 @@ async def chat_with_deepseek_single(
                     tool_call, mcp_client_manager))
             tool_results = await asyncio.gather(*tasks)
             for tool_result in tool_results:
-                print(f'工具结果: {tool_result}')
                 messages.append({
                     "role": "tool",
                     "tool_call_id": tool_call.id,
@@ -93,9 +105,11 @@ async def chat_with_deepseek_single(
                 "role": "assistant",
                 "content": final_response
             })
-            print(f"\n{'='*60}")
-            print(f"DeepSeek 回复: {final_response}")
-            print(f"{'='*60}\n")
+            logger.info(f"\n{'='*60}")
+            logger.info(f"DeepSeek 回复:")
+            logger.info(final_response[:200] + "..." + final_response[-200:]
+                        if len(final_response) > 200 else final_response)
+            logger.info(f"{'='*60}\n")
 
     # 判断 UserMessage.tool_calls 列表中的每个工具 name 或 arguments 是否在 messages 中存在
     for tool_call in user_message.tool_calls:
@@ -144,15 +158,15 @@ async def test_mcp_client():
         base_url="https://api.deepseek.com/v1"
     )
 
-    print(f"\n可用的 MCP 工具 ({len(tools)} 个):")
+    logger.info(f"\n可用的 MCP 工具 ({len(tools)} 个):")
     for i, tool in enumerate(tools, 1):
-        print(
+        logger.info(
             f"{i}. {tool['function']['name']}: {tool['function']['description']}")
 
     # 4. 使用 DeepSeek API 调用工具
-    print("\n" + "="*60)
-    print("开始 DeepSeek + MCP Tools 演示")
-    print("="*60)
+    logger.info("\n" + "="*60)
+    logger.info("开始 DeepSeek + MCP Tools 演示")
+    logger.info("="*60)
 
     # 查询 Confluence
     user_messages = [
@@ -195,11 +209,12 @@ async def test_mcp_client():
     correct_count = 0
     for i, result in enumerate(results):
         if isinstance(result, Exception):
-            print(f"第 {i+1} 个用户消息处理失败: {type(result).__name__}: {result}")
+            logger.error(
+                f"第 {i+1} 个用户消息处理失败: {type(result).__name__}: {result}")
         elif result is True:
             correct_count += 1
-    print(f"成功处理的用户消息数量: {correct_count}")
-    print(f"失败处理的用户消息数量: {len(results) - correct_count}")
+    logger.info(f"成功处理的用户消息数量: {correct_count}")
+    logger.info(f"失败处理的用户消息数量: {len(results) - correct_count}")
 
 
 if __name__ == "__main__":
