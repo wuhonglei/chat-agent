@@ -12,7 +12,7 @@ from app.core.config import settings
 from app.models.chat import ChatMessage, ChatRequest
 from app.utils.common import filter_dict
 from app.mcp.mcp_client import MCPClientManager
-from app.services.prompt import default_system_prompt, get_prompt_with_mcp_servers
+from app.services.prompt import get_default_system_prompt, get_prompt_with_mcp_servers
 
 
 class ChatService:
@@ -56,6 +56,9 @@ class ChatService:
         max_iterations = 5  # Prevent infinite loops
         tool_call_messages: list[dict] = []
         for iteration in range(max_iterations):
+            logger.info(f'{'='*60}')
+            logger.info(f'第 {iteration + 1} 次迭代')
+
             # Call LLM with tools
             response = await self.client.chat.completions.create(
                 model=model,
@@ -68,7 +71,7 @@ class ChatService:
             # If no tool calls, return the response
             if not assistant_message.tool_calls:
                 logger.info(
-                    "No tool calls, returning tool_call_messages. Assistant response: " + assistant_message.content)
+                    "No tool calls, returning tool_call_messages. Assistant response: " + assistant_message.content if assistant_message.content else 'empty')
                 return tool_call_messages
 
             # Handle tool calls
@@ -77,6 +80,7 @@ class ChatService:
             tool_call_messages.append(
                 assistant_message.model_dump(exclude_none=True))
 
+            logger.info(f'需要调用 {len(assistant_message.tool_calls)} 个工具:')
             # Execute tool calls
             for tool_call in assistant_message.tool_calls:
                 tool_name = tool_call.function.name
@@ -147,7 +151,7 @@ class ChatService:
                 tool_call_messages = []
 
             new_messages = self._compose_messages(
-                user_message, history, tool_call_messages, default_system_prompt)
+                user_message, history, tool_call_messages, get_default_system_prompt())
             async for chunk in self._stream_final_response(new_messages, final_model):
                 yield chunk
             return
@@ -165,7 +169,7 @@ class ChatService:
     ) -> list[dict]:
         """Build prompt for LLM without context"""
         messages = [
-            {"role": "system", "content": system_prompt or default_system_prompt}]
+            {"role": "system", "content": system_prompt or get_default_system_prompt()}]
 
         history = history or []
         for msg in history[-5:]:  # Keep last 5 messages for context

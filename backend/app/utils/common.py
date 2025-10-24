@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any, Optional
 
 
@@ -24,3 +25,13 @@ def filter_dict(dict_data: dict, values: Optional[list[Any]] = None) -> list[Any
     """过滤字典，返回值为指定值的键"""
     values = values or [True]
     return [k for k, v in dict_data.items() if v in values]
+
+
+def get_current_datetime_str() -> str:
+    """获取当前日期和时间字符串"""
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def get_current_date() -> str:
+    """获取当前日期字符串"""
+    return datetime.now().strftime("%Y-%m-%d")
