@@ -36,7 +36,9 @@ class ChatService:
             messages=messages,
             stream=True,
         )
+        logger.info(f'model is {model}')
         async for chunk in response:
+            logger.info(f'response model is {chunk.model}')
             # For streaming responses, use delta instead of message
             delta = getattr(chunk.choices[0], 'delta', None)
             if delta and getattr(delta, 'reasoning_content', None):
@@ -112,6 +114,7 @@ class ChatService:
                     })
 
         # If we hit max iterations, return error message
+        logger.info(f'we have hit max iterations, returning tool_call_messages')
         return tool_call_messages
 
     @staticmethod

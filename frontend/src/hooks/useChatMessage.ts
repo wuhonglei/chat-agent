@@ -52,6 +52,18 @@ export const useChatMessage = (
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  /**
+   * 获取历史消息
+   * 注意: 函数体中的 messages 使用的是旧的消息列表，不是最新的消息列表
+   */
+  const getHistoryMessages = (limit: number = historyLimit, index?: number) => {
+    if (isNil(index)) {
+      return messages.slice(-limit);
+    }
+
+    return messages.slice(Math.max(0, index - limit), index);
+  };
+
   const resetState = () => {
     dispatch(setStreaming(false));
     dispatch(setLoading(false));
@@ -101,7 +113,7 @@ export const useChatMessage = (
         {
           ...values,
           sessionId: sessionId || undefined,
-          history: messages.slice(-historyLimit), // 发送最后几条消息作为上下文
+          history: getHistoryMessages(historyLimit, index), // 发送最后几条消息作为上下文
         },
         (data: StreamMessage) => {
           if (data.type === "reasoning") {

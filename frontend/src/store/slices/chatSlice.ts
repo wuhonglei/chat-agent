@@ -1,5 +1,4 @@
 import { ChatMessage, SearchSource } from "@/interfaces";
-import { buildFootnoteDefinition } from "@/utils";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { isEmpty } from "lodash-es";
 
