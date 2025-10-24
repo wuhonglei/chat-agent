@@ -72,6 +72,7 @@ class MCPClientManager:
         self.servers: Dict[str, Any] = {}  # MCP server 实例
         self.clients: Dict[str, Client] = {}  # Client 实例
         self.tools_map: Dict[str, str] = {}  # 工具名 -> server 名映射
+        self.tools_by_server: Dict[str, List[Any]] = {}  # server 名 -> 工具列表映射
         self._initialized = False
 
     async def initialize(self) -> None:
@@ -123,6 +124,7 @@ class MCPClientManager:
                 # 获取该 server 的所有工具
                 async with client:
                     tools = await client.list_tools()
+                    self.tools_by_server[server_name] = tools
                 for tool in tools:
                     tool_name = tool.name
                     if tool_name in self.tools_map:
@@ -167,17 +169,23 @@ class MCPClientManager:
         if not server_names:
             return {}
 
-        for server_name, client in self.clients.items():
-            if server_name not in server_names:
-                continue
+        async def list_tools_for_server(server_name: str) -> List[Any]:
+            if server_name not in self.clients:
+                return []
 
-            try:
-                async with client:
-                    tools = await client.list_tools()
+            client = self.clients[server_name]
+            async with client:
+                tools = await client.list_tools()
+            return tools
+
+        tasks = [list_tools_for_server(server_name)
+                 for server_name in server_names]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        for server_name, tools in zip(server_names, results):
+            if isinstance(tools, Exception):
+                logger.error(f"获取 {server_name} 的工具列表失败: {tools}")
+            else:
                 all_tools[server_name] = tools
-            except Exception as e:
-                logger.error(f"获取 {server_name} 的工具列表失败: {e}")
-                all_tools[server_name] = []
 
         return all_tools
 
@@ -312,17 +320,35 @@ class MCPClientManager:
         if not self._initialized:
             raise RuntimeError("MCPClientManager 未初始化，请先调用 initialize()")
 
-        health_status = {}
-        for server_name, client in self.clients.items():
+        async def check_single_server(server_name: str, client) -> tuple[str, bool]:
+            """检查单个服务器的健康状态"""
             try:
                 # 尝试列出工具来检查连接是否正常
                 async with client:
                     await client.list_tools()
-                health_status[server_name] = True
                 logger.info(f"✓ {server_name} 健康检查通过")
+                return server_name, True
             except Exception as e:
-                health_status[server_name] = False
                 logger.error(f"✗ {server_name} 健康检查失败: {e}")
+                return server_name, False
+
+        # 并发执行所有服务器的健康检查
+        tasks = [
+            check_single_server(server_name, client)
+            for server_name, client in self.clients.items()
+        ]
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # 处理结果
+        health_status = {}
+        for result in results:
+            if isinstance(result, Exception):
+                # 如果任务本身出现异常，记录错误
+                logger.error(f"健康检查任务异常: {result}")
+            else:
+                server_name, is_healthy = result
+                health_status[server_name] = is_healthy
 
         return health_status
 
@@ -352,9 +378,12 @@ class MCPClientManager:
         if not self._initialized:
             raise RuntimeError("MCPClientManager 未初始化，请先调用 initialize()")
 
-        all_tools = await self.list_tools(server_names)
         formatted_tools = []
-        for server_name, tools in all_tools.items():
+        server_names = self.tools_by_server.keys() if server_names is None else server_names
+        for server_name in server_names:
+            if server_name not in server_names:
+                continue
+            tools = self.tools_by_server[server_name]
             for tool in tools:
                 formatted_tools.append({
                     "type": "function",

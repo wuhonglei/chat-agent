@@ -23,21 +23,33 @@ system_prompt_with_references = """
 
 
 mcp_servers_prompt_template = Template("""
-You are a helpful assistant just for MCP tools calling.
-User has made a request and manually selected the following MCP servers:
-{% for server in mcp_configs %}
-- {{ server.id }}: {{ server.description }}
-{% endfor %}
+You are a helpful assistant just for tools calling.
+{% if not mcp_auto_mode %}
+User has made a request and manually selected the following tools:
+    {% for server in mcp_configs %}
+    - {{ server.id }}: {{ server.description }}
+    {% endfor %}
+{% endif %}
 
 note:
-- if you do not need any mcp tools to call, you should just tell the user 'I have no need to call any mcp tools.' and return the answer directly.
+- if you do not need any tools to call, you should just tell the user 'I have no need to call any tools.' without any other words.
+""".strip())
+
+user_message_template = Template(f"""
+User has made a request:
+{{ user_message }}
+
+note:
+- if you do not need any tools to call, you should just tell the user 'I have no need to call any tools.' without any other words.
 """.strip())
 
 
-def get_system_prompt_with_mcp_servers(mcp_auto_mode: bool, server_names: list[str]) -> str:
-    if mcp_auto_mode:
-        return default_system_prompt
+def get_prompt_with_mcp_servers(user_message: str, mcp_auto_mode: bool, server_names: list[str]) -> tuple[str, str]:
     id_by_config = {config['id']: config for config in mcp_config_for_fe}
+    server_names = server_names or []
     mcp_configs = [id_by_config[server_name]
                    for server_name in server_names if server_name in id_by_config]
-    return mcp_servers_prompt_template.render(mcp_configs=mcp_configs)
+    new_user_message = user_message_template.render(user_message=user_message)
+    system_prompt = mcp_servers_prompt_template.render(
+        mcp_auto_mode=mcp_auto_mode, mcp_configs=mcp_configs)
+    return new_user_message, system_prompt

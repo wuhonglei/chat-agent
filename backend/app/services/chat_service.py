@@ -12,7 +12,7 @@ from app.core.config import settings
 from app.models.chat import ChatMessage, ChatRequest
 from app.utils.common import filter_dict
 from app.mcp.mcp_client import MCPClientManager
-from app.services.prompt import default_system_prompt, get_system_prompt_with_mcp_servers
+from app.services.prompt import default_system_prompt, get_prompt_with_mcp_servers
 
 
 class ChatService:
@@ -86,12 +86,15 @@ class ChatService:
                     logger.info(
                         f"Calling MCP tool: {tool_name} with args: {arguments}")
                     result = await self.mcp_manager.call_tool(tool_name, arguments)
+                    content = self.mcp_manager.format_mcp_result(result)
+                    logger.info(
+                        f"MCP tool result: {content[:200] + '...' + content[-200:] if len(content) > 200 else content}")
 
                     # Add tool result to messages
                     tool_call_messages.append({
                         "role": "tool",
                         "tool_call_id": tool_call.id,
-                        "content": self.mcp_manager.format_mcp_result(result)
+                        "content": content
                     })
 
                 except Exception as e:
@@ -133,10 +136,10 @@ class ChatService:
             tools = await self.mcp_manager.get_tools_for_llm(server_names)
             if tools:
                 # Call LLM with tools (non-streaming)
-                system_prompt = get_system_prompt_with_mcp_servers(
-                    mcp_auto_mode, server_names)
+                new_user_message, system_prompt = get_prompt_with_mcp_servers(
+                    user_message, mcp_auto_mode, server_names)
                 new_messages = self._compose_messages(
-                    user_message, history, None, system_prompt)
+                    new_user_message, history, None, system_prompt)
                 tool_call_messages = await self._call_llm_with_tools(new_messages, settings.LLM_MODEL, tools)
             else:
                 tool_call_messages = []
