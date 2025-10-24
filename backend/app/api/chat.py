@@ -29,11 +29,8 @@ async def chat_stream(request: Request, chat_request: ChatRequest):
         # Stream response
         async def generate() -> AsyncGenerator[str, None]:
             async for chunk in chat_service.stream_message(
-                message=chat_request.message,
                 session_id=session_id,
-                history=chat_request.history,
-                source_config=chat_request.source_config,
-                think_mode=chat_request.think_mode,
+                chat_request=chat_request
             ):
                 yield chunk
 

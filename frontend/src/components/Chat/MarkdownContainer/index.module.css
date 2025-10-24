@@ -41,6 +41,7 @@
 
 .markdown-body hr {
   color: var(--color-gray-500);
+  margin-bottom: 8px;
 }
 
 .markdown-body table th,

@@ -6,6 +6,7 @@
 import asyncio
 import copy
 from loguru import logger
+from pydantic import Field
 from typing import Dict, List, Optional, Any
 from contextlib import asynccontextmanager
 from fastmcp import Client
@@ -21,6 +22,10 @@ from app.models.mcp import MCPConfigForFeDict
 
 mcp_config = {
     "mcpServers": {
+        "time": {
+            "command": "uvx",
+            "args": ["mcp-server-time"]
+        },
         "context7": {
             "url": "https://mcp.context7.com/mcp",
             "headers": {
@@ -42,17 +47,17 @@ mcp_config_for_fe: List[MCPConfigForFeDict] = [{
     'id': 'confluence-mcp',
     'name': 'Confluence',
     'icon': 'https://www.atlassian.com/favicon.ico',
-    'description': 'Shopee 内部公司知识库',
+    'description': 'Shopee 内部公司知识库查询',
 }, {
     'id': 'weather-mcp',
-    'name': '天气',
+    'name': '天气查询',
     'icon': 'https://www.qweather.com/favicon.ico',
-    'description': '天气信息',
+    'description': '天气信息查询',
 }, {
     'id': 'tavily-mcp',
     'name': '联网搜索',
     'icon': 'https://www.tavily.com/favicon.ico',
-    'description': '网络搜索',
+    'description': '联网搜索和内容提取',
 }]
 
 
@@ -97,9 +102,8 @@ class MCPClientManager:
                     logger.info(
                         f"使用 StreamableHttpTransport 连接远程服务器: {server_name}")
                 elif isinstance(server_instance, dict) and "command" in server_instance:
-                    # 远程 FastMCP 服务器
                     transport = StdioTransport(**server_instance)
-                    logger.info(f"使用 FastMCPTransport 连接远程服务器: {server_name}")
+                    logger.info(f"使用 StdioTransport 连接本地服务器: {server_name}")
                 else:
                     # 其他类型的服务器实例
                     transport = server_instance
@@ -148,7 +152,7 @@ class MCPClientManager:
         self._initialized = False
         logger.info("✓ MCP Client Manager 清理完成")
 
-    async def list_all_tools(self) -> Dict[str, List[Any]]:
+    async def list_tools(self, server_names: Optional[list[str]] = None) -> Dict[str, List[Any]]:
         """
         列出所有可用的工具
 
@@ -159,7 +163,14 @@ class MCPClientManager:
             raise RuntimeError("MCPClientManager 未初始化，请先调用 initialize()")
 
         all_tools = {}
+        server_names = self.clients.keys() if server_names is None else server_names
+        if not server_names:
+            return {}
+
         for server_name, client in self.clients.items():
+            if server_name not in server_names:
+                continue
+
             try:
                 async with client:
                     tools = await client.list_tools()
@@ -331,7 +342,7 @@ class MCPClientManager:
             server['online'] = health_status.get(server['id'], False)
         return mcp_config_for_fe_copy
 
-    async def get_tools_for_llm(self) -> List[Dict[str, Any]]:
+    async def get_tools_for_llm(self, server_names: Optional[list[str]] = None) -> List[Dict[str, Any]]:
         """
         获取格式化后的工具列表，用于 LLM function calling
 
@@ -341,9 +352,8 @@ class MCPClientManager:
         if not self._initialized:
             raise RuntimeError("MCPClientManager 未初始化，请先调用 initialize()")
 
-        all_tools = await self.list_all_tools()
+        all_tools = await self.list_tools(server_names)
         formatted_tools = []
-
         for server_name, tools in all_tools.items():
             for tool in tools:
                 formatted_tools.append({

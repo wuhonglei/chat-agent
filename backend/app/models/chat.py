@@ -37,8 +37,9 @@ class ChatRequest(BaseModel):
     source_config: SourceConfig = Field(
         default_factory=SourceConfig, description="Source configuration"
     )
+    mcp_auto_mode: bool = Field(
+        True, description="Whether to use mcp auto mode")
     think_mode: bool = Field(False, description="Whether to use think mode")
-    stream: bool = Field(False, description="Whether to stream response")
 
 
 class ChatSource(BaseModel):
