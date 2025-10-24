@@ -67,11 +67,13 @@ class ChatService:
 
             # If no tool calls, return the response
             if not assistant_message.tool_calls:
-                logger.info("No tool calls, returning tool_call_messages")
-                logger.info("final answer is: " + assistant_message.content)
+                logger.info(
+                    "No tool calls, returning tool_call_messages. Assistant response: " + assistant_message.content)
                 return tool_call_messages
 
             # Handle tool calls
+            if assistant_message.content:
+                logger.info("Assistant response: " + assistant_message.content)
             tool_call_messages.append(
                 assistant_message.model_dump(exclude_none=True))
 

@@ -23,24 +23,31 @@ system_prompt_with_references = """
 
 
 mcp_servers_prompt_template = Template("""
-You are a helpful assistant just for tools calling.
+You are a helpful assistant ONLY for tool calling. Your role is to analyze the user's request and determine which tools to call.
+
 {% if not mcp_auto_mode %}
-User has made a request and manually selected the following tools:
+User manually selected the following tools:
     {% for server in mcp_configs %}
     - {{ server.id }}: {{ server.description }}
     {% endfor %}
 {% endif %}
 
-note:
-- if you do not need any tools to call, you should just tell the user 'I have no need to call any tools.' without any other words.
+IMPORTANT RULES:
+1. You MUST NOT provide the final answer to the user's question
+2. You MUST NOT explain or interpret the results
+3. You MUST ONLY call the appropriate tools based on the user's request
+4. If you don't need any tools, respond with exactly: "I have no need to call any tools."
+5. Do not add any additional text, explanations, or commentary
+6. Your response should be minimal and focused only on tool calling
+
+Your task is to call tools, not to answer questions directly.
 """.strip())
 
 user_message_template = Template(f"""
 User has made a request:
 {{ user_message }}
 
-note:
-- if you do not need any tools to call, you should just tell the user 'I have no need to call any tools.' without any other words.
+IMPORTANT: You are ONLY responsible for calling tools. Do NOT provide the final answer. Just call the appropriate tools or respond with "I have no need to call any tools."
 """.strip())
 
 
@@ -49,7 +56,7 @@ def get_prompt_with_mcp_servers(user_message: str, mcp_auto_mode: bool, server_n
     server_names = server_names or []
     mcp_configs = [id_by_config[server_name]
                    for server_name in server_names if server_name in id_by_config]
-    new_user_message = user_message_template.render(user_message=user_message)
+    # new_user_message = user_message_template.render(user_message=user_message)
     system_prompt = mcp_servers_prompt_template.render(
         mcp_auto_mode=mcp_auto_mode, mcp_configs=mcp_configs)
-    return new_user_message, system_prompt
+    return user_message, system_prompt
