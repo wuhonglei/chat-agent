@@ -44,7 +44,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 }) => {
   const message = Form.useWatch(names.message, form);
   const buttonState = useButtonState(message, isStreaming);
-  const { onValuesChange } = useFormValuesChange(form);
+  const { values, onValuesChange } = useFormValuesChange(form);
 
   const handleSend = useMemoizedFn(() => {
     const values = form.getFieldsValue();
@@ -121,14 +121,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
                 深度思考
               </CustomButton>
             </Form.Item>
-            {/* 工具设置(用于解决 mcpConfig 首次获取后，sourceConfig 设置后未及时更新问题) */}
-            <Form.Item name={names.mcpAutoMode} valuePropName="checked" hidden>
-              <Switch />
-            </Form.Item>
-            <Form.Item name={names.sourceConfig} hidden>
-              <Input />
-            </Form.Item>
-            <ToolsSetting />
+            <ToolsSetting values={values} />
           </div>
           {/* 右侧 */}
           <div className="flex items-center gap-2">

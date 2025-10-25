@@ -3,18 +3,20 @@ import CustomButton from "@/components/common/CustomButton";
 import SettingIcon from "@/assets/svg/SettingIcon.svg?react";
 import React, { useState, useRef, useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
-import { useAppSelector } from "@/store/hooks";
 import { names } from "./constant";
 import classNames from "classnames";
+import { useMCPConfig } from "./hooks";
+import { ChatInputFormValues } from "@/interfaces";
+interface ToolsSettingProps {
+  values: Omit<ChatInputFormValues, "message">;
+}
 
-interface ToolsSettingProps {}
-
-const ToolsSetting: React.FC<ToolsSettingProps> = () => {
+const ToolsSetting: React.FC<ToolsSettingProps> = ({ values }) => {
   const [open, setOpen] = useState(false);
-  const mcpConfig = useAppSelector(state => state.global.mcpConfig);
   const buttonRef = useRef<HTMLDivElement>(null);
-  const mcpAutoMode = Boolean(Form.useWatch<boolean>(names.mcpAutoMode));
-  const sourceConfig = Form.useWatch(names.sourceConfig);
+  const mcpAutoMode = Boolean(values.mcpAutoMode);
+  const sourceConfig = values.sourceConfig;
+  const mcpConfig = useMCPConfig();
   const icons = useMemo(
     () =>
       mcpConfig.filter(item => sourceConfig?.[item.id]).map(item => item.icon),

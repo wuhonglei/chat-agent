@@ -2,7 +2,11 @@ import { useEffect } from "react";
 import { FormInstance } from "antd/es/form";
 import { ButtonState, names } from "./constant";
 import { trim, omit, isEqual, get, isNil, isBoolean } from "lodash-es";
-import { ChatInputFormValues, RetrieverSource } from "@/interfaces";
+import {
+  ChatInputFormValues,
+  MCPConfigItem,
+  RetrieverSource,
+} from "@/interfaces";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { useAppSelector } from "@/store/hooks";
 import { createSelector } from "@reduxjs/toolkit";
@@ -43,11 +47,12 @@ const selectMCPConfig = createSelector(
   ],
   (mcpConfig, mcpConfigLoaded) => ({ mcpConfig, mcpConfigLoaded })
 );
+export const chatInputFormValuesStorageKey = "chat-input-form-values-v1";
 
 export function useFormValuesChange(form: FormInstance<ChatInputFormValues>) {
   const [formValues, setFormValues] = useLocalStorageState<
     Omit<ChatInputFormValues, "message">
-  >("chat-input-form-values-v1", {
+  >(chatInputFormValuesStorageKey, {
     defaultValue: defaultFormValue,
   });
   const { mcpConfig, mcpConfigLoaded } = useAppSelector(selectMCPConfig);
@@ -92,6 +97,27 @@ export function useFormValuesChange(form: FormInstance<ChatInputFormValues>) {
   }, [formValues, form]);
 
   return {
+    values: formValues,
     onValuesChange,
   };
+}
+
+export const cachedMcpConfigStorageKey = "cached-mcp-config-v1";
+const defaultCachedMcpConfig: MCPConfigItem[] = [];
+
+export function useMCPConfig() {
+  const { mcpConfig, mcpConfigLoaded } = useAppSelector(selectMCPConfig);
+  const [cachedMcpConfig, setCachedMcpConfig] = useLocalStorageState<
+    MCPConfigItem[]
+  >(cachedMcpConfigStorageKey, {
+    defaultValue: defaultCachedMcpConfig,
+  });
+
+  useEffect(() => {
+    if (mcpConfigLoaded) {
+      setCachedMcpConfig(mcpConfig);
+    }
+  }, [mcpConfigLoaded, mcpConfig, setCachedMcpConfig]);
+
+  return cachedMcpConfig || defaultCachedMcpConfig;
 }
