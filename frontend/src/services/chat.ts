@@ -37,6 +37,8 @@ export const chatAPI = {
       body: JSON.stringify(
         snakecaseKeys(data as unknown as Record<string, unknown>, {
           deep: true,
+          // 不修改服务端返回的 mcp server id
+          exclude: Object.keys(data.sourceConfig || {}),
         })
       ),
       signal: abortController.signal,

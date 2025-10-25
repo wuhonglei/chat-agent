@@ -3,17 +3,14 @@
 from datetime import datetime
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class SourceConfig(BaseModel):
     """Source configuration model"""
-
-    web_search: bool = Field(False, description="Whether to use web search")
-    confluence: bool = Field(False, description="Whether to use confluence")
-    google_docs: bool = Field(False, description="Whether to use google docs")
-    knowledge_base: bool = Field(
-        False, description="Whether to use knowledge base")
+    model_config = ConfigDict(
+        extra='allow'
+    )
 
 
 class ChatMessage(BaseModel):

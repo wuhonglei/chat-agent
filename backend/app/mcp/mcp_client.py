@@ -381,7 +381,7 @@ class MCPClientManager:
         formatted_tools = []
         server_names = self.tools_by_server.keys() if server_names is None else server_names
         for server_name in server_names:
-            if server_name not in server_names:
+            if server_name not in self.tools_by_server:
                 continue
             tools = self.tools_by_server[server_name]
             for tool in tools:
