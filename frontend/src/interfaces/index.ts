@@ -25,6 +25,7 @@ export interface RetrieverSource {
 export interface ChatInputFormValues {
   message: string;
   thinkMode: boolean;
+  mcpAutoMode: boolean;
   sourceConfig: RetrieverSource;
 }
 

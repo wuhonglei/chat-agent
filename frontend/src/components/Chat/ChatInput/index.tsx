@@ -1,4 +1,11 @@
-import { Input, Form, ConfigProvider, FormInstance, Button } from "antd";
+import {
+  Input,
+  Form,
+  ConfigProvider,
+  FormInstance,
+  Button,
+  Switch,
+} from "antd";
 import classNames from "classnames";
 import React from "react";
 import styles from "./css/index.module.css";
@@ -10,7 +17,7 @@ import ToolsSetting from "./ToolsSetting";
 import { names } from "./constant";
 import { isInputEnter } from "@/utils";
 import { ArrowUpOutlined } from "@ant-design/icons";
-import { useButtonState } from "./hooks";
+import { useButtonState, useFormValuesChange } from "./hooks";
 import { isButtonDisabled, isStreamingState } from "./util";
 import { useMemoizedFn } from "ahooks";
 
@@ -37,6 +44,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
 }) => {
   const message = Form.useWatch(names.message, form);
   const buttonState = useButtonState(message, isStreaming);
+  const { onValuesChange } = useFormValuesChange(form);
+
   const handleSend = useMemoizedFn(() => {
     const values = form.getFieldsValue();
     const message = (values.message || "").trim();
@@ -80,6 +89,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           className
         )}
         style={style}
+        onValuesChange={onValuesChange}
       >
         <Form.Item
           className="mr-0"
@@ -111,7 +121,13 @@ const ChatInput: React.FC<ChatInputProps> = ({
                 深度思考
               </CustomButton>
             </Form.Item>
-            {/* 工具设置 */}
+            {/* 工具设置(用于解决 mcpConfig 首次获取后，sourceConfig 设置后未及时更新问题) */}
+            <Form.Item name={names.mcpAutoMode} valuePropName="checked" hidden>
+              <Switch />
+            </Form.Item>
+            <Form.Item name={names.sourceConfig} hidden>
+              <Input />
+            </Form.Item>
             <ToolsSetting />
           </div>
           {/* 右侧 */}

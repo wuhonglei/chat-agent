@@ -7,17 +7,19 @@ import { useAppSelector } from "@/store/hooks";
 import { names } from "./constant";
 import classNames from "classnames";
 
-const ToolsSetting = () => {
+interface ToolsSettingProps {}
+
+const ToolsSetting: React.FC<ToolsSettingProps> = () => {
   const [open, setOpen] = useState(false);
   const mcpConfig = useAppSelector(state => state.global.mcpConfig);
   const buttonRef = useRef<HTMLDivElement>(null);
-  const mcpAutoMode = Form.useWatch<boolean>(names.mcpAutoMode);
+  const mcpAutoMode = Boolean(Form.useWatch<boolean>(names.mcpAutoMode));
   const sourceConfig = Form.useWatch(names.sourceConfig);
-  const icons = useMemo(() => {
-    return mcpConfig
-      .filter(item => sourceConfig?.[item.id])
-      .map(item => item.icon);
-  }, [sourceConfig, mcpConfig]);
+  const icons = useMemo(
+    () =>
+      mcpConfig.filter(item => sourceConfig?.[item.id]).map(item => item.icon),
+    [sourceConfig, mcpConfig]
+  );
 
   const handleOpenChange = useMemoizedFn(newState => {
     setOpen(newState);
@@ -34,9 +36,9 @@ const ToolsSetting = () => {
         <>
           <Form.Item
             colon={false}
-            label={<span className="font-bold">智能选择工具</span>}
             valuePropName="checked"
             name={names.mcpAutoMode}
+            label={<span className="font-bold">智能选择工具</span>}
           >
             <Switch />
           </Form.Item>

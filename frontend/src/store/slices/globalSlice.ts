@@ -25,6 +25,7 @@ const globalSlice = createSlice({
   initialState: {
     googleFavIconsAvailable: false,
     mcpConfig: [] as MCPConfigItem[],
+    mcpConfigLoaded: false,
   },
   reducers: {
     setGoogleFavIconsAvailable: (state, action: PayloadAction<boolean>) => {
@@ -32,6 +33,7 @@ const globalSlice = createSlice({
     },
     setMCPConfig: (state, action: PayloadAction<MCPConfigItem[]>) => {
       state.mcpConfig = action.payload;
+      state.mcpConfigLoaded = true;
     },
   },
 });
