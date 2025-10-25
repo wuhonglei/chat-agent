@@ -82,6 +82,8 @@ class ChatService:
                 assistant_message.model_dump(exclude_none=True))
 
             logger.info(f'需要调用 {len(assistant_message.tool_calls)} 个工具:')
+            logger.info(
+                f'assistant_message is {assistant_message.model_dump(exclude_none=True)}')
             # Execute tool calls
             for tool_call in assistant_message.tool_calls:
                 tool_name = tool_call.function.name
