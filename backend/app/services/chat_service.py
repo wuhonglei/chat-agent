@@ -155,7 +155,7 @@ class ChatService:
 
             system_prompt = get_default_system_prompt(include_date=False)
             new_messages = self._compose_messages(
-                system_prompt, history, user_message,  tool_call_messages)
+                system_prompt, history, user_message, tool_call_messages)
             async for chunk in self._stream_final_response(new_messages, final_model):
                 yield chunk
             return
