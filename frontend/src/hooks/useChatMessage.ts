@@ -3,21 +3,24 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   addMessage,
   addMessageAtIndex,
-  appendToLastMessage,
-  appendToLastReasoningMessage,
+  appendContentToLastMessage,
+  appendReasoningToLastMessage,
   prependSourceToLastReasoningMessage,
   clearLastMessage,
-  prependToLastMessage,
+  prependContentToLastMessage,
+  appendToolCallToLastMessage,
   setLoading,
   setReasoning,
   setSources,
   setStreaming,
+  setCallingTools,
 } from "@/store/slices/chatSlice";
 import { chatAPI } from "@/services";
 import {
   ChatInputFormValues,
   ChatMessage as ChatMessageType,
   StreamMessage,
+  ToolCallMessage,
 } from "@/interfaces";
 
 import { isNil, isPlainObject, omit } from "lodash-es";
@@ -31,6 +34,7 @@ export interface UseChatMessageReturn {
   isLoading: boolean;
   isStreaming: boolean;
   isReasoning: boolean;
+  isCallingTools: boolean;
   messages: ChatMessageType[];
   abortMessage: () => void;
   reSendMessage: (
@@ -47,8 +51,14 @@ export const useChatMessage = (
   const { historyLimit = 10 } = options;
 
   const dispatch = useAppDispatch();
-  const { messages, isLoading, isStreaming, isReasoning, sessionId } =
-    useAppSelector(state => state.chat);
+  const {
+    messages,
+    isLoading,
+    isStreaming,
+    isReasoning,
+    isCallingTools,
+    sessionId,
+  } = useAppSelector(state => state.chat);
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -68,6 +78,7 @@ export const useChatMessage = (
     dispatch(setStreaming(false));
     dispatch(setLoading(false));
     dispatch(setReasoning(false));
+    dispatch(setCallingTools(false));
   };
 
   const sendMessage = async (
@@ -123,6 +134,7 @@ export const useChatMessage = (
 
           const { type } = data;
           const { status, content } = data.data || {};
+          dispatch(setLoading(false)); // 收到响应
           if (type === "reasoning") {
             // 思考内容
             if (status === "start") {
@@ -130,21 +142,26 @@ export const useChatMessage = (
             } else if (status === "done") {
               dispatch(setReasoning(false));
             }
-            dispatch(setLoading(false)); // 收到响应
-            dispatch(appendToLastReasoningMessage(content || ""));
+            dispatch(appendReasoningToLastMessage(content || ""));
           } else if (type === "content") {
             // 回答内容
             if (status === "start") {
               dispatch(setLoading(true));
             }
-            dispatch(setLoading(false));
-            dispatch(appendToLastMessage(content || ""));
+            dispatch(appendContentToLastMessage(content || ""));
           } else if (type === "sources") {
             // 知识库搜索结果
             dispatch(setSources(data.data));
             const sourceStr = buildFootnoteDefinition(data.data);
             dispatch(prependSourceToLastReasoningMessage(sourceStr));
-            dispatch(prependToLastMessage(sourceStr));
+            dispatch(prependContentToLastMessage(sourceStr));
+          } else if (type === "tool_call") {
+            if (status === "start") {
+              dispatch(setCallingTools(true));
+            } else if (status === "done") {
+              dispatch(setCallingTools(false));
+            }
+            dispatch(appendToolCallToLastMessage(data.data as ToolCallMessage));
           } else if (type === "done") {
             // 流结束
             resetState();
@@ -198,6 +215,7 @@ export const useChatMessage = (
     isStreaming,
     isLoading,
     isReasoning,
+    isCallingTools,
     reSendMessage,
     messages,
   };

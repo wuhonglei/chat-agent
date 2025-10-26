@@ -13,6 +13,7 @@ export interface ChatMessage {
   role: RoleType;
   content: string;
   reasoning?: string;
+  toolCallMessages?: ToolCallMessage[];
   timestamp: string;
   sources?: SearchSource[];
   metadata: Omit<ChatInputFormValues, "message">;
@@ -83,7 +84,7 @@ export interface ApiError {
 
 // Stream types
 export interface StreamMessage {
-  type: "reasoning" | "content" | "sources" | "done" | "error";
+  type: "reasoning" | "content" | "sources" | "tool_call" | "done" | "error";
   data?: any;
 }
 
@@ -100,3 +101,29 @@ export interface SourceData {
   index: number;
   sources: SearchSource[];
 }
+
+export interface ToolCall {
+  id: string;
+  type: "function_call";
+  function: {
+    arguments: string;
+    name: string;
+  };
+}
+
+export interface AssistantToolCallMessage {
+  role: "assistant";
+  status: "start" | "continue" | "done";
+  content?: string;
+  toolCall?: ToolCall;
+  toolCallId?: string;
+}
+
+export interface ToolCallResultMessage {
+  role: "tool";
+  status: "continue" | "error";
+  toolCallId?: string;
+  content?: string | Record<string, any>;
+}
+
+export type ToolCallMessage = AssistantToolCallMessage | ToolCallResultMessage;

@@ -1,4 +1,4 @@
-import { ChatMessage, SearchSource } from "@/interfaces";
+import { ChatMessage, SearchSource, ToolCallMessage } from "@/interfaces";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { isEmpty } from "lodash-es";
 
@@ -8,6 +8,7 @@ interface ChatState {
   isLoading: boolean;
   isStreaming: boolean;
   isReasoning: boolean;
+  isCallingTools: boolean;
   error: string | null;
 }
 
@@ -17,6 +18,7 @@ const initialState: ChatState = {
   isLoading: false,
   isStreaming: false,
   isReasoning: false,
+  isCallingTools: false,
   error: null,
 };
 
@@ -73,13 +75,16 @@ const chatSlice = createSlice({
     setSources: (state, action: PayloadAction<SearchSource[]>) => {
       state.messages[state.messages.length - 1].sources = action.payload;
     },
-    prependToLastMessage: (state, action: PayloadAction<string>) => {
+    setCallingTools: (state, action: PayloadAction<boolean>) => {
+      state.isCallingTools = action.payload;
+    },
+    prependContentToLastMessage: (state, action: PayloadAction<string>) => {
       const lastMessage = lastMessageCheck(state.messages);
       if (lastMessage) {
         lastMessage.content = action.payload + lastMessage.content;
       }
     },
-    appendToLastMessage: (state, action: PayloadAction<string>) => {
+    appendContentToLastMessage: (state, action: PayloadAction<string>) => {
       const lastMessage = lastMessageCheck(state.messages);
       if (lastMessage) {
         lastMessage.content += action.payload;
@@ -94,10 +99,22 @@ const chatSlice = createSlice({
         lastMessage.reasoning = action.payload + lastMessage.reasoning;
       }
     },
-    appendToLastReasoningMessage: (state, action: PayloadAction<string>) => {
+    appendReasoningToLastMessage: (state, action: PayloadAction<string>) => {
       const lastMessage = lastMessageCheck(state.messages);
       if (lastMessage) {
         lastMessage.reasoning += action.payload;
+      }
+    },
+    appendToolCallToLastMessage: (
+      state,
+      action: PayloadAction<ToolCallMessage>
+    ) => {
+      const lastMessage = lastMessageCheck(state.messages);
+      if (lastMessage) {
+        if (!lastMessage.toolCallMessages) {
+          lastMessage.toolCallMessages = [];
+        }
+        lastMessage.toolCallMessages.push(action.payload);
       }
     },
     clearError: state => {
@@ -114,10 +131,12 @@ export const {
   setStreaming,
   setLoading,
   setSources,
-  prependToLastMessage,
-  appendToLastMessage,
+  setCallingTools,
+  prependContentToLastMessage,
+  appendContentToLastMessage,
   prependSourceToLastReasoningMessage,
-  appendToLastReasoningMessage,
+  appendReasoningToLastMessage,
+  appendToolCallToLastMessage,
   setReasoning,
   clearError,
   clearLastMessage,

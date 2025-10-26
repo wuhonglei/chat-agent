@@ -9,7 +9,7 @@ type Props = {
 };
 
 type LanguageLabelProps = {
-  children: string;
+  children?: string;
   className?: string;
 };
 
@@ -41,7 +41,7 @@ const GrayContainer = ({ header, children, className }: Props) => {
           {header}
         </div>
       )}
-      {children}
+      {children || ""}
     </div>
   );
 };

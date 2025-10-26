@@ -10,6 +10,7 @@ interface ChatMessageListProps {
   isLoading?: boolean;
   isStreaming?: boolean;
   isReasoning?: boolean;
+  isCallingTools?: boolean;
   className?: string;
   onEditMessage: (index: number, content: string) => void;
   onReSend: (index: number, message: ChatMessageType) => void;
@@ -20,6 +21,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
   isLoading = false,
   isStreaming = false,
   isReasoning = false,
+  isCallingTools = false,
   className,
   onSourceClick,
   onEditMessage,
@@ -41,6 +43,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
           isLoading={isLoading && index === messages.length - 1}
           isStreaming={isStreaming && index === messages.length - 1}
           isReasoning={isReasoning && index === messages.length - 1}
+          isCallingTools={isCallingTools && index === messages.length - 1}
         />
       ))}
       <div ref={messagesEndRef} />

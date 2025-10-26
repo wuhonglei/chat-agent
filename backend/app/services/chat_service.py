@@ -135,6 +135,7 @@ class ChatService:
                             'role': 'assistant',
                             'status': 'continue',
                             'content': assistant_message.content or '',
+                            "tool_call_id": tool_call.id,
                             'tool_call': tool_call.model_dump(exclude_none=True)
                         }), tool_call_messages
 
@@ -154,7 +155,8 @@ class ChatService:
                         'tool_call', {
                             'role': 'tool',
                             'status': 'continue',
-                            'content': result_content
+                            'content': result_content,
+                            "tool_call_id": tool_call.id,
                         }), tool_call_messages
 
                     # Add tool result to messages
@@ -174,8 +176,8 @@ class ChatService:
                         'tool_call', {
                             'role': 'tool',
                             'status': 'error',
-                            'name': tool_name,
-                            'content': error_msg
+                            'content': error_msg,
+                            "tool_call_id": tool_call.id,
                         }), tool_call_messages
 
                     tool_call_messages.append(ToolCallResultMessage(**{

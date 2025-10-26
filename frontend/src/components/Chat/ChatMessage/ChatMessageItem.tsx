@@ -10,6 +10,7 @@ interface ChatMessageItemProps {
   isStreaming: boolean;
   isLoading: boolean;
   isReasoning: boolean;
+  isCallingTools: boolean;
   onSourceClick: (index: number, message: ChatMessageType) => void;
   onEditMessage: (index: number, content: string) => void;
   onReSend: (index: number, message: ChatMessageType) => void;
@@ -21,6 +22,7 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   isStreaming,
   isLoading,
   isReasoning,
+  isCallingTools,
   onSourceClick,
   onEditMessage,
   onReSend,
@@ -45,6 +47,7 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
       isStreaming={isStreaming}
       isReasoning={isReasoning}
       onReSend={handleReSend}
+      isCallingTools={isCallingTools}
       onSourceClick={handleSourceClick}
     />
   );

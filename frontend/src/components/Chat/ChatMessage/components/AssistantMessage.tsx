@@ -5,12 +5,14 @@ import React from "react";
 import ReasoningBlock from "./ReasoningBlock";
 import MarkdownContainer from "@/components/Chat/MarkdownContainer";
 import AssistantOperation from "./AssistantOperation";
+import ToolCallBlock from "./ToolCallBlock";
 
 interface AssistantMessageProps {
   message: ChatMessageType;
   isStreaming: boolean;
   isLoading: boolean;
   isReasoning: boolean;
+  isCallingTools: boolean;
   onSourceClick: () => void;
   onReSend: () => void;
 }
@@ -20,6 +22,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
   isReasoning,
   isStreaming,
   isLoading,
+  isCallingTools,
   onSourceClick,
   onReSend,
 }) => {
@@ -36,6 +39,10 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
         </div>
       ) : (
         <>
+          <ToolCallBlock
+            isCallingTools={isCallingTools}
+            toolCallMessages={message.toolCallMessages}
+          />
           {/* 渲染思考内容 */}
           <ReasoningBlock
             isReasoning={isReasoning}

@@ -21,6 +21,7 @@ const ChatPage: React.FC = () => {
     isStreaming,
     isLoading,
     isReasoning,
+    isCallingTools,
     sendMessage,
     reSendMessage,
     abortMessage,
@@ -90,6 +91,7 @@ const ChatPage: React.FC = () => {
               isLoading={isLoading}
               isStreaming={isStreaming}
               isReasoning={isReasoning}
+              isCallingTools={isCallingTools}
               onReSend={handleReSend}
               onSourceClick={handleSourceClick}
               onEditMessage={handleEditMessage}
