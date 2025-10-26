@@ -56,6 +56,7 @@ const UserMessage: React.FC<UserMessageProps> = ({
               fontSize: "16px",
               padding: "9px 16px",
               whiteSpace: "pre-wrap",
+              overflowWrap: "break-word",
               backgroundColor: "#F5F5F5",
             },
           }}
@@ -63,6 +64,7 @@ const UserMessage: React.FC<UserMessageProps> = ({
           {message.content}
         </Card>
       )}
+      {/* 底部操作按钮 */}
       <div
         className={classNames(
           "h-6 w-full flex items-center justify-end gap-2 transition duration-300",
