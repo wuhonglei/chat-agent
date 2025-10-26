@@ -4,9 +4,15 @@ from pydantic import BaseModel, Field
 from typing import Optional
 
 
+class Person(BaseModel):
+    name: str
+    age: int
+    email: str
+
+
 class YourModel(BaseModel):
     name: str = Field(default="John")
-    person: Optional[dict] = Field(default_factory=dict)
+    person: Optional[Person] = Field(default_factory=dict)
 
     @field_validator('person')
     def validate_person(cls, v):
@@ -15,5 +21,5 @@ class YourModel(BaseModel):
         return v
 
 
-model = YourModel(person=None)
-print(model)
+model = YourModel(person=Person(name="John", age=30, email="john@example.com"))
+print(model.person.model_dump(exclude_none=True))

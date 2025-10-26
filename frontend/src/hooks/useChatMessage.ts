@@ -20,7 +20,7 @@ import {
   StreamMessage,
 } from "@/interfaces";
 
-import { isNil, omit } from "lodash-es";
+import { isNil, isPlainObject, omit } from "lodash-es";
 import { buildFootnoteDefinition, isUserRole } from "@/utils";
 
 export interface UseChatMessageOptions {
@@ -116,23 +116,36 @@ export const useChatMessage = (
           history: getHistoryMessages(historyLimit, index), // 发送最后几条消息作为上下文
         },
         (data: StreamMessage) => {
-          if (data.type === "reasoning") {
+          if (!isPlainObject(data)) {
+            console.warn("Invalid data:", data);
+            return;
+          }
+
+          const { type } = data;
+          const { status, content } = data.data || {};
+          if (type === "reasoning") {
             // 思考内容
-            dispatch(appendToLastReasoningMessage(data.data));
-            dispatch(setReasoning(true));
-            dispatch(setLoading(false));
-          } else if (data.type === "content") {
+            if (status === "start") {
+              dispatch(setReasoning(true));
+            } else if (status === "done") {
+              dispatch(setReasoning(false));
+            }
+            dispatch(setLoading(false)); // 收到响应
+            dispatch(appendToLastReasoningMessage(content || ""));
+          } else if (type === "content") {
             // 回答内容
-            dispatch(appendToLastMessage(data.data));
+            if (status === "start") {
+              dispatch(setLoading(true));
+            }
             dispatch(setLoading(false));
-            dispatch(setReasoning(false));
-          } else if (data.type === "sources") {
+            dispatch(appendToLastMessage(content || ""));
+          } else if (type === "sources") {
             // 知识库搜索结果
             dispatch(setSources(data.data));
             const sourceStr = buildFootnoteDefinition(data.data);
             dispatch(prependSourceToLastReasoningMessage(sourceStr));
             dispatch(prependToLastMessage(sourceStr));
-          } else if (data.type === "done") {
+          } else if (type === "done") {
             // 流结束
             resetState();
           }

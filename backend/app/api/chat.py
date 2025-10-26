@@ -34,6 +34,9 @@ async def chat_stream(request: Request, chat_request: ChatRequest):
             ):
                 yield chunk
 
+            yield chat_service._format_sse_message('done')
+            return
+
         return StreamingResponse(
             generate(),
             media_type="text/event-stream",

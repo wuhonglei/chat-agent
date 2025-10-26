@@ -38,23 +38,51 @@ class ChatService:
             stream=True,
         )
         logger.info(f'model is {model}')
+        start_reasoning = False
+        start_content = False
         async for chunk in response:
             # For streaming responses, use delta instead of message
             delta = getattr(chunk.choices[0], 'delta', None)
             if delta and getattr(delta, 'reasoning_content', None):
-                yield self._format_sse_message('reasoning', delta.reasoning_content)
+                status = 'start' if not start_reasoning else 'continue'
+                start_reasoning = True
+                yield self._format_sse_message('reasoning', {
+                    'status': status,
+                    'content': delta.reasoning_content,
+                })
             elif delta and getattr(delta, 'content', None):
-                yield self._format_sse_message('content', delta.content)
+                if start_reasoning:
+                    start_reasoning = False
+                    yield self._format_sse_message('reasoning', {
+                        'status': 'done',
+                    })
 
-        yield self._format_sse_message('done')
+                status = 'start' if not start_content else 'continue'
+                start_content = True
+                yield self._format_sse_message('content', {
+                    'status': status,
+                    'content': delta.content,
+                })
+
+        if start_content:
+            yield self._format_sse_message('content', {
+                'status': 'done',
+                'content': '',
+            })
 
     async def _call_llm_with_tools(
         self,
         messages: list[dict],
         model: str,
         tools: list[dict],
-    ) -> list[AssistantMessage]:
-        """Call LLM with MCP tools and handle tool calls (non-streaming)"""
+    ) -> AsyncGenerator[tuple[str, list[AssistantMessage]], list[AssistantMessage]]:
+        """Call LLM with MCP tools and handle tool calls, streaming results
+
+        Yields:
+            tuple[str, list]: First element is SSE message (or None), second is accumulated messages
+        Returns:
+            list[AssistantMessage]: Final tool call messages
+        """
         max_iterations = 5  # Prevent infinite loops
         tool_call_messages: list[AssistantMessage] = []
         for iteration in range(max_iterations):
@@ -70,25 +98,45 @@ class ChatService:
             )
             assistant_message: AssistantMessage = response.choices[0].message
 
-            # If no tool calls, return the response
+            # If no tool calls, yield and return the response
             if not assistant_message.tool_calls:
                 logger.info(
                     "No tool calls, returning tool_call_messages. Assistant response: " + (assistant_message.content if assistant_message.content else 'empty'))
-                return tool_call_messages
+                yield self._format_sse_message('tool_call', {
+                    'role': 'assistant',
+                    'status': 'done',
+                    'content': assistant_message.content or ''
+                }), tool_call_messages
+                return
+
+            if not tool_call_messages:
+                yield self._format_sse_message('tool_call', {
+                    'role': 'assistant',
+                    'status': 'start',
+                }), tool_call_messages
 
             # Handle tool calls
-            logger.info(assistant_message)
             tool_call_messages.append(assistant_message)
 
             logger.info(f'需要调用 {len(assistant_message.tool_calls)} 个工具:')
             logger.info(
                 f'assistant_message is {assistant_message.model_dump(exclude_none=True)}')
-            # Execute tool calls
+
+            # Execute tool calls and stream results
             for tool_call in assistant_message.tool_calls:
                 tool_name = tool_call.function.name
                 try:
                     # Parse arguments
                     arguments = json.loads(tool_call.function.arguments)
+
+                    # Stream tool call start
+                    yield self._format_sse_message(
+                        'tool_call', {
+                            'role': 'assistant',
+                            'status': 'continue',
+                            'content': assistant_message.content or '',
+                            'tool_call': tool_call.model_dump(exclude_none=True)
+                        }), tool_call_messages
 
                     # Call the tool via MCP manager
                     logger.info(
@@ -97,6 +145,17 @@ class ChatService:
                     content = self.mcp_manager.format_mcp_result(result)
                     logger.info(
                         f"MCP tool result: {content[:200] + '...' + content[-200:] if len(content) > 200 else content}")
+
+                    # Stream tool call result
+                    # 优先使用结构化内容，否则使用格式化的字符串内容
+                    result_content = result.structured_content if hasattr(
+                        result, 'structured_content') else content
+                    yield self._format_sse_message(
+                        'tool_call', {
+                            'role': 'tool',
+                            'status': 'continue',
+                            'content': result_content
+                        }), tool_call_messages
 
                     # Add tool result to messages
                     tool_call_messages.append(ToolCallResultMessage(**{
@@ -108,22 +167,38 @@ class ChatService:
 
                 except Exception as e:
                     logger.error(f"Failed to call tool {tool_name}: {e}")
+                    error_msg = f"Error calling tool: {str(e)}"
+
+                    # Stream error
+                    yield self._format_sse_message(
+                        'tool_call', {
+                            'role': 'tool',
+                            'status': 'error',
+                            'name': tool_name,
+                            'content': error_msg
+                        }), tool_call_messages
+
                     tool_call_messages.append(ToolCallResultMessage(**{
                         "role": "tool",
                         "tool_call_id": tool_call.id,
                         "is_error": True,
-                        "content": f"Error calling tool: {str(e)}"
+                        "content": error_msg
                     }))
 
         # If we hit max iterations, return error message
         logger.info('we have hit max iterations, returning tool_call_messages')
-        return tool_call_messages
+        yield self._format_sse_message('tool_call', {
+            'role': 'assistant',
+            'status': 'done',
+            'content': 'we have hit max iterations, returning tool_call_messages'
+        }), tool_call_messages
+        return
 
     @staticmethod
     def _format_sse_message(msg_type: str, data=None) -> str:
         """Format SSE (Server-Sent Events) message"""
         if data is None:
-            return f"data: {json.dumps({'type': msg_type})}\n\n"
+            return f"data: {json.dumps({'type': msg_type, 'data': {}}, ensure_ascii=False)}\n\n"
         return f"data: {json.dumps({'type': msg_type, 'data': data}, ensure_ascii=False)}\n\n"
 
     async def stream_message(
@@ -147,13 +222,23 @@ class ChatService:
             tools = await self.mcp_manager.get_tools_for_llm(server_names)
             tool_call_messages = []
             if tools:
-                # Call LLM with tools (non-streaming)
+                # Call LLM with tools and stream results
                 new_user_message, system_prompt = get_prompt_with_mcp_servers(
                     user_message, mcp_auto_mode, server_names)
                 new_messages = self._compose_messages_without_tool_calls(
                     system_prompt, history,  new_user_message)
-                tool_call_messages = await self._call_llm_with_tools(new_messages, settings.LLM_MODEL, tools)
 
+                # Stream tool calls and collect messages
+                async for sse_msg, accumulated_messages in self._call_llm_with_tools(
+                    new_messages, settings.LLM_MODEL, tools
+                ):
+                    # Stream SSE messages
+                    if sse_msg:
+                        yield sse_msg
+                    # Update accumulated messages
+                    tool_call_messages = accumulated_messages
+
+            logger.info(tool_call_messages)
             system_prompt = get_default_system_prompt(include_date=False)
             # 将工具调用历史拼接到用户消息中
             new_messages = self._compose_messages_with_tool_calls(
