@@ -5,8 +5,12 @@ from app.utils.common import get_current_datetime_str, get_current_date
 
 default_system_prompt_template = Template("""
 You are a helpful assistant.
+{% if current_datetime %}
 Current date and time: {{ current_datetime }}
+{% endif %}
+{% if current_date %}
 When providing information about current events, versions, or time-sensitive topics, always use the current date {{ current_date }} as reference.
+{% endif %}
 """.strip())
 
 system_prompt_with_references = """
@@ -60,12 +64,14 @@ IMPORTANT RULES:
 """.strip())
 
 
-def get_default_system_prompt() -> str:
+def get_default_system_prompt(include_date: bool) -> str:
     """Get default system prompt with current time information"""
-    current_datetime = get_current_datetime_str()
-    current_date = get_current_date()
-    return default_system_prompt_template.render(
-        current_datetime=current_datetime, current_date=current_date)
+    if include_date:
+        current_datetime = get_current_datetime_str()
+        current_date = get_current_date()
+        return default_system_prompt_template.render(current_datetime=current_datetime, current_date=current_date)
+    else:
+        return default_system_prompt_template.render()
 
 
 def get_prompt_with_mcp_servers(user_message: str, mcp_auto_mode: bool, server_names: list[str]) -> tuple[str, str]:

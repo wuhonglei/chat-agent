@@ -144,18 +144,18 @@ class ChatService:
             server_names = None if mcp_auto_mode else filter_dict(
                 source_config.model_dump(), [True])
             tools = await self.mcp_manager.get_tools_for_llm(server_names)
+            tool_call_messages = []
             if tools:
                 # Call LLM with tools (non-streaming)
                 new_user_message, system_prompt = get_prompt_with_mcp_servers(
                     user_message, mcp_auto_mode, server_names)
                 new_messages = self._compose_messages(
-                    new_user_message, history, None, system_prompt)
+                    system_prompt, history,  new_user_message, tool_call_messages)
                 tool_call_messages = await self._call_llm_with_tools(new_messages, settings.LLM_MODEL, tools)
-            else:
-                tool_call_messages = []
 
+            system_prompt = get_default_system_prompt(include_date=False)
             new_messages = self._compose_messages(
-                user_message, history, tool_call_messages, get_default_system_prompt())
+                system_prompt, history, user_message,  tool_call_messages)
             async for chunk in self._stream_final_response(new_messages, final_model):
                 yield chunk
             return
@@ -166,14 +166,14 @@ class ChatService:
 
     def _compose_messages(
         self,
+        system_prompt: Optional[str],
+        history: list[ChatMessage],
         user_message: str,
-        history: list[ChatMessage] = None,
-        tool_call_messages: list[dict] = None,
-        system_prompt: Optional[str] = None,
+        tool_call_messages: list[dict],
     ) -> list[dict]:
         """Build prompt for LLM without context"""
         messages = [
-            {"role": "system", "content": system_prompt or get_default_system_prompt()}]
+            {"role": "system", "content": system_prompt}]
 
         history = history or []
         for msg in history[-5:]:  # Keep last 5 messages for context
