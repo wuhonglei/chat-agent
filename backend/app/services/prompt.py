@@ -70,7 +70,7 @@ IMPORTANT RULES:
 user_message_with_tool_calls_template = Template("""
 {{ user_message }}
 
-<tool_execution_history>
+<tool_calls_history>
 {% for (assistant_message, tool_call_message) in tool_call_messages %}
     <tool_call>
         <function_name>{{ assistant_message.tool_calls[0].function.name }}</function_name>
@@ -78,7 +78,7 @@ user_message_with_tool_calls_template = Template("""
         <result>{{ tool_call_message.content }}</result>
     </tool_call>
 {% endfor %}
-</tool_execution_history>
+</tool_calls_history>
 """.strip())
 
 # ============= 系统提示词和用户消息提示词字典 =============
