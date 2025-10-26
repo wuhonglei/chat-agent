@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Dict, TypedDict, Optional
+from typing import TypedDict, Optional
 
 
 class MCPConfigForFE(BaseModel):

@@ -10,9 +10,10 @@ from openai.types.chat import ChatCompletionMessage
 
 from app.core.config import settings
 from app.models.chat import ChatMessage, ChatRequest
+from app.models.llm import AssistantMessage, ToolCallResultMessage
 from app.utils.common import filter_dict
 from app.mcp.mcp_client import MCPClientManager
-from app.services.prompt import get_default_system_prompt, get_prompt_with_mcp_servers
+from app.services.prompt import get_default_system_prompt, get_prompt_with_mcp_servers, get_prompt_with_tool_history
 
 
 class ChatService:
@@ -52,13 +53,13 @@ class ChatService:
         messages: list[dict],
         model: str,
         tools: list[dict],
-    ) -> list[dict]:
+    ) -> list[AssistantMessage]:
         """Call LLM with MCP tools and handle tool calls (non-streaming)"""
         max_iterations = 5  # Prevent infinite loops
-        tool_call_messages: list[dict] = []
+        tool_call_messages: list[AssistantMessage] = []
         for iteration in range(max_iterations):
             logger.info(f'{'='*60}')
-            logger.info(f'第 {iteration + 1} 次迭代')
+            logger.info(f'第 {iteration + 1} 轮迭代')
 
             # Call LLM with tools
             response = await self.client.chat.completions.create(
@@ -67,19 +68,17 @@ class ChatService:
                 tools=tools if tools else None,
                 stream=False,
             )
-            assistant_message: ChatCompletionMessage = response.choices[0].message
+            assistant_message: AssistantMessage = response.choices[0].message
 
             # If no tool calls, return the response
             if not assistant_message.tool_calls:
                 logger.info(
-                    "No tool calls, returning tool_call_messages. Assistant response: " + assistant_message.content if assistant_message.content else 'empty')
+                    "No tool calls, returning tool_call_messages. Assistant response: " + (assistant_message.content if assistant_message.content else 'empty'))
                 return tool_call_messages
 
             # Handle tool calls
-            if assistant_message.content:
-                logger.info("Assistant response: " + assistant_message.content)
-            tool_call_messages.append(
-                assistant_message.model_dump(exclude_none=True))
+            logger.info(assistant_message)
+            tool_call_messages.append(assistant_message)
 
             logger.info(f'需要调用 {len(assistant_message.tool_calls)} 个工具:')
             logger.info(
@@ -100,22 +99,24 @@ class ChatService:
                         f"MCP tool result: {content[:200] + '...' + content[-200:] if len(content) > 200 else content}")
 
                     # Add tool result to messages
-                    tool_call_messages.append({
+                    tool_call_messages.append(ToolCallResultMessage(**{
                         "role": "tool",
                         "tool_call_id": tool_call.id,
+                        "is_error": False,
                         "content": content
-                    })
+                    }))
 
                 except Exception as e:
                     logger.error(f"Failed to call tool {tool_name}: {e}")
-                    tool_call_messages.append({
+                    tool_call_messages.append(ToolCallResultMessage(**{
                         "role": "tool",
                         "tool_call_id": tool_call.id,
+                        "is_error": True,
                         "content": f"Error calling tool: {str(e)}"
-                    })
+                    }))
 
         # If we hit max iterations, return error message
-        logger.info(f'we have hit max iterations, returning tool_call_messages')
+        logger.info('we have hit max iterations, returning tool_call_messages')
         return tool_call_messages
 
     @staticmethod
@@ -149,12 +150,13 @@ class ChatService:
                 # Call LLM with tools (non-streaming)
                 new_user_message, system_prompt = get_prompt_with_mcp_servers(
                     user_message, mcp_auto_mode, server_names)
-                new_messages = self._compose_messages(
-                    system_prompt, history,  new_user_message, tool_call_messages)
+                new_messages = self._compose_messages_without_tool_calls(
+                    system_prompt, history,  new_user_message)
                 tool_call_messages = await self._call_llm_with_tools(new_messages, settings.LLM_MODEL, tools)
 
             system_prompt = get_default_system_prompt(include_date=False)
-            new_messages = self._compose_messages(
+            # 将工具调用历史拼接到用户消息中
+            new_messages = self._compose_messages_with_tool_calls(
                 system_prompt, history, user_message, tool_call_messages)
             async for chunk in self._stream_final_response(new_messages, final_model):
                 yield chunk
@@ -164,12 +166,11 @@ class ChatService:
             logger.error(f"Failed to stream message: {e}")
             yield self._format_sse_message('error', str(e))
 
-    def _compose_messages(
-        self,
-        system_prompt: Optional[str],
+    @staticmethod
+    def _compose_messages_without_tool_calls(
+        system_prompt: str,
         history: list[ChatMessage],
         user_message: str,
-        tool_call_messages: list[dict],
     ) -> list[dict]:
         """Build prompt for LLM without context"""
         messages = [
@@ -179,6 +180,22 @@ class ChatService:
         for msg in history[-5:]:  # Keep last 5 messages for context
             messages.append({"role": msg.role, "content": msg.content})
 
-        messages = messages + (tool_call_messages or [])
         messages.append({"role": "user", "content": user_message})
         return messages
+
+    @staticmethod
+    def _compose_messages_with_tool_calls(
+        system_prompt: Optional[str],
+        history: list[ChatMessage],
+        user_message: str,
+        tool_call_messages: list[AssistantMessage],
+    ) -> list[dict]:
+        """Build prompt for LLM with context"""
+        if not tool_call_messages:
+            return ChatService._compose_messages_without_tool_calls(system_prompt, history, user_message)
+
+        # 使用工具历史格式化用户消息
+        formatted_user_message = get_prompt_with_tool_history(
+            user_message, tool_call_messages)
+
+        return ChatService._compose_messages_without_tool_calls(system_prompt, history, formatted_user_message)

@@ -1,7 +1,10 @@
 from jinja2 import Template
 from datetime import datetime
 from app.mcp.mcp_client import mcp_config_for_fe
+from app.models.llm import AssistantMessage, AssistantToolCallMessage, ToolCallResultMessage
 from app.utils.common import get_current_datetime_str, get_current_date
+
+# ============= 系统提示词 =============
 
 default_system_prompt_template = Template("""
 You are a helpful assistant.
@@ -30,8 +33,8 @@ system_prompt_with_references = """
 根据资料显示，Python 是一种高级编程语言[^CITE:1]，它具有简洁易读的语法特点[^CITE:2]。
 """.strip()
 
-
-mcp_servers_prompt_template = Template("""
+# ============= 工具调用系统提示词 =============
+system_prompt_for_tool_calls_template = Template("""
 You are a helpful assistant ONLY for tool calling. Your role is to analyze the user's request and determine which tools to call.
 
 Current date and time: {{ current_datetime }}.
@@ -48,8 +51,8 @@ IMPORTANT RULES:
 Your task is to call tools, not to answer questions directly.
 """.strip())
 
-user_message_template = Template("""
-User has made a request:
+# ============= 工具调用用户消息提示词 =============
+user_message_for_tool_call_template = Template("""
 {{ user_message }}
 
 {% if not mcp_auto_mode %}
@@ -63,15 +66,40 @@ IMPORTANT RULES:
 - You are ONLY responsible for calling tools. Do NOT provide the final answer. Just call the appropriate tools or respond with "finish."
 """.strip())
 
+# 用户消息提示词（包含工具调用历史）
+user_message_with_tool_calls_template = Template("""
+{{ user_message }}
+
+<tool_execution_history>
+{% for (assistant_message, tool_call_message) in tool_call_messages %}
+    <tool_call>
+        <function_name>{{ assistant_message.tool_calls[0].function.name }}</function_name>
+        <parameters>{{ assistant_message.tool_calls[0].function.arguments }}</parameters>
+        <result>{{ tool_call_message.content }}</result>
+    </tool_call>
+{% endfor %}
+</tool_execution_history>
+""".strip())
+
+# ============= 系统提示词和用户消息提示词字典 =============
+system_prompt_dict = {
+    'default': default_system_prompt_template,
+    'for_tool_calls': system_prompt_for_tool_calls_template,
+}
+
+user_message_prompt_dict = {
+    'for_tool_calls': user_message_for_tool_call_template,
+}
+
 
 def get_default_system_prompt(include_date: bool) -> str:
     """Get default system prompt with current time information"""
     if include_date:
         current_datetime = get_current_datetime_str()
         current_date = get_current_date()
-        return default_system_prompt_template.render(current_datetime=current_datetime, current_date=current_date)
+        return system_prompt_dict['default'].render(current_datetime=current_datetime, current_date=current_date)
     else:
-        return default_system_prompt_template.render()
+        return system_prompt_dict['default'].render()
 
 
 def get_prompt_with_mcp_servers(user_message: str, mcp_auto_mode: bool, server_names: list[str]) -> tuple[str, str]:
@@ -79,8 +107,24 @@ def get_prompt_with_mcp_servers(user_message: str, mcp_auto_mode: bool, server_n
     server_names = server_names or []
     mcp_configs = [id_by_config[server_name]
                    for server_name in server_names if server_name in id_by_config]
-    system_prompt = mcp_servers_prompt_template.render(
+    system_prompt = system_prompt_dict['for_tool_calls'].render(
         current_datetime=get_current_datetime_str(), current_date=get_current_date())
-    new_user_message = user_message_template.render(
+    new_user_message = user_message_prompt_dict['for_tool_calls'].render(
         user_message=user_message, mcp_auto_mode=mcp_auto_mode, mcp_configs=mcp_configs)
     return new_user_message, system_prompt
+
+
+def get_prompt_with_tool_history(user_message: str, tool_call_messages: list[AssistantMessage]) -> str:
+    new_tool_call_messages: list[tuple[AssistantToolCallMessage, ToolCallResultMessage]] = [
+    ]
+    one_circle = tuple()
+    for msg in tool_call_messages:
+        if msg.role == 'assistant':
+            one_circle += (msg,)
+        elif msg.role == 'tool' and not msg.is_error:
+            one_circle += (msg,)
+            new_tool_call_messages.append(one_circle)
+            one_circle = tuple()
+
+    return user_message_with_tool_calls_template.render(
+        user_message=user_message, tool_call_messages=new_tool_call_messages)
