@@ -130,7 +130,9 @@ const ToolCallBlock = ({ isCallingTools, toolCallMessages }: Props) => {
               </div>
               <div className="flex-1">
                 {(toolCallMessages || [])
-                  .filter(message => message.status !== "start")
+                  .filter(message =>
+                    ["continue", "error"].includes(message.status)
+                  )
                   .map((message, index) => (
                     <div key={index} className="w-full">
                       {message.role === "assistant" && (
