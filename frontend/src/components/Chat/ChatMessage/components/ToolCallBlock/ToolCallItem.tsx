@@ -64,6 +64,9 @@ export default function ToolCallItem({ message }: Props) {
         <Tag color="processing" bordered={false} style={{ marginRight: 0 }}>
           {message.toolCall.function.name}
         </Tag>
+        {"duration" in message && message.duration && (
+          <span className="text-gray-600">{message.duration}s</span>
+        )}
       </div>
       <GrayContainer
         className="flex flex-col gap-1 items-start w-full"
