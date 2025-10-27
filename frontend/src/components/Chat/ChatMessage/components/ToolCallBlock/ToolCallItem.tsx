@@ -60,7 +60,7 @@ export default function ToolCallItem({ message }: Props) {
   return (
     <div className="w-full">
       <div className="flex items-center gap-2">
-        <span>calling tool</span>
+        <span className="font-bold">calling tool</span>
         <Tag color="processing" bordered={false} style={{ marginRight: 0 }}>
           {message.toolCall.function.name}
         </Tag>
