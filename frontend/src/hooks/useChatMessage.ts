@@ -144,10 +144,6 @@ export const useChatMessage = (
             }
             dispatch(appendReasoningToLastMessage(content || ""));
           } else if (type === "content") {
-            // 回答内容
-            if (status === "start") {
-              dispatch(setLoading(true));
-            }
             dispatch(appendContentToLastMessage(content || ""));
           } else if (type === "sources") {
             // 知识库搜索结果

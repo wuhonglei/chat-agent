@@ -5,8 +5,8 @@ import {
   ToolCallMessage,
   ToolCallResultMessage,
 } from "@/interfaces";
-import React from "react";
-import { isEmpty } from "lodash-es";
+import React, { Fragment, useMemo } from "react";
+import { isEmpty, isPlainObject } from "lodash-es";
 import NormalCode from "../../MarkdownContainer/components/NormalCode";
 import GrayContainer from "../../MarkdownContainer/components/GrayContainer";
 import McpServerIcon from "@/assets/svg/mcpServerIcon.svg?react";
@@ -16,11 +16,34 @@ type Props = {
   toolCallMessages: ToolCallMessage[] | undefined;
 };
 
-function formatStringToJson(args: string) {
+function stringifyArgs(args: string): string {
+  if (!args) {
+    return "";
+  }
+
   try {
-    return JSON.stringify(JSON.parse(args.trim()), null, 2);
+    return JSON.stringify(JSON.parse(args), null, 2);
   } catch {
-    return args.trim();
+    return args;
+  }
+}
+
+function stringifyContentWithLanguage<T extends string | Record<string, any>>(
+  content: T | undefined
+): [string, string] {
+  if (!content) {
+    return ["", ""];
+  }
+
+  if (isPlainObject(content)) {
+    return [JSON.stringify(content, null, 2), "json"];
+  }
+
+  try {
+    const str = JSON.stringify(JSON.parse(content as string), null, 2);
+    return [str, "json"];
+  } catch {
+    return [content as string, "markdown"];
   }
 }
 
@@ -48,28 +71,27 @@ const AssistantToolCallBlock = ({
           </div>
         }
       >
-        <NormalCode language="js">
-          {`// arguments is:\n${formatStringToJson(toolCall.function.arguments)}`}
+        <NormalCode language="json">
+          {stringifyArgs(toolCall.function.arguments)}
         </NormalCode>
       </GrayContainer>
     </div>
   );
 };
 
-const ToolToolCallBlock = ({ message }: { message: ToolCallResultMessage }) => {
-  const { status, content } = message;
-  if (status === "error" || !content) {
-    return content ? (
-      <div className="text-gray-600">
-        {typeof content === "string"
-          ? content
-          : JSON.stringify(content, null, 2)}
-      </div>
-    ) : null;
-  }
+const ToolToolCallResultBlock = ({
+  message,
+}: {
+  message: ToolCallResultMessage;
+}) => {
+  const { content } = message;
+  const [contentStr, language] = useMemo(
+    () => stringifyContentWithLanguage(content),
+    [content]
+  );
 
   return (
-    <div className="flex flex-col gap-1 items-start">
+    <div className="w-full">
       <GrayContainer
         className="w-full"
         header={
@@ -78,8 +100,8 @@ const ToolToolCallBlock = ({ message }: { message: ToolCallResultMessage }) => {
           </div>
         }
       >
-        <NormalCode language="js" style={{ maxHeight: 500 }}>
-          {JSON.stringify(content, null, 2)}
+        <NormalCode language={language} style={{ maxHeight: 500 }}>
+          {contentStr}
         </NormalCode>
       </GrayContainer>
     </div>
@@ -128,20 +150,20 @@ const ToolCallBlock = ({ isCallingTools, toolCallMessages }: Props) => {
                   }}
                 />
               </div>
-              <div className="flex-1">
+              <div className="flex-1 overflow-hidden">
                 {(toolCallMessages || [])
                   .filter(message =>
                     ["continue", "error"].includes(message.status)
                   )
                   .map((message, index) => (
-                    <div key={index} className="w-full">
+                    <Fragment key={index}>
                       {message.role === "assistant" && (
                         <AssistantToolCallBlock message={message} />
                       )}
                       {message.role === "tool" && (
-                        <ToolToolCallBlock message={message} />
+                        <ToolToolCallResultBlock message={message} />
                       )}
-                    </div>
+                    </Fragment>
                   ))}
               </div>
             </div>

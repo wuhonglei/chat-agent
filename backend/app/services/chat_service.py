@@ -126,9 +126,6 @@ class ChatService:
             for tool_call in assistant_message.tool_calls:
                 tool_name = tool_call.function.name
                 try:
-                    # Parse arguments
-                    arguments = json.loads(tool_call.function.arguments)
-
                     # Stream tool call start
                     yield self._format_sse_message(
                         'tool_call', {
@@ -140,6 +137,8 @@ class ChatService:
                         }), tool_call_messages
 
                     # Call the tool via MCP manager
+                    # Parse arguments
+                    arguments = json.loads(tool_call.function.arguments)
                     logger.info(
                         f"Calling MCP tool: {tool_name} with args: {arguments}")
                     result = await self.mcp_manager.call_tool(tool_name, arguments)
@@ -149,8 +148,8 @@ class ChatService:
 
                     # Stream tool call result
                     # 优先使用结构化内容，否则使用格式化的字符串内容
-                    result_content = result.structured_content if hasattr(
-                        result, 'structured_content') else content
+                    result_content = getattr(
+                        result, 'structured_content') or content
                     yield self._format_sse_message(
                         'tool_call', {
                             'role': 'tool',
@@ -240,7 +239,6 @@ class ChatService:
                     # Update accumulated messages
                     tool_call_messages = accumulated_messages
 
-            logger.info(tool_call_messages)
             system_prompt = get_default_system_prompt(include_date=False)
             # 将工具调用历史拼接到用户消息中
             new_messages = self._compose_messages_with_tool_calls(
