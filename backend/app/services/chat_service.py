@@ -1,5 +1,5 @@
 """Chat service for RAG-based Q&A"""
-
+import time
 import json
 from collections.abc import AsyncGenerator, AsyncIterator
 from typing import Optional
@@ -125,6 +125,7 @@ class ChatService:
             # Execute tool calls and stream results
             for tool_call in assistant_message.tool_calls:
                 tool_name = tool_call.function.name
+                start_time = time.time()
                 try:
                     # Stream tool call start
                     yield self._format_sse_message(
@@ -156,6 +157,7 @@ class ChatService:
                             'status': 'continue',
                             'content': result_content,
                             "tool_call_id": tool_call.id,
+                            'duration': round(time.time() - start_time, 2),
                         }), tool_call_messages
 
                     # Add tool result to messages
@@ -176,6 +178,7 @@ class ChatService:
                             'role': 'tool',
                             'status': 'error',
                             'content': error_msg,
+                            'duration': round(time.time() - start_time, 2),
                             "tool_call_id": tool_call.id,
                         }), tool_call_messages
 

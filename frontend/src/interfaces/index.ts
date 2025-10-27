@@ -116,13 +116,14 @@ export interface AssistantToolCallMessage {
   status: "start" | "continue" | "done";
   content?: string;
   toolCall?: ToolCall;
-  toolCallId?: string;
+  toolCallId: string;
 }
 
 export interface ToolCallResultMessage {
   role: "tool";
   status: "continue" | "error";
-  toolCallId?: string;
+  toolCallId: string;
+  duration: number;
   content?: string | Record<string, any>;
 }
 
