@@ -1,111 +1,15 @@
-import { Collapse, Divider, Tag } from "antd";
+import { Collapse, Divider } from "antd";
 import styles from "./css/ToolCallBlock.module.css";
-import {
-  AssistantToolCallMessage,
-  ToolCallMessage,
-  ToolCallResultMessage,
-} from "@/interfaces";
-import React, { Fragment, useMemo } from "react";
-import { isEmpty, isPlainObject } from "lodash-es";
-import NormalCode from "@/components/Chat/MarkdownContainer/components/NormalCode";
-import GrayContainer from "@/components/Chat/MarkdownContainer/components/GrayContainer";
+import { ToolCallMessage } from "@/interfaces";
+import React, { Fragment } from "react";
+import { isEmpty } from "lodash-es";
 import McpServerIcon from "@/assets/svg/mcpServerIcon.svg?react";
+import AssistantToolCallBlock from "./AssistantToolCallBlock";
+import ToolToolCallResultBlock from "./ToolToolCallResultBlock";
 
 type Props = {
   isCallingTools: boolean;
   toolCallMessages: ToolCallMessage[] | undefined;
-};
-
-function stringifyArgs(args: string): string {
-  if (!args) {
-    return "";
-  }
-
-  try {
-    return JSON.stringify(JSON.parse(args), null, 2);
-  } catch {
-    return args;
-  }
-}
-
-function stringifyContentWithLanguage<T extends string | Record<string, any>>(
-  content: T | undefined
-): [string, string] {
-  if (!content) {
-    return ["", ""];
-  }
-
-  if (isPlainObject(content)) {
-    return [JSON.stringify(content, null, 2), "json"];
-  }
-
-  try {
-    const str = JSON.stringify(JSON.parse(content as string), null, 2);
-    return [str, "json"];
-  } catch {
-    return [content as string, "markdown"];
-  }
-}
-
-const AssistantToolCallBlock = ({
-  message,
-}: {
-  message: AssistantToolCallMessage;
-}) => {
-  const { status, content, toolCall } = message;
-  if (status === "done" || !toolCall || !toolCall.function) {
-    return content ? <div className="text-gray-600">{content}</div> : null;
-  }
-
-  // 函数调用中
-  return (
-    <div className="w-full">
-      <GrayContainer
-        className="flex flex-col gap-1 items-start w-full"
-        header={
-          <div className="flex items-center gap-2">
-            <span>calling tool</span>
-            <Tag bordered={false} style={{ marginRight: 0 }}>
-              {toolCall.function.name}
-            </Tag>
-          </div>
-        }
-      >
-        <NormalCode language="json">
-          {stringifyArgs(toolCall.function.arguments)}
-        </NormalCode>
-      </GrayContainer>
-    </div>
-  );
-};
-
-const ToolToolCallResultBlock = ({
-  message,
-}: {
-  message: ToolCallResultMessage;
-}) => {
-  const { content } = message;
-  const [contentStr, language] = useMemo(
-    () => stringifyContentWithLanguage(content),
-    [content]
-  );
-
-  return (
-    <div className="w-full">
-      <GrayContainer
-        className="w-full"
-        header={
-          <div>
-            <span>result is:</span>
-          </div>
-        }
-      >
-        <NormalCode language={language} style={{ maxHeight: 500 }}>
-          {contentStr}
-        </NormalCode>
-      </GrayContainer>
-    </div>
-  );
 };
 
 const ToolCallBlock = ({ isCallingTools, toolCallMessages }: Props) => {
