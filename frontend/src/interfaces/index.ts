@@ -124,6 +124,7 @@ export interface ToolCallResultMessage {
   status: "continue" | "error";
   toolCallId: string;
   duration: number;
+  toolCall: ToolCall;
   content?: string | Record<string, any>;
 }
 

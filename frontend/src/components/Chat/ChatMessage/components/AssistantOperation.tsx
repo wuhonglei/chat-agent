@@ -22,7 +22,7 @@ export default function AssistantOperation(props: Props) {
   return (
     <div
       className={classNames(
-        "mt-2 w-full flex items-center gap-2 transition duration-300"
+        "w-full flex items-center gap-2 transition duration-300"
       )}
     >
       <CopyButton size="middle" text={message.content} children={null} />

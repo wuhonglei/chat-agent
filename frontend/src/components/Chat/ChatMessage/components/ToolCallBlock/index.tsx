@@ -1,11 +1,10 @@
-import { Collapse, Divider } from "antd";
-import styles from "./css/ToolCallBlock.module.css";
-import { ToolCallMessage } from "@/interfaces";
 import React, { Fragment } from "react";
+import { Collapse, Timeline } from "antd";
+import { ToolCallMessage } from "@/interfaces";
 import { isEmpty } from "lodash-es";
-import McpServerIcon from "@/assets/svg/mcpServerIcon.svg?react";
 import AssistantToolCallBlock from "./AssistantToolCallBlock";
 import ToolToolCallResultBlock from "./ToolToolCallResultBlock";
+import styles from "./index.module.css";
 
 type Props = {
   isCallingTools: boolean;
@@ -16,6 +15,8 @@ const ToolCallBlock = ({ isCallingTools, toolCallMessages }: Props) => {
   if (isEmpty(toolCallMessages)) {
     return null;
   }
+
+  console.info("toolCallMessages", toolCallMessages);
 
   return (
     <Collapse
@@ -38,38 +39,27 @@ const ToolCallBlock = ({ isCallingTools, toolCallMessages }: Props) => {
           },
           classNames: { header: styles.header },
           children: (
-            <div className="flex gap-1 w-full">
-              <div className="flex flex-col py-1 w-4 items-center gap-1 pb-3">
-                <McpServerIcon
-                  width="20"
-                  height="20"
-                  className="text-blue-500"
-                />
-                <Divider
-                  type="vertical"
-                  style={{
-                    flex: 1,
-                    marginLeft: 0,
-                    marginRight: 0,
-                  }}
-                />
-              </div>
-              <div className="flex-1 overflow-hidden">
-                {(toolCallMessages || [])
+            <div className="flex mt-2">
+              <Timeline
+                className="w-full"
+                items={(toolCallMessages || [])
                   .filter(message =>
-                    ["continue", "error"].includes(message.status)
+                    ["continue", "error", "done"].includes(message.status)
                   )
-                  .map((message, index) => (
-                    <Fragment key={index}>
-                      {message.role === "assistant" && (
-                        <AssistantToolCallBlock message={message} />
-                      )}
-                      {message.role === "tool" && (
-                        <ToolToolCallResultBlock message={message} />
-                      )}
-                    </Fragment>
-                  ))}
-              </div>
+                  .map((message, index) => ({
+                    key: index,
+                    children: (
+                      <Fragment key={message.toolCallId}>
+                        {message.role === "assistant" && (
+                          <AssistantToolCallBlock message={message} />
+                        )}
+                        {message.role === "tool" && (
+                          <ToolToolCallResultBlock message={message} />
+                        )}
+                      </Fragment>
+                    ),
+                  }))}
+              />
             </div>
           ),
         },

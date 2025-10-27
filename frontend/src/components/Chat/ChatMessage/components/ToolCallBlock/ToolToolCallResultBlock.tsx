@@ -4,6 +4,7 @@ import GrayContainer from "@/components/Chat/MarkdownContainer/components/GrayCo
 import { ToolCallResultMessage } from "@/interfaces";
 import { useMemo } from "react";
 import NormalCode from "@/components/Chat/MarkdownContainer/components/NormalCode";
+import { Tag } from "antd";
 
 function stringifyContentWithLanguage<T extends string | Record<string, any>>(
   content: T | undefined
@@ -24,12 +25,14 @@ function stringifyContentWithLanguage<T extends string | Record<string, any>>(
   }
 }
 
-const ToolToolCallResultBlock = ({
-  message,
-}: {
+interface ToolToolCallResultBlockProps {
   message: ToolCallResultMessage;
+}
+
+const ToolToolCallResultBlock: React.FC<ToolToolCallResultBlockProps> = ({
+  message,
 }) => {
-  const { content } = message;
+  const { content, toolCall } = message;
   const [contentStr, language] = useMemo(
     () => stringifyContentWithLanguage(content),
     [content]
@@ -40,7 +43,10 @@ const ToolToolCallResultBlock = ({
       <GrayContainer
         className="w-full"
         header={
-          <div>
+          <div className="flex items-center gap-2">
+            <Tag bordered={false} style={{ marginRight: 0 }}>
+              {toolCall.function.name}
+            </Tag>
             <span>result is:</span>
           </div>
         }

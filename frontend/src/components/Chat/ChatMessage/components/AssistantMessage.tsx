@@ -31,7 +31,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
   });
 
   return (
-    <div className={"flex flex-col mt-4 items-start"}>
+    <div className={"flex flex-col mt-4 items-start gap-2"}>
       {isLoading ? (
         <div className="flex justify-start items-center">
           <Spin size="small" />

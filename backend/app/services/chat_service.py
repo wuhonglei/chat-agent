@@ -125,6 +125,7 @@ class ChatService:
             # Execute tool calls and stream results
             for tool_call in assistant_message.tool_calls:
                 tool_name = tool_call.function.name
+                tool_call_dict = tool_call.model_dump(exclude_none=True)
                 start_time = time.time()
                 try:
                     # Stream tool call start
@@ -134,7 +135,7 @@ class ChatService:
                             'status': 'continue',
                             'content': assistant_message.content or '',
                             "tool_call_id": tool_call.id,
-                            'tool_call': tool_call.model_dump(exclude_none=True)
+                            'tool_call': tool_call_dict
                         }), tool_call_messages
 
                     # Call the tool via MCP manager
@@ -157,6 +158,7 @@ class ChatService:
                             'status': 'continue',
                             'content': result_content,
                             "tool_call_id": tool_call.id,
+                            'tool_call': tool_call_dict,
                             'duration': round(time.time() - start_time, 2),
                         }), tool_call_messages
 
@@ -180,6 +182,7 @@ class ChatService:
                             'content': error_msg,
                             'duration': round(time.time() - start_time, 2),
                             "tool_call_id": tool_call.id,
+                            'tool_call': tool_call_dict,
                         }), tool_call_messages
 
                     tool_call_messages.append(ToolCallResultMessage(**{

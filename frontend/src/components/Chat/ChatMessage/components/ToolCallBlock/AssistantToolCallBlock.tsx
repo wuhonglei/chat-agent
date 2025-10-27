@@ -16,14 +16,16 @@ function stringifyArgs(args: string): string {
   }
 }
 
-const AssistantToolCallBlock = ({
-  message,
-}: {
+interface AssistantToolCallBlockProps {
   message: AssistantToolCallMessage;
+}
+
+const AssistantToolCallBlock: React.FC<AssistantToolCallBlockProps> = ({
+  message,
 }) => {
   const { status, content, toolCall } = message;
   if (status === "done" || !toolCall || !toolCall.function) {
-    return content ? <div className="text-gray-600">{content}</div> : null;
+    return content ? <div className="w-full">{content}</div> : null;
   }
 
   // 函数调用中
