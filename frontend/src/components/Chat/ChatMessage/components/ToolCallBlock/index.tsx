@@ -1,10 +1,11 @@
-import React, { Fragment } from "react";
+import React from "react";
 import { Collapse, Timeline } from "antd";
 import { ToolCallMessage } from "@/interfaces";
 import { isEmpty } from "lodash-es";
-import AssistantToolCallBlock from "./AssistantToolCallBlock";
-import ToolToolCallResultBlock from "./ToolToolCallResultBlock";
 import styles from "./index.module.css";
+import { useTimelineMessages } from "./hooks";
+import ToolCallItem from "./ToolCallItem";
+import { timelineColorByStatus } from "@/constants";
 
 type Props = {
   isCallingTools: boolean;
@@ -12,11 +13,10 @@ type Props = {
 };
 
 const ToolCallBlock = ({ isCallingTools, toolCallMessages }: Props) => {
-  if (isEmpty(toolCallMessages)) {
+  const timelineMessages = useTimelineMessages(toolCallMessages);
+  if (isEmpty(timelineMessages)) {
     return null;
   }
-
-  console.info("toolCallMessages", toolCallMessages);
 
   return (
     <Collapse
@@ -41,24 +41,13 @@ const ToolCallBlock = ({ isCallingTools, toolCallMessages }: Props) => {
           children: (
             <div className="flex mt-2">
               <Timeline
+                pending={isCallingTools}
                 className="w-full"
-                items={(toolCallMessages || [])
-                  .filter(message =>
-                    ["continue", "error", "done"].includes(message.status)
-                  )
-                  .map((message, index) => ({
-                    key: index,
-                    children: (
-                      <Fragment key={message.toolCallId}>
-                        {message.role === "assistant" && (
-                          <AssistantToolCallBlock message={message} />
-                        )}
-                        {message.role === "tool" && (
-                          <ToolToolCallResultBlock message={message} />
-                        )}
-                      </Fragment>
-                    ),
-                  }))}
+                items={timelineMessages.map(message => ({
+                  key: message.key,
+                  color: timelineColorByStatus[message.status],
+                  children: <ToolCallItem message={message} />,
+                }))}
               />
             </div>
           ),

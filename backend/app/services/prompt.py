@@ -62,7 +62,7 @@ User has manually selected the following tools for this request:
     {% endfor %}
 {% endif %}
 IMPORTANT RULES:
-- If none of the selected tools are suitable, respond with "finish.
+- If none of the selected tools are suitable, respond with "finish."
 - You are ONLY responsible for calling tools. Do NOT provide the final answer. Just call the appropriate tools or respond with "finish."
 """.strip())
 
