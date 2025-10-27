@@ -71,7 +71,7 @@ const ToolsSetting: React.FC<ToolsSettingProps> = ({ values }) => {
                 valuePropName="checked"
                 name={[...names.sourceConfig, item.id]}
               >
-                <Switch disabled={mcpAutoMode} />
+                <Switch disabled={mcpAutoMode || !item.online} />
               </Form.Item>
             </section>
           ))}
