@@ -102,6 +102,9 @@ class ChatService:
             if not assistant_message.tool_calls:
                 logger.info(
                     "No tool calls, returning tool_call_messages. Assistant response: " + (assistant_message.content if assistant_message.content else 'empty'))
+                if not tool_call_messages:
+                    yield None, tool_call_messages
+                    return
                 yield self._format_sse_message('tool_call', {
                     'role': 'assistant',
                     'status': 'done',
