@@ -6,6 +6,7 @@ import styles from "./index.module.css";
 import { useTimelineMessages } from "./hooks";
 import ToolCallItem from "./ToolCallItem";
 import { timelineColorByStatus } from "@/constants";
+import classNames from "classnames";
 
 type Props = {
   isCallingTools: boolean;
@@ -42,7 +43,7 @@ const ToolCallBlock = ({ isCallingTools, toolCallMessages }: Props) => {
             <div className="flex mt-2 pl-1">
               <Timeline
                 pending={isCallingTools ? "waiting for tool result ..." : false}
-                className="w-full"
+                className={classNames("w-full", styles["timeline-container"])}
                 items={timelineMessages.map(message => ({
                   key: message.key,
                   color: timelineColorByStatus[message.status],
