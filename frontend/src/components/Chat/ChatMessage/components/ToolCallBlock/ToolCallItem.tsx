@@ -80,11 +80,6 @@ const ToolCallItem: React.FC<Props> = ({ message }) => {
           {stringifyArgs(message.toolCall.function.arguments)}
         </NormalCode>
       </GrayContainer>
-      {status === ToolCallStatus.CallingTool && (
-        <div className="flex items-center gap-2">
-          <span>waiting for tool result...</span>
-        </div>
-      )}
       {status === ToolCallStatus.ToolResultError && (
         <div className="flex items-center gap-2">
           <span>tool call error</span>

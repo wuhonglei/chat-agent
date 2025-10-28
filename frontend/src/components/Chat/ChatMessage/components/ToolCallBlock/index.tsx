@@ -39,9 +39,9 @@ const ToolCallBlock = ({ isCallingTools, toolCallMessages }: Props) => {
           },
           classNames: { header: styles.header },
           children: (
-            <div className="flex mt-2">
+            <div className="flex mt-2 pl-1">
               <Timeline
-                pending={isCallingTools}
+                pending={isCallingTools ? "waiting for tool result ..." : false}
                 className="w-full"
                 items={timelineMessages.map(message => ({
                   key: message.key,
