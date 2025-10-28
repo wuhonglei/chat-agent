@@ -18,13 +18,17 @@ import {
 import { chatAPI } from "@/services";
 import {
   ChatInputFormValues,
-  ChatMessage as ChatMessageType,
+  ChatMessage,
   StreamMessage,
   ToolCallMessage,
 } from "@/interfaces";
 
 import { isNil, isPlainObject, omit } from "lodash-es";
-import { buildFootnoteDefinition, isUserRole } from "@/utils";
+import {
+  buildFootnoteDefinition,
+  getHistoryMessages,
+  isUserRole,
+} from "@/utils";
 
 export interface UseChatMessageOptions {
   historyLimit?: number;
@@ -35,11 +39,11 @@ export interface UseChatMessageReturn {
   isStreaming: boolean;
   isReasoning: boolean;
   isCallingTools: boolean;
-  messages: ChatMessageType[];
+  messages: ChatMessage[];
   abortMessage: () => void;
   reSendMessage: (
     index: number,
-    message: ChatMessageType,
+    message: ChatMessage,
     formData: Omit<ChatInputFormValues, "message">
   ) => Promise<void>;
   sendMessage: (values: ChatInputFormValues, index?: number) => Promise<void>;
@@ -62,18 +66,6 @@ export const useChatMessage = (
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  /**
-   * 获取历史消息
-   * 注意: 函数体中的 messages 使用的是旧的消息列表，不是最新的消息列表
-   */
-  const getHistoryMessages = (limit: number = historyLimit, index?: number) => {
-    if (isNil(index)) {
-      return messages.slice(-limit);
-    }
-
-    return messages.slice(Math.max(0, index - limit), index);
-  };
-
   const resetState = () => {
     dispatch(setStreaming(false));
     dispatch(setLoading(false));
@@ -92,7 +84,7 @@ export const useChatMessage = (
     }
 
     // 添加用户消息
-    const userMessage: ChatMessageType = {
+    const userMessage: ChatMessage = {
       role: "user",
       content: values.message,
       timestamp: new Date().toISOString(),
@@ -105,7 +97,7 @@ export const useChatMessage = (
     );
 
     // 添加空的助手消息用于流式传输
-    const assistantMessage: ChatMessageType = {
+    const assistantMessage: ChatMessage = {
       role: "assistant",
       content: "",
       reasoning: "",
@@ -124,7 +116,7 @@ export const useChatMessage = (
         {
           ...values,
           sessionId: sessionId || undefined,
-          history: getHistoryMessages(historyLimit, index), // 发送最后几条消息作为上下文
+          history: getHistoryMessages(historyLimit, messages, index), // 发送最后几条消息作为上下文
         },
         (data: StreamMessage) => {
           if (!isPlainObject(data)) {
@@ -182,7 +174,7 @@ export const useChatMessage = (
 
   const reSendMessage = async (
     index: number,
-    message: ChatMessageType,
+    message: ChatMessage,
     formData: Omit<ChatInputFormValues, "message">
   ): Promise<void> => {
     if (isUserRole(message.role)) {
@@ -200,7 +192,7 @@ export const useChatMessage = (
   const abortMessage = (): void => {
     if (abortControllerRef.current && isStreaming) {
       abortControllerRef.current.abort();
-      dispatch(clearLastMessage());
+      isLoading && dispatch(clearLastMessage());
       resetState();
     }
   };

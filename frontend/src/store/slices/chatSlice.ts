@@ -53,7 +53,7 @@ const chatSlice = createSlice({
     },
     clearLastMessage: state => {
       const lastMessage = lastMessageCheck(state.messages);
-      if (lastMessage && !lastMessage.content) {
+      if (lastMessage) {
         state.messages.pop();
       }
     },
