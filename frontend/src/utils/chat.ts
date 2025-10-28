@@ -104,11 +104,9 @@ export function getHistoryMessages<T extends ChatMessage>(
   messages: T[],
   index?: number
 ): T[] {
-  if (isNil(index)) {
-    return messages.slice(-limit);
-  }
-
-  const histories = messages.slice(Math.max(0, index - limit), index);
+  const histories = isNil(index)
+    ? messages.slice(-limit)
+    : messages.slice(Math.max(0, index - limit), index);
   const validHistories: T[] = [];
   for (let i = 0; i < histories.length - 1; i) {
     const message = histories[i];
