@@ -2,7 +2,7 @@
 import time
 import json
 from collections.abc import AsyncGenerator, AsyncIterator
-from typing import Optional
+from typing import Optional, cast
 
 from loguru import logger
 from openai import AsyncOpenAI
@@ -83,9 +83,12 @@ class ChatService:
         Returns:
             list[AssistantMessage]: Final tool call messages
         """
-        max_iterations = 5  # Prevent infinite loops
+        max_total_iterations = 10  # Prevent infinite loops
+        max_iterations_by_tool = 5
+        iterations_by_tool = {
+            tool['function']['name']: max_iterations_by_tool for tool in tools}
         tool_call_messages: list[AssistantMessage] = []
-        for iteration in range(max_iterations):
+        for iteration in range(max_total_iterations):
             logger.info(f'{'='*60}')
             logger.info(f'第 {iteration + 1} 轮迭代')
 
@@ -127,7 +130,22 @@ class ChatService:
 
             # Execute tool calls and stream results
             for tool_call in assistant_message.tool_calls:
-                tool_name = tool_call.function.name
+                tool_name = cast(str, tool_call.function.name)
+
+                # Check if tool has reached max iterations BEFORE calling
+                if iterations_by_tool[tool_name] <= 0:
+                    logger.info(
+                        f"Tool {tool_name} has hit max iterations, skipping")
+                    yield self._format_sse_message('tool_call', {
+                        'role': 'assistant',
+                        'status': 'done',
+                        'content': f'Tool {tool_name} has hit max iterations, skipping'
+                    }), tool_call_messages
+                    return
+
+                # Decrement AFTER checking
+                iterations_by_tool[tool_name] -= 1
+
                 tool_call_dict = tool_call.model_dump(exclude_none=True)
                 start_time = time.time()
                 try:

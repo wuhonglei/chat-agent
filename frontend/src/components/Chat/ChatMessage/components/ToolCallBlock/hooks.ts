@@ -37,7 +37,7 @@ export function useTimelineMessages(
       return {
         key: toolCallId,
         status:
-          status === "continue"
+          toolMessage.status === "continue"
             ? ToolCallStatus.ToolResultSuccess
             : ToolCallStatus.ToolResultError,
         ...pick(toolMessage, ["content", "toolCallId", "toolCall", "duration"]),

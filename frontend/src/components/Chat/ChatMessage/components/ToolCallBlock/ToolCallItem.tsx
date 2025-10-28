@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 import { TimelineMessage } from "@/interfaces";
 import { ToolCallStatus } from "@/constants";
 import { Tag } from "antd";
@@ -41,7 +41,7 @@ function stringifyContentWithLanguage<T extends string | Record<string, any>>(
   }
 }
 
-export default function ToolCallItem({ message }: Props) {
+const ToolCallItem: React.FC<Props> = ({ message }) => {
   const { status, content } = message;
   const [contentStr, language] = useMemo(
     () => stringifyContentWithLanguage(content),
@@ -110,4 +110,6 @@ export default function ToolCallItem({ message }: Props) {
       )}
     </div>
   );
-}
+};
+
+export default React.memo(ToolCallItem);
