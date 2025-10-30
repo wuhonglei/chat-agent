@@ -88,7 +88,10 @@ export function useFormValuesChange(form: FormInstance<ChatInputFormValues>) {
       if (isEqual(changedKeys, names.message)) {
         return;
       }
-      setFormValues(omit(allFields, "message"));
+      setFormValues(pre => ({
+        ...pre,
+        ...omit(allFields, "message"),
+      }));
     }
   );
 

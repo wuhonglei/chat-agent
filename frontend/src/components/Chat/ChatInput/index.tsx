@@ -121,6 +121,12 @@ const ChatInput: React.FC<ChatInputProps> = ({
                 深度思考
               </CustomButton>
             </Form.Item>
+            <Form.Item hidden name={names.mcpAutoMode}>
+              <span />
+            </Form.Item>
+            <Form.Item hidden name={names.sourceConfig}>
+              <span />
+            </Form.Item>
             <ToolsSetting values={values} />
           </div>
           {/* 右侧 */}
