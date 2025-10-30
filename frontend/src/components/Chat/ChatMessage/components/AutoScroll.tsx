@@ -1,13 +1,20 @@
 import { useEffect, useRef } from "react";
 import { ChatMessage } from "@/interfaces/chatRequest";
 import { useThrottleFn } from "ahooks";
+import { FloatButton } from "antd";
+import { DownOutlined } from "@ant-design/icons";
 
 type Props = {
   messages: ChatMessage[];
   isStreaming: boolean;
+  containerRef: React.RefObject<HTMLElement>;
 };
 
-export default function AutoScroll({ messages, isStreaming }: Props) {
+export default function AutoScroll({
+  messages,
+  isStreaming,
+  containerRef,
+}: Props) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const userScrollUpRef = useRef(false);
 
@@ -43,7 +50,7 @@ export default function AutoScroll({ messages, isStreaming }: Props) {
       return;
     }
 
-    const container = messagesEndRef.current?.parentElement;
+    const container = containerRef.current;
     if (!container) return;
 
     container.addEventListener("wheel", onWheel, {
@@ -54,7 +61,7 @@ export default function AutoScroll({ messages, isStreaming }: Props) {
         "wheel",
         onWheel as unknown as EventListener
       );
-  }, [isStreaming, onWheel]);
+  }, [isStreaming, onWheel, containerRef]);
 
   useEffect(() => {
     if (messagesEndRef.current && isStreaming && !userScrollUpRef.current) {
@@ -62,5 +69,16 @@ export default function AutoScroll({ messages, isStreaming }: Props) {
     }
   }, [messages, isStreaming]);
 
-  return <div ref={messagesEndRef} />;
+  return (
+    <>
+      <div ref={messagesEndRef} />
+      {containerRef.current && (
+        <FloatButton.BackTop
+          icon={<DownOutlined />}
+          visibilityHeight={100}
+          target={() => containerRef.current as HTMLElement}
+        />
+      )}
+    </>
+  );
 }

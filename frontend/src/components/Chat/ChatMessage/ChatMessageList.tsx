@@ -1,5 +1,5 @@
 import { ChatMessage as ChatMessageType } from "@/interfaces";
-import React from "react";
+import React, { useRef } from "react";
 import ChatMessageItem from "./ChatMessageItem";
 import classNames from "classnames";
 import { useAppSelector } from "@/store/hooks";
@@ -27,8 +27,12 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
   onReSend,
 }) => {
   const { messages } = useAppSelector(state => state.chat);
+  const containerRef = useRef<HTMLDivElement>(null);
   return (
-    <div className={classNames("flex-1 overflow-y-auto px-2 pb-4", className)}>
+    <div
+      ref={containerRef}
+      className={classNames("flex-1 overflow-y-auto px-2 pb-4", className)}
+    >
       {messages.map((message, index) => (
         <ChatMessageItem
           key={index}
@@ -43,7 +47,11 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
           isCallingTools={isCallingTools && index === messages.length - 1}
         />
       ))}
-      <AutoScroll messages={messages} isStreaming={isStreaming} />
+      <AutoScroll
+        messages={messages}
+        isStreaming={isStreaming}
+        containerRef={containerRef}
+      />
     </div>
   );
 };
