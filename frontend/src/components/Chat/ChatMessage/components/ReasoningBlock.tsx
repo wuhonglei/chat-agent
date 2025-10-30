@@ -1,11 +1,12 @@
 import { Collapse, Divider } from "antd";
-import { useThrottle } from "ahooks";
+import { useMemoizedFn, useThrottle } from "ahooks";
 import styles from "./css/ReasoningBlock.module.css";
 import MarkdownContainer from "@/components/Chat/MarkdownContainer";
 import ThinkModeIcon from "@/assets/svg/ThinkModeIcon.svg?react";
 import { SearchSource } from "@/interfaces";
 import SourceAbstract from "./SourceAbstract";
-import React from "react";
+import React, { useState } from "react";
+import { EventType, useEmitter } from "@/events";
 
 type Props = {
   isReasoning: boolean;
@@ -13,6 +14,8 @@ type Props = {
   sources: SearchSource[] | undefined;
   onSourceClick: () => void;
 };
+
+const contentKey = "content";
 
 const ReasoningBlock = ({
   isReasoning,
@@ -22,6 +25,19 @@ const ReasoningBlock = ({
 }: Props) => {
   const displayReasoning = useThrottle(reasoning, {
     wait: 100,
+  });
+  const [activeKeys, setActiveKeys] = useState<string[]>([contentKey]);
+  const handleCollapseChange = useMemoizedFn((key: string[]) => {
+    setActiveKeys(key);
+  });
+
+  /**
+   * 思考内容结束后，折叠思考内容
+   */
+  useEmitter(EventType.ReasoningDone, () => {
+    setTimeout(() => {
+      setActiveKeys([]);
+    }, 500);
   });
 
   // 没有思考内容时，则显示来源
@@ -42,10 +58,11 @@ const ReasoningBlock = ({
       ghost
       collapsible="header"
       expandIconPosition="end"
-      defaultActiveKey={["content"]}
+      activeKey={activeKeys}
+      onChange={handleCollapseChange}
       items={[
         {
-          key: "content",
+          key: contentKey,
           label: (
             <span className="text-gray-600">
               {isReasoning ? "深度思考中" : "已完成深度思考"}
