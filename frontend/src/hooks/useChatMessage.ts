@@ -29,6 +29,7 @@ import {
   getHistoryMessages,
   isUserRole,
 } from "@/utils";
+import { emitter, EventType } from "@/events";
 
 export interface UseChatMessageOptions {
   historyLimit?: number;
@@ -133,6 +134,7 @@ export const useChatMessage = (
               dispatch(setReasoning(true));
             } else if (status === "done") {
               dispatch(setReasoning(false));
+              emitter.emit(EventType.ReasoningDone);
             }
             dispatch(appendReasoningToLastMessage(content || ""));
           } else if (type === "content") {
@@ -149,6 +151,7 @@ export const useChatMessage = (
               dispatch(setCallingTools(true));
             } else if (!role && status === "done") {
               dispatch(setCallingTools(false));
+              emitter.emit(EventType.ToolCallDone);
             }
             dispatch(appendToolCallToLastMessage(data.data as ToolCallMessage));
           } else if (type === "done") {
