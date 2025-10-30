@@ -70,8 +70,8 @@ async def search_city(
         data = await make_request("/geo/v2/city/lookup", params)
         city_search_response = CitySearchResponse.model_validate(data)
         return city_search_response.location
-    except Exception as e:
-        return f"❌ 搜索失败: {str(e)}"
+    except Exception:
+        raise
 
 
 @mcp.tool(name="get_current_weather")
@@ -96,8 +96,8 @@ async def get_current_weather(
         data = await make_request("/v7/weather/now", params)
         weather_now_response = WeatherNowResponse.model_validate(data)
         return weather_now_response.now
-    except Exception as e:
-        return f"❌ 获取天气失败: {str(e)}"
+    except Exception:
+        raise
 
 
 @mcp.tool(name="get_weather_forecast")
@@ -116,7 +116,7 @@ async def get_weather_forecast(
     # 验证天数参数
     valid_days = ["1d", "3d", "7d", "10d", "15d", "30d"]
     if days not in valid_days:
-        return f"❌ 无效的天数参数，支持: {', '.join(valid_days)}"
+        raise ValueError(f"无效的天数参数，支持: {', '.join(valid_days)}")
 
     params = {
         "location": location,
@@ -136,8 +136,8 @@ async def get_weather_forecast(
         else:
             return daily
 
-    except Exception as e:
-        return f"❌ 获取预报失败: {str(e)}"
+    except Exception:
+        raise
 
 
 @mcp.tool(name="get_weather_alerts")
@@ -159,8 +159,8 @@ async def get_weather_alerts(
         data = await make_request("/v7/warning/now", params)
         weather_alert_response = WeatherAlertResponse.model_validate(data)
         return weather_alert_response.warning
-    except Exception as e:
-        return f"❌ 获取预警失败: {str(e)}"
+    except Exception:
+        raise
 
 
 async def main():

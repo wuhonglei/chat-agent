@@ -81,7 +81,7 @@ async def tavily_search(
             return TavilySearchResponse.model_validate(response)
         except Exception as e:
             raise ValueError(f"搜索响应验证失败: {str(e)}")
-    except Exception as e:
+    except Exception:
         # 直接重新抛出原始异常，保持异常类型和堆栈跟踪
         raise
 
@@ -119,7 +119,7 @@ async def tavily_extract(
             return TavilyExtractResponse.model_validate(response)
         except Exception as e:
             raise ValueError(f"提取响应验证失败: {str(e)}")
-    except Exception as e:
+    except Exception:
         # 直接重新抛出原始异常，保持异常类型和堆栈跟踪
         raise
 
@@ -181,7 +181,7 @@ async def tavily_crawl(
             return TavilyCrawlResponse.model_validate(response)
         except Exception as e:
             raise ValueError(f"爬取响应验证失败: {str(e)}")
-    except Exception as e:
+    except Exception:
         # 直接重新抛出原始异常，保持异常类型和堆栈跟踪
         raise
 
@@ -231,7 +231,7 @@ async def tavily_map(
             return TavilyMapResponse.model_validate(response)
         except Exception as e:
             raise ValueError(f"映射响应验证失败: {str(e)}")
-    except Exception as e:
+    except Exception:
         # 直接重新抛出原始异常，保持异常类型和堆栈跟踪
         raise
 
