@@ -7,6 +7,7 @@ import NormalCode from "@/components/Chat/MarkdownContainer/components/NormalCod
 import { isPlainObject } from "lodash-es";
 
 type Props = {
+  index: number;
   message: TimelineMessage;
 };
 
@@ -41,7 +42,7 @@ function stringifyContentWithLanguage<T extends string | Record<string, any>>(
   }
 }
 
-const ToolCallItem: React.FC<Props> = ({ message }) => {
+const ToolCallItem: React.FC<Props> = ({ index, message }) => {
   const { status, content } = message;
   const [contentStr, language] = useMemo(
     () => stringifyContentWithLanguage(content),
@@ -60,7 +61,7 @@ const ToolCallItem: React.FC<Props> = ({ message }) => {
   return (
     <div className="w-full">
       <div className="flex items-center gap-2">
-        <span className="font-bold">calling tool</span>
+        <span className="font-bold">calling tool {index + 1}</span>
         <Tag color="processing" bordered={false} style={{ marginRight: 0 }}>
           {message.toolCall.function.name}
         </Tag>

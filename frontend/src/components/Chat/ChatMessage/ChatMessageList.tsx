@@ -4,6 +4,7 @@ import ChatMessageItem from "./ChatMessageItem";
 import classNames from "classnames";
 import { useAppSelector } from "@/store/hooks";
 import AutoScroll from "./components/AutoScroll";
+import FloatButtonBottom from "./components/FloatButtonBottom";
 
 interface ChatMessageListProps {
   isLoading?: boolean;
@@ -31,7 +32,10 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
   return (
     <div
       ref={containerRef}
-      className={classNames("flex-1 overflow-y-auto px-2 pb-4", className)}
+      className={classNames(
+        "flex-1 overflow-y-auto px-2 pb-4 relative",
+        className
+      )}
     >
       {messages.map((message, index) => (
         <ChatMessageItem
@@ -52,6 +56,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
         isStreaming={isStreaming}
         containerRef={containerRef}
       />
+      <FloatButtonBottom visibilityHeight={200} containerRef={containerRef} />
     </div>
   );
 };

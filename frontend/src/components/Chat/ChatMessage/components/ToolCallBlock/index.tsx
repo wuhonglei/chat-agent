@@ -63,10 +63,10 @@ const ToolCallBlock = ({ isCallingTools, toolCallMessages }: Props) => {
               <Timeline
                 pending={isCallingTools ? "waiting for tool result ..." : false}
                 className={classNames("w-full", styles["timeline-container"])}
-                items={timelineMessages.map(message => ({
+                items={timelineMessages.map((message, index) => ({
                   key: message.key,
                   color: timelineColorByStatus[message.status],
-                  children: <ToolCallItem message={message} />,
+                  children: <ToolCallItem message={message} index={index} />,
                 }))}
               />
             </div>

@@ -1,8 +1,6 @@
 import { useEffect, useRef } from "react";
 import { ChatMessage } from "@/interfaces/chatRequest";
 import { useThrottleFn } from "ahooks";
-import { FloatButton } from "antd";
-import { DownOutlined } from "@ant-design/icons";
 
 type Props = {
   messages: ChatMessage[];
@@ -20,7 +18,8 @@ export default function AutoScroll({
 
   const { run: onWheel } = useThrottleFn(
     (event: WheelEvent) => {
-      const container = event.target as HTMLElement;
+      const container = containerRef.current;
+      if (!container) return;
 
       // 向下滚动
       if (event.deltaY > 0) {
@@ -40,7 +39,6 @@ export default function AutoScroll({
     },
     {
       wait: 100, // 节流时间
-      leading: true,
     }
   );
 
@@ -57,7 +55,7 @@ export default function AutoScroll({
       passive: true,
     } as AddEventListenerOptions);
     return () =>
-      container.removeEventListener(
+      container?.removeEventListener(
         "wheel",
         onWheel as unknown as EventListener
       );
@@ -69,16 +67,5 @@ export default function AutoScroll({
     }
   }, [messages, isStreaming]);
 
-  return (
-    <>
-      <div ref={messagesEndRef} />
-      {containerRef.current && (
-        <FloatButton.BackTop
-          icon={<DownOutlined />}
-          visibilityHeight={100}
-          target={() => containerRef.current as HTMLElement}
-        />
-      )}
-    </>
-  );
+  return <div ref={messagesEndRef} />;
 }

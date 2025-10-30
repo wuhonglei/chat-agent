@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { ToolCallMessage, TimelineMessage } from "@/interfaces";
 import { ToolCallStatus } from "@/constants";
+import { isEmpty } from "lodash-es";
 
 export function useTimelineMessages(
   toolCallMessages: ToolCallMessage[] | undefined
@@ -13,7 +14,8 @@ export function useTimelineMessages(
       if (!role && status === "start") {
         continue;
       }
-      if (!role && status === "done") {
+      // 如果工具调用结束，并且有内容，则添加结束消息
+      if (!role && status === "done" && !isEmpty(messages)) {
         messages.push({
           key: "done",
           content: content || "",
