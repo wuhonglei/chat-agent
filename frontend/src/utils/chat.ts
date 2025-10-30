@@ -1,4 +1,4 @@
-import { capitalize, isEmpty, isNil } from "lodash-es";
+import { capitalize, isEmpty, isNil, pick } from "lodash-es";
 import { RoleType, SearchSourceType } from "@/constants";
 import { ChatMessage, SearchSource } from "@/interfaces";
 
@@ -99,15 +99,14 @@ export function isSystemRole(role: RoleType) {
  * 获取历史消息
  * 注意: 函数体中的 messages 使用的是旧的消息列表，不是最新的消息列表
  */
-export function getHistoryMessages<T extends ChatMessage>(
-  limit: number,
-  messages: T[],
-  index?: number
-): T[] {
+export function getHistoryMessages<
+  T extends ChatMessage,
+  R extends Pick<T, "role" | "content">,
+>(limit: number, messages: T[], index?: number): R[] {
   const histories = isNil(index)
     ? messages.slice(-limit)
     : messages.slice(Math.max(0, index - limit), index);
-  const validHistories: T[] = [];
+  const validHistories: Pick<T, "role" | "content">[] = [];
   for (let i = 0; i < histories.length - 1; i) {
     const message = histories[i];
     const nextMessage = histories[i + 1];
@@ -116,11 +115,13 @@ export function getHistoryMessages<T extends ChatMessage>(
       isAssistantRole(nextMessage.role) &&
       !isEmpty(nextMessage.content)
     ) {
-      validHistories.push(message, nextMessage);
+      validHistories.push(
+        ...[message, nextMessage].map(item => pick(item, ["role", "content"]))
+      );
       i += 2;
     } else {
       i += 1;
     }
   }
-  return validHistories;
+  return validHistories as R[];
 }

@@ -88,6 +88,11 @@ class ChatService:
         iterations_by_tool = {
             tool['function']['name']: max_iterations_by_tool for tool in tools}
         tool_call_messages: list[AssistantMessage] = []
+        yield self._format_sse_message('tool_call', {
+            'status': 'start',
+            'content': ''
+        }), tool_call_messages
+
         for iteration in range(max_total_iterations):
             logger.info(f'{'='*60}')
             logger.info(f'第 {iteration + 1} 轮迭代')
@@ -101,29 +106,17 @@ class ChatService:
             )
             assistant_message: AssistantMessage = response.choices[0].message
 
-            # If no tool calls, yield and return the response
             if not assistant_message.tool_calls:
                 logger.info(
                     "No tool calls, returning tool_call_messages. Assistant response: " + (assistant_message.content if assistant_message.content else 'empty'))
-                if not tool_call_messages:
-                    yield None, tool_call_messages
-                    return
                 yield self._format_sse_message('tool_call', {
-                    'role': 'assistant',
                     'status': 'done',
                     'content': assistant_message.content or ''
                 }), tool_call_messages
                 return
 
-            if not tool_call_messages:
-                yield self._format_sse_message('tool_call', {
-                    'role': 'assistant',
-                    'status': 'start',
-                }), tool_call_messages
-
             # Handle tool calls
             tool_call_messages.append(assistant_message)
-
             logger.info(f'需要调用 {len(assistant_message.tool_calls)} 个工具:')
             logger.info(
                 f'assistant_message is {assistant_message.model_dump(exclude_none=True)}')
@@ -131,29 +124,37 @@ class ChatService:
             # Execute tool calls and stream results
             for tool_call in assistant_message.tool_calls:
                 tool_name = cast(str, tool_call.function.name)
+                tool_call_dict = tool_call.model_dump(exclude_none=True)
+                start_time = time.time()
 
                 # Check if tool has reached max iterations BEFORE calling
                 if iterations_by_tool[tool_name] <= 0:
                     logger.info(
                         f"Tool {tool_name} has hit max iterations, skipping")
                     yield self._format_sse_message('tool_call', {
-                        'role': 'assistant',
-                        'status': 'done',
-                        'content': f'Tool {tool_name} has hit max iterations, skipping'
+                        'role': 'tool',
+                        'status': 'error',
+                        'content': f'Tool {tool_name} has hit max iterations, skipping',
+                        "tool_call_id": tool_call.id,
+                        'tool_call': tool_call_dict,
+                        'duration': round(time.time() - start_time, 2),
                     }), tool_call_messages
-                    return
+                    tool_call_messages.append(ToolCallResultMessage(**{
+                        "role": "tool",
+                        "is_error": True,
+                        "tool_call_id": tool_call.id,
+                        "content": f'Tool {tool_name} has hit max iterations, skipping'
+                    }))
+                    continue
 
                 # Decrement AFTER checking
                 iterations_by_tool[tool_name] -= 1
-
-                tool_call_dict = tool_call.model_dump(exclude_none=True)
-                start_time = time.time()
                 try:
                     # Stream tool call start
                     yield self._format_sse_message(
                         'tool_call', {
-                            'role': 'assistant',
-                            'status': 'continue',
+                            'role': 'tool',
+                            'status': 'start',
                             'content': assistant_message.content or '',
                             "tool_call_id": tool_call.id,
                             'tool_call': tool_call_dict
@@ -176,7 +177,7 @@ class ChatService:
                     yield self._format_sse_message(
                         'tool_call', {
                             'role': 'tool',
-                            'status': 'continue',
+                            'status': 'done',
                             'content': result_content,
                             "tool_call_id": tool_call.id,
                             'tool_call': tool_call_dict,
@@ -193,7 +194,7 @@ class ChatService:
 
                 except Exception as e:
                     logger.error(f"Failed to call tool {tool_name}: {e}")
-                    error_msg = f"Error calling tool: {str(e)}"
+                    error_msg = str(e)
 
                     # Stream error
                     yield self._format_sse_message(
@@ -216,7 +217,6 @@ class ChatService:
         # If we hit max iterations, return error message
         logger.info('we have hit max iterations, returning tool_call_messages')
         yield self._format_sse_message('tool_call', {
-            'role': 'assistant',
             'status': 'done',
             'content': 'we have hit max iterations, returning tool_call_messages'
         }), tool_call_messages

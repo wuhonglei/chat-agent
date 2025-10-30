@@ -9,37 +9,49 @@ export interface ToolCall {
   };
 }
 
-export interface AssistantToolCallMessage {
-  role: "assistant";
-  status: "start" | "continue" | "done";
+// 工具调用流程的开始和结束消息
+export interface ToolCallProcessMessage {
+  role: undefined;
+  status: "start" | "done";
   content: string;
-  toolCall: ToolCall;
-  toolCallId: string;
 }
 
-export interface ToolCallResultMessage {
+// 工具调用结果消息
+export interface ToolCallStartItemMessage {
   role: "tool";
-  status: "continue" | "error";
-  toolCallId: string;
+  status: "start";
   duration: number;
   toolCall: ToolCall;
+  toolCallId: string;
+  content: string;
+}
+
+export interface ToolCallEndItemMessage {
+  role: "tool";
+  status: "done" | "error";
+  duration: number;
+  toolCall: ToolCall;
+  toolCallId: string;
   content: string | Record<string, any>;
 }
 
-export type ToolCallMessage = AssistantToolCallMessage | ToolCallResultMessage;
+export type ToolCallMessage =
+  | ToolCallProcessMessage
+  | ToolCallStartItemMessage
+  | ToolCallEndItemMessage;
 
 export type TimelineMessage =
   | {
-      key: string;
-      status: ToolCallStatus.AllFinished;
+      key: "done";
       content: string;
+      status: ToolCallStatus.AllFinished;
     }
   | {
       key: string;
-      status: ToolCallStatus.CallingTool;
+      content: string;
       toolCallId: string;
       toolCall: ToolCall;
-      content: string;
+      status: ToolCallStatus.CallingTool;
     }
   | {
       key: string;

@@ -23,7 +23,7 @@ confluence_fetcher = ConfluenceFetcher(config=ConfluenceConfig(
 
 
 async def _confluence_get_page(
-    page_id: str | None = Field(
+    page_id: str = Field(
         description=(
             "Shopee internal company knowledge base Confluence page ID (numeric ID, can be found in the page URL). "
             "For example, in the URL 'https://confluence.shopee.io/pages/viewpage.action?pageId=1234567890', "
@@ -32,7 +32,7 @@ async def _confluence_get_page(
         ),
         default=None,
     ),
-    title: str | None = Field(
+    title: str = Field(
         description=(
             "The exact title of the Shopee internal company knowledge base Confluence page. Use this with 'space_key' if 'page_id' is not known. "
             "For example, in the URL 'https://confluence.shopee.io/display/MKT/FE+code+specification', "
@@ -40,7 +40,7 @@ async def _confluence_get_page(
         ),
         default=None,
     ),
-    space_key: str | None = Field(
+    space_key: str = Field(
         description=(
             "The key of the Shopee internal company knowledge base Confluence space where the page resides (e.g., 'DEV', 'TEAM'). Required if using 'title'. "
             "For example, in the URL 'https://confluence.shopee.io/display/MKT/01+FE+code+specification', "
@@ -98,7 +98,7 @@ async def shopee_confluence_search(
         ge=1,
         le=50,
     ),
-    spaces_filter: str | None = Field(
+    spaces_filter: str = Field(
         description=(
             "(Optional) Comma-separated list of Shopee internal company knowledge base Confluence space keys to filter results by. "
             "Overrides the environment variable CONFLUENCE_SPACES_FILTER if provided. "
@@ -171,7 +171,7 @@ async def shopee_confluence_search(
 
 @mcp.tool()
 async def shopee_confluence_get_page(
-    page_id: str | None = Field(
+    page_id: str = Field(
         description=(
             "Shopee internal company knowledge base Confluence page ID (numeric ID, can be found in the page URL). "
             "For example, in the URL 'https://confluence.shopee.io/pages/viewpage.action?pageId=1234567890', "
@@ -180,7 +180,7 @@ async def shopee_confluence_get_page(
         ),
         default=None,
     ),
-    title: str | None = Field(
+    title: str = Field(
         description=(
             "The exact title of the Shopee internal company knowledge base Confluence page. Use this with 'space_key' if 'page_id' is not known. "
             "For example, in the URL 'https://confluence.shopee.io/display/MKT/FE+code+specification', "
@@ -188,7 +188,7 @@ async def shopee_confluence_get_page(
         ),
         default=None,
     ),
-    space_key: str | None = Field(
+    space_key: str = Field(
         description=(
             "The key of the Shopee internal company knowledge base Confluence space where the page resides (e.g., 'DEV', 'TEAM'). Required if using 'title'. "
             "For example, in the URL 'https://confluence.shopee.io/display/MKT/01+FE+code+specification', "

@@ -4,8 +4,7 @@ Based on Tavily API for web search, content extraction, crawling and mapping
 Documentation: https://docs.tavily.com/
 """
 
-import os
-from typing import Optional, List
+from typing import List
 from fastmcp import FastMCP
 from pydantic import Field
 from tavily import AsyncTavilyClient
@@ -31,27 +30,27 @@ async def tavily_search(
         default="general", description="The category of the search. Options: 'general', 'news', 'finance'"),
     search_depth: str = Field(
         default="advanced", description="The depth of the search. 'basic' costs 1 API credit, 'advanced' costs 2 API credits. Options: 'basic', 'advanced'"),
-    chunks_per_source: Optional[int] = Field(
+    chunks_per_source: int = Field(
         default=3, ge=1, le=5, description="Maximum number of relevant chunks returned per source (1-5). Available only when search_depth is 'advanced'"),
-    max_results: Optional[int] = Field(
+    max_results: int = Field(
         default=10, ge=0, le=20, description="The maximum number of search results to return (0-20)"),
-    time_range: Optional[str] = Field(
+    time_range: str = Field(
         default=None, description="The time range back from the current date to filter results. Options: 'day', 'week', 'month', 'year', 'd', 'w', 'm', 'y'"),
-    start_date: Optional[str] = Field(
+    start_date: str = Field(
         default=None, description="Will return all results after the specified start date. Format: YYYY-MM-DD"),
-    end_date: Optional[str] = Field(
+    end_date: str = Field(
         default=None, description="Will return all results before the specified end date. Format: YYYY-MM-DD"),
-    include_images: Optional[bool] = Field(
+    include_images: bool = Field(
         default=False, description="Also perform an image search and include the results in the response"),
-    include_image_descriptions: Optional[bool] = Field(
+    include_image_descriptions: bool = Field(
         default=False, description="When include_images is true, also add a descriptive text for each image"),
-    include_favicon: Optional[bool] = Field(
+    include_favicon: bool = Field(
         default=True, description="Whether to include the favicon URL for each result"),
-    include_domains: Optional[List[str]] = Field(
+    include_domains: List[str] = Field(
         default=None, description="A list of domains to specifically include in the search results (max 300 domains)"),
-    exclude_domains: Optional[List[str]] = Field(
+    exclude_domains: List[str] = Field(
         default=None, description="A list of domains to specifically exclude from the search results (max 150 domains)"),
-    country: Optional[str] = Field(
+    country: str = Field(
         default=None, description="Boost search results from a specific country. Available only if topic is 'general'. Country names must be in lowercase, plain English")
 ) -> TavilySearchResponse:
     """
@@ -99,7 +98,7 @@ async def tavily_extract(
         default=False, description="Whether to include the favicon URL for each result"),
     format: str = Field(
         default="markdown", description="The format of the extracted web page content. 'markdown' returns content in markdown format, 'text' returns plain text and may increase latency. Options: 'markdown', 'text'"),
-    timeout: Optional[int] = Field(
+    timeout: int = Field(
         default=30, ge=1, le=60, description="Maximum time in seconds to wait for the URL extraction before timing out (1-60 seconds). If not specified, default timeouts are applied based on extract_depth: 10 seconds for basic extraction and 30 seconds for advanced extraction")
 ) -> TavilyExtractResponse:
     """
@@ -128,7 +127,7 @@ async def tavily_extract(
 @mcp.tool(name="tavily_crawl")
 async def tavily_crawl(
     url: str = Field(..., description="The root URL to begin the crawl"),
-    instructions: Optional[str] = Field(
+    instructions: str = Field(
         default=None, description="Natural language instructions for the crawler. Instructions specify which types of pages the crawler should return"),
     max_depth: int = Field(
         default=1, ge=1, le=3, description="Max depth of the crawl. Defines how far from the base URL the crawler can explore (1-3)"),
@@ -152,7 +151,7 @@ async def tavily_crawl(
         default="markdown", description="The format of the extracted web page content. 'markdown' returns content in markdown format, 'text' returns plain text and may increase latency. Options: 'markdown', 'text'"),
     include_favicon: bool = Field(
         default=False, description="Whether to include the favicon URL for each result"),
-    timeout: Optional[float] = Field(
+    timeout: float = Field(
         default=None, ge=1.0, le=60.0, description="Maximum time in seconds to wait for the URL extraction before timing out (1-60 seconds). If not specified, default timeouts are applied based on extract_depth: 10 seconds for basic extraction and 30 seconds for advanced extraction")
 ) -> TavilyCrawlResponse:
     """
@@ -190,7 +189,7 @@ async def tavily_crawl(
 @mcp.tool(name="tavily_map")
 async def tavily_map(
     url: str = Field(..., description="The root URL to begin the mapping"),
-    instructions: Optional[str] = Field(
+    instructions: str = Field(
         default=None, description="Natural language instructions for the mapper. When specified, the cost increases to 2 API credits per 10 successful pages instead of 1 API credit per 10 pages"),
     max_depth: int = Field(
         default=1, ge=1, description="Max depth of the mapping. Defines how far from the base URL the crawler can explore"),

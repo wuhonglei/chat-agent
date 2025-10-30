@@ -50,9 +50,9 @@ const ToolCallItem: React.FC<Props> = ({ message }) => {
 
   if (status === ToolCallStatus.AllFinished) {
     return (
-      <div className="w-full flex items-center gap-2">
-        <span>tool call finished.</span>
-        {contentStr && <span>{contentStr}</span>}
+      <div className="w-full flex items-start gap-2">
+        <div className="whitespace-nowrap">tool call finished.</div>
+        {contentStr && <div>{contentStr}</div>}
       </div>
     );
   }
@@ -81,9 +81,9 @@ const ToolCallItem: React.FC<Props> = ({ message }) => {
         </NormalCode>
       </GrayContainer>
       {status === ToolCallStatus.ToolResultError && (
-        <div className="flex items-center gap-2">
-          <span>tool call error</span>
-          {contentStr && <span>{contentStr}</span>}
+        <div className="w-full flex items-start gap-2">
+          <div className="whitespace-nowrap">tool call error.</div>
+          {contentStr && <div>{contentStr}</div>}
         </div>
       )}
       {status === ToolCallStatus.ToolResultSuccess && (

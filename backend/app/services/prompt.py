@@ -120,8 +120,8 @@ def get_prompt_with_tool_history(user_message: str, tool_call_messages: list[Ass
     one_circle = tuple()
     for msg in tool_call_messages:
         if msg.role == 'assistant':
-            one_circle += (msg,)
-        elif msg.role == 'tool' and not msg.is_error:
+            one_circle = (msg,)
+        elif msg.role == 'tool' and len(one_circle) == 1 and not msg.is_error:
             one_circle += (msg,)
             new_tool_call_messages.append(one_circle)
             one_circle = tuple()

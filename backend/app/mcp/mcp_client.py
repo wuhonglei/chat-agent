@@ -116,7 +116,6 @@ class MCPClientManager:
                 logger.info(f"✓ 已注册 MCP Server: {server_name}")
             except Exception as e:
                 logger.error(f"✗ 注册 {server_name} 失败: {e}")
-                raise
 
         # 建立连接并构建工具映射
         for server_name, client in self.clients.items():
@@ -138,9 +137,6 @@ class MCPClientManager:
 
             except Exception as e:
                 logger.error(f"✗ 连接 {server_name} 失败: {e}")
-                # 清理已创建的连接
-                await self.cleanup()
-                raise
 
         self._initialized = True
         logger.info(

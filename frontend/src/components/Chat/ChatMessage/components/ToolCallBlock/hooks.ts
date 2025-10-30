@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { keyBy, pick } from "lodash-es";
 import { ToolCallMessage, TimelineMessage } from "@/interfaces";
 import { ToolCallStatus } from "@/constants";
 
@@ -7,41 +6,70 @@ export function useTimelineMessages(
   toolCallMessages: ToolCallMessage[] | undefined
 ): TimelineMessage[] {
   return useMemo(() => {
-    const filterMessages = (toolCallMessages || []).filter(message =>
-      ["continue", "error", "done"].includes(message.status)
-    );
-    const assistantMessages =
-      filterMessages.filter(message => message.role === "assistant") || [];
-    const toolMessages =
-      filterMessages.filter(message => message.role === "tool") || [];
-    const toolMessageById = keyBy(toolMessages, "toolCallId");
-    return assistantMessages.map(message => {
-      const { status, toolCallId } = message;
-      if (status === "done") {
-        return {
+    const messages: TimelineMessage[] = [];
+    const toolCallStartIndex: Record<string, number> = {};
+    for (const message of toolCallMessages || []) {
+      const { status, content, role } = message;
+      if (!role && status === "start") {
+        continue;
+      }
+      if (!role && status === "done") {
+        messages.push({
           key: "done",
+          content: content || "",
           status: ToolCallStatus.AllFinished,
-          content: message.content,
-        };
+        });
+        continue;
       }
 
-      const toolMessage = toolMessageById[toolCallId];
-      if (!toolMessage) {
-        return {
-          key: toolCallId,
+      if (role !== "tool") {
+        continue;
+      }
+
+      if (status === "start") {
+        toolCallStartIndex[message.toolCallId] = messages.length;
+        messages.push({
+          key: message.toolCallId,
+          content: content || "",
+          toolCallId: message.toolCallId,
+          toolCall: message.toolCall,
           status: ToolCallStatus.CallingTool,
-          ...pick(message, ["content", "toolCallId", "toolCall"]),
-        };
+        });
+        continue;
       }
 
-      return {
-        key: toolCallId,
-        status:
-          toolMessage.status === "continue"
-            ? ToolCallStatus.ToolResultSuccess
-            : ToolCallStatus.ToolResultError,
-        ...pick(toolMessage, ["content", "toolCallId", "toolCall", "duration"]),
-      };
-    });
+      if (status === "done") {
+        const startIndex = toolCallStartIndex[message.toolCallId];
+        if (startIndex !== undefined) {
+          messages[startIndex] = {
+            key: message.toolCallId,
+            content: content || "",
+            toolCallId: message.toolCallId,
+            toolCall: message.toolCall,
+            duration: message.duration,
+            status: ToolCallStatus.ToolResultSuccess,
+          };
+        }
+        continue;
+      }
+
+      if (status === "error") {
+        const startIndex = toolCallStartIndex[message.toolCallId];
+        if (startIndex !== undefined) {
+          messages[startIndex] = {
+            key: message.toolCallId,
+            content: content || "",
+            toolCallId: message.toolCallId,
+            toolCall: message.toolCall,
+            duration: message.duration,
+            status: ToolCallStatus.ToolResultError,
+          };
+        }
+        continue;
+      }
+
+      continue;
+    }
+    return messages;
   }, [toolCallMessages]);
 }
