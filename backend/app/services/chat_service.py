@@ -289,8 +289,7 @@ class ChatService:
             {"role": "system", "content": system_prompt}]
 
         history = history or []
-        for msg in history[-5:]:  # Keep last 5 messages for context
-            messages.append({"role": msg.role, "content": msg.content})
+        messages.extend(history)
 
         messages.append({"role": "user", "content": user_message})
         return messages
