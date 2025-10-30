@@ -1,4 +1,4 @@
-import { useThrottleFn } from "ahooks";
+import { useMemoizedFn, useThrottleFn } from "ahooks";
 import React, { useEffect, useState } from "react";
 import { Button } from "antd";
 import { DownOutlined } from "@ant-design/icons";
@@ -37,6 +37,14 @@ export default function FloatButtonBottom({
     };
   }, [onWheel, containerRef]);
 
+  const scrollToBottom = useMemoizedFn(() => {
+    containerRef.current?.scrollTo({
+      top: containerRef.current?.scrollHeight,
+      behavior: "smooth",
+    });
+    setVisible(false);
+  });
+
   if (!visible) return null;
 
   return (
@@ -49,12 +57,7 @@ export default function FloatButtonBottom({
         bottom: 0,
         zIndex: 10,
       }}
-      onClick={() => {
-        containerRef.current?.scrollTo({
-          top: containerRef.current?.scrollHeight,
-          behavior: "smooth",
-        });
-      }}
+      onClick={scrollToBottom}
     />
   );
 }
