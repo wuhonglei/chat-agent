@@ -98,7 +98,7 @@ const ToolCallItem: React.FC<Props> = ({ index, message }) => {
         >
           <NormalCode
             language={language}
-            style={{ maxHeight: 500, width: "100%" }}
+            style={{ maxHeight: 300, width: "100%" }}
           >
             {contentStr}
           </NormalCode>
