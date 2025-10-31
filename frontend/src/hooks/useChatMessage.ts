@@ -147,9 +147,8 @@ export const useChatMessage = (
             dispatch(prependContentToLastMessage(sourceStr));
           } else if (type === "tool_call") {
             const { role } = data.data;
-            if (!role && status === "start") {
-              dispatch(setCallingTools(true));
-            } else if (!role && status === "done") {
+            dispatch(setCallingTools(true));
+            if (!role && status === "done") {
               dispatch(setCallingTools(false));
               emitter.emit(EventType.ToolCallDone);
             }

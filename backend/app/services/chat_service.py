@@ -88,11 +88,6 @@ class ChatService:
         iterations_by_tool = {
             tool['function']['name']: max_iterations_by_tool for tool in tools}
         tool_call_messages: list[AssistantMessage] = []
-        yield self._format_sse_message('tool_call', {
-            'status': 'start',
-            'content': ''
-        }), tool_call_messages
-
         for iteration in range(max_total_iterations):
             logger.info(f'{'='*60}')
             logger.info(f'第 {iteration + 1} 轮迭代')
