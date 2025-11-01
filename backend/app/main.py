@@ -16,9 +16,9 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager"""
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
 
-    logger.info("Application startup complete")
-
     app.state.mcp_manager = await get_mcp_manager()
+
+    logger.info("Application startup complete")
 
     yield
 

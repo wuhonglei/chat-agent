@@ -1,6 +1,6 @@
 """Application configuration"""
 
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -102,6 +102,15 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "your-secret-key-here"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+
+    # PostgreSQL
+    PG_HOST: str = "localhost"
+    PG_PORT: int = 5432
+    PG_DB: str = "ai_assistant_db"
+    PG_USER_NAME: str = Field(...,
+                              description="The username of the PostgreSQL database")
+    PG_PASSWORD: str = Field(...,
+                             description="The password of the PostgreSQL database")
 
     class Config:
         env_file = ".env"

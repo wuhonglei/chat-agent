@@ -22,14 +22,15 @@ def format_results(response: TavilySearchResponse | TavilyExtractResponse) -> st
     for result in response.results:
         output.append(f"\nTitle: {result.title}")
         output.append(f"URL: {result.url}")
-        output.append(f"Content: {result.content}")
-        if result.raw_content:
+        if hasattr(result, "content") and result.content:
+            output.append(f"Content: {result.content}")
+        if hasattr(result, "raw_content") and result.raw_content:
             output.append(f"Raw Content: {result.raw_content}")
-        if result.favicon:
+        if hasattr(result, "favicon") and result.favicon:
             output.append(f"Favicon: {result.favicon}")
 
     # Add images section if available
-    if hasattr(response, "images") and response.images:
+    if hasattr(response, "images") and response.images and len(response.images) > 0:
         output.append('\nImages:')
         for index, image in enumerate(response.images, start=1):
             output.append(f"\n[{index}] URL: {image.url}")
