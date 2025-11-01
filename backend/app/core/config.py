@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     """Application settings"""
 
     # Application
-    APP_NAME: str = "AI Doc Q&A System"
+    APP_NAME: str = "AI Assistant"
     APP_VERSION: str = "0.1.0"
     DEBUG: bool = False
     HOST: str = "0.0.0.0"
