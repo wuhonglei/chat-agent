@@ -15,3 +15,5 @@ user = User(**{
 })
 
 print(user.email['value'])
+
+print(hasattr(user, 'not_exist'))

@@ -221,7 +221,7 @@ class MCPClientManager:
         try:
             logger.info(f"调用工具: {tool_name} (来自 {server_name})")
             async with client:
-                result = await client.call_tool(tool_name, arguments or {})
+                result = await client.call_tool(tool_name, arguments or {}, timeout=30)
             logger.info(f"✓ 工具 {tool_name} 执行成功")
             return result
         except Exception as e:

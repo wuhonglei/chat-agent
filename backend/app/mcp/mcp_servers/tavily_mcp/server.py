@@ -6,13 +6,15 @@ Documentation: https://docs.tavily.com/
 
 from typing import List
 from fastmcp import FastMCP
+from mcp.types import CallToolResult
 from pydantic import Field
 from tavily import AsyncTavilyClient
+from fastmcp.tools.tool import ToolResult
 
 # 需要在 tavily_mcp 目录的上层执行: uv run -m tavily_mcp.server
 from .config import config
 from .models import TavilySearchResponse, TavilyExtractResponse, TavilyCrawlResponse, TavilyMapResponse
-
+from .utils import format_results, format_crawl_results, format_map_results
 # Create MCP instance and Tavily client
 mcp = FastMCP(
     name="Tavily Search MCP Service",
@@ -78,7 +80,8 @@ async def tavily_search(
             country=country
         )
         try:
-            return TavilySearchResponse.model_validate(response)
+            data = TavilySearchResponse.model_validate(response)
+            return ToolResult(structured_content=data, content=format_results(data))
         except Exception as e:
             raise ValueError(f"搜索响应验证失败: {str(e)}")
     except Exception:
@@ -116,7 +119,8 @@ async def tavily_extract(
             timeout=timeout
         )
         try:
-            return TavilyExtractResponse.model_validate(response)
+            data = TavilyExtractResponse.model_validate(response)
+            return ToolResult(structured_content=data, content=format_results(data))
         except Exception as e:
             raise ValueError(f"提取响应验证失败: {str(e)}")
     except Exception:
@@ -178,7 +182,8 @@ async def tavily_crawl(
             timeout=timeout
         )
         try:
-            return TavilyCrawlResponse.model_validate(response)
+            data = TavilyCrawlResponse.model_validate(response)
+            return ToolResult(structured_content=data, content=format_crawl_results(data))
         except Exception as e:
             raise ValueError(f"爬取响应验证失败: {str(e)}")
     except Exception:
@@ -228,7 +233,8 @@ async def tavily_map(
             allow_external=allow_external
         )
         try:
-            return TavilyMapResponse.model_validate(response)
+            data = TavilyMapResponse.model_validate(response)
+            return ToolResult(structured_content=data, content=format_map_results(data))
         except Exception as e:
             raise ValueError(f"映射响应验证失败: {str(e)}")
     except Exception:
