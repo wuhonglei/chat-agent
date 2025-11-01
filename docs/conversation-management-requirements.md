@@ -107,6 +107,20 @@
 
 ### 3.3 数据模型设计
 
+#### 用户模型 (User)
+```python
+class User:
+    id: str                    # 用户唯一标识
+    name: str                 # 用户名
+    email: str                # 用户邮箱
+    avatar: str                # 用户头像
+    phone: str                 # 用户手机号
+    role: str                  # 用户角色
+    status: str                # 用户状态
+    created_at: datetime       # 创建时间
+    updated_at: datetime       # 更新时间
+```
+
 #### 对话模型 (Conversation)
 ```python
 class Conversation:
@@ -121,14 +135,30 @@ class Conversation:
 
 #### 消息模型 (Message)
 ```python
+from typing import Any
+
 class Message:
-    id: str                   # 消息唯一标识
-    conversation_id: str      # 所属对话ID
-    role: str                # 角色 (user/assistant/system/tool)
-    content: str             # 消息内容
-    timestamp: datetime      # 时间戳
-    metadata: dict           # 元数据（工具调用、来源等）
+    id: str                              # 消息唯一标识
+    conversation_id: str                 # 所属对话ID
+    role: str                            # 消息角色: "user" | "assistant"
+    content: str                         # 消息内容
+    timestamp: datetime                  # 时间戳
+    reasoning: str | None                # 推理内容（仅助手消息使用，用户消息为 None）
+    tool_calls: list[AssistantToolCallMessage] | None    # 工具调用列表（仅助手消息使用，用户消息为 None）
+    metadata: dict[str, Any]              # 元数据（模型调用、配置）
 ```
+
+**数据库设计说明**：
+- **推荐使用统一表存储**：用户消息和助手消息存储在同一个 `messages` 表中，通过 `role` 字段区分类型
+- **不建议分表**：虽然两种消息类型有字段差异，但：
+  1. 查询模式主要按 `conversation_id` 获取完整对话序列，需要保持时间顺序
+  2. 用户和助手消息是成对出现的，业务逻辑强关联
+  3. 统一表查询简单高效：`WHERE conversation_id = ? ORDER BY timestamp`
+  4. 分表需要 JOIN/UNION 操作，增加复杂度和性能开销
+- **索引建议**：
+  - 主键：`id`
+  - 复合索引：`(conversation_id, timestamp)` 用于按对话查询消息序列
+  - 索引：`role` 仅在需要单独统计或筛选某种类型消息时使用
 
 ## 4. 用户界面设计
 
@@ -228,9 +258,29 @@ Response: {
   "messages": [
     {
       "id": "msg_123",
+      "conversation_id": "conv_123",
       "role": "user",
       "content": "用户消息内容",
       "timestamp": "2024-01-01T10:00:00Z",
+      "tool_calls": null,
+      "metadata": {}
+    },
+    {
+      "id": "msg_124",
+      "conversation_id": "conv_123",
+      "role": "assistant",
+      "content": "助手回复内容",
+      "timestamp": "2024-01-01T10:00:05Z",
+      "tool_calls": [
+        {
+          "id": "call_abc123",
+          "type": "function",
+          "function": {
+            "name": "search_web",
+            "arguments": "{\"query\": \"Python教程\"}"
+          }
+        }
+      ],
       "metadata": {}
     }
   ]
