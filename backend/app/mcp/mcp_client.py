@@ -142,7 +142,7 @@ class MCPClientManager:
         logger.info(
             f"✓ MCP Client Manager 初始化完成，共注册 {len(self.tools_map)} 个工具")
 
-    async def cleanup(self) -> None:
+    def cleanup(self) -> None:
         """清理所有连接"""
         logger.info("开始清理 MCP Client Manager...")
         self.clients.clear()
@@ -304,7 +304,7 @@ class MCPClientManager:
             await self.initialize()
             yield self
         finally:
-            await self.cleanup()
+            self.cleanup()
 
     async def health_check(self) -> Dict[str, bool]:
         """

@@ -21,7 +21,8 @@ async def lifespan(app: FastAPI):
     logger.info("Application startup complete")
 
     yield
-
+    # 清理 MCP Manager 资源
+    app.state.mcp_manager.cleanup()
     logger.info("Shutting down application")
 
 
