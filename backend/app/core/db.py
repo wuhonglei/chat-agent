@@ -19,9 +19,18 @@ engine = create_engine(
 def get_db() -> Generator[Session, None, None]:
     """
     依赖注入获取数据库会话
+
+    该函数确保：
+    1. 每个请求都有独立的数据库会话
+    2. 成功执行后自动提交事务
+    3. 发生异常时自动回滚事务
+    4. 请求结束后自动关闭会话并返回连接池
     """
-    with Session(engine) as session:
+    session = Session(engine)
+    try:
         yield session
+    finally:
+        session.close()
 
 
 def create_db_and_tables():

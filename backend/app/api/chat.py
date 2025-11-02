@@ -45,29 +45,3 @@ async def chat_stream(request: Request, chat_request: ChatRequest):
     except Exception as e:
         logger.error(f"Chat streaming failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/sessions/{session_id}", response_model=ChatSession)
-async def get_session(session_id: str) -> ChatSession:
-    """Get chat session history"""
-    try:
-        # TODO: Implement session storage and retrieval
-        raise HTTPException(
-            status_code=501, detail="Session management not implemented yet")
-
-    except Exception as e:
-        logger.error(f"Failed to get session: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.delete("/sessions/{session_id}")
-async def delete_session(session_id: str):
-    """Delete chat session"""
-    try:
-        # TODO: Implement session deletion
-        raise HTTPException(
-            status_code=501, detail="Session management not implemented yet")
-
-    except Exception as e:
-        logger.error(f"Failed to delete session: {e}")
-        raise HTTPException(status_code=500, detail=str(e))

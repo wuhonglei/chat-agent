@@ -8,7 +8,7 @@ export const routes: RouteObject[] = [
     element: <Navigate to="/chat" replace />,
   },
   {
-    path: "/chat",
+    path: "/chat/:conversationId?",
     element: <ChatPage />,
   },
   {

@@ -32,38 +32,33 @@ import {
 import { emitter, EventType } from "@/events";
 
 export interface UseChatMessageOptions {
+  conversationId?: string;
   historyLimit?: number;
 }
 
 export interface UseChatMessageReturn {
-  isLoading: boolean;
-  isStreaming: boolean;
-  isReasoning: boolean;
-  isCallingTools: boolean;
-  messages: ChatMessage[];
   abortMessage: () => void;
   reSendMessage: (
     index: number,
     message: ChatMessage,
     formData: Omit<ChatInputFormValues, "message">
   ) => Promise<void>;
-  sendMessage: (values: ChatInputFormValues, index?: number) => Promise<void>;
+  sendMessage: (
+    values: ChatInputFormValues,
+    index?: number,
+    conversationIdOverride?: string
+  ) => Promise<void>;
 }
 
 export const useChatMessage = (
   options: UseChatMessageOptions = {}
 ): UseChatMessageReturn => {
-  const { historyLimit = 10 } = options;
+  const { conversationId, historyLimit = 10 } = options;
 
   const dispatch = useAppDispatch();
-  const {
-    messages,
-    isLoading,
-    isStreaming,
-    isReasoning,
-    isCallingTools,
-    conversationInfo,
-  } = useAppSelector(state => state.chat);
+  const { messages, isLoading, isStreaming } = useAppSelector(
+    state => state.chat
+  );
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -76,13 +71,17 @@ export const useChatMessage = (
 
   const sendMessage = async (
     values: ChatInputFormValues,
-    index?: number
+    index?: number,
+    conversationIdOverride?: string
   ): Promise<void> => {
     // 如果正在流式传输，先中止当前请求
     if (abortControllerRef.current && isStreaming) {
       abortControllerRef.current.abort();
       dispatch(clearLastMessage());
     }
+
+    // 使用传入的 conversationIdOverride，否则使用 hook 初始化时的 conversationId
+    const finalConversationId = conversationIdOverride ?? conversationId;
 
     // 添加用户消息
     const userMessage: ChatMessage = {
@@ -116,7 +115,7 @@ export const useChatMessage = (
       await chatAPI.streamMessage(
         {
           ...values,
-          conversationId: conversationInfo?.id || undefined,
+          conversationId: finalConversationId,
           history: getHistoryMessages(historyLimit, messages, index), // 发送最后几条消息作为上下文
         },
         (data: StreamMessage) => {
@@ -203,11 +202,6 @@ export const useChatMessage = (
   return {
     sendMessage,
     abortMessage,
-    isStreaming,
-    isLoading,
-    isReasoning,
-    isCallingTools,
     reSendMessage,
-    messages,
   };
 };

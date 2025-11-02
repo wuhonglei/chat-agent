@@ -14,18 +14,19 @@ import styles from "./index.module.css";
 import SourceSider from "@/components/Chat/SourceSider";
 import WelcomePage from "@/components/Chat/WelcomePage";
 import { isEmpty } from "lodash-es";
+import { useParams, useNavigate } from "react-router-dom";
+import { useAppSelector, useAppDispatch } from "@/store/hooks";
+import { registerConversation } from "@/store/slices/conversationSlice";
 
 const ChatPage: React.FC = () => {
-  const {
-    messages,
-    isStreaming,
-    isLoading,
-    isReasoning,
-    isCallingTools,
-    sendMessage,
-    reSendMessage,
-    abortMessage,
-  } = useChatMessage();
+  const { conversationId } = useParams<{ conversationId?: string }>();
+  const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const { sendMessage, reSendMessage, abortMessage } = useChatMessage({
+    conversationId,
+  });
+  const { messages, isStreaming, isLoading, isReasoning, isCallingTools } =
+    useAppSelector(state => state.chat);
   const [sourceData, setSourceData] = useState<SourceData | undefined>();
   const [form] = Form.useForm<ChatInputFormValues>();
 
@@ -52,6 +53,27 @@ const ChatPage: React.FC = () => {
   const handleCloseSource = useMemoizedFn(() => {
     setSourceData(undefined);
   });
+
+  const onBeforeSendMessage = useMemoizedFn(
+    async (values: ChatInputFormValues) => {
+      if (conversationId) {
+        return sendMessage(values);
+      }
+      // 创建会话
+      try {
+        const result = await dispatch(registerConversation()).unwrap();
+        // 使用新的 conversationId 发送消息
+        const sendPromise = sendMessage(values, undefined, result.id);
+        // 更新 URL 到新的会话 ID
+        navigate(`/chat/${result.id}`, { replace: true });
+        return sendPromise;
+      } catch (error) {
+        console.error("Failed to create conversation:", error);
+        // 即使创建失败，也尝试发送消息（可能使用临时会话）
+        return sendMessage(values);
+      }
+    }
+  );
 
   const chatInputProps = {
     form,
@@ -83,7 +105,11 @@ const ChatPage: React.FC = () => {
           <WelcomePage
             className={classNames("my-auto pb-12", styles["input-container"])}
           >
-            <ChatInput {...chatInputProps} className="w-full shadow-lg" />
+            <ChatInput
+              {...chatInputProps}
+              onSend={onBeforeSendMessage}
+              className="w-full shadow-lg"
+            />
           </WelcomePage>
         ) : (
           <>

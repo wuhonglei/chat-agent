@@ -155,6 +155,7 @@ const conversationSlice = createSlice({
       })
       .addCase(registerConversation.fulfilled, (state, action) => {
         state.loadingConversation = false;
+        state.conversationInfo = action.payload;
         state.conversations.unshift(action.payload);
       })
       .addCase(registerConversation.rejected, state => {
