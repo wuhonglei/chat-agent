@@ -35,21 +35,5 @@ def create_db_and_tables():
     try:
         SQLModel.metadata.create_all(engine, checkfirst=True)
         logger.info("Database tables created/verified successfully")
-    except (ProgrammingError, OperationalError) as e:
-        # 处理数据库权限问题或连接问题
-        error_msg = str(e)
-        if "permission denied" in error_msg.lower() or "insufficient_privilege" in error_msg.lower():
-            logger.warning(
-                f"Permission denied when creating tables: {error_msg}\n"
-                "Tables may already exist, or the database user needs CREATE privileges.\n"
-                "Application will continue - ensure tables are created manually if needed."
-            )
-        elif "already exists" in error_msg.lower():
-            logger.info("Tables already exist, skipping creation")
-        else:
-            logger.error(f"Database error while creating tables: {error_msg}")
-            raise
     except Exception as e:
-        # 其他未预期的错误，记录并抛出
-        logger.error(f"Unexpected error while creating tables: {e}")
-        raise
+        raise e
