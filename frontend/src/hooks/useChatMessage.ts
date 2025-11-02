@@ -62,7 +62,7 @@ export const useChatMessage = (
     isStreaming,
     isReasoning,
     isCallingTools,
-    sessionId,
+    conversationInfo,
   } = useAppSelector(state => state.chat);
 
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -89,7 +89,7 @@ export const useChatMessage = (
       role: "user",
       content: values.message,
       timestamp: new Date().toISOString(),
-      metadata: omit(values, ["message"]),
+      messageMetadata: omit(values, ["message"]),
     };
     dispatch(
       isNil(index)
@@ -103,7 +103,7 @@ export const useChatMessage = (
       content: "",
       reasoning: "",
       timestamp: new Date().toISOString(),
-      metadata: omit(values, ["message"]),
+      messageMetadata: omit(values, ["message"]),
     };
     dispatch(addMessage(assistantMessage));
     dispatch(setStreaming(true));
@@ -116,7 +116,7 @@ export const useChatMessage = (
       await chatAPI.streamMessage(
         {
           ...values,
-          sessionId: sessionId || undefined,
+          conversationId: conversationInfo?.id || undefined,
           history: getHistoryMessages(historyLimit, messages, index), // 发送最后几条消息作为上下文
         },
         (data: StreamMessage) => {

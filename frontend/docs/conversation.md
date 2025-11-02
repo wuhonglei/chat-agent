@@ -129,7 +129,7 @@ POST /api/chat/stream
 data: {
     "type": "message" | "reasoning" | "tool_call" | "error",
     "content": "string",
-    "metadata": {}
+    "messageMetadata": {}
 }
 ```
 

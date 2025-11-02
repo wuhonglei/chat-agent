@@ -57,19 +57,21 @@ const SourceCard: React.FC<SourceCardProps> = ({
             <span title={source.url}>{getWebMainDomain(source.url, true)}</span>
           )}
           {isFromConfluence(source.source) && (
-            <span title={source.metadata.spaceName}>
-              {source.metadata.spaceKey}
+            <span title={source.messageMetadata.spaceName}>
+              {source.messageMetadata.spaceKey}
             </span>
           )}
           {/* 最后修改时间 */}
-          {source.metadata.lastModifiedTime && (
+          {source.messageMetadata.lastModifiedTime && (
             <>
               <Divider
                 type="vertical"
                 style={{ marginLeft: 4, marginRight: 4 }}
               />
               <span className="text-xs">
-                {dayjs(source.metadata.lastModifiedTime).format("YYYY-MM-DD")}
+                {dayjs(source.messageMetadata.lastModifiedTime).format(
+                  "YYYY-MM-DD"
+                )}
               </span>
             </>
           )}

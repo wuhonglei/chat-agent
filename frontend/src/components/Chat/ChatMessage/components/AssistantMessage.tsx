@@ -41,7 +41,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
         <>
           <ToolCallBlock
             isCallingTools={isCallingTools}
-            toolCallMessages={message.toolCallMessages}
+            toolCalls={message.toolCalls}
           />
           {/* 渲染思考内容 */}
           <ReasoningBlock

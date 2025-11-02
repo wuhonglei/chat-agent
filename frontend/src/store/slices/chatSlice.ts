@@ -1,10 +1,15 @@
-import { ChatMessage, SearchSource, ToolCallMessage } from "@/interfaces";
+import {
+  ChatMessage,
+  ConversationInfo,
+  SearchSource,
+  ToolCallMessage,
+} from "@/interfaces";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { isEmpty } from "lodash-es";
 
 interface ChatState {
   messages: ChatMessage[];
-  sessionId: string | null;
+  conversationInfo: ConversationInfo | null;
   isLoading: boolean;
   isStreaming: boolean;
   isReasoning: boolean;
@@ -14,7 +19,7 @@ interface ChatState {
 
 const initialState: ChatState = {
   messages: [],
-  sessionId: null,
+  conversationInfo: null,
   isLoading: false,
   isStreaming: false,
   isReasoning: false,
@@ -60,8 +65,8 @@ const chatSlice = createSlice({
     clearMessages: state => {
       state.messages = [];
     },
-    setSessionId: (state, action: PayloadAction<string>) => {
-      state.sessionId = action.payload;
+    setConversationInfo: (state, action: PayloadAction<ConversationInfo>) => {
+      state.conversationInfo = action.payload;
     },
     setStreaming: (state, action: PayloadAction<boolean>) => {
       state.isStreaming = action.payload;
@@ -95,7 +100,7 @@ const chatSlice = createSlice({
       action: PayloadAction<string>
     ) => {
       const lastMessage = lastMessageCheck(state.messages);
-      if (lastMessage && lastMessage.metadata.thinkMode) {
+      if (lastMessage && lastMessage.messageMetadata.thinkMode) {
         lastMessage.reasoning = action.payload + lastMessage.reasoning;
       }
     },
@@ -111,10 +116,10 @@ const chatSlice = createSlice({
     ) => {
       const lastMessage = lastMessageCheck(state.messages);
       if (lastMessage) {
-        if (!lastMessage.toolCallMessages) {
-          lastMessage.toolCallMessages = [];
+        if (!lastMessage.toolCalls) {
+          lastMessage.toolCalls = [];
         }
-        lastMessage.toolCallMessages.push(action.payload);
+        lastMessage.toolCalls.push(action.payload);
       }
     },
     clearError: state => {
@@ -127,7 +132,7 @@ export const {
   addMessage,
   addMessageAtIndex,
   clearMessages,
-  setSessionId,
+  setConversationInfo,
   setStreaming,
   setLoading,
   setSources,

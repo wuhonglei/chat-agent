@@ -12,12 +12,12 @@ import { EventType, useEmitter } from "@/events";
 
 type Props = {
   isCallingTools: boolean;
-  toolCallMessages: ToolCallMessage[] | undefined;
+  toolCalls: ToolCallMessage[] | undefined;
 };
 const contentKey = "content";
 
-const ToolCallBlock = ({ isCallingTools, toolCallMessages }: Props) => {
-  const timelineMessages = useTimelineMessages(toolCallMessages);
+const ToolCallBlock = ({ isCallingTools, toolCalls }: Props) => {
+  const timelineMessages = useTimelineMessages(toolCalls);
   const [activeKeys, setActiveKeys] = useState<string[]>([contentKey]);
 
   const handleCollapseChange = useMemoizedFn((key: string[]) => {

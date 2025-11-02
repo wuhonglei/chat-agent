@@ -4,7 +4,6 @@ import { AxiosResponse } from "axios";
 import {
   ChatRequest,
   ChatResponse,
-  ChatSession,
   StreamMessage,
   MCPConfigItem,
 } from "@/interfaces";
@@ -66,18 +65,6 @@ export const chatAPI = {
     });
 
     return;
-  },
-
-  // Get session history
-  getSession: async (
-    sessionId: string
-  ): Promise<AxiosResponse<ChatSession>> => {
-    return await apiClient.get(`/api/chat/sessions/${sessionId}`);
-  },
-
-  // Delete session
-  deleteSession: async (sessionId: string): Promise<AxiosResponse> => {
-    return await apiClient.delete(`/api/chat/sessions/${sessionId}`);
   },
 };
 

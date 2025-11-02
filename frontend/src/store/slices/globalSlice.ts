@@ -5,9 +5,8 @@ import { MCPConfigItem } from "@/interfaces";
 // 检测 Google Fav icons API 是否可用
 export const checkGoogleFavIconsAvailability = createAsyncThunk(
   "global/checkGoogleFavIcons",
-  async (_, { dispatch }) => {
+  async () => {
     const isAvailable = await checkGoogleFavIconsAvailable();
-    dispatch(setGoogleFavIconsAvailable(isAvailable));
     return isAvailable;
   }
 );
@@ -15,9 +14,9 @@ export const checkGoogleFavIconsAvailability = createAsyncThunk(
 // 获取 MCP 配置
 export const getMCPConfig = createAsyncThunk(
   "global/getMCPConfig",
-  async (_, { dispatch }) => {
+  async () => {
     const mcpConfig = await healthAPI.getMCPConfig();
-    dispatch(setMCPConfig(mcpConfig));
+    return mcpConfig;
   }
 );
 const globalSlice = createSlice({
@@ -35,6 +34,16 @@ const globalSlice = createSlice({
       state.mcpConfig = action.payload;
       state.mcpConfigLoaded = true;
     },
+  },
+  extraReducers: builder => {
+    builder
+      .addCase(checkGoogleFavIconsAvailability.fulfilled, (state, action) => {
+        state.googleFavIconsAvailable = action.payload;
+      })
+      .addCase(getMCPConfig.fulfilled, (state, action) => {
+        state.mcpConfig = action.payload;
+        state.mcpConfigLoaded = true;
+      });
   },
 });
 

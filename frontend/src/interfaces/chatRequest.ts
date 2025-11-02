@@ -17,32 +17,23 @@ export interface SearchSource {
   url?: string;
   favicon?: string;
   source: SearchSourceType;
-  metadata: SearchSourceMetaData;
+  messageMetadata: SearchSourceMetaData;
 }
 
 export interface ChatMessage {
   role: RoleType;
   content: string;
   reasoning?: string;
-  toolCallMessages?: ToolCallMessage[];
   timestamp: string;
   sources?: SearchSource[];
-  metadata: Omit<ChatInputFormValues, "message">;
+  toolCalls?: ToolCallMessage[];
+  messageMetadata: Omit<ChatInputFormValues, "message">;
 }
 
 export interface ChatResponse {
   message: string;
   sources: SearchSource[];
-  sessionId: string;
   timestamp: string;
-}
-
-export interface ChatSession {
-  id: string;
-  messages: ChatMessage[];
-  createdAt: string;
-  updatedAt: string;
-  metadata?: Record<string, any>;
 }
 
 export interface RetrieverSource {
@@ -57,7 +48,7 @@ export interface ChatInputFormValues {
 }
 
 export interface ChatRequest extends ChatInputFormValues {
-  sessionId?: string;
+  conversationId?: string;
   history?: ChatMessage[];
   stream?: boolean;
 }

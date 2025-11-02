@@ -4,12 +4,12 @@ import { ToolCallStatus } from "@/constants";
 import { isEmpty } from "lodash-es";
 
 export function useTimelineMessages(
-  toolCallMessages: ToolCallMessage[] | undefined
+  toolCalls: ToolCallMessage[] | undefined
 ): TimelineMessage[] {
   return useMemo(() => {
     const messages: TimelineMessage[] = [];
     const toolCallStartIndex: Record<string, number> = {};
-    for (const message of toolCallMessages || []) {
+    for (const message of toolCalls || []) {
       const { status, content, role } = message;
       if (!role && status === "start") {
         continue;
@@ -73,5 +73,5 @@ export function useTimelineMessages(
       continue;
     }
     return messages;
-  }, [toolCallMessages]);
+  }, [toolCalls]);
 }
