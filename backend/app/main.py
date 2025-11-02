@@ -10,6 +10,7 @@ from app.api import chat, health
 from app.core.config import settings
 from app.core.db import create_db_and_tables
 from app.mcp.mcp_client import get_mcp_manager
+from app.models import User, Conversation, Message  # 导入模型以注册表到 metadata
 
 
 @asynccontextmanager
@@ -17,9 +18,9 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager"""
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
 
-    # 创建数据库表
+    # 创建数据库表（如果权限允许）
+    # 如果权限不足，应用会继续运行但需要手动创建表
     create_db_and_tables()
-    logger.info("Database tables created/verified")
 
     app.state.mcp_manager = await get_mcp_manager()
 

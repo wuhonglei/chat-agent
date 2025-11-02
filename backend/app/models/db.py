@@ -51,5 +51,5 @@ class Message(SQLModel, table=True):
     reasoning: Optional[str] = None  # 推理内容（仅助手消息使用）
     tool_calls: Optional[dict[str, Any]] = Field(
         default=None, sa_type=SQLJSON)  # 工具调用列表（仅助手消息使用）
-    metadata: dict[str, Any] = Field(
+    message_metadata: dict[str, Any] = Field(
         default_factory=dict, sa_type=SQLJSON)  # 元数据（模型调用、配置）
