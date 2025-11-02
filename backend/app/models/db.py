@@ -1,48 +1,55 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, JSON
 from datetime import datetime
-from typing import Any
-from app.core.db import Base
+from typing import Any, Optional
+
+from sqlalchemy import JSON as SQLJSON
+from sqlmodel import SQLModel, Field
 
 
-class User(Base):
+class User(SQLModel, table=True):
     """用户模型"""
     __tablename__ = "users"
 
-    id = Column(String, primary_key=True, index=True)
-    name = Column(String, nullable=False)
-    email = Column(String, unique=True, nullable=False, index=True)
-    avatar = Column(String)
-    phone = Column(String)
-    role = Column(String, default="user")
-    status = Column(String, default="active")
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow,
-                        onupdate=datetime.utcnow)
+    id: str = Field(primary_key=True, index=True)
+    name: str
+    email: str = Field(unique=True, index=True)
+    avatar: Optional[str] = None
+    phone: Optional[str] = None
+    role: str = Field(default="user")
+    status: str = Field(default="active")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        sa_column_kwargs={"onupdate": datetime.utcnow}
+    )
 
 
-class Conversation(Base):
+class Conversation(SQLModel, table=True):
     """对话模型"""
     __tablename__ = "conversations"
 
-    id = Column(String, primary_key=True, index=True)
-    title = Column(String, nullable=False)
-    user_id = Column(String, index=True)  # 预留扩展
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow,
-                        onupdate=datetime.utcnow)
-    message_count = Column(Integer, default=0)
-    is_active = Column(Boolean, default=True)
+    id: str = Field(primary_key=True, index=True)
+    title: str
+    user_id: Optional[str] = Field(default=None, index=True)  # 预留扩展
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        sa_column_kwargs={"onupdate": datetime.utcnow}
+    )
+    message_count: int = Field(default=0)
+    is_active: bool = Field(default=True)
 
 
-class Message(Base):
+class Message(SQLModel, table=True):
     """消息模型"""
     __tablename__ = "messages"
 
-    id = Column(String, primary_key=True, index=True)
-    conversation_id = Column(String, index=True, nullable=False)
-    role = Column(String, nullable=False)  # "user" | "assistant"
-    content = Column(Text, nullable=False)
-    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
-    reasoning = Column(Text)  # 推理内容（仅助手消息使用）
-    tool_calls = Column(JSON)  # 工具调用列表（仅助手消息使用）
-    metadata = Column(JSON, default=dict)  # 元数据（模型调用、配置）
+    id: str = Field(primary_key=True, index=True)
+    conversation_id: str = Field(index=True)
+    role: str  # "user" | "assistant"
+    content: str
+    timestamp: datetime = Field(default_factory=datetime.utcnow, index=True)
+    reasoning: Optional[str] = None  # 推理内容（仅助手消息使用）
+    tool_calls: Optional[dict[str, Any]] = Field(
+        default=None, sa_type=SQLJSON)  # 工具调用列表（仅助手消息使用）
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, sa_type=SQLJSON)  # 元数据（模型调用、配置）

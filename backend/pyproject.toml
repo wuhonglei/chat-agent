@@ -61,6 +61,7 @@ dependencies = [
     "jinja2>=3.1.6",
     "sqlalchemy>=2.0.43",
     "psycopg2-binary>=2.9.11",
+    "sqlmodel>=0.0.27",
 ]
 
 [project.optional-dependencies]
