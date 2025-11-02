@@ -8,6 +8,7 @@ from loguru import logger
 
 from app.api import chat, health
 from app.core.config import settings
+from app.core.db import Base, engine
 from app.mcp.mcp_client import get_mcp_manager
 
 
@@ -15,6 +16,10 @@ from app.mcp.mcp_client import get_mcp_manager
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
+
+    # 创建数据库表
+    Base.metadata.create_all(bind=engine)
+    logger.info("Database tables created/verified")
 
     app.state.mcp_manager = await get_mcp_manager()
 
