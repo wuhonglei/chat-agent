@@ -1,16 +1,11 @@
-import React from "react";
 import ChatPage from "@/pages/ChatPage";
 import MarkdownPage from "@/pages/MarkdownPage";
+import { RouteObject, Navigate } from "react-router-dom";
 
-export interface RouteConfig {
-  path: string;
-  element: React.ReactElement;
-}
-
-export const routes: RouteConfig[] = [
+export const routes: RouteObject[] = [
   {
     path: "/",
-    element: <ChatPage />,
+    element: <Navigate to="/chat" replace />,
   },
   {
     path: "/chat",
