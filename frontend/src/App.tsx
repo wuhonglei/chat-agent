@@ -9,6 +9,7 @@ import {
   getMCPConfig,
 } from "./store/slices/globalSlice";
 import { setMessageInstance } from "./utils/message";
+import { loadConversations } from "./store/slices/conversationSlice";
 
 const { Content } = Layout;
 
@@ -25,6 +26,7 @@ const App: React.FC = () => {
     // 在应用初始化时检查 Google Favicons API 可用性
     dispatch(checkGoogleFavIconsAvailability());
     dispatch(getMCPConfig());
+    dispatch(loadConversations());
   }, [dispatch]);
 
   return (

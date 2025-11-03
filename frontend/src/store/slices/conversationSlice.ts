@@ -12,11 +12,18 @@ interface ConversationState {
 
   // 当前对话信息
   conversationInfo: ConversationInfo | null;
+
+  total: number;
+  offset: number;
+  limit: number;
 }
 
 const initialState: ConversationState = {
   conversations: [],
   conversationInfo: null,
+  total: 0,
+  offset: 0,
+  limit: 50,
 };
 
 // ==================== Async Thunks ====================
@@ -138,6 +145,9 @@ const conversationSlice = createSlice({
     // loadConversations
     builder.addCase(loadConversations.fulfilled, (state, action) => {
       state.conversations = action.payload.conversations;
+      state.total = action.payload.total;
+      state.offset = action.payload.offset;
+      state.limit = action.payload.limit;
     });
 
     // updateConversationInfo

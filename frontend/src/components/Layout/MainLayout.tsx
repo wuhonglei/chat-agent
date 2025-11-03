@@ -1,14 +1,14 @@
 import { Button, Layout, Menu, MenuProps, Typography } from "antd";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import React, { ReactNode, useEffect, useState } from "react";
+import React, { ReactNode, useState } from "react";
 import classNames from "classnames";
 import CollapseIcon from "@/assets/svg/CollapseIcon.svg?react";
 import NewConversionIcon from "@/assets/svg/NewConversionIcon.svg?react";
 import styles from "./mainLayout.module.css";
 import { theme } from "antd";
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { useAppDispatch } from "@/store/hooks";
 import { clearCurrentChat } from "@/store/slices/chatSlice";
-import { loadConversations } from "@/store/slices/conversationSlice";
+import { useMenuItems } from "./hooks";
 const { useToken } = theme;
 const { Title } = Typography;
 
@@ -25,20 +25,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const location = useLocation();
   const { token } = useToken();
   const [collapsed, setCollapsed] = useState(false);
-  const { conversations } = useAppSelector(state => state.conversation);
-  console.log(conversations);
 
-  useEffect(() => {
-    dispatch(loadConversations());
-  }, [dispatch]);
-
-  const menuItems: MenuProps["items"] = [
-    // {
-    //   key: "/markdown",
-    //   icon: <FileMarkdownOutlined />,
-    //   label: "Markdown",
-    // },
-  ];
+  const menuItems = useMenuItems();
 
   const handleMenuClick: MenuProps["onClick"] = ({ key }) => {
     navigate(key);
@@ -98,7 +86,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           items={menuItems}
           onClick={handleMenuClick}
           selectedKeys={[location.pathname]}
-          className={classNames(styles["menu-item"])}
+          className={classNames(styles["menu-container"])}
           style={{
             backgroundColor: "transparent",
             width: "100%",
