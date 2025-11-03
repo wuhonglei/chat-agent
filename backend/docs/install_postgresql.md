@@ -34,3 +34,6 @@ CREATE DATABASE ai_assistant_db OWNER wuhonglei;
   - 完全控制权：可以创建、修改、删除数据库中的对象
   - 权限管理：可以授予其他用户访问权限
   - 模式管理：可以在数据库中创建和管理模式
+
+## 6. 数据库连接
+mac 上可以使用 `DBeaver`
