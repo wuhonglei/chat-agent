@@ -1,4 +1,4 @@
-import { FileMarkdownOutlined, MessageOutlined } from "@ant-design/icons";
+import { FileMarkdownOutlined } from "@ant-design/icons";
 import { Button, Layout, Menu, MenuProps, Typography } from "antd";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import React, { ReactNode, useState } from "react";
@@ -10,7 +10,7 @@ import { theme } from "antd";
 const { useToken } = theme;
 const { Title } = Typography;
 
-const { Sider } = Layout;
+const { Sider, Header, Content } = Layout;
 const collapsedWidth = 0;
 
 interface MainLayoutProps {
@@ -50,7 +50,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         theme="light"
         collapsible
         width={261}
-        // trigger={null}
+        trigger={null}
         collapsed={collapsed}
         onCollapse={handleCollapse}
         collapsedWidth={collapsedWidth}
@@ -96,7 +96,30 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           }}
         />
       </Sider>
-      <Layout className="h-full bg-white">{children}</Layout>
+      <Layout className="flex flex-col h-full" hasSider={false}>
+        <Header
+          className="h-14 flex justify-between items-center"
+          style={{ backgroundColor: token.colorBgContainer }}
+        >
+          {collapsed && (
+            <div className="h-10 flex items-center gap-1 rounded-full border border-gray-200 p-1 shadow">
+              <Button
+                type="text"
+                shape="circle"
+                onClick={handleCollapse}
+                icon={<CollapseIcon className="w-4 h-4" />}
+              />
+              <Button
+                type="text"
+                shape="circle"
+                onClick={handleNewConversion}
+                icon={<NewConversionIcon className="w-4 h-4" />}
+              />
+            </div>
+          )}
+        </Header>
+        <Content className="flex-1 bg-white">{children}</Content>
+      </Layout>
     </Layout>
   );
 };
