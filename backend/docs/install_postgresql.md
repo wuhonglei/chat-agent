@@ -27,17 +27,10 @@ CREATE USER wuhonglei WITH PASSWORD 'xxxxxx';
 ## 5. 创建数据库
 
 ```sql
-CREATE DATABASE ai_assistant_db;
+CREATE DATABASE ai_assistant_db OWNER wuhonglei;
 ```
 
-## 6. 授予用户权限
-
-```sql
-GRANT ALL PRIVILEGES ON DATABASE ai_assistant_db TO wuhonglei;
-```
-
-## 7. 退出 PostgreSQL
-
-```sql
-\q
-```
+**所有者权限:** 用户 wuhonglei 将获得对 ai_assistant_db 数据库的全部权限:
+  - 完全控制权：可以创建、修改、删除数据库中的对象
+  - 权限管理：可以授予其他用户访问权限
+  - 模式管理：可以在数据库中创建和管理模式
