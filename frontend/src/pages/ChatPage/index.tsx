@@ -19,9 +19,9 @@ import { useAppSelector, useAppDispatch } from "@/store/hooks";
 import { registerConversation } from "@/store/slices/conversationSlice";
 
 const ChatPage: React.FC = () => {
-  const { conversationId } = useParams<{ conversationId?: string }>();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const { conversationId } = useParams<{ conversationId?: string }>();
   const { sendMessage, reSendMessage, abortMessage } = useChatMessage({
     conversationId,
   });
@@ -60,18 +60,12 @@ const ChatPage: React.FC = () => {
         return sendMessage(values);
       }
       // 创建会话
-      try {
-        const result = await dispatch(registerConversation()).unwrap();
-        // 使用新的 conversationId 发送消息
-        const sendPromise = sendMessage(values, undefined, result.id);
-        // 更新 URL 到新的会话 ID
-        navigate(`/chat/${result.id}`, { replace: true });
-        return sendPromise;
-      } catch (error) {
-        console.error("Failed to create conversation:", error);
-        // 即使创建失败，也尝试发送消息（可能使用临时会话）
-        return sendMessage(values);
-      }
+      const { id } = await dispatch(registerConversation()).unwrap();
+      // 使用新的 conversationId 发送消息
+      const sendPromise = sendMessage(values, undefined, id);
+      // 更新 URL 到新的会话 ID
+      navigate(`/chat/${id}`, { replace: true });
+      return sendPromise;
     }
   );
 
