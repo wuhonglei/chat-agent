@@ -7,6 +7,7 @@ import axios, {
 import { isPlainObject } from "lodash-es";
 import snakecaseKeys from "snakecase-keys";
 import camelcaseKeys from "camelcase-keys";
+import { getMessageInstance } from "../utils/message";
 
 // Create axios instance
 const apiClient: AxiosInstance = axios.create({
@@ -39,11 +40,19 @@ apiClient.interceptors.request.use(
 // Response interceptor - Convert all response data to camelCase
 apiClient.interceptors.response.use(
   (response: AxiosResponse["data"]) => {
-    // Convert response data to camelCase
-    if (isPlainObject(response.data) && !(response.data instanceof Blob)) {
-      response.data = camelcaseKeys(response.data, { deep: true });
+    const { code, msg } = response.data;
+    if (code !== 0) {
+      const message = getMessageInstance();
+      message.error(msg);
+      return Promise.reject(new Error(msg));
     }
-    return response.data;
+
+    let data = response.data.data;
+    // Convert response data to camelCase
+    if (isPlainObject(data) && !(data instanceof Blob)) {
+      data = camelcaseKeys(data, { deep: true });
+    }
+    return data;
   },
   error => {
     if (error.response) {

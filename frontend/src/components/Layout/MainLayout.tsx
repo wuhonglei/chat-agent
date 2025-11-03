@@ -1,14 +1,14 @@
-import { FileMarkdownOutlined } from "@ant-design/icons";
 import { Button, Layout, Menu, MenuProps, Typography } from "antd";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import React, { ReactNode, useState } from "react";
+import React, { ReactNode, useEffect, useState } from "react";
 import classNames from "classnames";
 import CollapseIcon from "@/assets/svg/CollapseIcon.svg?react";
 import NewConversionIcon from "@/assets/svg/NewConversionIcon.svg?react";
 import styles from "./mainLayout.module.css";
 import { theme } from "antd";
-import { useAppDispatch } from "@/store/hooks";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { clearCurrentChat } from "@/store/slices/chatSlice";
+import { loadConversations } from "@/store/slices/conversationSlice";
 const { useToken } = theme;
 const { Title } = Typography;
 
@@ -25,13 +25,19 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const location = useLocation();
   const { token } = useToken();
   const [collapsed, setCollapsed] = useState(false);
+  const { conversations } = useAppSelector(state => state.conversation);
+  console.log(conversations);
+
+  useEffect(() => {
+    dispatch(loadConversations());
+  }, [dispatch]);
 
   const menuItems: MenuProps["items"] = [
-    {
-      key: "/markdown",
-      icon: <FileMarkdownOutlined />,
-      label: "Markdown",
-    },
+    // {
+    //   key: "/markdown",
+    //   icon: <FileMarkdownOutlined />,
+    //   label: "Markdown",
+    // },
   ];
 
   const handleMenuClick: MenuProps["onClick"] = ({ key }) => {

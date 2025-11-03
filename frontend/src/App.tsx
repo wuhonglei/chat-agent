@@ -1,4 +1,4 @@
-import { Layout } from "antd";
+import { App as AntdApp, Layout } from "antd";
 import React, { useEffect } from "react";
 import { Route, BrowserRouter, Routes } from "react-router-dom";
 import MainLayout from "./components/Layout/MainLayout";
@@ -8,11 +8,18 @@ import {
   checkGoogleFavIconsAvailability,
   getMCPConfig,
 } from "./store/slices/globalSlice";
+import { setMessageInstance } from "./utils/message";
 
 const { Content } = Layout;
 
 const App: React.FC = () => {
   const dispatch = useAppDispatch();
+  const { message } = AntdApp.useApp();
+
+  useEffect(() => {
+    // 初始化 message 实例
+    setMessageInstance(message);
+  }, [message]);
 
   useEffect(() => {
     // 在应用初始化时检查 Google Favicons API 可用性

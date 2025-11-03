@@ -9,28 +9,14 @@ import { conversationAPI } from "@/services";
 interface ConversationState {
   // 对话列表
   conversations: ConversationInfo[];
-  conversationsLoading: boolean;
 
   // 当前对话信息
   conversationInfo: ConversationInfo | null;
-
-  // 当前对话加载状态
-  loadingConversation: boolean;
-
-  total: number;
-  offset: number;
-  limit: number;
 }
 
 const initialState: ConversationState = {
   conversations: [],
-  conversationsLoading: false,
-
   conversationInfo: null,
-  loadingConversation: false,
-  total: 0,
-  offset: 0,
-  limit: 50,
 };
 
 // ==================== Async Thunks ====================
@@ -144,34 +130,15 @@ const conversationSlice = createSlice({
   },
   extraReducers: builder => {
     // registerConversation
-    builder
-      .addCase(registerConversation.pending, state => {
-        state.loadingConversation = true;
-      })
-      .addCase(registerConversation.fulfilled, (state, action) => {
-        state.loadingConversation = false;
-        state.conversationInfo = action.payload;
-        state.conversations.unshift(action.payload);
-      })
-      .addCase(registerConversation.rejected, state => {
-        state.loadingConversation = false;
-      });
+    builder.addCase(registerConversation.fulfilled, (state, action) => {
+      state.conversationInfo = action.payload;
+      state.conversations.unshift(action.payload);
+    });
 
-    // loadConversation
-    builder
-      .addCase(loadConversations.pending, state => {
-        state.conversationsLoading = true;
-      })
-      .addCase(loadConversations.fulfilled, (state, action) => {
-        state.conversationsLoading = false;
-        state.conversations = action.payload.conversations;
-        state.total = action.payload.total;
-        state.offset = action.payload.offset;
-        state.limit = action.payload.limit;
-      })
-      .addCase(loadConversations.rejected, (state, action) => {
-        state.loadingConversation = false;
-      });
+    // loadConversations
+    builder.addCase(loadConversations.fulfilled, (state, action) => {
+      state.conversations = action.payload.conversations;
+    });
 
     // updateConversationInfo
     builder.addCase(updateConversationInfo.fulfilled, (state, action) => {
