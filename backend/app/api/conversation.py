@@ -24,7 +24,7 @@ def conversation_to_dict(conversation: Conversation) -> dict:
 @router.post("/register")
 async def register_conversation(conversation: RegisterConversationRequest, db: Session = Depends(get_db)) -> ConversationInfo:
     """Register a new conversation"""
-    conversation = Conversation(title=conversation.title or "New Conversation")
+    conversation = Conversation(title=conversation.title or "新对话")
     db.add(conversation)
     db.commit()
     db.refresh(conversation)
