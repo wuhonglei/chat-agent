@@ -113,6 +113,14 @@ const conversationSlice = createSlice({
       state.conversationInfo = action.payload;
     },
 
+    setConversationInfoById: (state, action: PayloadAction<string>) => {
+      const id = action.payload;
+      const conversation = state.conversations.find(conv => conv.id === id);
+      if (conversation) {
+        state.conversationInfo = conversation;
+      }
+    },
+
     // 添加对话到列表
     addConversationToList: (state, action: PayloadAction<ConversationInfo>) => {
       state.conversations.unshift(action.payload);
@@ -167,6 +175,7 @@ const conversationSlice = createSlice({
 
 export const {
   setConversationInfo,
+  setConversationInfoById,
   addConversationToList,
   updateConversationInList,
   removeConversationFromList,

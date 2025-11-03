@@ -95,7 +95,7 @@ const ChatPage: React.FC = () => {
           },
         }}
       >
-        {isEmpty(messages) ? (
+        {isEmpty(conversationId) ? (
           <WelcomePage
             className={classNames("my-auto pb-12", styles["input-container"])}
           >

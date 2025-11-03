@@ -1,7 +1,7 @@
 """Conversations endpoints"""
 
 from fastapi import APIRouter, Depends
-from app.models.conversation import ConversationInfo, RegisterConversationRequest
+from app.models.conversation import ConversationInfo, RegisterConversationRequest, UpdateConversationRequest
 from app.models.response import ApiResponse
 from app.models.db import Conversation
 from app.core.db import get_db
@@ -75,3 +75,20 @@ async def get_conversation(conversation_id: str, db: Session = Depends(get_db)) 
     except Exception as e:
         logger.error(f"Failed to get conversation {conversation_id}: {e}")
         return ApiResponse.error(code=1, msg=f"获取对话详情失败: {str(e)}")
+
+
+@router.put("/update/{conversation_id}")
+async def update_conversation(conversation_id: str, request: UpdateConversationRequest, db: Session = Depends(get_db)) -> ApiResponse[ConversationInfo]:
+    """Update a conversation by ID"""
+    try:
+        conversation = db.get(Conversation, conversation_id)
+        if not conversation:
+            logger.error(f"Conversation {conversation_id} not found")
+            return ApiResponse.error(code=404, msg="对话不存在", data=None)
+        conversation.title = request.title
+        db.commit()
+        db.refresh(conversation)
+        return ApiResponse.success(data=conversation_to_dict(conversation), msg="更新对话成功")
+    except Exception as e:
+        logger.error(f"Failed to update conversation {conversation_id}: {e}")
+        return ApiResponse.error(code=1, msg=f"更新对话失败: {str(e)}")

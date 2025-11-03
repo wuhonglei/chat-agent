@@ -6,9 +6,14 @@ import CollapseIcon from "@/assets/svg/CollapseIcon.svg?react";
 import NewConversionIcon from "@/assets/svg/NewConversionIcon.svg?react";
 import styles from "./mainLayout.module.css";
 import { theme } from "antd";
-import { useAppDispatch } from "@/store/hooks";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { clearCurrentChat } from "@/store/slices/chatSlice";
 import { useMenuItems } from "./hooks";
+import {
+  setConversationInfoById,
+  updateConversationInfo,
+} from "@/store/slices/conversationSlice";
+import HoverButton from "./HoverButton";
 const { useToken } = theme;
 const { Title } = Typography;
 
@@ -21,14 +26,23 @@ interface MainLayoutProps {
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
-  const dispatch = useAppDispatch();
   const location = useLocation();
   const { token } = useToken();
   const [collapsed, setCollapsed] = useState(false);
 
+  const dispatch = useAppDispatch();
+  // 直接返回 conversationInfo，避免返回新对象导致不必要的 rerender
+  const conversationInfo = useAppSelector(
+    state => state.conversation.conversationInfo
+  );
   const menuItems = useMenuItems();
 
   const handleMenuClick: MenuProps["onClick"] = ({ key }) => {
+    if (key.startsWith("/chat/")) {
+      const id = key.split("/").pop();
+      id && dispatch(setConversationInfoById(id));
+    }
+
     navigate(key);
   };
 
@@ -39,6 +53,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const handleNewConversion = () => {
     dispatch(clearCurrentChat());
     navigate("/chat");
+  };
+
+  const handleEditConversationTitle = (id: string, title: string) => {
+    dispatch(updateConversationInfo({ id, title }));
   };
 
   return (
@@ -96,11 +114,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       </Sider>
       <Layout className="flex flex-col h-full" hasSider={false}>
         <Header
-          className="h-14 flex justify-between items-center"
-          style={{ backgroundColor: token.colorBgContainer }}
+          className="flex justify-center items-center relative"
+          style={{ backgroundColor: token.colorBgContainer, height: 60 }}
         >
           {collapsed && (
-            <div className="h-10 flex items-center gap-1 rounded-full border border-gray-200 p-1 shadow">
+            <div className="absolute left-12.5 h-10 flex items-center gap-1 rounded-full border border-gray-200 p-1 shadow">
               <Button
                 type="text"
                 shape="circle"
@@ -114,6 +132,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                 icon={<NewConversionIcon className="w-4 h-4" />}
               />
             </div>
+          )}
+          {conversationInfo && (
+            <HoverButton
+              title={conversationInfo.title}
+              onClick={newTitle =>
+                handleEditConversationTitle(conversationInfo.id, newTitle)
+              }
+            />
           )}
         </Header>
         <Content className="flex-1 bg-white">{children}</Content>
