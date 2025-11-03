@@ -7,6 +7,8 @@ import CollapseIcon from "@/assets/svg/CollapseIcon.svg?react";
 import NewConversionIcon from "@/assets/svg/NewConversionIcon.svg?react";
 import styles from "./mainLayout.module.css";
 import { theme } from "antd";
+import { useAppDispatch } from "@/store/hooks";
+import { clearCurrentChat } from "@/store/slices/chatSlice";
 const { useToken } = theme;
 const { Title } = Typography;
 
@@ -19,6 +21,7 @@ interface MainLayoutProps {
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const location = useLocation();
   const { token } = useToken();
   const [collapsed, setCollapsed] = useState(false);
@@ -40,6 +43,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   };
 
   const handleNewConversion = () => {
+    dispatch(clearCurrentChat());
     navigate("/chat");
   };
 

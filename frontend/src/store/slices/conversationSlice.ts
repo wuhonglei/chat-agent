@@ -14,9 +14,6 @@ interface ConversationState {
   // 当前对话信息
   conversationInfo: ConversationInfo | null;
 
-  // 会话状态
-  isNewConversion: boolean; // 是否为新会话
-
   // 当前对话加载状态
   loadingConversation: boolean;
 
@@ -30,7 +27,6 @@ const initialState: ConversationState = {
   conversationsLoading: false,
 
   conversationInfo: null,
-  isNewConversion: false,
   loadingConversation: false,
   total: 0,
   offset: 0,
@@ -142,9 +138,8 @@ const conversationSlice = createSlice({
     },
 
     // 清除当前会话
-    clearCurrentSession: state => {
+    clearCurrentConversion: state => {
       state.conversationInfo = null;
-      state.isNewConversion = false;
     },
   },
   extraReducers: builder => {
@@ -198,7 +193,7 @@ export const {
   addConversationToList,
   updateConversationInList,
   removeConversationFromList,
-  clearCurrentSession,
+  clearCurrentConversion: clearCurrentSession,
 } = conversationSlice.actions;
 
 export default conversationSlice.reducer;

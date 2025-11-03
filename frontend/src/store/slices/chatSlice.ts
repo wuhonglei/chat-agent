@@ -1,15 +1,9 @@
-import {
-  ChatMessage,
-  ConversationInfo,
-  SearchSource,
-  ToolCallMessage,
-} from "@/interfaces";
+import { ChatMessage, SearchSource, ToolCallMessage } from "@/interfaces";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { isEmpty } from "lodash-es";
 
 interface ChatState {
   messages: ChatMessage[];
-  conversationInfo: ConversationInfo | null;
   isLoading: boolean;
   isStreaming: boolean;
   isReasoning: boolean;
@@ -17,15 +11,18 @@ interface ChatState {
   error: string | null;
 }
 
-const initialState: ChatState = {
-  messages: [],
-  conversationInfo: null,
-  isLoading: false,
-  isStreaming: false,
-  isReasoning: false,
-  isCallingTools: false,
-  error: null,
+export const getInitialState = (): ChatState => {
+  return {
+    messages: [],
+    isLoading: false,
+    isStreaming: false,
+    isReasoning: false,
+    isCallingTools: false,
+    error: null,
+  };
 };
+
+const initialState: ChatState = getInitialState();
 
 /**
  * 检查消息列表中最后一个消息是否为助手消息
@@ -64,9 +61,6 @@ const chatSlice = createSlice({
     },
     clearMessages: state => {
       state.messages = [];
-    },
-    setConversationInfo: (state, action: PayloadAction<ConversationInfo>) => {
-      state.conversationInfo = action.payload;
     },
     setStreaming: (state, action: PayloadAction<boolean>) => {
       state.isStreaming = action.payload;
@@ -125,6 +119,15 @@ const chatSlice = createSlice({
     clearError: state => {
       state.error = null;
     },
+    clearCurrentChat: state => {
+      const initialState = getInitialState();
+      state.messages = initialState.messages;
+      state.error = initialState.error;
+      state.isLoading = initialState.isLoading;
+      state.isStreaming = initialState.isStreaming;
+      state.isReasoning = initialState.isReasoning;
+      state.isCallingTools = initialState.isCallingTools;
+    },
   },
 });
 
@@ -132,7 +135,6 @@ export const {
   addMessage,
   addMessageAtIndex,
   clearMessages,
-  setConversationInfo,
   setStreaming,
   setLoading,
   setSources,
@@ -145,6 +147,7 @@ export const {
   setReasoning,
   clearError,
   clearLastMessage,
+  clearCurrentChat,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;
