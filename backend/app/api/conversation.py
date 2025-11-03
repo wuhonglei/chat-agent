@@ -31,7 +31,6 @@ async def register_conversation(request: RegisterConversationRequest, db: Sessio
         db.commit()
         db.refresh(conversation)
         logger.info(f"Registered conversation {conversation.id}")
-        logger.info(conversation)
         conversation_info = ConversationInfo.model_validate(
             conversation_to_dict(conversation))
         return ApiResponse.success(data=conversation_info, msg="对话创建成功")
@@ -41,7 +40,7 @@ async def register_conversation(request: RegisterConversationRequest, db: Sessio
 
 
 @router.get("/list")
-async def get_conversations(db: Session = Depends(get_db)) -> ApiResponse[list[ConversationInfo]]:
+async def get_conversations(db: Session = Depends(get_db)):
     """Get all conversations"""
     try:
         conversations = db.exec(select(Conversation).order_by(
@@ -49,7 +48,13 @@ async def get_conversations(db: Session = Depends(get_db)) -> ApiResponse[list[C
         logger.info(f"Found {len(conversations)} conversations")
         conversation_list = [ConversationInfo.model_validate(
             conversation_to_dict(conv)) for conv in conversations]
-        return ApiResponse.success(data=conversation_list, msg="获取对话列表成功")
+        data = {
+            "total": len(conversations),
+            "offset": 0,
+            "limit": len(conversations),
+            "conversations": conversation_list
+        }
+        return ApiResponse.success(data=data, msg="获取对话列表成功")
     except Exception as e:
         logger.error(f"Failed to get conversations: {e}")
         return ApiResponse.error(code=1, msg=f"获取对话列表失败: {str(e)}")
