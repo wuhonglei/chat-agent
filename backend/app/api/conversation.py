@@ -1,7 +1,8 @@
 """Conversations endpoints"""
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends
 from app.models.conversation import ConversationInfo, RegisterConversationRequest
+from app.models.response import ApiResponse
 from app.models.db import Conversation
 from app.core.db import get_db
 from sqlmodel import Session, select
@@ -22,33 +23,50 @@ def conversation_to_dict(conversation: Conversation) -> dict:
 
 
 @router.post("/register")
-async def register_conversation(conversation: RegisterConversationRequest, db: Session = Depends(get_db)) -> ConversationInfo:
+async def register_conversation(request: RegisterConversationRequest, db: Session = Depends(get_db)) -> ApiResponse[ConversationInfo]:
     """Register a new conversation"""
-    conversation = Conversation(title=conversation.title or "新对话")
-    db.add(conversation)
-    db.commit()
-    db.refresh(conversation)
-    logger.info(f"Registered conversation {conversation.id}")
-    logger.info(conversation)
-    return ConversationInfo.model_validate(conversation_to_dict(conversation))
+    try:
+        conversation = Conversation(title=request.title or "新对话")
+        db.add(conversation)
+        db.commit()
+        db.refresh(conversation)
+        logger.info(f"Registered conversation {conversation.id}")
+        logger.info(conversation)
+        conversation_info = ConversationInfo.model_validate(
+            conversation_to_dict(conversation))
+        return ApiResponse.success(data=conversation_info, msg="对话创建成功")
+    except Exception as e:
+        logger.error(f"Failed to register conversation: {e}")
+        return ApiResponse.error(code=1, msg=f"创建对话失败: {str(e)}")
 
 
 @router.get("/list")
-async def get_conversations(db: Session = Depends(get_db)) -> list[ConversationInfo]:
+async def get_conversations(db: Session = Depends(get_db)) -> ApiResponse[list[ConversationInfo]]:
     """Get all conversations"""
-    conversations = db.exec(select(Conversation).order_by(
-        Conversation.updated_at.desc())).all()
-    logger.info(f"Found {len(conversations)} conversations")
-    return [ConversationInfo.model_validate(conversation_to_dict(conv)) for conv in conversations]
+    try:
+        conversations = db.exec(select(Conversation).order_by(
+            Conversation.updated_at.desc())).all()
+        logger.info(f"Found {len(conversations)} conversations")
+        conversation_list = [ConversationInfo.model_validate(
+            conversation_to_dict(conv)) for conv in conversations]
+        return ApiResponse.success(data=conversation_list, msg="获取对话列表成功")
+    except Exception as e:
+        logger.error(f"Failed to get conversations: {e}")
+        return ApiResponse.error(code=1, msg=f"获取对话列表失败: {str(e)}")
 
 
 @router.get("/detail/{conversation_id}")
-async def get_conversation(conversation_id: str, db: Session = Depends(get_db)) -> ConversationInfo:
+async def get_conversation(conversation_id: str, db: Session = Depends(get_db)) -> ApiResponse[ConversationInfo]:
     """Get a conversation by ID"""
-    conversation = db.get(Conversation, conversation_id)
-    if not conversation:
-        logger.error(f"Conversation {conversation_id} not found")
-        raise HTTPException(
-            status_code=404, detail="Conversation not found") from None
-    logger.info(f"Found conversation {conversation_id}")
-    return ConversationInfo.model_validate(conversation_to_dict(conversation))
+    try:
+        conversation = db.get(Conversation, conversation_id)
+        if not conversation:
+            logger.error(f"Conversation {conversation_id} not found")
+            return ApiResponse.error(code=404, msg="对话不存在", data=None)
+        logger.info(f"Found conversation {conversation_id}")
+        conversation_info = ConversationInfo.model_validate(
+            conversation_to_dict(conversation))
+        return ApiResponse.success(data=conversation_info, msg="获取对话详情成功")
+    except Exception as e:
+        logger.error(f"Failed to get conversation {conversation_id}: {e}")
+        return ApiResponse.error(code=1, msg=f"获取对话详情失败: {str(e)}")
