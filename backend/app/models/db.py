@@ -4,6 +4,7 @@ from typing import Any, Optional
 
 from pydantic import ConfigDict
 from sqlalchemy import JSON as SQLJSON
+from sqlalchemy import DateTime
 from sqlmodel import SQLModel, Field
 
 
@@ -29,10 +30,12 @@ class User(SQLModel, table=True):
     role: str = Field(default="user")
     status: str = Field(default="active")
     created_at: datetime = Field(
-        default_factory=get_current_time)
+        default_factory=get_current_time,
+        sa_type=DateTime(timezone=True))
     updated_at: datetime = Field(
         default_factory=get_current_time,
-        sa_column_kwargs={"onupdate": get_current_time}
+        sa_column_kwargs={"onupdate": get_current_time},
+        sa_type=DateTime(timezone=True)
     )
 
 
@@ -46,10 +49,12 @@ class Conversation(SQLModel, table=True):
     user_id: Optional[str] = Field(
         default=None, index=True, max_length=36)  # 预留扩展
     created_at: datetime = Field(
-        default_factory=get_current_time)
+        default_factory=get_current_time,
+        sa_type=DateTime(timezone=True))
     updated_at: datetime = Field(
         default_factory=get_current_time,
-        sa_column_kwargs={"onupdate": get_current_time}
+        sa_column_kwargs={"onupdate": get_current_time},
+        sa_type=DateTime(timezone=True)
     )
     message_count: int = Field(default=0)
     is_active: bool = Field(default=True)
@@ -65,7 +70,8 @@ class Message(SQLModel, table=True):
     role: str  # "user" | "assistant"
     content: str
     timestamp: datetime = Field(
-        default_factory=get_current_time, index=True)
+        default_factory=get_current_time, index=True,
+        sa_type=DateTime(timezone=True))
     reasoning: Optional[str] = None  # 推理内容（仅助手消息使用）
     tool_calls: Optional[dict[str, Any]] = Field(
         default=None, sa_type=SQLJSON)  # 工具调用列表（仅助手消息使用）
