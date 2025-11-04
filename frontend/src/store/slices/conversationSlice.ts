@@ -118,6 +118,8 @@ const conversationSlice = createSlice({
       const conversation = state.conversations.find(conv => conv.id === id);
       if (conversation) {
         state.conversationInfo = conversation;
+      } else {
+        state.conversationInfo = null;
       }
     },
 
@@ -179,7 +181,7 @@ export const {
   addConversationToList,
   updateConversationInList,
   removeConversationFromList,
-  clearCurrentConversion: clearCurrentSession,
+  clearCurrentConversion,
 } = conversationSlice.actions;
 
 export default conversationSlice.reducer;

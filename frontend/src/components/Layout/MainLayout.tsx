@@ -1,6 +1,6 @@
 import { Button, Layout, Menu, MenuProps, Typography } from "antd";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import React, { ReactNode, useState } from "react";
+import React, { ReactNode, useEffect, useState } from "react";
 import classNames from "classnames";
 import CollapseIcon from "@/assets/svg/CollapseIcon.svg?react";
 import NewConversionIcon from "@/assets/svg/NewConversionIcon.svg?react";
@@ -12,6 +12,7 @@ import { useMenuItems } from "./hooks";
 import {
   setConversationInfoById,
   updateConversationInfo,
+  clearCurrentConversion,
 } from "@/store/slices/conversationSlice";
 import HoverButton from "./HoverButton";
 const { useToken } = theme;
@@ -37,12 +38,17 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   );
   const menuItems = useMenuItems();
 
-  const handleMenuClick: MenuProps["onClick"] = ({ key }) => {
-    if (key.startsWith("/chat/")) {
-      const id = key.split("/").pop();
-      id && dispatch(setConversationInfoById(id));
+  // 监听路由
+  useEffect(() => {
+    const id = location.pathname.split("/").pop();
+    if (location.pathname.startsWith("/chat/") && id) {
+      dispatch(setConversationInfoById(id));
+    } else {
+      dispatch(clearCurrentConversion());
     }
+  }, [location.pathname, dispatch]);
 
+  const handleMenuClick: MenuProps["onClick"] = ({ key }) => {
     navigate(key);
   };
 
