@@ -30,7 +30,7 @@ async def register_conversation(request: RegisterConversationRequest, db: Sessio
         db.add(conversation)
         db.commit()
         db.refresh(conversation)
-        logger.info(f"Registered conversation {conversation.id}")
+        logger.debug(f"Registered conversation {conversation.id}")
         conversation_info = ConversationInfo.model_validate(
             conversation_to_dict(conversation))
         return ApiResponse.success(data=conversation_info, msg="对话创建成功")
@@ -45,7 +45,7 @@ async def get_conversations(db: Session = Depends(get_db)):
     try:
         conversations = db.exec(select(Conversation).order_by(
             Conversation.updated_at.desc())).all()
-        logger.info(f"Found {len(conversations)} conversations")
+        logger.debug(f"Found {len(conversations)} conversations")
         conversation_list = [ConversationInfo.model_validate(
             conversation_to_dict(conv)) for conv in conversations]
         data = {
@@ -68,7 +68,7 @@ async def get_conversation(conversation_id: str, db: Session = Depends(get_db)) 
         if not conversation:
             logger.error(f"Conversation {conversation_id} not found")
             return ApiResponse.error(code=404, msg="对话不存在", data=None)
-        logger.info(f"Found conversation {conversation_id}")
+        logger.debug(f"Found conversation {conversation_id}")
         conversation_info = ConversationInfo.model_validate(
             conversation_to_dict(conversation))
         return ApiResponse.success(data=conversation_info, msg="获取对话详情成功")

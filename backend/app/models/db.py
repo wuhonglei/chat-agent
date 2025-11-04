@@ -7,8 +7,12 @@ from sqlalchemy import JSON as SQLJSON
 from sqlalchemy import DateTime
 from sqlmodel import SQLModel, Field
 
+from loguru import logger
+
 
 def get_current_time():
+    """获取当前时间"""
+    logger.debug("获取当前时间")
     return datetime.now(timezone.utc)
 
 
@@ -53,7 +57,6 @@ class Conversation(SQLModel, table=True):
         sa_type=DateTime(timezone=True))
     updated_at: datetime = Field(
         default_factory=get_current_time,
-        sa_column_kwargs={"onupdate": get_current_time},
         sa_type=DateTime(timezone=True)
     )
     message_count: int = Field(default=0)
