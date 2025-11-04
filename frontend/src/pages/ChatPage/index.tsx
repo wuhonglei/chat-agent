@@ -90,6 +90,7 @@ const ChatPage: React.FC = () => {
         }}
         styles={{
           body: {
+            paddingTop: 0,
             paddingLeft: 0,
             paddingRight: 0,
           },
