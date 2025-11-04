@@ -92,3 +92,19 @@ async def update_conversation(conversation_id: str, request: UpdateConversationR
     except Exception as e:
         logger.error(f"Failed to update conversation {conversation_id}: {e}")
         return ApiResponse.error(code=1, msg=f"更新对话失败: {str(e)}")
+
+
+@router.delete("/delete/{conversation_id}")
+async def delete_conversation(conversation_id: str, db: Session = Depends(get_db)) -> ApiResponse[str]:
+    """Delete a conversation by ID"""
+    try:
+        conversation = db.get(Conversation, conversation_id)
+        if not conversation:
+            logger.error(f"Conversation {conversation_id} not found")
+            return ApiResponse.error(code=404, msg="对话不存在", data=None)
+        db.delete(conversation)
+        db.commit()
+        return ApiResponse.success(data=conversation_id, msg="删除对话成功")
+    except Exception as e:
+        logger.error(f"Failed to delete conversation {conversation_id}: {e}")
+        return ApiResponse.error(code=1, msg=f"删除对话失败: {str(e)}")

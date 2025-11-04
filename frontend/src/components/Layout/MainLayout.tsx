@@ -1,4 +1,11 @@
-import { Button, Layout, Menu, MenuProps, Typography } from "antd";
+import {
+  Button,
+  ConfigProvider,
+  Layout,
+  Menu,
+  MenuProps,
+  Typography,
+} from "antd";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import React, { ReactNode, useState } from "react";
 import classNames from "classnames";
@@ -88,18 +95,31 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         >
           开启新对话
         </Button>
-        <Menu
-          mode="vertical"
-          items={menuItems}
-          onClick={handleMenuClick}
-          selectedKeys={[location.pathname]}
-          className={classNames(styles["menu-container"])}
-          style={{
-            backgroundColor: "transparent",
-            width: "100%",
-            border: "none",
+        <ConfigProvider
+          theme={{
+            components: {
+              Menu: {
+                itemPaddingInline: 10,
+                itemMarginInline: 0,
+                itemMarginBlock: 2,
+                itemBorderRadius: 12,
+              },
+            },
           }}
-        />
+        >
+          <Menu
+            mode="vertical"
+            items={menuItems}
+            onClick={handleMenuClick}
+            selectedKeys={[location.pathname]}
+            className={classNames(styles["menu-container"])}
+            style={{
+              backgroundColor: "transparent",
+              width: "100%",
+              border: "none",
+            }}
+          />
+        </ConfigProvider>
       </Sider>
       <Layout className="flex flex-col h-full" hasSider={false}>
         <Header
