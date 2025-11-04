@@ -125,7 +125,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           {conversationInfo && (
             <HoverButton
               title={conversationInfo.title}
-              onClick={newTitle =>
+              onConfirm={newTitle =>
                 handleEditConversationTitle(conversationInfo.id, newTitle)
               }
             />

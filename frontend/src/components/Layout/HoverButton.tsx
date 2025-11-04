@@ -1,42 +1,99 @@
 import classNames from "classnames";
-import { useState } from "react";
-import { Input } from "antd";
+import { useState, useEffect, useRef } from "react";
+import { App, Input } from "antd";
+import { useClickAway } from "ahooks";
 
 type Props = {
   title: string;
   className?: string;
-  onClick: (newTitle: string) => void;
+  onConfirm: (newTitle: string) => void;
 };
 
 export default function HoverButton({
   title,
-  onClick,
+  onConfirm,
   className: outerClassName,
 }: Props) {
   const [isEdit, setIsEdit] = useState(false);
+  const { message } = App.useApp();
   const [newTitle, setNewTitle] = useState(title);
-  const innerClassName = classNames(
-    "h-10 inline-flex items-center justify-center rounded-full px-4 cursor-pointer hover:shadow",
-    outerClassName
-  );
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleBlur = () => {
+  // 当 title prop 变化时，同步更新 newTitle
+  useEffect(() => {
+    setNewTitle(title);
+  }, [title]);
+
+  function resetNewTitle() {
+    setNewTitle(title);
+  }
+
+  function validateAndConfirm() {
+    if (!isEdit) {
+      return;
+    }
+
+    const trimmedNewTitle = newTitle.trim();
     setIsEdit(false);
-    onClick(newTitle);
+    if (!trimmedNewTitle) {
+      message.warning("标题不能为空");
+      resetNewTitle();
+      return;
+    }
+
+    if (trimmedNewTitle === title) {
+      resetNewTitle();
+      return;
+    }
+
+    if (trimmedNewTitle.length > 30) {
+      message.warning("标题不能超过30个字符");
+      resetNewTitle();
+      return;
+    }
+
+    onConfirm(trimmedNewTitle);
+  }
+
+  useClickAway(() => {
+    validateAndConfirm();
+  }, containerRef);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewTitle(e.target.value);
   };
 
-  return isEdit ? (
-    <Input
-      onBlur={handleBlur}
-      defaultValue={newTitle}
-      onPressEnter={handleBlur}
-      className={innerClassName}
-      onChange={e => setNewTitle(e.target.value)}
-      style={{ display: "inline-flex", width: "auto" }}
-    />
-  ) : (
-    <div className={classNames(innerClassName)} onClick={() => setIsEdit(true)}>
-      {title}
+  const handlePressEnter = () => {
+    validateAndConfirm();
+  };
+
+  return (
+    <div
+      ref={containerRef}
+      onClick={() => setIsEdit(true)}
+      className={classNames(
+        "relative h-10 rounded-full px-3 cursor-pointer hover:shadow transition-all duration-300",
+        outerClassName
+      )}
+    >
+      {/* 1. 普通模式下用于文本显示; 2. 编辑模式下用于 input 宽度计算 */}
+      <div className="leading-10">{newTitle || " "}</div>
+      {isEdit && (
+        <Input
+          autoFocus
+          value={newTitle}
+          onChange={handleChange}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            borderRadius: "calc(infinity * 1px)",
+          }}
+          onPressEnter={handlePressEnter}
+        />
+      )}
     </div>
   );
 }
