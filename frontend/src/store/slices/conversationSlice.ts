@@ -173,7 +173,11 @@ const conversationSlice = createSlice({
 
     // deleteConversation
     builder.addCase(deleteConversation.fulfilled, (state, action) => {
-      removeConversationFromListHelper(state, action.payload);
+      const id = action.payload;
+      removeConversationFromListHelper(state, id);
+      if (id === state.conversationInfo?.id) {
+        state.conversationInfo = null;
+      }
     });
   },
 });

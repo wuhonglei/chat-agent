@@ -16,8 +16,12 @@ import { theme } from "antd";
 import { useAppDispatch } from "@/store/hooks";
 import { clearCurrentChat } from "@/store/slices/chatSlice";
 import { useConversionInfo, useMenuItems } from "./hooks";
-import { updateConversationInfo } from "@/store/slices/conversationSlice";
+import {
+  deleteConversation,
+  updateConversationInfo,
+} from "@/store/slices/conversationSlice";
 import HoverButton from "./HoverButton";
+import { useMemoizedFn } from "ahooks";
 const { useToken } = theme;
 const { Title } = Typography;
 
@@ -35,7 +39,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
 
   const dispatch = useAppDispatch();
-  const menuItems = useMenuItems();
+  const onDeleteConversation = useMemoizedFn(async (id: string) => {
+    await dispatch(deleteConversation(id)).unwrap();
+    if (location.pathname.includes(id)) {
+      navigate("/chat");
+    }
+  });
+  const menuItems = useMenuItems(onDeleteConversation);
   const conversationInfo = useConversionInfo();
 
   const handleMenuClick: MenuProps["onClick"] = ({ key }) => {

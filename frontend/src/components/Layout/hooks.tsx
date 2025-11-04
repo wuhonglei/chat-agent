@@ -4,14 +4,12 @@ import { Button, type MenuProps } from "antd";
 import {
   clearCurrentConversion,
   setConversationInfoById,
-  deleteConversation,
 } from "@/store/slices/conversationSlice";
 import { useLocation } from "react-router-dom";
 import { DeleteOutlined } from "@ant-design/icons";
 
-export function useMenuItems() {
+export function useMenuItems(onDelete: (id: string) => void) {
   const { conversations } = useAppSelector(state => state.conversation);
-  const dispatch = useAppDispatch();
 
   return useMemo(() => {
     const items: MenuProps["items"] = conversations.map(conversation => ({
@@ -28,13 +26,16 @@ export function useMenuItems() {
             type="text"
             shape="circle"
             icon={<DeleteOutlined />}
-            onClick={() => dispatch(deleteConversation(conversation.id))}
+            onClick={e => {
+              e.stopPropagation();
+              onDelete(conversation.id);
+            }}
           />
         </div>
       ),
     }));
     return items;
-  }, [conversations, dispatch]);
+  }, [conversations, onDelete]);
 }
 
 /**
