@@ -9,6 +9,7 @@ import { conversationAPI } from "@/services";
 interface ConversationState {
   // 对话列表
   conversations: ConversationInfo[];
+  conversationsLoaded: boolean;
 
   // 当前对话信息
   conversationInfo: ConversationInfo | null;
@@ -20,6 +21,7 @@ interface ConversationState {
 
 const initialState: ConversationState = {
   conversations: [],
+  conversationsLoaded: false,
   conversationInfo: null,
   total: 0,
   offset: 0,
@@ -158,6 +160,7 @@ const conversationSlice = createSlice({
       state.total = action.payload.total;
       state.offset = action.payload.offset;
       state.limit = action.payload.limit;
+      state.conversationsLoaded = true;
     });
 
     // updateConversationInfo

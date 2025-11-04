@@ -1,19 +1,15 @@
 import { Button, Layout, Menu, MenuProps, Typography } from "antd";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import React, { ReactNode, useEffect, useState } from "react";
+import React, { ReactNode, useState } from "react";
 import classNames from "classnames";
 import CollapseIcon from "@/assets/svg/CollapseIcon.svg?react";
 import NewConversionIcon from "@/assets/svg/NewConversionIcon.svg?react";
 import styles from "./mainLayout.module.css";
 import { theme } from "antd";
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { useAppDispatch } from "@/store/hooks";
 import { clearCurrentChat } from "@/store/slices/chatSlice";
-import { useMenuItems } from "./hooks";
-import {
-  setConversationInfoById,
-  updateConversationInfo,
-  clearCurrentConversion,
-} from "@/store/slices/conversationSlice";
+import { useConversionInfo, useMenuItems } from "./hooks";
+import { updateConversationInfo } from "@/store/slices/conversationSlice";
 import HoverButton from "./HoverButton";
 const { useToken } = theme;
 const { Title } = Typography;
@@ -32,21 +28,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
 
   const dispatch = useAppDispatch();
-  // 直接返回 conversationInfo，避免返回新对象导致不必要的 rerender
-  const conversationInfo = useAppSelector(
-    state => state.conversation.conversationInfo
-  );
   const menuItems = useMenuItems();
-
-  // 监听路由
-  useEffect(() => {
-    const id = location.pathname.split("/").pop();
-    if (location.pathname.startsWith("/chat/") && id) {
-      dispatch(setConversationInfoById(id));
-    } else {
-      dispatch(clearCurrentConversion());
-    }
-  }, [location.pathname, dispatch]);
+  const conversationInfo = useConversionInfo();
 
   const handleMenuClick: MenuProps["onClick"] = ({ key }) => {
     navigate(key);
