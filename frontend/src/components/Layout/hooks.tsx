@@ -1,12 +1,12 @@
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { useEffect, useMemo } from "react";
-import { Button, type MenuProps } from "antd";
+import { type MenuProps } from "antd";
 import {
   clearCurrentConversion,
   setConversationInfoById,
 } from "@/store/slices/conversationSlice";
 import { useLocation } from "react-router-dom";
-import { DeleteOutlined } from "@ant-design/icons";
+import LabelItem from "./LabelItem";
 
 export function useMenuItems(onDelete: (id: string) => void) {
   const { conversations } = useAppSelector(state => state.conversation);
@@ -14,25 +14,7 @@ export function useMenuItems(onDelete: (id: string) => void) {
   return useMemo(() => {
     const items: MenuProps["items"] = conversations.map(conversation => ({
       key: `/chat/${conversation.id}`,
-      label: (
-        <div className="h-10 w-full overflow-hidden flex items-center justify-between gap-2">
-          <span
-            title={conversation.title}
-            className="flex-1 overflow-hidden text-ellipsis"
-          >
-            {conversation.title}
-          </span>
-          <Button
-            type="text"
-            shape="circle"
-            icon={<DeleteOutlined />}
-            onClick={e => {
-              e.stopPropagation();
-              onDelete(conversation.id);
-            }}
-          />
-        </div>
-      ),
+      label: <LabelItem onDelete={onDelete} conversation={conversation} />,
     }));
     return items;
   }, [conversations, onDelete]);

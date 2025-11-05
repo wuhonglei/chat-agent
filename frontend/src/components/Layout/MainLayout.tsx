@@ -11,7 +11,7 @@ import React, { ReactNode, useState } from "react";
 import classNames from "classnames";
 import CollapseIcon from "@/assets/svg/CollapseIcon.svg?react";
 import NewConversionIcon from "@/assets/svg/NewConversionIcon.svg?react";
-import styles from "./mainLayout.module.css";
+import styles from "./css/mainLayout.module.css";
 import { theme } from "antd";
 import { useAppDispatch } from "@/store/hooks";
 import { clearCurrentChat } from "@/store/slices/chatSlice";
