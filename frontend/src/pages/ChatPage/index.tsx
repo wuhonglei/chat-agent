@@ -17,6 +17,8 @@ import { isEmpty } from "lodash-es";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAppSelector, useAppDispatch } from "@/store/hooks";
 import { registerConversation } from "@/store/slices/conversationSlice";
+import { EventType, useEmitter } from "@/events";
+import { clearCurrentChat } from "@/store/slices/chatSlice";
 
 const ChatPage: React.FC = () => {
   const navigate = useNavigate();
@@ -29,6 +31,11 @@ const ChatPage: React.FC = () => {
     useAppSelector(state => state.chat);
   const [sourceData, setSourceData] = useState<SourceData | undefined>();
   const [form] = Form.useForm<ChatInputFormValues>();
+
+  useEmitter(EventType.ChangeConversion, () => {
+    abortMessage();
+    dispatch(clearCurrentChat());
+  });
 
   const handleSourceClick = useMemoizedFn(
     (index: number, message: ChatMessageType) => {

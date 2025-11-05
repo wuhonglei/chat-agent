@@ -22,6 +22,7 @@ import {
 } from "@/store/slices/conversationSlice";
 import HoverButton from "./HoverButton";
 import { useMemoizedFn } from "ahooks";
+import { EventType, emitter } from "@/events";
 const { useToken } = theme;
 const { Title } = Typography;
 
@@ -49,6 +50,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const conversationInfo = useConversionInfo();
 
   const handleMenuClick: MenuProps["onClick"] = ({ key }) => {
+    emitter.emit(EventType.ChangeConversion);
     navigate(key);
   };
 

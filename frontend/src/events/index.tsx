@@ -4,11 +4,13 @@ import { useEffect } from "react";
 export enum EventType {
   ToolCallDone = "toolCallDone",
   ReasoningDone = "reasoningDone",
+  ChangeConversion = "changeConversion", // 切换对话
 }
 
 type Events = {
   [EventType.ToolCallDone]: void;
   [EventType.ReasoningDone]: void;
+  [EventType.ChangeConversion]: void;
 };
 
 export const emitter: Emitter<Events> = mitt<Events>();
