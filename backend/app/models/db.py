@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Optional
 
 from pydantic import ConfigDict
@@ -7,13 +7,8 @@ from sqlalchemy import JSON as SQLJSON
 from sqlalchemy import DateTime
 from sqlmodel import SQLModel, Field
 
-from loguru import logger
-
-
-def get_current_time():
-    """获取当前时间"""
-    logger.debug("获取当前时间")
-    return datetime.now(timezone.utc)
+from app.utils.common import get_datetime_now
+from app.models.llm import ToolCallMessage
 
 
 def gen_uuid() -> str:
@@ -34,11 +29,11 @@ class User(SQLModel, table=True):
     role: str = Field(default="user")
     status: str = Field(default="active")
     created_at: datetime = Field(
-        default_factory=get_current_time,
+        default_factory=get_datetime_now,
         sa_type=DateTime(timezone=True))
     updated_at: datetime = Field(
-        default_factory=get_current_time,
-        sa_column_kwargs={"onupdate": get_current_time},
+        default_factory=get_datetime_now,
+        sa_column_kwargs={"onupdate": get_datetime_now},
         sa_type=DateTime(timezone=True)
     )
 
@@ -53,10 +48,10 @@ class Conversation(SQLModel, table=True):
     user_id: Optional[str] = Field(
         default=None, index=True, max_length=36)  # 预留扩展
     created_at: datetime = Field(
-        default_factory=get_current_time,
+        default_factory=get_datetime_now,
         sa_type=DateTime(timezone=True))
     updated_at: datetime = Field(
-        default_factory=get_current_time,
+        default_factory=get_datetime_now,
         sa_type=DateTime(timezone=True)
     )
     message_count: int = Field(default=0)
@@ -72,11 +67,11 @@ class Message(SQLModel, table=True):
     conversation_id: str = Field(index=True, max_length=36)
     role: str  # "user" | "assistant"
     content: str
-    timestamp: datetime = Field(
-        default_factory=get_current_time, index=True,
+    created_at: datetime = Field(
+        default_factory=get_datetime_now, index=True,
         sa_type=DateTime(timezone=True))
-    reasoning: Optional[str] = None  # 推理内容（仅助手消息使用）
-    tool_calls: Optional[dict[str, Any]] = Field(
-        default=None, sa_type=SQLJSON)  # 工具调用列表（仅助手消息使用）
-    message_metadata: dict[str, Any] = Field(
+    reasoning: Optional[str] = None  # 推理内容
+    tool_calls: Optional[list[ToolCallMessage]] = Field(
+        default=None, sa_type=SQLJSON)  # 工具调用列表
+    message_metadata:  dict[str, Any] = Field(
         default_factory=dict, sa_type=SQLJSON)  # 元数据（模型调用、配置）

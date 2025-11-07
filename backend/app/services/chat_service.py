@@ -9,8 +9,8 @@ from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletionMessage
 
 from app.core.config import settings
-from app.models.chat import ChatMessage, ChatRequest
-from app.models.llm import AssistantMessage, ToolCallResultMessage
+from app.models.chat import ChatMessageItemReq, ChatRequest
+from app.models.llm import ToolCallMessage, ToolCallResultMessage
 from app.utils.common import filter_dict
 from app.mcp.mcp_client import MCPClientManager
 from app.services.prompt import get_default_system_prompt, get_prompt_with_mcp_servers, get_prompt_with_tool_history
@@ -75,7 +75,7 @@ class ChatService:
         messages: list[dict],
         model: str,
         tools: list[dict],
-    ) -> AsyncGenerator[tuple[str, list[AssistantMessage]], list[AssistantMessage]]:
+    ) -> AsyncGenerator[tuple[str, list[ToolCallMessage]], list[ToolCallMessage]]:
         """Call LLM with MCP tools and handle tool calls, streaming results
 
         Yields:
@@ -87,7 +87,7 @@ class ChatService:
         max_iterations_by_tool = 5
         iterations_by_tool = {
             tool['function']['name']: max_iterations_by_tool for tool in tools}
-        tool_call_messages: list[AssistantMessage] = []
+        tool_call_messages: list[ToolCallMessage] = []
         for iteration in range(max_total_iterations):
             logger.info(f'{'='*60}')
             logger.info(f'第 {iteration + 1} 轮迭代')
@@ -99,7 +99,7 @@ class ChatService:
                 tools=tools if tools else None,
                 stream=False,
             )
-            assistant_message: AssistantMessage = response.choices[0].message
+            assistant_message: ToolCallMessage = response.choices[0].message
 
             if not assistant_message.tool_calls:
                 logger.info(
@@ -276,7 +276,7 @@ class ChatService:
     @staticmethod
     def _compose_messages_without_tool_calls(
         system_prompt: str,
-        history: list[ChatMessage],
+        history: list[ChatMessageItemReq],
         user_message: str,
     ) -> list[dict]:
         """Build prompt for LLM without context"""
@@ -292,9 +292,9 @@ class ChatService:
     @staticmethod
     def _compose_messages_with_tool_calls(
         system_prompt: Optional[str],
-        history: list[ChatMessage],
+        history: list[ChatMessageItemReq],
         user_message: str,
-        tool_call_messages: list[AssistantMessage],
+        tool_call_messages: list[ToolCallMessage],
     ) -> list[dict]:
         """Build prompt for LLM with context"""
         if not tool_call_messages:

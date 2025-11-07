@@ -16,4 +16,4 @@ class ToolCallResultMessage(BaseModel):
     content: str
 
 
-AssistantMessage: TypeAlias = AssistantToolCallMessage | ToolCallResultMessage
+ToolCallMessage: TypeAlias = AssistantToolCallMessage | ToolCallResultMessage

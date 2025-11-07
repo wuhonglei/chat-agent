@@ -5,6 +5,9 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field, ConfigDict
 
+from app.utils.common import get_datetime_now
+from app.models.llm import ToolCallMessage
+
 
 class SourceConfig(BaseModel):
     """Source configuration model"""
@@ -13,15 +16,30 @@ class SourceConfig(BaseModel):
     )
 
 
-class ChatMessage(BaseModel):
+class ChatMessageItemReq(BaseModel):
     """Chat message model"""
 
     role: str = Field(..., description="Message role (user/assistant)")
     content: str = Field(..., description="Message content")
-    timestamp: datetime = Field(
-        default_factory=datetime.now, description="Message timestamp")
-    metadata: dict[str, Any] = Field(
-        default_factory=dict, description="Additional metadata")
+
+
+class ChatMessageItem(BaseModel):
+    """Chat message response model"""
+    id: str = Field(..., description="Message ID")
+    role: str = Field(..., description="Message role (user/assistant)")
+    content: str = Field(..., description="Message content")
+    conversation_id: str = Field(..., description="Conversation ID")
+    reasoning: Optional[str] = Field(None, description="Reasoning content")
+    tool_calls: Optional[list[ToolCallMessage]] = Field(
+        None, description="Tool calls")
+    created_at: datetime = Field(
+        default_factory=get_datetime_now, description="Message timestamp")
+    message_metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Message metadata")
+
+    model_config = ConfigDict(
+        extra='ignore'
+    )
 
 
 class ChatRequest(BaseModel):
@@ -29,7 +47,7 @@ class ChatRequest(BaseModel):
 
     message: str = Field(..., description="User message")
     session_id: str | None = Field(None, description="Session ID for context")
-    history: list[ChatMessage] = Field(
+    history: list[ChatMessageItemReq] = Field(
         default_factory=list, description="Chat history")
     source_config: SourceConfig = Field(
         default_factory=SourceConfig, description="Source configuration"
@@ -63,19 +81,5 @@ class ChatResponse(BaseModel):
     sources: list[ChatSource] = Field(
         default_factory=list, description="Source documents")
     session_id: str = Field(..., description="Session ID")
-    timestamp: datetime = Field(
-        default_factory=datetime.now, description="Response timestamp")
-
-
-class ChatSession(BaseModel):
-    """Chat session model"""
-
-    id: str = Field(..., description="Session ID")
-    messages: list[ChatMessage] = Field(
-        default_factory=list, description="Session messages")
     created_at: datetime = Field(
-        default_factory=datetime.now, description="Session creation time")
-    updated_at: datetime = Field(
-        default_factory=datetime.now, description="Last update time")
-    metadata: dict[str, Any] = Field(
-        default_factory=dict, description="Session metadata")
+        default_factory=get_datetime_now, description="Response timestamp")

@@ -3,7 +3,7 @@
 from typing import Optional
 
 from pydantic import BaseModel, Field, ConfigDict
-from app.models.chat import ChatMessage
+from app.models.chat import ChatMessageItemReq
 
 
 class ConversationInfo(BaseModel):
@@ -35,8 +35,8 @@ class ConversationListResponse(BaseModel):
 
 class ConversationDetailResponse(ConversationInfo):
     """Conversation detail response model"""
-    messages: list[ChatMessage] = Field(...,
-                                        description="List of messages in the conversation")
+    messages: list[ChatMessageItemReq] = Field(...,
+                                               description="List of messages in the conversation")
 
 
 class UpdateConversationRequest(BaseModel):

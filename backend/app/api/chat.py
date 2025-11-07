@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from loguru import logger
 
-from app.models.chat import ChatRequest, ChatSession
+from app.models.chat import ChatRequest
 from app.services.chat_service import ChatService
 from app.models.app_state import AppState
 

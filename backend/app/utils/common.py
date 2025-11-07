@@ -1,5 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
+
+from loguru import logger
 
 
 def remove_leading_whitespace(text: str) -> str:
@@ -35,3 +37,12 @@ def get_current_datetime_str() -> str:
 def get_current_date() -> str:
     """获取当前日期字符串"""
     return datetime.now().strftime("%Y-%m-%d")
+
+
+def get_datetime_now(with_timezone: bool = True) -> datetime:
+    """获取当前时间"""
+    logger.debug("获取当前时间")
+    if with_timezone:
+        return datetime.now(timezone.utc)
+    else:
+        return datetime.now()

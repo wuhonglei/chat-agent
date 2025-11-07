@@ -1,9 +1,10 @@
 """Conversations endpoints"""
 
 from fastapi import APIRouter, Depends
+from app.models.chat import ChatMessageItem
 from app.models.conversation import ConversationInfo, RegisterConversationRequest, UpdateConversationRequest
 from app.models.response import ApiResponse
-from app.models.db import Conversation
+from app.models.db import Conversation, Message
 from app.core.db import get_db
 from sqlmodel import Session, select
 from loguru import logger
@@ -58,6 +59,20 @@ async def get_conversations(db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Failed to get conversations: {e}")
         return ApiResponse.error(code=1, msg=f"获取对话列表失败: {str(e)}")
+
+
+@router.get("/message/list")
+async def get_messages(conversation_id: str, db: Session = Depends(get_db)) -> ApiResponse[list[ChatMessageItem]]:
+    """Get messages by conversation ID"""
+    try:
+        messages = db.exec(select(Message).where(
+            Message.conversation_id == conversation_id).order_by(Message.created_at.asc())).all()
+        chat_messages = [ChatMessageItem.model_validate(
+            message.model_dump(mode="json")) for message in messages]
+        return ApiResponse.success(data=chat_messages, msg="获取消息列表成功")
+    except Exception as e:
+        logger.error(f"Failed to get messages: {e}")
+        return ApiResponse.error(code=1, msg=f"获取消息列表失败: {str(e)}")
 
 
 @router.get("/detail/{conversation_id}")
