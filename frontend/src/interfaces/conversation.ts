@@ -1,5 +1,4 @@
 import { TitleCreatedBy } from "@/constants";
-import { ChatMessage } from "./chatRequest";
 
 // Conversation types
 export interface ConversationInfo {
@@ -28,10 +27,3 @@ export interface UpdateConversationRequest {
 }
 
 export interface ConversationDetailResponse extends ConversationInfo {}
-
-export interface ConversationMessageListResponse {
-  total: number;
-  offset: number;
-  limit: number;
-  messages: ChatMessage[];
-}

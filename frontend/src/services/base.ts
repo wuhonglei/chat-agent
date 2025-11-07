@@ -1,8 +1,4 @@
-import axios, {
-  AxiosInstance,
-  AxiosResponse,
-  InternalAxiosRequestConfig,
-} from "axios";
+import axios, { AxiosResponse, InternalAxiosRequestConfig } from "axios";
 
 import { isPlainObject } from "lodash-es";
 import snakecaseKeys from "snakecase-keys";
@@ -10,7 +6,7 @@ import camelcaseKeys from "camelcase-keys";
 import { getMessageInstance } from "../utils/message";
 
 // Create axios instance
-const apiClient: AxiosInstance = axios.create({
+const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000",
   timeout: 60000,
   headers: {
@@ -39,15 +35,15 @@ apiClient.interceptors.request.use(
 
 // Response interceptor - Convert all response data to camelCase
 apiClient.interceptors.response.use(
-  (response: AxiosResponse["data"]) => {
-    const { code, msg } = response.data;
+  (response: AxiosResponse<{ data: any; code: number; msg: string }>) => {
+    const { code, msg, data: responseData } = response.data;
     if (code !== 0) {
       const message = getMessageInstance();
       message.error(msg);
       return Promise.reject(response.data);
     }
 
-    let data = response.data.data;
+    let data = responseData;
     // Convert response data to camelCase
     if (isPlainObject(data) && !(data instanceof Blob)) {
       data = camelcaseKeys(data, { deep: true });

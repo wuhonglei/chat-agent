@@ -8,7 +8,7 @@ import {
 } from "@/interfaces";
 import { Card, Form } from "antd";
 import classNames from "classnames";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { SourceData } from "@/interfaces";
 import styles from "./index.module.css";
 import SourceSider from "@/components/Chat/SourceSider";
@@ -19,8 +19,10 @@ import { useAppSelector, useAppDispatch } from "@/store/hooks";
 import { shallowEqual } from "react-redux";
 import { registerConversation } from "@/store/slices/conversationSlice";
 import { EventType, useEmitter } from "@/events";
-import { clearCurrentChat, setMessages } from "@/store/slices/chatSlice";
-import { conversationAPI } from "@/services";
+import {
+  clearCurrentChat,
+  getConversationMessages,
+} from "@/store/slices/chatSlice";
 
 const ChatPage: React.FC = () => {
   const navigate = useNavigate();
@@ -42,25 +44,19 @@ const ChatPage: React.FC = () => {
   const [sourceData, setSourceData] = useState<SourceData | undefined>();
   const [form] = Form.useForm<ChatInputFormValues>();
 
-  useRequest(() => conversationAPI.getConversationMessages(conversationId), {
-    ready: !!conversationId,
-    refreshDeps: [conversationId],
-    onSuccess: data => {
-      dispatch(setMessages(data.messages));
-    },
-    onError: error => {
-      // 当前会话不存在时，重定向到首页
-      // @ts-expect-error: error is of type any
-      if (error?.code === 404) {
-        navigate("/chat");
-      }
-    },
-  });
-
   useEmitter(EventType.ChangeConversion, () => {
     abortMessage();
     dispatch(clearCurrentChat());
   });
+
+  useEffect(() => {
+    conversationId &&
+      dispatch(getConversationMessages(conversationId))
+        .unwrap()
+        .catch(error => {
+          console.info("error", error);
+        });
+  }, [conversationId, dispatch]);
 
   const handleSourceClick = useMemoizedFn(
     (index: number, message: ChatMessageType) => {

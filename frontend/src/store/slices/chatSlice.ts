@@ -1,5 +1,6 @@
 import { ChatMessage, SearchSource, ToolCallMessage } from "@/interfaces";
-import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { chatAPI } from "@/services";
+import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { isEmpty } from "lodash-es";
 
 interface ChatState {
@@ -37,13 +38,17 @@ function lastMessageCheck(messages: ChatMessage[]): ChatMessage | undefined {
   return messages.at(-1)?.role === "assistant" ? messages.at(-1) : undefined;
 }
 
+export const getConversationMessages = createAsyncThunk(
+  "chat/getConversationMessages",
+  async (conversationId: string) => {
+    return chatAPI.getConversationMessages(conversationId);
+  }
+);
+
 const chatSlice = createSlice({
   name: "chat",
   initialState,
   reducers: {
-    setMessages: (state, action: PayloadAction<ChatMessage[]>) => {
-      state.messages = action.payload;
-    },
     addMessage: (state, action: PayloadAction<ChatMessage>) => {
       state.messages.push(action.payload);
     },
@@ -132,10 +137,14 @@ const chatSlice = createSlice({
       state.isCallingTools = initialState.isCallingTools;
     },
   },
+  extraReducers(builder) {
+    builder.addCase(getConversationMessages.fulfilled, (state, action) => {
+      state.messages = action.payload;
+    });
+  },
 });
 
 export const {
-  setMessages,
   addMessage,
   addMessageAtIndex,
   clearMessages,

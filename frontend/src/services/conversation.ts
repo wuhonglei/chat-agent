@@ -35,22 +35,6 @@ export const conversationAPI = {
     return await apiClient.get("/api/conversation/list", { params });
   },
 
-  // 获取对话消息列表
-  getConversationMessages: async (
-    conversationId?: string
-  ): Promise<ConversationMessageListResponse> => {
-    if (!conversationId) {
-      return {
-        total: 0,
-        offset: 0,
-        limit: 0,
-        messages: [],
-      };
-    }
-
-    return await apiClient.get(`/api/conversation/${conversationId}/messages`);
-  },
-
   // 更新对话信息
   updateConversation: async (
     conversationId: string,

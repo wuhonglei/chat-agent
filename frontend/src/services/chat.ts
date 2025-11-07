@@ -6,6 +6,7 @@ import {
   ChatResponse,
   StreamMessage,
   MCPConfigItem,
+  ChatMessage,
 } from "@/interfaces";
 import { apiClient } from "./base";
 import snakecaseKeys from "snakecase-keys";
@@ -13,6 +14,16 @@ import camelcaseKeys from "camelcase-keys";
 
 // Chat API
 export const chatAPI = {
+  // 获取对话消息列表
+  getConversationMessages: async (
+    conversationId: string
+  ): Promise<ChatMessage[]> => {
+    const res = await apiClient.get(
+      `/api/conversation/${conversationId}/messages`
+    );
+    return res.messages;
+  },
+
   // Send message
   sendMessage: async (
     data: ChatRequest
