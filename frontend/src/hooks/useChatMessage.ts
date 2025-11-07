@@ -88,7 +88,7 @@ export const useChatMessage = (
     const userMessage: ChatMessage = {
       role: "user",
       content: values.message,
-      created_at: getDatetimeNow(),
+      createdAt: getDatetimeNow(),
       messageMetadata: omit(values, ["message"]),
     };
     dispatch(
@@ -102,7 +102,7 @@ export const useChatMessage = (
       role: "assistant",
       content: "",
       reasoning: "",
-      created_at: getDatetimeNow(),
+      createdAt: getDatetimeNow(),
       messageMetadata: omit(values, ["message"]),
     };
     dispatch(addMessage(assistantMessage));

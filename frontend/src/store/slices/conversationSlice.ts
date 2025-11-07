@@ -149,8 +149,8 @@ const conversationSlice = createSlice({
   extraReducers: builder => {
     // registerConversation
     builder.addCase(registerConversation.fulfilled, (state, action) => {
-      state.conversationInfo = action.payload;
       state.conversations.unshift(action.payload);
+      state.conversationInfo = action.payload;
     });
 
     // loadConversations

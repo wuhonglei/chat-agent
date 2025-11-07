@@ -50,8 +50,8 @@ app.add_middleware(
 # Include routers
 app.include_router(conversation.router,
                    prefix="/api/conversation", tags=["conversation"])
-app.include_router(health.router, prefix="/api/health", tags=["health"])
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
+app.include_router(health.router, prefix="/api/health", tags=["health"])
 
 
 @app.get("/")
