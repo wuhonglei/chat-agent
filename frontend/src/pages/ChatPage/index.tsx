@@ -8,7 +8,7 @@ import {
 } from "@/interfaces";
 import { Card, Form } from "antd";
 import classNames from "classnames";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { SourceData } from "@/interfaces";
 import styles from "./index.module.css";
 import SourceSider from "@/components/Chat/SourceSider";
@@ -19,10 +19,8 @@ import { useAppSelector, useAppDispatch } from "@/store/hooks";
 import { shallowEqual } from "react-redux";
 import { registerConversation } from "@/store/slices/conversationSlice";
 import { EventType, useEmitter } from "@/events";
-import {
-  clearCurrentChat,
-  getConversationMessages,
-} from "@/store/slices/chatSlice";
+import { clearCurrentChat, setMessages } from "@/store/slices/chatSlice";
+import { chatAPI } from "@/services";
 
 const ChatPage: React.FC = () => {
   const navigate = useNavigate();
@@ -49,14 +47,18 @@ const ChatPage: React.FC = () => {
     dispatch(clearCurrentChat());
   });
 
-  useEffect(() => {
-    conversationId &&
-      dispatch(getConversationMessages(conversationId))
-        .unwrap()
-        .catch(error => {
-          console.info("error", error);
-        });
-  }, [conversationId, dispatch]);
+  useRequest(() => chatAPI.getConversationMessages(conversationId as string), {
+    ready: !!conversationId,
+    refreshDeps: [conversationId],
+    onSuccess: data => {
+      dispatch(setMessages(data));
+    },
+    onError: error => {
+      if ((error as any).code === 404) {
+        navigate("/chat", { replace: true });
+      }
+    },
+  });
 
   const handleSourceClick = useMemoizedFn(
     (index: number, message: ChatMessageType) => {

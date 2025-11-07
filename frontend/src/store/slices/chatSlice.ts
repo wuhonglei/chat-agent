@@ -1,6 +1,5 @@
 import { ChatMessage, SearchSource, ToolCallMessage } from "@/interfaces";
-import { chatAPI } from "@/services";
-import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { isEmpty } from "lodash-es";
 
 interface ChatState {
@@ -9,7 +8,6 @@ interface ChatState {
   isStreaming: boolean;
   isReasoning: boolean;
   isCallingTools: boolean;
-  error: string | null;
 }
 
 export const getInitialState = (): ChatState => {
@@ -19,7 +17,6 @@ export const getInitialState = (): ChatState => {
     isStreaming: false,
     isReasoning: false,
     isCallingTools: false,
-    error: null,
   };
 };
 
@@ -38,17 +35,13 @@ function lastMessageCheck(messages: ChatMessage[]): ChatMessage | undefined {
   return messages.at(-1)?.role === "assistant" ? messages.at(-1) : undefined;
 }
 
-export const getConversationMessages = createAsyncThunk(
-  "chat/getConversationMessages",
-  async (conversationId: string) => {
-    return chatAPI.getConversationMessages(conversationId);
-  }
-);
-
 const chatSlice = createSlice({
   name: "chat",
   initialState,
   reducers: {
+    setMessages: (state, action: PayloadAction<ChatMessage[]>) => {
+      state.messages = action.payload;
+    },
     addMessage: (state, action: PayloadAction<ChatMessage>) => {
       state.messages.push(action.payload);
     },
@@ -124,27 +117,19 @@ const chatSlice = createSlice({
         lastMessage.toolCalls.push(action.payload);
       }
     },
-    clearError: state => {
-      state.error = null;
-    },
     clearCurrentChat: state => {
       const initialState = getInitialState();
       state.messages = initialState.messages;
-      state.error = initialState.error;
       state.isLoading = initialState.isLoading;
       state.isStreaming = initialState.isStreaming;
       state.isReasoning = initialState.isReasoning;
       state.isCallingTools = initialState.isCallingTools;
     },
   },
-  extraReducers(builder) {
-    builder.addCase(getConversationMessages.fulfilled, (state, action) => {
-      state.messages = action.payload;
-    });
-  },
 });
 
 export const {
+  setMessages,
   addMessage,
   addMessageAtIndex,
   clearMessages,
@@ -158,7 +143,6 @@ export const {
   appendReasoningToLastMessage,
   appendToolCallToLastMessage,
   setReasoning,
-  clearError,
   clearLastMessage,
   clearCurrentChat,
 } = chatSlice.actions;
