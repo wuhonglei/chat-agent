@@ -48,6 +48,13 @@ const ChatPage: React.FC = () => {
     onSuccess: data => {
       dispatch(setMessages(data.messages));
     },
+    onError: error => {
+      // 当前会话不存在时，重定向到首页
+      // @ts-expect-error: error is of type any
+      if (error?.code === 404) {
+        navigate("/chat");
+      }
+    },
   });
 
   useEmitter(EventType.ChangeConversion, () => {

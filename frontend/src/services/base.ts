@@ -44,7 +44,7 @@ apiClient.interceptors.response.use(
     if (code !== 0) {
       const message = getMessageInstance();
       message.error(msg);
-      return Promise.reject(new Error(msg));
+      return Promise.reject(response.data);
     }
 
     let data = response.data.data;

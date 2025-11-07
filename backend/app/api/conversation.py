@@ -65,6 +65,11 @@ async def get_conversations(db: Session = Depends(get_db)):
 async def get_messages(conversation_id: str, db: Session = Depends(get_db)):
     """Get messages by conversation ID"""
     try:
+        conversation = db.get(Conversation, conversation_id)
+        if not conversation:
+            logger.error(f"Conversation {conversation_id} not found")
+            return ApiResponse.error(code=404, msg="对话不存在", data=None)
+
         messages = db.exec(select(Message).where(
             Message.conversation_id == conversation_id).order_by(Message.created_at.asc())).all()
         chat_messages = [ChatMessageItem.model_validate(
