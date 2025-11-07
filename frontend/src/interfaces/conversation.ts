@@ -20,11 +20,16 @@ export interface ConversationListResponse {
   conversations: ConversationInfo[];
 }
 
-export interface ConversationDetailResponse extends ConversationInfo {
-  messages: ChatMessage[];
-}
-
 export interface UpdateConversationRequest {
   id: string;
   title: string;
+}
+
+export interface ConversationDetailResponse extends ConversationInfo {}
+
+export interface ConversationMessageListResponse {
+  total: number;
+  offset: number;
+  limit: number;
+  messages: ChatMessage[];
 }

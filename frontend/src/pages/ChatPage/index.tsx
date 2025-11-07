@@ -1,7 +1,7 @@
 import ChatInput from "@/components/Chat/ChatInput";
 import { ChatMessageList } from "@/components/Chat/ChatMessage";
 import { useChatMessage } from "@/hooks";
-import { useMemoizedFn } from "ahooks";
+import { useMemoizedFn, useRequest } from "ahooks";
 import {
   ChatInputFormValues,
   ChatMessage as ChatMessageType,
@@ -19,7 +19,8 @@ import { useAppSelector, useAppDispatch } from "@/store/hooks";
 import { shallowEqual } from "react-redux";
 import { registerConversation } from "@/store/slices/conversationSlice";
 import { EventType, useEmitter } from "@/events";
-import { clearCurrentChat } from "@/store/slices/chatSlice";
+import { clearCurrentChat, setMessages } from "@/store/slices/chatSlice";
+import { conversationAPI } from "@/services";
 
 const ChatPage: React.FC = () => {
   const navigate = useNavigate();
@@ -40,6 +41,14 @@ const ChatPage: React.FC = () => {
     );
   const [sourceData, setSourceData] = useState<SourceData | undefined>();
   const [form] = Form.useForm<ChatInputFormValues>();
+
+  useRequest(() => conversationAPI.getConversationMessages(conversationId), {
+    ready: !!conversationId,
+    refreshDeps: [conversationId],
+    onSuccess: data => {
+      dispatch(setMessages(data.messages));
+    },
+  });
 
   useEmitter(EventType.ChangeConversion, () => {
     abortMessage();

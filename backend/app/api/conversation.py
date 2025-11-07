@@ -61,15 +61,21 @@ async def get_conversations(db: Session = Depends(get_db)):
         return ApiResponse.error(code=1, msg=f"获取对话列表失败: {str(e)}")
 
 
-@router.get("/message/list")
-async def get_messages(conversation_id: str, db: Session = Depends(get_db)) -> ApiResponse[list[ChatMessageItem]]:
+@router.get("/{conversation_id}/messages")
+async def get_messages(conversation_id: str, db: Session = Depends(get_db)):
     """Get messages by conversation ID"""
     try:
         messages = db.exec(select(Message).where(
             Message.conversation_id == conversation_id).order_by(Message.created_at.asc())).all()
         chat_messages = [ChatMessageItem.model_validate(
             message.model_dump(mode="json")) for message in messages]
-        return ApiResponse.success(data=chat_messages, msg="获取消息列表成功")
+        data = {
+            "total": len(chat_messages),
+            "offset": 0,
+            "limit": len(chat_messages),
+            "messages": chat_messages
+        }
+        return ApiResponse.success(data=data, msg="获取消息列表成功")
     except Exception as e:
         logger.error(f"Failed to get messages: {e}")
         return ApiResponse.error(code=1, msg=f"获取消息列表失败: {str(e)}")

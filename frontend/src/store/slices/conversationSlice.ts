@@ -13,7 +13,6 @@ interface ConversationState {
 
   // 当前对话信息
   conversationInfo: ConversationInfo | null;
-
   total: number;
   offset: number;
   limit: number;
@@ -58,10 +57,10 @@ export const loadConversations = createAsyncThunk(
 );
 
 /**
- * 加载对话详情（包括历史消息）
+ * 加载对话详情摘要（不包含 messages 列表）
  */
-export const loadConversation = createAsyncThunk(
-  "conversation/loadConversation",
+export const getConversationDetail = createAsyncThunk(
+  "conversation/getConversationDetail",
   async (conversationId: string) => {
     return await conversationAPI.getConversation(conversationId);
   }

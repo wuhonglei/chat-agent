@@ -1,26 +1,27 @@
 import {
   ConversationInfo,
-  ConversationDetailResponse,
   ConversationListResponse,
   CreateConversationRequest,
   UpdateConversationRequest,
+  ConversationMessageListResponse,
+  ConversationDetailResponse,
 } from "@/interfaces";
 import { apiClient } from "./base";
 
 // Conversation API
 export const conversationAPI = {
-  // 创建对话
-  createConversation: async (
-    data?: CreateConversationRequest
-  ): Promise<ConversationInfo> => {
-    return await apiClient.post("/api/conversation/register", data || {});
-  },
-
   // 获取对话详情
   getConversation: async (
     conversationId: string
   ): Promise<ConversationDetailResponse> => {
     return await apiClient.get(`/api/conversation/detail/${conversationId}`);
+  },
+
+  // 创建对话
+  createConversation: async (
+    data?: CreateConversationRequest
+  ): Promise<ConversationInfo> => {
+    return await apiClient.post("/api/conversation/register", data || {});
   },
 
   // 获取对话列表
@@ -29,6 +30,22 @@ export const conversationAPI = {
     offset?: number;
   }): Promise<ConversationListResponse> => {
     return await apiClient.get("/api/conversation/list", { params });
+  },
+
+  // 获取对话消息列表
+  getConversationMessages: async (
+    conversationId?: string
+  ): Promise<ConversationMessageListResponse> => {
+    if (!conversationId) {
+      return {
+        total: 0,
+        offset: 0,
+        limit: 0,
+        messages: [],
+      };
+    }
+
+    return await apiClient.get(`/api/conversation/${conversationId}/messages`);
   },
 
   // 更新对话信息
