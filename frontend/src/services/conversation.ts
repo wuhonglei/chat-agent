@@ -21,7 +21,10 @@ export const conversationAPI = {
   createConversation: async (
     data?: CreateConversationRequest
   ): Promise<ConversationInfo> => {
-    return await apiClient.post("/api/conversation/register", data || {});
+    return await apiClient.post(
+      "/api/conversation/register",
+      data || { title: "新对话" }
+    );
   },
 
   // 获取对话列表

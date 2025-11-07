@@ -1,15 +1,24 @@
 """Conversation models for FastAPI"""
 
 from typing import Optional
+from enum import Enum
 
 from pydantic import BaseModel, Field, ConfigDict
 from app.models.chat import ChatMessageItemReq
+
+
+class CreatedBy(str, Enum):
+    """标题创建方式枚举"""
+    DEFAULT = "default"
+    USER = "user"
+    LLM = "llm"
 
 
 class ConversationInfo(BaseModel):
     """Conversation information model"""
     id: str = Field(..., description="Conversation ID")
     title: str = Field(..., description="Conversation title")
+    created_by: CreatedBy = Field(..., description="Conversation created by")
     created_at: str = Field(..., description="Creation timestamp (ISO format)")
     updated_at: str = Field(..., description="Update timestamp (ISO format)")
     message_count: int = Field(...,

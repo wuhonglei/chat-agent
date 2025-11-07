@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends
 from app.models.chat import ChatMessageItem
-from app.models.conversation import ConversationInfo, RegisterConversationRequest, UpdateConversationRequest
+from app.models.conversation import ConversationInfo, RegisterConversationRequest, UpdateConversationRequest, CreatedBy
 from app.models.response import ApiResponse
 from app.models.db import Conversation, Message
 from app.core.db import get_db
@@ -27,7 +27,8 @@ def conversation_to_dict(conversation: Conversation) -> dict:
 async def register_conversation(request: RegisterConversationRequest, db: Session = Depends(get_db)) -> ApiResponse[ConversationInfo]:
     """Register a new conversation"""
     try:
-        conversation = Conversation(title=request.title or "新对话")
+        conversation = Conversation(
+            title=request.title, created_by=CreatedBy.DEFAULT)
         db.add(conversation)
         db.commit()
         db.refresh(conversation)
