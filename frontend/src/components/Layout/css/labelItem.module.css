@@ -1,6 +1,5 @@
 .operation {
   position: absolute;
-  background-color: white;
 }
 
 .container:hover > .operation {

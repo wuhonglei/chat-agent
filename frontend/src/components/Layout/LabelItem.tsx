@@ -37,17 +37,15 @@ export default function LabelItem({ onDelete, conversation }: Props) {
           onDelete(conversation.id);
         }}
       >
-        <Button
-          type="text"
-          shape="circle"
-          className={classNames(
-            "invisible transition-all duration-300 absolute right-0",
-            styles.operation
-          )}
-          icon={<DeleteOutlined />}
+        <DeleteOutlined
           onClick={e => {
             e.stopPropagation();
+            onDelete(conversation.id);
           }}
+          className={classNames(
+            "invisible transition-opacity duration-300 absolute right-0",
+            styles.operation
+          )}
         />
       </Popconfirm>
     </div>
