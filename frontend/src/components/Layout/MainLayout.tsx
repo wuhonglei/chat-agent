@@ -38,16 +38,17 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const location = useLocation();
   const { token } = useToken();
   const [collapsed, setCollapsed] = useState(false);
+  const conversationInfo = useConversionInfo();
 
   const dispatch = useAppDispatch();
   const onDeleteConversation = useMemoizedFn(async (id: string) => {
     await dispatch(deleteConversation(id)).unwrap();
+    // 如果删除的是当前会话，删除后跳转到新的聊天页面
     if (location.pathname.includes(id)) {
       navigate("/chat");
     }
   });
   const menuItems = useMenuItems(onDeleteConversation);
-  const conversationInfo = useConversionInfo();
 
   const handleMenuClick: MenuProps["onClick"] = ({ key }) => {
     emitter.emit(EventType.ChangeConversion);

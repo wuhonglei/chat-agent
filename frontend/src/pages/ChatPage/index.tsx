@@ -16,6 +16,7 @@ import WelcomePage from "@/components/Chat/WelcomePage";
 import { isEmpty } from "lodash-es";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAppSelector, useAppDispatch } from "@/store/hooks";
+import { shallowEqual } from "react-redux";
 import { registerConversation } from "@/store/slices/conversationSlice";
 import { EventType, useEmitter } from "@/events";
 import { clearCurrentChat } from "@/store/slices/chatSlice";
@@ -27,8 +28,16 @@ const ChatPage: React.FC = () => {
   const { sendMessage, reSendMessage, abortMessage } = useChatMessage({
     conversationId,
   });
-  const { messages, isStreaming, isLoading, isReasoning, isCallingTools } =
-    useAppSelector(state => state.chat);
+  const { isStreaming, isLoading, isReasoning, isCallingTools } =
+    useAppSelector(
+      state => ({
+        isStreaming: state.chat.isStreaming,
+        isLoading: state.chat.isLoading,
+        isReasoning: state.chat.isReasoning,
+        isCallingTools: state.chat.isCallingTools,
+      }),
+      shallowEqual
+    );
   const [sourceData, setSourceData] = useState<SourceData | undefined>();
   const [form] = Form.useForm<ChatInputFormValues>();
 
