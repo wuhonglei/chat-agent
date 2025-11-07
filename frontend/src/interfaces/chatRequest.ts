@@ -24,7 +24,7 @@ export interface ChatMessage {
   role: RoleType;
   content: string;
   reasoning?: string;
-  timestamp: string;
+  created_at: string;
   sources?: SearchSource[];
   toolCalls?: ToolCallMessage[];
   messageMetadata: Omit<ChatInputFormValues, "message">;
@@ -33,7 +33,7 @@ export interface ChatMessage {
 export interface ChatResponse {
   message: string;
   sources: SearchSource[];
-  timestamp: string;
+  created_at: string;
 }
 
 export interface RetrieverSource {

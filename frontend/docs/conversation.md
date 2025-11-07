@@ -63,10 +63,10 @@ class Message(SQLModel, table=True):
     conversation_id: str = Field(index=True)
     role: str                     # "user" | "assistant" | "system"
     content: str                  # 消息内容
-    timestamp: datetime
-    reasoning: Optional[str]      # AI��理过程
-    tool_calls: Optional[dict]    # 工具调用记录
-    message_metadata: dict        # 消息元数据
+    created_at: datetime
+    reasoning: Optional[str]      # AI推理过程
+    tool_calls: Optional[list[ToolCallMessage]]    # 工具调用记录
+    message_metadata: dict[str, Any]        # 消息元数据
 ```
 
 ### 4. API接口设计

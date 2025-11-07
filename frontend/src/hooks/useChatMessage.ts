@@ -28,6 +28,7 @@ import {
   buildFootnoteDefinition,
   getHistoryMessages,
   isUserRole,
+  getDatetimeNow,
 } from "@/utils";
 import { emitter, EventType } from "@/events";
 
@@ -87,7 +88,7 @@ export const useChatMessage = (
     const userMessage: ChatMessage = {
       role: "user",
       content: values.message,
-      timestamp: new Date().toISOString(),
+      created_at: getDatetimeNow(),
       messageMetadata: omit(values, ["message"]),
     };
     dispatch(
@@ -101,7 +102,7 @@ export const useChatMessage = (
       role: "assistant",
       content: "",
       reasoning: "",
-      timestamp: new Date().toISOString(),
+      created_at: getDatetimeNow(),
       messageMetadata: omit(values, ["message"]),
     };
     dispatch(addMessage(assistantMessage));
