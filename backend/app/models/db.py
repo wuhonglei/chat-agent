@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Any, Optional
 
 from sqlalchemy import JSON as SQLJSON
-from sqlalchemy import DateTime, Enum as SQLEnum
+from sqlalchemy import DateTime
 from sqlmodel import SQLModel, Field
 
 from app.utils.common import get_datetime_now
@@ -48,7 +48,6 @@ class Conversation(SQLModel, table=True):
     created_by: CreatedBy = Field(
         default=CreatedBy.DEFAULT,
         description="标题创建方式",
-        sa_type=SQLEnum(CreatedBy)
     )
     user_id: Optional[str] = Field(
         default=None, index=True, max_length=36)  # 预留扩展

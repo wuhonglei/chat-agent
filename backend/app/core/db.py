@@ -4,6 +4,7 @@ from sqlalchemy import inspect, text
 from loguru import logger
 from app.core.config import settings
 from typing import Generator
+from app.models.conversation import CreatedBy
 # 数据库连接字符串
 # 格式：postgresql://用户名:密码@主机:端口/数据库名
 SQLALCHEMY_DATABASE_URL = f"postgresql://{settings.PG_USER_NAME}:{settings.PG_PASSWORD}@{settings.PG_HOST}:{settings.PG_PORT}/{settings.PG_DB}"
@@ -34,65 +35,90 @@ def get_db() -> Generator[Session, None, None]:
         session.close()
 
 
-def migrate_column_names():
-    """
-    迁移字段名称：将旧字段名重命名为新字段名
+def _get_table_columns(inspector, table_name: str) -> dict[str, dict]:
+    """获取表的列信息，返回 {列名: 列信息} 字典"""
+    if not inspector.has_table(table_name):
+        return {}
+    return {col["name"]: col for col in inspector.get_columns(table_name)}
 
-    此函数会在启动时检查并执行字段重命名，确保数据库结构与模型定义一致。
-    如果表已存在且包含旧字段名，会自动重命名为新字段名。
-    """
-    # 定义需要迁移的字段映射：{表名: {旧字段名: 新字段名}}
+
+def _get_enum_value(value) -> str:
+    """获取枚举值，如果是枚举成员则返回其值，否则返回原值"""
+    return value.value if hasattr(value, 'value') else value
+
+
+def migrate_column_names():
+    """迁移字段名称：将旧字段名重命名为新字段名"""
     column_migrations = {
         "messages": {"timestamp": "created_at"},
-        # 可以在这里添加其他表的字段迁移
-        # "users": {"old_field": "new_field"},
     }
 
     inspector = inspect(engine)
-
-    # 使用 begin() 自动管理事务，确保要么全部成功要么全部回滚
     with engine.begin() as conn:
         for table_name, field_mapping in column_migrations.items():
-            # 检查表是否存在
-            if not inspector.has_table(table_name):
+            columns = _get_table_columns(inspector, table_name)
+            if not columns:
                 logger.debug(
                     f"Table {table_name} does not exist, skipping migration")
                 continue
 
-            # 获取表的列信息
-            columns = [col["name"]
-                       for col in inspector.get_columns(table_name)]
-
             for old_field, new_field in field_mapping.items():
-                # 如果旧字段存在且新字段不存在，则执行重命名
                 if old_field in columns and new_field not in columns:
-                    try:
-                        # PostgreSQL 使用 ALTER TABLE ... RENAME COLUMN
-                        alter_sql = text(
-                            f'ALTER TABLE "{table_name}" RENAME COLUMN "{old_field}" TO "{new_field}"'
-                        )
-                        conn.execute(alter_sql)
-                        logger.info(
-                            f"Successfully renamed column '{old_field}' to '{new_field}' "
-                            f"in table '{table_name}'"
-                        )
-                    except Exception as e:
-                        logger.error(
-                            f"Failed to rename column '{old_field}' to '{new_field}' "
-                            f"in table '{table_name}': {e}"
-                        )
-                        raise
+                    conn.execute(text(
+                        f'ALTER TABLE "{table_name}" RENAME COLUMN "{old_field}" TO "{new_field}"'
+                    ))
+                    logger.info(
+                        f"Renamed column '{old_field}' to '{new_field}' in table '{table_name}'")
                 elif old_field in columns and new_field in columns:
-                    # 如果两个字段都存在，需要先删除旧字段（谨慎操作）
                     logger.warning(
                         f"Both '{old_field}' and '{new_field}' exist in table '{table_name}'. "
-                        f"Manual intervention may be required."
+                        "Manual intervention may be required."
                     )
-                else:
+
+
+def migrate_add_columns():
+    """迁移新增字段：为现有表添加新字段"""
+    column_additions = {
+        "conversations": {
+            "created_by": {
+                "type": "VARCHAR(20)",
+                "default": CreatedBy.DEFAULT,
+                "nullable": False,
+            }
+        }
+    }
+
+    inspector = inspect(engine)
+    with engine.begin() as conn:
+        for table_name, field_configs in column_additions.items():
+            columns = _get_table_columns(inspector, table_name)
+            if not columns:
+                logger.debug(
+                    f"Table {table_name} does not exist, skipping migration")
+                continue
+
+            for field_name, field_info in field_configs.items():
+                if field_name in columns:
                     logger.debug(
-                        f"Column '{old_field}' does not exist in table '{table_name}', "
-                        f"migration not needed"
-                    )
+                        f"Column '{field_name}' already exists in table '{table_name}'")
+                    continue
+
+                field_type = field_info["type"]
+                default_value = _get_enum_value(field_info["default"])
+                nullable = field_info.get("nullable", True)
+
+                # 构建 ALTER TABLE 语句
+                not_null_clause = " NOT NULL" if not nullable else ""
+                alter_sql = (
+                    f'ALTER TABLE "{table_name}" '
+                    f'ADD COLUMN "{field_name}" {field_type}{not_null_clause} '
+                    f"DEFAULT '{default_value}'"
+                )
+                conn.execute(text(alter_sql))
+                logger.info(
+                    f"Added column '{field_name}' to table '{table_name}' "
+                    f"with default value '{default_value}'"
+                )
 
 
 def create_db_and_tables():
@@ -104,8 +130,11 @@ def create_db_and_tables():
     如果遇到权限问题，表可能已经存在或需要数据库管理员手动创建。
     """
     try:
-        # 先执行字段迁移（如果表已存在）
+        # 先执行字段重命名迁移（如果表已存在）
         migrate_column_names()
+
+        # 执行新增字段迁移（如果表已存在）
+        migrate_add_columns()
 
         # 然后创建/更新表结构
         SQLModel.metadata.create_all(engine, checkfirst=True)
