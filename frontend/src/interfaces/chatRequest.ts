@@ -24,7 +24,7 @@ export interface ChatMessage {
   role: RoleType;
   content: string;
   reasoning?: string;
-  created_at: string;
+  createdAt: string;
   sources?: SearchSource[];
   toolCalls?: ToolCallMessage[];
   messageMetadata: Omit<ChatInputFormValues, "message">;

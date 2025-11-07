@@ -1,3 +1,4 @@
+import { TitleCreatedBy } from "@/constants";
 import { ChatMessage } from "./chatRequest";
 
 // Conversation types
@@ -7,6 +8,7 @@ export interface ConversationInfo {
   createdAt: string;
   updatedAt: string;
   messageCount: number;
+  createdBy: TitleCreatedBy;
 }
 
 export interface CreateConversationRequest {

@@ -45,7 +45,7 @@ class Conversation(SQLModel, table=True):
     id: str = Field(default_factory=gen_uuid, primary_key=True,
                     index=True, max_length=36)
     title: str
-    created_by: CreatedBy = Field(
+    created_by: str = Field(
         default=CreatedBy.DEFAULT,
         description="标题创建方式",
     )

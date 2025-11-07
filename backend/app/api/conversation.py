@@ -48,7 +48,6 @@ async def get_conversations(db: Session = Depends(get_db)):
     try:
         conversations = db.exec(select(Conversation).order_by(
             Conversation.updated_at.desc())).all()
-        logger.debug(f"Conversations: {conversations}")
         logger.debug(f"Found {len(conversations)} conversations")
         conversation_list = [ConversationInfo.model_validate(
             conversation_to_dict(conv)) for conv in conversations]
