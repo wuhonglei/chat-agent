@@ -13,33 +13,33 @@
 ## 2. 功能需求
 
 ### 2.1 对话创建功能
-**功能描述**: 用户可以创建新的对话会话
+**功能描述**: 用户通过后端 `POST /api/conversation/register` 接口创建新的对话会话，后端按照统一响应格式返回新建会话详情。
 
 **用户故事**:
 - 作为用户，我希望能够快速开始一个新的对话
 - 作为用户，我希望新对话有默认的标题，并且可以编辑
 
 **验收标准**:
-- [ ] 点击"新建对话"按钮可以创建新对话
-- [ ] 新对话有默认标题(`新对话`)
-- [ ] 新对话创建后自动切换到该对话
-- [ ] 新对话为空白状态，可以立即开始聊天
+- [ ] 点击"新建对话"按钮会调用 `POST /api/conversation/register`
+- [ ] 前端在未填写标题时向接口提交默认标题（例如 `新对话`），后端会将 `created_by` 标记为 `default`
+- [ ] 接口返回的 `ApiResponse` 中 `code=0` 且 `data` 包含 `id`、`title`、`created_at`、`updated_at`、`message_count`
+- [ ] 创建完成后自动切换到该对话并准备接受消息
 
 ### 2.2 对话删除功能
-**功能描述**: 用户可以删除不需要的对话会话
+**功能描述**: 用户可以通过 `DELETE /api/conversation/delete/{conversation_id}` 删除不需要的对话会话，接口会返回被删除的会话 ID。
 
 **用户故事**:
 - 作为用户，我希望能够删除不需要的对话
 - 作为用户，我希望删除对话时有确认提示，防止误删
 
 **验收标准**:
-- [ ] 在对话列表中可以删除对话
-- [ ] 删除对话时弹出确认对话框
-- [ ] 删除成功后从对话列表中移除
-- [ ] 删除当前正在进行的对话时，自动切换到新的对话会话
+- [ ] 在对话列表中点击删除按钮前先弹出二次确认
+- [ ] 删除动作会调用 `DELETE /api/conversation/delete/{conversation_id}`
+- [ ] 接口返回 `ApiResponse` 且 `code=0`，`data` 为已删除的会话 ID
+- [ ] 删除当前正在进行的对话时，前端自动切换到最新的其它会话或创建新会话
 
 ### 2.3 对话标题编辑功能
-**功能描述**: 用户可以编辑对话的标题以便识别
+**功能描述**: 用户可以通过 `PUT /api/conversation/update/{conversation_id}` 编辑对话的标题，后端会持久化更新并返回最新的会话信息。
 
 **用户故事**:
 - 作为用户，我希望对话标题能够自动基于对话内容生成，一旦生成后，后续对话不会再次自动生成
@@ -47,36 +47,36 @@
 
 **验收标准**:
 - [ ] 点击对话标题可以进入编辑模式
-- [ ] 支持手动输入自定义标题
-- [ ] 支持基于对话内容自动生成标题（AI生成）
-- [ ] 标题编辑后自动保存
-- [ ] 标题长度限制在50个字符以内
+- [ ] 输入框支持手动输入自定义标题，长度限制 50 个字符
+- [ ] 保存时调用 `PUT /api/conversation/update/{conversation_id}`，请求体包含 `id` 与新标题
+- [ ] 接口返回 `ApiResponse` 且 `code=0`，`data` 为更新后的会话信息
+- [ ] 标题自动生成功能通过聊天流式接口的 `title` 事件触发（见 5.4 节）
 
 ### 2.4 对话历史保存功能
-**功能描述**: 所有对话内容和历史记录需要保存在服务端
+**功能描述**: 所有对话内容和历史记录通过消息接口保存在服务端，可通过 `GET /api/conversation/{conversation_id}/messages` 获取。
 
 **用户故事**:
 - 作为用户，我希望我的对话历史能够被安全保存
 - 作为用户，我希望能够随时访问之前的对话内容
 
 **验收标准**:
-- [ ] 所有对话消息实时保存到服务端
-- [ ] 刷新页面后对话历史保持不变
-- [ ] 切换对话时能够正确加载对应的历史记录
-- [ ] 支持长对话历史（至少1000条消息）
+- [ ] 对话消息由聊天服务实时写入数据库，刷新页面后历史保持不变
+- [ ] 切换对话时调用 `GET /api/conversation/{conversation_id}/messages` 获取指定会话消息列表
+- [ ] 接口返回的消息列表与数据库时间顺序一致，包含推理内容、工具调用等元信息
+- [ ] 支持至少 1000 条消息的分页或懒加载方案
 
 ### 2.5 对话列表管理功能
-**功能描述**: 提供直观的对话列表界面
+**功能描述**: 提供直观的对话列表界面，通过 `GET /api/conversation/list` 获取会话集合。
 
 **用户故事**:
 - 作为用户，我希望能够看到所有对话的列表
 - 作为用户，我希望能够快速切换到任意对话
 
 **验收标准**:
-- [ ] 显示所有对话的标题和最后更新时间
-- [ ] 支持按时间排序（最新优先）
-- [ ] 当前对话在列表中有高亮显示
-- [ ] 点击对话项可以切换到该对话
+- [ ] 显示所有对话的标题、最后更新时间、消息数量
+- [ ] 会话列表请求 `GET /api/conversation/list`，接口返回 `ApiResponse`，`data` 中包含 `total`、`offset`、`limit` 以及 `conversations`
+- [ ] 按更新时间倒序展示，当前对话高亮
+- [ ] 点击会话项后加载对应历史并切换上下文
 
 ### 2.6 对话搜索功能（扩展功能）
 **功能描述**: 用户可以搜索和筛选对话
@@ -101,9 +101,9 @@
 
 ### 3.2 后端技术要求
 - **框架**: 基于FastAPI实现
-- **数据存储**: 使用Redis存储会话数据
-- **API设计**: RESTful API设计
-- **数据格式**: JSON格式数据交换
+- **数据存储**: 使用数据库持久化会话与消息（SQLModel + SQLite/PostgreSQL，可通过配置调整）
+- **API设计**: RESTful API + SSE 流式接口组合
+- **数据格式**: JSON 数据交换，统一使用 `ApiResponse` 包裹
 
 ### 3.3 数据模型设计
 
@@ -126,6 +126,7 @@ class User:
 class Conversation:
     id: str                    # 对话唯一标识
     title: str                 # 对话标题
+    created_by: str            # 标题创建方式: default/user/llm
     user_id: str              # 用户ID（预留扩展）
     created_at: datetime       # 创建时间
     updated_at: datetime       # 更新时间
@@ -142,14 +143,14 @@ class Message:
     conversation_id: str                 # 所属对话ID
     role: str                            # 消息角色: "user" | "assistant"
     content: str                         # 消息内容
-    timestamp: datetime                  # 时间戳
+    timestamp: datetime                  # 时间戳（数据库字段名为 created_at）
     reasoning: str | None                # 推理内容（仅助手消息使用，用户消息为 None）
     tool_calls: list[AssistantToolCallMessage] | None    # 工具调用列表（仅助手消息使用，用户消息为 None）
     metadata: dict[str, Any]              # 元数据（模型调用、配置）
 ```
 
 **数据库设计说明**：
-- **推荐使用统一表存储**：用户消息和助手消息存储在同一个 `messages` 表中，通过 `role` 字段区分类型
+- **统一表存储**：用户消息和助手消息存储在同一个 `messages` 表中，通过 `role` 字段区分类型
 - **不建议分表**：虽然两种消息类型有字段差异，但：
   1. 查询模式主要按 `conversation_id` 获取完整对话序列，需要保持时间顺序
   2. 用户和助手消息是成对出现的，业务逻辑强关联
@@ -198,94 +199,170 @@ class Message:
 
 ## 5. API接口设计
 
-### 5.1 对话管理接口
+### 5.1 统一响应格式
+所有 REST 接口遵循 `ApiResponse` 结构：
+```
+{
+  "code": 0,
+  "msg": "操作成功",
+  "data": {...}
+}
+```
+- `code=0` 表示成功，非 0 表示失败
+- `msg` 返回友好提示
+- `data` 携带实际业务数据
+
+### 5.2 对话管理接口（/api/conversation）
+
+#### 创建对话
+```
+POST /api/conversation/register
+Request Body:
+{
+  "title": "可选的自定义标题"   // 未填写时前端传入默认标题
+}
+
+Success Response:
+{
+  "code": 0,
+  "msg": "对话创建成功",
+  "data": {
+    "id": "conv_456",
+    "title": "新对话",
+    "created_by": "default",
+    "created_at": "2024-01-01T16:00:00Z",
+    "updated_at": "2024-01-01T16:00:00Z",
+    "message_count": 0
+  }
+}
+```
 
 #### 获取对话列表
 ```
-GET /api/conversations
-Response: {
-  "conversations": [
-    {
-      "id": "conv_123",
-      "title": "关于Python的讨论",
-      "created_at": "2024-01-01T10:00:00Z",
-      "updated_at": "2024-01-01T15:30:00Z",
-      "message_count": 15,
-      "is_active": true
-    }
-  ]
+GET /api/conversation/list
+
+Success Response:
+{
+  "code": 0,
+  "msg": "获取对话列表成功",
+  "data": {
+    "total": 2,
+    "offset": 0,
+    "limit": 2,
+    "conversations": [
+      {
+        "id": "conv_123",
+        "title": "关于Python的讨论",
+        "created_by": "llm",
+        "created_at": "2024-01-01T10:00:00Z",
+        "updated_at": "2024-01-01T15:30:00Z",
+        "message_count": 15
+      }
+    ]
+  }
 }
 ```
 
-#### 创建新对话
+#### 获取对话详情
 ```
-POST /api/conversations
-Request: {
-  "title": "可选的自定义标题"
-}
-Response: {
-  "id": "conv_456",
-  "title": "新对话",
-  "created_at": "2024-01-01T16:00:00Z"
-}
+GET /api/conversation/detail/{conversation_id}
 ```
+成功返回 `ConversationInfo`，结构与列表项一致。
 
 #### 更新对话标题
 ```
-PUT /api/conversations/{conversation_id}
-Request: {
+PUT /api/conversation/update/{conversation_id}
+Request Body:
+{
+  "id": "conv_123",
   "title": "新的对话标题"
 }
-Response: {
-  "success": true
-}
 ```
+成功后返回更新后的 `ConversationInfo`。
 
 #### 删除对话
 ```
-DELETE /api/conversations/{conversation_id}
-Response: {
-  "success": true
-}
+DELETE /api/conversation/delete/{conversation_id}
 ```
+成功后 `data` 返回被删除的 `conversation_id`。
 
-### 5.2 消息管理接口
+### 5.3 消息管理接口（/api/conversation/{conversation_id}/messages）
 
 #### 获取对话历史
 ```
-GET /api/conversations/{conversation_id}/messages
-Response: {
-  "messages": [
-    {
-      "id": "msg_123",
-      "conversation_id": "conv_123",
-      "role": "user",
-      "content": "用户消息内容",
-      "timestamp": "2024-01-01T10:00:00Z",
-      "tool_calls": null,
-      "metadata": {}
-    },
-    {
-      "id": "msg_124",
-      "conversation_id": "conv_123",
-      "role": "assistant",
-      "content": "助手回复内容",
-      "timestamp": "2024-01-01T10:00:05Z",
-      "tool_calls": [
-        {
-          "id": "call_abc123",
-          "type": "function",
-          "function": {
-            "name": "search_web",
-            "arguments": "{\"query\": \"Python教程\"}"
+GET /api/conversation/{conversation_id}/messages
+
+Success Response:
+{
+  "code": 0,
+  "msg": "获取消息列表成功",
+  "data": {
+    "total": 2,
+    "offset": 0,
+    "limit": 2,
+    "messages": [
+      {
+        "id": "msg_123",
+        "conversation_id": "conv_123",
+        "role": "user",
+        "content": "用户消息内容",
+        "reasoning": null,
+        "tool_calls": null,
+        "message_metadata": {},
+        "created_at": "2024-01-01T10:00:00Z"
+      },
+      {
+        "id": "msg_124",
+        "conversation_id": "conv_123",
+        "role": "assistant",
+        "content": "助手回复内容",
+        "reasoning": "思维链片段",
+        "tool_calls": [
+          {
+            "id": "call_abc123",
+            "type": "function",
+            "function": {
+              "name": "search_web",
+              "arguments": "{\"query\": \"Python教程\"}"
+            }
           }
-        }
-      ],
-      "metadata": {}
-    }
-  ]
+        ],
+        "message_metadata": {},
+        "created_at": "2024-01-01T10:00:05Z"
+      }
+    ]
+  }
 }
 ```
+
+### 5.4 聊天流式接口（/api/chat）
+
+#### 获取助手回复（流式）
+```
+POST /api/chat/stream
+Content-Type: application/json
+
+Request Body:
+{
+  "message": "这段代码的作用是什么？",
+  "conversation_id": "conv_123",
+  "history": [
+    {"role": "user", "content": "你好"},
+    {"role": "assistant", "content": "你好，很高兴为你服务"}
+  ],
+  "source_config": {},
+  "regenerate_title": false,
+  "mcp_auto_mode": true,
+  "think_mode": false
+}
+```
+- 返回 `text/event-stream`，事件类型包括：
+  - `reasoning`：模型推理分段
+  - `content`：助手回复正文
+  - `tool_call`：工具调用进度（start/done/error）
+  - `title`：当 `regenerate_title=true` 或满足自动触发条件时返回新标题（含 `id`、`title`）
+  - `done`：结束标记
+- 客户端需要解析 SSE 数据并刷新消息与标题
 
 ## 6. 实现计划
 
@@ -349,26 +426,8 @@ Response: {
 - 使用分页和懒加载
 - 实现数据清理和归档策略
 
-## 9. 验收标准
 
-### 9.1 功能验收
-- [ ] 所有核心功能正常工作
-- [ ] 界面交互流畅无卡顿
-- [ ] 数据持久化和同步正常
-
-### 9.2 性能验收
-- [ ] 满足性能要求指标
-- [ ] 通过压力测试
-- [ ] 内存使用合理
-
-### 9.3 用户体验验收
-- [ ] 界面直观易用
-- [ ] 响应速度快
-- [ ] 错误提示友好
-
----
-
-**文档版本**: v1.0
+**文档版本**: v1.1
 **创建日期**: 2024-10-31
-**最后更新**: 2024-10-31
+**最后更新**: 2025-11-08
 **创建人**: AI Assistant
