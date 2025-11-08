@@ -72,7 +72,7 @@ const ChatPage: React.FC = () => {
   );
 
   const handleEditMessage = useMemoizedFn((index: number, content: string) => {
-    sendMessage({ ...form.getFieldsValue(), message: content }, index);
+    sendMessage({ ...form.getFieldsValue(), message: content }, { index });
   });
 
   const handleReSend = useMemoizedFn(
@@ -91,9 +91,12 @@ const ChatPage: React.FC = () => {
         return sendMessage(values);
       }
       // 创建会话
-      const { id } = await dispatch(registerConversation()).unwrap();
+      const { createdBy, id } = await dispatch(registerConversation()).unwrap();
       // 使用新的 conversationId 发送消息
-      const sendPromise = sendMessage(values, undefined, id);
+      const sendPromise = sendMessage(values, {
+        conversationIdOverride: id,
+        createdBy,
+      });
       // 更新 URL 到新的会话 ID
       navigate(`/chat/${id}`, {
         replace: true,

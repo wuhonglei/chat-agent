@@ -140,7 +140,6 @@ data: {
 interface ChatState {
   // 基础状态
   messages: ChatMessage[];
-  sessionId: string | null;
   isLoading: boolean;
   isStreaming: boolean;
   isReasoning: boolean;

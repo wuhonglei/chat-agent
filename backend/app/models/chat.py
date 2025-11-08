@@ -46,7 +46,8 @@ class ChatRequest(BaseModel):
     """Chat request model"""
 
     message: str = Field(..., description="User message")
-    session_id: str | None = Field(None, description="Session ID for context")
+    conversation_id: str = Field(
+        ..., description="Conversation ID")
     history: list[ChatMessageItemReq] = Field(
         default_factory=list, description="Chat history")
     source_config: SourceConfig = Field(

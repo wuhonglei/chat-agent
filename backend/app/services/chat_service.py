@@ -228,7 +228,6 @@ class ChatService:
 
     async def stream_message(
         self,
-        session_id: str,
         chat_request: ChatRequest
     ) -> AsyncGenerator[str, None]:
         """Stream chat response"""

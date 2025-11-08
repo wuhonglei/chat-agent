@@ -38,10 +38,6 @@ export default function LabelItem({ onDelete, conversation }: Props) {
         }}
       >
         <DeleteOutlined
-          onClick={e => {
-            e.stopPropagation();
-            onDelete(conversation.id);
-          }}
           className={classNames(
             "invisible transition-opacity duration-300 absolute right-0",
             styles.operation

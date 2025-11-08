@@ -4,10 +4,9 @@ import { TitleCreatedBy } from "@/constants";
 export interface ConversationInfo {
   id: string;
   title: string;
-  createdAt: string;
+  createdBy: TitleCreatedBy;
   updatedAt: string;
   messageCount: number;
-  createdBy: TitleCreatedBy;
 }
 
 export interface CreateConversationRequest {

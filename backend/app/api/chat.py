@@ -20,7 +20,7 @@ async def chat_stream(request: Request, chat_request: ChatRequest):
     """Stream chat response"""
     try:
         # Get or create session ID
-        session_id = chat_request.session_id or str(uuid.uuid4())
+        conversation_id = chat_request.conversation_id
         state = cast(AppState, request.app.state)
 
         # Initialize chat service
@@ -29,14 +29,16 @@ async def chat_stream(request: Request, chat_request: ChatRequest):
         # Stream response
         async def generate() -> AsyncGenerator[str, None]:
             async for chunk in chat_service.stream_message(
-                session_id=session_id,
                 chat_request=chat_request
             ):
                 yield chunk
 
             if chat_request.regenerate_title:
                 title = await chat_service.generate_title(chat_request.message)
-                yield chat_service._format_sse_message('title', title)
+                yield chat_service._format_sse_message('title', {
+                    'id': conversation_id,
+                    'title': title
+                })
             yield chat_service._format_sse_message('done')
             return
 

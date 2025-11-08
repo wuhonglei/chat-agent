@@ -1,5 +1,5 @@
 // Chat types
-import { RoleType, SearchSourceType } from "@/constants";
+import { RoleType, SearchSourceType, TitleCreatedBy } from "@/constants";
 import { ToolCallMessage } from "./tooCall";
 
 export interface SearchSourceMetaData {
@@ -61,4 +61,10 @@ export interface ChatRequest extends ChatInputFormValues {
 export interface SourceData {
   index: number;
   sources: SearchSource[];
+}
+
+export interface SendMessageOptions {
+  index?: number;
+  createdBy?: TitleCreatedBy;
+  conversationIdOverride?: string;
 }

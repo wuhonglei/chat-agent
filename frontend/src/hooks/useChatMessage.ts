@@ -15,10 +15,12 @@ import {
   setStreaming,
   setCallingTools,
 } from "@/store/slices/chatSlice";
+import { updateConversationInfo } from "@/store/slices/conversationSlice";
 import { chatAPI } from "@/services";
 import {
   ChatInputFormValues,
   ChatMessage,
+  SendMessageOptions,
   StreamMessage,
   ToolCallMessage,
 } from "@/interfaces";
@@ -47,8 +49,7 @@ export interface UseChatMessageReturn {
   ) => Promise<void>;
   sendMessage: (
     values: ChatInputFormValues,
-    index?: number,
-    conversationIdOverride?: string
+    options?: SendMessageOptions
   ) => Promise<void>;
 }
 
@@ -76,9 +77,10 @@ export const useChatMessage = (
 
   const sendMessage = async (
     values: ChatInputFormValues,
-    index?: number,
-    conversationIdOverride?: string
+    options?: SendMessageOptions
   ): Promise<void> => {
+    const { index, createdBy, conversationIdOverride } = options || {};
+
     // 如果正在流式传输，先中止当前请求
     if (abortControllerRef.current && isStreaming) {
       abortControllerRef.current.abort();
@@ -117,8 +119,7 @@ export const useChatMessage = (
       abortControllerRef.current = new AbortController();
       const history = getHistoryMessages(historyLimit, messages, index);
       const regenerateTitle =
-        isEmpty(history) &&
-        isTitleCreatedByDefault(conversationInfo?.createdBy);
+        isEmpty(history) && isTitleCreatedByDefault(createdBy);
 
       // 开始流式传输
       await chatAPI.streamMessage(
@@ -162,6 +163,14 @@ export const useChatMessage = (
               emitter.emit(EventType.ToolCallDone);
             }
             dispatch(appendToolCallToLastMessage(data.data as ToolCallMessage));
+          } else if (type === "title") {
+            const { id, title } = data.data;
+            dispatch(
+              updateConversationInfo({
+                id,
+                title,
+              })
+            );
           } else if (type === "done") {
             // 流结束
             resetState();
