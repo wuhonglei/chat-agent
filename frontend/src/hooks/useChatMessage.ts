@@ -62,9 +62,6 @@ export const useChatMessage = (
   const { messages, isLoading, isStreaming } = useAppSelector(
     state => state.chat
   );
-  const conversationInfo = useAppSelector(
-    state => state.conversation.conversationInfo
-  );
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -199,13 +196,13 @@ export const useChatMessage = (
     formData: Omit<ChatInputFormValues, "message">
   ): Promise<void> => {
     if (isUserRole(message.role)) {
-      sendMessage({ ...formData, message: message.content }, index);
+      sendMessage({ ...formData, message: message.content }, { index });
     } else {
       // 如果是助手消息，则重新发送上一个用户消息
       const newIndex = index - 1;
       sendMessage(
         { ...formData, message: messages[newIndex].content },
-        newIndex
+        { index: newIndex }
       );
     }
   };
