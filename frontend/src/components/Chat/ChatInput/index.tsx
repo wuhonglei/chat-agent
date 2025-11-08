@@ -84,11 +84,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
         style={style}
         onValuesChange={onValuesChange}
       >
-        <Form.Item
-          className="mr-0"
-          name={names.message}
-          initialValue={undefined}
-        >
+        <Form.Item className="mr-0" name={names.message}>
           <TextArea
             autoFocus
             autoSize={{ minRows: 2.5 }}

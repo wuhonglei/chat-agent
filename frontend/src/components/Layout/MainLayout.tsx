@@ -51,6 +51,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const menuItems = useMenuItems(onDeleteConversation);
 
   const handleMenuClick: MenuProps["onClick"] = ({ key }) => {
+    // 点击的菜单和当前路径相同，则不进行跳转
+    if (location.pathname === key) {
+      return;
+    }
     emitter.emit(EventType.ChangeConversion);
     navigate(key);
   };
