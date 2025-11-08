@@ -23,6 +23,7 @@ export interface ConversationListResponse {
 export interface UpdateConversationRequest {
   id: string;
   title: string;
+  createdBy: TitleCreatedBy;
 }
 
 export interface ConversationDetailResponse extends ConversationInfo {}

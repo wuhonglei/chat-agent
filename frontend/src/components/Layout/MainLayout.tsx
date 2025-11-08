@@ -23,6 +23,7 @@ import {
 import HoverButton from "./HoverButton";
 import { useMemoizedFn } from "ahooks";
 import { EventType, emitter } from "@/events";
+import { TitleCreatedBy } from "@/constants";
 const { useToken } = theme;
 const { Title } = Typography;
 
@@ -69,7 +70,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   };
 
   const handleEditConversationTitle = (id: string, title: string) => {
-    dispatch(updateConversationInfo({ id, title }));
+    dispatch(
+      updateConversationInfo({ id, title, createdBy: TitleCreatedBy.User })
+    );
   };
 
   return (

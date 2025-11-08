@@ -34,6 +34,7 @@ import {
   isTitleCreatedByDefault,
 } from "@/utils";
 import { emitter, EventType } from "@/events";
+import { TitleCreatedBy } from "@/constants";
 
 export interface UseChatMessageOptions {
   conversationId?: string;
@@ -166,6 +167,7 @@ export const useChatMessage = (
               updateConversationInfo({
                 id,
                 title,
+                createdBy: TitleCreatedBy.LLM,
               })
             );
           } else if (type === "done") {
