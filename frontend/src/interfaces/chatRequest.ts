@@ -30,6 +30,11 @@ export interface ChatMessage {
   messageMetadata: Omit<ChatInputFormValues, "message">;
 }
 
+export interface ChatHistory {
+  role: RoleType;
+  content: string;
+}
+
 export interface ChatResponse {
   message: string;
   sources: SearchSource[];
@@ -49,8 +54,8 @@ export interface ChatInputFormValues {
 
 export interface ChatRequest extends ChatInputFormValues {
   conversationId?: string;
-  history?: ChatMessage[];
-  stream?: boolean;
+  history: ChatHistory[];
+  regenerateTitle: boolean;
 }
 
 export interface SourceData {

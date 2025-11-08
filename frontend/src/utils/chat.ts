@@ -1,6 +1,6 @@
 import { capitalize, isEmpty, isNil, pick } from "lodash-es";
 import { RoleType, SearchSourceType } from "@/constants";
-import { ChatMessage, SearchSource } from "@/interfaces";
+import { ChatHistory, ChatMessage, SearchSource } from "@/interfaces";
 
 /**
  * 构建脚注定义
@@ -101,7 +101,7 @@ export function isSystemRole(role: RoleType) {
  */
 export function getHistoryMessages<
   T extends ChatMessage,
-  R extends Pick<T, "role" | "content">,
+  R extends ChatHistory,
 >(limit: number, messages: T[], index?: number): R[] {
   const histories = isNil(index)
     ? messages.slice(-limit)

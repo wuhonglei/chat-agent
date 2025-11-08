@@ -13,7 +13,7 @@ from app.models.chat import ChatMessageItemReq, ChatRequest
 from app.models.llm import ToolCallMessage, ToolCallResultMessage
 from app.utils.common import filter_dict
 from app.mcp.mcp_client import MCPClientManager
-from app.services.prompt import get_default_system_prompt, get_prompt_with_mcp_servers, get_prompt_with_tool_history
+from app.services.prompt import get_default_system_prompt, get_prompt_for_title, get_prompt_with_mcp_servers, get_prompt_with_tool_history
 
 
 class ChatService:
@@ -25,6 +25,7 @@ class ChatService:
             base_url=settings.LLM_API_BASE,
         )
         self.mcp_manager = mcp_manager
+        self.collected_content = ''  # 收集的完整响应内容
 
     async def _stream_final_response(
         self,
@@ -217,11 +218,12 @@ class ChatService:
         }), tool_call_messages
         return
 
-    @staticmethod
-    def _format_sse_message(msg_type: str, data=None) -> str:
+    def _format_sse_message(self, msg_type: str, data=None) -> str:
         """Format SSE (Server-Sent Events) message"""
         if data is None:
             return f"data: {json.dumps({'type': msg_type, 'data': {}}, ensure_ascii=False)}\n\n"
+        if msg_type == 'content':
+            self.collected_content += data['content']
         return f"data: {json.dumps({'type': msg_type, 'data': data}, ensure_ascii=False)}\n\n"
 
     async def stream_message(
@@ -272,6 +274,19 @@ class ChatService:
         except Exception as e:
             logger.error(f"Failed to stream message: {e}")
             yield self._format_sse_message('error', str(e))
+
+    async def generate_title(self, user_message: str) -> str:
+        """Generate title for the chat"""
+        new_user_message, system_prompt = get_prompt_for_title(
+            user_message, self.collected_content)
+        messages = self._compose_messages_without_tool_calls(
+            system_prompt, [], new_user_message)
+        title_response = await self.client.chat.completions.create(
+            model=settings.LLM_MODEL,
+            messages=messages,
+            stream=False,
+        )
+        return title_response.choices[0].message.content
 
     @staticmethod
     def _compose_messages_without_tool_calls(

@@ -34,6 +34,9 @@ async def chat_stream(request: Request, chat_request: ChatRequest):
             ):
                 yield chunk
 
+            if chat_request.regenerate_title:
+                title = await chat_service.generate_title(chat_request.message)
+                yield chat_service._format_sse_message('title', title)
             yield chat_service._format_sse_message('done')
             return
 

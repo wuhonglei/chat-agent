@@ -23,12 +23,13 @@ import {
   ToolCallMessage,
 } from "@/interfaces";
 
-import { isNil, isPlainObject, omit } from "lodash-es";
+import { isEmpty, isNil, isPlainObject, omit } from "lodash-es";
 import {
   buildFootnoteDefinition,
   getHistoryMessages,
   isUserRole,
   getDatetimeNow,
+  isTitleCreatedByDefault,
 } from "@/utils";
 import { emitter, EventType } from "@/events";
 
@@ -59,6 +60,9 @@ export const useChatMessage = (
   const dispatch = useAppDispatch();
   const { messages, isLoading, isStreaming } = useAppSelector(
     state => state.chat
+  );
+  const conversationInfo = useAppSelector(
+    state => state.conversation.conversationInfo
   );
 
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -111,13 +115,18 @@ export const useChatMessage = (
 
     try {
       abortControllerRef.current = new AbortController();
+      const history = getHistoryMessages(historyLimit, messages, index);
+      const regenerateTitle =
+        isEmpty(history) &&
+        isTitleCreatedByDefault(conversationInfo?.createdBy);
 
       // 开始流式传输
       await chatAPI.streamMessage(
         {
           ...values,
+          history, // 发送最后几条消息作为上下文
+          regenerateTitle,
           conversationId: finalConversationId,
-          history: getHistoryMessages(historyLimit, messages, index), // 发送最后几条消息作为上下文
         },
         (data: StreamMessage) => {
           if (!isPlainObject(data)) {

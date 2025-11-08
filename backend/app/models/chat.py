@@ -52,6 +52,8 @@ class ChatRequest(BaseModel):
     source_config: SourceConfig = Field(
         default_factory=SourceConfig, description="Source configuration"
     )
+    regenerate_title: Optional[bool] = Field(
+        False, description="Whether to regenerate title")
     mcp_auto_mode: bool = Field(
         True, description="Whether to use mcp auto mode")
     think_mode: bool = Field(False, description="Whether to use think mode")

@@ -1,5 +1,4 @@
 from jinja2 import Template
-from datetime import datetime
 from app.mcp.mcp_client import mcp_config_for_fe
 from app.models.llm import ToolCallMessage, AssistantToolCallMessage, ToolCallResultMessage
 from app.utils.common import get_current_datetime_str, get_current_date
@@ -81,14 +80,31 @@ user_message_with_tool_calls_template = Template("""
 </tool_calls_history>
 """.strip())
 
+# 根据用户消息和模型回答生成标题系统提示词模板(中文)
+system_prompt_for_title_template = Template("""
+你是一个智能问答助手。你的任务是根据用户消息和模型回答生成一个标题。
+
+规则：
+1. 仔细分析用户消息和模型回答，确保标题准确、简洁、有吸引力
+2. 标题必须简洁明了，不要超过15个字
+3. 标题必须准确反映用户消息和模型回答的内容
+""".strip())
+
+user_message_for_title_template = Template("""
+用户消息：{{ user_message }}
+模型回答：{{ model_answer }}
+""".strip())
+
 # ============= 系统提示词和用户消息提示词字典 =============
 system_prompt_dict = {
     'default': default_system_prompt_template,
     'for_tool_calls': system_prompt_for_tool_calls_template,
+    'for_title': system_prompt_for_title_template,
 }
 
 user_message_prompt_dict = {
     'for_tool_calls': user_message_for_tool_call_template,
+    'for_title': user_message_for_title_template,
 }
 
 
@@ -128,3 +144,10 @@ def get_prompt_with_tool_history(user_message: str, tool_call_messages: list[Too
 
     return user_message_with_tool_calls_template.render(
         user_message=user_message, tool_call_messages=new_tool_call_messages)
+
+
+def get_prompt_for_title(user_message: str, model_answer: str) -> tuple[str, str]:
+    new_user_message = user_message_prompt_dict['for_title'].render(
+        user_message=user_message, model_answer=model_answer)
+    new_system_prompt = system_prompt_dict['for_title'].render()
+    return new_user_message, new_system_prompt
