@@ -6,14 +6,8 @@ from sqlalchemy import JSON as SQLJSON
 from sqlalchemy import DateTime
 from sqlmodel import SQLModel, Field
 
-from app.utils.common import get_datetime_now
-from app.models.llm import ToolCallMessage
+from app.utils.common import get_datetime_now, gen_uuid
 from app.models.conversation import CreatedBy
-
-
-def gen_uuid() -> str:
-    """Generate a new UUID string"""
-    return str(uuid.uuid4())
 
 
 class User(SQLModel, table=True):
@@ -58,7 +52,10 @@ class Conversation(SQLModel, table=True):
         default_factory=get_datetime_now,
         sa_type=DateTime(timezone=True)
     )
-    message_count: int = Field(default=0)
+    last_message_created_at: datetime = Field(
+        default_factory=get_datetime_now,
+        sa_type=DateTime(timezone=True)
+    )
     is_active: bool = Field(default=True)
 
 

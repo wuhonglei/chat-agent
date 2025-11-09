@@ -14,11 +14,15 @@ import {
   setStreaming,
   setCallingTools,
 } from "@/store/slices/chatSlice";
-import { updateConversationInfo } from "@/store/slices/conversationSlice";
+import {
+  refreshConversionInList,
+  updateConversationInfo,
+} from "@/store/slices/conversationSlice";
 import { chatAPI } from "@/services";
 import {
   ChatInputFormValues,
   ChatMessage,
+  ConversationInfo,
   SendMessageOptions,
   StreamMessage,
   ToolCallMessage,
@@ -121,7 +125,7 @@ export const useChatMessage = (
 
           const { type } = data;
           const { status, content } = data.data || {};
-          if (type !== "ack") {
+          if (!["ack", "refresh_conversation"].includes(type)) {
             dispatch(setLoading(false)); // 收到响应
           }
 
@@ -129,6 +133,8 @@ export const useChatMessage = (
             dispatch(
               addMessage({ ...(data.data as ChatMessage), defaultOpen: true })
             );
+          } else if (type === "refresh_conversation") {
+            dispatch(refreshConversionInList(data.data as ConversationInfo));
           } else if (type === "reasoning") {
             // 思考内容
             if (status === "start") {

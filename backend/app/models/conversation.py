@@ -21,8 +21,6 @@ class ConversationInfo(BaseModel):
     created_by: CreatedBy = Field(..., description="Conversation created by")
     created_at: str = Field(..., description="Creation timestamp (ISO format)")
     updated_at: str = Field(..., description="Update timestamp (ISO format)")
-    message_count: int = Field(...,
-                               description="Number of messages in the conversation")
 
     # 允许额外字段
     model_config = ConfigDict(extra="allow")

@@ -77,29 +77,47 @@ export const updateConversationInfo = createAsyncThunk(
 );
 // ==================== Slice ====================
 
+const findConversationIndexInListHelper = (
+  state: ConversationState,
+  conversationId: string
+): number => {
+  return state.conversations.findIndex(conv => conv.id === conversationId);
+};
+
 // 辅助函数：更新列表中的对话信息
 const updateConversationInListHelper = (
   state: ConversationState,
   conversation: ConversationInfo
-) => {
-  const index = state.conversations.findIndex(
-    conv => conv.id === conversation.id
-  );
+): number => {
+  const index = findConversationIndexInListHelper(state, conversation.id);
   if (index !== -1) {
     state.conversations[index] = conversation;
   }
+
+  return index;
 };
 
 const removeConversationFromListHelper = (
   state: ConversationState,
   conversationId: string
-) => {
-  const index = state.conversations.findIndex(
-    conv => conv.id === conversationId
-  );
+): number => {
+  const index = findConversationIndexInListHelper(state, conversationId);
   if (index !== -1) {
     state.conversations.splice(index, 1);
   }
+
+  return index;
+};
+
+/**
+ * 添加对话到列表最前面
+ */
+const prependConversationToListHelper = (
+  state: ConversationState,
+  conversation: ConversationInfo
+): number => {
+  state.conversations.unshift(conversation);
+  return 0;
 };
 
 const conversationSlice = createSlice({
@@ -124,9 +142,9 @@ const conversationSlice = createSlice({
       }
     },
 
-    // 添加对话到列表
+    // 添加对话到列表最前面
     addConversationToList: (state, action: PayloadAction<ConversationInfo>) => {
-      state.conversations.unshift(action.payload);
+      prependConversationToListHelper(state, action.payload);
     },
 
     updateConversationInList: (
@@ -134,6 +152,20 @@ const conversationSlice = createSlice({
       action: PayloadAction<ConversationInfo>
     ) => {
       updateConversationInListHelper(state, action.payload);
+    },
+
+    // 当该会话中有新的聊天消息时，更新列表中的对话信息
+    refreshConversionInList: (
+      state,
+      action: PayloadAction<ConversationInfo>
+    ) => {
+      const newConversation = action.payload;
+      removeConversationFromListHelper(state, newConversation.id); // 先移除旧的会话
+      prependConversationToListHelper(state, newConversation); // 再添加新的会话到最前面
+      if (state.conversationInfo?.id === newConversation.id) {
+        // 如果当前会话是该会话，则更新当前会话信息
+        state.conversationInfo = newConversation;
+      }
     },
 
     // 从列表中移除对话
@@ -149,7 +181,7 @@ const conversationSlice = createSlice({
   extraReducers: builder => {
     // registerConversation
     builder.addCase(registerConversation.fulfilled, (state, action) => {
-      state.conversations.unshift(action.payload);
+      prependConversationToListHelper(state, action.payload);
       state.conversationInfo = action.payload;
     });
 
@@ -186,6 +218,7 @@ export const {
   setConversationInfoById,
   addConversationToList,
   updateConversationInList,
+  refreshConversionInList,
   removeConversationFromList,
   clearCurrentConversion,
 } = conversationSlice.actions;

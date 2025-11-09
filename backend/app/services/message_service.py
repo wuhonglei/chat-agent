@@ -8,7 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 
 from app.models.chat import MessageStatus
-from app.models.db import Conversation, Message, ToolCallMessage
+from app.models.db import Conversation, Message
 from app.utils.common import get_datetime_now
 from app.core.db import engine
 
@@ -28,7 +28,7 @@ class MessageService:
             self.db.close()
             self.db = None
 
-    def _get_conversation(self, conversation_id: str) -> Conversation:
+    def get_conversation(self, conversation_id: str) -> Conversation:
         conversation = self.db.get(Conversation, conversation_id)
         if not conversation:
             raise HTTPException(status_code=404, detail="对话不存在")
@@ -37,28 +37,20 @@ class MessageService:
     def _touch_conversation(
         self,
         conversation: Conversation,
-        *,
-        increment_count: bool = True,
     ) -> None:
-        if increment_count:
-            conversation.message_count = (conversation.message_count or 0) + 1
-        conversation.updated_at = get_datetime_now()
+        conversation.last_message_created_at = get_datetime_now()
         self.db.add(conversation)
 
     def _persist_message(
         self,
         message: Message,
         conversation: Conversation,
-        *,
-        increment_count: bool = True,
     ) -> Message:
         try:
-            self._touch_conversation(
-                conversation, increment_count=increment_count)
+            self._touch_conversation(conversation)
             self.db.add(message)
             self.db.commit()
             self.db.refresh(message)
-            logger.info(f"message: {message}")
             return message
         except SQLAlchemyError as exc:
             self.db.rollback()
@@ -73,29 +65,31 @@ class MessageService:
     def create_user_message(
         self,
         conversation_id: str,
+        message_id: str,
         content: str,
         metadata: Optional[dict[str, Any]] = None,
     ) -> Message:
-        conversation = self._get_conversation(conversation_id)
+        conversation = self.get_conversation(conversation_id)
         message = Message(
+            id=message_id,
             conversation_id=conversation_id,
             role="user",
             content=content,
             message_metadata=metadata or {},
             status=MessageStatus.DONE,
         )
-        logger.info(f"user_message: {message}")
         return self._persist_message(message, conversation)
 
     def create_assistant_message(
         self,
         conversation_id: str,
+        message_id: str,
         reply_to: str,
-        *,
         metadata: Optional[dict[str, Any]] = None,
     ) -> Message:
-        conversation = self._get_conversation(conversation_id)
+        conversation = self.get_conversation(conversation_id)
         message = Message(
+            id=message_id,
             conversation_id=conversation_id,
             role="assistant",
             content="",
@@ -136,58 +130,3 @@ class MessageService:
         self.db.commit()
         self.db.refresh(persistent_message)
         return persistent_message
-
-    def mark_user_message_done(
-        self,
-        message_id: str,
-        extra_metadata: Optional[dict[str, Any]] = None,
-    ) -> Optional[Message]:
-        return self._update_user_message_status(
-            message_id,
-            status=MessageStatus.DONE,
-            extra_metadata=extra_metadata,
-        )
-
-    def mark_user_message_failed(
-        self,
-        message_id: str,
-        error_message: str,
-    ) -> Optional[Message]:
-        return self._update_user_message_status(
-            message_id,
-            status=MessageStatus.FAILED,
-            extra_metadata={"error": error_message},
-        )
-
-    def _update_user_message_status(
-        self,
-        message_id: str,
-        *,
-        status: MessageStatus,
-        extra_metadata: Optional[dict[str, Any]] = None,
-    ) -> Optional[Message]:
-        message = self.db.get(Message, message_id)
-        if not message:
-            logger.warning("未找到待更新的用户消息 message_id=%s", message_id)
-            return None
-
-        try:
-            message.status = status
-            if extra_metadata:
-                merged_metadata = dict(message.message_metadata or {})
-                merged_metadata.update(extra_metadata)
-                message.message_metadata = merged_metadata
-
-            self.db.add(message)
-            self.db.commit()
-            self.db.refresh(message)
-            return message
-        except SQLAlchemyError as exc:
-            self.db.rollback()
-            logger.error(
-                "更新消息状态失败 message_id=%s status=%s error=%s",
-                message_id,
-                status,
-                exc,
-            )
-            raise

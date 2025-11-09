@@ -49,7 +49,7 @@ def _get_enum_value(value):
     return value.value if hasattr(value, 'value') else value
 
 
-def migrate_column_names():
+def migrate_rename_column():
     """迁移字段名称：将旧字段名重命名为新字段名"""
     column_migrations = {
         "messages": {"timestamp": "created_at"},
@@ -86,7 +86,12 @@ def migrate_add_columns():
                 "type": "VARCHAR(20)",
                 "default": CreatedBy.DEFAULT,
                 "nullable": False,
-            }
+            },
+            "last_message_created_at": {
+                "type": "TIMESTAMP WITH TIME ZONE",
+                "default": None,
+                "nullable": True,
+            },
         },
         "messages": {
             "status": {
@@ -139,6 +144,35 @@ def migrate_add_columns():
                 )
 
 
+def migrate_remove_columns():
+    """迁移删除字段：删除现有表中的字段"""
+    column_removals = {
+        "messages": ["message_count"]
+    }
+
+    inspector = inspect(engine)
+    with engine.begin() as conn:
+        for table_name, field_names in column_removals.items():
+            columns = _get_table_columns(inspector, table_name)
+            if not columns:
+                logger.debug(
+                    f"Table {table_name} does not exist, skipping migration")
+                continue
+
+            for field_name in field_names:
+                if field_name in columns:
+                    conn.execute(text(
+                        f'ALTER TABLE "{table_name}" DROP COLUMN "{field_name}"'
+                    ))
+                    logger.info(
+                        f"Removed column '{field_name}' from table '{table_name}'"
+                    )
+                else:
+                    logger.debug(
+                        f"Column '{field_name}' does not exist in table '{table_name}', skipping removal"
+                    )
+
+
 def create_db_and_tables():
     """
     创建数据库表并执行字段迁移
@@ -149,10 +183,13 @@ def create_db_and_tables():
     """
     try:
         # 先执行字段重命名迁移（如果表已存在）
-        migrate_column_names()
+        migrate_rename_column()
 
         # 执行新增字段迁移（如果表已存在）
         migrate_add_columns()
+
+        # 执行删除字段迁移（如果表已存在）
+        migrate_remove_columns()
 
         # 然后创建/更新表结构
         SQLModel.metadata.create_all(engine, checkfirst=True)

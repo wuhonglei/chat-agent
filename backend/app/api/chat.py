@@ -11,6 +11,7 @@ from app.models.chat import ChatRequest, MessageStatus
 from app.services.chat_service import ChatService
 from app.models.app_state import AppState
 from app.services.message_service import MessageService
+from app.utils.common import gen_uuid
 
 router = APIRouter()
 
@@ -35,19 +36,24 @@ async def chat_stream(
     }
 
     try:
+        user_message_id = gen_uuid()
+        assistant_message_id = gen_uuid()
         with MessageService() as message_service:
             user_message = message_service.create_user_message(
                 conversation_id=conversation_id,
+                message_id=user_message_id,
                 content=chat_request.message,
-                metadata=user_metadata,
+                metadata={**user_metadata,
+                          "reply_message_id": assistant_message_id},
             )
             assistant_message = message_service.create_assistant_message(
                 conversation_id=conversation_id,
-                reply_to=user_message.id,
+                message_id=assistant_message_id,
+                reply_to=user_message_id,
                 metadata=user_metadata,
             )
-            user_message_id = user_message.id
-            assistant_message_id = assistant_message.id
+            conversation = message_service.get_conversation(conversation_id)
+
     except HTTPException:
         raise
     except Exception as exc:
@@ -59,6 +65,7 @@ async def chat_stream(
             # 立即返回 ack，提示前端消息已入库
             yield chat_service._format_sse_message('ack', user_message)
             yield chat_service._format_sse_message('ack', assistant_message)
+            yield chat_service._format_sse_message('refresh_conversation', conversation)
 
             try:
                 async for chunk in chat_service.stream_message(
@@ -67,15 +74,6 @@ async def chat_stream(
                     yield chunk
             except Exception as streaming_error:
                 logger.error(f"Streaming response failed: {streaming_error}")
-                try:
-                    message_service.mark_user_message_failed(
-                        user_message_id,
-                        str(streaming_error),
-                    )
-                except Exception as mark_failed_error:  # pragma: no cover
-                    logger.error(
-                        "Failed to mark user message as failed: %s", mark_failed_error
-                    )
                 raise
 
             assistant_payload = chat_service.get_collected_response()
@@ -95,22 +93,9 @@ async def chat_stream(
                     status=MessageStatus.DONE,
                     extra_metadata=assistant_metadata,
                 )
-                message_service.mark_user_message_done(
-                    user_message_id,
-                    extra_metadata={"reply_message_id": assistant_message_id},
-                )
             except Exception as persist_error:
                 logger.error(
                     f"Failed to persist assistant message: {persist_error}")
-                try:
-                    message_service.mark_user_message_failed(
-                        user_message_id,
-                        str(persist_error),
-                    )
-                except Exception as mark_failed_error:  # pragma: no cover
-                    logger.error(
-                        "Failed to mark user message as failed: %s", mark_failed_error
-                    )
                 raise
 
         if chat_request.regenerate_title:

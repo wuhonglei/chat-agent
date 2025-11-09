@@ -6,7 +6,7 @@ export interface ConversationInfo {
   title: string;
   createdBy: TitleCreatedBy;
   updatedAt: string;
-  messageCount: number;
+  lastMessageCreatedAt: string;
 }
 
 export interface CreateConversationRequest {

@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -46,3 +47,8 @@ def get_datetime_now(with_timezone: bool = True) -> datetime:
         return datetime.now(timezone.utc)
     else:
         return datetime.now()
+
+
+def gen_uuid() -> str:
+    """Generate a new UUID string"""
+    return str(uuid.uuid4())

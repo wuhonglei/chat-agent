@@ -8,6 +8,7 @@ from app.models.db import Conversation, Message
 from app.core.db import get_db
 from sqlmodel import Session, select
 from loguru import logger
+from app.utils.common import get_datetime_now
 
 router = APIRouter()
 
@@ -45,7 +46,7 @@ async def get_conversations(db: Session = Depends(get_db)):
     """Get all conversations"""
     try:
         conversations = db.exec(select(Conversation).order_by(
-            Conversation.updated_at.desc())).all()
+            Conversation.last_message_created_at.desc())).all()
         logger.debug(f"Found {len(conversations)} conversations")
         conversation_list = [ConversationInfo.model_validate(
             conversation_to_dict(conv)) for conv in conversations]
@@ -113,6 +114,7 @@ async def update_conversation(conversation_id: str, request: UpdateConversationR
             return ApiResponse.error(code=404, msg="对话不存在", data=None)
         conversation.title = request.title
         conversation.created_by = request.created_by
+        conversation.updated_at = get_datetime_now()
         db.commit()
         db.refresh(conversation)
         return ApiResponse.success(data=conversation_to_dict(conversation), msg="更新对话成功")
