@@ -64,15 +64,14 @@ class MessageService:
 
     def create_user_message(
         self,
-        conversation_id: str,
+        conversation: Conversation,
         message_id: str,
         content: str,
         metadata: Optional[dict[str, Any]] = None,
     ) -> Message:
-        conversation = self.get_conversation(conversation_id)
         message = Message(
             id=message_id,
-            conversation_id=conversation_id,
+            conversation_id=conversation.id,
             role="user",
             content=content,
             message_metadata=metadata or {},
@@ -82,15 +81,14 @@ class MessageService:
 
     def create_assistant_message(
         self,
-        conversation_id: str,
+        conversation: Conversation,
         message_id: str,
         reply_to: str,
         metadata: Optional[dict[str, Any]] = None,
     ) -> Message:
-        conversation = self.get_conversation(conversation_id)
         message = Message(
             id=message_id,
-            conversation_id=conversation_id,
+            conversation_id=conversation.id,
             role="assistant",
             content="",
             reasoning='',

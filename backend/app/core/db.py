@@ -182,6 +182,8 @@ def create_db_and_tables():
     如果遇到权限问题，表可能已经存在或需要数据库管理员手动创建。
     """
     try:
+        SQLModel.metadata.create_all(engine, checkfirst=True)
+
         # 先执行字段重命名迁移（如果表已存在）
         migrate_rename_column()
 
@@ -192,7 +194,6 @@ def create_db_and_tables():
         migrate_remove_columns()
 
         # 然后创建/更新表结构
-        SQLModel.metadata.create_all(engine, checkfirst=True)
         logger.info("Database tables created/verified successfully")
     except Exception as e:
         raise e

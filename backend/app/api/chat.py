@@ -39,20 +39,20 @@ async def chat_stream(
         user_message_id = gen_uuid()
         assistant_message_id = gen_uuid()
         with MessageService() as message_service:
+            conversation = message_service.get_conversation(conversation_id)
             user_message = message_service.create_user_message(
-                conversation_id=conversation_id,
+                conversation=conversation,
                 message_id=user_message_id,
                 content=chat_request.message,
                 metadata={**user_metadata,
                           "reply_message_id": assistant_message_id},
             )
             assistant_message = message_service.create_assistant_message(
-                conversation_id=conversation_id,
+                conversation=conversation,
                 message_id=assistant_message_id,
                 reply_to=user_message_id,
                 metadata=user_metadata,
             )
-            conversation = message_service.get_conversation(conversation_id)
 
     except HTTPException:
         raise
