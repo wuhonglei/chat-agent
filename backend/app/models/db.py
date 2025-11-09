@@ -76,7 +76,7 @@ class Message(SQLModel, table=True):
         sa_type=DateTime(timezone=True))
     reasoning: Optional[str] = Field(
         default=None, description="Reasoning content")
-    tool_calls: Optional[list[ToolCallMessage]] = Field(
+    tool_calls: Optional[list[dict]] = Field(
         default=None, sa_type=SQLJSON, description="Tool calls")
     message_metadata: dict[str, Any] = Field(
         default_factory=dict, sa_type=SQLJSON)  # 元数据（模型调用、配置）

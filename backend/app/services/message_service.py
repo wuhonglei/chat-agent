@@ -9,13 +9,23 @@ from sqlmodel import Session
 
 from app.models.db import Conversation, Message, ToolCallMessage
 from app.utils.common import get_datetime_now
+from app.core.db import engine
 
 
 class MessageService:
     """处理会话消息的入库与状态更新"""
 
-    def __init__(self, db: Session):
-        self.db = db
+    def __init__(self):
+        pass
+
+    def __enter__(self):
+        self.db: Optional[Session] = Session(engine)
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if self.db:
+            self.db.close()
+            self.db = None
 
     def _get_conversation(self, conversation_id: str) -> Conversation:
         conversation = self.db.get(Conversation, conversation_id)
@@ -47,6 +57,7 @@ class MessageService:
             self.db.add(message)
             self.db.commit()
             self.db.refresh(message)
+            logger.info(f"message: {message}")
             return message
         except SQLAlchemyError as exc:
             self.db.rollback()
@@ -72,6 +83,7 @@ class MessageService:
             message_metadata=metadata or {},
             status="pending",
         )
+        logger.info(f"user_message: {message}")
         return self._persist_message(message, conversation)
 
     def create_assistant_message(
@@ -98,9 +110,10 @@ class MessageService:
         self,
         message_id: str,
         *,
-        reasoning: Optional[str] = None,
-        tool_calls: Optional[list[ToolCallMessage]] = None,
-        status: str = "done",
+        content: Optional[str],
+        reasoning: Optional[str],
+        tool_calls: Optional[list[dict]],
+        status: str,
         extra_metadata: Optional[dict[str, Any]] = None,
     ) -> Message:
         persistent_message = self.db.get(Message, message_id)
@@ -108,14 +121,18 @@ class MessageService:
             raise HTTPException(status_code=404, detail="助手消息不存在")
 
         persistent_message.status = status
+        if content:
+            persistent_message.content = content
         if reasoning:
             persistent_message.reasoning = reasoning
         if tool_calls:
-            persistent_message.tool_calls = tool_calls
+            persistent_message.tool_calls = [
+                tool_call.model_dump() for tool_call in tool_calls]
         if extra_metadata:
             merged_metadata = dict(persistent_message.message_metadata or {})
             merged_metadata.update(extra_metadata)
             persistent_message.message_metadata = merged_metadata
+        self.db.add(persistent_message)
         self.db.commit()
         self.db.refresh(persistent_message)
         return persistent_message

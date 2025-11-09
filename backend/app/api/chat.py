@@ -21,14 +21,12 @@ router = APIRouter()
 async def chat_stream(
     request: Request,
     chat_request: ChatRequest,
-    db: Session = Depends(get_db),
 ):
     """Stream chat response, 按需保存用户与助手消息"""
     conversation_id = chat_request.conversation_id
     state = cast(AppState, request.app.state)
 
     chat_service = ChatService(mcp_manager=state.mcp_manager)
-    message_service = MessageService(db)
 
     user_metadata = {
         "mcp_auto_mode": chat_request.mcp_auto_mode,
@@ -39,17 +37,19 @@ async def chat_stream(
     }
 
     try:
-        user_message = message_service.create_user_message(
-            conversation_id=conversation_id,
-            content=chat_request.message,
-            metadata=user_metadata,
-        )
-        logger.info(f"user_message: {user_message}")
-        assistant_message = message_service.create_assistant_message(
-            conversation_id=conversation_id,
-            reply_to=user_message.id,
-            metadata=user_metadata,
-        )
+        with MessageService() as message_service:
+            user_message = message_service.create_user_message(
+                conversation_id=conversation_id,
+                content=chat_request.message,
+                metadata=user_metadata,
+            )
+            assistant_message = message_service.create_assistant_message(
+                conversation_id=conversation_id,
+                reply_to=user_message.id,
+                metadata=user_metadata,
+            )
+            user_message_id = user_message.id
+            assistant_message_id = assistant_message.id
     except HTTPException:
         raise
     except Exception as exc:
@@ -57,61 +57,63 @@ async def chat_stream(
         raise HTTPException(status_code=500, detail="用户消息写入失败") from exc
 
     async def generate() -> AsyncGenerator[str, None]:
-        # 立即返回 ack，提示前端消息已入库
-        yield chat_service._format_sse_message('ack', user_message)
-        yield chat_service._format_sse_message('ack', assistant_message)
+        with MessageService() as message_service:
+            # 立即返回 ack，提示前端消息已入库
+            yield chat_service._format_sse_message('ack', user_message)
+            yield chat_service._format_sse_message('ack', assistant_message)
 
-        try:
-            async for chunk in chat_service.stream_message(
-                chat_request=chat_request
-            ):
-                yield chunk
-        except Exception as streaming_error:
-            logger.error(f"Streaming response failed: {streaming_error}")
             try:
-                message_service.mark_user_message_failed(
-                    user_message.id,
-                    str(streaming_error),
-                )
-            except Exception as mark_failed_error:  # pragma: no cover
-                logger.error(
-                    "Failed to mark user message as failed: %s", mark_failed_error
-                )
-            raise
+                async for chunk in chat_service.stream_message(
+                    chat_request=chat_request
+                ):
+                    yield chunk
+            except Exception as streaming_error:
+                logger.error(f"Streaming response failed: {streaming_error}")
+                try:
+                    message_service.mark_user_message_failed(
+                        user_message_id,
+                        str(streaming_error),
+                    )
+                except Exception as mark_failed_error:  # pragma: no cover
+                    logger.error(
+                        "Failed to mark user message as failed: %s", mark_failed_error
+                    )
+                raise
 
-        assistant_payload = chat_service.get_collected_response()
-        tool_call_details = assistant_payload.tool_calls
-        assistant_metadata = {
-            "mcp_auto_mode": chat_request.mcp_auto_mode,
-            "think_mode": chat_request.think_mode,
-            "tool_call_count": len(tool_call_details) if tool_call_details else 0,
-        }
+            assistant_payload = chat_service.get_collected_response()
+            tool_call_details = assistant_payload.tool_calls
+            assistant_metadata = {
+                "mcp_auto_mode": chat_request.mcp_auto_mode,
+                "think_mode": chat_request.think_mode,
+                "tool_call_count": len(tool_call_details) if tool_call_details else 0,
+            }
 
-        try:
-            message_service.update_assistant_message(
-                assistant_message.id,
-                reasoning=assistant_payload.reasoning,
-                tool_calls=assistant_payload.tool_calls,
-                status="done",
-                extra_metadata=assistant_metadata,
-            )
-            message_service.mark_user_message_done(
-                user_message.id,
-                extra_metadata={"reply_message_id": assistant_message.id},
-            )
-        except Exception as persist_error:
-            logger.error(
-                f"Failed to persist assistant message: {persist_error}")
             try:
-                message_service.mark_user_message_failed(
-                    user_message.id,
-                    str(persist_error),
+                message_service.update_assistant_message(
+                    assistant_message_id,
+                    content=assistant_payload.content,
+                    reasoning=assistant_payload.reasoning,
+                    tool_calls=assistant_payload.tool_calls,
+                    status="done",
+                    extra_metadata=assistant_metadata,
                 )
-            except Exception as mark_failed_error:  # pragma: no cover
+                message_service.mark_user_message_done(
+                    user_message_id,
+                    extra_metadata={"reply_message_id": assistant_message_id},
+                )
+            except Exception as persist_error:
                 logger.error(
-                    "Failed to mark user message as failed: %s", mark_failed_error
-                )
-            raise
+                    f"Failed to persist assistant message: {persist_error}")
+                try:
+                    message_service.mark_user_message_failed(
+                        user_message_id,
+                        str(persist_error),
+                    )
+                except Exception as mark_failed_error:  # pragma: no cover
+                    logger.error(
+                        "Failed to mark user message as failed: %s", mark_failed_error
+                    )
+                raise
 
         if chat_request.regenerate_title:
             title = await chat_service.generate_title(chat_request.message)

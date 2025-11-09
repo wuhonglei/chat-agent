@@ -36,11 +36,17 @@ import { emitter, EventType } from "@/events";
 import { TitleCreatedBy } from "@/constants";
 import { useParams } from "react-router-dom";
 
+/**
+ * 用于控制 ChatPage 的渲染
+ */
 export interface UseChatMessageOptions {
   conversationId?: string;
   historyLimit?: number;
 }
 
+/**
+ * 用于控制 ChatPage 的渲染
+ */
 export interface UseChatMessageReturn {
   abortMessage: () => void;
   reSendMessage: (
@@ -54,6 +60,9 @@ export interface UseChatMessageReturn {
   ) => Promise<void>;
 }
 
+/**
+ * 用于控制 ChatPage 的渲染
+ */
 export const useChatMessage = (
   options: UseChatMessageOptions = {}
 ): UseChatMessageReturn => {
@@ -226,6 +235,10 @@ export const useChatMessage = (
   };
 };
 
+/**
+ * 用于判断是否是新对话
+ * @returns {boolean} 是否是新对话
+ */
 export function useNewConversation() {
   const { conversationId } = useParams<{ conversationId?: string }>();
   const key = "ai:assistant:new_conversation";
