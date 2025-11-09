@@ -147,7 +147,7 @@ def migrate_add_columns():
 def migrate_remove_columns():
     """迁移删除字段：删除现有表中的字段"""
     column_removals = {
-        "messages": ["message_count"]
+        "conversations": ["message_count"]
     }
 
     inspector = inspect(engine)
