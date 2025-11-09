@@ -8,7 +8,7 @@ import {
 } from "@/interfaces";
 import { Card, Form } from "antd";
 import classNames from "classnames";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { SourceData } from "@/interfaces";
 import styles from "./index.module.css";
 import SourceSider from "@/components/Chat/SourceSider";
@@ -52,6 +52,7 @@ const ChatPage: React.FC = () => {
     useNewConversation();
   useRequest(() => chatAPI.getConversationMessages(conversationId as string), {
     ready: !isNewConversation && !!conversationId, // 如果是新对话，则无需加载历史消息
+    refreshDeps: [conversationId],
     onSuccess: data => {
       dispatch(setMessages(data));
     },
