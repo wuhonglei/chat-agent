@@ -3,15 +3,13 @@
 from collections.abc import AsyncGenerator
 from typing import cast
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from loguru import logger
-from sqlmodel import Session
 
-from app.models.chat import ChatRequest
+from app.models.chat import ChatRequest, MessageStatus
 from app.services.chat_service import ChatService
 from app.models.app_state import AppState
-from app.core.db import get_db
 from app.services.message_service import MessageService
 
 router = APIRouter()
@@ -94,7 +92,7 @@ async def chat_stream(
                     content=assistant_payload.content,
                     reasoning=assistant_payload.reasoning,
                     tool_calls=assistant_payload.tool_calls,
-                    status="done",
+                    status=MessageStatus.DONE,
                     extra_metadata=assistant_metadata,
                 )
                 message_service.mark_user_message_done(

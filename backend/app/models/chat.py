@@ -2,11 +2,20 @@
 
 from datetime import datetime
 from typing import Any, Optional
+from enum import Enum
 
 from pydantic import BaseModel, Field, ConfigDict
 
 from app.utils.common import get_datetime_now
 from app.models.llm import ToolCallMessage
+
+
+class MessageStatus(str, Enum):
+    """Message status"""
+    PENDING = "pending"  # 未完成(答案生成中)
+    STOPPED = "stopped"  # 停止(答案生成停止)
+    DONE = "done"  # 完成(答案生成完成)
+    FAILED = "failed"  # 失败(答案生成失败)
 
 
 class SourceConfig(BaseModel):

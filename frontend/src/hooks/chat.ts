@@ -24,12 +24,11 @@ import {
   ToolCallMessage,
 } from "@/interfaces";
 
-import { isEmpty, isNil, isPlainObject, omit } from "lodash-es";
+import { isEmpty, isPlainObject } from "lodash-es";
 import {
   buildFootnoteDefinition,
   getHistoryMessages,
   isUserRole,
-  getDatetimeNow,
   isTitleCreatedByDefault,
 } from "@/utils";
 import { emitter, EventType } from "@/events";
@@ -97,28 +96,6 @@ export const useChatMessage = (
     // 使用传入的 conversationIdOverride，否则使用 hook 初始化时的 conversationId
     const finalConversationId = conversationIdOverride ?? conversationId;
 
-    // 添加用户消息
-    const userMessage: ChatMessage = {
-      role: "user",
-      content: values.message,
-      createdAt: getDatetimeNow(),
-      messageMetadata: omit(values, ["message"]),
-    };
-    // dispatch(
-    //   isNil(index)
-    //     ? addMessage(userMessage)
-    //     : addMessageAtIndex({ message: userMessage, index })
-    // );
-
-    // 添加空的助手消息用于流式传输
-    const assistantMessage: ChatMessage = {
-      role: "assistant",
-      content: "",
-      reasoning: "",
-      createdAt: getDatetimeNow(),
-      messageMetadata: omit(values, ["message"]),
-    };
-    // dispatch(addMessage(assistantMessage));
     dispatch(setStreaming(true));
     dispatch(setLoading(true));
 
@@ -144,7 +121,10 @@ export const useChatMessage = (
 
           const { type } = data;
           const { status, content } = data.data || {};
-          dispatch(setLoading(false)); // 收到响应
+          if (type !== "ack") {
+            dispatch(setLoading(false)); // 收到响应
+          }
+
           if (type === "ack") {
             dispatch(
               addMessage({ ...(data.data as ChatMessage), defaultOpen: true })

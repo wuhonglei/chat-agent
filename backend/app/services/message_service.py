@@ -7,6 +7,7 @@ from loguru import logger
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 
+from app.models.chat import MessageStatus
 from app.models.db import Conversation, Message, ToolCallMessage
 from app.utils.common import get_datetime_now
 from app.core.db import engine
@@ -81,7 +82,7 @@ class MessageService:
             role="user",
             content=content,
             message_metadata=metadata or {},
-            status="pending",
+            status=MessageStatus.DONE,
         )
         logger.info(f"user_message: {message}")
         return self._persist_message(message, conversation)
@@ -101,7 +102,7 @@ class MessageService:
             reasoning='',
             tool_calls=[],
             message_metadata=metadata or {},
-            status="pending",
+            status=MessageStatus.PENDING,
             reply_to=reply_to,
         )
         return self._persist_message(message, conversation)
@@ -113,7 +114,7 @@ class MessageService:
         content: Optional[str],
         reasoning: Optional[str],
         tool_calls: Optional[list[dict]],
-        status: str,
+        status: MessageStatus,
         extra_metadata: Optional[dict[str, Any]] = None,
     ) -> Message:
         persistent_message = self.db.get(Message, message_id)
@@ -143,7 +144,7 @@ class MessageService:
     ) -> Optional[Message]:
         return self._update_user_message_status(
             message_id,
-            status="done",
+            status=MessageStatus.DONE,
             extra_metadata=extra_metadata,
         )
 
@@ -154,7 +155,7 @@ class MessageService:
     ) -> Optional[Message]:
         return self._update_user_message_status(
             message_id,
-            status="failed",
+            status=MessageStatus.FAILED,
             extra_metadata={"error": error_message},
         )
 
@@ -162,7 +163,7 @@ class MessageService:
         self,
         message_id: str,
         *,
-        status: str,
+        status: MessageStatus,
         extra_metadata: Optional[dict[str, Any]] = None,
     ) -> Optional[Message]:
         message = self.db.get(Message, message_id)
