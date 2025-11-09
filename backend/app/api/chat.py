@@ -11,6 +11,7 @@ from app.models.chat import ChatRequest, MessageStatus
 from app.services.chat_service import ChatService
 from app.models.app_state import AppState
 from app.services.message_service import MessageService
+from app.models.db import Message
 from app.utils.common import gen_uuid
 
 router = APIRouter()
@@ -40,14 +41,14 @@ async def chat_stream(
         assistant_message_id = gen_uuid()
         with MessageService() as message_service:
             conversation = message_service.get_conversation(conversation_id)
-            user_message = message_service.create_user_message(
+            message_service.create_user_message(
                 conversation=conversation,
                 message_id=user_message_id,
                 content=chat_request.message,
                 metadata={**user_metadata,
                           "reply_message_id": assistant_message_id},
             )
-            assistant_message = message_service.create_assistant_message(
+            message_service.create_assistant_message(
                 conversation=conversation,
                 message_id=assistant_message_id,
                 reply_to=user_message_id,
@@ -62,10 +63,15 @@ async def chat_stream(
 
     async def generate() -> AsyncGenerator[str, None]:
         with MessageService() as message_service:
+            conversation = message_service.get_conversation(conversation_id)
+            user_message = message_service.db.get(Message, user_message_id)
+            assistant_message = message_service.db.get(
+                Message, assistant_message_id)
+
             # 立即返回 ack，提示前端消息已入库
-            yield chat_service._format_sse_message('ack', user_message)
-            yield chat_service._format_sse_message('ack', assistant_message)
-            yield chat_service._format_sse_message('refresh_conversation', conversation)
+            yield chat_service.format_sse_message('ack', user_message)
+            yield chat_service.format_sse_message('ack', assistant_message)
+            yield chat_service.format_sse_message('refresh_conversation', conversation)
 
             try:
                 async for chunk in chat_service.stream_message(
@@ -100,12 +106,12 @@ async def chat_stream(
 
         if chat_request.regenerate_title:
             title = await chat_service.generate_title(chat_request.message)
-            yield chat_service._format_sse_message('title', {
+            yield chat_service.format_sse_message('title', {
                 'id': conversation_id,
                 'title': title
             })
 
-        yield chat_service._format_sse_message('done')
+        yield chat_service.format_sse_message('done')
         return
 
     return StreamingResponse(

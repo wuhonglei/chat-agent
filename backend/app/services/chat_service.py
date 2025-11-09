@@ -50,26 +50,26 @@ class ChatService:
             if delta and getattr(delta, 'reasoning_content', None):
                 status = 'start' if not start_reasoning else 'continue'
                 start_reasoning = True
-                yield self._format_sse_message('reasoning', {
+                yield self.format_sse_message('reasoning', {
                     'status': status,
                     'content': delta.reasoning_content,
                 })
             elif delta and getattr(delta, 'content', None):
                 if start_reasoning:
                     start_reasoning = False
-                    yield self._format_sse_message('reasoning', {
+                    yield self.format_sse_message('reasoning', {
                         'status': 'done',
                     })
 
                 status = 'start' if not start_content else 'continue'
                 start_content = True
-                yield self._format_sse_message('content', {
+                yield self.format_sse_message('content', {
                     'status': status,
                     'content': delta.content,
                 })
 
         if start_content:
-            yield self._format_sse_message('content', {
+            yield self.format_sse_message('content', {
                 'status': 'done',
                 'content': '',
             })
@@ -108,7 +108,7 @@ class ChatService:
             if not assistant_message.tool_calls:
                 logger.info(
                     "No tool calls, returning tool_call_messages. Assistant response: " + (assistant_message.content if assistant_message.content else 'empty'))
-                yield self._format_sse_message('tool_call', {
+                yield self.format_sse_message('tool_call', {
                     'status': 'done',
                     'content': assistant_message.content or ''
                 }), tool_call_messages
@@ -130,7 +130,7 @@ class ChatService:
                 if iterations_by_tool[tool_name] <= 0:
                     logger.info(
                         f"Tool {tool_name} has hit max iterations, skipping")
-                    yield self._format_sse_message('tool_call', {
+                    yield self.format_sse_message('tool_call', {
                         'role': 'tool',
                         'status': 'error',
                         'content': f'Tool {tool_name} has hit max iterations, skipping',
@@ -150,7 +150,7 @@ class ChatService:
                 iterations_by_tool[tool_name] -= 1
                 try:
                     # Stream tool call start
-                    yield self._format_sse_message(
+                    yield self.format_sse_message(
                         'tool_call', {
                             'role': 'tool',
                             'status': 'start',
@@ -173,7 +173,7 @@ class ChatService:
                     # 优先使用结构化内容，否则使用格式化的字符串内容
                     result_content = getattr(
                         result, 'structured_content') or content
-                    yield self._format_sse_message(
+                    yield self.format_sse_message(
                         'tool_call', {
                             'role': 'tool',
                             'status': 'done',
@@ -196,7 +196,7 @@ class ChatService:
                     error_msg = str(e)
 
                     # Stream error
-                    yield self._format_sse_message(
+                    yield self.format_sse_message(
                         'tool_call', {
                             'role': 'tool',
                             'status': 'error',
@@ -215,13 +215,13 @@ class ChatService:
 
         # If we hit max iterations, return error message
         logger.info('we have hit max iterations, returning tool_call_messages')
-        yield self._format_sse_message('tool_call', {
+        yield self.format_sse_message('tool_call', {
             'status': 'done',
             'content': 'we have hit max iterations, returning tool_call_messages'
         }), tool_call_messages
         return
 
-    def _format_sse_message(self, msg_type: str, data=None) -> str:
+    def format_sse_message(self, msg_type: str, data=None) -> str:
         """Format SSE (Server-Sent Events) message"""
         if data is None:
             return f"data: {json.dumps({'type': msg_type, 'data': {}}, ensure_ascii=False)}\n\n"
@@ -283,7 +283,7 @@ class ChatService:
 
         except Exception as e:
             logger.error(f"Failed to stream message: {e}")
-            yield self._format_sse_message('error', str(e))
+            yield self.format_sse_message('error', str(e))
 
     async def generate_title(self, user_message: str) -> str:
         """Generate title for the chat"""
