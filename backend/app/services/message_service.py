@@ -126,8 +126,7 @@ class MessageService:
         if reasoning:
             persistent_message.reasoning = reasoning
         if tool_calls:
-            persistent_message.tool_calls = [
-                tool_call.model_dump() for tool_call in tool_calls]
+            persistent_message.tool_calls = tool_calls
         if extra_metadata:
             merged_metadata = dict(persistent_message.message_metadata or {})
             merged_metadata.update(extra_metadata)

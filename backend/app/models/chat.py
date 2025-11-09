@@ -30,7 +30,7 @@ class ChatMessageItem(BaseModel):
     content: str = Field(..., description="Message content")
     conversation_id: str = Field(..., description="Conversation ID")
     reasoning: Optional[str] = Field(None, description="Reasoning content")
-    tool_calls: Optional[list[ToolCallMessage]] = Field(
+    tool_calls: Optional[list[dict]] = Field(
         None, description="Tool calls")
     created_at: datetime = Field(
         default_factory=get_datetime_now, description="Message timestamp")
@@ -100,5 +100,5 @@ class CollectedResponse(BaseModel):
     """Collected response model"""
     content: str = Field(default="", description="Collected content")
     reasoning: str = Field(default="", description="Collected reasoning")
-    tool_calls: list[ToolCallMessage] = Field(
+    tool_calls: list[dict] = Field(
         default_factory=list, description="Collected tool calls")

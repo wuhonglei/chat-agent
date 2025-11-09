@@ -39,8 +39,8 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
     >
       {messages.map((message, index) => (
         <ChatMessageItem
-          key={index}
           index={index}
+          key={message.id}
           message={message}
           onReSend={onReSend}
           onSourceClick={onSourceClick}

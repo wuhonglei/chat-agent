@@ -21,7 +21,7 @@ export interface SearchSource {
 }
 
 export interface ChatMessage {
-  id?: string;
+  id: string;
   role: RoleType;
   content: string;
   reasoning?: string;

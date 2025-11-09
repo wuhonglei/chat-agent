@@ -233,6 +233,8 @@ class ChatService:
             self.collected_content += data.get('content') or ''
         elif msg_type == 'reasoning':
             self.collected_reasoning += data.get('content') or ''
+        elif msg_type == 'tool_call':
+            self.collected_tool_calls.append(data)
         return f"data: {json.dumps({'type': msg_type, 'data': data}, ensure_ascii=False)}\n\n"
 
     async def stream_message(
@@ -270,11 +272,6 @@ class ChatService:
                         yield sse_msg
                     # Update accumulated messages
                     tool_call_messages = accumulated_messages
-
-            self.collected_tool_calls = [
-                message.model_dump(mode="json", exclude_none=True)
-                for message in tool_call_messages
-            ] if tool_call_messages else []
 
             system_prompt = get_default_system_prompt(include_date=False)
             # 将工具调用历史拼接到用户消息中
