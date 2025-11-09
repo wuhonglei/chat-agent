@@ -1,6 +1,6 @@
 import ChatInput from "@/components/Chat/ChatInput";
 import { ChatMessageList } from "@/components/Chat/ChatMessage";
-import { useChatMessage } from "@/hooks";
+import { useChatMessage, useNewConversation } from "@/hooks";
 import { useMemoizedFn, useRequest } from "ahooks";
 import {
   ChatInputFormValues,
@@ -14,7 +14,7 @@ import styles from "./index.module.css";
 import SourceSider from "@/components/Chat/SourceSider";
 import WelcomePage from "@/components/Chat/WelcomePage";
 import { isEmpty } from "lodash-es";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useAppSelector, useAppDispatch } from "@/store/hooks";
 import { shallowEqual } from "react-redux";
 import { registerConversation } from "@/store/slices/conversationSlice";
@@ -26,8 +26,6 @@ const ChatPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { conversationId } = useParams<{ conversationId?: string }>();
-  const { state } = useLocation();
-  const isNewConversation = Boolean(state?.isNewConversation);
   const { sendMessage, reSendMessage, abortMessage } = useChatMessage({
     conversationId,
   });
@@ -49,6 +47,9 @@ const ChatPage: React.FC = () => {
     dispatch(clearCurrentChat());
   });
 
+  // 页面刷新后清除 isNewConversation 状态
+  const { value: isNewConversation, setValue: setIsNewConversation } =
+    useNewConversation();
   useRequest(() => chatAPI.getConversationMessages(conversationId as string), {
     ready: !isNewConversation && !!conversationId, // 如果是新对话，则无需加载历史消息
     onSuccess: data => {
@@ -92,17 +93,15 @@ const ChatPage: React.FC = () => {
       }
       // 创建会话
       const { createdBy, id } = await dispatch(registerConversation()).unwrap();
+      setIsNewConversation(true);
+      // 更新 URL 到新的会话 ID
+      navigate(`/chat/${id}`, {
+        replace: true,
+      });
       // 使用新的 conversationId 发送消息
       const sendPromise = sendMessage(values, {
         conversationIdOverride: id,
         createdBy,
-      });
-      // 更新 URL 到新的会话 ID
-      navigate(`/chat/${id}`, {
-        replace: true,
-        state: {
-          isNewConversation: true,
-        },
       });
       return sendPromise;
     }

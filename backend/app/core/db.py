@@ -42,8 +42,10 @@ def _get_table_columns(inspector, table_name: str) -> dict[str, dict]:
     return {col["name"]: col for col in inspector.get_columns(table_name)}
 
 
-def _get_enum_value(value) -> str:
+def _get_enum_value(value):
     """获取枚举值，如果是枚举成员则返回其值，否则返回原值"""
+    if value is None:
+        return None
     return value.value if hasattr(value, 'value') else value
 
 
@@ -85,7 +87,19 @@ def migrate_add_columns():
                 "default": CreatedBy.DEFAULT,
                 "nullable": False,
             }
-        }
+        },
+        "messages": {
+            "status": {
+                "type": "VARCHAR(20)",
+                "default": "pending",
+                "nullable": False,
+            },
+            "reply_to": {
+                "type": "VARCHAR(36)",
+                "default": None,
+                "nullable": True,
+            },
+        },
     }
 
     inspector = inspect(engine)
@@ -104,15 +118,19 @@ def migrate_add_columns():
                     continue
 
                 field_type = field_info["type"]
-                default_value = _get_enum_value(field_info["default"])
+                default_value = _get_enum_value(field_info.get("default"))
                 nullable = field_info.get("nullable", True)
 
                 # 构建 ALTER TABLE 语句
                 not_null_clause = " NOT NULL" if not nullable else ""
+                if default_value is None:
+                    default_clause = ""
+                else:
+                    default_clause = f" DEFAULT '{default_value}'"
+
                 alter_sql = (
                     f'ALTER TABLE "{table_name}" '
-                    f'ADD COLUMN "{field_name}" {field_type}{not_null_clause} '
-                    f"DEFAULT '{default_value}'"
+                    f'ADD COLUMN "{field_name}" {field_type}{not_null_clause}{default_clause}'
                 )
                 conn.execute(text(alter_sql))
                 logger.info(

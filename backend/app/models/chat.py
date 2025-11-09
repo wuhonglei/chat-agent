@@ -36,6 +36,14 @@ class ChatMessageItem(BaseModel):
         default_factory=get_datetime_now, description="Message timestamp")
     message_metadata: dict[str, Any] = Field(
         default_factory=dict, description="Message metadata")
+    status: str = Field(
+        default="pending",
+        description="Message persistence status (pending|done|failed)"
+    )
+    reply_to: Optional[str] = Field(
+        default=None,
+        description="ID of the user message this assistant message replies to"
+    )
 
     model_config = ConfigDict(
         extra='ignore'
@@ -86,3 +94,11 @@ class ChatResponse(BaseModel):
     session_id: str = Field(..., description="Session ID")
     created_at: datetime = Field(
         default_factory=get_datetime_now, description="Response timestamp")
+
+
+class CollectedResponse(BaseModel):
+    """Collected response model"""
+    content: str = Field(default="", description="Collected content")
+    reasoning: str = Field(default="", description="Collected reasoning")
+    tool_calls: list[ToolCallMessage] = Field(
+        default_factory=list, description="Collected tool calls")

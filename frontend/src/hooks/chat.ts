@@ -1,8 +1,7 @@
-import { useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   addMessage,
-  addMessageAtIndex,
   appendContentToLastMessage,
   appendReasoningToLastMessage,
   prependSourceToLastReasoningMessage,
@@ -35,6 +34,7 @@ import {
 } from "@/utils";
 import { emitter, EventType } from "@/events";
 import { TitleCreatedBy } from "@/constants";
+import { useParams } from "react-router-dom";
 
 export interface UseChatMessageOptions {
   conversationId?: string;
@@ -95,11 +95,11 @@ export const useChatMessage = (
       createdAt: getDatetimeNow(),
       messageMetadata: omit(values, ["message"]),
     };
-    dispatch(
-      isNil(index)
-        ? addMessage(userMessage)
-        : addMessageAtIndex({ message: userMessage, index })
-    );
+    // dispatch(
+    //   isNil(index)
+    //     ? addMessage(userMessage)
+    //     : addMessageAtIndex({ message: userMessage, index })
+    // );
 
     // 添加空的助手消息用于流式传输
     const assistantMessage: ChatMessage = {
@@ -109,7 +109,7 @@ export const useChatMessage = (
       createdAt: getDatetimeNow(),
       messageMetadata: omit(values, ["message"]),
     };
-    dispatch(addMessage(assistantMessage));
+    // dispatch(addMessage(assistantMessage));
     dispatch(setStreaming(true));
     dispatch(setLoading(true));
 
@@ -136,7 +136,9 @@ export const useChatMessage = (
           const { type } = data;
           const { status, content } = data.data || {};
           dispatch(setLoading(false)); // 收到响应
-          if (type === "reasoning") {
+          if (type === "ack") {
+            dispatch(addMessage(data.data as ChatMessage));
+          } else if (type === "reasoning") {
             // 思考内容
             if (status === "start") {
               dispatch(setReasoning(true));
@@ -223,3 +225,30 @@ export const useChatMessage = (
     reSendMessage,
   };
 };
+
+export function useNewConversation() {
+  const { conversationId } = useParams<{ conversationId?: string }>();
+  const key = "ai:assistant:new_conversation";
+  const isNewConversation = useMemo(
+    () => sessionStorage.getItem(key) === "1",
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [key, conversationId] // 路由变化后，由于渲染同一个 ChatPage 实例，因此需要依赖 conversationId 来主动执行 useMemo
+  );
+
+  // 页面刷新后清除 isNewConversation 状态
+  useEffect(() => {
+    if (conversationId && isNewConversation) {
+      sessionStorage.removeItem(key);
+    }
+  }, [conversationId, isNewConversation]);
+
+  return {
+    value: isNewConversation,
+    setValue: (value: boolean) => {
+      sessionStorage.setItem(key, value ? "1" : "0");
+    },
+    removeValue: () => {
+      sessionStorage.removeItem(key);
+    },
+  };
+}

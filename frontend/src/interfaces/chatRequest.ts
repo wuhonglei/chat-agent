@@ -21,6 +21,7 @@ export interface SearchSource {
 }
 
 export interface ChatMessage {
+  id?: string;
   role: RoleType;
   content: string;
   reasoning?: string;
@@ -28,6 +29,8 @@ export interface ChatMessage {
   sources?: SearchSource[];
   toolCalls?: ToolCallMessage[];
   messageMetadata: Omit<ChatInputFormValues, "message">;
+  status?: "pending" | "done" | "failed";
+  replyTo?: string; // role为assistant时，回复到哪个user消息
 }
 
 export interface ChatHistory {

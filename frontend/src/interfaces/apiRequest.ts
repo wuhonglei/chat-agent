@@ -7,6 +7,7 @@ export interface StreamMessage {
     | "tool_call"
     | "title"
     | "done"
-    | "error";
+    | "error"
+    | "ack";
   data?: any;
 }

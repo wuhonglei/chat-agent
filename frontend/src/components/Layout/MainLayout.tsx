@@ -23,7 +23,8 @@ import {
 import HoverButton from "./HoverButton";
 import { useMemoizedFn } from "ahooks";
 import { EventType, emitter } from "@/events";
-import { TitleCreatedBy } from "@/constants";
+import { TitleCreatedBy, WebTitle } from "@/constants";
+import { useWebTitle } from "@/hooks";
 const { useToken } = theme;
 const { Title } = Typography;
 
@@ -40,7 +41,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const { token } = useToken();
   const [collapsed, setCollapsed] = useState(false);
   const conversationInfo = useConversionInfo();
-
   const dispatch = useAppDispatch();
   const onDeleteConversation = useMemoizedFn(async (id: string) => {
     await dispatch(deleteConversation(id)).unwrap();
@@ -50,6 +50,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     }
   });
   const menuItems = useMenuItems(onDeleteConversation);
+  useWebTitle(conversationInfo);
 
   const handleMenuClick: MenuProps["onClick"] = ({ key }) => {
     // 点击的菜单和当前路径相同，则不进行跳转
@@ -86,17 +87,22 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         collapsed={collapsed}
         onCollapse={handleCollapse}
         collapsedWidth={collapsedWidth}
-        className={classNames("flex flex-col border-r-1", !collapsed && "px-3")}
+        className={classNames(
+          "flex flex-col border-r-1",
+          styles["aside-container"],
+          !collapsed && "px-3"
+        )}
         style={{
+          padding: 0,
           borderColor: "#E2E2E2",
           backgroundColor: "#F9FAFB",
         }}
       >
-        <div className="my-4 flex justify-between items-center">
+        <div className="mx-3 my-4 flex justify-between items-center">
           <Link to="/" className="flex items-center gap-2 h-9">
             <img alt="logo" width={32} height={32} src="/logo.png" />
             <Title level={5} style={{ marginBottom: 0 }}>
-              Ai Assistant
+              {WebTitle}
             </Title>
           </Link>
           <Button
@@ -109,7 +115,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         <Button
           size="large"
           shape="round"
-          className="w-full"
+          className="mx-3"
           onClick={handleNewConversion}
           icon={<NewConversionIcon />}
         >
@@ -137,6 +143,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               backgroundColor: "transparent",
               width: "100%",
               border: "none",
+              padding: "0 12px",
             }}
           />
         </ConfigProvider>

@@ -18,9 +18,7 @@ def conversation_to_dict(conversation: Conversation) -> dict:
     使用 mode="json" 自动将日期时间字段转换为 ISO 格式字符串
     """
     return conversation.model_dump(
-        mode="json",
-        include={"id", "title", "created_by",
-                 "created_at", "updated_at", "message_count"}
+        mode="json"
     )
 
 
@@ -114,6 +112,7 @@ async def update_conversation(conversation_id: str, request: UpdateConversationR
             logger.error(f"Conversation {conversation_id} not found")
             return ApiResponse.error(code=404, msg="对话不存在", data=None)
         conversation.title = request.title
+        conversation.created_by = request.created_by
         db.commit()
         db.refresh(conversation)
         return ApiResponse.success(data=conversation_to_dict(conversation), msg="更新对话成功")

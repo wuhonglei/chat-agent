@@ -70,12 +70,22 @@ class Message(SQLModel, table=True):
                     index=True, max_length=36)
     conversation_id: str = Field(index=True, max_length=36)
     role: str  # "user" | "assistant"
-    content: str
+    content: str = Field(default="", description="Message content")
     created_at: datetime = Field(
         default_factory=get_datetime_now, index=True,
         sa_type=DateTime(timezone=True))
-    reasoning: Optional[str] = None  # 推理内容
+    reasoning: Optional[str] = Field(
+        default=None, description="Reasoning content")
     tool_calls: Optional[list[ToolCallMessage]] = Field(
-        default=None, sa_type=SQLJSON)  # 工具调用列表
-    message_metadata:  dict[str, Any] = Field(
+        default=None, sa_type=SQLJSON, description="Tool calls")
+    message_metadata: dict[str, Any] = Field(
         default_factory=dict, sa_type=SQLJSON)  # 元数据（模型调用、配置）
+    status: str = Field(
+        default="pending",
+        description="消息落库状态，pending|done|failed"
+    )
+    reply_to: Optional[str] = Field(
+        default=None,
+        description="关联的用户消息 ID",
+        max_length=36
+    )

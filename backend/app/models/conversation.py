@@ -52,3 +52,5 @@ class UpdateConversationRequest(BaseModel):
     """Update conversation request model"""
     id: str = Field(..., description="Conversation ID")
     title: str = Field(..., description="New conversation title")
+    created_by: CreatedBy = Field(...,
+                                  description="Conversation created by")

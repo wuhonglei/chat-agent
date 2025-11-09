@@ -1,6 +1,6 @@
 import { ConversationInfo } from "@/interfaces";
 import { DeleteOutlined } from "@ant-design/icons";
-import { Button, Popconfirm } from "antd";
+import { Popconfirm } from "antd";
 import styles from "./css/labelItem.module.css";
 import classNames from "classnames";
 
@@ -38,6 +38,9 @@ export default function LabelItem({ onDelete, conversation }: Props) {
         }}
       >
         <DeleteOutlined
+          onClick={e => {
+            e?.stopPropagation();
+          }}
           className={classNames(
             "invisible transition-opacity duration-300 absolute right-0",
             styles.operation

@@ -2,18 +2,19 @@
 import time
 import json
 from collections.abc import AsyncGenerator, AsyncIterator
-from typing import Optional, cast
+from typing import Any, Optional, cast
 
 from loguru import logger
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletionMessage
 
 from app.core.config import settings
-from app.models.chat import ChatMessageItemReq, ChatRequest
+from app.models.chat import ChatMessageItemReq, ChatRequest, CollectedResponse
 from app.models.llm import ToolCallMessage, ToolCallResultMessage
 from app.utils.common import filter_dict
 from app.mcp.mcp_client import MCPClientManager
 from app.services.prompt import get_default_system_prompt, get_prompt_for_title, get_prompt_with_mcp_servers, get_prompt_with_tool_history
+from pydantic import BaseModel
 
 
 class ChatService:
@@ -26,6 +27,8 @@ class ChatService:
         )
         self.mcp_manager = mcp_manager
         self.collected_content = ''  # 收集的完整响应内容
+        self.collected_reasoning = ''  # 收集的推理内容
+        self.collected_tool_calls: list[dict[str, Any]] = []  # 工具调用记录
 
     async def _stream_final_response(
         self,
@@ -222,8 +225,14 @@ class ChatService:
         """Format SSE (Server-Sent Events) message"""
         if data is None:
             return f"data: {json.dumps({'type': msg_type, 'data': {}}, ensure_ascii=False)}\n\n"
+
+        # 如果 data 是 BaseModel
+        if isinstance(data, BaseModel):
+            data = data.model_dump(mode="json", exclude_none=True)
         if msg_type == 'content':
-            self.collected_content += data['content']
+            self.collected_content += data.get('content') or ''
+        elif msg_type == 'reasoning':
+            self.collected_reasoning += data.get('content') or ''
         return f"data: {json.dumps({'type': msg_type, 'data': data}, ensure_ascii=False)}\n\n"
 
     async def stream_message(
@@ -262,6 +271,11 @@ class ChatService:
                     # Update accumulated messages
                     tool_call_messages = accumulated_messages
 
+            self.collected_tool_calls = [
+                message.model_dump(mode="json", exclude_none=True)
+                for message in tool_call_messages
+            ] if tool_call_messages else []
+
             system_prompt = get_default_system_prompt(include_date=False)
             # 将工具调用历史拼接到用户消息中
             new_messages = self._compose_messages_with_tool_calls(
@@ -286,6 +300,14 @@ class ChatService:
             stream=False,
         )
         return title_response.choices[0].message.content
+
+    def get_collected_response(self) -> CollectedResponse:
+        """获取已收集的助手消息内容"""
+        return CollectedResponse(
+            content=self.collected_content,
+            reasoning=self.collected_reasoning,
+            tool_calls=self.collected_tool_calls,
+        )
 
     @staticmethod
     def _compose_messages_without_tool_calls(

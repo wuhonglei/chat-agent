@@ -3,3 +3,5 @@ export enum TitleCreatedBy {
   User = "user",
   LLM = "llm",
 }
+
+export const WebTitle = "Ai Assistant";
