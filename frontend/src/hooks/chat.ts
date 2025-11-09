@@ -146,14 +146,16 @@ export const useChatMessage = (
           const { status, content } = data.data || {};
           dispatch(setLoading(false)); // 收到响应
           if (type === "ack") {
-            dispatch(addMessage(data.data as ChatMessage));
+            dispatch(
+              addMessage({ ...(data.data as ChatMessage), defaultOpen: true })
+            );
           } else if (type === "reasoning") {
             // 思考内容
             if (status === "start") {
               dispatch(setReasoning(true));
             } else if (status === "done") {
-              dispatch(setReasoning(false));
               emitter.emit(EventType.ReasoningDone);
+              dispatch(setReasoning(false));
             }
             dispatch(appendReasoningToLastMessage(content || ""));
           } else if (type === "content") {
@@ -168,8 +170,8 @@ export const useChatMessage = (
             const { role } = data.data;
             dispatch(setCallingTools(true));
             if (!role && status === "done") {
-              dispatch(setCallingTools(false));
               emitter.emit(EventType.ToolCallDone);
+              dispatch(setCallingTools(false));
             }
             dispatch(appendToolCallToLastMessage(data.data as ToolCallMessage));
           } else if (type === "title") {

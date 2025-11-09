@@ -6,13 +6,14 @@ import ThinkModeIcon from "@/assets/svg/ThinkModeIcon.svg?react";
 import { SearchSource } from "@/interfaces";
 import SourceAbstract from "./SourceAbstract";
 import React, { useState } from "react";
-import { EventType, useEmitter } from "@/events";
+import { EventType, useEmitterWithCondition } from "@/events";
 
 type Props = {
   isReasoning: boolean;
   reasoning: string | undefined;
   sources: SearchSource[] | undefined;
   onSourceClick: () => void;
+  defaultOpen?: boolean;
 };
 
 const contentKey = "content";
@@ -22,11 +23,14 @@ const ReasoningBlock = ({
   sources,
   reasoning,
   onSourceClick,
+  defaultOpen,
 }: Props) => {
   const displayReasoning = useThrottle(reasoning, {
     wait: 100,
   });
-  const [activeKeys, setActiveKeys] = useState<string[]>([contentKey]);
+  const [activeKeys, setActiveKeys] = useState<string[]>(
+    defaultOpen ? [contentKey] : []
+  );
   const handleCollapseChange = useMemoizedFn((key: string[]) => {
     setActiveKeys(key);
   });
@@ -34,11 +38,15 @@ const ReasoningBlock = ({
   /**
    * 思考内容结束后，折叠思考内容
    */
-  useEmitter(EventType.ReasoningDone, () => {
-    setTimeout(() => {
-      setActiveKeys([]);
-    }, 500);
-  });
+  useEmitterWithCondition(
+    EventType.ReasoningDone,
+    () => {
+      setTimeout(() => {
+        setActiveKeys([]);
+      }, 500);
+    },
+    isReasoning
+  );
 
   // 没有思考内容时，则显示来源
   if (!reasoning) {

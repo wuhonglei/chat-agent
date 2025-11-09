@@ -8,17 +8,20 @@ import ToolCallItem from "./ToolCallItem";
 import { timelineColorByStatus } from "@/constants";
 import classNames from "classnames";
 import { useMemoizedFn } from "ahooks";
-import { EventType, useEmitter } from "@/events";
+import { EventType, useEmitterWithCondition } from "@/events";
 
 type Props = {
   isCallingTools: boolean;
+  defaultOpen?: boolean;
   toolCalls: ToolCallMessage[] | undefined;
 };
 const contentKey = "content";
 
-const ToolCallBlock = ({ isCallingTools, toolCalls }: Props) => {
+const ToolCallBlock = ({ isCallingTools, defaultOpen, toolCalls }: Props) => {
   const timelineMessages = useTimelineMessages(toolCalls);
-  const [activeKeys, setActiveKeys] = useState<string[]>([contentKey]);
+  const [activeKeys, setActiveKeys] = useState<string[]>(
+    defaultOpen ? [contentKey] : []
+  );
 
   const handleCollapseChange = useMemoizedFn((key: string[]) => {
     setActiveKeys(key);
@@ -27,11 +30,15 @@ const ToolCallBlock = ({ isCallingTools, toolCalls }: Props) => {
   /**
    * 工具调用结束后，折叠工具调用内容
    */
-  useEmitter(EventType.ToolCallDone, () => {
-    setTimeout(() => {
-      setActiveKeys([]);
-    }, 500);
-  });
+  useEmitterWithCondition(
+    EventType.ToolCallDone,
+    () => {
+      setTimeout(() => {
+        setActiveKeys([]);
+      }, 500);
+    },
+    isCallingTools
+  );
 
   if (isEmpty(timelineMessages)) {
     return null;
