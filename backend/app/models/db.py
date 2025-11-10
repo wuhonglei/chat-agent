@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any, Optional
 
 from sqlalchemy import JSON as SQLJSON
-from sqlalchemy import DateTime
+from sqlalchemy import Column, DateTime, ForeignKey, String
 from sqlmodel import SQLModel, Field
 
 from app.utils.common import get_datetime_now, gen_uuid
@@ -70,10 +70,11 @@ class Message(SQLModel, table=True):
     id: str = Field(default_factory=gen_uuid, primary_key=True,
                     index=True, max_length=36)
     conversation_id: str = Field(
-        index=True,
-        max_length=36,
-        foreign_key="conversations.id",
-        sa_column_kwargs={"ondelete": "CASCADE"},
+        sa_column=Column(
+            String(36),
+            ForeignKey("conversations.id", ondelete="CASCADE"),
+            index=True
+        ),
         description="关联对话",
     )
     role: str  # "user" | "assistant"
