@@ -67,6 +67,8 @@ class ChatRequest(BaseModel):
         ..., description="Conversation ID")
     history_ids: list[str] = Field(
         default_factory=list, description="Chat history IDs")
+    removed_message_ids: Optional[list[str]] = Field(
+        None, description="Message IDs to be removed")
     source_config: SourceConfig = Field(
         default_factory=SourceConfig, description="Source configuration"
     )

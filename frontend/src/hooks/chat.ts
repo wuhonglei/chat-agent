@@ -15,6 +15,7 @@ import {
   setCallingTools,
   updateMessageStatus,
   lastMessageCheck,
+  removeMessageById,
 } from "@/store/slices/chatSlice";
 import {
   refreshConversionInList,
@@ -37,6 +38,7 @@ import {
   getHistoryMessageIds,
   isUserRole,
   isTitleCreatedByDefault,
+  getRemovedMessageIds,
 } from "@/utils";
 import { emitter, EventType } from "@/events";
 import { MessageStatus, TitleCreatedBy } from "@/constants";
@@ -109,6 +111,7 @@ export const useChatMessage = (
     try {
       abortControllerRef.current = new AbortController();
       const historyIds = getHistoryMessageIds(historyLimit, messages, index);
+      const removedMessageIds = getRemovedMessageIds(messages, index);
       const regenerateTitle =
         isEmpty(history) && isTitleCreatedByDefault(createdBy);
 
@@ -118,6 +121,7 @@ export const useChatMessage = (
           ...values,
           historyIds, // 发送最后几条消息作为上下文
           regenerateTitle,
+          removedMessageIds,
           conversationId: finalConversationId,
         },
         (data: StreamMessage) => {
@@ -133,9 +137,11 @@ export const useChatMessage = (
           }
 
           if (type === "ack") {
-            dispatch(
-              addMessage({ ...(data.data as ChatMessage), defaultOpen: true })
-            );
+            const message = data.data as ChatMessage;
+            if (isUserRole(message.role) && !isEmpty(removedMessageIds)) {
+              dispatch(removeMessageById(removedMessageIds[0]));
+            }
+            dispatch(addMessage({ ...message, defaultOpen: true }));
           } else if (type === "refresh_conversation") {
             dispatch(refreshConversionInList(data.data as ConversationInfo));
           } else if (type === "reasoning") {

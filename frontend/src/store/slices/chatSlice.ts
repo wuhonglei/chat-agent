@@ -57,6 +57,14 @@ const chatSlice = createSlice({
       // 清除该位置之后的所有消息
       state.messages.length = action.payload.index + 1;
     },
+    removeMessageById: (state, action: PayloadAction<string>) => {
+      const index = state.messages.findIndex(
+        message => message.id === action.payload
+      );
+      if (index !== -1) {
+        state.messages.splice(index, 1);
+      }
+    },
     clearLastMessage: state => {
       const lastMessage = lastMessageCheck(state.messages);
       if (lastMessage) {
@@ -141,6 +149,7 @@ export const {
   setMessages,
   addMessage,
   addMessageAtIndex,
+  removeMessageById,
   clearMessages,
   setStreaming,
   setLoading,

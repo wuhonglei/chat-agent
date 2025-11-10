@@ -46,19 +46,15 @@ async def chat_stream(
 
     chat_service = ChatService(mcp_manager=state.mcp_manager)
 
-    user_metadata = {
-        "mcp_auto_mode": chat_request.mcp_auto_mode,
-        "think_mode": chat_request.think_mode,
-        "history_ids": chat_request.history_ids,
-        "regenerate_title": chat_request.regenerate_title,
-        "source_config": chat_request.source_config.model_dump(exclude_none=True),
-    }
+    user_metadata = chat_request.model_dump(
+        exclude_none=True, exclude=['content'])
 
     try:
         user_message_id = gen_uuid()
         assistant_message_id = gen_uuid()
         with MessageService() as message_service:
             conversation = message_service.get_conversation(conversation_id)
+            message_service.remove_messages(chat_request.removed_message_ids)
             message_service.create_user_message(
                 conversation=conversation,
                 message_id=user_message_id,

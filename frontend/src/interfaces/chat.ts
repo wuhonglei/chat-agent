@@ -62,6 +62,7 @@ export interface ChatRequest extends ChatInputFormValues {
   conversationId?: string;
   historyIds: string[];
   regenerateTitle: boolean;
+  removedMessageIds: string[];
 }
 
 export interface SourceData {

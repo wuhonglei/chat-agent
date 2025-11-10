@@ -125,3 +125,21 @@ export function getHistoryMessageIds<T extends ChatMessage>(
   }
   return validHistoryIds;
 }
+
+/**
+ * 获取需要删除的消息ID
+ * @param messages
+ * @param index
+ * @returns
+ */
+export function getRemovedMessageIds(
+  messages: ChatMessage[],
+  index?: number
+): string[] {
+  if (isNil(index)) {
+    return [];
+  }
+
+  const removedMessages = messages.slice(index);
+  return removedMessages.map(message => message.id);
+}

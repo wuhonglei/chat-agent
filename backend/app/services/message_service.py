@@ -5,7 +5,7 @@ from typing import Any, Optional
 from fastapi import HTTPException
 from loguru import logger
 from sqlalchemy.exc import SQLAlchemyError
-from sqlmodel import Session, select
+from sqlmodel import Session, select, delete
 
 from app.models.chat import ChatMessageItemReq, MessageStatus
 from app.models.db import Conversation, Message
@@ -33,6 +33,13 @@ class MessageService:
         if not conversation:
             raise HTTPException(status_code=404, detail="对话不存在")
         return conversation
+
+    def remove_messages(self, message_ids: list[str]) -> None:
+        if not message_ids:
+            return True
+        self.db.exec(delete(Message).where(Message.id.in_(message_ids)))
+        self.db.commit()
+        return True
 
     def get_messages_by_ids(self, message_ids: list[str]) -> list[ChatMessageItemReq]:
         if not message_ids:
