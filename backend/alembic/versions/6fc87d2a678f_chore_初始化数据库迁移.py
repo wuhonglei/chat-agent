@@ -43,6 +43,12 @@ def upgrade() -> None:
     op.drop_index(op.f('ix_messages_timestamp'), table_name='messages')
     op.create_index(op.f('ix_messages_created_at'),
                     'messages', ['created_at'], unique=False)
+    # 清理无效的 messages：删除那些 conversation_id 指向不存在的 conversation 的记录
+    op.execute("""
+        DELETE FROM messages 
+        WHERE conversation_id IS NOT NULL 
+        AND conversation_id NOT IN (SELECT id FROM conversations)
+    """)
     op.create_foreign_key(None, 'messages', 'conversations', [
                           'conversation_id'], ['id'], ondelete='CASCADE')
     # ### end Alembic commands ###
