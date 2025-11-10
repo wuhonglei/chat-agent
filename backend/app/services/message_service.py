@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any, Optional
+from datetime import datetime
 
 from fastapi import HTTPException
 from loguru import logger
@@ -56,8 +57,9 @@ class MessageService:
     def _touch_conversation(
         self,
         conversation: Conversation,
+        last_message_created_at: datetime,
     ) -> None:
-        conversation.last_message_created_at = get_datetime_now()
+        conversation.last_message_created_at = last_message_created_at
         self.db.add(conversation)
 
     def _persist_message(
@@ -66,7 +68,7 @@ class MessageService:
         conversation: Conversation,
     ) -> Message:
         try:
-            self._touch_conversation(conversation)
+            self._touch_conversation(conversation, message.created_at)
             self.db.add(message)
             self.db.commit()
             self.db.refresh(message)
@@ -120,7 +122,7 @@ class MessageService:
 
     def update_assistant_message(
         self,
-        message_id: str,
+        assistant_message: Message,
         *,
         content: Optional[str],
         reasoning: Optional[str],
@@ -128,22 +130,18 @@ class MessageService:
         status: MessageStatus,
         extra_metadata: Optional[dict[str, Any]] = None,
     ) -> Message:
-        persistent_message = self.db.get(Message, message_id)
-        if not persistent_message:
-            raise HTTPException(status_code=404, detail="助手消息不存在")
-
-        persistent_message.status = status
+        assistant_message.status = status
         if content:
-            persistent_message.content = content
+            assistant_message.content = content
         if reasoning:
-            persistent_message.reasoning = reasoning
+            assistant_message.reasoning = reasoning
         if tool_calls:
-            persistent_message.tool_calls = tool_calls
+            assistant_message.tool_calls = tool_calls
         if extra_metadata:
-            merged_metadata = dict(persistent_message.message_metadata or {})
+            merged_metadata = dict(assistant_message.message_metadata or {})
             merged_metadata.update(extra_metadata)
-            persistent_message.message_metadata = merged_metadata
-        self.db.add(persistent_message)
+            assistant_message.message_metadata = merged_metadata
+        self.db.add(assistant_message)
         self.db.commit()
-        self.db.refresh(persistent_message)
-        return persistent_message
+        self.db.refresh(assistant_message)
+        return assistant_message

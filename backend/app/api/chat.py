@@ -100,21 +100,14 @@ async def chat_stream(
                 raise
 
             assistant_payload = chat_service.get_collected_response()
-            tool_call_details = assistant_payload.tool_calls
-            assistant_metadata = {
-                "mcp_auto_mode": chat_request.mcp_auto_mode,
-                "think_mode": chat_request.think_mode,
-                "tool_call_count": len(tool_call_details) if tool_call_details else 0,
-            }
 
             try:
                 message_service.update_assistant_message(
-                    assistant_message_id,
+                    assistant_message,
                     content=assistant_payload.content,
                     reasoning=assistant_payload.reasoning,
                     tool_calls=assistant_payload.tool_calls,
                     status=MessageStatus.DONE,
-                    extra_metadata=assistant_metadata,
                 )
             except Exception as persist_error:
                 logger.error(
