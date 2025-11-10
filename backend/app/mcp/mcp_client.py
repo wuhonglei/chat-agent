@@ -19,6 +19,7 @@ from app.mcp.mcp_servers.weather_mcp.server import mcp as weather_mcp
 from app.mcp.mcp_servers.tavily_mcp.server import mcp as tavily_mcp
 from app.mcp.mcp_servers.confluence_mcp.server import mcp as mcp_confluence
 from app.models.mcp import MCPConfigForFeDict
+from app.mcp.mcp_servers.code_exec_mcp.server import mcp as code_exec_mcp
 
 mcp_config = {
     "mcpServers": {
@@ -35,6 +36,7 @@ mcp_config = {
         "confluence-mcp": mcp_confluence,
         "weather-mcp": weather_mcp,
         "tavily-mcp": tavily_mcp,
+        "code-exec-mcp": code_exec_mcp,
     }
 }
 
