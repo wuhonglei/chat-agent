@@ -49,9 +49,7 @@ const ChatPage: React.FC = () => {
     ready: !isNewConversation && !!conversationId, // 如果是新对话，则无需加载历史消息
     refreshDeps: [conversationId],
     onSuccess: data => {
-      dispatch(
-        setMessages({ conversionId: conversationId as string, messages: data })
-      );
+      dispatch(setMessages(data));
     },
     onError: error => {
       if ((error as any).code === 404) {
