@@ -1,5 +1,10 @@
 // Chat types
-import { RoleType, SearchSourceType, TitleCreatedBy } from "@/constants";
+import {
+  MessageStatus,
+  RoleType,
+  SearchSourceType,
+  TitleCreatedBy,
+} from "@/constants";
 import { ToolCallMessage } from "./tooCall";
 
 export interface SearchSourceMetaData {
@@ -29,7 +34,7 @@ export interface ChatMessage {
   sources?: SearchSource[];
   toolCalls?: ToolCallMessage[];
   messageMetadata: Omit<ChatInputFormValues, "message">;
-  status?: "pending" | "done" | "failed";
+  status: MessageStatus;
   replyTo?: string; // role为assistant时，回复到哪个user消息
   defaultOpen?: boolean; // 默认展开(思考内容、工具调用、来源)
 }
@@ -58,7 +63,7 @@ export interface ChatInputFormValues {
 
 export interface ChatRequest extends ChatInputFormValues {
   conversationId?: string;
-  history: ChatHistory[];
+  historyIds: string[];
   regenerateTitle: boolean;
 }
 

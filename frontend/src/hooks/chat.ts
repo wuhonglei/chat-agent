@@ -13,6 +13,7 @@ import {
   setSources,
   setStreaming,
   setCallingTools,
+  updateMessageStatus,
 } from "@/store/slices/chatSlice";
 import {
   refreshConversionInList,
@@ -31,12 +32,12 @@ import {
 import { isEmpty, isPlainObject } from "lodash-es";
 import {
   buildFootnoteDefinition,
-  getHistoryMessages,
+  getHistoryMessageIds,
   isUserRole,
   isTitleCreatedByDefault,
 } from "@/utils";
 import { emitter, EventType } from "@/events";
-import { TitleCreatedBy } from "@/constants";
+import { MessageStatus, TitleCreatedBy } from "@/constants";
 import { useParams } from "react-router-dom";
 
 /**
@@ -105,7 +106,7 @@ export const useChatMessage = (
 
     try {
       abortControllerRef.current = new AbortController();
-      const history = getHistoryMessages(historyLimit, messages, index);
+      const historyIds = getHistoryMessageIds(historyLimit, messages, index);
       const regenerateTitle =
         isEmpty(history) && isTitleCreatedByDefault(createdBy);
 
@@ -113,7 +114,7 @@ export const useChatMessage = (
       await chatAPI.streamMessage(
         {
           ...values,
-          history, // 发送最后几条消息作为上下文
+          historyIds, // 发送最后几条消息作为上下文
           regenerateTitle,
           conversationId: finalConversationId,
         },
@@ -171,6 +172,7 @@ export const useChatMessage = (
             );
           } else if (type === "done") {
             // 流结束
+            dispatch(updateMessageStatus(MessageStatus.DONE));
             resetState();
           }
         },

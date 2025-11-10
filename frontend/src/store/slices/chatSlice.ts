@@ -1,3 +1,4 @@
+import { MessageStatus } from "@/constants";
 import { ChatMessage, SearchSource, ToolCallMessage } from "@/interfaces";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { isEmpty } from "lodash-es";
@@ -117,6 +118,12 @@ const chatSlice = createSlice({
         lastMessage.toolCalls.push(action.payload);
       }
     },
+    updateMessageStatus: (state, action: PayloadAction<MessageStatus>) => {
+      const lastMessage = lastMessageCheck(state.messages);
+      if (lastMessage) {
+        lastMessage.status = action.payload;
+      }
+    },
     clearCurrentChat: state => {
       const initialState = getInitialState();
       state.messages = initialState.messages;
@@ -143,6 +150,7 @@ export const {
   appendReasoningToLastMessage,
   appendToolCallToLastMessage,
   setReasoning,
+  updateMessageStatus,
   clearLastMessage,
   clearCurrentChat,
 } = chatSlice.actions;

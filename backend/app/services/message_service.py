@@ -5,9 +5,9 @@ from typing import Any, Optional
 from fastapi import HTTPException
 from loguru import logger
 from sqlalchemy.exc import SQLAlchemyError
-from sqlmodel import Session
+from sqlmodel import Session, select
 
-from app.models.chat import MessageStatus
+from app.models.chat import ChatMessageItemReq, MessageStatus
 from app.models.db import Conversation, Message
 from app.utils.common import get_datetime_now
 from app.core.db import engine
@@ -33,6 +33,18 @@ class MessageService:
         if not conversation:
             raise HTTPException(status_code=404, detail="对话不存在")
         return conversation
+
+    def get_messages_by_ids(self, message_ids: list[str]) -> list[ChatMessageItemReq]:
+        if not message_ids:
+            return []
+
+        messages = self.db.exec(select(Message.role, Message.content).where(
+            Message.id.in_(message_ids))).all()
+        if not messages:
+            logger.error(f"消息不存在: {message_ids}")
+            return []
+
+        return [ChatMessageItemReq(role=message[0], content=message[1]) for message in messages]
 
     def _touch_conversation(
         self,

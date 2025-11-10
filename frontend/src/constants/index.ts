@@ -1,3 +1,3 @@
 export * from "./toolCall";
 export * from "./conversation";
-export * from "./chatRequest";
+export * from "./chat";

@@ -65,8 +65,8 @@ class ChatRequest(BaseModel):
     message: str = Field(..., description="User message")
     conversation_id: str = Field(
         ..., description="Conversation ID")
-    history: list[ChatMessageItemReq] = Field(
-        default_factory=list, description="Chat history")
+    history_ids: list[str] = Field(
+        default_factory=list, description="Chat history IDs")
     source_config: SourceConfig = Field(
         default_factory=SourceConfig, description="Source configuration"
     )

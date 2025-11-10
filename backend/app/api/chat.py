@@ -31,7 +31,7 @@ async def chat_stream(
     user_metadata = {
         "mcp_auto_mode": chat_request.mcp_auto_mode,
         "think_mode": chat_request.think_mode,
-        "history_size": len(chat_request.history),
+        "history_ids": chat_request.history_ids,
         "regenerate_title": chat_request.regenerate_title,
         "source_config": chat_request.source_config.model_dump(exclude_none=True),
     }
@@ -74,8 +74,11 @@ async def chat_stream(
             yield chat_service.format_sse_message('refresh_conversation', conversation)
 
             try:
+                history = message_service.get_messages_by_ids(
+                    chat_request.history_ids)
                 async for chunk in chat_service.stream_message(
-                    chat_request=chat_request
+                    chat_request=chat_request,
+                    history=history
                 ):
                     yield chunk
             except Exception as streaming_error:

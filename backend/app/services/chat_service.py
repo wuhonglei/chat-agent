@@ -239,7 +239,8 @@ class ChatService:
 
     async def stream_message(
         self,
-        chat_request: ChatRequest
+        chat_request: ChatRequest,
+        history: list[ChatMessageItemReq],
     ) -> AsyncGenerator[str, None]:
         """Stream chat response"""
         try:
@@ -247,7 +248,6 @@ class ChatService:
             mcp_auto_mode = chat_request.mcp_auto_mode
             source_config = chat_request.source_config
             think_mode = chat_request.think_mode
-            history = chat_request.history
             user_message = chat_request.message
             final_model = settings.LLM_THINK_MODEL if think_mode else settings.LLM_MODEL
 
