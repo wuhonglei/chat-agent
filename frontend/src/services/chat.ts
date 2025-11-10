@@ -24,6 +24,10 @@ export const chatAPI = {
     return res.messages;
   },
 
+  deleteMessage: async (messageId: string): Promise<void> => {
+    await apiClient.delete(`/api/message/delete/${messageId}`);
+  },
+
   // Send message
   sendMessage: async (
     data: ChatRequest

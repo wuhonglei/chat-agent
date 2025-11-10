@@ -14,6 +14,7 @@ import {
   setStreaming,
   setCallingTools,
   updateMessageStatus,
+  lastMessageCheck,
 } from "@/store/slices/chatSlice";
 import {
   refreshConversionInList,
@@ -213,7 +214,12 @@ export const useChatMessage = (
   const abortMessage = (): void => {
     if (abortControllerRef.current && isStreaming) {
       abortControllerRef.current.abort();
-      isLoading && dispatch(clearLastMessage());
+      // 服务端 llm api 还没响应，则清除最后一条消息
+      const lastMessage = lastMessageCheck(messages);
+      if (lastMessage && lastMessage.id && isLoading) {
+        dispatch(clearLastMessage());
+        chatAPI.deleteMessage(lastMessage.id);
+      }
       resetState();
     }
   };

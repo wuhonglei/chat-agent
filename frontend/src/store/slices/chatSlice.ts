@@ -28,7 +28,9 @@ const initialState: ChatState = getInitialState();
  * @param messages
  * @returns
  */
-function lastMessageCheck(messages: ChatMessage[]): ChatMessage | undefined {
+export function lastMessageCheck(
+  messages: ChatMessage[]
+): ChatMessage | undefined {
   if (isEmpty(messages)) {
     return undefined;
   }
