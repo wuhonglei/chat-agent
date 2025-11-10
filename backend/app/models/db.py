@@ -1,4 +1,3 @@
-import uuid
 from datetime import datetime
 from typing import Any, Optional
 
@@ -44,7 +43,12 @@ class Conversation(SQLModel, table=True):
         description="标题创建方式",
     )
     user_id: Optional[str] = Field(
-        default=None, index=True, max_length=36)  # 预留扩展
+        default=None,
+        index=True,
+        max_length=36,
+        foreign_key="users.id",
+        description="关联用户",
+    )
     created_at: datetime = Field(
         default_factory=get_datetime_now,
         sa_type=DateTime(timezone=True))
@@ -65,7 +69,13 @@ class Message(SQLModel, table=True):
 
     id: str = Field(default_factory=gen_uuid, primary_key=True,
                     index=True, max_length=36)
-    conversation_id: str = Field(index=True, max_length=36)
+    conversation_id: str = Field(
+        index=True,
+        max_length=36,
+        foreign_key="conversations.id",
+        sa_column_kwargs={"ondelete": "CASCADE"},
+        description="关联对话",
+    )
     role: str  # "user" | "assistant"
     content: str = Field(default="", description="Message content")
     created_at: datetime = Field(
