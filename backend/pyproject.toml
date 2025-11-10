@@ -46,6 +46,8 @@ dependencies = [
     "tqdm>=4.66.0",
     "python-dateutil>=2.8.0",
     "pytz>=2023.3",
+    # Database Migration
+    "alembic>=1.13.1",
     # Security
     "python-jose[cryptography]>=3.3.0",
     "passlib[bcrypt]>=1.7.4",
