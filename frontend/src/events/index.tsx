@@ -5,12 +5,14 @@ export enum EventType {
   ToolCallDone = "toolCallDone",
   ReasoningDone = "reasoningDone",
   ChangeConversion = "changeConversion", // 切换对话
+  BlockCollapse = "blockCollapse", // 块折叠 或展开
 }
 
 type Events = {
   [EventType.ToolCallDone]: void;
   [EventType.ReasoningDone]: void;
   [EventType.ChangeConversion]: void;
+  [EventType.BlockCollapse]: boolean;
 };
 
 export const emitter: Emitter<Events> = mitt<Events>();

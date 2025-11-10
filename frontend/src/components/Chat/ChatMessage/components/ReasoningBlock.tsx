@@ -6,7 +6,8 @@ import ThinkModeIcon from "@/assets/svg/ThinkModeIcon.svg?react";
 import { SearchSource } from "@/interfaces";
 import SourceAbstract from "./SourceAbstract";
 import React, { useState } from "react";
-import { EventType, useEmitterWithCondition } from "@/events";
+import { emitter, EventType, useEmitterWithCondition } from "@/events";
+import { isEmpty } from "lodash-es";
 
 type Props = {
   isReasoning: boolean;
@@ -31,8 +32,9 @@ const ReasoningBlock = ({
   const [activeKeys, setActiveKeys] = useState<string[]>(
     defaultOpen ? [contentKey] : []
   );
-  const handleCollapseChange = useMemoizedFn((key: string[]) => {
-    setActiveKeys(key);
+  const handleCollapseChange = useMemoizedFn((keys: string[]) => {
+    setActiveKeys(keys);
+    emitter.emit(EventType.BlockCollapse, isEmpty(keys));
   });
 
   /**

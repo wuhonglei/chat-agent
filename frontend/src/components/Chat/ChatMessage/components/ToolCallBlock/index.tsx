@@ -9,6 +9,7 @@ import { timelineColorByStatus } from "@/constants";
 import classNames from "classnames";
 import { useMemoizedFn } from "ahooks";
 import { EventType, useEmitterWithCondition } from "@/events";
+import { emitter } from "@/events";
 
 type Props = {
   isCallingTools: boolean;
@@ -23,8 +24,9 @@ const ToolCallBlock = ({ isCallingTools, defaultOpen, toolCalls }: Props) => {
     defaultOpen ? [contentKey] : []
   );
 
-  const handleCollapseChange = useMemoizedFn((key: string[]) => {
-    setActiveKeys(key);
+  const handleCollapseChange = useMemoizedFn((keys: string[]) => {
+    setActiveKeys(keys);
+    emitter.emit(EventType.BlockCollapse, isEmpty(keys));
   });
 
   /**
