@@ -18,8 +18,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useAppSelector, useAppDispatch } from "@/store/hooks";
 import { shallowEqual } from "react-redux";
 import { registerConversation } from "@/store/slices/conversationSlice";
-import { EventType, useEmitter } from "@/events";
-import { clearCurrentChat, setMessages } from "@/store/slices/chatSlice";
+import { getDefaultChatState, setMessages } from "@/store/slices/chatSlice";
 import { chatAPI } from "@/services";
 
 const ChatPage: React.FC = () => {
@@ -30,22 +29,18 @@ const ChatPage: React.FC = () => {
     conversationId,
   });
   const { isStreaming, isLoading, isReasoning, isCallingTools } =
-    useAppSelector(
-      state => ({
-        isStreaming: state.chat.isStreaming,
-        isLoading: state.chat.isLoading,
-        isReasoning: state.chat.isReasoning,
-        isCallingTools: state.chat.isCallingTools,
-      }),
-      shallowEqual
-    );
+    useAppSelector(state => {
+      const chatState =
+        state.chat[conversationId as string] || getDefaultChatState();
+      return {
+        isStreaming: chatState.isStreaming,
+        isLoading: chatState.isLoading,
+        isReasoning: chatState.isReasoning,
+        isCallingTools: chatState.isCallingTools,
+      };
+    }, shallowEqual);
   const [sourceData, setSourceData] = useState<SourceData | undefined>();
   const [form] = Form.useForm<ChatInputFormValues>();
-
-  useEmitter(EventType.ChangeConversion, () => {
-    abortMessage();
-    dispatch(clearCurrentChat());
-  });
 
   // 页面刷新后清除 isNewConversation 状态
   const { value: isNewConversation, setValue: setIsNewConversation } =
@@ -54,7 +49,9 @@ const ChatPage: React.FC = () => {
     ready: !isNewConversation && !!conversationId, // 如果是新对话，则无需加载历史消息
     refreshDeps: [conversationId],
     onSuccess: data => {
-      dispatch(setMessages(data));
+      dispatch(
+        setMessages({ conversionId: conversationId as string, messages: data })
+      );
     },
     onError: error => {
       if ((error as any).code === 404) {

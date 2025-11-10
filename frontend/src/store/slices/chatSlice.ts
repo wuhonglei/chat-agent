@@ -5,23 +5,39 @@ import { isEmpty } from "lodash-es";
 
 interface ChatState {
   messages: ChatMessage[];
+  messageLoaded: boolean;
+  lastMessageCreatedAt: string; // 等价于 messages.at(-1).createdAt
   isLoading: boolean;
   isStreaming: boolean;
   isReasoning: boolean;
   isCallingTools: boolean;
 }
 
-export const getInitialState = (): ChatState => {
-  return {
-    messages: [],
-    isLoading: false,
-    isStreaming: false,
-    isReasoning: false,
-    isCallingTools: false,
-  };
+interface ChatStateMap {
+  [conversionId: string]: ChatState;
+}
+
+export const getDefaultChatState = (): ChatState => ({
+  messages: [],
+  messageLoaded: false,
+  lastMessageCreatedAt: "",
+  isLoading: false,
+  isStreaming: false,
+  isReasoning: false,
+  isCallingTools: false,
+});
+
+const conversationIdCheck = (
+  state: ChatStateMap,
+  conversionId: string
+): ChatState => {
+  if (!state[conversionId]) {
+    state[conversionId] = getDefaultChatState();
+  }
+  return state[conversionId];
 };
 
-const initialState: ChatState = getInitialState();
+const initialState: ChatStateMap = {};
 
 /**
  * 检查消息列表中最后一个消息是否为助手消息
@@ -42,105 +58,171 @@ const chatSlice = createSlice({
   name: "chat",
   initialState,
   reducers: {
-    setMessages: (state, action: PayloadAction<ChatMessage[]>) => {
-      state.messages = action.payload;
+    setMessages: (
+      state,
+      action: PayloadAction<{ conversionId: string; messages: ChatMessage[] }>
+    ) => {
+      const chatState = conversationIdCheck(state, action.payload.conversionId);
+      chatState.messages = action.payload.messages;
     },
-    addMessage: (state, action: PayloadAction<ChatMessage>) => {
-      state.messages.push(action.payload);
+    addMessage: (
+      state,
+      action: PayloadAction<{ conversionId: string; message: ChatMessage }>
+    ) => {
+      const chatState = conversationIdCheck(state, action.payload.conversionId);
+      chatState.messages.push(action.payload.message);
     },
     addMessageAtIndex: (
       state,
-      action: PayloadAction<{ message: ChatMessage; index: number }>
+      action: PayloadAction<{
+        conversionId: string;
+        message: ChatMessage;
+        index: number;
+      }>
     ) => {
       // 插入到指定位置
-      state.messages.splice(action.payload.index, 0, action.payload.message);
+      const chatState = conversationIdCheck(state, action.payload.conversionId);
+      chatState.messages.splice(
+        action.payload.index,
+        0,
+        action.payload.message
+      );
       // 清除该位置之后的所有消息
-      state.messages.length = action.payload.index + 1;
+      chatState.messages.length = action.payload.index + 1;
     },
-    removeMessageById: (state, action: PayloadAction<string>) => {
-      const index = state.messages.findIndex(
-        message => message.id === action.payload
+    removeMessageById: (
+      state,
+      action: PayloadAction<{ conversionId: string; messageId: string }>
+    ) => {
+      const chatState = conversationIdCheck(state, action.payload.conversionId);
+      const index = chatState.messages.findIndex(
+        message => message.id === action.payload.messageId
       );
       if (index !== -1) {
-        state.messages.splice(index, 1);
+        chatState.messages.splice(index, 1);
       }
     },
-    clearLastMessage: state => {
-      const lastMessage = lastMessageCheck(state.messages);
+    clearLastMessage: (
+      state,
+      action: PayloadAction<{ conversionId: string }>
+    ) => {
+      const chatState = conversationIdCheck(state, action.payload.conversionId);
+      const lastMessage = lastMessageCheck(chatState.messages);
       if (lastMessage) {
-        state.messages.pop();
+        chatState.messages.pop();
       }
     },
-    clearMessages: state => {
-      state.messages = [];
+    clearMessages: (state, action: PayloadAction<{ conversionId: string }>) => {
+      const chatState = conversationIdCheck(state, action.payload.conversionId);
+      chatState.messages = [];
     },
-    setStreaming: (state, action: PayloadAction<boolean>) => {
-      state.isStreaming = action.payload;
+    setStreaming: (
+      state,
+      action: PayloadAction<{ conversionId: string; isStreaming: boolean }>
+    ) => {
+      const chatState = conversationIdCheck(state, action.payload.conversionId);
+      chatState.isStreaming = action.payload.isStreaming;
     },
-    setLoading: (state, action: PayloadAction<boolean>) => {
-      state.isLoading = action.payload;
+    setLoading: (
+      state,
+      action: PayloadAction<{ conversionId: string; isLoading: boolean }>
+    ) => {
+      const chatState = conversationIdCheck(state, action.payload.conversionId);
+      chatState.isLoading = action.payload.isLoading;
     },
-    setReasoning: (state, action: PayloadAction<boolean>) => {
-      state.isReasoning = action.payload;
+    setReasoning: (
+      state,
+      action: PayloadAction<{ conversionId: string; isReasoning: boolean }>
+    ) => {
+      const chatState = conversationIdCheck(state, action.payload.conversionId);
+      chatState.isReasoning = action.payload.isReasoning;
     },
-    setSources: (state, action: PayloadAction<SearchSource[]>) => {
-      state.messages[state.messages.length - 1].sources = action.payload;
+    setSources: (
+      state,
+      action: PayloadAction<{ conversionId: string; sources: SearchSource[] }>
+    ) => {
+      const chatState = conversationIdCheck(state, action.payload.conversionId);
+      if (!isEmpty(chatState.messages)) {
+        chatState.messages.at(-1)!.sources = action.payload.sources;
+      }
     },
-    setCallingTools: (state, action: PayloadAction<boolean>) => {
-      state.isCallingTools = action.payload;
+    setCallingTools: (
+      state,
+      action: PayloadAction<{ conversionId: string; isCallingTools: boolean }>
+    ) => {
+      const chatState = conversationIdCheck(state, action.payload.conversionId);
+      chatState.isCallingTools = action.payload.isCallingTools;
     },
-    prependContentToLastMessage: (state, action: PayloadAction<string>) => {
-      const lastMessage = lastMessageCheck(state.messages);
+    prependContentToLastMessage: (
+      state,
+      action: PayloadAction<{ conversionId: string; content: string }>
+    ) => {
+      const chatState = conversationIdCheck(state, action.payload.conversionId);
+      const lastMessage = lastMessageCheck(chatState.messages);
       if (lastMessage) {
         lastMessage.content = action.payload + lastMessage.content;
       }
     },
-    appendContentToLastMessage: (state, action: PayloadAction<string>) => {
-      const lastMessage = lastMessageCheck(state.messages);
+    appendContentToLastMessage: (
+      state,
+      action: PayloadAction<{ conversionId: string; content: string }>
+    ) => {
+      const chatState = conversationIdCheck(state, action.payload.conversionId);
+      const lastMessage = lastMessageCheck(chatState.messages);
       if (lastMessage) {
-        lastMessage.content += action.payload;
+        lastMessage.content += action.payload.content;
       }
     },
     prependSourceToLastReasoningMessage: (
       state,
-      action: PayloadAction<string>
+      action: PayloadAction<{ conversionId: string; content: string }>
     ) => {
-      const lastMessage = lastMessageCheck(state.messages);
+      const chatState = conversationIdCheck(state, action.payload.conversionId);
+      const lastMessage = lastMessageCheck(chatState.messages);
       if (lastMessage && lastMessage.messageMetadata.thinkMode) {
-        lastMessage.reasoning = action.payload + lastMessage.reasoning;
+        lastMessage.reasoning = action.payload.content + lastMessage.reasoning;
       }
     },
-    appendReasoningToLastMessage: (state, action: PayloadAction<string>) => {
-      const lastMessage = lastMessageCheck(state.messages);
+    appendReasoningToLastMessage: (
+      state,
+      action: PayloadAction<{ conversionId: string; content: string }>
+    ) => {
+      const chatState = conversationIdCheck(state, action.payload.conversionId);
+      const lastMessage = lastMessageCheck(chatState.messages);
       if (lastMessage) {
-        lastMessage.reasoning += action.payload;
+        lastMessage.reasoning += action.payload.content;
       }
     },
     appendToolCallToLastMessage: (
       state,
-      action: PayloadAction<ToolCallMessage>
+      action: PayloadAction<{ conversionId: string; toolCall: ToolCallMessage }>
     ) => {
-      const lastMessage = lastMessageCheck(state.messages);
+      const chatState = conversationIdCheck(state, action.payload.conversionId);
+      const lastMessage = lastMessageCheck(chatState.messages);
       if (lastMessage) {
-        if (!lastMessage.toolCalls) {
-          lastMessage.toolCalls = [];
-        }
-        lastMessage.toolCalls.push(action.payload);
+        lastMessage.toolCalls?.push(action.payload.toolCall);
       }
     },
-    updateMessageStatus: (state, action: PayloadAction<MessageStatus>) => {
-      const lastMessage = lastMessageCheck(state.messages);
+    updateMessageStatus: (
+      state,
+      action: PayloadAction<{ conversionId: string; status: MessageStatus }>
+    ) => {
+      const chatState = conversationIdCheck(state, action.payload.conversionId);
+      const lastMessage = lastMessageCheck(chatState.messages);
       if (lastMessage) {
-        lastMessage.status = action.payload;
+        lastMessage.status = action.payload.status;
       }
     },
-    clearCurrentChat: state => {
-      const initialState = getInitialState();
-      state.messages = initialState.messages;
-      state.isLoading = initialState.isLoading;
-      state.isStreaming = initialState.isStreaming;
-      state.isReasoning = initialState.isReasoning;
-      state.isCallingTools = initialState.isCallingTools;
+    clearCurrentChat: (
+      state,
+      action: PayloadAction<{ conversionId: string }>
+    ) => {
+      const chatState = conversationIdCheck(state, action.payload.conversionId);
+      chatState.messages = [];
+      chatState.isLoading = false;
+      chatState.isStreaming = false;
+      chatState.isReasoning = false;
+      chatState.isCallingTools = false;
     },
   },
 });

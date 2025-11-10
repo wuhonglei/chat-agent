@@ -29,13 +29,13 @@ export interface ChatMessage {
   id: string;
   role: RoleType;
   content: string;
-  reasoning?: string;
+  reasoning: string;
   createdAt: string;
-  sources?: SearchSource[];
-  toolCalls?: ToolCallMessage[];
+  sources: SearchSource[];
+  toolCalls: ToolCallMessage[];
   messageMetadata: Omit<ChatInputFormValues, "message">;
   status: MessageStatus;
-  replyTo?: string; // role为assistant时，回复到哪个user消息
+  replyTo: string; // role为assistant时，回复到哪个user消息
   defaultOpen?: boolean; // 默认展开(思考内容、工具调用、来源)
 }
 
