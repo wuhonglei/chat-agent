@@ -112,6 +112,9 @@ class Settings(BaseSettings):
     PG_PASSWORD: str = Field(...,
                              description="The password of the PostgreSQL database")
 
+    # MCP Config
+    CONTEXT7_API_KEY: str = ""
+
     class Config:
         env_file = ".env"
         case_sensitive = True

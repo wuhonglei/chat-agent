@@ -20,6 +20,7 @@ from app.mcp.mcp_servers.tavily_mcp.server import mcp as tavily_mcp
 from app.mcp.mcp_servers.confluence_mcp.server import mcp as mcp_confluence
 from app.models.mcp import MCPConfigForFeDict
 from app.mcp.mcp_servers.code_exec_mcp.server import mcp as code_exec_mcp
+from app.core.config import settings
 
 mcp_config = {
     "mcpServers": {
@@ -30,7 +31,7 @@ mcp_config = {
         "context7": {
             "url": "https://mcp.context7.com/mcp",
             "headers": {
-                "CONTEXT7_API_KEY": "ctx7sk-23e02d48-44b5-47c5-a705-09cdf771a69b"
+                "CONTEXT7_API_KEY": settings.CONTEXT7_API_KEY
             }
         },
         "confluence-mcp": mcp_confluence,
@@ -60,6 +61,11 @@ mcp_config_for_fe: List[MCPConfigForFeDict] = [{
     'name': '联网搜索',
     'icon': 'https://www.tavily.com/favicon.ico',
     'description': '联网搜索和内容提取',
+}, {
+    'id': 'code-exec-mcp',
+    'name': '代码执行',
+    'icon': 'https://www.python.org/static/favicon.ico',
+    'description': '安全的 Python 代码执行服务，使用沙箱隔离确保安全性',
 }]
 
 
