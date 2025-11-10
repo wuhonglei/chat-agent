@@ -99,7 +99,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         }}
       >
         <div className="mx-3 my-4 flex justify-between items-center">
-          <Link to="/" className="flex items-center gap-2 h-9">
+          <Link to="/chat" className="flex items-center gap-2 h-9">
             <img alt="logo" width={32} height={32} src="/logo.png" />
             <Title level={5} style={{ marginBottom: 0 }}>
               {WebTitle}
