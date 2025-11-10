@@ -60,6 +60,10 @@ class Conversation(SQLModel, table=True):
         default_factory=get_datetime_now,
         sa_type=DateTime(timezone=True)
     )
+    last_message_updated_at: datetime = Field(
+        default_factory=get_datetime_now,
+        sa_type=DateTime(timezone=True)
+    )
     is_active: bool = Field(default=True)
 
 
@@ -82,6 +86,11 @@ class Message(SQLModel, table=True):
     created_at: datetime = Field(
         default_factory=get_datetime_now, index=True,
         sa_type=DateTime(timezone=True))
+    updated_at: datetime = Field(
+        default_factory=get_datetime_now,
+        sa_column_kwargs={"onupdate": get_datetime_now},
+        sa_type=DateTime(timezone=True)
+    )
     reasoning: Optional[str] = Field(
         default=None, description="Reasoning content")
     tool_calls: Optional[list[dict]] = Field(

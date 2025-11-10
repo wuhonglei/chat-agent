@@ -91,6 +91,13 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 访问 http://localhost:8000/docs 查看 API 文档
 
 6. **数据库迁移**
+
+**生成迁移文件**
+```bash
+uv run alembic revision --autogenerate -m "Add conversation table"
+```
+
+**执行迁移**
 ```bash
 uv run alembic upgrade head
 ```

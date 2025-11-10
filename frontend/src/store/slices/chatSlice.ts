@@ -6,7 +6,7 @@ import { isEmpty } from "lodash-es";
 interface ChatState {
   messages: ChatMessage[];
   messageLoaded: boolean;
-  lastMessageCreatedAt: string; // 等价于 messages.at(-1).createdAt
+  lastMessageUpdateAt: string; // 等价于 messages.at(-1).createdAt
   isLoading: boolean;
   isStreaming: boolean;
   isReasoning: boolean;
@@ -20,7 +20,7 @@ interface ChatStateMap {
 export const getDefaultChatState = (): ChatState => ({
   messages: [],
   messageLoaded: false,
-  lastMessageCreatedAt: "",
+  lastMessageUpdateAt: "",
   isLoading: false,
   isStreaming: false,
   isReasoning: false,

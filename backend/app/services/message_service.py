@@ -58,8 +58,10 @@ class MessageService:
         self,
         conversation: Conversation,
         last_message_created_at: datetime,
+        last_message_updated_at: datetime,
     ) -> None:
         conversation.last_message_created_at = last_message_created_at
+        conversation.last_message_updated_at = last_message_updated_at
         self.db.add(conversation)
 
     def _persist_message(
@@ -68,7 +70,8 @@ class MessageService:
         conversation: Conversation,
     ) -> Message:
         try:
-            self._touch_conversation(conversation, message.created_at)
+            self._touch_conversation(
+                conversation, message.created_at, message.updated_at)
             self.db.add(message)
             self.db.commit()
             self.db.refresh(message)
@@ -92,9 +95,9 @@ class MessageService:
     ) -> Message:
         message = Message(
             id=message_id,
-            conversation_id=conversation.id,
             role="user",
             content=content,
+            conversation_id=conversation.id,
             message_metadata=metadata or {},
             status=MessageStatus.DONE,
         )
@@ -109,11 +112,11 @@ class MessageService:
     ) -> Message:
         message = Message(
             id=message_id,
-            conversation_id=conversation.id,
             role="assistant",
             content="",
             reasoning='',
             tool_calls=[],
+            conversation_id=conversation.id,
             message_metadata=metadata or {},
             status=MessageStatus.PENDING,
             reply_to=reply_to,
@@ -122,6 +125,7 @@ class MessageService:
 
     def update_assistant_message(
         self,
+        conversation: Conversation,
         assistant_message: Message,
         *,
         content: Optional[str],
@@ -131,6 +135,7 @@ class MessageService:
         extra_metadata: Optional[dict[str, Any]] = None,
     ) -> Message:
         assistant_message.status = status
+        assistant_message.updated_at = get_datetime_now()
         if content:
             assistant_message.content = content
         if reasoning:
@@ -141,7 +146,4 @@ class MessageService:
             merged_metadata = dict(assistant_message.message_metadata or {})
             merged_metadata.update(extra_metadata)
             assistant_message.message_metadata = merged_metadata
-        self.db.add(assistant_message)
-        self.db.commit()
-        self.db.refresh(assistant_message)
-        return assistant_message
+        return self._persist_message(assistant_message, conversation)
