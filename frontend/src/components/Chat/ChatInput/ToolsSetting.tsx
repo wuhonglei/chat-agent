@@ -6,9 +6,10 @@ import { useMemoizedFn } from "ahooks";
 import { names } from "./constant";
 import classNames from "classnames";
 import { useMCPConfig } from "./hooks";
-import { ChatInputFormValues } from "@/interfaces";
+import { ChatInputConfig } from "@/interfaces";
+
 interface ToolsSettingProps {
-  values: Omit<ChatInputFormValues, "message">;
+  values: ChatInputConfig;
 }
 
 const ToolsSetting: React.FC<ToolsSettingProps> = ({ values }) => {

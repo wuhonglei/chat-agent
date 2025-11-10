@@ -35,19 +35,19 @@ const ChatInput: React.FC<ChatInputProps> = ({
   style,
   form,
 }) => {
-  const message = Form.useWatch(names.message, form);
-  const buttonState = useButtonState(message, isStreaming);
+  const content = Form.useWatch(names.content, form);
+  const buttonState = useButtonState(content, isStreaming);
   const { values, onValuesChange } = useFormValuesChange(form);
 
   const handleSend = useMemoizedFn(() => {
     const values = form.getFieldsValue();
-    const message = (values.message || "").trim();
-    if (message) {
+    const content = (values.content || "").trim();
+    if (content) {
       onSend({
         ...values,
-        message: message,
+        content,
       });
-      form.resetFields([names.message]);
+      form.resetFields([names.content]);
     }
   });
 
@@ -84,7 +84,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
         style={style}
         onValuesChange={onValuesChange}
       >
-        <Form.Item className="mr-0" name={names.message}>
+        <Form.Item className="mr-0" name={names.content}>
           <TextArea
             autoFocus
             autoSize={{ minRows: 2.5 }}

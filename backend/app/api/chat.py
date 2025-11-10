@@ -62,7 +62,7 @@ async def chat_stream(
             message_service.create_user_message(
                 conversation=conversation,
                 message_id=user_message_id,
-                content=chat_request.message,
+                content=chat_request.content,
                 metadata={**user_metadata,
                           "reply_message_id": assistant_message_id},
             )
@@ -126,7 +126,7 @@ async def chat_stream(
                 raise
 
         if chat_request.regenerate_title:
-            title = await chat_service.generate_title(chat_request.message)
+            title = await chat_service.generate_title(chat_request.content)
             yield chat_service.format_sse_message('title', {
                 'id': conversation_id,
                 'title': title

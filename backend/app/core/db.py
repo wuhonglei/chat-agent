@@ -49,6 +49,5 @@ def create_db_and_tables():
 
         # 然后创建/更新表结构
         logger.info("Database tables created/verified successfully")
-        logger.warning("建议使用 'alembic upgrade head' 进行数据库迁移，而不是手动迁移函数")
     except Exception as e:
         raise e

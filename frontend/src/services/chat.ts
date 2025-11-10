@@ -3,7 +3,6 @@ import { AxiosResponse } from "axios";
 
 import {
   ChatRequest,
-  ChatResponse,
   StreamMessage,
   MCPConfigItem,
   ChatMessage,
@@ -26,13 +25,6 @@ export const chatAPI = {
 
   deleteMessage: async (messageId: string): Promise<void> => {
     await apiClient.delete(`/api/message/delete/${messageId}`);
-  },
-
-  // Send message
-  sendMessage: async (
-    data: ChatRequest
-  ): Promise<AxiosResponse<ChatResponse>> => {
-    return await apiClient.post("/api/chat", data);
   },
 
   // Stream message

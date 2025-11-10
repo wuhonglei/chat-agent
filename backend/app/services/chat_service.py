@@ -248,7 +248,7 @@ class ChatService:
             mcp_auto_mode = chat_request.mcp_auto_mode
             source_config = chat_request.source_config
             think_mode = chat_request.think_mode
-            user_message = chat_request.message
+            user_message = chat_request.content
             final_model = settings.LLM_THINK_MODEL if think_mode else settings.LLM_MODEL
 
             # Get MCP tools for LLM

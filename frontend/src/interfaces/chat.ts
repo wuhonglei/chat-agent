@@ -44,21 +44,18 @@ export interface ChatHistory {
   content: string;
 }
 
-export interface ChatResponse {
-  message: string;
-  sources: SearchSource[];
-  created_at: string;
-}
-
 export interface RetrieverSource {
   [key: string]: boolean;
 }
 
-export interface ChatInputFormValues {
-  message: string;
+export interface ChatInputConfig {
   thinkMode: boolean;
   mcpAutoMode: boolean;
   sourceConfig: RetrieverSource;
+}
+
+export interface ChatInputFormValues extends ChatInputConfig {
+  content: string;
 }
 
 export interface ChatRequest extends ChatInputFormValues {

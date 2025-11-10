@@ -4,6 +4,7 @@ import { ButtonState, names } from "./constant";
 import { trim, omit, isEqual, get, isNil, isBoolean } from "lodash-es";
 import {
   ChatInputFormValues,
+  ChatInputConfig,
   MCPConfigItem,
   RetrieverSource,
 } from "@/interfaces";
@@ -14,26 +15,26 @@ import { RootState } from "@/store";
 
 /**
  * 根据消息内容和是否流式传输，返回按钮状态
- * @param message
+ * @param content
  * @param isStreaming 是否流式传输
  * @returns 按钮状态
  */
 export function useButtonState(
-  message: string,
+  content: string,
   isStreaming: boolean
 ): ButtonState {
   if (isStreaming) {
     return ButtonState.Streaming;
   }
 
-  if (trim(message)) {
+  if (trim(content)) {
     return ButtonState.Typing;
   }
 
   return ButtonState.WaitingType;
 }
 
-const defaultFormValue: Omit<ChatInputFormValues, "message"> = {
+const defaultFormValue: ChatInputConfig = {
   thinkMode: false,
   mcpAutoMode: true,
   sourceConfig: {},
@@ -50,11 +51,12 @@ const selectMCPConfig = createSelector(
 export const chatInputFormValuesStorageKey = "chat-input-form-values-v1";
 
 export function useFormValuesChange(form: FormInstance<ChatInputFormValues>) {
-  const [formValues, setFormValues] = useLocalStorageState<
-    Omit<ChatInputFormValues, "message">
-  >(chatInputFormValuesStorageKey, {
-    defaultValue: defaultFormValue,
-  });
+  const [formValues, setFormValues] = useLocalStorageState<ChatInputConfig>(
+    chatInputFormValuesStorageKey,
+    {
+      defaultValue: defaultFormValue,
+    }
+  );
   const { mcpConfig, mcpConfigLoaded } = useAppSelector(selectMCPConfig);
 
   useEffect(() => {
@@ -74,7 +76,7 @@ export function useFormValuesChange(form: FormInstance<ChatInputFormValues>) {
               }
               return acc;
             }, {} as RetrieverSource),
-          }) as Omit<ChatInputFormValues, "message">
+          }) as ChatInputConfig
       );
     }
   }, [mcpConfigLoaded, mcpConfig, setFormValues]);
@@ -85,12 +87,12 @@ export function useFormValuesChange(form: FormInstance<ChatInputFormValues>) {
       allFields: ChatInputFormValues
     ) => {
       const changedKeys = Object.keys(_changedFields);
-      if (isEqual(changedKeys, names.message)) {
+      if (isEqual(changedKeys, names.content)) {
         return;
       }
       setFormValues(pre => ({
         ...pre,
-        ...omit(allFields, "message"),
+        ...omit(allFields, "content"),
       }));
     }
   );

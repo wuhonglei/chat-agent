@@ -8,7 +8,7 @@ import {
 } from "@/interfaces";
 import { Card, Form } from "antd";
 import classNames from "classnames";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { SourceData } from "@/interfaces";
 import styles from "./index.module.css";
 import SourceSider from "@/components/Chat/SourceSider";
@@ -74,7 +74,7 @@ const ChatPage: React.FC = () => {
   );
 
   const handleEditMessage = useMemoizedFn((index: number, content: string) => {
-    sendMessage({ ...form.getFieldsValue(), message: content }, { index });
+    sendMessage({ ...form.getFieldsValue(), content }, { index });
   });
 
   const handleReSend = useMemoizedFn(

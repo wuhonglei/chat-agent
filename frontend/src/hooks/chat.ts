@@ -22,6 +22,7 @@ import {
 } from "@/store/slices/conversationSlice";
 import { chatAPI } from "@/services";
 import {
+  ChatInputConfig,
   ChatInputFormValues,
   ChatMessage,
   ConversationInfo,
@@ -57,7 +58,7 @@ export interface UseChatMessageReturn {
   reSendMessage: (
     index: number,
     message: ChatMessage,
-    formData: Omit<ChatInputFormValues, "message">
+    formData: ChatInputConfig
   ) => Promise<void>;
   sendMessage: (
     values: ChatInputFormValues,
@@ -197,15 +198,15 @@ export const useChatMessage = (
   const reSendMessage = async (
     index: number,
     message: ChatMessage,
-    formData: Omit<ChatInputFormValues, "message">
+    formData: ChatInputConfig
   ): Promise<void> => {
     if (isUserRole(message.role)) {
-      sendMessage({ ...formData, message: message.content }, { index });
+      sendMessage({ ...formData, content: message.content }, { index });
     } else {
       // 如果是助手消息，则重新发送上一个用户消息
       const newIndex = index - 1;
       sendMessage(
-        { ...formData, message: messages[newIndex].content },
+        { ...formData, content: messages[newIndex].content },
         { index: newIndex }
       );
     }

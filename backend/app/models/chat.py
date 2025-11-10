@@ -62,7 +62,7 @@ class ChatMessageItem(BaseModel):
 class ChatRequest(BaseModel):
     """Chat request model"""
 
-    message: str = Field(..., description="User message")
+    content: str = Field(..., description="User message")
     conversation_id: str = Field(
         ..., description="Conversation ID")
     history_ids: list[str] = Field(
