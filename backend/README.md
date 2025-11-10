@@ -90,6 +90,11 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 访问 http://localhost:8000/docs 查看 API 文档
 
+6. **数据库迁移**
+```bash
+uv run alembic upgrade head
+```
+
 ## API 接口
 
 ### 文档管理
