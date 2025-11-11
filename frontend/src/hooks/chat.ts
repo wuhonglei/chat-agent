@@ -426,33 +426,40 @@ export const useCachedRequest = (conversationId: string) => {
       return;
     }
 
-    db.conversationMessages.get(conversationId).then(data => {
-      if (!data?.data || !data.data.lastMessageUpdateAt) {
-        loadMessages(conversationId);
-        return;
-      }
-      // 首次刷新时，conversationInfo 还未获取到，则不加载消息
-      if (!lastMessageUpdateAt) {
-        console.info(
-          "conversationInfo not loaded yet, will load messages later",
-          conversationId
-        );
-        return;
-      }
+    db.conversationMessages
+      .get(conversationId)
+      .then(data => {
+        // 首次刷新时，conversationInfo 还未获取到，则不加载消息
+        if (!lastMessageUpdateAt) {
+          console.info(
+            "conversationInfo not loaded yet, will load messages later",
+            conversationId
+          );
+          return;
+        }
 
-      const { lastMessageUpdateAt: cacheLastMessageUpdateAt, messages } =
-        data.data;
-      if (
-        dayjs(cacheLastMessageUpdateAt).isBefore(dayjs(lastMessageUpdateAt))
-      ) {
-        loadMessages(conversationId);
-        return;
-      }
+        if (!data?.data || !data.data.lastMessageUpdateAt) {
+          loadMessages(conversationId);
+          return;
+        }
 
-      // 缓存中的数据比较新，则直接使用缓存中的数据
-      dispatch(setMessages({ conversationId, data: messages }));
-      console.info("use cached data", conversationId);
-    });
+        const { lastMessageUpdateAt: cacheLastMessageUpdateAt, messages } =
+          data.data;
+        if (
+          dayjs(cacheLastMessageUpdateAt).isBefore(dayjs(lastMessageUpdateAt))
+        ) {
+          loadMessages(conversationId);
+          return;
+        }
+
+        // 缓存中的数据比较新，则直接使用缓存中的数据
+        dispatch(setMessages({ conversationId, data: messages }));
+        console.info("use cached data", conversationId);
+      })
+      .catch(error => {
+        console.info("error getting messages from indexedDB", error);
+        loadMessages(conversationId);
+      });
   }, [
     isNewConversation,
     conversationId,
