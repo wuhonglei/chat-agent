@@ -231,9 +231,8 @@ const conversationSlice = createSlice({
     builder.addCase(getConversationDetail.fulfilled, (state, action) => {
       const conversation = action.payload;
       updateConversationInListHelper(state, conversation);
-      if (state.conversationInfo?.id === conversation.id) {
-        state.conversationInfo = conversation;
-      }
+      // 直接更新当前对话信息，因为这是获取当前会话详情的操作
+      state.conversationInfo = conversation;
     });
   },
 });
