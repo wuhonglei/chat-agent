@@ -2,11 +2,12 @@ import { ChatMessage as ChatMessageType } from "@/interfaces";
 import React, { useRef } from "react";
 import ChatMessageItem from "./ChatMessageItem";
 import classNames from "classnames";
-import { useAppSelector } from "@/store/hooks";
 import AutoScroll from "./components/AutoScroll";
 import FloatButtonBottom from "./components/FloatButtonBottom";
+import { useChatState } from "@/hooks";
 
 interface ChatMessageListProps {
+  conversationId: string;
   isLoading?: boolean;
   isStreaming?: boolean;
   isReasoning?: boolean;
@@ -18,6 +19,7 @@ interface ChatMessageListProps {
 }
 
 const ChatMessageList: React.FC<ChatMessageListProps> = ({
+  conversationId,
   isLoading = false,
   isStreaming = false,
   isReasoning = false,
@@ -27,7 +29,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
   onEditMessage,
   onReSend,
 }) => {
-  const { messages } = useAppSelector(state => state.chat);
+  const { messages } = useChatState(conversationId);
   const containerRef = useRef<HTMLDivElement>(null);
   return (
     <div

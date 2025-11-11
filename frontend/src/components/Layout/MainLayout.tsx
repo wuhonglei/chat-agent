@@ -14,7 +14,6 @@ import NewConversionIcon from "@/assets/svg/NewConversionIcon.svg?react";
 import styles from "./css/mainLayout.module.css";
 import { theme } from "antd";
 import { useAppDispatch } from "@/store/hooks";
-import { clearCurrentChat } from "@/store/slices/chatSlice";
 import { useConversionInfo, useMenuItems } from "./hooks";
 import {
   deleteConversation,
@@ -66,7 +65,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   };
 
   const handleNewConversion = () => {
-    dispatch(clearCurrentChat());
     navigate("/chat");
   };
 

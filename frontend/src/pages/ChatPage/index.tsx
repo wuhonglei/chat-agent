@@ -1,6 +1,6 @@
 import ChatInput from "@/components/Chat/ChatInput";
 import { ChatMessageList } from "@/components/Chat/ChatMessage";
-import { useChatMessage, useNewConversation } from "@/hooks";
+import { useChatMessage, useChatState, useNewConversation } from "@/hooks";
 import { useMemoizedFn, useRequest } from "ahooks";
 import {
   ChatInputFormValues,
@@ -13,28 +13,20 @@ import { SourceData } from "@/interfaces";
 import styles from "./index.module.css";
 import SourceSider from "@/components/Chat/SourceSider";
 import { useParams, useNavigate } from "react-router-dom";
-import { useAppSelector, useAppDispatch } from "@/store/hooks";
-import { shallowEqual } from "react-redux";
+import { useAppDispatch } from "@/store/hooks";
 import { setMessages } from "@/store/slices/chatSlice";
 import { chatAPI } from "@/services";
 
 const ChatPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { conversationId } = useParams<{ conversationId: string }>();
+  const params = useParams<{ conversationId: string }>();
+  const conversationId = params.conversationId!;
   const { sendMessage, reSendMessage, abortMessage } = useChatMessage({
-    conversationId: conversationId as string,
+    conversationId,
   });
   const { isStreaming, isLoading, isReasoning, isCallingTools } =
-    useAppSelector(state => {
-      const chatState = state.chat;
-      return {
-        isStreaming: chatState.isStreaming,
-        isLoading: chatState.isLoading,
-        isReasoning: chatState.isReasoning,
-        isCallingTools: chatState.isCallingTools,
-      };
-    }, shallowEqual);
+    useChatState(conversationId);
   const [sourceData, setSourceData] = useState<SourceData | undefined>();
   const [form] = Form.useForm<ChatInputFormValues>();
 
@@ -44,10 +36,10 @@ const ChatPage: React.FC = () => {
     ready: !conversationState.isNewConversation && !!conversationId, // 如果是新对话，则无需加载历史消息
     refreshDeps: [conversationId],
     onSuccess: data => {
-      dispatch(setMessages(data));
+      dispatch(setMessages({ conversationId: conversationId!, data }));
     },
     onError: error => {
-      if ((error as any).code === 404) {
+      if ((error as { code?: number }).code === 404) {
         navigate("/chat", { replace: true });
       }
     },
@@ -104,6 +96,7 @@ const ChatPage: React.FC = () => {
         )}
       >
         <ChatMessageList
+          conversationId={conversationId}
           isLoading={isLoading}
           isStreaming={isStreaming}
           isReasoning={isReasoning}

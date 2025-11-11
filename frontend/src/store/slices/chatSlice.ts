@@ -17,6 +17,12 @@ interface ChatStateMap {
   [conversionId: string]: ChatState;
 }
 
+// 修改 payload 接口，包含 conversationId
+interface ConversationActionPayload<T = unknown> {
+  conversationId: string;
+  data: T;
+}
+
 export const getDefaultChatState = (): ChatState => ({
   messages: [],
   messageLoaded: false,
@@ -26,6 +32,9 @@ export const getDefaultChatState = (): ChatState => ({
   isReasoning: false,
   isCallingTools: false,
 });
+
+// 稳定的默认状态，避免每次创建新对象
+export const DEFAULT_CHAT_STATE: ChatState = getDefaultChatState();
 
 const conversationIdCheck = (
   state: ChatStateMap,
@@ -37,7 +46,7 @@ const conversationIdCheck = (
   return state[conversionId];
 };
 
-const initialState: ChatState = getDefaultChatState();
+const initialState: ChatStateMap = {};
 
 /**
  * 检查消息列表中最后一个消息是否为助手消息
@@ -58,101 +67,196 @@ const chatSlice = createSlice({
   name: "chat",
   initialState,
   reducers: {
-    setMessages: (state, action: PayloadAction<ChatMessage[]>) => {
-      state.messages = action.payload;
+    setMessages: (
+      state,
+      action: PayloadAction<ConversationActionPayload<ChatMessage[]>>
+    ) => {
+      const { conversationId, data } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      chatState.messages = data;
+      chatState.messageLoaded = true;
+      chatState.lastMessageUpdateAt = data.at(-1)?.createdAt || "";
     },
-    addMessage: (state, action: PayloadAction<ChatMessage>) => {
-      state.messages.push(action.payload);
+    addMessage: (
+      state,
+      action: PayloadAction<ConversationActionPayload<ChatMessage>>
+    ) => {
+      const { conversationId, data } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      chatState.messages.push(data);
+      chatState.lastMessageUpdateAt = data.createdAt;
     },
-    clearMessagesAfterIndex: (state, action: PayloadAction<number>) => {
+    clearMessagesAfterIndex: (
+      state,
+      action: PayloadAction<ConversationActionPayload<number>>
+    ) => {
+      const { conversationId, data: index } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
       // 清除该位置之后的所有消息
-      state.messages.length = action.payload + 1;
+      chatState.messages.length = index + 1;
+      chatState.lastMessageUpdateAt =
+        chatState.messages.at(-1)?.createdAt || "";
     },
-    removeMessageById: (state, action: PayloadAction<string>) => {
-      const index = state.messages.findIndex(
-        message => message.id === action.payload
+    removeMessageById: (
+      state,
+      action: PayloadAction<ConversationActionPayload<string>>
+    ) => {
+      const { conversationId, data: messageId } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      const index = chatState.messages.findIndex(
+        message => message.id === messageId
       );
       if (index !== -1) {
-        state.messages.splice(index, 1);
+        chatState.messages.splice(index, 1);
+        chatState.lastMessageUpdateAt =
+          chatState.messages.at(-1)?.createdAt || "";
       }
     },
-    clearLastMessage: state => {
-      const lastMessage = lastMessageCheck(state.messages);
+    clearLastMessage: (
+      state,
+      action: PayloadAction<ConversationActionPayload>
+    ) => {
+      const { conversationId } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      const lastMessage = lastMessageCheck(chatState.messages);
       if (lastMessage) {
-        state.messages.pop();
+        chatState.messages.pop();
+        chatState.lastMessageUpdateAt =
+          chatState.messages.at(-1)?.createdAt || "";
       }
     },
-    clearMessages: state => {
-      state.messages = [];
+    clearMessages: (
+      state,
+      action: PayloadAction<ConversationActionPayload>
+    ) => {
+      const { conversationId } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      chatState.messages = [];
+      chatState.messageLoaded = false;
+      chatState.lastMessageUpdateAt = "";
     },
-    setStreaming: (state, action: PayloadAction<boolean>) => {
-      state.isStreaming = action.payload;
+    setStreaming: (
+      state,
+      action: PayloadAction<ConversationActionPayload<boolean>>
+    ) => {
+      const { conversationId, data } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      chatState.isStreaming = data;
     },
-    setLoading: (state, action: PayloadAction<boolean>) => {
-      state.isLoading = action.payload;
+    setLoading: (
+      state,
+      action: PayloadAction<ConversationActionPayload<boolean>>
+    ) => {
+      const { conversationId, data } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      chatState.isLoading = data;
     },
-    setReasoning: (state, action: PayloadAction<boolean>) => {
-      state.isReasoning = action.payload;
+    setReasoning: (
+      state,
+      action: PayloadAction<ConversationActionPayload<boolean>>
+    ) => {
+      const { conversationId, data } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      chatState.isReasoning = data;
     },
-    setSources: (state, action: PayloadAction<SearchSource[]>) => {
-      if (!isEmpty(state.messages)) {
-        state.messages.at(-1)!.sources = action.payload;
+    setSources: (
+      state,
+      action: PayloadAction<ConversationActionPayload<SearchSource[]>>
+    ) => {
+      const { conversationId, data } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      if (!isEmpty(chatState.messages)) {
+        chatState.messages.at(-1)!.sources = data;
       }
     },
-    setCallingTools: (state, action: PayloadAction<boolean>) => {
-      const lastMessage = lastMessageCheck(state.messages);
+    setCallingTools: (
+      state,
+      action: PayloadAction<ConversationActionPayload<boolean>>
+    ) => {
+      const { conversationId, data } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      const lastMessage = lastMessageCheck(chatState.messages);
       if (lastMessage) {
-        state.isCallingTools = action.payload;
+        chatState.isCallingTools = data;
       }
     },
-    prependContentToLastMessage: (state, action: PayloadAction<string>) => {
-      const lastMessage = lastMessageCheck(state.messages);
+    prependContentToLastMessage: (
+      state,
+      action: PayloadAction<ConversationActionPayload<string>>
+    ) => {
+      const { conversationId, data } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      const lastMessage = lastMessageCheck(chatState.messages);
       if (lastMessage) {
-        lastMessage.content = action.payload + lastMessage.content;
+        lastMessage.content = data + lastMessage.content;
       }
     },
-    appendContentToLastMessage: (state, action: PayloadAction<string>) => {
-      const lastMessage = lastMessageCheck(state.messages);
+    appendContentToLastMessage: (
+      state,
+      action: PayloadAction<ConversationActionPayload<string>>
+    ) => {
+      const { conversationId, data } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      const lastMessage = lastMessageCheck(chatState.messages);
       if (lastMessage) {
-        lastMessage.content += action.payload;
+        lastMessage.content += data;
       }
     },
     prependSourceToLastReasoningMessage: (
       state,
-      action: PayloadAction<string>
+      action: PayloadAction<ConversationActionPayload<string>>
     ) => {
-      const lastMessage = lastMessageCheck(state.messages);
+      const { conversationId, data } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      const lastMessage = lastMessageCheck(chatState.messages);
       if (lastMessage && lastMessage.messageMetadata.thinkMode) {
-        lastMessage.reasoning = action.payload + lastMessage.reasoning;
+        lastMessage.reasoning = data + lastMessage.reasoning;
       }
     },
-    appendReasoningToLastMessage: (state, action: PayloadAction<string>) => {
-      const lastMessage = lastMessageCheck(state.messages);
+    appendReasoningToLastMessage: (
+      state,
+      action: PayloadAction<ConversationActionPayload<string>>
+    ) => {
+      const { conversationId, data } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      const lastMessage = lastMessageCheck(chatState.messages);
       if (lastMessage) {
-        lastMessage.reasoning += action.payload;
+        lastMessage.reasoning += data;
       }
     },
     appendToolCallToLastMessage: (
       state,
-      action: PayloadAction<ToolCallMessage>
+      action: PayloadAction<ConversationActionPayload<ToolCallMessage>>
     ) => {
-      const lastMessage = lastMessageCheck(state.messages);
+      const { conversationId, data } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      const lastMessage = lastMessageCheck(chatState.messages);
       if (lastMessage) {
-        lastMessage.toolCalls.push(action.payload);
+        lastMessage.toolCalls.push(data);
       }
     },
-    updateMessageStatus: (state, action: PayloadAction<MessageStatus>) => {
-      const lastMessage = lastMessageCheck(state.messages);
+    updateMessageStatus: (
+      state,
+      action: PayloadAction<ConversationActionPayload<MessageStatus>>
+    ) => {
+      const { conversationId, data } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      const lastMessage = lastMessageCheck(chatState.messages);
       if (lastMessage) {
-        lastMessage.status = action.payload;
+        lastMessage.status = data;
       }
     },
-    clearCurrentChat: state => {
-      state.messages = [];
-      state.isLoading = false;
-      state.isStreaming = false;
-      state.isReasoning = false;
-      state.isCallingTools = false;
+    clearCurrentChat: (
+      state,
+      action: PayloadAction<ConversationActionPayload>
+    ) => {
+      const { conversationId } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      chatState.messages = [];
+      chatState.isLoading = false;
+      chatState.isStreaming = false;
+      chatState.isReasoning = false;
+      chatState.isCallingTools = false;
     },
   },
 });

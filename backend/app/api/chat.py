@@ -87,7 +87,7 @@ async def chat_stream(
             assistant_payload = chat_service.get_collected_response()
 
             try:
-                message_service.update_assistant_message(
+                assistant_message = message_service.update_assistant_message(
                     conversation,
                     assistant_message,
                     content=assistant_payload.content,
@@ -100,14 +100,15 @@ async def chat_stream(
                     f"Failed to persist assistant message: {persist_error}")
                 raise
 
-        if chat_request.regenerate_title:
-            title = await chat_service.generate_title(chat_request.content)
-            yield chat_service.format_sse_message('title', {
-                'id': conversation_id,
-                'title': title
-            })
+            if chat_request.regenerate_title:
+                title = await chat_service.generate_title(chat_request.content)
+                yield chat_service.format_sse_message('title', {
+                    'id': conversation_id,
+                    'title': title
+                })
 
-        yield chat_service.format_sse_message('done')
+            yield chat_service.format_sse_message('done', {'last_message_updated_at': assistant_message.updated_at.isoformat()})
+
         return
 
     return StreamingResponse(

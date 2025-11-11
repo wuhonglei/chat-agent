@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo, useRef } from "react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   addMessage,
@@ -18,6 +18,7 @@ import {
   removeMessageById,
   clearMessagesAfterIndex,
 } from "@/store/slices/chatSlice";
+import { DEFAULT_CHAT_STATE } from "@/store/slices/chatSlice";
 import {
   refreshConversionInList,
   updateConversationInfo,
@@ -34,7 +35,7 @@ import {
   ToolCallMessage,
 } from "@/interfaces";
 
-import { isEmpty, isPlainObject } from "lodash-es";
+import { isEmpty } from "lodash-es";
 import {
   buildFootnoteDefinition,
   getHistoryMessageIds,
@@ -71,26 +72,24 @@ export interface UseChatMessageReturn {
   ) => Promise<void>;
 }
 
-/**
- * 用于控制 ChatPage 的渲染
- */
-export const useChatMessage = (
-  options: UseChatMessageOptions
-): UseChatMessageReturn => {
-  const { conversationId, historyLimit = 10 } = options;
-
-  const dispatch = useAppDispatch();
-  const { messages, isLoading, isStreaming } = useAppSelector(
-    state => state.chat
+export const useChatState = (conversationId: string) => {
+  return useAppSelector(
+    state => state.chat[conversationId] || DEFAULT_CHAT_STATE
   );
+};
+
+export const useChatMessage = (options: UseChatMessageOptions) => {
+  const { conversationId, historyLimit = 10 } = options;
+  const dispatch = useAppDispatch();
+  const { messages, isLoading, isStreaming } = useChatState(conversationId);
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const resetState = useMemoizedFn(() => {
-    dispatch(setStreaming(false));
-    dispatch(setLoading(false));
-    dispatch(setReasoning(false));
-    dispatch(setCallingTools(false));
+    dispatch(setStreaming({ conversationId, data: false }));
+    dispatch(setLoading({ conversationId, data: false }));
+    dispatch(setReasoning({ conversationId, data: false }));
+    dispatch(setCallingTools({ conversationId, data: false }));
   });
 
   const abortMessage = useMemoizedFn((): void => {
@@ -99,7 +98,7 @@ export const useChatMessage = (
       // 服务端 llm api 还没响应，则清除最后一条消息
       const lastMessage = lastMessageCheck(messages);
       if (lastMessage && lastMessage.id && isLoading) {
-        dispatch(clearLastMessage());
+        dispatch(clearLastMessage({ conversationId, data: undefined }));
         chatAPI.deleteMessage(lastMessage.id);
       }
       resetState();
@@ -118,8 +117,8 @@ export const useChatMessage = (
         abortMessage();
       }
 
-      dispatch(setStreaming(true));
-      dispatch(setLoading(true));
+      dispatch(setStreaming({ conversationId, data: true }));
+      dispatch(setLoading({ conversationId, data: true }));
 
       try {
         abortControllerRef.current = new AbortController();
@@ -130,7 +129,7 @@ export const useChatMessage = (
 
         // 对于在指定位置修改 message 或 重发 message 的场景，需要删除改位置之后的所有 message
         if (!isEmpty(removedMessageIds)) {
-          dispatch(clearMessagesAfterIndex(index!));
+          dispatch(clearMessagesAfterIndex({ conversationId, data: index! }));
         }
 
         // 开始流式传输
@@ -146,43 +145,73 @@ export const useChatMessage = (
             const { type } = data;
             const { status, content } = data.data || {};
             if (!["ack", "refresh_conversation"].includes(type)) {
-              dispatch(setLoading(false)); // 收到响应
+              dispatch(setLoading({ conversationId, data: false })); // 收到响应
             }
 
             if (type === "ack") {
               const message = data.data as ChatMessage;
               if (isUserRole(message.role) && !isEmpty(removedMessageIds)) {
-                dispatch(removeMessageById(removedMessageIds[0]));
+                dispatch(
+                  removeMessageById({
+                    conversationId,
+                    data: removedMessageIds[0],
+                  })
+                );
               }
-              dispatch(addMessage({ ...message, defaultOpen: true }));
+              dispatch(
+                addMessage({
+                  conversationId,
+                  data: { ...message, defaultOpen: true },
+                })
+              );
             } else if (type === "refresh_conversation") {
               dispatch(refreshConversionInList(data.data as ConversationInfo));
             } else if (type === "reasoning") {
               // 思考内容
               if (status === "start") {
-                dispatch(setReasoning(true));
+                dispatch(setReasoning({ conversationId, data: true }));
               } else if (status === "done") {
                 emitter.emit(EventType.ReasoningDone);
-                dispatch(setReasoning(false));
-              }
-              dispatch(appendReasoningToLastMessage(content || ""));
-            } else if (type === "content") {
-              dispatch(appendContentToLastMessage(content || ""));
-            } else if (type === "sources") {
-              // 知识库搜索结果
-              dispatch(setSources(data.data));
-              const sourceStr = buildFootnoteDefinition(data.data);
-              dispatch(prependSourceToLastReasoningMessage(sourceStr));
-              dispatch(prependContentToLastMessage(sourceStr));
-            } else if (type === "tool_call") {
-              const { role } = data.data;
-              dispatch(setCallingTools(true));
-              if (!role && status === "done") {
-                emitter.emit(EventType.ToolCallDone);
-                dispatch(setCallingTools(false));
+                dispatch(setReasoning({ conversationId, data: false }));
               }
               dispatch(
-                appendToolCallToLastMessage(data.data as ToolCallMessage)
+                appendReasoningToLastMessage({
+                  conversationId,
+                  data: content || "",
+                })
+              );
+            } else if (type === "content") {
+              dispatch(
+                appendContentToLastMessage({
+                  conversationId,
+                  data: content || "",
+                })
+              );
+            } else if (type === "sources") {
+              // 知识库搜索结果
+              dispatch(setSources({ conversationId, data: data.data }));
+              const sourceStr = buildFootnoteDefinition(data.data);
+              dispatch(
+                prependSourceToLastReasoningMessage({
+                  conversationId,
+                  data: sourceStr,
+                })
+              );
+              dispatch(
+                prependContentToLastMessage({ conversationId, data: sourceStr })
+              );
+            } else if (type === "tool_call") {
+              const { role } = data.data;
+              dispatch(setCallingTools({ conversationId, data: true }));
+              if (!role && status === "done") {
+                emitter.emit(EventType.ToolCallDone);
+                dispatch(setCallingTools({ conversationId, data: false }));
+              }
+              dispatch(
+                appendToolCallToLastMessage({
+                  conversationId,
+                  data: data.data as ToolCallMessage,
+                })
               );
             } else if (type === "title") {
               const { id, title } = data.data;
@@ -195,7 +224,12 @@ export const useChatMessage = (
               );
             } else if (type === "done") {
               // 流结束
-              dispatch(updateMessageStatus(MessageStatus.DONE));
+              dispatch(
+                updateMessageStatus({
+                  conversationId,
+                  data: MessageStatus.DONE,
+                })
+              );
               resetState();
             }
           },
