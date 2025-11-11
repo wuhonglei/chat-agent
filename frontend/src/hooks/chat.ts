@@ -16,6 +16,7 @@ import {
   updateMessageStatus,
   lastMessageCheck,
   removeMessageById,
+  clearMessagesAfterIndex,
 } from "@/store/slices/chatSlice";
 import {
   refreshConversionInList,
@@ -127,6 +128,11 @@ export const useChatMessage = (
         const regenerateTitle =
           isEmpty(history) && isTitleCreatedByDefault(createdBy);
 
+        // 对于在指定位置修改 message 或 重发 message 的场景，需要删除改位置之后的所有 message
+        if (!isEmpty(removedMessageIds)) {
+          dispatch(clearMessagesAfterIndex(index!));
+        }
+
         // 开始流式传输
         await chatAPI.streamMessage(
           {
@@ -137,11 +143,6 @@ export const useChatMessage = (
             conversationId,
           },
           (data: StreamMessage) => {
-            if (!isPlainObject(data)) {
-              console.warn("Invalid data:", data);
-              return;
-            }
-
             const { type } = data;
             const { status, content } = data.data || {};
             if (!["ack", "refresh_conversation"].includes(type)) {

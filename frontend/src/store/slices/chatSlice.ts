@@ -64,14 +64,9 @@ const chatSlice = createSlice({
     addMessage: (state, action: PayloadAction<ChatMessage>) => {
       state.messages.push(action.payload);
     },
-    addMessageAtIndex: (
-      state,
-      action: PayloadAction<{ index: number; message: ChatMessage }>
-    ) => {
-      // 插入到指定位置
-      state.messages.splice(action.payload.index, 0, action.payload.message);
+    clearMessagesAfterIndex: (state, action: PayloadAction<number>) => {
       // 清除该位置之后的所有消息
-      state.messages.length = action.payload.index + 1;
+      state.messages.length = action.payload + 1;
     },
     removeMessageById: (state, action: PayloadAction<string>) => {
       const index = state.messages.findIndex(
@@ -165,7 +160,7 @@ const chatSlice = createSlice({
 export const {
   setMessages,
   addMessage,
-  addMessageAtIndex,
+  clearMessagesAfterIndex,
   removeMessageById,
   clearMessages,
   setStreaming,
