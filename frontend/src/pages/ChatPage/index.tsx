@@ -50,6 +50,7 @@ const ChatPage: React.FC = () => {
       ready: !conversationState.isNewConversation && !!conversationId, // 如果是新对话，则无需加载历史消息
       refreshDeps: [conversationId],
       onSuccess: data => {
+        console.info("onSuccess load messages", data);
         dispatch(setMessages({ conversationId, data }));
       },
       onError: error => {
@@ -94,13 +95,6 @@ const ChatPage: React.FC = () => {
     setSourceData(undefined);
   });
 
-  const chatInputProps = {
-    form,
-    onStop: abortMessage,
-    onSend: sendMessage,
-    isStreaming: isStreaming,
-  };
-
   return (
     <div className="flex h-full">
       {/* Chat area */}
@@ -110,19 +104,26 @@ const ChatPage: React.FC = () => {
           styles.container
         )}
       >
+        {/* 渲染消息列表 */}
         <ChatMessageList
           isLoading={isLoading}
+          onReSend={handleReSend}
           isStreaming={isStreaming}
           isReasoning={isReasoning}
           isCallingTools={isCallingTools}
-          onReSend={handleReSend}
           conversationId={conversationId}
           onSourceClick={handleSourceClick}
           onEditMessage={handleEditMessage}
           className={styles["markdown-container"]}
         />
         {/* Input area */}
-        <ChatInput {...chatInputProps} className={styles["input-container"]} />
+        <ChatInput
+          form={form}
+          onSend={sendMessage}
+          onStop={abortMessage}
+          isStreaming={isStreaming}
+          className={styles["input-container"]}
+        />
       </div>
       {/* Sources panel */}
       <SourceSider sourceData={sourceData} onClose={handleCloseSource} />
