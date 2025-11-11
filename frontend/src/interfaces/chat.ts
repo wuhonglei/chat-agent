@@ -31,6 +31,7 @@ export interface ChatMessage {
   content: string;
   reasoning: string;
   createdAt: string;
+  updateAt: string;
   sources: SearchSource[];
   toolCalls: ToolCallMessage[];
   messageMetadata: Omit<ChatInputFormValues, "message">;

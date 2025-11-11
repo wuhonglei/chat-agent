@@ -228,6 +228,14 @@ const chatSlice = createSlice({
         lastMessage.status = data;
       }
     },
+    updateMessageModifiedTime: (
+      state,
+      action: PayloadAction<ConversationActionPayload<string>>
+    ) => {
+      const { conversationId, data } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      chatState.lastMessageUpdateAt = data;
+    },
     // 会话中 message finish 时调用
     resetChatState: (
       state,
@@ -267,6 +275,7 @@ export const {
   appendToolCallToLastMessage,
   setReasoning,
   updateMessageStatus,
+  updateMessageModifiedTime,
   clearLastMessage,
   resetChatState,
   clearChatState,

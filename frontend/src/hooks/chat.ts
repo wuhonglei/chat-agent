@@ -18,6 +18,7 @@ import {
   removeMessageById,
   clearMessagesAfterIndex,
   resetChatState,
+  updateMessageModifiedTime,
 } from "@/store/slices/chatSlice";
 import { DEFAULT_CHAT_STATE } from "@/store/slices/chatSlice";
 import {
@@ -162,6 +163,12 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
                   data: { ...message, defaultOpen: true },
                 })
               );
+              dispatch(
+                updateMessageModifiedTime({
+                  conversationId,
+                  data: message.updateAt,
+                })
+              );
             } else if (type === "refresh_conversation") {
               dispatch(refreshConversionInList(data.data as ConversationInfo));
             } else if (type === "reasoning") {
@@ -221,11 +228,18 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
                 })
               );
             } else if (type === "done") {
+              const { lastMessageUpdatedAt } = data.data;
               // 流结束
               dispatch(
                 updateMessageStatus({
                   conversationId,
                   data: MessageStatus.DONE,
+                })
+              );
+              dispatch(
+                updateMessageModifiedTime({
+                  conversationId,
+                  data: lastMessageUpdatedAt,
                 })
               );
               resetState();
