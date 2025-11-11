@@ -90,6 +90,19 @@ export const useChatMessage = (
     dispatch(setCallingTools(false));
   };
 
+  const abortMessage = (): void => {
+    if (abortControllerRef.current && isStreaming) {
+      abortControllerRef.current.abort();
+      // 服务端 llm api 还没响应，则清除最后一条消息
+      const lastMessage = lastMessageCheck(messages);
+      if (lastMessage && lastMessage.id && isLoading) {
+        dispatch(clearLastMessage());
+        chatAPI.deleteMessage(lastMessage.id);
+      }
+      resetState();
+    }
+  };
+
   const sendMessage = async (
     values: ChatInputFormValues,
     options?: SendMessageOptions
@@ -98,8 +111,7 @@ export const useChatMessage = (
 
     // 如果正在流式传输，先中止当前请求
     if (abortControllerRef.current && isStreaming) {
-      abortControllerRef.current.abort();
-      dispatch(clearLastMessage());
+      abortMessage();
     }
 
     // 使用传入的 conversationIdOverride，否则使用 hook 初始化时的 conversationId
@@ -215,19 +227,6 @@ export const useChatMessage = (
         { ...formData, content: messages[newIndex].content },
         { index: newIndex }
       );
-    }
-  };
-
-  const abortMessage = (): void => {
-    if (abortControllerRef.current && isStreaming) {
-      abortControllerRef.current.abort();
-      // 服务端 llm api 还没响应，则清除最后一条消息
-      const lastMessage = lastMessageCheck(messages);
-      if (lastMessage && lastMessage.id && isLoading) {
-        dispatch(clearLastMessage());
-        chatAPI.deleteMessage(lastMessage.id);
-      }
-      resetState();
     }
   };
 
