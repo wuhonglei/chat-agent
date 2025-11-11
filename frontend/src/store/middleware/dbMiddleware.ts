@@ -1,8 +1,6 @@
 import { Middleware } from "@reduxjs/toolkit";
 import { db } from "@/indexDB";
 import { ChatConversationState } from "@/interfaces";
-import { getDefaultChatState } from "../slices/chatSlice";
-import { pick } from "lodash-es";
 
 /**
  * Redux Middleware 用于处理数据库持久化操作
@@ -70,14 +68,7 @@ export const dbMiddleware: Middleware = store => next => action => {
           db.conversationMessages
             .put({
               id: conversationId,
-              data: {
-                ...getDefaultChatState(),
-                ...pick(chatState, [
-                  "messages",
-                  "messageLoaded",
-                  "lastMessageUpdateAt",
-                ]),
-              },
+              data: chatState,
             })
             .catch(error => {
               console.error("Failed to save messages to IndexedDB:", error);

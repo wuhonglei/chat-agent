@@ -3,6 +3,7 @@ import chatReducer from "./slices/chatSlice";
 import globalReducer from "./slices/globalSlice";
 import conversationReducer from "./slices/conversationSlice";
 import { dbMiddleware } from "./middleware/dbMiddleware";
+import { updateLastMessageTimeMiddleware } from "./middleware/updateLastMessageTimeMiddleware";
 
 export const store = configureStore({
   reducer: {
@@ -13,7 +14,9 @@ export const store = configureStore({
   middleware: getDefaultMiddleware =>
     getDefaultMiddleware({
       serializableCheck: false,
-    }).concat(dbMiddleware),
+    })
+      .concat(updateLastMessageTimeMiddleware) // 先执行，更新 lastMessageUpdateAt
+      .concat(dbMiddleware), // 再执行，保存到数据库
 });
 
 // Infer the `RootState` and `AppDispatch` types from the store itself

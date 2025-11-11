@@ -53,9 +53,13 @@ class ChatMessageItem(BaseModel):
         default=None,
         description="ID of the user message this assistant message replies to"
     )
+    created_at: datetime = Field(
+        default_factory=get_datetime_now, description="Message created at")
+    updated_at: datetime = Field(
+        default_factory=get_datetime_now, description="Message updated at")
 
     model_config = ConfigDict(
-        extra='ignore'
+        extra='allow'
     )
 
 

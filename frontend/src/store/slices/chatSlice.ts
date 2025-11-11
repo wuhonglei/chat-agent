@@ -58,6 +58,8 @@ export function lastMessageCheck(
   return messages.at(-1)?.role === "assistant" ? messages.at(-1) : undefined;
 }
 
+// 注意：lastMessageUpdateAt 的更新已移至 updateLastMessageTimeMiddleware 中自动处理
+
 const chatSlice = createSlice({
   name: "chat",
   initialState,
@@ -70,6 +72,7 @@ const chatSlice = createSlice({
       const chatState = conversationIdCheck(state, conversationId);
       chatState.messages = data;
       chatState.messageLoaded = true;
+      // lastMessageUpdateAt 的更新已移至 updateLastMessageTimeMiddleware 中自动处理
       // 数据库操作已移至 dbMiddleware 中处理，保持 reducer 的纯净性
     },
     addMessage: (
@@ -79,6 +82,7 @@ const chatSlice = createSlice({
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
       chatState.messages.push(data);
+      // lastMessageUpdateAt 的更新已移至 updateLastMessageTimeMiddleware 中自动处理
     },
     clearMessagesAfterIndex: (
       state,
@@ -88,6 +92,7 @@ const chatSlice = createSlice({
       const chatState = conversationIdCheck(state, conversationId);
       // 清除该位置之后的所有消息
       chatState.messages.length = index + 1;
+      // lastMessageUpdateAt 的更新已移至 updateLastMessageTimeMiddleware 中自动处理
     },
     removeMessageById: (
       state,
@@ -100,6 +105,7 @@ const chatSlice = createSlice({
       );
       if (index !== -1) {
         chatState.messages.splice(index, 1);
+        // lastMessageUpdateAt 的更新已移至 updateLastMessageTimeMiddleware 中自动处理
       }
     },
     clearLastMessage: (
@@ -111,6 +117,7 @@ const chatSlice = createSlice({
       const lastMessage = lastMessageCheck(chatState.messages);
       if (lastMessage) {
         chatState.messages.pop();
+        // lastMessageUpdateAt 的更新已移至 updateLastMessageTimeMiddleware 中自动处理
       }
     },
     setStreaming: (

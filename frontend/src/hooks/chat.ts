@@ -23,6 +23,7 @@ import {
 } from "@/store/slices/chatSlice";
 import { DEFAULT_CHAT_STATE } from "@/store/slices/chatSlice";
 import {
+  getConversationDetail,
   refreshConversionInList,
   removeConversationFromList,
   updateConversationInfo,
@@ -48,10 +49,12 @@ import {
   isTitleCreatedByDefault,
   getRemovedMessageIds,
 } from "@/utils";
+import { db } from "@/indexDB";
 import { emitter, EventType } from "@/events";
 import { MessageStatus, TitleCreatedBy } from "@/constants";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMemoizedFn, useRequest } from "ahooks";
+import dayjs from "dayjs";
 
 /**
  * 用于控制 ChatPage 的渲染
@@ -355,12 +358,28 @@ export function useNewConversation() {
   };
 }
 
+export const useConversationInfo = (conversationId: string) => {
+  const conversationInfo = useAppSelector(
+    state => state.conversation.conversationInfo
+  );
+  const dispatch = useAppDispatch();
+  const empty = isEmpty(conversationInfo);
+  useEffect(() => {
+    if (empty && conversationId) {
+      dispatch(getConversationDetail(conversationId));
+    }
+  }, [conversationId, empty, dispatch]);
+  return conversationInfo;
+};
+
 export const useCachedRequest = (conversationId: string) => {
   // 页面刷新后清除 isNewConversation 状态
   const { cacheData: conversationState, clearCacheData } = useNewConversation();
   const navigate = useNavigate();
   const { sendMessage } = useChatMessage({ conversationId });
   const { messageLoaded } = useChatState(conversationId);
+  const conversationInfo = useConversationInfo(conversationId);
+  const lastMessageUpdateAt = conversationInfo?.lastMessageUpdatedAt;
   const dispatch = useAppDispatch();
 
   useEffect(() => {
@@ -394,11 +413,42 @@ export const useCachedRequest = (conversationId: string) => {
       return;
     }
 
-    // 如果消息已加载，则不重新加载
+    // 如果消息已加载到 store 中, 直接使用 store 中的数据
     if (messageLoaded) {
+      console.info("messageLoaded", conversationId);
       return;
     }
 
-    loadMessages(conversationId);
-  }, [loadMessages, conversationState, conversationId, messageLoaded]);
+    db.conversationMessages.get(conversationId).then(data => {
+      if (!data?.data || !data.data.lastMessageUpdateAt) {
+        loadMessages(conversationId);
+        return;
+      }
+      // 首次刷新时，conversationInfo 还未获取到，则不加载消息
+      if (!lastMessageUpdateAt) {
+        console.info("no lastMessageUpdateAt", conversationId);
+        return;
+      }
+
+      const { lastMessageUpdateAt: cacheLastMessageUpdateAt, messages } =
+        data.data;
+      if (
+        dayjs(cacheLastMessageUpdateAt).isBefore(dayjs(lastMessageUpdateAt))
+      ) {
+        loadMessages(conversationId);
+        return;
+      }
+
+      // 缓存中的数据比较新，则直接使用缓存中的数据
+      dispatch(setMessages({ conversationId, data: messages }));
+      console.info("use cached data", conversationId);
+    });
+  }, [
+    conversationState,
+    conversationId,
+    messageLoaded,
+    lastMessageUpdateAt,
+    dispatch,
+    loadMessages,
+  ]);
 };
