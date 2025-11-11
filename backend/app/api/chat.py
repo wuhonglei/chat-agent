@@ -103,6 +103,7 @@ async def chat_stream(
 
             try:
                 message_service.update_assistant_message(
+                    conversation,
                     assistant_message,
                     content=assistant_payload.content,
                     reasoning=assistant_payload.reasoning,

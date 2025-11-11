@@ -18,7 +18,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useAppSelector, useAppDispatch } from "@/store/hooks";
 import { shallowEqual } from "react-redux";
 import { registerConversation } from "@/store/slices/conversationSlice";
-import { getDefaultChatState, setMessages } from "@/store/slices/chatSlice";
+import { setMessages } from "@/store/slices/chatSlice";
 import { chatAPI } from "@/services";
 
 const ChatPage: React.FC = () => {
@@ -30,8 +30,7 @@ const ChatPage: React.FC = () => {
   });
   const { isStreaming, isLoading, isReasoning, isCallingTools } =
     useAppSelector(state => {
-      const chatState =
-        state.chat[conversationId as string] || getDefaultChatState();
+      const chatState = state.chat;
       return {
         isStreaming: chatState.isStreaming,
         isLoading: chatState.isLoading,
