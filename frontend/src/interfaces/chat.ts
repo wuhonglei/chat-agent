@@ -58,6 +58,20 @@ export interface ChatInputFormValues extends ChatInputConfig {
   content: string;
 }
 
+export type NewConversationCache =
+  | {
+      isNewConversation: false;
+      values?: ChatInputFormValues;
+      createdBy?: TitleCreatedBy;
+      insertAt?: number; // 时间戳 ms (Date.now() 生成)
+    }
+  | {
+      isNewConversation: true;
+      values: ChatInputFormValues;
+      createdBy: TitleCreatedBy;
+      insertAt: number; // 时间戳 ms (Date.now() 生成)
+    };
+
 export interface ChatRequest extends ChatInputFormValues {
   conversationId?: string;
   historyIds: string[];
@@ -73,5 +87,4 @@ export interface SourceData {
 export interface SendMessageOptions {
   index?: number;
   createdBy?: TitleCreatedBy;
-  conversationIdOverride?: string;
 }

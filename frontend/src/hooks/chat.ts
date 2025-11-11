@@ -27,6 +27,7 @@ import {
   ChatInputFormValues,
   ChatMessage,
   ConversationInfo,
+  NewConversationCache,
   SendMessageOptions,
   StreamMessage,
   ToolCallMessage,
@@ -43,12 +44,13 @@ import {
 import { emitter, EventType } from "@/events";
 import { MessageStatus, TitleCreatedBy } from "@/constants";
 import { useParams } from "react-router-dom";
+import { useMemoizedFn } from "ahooks";
 
 /**
  * 用于控制 ChatPage 的渲染
  */
 export interface UseChatMessageOptions {
-  conversationId?: string;
+  conversationId: string;
   historyLimit?: number;
 }
 
@@ -72,7 +74,7 @@ export interface UseChatMessageReturn {
  * 用于控制 ChatPage 的渲染
  */
 export const useChatMessage = (
-  options: UseChatMessageOptions = {}
+  options: UseChatMessageOptions
 ): UseChatMessageReturn => {
   const { conversationId, historyLimit = 10 } = options;
 
@@ -83,14 +85,14 @@ export const useChatMessage = (
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const resetState = () => {
+  const resetState = useMemoizedFn(() => {
     dispatch(setStreaming(false));
     dispatch(setLoading(false));
     dispatch(setReasoning(false));
     dispatch(setCallingTools(false));
-  };
+  });
 
-  const abortMessage = (): void => {
+  const abortMessage = useMemoizedFn((): void => {
     if (abortControllerRef.current && isStreaming) {
       abortControllerRef.current.abort();
       // 服务端 llm api 还没响应，则清除最后一条消息
@@ -101,134 +103,137 @@ export const useChatMessage = (
       }
       resetState();
     }
-  };
+  });
 
-  const sendMessage = async (
-    values: ChatInputFormValues,
-    options?: SendMessageOptions
-  ): Promise<void> => {
-    const { index, createdBy, conversationIdOverride } = options || {};
+  const sendMessage = useMemoizedFn(
+    async (
+      values: ChatInputFormValues,
+      options?: SendMessageOptions
+    ): Promise<void> => {
+      const { index, createdBy } = options || {};
 
-    // 如果正在流式传输，先中止当前请求
-    if (abortControllerRef.current && isStreaming) {
-      abortMessage();
-    }
+      // 如果正在流式传输，先中止当前请求
+      if (abortControllerRef.current && isStreaming) {
+        abortMessage();
+      }
 
-    // 使用传入的 conversationIdOverride，否则使用 hook 初始化时的 conversationId
-    const finalConversationId = conversationIdOverride ?? conversationId;
+      dispatch(setStreaming(true));
+      dispatch(setLoading(true));
 
-    dispatch(setStreaming(true));
-    dispatch(setLoading(true));
+      try {
+        abortControllerRef.current = new AbortController();
+        const historyIds = getHistoryMessageIds(historyLimit, messages, index);
+        const removedMessageIds = getRemovedMessageIds(messages, index);
+        const regenerateTitle =
+          isEmpty(history) && isTitleCreatedByDefault(createdBy);
 
-    try {
-      abortControllerRef.current = new AbortController();
-      const historyIds = getHistoryMessageIds(historyLimit, messages, index);
-      const removedMessageIds = getRemovedMessageIds(messages, index);
-      const regenerateTitle =
-        isEmpty(history) && isTitleCreatedByDefault(createdBy);
-
-      // 开始流式传输
-      await chatAPI.streamMessage(
-        {
-          ...values,
-          historyIds, // 发送最后几条消息作为上下文
-          regenerateTitle,
-          removedMessageIds,
-          conversationId: finalConversationId,
-        },
-        (data: StreamMessage) => {
-          if (!isPlainObject(data)) {
-            console.warn("Invalid data:", data);
-            return;
-          }
-
-          const { type } = data;
-          const { status, content } = data.data || {};
-          if (!["ack", "refresh_conversation"].includes(type)) {
-            dispatch(setLoading(false)); // 收到响应
-          }
-
-          if (type === "ack") {
-            const message = data.data as ChatMessage;
-            if (isUserRole(message.role) && !isEmpty(removedMessageIds)) {
-              dispatch(removeMessageById(removedMessageIds[0]));
+        // 开始流式传输
+        await chatAPI.streamMessage(
+          {
+            ...values,
+            historyIds, // 发送最后几条消息作为上下文
+            regenerateTitle,
+            removedMessageIds,
+            conversationId,
+          },
+          (data: StreamMessage) => {
+            if (!isPlainObject(data)) {
+              console.warn("Invalid data:", data);
+              return;
             }
-            dispatch(addMessage({ ...message, defaultOpen: true }));
-          } else if (type === "refresh_conversation") {
-            dispatch(refreshConversionInList(data.data as ConversationInfo));
-          } else if (type === "reasoning") {
-            // 思考内容
-            if (status === "start") {
-              dispatch(setReasoning(true));
-            } else if (status === "done") {
-              emitter.emit(EventType.ReasoningDone);
-              dispatch(setReasoning(false));
+
+            const { type } = data;
+            const { status, content } = data.data || {};
+            if (!["ack", "refresh_conversation"].includes(type)) {
+              dispatch(setLoading(false)); // 收到响应
             }
-            dispatch(appendReasoningToLastMessage(content || ""));
-          } else if (type === "content") {
-            dispatch(appendContentToLastMessage(content || ""));
-          } else if (type === "sources") {
-            // 知识库搜索结果
-            dispatch(setSources(data.data));
-            const sourceStr = buildFootnoteDefinition(data.data);
-            dispatch(prependSourceToLastReasoningMessage(sourceStr));
-            dispatch(prependContentToLastMessage(sourceStr));
-          } else if (type === "tool_call") {
-            const { role } = data.data;
-            dispatch(setCallingTools(true));
-            if (!role && status === "done") {
-              emitter.emit(EventType.ToolCallDone);
-              dispatch(setCallingTools(false));
+
+            if (type === "ack") {
+              const message = data.data as ChatMessage;
+              if (isUserRole(message.role) && !isEmpty(removedMessageIds)) {
+                dispatch(removeMessageById(removedMessageIds[0]));
+              }
+              dispatch(addMessage({ ...message, defaultOpen: true }));
+            } else if (type === "refresh_conversation") {
+              dispatch(refreshConversionInList(data.data as ConversationInfo));
+            } else if (type === "reasoning") {
+              // 思考内容
+              if (status === "start") {
+                dispatch(setReasoning(true));
+              } else if (status === "done") {
+                emitter.emit(EventType.ReasoningDone);
+                dispatch(setReasoning(false));
+              }
+              dispatch(appendReasoningToLastMessage(content || ""));
+            } else if (type === "content") {
+              dispatch(appendContentToLastMessage(content || ""));
+            } else if (type === "sources") {
+              // 知识库搜索结果
+              dispatch(setSources(data.data));
+              const sourceStr = buildFootnoteDefinition(data.data);
+              dispatch(prependSourceToLastReasoningMessage(sourceStr));
+              dispatch(prependContentToLastMessage(sourceStr));
+            } else if (type === "tool_call") {
+              const { role } = data.data;
+              dispatch(setCallingTools(true));
+              if (!role && status === "done") {
+                emitter.emit(EventType.ToolCallDone);
+                dispatch(setCallingTools(false));
+              }
+              dispatch(
+                appendToolCallToLastMessage(data.data as ToolCallMessage)
+              );
+            } else if (type === "title") {
+              const { id, title } = data.data;
+              dispatch(
+                updateConversationInfo({
+                  id,
+                  title,
+                  createdBy: TitleCreatedBy.LLM,
+                })
+              );
+            } else if (type === "done") {
+              // 流结束
+              dispatch(updateMessageStatus(MessageStatus.DONE));
+              resetState();
             }
-            dispatch(appendToolCallToLastMessage(data.data as ToolCallMessage));
-          } else if (type === "title") {
-            const { id, title } = data.data;
-            dispatch(
-              updateConversationInfo({
-                id,
-                title,
-                createdBy: TitleCreatedBy.LLM,
-              })
-            );
-          } else if (type === "done") {
-            // 流结束
-            dispatch(updateMessageStatus(MessageStatus.DONE));
+          },
+          (error: Error) => {
+            // 流错误
+            console.error("Stream error:", error);
             resetState();
-          }
-        },
-        (error: Error) => {
-          // 流错误
-          console.error("Stream error:", error);
-          resetState();
-        },
-        () => {
-          // 流结束
-          resetState();
-        },
-        abortControllerRef.current
-      );
-    } catch (error) {
-      console.error("Failed to send message:", error);
-      resetState();
+          },
+          () => {
+            // 流结束
+            resetState();
+          },
+          abortControllerRef.current
+        );
+      } catch (error) {
+        console.error("Failed to send message:", error);
+        resetState();
+      }
     }
-  };
+  );
 
-  const reSendMessage = async (
-    index: number,
-    message: ChatMessage,
-    formData: ChatInputConfig
-  ): Promise<void> => {
-    if (isUserRole(message.role)) {
-      sendMessage({ ...formData, content: message.content }, { index });
-    } else {
-      // 如果是助手消息，则重新发送上一个用户消息
-      const newIndex = index - 1;
-      sendMessage(
-        { ...formData, content: messages[newIndex].content },
-        { index: newIndex }
-      );
+  const reSendMessage = useMemoizedFn(
+    async (
+      index: number,
+      message: ChatMessage,
+      formData: ChatInputConfig
+    ): Promise<void> => {
+      if (isUserRole(message.role)) {
+        sendMessage({ ...formData, content: message.content }, { index });
+      } else {
+        // 如果是助手消息，则重新发送上一个用户消息
+        const newIndex = index - 1;
+        sendMessage(
+          { ...formData, content: messages[newIndex].content },
+          { index: newIndex }
+        );
+      }
     }
-  };
+  );
 
   return {
     sendMessage,
@@ -237,33 +242,59 @@ export const useChatMessage = (
   };
 };
 
+const NEW_CONVERSATION_CACHE_KEY = "ai:assistant:new_conversation";
 /**
  * 用于判断是否是新对话
  * @returns {boolean} 是否是新对话
  */
 export function useNewConversation() {
   const { conversationId } = useParams<{ conversationId?: string }>();
-  const key = "ai:assistant:new_conversation";
-  const isNewConversation = useMemo(
-    () => sessionStorage.getItem(key) === "1",
+  const conversationState = useMemo<NewConversationCache>(
+    () => {
+      const defaultData = {
+        isNewConversation: false,
+      } as const;
+      try {
+        const cacheStr = sessionStorage.getItem(NEW_CONVERSATION_CACHE_KEY);
+        if (!cacheStr) {
+          return defaultData;
+        }
+        const cacheData: NewConversationCache = JSON.parse(cacheStr);
+        if (!cacheData.isNewConversation) {
+          return defaultData;
+        }
+
+        // 如果缓存数据过期，则清除
+        if (Date.now() - cacheData.insertAt > 1000 * 5) {
+          return defaultData;
+        }
+
+        return cacheData;
+      } catch (error) {
+        return defaultData;
+      } finally {
+        // console.info("conversationId", conversationId);
+      }
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [key, conversationId] // 路由变化后，由于渲染同一个 ChatPage 实例，因此需要依赖 conversationId 来主动执行 useMemo
+    [conversationId] // 路由变化后，由于渲染同一个 ChatPage 实例，因此需要依赖 conversationId 来主动执行 useMemo
   );
 
-  // 页面刷新后清除 isNewConversation 状态
-  useEffect(() => {
-    if (conversationId && isNewConversation) {
-      sessionStorage.removeItem(key);
+  const setCacheData = useMemoizedFn((data: NewConversationCache) => {
+    try {
+      sessionStorage.setItem(NEW_CONVERSATION_CACHE_KEY, JSON.stringify(data));
+    } catch (error) {
+      console.error("Failed to set new conversation cache:", error);
     }
-  }, [conversationId, isNewConversation]);
+  });
+
+  const clearCacheData = useMemoizedFn(() => {
+    sessionStorage.removeItem(NEW_CONVERSATION_CACHE_KEY);
+  });
 
   return {
-    value: isNewConversation,
-    setValue: (value: boolean) => {
-      sessionStorage.setItem(key, value ? "1" : "0");
-    },
-    removeValue: () => {
-      sessionStorage.removeItem(key);
-    },
+    cacheData: conversationState,
+    setCacheData,
+    clearCacheData,
   };
 }

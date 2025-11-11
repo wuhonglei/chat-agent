@@ -1,5 +1,4 @@
 import { App as AntdApp, ConfigProvider } from "antd";
-import React from "react";
 import ReactDOM from "react-dom/client";
 import { Provider } from "react-redux";
 import App from "./App";
@@ -12,21 +11,19 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <Provider store={store}>
-      <ConfigProvider
-        theme={{
-          token: {
-            colorPrimary: "#2356F6",
-            fontFamily: "inherit",
-            fontFamilyCode: "inherit",
-          },
-        }}
-      >
-        <AntdApp>
-          <App />
-        </AntdApp>
-      </ConfigProvider>
-    </Provider>
-  </React.StrictMode>
+  <Provider store={store}>
+    <ConfigProvider
+      theme={{
+        token: {
+          colorPrimary: "#2356F6",
+          fontFamily: "inherit",
+          fontFamilyCode: "inherit",
+        },
+      }}
+    >
+      <AntdApp>
+        <App />
+      </AntdApp>
+    </ConfigProvider>
+  </Provider>
 );

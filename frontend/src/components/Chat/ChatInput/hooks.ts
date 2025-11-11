@@ -21,7 +21,7 @@ import { RootState } from "@/store";
  */
 export function useButtonState(
   content: string,
-  isStreaming: boolean
+  isStreaming?: boolean
 ): ButtonState {
   if (isStreaming) {
     return ButtonState.Streaming;

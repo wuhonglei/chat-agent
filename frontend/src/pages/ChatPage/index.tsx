@@ -6,27 +6,24 @@ import {
   ChatInputFormValues,
   ChatMessage as ChatMessageType,
 } from "@/interfaces";
-import { Card, Form } from "antd";
+import { Form } from "antd";
 import classNames from "classnames";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { SourceData } from "@/interfaces";
 import styles from "./index.module.css";
 import SourceSider from "@/components/Chat/SourceSider";
-import WelcomePage from "@/components/Chat/WelcomePage";
-import { isEmpty } from "lodash-es";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAppSelector, useAppDispatch } from "@/store/hooks";
 import { shallowEqual } from "react-redux";
-import { registerConversation } from "@/store/slices/conversationSlice";
 import { setMessages } from "@/store/slices/chatSlice";
 import { chatAPI } from "@/services";
 
 const ChatPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { conversationId } = useParams<{ conversationId?: string }>();
+  const { conversationId } = useParams<{ conversationId: string }>();
   const { sendMessage, reSendMessage, abortMessage } = useChatMessage({
-    conversationId,
+    conversationId: conversationId as string,
   });
   const { isStreaming, isLoading, isReasoning, isCallingTools } =
     useAppSelector(state => {
@@ -42,10 +39,9 @@ const ChatPage: React.FC = () => {
   const [form] = Form.useForm<ChatInputFormValues>();
 
   // 页面刷新后清除 isNewConversation 状态
-  const { value: isNewConversation, setValue: setIsNewConversation } =
-    useNewConversation();
+  const { cacheData: conversationState, clearCacheData } = useNewConversation();
   useRequest(() => chatAPI.getConversationMessages(conversationId as string), {
-    ready: !isNewConversation && !!conversationId, // 如果是新对话，则无需加载历史消息
+    ready: !conversationState.isNewConversation && !!conversationId, // 如果是新对话，则无需加载历史消息
     refreshDeps: [conversationId],
     onSuccess: data => {
       dispatch(setMessages(data));
@@ -56,6 +52,16 @@ const ChatPage: React.FC = () => {
       }
     },
   });
+
+  useEffect(() => {
+    // 如果是新对话，则发送消息
+    if (conversationState.isNewConversation) {
+      clearCacheData();
+      sendMessage(conversationState.values, {
+        createdBy: conversationState.createdBy,
+      });
+    }
+  }, [conversationState, sendMessage, clearCacheData]);
 
   const handleSourceClick = useMemoizedFn(
     (index: number, message: ChatMessageType) => {
@@ -81,32 +87,10 @@ const ChatPage: React.FC = () => {
     setSourceData(undefined);
   });
 
-  const onBeforeSendMessage = useMemoizedFn(
-    async (values: ChatInputFormValues) => {
-      if (conversationId) {
-        return sendMessage(values);
-      }
-      // 创建会话
-      const { createdBy, id } = await dispatch(registerConversation()).unwrap();
-      setIsNewConversation(true);
-      // 更新 URL 到新的会话 ID
-      navigate(`/chat/${id}`, {
-        replace: true,
-      });
-      // 使用新的 conversationId 发送消息
-      const sendPromise = sendMessage(values, {
-        conversationIdOverride: id,
-        createdBy,
-      });
-      return sendPromise;
-    }
-  );
-
   const chatInputProps = {
     form,
     onStop: abortMessage,
     onSend: sendMessage,
-    isLoading: isLoading,
     isStreaming: isStreaming,
   };
 
@@ -119,35 +103,18 @@ const ChatPage: React.FC = () => {
           styles.container
         )}
       >
-        {isEmpty(conversationId) ? (
-          <WelcomePage
-            className={classNames("my-auto pb-12", styles["input-container"])}
-          >
-            <ChatInput
-              {...chatInputProps}
-              onSend={onBeforeSendMessage}
-              className="w-full shadow-lg"
-            />
-          </WelcomePage>
-        ) : (
-          <>
-            <ChatMessageList
-              isLoading={isLoading}
-              isStreaming={isStreaming}
-              isReasoning={isReasoning}
-              isCallingTools={isCallingTools}
-              onReSend={handleReSend}
-              onSourceClick={handleSourceClick}
-              onEditMessage={handleEditMessage}
-              className={styles["markdown-container"]}
-            />
-            {/* Input area */}
-            <ChatInput
-              {...chatInputProps}
-              className={styles["input-container"]}
-            />
-          </>
-        )}
+        <ChatMessageList
+          isLoading={isLoading}
+          isStreaming={isStreaming}
+          isReasoning={isReasoning}
+          isCallingTools={isCallingTools}
+          onReSend={handleReSend}
+          onSourceClick={handleSourceClick}
+          onEditMessage={handleEditMessage}
+          className={styles["markdown-container"]}
+        />
+        {/* Input area */}
+        <ChatInput {...chatInputProps} className={styles["input-container"]} />
       </div>
       {/* Sources panel */}
       <SourceSider sourceData={sourceData} onClose={handleCloseSource} />

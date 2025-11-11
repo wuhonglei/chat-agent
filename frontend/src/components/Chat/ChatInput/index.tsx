@@ -17,19 +17,17 @@ import { useMemoizedFn } from "ahooks";
 const { TextArea } = Input;
 
 interface ChatInputProps {
-  isLoading: boolean;
-  isStreaming: boolean;
+  isStreaming?: boolean;
   className?: string;
   style?: React.CSSProperties;
   onSend: (values: ChatInputFormValues) => void;
-  onStop: () => void;
+  onStop?: () => void;
   form: FormInstance<ChatInputFormValues>;
 }
 
 const ChatInput: React.FC<ChatInputProps> = ({
   onSend,
   onStop,
-  isLoading,
   isStreaming,
   className,
   style,
@@ -64,7 +62,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const handleBtnClick = useMemoizedFn(() => {
     // 停止流式传输
     if (isStreamingState(buttonState)) {
-      onStop();
+      onStop?.();
       return;
     }
 
