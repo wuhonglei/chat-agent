@@ -15,7 +15,7 @@ brew services start postgresql
 ## 3. 交互式终端连接 PostgreSQL
 
 ```bash
-psql -U postgres
+psql -U honglei.wu -d postgres
 ```
 
 ## 4. 创建用户
@@ -29,6 +29,8 @@ CREATE USER wuhonglei WITH PASSWORD 'xxxxxx';
 ```sql
 CREATE DATABASE ai_assistant_db OWNER wuhonglei;
 ```
+
+![create_db](./imgs/create_db.png)
 
 **所有者权限:** 用户 wuhonglei 将获得对 ai_assistant_db 数据库的全部权限:
   - 完全控制权：可以创建、修改、删除数据库中的对象

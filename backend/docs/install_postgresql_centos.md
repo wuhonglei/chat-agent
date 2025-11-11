@@ -101,7 +101,7 @@ SELECT version();
 ## 3. 交互式终端连接 PostgreSQL
 
 ```bash
-sudo -u postgres
+sudo -u postgres psql
 ```
 
 ## 4. 创建用户
