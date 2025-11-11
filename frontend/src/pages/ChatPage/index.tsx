@@ -25,25 +25,40 @@ const ChatPage: React.FC = () => {
   const { sendMessage, reSendMessage, abortMessage } = useChatMessage({
     conversationId,
   });
-  const { isStreaming, isLoading, isReasoning, isCallingTools } =
-    useChatState(conversationId);
+  const {
+    isStreaming,
+    isLoading,
+    isReasoning,
+    isCallingTools,
+    messageLoaded,
+    messages,
+  } = useChatState(conversationId);
   const [sourceData, setSourceData] = useState<SourceData | undefined>();
   const [form] = Form.useForm<ChatInputFormValues>();
 
   // 页面刷新后清除 isNewConversation 状态
   const { cacheData: conversationState, clearCacheData } = useNewConversation();
-  useRequest(() => chatAPI.getConversationMessages(conversationId as string), {
-    ready: !conversationState.isNewConversation && !!conversationId, // 如果是新对话，则无需加载历史消息
-    refreshDeps: [conversationId],
-    onSuccess: data => {
-      dispatch(setMessages({ conversationId: conversationId!, data }));
-    },
-    onError: error => {
-      if ((error as { code?: number }).code === 404) {
-        navigate("/chat", { replace: true });
+  useRequest(
+    () => {
+      if (messageLoaded) {
+        return Promise.resolve(messages);
       }
+
+      return chatAPI.getConversationMessages(conversationId);
     },
-  });
+    {
+      ready: !conversationState.isNewConversation && !!conversationId, // 如果是新对话，则无需加载历史消息
+      refreshDeps: [conversationId],
+      onSuccess: data => {
+        dispatch(setMessages({ conversationId, data }));
+      },
+      onError: error => {
+        if ((error as { code?: number }).code === 404) {
+          navigate("/chat", { replace: true });
+        }
+      },
+    }
+  );
 
   useEffect(() => {
     // 如果是新对话，则发送消息
