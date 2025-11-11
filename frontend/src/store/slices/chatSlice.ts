@@ -75,7 +75,6 @@ const chatSlice = createSlice({
       const chatState = conversationIdCheck(state, conversationId);
       chatState.messages = data;
       chatState.messageLoaded = true;
-      chatState.lastMessageUpdateAt = data.at(-1)?.createdAt || "";
     },
     addMessage: (
       state,
@@ -84,7 +83,6 @@ const chatSlice = createSlice({
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
       chatState.messages.push(data);
-      chatState.lastMessageUpdateAt = data.createdAt;
     },
     clearMessagesAfterIndex: (
       state,
@@ -94,8 +92,6 @@ const chatSlice = createSlice({
       const chatState = conversationIdCheck(state, conversationId);
       // 清除该位置之后的所有消息
       chatState.messages.length = index + 1;
-      chatState.lastMessageUpdateAt =
-        chatState.messages.at(-1)?.createdAt || "";
     },
     removeMessageById: (
       state,
@@ -108,8 +104,6 @@ const chatSlice = createSlice({
       );
       if (index !== -1) {
         chatState.messages.splice(index, 1);
-        chatState.lastMessageUpdateAt =
-          chatState.messages.at(-1)?.createdAt || "";
       }
     },
     clearLastMessage: (
@@ -121,19 +115,7 @@ const chatSlice = createSlice({
       const lastMessage = lastMessageCheck(chatState.messages);
       if (lastMessage) {
         chatState.messages.pop();
-        chatState.lastMessageUpdateAt =
-          chatState.messages.at(-1)?.createdAt || "";
       }
-    },
-    clearMessages: (
-      state,
-      action: PayloadAction<ConversationActionPayload>
-    ) => {
-      const { conversationId } = action.payload;
-      const chatState = conversationIdCheck(state, conversationId);
-      chatState.messages = [];
-      chatState.messageLoaded = false;
-      chatState.lastMessageUpdateAt = "";
     },
     setStreaming: (
       state,
@@ -246,17 +228,25 @@ const chatSlice = createSlice({
         lastMessage.status = data;
       }
     },
-    clearCurrentChat: (
+    // 会话中 message finish 时调用
+    resetChatState: (
       state,
       action: PayloadAction<ConversationActionPayload>
     ) => {
       const { conversationId } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
-      chatState.messages = [];
       chatState.isLoading = false;
       chatState.isStreaming = false;
       chatState.isReasoning = false;
       chatState.isCallingTools = false;
+    },
+    // 删除会话时调用
+    clearChatState: (
+      state,
+      action: PayloadAction<ConversationActionPayload>
+    ) => {
+      const { conversationId } = action.payload;
+      delete state[conversationId];
     },
   },
 });
@@ -266,7 +256,6 @@ export const {
   addMessage,
   clearMessagesAfterIndex,
   removeMessageById,
-  clearMessages,
   setStreaming,
   setLoading,
   setSources,
@@ -279,7 +268,8 @@ export const {
   setReasoning,
   updateMessageStatus,
   clearLastMessage,
-  clearCurrentChat,
+  resetChatState,
+  clearChatState,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;

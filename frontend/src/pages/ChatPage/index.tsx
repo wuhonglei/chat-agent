@@ -111,12 +111,12 @@ const ChatPage: React.FC = () => {
         )}
       >
         <ChatMessageList
-          conversationId={conversationId}
           isLoading={isLoading}
           isStreaming={isStreaming}
           isReasoning={isReasoning}
           isCallingTools={isCallingTools}
           onReSend={handleReSend}
+          conversationId={conversationId}
           onSourceClick={handleSourceClick}
           onEditMessage={handleEditMessage}
           className={styles["markdown-container"]}

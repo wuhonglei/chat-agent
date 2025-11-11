@@ -17,6 +17,7 @@ import {
   lastMessageCheck,
   removeMessageById,
   clearMessagesAfterIndex,
+  resetChatState,
 } from "@/store/slices/chatSlice";
 import { DEFAULT_CHAT_STATE } from "@/store/slices/chatSlice";
 import {
@@ -86,10 +87,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const resetState = useMemoizedFn(() => {
-    dispatch(setStreaming({ conversationId, data: false }));
-    dispatch(setLoading({ conversationId, data: false }));
-    dispatch(setReasoning({ conversationId, data: false }));
-    dispatch(setCallingTools({ conversationId, data: false }));
+    dispatch(resetChatState({ conversationId, data: undefined }));
   });
 
   const abortMessage = useMemoizedFn((): void => {
