@@ -172,7 +172,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
               dispatch(
                 updateMessageModifiedTime({
                   conversationId,
-                  data: message.updateAt,
+                  data: message.updatedAt,
                 })
               );
             } else if (type === "refresh_conversation") {
@@ -375,6 +375,7 @@ export const useConversationInfo = (conversationId: string) => {
 export const useCachedRequest = (conversationId: string) => {
   // 页面刷新后清除 isNewConversation 状态
   const { cacheData: conversationState, clearCacheData } = useNewConversation();
+  const isNewConversation = conversationState.isNewConversation;
   const navigate = useNavigate();
   const { sendMessage } = useChatMessage({ conversationId });
   const { messageLoaded } = useChatState(conversationId);
@@ -392,30 +393,36 @@ export const useCachedRequest = (conversationId: string) => {
     }
   }, [conversationState, sendMessage, clearCacheData]);
 
-  const { run: loadMessages } = useRequest(chatAPI.getConversationMessages, {
-    manual: true,
-    onSuccess: data => {
-      dispatch(setMessages({ conversationId, data }));
+  const { run: loadMessages } = useRequest(
+    (conversationId: string) => {
+      console.info("starting to load messages", conversationId);
+      return chatAPI.getConversationMessages(conversationId);
     },
-    onError: error => {
-      console.info("error", error);
-      if ((error as { code?: number }).code === 404) {
-        navigate("/chat", { replace: true });
-        // 删除会话列表中的会话
-        dispatch(removeConversationFromList(conversationId));
-      }
-    },
-  });
+    {
+      manual: true,
+      onSuccess: data => {
+        dispatch(setMessages({ conversationId, data }));
+      },
+      onError: error => {
+        console.info("error", error);
+        if ((error as { code?: number }).code === 404) {
+          navigate("/chat", { replace: true });
+          // 删除会话列表中的会话
+          dispatch(removeConversationFromList(conversationId));
+        }
+      },
+    }
+  );
 
   useEffect(() => {
     // 排除新对话和没有 conversationId 的情况
-    if (conversationState.isNewConversation || !conversationId) {
+    if (isNewConversation || !conversationId) {
       return;
     }
 
     // 如果消息已加载到 store 中, 直接使用 store 中的数据
     if (messageLoaded) {
-      console.info("messageLoaded", conversationId);
+      console.info("message already loaded", conversationId);
       return;
     }
 
@@ -426,7 +433,10 @@ export const useCachedRequest = (conversationId: string) => {
       }
       // 首次刷新时，conversationInfo 还未获取到，则不加载消息
       if (!lastMessageUpdateAt) {
-        console.info("no lastMessageUpdateAt", conversationId);
+        console.info(
+          "conversationInfo not loaded yet, will load messages later",
+          conversationId
+        );
         return;
       }
 
@@ -444,7 +454,7 @@ export const useCachedRequest = (conversationId: string) => {
       console.info("use cached data", conversationId);
     });
   }, [
-    conversationState,
+    isNewConversation,
     conversationId,
     messageLoaded,
     lastMessageUpdateAt,

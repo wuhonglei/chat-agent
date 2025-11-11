@@ -5,7 +5,7 @@ import { updateMessageModifiedTime } from "../slices/chatSlice";
 
 /**
  * Redux Middleware 用于自动更新 lastMessageUpdateAt
- * 当 messages 数组发生变化时，自动将 lastMessageUpdateAt 设置为最后一条消息的 updateAt 时间
+ * 当 messages 数组发生变化时，自动将 lastMessageUpdateAt 设置为最后一条消息的 updatedAt 时间
  */
 
 // 修改 messages 数组的 actions
@@ -25,14 +25,14 @@ const getConversationId = (action: {
 };
 
 /**
- * 获取最后一条消息的 updateAt 时间
+ * 获取最后一条消息的 updatedAt 时间
  */
 const getLastMessageUpdateAt = (chatState: ChatConversationState): string => {
   if (isEmpty(chatState.messages)) {
     return "";
   }
   const lastMessage = chatState.messages.at(-1);
-  return lastMessage?.updateAt || "";
+  return lastMessage?.updatedAt || "";
 };
 
 export const updateLastMessageTimeMiddleware: Middleware =
