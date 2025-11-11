@@ -92,12 +92,37 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 6. **数据库迁移**
 
-**生成迁移文件**
+6.1 **生成迁移文件**
 ```bash
 uv run alembic revision --autogenerate -m "Add conversation table"
 ```
 
-**执行迁移**
+6.2 **查看当前应用的版本**
+```bash
+uv run alembic current
+```
+
+output is as below, `6fc87d2a678f` means the current version of the application.
+```txt
+(ai-doc-backend) ➜  backend git:(main) uv run alembic current
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+6fc87d2a678f
+```
+
+6.3 **查看迁移历史**
+```bash
+uv run alembic history
+```
+
+output is as below, `6fc87d2a678f` means the current version of the application. `01fb8247599b` means the next version of the application.
+```txt
+(ai-doc-backend) ➜  backend git:(main) ✗ uv run alembic history
+6fc87d2a678f -> 01fb8247599b (head), conversations 表增加 last_message_updated_at 字段
+<base> -> 6fc87d2a678f, chore: 初始化数据库迁移
+```
+
+6.4 **执行迁移**
 ```bash
 uv run alembic upgrade head
 ```
