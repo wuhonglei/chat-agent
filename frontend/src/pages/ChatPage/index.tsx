@@ -113,21 +113,11 @@ const ChatPage: React.FC = () => {
   return (
     <div className="flex h-full">
       {/* Chat area */}
-      <Card
-        className="flex-1"
-        classNames={{
-          body: classNames("flex flex-col h-full", styles.container),
-        }}
-        style={{
-          border: "none",
-        }}
-        styles={{
-          body: {
-            paddingTop: 0,
-            paddingLeft: 0,
-            paddingRight: 0,
-          },
-        }}
+      <div
+        className={classNames(
+          "flex-1 flex flex-col h-full bg-white pb-7",
+          styles.container
+        )}
       >
         {isEmpty(conversationId) ? (
           <WelcomePage
@@ -158,7 +148,7 @@ const ChatPage: React.FC = () => {
             />
           </>
         )}
-      </Card>
+      </div>
       {/* Sources panel */}
       <SourceSider sourceData={sourceData} onClose={handleCloseSource} />
     </div>
