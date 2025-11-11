@@ -22,12 +22,13 @@ export default function EmptyChatPage() {
     async (values: ChatInputFormValues) => {
       // 创建会话
       const { id } = await dispatch(registerConversation()).unwrap();
-      setCacheData({
+      const data = {
         isNewConversation: true,
         values,
         createdBy: TitleCreatedBy.User,
         insertAt: Date.now(),
-      });
+      };
+      setCacheData(data);
 
       // 更新 URL 到新的会话 ID
       navigate(`/chat/${id}`, {

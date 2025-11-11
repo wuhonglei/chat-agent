@@ -56,7 +56,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     if (location.pathname === key) {
       return;
     }
-    emitter.emit(EventType.ChangeConversion);
     navigate(key);
   };
 

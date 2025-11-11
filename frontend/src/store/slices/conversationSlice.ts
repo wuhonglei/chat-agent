@@ -154,6 +154,23 @@ const conversationSlice = createSlice({
       updateConversationInListHelper(state, action.payload);
     },
 
+    updateConversationModifiedTime: (
+      state,
+      action: PayloadAction<{
+        conversationId: string;
+        lastMessageUpdatedAt: string;
+      }>
+    ) => {
+      const { conversationId, lastMessageUpdatedAt } = action.payload;
+      const index = findConversationIndexInListHelper(state, conversationId);
+      if (index !== -1) {
+        state.conversations[index].lastMessageUpdatedAt = lastMessageUpdatedAt;
+      }
+      if (state.conversationInfo?.id === conversationId) {
+        state.conversationInfo.lastMessageUpdatedAt = lastMessageUpdatedAt;
+      }
+    },
+
     // 当该会话中有新的聊天消息时，更新列表中的对话信息
     refreshConversionInList: (
       state,
@@ -210,6 +227,14 @@ const conversationSlice = createSlice({
         state.conversationInfo = null;
       }
     });
+
+    builder.addCase(getConversationDetail.fulfilled, (state, action) => {
+      const conversation = action.payload;
+      updateConversationInListHelper(state, conversation);
+      if (state.conversationInfo?.id === conversation.id) {
+        state.conversationInfo = conversation;
+      }
+    });
   },
 });
 
@@ -218,6 +243,7 @@ export const {
   setConversationInfoById,
   addConversationToList,
   updateConversationInList,
+  updateConversationModifiedTime,
   refreshConversionInList,
   removeConversationFromList,
   clearCurrentConversion,

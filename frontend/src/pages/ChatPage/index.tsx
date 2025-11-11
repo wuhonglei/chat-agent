@@ -1,75 +1,32 @@
 import ChatInput from "@/components/Chat/ChatInput";
 import { ChatMessageList } from "@/components/Chat/ChatMessage";
-import { useChatMessage, useChatState, useNewConversation } from "@/hooks";
-import { useMemoizedFn, useRequest } from "ahooks";
+import { useChatMessage, useChatState } from "@/hooks";
+import { useMemoizedFn } from "ahooks";
 import {
   ChatInputFormValues,
   ChatMessage as ChatMessageType,
 } from "@/interfaces";
 import { Form } from "antd";
 import classNames from "classnames";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { SourceData } from "@/interfaces";
 import styles from "./index.module.css";
 import SourceSider from "@/components/Chat/SourceSider";
-import { useParams, useNavigate } from "react-router-dom";
-import { useAppDispatch } from "@/store/hooks";
-import { setMessages } from "@/store/slices/chatSlice";
-import { chatAPI } from "@/services";
+import { useParams } from "react-router-dom";
+import { useCachedRequest } from "@/hooks/chat";
 
 const ChatPage: React.FC = () => {
-  const navigate = useNavigate();
-  const dispatch = useAppDispatch();
   const params = useParams<{ conversationId: string }>();
   const conversationId = params.conversationId!;
   const { sendMessage, reSendMessage, abortMessage } = useChatMessage({
     conversationId,
   });
-  const {
-    isStreaming,
-    isLoading,
-    isReasoning,
-    isCallingTools,
-    messageLoaded,
-    messages,
-  } = useChatState(conversationId);
+  const { isStreaming, isLoading, isReasoning, isCallingTools } =
+    useChatState(conversationId);
   const [sourceData, setSourceData] = useState<SourceData | undefined>();
   const [form] = Form.useForm<ChatInputFormValues>();
 
-  // 页面刷新后清除 isNewConversation 状态
-  const { cacheData: conversationState, clearCacheData } = useNewConversation();
-  useRequest(
-    () => {
-      if (messageLoaded) {
-        return Promise.resolve(messages);
-      }
-
-      return chatAPI.getConversationMessages(conversationId);
-    },
-    {
-      ready: !conversationState.isNewConversation && !!conversationId, // 如果是新对话，则无需加载历史消息
-      refreshDeps: [conversationId],
-      onSuccess: data => {
-        console.info("onSuccess load messages", data);
-        dispatch(setMessages({ conversationId, data }));
-      },
-      onError: error => {
-        if ((error as { code?: number }).code === 404) {
-          navigate("/chat", { replace: true });
-        }
-      },
-    }
-  );
-
-  useEffect(() => {
-    // 如果是新对话，则发送消息
-    if (conversationState.isNewConversation) {
-      clearCacheData();
-      sendMessage(conversationState.values, {
-        createdBy: conversationState.createdBy,
-      });
-    }
-  }, [conversationState, sendMessage, clearCacheData]);
+  useCachedRequest(conversationId);
 
   const handleSourceClick = useMemoizedFn(
     (index: number, message: ChatMessageType) => {

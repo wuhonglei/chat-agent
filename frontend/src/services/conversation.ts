@@ -3,7 +3,6 @@ import {
   ConversationListResponse,
   CreateConversationRequest,
   UpdateConversationRequest,
-  ConversationMessageListResponse,
   ConversationDetailResponse,
 } from "@/interfaces";
 import { apiClient } from "./base";

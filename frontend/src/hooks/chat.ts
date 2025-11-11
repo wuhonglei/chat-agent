@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   addMessage,
@@ -19,11 +19,14 @@ import {
   clearMessagesAfterIndex,
   resetChatState,
   updateMessageModifiedTime,
+  setMessages,
 } from "@/store/slices/chatSlice";
 import { DEFAULT_CHAT_STATE } from "@/store/slices/chatSlice";
 import {
   refreshConversionInList,
+  removeConversationFromList,
   updateConversationInfo,
+  updateConversationModifiedTime,
 } from "@/store/slices/conversationSlice";
 import { chatAPI } from "@/services";
 import {
@@ -47,8 +50,8 @@ import {
 } from "@/utils";
 import { emitter, EventType } from "@/events";
 import { MessageStatus, TitleCreatedBy } from "@/constants";
-import { useParams } from "react-router-dom";
-import { useMemoizedFn } from "ahooks";
+import { useNavigate, useParams } from "react-router-dom";
+import { useMemoizedFn, useRequest } from "ahooks";
 
 /**
  * 用于控制 ChatPage 的渲染
@@ -242,6 +245,12 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
                   data: lastMessageUpdatedAt,
                 })
               );
+              dispatch(
+                updateConversationModifiedTime({
+                  conversationId,
+                  lastMessageUpdatedAt,
+                })
+              );
               resetState();
             }
           },
@@ -345,3 +354,51 @@ export function useNewConversation() {
     clearCacheData,
   };
 }
+
+export const useCachedRequest = (conversationId: string) => {
+  // 页面刷新后清除 isNewConversation 状态
+  const { cacheData: conversationState, clearCacheData } = useNewConversation();
+  const navigate = useNavigate();
+  const { sendMessage } = useChatMessage({ conversationId });
+  const { messageLoaded } = useChatState(conversationId);
+  const dispatch = useAppDispatch();
+
+  useEffect(() => {
+    // 如果是新对话，则发送消息
+    if (conversationState.isNewConversation) {
+      clearCacheData();
+      sendMessage(conversationState.values, {
+        createdBy: conversationState.createdBy,
+      });
+    }
+  }, [conversationState, sendMessage, clearCacheData]);
+
+  const { run: loadMessages } = useRequest(chatAPI.getConversationMessages, {
+    manual: true,
+    onSuccess: data => {
+      dispatch(setMessages({ conversationId, data }));
+    },
+    onError: error => {
+      console.info("error", error);
+      if ((error as { code?: number }).code === 404) {
+        navigate("/chat", { replace: true });
+        // 删除会话列表中的会话
+        dispatch(removeConversationFromList(conversationId));
+      }
+    },
+  });
+
+  useEffect(() => {
+    // 排除新对话和没有 conversationId 的情况
+    if (conversationState.isNewConversation || !conversationId) {
+      return;
+    }
+
+    // 如果消息已加载，则不重新加载
+    if (messageLoaded) {
+      return;
+    }
+
+    loadMessages(conversationId);
+  }, [loadMessages, conversationState, conversationId, messageLoaded]);
+};
