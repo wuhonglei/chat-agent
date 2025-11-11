@@ -89,3 +89,13 @@ export interface SendMessageOptions {
   index?: number;
   createdBy?: TitleCreatedBy;
 }
+
+export interface ChatConversationState {
+  messages: ChatMessage[];
+  messageLoaded: boolean;
+  lastMessageUpdateAt: string; // 等价于 messages.at(-1).createdAt
+  isLoading: boolean;
+  isStreaming: boolean;
+  isReasoning: boolean;
+  isCallingTools: boolean;
+}

@@ -1,4 +1,4 @@
-import { capitalize, isEmpty, isNil, pick } from "lodash-es";
+import { capitalize, isEmpty, isNil } from "lodash-es";
 import { MessageStatus, RoleType, SearchSourceType } from "@/constants";
 import { ChatMessage, SearchSource } from "@/interfaces";
 

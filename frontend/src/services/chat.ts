@@ -20,6 +20,7 @@ export const chatAPI = {
     const res = await apiClient.get(
       `/api/conversation/${conversationId}/messages`
     );
+    // @ts-expect-error - TODO: fix this
     return res.messages;
   },
 

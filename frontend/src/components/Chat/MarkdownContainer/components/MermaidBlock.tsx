@@ -45,9 +45,7 @@ const MermaidBlock = ({ code, style }: Props) => {
           ref.current.innerHTML = result.svg;
         }
       })
-      .catch(error => {
-        // console.warn(error);
-      });
+      .catch(() => {});
   }, [code]);
 
   return (

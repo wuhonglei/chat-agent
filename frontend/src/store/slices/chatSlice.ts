@@ -1,20 +1,15 @@
 import { MessageStatus } from "@/constants";
-import { ChatMessage, SearchSource, ToolCallMessage } from "@/interfaces";
+import {
+  ChatConversationState,
+  ChatMessage,
+  SearchSource,
+  ToolCallMessage,
+} from "@/interfaces";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { isEmpty } from "lodash-es";
 
-interface ChatState {
-  messages: ChatMessage[];
-  messageLoaded: boolean;
-  lastMessageUpdateAt: string; // 等价于 messages.at(-1).createdAt
-  isLoading: boolean;
-  isStreaming: boolean;
-  isReasoning: boolean;
-  isCallingTools: boolean;
-}
-
 interface ChatStateMap {
-  [conversionId: string]: ChatState;
+  [conversionId: string]: ChatConversationState;
 }
 
 // 修改 payload 接口，包含 conversationId
@@ -23,7 +18,7 @@ interface ConversationActionPayload<T = unknown> {
   data: T;
 }
 
-export const getDefaultChatState = (): ChatState => ({
+export const getDefaultChatState = (): ChatConversationState => ({
   messages: [],
   messageLoaded: false,
   lastMessageUpdateAt: "",
@@ -34,12 +29,12 @@ export const getDefaultChatState = (): ChatState => ({
 });
 
 // 稳定的默认状态，避免每次创建新对象
-export const DEFAULT_CHAT_STATE: ChatState = getDefaultChatState();
+export const DEFAULT_CHAT_STATE: ChatConversationState = getDefaultChatState();
 
 const conversationIdCheck = (
   state: ChatStateMap,
   conversionId: string
-): ChatState => {
+): ChatConversationState => {
   if (!state[conversionId]) {
     state[conversionId] = getDefaultChatState();
   }
@@ -75,6 +70,7 @@ const chatSlice = createSlice({
       const chatState = conversationIdCheck(state, conversationId);
       chatState.messages = data;
       chatState.messageLoaded = true;
+      // 数据库操作已移至 dbMiddleware 中处理，保持 reducer 的纯净性
     },
     addMessage: (
       state,

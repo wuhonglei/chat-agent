@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { ChatMessage } from "@/interfaces/chatRequest";
+import { ChatMessage } from "@/interfaces";
 import { useThrottleFn } from "ahooks";
 
 type Props = {

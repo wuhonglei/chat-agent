@@ -21,7 +21,6 @@ import {
 } from "@/store/slices/conversationSlice";
 import HoverButton from "./HoverButton";
 import { useMemoizedFn } from "ahooks";
-import { EventType, emitter } from "@/events";
 import { TitleCreatedBy, WebTitle } from "@/constants";
 import { useWebTitle } from "@/hooks";
 const { useToken } = theme;

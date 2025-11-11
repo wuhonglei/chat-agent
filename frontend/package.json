@@ -20,6 +20,7 @@
     "camelcase-keys": "^10.0.0",
     "classnames": "^2.5.1",
     "dayjs": "^1.11.18",
+    "dexie": "^4.2.1",
     "highlight.js": "^11.11.1",
     "lodash-es": "^4.17.21",
     "mermaid": "^11.12.0",
