@@ -249,6 +249,22 @@ async def shopee_confluence_get_page_children(
         raise Exception(f"Failed to get child pages: {e}") from e
 
 
+@mcp.tool()
+async def shopee_confluence_get_page_ancestors(
+    page_id: str = Field(
+        description="The ID of the page from Shopee internal company knowledge base Confluence whose ancestors you want to retrieve"
+    ),
+) -> list[ConfluencePage]:
+    """Get ancestors of a specific page from Shopee internal company knowledge base Confluence."""
+    try:
+        return await asyncio.to_thread(confluence_fetcher.get_page_ancestors, page_id)
+    except Exception as e:
+        logger.error(
+            f"Error getting/processing ancestors for page ID {page_id}: {e}",
+            exc_info=True,
+        )
+        raise Exception(f"Failed to get ancestors: {e}") from e
+
 if __name__ == "__main__":
     import argparse
 
