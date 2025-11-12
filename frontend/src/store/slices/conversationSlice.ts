@@ -223,10 +223,13 @@ const conversationSlice = createSlice({
 
     // updateConversationInfo
     builder.addCase(updateConversationInfo.fulfilled, (state, action) => {
-      // 更新当前对话信息
-      setCurrentConversationHelper(state, action.payload);
+      const conversation = action.payload;
       // 更新列表中的对话信息（复用辅助函数）
-      updateConversationInListHelper(state, action.payload);
+      updateConversationInListHelper(state, conversation);
+      // 更新当前对话信息
+      if (state.conversationInfo?.id === conversation.id) {
+        setCurrentConversationHelper(state, conversation);
+      }
     });
 
     // deleteConversation
