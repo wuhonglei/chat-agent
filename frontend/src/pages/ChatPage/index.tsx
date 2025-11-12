@@ -81,7 +81,7 @@ const ChatPage: React.FC = () => {
           isStreaming={isStreaming}
           className={styles["input-container"]}
         />
-        <div className="mx-auto h-8 leading-8 text-gray-300 text-xs">
+        <div className="mx-auto py-1.5 text-gray-300 text-xs">
           内容由 AI 生成，请仔细甄别
         </div>
       </div>
