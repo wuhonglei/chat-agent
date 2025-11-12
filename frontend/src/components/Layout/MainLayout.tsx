@@ -7,7 +7,7 @@ import {
   Typography,
 } from "antd";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import React, { ReactNode } from "react";
+import React, { ReactNode, useState } from "react";
 import classNames from "classnames";
 import CollapseIcon from "@/assets/svg/CollapseIcon.svg?react";
 import NewConversionIcon from "@/assets/svg/NewConversionIcon.svg?react";
@@ -22,12 +22,13 @@ import {
 import HoverButton from "./HoverButton";
 import { useMemoizedFn } from "ahooks";
 import { TitleCreatedBy, WebTitle } from "@/constants";
-import { useWebTitle, useCollapsed } from "@/hooks";
+import { useWebTitle } from "@/hooks";
 const { useToken } = theme;
 const { Title } = Typography;
 
 const { Sider, Header, Content } = Layout;
 const collapsedWidth = 0;
+const DEFAULT_THRESHOLD = 768;
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -37,7 +38,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { token } = useToken();
-  const [collapsed, setCollapsed] = useCollapsed(document.body);
+  const [collapsed, setCollapsed] = useState(
+    () => window.innerWidth <= DEFAULT_THRESHOLD
+  );
   const conversationInfo = useConversionInfo();
   const dispatch = useAppDispatch();
   const onDeleteConversation = useMemoizedFn(async (id: string) => {
@@ -72,63 +75,70 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     );
   };
 
+  console.info("collapsed", collapsed);
+
   return (
-    <Layout className="h-screen">
-      {/* 左侧导航 */}
-      <Sider
-        theme="light"
-        collapsible
-        width={261}
-        trigger={null}
-        collapsed={collapsed}
-        onCollapse={handleCollapse}
-        collapsedWidth={collapsedWidth}
-        className={classNames(
-          "flex flex-col border-r-1",
-          styles["aside-container"],
-          !collapsed && "px-3"
-        )}
-        style={{
-          padding: 0,
-          borderColor: "#E2E2E2",
-          backgroundColor: "#F9FAFB",
-        }}
-      >
-        <div className="mx-3 my-4 flex justify-between items-center">
-          <Link to="/chat" className="flex items-center gap-2 h-9">
-            <img alt="logo" width={32} height={32} src="/logo.png" />
-            <Title level={5} style={{ marginBottom: 0 }}>
-              {WebTitle}
-            </Title>
-          </Link>
-          <Button
-            type="text"
-            onClick={handleCollapse}
-            style={{ color: token.colorTextDescription }}
-            icon={<CollapseIcon className="w-4 h-4" />}
-          />
-        </div>
-        <Button
-          size="large"
-          shape="round"
-          className="mx-3"
-          onClick={handleNewConversion}
-          icon={<NewConversionIcon />}
-        >
-          开启新对话
-        </Button>
-        <ConfigProvider
-          theme={{
-            components: {
-              Menu: {
-                itemPaddingInline: 10,
-                itemMarginInline: 0,
-                itemMarginBlock: 2,
-                itemBorderRadius: 12,
-              },
-            },
+    <ConfigProvider
+      theme={{
+        components: {
+          Menu: {
+            itemPaddingInline: 10,
+            itemMarginInline: 0,
+            itemMarginBlock: 2,
+            itemBorderRadius: 12,
+          },
+          Layout: {
+            bodyBg: "#fff",
+          },
+        },
+      }}
+    >
+      <Layout className="h-screen">
+        {/* 左侧导航 */}
+        <Sider
+          theme="light"
+          collapsible
+          width={261}
+          trigger={null}
+          collapsed={collapsed}
+          onCollapse={handleCollapse}
+          collapsedWidth={collapsedWidth}
+          className={classNames(
+            "flex flex-col border-r-1",
+            styles["aside-container"],
+            !collapsed && "px-3"
+          )}
+          style={{
+            padding: 0,
+            borderColor: "#E2E2E2",
+            backgroundColor: "#F9FAFB",
           }}
+          breakpoint="md"
         >
+          <div className="mx-3 my-4 flex justify-between items-center">
+            <Link to="/chat" className="flex items-center gap-2 h-9">
+              <img alt="logo" width={32} height={32} src="/logo.png" />
+              <Title level={5} style={{ marginBottom: 0 }}>
+                {WebTitle}
+              </Title>
+            </Link>
+            <Button
+              type="text"
+              onClick={handleCollapse}
+              style={{ color: token.colorTextDescription }}
+              icon={<CollapseIcon className="w-4 h-4" />}
+            />
+          </div>
+          <Button
+            size="large"
+            shape="round"
+            className="mx-3"
+            onClick={handleNewConversion}
+            icon={<NewConversionIcon />}
+          >
+            开启新对话
+          </Button>
+
           <Menu
             mode="vertical"
             items={menuItems}
@@ -142,41 +152,41 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               padding: "0 12px",
             }}
           />
-        </ConfigProvider>
-      </Sider>
-      <Layout className="flex flex-col h-full" hasSider={false}>
-        <Header
-          className="flex justify-center items-center relative"
-          style={{ backgroundColor: token.colorBgContainer, height: 60 }}
-        >
-          {collapsed && (
-            <div className="absolute left-2 md:left-12.5 h-10 flex items-center gap-1 rounded-full border border-gray-200 p-1 shadow">
-              <Button
-                type="text"
-                shape="circle"
-                onClick={handleCollapse}
-                icon={<CollapseIcon className="w-4 h-4" />}
+        </Sider>
+        <Layout className="flex flex-col h-full" hasSider={false}>
+          <Header
+            className="flex justify-center items-center relative"
+            style={{ backgroundColor: token.colorBgContainer, height: 60 }}
+          >
+            {collapsed && (
+              <div className="absolute left-2 md:left-12.5 h-10 flex items-center gap-1 rounded-full border border-gray-200 p-1 shadow">
+                <Button
+                  type="text"
+                  shape="circle"
+                  onClick={handleCollapse}
+                  icon={<CollapseIcon className="w-4 h-4" />}
+                />
+                <Button
+                  type="text"
+                  shape="circle"
+                  onClick={handleNewConversion}
+                  icon={<NewConversionIcon className="w-4 h-4" />}
+                />
+              </div>
+            )}
+            {conversationInfo && (
+              <HoverButton
+                title={conversationInfo.title}
+                onConfirm={newTitle =>
+                  handleEditConversationTitle(conversationInfo.id, newTitle)
+                }
               />
-              <Button
-                type="text"
-                shape="circle"
-                onClick={handleNewConversion}
-                icon={<NewConversionIcon className="w-4 h-4" />}
-              />
-            </div>
-          )}
-          {conversationInfo && (
-            <HoverButton
-              title={conversationInfo.title}
-              onConfirm={newTitle =>
-                handleEditConversationTitle(conversationInfo.id, newTitle)
-              }
-            />
-          )}
-        </Header>
-        <Content className="flex-1 bg-white">{children}</Content>
+            )}
+          </Header>
+          <Content className="flex-1 bg-white">{children}</Content>
+        </Layout>
       </Layout>
-    </Layout>
+    </ConfigProvider>
   );
 };
 
