@@ -1,6 +1,7 @@
 import { Middleware } from "@reduxjs/toolkit";
 import { db } from "@/indexDB";
 import { ChatConversationState } from "@/interfaces";
+import { omit } from "lodash-es";
 
 /**
  * Redux Middleware 用于处理数据库持久化操作
@@ -65,10 +66,14 @@ export const dbMiddleware: Middleware = store => next => action => {
           });
         } else {
           // 其他 actions：异步保存到数据库，不阻塞 reducer 执行
+          const { messages } = chatState;
+          const newMessages = messages.map(message =>
+            omit(message, ["defaultOpen"])
+          );
           db.conversationMessages
             .put({
               id: conversationId,
-              data: chatState,
+              data: { ...chatState, messages: newMessages },
             })
             .catch(error => {
               console.error("Failed to save messages to IndexedDB:", error);
