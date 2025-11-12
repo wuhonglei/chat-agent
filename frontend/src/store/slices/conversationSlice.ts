@@ -120,6 +120,16 @@ const prependConversationToListHelper = (
   return 0;
 };
 
+/**
+ * 设置当前对话信息
+ */
+const setCurrentConversationHelper = (
+  state: ConversationState,
+  conversation: ConversationInfo | null
+): void => {
+  state.conversationInfo = conversation;
+};
+
 const conversationSlice = createSlice({
   name: "conversation",
   initialState,
@@ -129,14 +139,14 @@ const conversationSlice = createSlice({
       state,
       action: PayloadAction<ConversationInfo | null>
     ) => {
-      state.conversationInfo = action.payload;
+      setCurrentConversationHelper(state, action.payload);
     },
 
     setConversationInfoById: (state, action: PayloadAction<string>) => {
       const id = action.payload;
       const conversation = state.conversations.find(conv => conv.id === id);
       if (conversation) {
-        state.conversationInfo = conversation;
+        setCurrentConversationHelper(state, conversation);
       }
       // 如果找不到对话，保持现有的 conversationInfo 不变
       // 让 useConversationInfo hook 来处理获取详情的逻辑
@@ -181,7 +191,7 @@ const conversationSlice = createSlice({
       prependConversationToListHelper(state, newConversation); // 再添加新的会话到最前面
       if (state.conversationInfo?.id === newConversation.id) {
         // 如果当前会话是该会话，则更新当前会话信息
-        state.conversationInfo = newConversation;
+        setCurrentConversationHelper(state, newConversation);
       }
     },
 
@@ -192,14 +202,14 @@ const conversationSlice = createSlice({
 
     // 清除当前会话
     clearCurrentConversion: state => {
-      state.conversationInfo = null;
+      setCurrentConversationHelper(state, null);
     },
   },
   extraReducers: builder => {
     // registerConversation
     builder.addCase(registerConversation.fulfilled, (state, action) => {
       prependConversationToListHelper(state, action.payload);
-      state.conversationInfo = action.payload;
+      setCurrentConversationHelper(state, action.payload);
     });
 
     // loadConversations
@@ -214,7 +224,7 @@ const conversationSlice = createSlice({
     // updateConversationInfo
     builder.addCase(updateConversationInfo.fulfilled, (state, action) => {
       // 更新当前对话信息
-      state.conversationInfo = action.payload;
+      setCurrentConversationHelper(state, action.payload);
       // 更新列表中的对话信息（复用辅助函数）
       updateConversationInListHelper(state, action.payload);
     });
@@ -223,16 +233,14 @@ const conversationSlice = createSlice({
     builder.addCase(deleteConversation.fulfilled, (state, action) => {
       const id = action.payload;
       removeConversationFromListHelper(state, id);
-      if (id === state.conversationInfo?.id) {
-        state.conversationInfo = null;
-      }
+      // conversationInfo 的置空，由 MainLayout 组件中 调用的 hooks useConversionInfo 处理
     });
 
     builder.addCase(getConversationDetail.fulfilled, (state, action) => {
       const conversation = action.payload;
       updateConversationInListHelper(state, conversation);
       // 直接更新当前对话信息，因为这是获取当前会话详情的操作
-      state.conversationInfo = conversation;
+      setCurrentConversationHelper(state, conversation);
     });
   },
 });
