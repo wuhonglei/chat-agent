@@ -66,7 +66,7 @@ const MermaidBlock = ({ code, style }: Props) => {
         ref={ref}
         style={{ ...style }}
         className={classNames(
-          "mermaid mx-auto",
+          "mermaid mx-auto py-4",
           activeKey !== "svg" && "hidden"
         )}
       />
