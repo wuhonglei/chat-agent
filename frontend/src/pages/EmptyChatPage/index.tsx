@@ -25,7 +25,7 @@ export default function EmptyChatPage() {
       const data = {
         isNewConversation: true,
         values,
-        createdBy: TitleCreatedBy.User,
+        createdBy: TitleCreatedBy.Default,
         insertAt: Date.now(),
       };
       setCacheData(data);
