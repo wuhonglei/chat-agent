@@ -5,6 +5,7 @@ import classNames from "classnames";
 import AutoScroll from "./components/AutoScroll";
 import FloatButtonBottom from "./components/FloatButtonBottom";
 import { useChatState } from "@/hooks";
+import SimpleBar from "simplebar-react";
 
 interface ChatMessageListProps {
   conversationId: string;
@@ -32,12 +33,9 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
   const { messages } = useChatState(conversationId);
   const containerRef = useRef<HTMLDivElement>(null);
   return (
-    <div
-      ref={containerRef}
-      className={classNames(
-        "flex-1 overflow-y-auto px-2 pb-4 relative",
-        className
-      )}
+    <SimpleBar
+      scrollableNodeProps={{ ref: containerRef }}
+      className={classNames("flex-1 h-0 px-2 pb-4 relative", className)}
     >
       {messages.map((message, index) => (
         <ChatMessageItem
@@ -59,7 +57,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
         containerRef={containerRef}
       />
       <FloatButtonBottom visibilityHeight={200} containerRef={containerRef} />
-    </div>
+    </SimpleBar>
   );
 };
 

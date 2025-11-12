@@ -23,6 +23,7 @@ import HoverButton from "./HoverButton";
 import { useMemoizedFn } from "ahooks";
 import { TitleCreatedBy, WebTitle } from "@/constants";
 import { useWebTitle } from "@/hooks";
+import SimpleBar from "simplebar-react";
 const { useToken } = theme;
 const { Title } = Typography;
 
@@ -137,19 +138,20 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           >
             开启新对话
           </Button>
-          <Menu
-            mode="vertical"
-            items={menuItems}
-            onClick={handleMenuClick}
-            selectedKeys={[location.pathname]}
-            className={classNames(styles["menu-container"])}
-            style={{
-              backgroundColor: "transparent",
-              width: "100%",
-              border: "none",
-              padding: "0 12px",
-            }}
-          />
+          <SimpleBar className="flex-1 h-0 mt-4">
+            <Menu
+              mode="vertical"
+              items={menuItems}
+              onClick={handleMenuClick}
+              selectedKeys={[location.pathname]}
+              style={{
+                backgroundColor: "transparent",
+                width: "100%",
+                border: "none",
+                padding: "0 12px",
+              }}
+            />
+          </SimpleBar>
         </Sider>
         <Layout className="flex flex-col h-full" hasSider={false}>
           <Header

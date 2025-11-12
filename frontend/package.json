@@ -39,6 +39,7 @@
     "rehype-raw": "^7.0.0",
     "remark-gfm": "^4.0.0",
     "remark-math": "^6.0.0",
+    "simplebar-react": "^3.3.2",
     "snakecase-keys": "^9.0.2",
     "uuid": "^13.0.0"
   },
