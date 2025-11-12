@@ -40,6 +40,11 @@ apiClient.interceptors.response.use(
     if (code !== 0) {
       const message = getMessageInstance();
       message.error(msg);
+      // 当前 conversation 不存在
+      if (code === 404) {
+        location.replace("/chat");
+      }
+
       return Promise.reject(response.data);
     }
 
