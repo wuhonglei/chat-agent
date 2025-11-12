@@ -57,7 +57,7 @@ const ChatPage: React.FC = () => {
       {/* Chat area */}
       <div
         className={classNames(
-          "flex-1 flex flex-col h-full bg-white pb-7",
+          "flex-1 flex flex-col h-full bg-white",
           styles.container
         )}
       >
@@ -81,6 +81,9 @@ const ChatPage: React.FC = () => {
           isStreaming={isStreaming}
           className={styles["input-container"]}
         />
+        <div className="mx-auto h-8 leading-8 text-gray-300 text-xs">
+          内容由 AI 生成，请仔细甄别
+        </div>
       </div>
       {/* Sources panel */}
       <SourceSider sourceData={sourceData} onClose={handleCloseSource} />
