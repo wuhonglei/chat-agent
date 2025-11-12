@@ -13,11 +13,16 @@ import { SourceData } from "@/interfaces";
 import styles from "./index.module.css";
 import SourceSider from "@/components/Chat/SourceSider";
 import { useParams } from "react-router-dom";
-import { useCachedRequest } from "@/hooks/chat";
+import { useCachedRequest, useConversationInfo } from "@/hooks/chat";
 
 const ChatPage: React.FC = () => {
   const params = useParams<{ conversationId: string }>();
-  const conversationId = params.conversationId!;
+  const urlConversationId = params.conversationId!;
+
+  // 使用 conversationInfo 确保与 store 状态同步
+  const conversationInfo = useConversationInfo(urlConversationId);
+  const conversationId = conversationInfo?.id || urlConversationId;
+
   const { sendMessage, reSendMessage, abortMessage } = useChatMessage({
     conversationId,
   });

@@ -75,6 +75,15 @@ const chatSlice = createSlice({
       // lastMessageUpdateAt 的更新已移至 updateLastMessageTimeMiddleware 中自动处理
       // 数据库操作已移至 dbMiddleware 中处理，保持 reducer 的纯净性
     },
+    // 首次刷新场景，此时 conversationInfo 还未获取，如果 indexDB 有数据，则设置临时消息
+    setTempMessages: (
+      state,
+      action: PayloadAction<ConversationActionPayload<ChatMessage[]>>
+    ) => {
+      const { conversationId, data } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      chatState.messages = data;
+    },
     addMessage: (
       state,
       action: PayloadAction<ConversationActionPayload<ChatMessage>>
@@ -264,6 +273,7 @@ const chatSlice = createSlice({
 
 export const {
   setMessages,
+  setTempMessages,
   addMessage,
   clearMessagesAfterIndex,
   removeMessageById,

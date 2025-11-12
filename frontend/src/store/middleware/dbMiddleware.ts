@@ -1,7 +1,10 @@
 import { Middleware } from "@reduxjs/toolkit";
+import { setTempMessages } from "../slices/chatSlice";
 import { db } from "@/indexDB";
 import { ChatConversationState } from "@/interfaces";
 import { omit } from "lodash-es";
+
+const IGNORED_ACTIONS: string[] = [setTempMessages.type];
 
 /**
  * Redux Middleware 用于处理数据库持久化操作
@@ -42,7 +45,7 @@ export const dbMiddleware: Middleware = store => next => action => {
 
   // 监听所有 chatSlice 的 actions（action type 以 "chat/" 开头）
   // 但排除临时状态的 actions
-  if (actionType.startsWith("chat/")) {
+  if (actionType.startsWith("chat/") && !IGNORED_ACTIONS.includes(actionType)) {
     const conversationId = getConversationId(
       action as {
         type: string;

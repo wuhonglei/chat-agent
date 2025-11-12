@@ -20,6 +20,7 @@ import {
   resetChatState,
   updateMessageModifiedTime,
   setMessages,
+  setTempMessages,
 } from "@/store/slices/chatSlice";
 import { DEFAULT_CHAT_STATE } from "@/store/slices/chatSlice";
 import {
@@ -363,6 +364,7 @@ export const useConversationInfo = (conversationId: string) => {
     state => state.conversation.conversationInfo
   );
   const dispatch = useAppDispatch();
+  // 页面刷新时，conversationInfo 为空，则获取 conversationInfo
   const empty = isEmpty(conversationInfo);
   useEffect(() => {
     if (empty && conversationId) {
@@ -431,18 +433,30 @@ export const useCachedRequest = (conversationId: string) => {
       .then(data => {
         // 首次刷新时，conversationInfo 还未获取到，则不加载消息
         if (!lastMessageUpdateAt) {
-          console.info(
-            "conversationInfo not loaded yet, will load messages later",
-            conversationId
-          );
+          if (!isEmpty(data?.data?.messages)) {
+            dispatch(
+              setTempMessages({
+                conversationId,
+                data: data?.data?.messages as ChatMessage[],
+              })
+            );
+            console.info("use temp messages from indexDB", conversationId);
+          } else {
+            console.info(
+              "conversationInfo not loaded yet, will load messages later",
+              conversationId
+            );
+          }
           return;
         }
 
+        // indexDB 中没有数据，则加载消息
         if (!data?.data || !data.data.lastMessageUpdateAt) {
           loadMessages(conversationId);
           return;
         }
 
+        // indexDB 中的数据比较旧，则加载消息
         const { lastMessageUpdateAt: cacheLastMessageUpdateAt, messages } =
           data.data;
         if (
@@ -452,7 +466,7 @@ export const useCachedRequest = (conversationId: string) => {
           return;
         }
 
-        // 缓存中的数据比较新，则直接使用缓存中的数据
+        // indexDB 中的数据比较新，则直接使用 indexDB 中的数据
         dispatch(setMessages({ conversationId, data: messages }));
         console.info("use cached data", conversationId);
       })

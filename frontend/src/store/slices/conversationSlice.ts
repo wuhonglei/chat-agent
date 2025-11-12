@@ -137,9 +137,9 @@ const conversationSlice = createSlice({
       const conversation = state.conversations.find(conv => conv.id === id);
       if (conversation) {
         state.conversationInfo = conversation;
-      } else {
-        state.conversationInfo = null;
       }
+      // 如果找不到对话，保持现有的 conversationInfo 不变
+      // 让 useConversationInfo hook 来处理获取详情的逻辑
     },
 
     // 添加对话到列表最前面
