@@ -14,7 +14,7 @@ import NewConversionIcon from "@/assets/svg/NewConversionIcon.svg?react";
 import styles from "./css/mainLayout.module.css";
 import { theme } from "antd";
 import { useAppDispatch } from "@/store/hooks";
-import { useConversionInfo, useMenuItems } from "./hooks";
+import { useConversionInfo, useMenuItems, useSidebarStyles } from "./hooks";
 import {
   deleteConversation,
   updateConversationInfo,
@@ -50,9 +50,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       navigate("/chat");
     }
   });
+  const sidebarStyles = useSidebarStyles(collapsed, DEFAULT_THRESHOLD);
   const menuItems = useMenuItems(onDeleteConversation);
   useWebTitle(conversationInfo);
-
   const handleMenuClick: MenuProps["onClick"] = ({ key }) => {
     // 点击的菜单和当前路径相同，则不进行跳转
     if (location.pathname === key) {
@@ -75,8 +75,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     );
   };
 
-  console.info("collapsed", collapsed);
-
   return (
     <ConfigProvider
       theme={{
@@ -88,7 +86,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             itemBorderRadius: 12,
           },
           Layout: {
-            bodyBg: "#fff",
+            bodyBg: "white",
           },
         },
       }}
@@ -112,6 +110,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             padding: 0,
             borderColor: "#E2E2E2",
             backgroundColor: "#F9FAFB",
+            ...sidebarStyles,
           }}
           breakpoint="md"
         >
@@ -138,7 +137,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           >
             开启新对话
           </Button>
-
           <Menu
             mode="vertical"
             items={menuItems}

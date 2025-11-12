@@ -1,5 +1,5 @@
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { useEffect, useMemo } from "react";
+import { CSSProperties, useEffect, useMemo } from "react";
 import { type MenuProps } from "antd";
 import {
   clearCurrentConversion,
@@ -7,6 +7,7 @@ import {
 } from "@/store/slices/conversationSlice";
 import { useLocation } from "react-router-dom";
 import LabelItem from "./LabelItem";
+import { useSize } from "ahooks";
 
 export function useMenuItems(onDelete: (id: string) => void) {
   const { conversations } = useAppSelector(state => state.conversation);
@@ -49,4 +50,28 @@ export function useConversionInfo() {
   }, [conversationsLoaded, location.pathname, dispatch]);
 
   return conversationInfo;
+}
+
+/**
+ * 小屏模式下，使用 fixed 布局, 这样展开菜单时，不会挤压右侧内容区域
+ * @param collapsed
+ */
+export function useSidebarStyles(
+  collapsed: boolean,
+  threshold: number
+): CSSProperties {
+  const { width } = useSize(document.body) || {};
+  const isSmallScreen = width ? width <= threshold : false;
+  return useMemo(() => {
+    if (!isSmallScreen) return {};
+
+    return {
+      position: "fixed",
+      left: collapsed ? -261 : 0,
+      top: 0,
+      bottom: 0,
+      zIndex: 1000,
+      transition: "left 0.3s ease-in-out",
+    };
+  }, [isSmallScreen, collapsed]);
 }
