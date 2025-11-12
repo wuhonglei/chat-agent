@@ -37,7 +37,6 @@ export interface ChatMessage {
   messageMetadata: Omit<ChatInputFormValues, "message">;
   status: MessageStatus;
   replyTo: string; // role为assistant时，回复到哪个user消息
-  defaultOpen?: boolean; // 默认展开(思考内容、工具调用、来源)
 }
 
 export interface ChatHistory {

@@ -13,15 +13,15 @@ import { emitter } from "@/events";
 
 type Props = {
   isCallingTools: boolean;
-  defaultOpen?: boolean;
+  isStreaming: boolean;
   toolCalls: ToolCallMessage[] | undefined;
 };
 const contentKey = "content";
 
-const ToolCallBlock = ({ isCallingTools, defaultOpen, toolCalls }: Props) => {
+const ToolCallBlock = ({ isCallingTools, isStreaming, toolCalls }: Props) => {
   const timelineMessages = useTimelineMessages(toolCalls);
   const [activeKeys, setActiveKeys] = useState<string[]>(
-    defaultOpen ? [contentKey] : []
+    isStreaming ? [contentKey] : []
   );
 
   const handleCollapseChange = useMemoizedFn((keys: string[]) => {

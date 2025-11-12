@@ -153,7 +153,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
             dispatch(
               addMessage({
                 conversationId,
-                data: { ...data, defaultOpen: true },
+                data,
               })
             );
             dispatch(

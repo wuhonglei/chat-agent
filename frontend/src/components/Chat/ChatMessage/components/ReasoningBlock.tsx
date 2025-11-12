@@ -11,10 +11,10 @@ import { isEmpty } from "lodash-es";
 
 type Props = {
   isReasoning: boolean;
+  isStreaming: boolean;
   reasoning: string | undefined;
   sources: SearchSource[] | undefined;
   onSourceClick: () => void;
-  defaultOpen?: boolean;
 };
 
 const contentKey = "content";
@@ -23,14 +23,14 @@ const ReasoningBlock = ({
   isReasoning,
   sources,
   reasoning,
+  isStreaming,
   onSourceClick,
-  defaultOpen,
 }: Props) => {
   const displayReasoning = useThrottle(reasoning, {
     wait: 100,
   });
   const [activeKeys, setActiveKeys] = useState<string[]>(
-    defaultOpen ? [contentKey] : []
+    isStreaming ? [contentKey] : []
   );
   const handleCollapseChange = useMemoizedFn((keys: string[]) => {
     setActiveKeys(keys);

@@ -69,14 +69,10 @@ export const dbMiddleware: Middleware = store => next => action => {
           });
         } else {
           // 其他 actions：异步保存到数据库，不阻塞 reducer 执行
-          const { messages } = chatState;
-          const newMessages = messages.map(message =>
-            omit(message, ["defaultOpen"])
-          );
           db.conversationMessages
             .put({
               id: conversationId,
-              data: { ...chatState, messages: newMessages },
+              data: chatState,
             })
             .catch(error => {
               console.error("Failed to save messages to IndexedDB:", error);
