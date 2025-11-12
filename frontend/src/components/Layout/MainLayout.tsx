@@ -7,7 +7,7 @@ import {
   Typography,
 } from "antd";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import React, { ReactNode, useState } from "react";
+import React, { ReactNode } from "react";
 import classNames from "classnames";
 import CollapseIcon from "@/assets/svg/CollapseIcon.svg?react";
 import NewConversionIcon from "@/assets/svg/NewConversionIcon.svg?react";
@@ -22,7 +22,7 @@ import {
 import HoverButton from "./HoverButton";
 import { useMemoizedFn } from "ahooks";
 import { TitleCreatedBy, WebTitle } from "@/constants";
-import { useWebTitle } from "@/hooks";
+import { useWebTitle, useCollapsed } from "@/hooks";
 const { useToken } = theme;
 const { Title } = Typography;
 
@@ -37,7 +37,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { token } = useToken();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useCollapsed(document.body);
   const conversationInfo = useConversionInfo();
   const dispatch = useAppDispatch();
   const onDeleteConversation = useMemoizedFn(async (id: string) => {
@@ -150,7 +150,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           style={{ backgroundColor: token.colorBgContainer, height: 60 }}
         >
           {collapsed && (
-            <div className="absolute left-12.5 h-10 flex items-center gap-1 rounded-full border border-gray-200 p-1 shadow">
+            <div className="absolute left-2 md:left-12.5 h-10 flex items-center gap-1 rounded-full border border-gray-200 p-1 shadow">
               <Button
                 type="text"
                 shape="circle"
