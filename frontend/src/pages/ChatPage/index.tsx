@@ -31,7 +31,7 @@ const ChatPage: React.FC = () => {
   const [sourceData, setSourceData] = useState<SourceData | undefined>();
   const [form] = Form.useForm<ChatInputFormValues>();
 
-  useCachedRequest(conversationId);
+  useCachedRequest(conversationId, conversationInfo);
 
   const handleSourceClick = useMemoizedFn(
     (index: number, message: ChatMessageType) => {

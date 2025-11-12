@@ -374,14 +374,16 @@ export const useConversationInfo = (conversationId: string) => {
   return conversationInfo;
 };
 
-export const useCachedRequest = (conversationId: string) => {
+export const useCachedRequest = (
+  conversationId: string,
+  conversationInfo: ConversationInfo | null
+) => {
   // 页面刷新后清除 isNewConversation 状态
   const { cacheData: conversationState, clearCacheData } = useNewConversation();
   const isNewConversation = conversationState.isNewConversation;
   const navigate = useNavigate();
   const { sendMessage } = useChatMessage({ conversationId });
   const { messageLoaded } = useChatState(conversationId);
-  const conversationInfo = useConversationInfo(conversationId);
   const lastMessageUpdateAt = conversationInfo?.lastMessageUpdatedAt;
   const dispatch = useAppDispatch();
 
