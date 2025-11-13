@@ -75,7 +75,6 @@ export function useConversionsProps(
   const groupable: GetProp<typeof Conversations, "groupable"> = useMemo(
     () => ({
       title: (group: string, { components: { GroupTitle } }) => {
-        console.info("group", group);
         return (
           <GroupTitle>
             <Space className="mt-4">
