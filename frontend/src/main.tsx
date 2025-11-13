@@ -8,9 +8,11 @@ import "./styles/index.css";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
+import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
 import "simplebar-react/dist/simplebar.min.css";
 dayjs.extend(utc);
 dayjs.extend(timezone);
+dayjs.extend(isSameOrAfter);
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <Provider store={store}>

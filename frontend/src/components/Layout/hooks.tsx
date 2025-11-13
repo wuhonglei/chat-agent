@@ -7,9 +7,24 @@ import {
 import { useLocation } from "react-router-dom";
 import { useMemoizedFn, useSize } from "ahooks";
 import type { MenuInfo } from "rc-menu/lib/interface";
-import { Conversation, ConversationsProps } from "@ant-design/x";
-import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
+import { Conversation, Conversations, ConversationsProps } from "@ant-design/x";
+import {
+  CommentOutlined,
+  DeleteOutlined,
+  EditOutlined,
+} from "@ant-design/icons";
 import { EditConversationInfo } from "@/interfaces";
+import dayjs from "dayjs";
+import { dateGroups } from "./constant";
+import { GetProp, Space } from "antd";
+
+const getConversationGroup = (lastMessageCreatedAt: string) => {
+  const lastMessageDayjs = dayjs(lastMessageCreatedAt);
+  return (
+    dateGroups.find(group => lastMessageDayjs.isSameOrAfter(group.value))
+      ?.label ?? "更早"
+  );
+};
 
 export function useConversionsProps(
   onDelete: (id: string) => void,
@@ -51,13 +66,33 @@ export function useConversionsProps(
       id: conversation.id,
       key: `/chat/${conversation.id}`,
       label: conversation.title,
+      // 今天、昨天、7 天内、30 天内、更早
+      group: getConversationGroup(conversation.lastMessageCreatedAt),
     }));
     return items;
   }, [conversations]);
 
+  const groupable: GetProp<typeof Conversations, "groupable"> = useMemo(
+    () => ({
+      title: (group: string, { components: { GroupTitle } }) => {
+        console.info("group", group);
+        return (
+          <GroupTitle>
+            <Space className="mt-4">
+              <CommentOutlined />
+              <span>{group}</span>
+            </Space>
+          </GroupTitle>
+        );
+      },
+    }),
+    []
+  );
+
   return {
     items,
     menu,
+    groupable,
   };
 }
 

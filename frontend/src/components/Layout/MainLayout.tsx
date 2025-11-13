@@ -69,7 +69,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     });
   });
 
-  const { items, menu } = useConversionsProps(
+  const { items, menu, groupable } = useConversionsProps(
     onDeleteConversation,
     setEditConversionInfo
   );
@@ -159,10 +159,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           >
             开启新对话
           </Button>
-          <SimpleBar className="flex-1 h-0 mt-4">
+          <SimpleBar className="flex-1 h-0">
             <Conversations
               items={items}
               menu={menu}
+              groupable={groupable}
               activeKey={location.pathname}
               onActiveChange={handleMenuClick}
             />
