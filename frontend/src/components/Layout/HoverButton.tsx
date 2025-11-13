@@ -2,6 +2,7 @@ import classNames from "classnames";
 import { useState, useEffect, useRef } from "react";
 import { App, Input } from "antd";
 import { useClickAway } from "ahooks";
+import { validateTitle } from "@/utils/header";
 
 type Props = {
   title: string;
@@ -35,19 +36,10 @@ export default function HoverButton({
 
     const trimmedNewTitle = newTitle.trim();
     setIsEdit(false);
-    if (!trimmedNewTitle) {
-      message.warning("标题不能为空");
-      resetNewTitle();
-      return;
-    }
 
-    if (trimmedNewTitle === title) {
-      resetNewTitle();
-      return;
-    }
-
-    if (trimmedNewTitle.length > 30) {
-      message.warning("标题不能超过30个字符");
+    const error = validateTitle(trimmedNewTitle, title);
+    if (error) {
+      message.warning(error);
       resetNewTitle();
       return;
     }

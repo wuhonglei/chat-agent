@@ -5,20 +5,60 @@ import {
   setConversationInfoById,
 } from "@/store/slices/conversationSlice";
 import { useLocation } from "react-router-dom";
-import LabelItem from "./LabelItem";
-import { useSize } from "ahooks";
-import { Conversation } from "@ant-design/x";
+import { useMemoizedFn, useSize } from "ahooks";
+import type { MenuInfo } from "rc-menu/lib/interface";
+import { Conversation, ConversationsProps } from "@ant-design/x";
+import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
+import { EditConversationInfo } from "@/interfaces";
 
-export function useMenuItems(onDelete: (id: string) => void) {
+export function useConversionsProps(
+  onDelete: (id: string) => void,
+  onRename: (info: EditConversationInfo) => void
+) {
   const { conversations } = useAppSelector(state => state.conversation);
 
-  return useMemo(() => {
+  const menu: ConversationsProps["menu"] = useMemoizedFn(
+    (conversation: Conversation) => ({
+      items: [
+        {
+          label: "重命名",
+          key: "rename",
+          icon: <EditOutlined />,
+        },
+        {
+          label: "删除",
+          key: "delete",
+          danger: true,
+          icon: <DeleteOutlined />,
+        },
+      ],
+      onClick: (menuInfo: MenuInfo) => {
+        menuInfo.domEvent.stopPropagation();
+        if (menuInfo.key === "rename") {
+          onRename({
+            id: conversation.id as string,
+            title: conversation.label as string,
+          });
+        } else if (menuInfo.key === "delete") {
+          onDelete(conversation.id!);
+        }
+      },
+    })
+  );
+
+  const items = useMemo(() => {
     const items: Conversation[] = conversations.map(conversation => ({
+      id: conversation.id,
       key: `/chat/${conversation.id}`,
-      label: <LabelItem onDelete={onDelete} conversation={conversation} />,
+      label: conversation.title,
     }));
     return items;
-  }, [conversations, onDelete]);
+  }, [conversations]);
+
+  return {
+    items,
+    menu,
+  };
 }
 
 /**

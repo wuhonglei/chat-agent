@@ -10,6 +10,11 @@ export interface ConversationInfo {
   lastMessageUpdatedAt: string;
 }
 
+export interface EditConversationInfo {
+  id: string;
+  title: string;
+}
+
 export interface CreateConversationRequest {
   title?: string;
 }

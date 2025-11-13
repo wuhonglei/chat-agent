@@ -1,4 +1,4 @@
-import { Button, Layout, Typography } from "antd";
+import { App, Button, Layout, Typography } from "antd";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import React, { ReactNode, useState } from "react";
 import classNames from "classnames";
@@ -7,21 +7,27 @@ import NewConversionIcon from "@/assets/svg/NewConversionIcon.svg?react";
 import styles from "./css/mainLayout.module.css";
 import { theme } from "antd";
 import { useAppDispatch } from "@/store/hooks";
-import { useConversionInfo, useMenuItems, useSidebarStyles } from "./hooks";
+import {
+  useConversionInfo,
+  useConversionsProps,
+  useSidebarStyles,
+} from "./hooks";
 import {
   deleteConversation,
   updateConversationInfo,
 } from "@/store/slices/conversationSlice";
-import HoverButton from "./HoverButton";
 import { useMemoizedFn } from "ahooks";
 import { TitleCreatedBy, WebTitle } from "@/constants";
-import { useWebTitle } from "@/hooks";
 import SimpleBar from "simplebar-react";
 import { Conversations, XProvider } from "@ant-design/x";
+import TopHeader from "./TopHeader";
+import RenameModal from "./RenameModal";
+import { EditConversationInfo } from "@/interfaces";
+import { isEmpty } from "lodash-es";
 const { useToken } = theme;
 const { Title } = Typography;
 
-const { Sider, Header, Content } = Layout;
+const { Sider, Content } = Layout;
 const collapsedWidth = 0;
 const DEFAULT_THRESHOLD = 768;
 
@@ -30,24 +36,44 @@ interface MainLayoutProps {
 }
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
+  const { message, modal } = App.useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const { token } = useToken();
+  const [editConversionInfo, setEditConversionInfo] =
+    useState<EditConversationInfo | null>(null);
   const [collapsed, setCollapsed] = useState(
     () => window.innerWidth <= DEFAULT_THRESHOLD
   );
   const conversationInfo = useConversionInfo();
   const dispatch = useAppDispatch();
-  const onDeleteConversation = useMemoizedFn(async (id: string) => {
-    await dispatch(deleteConversation(id)).unwrap();
-    // 如果删除的是当前会话，删除后跳转到新的聊天页面
-    if (location.pathname.includes(id)) {
-      navigate("/chat");
-    }
-  });
   const sidebarStyles = useSidebarStyles(collapsed, DEFAULT_THRESHOLD);
-  const menuItems = useMenuItems(onDeleteConversation);
-  useWebTitle(conversationInfo);
+
+  const onDeleteConversation = useMemoizedFn(async (id: string) => {
+    modal.confirm({
+      centered: true,
+      title: "确定要删除吗？",
+      content: "删除后，该对话将不可恢复。确认删除吗？",
+      okButtonProps: {
+        color: "danger",
+        variant: "solid",
+      },
+      onOk: async () => {
+        await dispatch(deleteConversation(id)).unwrap();
+        message.success("删除成功");
+        // 如果删除的是当前会话，删除后跳转到新的聊天页面
+        if (location.pathname.includes(id)) {
+          navigate("/chat");
+        }
+      },
+    });
+  });
+
+  const { items, menu } = useConversionsProps(
+    onDeleteConversation,
+    setEditConversionInfo
+  );
+
   const handleMenuClick = (pathname: string) => {
     // 点击的菜单和当前路径相同，则不进行跳转
     if (location.pathname === pathname) {
@@ -64,14 +90,29 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     navigate("/chat");
   };
 
-  const handleEditConversationTitle = (id: string, title: string) => {
-    dispatch(
-      updateConversationInfo({ id, title, createdBy: TitleCreatedBy.User })
-    );
-  };
+  const handleEditConversationTitle = useMemoizedFn(
+    async (info: EditConversationInfo) => {
+      await dispatch(
+        updateConversationInfo({
+          ...info,
+          createdBy: TitleCreatedBy.User,
+        })
+      ).unwrap();
+      message.success("重命名成功");
+      setEditConversionInfo(null);
+    }
+  );
 
   return (
-    <XProvider>
+    <XProvider
+      theme={{
+        components: {
+          Layout: {
+            headerBg: "white",
+          },
+        },
+      }}
+    >
       <Layout className="h-screen">
         {/* 左侧导航 */}
         <Sider
@@ -120,42 +161,34 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           </Button>
           <SimpleBar className="flex-1 h-0 mt-4">
             <Conversations
-              onActiveChange={handleMenuClick}
-              items={menuItems}
+              items={items}
+              menu={menu}
               activeKey={location.pathname}
+              onActiveChange={handleMenuClick}
             />
           </SimpleBar>
+          {!isEmpty(editConversionInfo) && (
+            <RenameModal
+              open
+              title={editConversionInfo.title}
+              onCancel={() => setEditConversionInfo(null)}
+              onOk={title =>
+                handleEditConversationTitle({
+                  id: editConversionInfo.id,
+                  title,
+                })
+              }
+            />
+          )}
         </Sider>
         <Layout className="flex flex-col h-full" hasSider={false}>
-          <Header
-            className="flex justify-center items-center relative"
-            style={{ backgroundColor: token.colorBgContainer, height: 60 }}
-          >
-            {collapsed && (
-              <div className="absolute left-2 md:left-12.5 h-10 flex items-center gap-1 rounded-full border border-gray-200 p-1 shadow">
-                <Button
-                  type="text"
-                  shape="circle"
-                  onClick={handleCollapse}
-                  icon={<CollapseIcon className="w-4 h-4" />}
-                />
-                <Button
-                  type="text"
-                  shape="circle"
-                  onClick={handleNewConversion}
-                  icon={<NewConversionIcon className="w-4 h-4" />}
-                />
-              </div>
-            )}
-            {conversationInfo && (
-              <HoverButton
-                title={conversationInfo.title}
-                onConfirm={newTitle =>
-                  handleEditConversationTitle(conversationInfo.id, newTitle)
-                }
-              />
-            )}
-          </Header>
+          <TopHeader
+            collapsed={collapsed}
+            onCollapse={handleCollapse}
+            conversationInfo={conversationInfo}
+            onEdit={handleEditConversationTitle}
+            onCreateConversion={handleNewConversion}
+          />
           <Content className="flex-1 bg-white">{children}</Content>
         </Layout>
       </Layout>

@@ -1,7 +1,0 @@
-.operation {
-  position: absolute;
-}
-
-.container:hover > .operation {
-  visibility: visible;
-}
