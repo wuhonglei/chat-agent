@@ -1,4 +1,5 @@
-import { App as AntdApp, ConfigProvider } from "antd";
+import { App as AntdApp } from "antd";
+import { XProvider } from "@ant-design/x";
 import ReactDOM from "react-dom/client";
 import { Provider } from "react-redux";
 import App from "./App";
@@ -13,7 +14,7 @@ dayjs.extend(timezone);
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <Provider store={store}>
-    <ConfigProvider
+    <XProvider
       theme={{
         token: {
           colorPrimary: "#2356F6",
@@ -25,6 +26,6 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       <AntdApp>
         <App />
       </AntdApp>
-    </ConfigProvider>
+    </XProvider>
   </Provider>
 );

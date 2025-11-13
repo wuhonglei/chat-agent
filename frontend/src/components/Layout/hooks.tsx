@@ -1,6 +1,5 @@
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { CSSProperties, useEffect, useMemo } from "react";
-import { type MenuProps } from "antd";
 import {
   clearCurrentConversion,
   setConversationInfoById,
@@ -8,12 +7,13 @@ import {
 import { useLocation } from "react-router-dom";
 import LabelItem from "./LabelItem";
 import { useSize } from "ahooks";
+import { Conversation } from "@ant-design/x";
 
 export function useMenuItems(onDelete: (id: string) => void) {
   const { conversations } = useAppSelector(state => state.conversation);
 
   return useMemo(() => {
-    const items: MenuProps["items"] = conversations.map(conversation => ({
+    const items: Conversation[] = conversations.map(conversation => ({
       key: `/chat/${conversation.id}`,
       label: <LabelItem onDelete={onDelete} conversation={conversation} />,
     }));

@@ -1,11 +1,4 @@
-import {
-  Button,
-  ConfigProvider,
-  Layout,
-  Menu,
-  MenuProps,
-  Typography,
-} from "antd";
+import { Button, Layout, Typography } from "antd";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import React, { ReactNode, useState } from "react";
 import classNames from "classnames";
@@ -24,6 +17,7 @@ import { useMemoizedFn } from "ahooks";
 import { TitleCreatedBy, WebTitle } from "@/constants";
 import { useWebTitle } from "@/hooks";
 import SimpleBar from "simplebar-react";
+import { Conversations, XProvider } from "@ant-design/x";
 const { useToken } = theme;
 const { Title } = Typography;
 
@@ -54,12 +48,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const sidebarStyles = useSidebarStyles(collapsed, DEFAULT_THRESHOLD);
   const menuItems = useMenuItems(onDeleteConversation);
   useWebTitle(conversationInfo);
-  const handleMenuClick: MenuProps["onClick"] = ({ key }) => {
+  const handleMenuClick = (pathname: string) => {
     // 点击的菜单和当前路径相同，则不进行跳转
-    if (location.pathname === key) {
+    if (location.pathname === pathname) {
       return;
     }
-    navigate(key);
+    navigate(pathname);
   };
 
   const handleCollapse = () => {
@@ -77,21 +71,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   };
 
   return (
-    <ConfigProvider
-      theme={{
-        components: {
-          Menu: {
-            itemPaddingInline: 10,
-            itemMarginInline: 0,
-            itemMarginBlock: 2,
-            itemBorderRadius: 12,
-          },
-          Layout: {
-            bodyBg: "white",
-          },
-        },
-      }}
-    >
+    <XProvider>
       <Layout className="h-screen">
         {/* 左侧导航 */}
         <Sider
@@ -139,17 +119,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             开启新对话
           </Button>
           <SimpleBar className="flex-1 h-0 mt-4">
-            <Menu
-              mode="vertical"
+            <Conversations
+              onActiveChange={handleMenuClick}
               items={menuItems}
-              onClick={handleMenuClick}
-              selectedKeys={[location.pathname]}
-              style={{
-                backgroundColor: "transparent",
-                width: "100%",
-                border: "none",
-                padding: "0 12px",
-              }}
+              activeKey={location.pathname}
             />
           </SimpleBar>
         </Sider>
@@ -186,7 +159,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           <Content className="flex-1 bg-white">{children}</Content>
         </Layout>
       </Layout>
-    </ConfigProvider>
+    </XProvider>
   );
 };
 
