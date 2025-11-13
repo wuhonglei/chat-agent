@@ -40,7 +40,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
       ) : (
         <>
           <ToolCallBlock
-            defaultOpen={message.defaultOpen}
+            isStreaming={isStreaming}
             isCallingTools={isCallingTools}
             toolCalls={message.toolCalls}
           />
@@ -50,7 +50,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
             sources={message.sources}
             reasoning={message.reasoning}
             onSourceClick={onSourceClick}
-            defaultOpen={message.defaultOpen}
+            isStreaming={isStreaming}
           />
           {/* 渲染模型返回的内容 */}
           <MarkdownContainer
