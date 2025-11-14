@@ -1,6 +1,6 @@
 import classNames from "classnames";
-import React, { useEffect, useRef } from "react";
-import { Form, ConfigProvider, FormInstance, Button, GetRef } from "antd";
+import React from "react";
+import { Form, ConfigProvider, FormInstance, Button } from "antd";
 import { Sender } from "@ant-design/x";
 import CustomButton from "@/components/common/CustomButton";
 import ThinkModeIcon from "@/assets/svg/ThinkModeIcon.svg?react";
@@ -13,6 +13,7 @@ import { ArrowUpOutlined } from "@ant-design/icons";
 import { useButtonState, useFormValuesChange } from "./hooks";
 import { isButtonDisabled, isStreamingState } from "./util";
 import { useMemoizedFn } from "ahooks";
+import styles from "./css/index.module.css";
 
 interface ChatInputProps {
   isStreaming?: boolean;
@@ -80,8 +81,10 @@ const ChatInput: React.FC<ChatInputProps> = ({
           <Sender
             actions={false}
             onKeyDown={handlePressEnter}
+            className={styles.container}
             placeholder="给 DeepSeek 发送消息"
             autoSize={{ minRows: 2, maxRows: 6 }}
+            style={{ borderColor: "#d9d9d9", boxShadow: "none" }}
             footer={() => {
               return (
                 <div className="flex items-center gap-2 justify-between">
