@@ -1,18 +1,16 @@
 import React, { useState } from "react";
-import { Button, Card, Input } from "antd";
+import { Button } from "antd";
+import { Bubble, Sender } from "@ant-design/x";
 import { ChatMessage as ChatMessageType } from "@/interfaces";
 import { EditOutlined } from "@ant-design/icons";
 import CopyButton from "@/components/common/CopyButton";
-import styles from "./css/UserMessage.module.css";
-import classNames from "classnames";
 import { isInputEnter } from "@/utils";
+import { trim } from "lodash-es";
 
 interface UserMessageProps {
   message: ChatMessageType;
   onEditMessage: (content: string) => void;
 }
-
-const { TextArea } = Input;
 
 const UserMessage: React.FC<UserMessageProps> = ({
   message,
@@ -21,82 +19,74 @@ const UserMessage: React.FC<UserMessageProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [messageContent, setMessageContent] = useState(message.content);
   function handleConfirm() {
+    if (!messageContent) {
+      return;
+    }
     setIsEditing(false);
     onEditMessage(messageContent);
   }
 
   function handleSend(event: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (isInputEnter(event)) {
-      handleConfirm();
       event.preventDefault();
+      handleConfirm();
     }
   }
 
   return (
-    <div
-      className={classNames(
-        "flex flex-col mt-3 items-end gap-2",
-        styles.container
-      )}
-    >
-      {isEditing ? (
-        <div className="min-w-[70%]">
-          <TextArea
-            autoFocus
-            onPressEnter={handleSend}
-            defaultValue={messageContent}
-            onChange={e => setMessageContent(e.target.value)}
-          />
-        </div>
-      ) : (
-        <Card
-          className="max-w-[70%] animate-slide-up"
-          styles={{
-            body: {
-              fontSize: "16px",
-              padding: "9px 16px",
-              whiteSpace: "pre-wrap",
-              overflowWrap: "break-word",
-              backgroundColor: "#F5F5F5",
-            },
-          }}
-        >
-          {message.content}
-        </Card>
-      )}
-      {/* 底部操作按钮 */}
-      <div
-        className={classNames(
-          "h-6 w-full flex items-center justify-end gap-2 transition duration-300",
-          !isEditing && styles.operation
-        )}
-      >
-        {isEditing ? (
-          <>
-            <Button
-              size="small"
-              type="default"
-              onClick={() => setIsEditing(false)}
-            >
-              取消
-            </Button>
-            <Button size="small" type="primary" onClick={handleConfirm}>
-              发送
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button
-              size="small"
-              type="text"
-              icon={<EditOutlined />}
-              onClick={() => setIsEditing(true)}
+    <section className="mt-3 w-full flex justify-end">
+      <Bubble
+        placement="end"
+        variant={isEditing ? "borderless" : "filled"}
+        className={isEditing ? "min-w-[80%]" : "max-w-[70%]"}
+        content={message.content}
+        classNames={{ content: "w-full whitespace-pre-wrap wrap-break-word" }}
+        messageRender={(content: string) =>
+          isEditing ? (
+            <Sender
+              actions={false}
+              defaultValue={content}
+              onKeyDown={handleSend}
+              onChange={value => setMessageContent(trim(value))}
+              footer={
+                <div className="flex justify-end gap-2">
+                  <Button
+                    shape="round"
+                    type="default"
+                    onClick={() => setIsEditing(false)}
+                  >
+                    取消
+                  </Button>
+                  <Button
+                    shape="round"
+                    type="primary"
+                    onClick={handleConfirm}
+                    disabled={!messageContent}
+                  >
+                    发送
+                  </Button>
+                </div>
+              }
             />
-            <CopyButton text={message.content} children={null} />
-          </>
-        )}
-      </div>
-    </div>
+          ) : (
+            <>{content}</>
+          )
+        }
+        footer={
+          isEditing ? null : (
+            <div className="flex gap-2">
+              <Button
+                size="small"
+                type="text"
+                icon={<EditOutlined />}
+                onClick={() => setIsEditing(true)}
+              />
+              <CopyButton text={message.content} children={null} />
+            </div>
+          )
+        }
+      />
+    </section>
   );
 };
 
