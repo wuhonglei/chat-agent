@@ -1,4 +1,4 @@
-import { App as AntdApp, Layout } from "antd";
+import { App as AntdApp } from "antd";
 import React, { useEffect } from "react";
 import { Route, BrowserRouter, Routes } from "react-router-dom";
 import MainLayout from "./components/Layout/MainLayout";
@@ -10,8 +10,6 @@ import {
 } from "./store/slices/globalSlice";
 import { setMessageInstance } from "./utils/message";
 import { loadConversations } from "./store/slices/conversationSlice";
-
-const { Content } = Layout;
 
 const App: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -34,13 +32,11 @@ const App: React.FC = () => {
       future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
     >
       <MainLayout>
-        <Content className="h-full bg-gray-50">
-          <Routes>
-            {routes.map((route, index) => (
-              <Route key={index} path={route.path} element={route.element} />
-            ))}
-          </Routes>
-        </Content>
+        <Routes>
+          {routes.map((route, index) => (
+            <Route key={index} path={route.path} element={route.element} />
+          ))}
+        </Routes>
       </MainLayout>
     </BrowserRouter>
   );

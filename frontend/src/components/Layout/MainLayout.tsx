@@ -20,10 +20,10 @@ import { useMemoizedFn } from "ahooks";
 import { TitleCreatedBy, WebTitle } from "@/constants";
 import SimpleBar from "simplebar-react";
 import { Conversations, XProvider } from "@ant-design/x";
-import TopHeader from "./TopHeader";
 import RenameModal from "./RenameModal";
 import { EditConversationInfo } from "@/interfaces";
 import { isEmpty } from "lodash-es";
+import { useWebTitle } from "@/hooks";
 const { useToken } = theme;
 const { Title } = Typography;
 
@@ -46,6 +46,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     () => window.innerWidth <= DEFAULT_THRESHOLD
   );
   const conversationInfo = useConversionInfo();
+  useWebTitle(conversationInfo); // 更新 document.title
   const dispatch = useAppDispatch();
   const sidebarStyles = useSidebarStyles(collapsed, DEFAULT_THRESHOLD);
 
@@ -182,16 +183,24 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             />
           )}
         </Sider>
-        <Layout className="flex flex-col h-full" hasSider={false}>
-          <TopHeader
-            collapsed={collapsed}
-            onCollapse={handleCollapse}
-            conversationInfo={conversationInfo}
-            onEdit={handleEditConversationTitle}
-            onCreateConversion={handleNewConversion}
-          />
-          <Content className="flex-1 bg-white">{children}</Content>
-        </Layout>
+        {/* fixed 定位，不影响布局 */}
+        {collapsed && (
+          <div className="fixed left-2 md:left-12.5 top-2.5 h-10 flex items-center gap-1 rounded-full border border-gray-200 p-1 shadow">
+            <Button
+              type="text"
+              shape="circle"
+              onClick={handleCollapse}
+              icon={<CollapseIcon className="w-4 h-4" />}
+            />
+            <Button
+              type="text"
+              shape="circle"
+              onClick={handleNewConversion}
+              icon={<NewConversionIcon className="w-4 h-4" />}
+            />
+          </div>
+        )}
+        <Content className="h-full bg-white">{children}</Content>
       </Layout>
     </XProvider>
   );

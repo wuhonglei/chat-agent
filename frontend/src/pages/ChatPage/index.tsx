@@ -14,6 +14,7 @@ import styles from "./index.module.css";
 import SourceSider from "@/components/Chat/SourceSider";
 import { useParams } from "react-router-dom";
 import { useCachedRequest, useConversationInfo } from "@/hooks/chat";
+import TopHeader from "@/components/Chat/TopHeader";
 
 const ChatPage: React.FC = () => {
   const params = useParams<{ conversationId: string }>();
@@ -58,41 +59,44 @@ const ChatPage: React.FC = () => {
   });
 
   return (
-    <div className="flex h-full">
-      {/* Chat area */}
-      <div
-        className={classNames(
-          "flex-1 flex flex-col h-full bg-white",
-          styles.container
-        )}
-      >
-        {/* 渲染消息列表 */}
-        <ChatMessageList
-          isLoading={isLoading}
-          onReSend={handleReSend}
-          isStreaming={isStreaming}
-          isReasoning={isReasoning}
-          isCallingTools={isCallingTools}
-          conversationId={conversationId}
-          onSourceClick={handleSourceClick}
-          onEditMessage={handleEditMessage}
-          className={styles["markdown-container"]}
-        />
-        {/* Input area */}
-        <ChatInput
-          form={form}
-          onSend={sendMessage}
-          onStop={abortMessage}
-          isStreaming={isStreaming}
-          className={styles["input-container"]}
-        />
-        <div className="mx-auto py-1.5 text-gray-300 text-xs">
-          内容由 AI 生成，请仔细甄别
+    <section className="h-full flex flex-col">
+      <TopHeader conversationInfo={conversationInfo} />
+      <main className="flex-1 flex">
+        {/* Chat area */}
+        <div
+          className={classNames(
+            "flex-1 flex flex-col h-full bg-white",
+            styles.container
+          )}
+        >
+          {/* 渲染消息列表 */}
+          <ChatMessageList
+            isLoading={isLoading}
+            onReSend={handleReSend}
+            isStreaming={isStreaming}
+            isReasoning={isReasoning}
+            isCallingTools={isCallingTools}
+            conversationId={conversationId}
+            onSourceClick={handleSourceClick}
+            onEditMessage={handleEditMessage}
+            className={styles["markdown-container"]}
+          />
+          {/* Input area */}
+          <ChatInput
+            form={form}
+            onSend={sendMessage}
+            onStop={abortMessage}
+            isStreaming={isStreaming}
+            className={styles["input-container"]}
+          />
+          <div className="mx-auto py-1.5 text-gray-300 text-xs">
+            内容由 AI 生成，请仔细甄别
+          </div>
         </div>
-      </div>
-      {/* Sources panel */}
-      <SourceSider sourceData={sourceData} onClose={handleCloseSource} />
-    </div>
+        {/* Sources panel */}
+        <SourceSider sourceData={sourceData} onClose={handleCloseSource} />
+      </main>
+    </section>
   );
 };
 
