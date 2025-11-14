@@ -94,11 +94,11 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const resetState = useMemoizedFn(() => {
+  const resetState = useMemoizedFn(conversationId => {
     dispatch(resetChatState({ conversationId, data: undefined }));
   });
 
-  const abortMessage = useMemoizedFn((): void => {
+  const abortMessage = useMemoizedFn((conversationId): void => {
     if (abortControllerRef.current && isStreaming) {
       abortControllerRef.current.abort();
       // 服务端 llm api 还没响应，则清除最后一条消息
@@ -107,7 +107,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
         dispatch(clearLastMessage({ conversationId, data: undefined }));
         chatAPI.deleteMessage(lastMessage.id);
       }
-      resetState();
+      resetState(conversationId);
     }
   });
 
@@ -120,7 +120,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
 
       // 如果正在流式传输，先中止当前请求
       if (abortControllerRef.current && isStreaming) {
-        abortMessage();
+        abortMessage(conversationId);
       }
 
       dispatch(setStreaming({ conversationId, data: true }));
@@ -261,7 +261,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
                 lastMessageUpdatedAt,
               })
             );
-            resetState();
+            resetState(conversationId);
           },
           error: () => {},
         };
@@ -294,17 +294,17 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
           (error: Error) => {
             // 流错误
             console.error("Stream error:", error);
-            resetState();
+            resetState(conversationId);
           },
           () => {
             // 流结束
-            resetState();
+            resetState(conversationId);
           },
           abortControllerRef.current
         );
       } catch (error) {
         console.error("Failed to send message:", error);
-        resetState();
+        resetState(conversationId);
       }
     }
   );
