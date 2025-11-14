@@ -7,17 +7,13 @@ import { isEmpty } from "lodash-es";
 import SourceAbstract from "./SourceAbstract";
 
 type Props = {
-  isStreaming: boolean;
   message: ChatMessageType;
   onReSend: () => void;
   onSourceClick: () => void;
 };
 
 export default function AssistantOperation(props: Props) {
-  const { isStreaming, message, onReSend, onSourceClick } = props;
-  if (isStreaming) {
-    return null;
-  }
+  const { message, onReSend, onSourceClick } = props;
 
   return (
     <div

@@ -1,11 +1,11 @@
 import { ChatMessage as ChatMessageType } from "@/interfaces";
 import { useThrottle } from "ahooks";
-import { Spin } from "antd";
 import React from "react";
 import ReasoningBlock from "./ReasoningBlock";
 import MarkdownContainer from "@/components/Chat/MarkdownContainer";
 import AssistantOperation from "./AssistantOperation";
 import ToolCallBlock from "./ToolCallBlock";
+import { Bubble } from "@ant-design/x";
 
 interface AssistantMessageProps {
   message: ChatMessageType;
@@ -31,14 +31,14 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
   });
 
   return (
-    <div className={"flex flex-col mt-4 items-start gap-2"}>
-      {isLoading ? (
-        <div className="flex justify-start items-center">
-          <Spin size="small" />
-          <span className="ml-2 text-gray-500">等待中...</span>
-        </div>
-      ) : (
-        <>
+    <Bubble
+      placement="start"
+      variant="borderless"
+      loading={isLoading}
+      className="w-full mt-4"
+      content={displayContent}
+      messageRender={displayContent => (
+        <div className="flex flex-col gap-2">
           <ToolCallBlock
             isStreaming={isStreaming}
             isCallingTools={isCallingTools}
@@ -59,16 +59,18 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
           >
             {displayContent}
           </MarkdownContainer>
-          {/* 渲染操作按钮 */}
+        </div>
+      )}
+      footer={
+        isStreaming ? null : (
           <AssistantOperation
             message={message}
             onReSend={onReSend}
-            isStreaming={isStreaming}
             onSourceClick={onSourceClick}
           />
-        </>
-      )}
-    </div>
+        )
+      }
+    />
   );
 };
 
