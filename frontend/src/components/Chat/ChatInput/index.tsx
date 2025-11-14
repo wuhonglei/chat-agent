@@ -33,12 +33,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 }) => {
   const content = Form.useWatch(names.content, form);
   const buttonState = useButtonState(content, isStreaming);
-  const senderRef = useRef<GetRef<typeof Sender>>(null);
   const { values, onValuesChange } = useFormValuesChange(form);
-
-  useEffect(() => {
-    senderRef.current?.focus();
-  }, []);
 
   const handleSend = useMemoizedFn(() => {
     const values = form.getFieldsValue();
@@ -83,7 +78,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
       >
         <Form.Item className="mr-0" name={names.content}>
           <Sender
-            ref={senderRef}
             actions={false}
             onKeyDown={handlePressEnter}
             placeholder="给 DeepSeek 发送消息"
