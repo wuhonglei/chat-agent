@@ -1,5 +1,5 @@
 import ChatPage from "@/pages/ChatPage";
-import EmptyChatPage from "@/pages/EmptyChatPage";
+import WelcomePage from "@/pages/WelcomePage";
 import MarkdownPage from "@/pages/MarkdownPage";
 import { RouteObject, Navigate } from "react-router-dom";
 
@@ -10,7 +10,7 @@ export const routes: RouteObject[] = [
   },
   {
     path: "/chat",
-    element: <EmptyChatPage />, // 空聊天页面
+    element: <WelcomePage />, // 空聊天页面
   },
   {
     path: "/chat/:conversationId",

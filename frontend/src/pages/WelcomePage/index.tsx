@@ -1,5 +1,4 @@
 import ChatInput from "@/components/Chat/ChatInput";
-import WelcomePage from "@/components/Chat/WelcomePage";
 import { ChatInputFormValues } from "@/interfaces";
 import { Form } from "antd";
 import { registerConversation } from "@/store/slices/conversationSlice";
@@ -11,6 +10,7 @@ import { useAppDispatch } from "@/store/hooks";
 import { useMemoizedFn } from "ahooks";
 import { useNewConversation } from "@/hooks";
 import { TitleCreatedBy } from "@/constants";
+import Title from "antd/es/typography/Title";
 
 export default function EmptyChatPage() {
   const navigate = useNavigate();
@@ -39,18 +39,17 @@ export default function EmptyChatPage() {
 
   return (
     <div className={classNames("h-full bg-white flex", parentStyles.container)}>
-      <WelcomePage
+      <div
         className={classNames(
-          "flex-1 my-auto",
+          "flex flex-col gap-4 items-center w-full my-auto",
           parentStyles["input-container"]
         )}
       >
-        <ChatInput
-          form={form}
-          onSend={handleMessageSend}
-          className="w-full shadow-lg"
-        />
-      </WelcomePage>
+        <Title level={3} className="flex items-center gap-4">
+          有什么我能帮你的吗？
+        </Title>
+        <ChatInput form={form} onSend={handleMessageSend} className="w-full" />
+      </div>
     </div>
   );
 }
