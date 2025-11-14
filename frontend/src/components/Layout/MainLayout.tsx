@@ -105,15 +105,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   );
 
   return (
-    <XProvider
-      theme={{
-        components: {
-          Layout: {
-            headerBg: "white",
-          },
-        },
-      }}
-    >
+    <XProvider>
       <Layout className="h-screen">
         {/* 左侧导航 */}
         <Sider

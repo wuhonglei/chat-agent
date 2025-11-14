@@ -5,6 +5,7 @@ import { TitleCreatedBy } from "@/constants";
 import { useAppDispatch } from "@/store/hooks";
 import { useMemoizedFn } from "ahooks";
 import { updateConversationInfo } from "@/store/slices/conversationSlice";
+import { XProvider } from "@ant-design/x";
 
 const { Header } = Layout;
 
@@ -28,10 +29,23 @@ export default function TopHeader({ conversationInfo }: Props) {
   });
 
   return (
-    <Header style={{ height: 60 }} className="flex justify-center items-center">
-      {conversationInfo && (
-        <HoverButton title={conversationInfo.title} onConfirm={handleEdit} />
-      )}
-    </Header>
+    <XProvider
+      theme={{
+        components: {
+          Layout: {
+            headerBg: "white",
+          },
+        },
+      }}
+    >
+      <Header
+        style={{ height: 60 }}
+        className="flex justify-center items-center"
+      >
+        {conversationInfo && (
+          <HoverButton title={conversationInfo.title} onConfirm={handleEdit} />
+        )}
+      </Header>
+    </XProvider>
   );
 }
