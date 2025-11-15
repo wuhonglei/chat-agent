@@ -1,3 +1,7 @@
+.operation {
+  transition: opacity 0.3s ease-in-out;
+}
+
 .container .operation {
   opacity: 0;
 }

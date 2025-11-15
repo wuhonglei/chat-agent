@@ -6,6 +6,8 @@ import { EditOutlined } from "@ant-design/icons";
 import CopyButton from "@/components/common/CopyButton";
 import { isInputEnter } from "@/utils";
 import { trim } from "lodash-es";
+import styles from "./css/UserMessage.module.css";
+import classNames from "classnames";
 
 interface UserMessageProps {
   message: ChatMessageType;
@@ -37,10 +39,15 @@ const UserMessage: React.FC<UserMessageProps> = ({
     <section className="mt-3 w-full flex justify-end">
       <Bubble
         placement="end"
-        variant={isEditing ? "borderless" : "filled"}
-        className={isEditing ? "min-w-[80%]" : "max-w-[70%]"}
         content={message.content}
-        classNames={{ content: "w-full whitespace-pre-wrap wrap-break-word" }}
+        variant={isEditing ? "borderless" : "filled"}
+        className={classNames(
+          styles.container,
+          isEditing ? "min-w-[80%]" : "max-w-[70%]"
+        )}
+        classNames={{
+          content: "w-full whitespace-pre-wrap wrap-break-word",
+        }}
         messageRender={(content: string) =>
           isEditing ? (
             <Sender
@@ -74,7 +81,7 @@ const UserMessage: React.FC<UserMessageProps> = ({
         }
         footer={
           isEditing ? null : (
-            <div className="flex gap-2">
+            <div className={classNames("flex gap-2", styles.operation)}>
               <Button
                 size="small"
                 type="text"
