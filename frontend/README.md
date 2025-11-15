@@ -136,18 +136,18 @@ npm run build
 前端通过 `/api` 路径代理到后端服务，主要接口包括：
 
 - **文档管理**
-  - `POST /api/documents/upload` - 上传文档
-  - `GET /api/documents` - 获取文档列表
-  - `DELETE /api/documents/{id}` - 删除文档
+  - `POST /documents/upload` - 上传文档
+  - `GET /documents` - 获取文档列表
+  - `DELETE /documents/{id}` - 删除文档
 
 - **对话交互**
-  - `POST /api/chat/stream` - 流式对话（SSE）
-  - `GET /api/chat/history` - 获取对话历史
+  - `POST /chat/stream` - 流式对话（SSE）
+  - `GET /chat/history` - 获取对话历史
 
 - **知识库管理**
-  - `GET /api/knowledge-bases` - 获取知识库列表
-  - `POST /api/knowledge-bases` - 创建知识库
-  - `PUT /api/knowledge-bases/{id}` - 更新知识库
+  - `GET /knowledge-bases` - 获取知识库列表
+  - `POST /knowledge-bases` - 创建知识库
+  - `PUT /knowledge-bases/{id}` - 更新知识库
 
 ## 开发规范
 

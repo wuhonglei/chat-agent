@@ -17,15 +17,13 @@ export const chatAPI = {
   getConversationMessages: async (
     conversationId: string
   ): Promise<ChatMessage[]> => {
-    const res = await apiClient.get(
-      `/api/conversation/${conversationId}/messages`
-    );
+    const res = await apiClient.get(`/conversation/${conversationId}/messages`);
     // @ts-expect-error - TODO: fix this
     return res.messages;
   },
 
   deleteMessage: async (messageId: string): Promise<void> => {
-    await apiClient.delete(`/api/message/delete/${messageId}`);
+    await apiClient.delete(`/message/delete/${messageId}`);
   },
 
   // Stream message
@@ -36,7 +34,7 @@ export const chatAPI = {
     onClose: () => void,
     abortController: AbortController
   ): Promise<void> => {
-    await fetchEventSource(`${apiClient.defaults.baseURL}/api/chat/stream`, {
+    await fetchEventSource(`${apiClient.defaults.baseURL}/chat/stream`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -80,16 +78,16 @@ export const chatAPI = {
 export const healthAPI = {
   // Health check
   checkHealth: async (): Promise<AxiosResponse<{ status: string }>> => {
-    return await apiClient.get("/api/health");
+    return await apiClient.get("/health");
   },
 
   // MCP health check
   checkMCPHealth: async (): Promise<AxiosResponse<{ status: string }>> => {
-    return await apiClient.get("/api/health/mcp");
+    return await apiClient.get("/health/mcp");
   },
 
   // MCP config
   getMCPConfig: async (): Promise<MCPConfigItem[]> => {
-    return await apiClient.get("/api/health/mcp_config");
+    return await apiClient.get("/health/mcp_config");
   },
 };

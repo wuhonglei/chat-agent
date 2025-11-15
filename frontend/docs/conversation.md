@@ -33,7 +33,7 @@
 
 #### 2.2 会话注册机制
 - 当用户发送第一条消息时，触发会话注册
-- 前端调用 `POST /api/conversations` 创建正式对话记录
+- 前端调用 `POST /conversations` 创建正式对话记录
 - 将本地临时会话ID映射到数据库中的正式conversation_id
 - 更新URL为 `/chat/{conversation_id}`
 
@@ -75,7 +75,7 @@ class Message(SQLModel, table=True):
 
 ```python
 # 创建新对话
-POST /api/conversations
+POST /conversations
 {
     "title": "optional_custom_title",
     "user_id": "optional_user_id"
@@ -87,7 +87,7 @@ Response: {
 }
 
 # 获取对话详情
-GET /api/conversations/{conversation_id}
+GET /conversations/{conversation_id}
 Response: {
     "id": "uuid",
     "title": "string",
@@ -97,27 +97,27 @@ Response: {
 }
 
 # 获取用户对话列表
-GET /api/conversations?user_id={user_id}&limit={limit}&offset={offset}
+GET /conversations?user_id={user_id}&limit={limit}&offset={offset}
 Response: {
     "conversations": [Conversation],
     "total": int
 }
 
 # 更新对话标题
-PUT /api/conversations/{conversation_id}
+PUT /conversations/{conversation_id}
 {
     "title": "new_title"
 }
 
 # 删除对话
-DELETE /api/conversations/{conversation_id}
+DELETE /conversations/{conversation_id}
 ```
 
 #### 4.2 消息处理接口
 
 ```python
 # 发送消息并获取AI响应（流式）
-POST /api/chat/stream
+POST /chat/stream
 {
     "conversation_id": "uuid_or_local_id",
     "message": "user_message",
@@ -206,13 +206,13 @@ sequenceDiagram
     U->>F: 输入并发送消息
     F->>S: sendMessage(content)
     S->>S: 检查是否为新会话
-    S->>A: POST /api/conversations
+    S->>A: POST /conversations
     A->>DB: 创建Conversation记录
     DB->>A: 返回conversation_id
     A->>S: 返回正式对话ID
     S->>S: 映射local_id到conversation_id
     S->>F: 更新URL为 /chat/{conversation_id}
-    F->>A: POST /api/chat/stream
+    F->>A: POST /chat/stream
     A->>A: 处理消息，调用AI服务
     A-->>F: 流式返回AI响应 (SSE)
     F->>S: 实时更新消息状态
@@ -240,7 +240,7 @@ sequenceDiagram
     U->>F: 访问 /chat/{conversation_id}
     F->>F: 路由参数提取conversation_id
     F->>S: loadConversation(conversation_id)
-    S->>A: GET /api/conversations/{conversation_id}
+    S->>A: GET /conversations/{conversation_id}
     A->>DB: 查询Conversation信息
     DB->>A: 返回对话详情
     A->>DB: 查询Message列表
@@ -253,7 +253,7 @@ sequenceDiagram
     Note over U,DB: 用户继续对话
 
     U->>F: 发送新消息
-    F->>A: POST /api/chat/stream
+    F->>A: POST /chat/stream
     A->>A: 处理消息，调用AI服务
     A-->>F: 流式返回AI响应
     F->>S: 实时更新消息状态
@@ -274,7 +274,7 @@ sequenceDiagram
     Note over U,DB: 场景1：访问不存在的对话
 
     U->>F: 访问 /chat/{invalid_id}
-    F->>A: GET /api/conversations/{invalid_id}
+    F->>A: GET /conversations/{invalid_id}
     A->>DB: 查询对话
     DB->>A: 返回null/404
     A->>F: 返回404错误
@@ -285,7 +285,7 @@ sequenceDiagram
     Note over U,DB: 场景2：消息发送失败
 
     U->>F: 发送消息
-    F->>A: POST /api/chat/stream
+    F->>A: POST /chat/stream
     A->>A: 处理失败（网络/AI错误）
     A->>F: 返回错误信息
     F->>S: setError(error_message)

@@ -13,7 +13,7 @@ export const conversationAPI = {
   getConversation: async (
     conversationId: string
   ): Promise<ConversationDetailResponse> => {
-    return await apiClient.get(`/api/conversation/detail/${conversationId}`);
+    return await apiClient.get(`/conversation/detail/${conversationId}`);
   },
 
   // 创建对话
@@ -21,7 +21,7 @@ export const conversationAPI = {
     data?: CreateConversationRequest
   ): Promise<ConversationInfo> => {
     return await apiClient.post(
-      "/api/conversation/register",
+      "/conversation/register",
       data || { title: "新对话" }
     );
   },
@@ -31,7 +31,7 @@ export const conversationAPI = {
     limit?: number;
     offset?: number;
   }): Promise<ConversationListResponse> => {
-    return await apiClient.get("/api/conversation/list", { params });
+    return await apiClient.get("/conversation/list", { params });
   },
 
   // 更新对话信息
@@ -39,14 +39,11 @@ export const conversationAPI = {
     conversationId: string,
     data: UpdateConversationRequest
   ): Promise<ConversationInfo> => {
-    return await apiClient.put(
-      `/api/conversation/update/${conversationId}`,
-      data
-    );
+    return await apiClient.put(`/conversation/update/${conversationId}`, data);
   },
 
   // 删除对话
   deleteConversation: async (conversationId: string): Promise<string> => {
-    return await apiClient.delete(`/api/conversation/delete/${conversationId}`);
+    return await apiClient.delete(`/conversation/delete/${conversationId}`);
   },
 };
