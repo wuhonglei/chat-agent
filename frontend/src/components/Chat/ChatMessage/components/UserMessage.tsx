@@ -36,15 +36,14 @@ const UserMessage: React.FC<UserMessageProps> = ({
   }
 
   return (
-    <section className="mt-3 w-full flex justify-end">
+    <section
+      className={classNames("mt-3 w-full flex justify-end", styles.container)}
+    >
       <Bubble
         placement="end"
         content={message.content}
         variant={isEditing ? "borderless" : "filled"}
-        className={classNames(
-          styles.container,
-          isEditing ? "min-w-[80%]" : "max-w-[70%]"
-        )}
+        className={isEditing ? "min-w-[80%]" : "max-w-[70%]"}
         classNames={{
           content: "w-full whitespace-pre-wrap wrap-break-word",
         }}
