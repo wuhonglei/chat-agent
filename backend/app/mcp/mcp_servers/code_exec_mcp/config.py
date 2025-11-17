@@ -44,6 +44,7 @@ class CodeExecConfig(BaseSettings):
         "decimal",
         "fractions",
         "statistics",
+        "unicodedata"
     ]
 
     model_config = ConfigDict(
