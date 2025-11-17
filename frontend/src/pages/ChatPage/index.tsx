@@ -1,5 +1,5 @@
-import ChatInput from "@/components/Chat/ChatInput";
-import { ChatMessageList } from "@/components/Chat/ChatMessage";
+import ChatInput from "./components/ChatInput";
+import { ChatMessageList } from "./components/ChatMessage";
 import { useChatMessage, useChatState } from "@/hooks";
 import { useMemoizedFn } from "ahooks";
 import {
@@ -11,10 +11,10 @@ import classNames from "classnames";
 import React, { useState } from "react";
 import { SourceData } from "@/interfaces";
 import styles from "./index.module.css";
-import SourceSider from "@/components/Chat/SourceSider";
+import SourceSider from "./components/SourceSider";
 import { useParams } from "react-router-dom";
 import { useCachedRequest, useConversationInfo } from "@/hooks/chat";
-import TopHeader from "@/components/Chat/TopHeader";
+import TopHeader from "./components/TopHeader";
 
 const ChatPage: React.FC = () => {
   const params = useParams<{ conversationId: string }>();
