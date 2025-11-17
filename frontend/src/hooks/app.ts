@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useTitle } from "ahooks";
 import { ConversationInfo } from "@/interfaces";
 import { isEmpty } from "lodash-es";
-import { WebTitle } from "@/constants";
+import { WEB_TITLE } from "@/constants";
 import { isTitleCreatedByDefault } from "@/utils";
 
 export function useWebTitle(
@@ -10,9 +10,9 @@ export function useWebTitle(
 ): void {
   const title = useMemo(() => {
     if (isEmpty(conversationInfo)) {
-      return WebTitle;
+      return WEB_TITLE;
     } else if (isTitleCreatedByDefault(conversationInfo.createdBy)) {
-      return WebTitle;
+      return WEB_TITLE;
     } else {
       return conversationInfo.title;
     }

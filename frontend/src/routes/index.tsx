@@ -2,6 +2,7 @@ import ChatPage from "@/pages/ChatPage";
 import WelcomePage from "@/pages/WelcomePage";
 import MarkdownPage from "@/pages/MarkdownPage";
 import { RouteObject, Navigate } from "react-router-dom";
+import LoginPage from "@/pages/LoginPage";
 
 export const routes: RouteObject[] = [
   {
@@ -19,5 +20,9 @@ export const routes: RouteObject[] = [
   {
     path: "/markdown",
     element: <MarkdownPage />,
+  },
+  {
+    path: "/login",
+    element: <LoginPage />,
   },
 ];

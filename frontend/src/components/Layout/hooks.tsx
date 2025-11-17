@@ -149,3 +149,11 @@ export function useSidebarStyles(
     };
   }, [isSmallScreen, collapsed]);
 }
+
+export function useHideSidebar() {
+  const location = useLocation();
+  return useMemo(
+    () => /^\/(login|register)/.test(location.pathname),
+    [location.pathname]
+  );
+}

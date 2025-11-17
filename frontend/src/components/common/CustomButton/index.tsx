@@ -42,7 +42,7 @@ const CustomButton = forwardRef<HTMLDivElement, CustomButtonProps>(
             bordered && styles.bordered,
             size && styles[size],
             active
-              ? "text-blue-500 bg-blue-50"
+              ? "text-primary bg-blue-50"
               : "border-gray-500 hover:bg-gray-100",
             styles.button,
             className

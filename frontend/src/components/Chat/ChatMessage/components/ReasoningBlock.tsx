@@ -103,7 +103,7 @@ const ReasoningBlock = ({
                       }
                     />
                   ) : (
-                    <ThinkModeIcon className="w-4 h-4 text-blue-500" />
+                    <ThinkModeIcon className="w-4 h-4 text-primary" />
                   )}
                   <Divider
                     type="vertical"

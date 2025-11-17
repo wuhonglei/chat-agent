@@ -10,6 +10,7 @@ import { useAppDispatch } from "@/store/hooks";
 import {
   useConversionInfo,
   useConversionsProps,
+  useHideSidebar,
   useSidebarStyles,
 } from "./hooks";
 import {
@@ -17,7 +18,7 @@ import {
   updateConversationInfo,
 } from "@/store/slices/conversationSlice";
 import { useMemoizedFn } from "ahooks";
-import { TitleCreatedBy, WebTitle } from "@/constants";
+import { TitleCreatedBy, WEB_TITLE } from "@/constants";
 import SimpleBar from "simplebar-react";
 import { Conversations, XProvider } from "@ant-design/x";
 import RenameModal from "./RenameModal";
@@ -49,7 +50,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   useWebTitle(conversationInfo); // 更新 document.title
   const dispatch = useAppDispatch();
   const sidebarStyles = useSidebarStyles(collapsed, DEFAULT_THRESHOLD);
-
+  const hideSidebar = useHideSidebar();
   const onDeleteConversation = useMemoizedFn(async (id: string) => {
     modal.confirm({
       centered: true,
@@ -119,6 +120,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           className={classNames(
             "flex flex-col border-r-1",
             styles["aside-container"],
+            hideSidebar && "hidden",
             !collapsed && "px-3"
           )}
           style={{
@@ -133,7 +135,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             <Link to="/chat" className="flex items-center gap-2 h-9">
               <img alt="logo" width={32} height={32} src="/logo.png" />
               <Title level={5} style={{ marginBottom: 0 }}>
-                {WebTitle}
+                {WEB_TITLE}
               </Title>
             </Link>
             <Button
@@ -174,24 +176,24 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               }
             />
           )}
+          {/* fixed 定位，不影响布局 */}
+          {collapsed && (
+            <div className="fixed left-2 md:left-12.5 top-2.5 h-10 flex items-center gap-1 rounded-full border border-gray-200 p-1 shadow">
+              <Button
+                type="text"
+                shape="circle"
+                onClick={handleCollapse}
+                icon={<CollapseIcon className="w-4 h-4" />}
+              />
+              <Button
+                type="text"
+                shape="circle"
+                onClick={handleNewConversion}
+                icon={<NewConversionIcon className="w-4 h-4" />}
+              />
+            </div>
+          )}
         </Sider>
-        {/* fixed 定位，不影响布局 */}
-        {collapsed && (
-          <div className="fixed left-2 md:left-12.5 top-2.5 h-10 flex items-center gap-1 rounded-full border border-gray-200 p-1 shadow">
-            <Button
-              type="text"
-              shape="circle"
-              onClick={handleCollapse}
-              icon={<CollapseIcon className="w-4 h-4" />}
-            />
-            <Button
-              type="text"
-              shape="circle"
-              onClick={handleNewConversion}
-              icon={<NewConversionIcon className="w-4 h-4" />}
-            />
-          </div>
-        )}
         <Content className="h-full bg-white">{children}</Content>
       </Layout>
     </XProvider>

@@ -4,4 +4,4 @@ export enum TitleCreatedBy {
   LLM = "llm",
 }
 
-export const WebTitle = "Ai Assistant";
+export const WEB_TITLE = import.meta.env.VITE_WEB_TITLE || "Ai Assistant";

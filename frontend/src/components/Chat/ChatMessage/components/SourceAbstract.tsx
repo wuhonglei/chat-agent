@@ -56,7 +56,7 @@ const SourceAbstract = ({ sources, mode, ...props }: Props) => {
   const children =
     mode === "preSource" ? (
       <>
-        <SearchIcon className="w-4 h-4 text-blue-500 mr-1" />
+        <SearchIcon className="w-4 h-4 text-primary mr-1" />
         已阅读 {sources?.length} 个网页
         {icons}
       </>

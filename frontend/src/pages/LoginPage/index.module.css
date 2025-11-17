@@ -1,0 +1,12 @@
+.loginTabs :global(.ant-tabs-tab) {
+  font-size: 16px;
+}
+
+.loginTabs :global(.ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn) {
+  color: #2356f6;
+  font-weight: 500;
+}
+
+.loginTabs :global(.ant-tabs-ink-bar) {
+  background: #2356f6;
+}
