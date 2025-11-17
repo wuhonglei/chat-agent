@@ -54,6 +54,10 @@ const ChatPage: React.FC = () => {
     }
   );
 
+  const handleAbortMessage = useMemoizedFn(() => {
+    abortMessage(conversationId);
+  });
+
   const handleCloseSource = useMemoizedFn(() => {
     setSourceData(undefined);
   });
@@ -85,8 +89,8 @@ const ChatPage: React.FC = () => {
           <ChatInput
             form={form}
             onSend={sendMessage}
-            onStop={abortMessage}
             isStreaming={isStreaming}
+            onStop={handleAbortMessage}
             className={styles["input-container"]}
           />
           <div className="mx-auto py-1.5 text-gray-300 text-xs">

@@ -69,7 +69,7 @@ export interface UseChatMessageOptions {
  * 用于控制 ChatPage 的渲染
  */
 export interface UseChatMessageReturn {
-  abortMessage: () => void;
+  abortMessage: (conversationId: string) => void;
   reSendMessage: (
     index: number,
     message: ChatMessage,
