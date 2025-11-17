@@ -62,10 +62,10 @@ export default function AutoScroll({
   }, [isStreaming, onWheel, containerRef]);
 
   useEffect(() => {
-    if (messagesEndRef.current && isStreaming && !userScrollUpRef.current) {
+    if (messagesEndRef.current && !userScrollUpRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages, isStreaming]);
+  }, [messages]);
 
   return <div ref={messagesEndRef} />;
 }
