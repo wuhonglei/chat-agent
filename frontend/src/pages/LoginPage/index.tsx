@@ -5,7 +5,6 @@ import styles from "./index.module.css";
 import VerifyCodeForm, {
   VerificationCodeFormValues,
 } from "./components/VerifyCodeForm";
-import PasswordForm, { PasswordFormValues } from "./components/PasswordForm";
 import { WEB_TITLE } from "@/constants";
 
 const { Title } = Typography;
@@ -28,28 +27,11 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  // 密码登录
-  const handlePasswordLogin = async (values: PasswordFormValues) => {
-    try {
-      // TODO: 调用登录接口
-      console.log("密码登录:", values);
-      message.success("登录成功");
-    } catch (error) {
-      console.error("登录失败:", error);
-      message.error("登录失败，请检查账号和密码");
-    }
-  };
-
   const tabItems: TabsProps["items"] = [
     {
       key: "verification",
       label: "验证码登录",
       children: <VerifyCodeForm onFinish={handleVerificationLogin} />,
-    },
-    {
-      key: "password",
-      label: "密码登录",
-      children: <PasswordForm onFinish={handlePasswordLogin} />,
     },
   ];
 
