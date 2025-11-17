@@ -2,7 +2,7 @@ import { ChatMessage as ChatMessageType } from "@/interfaces";
 import { useThrottle } from "ahooks";
 import React from "react";
 import ReasoningBlock from "./ReasoningBlock";
-import MarkdownContainer from "@/components/Chat/MarkdownContainer";
+import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
 import AssistantOperation from "./AssistantOperation";
 import ToolCallBlock from "./ToolCallBlock";
 import { Bubble } from "@ant-design/x";

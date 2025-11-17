@@ -1,4 +1,4 @@
-import ChatInput from "@/components/Chat/ChatInput";
+import ChatInput from "@/pages/ChatPage/components/ChatInput";
 import { ChatInputFormValues } from "@/interfaces";
 import { Form } from "antd";
 import { registerConversation } from "@/store/slices/conversationSlice";

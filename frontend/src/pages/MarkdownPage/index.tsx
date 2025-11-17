@@ -1,5 +1,5 @@
 import React from "react";
-import MarkdownContainer from "@/components/Chat/MarkdownContainer";
+import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
 import styles from "./index.module.css";
 import simplify from "./raw/simplify.md?raw";
 import reactMarkdown from "./raw/react-markdown.md?raw";

@@ -1,7 +1,7 @@
 import { Collapse, Divider } from "antd";
 import { useMemoizedFn, useThrottle } from "ahooks";
 import styles from "./css/ReasoningBlock.module.css";
-import MarkdownContainer from "@/components/Chat/MarkdownContainer";
+import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
 import ThinkModeIcon from "@/assets/svg/ThinkModeIcon.svg?react";
 import { SearchSource } from "@/interfaces";
 import SourceAbstract from "./SourceAbstract";

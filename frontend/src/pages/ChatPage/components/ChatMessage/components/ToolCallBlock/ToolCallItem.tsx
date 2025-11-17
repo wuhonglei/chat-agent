@@ -2,8 +2,8 @@ import React, { useMemo } from "react";
 import { TimelineMessage } from "@/interfaces";
 import { ToolCallStatus } from "@/constants";
 import { Tag } from "antd";
-import GrayContainer from "@/components/Chat/MarkdownContainer/components/GrayContainer";
-import NormalCode from "@/components/Chat/MarkdownContainer/components/NormalCode";
+import GrayContainer from "@/pages/ChatPage/components/MarkdownContainer/components/GrayContainer";
+import NormalCode from "@/pages/ChatPage/components/MarkdownContainer/components/NormalCode";
 import { isPlainObject } from "lodash-es";
 
 type Props = {
