@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from "react";
-import { Form, Input, Button, message, Select, Space } from "antd";
+import React, { useState } from "react";
+import { Form, Input, Button, Select, Space } from "antd";
 import { MobileOutlined, SafetyOutlined } from "@ant-design/icons";
 import { useCountDown } from "ahooks";
+import { validatePhone } from "../utils";
 
 export interface VerificationCodeFormValues {
   phone: string;
@@ -39,10 +40,7 @@ const VerifyCodeForm: React.FC<VerifyCodeFormProps> = ({ onFinish }) => {
     >
       <Form.Item
         name="phone"
-        rules={[
-          { required: true, message: "请输入手机号" },
-          { pattern: /^1[3-9]\d{9}$/, message: "请输入有效的手机号" },
-        ]}
+        rules={[{ validator: (_, value) => validatePhone(value) }]}
       >
         <Input
           prefix={<MobileOutlined style={{ color: "var(--color-gray-400)" }} />}
