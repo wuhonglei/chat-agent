@@ -66,6 +66,7 @@ dependencies = [
     "psycopg2-binary>=2.9.11",
     "sqlmodel>=0.0.27",
     "pytest>=8.4.2",
+    "PyJWT>=2.0.0",
 ]
 
 [project.optional-dependencies]
