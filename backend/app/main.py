@@ -10,6 +10,7 @@ from app.core.config import settings
 from app.core.db import create_db_and_tables
 from app.mcp.mcp_client import get_mcp_manager
 from app.models import UserDb, ConversationDb, MessageDb  # 导入模型以注册表到 metadata
+from app.jwt.jwt_manager import initialize_jwt_manager
 
 
 @asynccontextmanager
@@ -21,7 +22,11 @@ async def lifespan(app: FastAPI):
     # 如果权限不足，应用会继续运行但需要手动创建表
     create_db_and_tables()
 
+    # 初始化 MCP Manager
     app.state.mcp_manager = await get_mcp_manager()
+
+    # 初始化 JWT Manager（提前加载密钥文件，避免每次请求时重复读取）
+    app.state.jwt_manager = initialize_jwt_manager()
 
     logger.info("Application startup complete")
 

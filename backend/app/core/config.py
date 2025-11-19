@@ -99,8 +99,9 @@ class Settings(BaseSettings):
     LOG_RETENTION: str = "30 days"
 
     # Security
-    SECRET_KEY: str = "your-secret-key-here"
-    ALGORITHM: str = "HS256"
+    JWT_ALGORITHM: str = "RS256"
+    JWT_PRIVATE_KEY_PATH: str = "./private_keys/v1_private_key.pem"
+    JWT_PUBLIC_KEY_PATH: str = "./private_keys/v1_public_key.pem"
 
     # Cloudbase
     CLOUDBASE_ENV_ID: str = Field(...,

@@ -2,7 +2,7 @@
 用户认证
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from loguru import logger
 from sqlmodel import Session
 from app.core.db import get_db
@@ -12,7 +12,7 @@ from app.models.db import UserDb
 from app.models.response import ApiResponse
 from app.services.cloudbase_service import CloudbaseService
 from app.services.user_service import UserService
-from tests.cloudbase.verify_sms import phone_number
+from app.utils.auth_helper import create_server_tokens
 
 router = APIRouter()
 
@@ -25,7 +25,11 @@ async def send_sms(send_sms_request: SendSmsRequest) -> ApiResponse[SendSmsRespo
 
 
 @router.post("/verify_sms")
-async def verify_sms(verify_sms_request: VerifySmsRequestFromFrontend, db: Session = Depends(get_db)) -> ApiResponse[UserDb]:
+async def verify_sms(
+    verify_sms_request: VerifySmsRequestFromFrontend,
+    response: Response,
+    db: Session = Depends(get_db)
+) -> ApiResponse[UserDb]:
     """验证短信验证码"""
     data = await CloudbaseService.verify_sms(verify_sms_request)
     verification_token = data.verification_token
@@ -42,4 +46,8 @@ async def verify_sms(verify_sms_request: VerifySmsRequestFromFrontend, db: Sessi
         token_info = await CloudbaseService.signin(SigninRequest(verification_token=verification_token))
         user = user_service.update_user_last_login_from_cloudbase(
             token_info.sub)
+
+    # 设置自定义响应头
+    response.headers["x-secret-token-info"] = create_server_tokens(token_info)
+
     return ApiResponse.success(data=user)

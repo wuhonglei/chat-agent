@@ -48,8 +48,8 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response: AxiosResponse<{ data: any; code: number; msg: string }>) => {
     const { code, msg, data: responseData } = response.data;
-    // 如果响应头部中有 x-new-secret-token-info 则更新
-    const newSecretTokenInfo = response.headers["x-new-secret-token-info"];
+    // 如果响应头部中有 x-secret-token-info 则更新
+    const newSecretTokenInfo = response.headers["x-secret-token-info"];
     if (newSecretTokenInfo) {
       authHeader.setAuthorizationHeader(newSecretTokenInfo);
     }
