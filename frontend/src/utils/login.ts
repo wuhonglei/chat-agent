@@ -1,21 +1,15 @@
-export function isLoginPage(): boolean {
-  return location.pathname.includes("/login");
-}
+import { isInLoginPage, toLoginPage } from "./location";
 
 export function isUnAuthorized(status: number): boolean {
   return status === 401;
 }
 
-export function redirectToLogin(redirect?: string): void {
-  if (isLoginPage()) {
+export function redirectToLogin(redirectUrl?: string): void {
+  if (isInLoginPage()) {
     console.info("already in login page");
     return;
   }
 
-  if (redirect) {
-    location.replace("/login?redirect=" + redirect);
-  } else {
-    location.replace("/login");
-  }
+  toLoginPage(redirectUrl);
   return;
 }

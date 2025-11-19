@@ -15,7 +15,11 @@ const userSlice = createSlice({
   initialState: {
     userDetail: null as UserInfo | null,
   },
-  reducers: {},
+  reducers: {
+    clearUserDetail: state => {
+      state.userDetail = null;
+    },
+  },
   extraReducers: builder => {
     builder.addCase(getUserDetail.fulfilled, (state, action) => {
       state.userDetail = action.payload;
@@ -23,4 +27,5 @@ const userSlice = createSlice({
   },
 });
 
+export const { clearUserDetail } = userSlice.actions;
 export default userSlice.reducer;

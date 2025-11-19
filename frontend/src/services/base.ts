@@ -4,7 +4,15 @@ import { isPlainObject } from "lodash-es";
 import snakecaseKeys from "snakecase-keys";
 import camelcaseKeys from "camelcase-keys";
 import { getMessageInstance } from "../utils/message";
-import { isUnAuthorized, redirectToLogin } from "@/utils";
+import {
+  isConversationNotFound,
+  isInLoginPage,
+  isUnAuthorized,
+  isUserDetailApi,
+  jumpToLocation,
+  redirectToLogin,
+  toChatPage,
+} from "@/utils";
 
 // Create axios instance
 const apiClient = axios.create({
@@ -42,11 +50,16 @@ apiClient.interceptors.response.use(
       const message = getMessageInstance();
       message.error(msg);
       // 当前 conversation 不存在
-      if (code === 404) {
-        location.replace("/chat");
+      if (isConversationNotFound(code, response.config.url)) {
+        toChatPage(undefined);
       }
 
       return Promise.reject(response.data);
+    } else if (isInLoginPage() && isUserDetailApi(response.config.url)) {
+      // 如果当前在 login 页面，且用户已经登录成功，则跳转至 chat 页面
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirectUrl = urlParams.get("redirect_url");
+      jumpToLocation(redirectUrl || "/chat", true);
     }
 
     let data = responseData;
@@ -58,6 +71,7 @@ apiClient.interceptors.response.use(
   },
   error => {
     if (error.response) {
+      // 如果响应状态码为 401，则跳转至登录页面
       if (isUnAuthorized(error.response.status)) {
         redirectToLogin(location.pathname);
         return Promise.reject(error);
