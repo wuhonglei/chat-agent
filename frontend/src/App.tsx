@@ -21,8 +21,8 @@ const App: React.FC = () => {
   useEffect(() => {
     const init = async () => {
       try {
-        await dispatch(getUserDetail()).unwrap();
         dispatch(getMCPConfig());
+        await dispatch(getUserDetail()).unwrap();
         dispatch(loadConversations());
       } catch (error) {
         console.error("初始化失败", error);
