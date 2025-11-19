@@ -37,12 +37,8 @@ export function getWebIconUrl(url: string | undefined, size: number = 32) {
 
 export function getSortedIconUrl(
   url: string | undefined,
-  favicon: string | undefined,
-  googleFavIconsAvailable: boolean
+  favicon: string | undefined
 ) {
-  if (googleFavIconsAvailable) {
-    return getWebIconUrl(url) || favicon;
-  }
   return favicon || getWebIconUrl(url);
 }
 

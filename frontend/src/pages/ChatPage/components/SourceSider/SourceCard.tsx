@@ -10,7 +10,6 @@ import {
 import RoundTag from "@/components/common/RoundTag";
 import classNames from "classnames";
 import dayjs from "dayjs";
-import { useAppSelector } from "@/store/hooks";
 
 const { Title, Paragraph } = Typography;
 
@@ -27,8 +26,6 @@ const SourceCard: React.FC<SourceCardProps> = ({
   className,
   hoverable = true,
 }) => {
-  const { googleFavIconsAvailable } = useAppSelector(state => state.global);
-
   if (!source) return null;
 
   return (
@@ -47,11 +44,7 @@ const SourceCard: React.FC<SourceCardProps> = ({
         <div className="flex items-center gap-2">
           <Avatar
             size={18}
-            src={getSortedIconUrl(
-              source.url,
-              source.favicon,
-              googleFavIconsAvailable
-            )}
+            src={getSortedIconUrl(source.url, source.favicon)}
           />
           {isFromWebSearch(source.source) && (
             <span title={source.url}>{getWebMainDomain(source.url, true)}</span>

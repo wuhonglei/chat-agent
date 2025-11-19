@@ -43,8 +43,8 @@ const defaultFormValue: ChatInputConfig = {
 // 创建 memoized selector 来避免不必要的重新渲染
 const selectMCPConfig = createSelector(
   [
-    (state: RootState) => state.global.mcpConfig,
-    (state: RootState) => state.global.mcpConfigLoaded,
+    (state: RootState) => state.mcp.mcpConfig,
+    (state: RootState) => state.mcp.mcpConfigLoaded,
   ],
   (mcpConfig, mcpConfigLoaded) => ({ mcpConfig, mcpConfigLoaded })
 );
