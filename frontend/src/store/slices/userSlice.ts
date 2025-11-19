@@ -1,11 +1,11 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import { UserAPI } from "@/services";
+import { userAPI } from "@/services";
 import { UserInfo } from "@/interfaces";
 
 export const getUserDetail = createAsyncThunk(
   "user/getUserDetail",
   async () => {
-    const userDetail = await UserAPI.getUserDetail();
+    const userDetail = await userAPI.getUserDetail();
     return userDetail;
   }
 );
@@ -19,6 +19,9 @@ const userSlice = createSlice({
     clearUserDetail: state => {
       state.userDetail = null;
     },
+    setUserInfo: (state, action) => {
+      state.userDetail = action.payload;
+    },
   },
   extraReducers: builder => {
     builder.addCase(getUserDetail.fulfilled, (state, action) => {
@@ -27,5 +30,5 @@ const userSlice = createSlice({
   },
 });
 
-export const { clearUserDetail } = userSlice.actions;
+export const { clearUserDetail, setUserInfo } = userSlice.actions;
 export default userSlice.reducer;

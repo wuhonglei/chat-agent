@@ -3,32 +3,67 @@ import { Form, Input, Button, Select, Space } from "antd";
 import { MobileOutlined, SafetyOutlined } from "@ant-design/icons";
 import { useCountDown } from "ahooks";
 import { validatePhone } from "../utils";
+import { useRequest } from "ahooks";
+import { userAPI } from "@/services/user";
+import { App } from "antd";
+import { SendSmsResponse } from "@/interfaces";
+import { useNavigate } from "react-router-dom";
+import { getRedirectUrl } from "@/utils";
+import { useAppDispatch } from "@/store/hooks";
+import { setUserInfo } from "@/store/slices/userSlice";
 
 export interface VerificationCodeFormValues {
-  phone: string;
-  code: string;
+  phoneNumber: string;
+  verificationCode: string;
 }
 
 interface VerifyCodeFormProps {
   onFinish?: (values: VerificationCodeFormValues) => void | Promise<void>;
 }
 
-const VerifyCodeForm: React.FC<VerifyCodeFormProps> = ({ onFinish }) => {
+const VerifyCodeForm: React.FC<VerifyCodeFormProps> = () => {
   const [form] = Form.useForm<VerificationCodeFormValues>();
   const [targetDate, setTargetDate] = useState<number>();
   const [countdown] = useCountDown({ targetDate });
+  const { message } = App.useApp();
+  const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+
+  const {
+    run: sendSmsCode,
+    loading: sendSmsCodeLoading,
+    data: smsResponse,
+  } = useRequest(userAPI.sendVerificationCode, {
+    manual: true,
+    onSuccess: () => {
+      message.success("发送验证码成功");
+      setTargetDate(Date.now() + 60 * 1000); // 60秒后重新获取验证码
+    },
+  });
+
+  const { run: verifySmsCode, loading: verifySmsCodeLoading } = useRequest(
+    userAPI.verifyVerificationCode,
+    {
+      manual: true,
+      onSuccess: userInfo => {
+        message.success("登录成功");
+        dispatch(setUserInfo(userInfo));
+        navigate(getRedirectUrl() || "/chat", { replace: true });
+      },
+    }
+  );
 
   const handleSendCode = async () => {
-    try {
-      const values = await form.validateFields(["phone"]);
-      setTargetDate(Date.now() + 60 * 1000); // 60秒后重新获取验证码
-    } catch (error) {
-      console.error("发送验证码失败:", error);
-    }
+    const values = await form.validateFields(["phoneNumber"]);
+    const phoneNumberWithCountryCode = `+86 ${values.phoneNumber}`;
+    sendSmsCode(phoneNumberWithCountryCode);
   };
 
   const handleSubmit = async (values: VerificationCodeFormValues) => {
-    await onFinish?.(values);
+    verifySmsCode({
+      ...(smsResponse as SendSmsResponse),
+      verificationCode: values.verificationCode,
+    });
   };
 
   return (
@@ -39,7 +74,7 @@ const VerifyCodeForm: React.FC<VerifyCodeFormProps> = ({ onFinish }) => {
       onFinish={handleSubmit}
     >
       <Form.Item
-        name="phone"
+        name="phoneNumber"
         rules={[{ validator: (_, value) => validatePhone(value) }]}
       >
         <Input
@@ -55,7 +90,7 @@ const VerifyCodeForm: React.FC<VerifyCodeFormProps> = ({ onFinish }) => {
       </Form.Item>
 
       <Form.Item
-        name="code"
+        name="verificationCode"
         rules={[{ required: true, message: "请输入验证码" }]}
       >
         <Space.Compact className="w-full">
@@ -72,6 +107,7 @@ const VerifyCodeForm: React.FC<VerifyCodeFormProps> = ({ onFinish }) => {
             disabled={countdown > 0}
             onClick={handleSendCode}
             className="min-w-[120px]"
+            loading={sendSmsCodeLoading}
           >
             {countdown > 0 ? `${Math.floor(countdown / 1000)}秒` : "发送验证码"}
           </Button>
@@ -80,10 +116,11 @@ const VerifyCodeForm: React.FC<VerifyCodeFormProps> = ({ onFinish }) => {
 
       <Form.Item>
         <Button
+          block
+          size="large"
           type="primary"
           htmlType="submit"
-          size="large"
-          block
+          loading={verifySmsCodeLoading}
           className="h-12 text-base font-medium"
         >
           登录

@@ -1,37 +1,20 @@
 import React, { useState } from "react";
-import { Tabs, Typography, App } from "antd";
+import { Tabs, Typography } from "antd";
 import type { TabsProps } from "antd";
 import styles from "./index.module.css";
-import VerifyCodeForm, {
-  VerificationCodeFormValues,
-} from "./components/VerifyCodeForm";
+import VerifyCodeForm from "./components/VerifyCodeForm";
 import { WEB_TITLE } from "@/constants";
 
 const { Title } = Typography;
 
 const LoginPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("verification");
-  const { message } = App.useApp();
-
-  // 验证码登录
-  const handleVerificationLogin = async (
-    values: VerificationCodeFormValues
-  ) => {
-    try {
-      // TODO: 调用登录接口
-      console.log("验证码登录:", values);
-      message.success("登录成功");
-    } catch (error) {
-      console.error("登录失败:", error);
-      message.error("登录失败，请检查验证码");
-    }
-  };
 
   const tabItems: TabsProps["items"] = [
     {
       key: "verification",
       label: "验证码登录",
-      children: <VerifyCodeForm onFinish={handleVerificationLogin} />,
+      children: <VerifyCodeForm />,
     },
   ];
 

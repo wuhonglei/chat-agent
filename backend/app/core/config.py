@@ -107,9 +107,6 @@ class Settings(BaseSettings):
     CLOUDBASE_ENV_ID: str = Field(...,
                                   description="The environment ID of the Cloudbase")
 
-    # 根据 CLOUDBASE_ENV_ID 构造 CLOUDBASE_ENV_ID
-    CLOUDBASE_BASE_URL: str = f"https://{CLOUDBASE_ENV_ID}.api.tcloudbasegateway.com"
-
     # PostgreSQL
     PG_HOST: str = "localhost"
     PG_PORT: int = 5432

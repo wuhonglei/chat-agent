@@ -5,6 +5,7 @@ import snakecaseKeys from "snakecase-keys";
 import camelcaseKeys from "camelcase-keys";
 import { getMessageInstance } from "../utils/message";
 import {
+  getRedirectUrl,
   isConversationNotFound,
   isInLoginPage,
   isUnAuthorized,
@@ -65,9 +66,8 @@ apiClient.interceptors.response.use(
       return Promise.reject(response.data);
     } else if (isInLoginPage() && isUserDetailApi(response.config.url)) {
       // 如果当前在 login 页面，且用户已经登录成功，则跳转至 chat 页面
-      const urlParams = new URLSearchParams(window.location.search);
-      const redirectUrl = urlParams.get("redirect_url");
-      jumpToLocation(redirectUrl || "/chat", true);
+      const redirectUrl = getRedirectUrl() || "/chat";
+      jumpToLocation(redirectUrl, true);
     }
 
     let data = responseData;

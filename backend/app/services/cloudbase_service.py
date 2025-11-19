@@ -13,7 +13,7 @@ from app.models.auth import SendSmsRequest, SendSmsResponse, SigninRequest, Sign
 
 class CloudbaseService:
     """Cloudbase 服务类"""
-    BASE_URL = settings.CLOUDBASE_BASE_URL
+    BASE_URL = f"https://{settings.CLOUDBASE_ENV_ID}.api.tcloudbasegateway.com"
 
     @staticmethod
     async def send_sms(send_sms_request: SendSmsRequest) -> SendSmsResponse:

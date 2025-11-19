@@ -28,3 +28,8 @@ export function toChatPage(conversationId?: string): void {
   }
   return;
 }
+
+export function getRedirectUrl(): string {
+  const urlParams = new URLSearchParams(window.location.search);
+  return urlParams.get("redirect_url") || "";
+}
