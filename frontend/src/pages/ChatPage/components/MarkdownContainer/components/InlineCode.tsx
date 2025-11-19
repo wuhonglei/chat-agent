@@ -11,7 +11,7 @@ const InlineCode = ({ className, children, style }: Props) => {
   return (
     <code
       className={classNames(
-        "bg-gray-100 px-1 py-0.5 text-sm rounded",
+        "bg-gray-100 px-1 py-0.5 text-sm rounded whitespace-pre-wrap",
         className
       )}
       style={style}
