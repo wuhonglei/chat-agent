@@ -9,7 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select, delete
 
 from app.models.chat import ChatMessageItemReq, MessageStatus
-from app.models.db import Conversation, Message, User
+from app.models.db import ConversationDb, MessageDb, UserDb
 from app.utils.common import get_datetime_now
 from app.core.db import engine
 
@@ -29,13 +29,13 @@ class UserService:
             self.db.close()
             self.db = None
 
-    def get_user(self, user_id: str) -> User:
-        user = self.db.get(User, user_id)
+    def get_user(self, user_id: str) -> UserDb:
+        user = self.db.get(UserDb, user_id)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         return user
 
-    def create_user(self, user: User) -> User:
+    def create_user(self, user: UserDb) -> UserDb:
         self.db.add(user)
         self.db.commit()
         self.db.refresh(user)

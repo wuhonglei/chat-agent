@@ -9,7 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select, delete
 
 from app.models.chat import ChatMessageItemReq, MessageStatus
-from app.models.db import Conversation, Message
+from app.models.db import ConversationDb, MessageDb
 from app.utils.common import get_datetime_now
 from app.core.db import engine
 
@@ -29,8 +29,8 @@ class MessageService:
             self.db.close()
             self.db = None
 
-    def get_conversation(self, conversation_id: str) -> Conversation:
-        conversation = self.db.get(Conversation, conversation_id)
+    def get_conversation(self, conversation_id: str) -> ConversationDb:
+        conversation = self.db.get(ConversationDb, conversation_id)
         if not conversation:
             raise HTTPException(status_code=404, detail="对话不存在")
         return conversation
@@ -38,7 +38,7 @@ class MessageService:
     def remove_messages(self, message_ids: list[str]) -> None:
         if not message_ids:
             return True
-        self.db.exec(delete(Message).where(Message.id.in_(message_ids)))
+        self.db.exec(delete(MessageDb).where(MessageDb.id.in_(message_ids)))
         self.db.commit()
         return True
 
@@ -46,8 +46,8 @@ class MessageService:
         if not message_ids:
             return []
 
-        messages = self.db.exec(select(Message.role, Message.content).where(
-            Message.id.in_(message_ids))).all()
+        messages = self.db.exec(select(MessageDb.role, MessageDb.content).where(
+            MessageDb.id.in_(message_ids))).all()
         if not messages:
             logger.error(f"消息不存在: {message_ids}")
             return []
@@ -56,7 +56,7 @@ class MessageService:
 
     def _touch_conversation(
         self,
-        conversation: Conversation,
+        conversation: ConversationDb,
         last_message_created_at: datetime,
         last_message_updated_at: datetime,
     ) -> None:
@@ -66,9 +66,9 @@ class MessageService:
 
     def _persist_message(
         self,
-        message: Message,
-        conversation: Conversation,
-    ) -> Message:
+        message: MessageDb,
+        conversation: ConversationDb,
+    ) -> MessageDb:
         try:
             self._touch_conversation(
                 conversation, message.created_at, message.updated_at)
@@ -88,12 +88,12 @@ class MessageService:
 
     def create_user_message(
         self,
-        conversation: Conversation,
+        conversation: ConversationDb,
         message_id: str,
         content: str,
         metadata: Optional[dict[str, Any]] = None,
-    ) -> Message:
-        message = Message(
+    ) -> MessageDb:
+        message = MessageDb(
             id=message_id,
             role="user",
             content=content,
@@ -105,12 +105,12 @@ class MessageService:
 
     def create_assistant_message(
         self,
-        conversation: Conversation,
+        conversation: ConversationDb,
         message_id: str,
         reply_to: str,
         metadata: Optional[dict[str, Any]] = None,
-    ) -> Message:
-        message = Message(
+    ) -> MessageDb:
+        message = MessageDb(
             id=message_id,
             role="assistant",
             content="",
@@ -125,15 +125,15 @@ class MessageService:
 
     def update_assistant_message(
         self,
-        conversation: Conversation,
-        assistant_message: Message,
+        conversation: ConversationDb,
+        assistant_message: MessageDb,
         *,
         content: Optional[str],
         reasoning: Optional[str],
         tool_calls: Optional[list[dict]],
         status: MessageStatus,
         extra_metadata: Optional[dict[str, Any]] = None,
-    ) -> Message:
+    ) -> MessageDb:
         assistant_message.status = status
         assistant_message.updated_at = get_datetime_now()
         if content:

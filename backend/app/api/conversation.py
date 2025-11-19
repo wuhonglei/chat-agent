@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from app.models.chat import ChatMessageItem
 from app.models.conversation import ConversationInfo, RegisterConversationRequest, UpdateConversationRequest, CreatedBy
 from app.models.response import ApiResponse
-from app.models.db import Conversation, Message
+from app.models.db import ConversationDb, MessageDb
 from app.core.db import get_db
 from sqlmodel import Session, select
 from loguru import logger
@@ -13,7 +13,7 @@ from app.utils.common import get_datetime_now
 router = APIRouter()
 
 
-def conversation_to_dict(conversation: Conversation) -> dict:
+def conversation_to_dict(conversation: ConversationDb) -> dict:
     """Convert SQLModel Conversation instance to dict for ConversationInfo
 
     使用 mode="json" 自动将日期时间字段转换为 ISO 格式字符串
@@ -27,7 +27,7 @@ def conversation_to_dict(conversation: Conversation) -> dict:
 async def register_conversation(request: RegisterConversationRequest, db: Session = Depends(get_db)) -> ApiResponse[ConversationInfo]:
     """Register a new conversation"""
     try:
-        conversation = Conversation(
+        conversation = ConversationDb(
             title=request.title, created_by=CreatedBy.DEFAULT)
         db.add(conversation)
         db.commit()
@@ -45,8 +45,8 @@ async def register_conversation(request: RegisterConversationRequest, db: Sessio
 async def get_conversations(db: Session = Depends(get_db)):
     """Get all conversations"""
     try:
-        conversations = db.exec(select(Conversation).order_by(
-            Conversation.last_message_created_at.desc())).all()
+        conversations = db.exec(select(ConversationDb).order_by(
+            ConversationDb.last_message_created_at.desc())).all()
         logger.debug(f"Found {len(conversations)} conversations")
         conversation_list = [ConversationInfo.model_validate(
             conversation_to_dict(conv)) for conv in conversations]
@@ -66,13 +66,13 @@ async def get_conversations(db: Session = Depends(get_db)):
 async def get_messages(conversation_id: str, db: Session = Depends(get_db)):
     """Get messages by conversation ID"""
     try:
-        conversation = db.get(Conversation, conversation_id)
+        conversation = db.get(ConversationDb, conversation_id)
         if not conversation:
             logger.error(f"Conversation {conversation_id} not found")
             return ApiResponse.error(code=404, msg="对话不存在", data=None)
 
-        messages = db.exec(select(Message).where(
-            Message.conversation_id == conversation_id).order_by(Message.created_at.asc())).all()
+        messages = db.exec(select(MessageDb).where(
+            MessageDb.conversation_id == conversation_id).order_by(MessageDb.created_at.asc())).all()
         chat_messages = [ChatMessageItem.model_validate(
             message.model_dump(mode="json")) for message in messages]
         data = {
@@ -91,7 +91,7 @@ async def get_messages(conversation_id: str, db: Session = Depends(get_db)):
 async def get_conversation(conversation_id: str, db: Session = Depends(get_db)) -> ApiResponse[ConversationInfo]:
     """Get a conversation by ID"""
     try:
-        conversation = db.get(Conversation, conversation_id)
+        conversation = db.get(ConversationDb, conversation_id)
         if not conversation:
             logger.error(f"Conversation {conversation_id} not found")
             return ApiResponse.error(code=404, msg="对话不存在", data=None)
@@ -108,7 +108,7 @@ async def get_conversation(conversation_id: str, db: Session = Depends(get_db)) 
 async def update_conversation(conversation_id: str, request: UpdateConversationRequest, db: Session = Depends(get_db)) -> ApiResponse[ConversationInfo]:
     """Update a conversation by ID"""
     try:
-        conversation = db.get(Conversation, conversation_id)
+        conversation = db.get(ConversationDb, conversation_id)
         if not conversation:
             logger.error(f"Conversation {conversation_id} not found")
             return ApiResponse.error(code=404, msg="对话不存在", data=None)
@@ -127,7 +127,7 @@ async def update_conversation(conversation_id: str, request: UpdateConversationR
 async def delete_conversation(conversation_id: str, db: Session = Depends(get_db)) -> ApiResponse[str]:
     """Delete a conversation by ID"""
     try:
-        conversation = db.get(Conversation, conversation_id)
+        conversation = db.get(ConversationDb, conversation_id)
         if not conversation:
             logger.error(f"Conversation {conversation_id} not found")
             return ApiResponse.error(code=404, msg="对话不存在", data=None)

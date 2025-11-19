@@ -9,7 +9,7 @@ from app.api import chat, health, conversation, message, user
 from app.core.config import settings
 from app.core.db import create_db_and_tables
 from app.mcp.mcp_client import get_mcp_manager
-from app.models import User, Conversation, Message  # 导入模型以注册表到 metadata
+from app.models import UserDb, ConversationDb, MessageDb  # 导入模型以注册表到 metadata
 
 
 @asynccontextmanager

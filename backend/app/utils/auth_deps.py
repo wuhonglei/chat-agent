@@ -3,13 +3,10 @@
 用于 FastAPI 的依赖注入，自动处理 token 验证和刷新
 """
 
-import os
-import httpx
 from fastapi import HTTPException, Request, Response
 from typing import Optional, Dict, Any
 from app.utils.jwt_auth import JWTAuth
 from app.utils.auth_helper import create_server_tokens
-from app.core.config import settings
 from loguru import logger
 
 
@@ -140,51 +137,8 @@ async def _refresh_cloudbase_token(
     Raises:
         HTTPException: 当刷新失败时
     """
-    # 从配置或环境变量中获取 env_id
-    env_id = getattr(settings, "CLOUDBASE_ENV_ID",
-                     None) or os.environ.get("env_id")
-    if not env_id:
-        raise HTTPException(
-            status_code=500,
-            detail="Cloudbase 环境 ID 未配置，请设置 CLOUDBASE_ENV_ID 或 env_id 环境变量"
-        )
-
-    url = f"https://{env_id}.api.tcloudbasegateway.com/auth/v1/token"
-
-    payload = {
-        "grant_type": "refresh_token",
-        "refresh_token": cloudbase_refresh_token,
-    }
-
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.post(
-                url,
-                json=payload,
-                headers={
-                    "Content-Type": "application/json",
-                    "Accept": "application/json"
-                },
-                timeout=10.0
-            )
-
-            if response.status_code == 200:
-                return response.json()
-            else:
-                logger.error(
-                    f"Cloudbase token 刷新失败: {response.status_code}, "
-                    f"{response.text}"
-                )
-                raise HTTPException(
-                    status_code=401,
-                    detail="Token 刷新失败，请重新登录"
-                )
-        except httpx.RequestError as e:
-            logger.error(f"Cloudbase token 刷新请求失败: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail="认证服务暂时不可用"
-            )
+    from app.services.cloudbase_service import CloudbaseService
+    return await CloudbaseService.refresh_token(cloudbase_refresh_token)
 
 
 async def get_current_user(request: Request) -> Dict[str, Any]:

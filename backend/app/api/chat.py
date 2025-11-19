@@ -14,7 +14,7 @@ from app.models.response import ApiResponse
 from app.services.chat_service import ChatService
 from app.models.app_state import AppState
 from app.services.message_service import MessageService
-from app.models.db import Message
+from app.models.db import MessageDb
 from app.utils.common import gen_uuid
 
 router = APIRouter()
@@ -63,9 +63,9 @@ async def chat_stream(
     async def generate() -> AsyncGenerator[str, None]:
         with MessageService() as message_service:
             conversation = message_service.get_conversation(conversation_id)
-            user_message = message_service.db.get(Message, user_message_id)
+            user_message = message_service.db.get(MessageDb, user_message_id)
             assistant_message = message_service.db.get(
-                Message, assistant_message_id)
+                MessageDb, assistant_message_id)
 
             # 立即返回 ack，提示前端消息已入库
             yield chat_service.format_sse_message('ack', user_message)

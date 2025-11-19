@@ -9,7 +9,7 @@ from app.utils.common import get_datetime_now, gen_uuid
 from app.models.conversation import CreatedBy
 
 
-class User(SQLModel, table=True):
+class UserDb(SQLModel, table=True):
     """用户模型"""
     __tablename__ = "users"
 
@@ -19,6 +19,14 @@ class User(SQLModel, table=True):
     email: Optional[str] = Field(unique=True, index=True)
     avatar: Optional[str] = None
     phone: Optional[str] = Field(unique=True, index=True)
+    sub: Optional[str] = Field(
+        unique=True, index=True, description="User ID in the cloudbase")
+    last_login_at: Optional[datetime] = Field(
+        sa_type=DateTime(timezone=True))
+    last_logout_at: Optional[datetime] = Field(
+        sa_type=DateTime(timezone=True))
+    last_login_type: Optional[str] = Field(
+        default="sms", description="Last login type")
     role: str = Field(default="user")
     status: str = Field(default="active")
     created_at: datetime = Field(
@@ -31,7 +39,7 @@ class User(SQLModel, table=True):
     )
 
 
-class Conversation(SQLModel, table=True):
+class ConversationDb(SQLModel, table=True):
     """对话模型"""
     __tablename__ = "conversations"
 
@@ -67,7 +75,7 @@ class Conversation(SQLModel, table=True):
     is_active: bool = Field(default=True)
 
 
-class Message(SQLModel, table=True):
+class MessageDb(SQLModel, table=True):
     """消息模型"""
     __tablename__ = "messages"
 

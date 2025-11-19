@@ -6,7 +6,7 @@ from sqlmodel import Session
 from fastapi import Depends
 from app.core.db import get_db
 from app.models.response import ApiResponse
-from app.models.db import Message
+from app.models.db import MessageDb
 
 router = APIRouter()
 
@@ -15,7 +15,7 @@ router = APIRouter()
 async def delete_message(message_id: str, db: Session = Depends(get_db)):
     """Delete a message by ID"""
     try:
-        message = db.get(Message, message_id)
+        message = db.get(MessageDb, message_id)
         if not message:
             return ApiResponse.error(code=404, msg="消息不存在", data=None)
         db.delete(message)
