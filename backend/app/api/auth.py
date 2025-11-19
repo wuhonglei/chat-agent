@@ -12,7 +12,7 @@ from app.models.db import UserDb
 from app.models.response import ApiResponse
 from app.services.cloudbase_service import CloudbaseService
 from app.services.user_service import UserService
-from app.utils.auth_helper import create_server_tokens
+from app.jwt.jwt_manager import JWTManager, get_jwt_manager
 
 router = APIRouter()
 
@@ -28,7 +28,8 @@ async def send_sms(send_sms_request: SendSmsRequest) -> ApiResponse[SendSmsRespo
 async def verify_sms(
     verify_sms_request: VerifySmsRequestFromFrontend,
     response: Response,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    jwt_manager: JWTManager = Depends(get_jwt_manager)
 ) -> ApiResponse[UserDb]:
     """验证短信验证码"""
     data = await CloudbaseService.verify_sms(verify_sms_request)
@@ -48,6 +49,7 @@ async def verify_sms(
             token_info.sub)
 
     # 设置自定义响应头
-    response.headers["x-secret-token-info"] = create_server_tokens(token_info)
+    response.headers["x-secret-token-info"] = jwt_manager.create_token(
+        token_info)
 
     return ApiResponse.success(data=user)
