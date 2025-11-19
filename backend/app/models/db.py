@@ -15,10 +15,10 @@ class User(SQLModel, table=True):
 
     id: str = Field(default_factory=gen_uuid, primary_key=True,
                     index=True, max_length=36)
-    name: str
-    email: str = Field(unique=True, index=True)
+    name: str = Field(..., description="User name")
+    email: Optional[str] = Field(unique=True, index=True)
     avatar: Optional[str] = None
-    phone: Optional[str] = None
+    phone: Optional[str] = Field(unique=True, index=True)
     role: str = Field(default="user")
     status: str = Field(default="active")
     created_at: datetime = Field(

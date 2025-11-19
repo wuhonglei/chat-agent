@@ -13,6 +13,7 @@ import {
   redirectToLogin,
   toChatPage,
 } from "@/utils";
+import { authHeader } from "@/constants";
 
 // Create axios instance
 const apiClient = axios.create({
@@ -35,6 +36,7 @@ apiClient.interceptors.request.use(
       config.params = snakecaseKeys(config.params, { deep: true });
     }
     // Add token or other auth headers here if needed
+    config.headers.Authorization = authHeader.getAuthorizationHeader();
     return config;
   },
   error => {
@@ -46,6 +48,12 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response: AxiosResponse<{ data: any; code: number; msg: string }>) => {
     const { code, msg, data: responseData } = response.data;
+    // 如果响应头部中有 x-new-secret-token-info 则更新
+    const newSecretTokenInfo = response.headers["x-new-secret-token-info"];
+    if (newSecretTokenInfo) {
+      authHeader.setAuthorizationHeader(newSecretTokenInfo);
+    }
+
     if (code !== 0) {
       const message = getMessageInstance();
       message.error(msg);
@@ -73,6 +81,7 @@ apiClient.interceptors.response.use(
     if (error.response) {
       // 如果响应状态码为 401，则跳转至登录页面
       if (isUnAuthorized(error.response.status)) {
+        authHeader.removeAuthorizationHeader();
         redirectToLogin(location.pathname);
         return Promise.reject(error);
       }
