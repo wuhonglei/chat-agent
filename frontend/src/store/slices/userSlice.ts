@@ -1,4 +1,4 @@
-import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { UserAPI } from "@/services";
 import { UserInfo } from "@/interfaces";
 
@@ -22,3 +22,5 @@ const userSlice = createSlice({
     });
   },
 });
+
+export default userSlice.reducer;

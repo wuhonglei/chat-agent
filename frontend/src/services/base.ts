@@ -4,6 +4,7 @@ import { isPlainObject } from "lodash-es";
 import snakecaseKeys from "snakecase-keys";
 import camelcaseKeys from "camelcase-keys";
 import { getMessageInstance } from "../utils/message";
+import { isUnAuthorized, redirectToLogin } from "@/utils";
 
 // Create axios instance
 const apiClient = axios.create({
@@ -57,6 +58,11 @@ apiClient.interceptors.response.use(
   },
   error => {
     if (error.response) {
+      if (isUnAuthorized(error.response.status)) {
+        redirectToLogin(location.pathname);
+        return Promise.reject(error);
+      }
+
       // Convert error response to camelCase
       if (isPlainObject(error.response.data)) {
         error.response.data = camelcaseKeys(error.response.data, {

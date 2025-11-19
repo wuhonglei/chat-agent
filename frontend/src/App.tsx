@@ -7,6 +7,7 @@ import { useAppDispatch } from "./store/hooks";
 import { getMCPConfig } from "./store/slices/mcpSlice";
 import { setMessageInstance } from "./utils/message";
 import { loadConversations } from "./store/slices/conversationSlice";
+import { getUserDetail } from "./store/slices/userSlice";
 
 const App: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -18,9 +19,16 @@ const App: React.FC = () => {
   }, [message]);
 
   useEffect(() => {
-    // 在应用初始化时检查 Google Favicons API 可用性
-    dispatch(getMCPConfig());
-    dispatch(loadConversations());
+    const init = async () => {
+      try {
+        await dispatch(getUserDetail()).unwrap();
+        dispatch(getMCPConfig());
+        dispatch(loadConversations());
+      } catch (error) {
+        console.error("初始化失败", error);
+      }
+    };
+    init();
   }, [dispatch]);
 
   return (

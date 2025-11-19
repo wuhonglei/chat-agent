@@ -4,12 +4,14 @@ import mcpReducer from "./slices/mcpSlice";
 import conversationReducer from "./slices/conversationSlice";
 import { dbMiddleware } from "./middleware/dbMiddleware";
 import { updateLastMessageTimeMiddleware } from "./middleware/updateLastMessageTimeMiddleware";
+import userReducer from "./slices/userSlice";
 
 export const store = configureStore({
   reducer: {
     chat: chatReducer,
     mcp: mcpReducer,
     conversation: conversationReducer,
+    user: userReducer,
   },
   middleware: getDefaultMiddleware =>
     getDefaultMiddleware({
