@@ -23,7 +23,7 @@ def parse_jwt(jwt_token: str) -> dict:
 
 
 def main():
-    json_path = Path(__file__).parent / 'data' / 'send_sms.json'
+    json_path = Path(__file__).parent / 'data' / 'new_send_sms.json'
     jwt_token = get_jwt_token(json_path)
     decoded_payload = parse_jwt(jwt_token)
     print("Decoded JWT payload:", decoded_payload)

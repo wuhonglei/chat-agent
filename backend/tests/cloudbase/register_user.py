@@ -1,5 +1,7 @@
-import requests
-import json
+"""
+注册新用户
+
+"""
 
 import requests
 import os
@@ -10,11 +12,11 @@ load_dotenv()
 env_id = os.environ.get('env_id')
 phone_number = os.environ.get('phone_number')
 verification_token = os.environ.get('verification_token')
-
-url = f"https://{env_id}.api.tcloudbasegateway.com/auth/v1/signin"
+url = f"https://{env_id}.api.tcloudbasegateway.com/auth/v1/signup"
 
 payload = json.dumps({
-    "verification_token": verification_token
+    "phone_number": phone_number,
+    "verification_token": verification_token,
 })
 headers = {
     'Content-Type': 'application/json',
