@@ -40,13 +40,16 @@ async def verify_sms(
     if verify_sms_request.is_user:
         phone_number = verify_sms_request.phone_number
         token_info = await CloudbaseService.signup(SignupRequest(verification_token=verification_token, phone_number=phone_number))
-        user = user_service.create_user_from_cloudbase(
-            token_info, phone_number)
     else:
         # 如果是老用户，则直接登录
         token_info = await CloudbaseService.signin(SigninRequest(verification_token=verification_token))
-        user = user_service.update_user_last_login_from_cloudbase(
-            token_info.sub)
+
+    user = user_service.get_user_by_sub(token_info.sub)
+    if not user:
+        user = user_service.create_user_from_cloudbase(
+            token_info, verify_sms_request.phone_number)
+    else:
+        user = user_service.update_user_last_login_from_cloudbase(user)
 
     # 设置自定义响应头
     response.headers["x-secret-token-info"] = jwt_manager.create_token(

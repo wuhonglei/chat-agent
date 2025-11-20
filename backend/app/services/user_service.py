@@ -38,6 +38,16 @@ class UserService:
             raise HTTPException(status_code=404, detail="User not found")
         return user
 
+    def create_user(self, user: UserDb) -> UserDb:
+        self.db.add(user)
+        self.db.commit()
+        self.db.refresh(user)
+        return user
+
+    def get_user_by_sub(self, sub: str) -> UserDb:
+        user = self.db.exec(select(UserDb).where(UserDb.sub == sub)).first()
+        return user
+
     def create_user_from_cloudbase(self, token_info: VerifySmsResponse, phone_number: string) -> UserDb:
         user = UserDb(
             sub=token_info.sub,
@@ -50,18 +60,7 @@ class UserService:
         self.db.refresh(user)
         return user
 
-    def create_user(self, user: UserDb) -> UserDb:
-        self.db.add(user)
-        self.db.commit()
-        self.db.refresh(user)
-        return user
-
-    def get_user_by_sub(self, sub: str) -> UserDb:
-        user = self.db.exec(select(UserDb).where(UserDb.sub == sub)).first()
-        return user
-
-    def update_user_last_login_from_cloudbase(self, sub: str) -> UserDb:
-        user = self.get_user_by_sub(sub)
+    def update_user_last_login_from_cloudbase(self, user: UserDb) -> UserDb:
         user.last_login_at = get_datetime_now()
         user.last_login_type = "sms"
         self.db.add(user)
