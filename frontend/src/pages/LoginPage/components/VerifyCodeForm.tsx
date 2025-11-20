@@ -7,10 +7,7 @@ import { useRequest } from "ahooks";
 import { userAPI } from "@/services/user";
 import { App } from "antd";
 import { SendSmsResponse } from "@/interfaces";
-import { useNavigate } from "react-router-dom";
-import { getRedirectUrl } from "@/utils";
-import { useAppDispatch } from "@/store/hooks";
-import { setUserInfo } from "@/store/slices/userSlice";
+import { getRedirectUrl, jumpToLocation } from "@/utils";
 
 export interface VerificationCodeFormValues {
   phoneNumber: string;
@@ -26,8 +23,6 @@ const VerifyCodeForm: React.FC<VerifyCodeFormProps> = () => {
   const [targetDate, setTargetDate] = useState<number>();
   const [countdown] = useCountDown({ targetDate });
   const { message } = App.useApp();
-  const navigate = useNavigate();
-  const dispatch = useAppDispatch();
 
   const {
     run: sendSmsCode,
@@ -45,10 +40,11 @@ const VerifyCodeForm: React.FC<VerifyCodeFormProps> = () => {
     userAPI.verifyVerificationCode,
     {
       manual: true,
-      onSuccess: userInfo => {
+      onSuccess: () => {
         message.success("登录成功");
-        dispatch(setUserInfo(userInfo));
-        navigate(getRedirectUrl() || "/chat", { replace: true });
+        setTimeout(() => {
+          jumpToLocation(getRedirectUrl() || "/chat", true);
+        }, 200);
       },
     }
   );
@@ -57,6 +53,7 @@ const VerifyCodeForm: React.FC<VerifyCodeFormProps> = () => {
     const values = await form.validateFields(["phoneNumber"]);
     const phoneNumberWithCountryCode = `+86 ${values.phoneNumber}`;
     sendSmsCode(phoneNumberWithCountryCode);
+    form.resetFields(["verificationCode"]);
   };
 
   const handleSubmit = async (values: VerificationCodeFormValues) => {
@@ -104,10 +101,9 @@ const VerifyCodeForm: React.FC<VerifyCodeFormProps> = () => {
           />
           <Button
             size="large"
-            disabled={countdown > 0}
             onClick={handleSendCode}
             className="min-w-[120px]"
-            loading={sendSmsCodeLoading}
+            disabled={countdown > 0 || sendSmsCodeLoading}
           >
             {countdown > 0 ? `${Math.floor(countdown / 1000)}秒` : "发送验证码"}
           </Button>

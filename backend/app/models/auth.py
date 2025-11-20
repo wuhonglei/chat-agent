@@ -17,6 +17,11 @@ class SendSmsResponse(BaseModel):
         False, description="Is user registered in the cloudbase")
 
 
+class SendSmsResponseForFrontend(SendSmsResponse):
+    """Send SMS response for frontend"""
+    phone_number: str = Field(..., description="Phone number")
+
+
 class VerifySmsRequest(BaseModel):
     """Verify SMS request"""
 

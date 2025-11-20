@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Response
 from loguru import logger
 from sqlmodel import Session
 from app.core.db import get_db
-from app.models.auth import SendSmsRequest, SendSmsResponse, VerifySmsRequestFromFrontend
+from app.models.auth import SendSmsRequest, SendSmsResponse, SendSmsResponseForFrontend, VerifySmsRequestFromFrontend
 from app.models.auth import SigninRequest, SignupRequest
 from app.models.db import UserDb
 from app.models.response import ApiResponse
@@ -18,10 +18,12 @@ router = APIRouter()
 
 
 @router.post("/send_sms")
-async def send_sms(send_sms_request: SendSmsRequest) -> ApiResponse[SendSmsResponse]:
+async def send_sms(send_sms_request: SendSmsRequest) -> ApiResponse[SendSmsResponseForFrontend]:
     """发送短信验证码"""
     data = await CloudbaseService.send_sms(send_sms_request)
-    return ApiResponse.success(data=data)
+    new_data = SendSmsResponseForFrontend(
+        **data.model_dump(exclude_none=True), phone_number=send_sms_request.phone_number)
+    return ApiResponse.success(data=new_data)
 
 
 @router.post("/verify_sms")
@@ -38,11 +40,11 @@ async def verify_sms(
 
     # 如果是新用户，则先注册，否则直接登录
     if verify_sms_request.is_user:
-        phone_number = verify_sms_request.phone_number
-        token_info = await CloudbaseService.signup(SignupRequest(verification_token=verification_token, phone_number=phone_number))
-    else:
         # 如果是老用户，则直接登录
         token_info = await CloudbaseService.signin(SigninRequest(verification_token=verification_token))
+    else:
+        phone_number = verify_sms_request.phone_number
+        token_info = await CloudbaseService.signup(SignupRequest(verification_token=verification_token, phone_number=phone_number))
 
     user = user_service.get_user_by_sub(token_info.sub)
     if not user:

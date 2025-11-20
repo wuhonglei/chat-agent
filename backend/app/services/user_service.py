@@ -54,6 +54,7 @@ class UserService:
             last_login_at=get_datetime_now(),
             last_login_type="sms",
             phone=phone_number,
+            name=phone_number.split(" ")[-1] or phone_number,
         )
         self.db.add(user)
         self.db.commit()
