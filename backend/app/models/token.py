@@ -16,5 +16,5 @@ class CloudBaseTokenInfo(BaseModel):
 class SecretTokenInfo(CloudBaseTokenInfo):
     """Secret token info"""
     user_id: str = Field(..., description="User ID")
-    issue_at: int = Field(..., description="Issue at")
-    expires_at: int = Field(..., description="Expires at")
+    iat: int = Field(..., description="Issue at")
+    exp: int = Field(..., description="Expires at")

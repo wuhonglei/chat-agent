@@ -52,7 +52,9 @@ async def verify_sms(
         user = user_service.update_user_last_login_from_cloudbase(user)
 
     # 设置自定义响应头
-    response.headers["x-secret-token-info"] = jwt_manager.create_token(
-        token_info)
+    payload = token_info.model_dump(exclude_none=True)
+    secret_token_info = jwt_manager.create_jwt_with_expiration(
+        {**payload, "user_id": user.id}, token_info.expires_in)
+    response.headers["x-secret-token-info"] = secret_token_info
 
     return ApiResponse.success(data=user)

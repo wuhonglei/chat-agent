@@ -1,9 +1,11 @@
+from datetime import timedelta
 import jwt
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 from app.core.config import settings
 import os
 from typing import Any, Optional
+from app.utils.common import get_datetime_now
 
 
 class JWTManager:
@@ -53,22 +55,32 @@ class JWTManager:
 
         return token
 
+    def create_jwt_with_expiration(self, payload_data: dict[str, Any], expires_in_seconds: int):
+        """创建 JWT token 并设置过期时间"""
+        if not self.private_key:
+            raise ValueError("Private key not loaded")
+
+        now = get_datetime_now()
+        expiration = now + timedelta(seconds=expires_in_seconds)
+        payload = {
+            **payload_data,
+            "exp": expiration,  # 令牌的过期时间
+            "iat": now,
+        }
+
+        return self.create_token(payload)
+
     def verify_token(self, token: str) -> dict[str, Any]:
         """验证 JWT token"""
         if not self.public_key:
             raise ValueError("Public key not loaded")
 
-        try:
-            payload = jwt.decode(
-                jwt=token,
-                key=self.public_key,
-                algorithms=[self.algorithm]
-            )
-            return payload
-        except jwt.ExpiredSignatureError:
-            raise Exception("Token has expired")
-        except jwt.InvalidTokenError as e:
-            raise Exception(f"Invalid token: {str(e)}")
+        payload = jwt.decode(
+            jwt=token,
+            key=self.public_key,
+            algorithms=[self.algorithm]
+        )
+        return payload
 
     def decode_token_without_verification(self, token):
         """解码 token 但不验证签名（仅用于调试）"""
