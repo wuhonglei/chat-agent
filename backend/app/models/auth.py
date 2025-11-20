@@ -1,7 +1,5 @@
 from pydantic import BaseModel, Field
 
-from tests.cloudbase.login_by_sms import phone_number
-
 
 class SendSmsRequest(BaseModel):
     """Send SMS request"""
@@ -28,7 +26,7 @@ class VerifySmsRequest(BaseModel):
 
 class VerifySmsRequestFromFrontend(VerifySmsRequest):
     """Verify SMS request from frontend"""
-    phone_number: str = Field(phone_number, description="Phone number")
+    phone_number: str = Field(..., description="Phone number")
     is_user: bool = Field(
         False, description="Is user registered in the cloudbase")
 
