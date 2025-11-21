@@ -3,10 +3,15 @@
 用于连接和管理多个 MCP Server，提供统一的工具调用接口
 """
 
+from app.core.config import settings
+from app.mcp.mcp_servers.code_exec_mcp.server import mcp as code_exec_mcp
+from app.models.mcp import MCPConfigForFeDict
+from app.mcp.mcp_servers.confluence_mcp.server import mcp as mcp_confluence
+from app.mcp.mcp_servers.tavily_mcp.server import mcp as tavily_mcp
+from app.mcp.mcp_servers.weather_mcp.server import mcp as weather_mcp
 import asyncio
 import copy
 from loguru import logger
-from pydantic import Field
 from typing import Dict, List, Optional, Any
 from contextlib import asynccontextmanager
 from fastmcp import Client
@@ -14,14 +19,11 @@ from fastmcp.client.transports import FastMCPTransport, StreamableHttpTransport
 from fastmcp.client.transports import StdioTransport
 from fastmcp import FastMCP
 
-# 导入 MCP servers
-from app.mcp.mcp_servers.weather_mcp.server import mcp as weather_mcp
-from app.mcp.mcp_servers.tavily_mcp.server import mcp as tavily_mcp
-from app.mcp.mcp_servers.confluence_mcp.server import mcp as mcp_confluence
-from app.models.mcp import MCPConfigForFeDict
-from app.mcp.mcp_servers.code_exec_mcp.server import mcp as code_exec_mcp
-from app.core.config import settings
+from app.utils.mcp import create_mcp_http_client_with_ssl_config
 
+VERIFY_SSL = not settings.DEBUG
+
+# 导入 MCP servers
 mcp_config = {
     "mcpServers": {
         "time": {
@@ -32,7 +34,8 @@ mcp_config = {
             "url": "https://mcp.context7.com/mcp",
             "headers": {
                 "CONTEXT7_API_KEY": settings.CONTEXT7_API_KEY
-            }
+            },
+            "verify_ssl": VERIFY_SSL
         },
         "confluence-mcp": mcp_confluence,
         "weather-mcp": weather_mcp,
@@ -104,12 +107,18 @@ class MCPClientManager:
                     logger.info(f"使用 FastMCPTransport 连接本地服务器: {server_name}")
                 elif isinstance(server_instance, dict) and "url" in server_instance:
                     # 远程 HTTP 服务器
+                    verify_ssl = server_instance.get(
+                        "verify_ssl", True)  # 默认启用 SSL 验证
+                    httpx_client_factory = create_mcp_http_client_with_ssl_config(
+                        verify_ssl)
+
                     transport = StreamableHttpTransport(
                         url=server_instance["url"],
-                        headers=server_instance.get("headers", {})
+                        headers=server_instance.get("headers", {}),
+                        httpx_client_factory=httpx_client_factory
                     )
                     logger.info(
-                        f"使用 StreamableHttpTransport 连接远程服务器: {server_name}")
+                        f"使用 StreamableHttpTransport 连接远程服务器: {server_name} (SSL验证: {'禁用' if not verify_ssl else '启用'})")
                 elif isinstance(server_instance, dict) and "command" in server_instance:
                     transport = StdioTransport(**server_instance)
                     logger.info(f"使用 StdioTransport 连接本地服务器: {server_name}")
