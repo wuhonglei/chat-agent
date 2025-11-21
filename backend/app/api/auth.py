@@ -56,9 +56,11 @@ async def verify_sms(
         user = user_service.update_user_last_login(user, "sms")
 
     # 设置自定义响应头
-    payload = token_info.model_dump(exclude_none=True)
     secret_token_info = jwt_manager.create_jwt_with_expiration(
-        {**payload, "user_id": user.id}, token_info.expires_in)
+        {
+            **token_info.model_dump(exclude_none=True),
+            "user_id": user.id
+        }, token_info.expires_in)
     response.headers["x-secret-token-info"] = secret_token_info
 
     return ApiResponse.success(data=user)
@@ -66,7 +68,6 @@ async def verify_sms(
 
 @router.post("/logout")
 async def logout(
-    response: Response,
     token_info: SecretTokenInfo = Depends(get_auth_token_info),
 ) -> ApiResponse[None]:
     """登出"""

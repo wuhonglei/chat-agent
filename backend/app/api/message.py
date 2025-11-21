@@ -7,12 +7,13 @@ from fastapi import Depends
 from app.core.db import get_db
 from app.models.response import ApiResponse
 from app.models.db import MessageDb
+from app.utils.auth_deps import require_auth
 
 router = APIRouter()
 
 
 @router.delete("/delete/{message_id}")
-async def delete_message(message_id: str, db: Session = Depends(get_db)):
+async def delete_message(message_id: str, db: Session = Depends(get_db), _auth: None = Depends(require_auth)):
     """Delete a message by ID"""
     try:
         message = db.get(MessageDb, message_id)

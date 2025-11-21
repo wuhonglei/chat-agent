@@ -105,3 +105,26 @@ async def get_auth_token_info(
     except Exception as e:
         logger.error(f"Token 处理异常: {e}")
         raise HTTPException(status_code=401, detail="认证失败")
+
+
+async def require_auth(
+    request: Request,
+    response: Response,
+    jwt_manager: JWTManager = Depends(get_jwt_manager)
+) -> None:
+    """
+    只进行认证验证，不返回 token 信息
+
+    用于只需要确保用户已认证但不需要使用 token 数据的接口。
+    这个函数会执行完整的 token 验证流程，但不返回任何数据。
+
+    Args:
+        request: FastAPI 请求对象
+        response: FastAPI 响应对象
+        jwt_manager: JWT 管理器实例
+
+    Raises:
+        HTTPException: 当认证失败时
+    """
+    # 调用完整的认证流程，但不使用返回值
+    await get_auth_token_info(request, response, jwt_manager)

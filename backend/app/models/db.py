@@ -52,7 +52,7 @@ class ConversationDb(SQLModel, table=True):
         description="标题创建方式",
     )
     user_id: Optional[str] = Field(
-        default=None,
+        ...,
         index=True,
         max_length=36,
         foreign_key="users.id",

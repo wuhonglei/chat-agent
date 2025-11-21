@@ -9,6 +9,8 @@ from app.core.db import get_db
 from sqlmodel import Session, select
 from loguru import logger
 from app.utils.common import get_datetime_now
+from app.utils.auth_deps import get_auth_token_info, require_auth
+from app.models.token import SecretTokenInfo
 
 router = APIRouter()
 
@@ -24,11 +26,11 @@ def conversation_to_dict(conversation: ConversationDb) -> dict:
 
 
 @router.post("/register")
-async def register_conversation(request: RegisterConversationRequest, db: Session = Depends(get_db)) -> ApiResponse[ConversationInfo]:
+async def register_conversation(request: RegisterConversationRequest, db: Session = Depends(get_db), token_info: SecretTokenInfo = Depends(get_auth_token_info)) -> ApiResponse[ConversationInfo]:
     """Register a new conversation"""
     try:
         conversation = ConversationDb(
-            title=request.title, created_by=CreatedBy.DEFAULT)
+            title=request.title, created_by=CreatedBy.DEFAULT, user_id=token_info.user_id)
         db.add(conversation)
         db.commit()
         db.refresh(conversation)
@@ -42,10 +44,11 @@ async def register_conversation(request: RegisterConversationRequest, db: Sessio
 
 
 @router.get("/list")
-async def get_conversations(db: Session = Depends(get_db)):
+async def get_conversations(db: Session = Depends(get_db), token_info: SecretTokenInfo = Depends(get_auth_token_info)):
     """Get all conversations"""
     try:
-        conversations = db.exec(select(ConversationDb).order_by(
+        conversations = db.exec(select(ConversationDb).where(
+            ConversationDb.user_id == token_info.user_id).order_by(
             ConversationDb.last_message_created_at.desc())).all()
         logger.debug(f"Found {len(conversations)} conversations")
         conversation_list = [ConversationInfo.model_validate(
@@ -63,7 +66,7 @@ async def get_conversations(db: Session = Depends(get_db)):
 
 
 @router.get("/{conversation_id}/messages")
-async def get_messages(conversation_id: str, db: Session = Depends(get_db)):
+async def get_messages(conversation_id: str, db: Session = Depends(get_db), _auth: None = Depends(require_auth)):
     """Get messages by conversation ID"""
     try:
         conversation = db.get(ConversationDb, conversation_id)
@@ -88,13 +91,14 @@ async def get_messages(conversation_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/detail/{conversation_id}")
-async def get_conversation(conversation_id: str, db: Session = Depends(get_db)) -> ApiResponse[ConversationInfo]:
+async def get_conversation(conversation_id: str, db: Session = Depends(get_db), _auth: None = Depends(require_auth)) -> ApiResponse[ConversationInfo]:
     """Get a conversation by ID"""
     try:
         conversation = db.get(ConversationDb, conversation_id)
         if not conversation:
             logger.error(f"Conversation {conversation_id} not found")
             return ApiResponse.error(code=404, msg="对话不存在", data=None)
+
         logger.debug(f"Found conversation {conversation_id}")
         conversation_info = ConversationInfo.model_validate(
             conversation_to_dict(conversation))
@@ -105,13 +109,14 @@ async def get_conversation(conversation_id: str, db: Session = Depends(get_db)) 
 
 
 @router.put("/update/{conversation_id}")
-async def update_conversation(conversation_id: str, request: UpdateConversationRequest, db: Session = Depends(get_db)) -> ApiResponse[ConversationInfo]:
+async def update_conversation(conversation_id: str, request: UpdateConversationRequest, db: Session = Depends(get_db), _auth: None = Depends(require_auth)) -> ApiResponse[ConversationInfo]:
     """Update a conversation by ID"""
     try:
         conversation = db.get(ConversationDb, conversation_id)
         if not conversation:
             logger.error(f"Conversation {conversation_id} not found")
             return ApiResponse.error(code=404, msg="对话不存在", data=None)
+
         conversation.title = request.title
         conversation.created_by = request.created_by
         conversation.updated_at = get_datetime_now()
@@ -124,13 +129,14 @@ async def update_conversation(conversation_id: str, request: UpdateConversationR
 
 
 @router.delete("/delete/{conversation_id}")
-async def delete_conversation(conversation_id: str, db: Session = Depends(get_db)) -> ApiResponse[str]:
+async def delete_conversation(conversation_id: str, db: Session = Depends(get_db), _auth: None = Depends(require_auth)) -> ApiResponse[str]:
     """Delete a conversation by ID"""
     try:
         conversation = db.get(ConversationDb, conversation_id)
         if not conversation:
             logger.error(f"Conversation {conversation_id} not found")
             return ApiResponse.error(code=404, msg="对话不存在", data=None)
+
         db.delete(conversation)
         db.commit()
         return ApiResponse.success(data=conversation_id, msg="删除对话成功")

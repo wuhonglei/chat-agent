@@ -15,6 +15,7 @@ from app.services.chat_service import ChatService
 from app.models.app_state import AppState
 from app.services.message_service import MessageService
 from app.models.db import MessageDb
+from app.utils.auth_deps import require_auth
 from app.utils.common import gen_uuid
 
 router = APIRouter()
@@ -24,6 +25,7 @@ router = APIRouter()
 async def chat_stream(
     request: Request,
     chat_request: ChatRequest,
+    _auth: None = Depends(require_auth)
 ):
     """Stream chat response, 按需保存用户与助手消息"""
     conversation_id = chat_request.conversation_id
