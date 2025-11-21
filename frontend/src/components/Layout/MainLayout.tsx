@@ -22,6 +22,7 @@ import { TitleCreatedBy, WEB_TITLE } from "@/constants";
 import SimpleBar from "simplebar-react";
 import { Conversations, XProvider } from "@ant-design/x";
 import RenameModal from "./RenameModal";
+import UserAccount from "./UserAccount";
 import { EditConversationInfo } from "@/interfaces";
 import { isEmpty } from "lodash-es";
 import { useWebTitle } from "@/hooks";
@@ -163,6 +164,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               onActiveChange={handleMenuClick}
             />
           </SimpleBar>
+          <UserAccount />
           {!isEmpty(editConversionInfo) && (
             <RenameModal
               open
