@@ -29,7 +29,7 @@ export default function UserAccount() {
               src={userDetail?.avatar}
               icon={<UserOutlined />}
             />
-            <span className=" text-gray-600">{userDetail?.name || "-"}</span>
+            <span className=" text-gray-600">{userDetail?.name}</span>
           </div>
         ),
       },
