@@ -11,6 +11,7 @@ import { apiClient } from "./base";
 import snakecaseKeys from "snakecase-keys";
 import camelcaseKeys from "camelcase-keys";
 import { authHeader } from "@/constants";
+import { isUnAuthorized, toLoginPage } from "@/utils";
 
 // Chat API
 export const chatAPI = {
@@ -49,6 +50,14 @@ export const chatAPI = {
         })
       ),
       signal: abortController.signal,
+      onopen: async (response: Response): Promise<void> => {
+        // 如果响应状态码为 401，则跳转至登录页面
+        if (isUnAuthorized(response.status)) {
+          authHeader.removeAuthorizationHeader();
+          toLoginPage(location.pathname);
+          return Promise.reject(new Error("Unauthorized"));
+        }
+      },
       onmessage(event) {
         if (event.data) {
           try {
