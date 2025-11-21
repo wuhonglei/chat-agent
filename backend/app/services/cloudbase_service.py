@@ -13,6 +13,7 @@ from app.models.auth import SendSmsRequest, SendSmsResponse, SigninRequest, Sign
 
 class CloudbaseService:
     """Cloudbase 服务类"""
+    VERIFY_SSL = not settings.DEBUG  # 如果DEBUG为True，则不验证SSL证书
     BASE_URL = f"https://{settings.CLOUDBASE_ENV_ID}.api.tcloudbasegateway.com"
 
     @staticmethod
@@ -32,7 +33,7 @@ class CloudbaseService:
 
         payload = send_sms_request.model_dump(exclude_none=True)
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(verify=CloudbaseService.VERIFY_SSL) as client:
             try:
                 response = await client.post(
                     url,
@@ -80,7 +81,7 @@ class CloudbaseService:
 
         payload = verify_sms_request.model_dump(exclude_none=True)
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(verify=CloudbaseService.VERIFY_SSL) as client:
             try:
                 response = await client.post(
                     url,
@@ -127,7 +128,7 @@ class CloudbaseService:
 
         payload = signin_request.model_dump(exclude_none=True)
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(verify=CloudbaseService.VERIFY_SSL) as client:
             try:
                 response = await client.post(
                     url,
@@ -174,7 +175,7 @@ class CloudbaseService:
 
         payload = signup_request.model_dump(exclude_none=True)
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(verify=CloudbaseService.VERIFY_SSL) as client:
             try:
                 response = await client.post(
                     url,
@@ -221,7 +222,7 @@ class CloudbaseService:
 
         payload = refresh_token_request.model_dump(exclude_none=True)
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(verify=CloudbaseService.VERIFY_SSL) as client:
             try:
                 response = await client.post(
                     url,

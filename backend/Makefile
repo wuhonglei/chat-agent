@@ -17,7 +17,7 @@ install:
 
 # Start the application
 dev:
-	uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+	DEBUG=true uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 # Format code
 format:
