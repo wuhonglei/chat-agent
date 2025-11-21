@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Form, Input, Button, Select, Space } from "antd";
 import { MobileOutlined, SafetyOutlined } from "@ant-design/icons";
 import { useCountDown } from "ahooks";
-import { validatePhone } from "../utils";
+import { validatePhone, validateVerificationCode } from "../utils";
 import { useRequest } from "ahooks";
 import { userAPI } from "@/services/user";
 import { App } from "antd";
@@ -57,6 +57,11 @@ const VerifyCodeForm: React.FC<VerifyCodeFormProps> = () => {
   };
 
   const handleSubmit = async (values: VerificationCodeFormValues) => {
+    if (!smsResponse) {
+      message.error("请先发送验证码");
+      return;
+    }
+
     verifySmsCode({
       ...(smsResponse as SendSmsResponse),
       verificationCode: values.verificationCode,
@@ -88,7 +93,7 @@ const VerifyCodeForm: React.FC<VerifyCodeFormProps> = () => {
 
       <Form.Item
         name="verificationCode"
-        rules={[{ required: true, message: "请输入验证码" }]}
+        rules={[{ validator: (_, value) => validateVerificationCode(value) }]}
       >
         <Space.Compact className="w-full">
           <Input

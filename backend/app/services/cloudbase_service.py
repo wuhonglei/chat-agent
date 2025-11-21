@@ -2,7 +2,6 @@
 
 用于调用 Cloudbase 认证相关的 API
 """
-
 import httpx
 from fastapi import HTTPException
 from loguru import logger
@@ -102,7 +101,7 @@ class CloudbaseService:
                     )
                     raise HTTPException(
                         status_code=response.status_code,
-                        detail=f"验证短信验证码失败: {response.text}"
+                        detail="验证短信验证码失败"
                     )
             except httpx.RequestError as e:
                 logger.error(f"Cloudbase 验证短信请求失败: {e}")

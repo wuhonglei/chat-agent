@@ -1,6 +1,6 @@
 import axios, { AxiosResponse, InternalAxiosRequestConfig } from "axios";
 
-import { isPlainObject } from "lodash-es";
+import { isPlainObject, isString } from "lodash-es";
 import snakecaseKeys from "snakecase-keys";
 import camelcaseKeys from "camelcase-keys";
 import { getMessageInstance } from "../utils/message";
@@ -91,6 +91,11 @@ apiClient.interceptors.response.use(
         error.response.data = camelcaseKeys(error.response.data, {
           deep: true,
         });
+
+        if (isString(error.response.data.detail)) {
+          const message = getMessageInstance();
+          message.error(error.response.data.detail);
+        }
       }
       console.error("API Error:", error.response.data);
     } else if (error.request) {
