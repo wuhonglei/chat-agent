@@ -10,6 +10,7 @@ import {
 import { apiClient } from "./base";
 import snakecaseKeys from "snakecase-keys";
 import camelcaseKeys from "camelcase-keys";
+import { authHeader } from "@/constants";
 
 // Chat API
 export const chatAPI = {
@@ -38,6 +39,7 @@ export const chatAPI = {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Authorization: authHeader.getAuthorizationHeader(),
       },
       body: JSON.stringify(
         snakecaseKeys(data as unknown as Record<string, unknown>, {
