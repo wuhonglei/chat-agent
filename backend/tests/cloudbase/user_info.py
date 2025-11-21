@@ -20,6 +20,7 @@ headers = {
     'Authorization': f'Bearer {access_token}'
 }
 
-response = requests.request("GET", url, headers=headers, data=payload)
+response = requests.request(
+    "GET", url, headers=headers, data=payload, verify=False)
 
 print(response.text)

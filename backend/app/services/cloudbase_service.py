@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from loguru import logger
 
 from app.core.config import settings
-from app.models.auth import SendSmsRequest, SendSmsResponse, SigninRequest, SigninResponse, SignupRequest, SignupResponse, RefreshTokenRequest, RefreshTokenResponse, VerifySmsRequest, VerifySmsResponse
+from app.models.auth import SendSmsRequest, SendSmsResponse, SigninRequest, SigninResponse, SignoutRequest, SignoutResponse, SignupRequest, SignupResponse, RefreshTokenRequest, RefreshTokenResponse, VerifySmsRequest, VerifySmsResponse
 
 
 class CloudbaseService:
@@ -199,6 +199,48 @@ class CloudbaseService:
                     )
             except httpx.RequestError as e:
                 logger.error(f"Cloudbase 注册请求失败: {e}")
+                raise HTTPException(
+                    status_code=500,
+                    detail="认证服务暂时不可用"
+                )
+
+    @staticmethod
+    async def signout(signout_request: SignoutRequest) -> SignoutResponse:
+        """登出
+
+        Args:
+            signout_request: 登出请求
+
+        Returns:
+            Cloudbase 返回的 token 信息
+        """
+        url = f"{CloudbaseService.BASE_URL}/auth/v1/user/signout"
+
+        async with httpx.AsyncClient(verify=CloudbaseService.VERIFY_SSL) as client:
+            try:
+                response = await client.post(
+                    url,
+                    headers={
+                        "Content-Type": "application/json",
+                        "Accept": "application/json",
+                        "Authorization": f"Bearer {signout_request.access_token}"
+                    },
+                    timeout=10.0
+                )
+
+                if response.status_code == 200:
+                    data = response.json()
+                    return SignoutResponse(**data)
+                else:
+                    logger.error(
+                        f"Cloudbase 登出失败: {response.status_code}, {response.text}"
+                    )
+                    raise HTTPException(
+                        status_code=response.status_code,
+                        detail=f"登出失败"
+                    )
+            except httpx.RequestError as e:
+                logger.error(f"Cloudbase 登出请求失败: {e}")
                 raise HTTPException(
                     status_code=500,
                     detail="认证服务暂时不可用"

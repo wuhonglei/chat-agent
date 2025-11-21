@@ -10,6 +10,10 @@ export const getUserDetail = createAsyncThunk(
   }
 );
 
+export const logout = createAsyncThunk("user/logout", async () => {
+  await userAPI.logout();
+});
+
 const userSlice = createSlice({
   name: "user",
   initialState: {
@@ -26,6 +30,10 @@ const userSlice = createSlice({
   extraReducers: builder => {
     builder.addCase(getUserDetail.fulfilled, (state, action) => {
       state.userDetail = action.payload;
+    });
+
+    builder.addCase(logout.fulfilled, state => {
+      state.userDetail = null;
     });
   },
 });

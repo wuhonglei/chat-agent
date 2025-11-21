@@ -6,13 +6,15 @@ from fastapi import APIRouter, Depends, Response
 from loguru import logger
 from sqlmodel import Session
 from app.core.db import get_db
-from app.models.auth import SendSmsRequest, SendSmsResponse, SendSmsResponseForFrontend, VerifySmsRequestFromFrontend
+from app.models.auth import SendSmsRequest, SendSmsResponse, SendSmsResponseForFrontend, SignoutRequest, VerifySmsRequestFromFrontend
 from app.models.auth import SigninRequest, SignupRequest
 from app.models.db import UserDb
 from app.models.response import ApiResponse
+from app.models.token import SecretTokenInfo
 from app.services.cloudbase_service import CloudbaseService
 from app.services.user_service import UserService
 from app.jwt.jwt_manager import JWTManager, get_jwt_manager
+from app.utils.auth_deps import get_auth_token_info
 
 router = APIRouter()
 
@@ -51,7 +53,7 @@ async def verify_sms(
         user = user_service.create_user_from_cloudbase(
             token_info, verify_sms_request.phone_number)
     else:
-        user = user_service.update_user_last_login_from_cloudbase(user)
+        user = user_service.update_user_last_login(user, "sms")
 
     # 设置自定义响应头
     payload = token_info.model_dump(exclude_none=True)
@@ -60,3 +62,16 @@ async def verify_sms(
     response.headers["x-secret-token-info"] = secret_token_info
 
     return ApiResponse.success(data=user)
+
+
+@router.post("/logout")
+async def logout(
+    response: Response,
+    token_info: SecretTokenInfo = Depends(get_auth_token_info),
+) -> ApiResponse[None]:
+    """登出"""
+    await CloudbaseService.signout(SignoutRequest(access_token=token_info.access_token))
+
+    with UserService(None) as user_service:
+        user_service.update_user_last_logout(token_info.user_id)
+    return ApiResponse.success(data=None)

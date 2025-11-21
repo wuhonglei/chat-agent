@@ -28,7 +28,8 @@ class UserDb(SQLModel, table=True):
     last_login_type: Optional[str] = Field(
         default="sms", description="Last login type")
     role: str = Field(default="user")
-    status: str = Field(default="active")
+    status: str = Field(default="active or inactive",
+                        description="User status")
     created_at: datetime = Field(
         default_factory=get_datetime_now,
         sa_type=DateTime(timezone=True))

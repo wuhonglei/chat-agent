@@ -36,9 +36,8 @@ const VerifyCodeForm: React.FC<VerifyCodeFormProps> = () => {
     },
   });
 
-  const { run: verifySmsCode, loading: verifySmsCodeLoading } = useRequest(
-    userAPI.verifyVerificationCode,
-    {
+  const { run: loginWithVerificationCode, loading: verifySmsCodeLoading } =
+    useRequest(userAPI.loginWithVerificationCode, {
       manual: true,
       onSuccess: () => {
         message.success("登录成功");
@@ -46,8 +45,7 @@ const VerifyCodeForm: React.FC<VerifyCodeFormProps> = () => {
           jumpToLocation(getRedirectUrl() || "/chat", true);
         }, 200);
       },
-    }
-  );
+    });
 
   const handleSendCode = async () => {
     const values = await form.validateFields(["phoneNumber"]);
@@ -62,7 +60,7 @@ const VerifyCodeForm: React.FC<VerifyCodeFormProps> = () => {
       return;
     }
 
-    verifySmsCode({
+    loginWithVerificationCode({
       ...(smsResponse as SendSmsResponse),
       verificationCode: values.verificationCode,
     });

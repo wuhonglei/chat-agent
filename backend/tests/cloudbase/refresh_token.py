@@ -27,6 +27,7 @@ headers = {
     'Accept': 'application/json'
 }
 
-response = requests.request("POST", url, headers=headers, data=payload)
+response = requests.request(
+    "POST", url, headers=headers, data=payload, verify=False)
 
 print(response.text)

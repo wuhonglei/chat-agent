@@ -11,7 +11,12 @@ export const userAPI = {
   ): Promise<SendSmsResponse> => {
     return await apiClient.post("/auth/send_sms", { phoneNumber });
   },
-  verifyVerificationCode: async (data: VerifySmsRequest): Promise<UserInfo> => {
+  loginWithVerificationCode: async (
+    data: VerifySmsRequest
+  ): Promise<UserInfo> => {
     return await apiClient.post("/auth/verify_sms", data);
+  },
+  logout: async (): Promise<void> => {
+    return await apiClient.post("/auth/logout");
   },
 };

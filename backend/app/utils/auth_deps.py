@@ -7,14 +7,15 @@ from loguru import logger
 import jwt
 from app.jwt.jwt_manager import JWTManager, get_jwt_manager
 from app.models.auth import RefreshTokenRequest
+from app.models.token import SecretTokenInfo
 from app.services.cloudbase_service import CloudbaseService
 
 
-async def get_current_user_id(
+async def get_auth_token_info(
     request: Request,
     response: Response,
     jwt_manager: JWTManager = Depends(get_jwt_manager)
-) -> str:
+) -> SecretTokenInfo:
     """
     从请求头中解析并验证 JWT token，支持自动刷新
 
@@ -30,7 +31,7 @@ async def get_current_user_id(
         jwt_manager: JWT 管理器实例
 
     Returns:
-        str: 用户 ID
+        token payload
 
     Raises:
         HTTPException: 当认证失败时
@@ -46,10 +47,9 @@ async def get_current_user_id(
     try:
         payload = jwt_manager.verify_token(token)
         # 如果没有过期，直接获取 user_id
-        user_id = payload.get("user_id")
-        if not user_id:
+        if not payload.get("user_id"):
             raise HTTPException(status_code=401, detail="Token 中缺少 user_id")
-        return user_id
+        return SecretTokenInfo(**payload)
 
     except jwt.ExpiredSignatureError:
         # 3. 如果过期，使用 refresh_token 刷新 access token
@@ -76,10 +76,13 @@ async def get_current_user_id(
             new_token_info = await CloudbaseService.refresh_token(refresh_request)
 
             # 生成新的 JWT token
-            new_payload = new_token_info.model_dump(exclude_none=True)
+            new_payload = {
+                **new_token_info.model_dump(exclude_none=True),
+                "user_id": user_id
+            }
 
             new_secret_token_info = jwt_manager.create_jwt_with_expiration(
-                {**new_payload, "user_id": user_id},
+                new_payload,
                 new_token_info.expires_in
             )
 
@@ -87,7 +90,7 @@ async def get_current_user_id(
             response.headers["x-secret-token-info"] = new_secret_token_info
             logger.info(f"Token 刷新成功，user_id: {user_id}")
 
-            return user_id
+            return SecretTokenInfo(**new_payload)
 
         except HTTPException:
             raise

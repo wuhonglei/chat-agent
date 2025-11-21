@@ -1,3 +1,4 @@
+from typing import Optional
 from pydantic import BaseModel, Field
 
 
@@ -69,6 +70,16 @@ class SignupRequest(BaseModel):
 class SignupResponse(SigninResponse):
     """Signup response"""
     pass
+
+
+class SignoutRequest(BaseModel):
+    """Sign out request"""
+    access_token: str = Field(..., description="Access token")
+
+
+class SignoutResponse(BaseModel):
+    """Sign out response"""
+    redirect_uri: Optional[str] = Field(None, description="Redirect URI")
 
 
 class RefreshTokenRequest(BaseModel):

@@ -53,6 +53,7 @@ class UserService:
             sub=token_info.sub,
             last_login_at=get_datetime_now(),
             last_login_type="sms",
+            status="active",
             phone=phone_number,
             name=phone_number.split(" ")[-1] or phone_number,
         )
@@ -61,10 +62,19 @@ class UserService:
         self.db.refresh(user)
         return user
 
-    def update_user_last_login_from_cloudbase(self, user: UserDb) -> UserDb:
+    def update_user_last_login(self, user: UserDb, last_login_type: str) -> UserDb:
         user.last_login_at = get_datetime_now()
-        user.last_login_type = "sms"
+        user.last_login_type = last_login_type
         self.db.add(user)
         self.db.commit()
         self.db.refresh(user)
         return user
+
+    def update_user_last_logout(self, user_id: str) -> None:
+        user = self.get_user(user_id)
+        if user:
+            user.last_logout_at = get_datetime_now()
+            user.status = "inactive"
+            self.db.add(user)
+            self.db.commit()
+            self.db.refresh(user)

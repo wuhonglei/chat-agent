@@ -1,18 +1,22 @@
-import { useAppSelector } from "@/store/hooks";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
-  EditOutlined,
   LogoutOutlined,
   SettingOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import { Conversation, Conversations, ConversationsProps } from "@ant-design/x";
 import { useMemoizedFn } from "ahooks";
-import { Avatar } from "antd";
+import type { MenuInfo } from "rc-menu/lib/interface";
+import { Avatar, App } from "antd";
 import { useMemo } from "react";
+import { logout } from "@/store/slices/userSlice";
+import { toLoginPage } from "@/utils/location";
+import { authHeader } from "@/constants";
 
 export default function UserAccount() {
   const userDetail = useAppSelector(state => state.user.userDetail);
-
+  const dispatch = useAppDispatch();
+  const { message } = App.useApp();
   const items = useMemo(() => {
     const items: Conversation[] = [
       {
@@ -46,7 +50,19 @@ export default function UserAccount() {
         icon: <LogoutOutlined />,
       },
     ],
-    onClick: (menuInfo: MenuInfo) => {},
+    onClick: async (menuInfo: MenuInfo) => {
+      menuInfo.domEvent.stopPropagation();
+      if (menuInfo.key === "setting") {
+        console.info("setting");
+      } else if (menuInfo.key === "logout") {
+        await dispatch(logout()).unwrap();
+        authHeader.removeAuthorizationHeader();
+        message.success("退出登录成功");
+        setTimeout(() => {
+          toLoginPage(window.location.href);
+        }, 300);
+      }
+    },
   }));
 
   return <Conversations items={items} menu={menu} activeKey={""} />;
