@@ -21,7 +21,7 @@ import { useMemoizedFn } from "ahooks";
 import { TitleCreatedBy, WEB_TITLE } from "@/constants";
 import SimpleBar from "simplebar-react";
 import { Conversations, XProvider } from "@ant-design/x";
-import RenameModal from "./RenameModal";
+import RenameModal from "./modals/RenameModal";
 import UserAccount from "./UserAccount";
 import { EditConversationInfo } from "@/interfaces";
 import { isEmpty } from "lodash-es";

@@ -8,15 +8,18 @@ import { Conversation, Conversations, ConversationsProps } from "@ant-design/x";
 import { useMemoizedFn } from "ahooks";
 import type { MenuInfo } from "rc-menu/lib/interface";
 import { Avatar, App } from "antd";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { logout } from "@/store/slices/userSlice";
 import { toLoginPage } from "@/utils/location";
 import { authHeader } from "@/constants";
+import SettingModal from "./modals/SettingModal";
 
 export default function UserAccount() {
   const userDetail = useAppSelector(state => state.user.userDetail);
   const dispatch = useAppDispatch();
   const { message } = App.useApp();
+  const [open, setOpen] = useState(false);
+
   const items = useMemo(() => {
     const items: Conversation[] = [
       {
@@ -53,7 +56,7 @@ export default function UserAccount() {
     onClick: async (menuInfo: MenuInfo) => {
       menuInfo.domEvent.stopPropagation();
       if (menuInfo.key === "setting") {
-        console.info("setting");
+        setOpen(true);
       } else if (menuInfo.key === "logout") {
         await dispatch(logout()).unwrap();
         authHeader.removeAuthorizationHeader();
@@ -65,5 +68,16 @@ export default function UserAccount() {
     },
   }));
 
-  return <Conversations items={items} menu={menu} activeKey={""} />;
+  return (
+    <>
+      <Conversations items={items} menu={menu} activeKey={""} />
+      {open && (
+        <SettingModal
+          open={open}
+          data={userDetail}
+          onCancel={() => setOpen(false)}
+        />
+      )}
+    </>
+  );
 }
