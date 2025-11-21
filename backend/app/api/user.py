@@ -20,10 +20,6 @@ async def get_user_detail(
     token_info: SecretTokenInfo = Depends(get_auth_token_info),
 ):
     """获取用户信息"""
-    logger.info("获取用户信息")
-    logger.info(token_info)
-
-    # 获取用户信息
     user_service = UserService(db)
     user = user_service.get_user(token_info.user_id)
 
