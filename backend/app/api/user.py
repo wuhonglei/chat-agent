@@ -3,8 +3,8 @@
 """
 
 from fastapi import APIRouter, Depends
-from loguru import logger
 from sqlmodel import Session
+
 from app.core.db import get_db
 from app.models.response import ApiResponse
 from app.models.token import SecretTokenInfo

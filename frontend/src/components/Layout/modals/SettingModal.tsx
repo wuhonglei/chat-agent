@@ -40,7 +40,7 @@ export default function SettingModal({ open, onCancel, data }: Props) {
         >
           <Input placeholder="请输入用户名" />
         </Form.Item>
-        <Form.Item label="头像" name="avatar" valuePropName="src">
+        <Form.Item label="头像" name="avatar">
           <AvatarUploader />
         </Form.Item>
       </Form>

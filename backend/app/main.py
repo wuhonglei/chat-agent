@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from loguru import logger
 
-from app.api import auth, chat, health, conversation, message, user
+from app.api import auth, chat, health, conversation, message, user, file
 from app.core.config import settings
 from app.core.db import create_db_and_tables
 from app.mcp.mcp_client import get_mcp_manager
@@ -50,6 +50,7 @@ app.include_router(message.router, prefix="/api/message", tags=["message"])
 app.include_router(conversation.router,
                    prefix="/api/conversation", tags=["conversation"])
 app.include_router(health.router, prefix="/api/health", tags=["health"])
+app.include_router(file.router, prefix="/api/file", tags=["file"])
 
 
 @app.get("/")

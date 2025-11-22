@@ -84,7 +84,7 @@ class Settings(BaseSettings):
 
     # Storage
     UPLOAD_DIR: str = "./data/documents"
-    TEMP_DIR: str = "./data/temp"
+    AVATAR_DIR: str = "./data/avatars"
 
     # Search
     SEARCH_TOP_K: int = 10
@@ -106,6 +106,16 @@ class Settings(BaseSettings):
     # Cloudbase
     CLOUDBASE_ENV_ID: str = Field(...,
                                   description="The environment ID of the Cloudbase")
+
+    # 腾讯云存储服务
+    STORAGE_SECRET_ID: str = Field(...,
+                                   description="The secret ID of the storage")
+    STORAGE_SECRET_KEY: str = Field(...,
+                                    description="The secret key of the storage")
+    STORAGE_REGION: str = Field('ap-guangzhou',
+                                description="The region of the storage")
+    STORAGE_BUCKET: str = Field("ai-chat-1258352625",
+                                description="The bucket of the storage")
 
     # PostgreSQL
     PG_HOST: str = "localhost"
