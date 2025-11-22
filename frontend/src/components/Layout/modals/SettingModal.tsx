@@ -1,7 +1,12 @@
 import { useEffect } from "react";
-import { Form, Input, Modal } from "antd";
+import { App, Form, Input, Modal } from "antd";
 import { UserInfo } from "@/interfaces";
 import AvatarUploader from "./AvatarUploader";
+import { isEqual, pick } from "lodash-es";
+import { useRequest } from "ahooks";
+import { userAPI } from "@/services";
+import { useAppDispatch } from "@/store/hooks";
+import { setUserInfo } from "@/store/slices/userSlice";
 
 type Props = {
   open: boolean;
@@ -11,6 +16,18 @@ type Props = {
 
 export default function SettingModal({ open, onCancel, data }: Props) {
   const [form] = Form.useForm<UserInfo>();
+  const { message } = App.useApp();
+  const dispatch = useAppDispatch();
+  const { run: updateUserInfo, loading } = useRequest(userAPI.updateUserInfo, {
+    manual: true,
+    onSuccess: data => {
+      message.success("更新成功");
+      dispatch(setUserInfo(data));
+      setTimeout(() => {
+        onCancel();
+      }, 300);
+    },
+  });
 
   useEffect(() => {
     if (data) {
@@ -18,17 +35,32 @@ export default function SettingModal({ open, onCancel, data }: Props) {
     }
   }, [data, form]);
 
+  const handleConfirm = async () => {
+    const values = await form.validateFields();
+    const currentKeys = Object.keys(values);
+    const initialData = pick(data, currentKeys);
+    if (isEqual(initialData, values)) {
+      message.warning("没有修改");
+      return;
+    }
+    updateUserInfo(values);
+  };
+
   return (
-    <Modal open={open} onCancel={onCancel} title="用户设置">
+    <Modal
+      centered
+      open={open}
+      title="用户设置"
+      onCancel={onCancel}
+      onOk={handleConfirm}
+      okButtonProps={{ loading }}
+    >
       <Form
         form={form}
         layout="horizontal"
         labelCol={{ span: 4 }}
         wrapperCol={{ span: 8 }}
       >
-        <Form.Item name="id" hidden>
-          <Input disabled />
-        </Form.Item>
         <Form.Item
           label="用户名"
           name="name"

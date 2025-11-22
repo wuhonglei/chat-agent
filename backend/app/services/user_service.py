@@ -13,6 +13,7 @@ from sqlmodel import Session, select, delete
 from app.models.auth import VerifySmsResponse
 from app.models.chat import ChatMessageItemReq, MessageStatus
 from app.models.db import ConversationDb, MessageDb, UserDb
+from app.models.user import UpdateUserInfo
 from app.utils.common import get_datetime_now
 from app.core.db import engine
 
@@ -78,3 +79,13 @@ class UserService:
             self.db.add(user)
             self.db.commit()
             self.db.refresh(user)
+
+    def update_user_info(self, user_id: str, update_info: UpdateUserInfo) -> UserDb:
+        user = self.get_user(user_id)
+        if user:
+            user.name = update_info.name
+            user.avatar = update_info.avatar
+            self.db.add(user)
+            self.db.commit()
+            self.db.refresh(user)
+        return user

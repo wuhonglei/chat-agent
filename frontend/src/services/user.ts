@@ -19,4 +19,7 @@ export const userAPI = {
   logout: async (): Promise<void> => {
     return await apiClient.post("/auth/logout");
   },
+  updateUserInfo: async (data: Partial<UserInfo>): Promise<UserInfo> => {
+    return await apiClient.put("/user/update_info", data);
+  },
 };

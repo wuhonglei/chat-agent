@@ -22,3 +22,8 @@ class User(BaseModel):
     status: str = Field("active", description="User status")
     created_at: datetime = Field(..., description="Created at")
     updated_at: datetime = Field(..., description="Updated at")
+
+
+class UpdateUserInfo(BaseModel):
+    name: str = Field(..., description="User name")
+    avatar: Optional[str] = Field(None, description="User avatar")
