@@ -8,7 +8,7 @@ import { Conversation, Conversations, ConversationsProps } from "@ant-design/x";
 import { useMemoizedFn } from "ahooks";
 import type { MenuInfo } from "rc-menu/lib/interface";
 import { Avatar, App } from "antd";
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { logout } from "@/store/slices/userSlice";
 import { toLoginPage } from "@/utils/location";
 import { authHeader } from "@/constants";
@@ -40,37 +40,67 @@ export default function UserAccount() {
     return items;
   }, [userDetail]);
 
-  const menu: ConversationsProps["menu"] = useMemoizedFn(() => ({
-    items: [
-      {
-        label: "设置",
-        key: "setting",
-        icon: <SettingOutlined />,
+  const menu: ConversationsProps["menu"] = useMemoizedFn(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    (_conversation: Conversation) => ({
+      items: [
+        {
+          label: "设置",
+          key: "setting",
+          icon: <SettingOutlined />,
+        },
+        {
+          label: "退出登录",
+          key: "logout",
+          icon: <LogoutOutlined />,
+        },
+      ],
+      trigger: (
+        _conversation: Conversation,
+        info: { originNode: React.ReactNode }
+      ) => {
+        // 克隆 originNode 并移除 stopPropagation，确保点击图标也能触发菜单
+        const clonedNode = React.isValidElement(info.originNode)
+          ? React.cloneElement(info.originNode as React.ReactElement, {
+              onClick: () => {
+                // 不阻止事件冒泡，让 Dropdown 能够接收到点击事件
+                // 移除原来的 stopPropagation
+              },
+            })
+          : info.originNode;
+
+        return (
+          <div className="absolute inset-0 flex justify-end pr-2">
+            {clonedNode}
+          </div>
+        );
       },
-      {
-        label: "退出登录",
-        key: "logout",
-        icon: <LogoutOutlined />,
+      onClick: async (menuInfo: MenuInfo) => {
+        menuInfo.domEvent.stopPropagation();
+        if (menuInfo.key === "setting") {
+          setOpen(true);
+        } else if (menuInfo.key === "logout") {
+          await dispatch(logout()).unwrap();
+          authHeader.removeAuthorizationHeader();
+          message.success("退出登录成功");
+          setTimeout(() => {
+            toLoginPage(window.location.href);
+          }, 300);
+        }
       },
-    ],
-    onClick: async (menuInfo: MenuInfo) => {
-      menuInfo.domEvent.stopPropagation();
-      if (menuInfo.key === "setting") {
-        setOpen(true);
-      } else if (menuInfo.key === "logout") {
-        await dispatch(logout()).unwrap();
-        authHeader.removeAuthorizationHeader();
-        message.success("退出登录成功");
-        setTimeout(() => {
-          toLoginPage(window.location.href);
-        }, 300);
-      }
-    },
-  }));
+    })
+  );
 
   return (
     <>
-      <Conversations items={items} menu={menu} activeKey={""} />
+      <Conversations
+        items={items}
+        menu={menu}
+        activeKey={""}
+        classNames={{
+          item: "relative",
+        }}
+      />
       {open && (
         <SettingModal
           open={open}
