@@ -81,10 +81,12 @@ async def get_auth_token_info(
                 "user_id": user_id
             }
 
-            new_secret_token_info = jwt_manager.create_jwt_with_expiration(
+            new_secret_token_info = jwt_manager.get_payload_with_expiration(
                 new_payload,
                 new_token_info.expires_in
             )
+            new_secret_token_info = jwt_manager.create_token(
+                new_secret_token_info)
 
             # 在响应头中返回新的 token
             response.headers["x-secret-token-info"] = new_secret_token_info

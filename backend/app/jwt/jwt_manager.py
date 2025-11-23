@@ -55,11 +55,8 @@ class JWTManager:
 
         return token
 
-    def create_jwt_with_expiration(self, payload_data: dict[str, Any], expires_in_seconds: int):
-        """创建 JWT token 并设置过期时间"""
-        if not self.private_key:
-            raise ValueError("Private key not loaded")
-
+    def get_payload_with_expiration(self, payload_data: dict[str, Any], expires_in_seconds: int):
+        """获取 payload 并设置过期时间"""
         now = get_datetime_now()
         expiration = now + timedelta(seconds=expires_in_seconds)
         payload = {
@@ -68,7 +65,7 @@ class JWTManager:
             "iat": now,
         }
 
-        return self.create_token(payload)
+        return payload
 
     def verify_token(self, token: str) -> dict[str, Any]:
         """验证 JWT token"""

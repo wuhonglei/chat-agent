@@ -56,11 +56,9 @@ async def verify_sms(
         user = user_service.update_user_last_login(user, "sms")
 
     # 设置自定义响应头
-    secret_token_info = jwt_manager.create_jwt_with_expiration(
-        {
-            **token_info.model_dump(exclude_none=True),
-            "user_id": user.id
-        }, token_info.expires_in)
+    secret_token_info = jwt_manager.get_payload_with_expiration(
+        {**token_info.model_dump(exclude_none=True), "user_id": user.id}, token_info.expires_in)
+    secret_token_info = jwt_manager.create_token(secret_token_info)
     response.headers["x-secret-token-info"] = secret_token_info
 
     return ApiResponse.success(data=user)
