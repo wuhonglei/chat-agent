@@ -1,8 +1,8 @@
 import { ChatMessage as ChatMessageType } from "@/interfaces";
+import { useMemoizedFn } from "ahooks";
 import React from "react";
 import AssistantMessage from "./components/AssistantMessage";
 import UserMessage from "./components/UserMessage";
-import { useMemoizedFn } from "ahooks";
 
 interface ChatMessageItemProps {
   index: number;

@@ -1,11 +1,11 @@
 import { ChatMessage as ChatMessageType } from "@/interfaces";
+import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
+import { Bubble } from "@ant-design/x";
 import { useThrottle } from "ahooks";
 import React from "react";
-import ReasoningBlock from "./ReasoningBlock";
-import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
 import AssistantOperation from "./AssistantOperation";
+import ReasoningBlock from "./ReasoningBlock";
 import ToolCallBlock from "./ToolCallBlock";
-import { Bubble } from "@ant-design/x";
 
 interface AssistantMessageProps {
   message: ChatMessageType;
@@ -38,7 +38,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
       className="w-full mt-4"
       classNames={{ content: "w-full" }}
       content={displayContent}
-      messageRender={displayContent => (
+      contentRender={displayContent => (
         <div className="flex flex-col gap-2">
           <ToolCallBlock
             isStreaming={isStreaming}

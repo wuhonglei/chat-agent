@@ -1,13 +1,13 @@
-import React, { useState } from "react";
-import { Button } from "antd";
-import { Bubble, Sender } from "@ant-design/x";
-import { ChatMessage as ChatMessageType } from "@/interfaces";
-import { EditOutlined } from "@ant-design/icons";
 import CopyButton from "@/components/common/CopyButton";
+import { ChatMessage as ChatMessageType } from "@/interfaces";
 import { isInputEnter } from "@/utils";
-import { trim } from "lodash-es";
-import styles from "./css/UserMessage.module.css";
+import { EditOutlined } from "@ant-design/icons";
+import { Bubble, Sender } from "@ant-design/x";
+import { Button } from "antd";
 import classNames from "classnames";
+import { trim } from "lodash-es";
+import React, { useState } from "react";
+import styles from "./css/UserMessage.module.css";
 
 interface UserMessageProps {
   message: ChatMessageType;
@@ -47,10 +47,10 @@ const UserMessage: React.FC<UserMessageProps> = ({
         classNames={{
           content: "w-full whitespace-pre-wrap wrap-break-word",
         }}
-        messageRender={(content: string) =>
+        contentRender={(content: string) =>
           isEditing ? (
             <Sender
-              actions={false}
+              suffix={null}
               defaultValue={content}
               onKeyDown={handleSend}
               onChange={value => setMessageContent(trim(value))}
