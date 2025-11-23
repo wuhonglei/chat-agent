@@ -86,6 +86,7 @@ class RefreshTokenRequest(BaseModel):
     """Refresh token request"""
 
     refresh_token: str = Field(..., description="Refresh token")
+    grant_type: str = Field("refresh_token", description="Grant type")
 
 
 class RefreshTokenResponse(SigninResponse):
