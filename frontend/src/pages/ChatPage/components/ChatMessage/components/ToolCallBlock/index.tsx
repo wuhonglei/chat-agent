@@ -4,7 +4,7 @@ import { isCallingTool } from "@/utils";
 import { ToolOutlined } from "@ant-design/icons";
 import { Think, ThoughtChain } from "@ant-design/x";
 import { useMemoizedFn } from "ahooks";
-import { isEmpty } from "lodash-es";
+import { isEmpty, uniq } from "lodash-es";
 import React, { useState } from "react";
 import { useTimelineMessages } from "./hooks";
 import styles from "./index.module.css";
@@ -20,6 +20,9 @@ type Props = {
 const ToolCallBlock = ({ isCallingTools, isStreaming, toolCalls }: Props) => {
   const timelineMessages = useTimelineMessages(toolCalls);
   const [expanded, setExpanded] = useState<boolean>(isStreaming ? true : false);
+  const [expandedToolCallKeys, setExpandedToolCallKeys] = useState<string[]>(
+    []
+  );
 
   const handleExpandChange = useMemoizedFn((expand: boolean) => {
     setExpanded(expand);
@@ -39,6 +42,14 @@ const ToolCallBlock = ({ isCallingTools, isStreaming, toolCalls }: Props) => {
     isCallingTools
   );
 
+  useEmitterWithCondition(
+    EventType.ToolCallItemStart,
+    toolCallId => {
+      setExpandedToolCallKeys(prev => uniq([...prev, toolCallId]));
+    },
+    isCallingTools
+  );
+
   if (isEmpty(timelineMessages)) {
     return null;
   }
@@ -49,17 +60,24 @@ const ToolCallBlock = ({ isCallingTools, isStreaming, toolCalls }: Props) => {
       blink={isCallingTools}
       icon={<ToolOutlined />}
       onExpand={handleExpandChange}
+      styles={{
+        content: {
+          borderColor: "transparent",
+        },
+      }}
       title={isCallingTools ? "工具调用中" : "已完成工具调用"}
     >
       <ThoughtChain
         classNames={{
           item: styles["thought-chain-item"],
         }}
-        className="gap-1"
+        className="gap-2"
+        expandedKeys={expandedToolCallKeys}
+        onExpand={setExpandedToolCallKeys}
         items={timelineMessages.map((message, index) => ({
           key: message.key,
-          collapsible: true,
           status: message.status,
+          collapsible: true,
           blink: isCallingTool(message.status),
           title: <ToolCallTitle index={index} message={message} />,
           content: <ToolCallItem message={message} />,

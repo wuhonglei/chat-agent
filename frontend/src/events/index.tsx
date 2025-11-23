@@ -1,8 +1,10 @@
-import mitt, { Emitter } from "mitt";
 import { useMemoizedFn } from "ahooks";
+import mitt, { Emitter } from "mitt";
 import { useEffect } from "react";
 export enum EventType {
   ToolCallDone = "toolCallDone",
+  ToolCallItemStart = "toolCallItemStart",
+  ToolCallItemEnd = "toolCallItemEnd",
   ReasoningDone = "reasoningDone",
   ChangeConversion = "changeConversion", // 切换对话
   BlockCollapse = "blockCollapse", // 块折叠 或展开
@@ -10,6 +12,8 @@ export enum EventType {
 
 type Events = {
   [EventType.ToolCallDone]: void;
+  [EventType.ToolCallItemStart]: string; // 单个工具项开始调用
+  [EventType.ToolCallItemEnd]: string; // 单个工具项结束调用
   [EventType.ReasoningDone]: void;
   [EventType.ChangeConversion]: void;
   [EventType.BlockCollapse]: boolean;

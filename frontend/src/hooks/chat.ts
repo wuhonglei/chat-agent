@@ -220,6 +220,9 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
               emitter.emit(EventType.ToolCallDone);
               dispatch(setCallingTools({ conversationId, data: false }));
             }
+            if (role === "tool" && status === "start") {
+              emitter.emit(EventType.ToolCallItemStart, data.toolCallId);
+            }
             dispatch(
               appendToolCallToLastMessage({
                 conversationId,

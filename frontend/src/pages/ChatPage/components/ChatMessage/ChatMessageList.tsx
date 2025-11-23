@@ -1,11 +1,11 @@
+import { useChatState } from "@/hooks";
 import { ChatMessage as ChatMessageType } from "@/interfaces";
-import React, { useRef } from "react";
-import ChatMessageItem from "./ChatMessageItem";
 import classNames from "classnames";
+import React, { useRef } from "react";
+import SimpleBar from "simplebar-react";
+import ChatMessageItem from "./ChatMessageItem";
 import AutoScroll from "./components/AutoScroll";
 import FloatButtonBottom from "./components/FloatButtonBottom";
-import { useChatState } from "@/hooks";
-import SimpleBar from "simplebar-react";
 
 interface ChatMessageListProps {
   conversationId: string;
