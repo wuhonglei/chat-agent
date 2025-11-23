@@ -4,10 +4,13 @@ import {
   SettingOutlined,
   UserOutlined,
 } from "@ant-design/icons";
-import { Conversation, Conversations, ConversationsProps } from "@ant-design/x";
+import {
+  ConversationItemType,
+  Conversations,
+  ConversationsProps,
+} from "@ant-design/x";
 import { useMemoizedFn } from "ahooks";
-import type { MenuInfo } from "rc-menu/lib/interface";
-import { Avatar, App } from "antd";
+import { Avatar, App, type MenuProps } from "antd";
 import React, { useMemo, useState } from "react";
 import { logout } from "@/store/slices/userSlice";
 import { toLoginPage } from "@/utils/location";
@@ -22,7 +25,7 @@ export default function UserAccount() {
   const [open, setOpen] = useState(false);
 
   const items = useMemo(() => {
-    const items: Conversation[] = [
+    const items: ConversationItemType[] = [
       {
         id: "user",
         key: `/user`,
@@ -43,7 +46,7 @@ export default function UserAccount() {
 
   const menu: ConversationsProps["menu"] = useMemoizedFn(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    (_conversation: Conversation) => ({
+    (_conversation: ConversationItemType) => ({
       items: [
         {
           label: "设置",
@@ -57,10 +60,12 @@ export default function UserAccount() {
         },
       ],
       trigger: (
-        _conversation: Conversation,
+        _conversation: ConversationItemType,
         info: { originNode: React.ReactNode }
       ) => <MenuTrigger>{info.originNode}</MenuTrigger>,
-      onClick: async (menuInfo: MenuInfo) => {
+      onClick: async (
+        menuInfo: Parameters<NonNullable<MenuProps["onClick"]>>[0]
+      ) => {
         menuInfo.domEvent.stopPropagation();
         if (menuInfo.key === "setting") {
           setOpen(true);

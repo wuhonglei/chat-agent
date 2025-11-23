@@ -31,7 +31,7 @@ const VerifyCodeForm: React.FC<VerifyCodeFormProps> = () => {
   } = useRequest(userAPI.sendVerificationCode, {
     manual: true,
     onSuccess: () => {
-      message.success("发送验证码成功");
+      message.success("短信验证码发送成功");
       setTargetDate(Date.now() + 60 * 1000); // 60秒后重新获取验证码
     },
   });

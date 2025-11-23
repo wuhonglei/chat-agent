@@ -12,11 +12,11 @@
   },
   "dependencies": {
     "@ant-design/icons": "^5.2.6",
-    "@ant-design/x": "^1.6.1",
+    "@ant-design/x": "^2.0.0",
     "@microsoft/fetch-event-source": "^2.0.1",
     "@reduxjs/toolkit": "^2.0.0",
     "ahooks": "^3.9.5",
-    "antd": "^5.12.0",
+    "antd": "^6.0.0",
     "antd-img-crop": "^4.27.0",
     "axios": "^1.6.2",
     "camelcase-keys": "^10.0.0",

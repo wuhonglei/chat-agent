@@ -141,8 +141,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             <Button
               type="text"
               onClick={handleCollapse}
-              style={{ color: token.colorTextDescription }}
               icon={<CollapseIcon className="w-4 h-4" />}
+              style={{ color: token.colorTextDescription }}
             />
           </div>
           <Button

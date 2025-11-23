@@ -79,7 +79,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
       >
         <Form.Item className="mr-0" name={names.content}>
           <Sender
-            actions={false}
+            suffix={false}
             onKeyDown={handlePressEnter}
             className={styles.container}
             placeholder="给 DeepSeek 发送消息"

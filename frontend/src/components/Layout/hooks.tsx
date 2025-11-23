@@ -6,8 +6,8 @@ import {
 } from "@/store/slices/conversationSlice";
 import { useLocation } from "react-router-dom";
 import { useMemoizedFn, useSize } from "ahooks";
-import type { MenuInfo } from "rc-menu/lib/interface";
-import { Conversation, Conversations, ConversationsProps } from "@ant-design/x";
+import { ConversationItemType, ConversationsProps } from "@ant-design/x";
+import type { MenuProps } from "antd";
 import {
   CommentOutlined,
   DeleteOutlined,
@@ -16,7 +16,6 @@ import {
 import { EditConversationInfo } from "@/interfaces";
 import dayjs from "dayjs";
 import { dateGroups } from "./constant";
-import { GetProp, Space } from "antd";
 
 const getConversationGroup = (lastMessageCreatedAt: string) => {
   const lastMessageDayjs = dayjs(lastMessageCreatedAt);
@@ -33,7 +32,7 @@ export function useConversionsProps(
   const { conversations } = useAppSelector(state => state.conversation);
 
   const menu: ConversationsProps["menu"] = useMemoizedFn(
-    (conversation: Conversation) => ({
+    (conversation: ConversationItemType) => ({
       items: [
         {
           label: "重命名",
@@ -47,7 +46,7 @@ export function useConversionsProps(
           icon: <DeleteOutlined />,
         },
       ],
-      onClick: (menuInfo: MenuInfo) => {
+      onClick: (menuInfo: Parameters<NonNullable<MenuProps["onClick"]>>[0]) => {
         menuInfo.domEvent.stopPropagation();
         if (menuInfo.key === "rename") {
           onRename({
@@ -62,7 +61,7 @@ export function useConversionsProps(
   );
 
   const items = useMemo(() => {
-    const items: Conversation[] = conversations.map(conversation => ({
+    const items: ConversationItemType[] = conversations.map(conversation => ({
       id: conversation.id,
       key: `/chat/${conversation.id}`,
       label: conversation.title,
@@ -72,16 +71,14 @@ export function useConversionsProps(
     return items;
   }, [conversations]);
 
-  const groupable: GetProp<typeof Conversations, "groupable"> = useMemo(
+  const groupable: ConversationsProps["groupable"] = useMemo(
     () => ({
-      title: (group: string, { components: { GroupTitle } }) => {
+      label: (group: string) => {
         return (
-          <GroupTitle>
-            <Space className="mt-4">
-              <CommentOutlined />
-              <span>{group}</span>
-            </Space>
-          </GroupTitle>
+          <div className="mt-4 mb-1 flex gap-2 text-gray-600">
+            <CommentOutlined />
+            <span>{group}</span>
+          </div>
         );
       },
     }),

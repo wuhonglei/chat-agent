@@ -1,13 +1,13 @@
 import { App as AntdApp } from "antd";
 import React, { useEffect } from "react";
-import { Route, BrowserRouter, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 import MainLayout from "./components/Layout/MainLayout";
 import { routes } from "./routes";
 import { useAppDispatch } from "./store/hooks";
-import { getMCPConfig } from "./store/slices/mcpSlice";
-import { setMessageInstance } from "./utils/message";
 import { loadConversations } from "./store/slices/conversationSlice";
+import { getMCPConfig } from "./store/slices/mcpSlice";
 import { getUserDetail } from "./store/slices/userSlice";
+import { setMessageInstance } from "./utils/message";
 
 const App: React.FC = () => {
   const dispatch = useAppDispatch();
