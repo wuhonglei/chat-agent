@@ -8,6 +8,7 @@ help:
 	@echo "  check      - Run type checking with mypy"
 	@echo "  install    - Install dependencies"
 	@echo "  dev        - Start the application"
+	@echo "  start      - Start the application"
 	@echo "  clean      - Clean temporary files"
 	@echo "  test       - Run tests"
 
@@ -18,6 +19,10 @@ install:
 # Start the application
 dev:
 	DEBUG=true uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# Start the application
+start:
+	uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 # Format code
 format:
