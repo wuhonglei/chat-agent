@@ -1,13 +1,13 @@
-import { Collapse, Divider } from "antd";
-import { useMemoizedFn, useThrottle } from "ahooks";
-import styles from "./css/ReasoningBlock.module.css";
-import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
 import ThinkModeIcon from "@/assets/svg/ThinkModeIcon.svg?react";
-import { SearchSource } from "@/interfaces";
-import SourceAbstract from "./SourceAbstract";
-import React, { useState } from "react";
 import { emitter, EventType, useEmitterWithCondition } from "@/events";
+import { SearchSource } from "@/interfaces";
+import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
+import { useMemoizedFn, useThrottle } from "ahooks";
+import { Collapse, Divider } from "antd";
 import { isEmpty } from "lodash-es";
+import React, { useState } from "react";
+import styles from "./css/ReasoningBlock.module.css";
+import SourceAbstract from "./SourceAbstract";
 
 type Props = {
   isReasoning: boolean;
@@ -67,7 +67,7 @@ const ReasoningBlock = ({
     <Collapse
       ghost
       collapsible="header"
-      expandIconPosition="end"
+      expandIconPlacement="end"
       activeKey={activeKeys}
       onChange={handleCollapseChange}
       items={[

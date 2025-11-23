@@ -1,24 +1,24 @@
+import "katex/dist/katex.min.css";
 import React, { memo, useRef } from "react";
 import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import rehypeExternalLinks from "rehype-external-links";
 import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
-import rehypeExternalLinks from "rehype-external-links";
+import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
-import MermaidBlock from "./components/MermaidBlock";
-import "katex/dist/katex.min.css";
-import styles from "./index.module.css";
 import InlineCode from "./components/InlineCode";
+import MermaidBlock from "./components/MermaidBlock";
 import NormalCode from "./components/NormalCode";
+import styles from "./index.module.css";
 
-import GrayContainer, { LanguageLabel } from "./components/GrayContainer";
-import { Popover } from "antd";
 import RoundTag from "@/components/common/RoundTag";
+import { Popover } from "antd";
+import GrayContainer, { LanguageLabel } from "./components/GrayContainer";
 
+import CopyButton from "@/components/common/CopyButton";
+import { SearchSource } from "@/interfaces";
 import classNames from "classnames";
 import SourceCard from "../SourceSider/SourceCard";
-import { SearchSource } from "@/interfaces";
-import CopyButton from "@/components/common/CopyButton";
 import { useLanguage } from "./hooks";
 
 interface CustomCodeBlockProps {
@@ -78,7 +78,7 @@ const CustomSup = memo(
     return (
       <Popover
         styles={{
-          body: {
+          content: {
             padding: 0,
             width: 400,
           },
@@ -108,7 +108,9 @@ type Props = {
 
 const MarkdownContainer = ({ children, className, sources }: Props) => {
   const SupComponent = React.useCallback(
-    (props: any) => <CustomSup {...props} sources={sources} />,
+    (props: React.ComponentPropsWithoutRef<"sup">) => (
+      <CustomSup {...props} sources={sources} />
+    ),
     [sources]
   );
 

@@ -12,7 +12,7 @@ export function isVerificationCode(value: string): boolean {
   return /^[0-9]{6}$/.test(value);
 }
 
-export function validatePhone(value: string): Promise<void | any> {
+export function validatePhone(value: string): Promise<void> {
   const trimmedValue = trim(value);
   if (!trimmedValue) {
     return Promise.reject(new Error("请输入手机号"));
@@ -24,7 +24,7 @@ export function validatePhone(value: string): Promise<void | any> {
   return Promise.reject(new Error("请输入有效的手机号"));
 }
 
-export function validateAccount(value: string): Promise<void | any> {
+export function validateAccount(value: string): Promise<void> {
   const trimmedValue = trim(value);
   if (!trimmedValue) {
     return Promise.reject(new Error("请输入手机号或邮箱"));
@@ -36,7 +36,7 @@ export function validateAccount(value: string): Promise<void | any> {
   return Promise.reject(new Error("请输入有效的手机号或邮箱地址"));
 }
 
-export function validateVerificationCode(value: string): Promise<void | any> {
+export function validateVerificationCode(value: string): Promise<void> {
   const trimmedValue = trim(value);
   if (!trimmedValue) {
     return Promise.reject(new Error("请输入验证码"));

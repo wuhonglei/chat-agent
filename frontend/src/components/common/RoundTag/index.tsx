@@ -1,16 +1,16 @@
-import React, { forwardRef } from "react";
 import classNames from "classnames";
+import React, { forwardRef } from "react";
 
 type Props = {
   className?: string;
   interactive?: boolean;
   children: React.ReactNode;
   style?: React.CSSProperties;
-  [key: string]: any;
+  onClick?: () => void;
 };
 
 const RoundTag = forwardRef<HTMLButtonElement, Props>(
-  ({ children, className, style, interactive, ...props }, ref) => {
+  ({ children, className, style, interactive, onClick, ...props }, ref) => {
     const restProps = interactive ? props : {};
 
     return (
@@ -22,6 +22,7 @@ const RoundTag = forwardRef<HTMLButtonElement, Props>(
           className
         )}
         style={style}
+        onClick={onClick}
         {...restProps}
       >
         {children}

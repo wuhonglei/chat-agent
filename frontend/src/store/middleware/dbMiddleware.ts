@@ -1,8 +1,7 @@
-import { Middleware } from "@reduxjs/toolkit";
-import { setTempMessages } from "../slices/chatSlice";
 import { db } from "@/indexDB";
 import { ChatConversationState } from "@/interfaces";
-import { omit } from "lodash-es";
+import { Middleware } from "@reduxjs/toolkit";
+import { setTempMessages } from "../slices/chatSlice";
 
 const IGNORED_ACTIONS: string[] = [setTempMessages.type];
 

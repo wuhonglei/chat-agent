@@ -1,36 +1,3 @@
-import { useEffect, useMemo, useRef } from "react";
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import {
-  addMessage,
-  appendContentToLastMessage,
-  appendReasoningToLastMessage,
-  prependSourceToLastReasoningMessage,
-  clearLastMessage,
-  prependContentToLastMessage,
-  appendToolCallToLastMessage,
-  setLoading,
-  setReasoning,
-  setSources,
-  setStreaming,
-  setCallingTools,
-  updateMessageStatus,
-  lastMessageCheck,
-  removeMessageById,
-  clearMessagesAfterIndex,
-  resetChatState,
-  updateMessageModifiedTime,
-  setMessages,
-  setTempMessages,
-} from "@/store/slices/chatSlice";
-import { DEFAULT_CHAT_STATE } from "@/store/slices/chatSlice";
-import {
-  getConversationDetail,
-  refreshConversionInList,
-  removeConversationFromList,
-  updateConversationInfo,
-  updateConversationModifiedTime,
-} from "@/store/slices/conversationSlice";
-import { chatAPI } from "@/services";
 import {
   ChatInputConfig,
   ChatInputFormValues,
@@ -41,21 +8,54 @@ import {
   StreamMessage,
   StreamMessageHandlerMap,
 } from "@/interfaces";
+import { chatAPI } from "@/services";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import {
+  addMessage,
+  appendContentToLastMessage,
+  appendReasoningToLastMessage,
+  appendToolCallToLastMessage,
+  clearLastMessage,
+  clearMessagesAfterIndex,
+  DEFAULT_CHAT_STATE,
+  lastMessageCheck,
+  prependContentToLastMessage,
+  prependSourceToLastReasoningMessage,
+  removeMessageById,
+  resetChatState,
+  setCallingTools,
+  setLoading,
+  setMessages,
+  setReasoning,
+  setSources,
+  setStreaming,
+  setTempMessages,
+  updateMessageModifiedTime,
+  updateMessageStatus,
+} from "@/store/slices/chatSlice";
+import {
+  getConversationDetail,
+  refreshConversionInList,
+  removeConversationFromList,
+  updateConversationInfo,
+  updateConversationModifiedTime,
+} from "@/store/slices/conversationSlice";
+import { useEffect, useMemo, useRef } from "react";
 
-import { isEmpty } from "lodash-es";
+import { MessageStatus, TitleCreatedBy } from "@/constants";
+import { emitter, EventType } from "@/events";
+import { db } from "@/indexDB";
 import {
   buildFootnoteDefinition,
   getHistoryMessageIds,
-  isUserRole,
-  isTitleCreatedByDefault,
   getRemovedMessageIds,
+  isTitleCreatedByDefault,
+  isUserRole,
 } from "@/utils";
-import { db } from "@/indexDB";
-import { emitter, EventType } from "@/events";
-import { MessageStatus, TitleCreatedBy } from "@/constants";
-import { useParams } from "react-router-dom";
 import { useMemoizedFn, useRequest } from "ahooks";
 import dayjs from "dayjs";
+import { isEmpty } from "lodash-es";
+import { useParams } from "react-router-dom";
 
 /**
  * 用于控制 ChatPage 的渲染

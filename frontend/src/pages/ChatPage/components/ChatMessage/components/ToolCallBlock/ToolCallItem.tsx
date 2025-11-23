@@ -1,10 +1,10 @@
-import React, { useMemo } from "react";
-import { TimelineMessage } from "@/interfaces";
 import { ToolCallStatus } from "@/constants";
-import { Tag } from "antd";
+import { TimelineMessage } from "@/interfaces";
 import GrayContainer from "@/pages/ChatPage/components/MarkdownContainer/components/GrayContainer";
 import NormalCode from "@/pages/ChatPage/components/MarkdownContainer/components/NormalCode";
+import { Tag } from "antd";
 import { isPlainObject } from "lodash-es";
+import React, { useMemo } from "react";
 
 type Props = {
   index: number;
@@ -23,9 +23,9 @@ function stringifyArgs(args: string): string {
   }
 }
 
-function stringifyContentWithLanguage<T extends string | Record<string, any>>(
-  content: T | undefined
-): [string, string] {
+function stringifyContentWithLanguage<
+  T extends string | Record<string, unknown>,
+>(content: T | undefined): [string, string] {
   if (!content) {
     return ["", ""];
   }

@@ -1,15 +1,14 @@
-import React, { useState } from "react";
-import { Collapse, Timeline } from "antd";
-import { ToolCallMessage } from "@/interfaces";
-import { isEmpty } from "lodash-es";
-import styles from "./index.module.css";
-import { useTimelineMessages } from "./hooks";
-import ToolCallItem from "./ToolCallItem";
 import { timelineColorByStatus } from "@/constants";
-import classNames from "classnames";
+import { emitter, EventType, useEmitterWithCondition } from "@/events";
+import { ToolCallMessage } from "@/interfaces";
 import { useMemoizedFn } from "ahooks";
-import { EventType, useEmitterWithCondition } from "@/events";
-import { emitter } from "@/events";
+import { Collapse, Timeline } from "antd";
+import classNames from "classnames";
+import { isEmpty } from "lodash-es";
+import React, { useState } from "react";
+import { useTimelineMessages } from "./hooks";
+import styles from "./index.module.css";
+import ToolCallItem from "./ToolCallItem";
 
 type Props = {
   isCallingTools: boolean;
@@ -52,7 +51,7 @@ const ToolCallBlock = ({ isCallingTools, isStreaming, toolCalls }: Props) => {
       className="w-full"
       collapsible="header"
       activeKey={activeKeys}
-      expandIconPosition="end"
+      expandIconPlacement="end"
       onChange={handleCollapseChange}
       items={[
         {

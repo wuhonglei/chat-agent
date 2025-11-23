@@ -1,9 +1,6 @@
 import axios, { AxiosResponse, InternalAxiosRequestConfig } from "axios";
 
-import { isPlainObject, isString } from "lodash-es";
-import snakecaseKeys from "snakecase-keys";
-import camelcaseKeys from "camelcase-keys";
-import { getMessageInstance } from "../utils/message";
+import { authHeader } from "@/constants";
 import {
   getRedirectUrl,
   isConversationNotFound,
@@ -14,7 +11,10 @@ import {
   redirectToLogin,
   toChatPage,
 } from "@/utils";
-import { authHeader } from "@/constants";
+import camelcaseKeys from "camelcase-keys";
+import { isPlainObject, isString } from "lodash-es";
+import snakecaseKeys from "snakecase-keys";
+import { getMessageInstance } from "../utils/message";
 
 // Create axios instance
 const apiClient = axios.create({
