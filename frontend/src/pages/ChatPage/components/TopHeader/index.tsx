@@ -1,11 +1,10 @@
-import { App, Layout } from "antd";
-import { ConversationInfo } from "@/interfaces";
-import HoverButton from "./HoverButton";
 import { TitleCreatedBy } from "@/constants";
+import { ConversationInfo } from "@/interfaces";
 import { useAppDispatch } from "@/store/hooks";
-import { useMemoizedFn } from "ahooks";
 import { updateConversationInfo } from "@/store/slices/conversationSlice";
-import { XProvider } from "@ant-design/x";
+import { useMemoizedFn } from "ahooks";
+import { App, Layout } from "antd";
+import HoverButton from "./HoverButton";
 
 const { Header } = Layout;
 
@@ -29,23 +28,13 @@ export default function TopHeader({ conversationInfo }: Props) {
   });
 
   return (
-    <XProvider
-      theme={{
-        components: {
-          Layout: {
-            headerBg: "white",
-          },
-        },
-      }}
+    <Header
+      style={{ height: 60, backgroundColor: "white" }}
+      className="flex justify-center items-center"
     >
-      <Header
-        style={{ height: 60 }}
-        className="flex justify-center items-center"
-      >
-        {conversationInfo && (
-          <HoverButton title={conversationInfo.title} onConfirm={handleEdit} />
-        )}
-      </Header>
-    </XProvider>
+      {conversationInfo && (
+        <HoverButton title={conversationInfo.title} onConfirm={handleEdit} />
+      )}
+    </Header>
   );
 }
