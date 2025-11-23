@@ -90,7 +90,7 @@ async def get_auth_token_info(
             response.headers["x-secret-token-info"] = new_secret_token_info
             logger.info(f"Token 刷新成功，user_id: {user_id}")
 
-            return SecretTokenInfo(**new_payload)
+            return SecretTokenInfo(**new_secret_token_info)
 
         except HTTPException:
             raise
