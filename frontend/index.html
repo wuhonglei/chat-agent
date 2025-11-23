@@ -5,6 +5,19 @@
     <link rel="icon" type="image/webp" href="/logo.webp" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AI Assistant</title>
+    <script src="https://tam.cdn-go.cn/aegis-sdk/latest/aegis.min.js"></script>
+    <script>
+      if (typeof Aegis === "function") {
+        var aegis = new Aegis({
+          id: "Lle1dCjZ85lmyW0R9m", // 上报 id
+          uin: "xxx", // 用户唯一 ID（可选）
+          reportApiSpeed: true, // 接口测速
+          reportAssetSpeed: true, // 静态资源测速
+          spa: true, // spa 应用页面跳转的时候开启 pv 计算
+          hostUrl: "https://rumt-zh.com",
+        });
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
