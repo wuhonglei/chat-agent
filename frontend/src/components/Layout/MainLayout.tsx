@@ -1,4 +1,4 @@
-import { App, Button, Layout, Typography } from "antd";
+import { App, Button, Layout } from "antd";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import React, { ReactNode, useState } from "react";
 import classNames from "classnames";
@@ -18,7 +18,7 @@ import {
   updateConversationInfo,
 } from "@/store/slices/conversationSlice";
 import { useMemoizedFn } from "ahooks";
-import { TitleCreatedBy, WEB_TITLE } from "@/constants";
+import { TitleCreatedBy } from "@/constants";
 import SimpleBar from "simplebar-react";
 import { Conversations, XProvider } from "@ant-design/x";
 import RenameModal from "./modals/RenameModal";
@@ -26,8 +26,9 @@ import UserAccount from "./UserAccount";
 import { EditConversationInfo } from "@/interfaces";
 import { isEmpty } from "lodash-es";
 import { useWebTitle } from "@/hooks";
+import SiteLogo from "../common/SiteLogo";
+import SiteTitle from "../common/SiteTitle";
 const { useToken } = theme;
-const { Title } = Typography;
 
 const { Sider, Content } = Layout;
 const collapsedWidth = 0;
@@ -134,10 +135,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         >
           <div className="mx-3 my-4 flex justify-between items-center">
             <Link to="/chat" className="flex items-center gap-2 h-9">
-              <img alt="logo" width={32} height={32} src="/logo.png" />
-              <Title level={5} style={{ marginBottom: 0 }}>
-                {WEB_TITLE}
-              </Title>
+              <SiteLogo size={36} />
+              <SiteTitle level={5} />
             </Link>
             <Button
               type="text"

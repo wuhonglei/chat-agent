@@ -1,4 +1,4 @@
-import { UploadOutlined, UserOutlined } from "@ant-design/icons";
+import { EditOutlined, UserOutlined } from "@ant-design/icons";
 import { Avatar, Button, Upload, type GetProp, type UploadProps } from "antd";
 import ImgCrop from "antd-img-crop";
 import { isValidAvatarImage } from "@/utils/image";
@@ -40,22 +40,20 @@ export default function AvatarUploader({ value, onChange }: Props) {
           fileList={[]}
           multiple={false}
           accept="image/*"
-          // action={"/api/file/upload_avatar"}
           customRequest={customRequest}
           beforeUpload={file => isValidAvatarImage(file)}
         >
-          {value ? (
-            <Avatar
-              size={64}
-              src={value}
-              icon={<UserOutlined />}
-              className="cursor-pointer"
+          <div className="relative cursor-pointer">
+            <Avatar size={64} src={value} icon={<UserOutlined />} />
+            <Button
+              size="small"
+              shape="circle"
+              type="primary"
+              loading={loading}
+              icon={<EditOutlined />}
+              style={{ position: "absolute", bottom: 0, right: 0 }}
             />
-          ) : (
-            <Button icon={<UploadOutlined />} loading={loading}>
-              上传头像
-            </Button>
-          )}
+          </div>
         </Upload>
       </ImgCrop>
     </>
