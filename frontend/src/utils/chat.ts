@@ -1,6 +1,11 @@
-import { capitalize, isEmpty, isNil } from "lodash-es";
-import { MessageStatus, RoleType, SearchSourceType } from "@/constants";
+import {
+  MessageStatus,
+  RoleType,
+  SearchSourceType,
+  ToolCallStatus,
+} from "@/constants";
 import { ChatMessage, SearchSource } from "@/interfaces";
+import { capitalize, isEmpty, isNil } from "lodash-es";
 
 /**
  * 构建脚注定义
@@ -138,4 +143,8 @@ export function getRemovedMessageIds(
 
   const removedMessages = messages.slice(index);
   return removedMessages.map(message => message.id);
+}
+
+export function isCallingTool(status: ToolCallStatus) {
+  return status === ToolCallStatus.CallingTool;
 }

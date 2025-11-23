@@ -1,19 +1,19 @@
-import classNames from "classnames";
-import React from "react";
-import { Form, ConfigProvider, FormInstance, Button } from "antd";
-import { Sender } from "@ant-design/x";
-import CustomButton from "@/components/common/CustomButton";
-import ThinkModeIcon from "@/assets/svg/ThinkModeIcon.svg?react";
 import SquareIcon from "@/assets/svg/SquareIcon.svg?react";
+import ThinkModeIcon from "@/assets/svg/ThinkModeIcon.svg?react";
+import CustomButton from "@/components/common/CustomButton";
 import { ChatInputFormValues } from "@/interfaces";
-import ToolsSetting from "./ToolsSetting";
-import { names } from "./constant";
 import { isInputEnter } from "@/utils";
 import { ArrowUpOutlined } from "@ant-design/icons";
+import { Sender } from "@ant-design/x";
+import { useMemoizedFn } from "ahooks";
+import { Button, ConfigProvider, Form, FormInstance } from "antd";
+import classNames from "classnames";
+import React from "react";
+import ToolsSetting from "./ToolsSetting";
+import { names } from "./constant";
+import styles from "./css/index.module.css";
 import { useButtonState, useFormValuesChange } from "./hooks";
 import { isButtonDisabled, isStreamingState } from "./util";
-import { useMemoizedFn } from "ahooks";
-import styles from "./css/index.module.css";
 
 interface ChatInputProps {
   isStreaming?: boolean;

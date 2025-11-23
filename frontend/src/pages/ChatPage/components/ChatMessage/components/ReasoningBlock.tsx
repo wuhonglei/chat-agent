@@ -1,12 +1,9 @@
-import ThinkModeIcon from "@/assets/svg/ThinkModeIcon.svg?react";
 import { emitter, EventType, useEmitterWithCondition } from "@/events";
 import { SearchSource } from "@/interfaces";
 import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
+import { Think } from "@ant-design/x";
 import { useMemoizedFn, useThrottle } from "ahooks";
-import { Collapse, Divider } from "antd";
-import { isEmpty } from "lodash-es";
 import React, { useState } from "react";
-import styles from "./css/ReasoningBlock.module.css";
 import SourceAbstract from "./SourceAbstract";
 
 type Props = {
@@ -16,8 +13,6 @@ type Props = {
   sources: SearchSource[] | undefined;
   onSourceClick: () => void;
 };
-
-const contentKey = "content";
 
 const ReasoningBlock = ({
   isReasoning,
@@ -29,12 +24,10 @@ const ReasoningBlock = ({
   const displayReasoning = useThrottle(reasoning, {
     wait: 100,
   });
-  const [activeKeys, setActiveKeys] = useState<string[]>(
-    isStreaming ? [contentKey] : []
-  );
-  const handleCollapseChange = useMemoizedFn((keys: string[]) => {
-    setActiveKeys(keys);
-    emitter.emit(EventType.BlockCollapse, isEmpty(keys));
+  const [expanded, setExpanded] = useState<boolean>(isStreaming ? true : false);
+  const handleExpandChange = useMemoizedFn((expand: boolean) => {
+    setExpanded(expand);
+    emitter.emit(EventType.BlockCollapse, expand);
   });
 
   /**
@@ -44,7 +37,7 @@ const ReasoningBlock = ({
     EventType.ReasoningDone,
     () => {
       setTimeout(() => {
-        setActiveKeys([]);
+        setExpanded(false);
       }, 500);
     },
     isReasoning
@@ -64,68 +57,26 @@ const ReasoningBlock = ({
   }
 
   return (
-    <Collapse
-      ghost
-      collapsible="header"
-      expandIconPlacement="end"
-      activeKey={activeKeys}
-      onChange={handleCollapseChange}
-      items={[
-        {
-          key: contentKey,
-          label: (
-            <span className="text-gray-600">
-              {isReasoning ? "深度思考中" : "已完成深度思考"}
-            </span>
-          ),
-          styles: {
-            header: { padding: 0, justifyContent: "flex-start" },
-            body: { padding: 0 },
-          },
-          classNames: { header: styles.header },
-          children: (
-            <section className="flex flex-col gap-1 mt-2 items-start">
-              <SourceAbstract
-                sources={sources}
-                mode="preSource"
-                bordered={false}
-                className="-ml-4"
-                onClick={onSourceClick}
-              />
-              <div className="flex gap-1">
-                <div className="flex flex-col py-1 w-4 items-center gap-1 pb-3">
-                  {isReasoning ? (
-                    <img
-                      alt="thinking"
-                      className="w-4 h-4"
-                      src={
-                        "https://static.deepseek.com/chat/static/thinkIconLight.200a7943a0.png"
-                      }
-                    />
-                  ) : (
-                    <ThinkModeIcon className="w-4 h-4 text-primary" />
-                  )}
-                  <Divider
-                    type="vertical"
-                    style={{
-                      flex: 1,
-                      marginLeft: 0,
-                      marginRight: 0,
-                    }}
-                  />
-                </div>
-                <MarkdownContainer
-                  sources={sources}
-                  className="flex-1 text-gray-600 text-sm"
-                >
-                  {displayReasoning}
-                </MarkdownContainer>
-              </div>
-            </section>
-          ),
-        },
-      ]}
-    />
+    <Think
+      expanded={expanded}
+      blink={isReasoning}
+      onExpand={handleExpandChange}
+      title={isReasoning ? "深度思考中" : "已完成深度思考"}
+    >
+      <SourceAbstract
+        sources={sources}
+        mode="preSource"
+        bordered={false}
+        className="-ml-4"
+        onClick={onSourceClick}
+      />
+      <MarkdownContainer
+        sources={sources}
+        className="flex-1 text-black-secondary text-sm"
+      >
+        {displayReasoning}
+      </MarkdownContainer>
+    </Think>
   );
 };
 

@@ -1,7 +1,3 @@
-.header :global(.ant-collapse-header-text) {
-  margin-right: 0 !important;
-}
-
-.timeline-container :global(.ant-timeline-item-last) {
-  padding-bottom: 0;
+.thought-chain-item > :global(.ant-thought-chain-node-box) {
+  flex: 1;
 }

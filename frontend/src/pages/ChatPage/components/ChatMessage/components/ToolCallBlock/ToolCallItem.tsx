@@ -2,12 +2,10 @@ import { ToolCallStatus } from "@/constants";
 import { TimelineMessage } from "@/interfaces";
 import GrayContainer from "@/pages/ChatPage/components/MarkdownContainer/components/GrayContainer";
 import NormalCode from "@/pages/ChatPage/components/MarkdownContainer/components/NormalCode";
-import { Tag } from "antd";
 import { isPlainObject } from "lodash-es";
 import React, { useMemo } from "react";
 
 type Props = {
-  index: number;
   message: TimelineMessage;
 };
 
@@ -42,33 +40,15 @@ function stringifyContentWithLanguage<
   }
 }
 
-const ToolCallItem: React.FC<Props> = ({ index, message }) => {
+const ToolCallItem: React.FC<Props> = ({ message }) => {
   const { status, content } = message;
   const [contentStr, language] = useMemo(
     () => stringifyContentWithLanguage(content),
     [content]
   );
 
-  if (status === ToolCallStatus.AllFinished) {
-    return (
-      <div className="w-full flex items-start gap-2">
-        <div className="whitespace-nowrap">tool call finished.</div>
-        {contentStr && <div>{contentStr}</div>}
-      </div>
-    );
-  }
-
   return (
     <div className="w-full">
-      <div className="flex items-center gap-2">
-        <span className="font-bold">calling tool {index + 1}</span>
-        <Tag color="processing" bordered={false} style={{ marginRight: 0 }}>
-          {message.toolCall.function.name}
-        </Tag>
-        {"duration" in message && message.duration && (
-          <span className="text-gray-600">{message.duration}s</span>
-        )}
-      </div>
       <GrayContainer
         className="flex flex-col gap-1 items-start w-full"
         header={

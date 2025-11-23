@@ -1,4 +1,7 @@
+import { authHeader } from "@/constants";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { logout } from "@/store/slices/userSlice";
+import { toLoginPage } from "@/utils/location";
 import {
   LogoutOutlined,
   SettingOutlined,
@@ -10,13 +13,10 @@ import {
   ConversationsProps,
 } from "@ant-design/x";
 import { useMemoizedFn } from "ahooks";
-import { Avatar, App, type MenuProps } from "antd";
+import { App, Avatar, type MenuProps } from "antd";
 import React, { useMemo, useState } from "react";
-import { logout } from "@/store/slices/userSlice";
-import { toLoginPage } from "@/utils/location";
-import { authHeader } from "@/constants";
-import SettingModal from "./modals/SettingModal";
 import MenuTrigger from "./MenuTrigger";
+import SettingModal from "./modals/SettingModal";
 
 export default function UserAccount() {
   const userDetail = useAppSelector(state => state.user.userDetail);
@@ -36,7 +36,7 @@ export default function UserAccount() {
               src={userDetail?.avatar}
               icon={<UserOutlined />}
             />
-            <span className=" text-gray-600">{userDetail?.name}</span>
+            <span className="text-black-secondary">{userDetail?.name}</span>
           </div>
         ),
       },

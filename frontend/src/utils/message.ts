@@ -1,5 +1,5 @@
-import { MessageInstance } from "antd/es/message/interface";
 import { message } from "antd";
+import { MessageInstance } from "antd/es/message/interface";
 
 // 创建一个全局的 message 实例存储
 let messageInstance: MessageInstance | null = null;

@@ -1,20 +1,20 @@
+import { EditConversationInfo } from "@/interfaces";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { CSSProperties, useEffect, useMemo } from "react";
 import {
   clearCurrentConversion,
   setConversationInfoById,
 } from "@/store/slices/conversationSlice";
-import { useLocation } from "react-router-dom";
-import { useMemoizedFn, useSize } from "ahooks";
-import { ConversationItemType, ConversationsProps } from "@ant-design/x";
-import type { MenuProps } from "antd";
 import {
   CommentOutlined,
   DeleteOutlined,
   EditOutlined,
 } from "@ant-design/icons";
-import { EditConversationInfo } from "@/interfaces";
+import { ConversationItemType, ConversationsProps } from "@ant-design/x";
+import { useMemoizedFn, useSize } from "ahooks";
+import type { MenuProps } from "antd";
 import dayjs from "dayjs";
+import { CSSProperties, useEffect, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import { dateGroups } from "./constant";
 
 const getConversationGroup = (lastMessageCreatedAt: string) => {
@@ -75,7 +75,7 @@ export function useConversionsProps(
     () => ({
       label: (group: string) => {
         return (
-          <div className="mt-4 mb-1 flex gap-2 text-gray-600">
+          <div className="mt-4 mb-1 flex gap-2 text-black-tertiary text-xs">
             <CommentOutlined />
             <span>{group}</span>
           </div>

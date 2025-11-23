@@ -1,31 +1,29 @@
-import { timelineColorByStatus } from "@/constants";
 import { emitter, EventType, useEmitterWithCondition } from "@/events";
 import { ToolCallMessage } from "@/interfaces";
+import { isCallingTool } from "@/utils";
+import { ToolOutlined } from "@ant-design/icons";
+import { Think, ThoughtChain } from "@ant-design/x";
 import { useMemoizedFn } from "ahooks";
-import { Collapse, Timeline } from "antd";
-import classNames from "classnames";
 import { isEmpty } from "lodash-es";
 import React, { useState } from "react";
 import { useTimelineMessages } from "./hooks";
 import styles from "./index.module.css";
 import ToolCallItem from "./ToolCallItem";
+import ToolCallTitle from "./ToolCallTitle";
 
 type Props = {
   isCallingTools: boolean;
   isStreaming: boolean;
   toolCalls: ToolCallMessage[] | undefined;
 };
-const contentKey = "content";
 
 const ToolCallBlock = ({ isCallingTools, isStreaming, toolCalls }: Props) => {
   const timelineMessages = useTimelineMessages(toolCalls);
-  const [activeKeys, setActiveKeys] = useState<string[]>(
-    isStreaming ? [contentKey] : []
-  );
+  const [expanded, setExpanded] = useState<boolean>(isStreaming ? true : false);
 
-  const handleCollapseChange = useMemoizedFn((keys: string[]) => {
-    setActiveKeys(keys);
-    emitter.emit(EventType.BlockCollapse, isEmpty(keys));
+  const handleExpandChange = useMemoizedFn((expand: boolean) => {
+    setExpanded(expand);
+    emitter.emit(EventType.BlockCollapse, expand);
   });
 
   /**
@@ -35,7 +33,7 @@ const ToolCallBlock = ({ isCallingTools, isStreaming, toolCalls }: Props) => {
     EventType.ToolCallDone,
     () => {
       setTimeout(() => {
-        setActiveKeys([]);
+        setExpanded(false);
       }, 500);
     },
     isCallingTools
@@ -46,42 +44,28 @@ const ToolCallBlock = ({ isCallingTools, isStreaming, toolCalls }: Props) => {
   }
 
   return (
-    <Collapse
-      ghost
-      className="w-full"
-      collapsible="header"
-      activeKey={activeKeys}
-      expandIconPlacement="end"
-      onChange={handleCollapseChange}
-      items={[
-        {
-          key: contentKey,
-          label: (
-            <span className="text-gray-600">
-              {isCallingTools ? "工具调用中" : "已完成工具调用"}
-            </span>
-          ),
-          styles: {
-            header: { padding: 0, justifyContent: "flex-start" },
-            body: { padding: 0 },
-          },
-          classNames: { header: styles.header },
-          children: (
-            <div className="flex mt-2 pl-1">
-              <Timeline
-                pending={isCallingTools ? "waiting for tool result ..." : false}
-                className={classNames("w-full", styles["timeline-container"])}
-                items={timelineMessages.map((message, index) => ({
-                  key: message.key,
-                  color: timelineColorByStatus[message.status],
-                  children: <ToolCallItem message={message} index={index} />,
-                }))}
-              />
-            </div>
-          ),
-        },
-      ]}
-    />
+    <Think
+      expanded={expanded}
+      blink={isCallingTools}
+      icon={<ToolOutlined />}
+      onExpand={handleExpandChange}
+      title={isCallingTools ? "工具调用中" : "已完成工具调用"}
+    >
+      <ThoughtChain
+        classNames={{
+          item: styles["thought-chain-item"],
+        }}
+        className="gap-1"
+        items={timelineMessages.map((message, index) => ({
+          key: message.key,
+          collapsible: true,
+          status: message.status,
+          blink: isCallingTool(message.status),
+          title: <ToolCallTitle index={index} message={message} />,
+          content: <ToolCallItem message={message} />,
+        }))}
+      />
+    </Think>
   );
 };
 

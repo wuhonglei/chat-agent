@@ -1,13 +1,11 @@
-import React, { useState } from "react";
-import { Form, Input, Button, Select, Space } from "antd";
-import { MobileOutlined, SafetyOutlined } from "@ant-design/icons";
-import { useCountDown } from "ahooks";
-import { validatePhone, validateVerificationCode } from "../utils";
-import { useRequest } from "ahooks";
-import { userAPI } from "@/services/user";
-import { App } from "antd";
 import { SendSmsResponse } from "@/interfaces";
+import { userAPI } from "@/services/user";
 import { getRedirectUrl, jumpToLocation } from "@/utils";
+import { MobileOutlined, SafetyOutlined } from "@ant-design/icons";
+import { useCountDown, useRequest } from "ahooks";
+import { App, Button, Form, Input, Select, Space } from "antd";
+import React, { useState } from "react";
+import { validatePhone, validateVerificationCode } from "../utils";
 
 export interface VerificationCodeFormValues {
   phoneNumber: string;

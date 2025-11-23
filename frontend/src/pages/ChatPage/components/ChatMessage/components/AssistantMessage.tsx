@@ -36,7 +36,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
       variant="borderless"
       loading={isLoading}
       className="w-full mt-4"
-      classNames={{ content: "w-full" }}
+      classNames={{ body: "w-full", content: "w-full" }}
       content={displayContent}
       contentRender={displayContent => (
         <div className="flex flex-col gap-2">

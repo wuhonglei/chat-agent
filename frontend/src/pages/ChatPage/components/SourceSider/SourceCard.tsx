@@ -1,15 +1,15 @@
+import RoundTag from "@/components/common/RoundTag";
 import { SearchSource } from "@/interfaces";
-import { Avatar, Divider, Typography } from "antd";
-import React, { memo } from "react";
 import {
+  getSortedIconUrl,
   getWebMainDomain,
   isFromConfluence,
   isFromWebSearch,
-  getSortedIconUrl,
 } from "@/utils";
-import RoundTag from "@/components/common/RoundTag";
+import { Avatar, Divider, Typography } from "antd";
 import classNames from "classnames";
 import dayjs from "dayjs";
+import React, { memo } from "react";
 
 const { Title, Paragraph } = Typography;
 
@@ -40,7 +40,7 @@ const SourceCard: React.FC<SourceCardProps> = ({
       }}
     >
       {/* 第一行: 来源 */}
-      <div className="flex justify-between items-center text-gray-600">
+      <div className="flex justify-between items-center text-black-tertiary">
         <div className="flex items-center gap-2">
           <Avatar
             size={18}
@@ -58,7 +58,7 @@ const SourceCard: React.FC<SourceCardProps> = ({
           {source.messageMetadata.lastModifiedTime && (
             <>
               <Divider
-                type="vertical"
+                orientation="vertical"
                 style={{ marginLeft: 4, marginRight: 4 }}
               />
               <span className="text-xs">

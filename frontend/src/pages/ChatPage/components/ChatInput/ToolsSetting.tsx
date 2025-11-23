@@ -1,12 +1,12 @@
-import { Avatar, Form, Popover, Switch } from "antd";
-import CustomButton from "@/components/common/CustomButton";
 import SettingIcon from "@/assets/svg/SettingIcon.svg?react";
-import React, { useState, useRef, useMemo } from "react";
-import { useMemoizedFn } from "ahooks";
-import { names } from "./constant";
-import classNames from "classnames";
-import { useMCPConfig } from "./hooks";
+import CustomButton from "@/components/common/CustomButton";
 import { ChatInputConfig } from "@/interfaces";
+import { useMemoizedFn } from "ahooks";
+import { Avatar, Form, Popover, Switch } from "antd";
+import classNames from "classnames";
+import React, { useMemo, useRef, useState } from "react";
+import { names } from "./constant";
+import { useMCPConfig } from "./hooks";
 
 interface ToolsSettingProps {
   values: ChatInputConfig;
@@ -49,7 +49,7 @@ const ToolsSetting: React.FC<ToolsSettingProps> = ({ values }) => {
             <section
               key={item.id}
               className={classNames(
-                "flex items-center justify-between gap-4 h-8 rounded-lg ml-2 p-2 pr-2 hover:bg-blue-100 transition duration-300"
+                "flex items-center justify-between gap-4 h-8 rounded-lg ml-2 p-2 pr-2 hover:bg-quaternary transition duration-300"
               )}
             >
               <Form.Item
@@ -60,7 +60,7 @@ const ToolsSetting: React.FC<ToolsSettingProps> = ({ values }) => {
                 label={
                   <div className="flex items-center gap-2">
                     <img src={item.icon} alt={item.id} className="w-4 h-4" />
-                    <span className={mcpAutoMode ? "text-gray-300" : ""}>
+                    <span className={mcpAutoMode ? "text-black-tertiary" : ""}>
                       {item.name}
                     </span>
                   </div>

@@ -1,10 +1,9 @@
-import React, { useState } from "react";
-import { Tabs } from "antd";
-import type { TabsProps } from "antd";
-import styles from "./index.module.css";
-import VerifyCodeForm from "./components/VerifyCodeForm";
 import SiteLogo from "@/components/common/SiteLogo";
 import SiteTitle from "@/components/common/SiteTitle";
+import type { TabsProps } from "antd";
+import { Tabs } from "antd";
+import React, { useState } from "react";
+import VerifyCodeForm from "./components/VerifyCodeForm";
 
 const LoginPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("verification");
@@ -27,10 +26,13 @@ const LoginPage: React.FC = () => {
       {/* Login Card */}
       <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-8">
         <Tabs
+          size="large"
           items={tabItems}
           activeKey={activeTab}
           onChange={setActiveTab}
-          className={styles.loginTabs}
+          classNames={{
+            item: " font-medium",
+          }}
         />
       </div>
     </div>

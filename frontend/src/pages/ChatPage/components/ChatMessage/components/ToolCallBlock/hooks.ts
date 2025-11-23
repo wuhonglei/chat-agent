@@ -1,7 +1,6 @@
-import { useMemo } from "react";
-import { ToolCallMessage, TimelineMessage } from "@/interfaces";
 import { ToolCallStatus } from "@/constants";
-import { isEmpty } from "lodash-es";
+import { TimelineMessage, ToolCallMessage } from "@/interfaces";
+import { useMemo } from "react";
 
 export function useTimelineMessages(
   toolCalls: ToolCallMessage[] | undefined
@@ -11,20 +10,7 @@ export function useTimelineMessages(
     const toolCallStartIndex: Record<string, number> = {};
     for (const message of toolCalls || []) {
       const { status, content, role } = message;
-      if (!role && status === "start") {
-        continue;
-      }
-      // 如果工具调用结束，并且有内容，则添加结束消息
-      if (!role && status === "done" && !isEmpty(messages)) {
-        messages.push({
-          key: "done",
-          content: content || "",
-          status: ToolCallStatus.AllFinished,
-        });
-        continue;
-      }
-
-      if (role !== "tool") {
+      if ((!role && ["start", "done"].includes(status)) || role !== "tool") {
         continue;
       }
 

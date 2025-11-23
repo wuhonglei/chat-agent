@@ -1,13 +1,13 @@
-import { SearchSource } from "@/interfaces";
-import { RightOutlined } from "@ant-design/icons";
-import { isEmpty } from "lodash-es";
+import SearchIcon from "@/assets/svg/SearchIcon.svg?react";
 import CustomButton, {
   CustomButtonProps,
 } from "@/components/common/CustomButton";
-import SearchIcon from "@/assets/svg/SearchIcon.svg?react";
-import classNames from "classnames";
-import { Avatar, ConfigProvider } from "antd";
 import { useWebIconUrls } from "@/hooks";
+import { SearchSource } from "@/interfaces";
+import { RightOutlined } from "@ant-design/icons";
+import { Avatar, ConfigProvider } from "antd";
+import classNames from "classnames";
+import { isEmpty } from "lodash-es";
 import React, { memo } from "react";
 
 interface Props extends Omit<CustomButtonProps, "children"> {
@@ -68,7 +68,7 @@ const SourceAbstract = ({ sources, mode, ...props }: Props) => {
     <CustomButton
       size="middle"
       {...props}
-      className={classNames("text-gray-600", props.className)}
+      className={classNames("text-black-tertiary", props.className)}
     >
       {children}
       <RightOutlined className="ml-1" />

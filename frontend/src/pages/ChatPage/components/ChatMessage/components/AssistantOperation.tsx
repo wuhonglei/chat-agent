@@ -1,8 +1,8 @@
-import { ChatMessage as ChatMessageType } from "@/interfaces";
-import classNames from "classnames";
 import CopyButton from "@/components/common/CopyButton";
-import { Button, Divider } from "antd";
+import { ChatMessage as ChatMessageType } from "@/interfaces";
 import { RedoOutlined } from "@ant-design/icons";
+import { Button, Divider } from "antd";
+import classNames from "classnames";
 import { isEmpty } from "lodash-es";
 import SourceAbstract from "./SourceAbstract";
 
@@ -25,7 +25,7 @@ export default function AssistantOperation(props: Props) {
       <Button type="text" icon={<RedoOutlined />} onClick={onReSend} />
       {!isEmpty(message.sources) && (
         <>
-          <Divider type="vertical" />
+          <Divider orientation="vertical" />
           <SourceAbstract
             mode="postSource"
             bordered={false}

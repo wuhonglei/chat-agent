@@ -1,8 +1,8 @@
 export enum ToolCallStatus {
   Start = "start",
-  CallingTool = "callingTool",
-  ToolResultSuccess = "toolResultSuccess",
-  ToolResultError = "toolResultError",
+  CallingTool = "loading",
+  ToolResultSuccess = "success",
+  ToolResultError = "error",
   AllFinished = "allFinished",
 }
 

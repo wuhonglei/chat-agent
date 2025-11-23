@@ -42,11 +42,6 @@ export type ToolCallMessage =
 
 export type TimelineMessage =
   | {
-      key: "done";
-      content: string;
-      status: ToolCallStatus.AllFinished;
-    }
-  | {
       key: string;
       content: string;
       toolCallId: string;

@@ -1,20 +1,20 @@
-import ChatInput from "./components/ChatInput";
-import { ChatMessageList } from "./components/ChatMessage";
 import { useChatMessage, useChatState } from "@/hooks";
-import { useMemoizedFn } from "ahooks";
+import { useCachedRequest, useConversationInfo } from "@/hooks/chat";
 import {
   ChatInputFormValues,
   ChatMessage as ChatMessageType,
+  SourceData,
 } from "@/interfaces";
+import { useMemoizedFn } from "ahooks";
 import { Form } from "antd";
 import classNames from "classnames";
 import React, { useState } from "react";
-import { SourceData } from "@/interfaces";
-import styles from "./index.module.css";
-import SourceSider from "./components/SourceSider";
 import { useParams } from "react-router-dom";
-import { useCachedRequest, useConversationInfo } from "@/hooks/chat";
+import ChatInput from "./components/ChatInput";
+import { ChatMessageList } from "./components/ChatMessage";
+import SourceSider from "./components/SourceSider";
 import TopHeader from "./components/TopHeader";
+import styles from "./index.module.css";
 
 const ChatPage: React.FC = () => {
   const params = useParams<{ conversationId: string }>();
@@ -93,7 +93,7 @@ const ChatPage: React.FC = () => {
             onStop={handleAbortMessage}
             className={styles["input-container"]}
           />
-          <div className="mx-auto py-1.5 text-gray-300 text-xs">
+          <div className="mx-auto py-1.5 text-black-quaternary text-xs">
             内容由 AI 生成，请仔细甄别
           </div>
         </div>

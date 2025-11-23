@@ -45,12 +45,13 @@ const UserMessage: React.FC<UserMessageProps> = ({
         variant={isEditing ? "borderless" : "filled"}
         className={isEditing ? "min-w-[80%]" : "max-w-[70%]"}
         classNames={{
+          body: "w-full",
           content: "w-full whitespace-pre-wrap wrap-break-word",
         }}
         contentRender={(content: string) =>
           isEditing ? (
             <Sender
-              suffix={null}
+              suffix={false}
               defaultValue={content}
               onKeyDown={handleSend}
               onChange={value => setMessageContent(trim(value))}

@@ -2,32 +2,16 @@
 
 @theme {
   /* 主题色 */
-  --color-blue-50: #eff6ff;
-  --color-blue-100: #dbeafe;
-  --color-blue-200: #bfdbfe;
-  --color-blue-300: #93c5fd;
-  --color-blue-400: #60a5fa;
-  --color-blue-500: #2356f6; /* 主题色 */
-  --color-blue-600: #1d4ed8;
-  --color-blue-700: #1e40af;
-  --color-blue-800: #1e3a8a;
-  --color-blue-900: #1e3a8a;
-  --color-blue-950: #172554;
 
-  /* 灰色 */
-  --color-gray-50: #f9fafb;
-  --color-gray-100: #f3f4f6;
-  --color-gray-200: #e5e7eb;
-  --color-gray-300: #d1d5db;
-  --color-gray-400: #9ca3af;
-  --color-gray-500: #e0e0e0;
-  --color-gray-600: #4b5563;
-  --color-gray-700: #374151;
-  --color-gray-800: #1f2937;
-  --color-gray-900: #111827;
-  --color-gray-950: #030712;
+  --color-primary: #2356f6;
+  --color-secondary: #60a5fa;
+  --color-tertiary: #93c5fd;
+  --color-quaternary: #bfdbfe;
 
-  --color-primary: var(--color-blue-500);
+  --color-black-primary: rgba(0, 0, 0, 0.85);
+  --color-black-secondary: rgba(0, 0, 0, 0.65);
+  --color-black-tertiary: rgba(0, 0, 0, 0.45);
+  --color-black-quaternary: rgba(0, 0, 0, 0.25);
 }
 
 html {
