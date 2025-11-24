@@ -3,7 +3,7 @@ import { userAPI } from "@/services/user";
 import { getRedirectUrl, jumpToLocation } from "@/utils";
 import { MobileOutlined, SafetyOutlined } from "@ant-design/icons";
 import { useCountDown, useRequest } from "ahooks";
-import { App, Button, Form, Input, Select, Space } from "antd";
+import { App, Button, Form, Input, Space } from "antd";
 import React, { useState } from "react";
 import { validatePhone, validateVerificationCode } from "../utils";
 
@@ -73,31 +73,37 @@ const VerifyCodeForm: React.FC<VerifyCodeFormProps> = () => {
     >
       <Form.Item
         name="phoneNumber"
+        validateTrigger={false}
         rules={[{ validator: (_, value) => validatePhone(value) }]}
       >
-        <Input
-          prefix={<MobileOutlined style={{ color: "var(--color-gray-400)" }} />}
-          placeholder="请输入手机号"
-          size="large"
-          addonBefore={
-            <Select defaultValue="+86" className="w-20" variant="borderless">
-              <Select.Option value="+86">+86</Select.Option>
-            </Select>
-          }
-        />
+        <Space.Compact className="w-full">
+          <Space.Addon className="w-16">+86</Space.Addon>
+          <Input
+            prefix={
+              <MobileOutlined
+                style={{ color: "var(--color-black-quaternary)" }}
+              />
+            }
+            className="flex-1"
+            placeholder="请输入手机号"
+            size="large"
+          />
+        </Space.Compact>
       </Form.Item>
       <Form.Item
         name="verificationCode"
-        validateTrigger="blur"
+        validateTrigger={false}
         rules={[{ validator: (_, value) => validateVerificationCode(value) }]}
       >
         <Space.Compact className="w-full">
           <Input
             size="large"
-            placeholder="请输入验证码"
             className="flex-1"
+            placeholder="请输入验证码"
             prefix={
-              <SafetyOutlined style={{ color: "var(--color-gray-400)" }} />
+              <SafetyOutlined
+                style={{ color: "var(--color-black-quaternary)" }}
+              />
             }
           />
           <Button
