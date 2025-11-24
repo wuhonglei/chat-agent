@@ -5,7 +5,8 @@ from sqlalchemy import JSON as SQLJSON
 from sqlalchemy import Column, DateTime, ForeignKey, String
 from sqlmodel import SQLModel, Field
 
-from app.utils.date import get_datetime_now, gen_uuid
+from app.utils.date import get_datetime_now
+from app.utils.common import gen_uuid
 from app.models.conversation import CreatedBy
 
 
