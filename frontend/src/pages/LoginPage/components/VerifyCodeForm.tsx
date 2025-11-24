@@ -86,9 +86,9 @@ const VerifyCodeForm: React.FC<VerifyCodeFormProps> = () => {
           }
         />
       </Form.Item>
-
       <Form.Item
         name="verificationCode"
+        validateTrigger="blur"
         rules={[{ validator: (_, value) => validateVerificationCode(value) }]}
       >
         <Space.Compact className="w-full">
@@ -110,7 +110,10 @@ const VerifyCodeForm: React.FC<VerifyCodeFormProps> = () => {
           </Button>
         </Space.Compact>
       </Form.Item>
-
+      <div className="text-black-tertiary mb-3">
+        <span>未注册的手机号将自动注册.</span>
+        <span className="ml-1">短信模板的主体为【腾讯云】</span>
+      </div>
       <Form.Item>
         <Button
           block
