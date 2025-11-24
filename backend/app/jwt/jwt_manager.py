@@ -5,7 +5,7 @@ from cryptography.hazmat.backends import default_backend
 from app.core.config import settings
 import os
 from typing import Any, Optional
-from app.utils.common import get_datetime_now
+from app.utils.date import get_unix_timestamp
 
 
 class JWTManager:
@@ -57,8 +57,8 @@ class JWTManager:
 
     def get_payload_with_expiration(self, payload_data: dict[str, Any], expires_in_seconds: int):
         """获取 payload 并设置过期时间"""
-        now = get_datetime_now()
-        expiration = now + timedelta(seconds=expires_in_seconds)
+        now = get_unix_timestamp()
+        expiration = now + expires_in_seconds
         payload = {
             **payload_data,
             "exp": expiration,  # 令牌的过期时间

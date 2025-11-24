@@ -1,7 +1,7 @@
 from jinja2 import Template
 from app.mcp.mcp_client import mcp_config_for_fe
 from app.models.llm import ToolCallMessage, AssistantToolCallMessage, ToolCallResultMessage
-from app.utils.common import get_current_datetime_str, get_current_date
+from app.utils.date import get_current_datetime_str, get_current_date
 
 # ============= 系统提示词 =============
 

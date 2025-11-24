@@ -30,25 +30,6 @@ def filter_dict(dict_data: dict, values: Optional[list[Any]] = None) -> list[Any
     return [k for k, v in dict_data.items() if v in values]
 
 
-def get_current_datetime_str() -> str:
-    """获取当前日期和时间字符串"""
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-
-def get_current_date() -> str:
-    """获取当前日期字符串"""
-    return datetime.now().strftime("%Y-%m-%d")
-
-
-def get_datetime_now(with_timezone: bool = True) -> datetime:
-    """获取当前时间"""
-    logger.debug("获取当前时间")
-    if with_timezone:
-        return datetime.now(timezone.utc)
-    else:
-        return datetime.now()
-
-
 def gen_uuid() -> str:
     """Generate a new UUID string"""
     return str(uuid.uuid4())

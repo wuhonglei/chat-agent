@@ -10,7 +10,7 @@ from sqlmodel import Session, select, delete
 
 from app.models.chat import ChatMessageItemReq, MessageStatus
 from app.models.db import ConversationDb, MessageDb
-from app.utils.common import get_datetime_now
+from app.utils.date import get_datetime_now
 from app.core.db import engine
 
 

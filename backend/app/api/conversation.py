@@ -8,7 +8,7 @@ from app.models.db import ConversationDb, MessageDb
 from app.core.db import get_db
 from sqlmodel import Session, select
 from loguru import logger
-from app.utils.common import get_datetime_now
+from app.utils.date import get_datetime_now
 from app.utils.auth_deps import get_auth_token_info, require_auth
 from app.models.token import SecretTokenInfo
 

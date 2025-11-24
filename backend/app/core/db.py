@@ -1,10 +1,7 @@
 from sqlmodel import SQLModel, create_engine, Session
-from sqlalchemy.exc import ProgrammingError, OperationalError
-from sqlalchemy import inspect, text
 from loguru import logger
 from app.core.config import settings
 from typing import Generator
-from app.models.conversation import CreatedBy
 # 数据库连接字符串
 # 格式：postgresql://用户名:密码@主机:端口/数据库名
 SQLALCHEMY_DATABASE_URL = f"postgresql://{settings.PG_USER_NAME}:{settings.PG_PASSWORD}@{settings.PG_HOST}:{settings.PG_PORT}/{settings.PG_DB}"

@@ -1,2 +1,2 @@
-export const WEB_TITLE = import.meta.env.VITE_WEB_TITLE || "Ai Assistant";
-export const WEB_LOGO = import.meta.env.VITE_WEB_LOGO || "/logo.webp";
+export const WEB_TITLE = "然宝";
+export const WEB_LOGO = "/logo.webp";
