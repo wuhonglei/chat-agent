@@ -17,45 +17,26 @@ dependencies = [
     "chromadb>=0.4.22",
     # DeepSeek Integration
     "openai>=1.10.0", # DeepSeek uses OpenAI-compatible API
-    "tiktoken>=0.5.2",
     # Document Processing
-    "pypdf>=4.0.0",
-    "python-docx>=1.1.0",
-    "markdown>=3.5.0",
     "beautifulsoup4>=4.12.0",
-    "chardet>=5.2.0",
-    "unstructured>=0.11.0",
     # External Document Integration
     "atlassian-python-api>=3.41.0", # Confluence
-    "google-api-python-client>=2.100.0",
-    "google-auth-httplib2>=0.2.0",
-    "google-auth-oauthlib>=1.2.0",
     # Search & Retrieval Enhancement
     "rank-bm25>=0.2.2", # BM25 keyword search
-    "sentence-transformers>=2.2.0", # For reranking
     "tavily-python>=0.3.0", # Web search
     # Storage & Cache
-    "redis>=5.0.0",
     "aiofiles>=23.2.0",
-    "python-dotenv>=1.0.0",
     # HTTP & Async
     "httpx>=0.25.0",
-    "aiohttp>=3.9.0",
-    "tenacity>=8.2.0",
     # Utils
-    "tqdm>=4.66.0",
     "python-dateutil>=2.8.0",
-    "pytz>=2023.3",
     # Database Migration
     "alembic>=1.13.1",
     # Security
-    "python-jose[cryptography]>=3.3.0",
-    "passlib[bcrypt]>=1.7.4",
     "cryptography>=41.0.0",
     "restrictedpython>=6.0.0", # 代码执行沙箱
     # Monitoring & Logging
     "loguru>=0.7.0",
-    "prometheus-client>=0.19.0",
     "dashscope>=1.24.4",
     "markdownify>=1.2.0",
     "fastmcp>=2.12.4",
@@ -65,7 +46,6 @@ dependencies = [
     "sqlalchemy>=2.0.43",
     "psycopg2-binary>=2.9.11",
     "sqlmodel>=0.0.27",
-    "pytest>=8.4.2",
     "PyJWT>=2.0.0",
     "cos-python-sdk-v5>=1.9.0", # 腾讯云 COS SDK
 ]
@@ -79,6 +59,7 @@ dev = [
     "mypy>=1.7.0",
     "pre-commit>=3.6.0",
     "ipython>=8.0.0",
+    "python-dotenv>=1.0.0",
 ]
 
 [build-system]
