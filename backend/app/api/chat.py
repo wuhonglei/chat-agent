@@ -6,11 +6,8 @@ from typing import cast
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from loguru import logger
-from sqlmodel import Session
 from fastapi import Depends
-from app.core.db import get_db
 from app.models.chat import ChatRequest, MessageStatus
-from app.models.response import ApiResponse
 from app.services.chat_service import ChatService
 from app.models.app_state import AppState
 from app.services.message_service import MessageService
