@@ -9,6 +9,7 @@ from app.models.mcp import MCPConfigForFeDict
 from app.mcp.mcp_servers.confluence_mcp.server import mcp as mcp_confluence
 from app.mcp.mcp_servers.tavily_mcp.server import mcp as tavily_mcp
 from app.mcp.mcp_servers.weather_mcp.server import mcp as weather_mcp
+from app.mcp.mcp_servers.time_mcp.server import mcp as time_mcp
 import asyncio
 import copy
 from loguru import logger
@@ -26,10 +27,7 @@ VERIFY_SSL = not settings.DEBUG
 # 导入 MCP servers
 mcp_config = {
     "mcpServers": {
-        "time": {
-            "command": "uvx",
-            "args": ["mcp-server-time"]
-        },
+        "time-mcp": time_mcp,
         "context7": {
             "url": "https://mcp.context7.com/mcp",
             "headers": {
