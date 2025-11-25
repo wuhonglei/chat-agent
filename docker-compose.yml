@@ -15,36 +15,6 @@ services:
     volumes:
       - ./backend/data:/app/data
       - ./backend/logs:/app/logs
-    depends_on:
-      - chroma
-      - redis
-    networks:
-      - ai-doc-network
-    restart: unless-stopped
-
-  chroma:
-    image: chromadb/chroma:latest
-    container_name: ai-doc-chroma
-    ports:
-      - "8001:8000"
-    volumes:
-      - chroma_data:/chroma/chroma
-    environment:
-      - IS_PERSISTENT=TRUE
-      - PERSIST_DIRECTORY=/chroma/chroma
-      - ANONYMIZED_TELEMETRY=FALSE
-    networks:
-      - ai-doc-network
-    restart: unless-stopped
-
-  redis:
-    image: redis:7-alpine
-    container_name: ai-doc-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    command: redis-server --appendonly yes
     networks:
       - ai-doc-network
     restart: unless-stopped
@@ -63,10 +33,6 @@ services:
     networks:
       - ai-doc-network
     restart: unless-stopped
-
-volumes:
-  chroma_data:
-  redis_data:
 
 networks:
   ai-doc-network:
