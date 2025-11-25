@@ -1,33 +1,32 @@
-import { App, Button, Layout } from "antd";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import React, { ReactNode, useState } from "react";
-import classNames from "classnames";
 import CollapseIcon from "@/assets/svg/CollapseIcon.svg?react";
 import NewConversionIcon from "@/assets/svg/NewConversionIcon.svg?react";
-import styles from "./css/mainLayout.module.css";
-import { theme } from "antd";
+import { TitleCreatedBy } from "@/constants";
+import { useWebTitle } from "@/hooks";
+import { EditConversationInfo } from "@/interfaces";
 import { useAppDispatch } from "@/store/hooks";
+import {
+  deleteConversation,
+  updateConversationInfo,
+} from "@/store/slices/conversationSlice";
+import { Conversations, XProvider } from "@ant-design/x";
+import { useMemoizedFn, useSize } from "ahooks";
+import { App, Button, Layout, theme } from "antd";
+import classNames from "classnames";
+import { isEmpty } from "lodash-es";
+import React, { ReactNode, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import SimpleBar from "simplebar-react";
+import SiteLogo from "../common/SiteLogo";
+import SiteTitle from "../common/SiteTitle";
+import styles from "./css/mainLayout.module.css";
 import {
   useConversionInfo,
   useConversionsProps,
   useHideSidebar,
   useSidebarStyles,
 } from "./hooks";
-import {
-  deleteConversation,
-  updateConversationInfo,
-} from "@/store/slices/conversationSlice";
-import { useMemoizedFn } from "ahooks";
-import { TitleCreatedBy } from "@/constants";
-import SimpleBar from "simplebar-react";
-import { Conversations, XProvider } from "@ant-design/x";
 import RenameModal from "./modals/RenameModal";
 import UserAccount from "./UserAccount";
-import { EditConversationInfo } from "@/interfaces";
-import { isEmpty } from "lodash-es";
-import { useWebTitle } from "@/hooks";
-import SiteLogo from "../common/SiteLogo";
-import SiteTitle from "../common/SiteTitle";
 const { useToken } = theme;
 
 const { Sider, Content } = Layout;
@@ -51,7 +50,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const conversationInfo = useConversionInfo();
   useWebTitle(conversationInfo); // 更新 document.title
   const dispatch = useAppDispatch();
-  const sidebarStyles = useSidebarStyles(collapsed, DEFAULT_THRESHOLD);
+  const { width } = useSize(document.body) || {};
+  const isSmallScreen = width ? width <= DEFAULT_THRESHOLD : false;
+  const sidebarStyles = useSidebarStyles(collapsed, isSmallScreen);
   const hideSidebar = useHideSidebar();
   const onDeleteConversation = useMemoizedFn(async (id: string) => {
     modal.confirm({
@@ -82,6 +83,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     // 点击的菜单和当前路径相同，则不进行跳转
     if (location.pathname === pathname) {
       return;
+    }
+    // 小屏模式下，点击菜单时，折叠菜单
+    if (isSmallScreen) {
+      setCollapsed(true);
     }
     navigate(pathname);
   };
@@ -179,7 +184,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           )}
           {/* fixed 定位，不影响布局 */}
           {collapsed && (
-            <div className="fixed left-2 md:left-12.5 top-2.5 h-10 flex items-center gap-1 rounded-full border border-gray-200 p-1 shadow">
+            <div className="fixed left-2 md:left-12.5 top-2.5 h-10 flex items-center gap-1 rounded-full border border-gray-200 p-1 shadow bg-white">
               <Button
                 type="text"
                 shape="circle"

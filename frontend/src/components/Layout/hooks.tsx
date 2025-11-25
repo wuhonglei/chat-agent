@@ -10,7 +10,7 @@ import {
   EditOutlined,
 } from "@ant-design/icons";
 import { ConversationItemType, ConversationsProps } from "@ant-design/x";
-import { useMemoizedFn, useSize } from "ahooks";
+import { useMemoizedFn } from "ahooks";
 import type { MenuProps } from "antd";
 import dayjs from "dayjs";
 import { CSSProperties, useEffect, useMemo } from "react";
@@ -129,10 +129,8 @@ export function useConversionInfo() {
  */
 export function useSidebarStyles(
   collapsed: boolean,
-  threshold: number
+  isSmallScreen: boolean
 ): CSSProperties {
-  const { width } = useSize(document.body) || {};
-  const isSmallScreen = width ? width <= threshold : false;
   return useMemo(() => {
     if (!isSmallScreen) return {};
 

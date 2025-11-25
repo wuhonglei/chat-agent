@@ -72,12 +72,12 @@ const ChatInput: React.FC<ChatInputProps> = ({
     <ConfigProvider theme={{ components: { Form: { itemMarginBottom: 0 } } }}>
       <Form
         form={form}
-        layout="horizontal"
         style={style}
+        layout="horizontal"
         onValuesChange={onValuesChange}
         className={classNames("flex flex-col gap-3", className)}
       >
-        <Form.Item className="mr-0" name={names.content}>
+        <Form.Item style={{ marginInline: 8 }} name={names.content}>
           <Sender
             suffix={false}
             onKeyDown={handlePressEnter}
