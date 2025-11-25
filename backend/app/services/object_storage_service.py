@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-import os
 from app.core.config import settings
 from qcloud_cos import CosConfig, CosS3Client
 

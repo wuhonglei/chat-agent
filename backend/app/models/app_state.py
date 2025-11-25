@@ -2,7 +2,6 @@
 
 from typing import Optional
 
-from app.core.vector_store.vector_manager import VectorManager
 from app.mcp.mcp_client import MCPClientManager
 
 
@@ -14,7 +13,6 @@ class AppState:
     """
 
     def __init__(self) -> None:
-        self.vector_manager: Optional[VectorManager] = None
         self.mcp_manager: Optional[MCPClientManager] = None
 
     def __setattr__(self, name: str, value) -> None:

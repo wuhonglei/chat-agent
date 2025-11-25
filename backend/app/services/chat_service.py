@@ -6,7 +6,6 @@ from typing import Any, Optional, cast
 
 from loguru import logger
 from openai import AsyncOpenAI
-from openai.types.chat import ChatCompletionMessage
 
 from app.core.config import settings
 from app.models.chat import ChatMessageItemReq, ChatRequest, CollectedResponse

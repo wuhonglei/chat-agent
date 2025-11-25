@@ -6,7 +6,6 @@ import time
 from loguru import logger
 
 from app.core.config import settings
-from app.core.vector_store import VectorManager
 from app.models.retrieval import (
     RetrievalRequest,
     RetrievalResponse,

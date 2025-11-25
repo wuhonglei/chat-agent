@@ -1,18 +1,13 @@
 from __future__ import annotations
 
 import string
-from typing import Any, Optional
-from datetime import datetime
+from typing import Optional
 
 from fastapi import HTTPException
-from loguru import logger
-from pydantic import Field
-from sqlalchemy.exc import SQLAlchemyError
-from sqlmodel import Session, select, delete
+from sqlmodel import Session, select
 
 from app.models.auth import VerifySmsResponse
-from app.models.chat import ChatMessageItemReq, MessageStatus
-from app.models.db import ConversationDb, MessageDb, UserDb
+from app.models.db import UserDb
 from app.models.user import UpdateUserInfo
 from app.utils.date import get_datetime_now
 from app.core.db import engine
