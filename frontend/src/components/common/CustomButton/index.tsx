@@ -1,8 +1,8 @@
-import React, { forwardRef } from "react";
-import styles from "./index.module.css";
-import classNames from "classnames";
 import { Tooltip } from "antd";
 import { SizeType } from "antd/es/config-provider/SizeContext";
+import classNames from "classnames";
+import React, { forwardRef } from "react";
+import styles from "./index.module.css";
 
 export type CustomButtonProps = {
   active?: boolean;
@@ -32,7 +32,9 @@ const CustomButton = forwardRef<HTMLDivElement, CustomButtonProps>(
     return (
       <Tooltip
         title={tooltip}
-        getTooltipContainer={trigger => trigger.parentElement || document.body}
+        getTooltipContainer={(trigger?: HTMLElement) =>
+          trigger?.parentElement || document.body
+        }
       >
         <div
           ref={ref}

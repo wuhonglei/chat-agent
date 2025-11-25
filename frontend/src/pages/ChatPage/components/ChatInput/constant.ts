@@ -1,4 +1,4 @@
-import { NamePath } from "rc-field-form/es/interface";
+import type { NamePath } from "antd/es/form/interface";
 
 export const names = {
   content: ["content"] as NamePath,
