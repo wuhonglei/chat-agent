@@ -86,7 +86,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     }
     // 小屏模式下，点击菜单时，折叠菜单
     if (isSmallScreen) {
-      setCollapsed(true);
+      setTimeout(() => {
+        setCollapsed(true);
+      }, 300);
     }
     navigate(pathname);
   };
