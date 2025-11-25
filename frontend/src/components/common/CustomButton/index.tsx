@@ -32,8 +32,8 @@ const CustomButton = forwardRef<HTMLDivElement, CustomButtonProps>(
     return (
       <Tooltip
         title={tooltip}
-        getTooltipContainer={(trigger?: HTMLElement) =>
-          trigger?.parentElement || document.body
+        getTooltipContainer={(trigger: HTMLElement) =>
+          trigger.parentElement ?? document.body
         }
       >
         <div
