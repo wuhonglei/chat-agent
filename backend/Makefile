@@ -22,7 +22,7 @@ dev:
 
 # Start the application
 start:
-	uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+	uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4 --log-level info
 
 # Format code
 format:
