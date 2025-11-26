@@ -55,10 +55,10 @@ class JWTManager:
 
         return token
 
-    def get_payload_with_expiration(self, payload_data: dict[str, Any], expires_in_seconds: int):
+    def get_payload_with_expiration(self, payload_data: dict[str, Any]):
         """获取 payload 并设置过期时间"""
         now = get_unix_timestamp()
-        expiration = now + expires_in_seconds
+        expiration = now + 35 * 25 * 3600  # 35 天后过期，过期后 refresh_token 也过期，必须重新登录
         payload = {
             **payload_data,
             "exp": expiration,  # 令牌的过期时间

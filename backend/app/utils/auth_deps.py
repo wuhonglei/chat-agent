@@ -82,9 +82,7 @@ async def get_auth_token_info(
             }
 
             new_secret_token_info = jwt_manager.get_payload_with_expiration(
-                new_payload,
-                new_token_info.expires_in
-            )
+                new_payload)
             new_secret_token_info_str = jwt_manager.create_token(
                 new_secret_token_info)
 
