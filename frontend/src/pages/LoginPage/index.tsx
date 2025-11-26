@@ -24,7 +24,7 @@ const LoginPage: React.FC = () => {
         <SiteTitle level={3} />
       </div>
       {/* Login Card */}
-      <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-8">
+      <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-8 mb-16">
         <Tabs
           size="large"
           items={tabItems}
