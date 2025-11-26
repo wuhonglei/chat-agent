@@ -111,7 +111,7 @@ docker build -t ai-doc-frontend .
 
 # 运行容器
 docker run -d \
-  -p 80:80 \
+  -p 3000:3000 \
   --name ai-doc-frontend \
   ai-doc-frontend
 ```
@@ -143,11 +143,6 @@ npm run build
 - **对话交互**
   - `POST /chat/stream` - 流式对话（SSE）
   - `GET /chat/history` - 获取对话历史
-
-- **知识库管理**
-  - `GET /knowledge-bases` - 获取知识库列表
-  - `POST /knowledge-bases` - 创建知识库
-  - `PUT /knowledge-bases/{id}` - 更新知识库
 
 ## 开发规范
 
