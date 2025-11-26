@@ -26,6 +26,8 @@ RUN uv pip install --system -e .
 COPY app ./app
 COPY private_keys ./private_keys
 COPY alembic ./alembic
+COPY alembic.ini .
+
 
 # Expose port
 EXPOSE 8000
