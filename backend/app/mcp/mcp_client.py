@@ -334,11 +334,14 @@ class MCPClientManager:
         async def check_single_server(server_name: str, client) -> tuple[str, bool]:
             """检查单个服务器的健康状态"""
             try:
-                # 尝试列出工具来检查连接是否正常
-                async with client:
-                    await client.list_tools()
+                # # 尝试列出工具来检查连接是否正常(为了避免该请求比较耗时，因此临时注释)
+                # async with client:
+                #     await client.list_tools()
                 logger.info(f"✓ {server_name} 健康检查通过")
-                return server_name, True
+                if server_name in self.tools_by_server:
+                    return server_name, True
+                else:
+                    return server_name, False
             except Exception as e:
                 logger.error(f"✗ {server_name} 健康检查失败: {e}")
                 return server_name, False
