@@ -1,4 +1,4 @@
-FROM python:3.10-slim
+FROM python:3.13.3-slim
 
 # Set working directory
 WORKDIR /app
@@ -17,13 +17,15 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Copy project files
 COPY pyproject.toml .
-COPY app ./app
+COPY uv.lock .
 
 # Install Python dependencies
 RUN uv pip install --system -e .
 
-# Create necessary directories
-RUN mkdir -p /app/data/documents /app/data/vectordb /app/data/temp /app/logs
+# Copy project files
+COPY app ./app
+COPY private_keys ./private_keys
+COPY alembic ./alembic
 
 # Expose port
 EXPOSE 8000
