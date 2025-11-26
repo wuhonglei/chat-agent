@@ -24,15 +24,16 @@ RUN apt-get update && \
     && apt-get clean
 
 # Install uv for faster dependency installation
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-ENV PATH="/root/.cargo/bin:${PATH}"
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    /root/.local/bin/uv --version
+ENV PATH="/root/.local/bin:${PATH}"
 
 # Copy project files for dependency installation
 COPY pyproject.toml .
 COPY uv.lock .
 
-# Install Python dependencies
-RUN uv pip install --system -e .
+# Install Python dependencies using uv with Chinese mirror
+RUN uv pip install --system -e . --index-url https://mirrors.aliyun.com/pypi/simple/
 
 # Copy application code
 COPY app ./app
