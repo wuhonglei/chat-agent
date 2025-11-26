@@ -17,14 +17,14 @@ const LoginPage: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4 gap-8">
+    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4 pb-16 gap-8">
       {/* Logo */}
       <div className="flex items-center gap-3">
         <SiteLogo size={44} />
         <SiteTitle level={3} />
       </div>
       {/* Login Card */}
-      <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-8 mb-16">
+      <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-8">
         <Tabs
           size="large"
           items={tabItems}
