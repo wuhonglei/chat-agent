@@ -14,19 +14,6 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
 
-    # CORS
-    CORS_ORIGINS: list[str] | str = [
-        "http://localhost:3000", "http://localhost:5173"]
-
-    @field_validator("CORS_ORIGINS", mode="before")
-    @classmethod
-    def parse_cors_origins(cls, v):
-        if v is None or v == "":
-            return ["http://localhost:3000", "http://localhost:5173"]
-        if isinstance(v, str):
-            return [origin.strip() for origin in v.split(",")]
-        return v
-
     # LLM Model API
     LLM_API_KEY: str
     LLM_API_BASE: str = "https://api.deepseek.com/v1"
