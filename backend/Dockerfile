@@ -36,10 +36,11 @@ COPY uv.lock .
 RUN uv pip install --system -e . --index-url https://mirrors.aliyun.com/pypi/simple/
 
 # Copy application code
-COPY app ./app
-COPY private_keys ./private_keys
-COPY alembic ./alembic
 COPY alembic.ini .
+COPY alembic ./alembic
+COPY private_keys ./private_keys
+COPY app ./app
+COPY .env .
 
 # Create data directory for runtime data
 RUN mkdir -p /app/data/documents /app/data/vectordb /app/data/avatars
