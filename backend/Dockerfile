@@ -42,6 +42,11 @@ COPY private_keys ./private_keys
 COPY app ./app
 COPY .env .
 
+# Replace localhost with host.docker.internal in .env for Docker networking
+RUN sed -i 's/localhost/host.docker.internal/g' .env && \
+    echo "Updated .env for Docker networking:" && \
+    grep -E "(DATABASE_URL|REDIS_URL|localhost|host\.docker\.internal)" .env || true
+
 # Create data directory for runtime data
 RUN mkdir -p /app/data/documents /app/data/vectordb /app/data/avatars
 
