@@ -55,19 +55,8 @@ class Settings(BaseSettings):
     CONFLUENCE_URL: str = ""
     CONFLUENCE_PERSONAL_TOKEN: str = ""
 
-    GOOGLE_CLIENT_ID: str = ""
-    GOOGLE_CLIENT_SECRET: str = ""
-    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/auth/google/callback"
-
     # Web Search
     TAVILY_API_KEY: str = ""
-
-    # Redis
-    REDIS_HOST: str = "localhost"
-    REDIS_PORT: int = 6379
-    REDIS_DB: int = 0
-    REDIS_PASSWORD: str = ""
-    CACHE_TTL: int = 3600
 
     # Storage
     UPLOAD_DIR: str = "./data/documents"
