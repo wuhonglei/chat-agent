@@ -7,8 +7,6 @@ services:
       POSTGRES_USER: ${PG_USER_NAME}
       POSTGRES_PASSWORD: ${PG_PASSWORD}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/init-db:/docker-entrypoint-initdb.d
@@ -26,8 +24,6 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: ai-doc-backend
-    ports:
-      - "8000:8000"
     volumes:
       - ./backend/data:/app/data
       - ./backend/logs:/app/logs
