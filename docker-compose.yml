@@ -26,12 +26,6 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: ai-doc-backend
-    environment:
-      PG_HOST: postgres
-      PG_PORT: 5432
-      PG_DB: ai_assistant_db
-      PG_USER_NAME: ${PG_USER_NAME:-postgres}
-      PG_PASSWORD: ${PG_PASSWORD:-postgres}
     ports:
       - "8000:8000"
     volumes:
