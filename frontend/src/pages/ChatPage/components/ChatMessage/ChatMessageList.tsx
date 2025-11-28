@@ -34,7 +34,9 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   return (
     <SimpleBar
-      scrollableNodeProps={{ ref: containerRef }}
+      scrollableNodeProps={{
+        ref: containerRef,
+      }}
       className={classNames("flex-1 h-0 px-2 pb-4 relative", className)}
     >
       {messages.map((message, index) => (

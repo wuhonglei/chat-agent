@@ -1,6 +1,6 @@
-import { useEffect, useRef } from "react";
 import { ChatMessage } from "@/interfaces";
 import { useThrottleFn } from "ahooks";
+import { useEffect, useRef } from "react";
 
 type Props = {
   messages: ChatMessage[];
