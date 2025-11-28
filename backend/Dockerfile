@@ -42,10 +42,11 @@ COPY private_keys ./private_keys
 COPY app ./app
 COPY .env .
 
-# Replace localhost with host.docker.internal in .env for Docker networking
-RUN sed -i 's/localhost/host.docker.internal/g' .env && \
-    echo "Updated .env for Docker networking:" && \
-    grep -E "(DATABASE_URL|REDIS_URL|localhost|host\.docker\.internal)" .env || true
+# Replace localhost with postgres service name in .env for Docker Compose networking
+# In Docker Compose, services communicate using service names within the same network
+RUN sed -i 's/localhost/postgres/g' .env && \
+    echo "Updated .env for Docker Compose networking:" && \
+    grep -E "(DATABASE_URL|REDIS_URL|PG_HOST|CHROMA_HOST)" .env || true
 
 # Create data directory for runtime data
 RUN mkdir -p /app/data/documents /app/data/vectordb /app/data/avatars

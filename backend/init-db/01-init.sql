@@ -13,9 +13,6 @@ CREATE EXTENSION IF NOT EXISTS "btree_gin";      -- GIN 索引优化
 -- 设置默认搜索路径
 ALTER DATABASE ai_assistant_db SET search_path TO public;
 
--- 创建应用特定的配置
--- 可以在这里添加应用需要的表、索引、函数等
-
 -- 输出初始化完成信息
 SELECT 
     current_database() as database_name,
