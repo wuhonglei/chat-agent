@@ -2,6 +2,9 @@ services:
   postgres:
     image: postgres:18-alpine
     container_name: ai-doc-postgres
+    # 不暴露端口到宿主机，只通过内部网络访问
+    expose:
+      - "5432"
     environment:
       POSTGRES_DB: ${PG_DB}
       POSTGRES_USER: ${PG_USER_NAME}
@@ -24,8 +27,10 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: ai-doc-backend
-    ports:
-      - "8000:8000"
+    # 不暴露端口到宿主机，只通过内部网络访问
+    # 前端 Nginx 会通过内部网络访问后端
+    expose:
+      - "8000"
     volumes:
       - ./backend/data:/app/data
       - ./backend/logs:/app/logs
@@ -47,8 +52,10 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: ai-doc-frontend
+    # 只暴露到本地，供宿主机 Nginx 访问
+    # 外部通过宿主机 Nginx (80/443) 访问
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     depends_on:
       backend:
         condition: service_healthy
