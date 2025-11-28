@@ -92,6 +92,8 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 6. **数据库迁移**
 
+> **提示**：使用 Docker Compose 部署时，数据库迁移会在容器启动时自动执行，无需手动操作。
+
 6.1 **生成迁移文件**
 ```bash
 uv run alembic revision --autogenerate -m "Add conversation table"
@@ -122,9 +124,21 @@ output is as below, `6fc87d2a678f` means the current version of the application.
 <base> -> 6fc87d2a678f, chore: 初始化数据库迁移
 ```
 
-6.4 **执行迁移**
+6.4 **执行迁移（本地开发环境）**
 ```bash
 uv run alembic upgrade head
+```
+
+6.5 **Docker 环境中的迁移**
+
+使用 Docker Compose 时，迁移会自动执行。如需手动执行：
+
+```bash
+# 进入容器执行迁移
+docker-compose exec backend uv run alembic upgrade head
+
+# 或使用 docker exec
+docker exec -it ai-doc-backend uv run alembic upgrade head
 ```
 
 ## API 接口
@@ -174,6 +188,25 @@ MAX_FILE_SIZE_MB=50      # 最大文件大小
 
 ## Docker 部署
 
+### 使用 Docker Compose（推荐）
+
+项目已配置 Docker Compose，支持自动数据库迁移。在项目根目录执行：
+
+```bash
+# 启动所有服务（数据库迁移会自动执行）
+docker-compose up -d
+
+# 查看日志
+docker-compose logs -f backend
+```
+
+**自动迁移功能**：
+- 容器启动时会自动等待数据库就绪
+- 自动执行 `alembic upgrade head` 应用所有迁移
+- 迁移完成后自动启动应用服务
+
+### 单独构建和运行
+
 1. **构建镜像**
 ```bash
 docker build -t ai-doc-backend .
@@ -188,6 +221,8 @@ docker run -d \
   --env-file .env \
   ai-doc-backend
 ```
+
+**注意**：使用 `start.sh` 启动脚本时，容器会自动执行数据库迁移，无需手动运行 `alembic upgrade head`。
 
 ## 开发指南
 

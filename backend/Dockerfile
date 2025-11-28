@@ -42,11 +42,17 @@ COPY private_keys ./private_keys
 COPY app ./app
 COPY .env .
 
+# Copy startup script
+COPY start.sh ./start.sh
+
 # Replace localhost with postgres service name in .env for Docker Compose networking
 # In Docker Compose, services communicate using service names within the same network
 RUN sed -i 's/^PG_HOST=localhost/PG_HOST=postgres/g' .env && \
     echo "Updated .env for Docker Compose networking:" && \
     grep -E "^PG_HOST=" .env || true
+
+# Make startup script executable
+RUN chmod +x /app/start.sh
 
 # Create data directory for runtime data
 RUN mkdir -p /app/data/documents /app/data/vectordb /app/data/avatars
@@ -54,5 +60,5 @@ RUN mkdir -p /app/data/documents /app/data/vectordb /app/data/avatars
 # Expose port
 EXPOSE 8000
 
-# Run the application (remove --reload for production)
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the application with auto-migration (start.sh will handle migration before starting)
+CMD ["/app/start.sh"]
