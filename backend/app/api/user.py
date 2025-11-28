@@ -4,6 +4,7 @@
 
 from fastapi import APIRouter, Depends
 from sqlmodel import Session
+from fastapi import HTTPException
 
 from app.core.db import get_db
 from app.models.user import UpdateUserInfo
@@ -23,7 +24,8 @@ async def get_user_detail(
     """获取用户信息"""
     user_service = UserService(db)
     user = user_service.get_user(token_info.user_id)
-
+    if not user:
+        raise HTTPException(status_code=401, detail="用户不存在")
     return ApiResponse.success(data=user)
 
 

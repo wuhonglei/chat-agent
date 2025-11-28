@@ -3,7 +3,6 @@ from __future__ import annotations
 import string
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlmodel import Session, select
 
 from app.models.auth import VerifySmsResponse
@@ -30,8 +29,6 @@ class UserService:
 
     def get_user(self, user_id: str) -> UserDb:
         user = self.db.get(UserDb, user_id)
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
         return user
 
     def create_user(self, user: UserDb) -> UserDb:
