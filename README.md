@@ -30,8 +30,7 @@ cd ai-doc
 
 2. **配置环境变量**
 ```bash
-cp .env.example .env
-# 编辑 .env 文件，填入您的 DeepSeek API Key 等配置
+cp docker-compose.env.example .env
 ```
 
 3. **使用 Docker Compose 启动**
@@ -39,7 +38,11 @@ cp .env.example .env
 docker-compose up -d
 ```
 
-4. **访问应用**
+配置未变：docker-compose up -d 不会重启正在运行的容器
+配置已变：docker-compose up -d 会重新创建容器（会重启）
+需要强制重启：使用 docker-compose restart 或 docker-compose up -d --force-recreate
+
+1. **访问应用**
 - 前端界面: http://localhost:3000
 - 后端 API: http://localhost:8000
 - API 文档: http://localhost:8000/docs
