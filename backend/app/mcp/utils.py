@@ -1,5 +1,5 @@
 import os
-from app.models.mcp import MCPConfig
+from app.models.config import MCPConfig
 from loguru import logger
 
 
