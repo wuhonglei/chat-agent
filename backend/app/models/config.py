@@ -27,21 +27,21 @@ class Context7Config(BaseModel):
 
 class ConfluenceMCPConfig(BaseModel):
     """Confluence MCP 配置"""
-    url: str = ""
-    personal_token: str = ""
-    auth_type: str = "pat"  # 认证类型：pat, basic, oauth
+    CONFLUENCE_URL: str = ""  # 与环境变量名一致
+    CONFLUENCE_PERSONAL_TOKEN: str = ""  # 与环境变量名一致
+    CONFLUENCE_AUTH_TYPE: str = "pat"  # 认证类型：pat, basic, oauth，与环境变量名一致
 
 
 class WeatherMCPConfig(BaseModel):
     """Weather MCP 配置"""
-    api_key: str = ""
-    base_url: str = ""
-    timeout: int = 10
+    QWEATHER_API_KEY: str = ""  # 与环境变量名一致
+    QWEATHER_BASE_URL: str = ""  # 与环境变量名一致
+    QWEATHER_TIMEOUT: int = 10  # 与环境变量名一致
 
 
 class TavilyMCPConfig(BaseModel):
     """Tavily MCP 配置"""
-    api_key: str = ""
+    TAVILY_API_KEY: str = ""  # 与环境变量名一致
 
 
 class MCPConfig(BaseModel):

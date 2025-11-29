@@ -22,15 +22,15 @@ mcp:
   context7:
     api_key: "your_context7_api_key_here"  # Context7 API 密钥
   confluence_mcp:
-    url: "https://your-confluence-instance.com"  # Confluence 地址
-    personal_token: "your_personal_token"  # Confluence 个人访问令牌
-    auth_type: "pat"  # Confluence 认证类型
+    CONFLUENCE_URL: "https://your-confluence-instance.com"  # Confluence 地址
+    CONFLUENCE_PERSONAL_TOKEN: "your_personal_token"  # Confluence 个人访问令牌
+    CONFLUENCE_AUTH_TYPE: "pat"  # Confluence 认证类型
   weather_mcp:
-    api_key: "your_weather_api_key_here"  # Weather API 密钥
-    base_url: "https://your-weather-api-url.com"  # Weather API 基础 URL
-    timeout: 10  # Weather API 超时时间
+    QWEATHER_API_KEY: "your_weather_api_key_here"  # Weather API 密钥
+    QWEATHER_BASE_URL: "https://your-weather-api-url.com"  # Weather API 基础 URL
+    QWEATHER_TIMEOUT: 10  # Weather API 超时时间
   tavily_mcp:
-    api_key: "your_tavily_api_key_here"  # Tavily API 密钥
+    TAVILY_API_KEY: "your_tavily_api_key_here"  # Tavily API 密钥
 
 # 存储配置
 storage:

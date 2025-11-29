@@ -18,7 +18,7 @@ mcp = FastMCP(
 confluence_fetcher = ConfluenceFetcher(config=ConfluenceConfig(
     url=config.CONFLUENCE_URL,
     personal_token=config.CONFLUENCE_PERSONAL_TOKEN,
-    auth_type=config.AUTH_TYPE,
+    auth_type=config.CONFLUENCE_AUTH_TYPE,
 ))
 
 

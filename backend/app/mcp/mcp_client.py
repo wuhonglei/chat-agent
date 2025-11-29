@@ -3,13 +3,11 @@
 用于连接和管理多个 MCP Server，提供统一的工具调用接口
 """
 
-from app.core.config import settings
-from app.mcp.mcp_servers.code_exec_mcp.server import mcp as code_exec_mcp
-from app.models.mcp import MCPConfigForFeDict
-from app.mcp.mcp_servers.confluence_mcp.server import mcp as mcp_confluence
-from app.mcp.mcp_servers.tavily_mcp.server import mcp as tavily_mcp
-from app.mcp.mcp_servers.weather_mcp.server import mcp as weather_mcp
 from app.mcp.mcp_servers.time_mcp.server import mcp as time_mcp
+from app.mcp.mcp_servers.weather_mcp.server import mcp as weather_mcp
+from app.mcp.mcp_servers.tavily_mcp.server import mcp as tavily_mcp
+from app.mcp.mcp_servers.confluence_mcp.server import mcp as mcp_confluence
+from app.mcp.mcp_servers.code_exec_mcp.server import mcp as code_exec_mcp
 import asyncio
 import copy
 from loguru import logger
@@ -20,9 +18,16 @@ from fastmcp.client.transports import FastMCPTransport, StreamableHttpTransport
 from fastmcp.client.transports import StdioTransport
 from fastmcp import FastMCP
 
+from app.core.config import settings
+from app.models.mcp import MCPConfigForFeDict
+from app.mcp.utils import inject_mcp_env_vars
 from app.utils.mcp import create_mcp_http_client_with_ssl_config
 
 VERIFY_SSL = not settings.app.debug
+
+
+# 在导入 MCP servers 之前注入 MCP 环境变量
+inject_mcp_env_vars(settings.mcp)
 
 # 导入 MCP servers
 mcp_config = {

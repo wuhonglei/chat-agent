@@ -9,7 +9,7 @@ class Settings(BaseSettings):
                                 description="The URL of the Confluence instance")
     CONFLUENCE_PERSONAL_TOKEN: str = Field(
         ..., description="The personal token of the Confluence instance")
-    AUTH_TYPE: Literal["basic", "pat", "oauth"] = Field(
+    CONFLUENCE_AUTH_TYPE: Literal["basic", "pat", "oauth"] = Field(
         ..., description="The authentication type of the Confluence instance")
 
     model_config = ConfigDict(
