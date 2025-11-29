@@ -1,6 +1,6 @@
 """Application configuration"""
 
-from pydantic import Field, field_validator, ConfigDict
+from pydantic import Field, ConfigDict
 from pydantic_settings import BaseSettings
 
 
@@ -20,37 +20,6 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "deepseek-chat"
     LLM_THINK_MODEL: str = "deepseek-reasoner"
 
-    # Embedding Model API
-    EMBEDDING_API_KEY: str
-    EMBEDDING_API_BASE: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-    EMBEDDING_MODEL: str = "text-embedding-v4"
-
-    # Re-rank API Configuration
-    RE_RANK_API_KEY: str
-    RE_RANK_API_BASE: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-    RE_RANK_MODEL: str
-
-    # Chroma
-    CHROMA_HOST: str = "localhost"
-    CHROMA_PORT: int = 8000
-    CHROMA_PERSIST_DIRECTORY: str = "./data/vectordb"
-    CHROMA_COLLECTION_NAME: str = "documents"
-
-    # Document Processing
-    MAX_FILE_SIZE_MB: int = 50
-    ALLOWED_EXTENSIONS: list[str] | str = ["pdf", "docx", "txt", "md"]
-    CHUNK_SIZE: int = 1000
-    CHUNK_OVERLAP: int = 200
-
-    @field_validator("ALLOWED_EXTENSIONS", mode="before")
-    @classmethod
-    def parse_allowed_extensions(cls, v):
-        if v is None or v == "":
-            return ["pdf", "docx", "txt", "md"]
-        if isinstance(v, str):
-            return [ext.strip() for ext in v.split(",")]
-        return v
-
     # External Integrations
     CONFLUENCE_URL: str = ""
     CONFLUENCE_PERSONAL_TOKEN: str = ""
@@ -59,20 +28,7 @@ class Settings(BaseSettings):
     TAVILY_API_KEY: str = ""
 
     # Storage
-    UPLOAD_DIR: str = "./data/documents"
     AVATAR_DIR: str = "./data/avatars"
-
-    # Search
-    SEARCH_TOP_K: int = 10
-    USE_RERANK: bool = True
-    RERANK_TOP_K: int = 3
-    MIN_RELEVANCE_SCORE: float = 0.3
-
-    # Logging
-    LOG_LEVEL: str = "INFO"
-    LOG_FILE: str = "./logs/app.log"
-    LOG_ROTATION: str = "10 MB"
-    LOG_RETENTION: str = "30 days"
 
     # Security
     JWT_ALGORITHM: str = "RS256"
