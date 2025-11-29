@@ -1,5 +1,9 @@
 from nacos import NacosClient
 import json
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 
 def get_nacos_config():
@@ -9,15 +13,17 @@ def get_nacos_config():
     """
     # -------------------------- 1. 配置 Nacos 连接信息 --------------------------
     # Nacos 服务地址（多个地址用逗号分隔，如 "ip1:8848,ip2:8848"）
-    SERVER_ADDRESSES = "134.175.182.235:8848"
-    NAMESPACE = "public"  # 命名空间ID（默认public，自定义命名空间需填ID而非名称）
-    USERNAME = "nacos"    # Nacos 登录用户名（默认nacos）
-    PASSWORD = "n9pEWLSWEAq6H5L"    # Nacos 登录密码（默认nacos）
+    SERVER_ADDRESSES = os.getenv("NACOS_SERVER_ADDRESSES")
+    # 命名空间ID（默认public，自定义命名空间需填ID而非名称）
+    NAMESPACE = os.getenv("NACOS_NAMESPACE")
+    USERNAME = os.getenv("NACOS_USERNAME")    # Nacos 登录用户名（默认nacos）
+    PASSWORD = os.getenv("NACOS_PASSWORD")    # Nacos 登录密码（默认nacos）
 
     # -------------------------- 2. 配置目标配置信息 --------------------------
-    DATA_ID = "ai-chat-dev"  # 配置ID（必填）
-    GROUP = "DEFAULT_GROUP"  # 配置分组（默认DEFAULT_GROUP）
-    CONFIG_TYPE = "text"     # 配置格式（支持：json/yaml/properties/text，根据实际配置选择）
+    DATA_ID = os.getenv("NACOS_DATA_ID")  # 配置ID（必填）
+    GROUP = os.getenv("NACOS_GROUP")  # 配置分组（默认DEFAULT_GROUP）
+    # 配置格式（支持：json/yaml/properties/text，根据实际配置选择）
+    CONFIG_TYPE = os.getenv("NACOS_CONFIG_TYPE")
 
     try:
         # -------------------------- 3. 初始化 Nacos 客户端 --------------------------
