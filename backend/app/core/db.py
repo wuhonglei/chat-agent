@@ -4,7 +4,7 @@ from app.core.config import settings
 from typing import Generator
 # 数据库连接字符串
 # 格式：postgresql://用户名:密码@主机:端口/数据库名
-SQLALCHEMY_DATABASE_URL = f"postgresql://{settings.PG_USER_NAME}:{settings.PG_PASSWORD}@{settings.PG_HOST}:{settings.PG_PORT}/{settings.PG_DB}"
+SQLALCHEMY_DATABASE_URL = f"postgresql://{settings.database.username}:{settings.database.password}@{settings.database.host}:{settings.database.port}/{settings.database.db}"
 
 # 创建引擎（SQLModel 兼容 SQLAlchemy 引擎）
 engine = create_engine(

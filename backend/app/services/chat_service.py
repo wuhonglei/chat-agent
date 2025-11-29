@@ -21,8 +21,8 @@ class ChatService:
 
     def __init__(self, mcp_manager: MCPClientManager):
         self.client = AsyncOpenAI(
-            api_key=settings.LLM_API_KEY,
-            base_url=settings.LLM_API_BASE,
+            api_key=settings.llm.api_key,
+            base_url=settings.llm.api_base,
         )
         self.mcp_manager = mcp_manager
         self.collected_content = ''  # 收集的完整响应内容
@@ -248,7 +248,7 @@ class ChatService:
             source_config = chat_request.source_config
             think_mode = chat_request.think_mode
             user_message = chat_request.content
-            final_model = settings.LLM_THINK_MODEL if think_mode else settings.LLM_MODEL
+            final_model = settings.llm.think_model if think_mode else settings.llm.model
 
             # Get MCP tools for LLM
             server_names = None if mcp_auto_mode else filter_dict(
@@ -264,7 +264,7 @@ class ChatService:
 
                 # Stream tool calls and collect messages
                 async for sse_msg, accumulated_messages in self._call_llm_with_tools(
-                    new_messages, settings.LLM_MODEL, tools
+                    new_messages, settings.llm.model, tools
                 ):
                     # Stream SSE messages
                     if sse_msg:
@@ -291,7 +291,7 @@ class ChatService:
         messages = self._compose_messages_without_tool_calls(
             system_prompt, [], new_user_message)
         title_response = await self.client.chat.completions.create(
-            model=settings.LLM_MODEL,
+            model=settings.llm.model,
             messages=messages,
             stream=False,
         )

@@ -9,7 +9,7 @@ from app.utils.date import get_unix_timestamp
 
 
 class JWTManager:
-    def __init__(self, private_key_path=settings.JWT_PRIVATE_KEY_PATH, public_key_path=settings.JWT_PUBLIC_KEY_PATH, algorithm=settings.JWT_ALGORITHM):
+    def __init__(self, private_key_path=settings.security.jwt.private_key_path, public_key_path=settings.security.jwt.public_key_path, algorithm=settings.security.jwt.algorithm):
         self.algorithm = algorithm
         self.private_key = None
         self.public_key = None

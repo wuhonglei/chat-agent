@@ -22,7 +22,7 @@ from fastmcp import FastMCP
 
 from app.utils.mcp import create_mcp_http_client_with_ssl_config
 
-VERIFY_SSL = not settings.DEBUG
+VERIFY_SSL = not settings.app.debug
 
 # 导入 MCP servers
 mcp_config = {
@@ -31,7 +31,7 @@ mcp_config = {
         "context7": {
             "url": "https://mcp.context7.com/mcp",
             "headers": {
-                "CONTEXT7_API_KEY": settings.CONTEXT7_API_KEY
+                "CONTEXT7_API_KEY": settings.mcp.context7.api_key
             },
             "verify_ssl": VERIFY_SSL
         },

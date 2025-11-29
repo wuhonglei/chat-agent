@@ -10,10 +10,6 @@ dependencies = [
     "python-multipart>=0.0.6",
     "pydantic>=2.5.0",
     "pydantic-settings>=2.1.0",
-    # RAG & Vector Database
-    "langchain>=0.1.0",
-    "langchain-community>=0.1.0",
-    "chromadb>=0.4.22",
     # DeepSeek Integration
     "openai>=1.10.0", # DeepSeek uses OpenAI-compatible API
     # Document Processing
@@ -21,7 +17,6 @@ dependencies = [
     # External Document Integration
     "atlassian-python-api>=3.41.0", # Confluence
     # Search & Retrieval Enhancement
-    "rank-bm25>=0.2.2", # BM25 keyword search
     "tavily-python>=0.3.0", # Web search
     # Storage & Cache
     "aiofiles>=23.2.0",
@@ -29,6 +24,7 @@ dependencies = [
     "httpx>=0.25.0",
     # Utils
     "python-dateutil>=2.8.0",
+    "pyyaml>=6.0.0",  # YAML configuration file support
     # Database Migration
     "alembic>=1.13.1",
     # Security
@@ -36,7 +32,6 @@ dependencies = [
     "restrictedpython>=6.0.0", # 代码执行沙箱
     # Monitoring & Logging
     "loguru>=0.7.0",
-    "dashscope>=1.24.4",
     "markdownify>=1.2.0",
     "fastmcp>=2.12.4",
     # confluence mcp dependency
@@ -48,7 +43,6 @@ dependencies = [
     "PyJWT>=2.0.0",
     "cos-python-sdk-v5>=1.9.0", # 腾讯云 COS SDK
     "tzlocal>=5.3.1",
-    "nacos-sdk-python>=2.0.9",
 ]
 
 [project.optional-dependencies]

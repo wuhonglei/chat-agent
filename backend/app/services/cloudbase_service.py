@@ -12,8 +12,8 @@ from app.models.auth import SendSmsRequest, SendSmsResponse, SigninRequest, Sign
 
 class CloudbaseService:
     """Cloudbase 服务类"""
-    VERIFY_SSL = not settings.DEBUG  # 如果DEBUG为True，则不验证SSL证书
-    BASE_URL = f"https://{settings.CLOUDBASE_ENV_ID}.api.tcloudbasegateway.com"
+    VERIFY_SSL = not settings.app.debug  # 如果DEBUG为True，则不验证SSL证书
+    BASE_URL = f"https://{settings.cloudbase.env_id}.api.tcloudbasegateway.com"
 
     @staticmethod
     async def send_sms(send_sms_request: SendSmsRequest) -> SendSmsResponse:

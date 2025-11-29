@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 class ObjectStorageService:
     """Object storage service"""
 
-    def __init__(self, region: str = settings.STORAGE_REGION, secret_id: str = settings.STORAGE_SECRET_ID, secret_key: str = settings.STORAGE_SECRET_KEY, bucket: str = settings.STORAGE_BUCKET):
+    def __init__(self, region: str = settings.storage.tencent_cos.region, secret_id: str = settings.storage.tencent_cos.secret_id, secret_key: str = settings.storage.tencent_cos.secret_key, bucket: str = settings.storage.tencent_cos.bucket):
         config = CosConfig(Region=region, SecretId=secret_id,
                            SecretKey=secret_key)
         self.bucket = bucket

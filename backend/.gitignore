@@ -1,3 +1,4 @@
 # 忽略所有 pem 文件
 *.pem
 sftp.json
+config.yaml

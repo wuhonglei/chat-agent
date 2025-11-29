@@ -1,73 +1,108 @@
 """Application configuration"""
 
-from pydantic import Field, ConfigDict
-from pydantic_settings import BaseSettings
+from pathlib import Path
+from typing import Any
+
+import yaml
+from pydantic import Field
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+)
+
+from app.models.config import (
+    AppConfig,
+    CloudbaseConfig,
+    DatabaseConfig,
+    LLMConfig,
+    MCPConfig,
+    SecurityConfig,
+    StorageConfig,
+)
+
+
+class YamlConfigSettingsSource(PydanticBaseSettingsSource):
+    """从 YAML 文件加载配置的自定义设置源"""
+
+    def get_field_value(
+        self, field: Any, field_name: str
+    ) -> tuple[Any, str | None]:
+        """获取字段值（从 YAML 文件中）"""
+        config_file = Path('config.yaml')
+        if not config_file.exists():
+            return None, None
+
+        try:
+            with open(config_file, 'r', encoding='utf-8') as f:
+                yaml_data = yaml.safe_load(f) or {}
+
+            # 递归查找字段值
+            keys = field_name.split('__')
+            value = yaml_data
+            for key in keys:
+                if isinstance(value, dict) and key in value:
+                    value = value[key]
+                else:
+                    return None, None
+
+            return value, None
+        except Exception:
+            return None, None
+
+    def __call__(self) -> dict[str, Any]:
+        """加载并返回配置字典"""
+        config_file = Path('config.yaml')
+        if not config_file.exists():
+            # 如果 YAML 文件不存在，返回空字典，让其他源处理
+            return {}
+
+        try:
+            with open(config_file, 'r', encoding='utf-8') as f:
+                yaml_data = yaml.safe_load(f) or {}
+            return yaml_data
+        except Exception as e:
+            # 如果 YAML 文件解析失败，记录错误但不中断程序
+            import sys
+            print(f"Warning: Failed to load config.yaml: {e}", file=sys.stderr)
+            return {}
 
 
 class Settings(BaseSettings):
-    """Application settings"""
+    """Application settings - 使用层级结构匹配 YAML 配置"""
 
-    # Application
-    APP_NAME: str = "AI Assistant"
-    APP_VERSION: str = "0.1.0"
-    DEBUG: bool = False
-    HOST: str = "0.0.0.0"
-    PORT: int = 8000
+    app: AppConfig = Field(default_factory=AppConfig)
+    llm: LLMConfig = Field(..., description="LLM 模型配置")
+    mcp: MCPConfig = Field(default_factory=MCPConfig)
+    storage: StorageConfig = Field(default_factory=StorageConfig)
+    security: SecurityConfig = Field(default_factory=SecurityConfig)
+    cloudbase: CloudbaseConfig = Field(..., description="Cloudbase 配置")
+    database: DatabaseConfig = Field(..., description="数据库配置")
 
-    # LLM Model API
-    LLM_API_KEY: str
-    LLM_API_BASE: str = "https://api.deepseek.com/v1"
-    LLM_MODEL: str = "deepseek-chat"
-    LLM_THINK_MODEL: str = "deepseek-reasoner"
-
-    # External Integrations
-    CONFLUENCE_URL: str = ""
-    CONFLUENCE_PERSONAL_TOKEN: str = ""
-
-    # Web Search
-    TAVILY_API_KEY: str = ""
-
-    # Storage
-    AVATAR_DIR: str = "./data/avatars"
-
-    # Security
-    JWT_ALGORITHM: str = "RS256"
-    JWT_PRIVATE_KEY_PATH: str = "./private_keys/v1_private_key.pem"
-    JWT_PUBLIC_KEY_PATH: str = "./private_keys/v1_public_key.pem"
-
-    # Cloudbase
-    CLOUDBASE_ENV_ID: str = Field(...,
-                                  description="The environment ID of the Cloudbase")
-
-    # 腾讯云存储服务
-    STORAGE_SECRET_ID: str = Field(...,
-                                   description="The secret ID of the storage")
-    STORAGE_SECRET_KEY: str = Field(...,
-                                    description="The secret key of the storage")
-    STORAGE_REGION: str = Field('ap-guangzhou',
-                                description="The region of the storage")
-    STORAGE_BUCKET: str = Field("ai-chat-1258352625",
-                                description="The bucket of the storage")
-
-    # PostgreSQL
-    PG_HOST: str = "localhost"
-    PG_PORT: int = 5432
-    PG_DB: str = "ai_assistant_db"
-    PG_USER_NAME: str = Field(...,
-                              description="The username of the PostgreSQL database")
-    PG_PASSWORD: str = Field(...,
-                             description="The password of the PostgreSQL database")
-
-    # MCP Config
-    CONTEXT7_API_KEY: str = ""
-
-    model_config = ConfigDict(
-        env_file='.env',
-        env_file_encoding='utf-8',
-        case_sensitive=True,
-        env_ignore_empty=True,
-        extra='ignore'
+    model_config = SettingsConfigDict(
+        extra='allow',
     )
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        """
+        自定义配置源优先级
+        优先级（从高到低）：
+        1. 初始化参数（init_settings）
+        2. YAML 配置文件（config.yaml）
+        """
+        yaml_settings = YamlConfigSettingsSource(settings_cls)
+        return (
+            init_settings,      # 初始化参数（最高优先级）
+            yaml_settings,      # YAML 配置文件
+        )
 
 
 settings = Settings()

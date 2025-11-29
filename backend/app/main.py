@@ -16,7 +16,7 @@ from app.jwt.jwt_manager import initialize_jwt_manager
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
-    logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
+    logger.info(f"Starting {settings.app.name} v{settings.app.version}")
 
     # 创建数据库表（如果权限允许）
     # 如果权限不足，应用会继续运行但需要手动创建表
@@ -37,8 +37,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title=settings.APP_NAME,
-    version=settings.APP_VERSION,
+    title=settings.app.name,
+    version=settings.app.version,
     lifespan=lifespan,
 )
 
@@ -57,7 +57,7 @@ app.include_router(file.router, prefix="/api/file", tags=["file"])
 async def root():
     """Root endpoint"""
     return {
-        "name": settings.APP_NAME,
-        "version": settings.APP_VERSION,
+        "name": settings.app.name,
+        "version": settings.app.version,
         "status": "running",
     }

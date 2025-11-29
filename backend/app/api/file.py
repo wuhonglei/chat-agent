@@ -38,7 +38,7 @@ async def upload_avatar(
         上传后的文件 URL
     """
     file_ext = get_file_extension(file.filename)
-    avatar_dir = Path(settings.AVATAR_DIR)
+    avatar_dir = Path(settings.storage.avatar_dir)
 
     logger.info(
         f"开始上传头像: filename={file.filename}, "
