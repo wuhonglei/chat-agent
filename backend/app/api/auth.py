@@ -14,7 +14,7 @@ from app.services.cloudbase_service import CloudbaseService
 from app.services.user_service import UserService
 from app.jwt.jwt_manager import JWTManager, get_jwt_manager
 from app.utils.auth_deps import get_auth_token_info
-
+from loguru import logger
 router = APIRouter()
 
 
@@ -24,6 +24,7 @@ async def send_sms(send_sms_request: SendSmsRequest) -> ApiResponse[SendSmsRespo
     data = await CloudbaseService.send_sms(send_sms_request)
     new_data = SendSmsResponseForFrontend(
         **data.model_dump(exclude_none=True), phone_number=send_sms_request.phone_number)
+    logger.info("new_data: %s", new_data)
     return ApiResponse.success(data=new_data)
 
 
