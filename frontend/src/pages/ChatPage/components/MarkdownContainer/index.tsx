@@ -1,11 +1,8 @@
-import "katex/dist/katex.min.css";
 import React, { memo, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeExternalLinks from "rehype-external-links";
-import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
-import remarkMath from "remark-math";
 import InlineCode from "./components/InlineCode";
 import MermaidBlock from "./components/MermaidBlock";
 import NormalCode from "./components/NormalCode";
@@ -126,7 +123,6 @@ const MarkdownContainer = ({ children, className, sources }: Props) => {
       }}
       rehypePlugins={[
         rehypeRaw,
-        rehypeKatex,
         [
           rehypeExternalLinks,
           {
@@ -135,7 +131,7 @@ const MarkdownContainer = ({ children, className, sources }: Props) => {
           },
         ],
       ]} // HTML 生成阶段, 处理已转换的 HTML 树，在渲染前进行最终处理
-      remarkPlugins={[[remarkGfm], remarkMath]} // Markdown 解析阶段, 处理原始 Markdown 文本，转换成 AST（抽象语法树）
+      remarkPlugins={[[remarkGfm]]} // Markdown 解析阶段, 处理原始 Markdown 文本，转换成 AST（抽象语法树）
       className={classNames(styles["markdown-body"], className)}
     >
       {children}
