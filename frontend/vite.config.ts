@@ -46,8 +46,6 @@ export default defineConfig({
             "rehype-raw",
             "remark-gfm",
           ],
-          // 数学公式依赖最耗内存，单独拆分（若非必需可直接删除）
-          math: ["rehype-katex", "remark-math"],
         },
       },
     },
