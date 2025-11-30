@@ -76,6 +76,7 @@ class StorageConfig(BaseModel):
 
 class JWTConfig(BaseModel):
     """JWT 安全配置"""
+    version: str = "v1"
     algorithm: str = "RS256"
     private_key: str = ""  # 私钥内容（PEM 格式）
     public_key: str = ""  # 公钥内容（PEM 格式）
