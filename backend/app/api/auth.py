@@ -24,7 +24,7 @@ async def send_sms(send_sms_request: SendSmsRequest) -> ApiResponse[SendSmsRespo
     data = await CloudbaseService.send_sms(send_sms_request)
     new_data = SendSmsResponseForFrontend(
         **data.model_dump(exclude_none=True), phone_number=send_sms_request.phone_number)
-    logger.info("new_data: %s", new_data)
+    logger.info(f"new_data: {new_data}")
     return ApiResponse.success(data=new_data)
 
 

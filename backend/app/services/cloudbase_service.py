@@ -44,7 +44,7 @@ class CloudbaseService:
                     timeout=10.0
                 )
 
-                logger.info("response.status_code: %s", response.status_code)
+                logger.info(f"response.status_code: {response.status_code}")
                 logger.info(f"Cloudbase 发送短信响应: {response.text}")
 
                 if response.status_code == 200:
