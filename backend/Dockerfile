@@ -47,9 +47,6 @@ COPY start.sh ./start.sh
 # Make startup script executable
 RUN chmod +x /app/start.sh
 
-# Create data directory for runtime data
-RUN mkdir -p /app/data/documents /app/data/vectordb /app/data/avatars
-
 # Expose port
 EXPOSE 8000
 
