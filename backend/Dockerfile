@@ -43,12 +43,6 @@ COPY app ./app
 # Copy startup script
 COPY start.sh ./start.sh
 
-# Replace localhost with postgres service name in .env for Docker Compose networking
-# In Docker Compose, services communicate using service names within the same network
-RUN sed -i 's/^PG_HOST=localhost/PG_HOST=postgres/g' .env && \
-    echo "Updated .env for Docker Compose networking:" && \
-    grep -E "^PG_HOST=" .env || true
-
 # Make startup script executable
 RUN chmod +x /app/start.sh
 
