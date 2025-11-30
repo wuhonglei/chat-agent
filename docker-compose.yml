@@ -31,9 +31,8 @@ services:
       DATABASE__HOST: postgres
     env_file:
       - .env
-    # 不暴露端口到宿主机，只通过内部网络访问
-    # 前端 Nginx 会通过内部网络访问后端
-    expose:
+    # 暴露端口到宿主机，可通过宿主机 IP:8000 访问
+    ports:
       - "8000:8000"
     volumes:
       - ./backend/data:/app/data
