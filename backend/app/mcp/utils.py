@@ -16,7 +16,8 @@ def inject_mcp_env_vars(mcp_config: MCPConfig) -> None:
     injected_count = 0
     for config_obj in mcp_configs:
         # 使用 Pydantic 模型的字段信息，只遍历定义的字段
-        for field_name in config_obj.model_fields.keys():
+        # 从模型类访问 model_fields，而不是从实例访问（Pydantic V2.11+）
+        for field_name in type(config_obj).model_fields.keys():
             # 获取配置值
             value = getattr(config_obj, field_name, None)
             if value:

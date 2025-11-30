@@ -3,10 +3,9 @@
 """
 
 from fastapi import APIRouter, Depends, Response
-from loguru import logger
 from sqlmodel import Session
 from app.core.db import get_db
-from app.models.auth import SendSmsRequest, SendSmsResponse, SendSmsResponseForFrontend, SignoutRequest, VerifySmsRequestFromFrontend
+from app.models.auth import SendSmsRequest, SendSmsResponseForFrontend, SignoutRequest, VerifySmsRequestFromFrontend
 from app.models.auth import SigninRequest, SignupRequest
 from app.models.db import UserDb
 from app.models.response import ApiResponse

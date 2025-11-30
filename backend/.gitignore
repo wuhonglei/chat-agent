@@ -2,3 +2,4 @@
 *.pem
 sftp.json
 config.yaml
+/nacos-data
