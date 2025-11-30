@@ -38,9 +38,7 @@ RUN uv pip install --system -e . --index-url https://mirrors.aliyun.com/pypi/sim
 # Copy application code
 COPY alembic.ini .
 COPY alembic ./alembic
-COPY private_keys ./private_keys
 COPY app ./app
-COPY .env .
 
 # Copy startup script
 COPY start.sh ./start.sh

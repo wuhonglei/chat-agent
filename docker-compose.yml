@@ -27,6 +27,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: ai-doc-backend
+    env_file:
+      - .env
     # 不暴露端口到宿主机，只通过内部网络访问
     # 前端 Nginx 会通过内部网络访问后端
     expose:
