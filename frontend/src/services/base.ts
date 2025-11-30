@@ -19,7 +19,7 @@ import { getMessageInstance } from "../utils/message";
 // Create axios instance
 const apiClient = axios.create({
   baseURL: "/api",
-  timeout: 60000,
+  timeout: 30,
   headers: {
     "Content-Type": "application/json",
   },

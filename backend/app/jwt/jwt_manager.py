@@ -2,45 +2,44 @@ from datetime import timedelta
 import jwt
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
-from app.core.config import settings
-import os
+from app.models.config import SecurityConfig
 from typing import Any, Optional
 from app.utils.date import get_unix_timestamp
+from app.core.config import settings
 
 
 class JWTManager:
-    def __init__(self, private_key_path=settings.security.jwt.private_key_path, public_key_path=settings.security.jwt.public_key_path, algorithm=settings.security.jwt.algorithm):
-        self.algorithm = algorithm
-        self.private_key = None
-        self.public_key = None
+    def __init__(self, security: SecurityConfig = settings.security):
+        self.algorithm = security.jwt.algorithm
+        self.private_key = security.jwt.private_key
+        self.public_key = security.jwt.public_key
 
-        if private_key_path:
-            self.load_private_key(private_key_path)
-        if public_key_path:
-            self.load_public_key(public_key_path)
+    def load_private_key(self, key_content: str, password=None):
+        """加载私钥（从密钥内容字符串）"""
+        if not key_content:
+            raise ValueError("Private key content is empty")
 
-    def load_private_key(self, key_path, password=None):
-        """加载私钥"""
-        if not os.path.exists(key_path):
-            raise FileNotFoundError(f"Private key file not found: {key_path}")
-
-        with open(key_path, 'rb') as key_file:
+        try:
             self.private_key = serialization.load_pem_private_key(
-                key_file.read(),
+                key_content.encode('utf-8'),
                 password=password,
                 backend=default_backend()
             )
+        except Exception as e:
+            raise ValueError(f"Failed to load private key: {e}")
 
-    def load_public_key(self, key_path):
-        """加载公钥"""
-        if not os.path.exists(key_path):
-            raise FileNotFoundError(f"Public key file not found: {key_path}")
+    def load_public_key(self, key_content: str):
+        """加载公钥（从密钥内容字符串）"""
+        if not key_content:
+            raise ValueError("Public key content is empty")
 
-        with open(key_path, 'rb') as key_file:
+        try:
             self.public_key = serialization.load_pem_public_key(
-                key_file.read(),
+                key_content.encode('utf-8'),
                 backend=default_backend()
             )
+        except Exception as e:
+            raise ValueError(f"Failed to load public key: {e}")
 
     def create_token(self, payload_data: dict[str, Any]):
         """创建 JWT token"""
@@ -103,7 +102,7 @@ def get_jwt_manager() -> JWTManager:
 def initialize_jwt_manager() -> JWTManager:
     """初始化全局 JWTManager 实例
 
-    在应用启动时调用，提前加载密钥文件
+    在应用启动时调用，提前加载密钥
 
     Returns:
         JWTManager: 初始化后的 JWTManager 实例
