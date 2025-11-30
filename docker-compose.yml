@@ -56,10 +56,8 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: ai-doc-frontend
-    # 只暴露到本地，供宿主机 Nginx 访问
-    # 外部通过宿主机 Nginx (80/443) 访问
     ports:
-      - "127.0.0.1:3000:3000"
+      - "3000:3000"
     depends_on:
       backend:
         condition: service_healthy
