@@ -29,4 +29,34 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: [
+            "react",
+            "react-dom",
+            "antd",
+            "axios",
+            "lodash-es",
+            "dayjs",
+            "uuid",
+            "mitt",
+            "simplebar-react",
+          ],
+          markdown: [
+            "react-markdown",
+            "react-syntax-highlighter",
+            "rehype-external-links",
+            "rehype-highlight",
+            "rehype-katex",
+            "rehype-raw",
+            "remark-gfm",
+            "remark-math",
+          ],
+        },
+      },
+    },
+  },
 });
