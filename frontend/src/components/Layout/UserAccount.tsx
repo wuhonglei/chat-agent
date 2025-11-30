@@ -70,7 +70,7 @@ export default function UserAccount() {
         if (menuInfo.key === "setting") {
           setOpen(true);
         } else if (menuInfo.key === "logout") {
-          await dispatch(logout()).unwrap();
+          await dispatch(logout()); // 不论是否成功，都退出登录
           authHeader.removeAuthorizationHeader();
           message.success("退出登录成功");
           setTimeout(() => {

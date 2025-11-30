@@ -2,7 +2,7 @@
 用户认证
 """
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Request, Response
 from sqlmodel import Session
 from app.core.db import get_db
 from app.models.auth import SendSmsRequest, SendSmsResponseForFrontend, SignoutRequest, VerifySmsRequestFromFrontend
@@ -65,11 +65,17 @@ async def verify_sms(
 
 @router.post("/logout")
 async def logout(
-    token_info: SecretTokenInfo = Depends(get_auth_token_info),
+    request: Request,
+    response: Response,
 ) -> ApiResponse[None]:
     """登出"""
-    await CloudbaseService.signout(SignoutRequest(access_token=token_info.access_token))
+    try:
+        token_info = await get_auth_token_info(request, response)
+        await CloudbaseService.signout(SignoutRequest(access_token=token_info.access_token))
 
-    with UserService(None) as user_service:
-        user_service.update_user_last_logout(token_info.user_id)
-    return ApiResponse.success(data=None)
+        with UserService(None) as user_service:
+            user_service.update_user_last_logout(token_info.user_id)
+        return ApiResponse.success(data=None)
+    except Exception as e:
+        logger.error(f"登出失败: {e}")
+        return ApiResponse.error(code=500, msg=str(e))
