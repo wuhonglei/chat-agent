@@ -53,10 +53,7 @@ export default defineConfig({
             "rehype-raw",
             "remark-gfm",
           ],
-          math: [
-            "rehype-katex",
-            "remark-math",
-          ],
+          math: ["rehype-katex", "remark-math"],
         },
       },
     },
