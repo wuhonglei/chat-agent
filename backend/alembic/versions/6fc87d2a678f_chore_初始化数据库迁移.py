@@ -40,7 +40,8 @@ def upgrade() -> None:
                     existing_type=sa.VARCHAR(length=20),
                     server_default=None,
                     existing_nullable=False)
-    op.drop_index(op.f('ix_messages_timestamp'), table_name='messages')
+    op.drop_index(op.f('ix_messages_timestamp'),
+                  table_name='messages', if_exists=True)
     op.create_index(op.f('ix_messages_created_at'),
                     'messages', ['created_at'], unique=False)
     # 清理无效的 messages：删除那些 conversation_id 指向不存在的 conversation 的记录
