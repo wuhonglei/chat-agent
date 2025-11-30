@@ -34,7 +34,7 @@ services:
     # 不暴露端口到宿主机，只通过内部网络访问
     # 前端 Nginx 会通过内部网络访问后端
     expose:
-      - "8000"
+      - "8000:8000"
     volumes:
       - ./backend/data:/app/data
       - ./backend/logs:/app/logs
