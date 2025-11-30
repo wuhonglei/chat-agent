@@ -50,9 +50,11 @@ export default defineConfig({
             "react-syntax-highlighter",
             "rehype-external-links",
             "rehype-highlight",
-            "rehype-katex",
             "rehype-raw",
             "remark-gfm",
+          ],
+          math: [
+            "rehype-katex",
             "remark-math",
           ],
         },
