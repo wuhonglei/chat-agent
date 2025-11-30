@@ -24,9 +24,10 @@ RUN apt-get update && \
     && apt-get clean
 
 # Install uv for faster dependency installation
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
-    /root/.local/bin/uv --version
-ENV PATH="/root/.local/bin:${PATH}"
+# 使用 pip 安装（推荐用于云服务器，利用阿里云镜像加速）
+# 使用 pip 安装 uv，配合阿里云 PyPI 镜像源，在国内云服务器上速度更快
+RUN pip install --no-cache-dir --index-url https://mirrors.aliyun.com/pypi/simple/ uv && \
+    uv --version
 
 # Copy project files for dependency installation
 COPY pyproject.toml .
