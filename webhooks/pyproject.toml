@@ -1,7 +1,7 @@
 [project]
 name = "webhook"
 version = "0.1.0"
-description = "Add your description here"
+description = "GitHub Webhook for auto deployment"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
