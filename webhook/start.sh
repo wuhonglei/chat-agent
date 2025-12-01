@@ -1,1 +1,1 @@
-nohup python3 webhook_server.py > webhook.log 2>&1 &
+nohup python3 main.py > webhook.log 2>&1 &
