@@ -22,3 +22,4 @@ ENV/
 *.swp
 *.swo
 
+logs/
