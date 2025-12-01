@@ -34,17 +34,22 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# 获取时间戳（loguru 格式）
+get_timestamp() {
+    date +"[%Y-%m-%d %H:%M:%S %z]"
+}
+
 # 打印带颜色的消息
 print_message() {
-    echo -e "${GREEN}[INFO]${NC} $1"
+    echo -e "$(get_timestamp) ${GREEN}[INFO]${NC} $1"
 }
 
 print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
+    echo -e "$(get_timestamp) ${YELLOW}[WARNING]${NC} $1"
 }
 
 print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    echo -e "$(get_timestamp) ${RED}[ERROR]${NC} $1"
 }
 
 # 加载环境变量
