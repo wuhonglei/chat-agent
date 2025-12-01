@@ -30,7 +30,7 @@ def run_command(cmd, cwd):
         print(f"执行命令：{cmd}\n工作目录：{cwd}")
         result = subprocess.run(
             cmd, cwd=cwd, shell=True, check=True,
-            text=True, capture_output=False
+            text=True, capture_output=False, timeout=None
         )
         print(f"执行成功：{cmd}")
         return True
