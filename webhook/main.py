@@ -48,8 +48,12 @@ def on_push(payload):
 
     print("收到 main 分支推送，开始部署...")
 
+    # 确保在 main 分支上
+    if not run_command("git checkout main", REPO_PATH):
+        return "部署失败：git checkout 出错", 500
+
     # 拉取代码
-    if not run_command("git pull origin main --depth=1", REPO_PATH):
+    if not run_command("git pull origin main", REPO_PATH):
         return "部署失败：git pull 出错", 500
 
     # 执行 deploy.sh
