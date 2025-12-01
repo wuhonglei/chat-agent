@@ -37,9 +37,6 @@ cp .env.example .env
 # 使用 uv（推荐）
 uv sync
 
-# 仅生产环境依赖
-uv sync --group production
-
 # 或仅安装依赖（使用启动脚本）
 ./start.sh --install
 ```
