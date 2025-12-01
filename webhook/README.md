@@ -31,25 +31,63 @@ cp .env.example .env
 
 ## 使用方法
 
-1. 安装依赖：
-   ```bash
-   uv sync
-   ```
+### 1. 安装依赖
 
-2. 启动服务：
-   ```bash
-   python main.py
-   ```
-   或使用提供的启动脚本：
-   ```bash
-   bash start.sh
-   ```
+```bash
+# 使用 uv（推荐）
+uv sync
 
-3. 在 main 分支上创建标签即可触发自动部署：
-   ```bash
-   git tag v1.0.0
-   git push origin v1.0.0
-   ```
+# 仅生产环境依赖
+uv sync --group production
+
+# 或仅安装依赖（使用启动脚本）
+./start.sh --install
+```
+
+### 2. 启动服务
+
+#### 开发环境
+
+```bash
+# 使用 Python 直接启动
+python main.py
+
+# 或使用启动脚本（默认开发环境）
+./start.sh
+```
+
+#### 生产环境
+
+```bash
+# 使用 Gunicorn（推荐）
+./start.sh -e production
+
+# 自定义配置
+./start.sh -e production -p 8000 -w 8
+```
+
+#### 启动脚本选项
+
+```bash
+./start.sh [选项]
+
+选项：
+    -e, --environment ENV    环境类型 (development/production)，默认: development
+    -h, --host HOST          监听主机，默认: 0.0.0.0
+    -p, --port PORT          监听端口，默认: 9000
+    -w, --workers NUM        Gunicorn 工作进程数，默认: 4
+    --install                仅安装/更新依赖
+    --help                   显示帮助信息
+```
+
+### 3. 触发部署
+
+在 main 分支上创建标签即可触发自动部署：
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
 
 ## 功能说明
 
