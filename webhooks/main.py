@@ -25,17 +25,17 @@ DEPLOY_SCRIPT = os.getenv('DEPLOY_SCRIPT', '/home/ubuntu/ai-doc/deploy.sh')
 
 
 def run_command(cmd, cwd):
-    """执行命令并打印日志"""
+    """执行命令并实时打印日志"""
     try:
         print(f"执行命令：{cmd}\n工作目录：{cwd}")
         result = subprocess.run(
             cmd, cwd=cwd, shell=True, check=True,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8'
+            text=True, capture_output=False
         )
-        print(f"执行成功：{cmd}\n输出：{result.stdout}")
+        print(f"执行成功：{cmd}")
         return True
     except subprocess.CalledProcessError as e:
-        print(f"执行失败：{cmd}\n错误：{e.stderr}")
+        print(f"执行失败：{cmd}\n退出代码：{e.returncode}")
         return False
 
 
