@@ -90,15 +90,9 @@ install_deps() {
     if command -v uv &> /dev/null; then
         print_message "使用 uv 管理依赖"
         uv sync
-        if [ "$ENVIRONMENT" = "production" ]; then
-            uv sync --group production
-        fi
     else
         print_warning "未找到 uv，使用 pip"
         pip install -e .
-        if [ "$ENVIRONMENT" = "production" ]; then
-            pip install gunicorn
-        fi
     fi
 }
 
