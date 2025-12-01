@@ -30,12 +30,25 @@ def run_command(cmd, cwd):
         print(f"执行命令：{cmd}\n工作目录：{cwd}")
         result = subprocess.run(
             cmd, cwd=cwd, shell=True, check=True,
-            text=True, capture_output=False, timeout=None
+            text=True, capture_output=True, timeout=None
         )
         print(f"执行成功：{cmd}")
         return True
     except subprocess.CalledProcessError as e:
-        print(f"执行失败：{cmd}\n退出代码：{e.returncode}")
+        print(f"执行失败：{cmd}")
+        print(f"退出代码：{e.returncode}")
+        if e.stdout:
+            print(f"标准输出：{e.stdout}")
+        if e.stderr:
+            print(f"错误输出：{e.stderr}")
+        return False
+    except FileNotFoundError as e:
+        print(f"执行失败：{cmd}")
+        print(f"文件未找到：{e}")
+        return False
+    except Exception as e:
+        print(f"执行失败：{cmd}")
+        print(f"未知错误：{e}")
         return False
 
 
@@ -61,9 +74,19 @@ def on_push(payload):
     if not run_command("git log --oneline -1", REPO_PATH):
         return "部署失败：git log 出错", 500
 
+    # 检查部署脚本是否存在
+    if not os.path.exists(DEPLOY_SCRIPT):
+        print(f"部署脚本不存在：{DEPLOY_SCRIPT}")
+        return f"部署失败：部署脚本不存在 ({DEPLOY_SCRIPT})", 500
+
+    # 检查部署脚本是否可执行
+    if not os.access(DEPLOY_SCRIPT, os.X_OK):
+        print(f"部署脚本没有执行权限：{DEPLOY_SCRIPT}")
+        return f"部署失败：部署脚本没有执行权限 ({DEPLOY_SCRIPT})", 500
+
     # 执行 deploy.sh
     if not run_command(f"bash {DEPLOY_SCRIPT}", REPO_PATH):
-        return "部署失败：deploy.sh 出错", 500
+        return f"部署失败：deploy.sh 执行出错 ({DEPLOY_SCRIPT})", 500
 
     return "部署成功", 200
 
