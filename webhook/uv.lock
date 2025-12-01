@@ -1,5 +1,5 @@
 version = 1
-revision = 1
+revision = 3
 requires-python = ">=3.13"
 
 [[package]]
@@ -60,6 +60,18 @@ dependencies = [
 sdist = { url = "https://mirrors.aliyun.com/pypi/packages/1f/53/5f7bd98be1dfc4a1b0e202195b41bb8b6062496bc5e5aedea3e30aa38b07/github-webhook-1.0.4.tar.gz", hash = "sha256:b2444dbfd03deda35792bd00ebd1692597c2605c61445da79da6322afaca7a8d" }
 wheels = [
     { url = "https://mirrors.aliyun.com/pypi/packages/b8/d4/34ef2d6179d12a4bf99d4d5a69849067bbd406fd80f6d0281b5b2073aa98/github_webhook-1.0.4-py2.py3-none-any.whl", hash = "sha256:0f289560719baa63e93ed1acc648aafcf4a9f26e10ccef6fc482695d6179c784" },
+]
+
+[[package]]
+name = "gunicorn"
+version = "23.0.0"
+source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }
+dependencies = [
+    { name = "packaging" },
+]
+sdist = { url = "https://mirrors.aliyun.com/pypi/packages/34/72/9614c465dc206155d93eff0ca20d42e1e35afc533971379482de953521a4/gunicorn-23.0.0.tar.gz", hash = "sha256:f014447a0101dc57e294f6c18ca6b40227a4c90e9bdb586042628030cba004ec" }
+wheels = [
+    { url = "https://mirrors.aliyun.com/pypi/packages/cb/7d/6dac2a6e1eba33ee43f318edbed4ff29151a49b5d37f080aad1e6469bca4/gunicorn-23.0.0-py3-none-any.whl", hash = "sha256:ec400d38950de4dfd418cff8328b2c8faed0edb0d517d3394e457c317908ca4d" },
 ]
 
 [[package]]
@@ -136,6 +148,15 @@ wheels = [
 ]
 
 [[package]]
+name = "packaging"
+version = "25.0"
+source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }
+sdist = { url = "https://mirrors.aliyun.com/pypi/packages/a1/d4/1fc4078c65507b51b96ca8f8c3ba19e6a61c8253c72794544580a7b6c24d/packaging-25.0.tar.gz", hash = "sha256:d443872c98d677bf60f6a1f2f8c1cb748e8fe762d2bf9d3148b5599295b0fc4f" }
+wheels = [
+    { url = "https://mirrors.aliyun.com/pypi/packages/20/12/38679034af332785aac8774540895e234f4d07f7545804097de4b666afd8/packaging-25.0-py3-none-any.whl", hash = "sha256:29572ef2b1f17581046b3a2227d5c611fb25ec70ca1ba8554b24b0e69331a484" },
+]
+
+[[package]]
 name = "python-dotenv"
 version = "1.2.1"
 source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }
@@ -160,6 +181,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "flask" },
     { name = "github-webhook" },
+    { name = "gunicorn" },
     { name = "python-dotenv" },
 ]
 
@@ -167,6 +189,7 @@ dependencies = [
 requires-dist = [
     { name = "flask", specifier = ">=3.1.2" },
     { name = "github-webhook", specifier = ">=1.0.4" },
+    { name = "gunicorn", specifier = ">=23.0.0" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
 ]
 

@@ -36,25 +36,13 @@ cp .env.example .env
    uv sync
    ```
 
-   对于生产环境，还需要安装 Gunicorn：
-   ```bash
-   uv sync --extra production
-   ```
-
 2. 启动服务：
-
-   **开发环境**（不推荐用于生产）：
    ```bash
    python main.py
    ```
-   或使用开发启动脚本：
+   或使用提供的启动脚本：
    ```bash
-   ./start_dev.sh
-   ```
-
-   **生产环境**（推荐）：
-   ```bash
-   ./start.sh
+   bash start.sh
    ```
 
 3. 在 main 分支上创建标签即可触发自动部署：
