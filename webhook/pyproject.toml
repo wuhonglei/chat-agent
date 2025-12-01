@@ -10,5 +10,10 @@ dependencies = [
     "python-dotenv>=1.2.1",
 ]
 
+[project.optional-dependencies]
+production = [
+    "gunicorn>=23.0.0",
+]
+
 [tool.uv]
 index-url = "https://mirrors.aliyun.com/pypi/simple/"

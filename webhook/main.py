@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 # 加载 .env 文件（如果存在）
 load_dotenv()
 
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 app = Flask(__name__)
 
 # 从环境变量读取配置，如果不存在则使用默认值（生产环境必须设置）
@@ -16,7 +17,7 @@ if not WEBHOOK_SECRET:
         "WEBHOOK_SECRET 环境变量未设置。请在 .env 文件中设置或通过环境变量传入。"
     )
 
-webhook = Webhook(app, secret=WEBHOOK_SECRET)
+webhook = Webhook(app, endpoint="/webhook", secret=WEBHOOK_SECRET)
 
 # 配置项（从环境变量读取）
 REPO_PATH = os.getenv('REPO_PATH', '/home/ubuntu/ai-doc')
@@ -100,4 +101,5 @@ def on_tag_create(payload):
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=9000, debug=False)
+    # 仅用于开发环境，生产环境请使用 Gunicorn 或 uWSGI
+    app.run(host='0.0.0.0', port=9000, debug=DEBUG)
