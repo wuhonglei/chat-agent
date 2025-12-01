@@ -9,6 +9,7 @@ dependencies = [
     "gunicorn>=23.0.0",
     "github-webhook>=1.0.4",
     "python-dotenv>=1.2.1",
+    "loguru>=0.7.3",
 ]
 
 [tool.uv]

@@ -4,6 +4,7 @@ import subprocess
 import os
 import threading
 from dotenv import load_dotenv
+from loguru import logger
 
 # 加载 .env 文件（如果存在）
 load_dotenv()
@@ -28,60 +29,72 @@ DEPLOY_SCRIPT = os.getenv('DEPLOY_SCRIPT', '/home/ubuntu/ai-doc/deploy.sh')
 def run_command(cmd, cwd):
     """执行命令并实时打印日志"""
     try:
-        print(f"执行命令：{cmd}\n工作目录：{cwd}")
-        subprocess.run(
-            cmd, cwd=cwd, shell=True, check=True,
-            text=True, capture_output=True, timeout=None
+        logger.info(f"执行命令：{cmd}\n工作目录：{cwd}")
+
+        # 使用 Popen 实时读取输出
+        process = subprocess.Popen(
+            cmd, cwd=cwd, shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,  # 将 stderr 合并到 stdout
+            text=True,
+            bufsize=1,  # 行缓冲
+            universal_newlines=True
         )
-        print(f"执行成功：{cmd}")
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"执行失败：{cmd}")
-        print(f"退出代码：{e.returncode}")
-        if e.stdout:
-            print(f"标准输出：{e.stdout}")
-        if e.stderr:
-            print(f"错误输出：{e.stderr}")
-        return False
+
+        # 实时读取并打印输出
+        for line in process.stdout:
+            logger.info(line.rstrip())
+
+        # 等待进程完成
+        process.wait()
+
+        if process.returncode == 0:
+            logger.info(f"执行成功：{cmd}")
+            return True
+        else:
+            logger.error(f"执行失败：{cmd}")
+            logger.error(f"退出代码：{process.returncode}")
+            return False
+
     except FileNotFoundError as e:
-        print(f"执行失败：{cmd}")
-        print(f"文件未找到：{e}")
+        logger.error(f"执行失败：{cmd}")
+        logger.error(f"文件未找到：{e}")
         return False
     except Exception as e:
-        print(f"执行失败：{cmd}")
-        print(f"未知错误：{e}")
+        logger.error(f"执行失败：{cmd}")
+        logger.error(f"未知错误：{e}")
         return False
 
 
 def async_deploy(commit_sha=None, commit_message=None):
     """异步执行部署任务"""
-    print("开始异步部署任务...")
+    logger.info("开始异步部署任务...")
 
     try:
         # 确保在 main 分支上
         if not run_command("git checkout main", REPO_PATH):
-            print("异步部署失败：git checkout 出错")
+            logger.error("异步部署失败：git checkout 出错")
             return
 
         # 拉取代码
         if not run_command("git pull origin main", REPO_PATH):
-            print("异步部署失败：git pull 出错")
+            logger.error("异步部署失败：git pull 出错")
             return
 
         # 打印最新 commit 信息
         if not run_command("git log --oneline -1", REPO_PATH):
-            print("异步部署失败：git log 出错")
+            logger.error("异步部署失败：git log 出错")
             return
 
         # 执行 deploy.sh
         if not run_command(f"bash {DEPLOY_SCRIPT}", REPO_PATH):
-            print(f"异步部署失败：deploy.sh 执行出错 ({DEPLOY_SCRIPT})")
+            logger.error(f"异步部署失败：deploy.sh 执行出错 ({DEPLOY_SCRIPT})")
             return
 
-        print("异步部署成功完成！")
+        logger.info("异步部署成功完成！")
 
     except Exception as e:
-        print(f"异步部署出现异常：{e}")
+        logger.error(f"异步部署出现异常：{e}")
 
 
 @webhook.hook(event_type='push')
@@ -89,10 +102,10 @@ def on_push(payload):
     # 仅监听 main 分支的 push 事件
     ref = payload.get('ref', '')
     if ref != 'refs/heads/main':
-        print(f"非 main 分支推送，忽略：{ref}")
+        logger.info(f"非 main 分支推送，忽略：{ref}")
         return "忽略"
 
-    print("收到 main 分支推送，启动异步部署...")
+    logger.info("收到 main 分支推送，启动异步部署...")
 
     # 提取 commit 信息（可选）
     commit_sha = None

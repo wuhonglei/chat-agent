@@ -7,7 +7,7 @@ set -e
 
 # 日志配置
 LOG_DIR="logs"
-LOG_FILE="$LOG_DIR/webhook_$(date +%Y%m%d_%H%M%S).log"
+LOG_FILE="$LOG_DIR/webhook.log"
 
 # 创建日志目录
 mkdir -p "$LOG_DIR"
