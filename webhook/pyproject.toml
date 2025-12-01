@@ -1,0 +1,14 @@
+[project]
+name = "webhook"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "flask>=3.1.2",
+    "github-webhook>=1.0.4",
+    "python-dotenv>=1.2.1",
+]
+
+[tool.uv]
+index-url = "https://mirrors.aliyun.com/pypi/simple/"
