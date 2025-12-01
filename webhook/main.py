@@ -56,6 +56,10 @@ def on_push(payload):
     if not run_command("git pull origin main", REPO_PATH):
         return "部署失败：git pull 出错", 500
 
+    # 打印最新 commit 信息
+    if not run_command("git log --oneline -1", REPO_PATH):
+        return "部署失败：git log 出错", 500
+
     # 执行 deploy.sh
     if not run_command(f"bash {DEPLOY_SCRIPT}", REPO_PATH):
         return "部署失败：deploy.sh 出错", 500
