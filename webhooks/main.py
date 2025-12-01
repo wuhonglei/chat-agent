@@ -2,6 +2,7 @@ from github_webhook import Webhook
 from flask import Flask
 import subprocess
 import os
+import threading
 from dotenv import load_dotenv
 
 # 加载 .env 文件（如果存在）
@@ -28,7 +29,7 @@ def run_command(cmd, cwd):
     """执行命令并实时打印日志"""
     try:
         print(f"执行命令：{cmd}\n工作目录：{cwd}")
-        result = subprocess.run(
+        subprocess.run(
             cmd, cwd=cwd, shell=True, check=True,
             text=True, capture_output=True, timeout=None
         )
@@ -52,6 +53,37 @@ def run_command(cmd, cwd):
         return False
 
 
+def async_deploy(commit_sha=None, commit_message=None):
+    """异步执行部署任务"""
+    print("开始异步部署任务...")
+
+    try:
+        # 确保在 main 分支上
+        if not run_command("git checkout main", REPO_PATH):
+            print("异步部署失败：git checkout 出错")
+            return
+
+        # 拉取代码
+        if not run_command("git pull origin main", REPO_PATH):
+            print("异步部署失败：git pull 出错")
+            return
+
+        # 打印最新 commit 信息
+        if not run_command("git log --oneline -1", REPO_PATH):
+            print("异步部署失败：git log 出错")
+            return
+
+        # 执行 deploy.sh
+        if not run_command(f"bash {DEPLOY_SCRIPT}", REPO_PATH):
+            print(f"异步部署失败：deploy.sh 执行出错 ({DEPLOY_SCRIPT})")
+            return
+
+        print("异步部署成功完成！")
+
+    except Exception as e:
+        print(f"异步部署出现异常：{e}")
+
+
 @webhook.hook(event_type='push')
 def on_push(payload):
     # 仅监听 main 分支的 push 事件
@@ -60,35 +92,25 @@ def on_push(payload):
         print(f"非 main 分支推送，忽略：{ref}")
         return "忽略"
 
-    print("收到 main 分支推送，开始部署...")
+    print("收到 main 分支推送，启动异步部署...")
 
-    # 确保在 main 分支上
-    if not run_command("git checkout main", REPO_PATH):
-        return "部署失败：git checkout 出错", 500
+    # 提取 commit 信息（可选）
+    commit_sha = None
+    commit_message = None
+    if 'head_commit' in payload:
+        commit_sha = payload['head_commit'].get('id', 'unknown')
+        commit_message = payload['head_commit'].get('message', 'unknown')
 
-    # 拉取代码
-    if not run_command("git pull origin main", REPO_PATH):
-        return "部署失败：git pull 出错", 500
+    # 启动异步部署任务
+    deploy_thread = threading.Thread(
+        target=async_deploy,
+        args=(commit_sha, commit_message),
+        daemon=True
+    )
+    deploy_thread.start()
 
-    # 打印最新 commit 信息
-    if not run_command("git log --oneline -1", REPO_PATH):
-        return "部署失败：git log 出错", 500
-
-    # 检查部署脚本是否存在
-    if not os.path.exists(DEPLOY_SCRIPT):
-        print(f"部署脚本不存在：{DEPLOY_SCRIPT}")
-        return f"部署失败：部署脚本不存在 ({DEPLOY_SCRIPT})", 500
-
-    # 检查部署脚本是否可执行
-    if not os.access(DEPLOY_SCRIPT, os.X_OK):
-        print(f"部署脚本没有执行权限：{DEPLOY_SCRIPT}")
-        return f"部署失败：部署脚本没有执行权限 ({DEPLOY_SCRIPT})", 500
-
-    # 执行 deploy.sh
-    if not run_command(f"bash {DEPLOY_SCRIPT}", REPO_PATH):
-        return f"部署失败：deploy.sh 执行出错 ({DEPLOY_SCRIPT})", 500
-
-    return "部署成功", 200
+    # 立即返回，避免 webhook 超时
+    return "部署任务已启动", 202
 
 
 if __name__ == '__main__':
