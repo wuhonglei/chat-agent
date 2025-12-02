@@ -1,20 +1,26 @@
+import os
 from jinja2 import Template
 
-success_template = Template("""
-<h1>部署任务已成功完成👍！</h1>
-<p>仓库路径: {{ repo_path }}</p>
-<p>部署脚本: {{ deploy_script }}</p>
-<p>提交 SHA: {{ commit_sha or 'N/A' }}</p>
-<p>提交信息: <strong>{{ commit_message or 'N/A' }}</strong></p>
-<p>部署时间: <strong>{{ deploy_time }}</strong></p>
-""")
+# 获取模板文件所在目录
+_template_dir = os.path.dirname(os.path.abspath(__file__))
 
-failed_template = Template("""
-<h1>部署任务已失败😭！</h1>
-<p>仓库路径: {{ repo_path }}</p>
-<p>部署脚本: {{ deploy_script }}</p>
-<p>提交 SHA: {{ commit_sha or 'N/A' }}</p>
-<p>提交信息: <strong>{{ commit_message or 'N/A' }}</strong></p>
-<p>部署时间: <strong>{{ deploy_time }}</strong></p>
-<p>错误信息: {{ error_message }}</p>
-""")
+
+def _load_template(filename):
+    """加载 HTML 模板文件并创建 Jinja2 模板对象
+
+    Args:
+        filename: 模板文件名（相对于模板目录）
+
+    Returns:
+        Template: Jinja2 模板对象
+    """
+    template_path = os.path.join(_template_dir, filename)
+    with open(template_path, 'r', encoding='utf-8') as f:
+        return Template(f.read())
+
+
+# 读取成功部署模板
+success_template = _load_template('email-success.html')
+
+# 读取失败部署模板
+failed_template = _load_template('email-failed.html')

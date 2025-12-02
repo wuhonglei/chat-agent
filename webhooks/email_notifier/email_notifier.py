@@ -192,7 +192,8 @@ class EmailNotifier:
             deploy_script=deploy_script,
             commit_sha=commit_sha,
             commit_message=commit_message,
-            deploy_time=deploy_time
+            deploy_time=deploy_time,
+            error_message=error_message or '未知错误'
         )
 
         return self.send_email(
