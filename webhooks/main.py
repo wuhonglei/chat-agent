@@ -103,6 +103,13 @@ def async_deploy(commit_sha=None, commit_message=None):
         )
 
     except Exception as e:
+        email_notifier.send_deploy_failed_notification(
+            repo_path=REPO_PATH,
+            deploy_script=DEPLOY_SCRIPT,
+            commit_sha=commit_sha,
+            commit_message=commit_message,
+            error_message=str(e)
+        )
         logger.error(f"异步部署出现异常：{e}")
 
 
