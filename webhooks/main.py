@@ -3,6 +3,7 @@ from flask import Flask
 import subprocess
 import os
 import threading
+from datetime import datetime
 from dotenv import load_dotenv
 from loguru import logger
 from email_notifier import email_notifier
@@ -25,12 +26,22 @@ webhook = Webhook(app, endpoint="/webhook", secret=WEBHOOK_SECRET)
 # 配置项（从环境变量读取）
 REPO_PATH = os.getenv('REPO_PATH', '/home/ubuntu/ai-doc')
 DEPLOY_SCRIPT = os.getenv('DEPLOY_SCRIPT', '/home/ubuntu/ai-doc/deploy.sh')
+LOG_DIR = os.getenv('LOG_DIR', './logs')  # 日志文件存储目录
+
+# 确保日志目录存在
+os.makedirs(LOG_DIR, exist_ok=True)
 
 
 def run_command(cmd, cwd):
-    """执行命令并实时打印日志"""
+    """执行命令并实时打印日志
+
+    Args:
+        cmd: 要执行的命令
+        cwd: 工作目录
+    """
     try:
-        logger.info(f"执行命令：{cmd}\n工作目录：{cwd}")
+        log_msg = f"执行命令：{cmd}\n工作目录：{cwd}"
+        logger.info(log_msg)
 
         # 使用 Popen 实时读取输出
         process = subprocess.Popen(
@@ -42,34 +53,65 @@ def run_command(cmd, cwd):
             universal_newlines=True
         )
 
-        # 实时读取并打印输出
+        # 实时读取并打印输出（loguru 会自动写入已配置的文件）
         for line in process.stdout:
-            logger.info(line.rstrip())
+            stripped_line = line.rstrip()
+            logger.info(stripped_line)
 
         # 等待进程完成
         process.wait()
 
         if process.returncode == 0:
-            logger.info(f"执行成功：{cmd}")
+            success_msg = f"执行成功：{cmd}"
+            logger.info(success_msg)
             return True
         else:
-            logger.error(f"执行失败：{cmd}")
-            logger.error(f"退出代码：{process.returncode}")
+            error_msg = f"执行失败：{cmd}\n退出代码：{process.returncode}"
+            logger.error(error_msg)
             return False
 
     except FileNotFoundError as e:
-        logger.error(f"执行失败：{cmd}")
-        logger.error(f"文件未找到：{e}")
+        error_msg = f"执行失败：{cmd}\n文件未找到：{e}"
+        logger.error(error_msg)
         return False
     except Exception as e:
-        logger.error(f"执行失败：{cmd}")
-        logger.error(f"未知错误：{e}")
+        error_msg = f"执行失败：{cmd}\n未知错误：{e}"
+        logger.error(error_msg)
         return False
 
 
-def async_deploy(commit_sha=None, commit_message=None):
-    """异步执行部署任务"""
-    logger.info("开始异步部署任务...")
+def async_deploy(commit_sha=None, commit_message=None, log_file_path=None):
+    """异步执行部署任务
+
+    Args:
+        commit_sha: commit SHA
+        commit_message: commit 消息
+        log_file_path: 日志文件路径
+    """
+    # 为本次部署添加独立的日志文件 sink
+    sink_id = None
+    if log_file_path:
+        try:
+            # 添加文件 sink，使用自定义格式
+            sink_id = logger.add(
+                log_file_path,
+                format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}",
+                level="DEBUG",
+                encoding="utf-8",
+                enqueue=False,  # 单线程不需要队列
+                rotation=None,  # 不自动轮转
+                retention=None,  # 不自动删除
+            )
+            logger.info("=" * 50)
+            logger.info("=== 部署任务开始 ===")
+            logger.info(f"时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            logger.info(f"Commit SHA: {commit_sha or 'N/A'}")
+            logger.info(f"Commit Message: {commit_message or 'N/A'}")
+            logger.info(f"仓库路径: {REPO_PATH}")
+            logger.info(f"部署脚本: {DEPLOY_SCRIPT}")
+            logger.info("=" * 50)
+        except Exception as e:
+            logger.warning(f"无法创建日志文件 {log_file_path}: {e}")
 
     try:
         # 确保在 main 分支上
@@ -89,28 +131,45 @@ def async_deploy(commit_sha=None, commit_message=None):
 
         # 执行 deploy.sh
         if not run_command(f"bash {DEPLOY_SCRIPT}", REPO_PATH):
-            logger.error(f"异步部署失败：deploy.sh 执行出错 ({DEPLOY_SCRIPT})")
+            error_msg = (
+                f"异步部署失败：deploy.sh 执行出错 ({DEPLOY_SCRIPT})"
+            )
+            logger.error(error_msg)
             return
 
         logger.info("异步部署成功完成！")
+        logger.info("=== 部署任务结束 ===")
 
-        # 发送成功通知邮件
+        # 发送成功通知邮件（附带日志文件）
         email_notifier.send_deploy_success_notification(
             repo_path=REPO_PATH,
             deploy_script=DEPLOY_SCRIPT,
             commit_sha=commit_sha,
-            commit_message=commit_message
+            commit_message=commit_message,
+            log_file_path=log_file_path
         )
 
     except Exception as e:
+        error_msg = f"异步部署出现异常：{e}"
+        logger.error(error_msg)
+        logger.error("=== 部署任务异常结束 ===")
+
+        # 发送失败通知邮件（附带日志文件）
         email_notifier.send_deploy_failed_notification(
             repo_path=REPO_PATH,
             deploy_script=DEPLOY_SCRIPT,
             commit_sha=commit_sha,
             commit_message=commit_message,
-            error_message=str(e)
+            error_message=str(e),
+            log_file_path=log_file_path
         )
-        logger.error(f"异步部署出现异常：{e}")
+    finally:
+        # 移除本次部署的日志文件 sink
+        if sink_id is not None:
+            try:
+                logger.remove(sink_id)
+            except Exception as e:
+                logger.warning(f"移除日志 sink 失败：{e}")
 
 
 @webhook.hook(event_type='push')
@@ -130,10 +189,21 @@ def on_push(payload):
         commit_sha = payload['head_commit'].get('id', 'unknown')
         commit_message = payload['head_commit'].get('message', 'unknown')
 
+    # 为本次部署创建唯一的日志文件名
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    if commit_sha and commit_sha != 'unknown':
+        commit_short = commit_sha[:7]
+    else:
+        commit_short = 'unknown'
+    log_filename = f"deploy_{timestamp}_{commit_short}.log"
+    log_file_path = os.path.join(LOG_DIR, log_filename)
+
+    logger.info(f"本次部署日志文件：{log_file_path}")
+
     # 启动异步部署任务
     deploy_thread = threading.Thread(
         target=async_deploy,
-        args=(commit_sha, commit_message),
+        args=(commit_sha, commit_message, log_file_path),
         daemon=True
     )
     deploy_thread.start()
