@@ -5,6 +5,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
+from email.header import Header
 from loguru import logger
 from .template import success_template, failed_template
 
@@ -21,6 +22,62 @@ class EmailNotifier:
         self.email_from = os.getenv('EMAIL_FROM', '')
         self.email_to = os.getenv('EMAIL_TO', '')  # 多个收件人用逗号分隔
         self.email_enabled = os.getenv('EMAIL_ENABLED', 'False') == 'True'
+
+    def _add_attachment(self, msg, attachment_path):
+        """添加邮件附件
+
+        Args:
+            msg: MIMEMultipart 消息对象
+            attachment_path: 附件文件路径
+        """
+        try:
+            with open(attachment_path, 'rb') as f:
+                attachment = MIMEBase('application', 'octet-stream')
+                attachment.set_payload(f.read())
+            encoders.encode_base64(attachment)
+
+            # 处理文件名：将 .log 后缀改为 .txt
+            filename = os.path.basename(attachment_path)
+            if filename.endswith('.log'):
+                filename = filename[:-4] + '.txt'
+
+            # 编码附件文件名（支持非 ASCII 字符）
+            try:
+                filename.encode('ascii')
+                # 纯 ASCII 文件名，直接使用
+                attachment.add_header(
+                    'Content-Disposition',
+                    f'attachment; filename="{filename}"'
+                )
+            except UnicodeEncodeError:
+                # 包含非 ASCII 字符，使用 RFC 2231 编码
+                from urllib.parse import quote
+                encoded_filename = quote(filename, safe='')
+                attachment.add_header(
+                    'Content-Disposition',
+                    f'attachment; filename*=utf-8\'\'{encoded_filename}'
+                )
+
+            msg.attach(attachment)
+            logger.info(f"已添加附件：{attachment_path}")
+        except Exception as e:
+            logger.warning(f"添加附件失败：{e}")
+
+    def _close_server(self, server):
+        """安全关闭 SMTP 服务器连接
+
+        Args:
+            server: SMTP 服务器对象
+        """
+        if not server:
+            return
+        try:
+            server.quit()
+        except Exception:
+            try:
+                server.close()
+            except Exception:
+                pass
 
     def send_email(self, subject, body, is_html=False,
                    attachment_path=None):
@@ -45,43 +102,57 @@ class EmailNotifier:
             return False
 
         try:
-            # 创建邮件消息
-            msg = MIMEMultipart('alternative')
+            # 创建邮件消息（统一使用 'mixed' 类型，支持正文和附件）
+            msg = MIMEMultipart('mixed')
             msg['From'] = self.email_from
             msg['To'] = self.email_to
-            msg['Subject'] = subject
+            msg['Subject'] = Header(subject, 'utf-8')
 
-            # 添加邮件正文
-            if is_html:
-                msg.attach(MIMEText(body, 'html', 'utf-8'))
-            else:
-                msg.attach(MIMEText(body, 'plain', 'utf-8'))
+            # 添加正文
+            msg.attach(MIMEText(body, 'html' if is_html else 'plain', 'utf-8'))
 
             # 添加附件（如果提供）
             if attachment_path and os.path.exists(attachment_path):
-                try:
-                    with open(attachment_path, 'rb') as f:
-                        attachment = MIMEBase('application', 'octet-stream')
-                        attachment.set_payload(f.read())
-                    encoders.encode_base64(attachment)
-                    filename = os.path.basename(attachment_path)
-                    attachment.add_header(
-                        'Content-Disposition',
-                        f'attachment; filename={filename}'
-                    )
-                    msg.attach(attachment)
-                    logger.info(f"已添加附件：{attachment_path}")
-                except Exception as e:
-                    logger.warning(f"添加附件失败：{e}")
+                self._add_attachment(msg, attachment_path)
 
-            # 发送邮件
-            with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
+            # 发送邮件，添加超时设置
+            server = None
+            try:
+                server = smtplib.SMTP(
+                    self.smtp_host, self.smtp_port, timeout=30
+                )
                 server.starttls()  # 启用 TLS
                 server.login(self.smtp_user, self.smtp_password)
                 # 支持多个收件人
                 recipients = [email.strip()
                               for email in self.email_to.split(',')]
-                server.sendmail(self.email_from, recipients, msg.as_string())
+                message_str = msg.as_string()
+                # sendmail 返回失败的收件人字典，空字典表示全部成功
+                failed_recipients = server.sendmail(
+                    self.email_from, recipients, message_str
+                )
+                if failed_recipients:
+                    logger.warning(
+                        f"部分收件人发送失败：{failed_recipients}"
+                    )
+            except smtplib.SMTPResponseException as e:
+                # 检查是否为空响应异常（错误码 -1 且响应为空）
+                # 可能是服务器响应异常，但邮件可能已经发送成功
+                error_bytes = e.args[1] if len(e.args) > 1 else b''
+                is_empty_response = (
+                    e.smtp_code == -1 and
+                    (not error_bytes or error_bytes.strip(b'\x00') == b'')
+                )
+                if is_empty_response:
+                    logger.warning(
+                        "SMTP 服务器响应异常（空响应），"
+                        "但邮件可能已发送成功。请检查邮箱确认。"
+                        f"错误：{e}"
+                    )
+                    return True
+                raise
+            finally:
+                self._close_server(server)
 
             logger.info(f"邮件发送成功，收件人：{self.email_to}")
             return True
