@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 1
 requires-python = ">=3.12"
 
 [[package]]
@@ -206,6 +206,7 @@ dependencies = [
     { name = "flask" },
     { name = "github-webhook" },
     { name = "gunicorn" },
+    { name = "jinja2" },
     { name = "loguru" },
     { name = "python-dotenv" },
 ]
@@ -215,6 +216,7 @@ requires-dist = [
     { name = "flask", specifier = ">=3.1.2" },
     { name = "github-webhook", specifier = ">=1.0.4" },
     { name = "gunicorn", specifier = ">=23.0.0" },
+    { name = "jinja2", specifier = ">=3.1.6" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
 ]

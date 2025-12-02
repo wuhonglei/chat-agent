@@ -45,6 +45,7 @@ dependencies = [
     "tzlocal>=5.3.1",
     "nacos-sdk-python>=2.0.9",
     "python-dotenv>=1.0.0",
+    "gunicorn>=23.0.0",
 ]
 
 [project.optional-dependencies]

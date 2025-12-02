@@ -1,23 +1,11 @@
 #!/bin/bash
 
 # Flask 应用启动脚本
-# 支持开发环境和生产环境
 
 set -e
 
-# 日志配置
-LOG_DIR="logs"
-LOG_FILE="$LOG_DIR/webhook.log"
-
-# 创建日志目录
-mkdir -p "$LOG_DIR"
-
-# 重定向所有输出到日志文件，同时保留控制台输出
-exec > >(tee -a "$LOG_FILE") 2>&1
-
 echo "=========================================="
 echo "启动时间: $(date)"
-echo "日志文件: $LOG_FILE"
 echo "=========================================="
 
 # 默认配置
@@ -101,19 +89,9 @@ install_deps() {
     fi
 }
 
-# 启动开发服务器
-start_dev() {
-    print_message "启动开发服务器..."
-    print_message "访问地址: http://$HOST:$PORT"
-    print_message "按 Ctrl+C 停止服务器"
-
-    export FLASK_ENV=development
-    python main.py
-}
-
-# 启动生产服务器
-start_prod() {
-    print_message "启动生产服务器..."
+# 启动服务器
+start_server() {
+    print_message "启动服务器..."
 
     # 检查 gunicorn 是否已安装
     if ! command -v gunicorn &> /dev/null; then
@@ -144,7 +122,6 @@ Flask 应用启动脚本
     $0 [选项]
 
 选项:
-    -e, --environment ENV    环境类型 (development/production)，默认: production
     -h, --host HOST          监听主机，默认: 0.0.0.0
     -p, --port PORT          监听端口，默认: 9000
     -w, --workers NUM        Gunicorn 工作进程数，默认: 1
@@ -158,11 +135,8 @@ Flask 应用启动脚本
     DEBUG                   调试模式，默认: False
 
 示例:
-    # 开发环境
+    # 启动服务器
     $0
-
-    # 生产环境
-    $0 -e production
 
     # 自定义端口
     $0 -p 8000
@@ -174,15 +148,10 @@ EOF
 }
 
 # 解析命令行参数
-ENVIRONMENT="production"
 INSTALL_ONLY=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-        -e|--environment)
-            ENVIRONMENT="$2"
-            shift 2
-            ;;
         -h|--host)
             HOST="$2"
             shift 2
@@ -214,7 +183,6 @@ done
 # 主逻辑
 main() {
     print_message "Flask Webhook 应用启动脚本"
-    print_message "环境: $ENVIRONMENT"
 
     # 加载环境变量
     load_env
@@ -234,20 +202,8 @@ main() {
 
     install_deps
 
-    # 根据环境启动服务
-    case $ENVIRONMENT in
-        development)
-            start_dev
-            ;;
-        production)
-            start_prod
-            ;;
-        *)
-            print_error "无效的环境类型: $ENVIRONMENT"
-            print_error "支持的环境: development, production"
-            exit 1
-            ;;
-    esac
+    # 启动服务
+    start_server
 }
 
 # 运行主函数

@@ -49,6 +49,9 @@ echo "=========================================="
 echo "Starting application server..."
 echo "=========================================="
 
-# 启动应用
-exec uvicorn app.main:app --host 0.0.0.0 --port 8000
+# 获取 CPU 核心数并计算 workers 数量
+WORKERS=$(($(nproc) * 2))
+
+# 启动 Gunicorn 应用服务器
+exec gunicorn app.main:app -w $WORKERS -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
 

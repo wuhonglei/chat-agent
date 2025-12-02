@@ -5,6 +5,7 @@ import os
 import threading
 from dotenv import load_dotenv
 from loguru import logger
+from email_notifier import email_notifier
 
 # 加载 .env 文件（如果存在）
 load_dotenv()
@@ -92,6 +93,14 @@ def async_deploy(commit_sha=None, commit_message=None):
             return
 
         logger.info("异步部署成功完成！")
+
+        # 发送成功通知邮件
+        email_notifier.send_deploy_success_notification(
+            repo_path=REPO_PATH,
+            deploy_script=DEPLOY_SCRIPT,
+            commit_sha=commit_sha,
+            commit_message=commit_message
+        )
 
     except Exception as e:
         logger.error(f"异步部署出现异常：{e}")
