@@ -208,8 +208,8 @@ def on_push(payload):
     )
     deploy_thread.start()
 
-    # 立即返回，避免 webhook 超时
-    return "部署任务已启动", 202
+    # 实际返回是 github_webhook 内部处理(返回内容是 return "", 204)
+    return "", 204
 
 
 if __name__ == '__main__':
