@@ -43,7 +43,9 @@ class MessageService:
         return True
 
     def get_flatten_messages_by_ids(self, message_ids: list[str]) -> list[ChatMessageItemReq]:
-        """获取消息的扁平化列表"""
+        """获取消息的扁平化列表
+        组装顺序参考: https://api-docs.deepseek.com/zh-cn/guides/thinking_mode
+        """
         if not message_ids:
             return []
 
