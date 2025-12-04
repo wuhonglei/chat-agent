@@ -1,5 +1,6 @@
 import { ToolCallStatus } from "@/constants";
 import { TimelineMessage } from "@/interfaces";
+import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
 import GrayContainer from "@/pages/ChatPage/components/MarkdownContainer/components/GrayContainer";
 import NormalCode from "@/pages/ChatPage/components/MarkdownContainer/components/NormalCode";
 import { isPlainObject } from "lodash-es";
@@ -40,15 +41,16 @@ function stringifyContentWithLanguage<
   }
 }
 
-const ToolCallItem: React.FC<Props> = ({ message }) => {
-  const { status, content } = message;
+const ToolCallItemContent: React.FC<Props> = ({ message }) => {
+  const { status, reasoningContent, content } = message;
   const [contentStr, language] = useMemo(
     () => stringifyContentWithLanguage(content),
     [content]
   );
 
   return (
-    <div className="w-full">
+    <div className="w-full flex flex-col gap-2">
+      <MarkdownContainer className="mt-1">{reasoningContent}</MarkdownContainer>
       <GrayContainer
         className="flex flex-col gap-1 items-start w-full"
         header={
@@ -88,4 +90,4 @@ const ToolCallItem: React.FC<Props> = ({ message }) => {
   );
 };
 
-export default React.memo(ToolCallItem);
+export default React.memo(ToolCallItemContent);

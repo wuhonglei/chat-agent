@@ -1,6 +1,6 @@
+import classNames from "classnames";
 import React from "react";
 import styles from "./css/GrayContainer.module.css";
-import classNames from "classnames";
 
 type Props = {
   header?: React.ReactNode;
@@ -26,7 +26,7 @@ const GrayContainer = ({ header, children, className }: Props) => {
   return (
     <div
       className={classNames(
-        "relative flex flex-col my-2",
+        "relative flex flex-col",
         styles.container,
         className
       )}

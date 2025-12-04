@@ -6,6 +6,7 @@ from openai.types.chat import ChatCompletionMessageFunctionToolCall
 class AssistantToolCallMessage(BaseModel):
     role: Literal["assistant"]
     content: Optional[str]
+    reasoning_content: Optional[str]
     tool_calls: list[ChatCompletionMessageFunctionToolCall] | None
 
 
@@ -14,6 +15,7 @@ class ToolCallResultMessage(BaseModel):
     tool_call_id: str
     is_error: bool
     content: str
+    duration: float
 
 
 ToolCallMessage: TypeAlias = AssistantToolCallMessage | ToolCallResultMessage

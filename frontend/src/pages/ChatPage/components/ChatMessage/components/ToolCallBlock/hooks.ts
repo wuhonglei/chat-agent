@@ -1,5 +1,10 @@
 import { ToolCallStatus } from "@/constants";
-import { TimelineMessage, ToolCallMessage } from "@/interfaces";
+import {
+  TimelineMessage,
+  ToolCallEndItemMessage,
+  ToolCallMessage,
+  ToolCallStartItemMessage,
+} from "@/interfaces";
 import { useMemo } from "react";
 
 export function useTimelineMessages(
@@ -9,55 +14,63 @@ export function useTimelineMessages(
     const messages: TimelineMessage[] = [];
     const toolCallStartIndex: Record<string, number> = {};
     for (const message of toolCalls || []) {
-      const { status, content, role } = message;
-      if ((!role && ["start", "done"].includes(status)) || role !== "tool") {
+      const { role } = message;
+      if (!role && ["start", "done"].includes(message.status)) {
         continue;
       }
 
-      if (status === "start") {
-        toolCallStartIndex[message.toolCallId] = messages.length;
-        messages.push({
-          key: message.toolCallId,
-          content: content || "",
-          toolCallId: message.toolCallId,
-          toolCall: message.toolCall,
-          status: ToolCallStatus.CallingTool,
-        });
-        continue;
-      }
-
-      if (status === "done") {
-        const startIndex = toolCallStartIndex[message.toolCallId];
-        if (startIndex !== undefined) {
-          messages[startIndex] = {
-            key: message.toolCallId,
-            content: content || "",
-            toolCallId: message.toolCallId,
-            toolCall: message.toolCall,
-            duration: message.duration,
-            status: ToolCallStatus.ToolResultSuccess,
-          };
+      if (role === "assistant") {
+        const { toolCalls } = message as ToolCallStartItemMessage;
+        for (const toolCall of toolCalls) {
+          toolCallStartIndex[toolCall.id] = messages.length;
+          messages.push({
+            key: toolCall.id,
+            toolCallId: toolCall.id,
+            toolCall: toolCall,
+            content: message.content,
+            status: ToolCallStatus.CallingTool,
+            reasoningContent: message.reasoningContent,
+          });
         }
         continue;
       }
 
-      if (status === "error") {
-        const startIndex = toolCallStartIndex[message.toolCallId];
+      if (role === "tool") {
+        const { toolCallId, duration, content, isError } =
+          message as ToolCallEndItemMessage;
+        const startIndex = toolCallStartIndex[toolCallId];
         if (startIndex !== undefined) {
           messages[startIndex] = {
-            key: message.toolCallId,
+            key: toolCallId,
             content: content || "",
-            toolCallId: message.toolCallId,
-            toolCall: message.toolCall,
-            duration: message.duration,
-            status: ToolCallStatus.ToolResultError,
+            duration: duration,
+            toolCallId: toolCallId,
+            toolCall: messages[startIndex].toolCall,
+            status: isError
+              ? ToolCallStatus.ToolResultError
+              : ToolCallStatus.ToolResultSuccess,
+            reasoningContent: messages[startIndex].reasoningContent,
           };
         }
         continue;
       }
-
-      continue;
     }
+
     return messages;
+  }, [toolCalls]);
+}
+
+export function useTotalDuration(
+  toolCalls: ToolCallMessage[] | undefined
+): number | undefined {
+  return useMemo(() => {
+    const doneMessage = (toolCalls || []).find(
+      message => !message.role && message.status === "done"
+    );
+    if (!doneMessage) {
+      return undefined;
+    }
+
+    return doneMessage.duration;
   }, [toolCalls]);
 }

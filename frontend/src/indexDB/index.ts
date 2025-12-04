@@ -1,6 +1,6 @@
-import Dexie, { Table } from "dexie";
-import { ChatConversationState } from "@/interfaces";
 import { DB_NAME, DB_VERSION } from "@/constants";
+import { ChatConversationState } from "@/interfaces";
+import Dexie, { Table } from "dexie";
 
 export interface ConversationMessages {
   id: string;

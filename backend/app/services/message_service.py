@@ -8,7 +8,7 @@ from loguru import logger
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select, delete
 
-from app.models.chat import ChatMessageItemReq, MessageStatus
+from app.models.chat import ChatMessageItem, ChatMessageItemReq, MessageStatus
 from app.models.db import ConversationDb, MessageDb
 from app.utils.date import get_datetime_now
 from app.core.db import engine
@@ -42,17 +42,43 @@ class MessageService:
         self.db.commit()
         return True
 
-    def get_messages_by_ids(self, message_ids: list[str]) -> list[ChatMessageItemReq]:
+    def get_flatten_messages_by_ids(self, message_ids: list[str]) -> list[ChatMessageItemReq]:
+        """获取消息的扁平化列表"""
         if not message_ids:
             return []
 
-        messages = self.db.exec(select(MessageDb.role, MessageDb.content).where(
+        messages = self.db.exec(select(MessageDb.id, MessageDb.role, MessageDb.content, MessageDb.tool_calls).where(
             MessageDb.id.in_(message_ids))).all()
         if not messages:
             logger.error(f"消息不存在: {message_ids}")
             return []
 
-        return [ChatMessageItemReq(role=message[0], content=message[1]) for message in messages]
+        # 创建字典映射，key 为 message_id，value 为消息元组
+        messages_dict = {msg[0]: msg for msg in messages}
+
+        flattened_messages: list[ChatMessageItemReq] = []
+        # 按照 message_ids 的顺序遍历，保证返回顺序一致
+        for message_id in message_ids:
+            if message_id not in messages_dict:
+                logger.warning(f"消息 ID {message_id} 不存在，跳过")
+                continue
+
+            id, role, content, tool_call_messages = messages_dict[message_id]
+            # 将工具调用消息拼接到消息中
+            for tool_call_message in tool_call_messages or []:
+                tool_role = tool_call_message.get('role')
+                if tool_role == 'assistant':
+                    flattened_messages.append(ChatMessageItemReq(
+                        role='assistant', tool_calls=tool_call_message['tool_calls']))
+                elif tool_role == 'tool':
+                    flattened_messages.append(ChatMessageItemReq(
+                        role='tool', tool_call_id=tool_call_message['tool_call_id'], content=tool_call_message['content']))
+
+            # 将用户问题或模型最终回答拼接到消息中
+            flattened_messages.append(
+                ChatMessageItemReq(role=role, content=content))
+
+        return flattened_messages
 
     def _touch_conversation(
         self,

@@ -214,14 +214,11 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
 
           // 工具调用
           tool_call: data => {
-            const { role, status } = data;
+            const { role } = data;
             dispatch(setCallingTools({ conversationId, data: true }));
-            if (!role && status === "done") {
+            if (!role && data?.status === "done") {
               emitter.emit(EventType.ToolCallDone);
               dispatch(setCallingTools({ conversationId, data: false }));
-            }
-            if (role === "tool" && status === "start") {
-              emitter.emit(EventType.ToolCallItemStart, data.toolCallId);
             }
             dispatch(
               appendToolCallToLastMessage({

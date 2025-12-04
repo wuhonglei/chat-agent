@@ -72,7 +72,7 @@ async def chat_stream(
             yield chat_service.format_sse_message('refresh_conversation', conversation)
 
             try:
-                history = message_service.get_messages_by_ids(
+                history = message_service.get_flatten_messages_by_ids(
                     chat_request.history_ids)
                 async for chunk in chat_service.stream_message(
                     chat_request=chat_request,

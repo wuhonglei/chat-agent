@@ -1,12 +1,11 @@
-import React from "react";
+import CopyButton from "@/components/common/CopyButton";
+import { Segmented } from "antd";
+import classNames from "classnames";
 import mermaid from "mermaid";
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import GrayContainer from "./GrayContainer";
-import { Segmented } from "antd";
 import NormalCode from "./NormalCode";
-import classNames from "classnames";
-import CopyButton from "@/components/common/CopyButton";
 
 type Props = {
   code: string;
@@ -50,6 +49,7 @@ const MermaidBlock = ({ code, style }: Props) => {
 
   return (
     <GrayContainer
+      className="my-2"
       header={
         <>
           <Segmented

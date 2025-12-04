@@ -12,27 +12,26 @@ export interface ToolCall {
 // 工具调用流程的开始和结束消息
 export interface ToolCallProcessMessage {
   role: undefined;
-  status: "start" | "done";
+  status: "done";
   content: string;
+  duration?: number;
 }
 
 // 工具调用结果消息
 export interface ToolCallStartItemMessage {
-  role: "tool";
-  status: "start";
-  duration: number;
-  toolCall: ToolCall;
-  toolCallId: string;
+  role: "assistant";
   content: string;
+  status: undefined;
+  reasoningContent: string;
+  toolCalls: ToolCall[];
 }
 
 export interface ToolCallEndItemMessage {
   role: "tool";
-  status: "done" | "error";
-  duration: number;
-  toolCall: ToolCall;
+  isError: boolean;
+  content: string;
   toolCallId: string;
-  content: string | Record<string, unknown>;
+  duration: number;
 }
 
 export type ToolCallMessage =
@@ -46,6 +45,7 @@ export type TimelineMessage =
       content: string;
       toolCallId: string;
       toolCall: ToolCall;
+      reasoningContent: string;
       status: ToolCallStatus.CallingTool;
     }
   | {
@@ -53,6 +53,7 @@ export type TimelineMessage =
       toolCallId: string;
       toolCall: ToolCall;
       duration: number;
+      reasoningContent: string;
       content: string | Record<string, unknown>;
       status: ToolCallStatus.ToolResultSuccess | ToolCallStatus.ToolResultError;
     };

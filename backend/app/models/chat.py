@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Any, Optional
 from enum import Enum
 
+from openai.types.chat import ChatCompletionMessageFunctionToolCall
 from pydantic import BaseModel, Field, ConfigDict
 
 from app.utils.date import get_datetime_now
@@ -28,8 +29,12 @@ class SourceConfig(BaseModel):
 class ChatMessageItemReq(BaseModel):
     """Chat message model"""
 
-    role: str = Field(..., description="Message role (user/assistant)")
-    content: str = Field(..., description="Message content")
+    role: str = Field(..., description="Message role (user/assistant/tool)")
+    content: Optional[str] = Field(None, description="Message content")
+    tool_call_id: Optional[str] = Field(
+        None, description="Tool call ID")
+    tool_calls: Optional[list[ChatCompletionMessageFunctionToolCall]] = Field(
+        None, description="Tool calls")
 
 
 class ChatMessageItem(BaseModel):
@@ -39,7 +44,7 @@ class ChatMessageItem(BaseModel):
     content: str = Field(..., description="Message content")
     conversation_id: str = Field(..., description="Conversation ID")
     reasoning: Optional[str] = Field(None, description="Reasoning content")
-    tool_calls: Optional[list[dict]] = Field(
+    tool_calls: Optional[list[ToolCallMessage]] = Field(
         None, description="Tool calls")
     created_at: datetime = Field(
         default_factory=get_datetime_now, description="Message timestamp")

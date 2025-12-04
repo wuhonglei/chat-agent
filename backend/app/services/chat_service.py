@@ -78,7 +78,7 @@ class ChatService:
         messages: list[dict],
         model: str,
         tools: list[dict],
-    ) -> AsyncGenerator[tuple[str, list[ToolCallMessage]], list[ToolCallMessage]]:
+    ) -> AsyncGenerator[ToolCallMessage, ToolCallMessage]:
         """Call LLM with MCP tools and handle tool calls, streaming results
 
         Yields:
@@ -107,14 +107,12 @@ class ChatService:
             if not assistant_message.tool_calls:
                 logger.info(
                     "No tool calls, returning tool_call_messages. Assistant response: " + (assistant_message.content if assistant_message.content else 'empty'))
-                yield self.format_sse_message('tool_call', {
-                    'status': 'done',
-                    'content': assistant_message.content or ''
-                }), tool_call_messages
+                yield None
                 return
 
             # Handle tool calls
             tool_call_messages.append(assistant_message)
+            yield tool_call_messages[-1]
             logger.info(f'需要调用 {len(assistant_message.tool_calls)} 个工具:')
             logger.info(
                 f'assistant_message is {assistant_message.model_dump(exclude_none=True)}')
@@ -122,42 +120,25 @@ class ChatService:
             # Execute tool calls and stream results
             for tool_call in assistant_message.tool_calls:
                 tool_name = cast(str, tool_call.function.name)
-                tool_call_dict = tool_call.model_dump(exclude_none=True)
                 start_time = time.time()
 
                 # Check if tool has reached max iterations BEFORE calling
                 if iterations_by_tool[tool_name] <= 0:
                     logger.info(
                         f"Tool {tool_name} has hit max iterations, skipping")
-                    yield self.format_sse_message('tool_call', {
-                        'role': 'tool',
-                        'status': 'error',
-                        'content': f'Tool {tool_name} has hit max iterations, skipping',
-                        "tool_call_id": tool_call.id,
-                        'tool_call': tool_call_dict,
-                        'duration': round(time.time() - start_time, 2),
-                    }), tool_call_messages
                     tool_call_messages.append(ToolCallResultMessage(**{
                         "role": "tool",
                         "is_error": True,
                         "tool_call_id": tool_call.id,
+                        "duration": round(time.time() - start_time, 2),
                         "content": f'Tool {tool_name} has hit max iterations, skipping'
                     }))
+                    yield tool_call_messages[-1]
                     continue
 
                 # Decrement AFTER checking
                 iterations_by_tool[tool_name] -= 1
                 try:
-                    # Stream tool call start
-                    yield self.format_sse_message(
-                        'tool_call', {
-                            'role': 'tool',
-                            'status': 'start',
-                            'content': assistant_message.content or '',
-                            "tool_call_id": tool_call.id,
-                            'tool_call': tool_call_dict
-                        }), tool_call_messages
-
                     # Call the tool via MCP manager
                     # Parse arguments
                     arguments = json.loads(tool_call.function.arguments)
@@ -168,56 +149,30 @@ class ChatService:
                     logger.info(
                         f"MCP tool result: {content[:200] + '...' + content[-200:] if len(content) > 200 else content}")
 
-                    # Stream tool call result
-                    # 优先使用结构化内容，否则使用格式化的字符串内容
-                    result_content = getattr(
-                        result, 'structured_content') or content
-                    yield self.format_sse_message(
-                        'tool_call', {
-                            'role': 'tool',
-                            'status': 'done',
-                            'content': result_content,
-                            "tool_call_id": tool_call.id,
-                            'tool_call': tool_call_dict,
-                            'duration': round(time.time() - start_time, 2),
-                        }), tool_call_messages
-
                     # Add tool result to messages
                     tool_call_messages.append(ToolCallResultMessage(**{
                         "role": "tool",
-                        "tool_call_id": tool_call.id,
                         "is_error": False,
-                        "content": content
+                        "content": content,
+                        "tool_call_id": tool_call.id,
+                        "duration": round(time.time() - start_time, 2),
                     }))
+                    yield tool_call_messages[-1]
 
                 except Exception as e:
                     logger.error(f"Failed to call tool {tool_name}: {e}")
-                    error_msg = str(e)
-
-                    # Stream error
-                    yield self.format_sse_message(
-                        'tool_call', {
-                            'role': 'tool',
-                            'status': 'error',
-                            'content': error_msg,
-                            'duration': round(time.time() - start_time, 2),
-                            "tool_call_id": tool_call.id,
-                            'tool_call': tool_call_dict,
-                        }), tool_call_messages
-
                     tool_call_messages.append(ToolCallResultMessage(**{
                         "role": "tool",
-                        "tool_call_id": tool_call.id,
                         "is_error": True,
-                        "content": error_msg
+                        "content": str(e),
+                        "tool_call_id": tool_call.id,
+                        "duration": round(time.time() - start_time, 2),
                     }))
+                    yield tool_call_messages[-1]
 
         # If we hit max iterations, return error message
         logger.info('we have hit max iterations, returning tool_call_messages')
-        yield self.format_sse_message('tool_call', {
-            'status': 'done',
-            'content': 'we have hit max iterations, returning tool_call_messages'
-        }), tool_call_messages
+        yield None
         return
 
     def format_sse_message(self, msg_type: str, data=None) -> str:
@@ -263,14 +218,20 @@ class ChatService:
                     system_prompt, history,  new_user_message)
 
                 # Stream tool calls and collect messages
-                async for sse_msg, accumulated_messages in self._call_llm_with_tools(
-                    new_messages, settings.llm.model, tools
+                start_time = time.time()
+                async for message in self._call_llm_with_tools(
+                    new_messages, final_model, tools
                 ):
-                    # Stream SSE messages
-                    if sse_msg:
-                        yield sse_msg
                     # Update accumulated messages
-                    tool_call_messages = accumulated_messages
+                    if message:
+                        tool_call_messages.append(message)
+                        yield self.format_sse_message('tool_call', message.model_dump(exclude_none=True))
+
+                if tool_call_messages:
+                    yield self.format_sse_message('tool_call', {
+                        'status': 'done',
+                        'duration': round(time.time() - start_time, 2),
+                    })
 
             system_prompt = get_default_system_prompt(include_date=False)
             # 将工具调用历史拼接到用户消息中
@@ -332,8 +293,4 @@ class ChatService:
         if not tool_call_messages:
             return ChatService._compose_messages_without_tool_calls(system_prompt, history, user_message)
 
-        # 使用工具历史格式化用户消息
-        formatted_user_message = get_prompt_with_tool_history(
-            user_message, tool_call_messages)
-
-        return ChatService._compose_messages_without_tool_calls(system_prompt, history, formatted_user_message)
+        return ChatService._compose_messages_without_tool_calls(system_prompt, history + tool_call_messages, user_message)

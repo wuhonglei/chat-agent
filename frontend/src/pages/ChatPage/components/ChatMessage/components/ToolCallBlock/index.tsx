@@ -1,14 +1,15 @@
-import { emitter, EventType, useEmitterWithCondition } from "@/events";
+import { EventType, useEmitterWithCondition } from "@/events";
 import { ToolCallMessage } from "@/interfaces";
 import { isCallingTool } from "@/utils";
 import { ToolOutlined } from "@ant-design/icons";
 import { Think, ThoughtChain } from "@ant-design/x";
 import { useMemoizedFn } from "ahooks";
-import { isEmpty, uniq } from "lodash-es";
+import { isEmpty } from "lodash-es";
 import React, { useState } from "react";
-import { useTimelineMessages } from "./hooks";
+import { useTimelineMessages, useTotalDuration } from "./hooks";
 import styles from "./index.module.css";
-import ToolCallItem from "./ToolCallItem";
+import ToolCallItemContent from "./ToolCallItemContent";
+import ToolCallItemTitle from "./ToolCallItemTitle";
 import ToolCallTitle from "./ToolCallTitle";
 
 type Props = {
@@ -19,6 +20,7 @@ type Props = {
 
 const ToolCallBlock = ({ isCallingTools, isStreaming, toolCalls }: Props) => {
   const timelineMessages = useTimelineMessages(toolCalls);
+  const totalDuration = useTotalDuration(toolCalls);
   const [expanded, setExpanded] = useState<boolean>(isStreaming ? true : false);
   const [expandedToolCallKeys, setExpandedToolCallKeys] = useState<string[]>(
     []
@@ -26,7 +28,6 @@ const ToolCallBlock = ({ isCallingTools, isStreaming, toolCalls }: Props) => {
 
   const handleExpandChange = useMemoizedFn((expand: boolean) => {
     setExpanded(expand);
-    emitter.emit(EventType.BlockCollapse, expand);
   });
 
   /**
@@ -38,14 +39,6 @@ const ToolCallBlock = ({ isCallingTools, isStreaming, toolCalls }: Props) => {
       setTimeout(() => {
         setExpanded(false);
       }, 500);
-    },
-    isCallingTools
-  );
-
-  useEmitterWithCondition(
-    EventType.ToolCallItemStart,
-    toolCallId => {
-      setExpandedToolCallKeys(prev => uniq([...prev, toolCallId]));
     },
     isCallingTools
   );
@@ -65,7 +58,12 @@ const ToolCallBlock = ({ isCallingTools, isStreaming, toolCalls }: Props) => {
           borderColor: "transparent",
         },
       }}
-      title={isCallingTools ? "工具调用中" : "已完成工具调用"}
+      title={
+        <ToolCallTitle
+          isCallingTools={isCallingTools}
+          totalDuration={totalDuration}
+        />
+      }
     >
       <ThoughtChain
         classNames={{
@@ -79,8 +77,8 @@ const ToolCallBlock = ({ isCallingTools, isStreaming, toolCalls }: Props) => {
           status: message.status,
           collapsible: true,
           blink: isCallingTool(message.status),
-          title: <ToolCallTitle index={index} message={message} />,
-          content: <ToolCallItem message={message} />,
+          title: <ToolCallItemTitle index={index} message={message} />,
+          content: <ToolCallItemContent message={message} />,
         }))}
       />
     </Think>

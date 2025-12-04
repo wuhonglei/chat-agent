@@ -40,6 +40,7 @@ const CustomCodeBlock = memo(
 
     return (
       <GrayContainer
+        className="my-2"
         header={
           <>
             <LanguageLabel children={language} />
