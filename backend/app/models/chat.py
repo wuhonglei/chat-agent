@@ -44,7 +44,7 @@ class ChatMessageItem(BaseModel):
     content: str = Field(..., description="Message content")
     conversation_id: str = Field(..., description="Conversation ID")
     reasoning: Optional[str] = Field(None, description="Reasoning content")
-    tool_calls: Optional[list[ToolCallMessage]] = Field(
+    tool_calls: Optional[list[dict]] = Field(
         None, description="Tool calls")
     created_at: datetime = Field(
         default_factory=get_datetime_now, description="Message timestamp")
