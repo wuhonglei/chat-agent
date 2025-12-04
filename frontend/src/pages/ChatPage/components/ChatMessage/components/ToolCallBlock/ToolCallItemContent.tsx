@@ -49,8 +49,8 @@ const ToolCallItemContent: React.FC<Props> = ({ message }) => {
   );
 
   return (
-    <div className="w-full flex flex-col gap-2">
-      <MarkdownContainer className="mt-1">{reasoningContent}</MarkdownContainer>
+    <div className="w-full flex flex-col gap-2 py-1">
+      <MarkdownContainer>{reasoningContent}</MarkdownContainer>
       <GrayContainer
         className="flex flex-col gap-1 items-start w-full"
         header={
