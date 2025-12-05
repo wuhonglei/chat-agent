@@ -77,7 +77,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
         onValuesChange={onValuesChange}
         className={classNames("flex flex-col gap-3", className)}
       >
-        <Form.Item style={{ marginInline: 8 }} name={names.content}>
+        <Form.Item name={names.content}>
           <Sender
             suffix={false}
             onKeyDown={handlePressEnter}
