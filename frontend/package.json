@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build:tsc": "NODE_OPTIONS=--max-old-space-size=800 tsc",
-    "build:vite": "NODE_OPTIONS=--max-old-space-size=1500 vite build",
+    "build:tsc": "tsc",
+    "build:vite": "vite build",
     "build": "npm run build:tsc && npm run build:vite",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
