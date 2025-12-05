@@ -5,6 +5,7 @@ import Latex from "@ant-design/x-markdown/plugins/Latex";
 import classNames from "classnames";
 import React, { memo } from "react";
 import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
+import InlineCode from "./components/InlineCode";
 import { useLanguage, useMarkdownTheme } from "./hooks";
 import "./index.css";
 import styles from "./index.module.css";
@@ -21,7 +22,7 @@ const CustomCodeBlock = memo(
     const language = useLanguage(className, code, inline);
 
     if (inline || !language) {
-      return <CodeHighlighter>{code}</CodeHighlighter>;
+      return <InlineCode>{code}</InlineCode>;
     }
 
     // 处理 Mermaid 代码块

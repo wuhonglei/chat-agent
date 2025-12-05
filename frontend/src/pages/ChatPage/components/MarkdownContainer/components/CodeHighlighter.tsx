@@ -17,7 +17,7 @@ const CodeHighlighter = ({ header, ...restProps }: Props) => {
     props.header = <CustomHeader>{header}</CustomHeader>;
   }
 
-  return <XCodeHighlighter {...props} {...restProps}></XCodeHighlighter>;
+  return <XCodeHighlighter {...props} {...restProps} />;
 };
 
 export default React.memo(CodeHighlighter);
