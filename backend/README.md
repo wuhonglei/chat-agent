@@ -245,13 +245,6 @@ ruff check app/ --fix
 mypy app/
 ```
 
-### 运行测试
-
-```bash
-pytest
-pytest --cov=app tests/  # 带覆盖率
-```
-
 ## 性能优化
 
 - **向量索引**: ChromaDB 自动建立 HNSW 索引，提供快速相似度搜索
