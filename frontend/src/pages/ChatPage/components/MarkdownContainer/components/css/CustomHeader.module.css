@@ -1,0 +1,11 @@
+.header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--ant-color-text);
+  background: var(--ant-color-fill-content);
+  padding: var(--ant-padding-sm);
+  border-start-start-radius: var(--ant-border-radius);
+  border-start-end-radius: var(--ant-border-radius);
+}

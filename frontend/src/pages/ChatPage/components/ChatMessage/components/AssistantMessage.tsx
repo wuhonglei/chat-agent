@@ -54,10 +54,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
             isStreaming={isStreaming}
           />
           {/* 渲染模型返回的内容 */}
-          <MarkdownContainer
-            className="text-base w-full"
-            sources={message.sources}
-          >
+          <MarkdownContainer className="text-base w-full">
             {displayContent}
           </MarkdownContainer>
         </div>

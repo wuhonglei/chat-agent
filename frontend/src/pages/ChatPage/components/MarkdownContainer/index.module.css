@@ -1,57 +1,9 @@
-/* Markdown styles */
-.markdown-body {
-  line-height: 1.6;
+.x-markdown {
+  --font-size: 16px;
+  --margin-block: 8px;
 }
 
-.markdown-body h1,
-.markdown-body h2,
-.markdown-body h3,
-.markdown-body h4,
-.markdown-body h5,
-.markdown-body h6 {
-  margin-top: 16px;
-  margin-bottom: 8px;
-  font-weight: 600;
-}
-
-.markdown-body p {
-  margin-bottom: 8px;
-}
-
-.markdown-body ul,
-.markdown-body ol {
-  padding-left: 24px;
-  margin-bottom: 8px;
-}
-
-.markdown-body li {
-  margin-bottom: 4px;
-}
-
-.markdown-body blockquote {
-  padding: 8px 16px;
-  margin: 8px 0;
-  border-left: 4px solid #d1d5db;
-  background-color: #f9fafb;
-}
-
-.markdown-body blockquote p {
-  margin-bottom: 0;
-}
-
-.markdown-body hr {
-  color: var(--color-gray-500);
-  margin-bottom: 8px;
-}
-
-.markdown-body table th,
-.markdown-body table td {
-  text-align: left;
-  padding: 6px 12px;
-  border: 1px solid var(--color-gray-500);
-}
-
-/* 隐藏自定义的脚注定义列表 */
-.markdown-body :global(.footnotes[data-footnotes]) {
-  display: none;
+.gray {
+  --font-size: 14px;
+  --text-color: var(--color-black-secondary);
 }

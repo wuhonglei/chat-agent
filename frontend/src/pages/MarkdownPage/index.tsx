@@ -1,13 +1,12 @@
-import React from "react";
 import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
-import styles from "./index.module.css";
-import simplify from "./raw/simplify.md?raw";
-import reactMarkdown from "./raw/react-markdown.md?raw";
-import mermaid from "./raw/mermaid.md?raw";
-import code from "./raw/code.md?raw";
 import { Tabs } from "antd";
-import { useState } from "react";
 import classNames from "classnames";
+import React, { useState } from "react";
+import styles from "./index.module.css";
+import code from "./raw/code.md?raw";
+import mermaid from "./raw/mermaid.md?raw";
+import reactMarkdown from "./raw/react-markdown.md?raw";
+import simplify from "./raw/simplify.md?raw";
 
 const items = [
   {

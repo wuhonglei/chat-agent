@@ -28,7 +28,7 @@ const UserMessage: React.FC<UserMessageProps> = ({
     onEditMessage(messageContent);
   }
 
-  function handleSend(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+  function handleKeyDown(event: React.KeyboardEvent<Element>) {
     if (isInputEnter(event)) {
       event.preventDefault();
       handleConfirm();
@@ -53,7 +53,7 @@ const UserMessage: React.FC<UserMessageProps> = ({
             <Sender
               suffix={false}
               defaultValue={content}
-              onKeyDown={handleSend}
+              onKeyDown={handleKeyDown}
               onChange={value => setMessageContent(trim(value))}
               footer={
                 <div className="flex justify-end gap-2">

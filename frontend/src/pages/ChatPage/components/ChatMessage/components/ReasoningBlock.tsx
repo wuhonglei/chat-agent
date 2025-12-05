@@ -70,10 +70,7 @@ const ReasoningBlock = ({
         className="-ml-4"
         onClick={onSourceClick}
       />
-      <MarkdownContainer
-        sources={sources}
-        className="flex-1 text-black-secondary text-sm"
-      >
+      <MarkdownContainer gray className="flex-1">
         {displayReasoning}
       </MarkdownContainer>
     </Think>

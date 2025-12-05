@@ -62,7 +62,12 @@ export function getWebMainDomain(
   return capitalizeFirstLetter ? capitalize(mainDomain) : mainDomain;
 }
 
-export function isInputEnter(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+/**
+ * 判断是否是输入回车键
+ * @param event 键盘事件
+ * @returns 是否是输入回车键
+ */
+export function isInputEnter(event: React.KeyboardEvent<Element>) {
   // 只有按下回车键才发送, 组合键shift+enter不发送
   if (event.key !== "Enter" || event.shiftKey) {
     return false;

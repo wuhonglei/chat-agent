@@ -43,13 +43,11 @@ export default defineConfig(({ mode }) => {
             vendor: ["react", "react-dom"],
             utils: ["axios", "lodash-es", "dayjs", "uuid", "mitt"],
             ui: ["simplebar-react"],
-            components: ["@ant-design/x", "@ant-design/icons", "antd"],
-            markdown: [
-              "react-markdown",
-              "react-syntax-highlighter",
-              "rehype-external-links",
-              "rehype-raw",
-              "remark-gfm",
+            components: [
+              "@ant-design/x",
+              "@ant-design/x-markdown",
+              "@ant-design/icons",
+              "antd",
             ],
           },
         },

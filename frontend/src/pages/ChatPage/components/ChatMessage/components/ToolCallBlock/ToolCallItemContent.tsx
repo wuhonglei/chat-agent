@@ -1,8 +1,7 @@
 import { ToolCallStatus } from "@/constants";
 import { TimelineMessage } from "@/interfaces";
 import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
-import GrayContainer from "@/pages/ChatPage/components/MarkdownContainer/components/GrayContainer";
-import NormalCode from "@/pages/ChatPage/components/MarkdownContainer/components/NormalCode";
+import CodeHighlighter from "@/pages/ChatPage/components/MarkdownContainer/components/CodeHighlighter";
 import { isPlainObject } from "lodash-es";
 import React, { useMemo } from "react";
 
@@ -50,19 +49,14 @@ const ToolCallItemContent: React.FC<Props> = ({ message }) => {
 
   return (
     <div className="w-full flex flex-col gap-2 py-1">
-      <MarkdownContainer>{reasoningContent}</MarkdownContainer>
-      <GrayContainer
-        className="flex flex-col gap-1 items-start w-full"
-        header={
-          <div className="flex items-center gap-2">
-            <span>parameters is:</span>
-          </div>
-        }
+      <MarkdownContainer gray>{reasoningContent}</MarkdownContainer>
+      <CodeHighlighter
+        lang="json"
+        header="parameters is:"
+        styles={{ code: { maxHeight: 500, width: "100%", overflow: "auto" } }}
       >
-        <NormalCode language="json" style={{ maxHeight: 500, width: "100%" }}>
-          {stringifyArgs(message.toolCall.function.arguments)}
-        </NormalCode>
-      </GrayContainer>
+        {stringifyArgs(message.toolCall.function.arguments)}
+      </CodeHighlighter>
       {status === ToolCallStatus.ToolResultError && (
         <div className="w-full flex items-start gap-2">
           <div className="whitespace-nowrap">tool call error.</div>
@@ -70,21 +64,13 @@ const ToolCallItemContent: React.FC<Props> = ({ message }) => {
         </div>
       )}
       {status === ToolCallStatus.ToolResultSuccess && (
-        <GrayContainer
-          className="flex flex-col gap-1 items-start w-full"
-          header={
-            <div className="flex items-center gap-2">
-              <span>result is:</span>
-            </div>
-          }
+        <CodeHighlighter
+          lang={language}
+          header={"result is:"}
+          styles={{ code: { maxHeight: 300, width: "100%", overflow: "auto" } }}
         >
-          <NormalCode
-            language={language}
-            style={{ maxHeight: 300, width: "100%" }}
-          >
-            {contentStr}
-          </NormalCode>
-        </GrayContainer>
+          {contentStr}
+        </CodeHighlighter>
       )}
     </div>
   );

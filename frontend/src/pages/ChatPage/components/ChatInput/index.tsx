@@ -49,7 +49,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   });
 
   const handlePressEnter = useMemoizedFn(
-    (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    (event: React.KeyboardEvent<Element>) => {
       if (!isInputEnter(event)) {
         return;
       }
