@@ -117,17 +117,17 @@ def async_deploy(commit_sha=None, commit_message=None, log_file_path=None):
         # 确保在 main 分支上
         if not run_command("git checkout main", REPO_PATH):
             logger.error("异步部署失败：git checkout 出错")
-            return
+            raise Exception("异步部署失败：git checkout 出错")
 
         # 拉取代码
         if not run_command("git pull origin main", REPO_PATH):
             logger.error("异步部署失败：git pull 出错")
-            return
+            raise Exception("异步部署失败：git pull 出错")
 
         # 打印最新 commit 信息
         if not run_command("git log --oneline -1", REPO_PATH):
             logger.error("异步部署失败：git log 出错")
-            return
+            raise Exception("异步部署失败：git log 出错")
 
         # 执行 deploy.sh
         if not run_command(f"bash {DEPLOY_SCRIPT}", REPO_PATH):
@@ -135,7 +135,7 @@ def async_deploy(commit_sha=None, commit_message=None, log_file_path=None):
                 f"异步部署失败：deploy.sh 执行出错 ({DEPLOY_SCRIPT})"
             )
             logger.error(error_msg)
-            return
+            raise Exception(error_msg)
 
         logger.info("异步部署成功完成！")
         logger.info("=== 部署任务结束 ===")
