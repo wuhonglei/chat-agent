@@ -1,7 +1,7 @@
 import CodeHighlighter from "@/pages/ChatPage/components/MarkdownContainer/components/CodeHighlighter";
 import { Mermaid } from "@ant-design/x";
 import XMarkdown from "@ant-design/x-markdown";
-import Latex from "@ant-design/x-markdown/plugins/latex";
+import Latex from "@ant-design/x-markdown/plugins/Latex";
 import classNames from "classnames";
 import React, { memo } from "react";
 import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
