@@ -11,7 +11,8 @@ MAX_RETRIES=60
 RETRY_COUNT=0
 
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    if uv run alembic current &>/dev/null; then
+    ERROR_OUTPUT=$(uv run alembic current 2>&1)
+    if [ $? -eq 0 ]; then
         echo "✓ Database connection established!"
         break
     fi
@@ -20,11 +21,15 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
     if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
         echo "ERROR: Database connection failed after ${MAX_RETRIES} seconds"
         echo "Please check your database configuration and ensure the database is running."
+        echo ""
+        echo "Last error output:"
+        echo "$ERROR_OUTPUT"
         exit 1
     fi
     
     if [ $((RETRY_COUNT % 5)) -eq 0 ]; then
         echo "Waiting for database... (${RETRY_COUNT}/${MAX_RETRIES})"
+        echo "Error: $ERROR_OUTPUT"
     fi
     sleep 1
 done
