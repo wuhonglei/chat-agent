@@ -91,14 +91,18 @@ async def get_weather_hourly_forecast(
     """
     逐小时天气预报API，提供全球城市24-168小时范围内逐小时天气预报，包括：温度、天气状况、风力、风速、风向、相对湿度、大气压强、降水概率、露点温度、云量。
     """
+    # 验证 hours 参数（虽然 Literal 类型已经限制，但显式验证可以提供更明确的错误信息）
+    valid_hours = ["24h", "72h", "168h"]
+    if hours not in valid_hours:
+        raise ValueError(f"无效的预报小时数参数，支持: {', '.join(valid_hours)}")
+
     params = {
         "location": location,
-        "hours": hours,
         "lang": lang,
         "unit": unit
     }
     try:
-        data = await make_request("/v7/weather/hourly", params)
+        data = await make_request(f"/v7/weather/{hours}", params)
         weather_hourly_response = WeatherHourlyResponse.model_validate(data)
         return weather_hourly_response.hourly
     except Exception:
@@ -118,6 +122,10 @@ async def get_weather_daily_forecast(
     @return:
         - List[WeatherDaily]: 天气预报数据, 每个预报包含日期、日出时间、日落时间、月出时间、月落时间、月相、月相图标、最高温度、最低温度、白天天气图标、白天天气状况、夜间天气图标、夜间天气状况、白天风向360度、白天风向、白天风力等级、白天风速、夜间风向360度、夜间风向、夜间风力等级、夜间风速、降水量、紫外线指数、相对湿度、大气压强、能见度、云量。
     """
+    valid_days = ["3d", "7d", "10d", "15d", "30d"]
+    if days not in valid_days:
+        raise ValueError(f"无效的预报天数参数，支持: {', '.join(valid_days)}")
+
     params = {
         "location": location,
         "lang": lang,
