@@ -3,14 +3,21 @@ import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
 import { Think } from "@ant-design/x";
 import { useMemoizedFn, useThrottle } from "ahooks";
 import React, { useState } from "react";
+import TitleWithDuration from "./TitleWithDuration";
 
 type Props = {
   isReasoning: boolean;
   isStreaming: boolean;
+  reasoningDuration?: number;
   reasoning: string | undefined;
 };
 
-const ReasoningBlock = ({ isReasoning, reasoning, isStreaming }: Props) => {
+const ReasoningBlock = ({
+  isReasoning,
+  reasoning,
+  isStreaming,
+  reasoningDuration,
+}: Props) => {
   const displayReasoning = useThrottle(reasoning, {
     wait: 100,
   });
@@ -43,7 +50,16 @@ const ReasoningBlock = ({ isReasoning, reasoning, isStreaming }: Props) => {
       expanded={expanded}
       blink={isReasoning}
       onExpand={handleExpandChange}
-      title={isReasoning ? "深度思考中" : "已完成深度思考"}
+      title={
+        <TitleWithDuration
+          titles={{
+            doing: "深度思考中",
+            done: "已完成深度思考",
+          }}
+          isDoing={isReasoning}
+          duration={reasoningDuration}
+        />
+      }
     >
       <MarkdownContainer gray className="flex-1">
         {displayReasoning}

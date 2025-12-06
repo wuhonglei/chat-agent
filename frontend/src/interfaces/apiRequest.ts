@@ -17,6 +17,7 @@ export type StreamMessage =
       data: {
         status?: "start" | "done";
         content?: string;
+        duration?: number;
       };
     }
   | {
@@ -45,7 +46,7 @@ export type StreamMessage =
   | {
       type: "error";
       data: {
-        message?: string;
+        msg?: string;
         code?: number;
         details?: unknown;
       };

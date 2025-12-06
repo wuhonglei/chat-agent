@@ -6,21 +6,26 @@ import { Think, ThoughtChain } from "@ant-design/x";
 import { useMemoizedFn } from "ahooks";
 import { isEmpty } from "lodash-es";
 import React, { useState } from "react";
-import { useTimelineMessages, useTotalDuration } from "./hooks";
+import TitleWithDuration from "../TitleWithDuration";
+import { useTimelineMessages } from "./hooks";
 import styles from "./index.module.css";
 import ToolCallItemContent from "./ToolCallItemContent";
 import ToolCallItemTitle from "./ToolCallItemTitle";
-import ToolCallTitle from "./ToolCallTitle";
 
 type Props = {
   isCallingTools: boolean;
   isStreaming: boolean;
+  toolCallsDuration?: number;
   toolCalls: ToolCallMessage[] | undefined;
 };
 
-const ToolCallBlock = ({ isCallingTools, isStreaming, toolCalls }: Props) => {
+const ToolCallBlock = ({
+  isCallingTools,
+  isStreaming,
+  toolCallsDuration,
+  toolCalls,
+}: Props) => {
   const timelineMessages = useTimelineMessages(toolCalls);
-  const totalDuration = useTotalDuration(toolCalls);
   const [expanded, setExpanded] = useState<boolean>(isStreaming ? true : false);
   const [expandedToolCallKeys, setExpandedToolCallKeys] = useState<string[]>(
     []
@@ -59,9 +64,13 @@ const ToolCallBlock = ({ isCallingTools, isStreaming, toolCalls }: Props) => {
         },
       }}
       title={
-        <ToolCallTitle
-          isCallingTools={isCallingTools}
-          totalDuration={totalDuration}
+        <TitleWithDuration
+          titles={{
+            doing: "工具调用中",
+            done: "已完成工具调用",
+          }}
+          isDoing={isCallingTools}
+          duration={toolCallsDuration}
         />
       }
     >

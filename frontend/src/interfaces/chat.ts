@@ -32,9 +32,13 @@ export interface ChatMessage {
   reasoning: string;
   createdAt: string;
   updatedAt: string;
+  toolCallsDuration: number;
+  reasoningDuration: number;
+  contentDuration: number;
+  totalDuration: number;
   toolCalls: ToolCallMessage[];
-  messageMetadata: Omit<ChatInputFormValues, "message">;
   status: MessageStatus;
+  messageMetadata: Omit<ChatInputFormValues, "message">;
   replyTo: string; // role为assistant时，回复到哪个user消息
 }
 

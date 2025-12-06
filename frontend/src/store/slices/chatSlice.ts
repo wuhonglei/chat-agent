@@ -2,7 +2,6 @@ import { MessageStatus } from "@/constants";
 import {
   ChatConversationState,
   ChatMessage,
-  SearchSource,
   ToolCallMessage,
 } from "@/interfaces";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
@@ -153,16 +152,6 @@ const chatSlice = createSlice({
       const chatState = conversationIdCheck(state, conversationId);
       chatState.isReasoning = data;
     },
-    setSources: (
-      state,
-      action: PayloadAction<ConversationActionPayload<SearchSource[]>>
-    ) => {
-      const { conversationId, data } = action.payload;
-      const chatState = conversationIdCheck(state, conversationId);
-      if (!isEmpty(chatState.messages)) {
-        chatState.messages.at(-1)!.sources = data;
-      }
-    },
     setCallingTools: (
       state,
       action: PayloadAction<ConversationActionPayload<boolean>>
@@ -172,6 +161,28 @@ const chatSlice = createSlice({
       const lastMessage = lastMessageCheck(chatState.messages);
       if (lastMessage) {
         chatState.isCallingTools = data;
+      }
+    },
+    setReasoningDuration: (
+      state,
+      action: PayloadAction<ConversationActionPayload<number>>
+    ) => {
+      const { conversationId, data } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      const lastMessage = lastMessageCheck(chatState.messages);
+      if (lastMessage) {
+        lastMessage.reasoningDuration = data;
+      }
+    },
+    setToolCallsDuration: (
+      state,
+      action: PayloadAction<ConversationActionPayload<number>>
+    ) => {
+      const { conversationId, data } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      const lastMessage = lastMessageCheck(chatState.messages);
+      if (lastMessage) {
+        lastMessage.toolCallsDuration = data;
       }
     },
     prependContentToLastMessage: (
@@ -279,8 +290,9 @@ export const {
   removeMessageById,
   setStreaming,
   setLoading,
-  setSources,
   setCallingTools,
+  setReasoningDuration,
+  setToolCallsDuration,
   prependContentToLastMessage,
   appendContentToLastMessage,
   prependSourceToLastReasoningMessage,

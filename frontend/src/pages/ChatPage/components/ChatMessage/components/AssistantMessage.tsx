@@ -42,12 +42,14 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
             isStreaming={isStreaming}
             isCallingTools={isCallingTools}
             toolCalls={message.toolCalls}
+            toolCallsDuration={message.toolCallsDuration}
           />
           {/* 渲染思考内容 */}
           <ReasoningBlock
             isReasoning={isReasoning}
             reasoning={message.reasoning}
             isStreaming={isStreaming}
+            reasoningDuration={message.reasoningDuration}
           />
           {/* 渲染模型返回的内容 */}
           <MarkdownContainer className="text-base w-full">

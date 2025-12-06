@@ -1,5 +1,4 @@
 """Chat service for RAG-based Q&A"""
-import time
 import json
 from collections.abc import AsyncGenerator, AsyncIterator
 from typing import Any, Optional, cast
@@ -9,8 +8,9 @@ from openai import AsyncOpenAI
 
 from app.core.config import settings
 from app.models.chat import ChatMessageItemReq, ChatRequest, CollectedResponse
-from app.models.llm import ToolCallMessage, ToolCallResultMessage
+from app.models.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallResultMessage
 from app.utils.common import filter_dict
+from app.utils.time import get_current_time, get_time_duration
 from app.mcp.mcp_client import MCPClientManager
 from app.services.prompt import get_default_system_prompt, get_prompt_for_title, get_prompt_with_mcp_servers, get_prompt_with_tool_history
 from pydantic import BaseModel
@@ -27,7 +27,11 @@ class ChatService:
         self.mcp_manager = mcp_manager
         self.collected_content = ''  # 收集的完整响应内容
         self.collected_reasoning = ''  # 收集的推理内容
-        self.collected_tool_calls: list[dict[str, Any]] = []  # 工具调用记录
+        self.collected_tool_calls: list[ToolCallMessage] = []  # 工具调用记录
+        self.total_duration: Optional[float] = None  # 总耗时
+        self.tool_calls_duration: Optional[float] = None  # 工具调用耗时
+        self.reasoning_duration: Optional[float] = None  # 推理耗时
+        self.content_duration: Optional[float] = None  # 内容生成耗时
 
     async def _stream_final_response(
         self,
@@ -35,6 +39,7 @@ class ChatService:
         model: str,
     ) -> AsyncIterator[str]:
         """Stream final response"""
+        start_time = get_current_time()
         response = await self.client.chat.completions.create(
             model=model,
             messages=messages,
@@ -56,9 +61,12 @@ class ChatService:
             elif delta and getattr(delta, 'content', None):
                 if start_reasoning:
                     start_reasoning = False
+                    self.reasoning_duration = get_time_duration(start_time)
                     yield self.format_sse_message('reasoning', {
                         'status': 'done',
+                        'duration': self.reasoning_duration,
                     })
+                    start_time = get_current_time()
 
                 status = 'start' if not start_content else 'continue'
                 start_content = True
@@ -68,9 +76,11 @@ class ChatService:
                 })
 
         if start_content:
+            self.content_duration = get_time_duration(start_time)
             yield self.format_sse_message('content', {
                 'status': 'done',
                 'content': '',
+                'duration': self.content_duration,
             })
 
     async def _call_llm_with_tools(
@@ -90,7 +100,6 @@ class ChatService:
         max_iterations_by_tool = 5
         iterations_by_tool = {
             tool['function']['name']: max_iterations_by_tool for tool in tools}
-        tool_call_messages: list[ToolCallMessage] = []
         for iteration in range(max_total_iterations):
             logger.info(f"{'='*60}")
             logger.info(f'第 {iteration + 1} 轮迭代')
@@ -98,7 +107,7 @@ class ChatService:
             # Call LLM with tools
             response = await self.client.chat.completions.create(
                 model=model,
-                messages=messages + tool_call_messages,
+                messages=messages + self.collected_tool_calls,
                 tools=tools if tools else None,
                 stream=False,
             )
@@ -111,8 +120,14 @@ class ChatService:
                 return
 
             # Handle tool calls
-            tool_call_messages.append(assistant_message)
-            yield tool_call_messages[-1]
+            assistant_message = AssistantToolCallMessage(**{
+                'role': 'assistant',
+                'content': assistant_message.content,
+                'reasoning_content': assistant_message.reasoning_content,
+                'tool_calls': assistant_message.tool_calls,
+            })
+            self.collected_tool_calls.append(assistant_message)
+            yield assistant_message
             logger.info(f'需要调用 {len(assistant_message.tool_calls)} 个工具:')
             logger.info(
                 f'assistant_message is {assistant_message.model_dump(exclude_none=True)}')
@@ -120,20 +135,21 @@ class ChatService:
             # Execute tool calls and stream results
             for tool_call in assistant_message.tool_calls:
                 tool_name = cast(str, tool_call.function.name)
-                start_time = time.time()
+                start_time = get_current_time()
 
                 # Check if tool has reached max iterations BEFORE calling
                 if iterations_by_tool[tool_name] <= 0:
                     logger.info(
                         f"Tool {tool_name} has hit max iterations, skipping")
-                    tool_call_messages.append(ToolCallResultMessage(**{
+                    tool_call_result_message = ToolCallResultMessage(**{
                         "role": "tool",
                         "is_error": True,
                         "tool_call_id": tool_call.id,
-                        "duration": round(time.time() - start_time, 2),
+                        "duration": get_time_duration(start_time),
                         "content": f'Tool {tool_name} has hit max iterations, skipping'
-                    }))
-                    yield tool_call_messages[-1]
+                    })
+                    self.collected_tool_calls.append(tool_call_result_message)
+                    yield tool_call_result_message
                     continue
 
                 # Decrement AFTER checking
@@ -150,25 +166,27 @@ class ChatService:
                         f"MCP tool result: {content[:200] + '...' + content[-200:] if len(content) > 200 else content}")
 
                     # Add tool result to messages
-                    tool_call_messages.append(ToolCallResultMessage(**{
+                    tool_call_result_message = ToolCallResultMessage(**{
                         "role": "tool",
                         "is_error": False,
                         "content": content,
                         "tool_call_id": tool_call.id,
-                        "duration": round(time.time() - start_time, 2),
-                    }))
-                    yield tool_call_messages[-1]
+                        "duration": get_time_duration(start_time),
+                    })
+                    self.collected_tool_calls.append(tool_call_result_message)
+                    yield tool_call_result_message
 
                 except Exception as e:
                     logger.error(f"Failed to call tool {tool_name}: {e}")
-                    tool_call_messages.append(ToolCallResultMessage(**{
+                    tool_call_result_message = ToolCallResultMessage(**{
                         "role": "tool",
                         "is_error": True,
                         "content": str(e),
                         "tool_call_id": tool_call.id,
-                        "duration": round(time.time() - start_time, 2),
-                    }))
-                    yield tool_call_messages[-1]
+                        "duration": get_time_duration(start_time),
+                    })
+                    self.collected_tool_calls.append(tool_call_result_message)
+                    yield tool_call_result_message
 
         # If we hit max iterations, return error message
         logger.info('we have hit max iterations, returning tool_call_messages')
@@ -187,8 +205,6 @@ class ChatService:
             self.collected_content += data.get('content') or ''
         elif msg_type == 'reasoning':
             self.collected_reasoning += data.get('content') or ''
-        elif msg_type == 'tool_call':
-            self.collected_tool_calls.append(data)
         return f"data: {json.dumps({'type': msg_type, 'data': data}, ensure_ascii=False)}\n\n"
 
     async def stream_message(
@@ -209,7 +225,6 @@ class ChatService:
             server_names = None if mcp_auto_mode else filter_dict(
                 source_config.model_dump(), [True])
             tools = await self.mcp_manager.get_tools_for_llm(server_names)
-            tool_call_messages = []
             if tools:
                 # Call LLM with tools and stream results
                 new_user_message, system_prompt = get_prompt_with_mcp_servers(
@@ -218,25 +233,25 @@ class ChatService:
                     system_prompt, history,  new_user_message)
 
                 # Stream tool calls and collect messages
-                start_time = time.time()
+                start_time = get_current_time()
                 async for message in self._call_llm_with_tools(
                     new_messages, final_model, tools
                 ):
                     # Update accumulated messages
                     if message:
-                        tool_call_messages.append(message)
                         yield self.format_sse_message('tool_call', message.model_dump(exclude_none=True))
 
-                if tool_call_messages:
+                if self.collected_tool_calls:
+                    self.tool_calls_duration = get_time_duration(start_time)
                     yield self.format_sse_message('tool_call', {
                         'status': 'done',
-                        'duration': round(time.time() - start_time, 2),
+                        'duration': self.tool_calls_duration,
                     })
 
             system_prompt = get_default_system_prompt(include_date=False)
             # 将工具调用历史拼接到用户消息中
             new_messages = self._compose_messages_with_tool_calls(
-                system_prompt, history, user_message, tool_call_messages)
+                system_prompt, history, user_message, self.collected_tool_calls)
             async for chunk in self._stream_final_response(new_messages, final_model):
                 yield chunk
             return
@@ -263,7 +278,12 @@ class ChatService:
         return CollectedResponse(
             content=self.collected_content,
             reasoning=self.collected_reasoning,
-            tool_calls=self.collected_tool_calls,
+            tool_calls=[tool_call.model_dump(
+                exclude_none=True) for tool_call in self.collected_tool_calls],
+            tool_calls_duration=self.tool_calls_duration,
+            reasoning_duration=self.reasoning_duration,
+            content_duration=self.content_duration,
+            total_duration=self.total_duration,
         )
 
     @staticmethod

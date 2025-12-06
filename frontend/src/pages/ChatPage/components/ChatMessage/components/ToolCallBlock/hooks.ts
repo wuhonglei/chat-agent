@@ -59,18 +59,3 @@ export function useTimelineMessages(
     return messages;
   }, [toolCalls]);
 }
-
-export function useTotalDuration(
-  toolCalls: ToolCallMessage[] | undefined
-): number | undefined {
-  return useMemo(() => {
-    const doneMessage = (toolCalls || []).find(
-      message => !message.role && message.status === "done"
-    );
-    if (!doneMessage) {
-      return undefined;
-    }
-
-    return doneMessage.duration;
-  }, [toolCalls]);
-}

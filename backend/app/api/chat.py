@@ -14,7 +14,7 @@ from app.services.message_service import MessageService
 from app.models.db import MessageDb
 from app.utils.auth_deps import require_auth
 from app.utils.common import gen_uuid
-
+from app.utils.time import get_current_time, get_time_duration
 router = APIRouter()
 
 
@@ -70,7 +70,7 @@ async def chat_stream(
             yield chat_service.format_sse_message('ack', user_message)
             yield chat_service.format_sse_message('ack', assistant_message)
             yield chat_service.format_sse_message('refresh_conversation', conversation)
-
+            start_time = get_current_time()
             try:
                 history = message_service.get_flatten_messages_by_ids(
                     chat_request.history_ids)
@@ -82,21 +82,20 @@ async def chat_stream(
             except Exception as streaming_error:
                 logger.error(f"Streaming response failed: {streaming_error}")
                 raise
-
+            chat_service.total_duration = get_time_duration(start_time)
             assistant_payload = chat_service.get_collected_response()
 
             try:
                 assistant_message = message_service.update_assistant_message(
                     conversation,
                     assistant_message,
-                    content=assistant_payload.content,
-                    reasoning=assistant_payload.reasoning,
-                    tool_calls=assistant_payload.tool_calls,
+                    assistant_payload=assistant_payload,
                     status=MessageStatus.DONE,
                 )
             except Exception as persist_error:
                 logger.error(
                     f"Failed to persist assistant message: {persist_error}")
+                yield chat_service.format_sse_message('error', {'msg': str(persist_error)})
                 raise
 
             if chat_request.regenerate_title:

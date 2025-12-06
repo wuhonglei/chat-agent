@@ -25,8 +25,10 @@ import {
   setLoading,
   setMessages,
   setReasoning,
+  setReasoningDuration,
   setStreaming,
   setTempMessages,
+  setToolCallsDuration,
   updateMessageModifiedTime,
   updateMessageStatus,
 } from "@/store/slices/chatSlice";
@@ -49,6 +51,7 @@ import {
   isUserRole,
 } from "@/utils";
 import { useMemoizedFn, useRequest } from "ahooks";
+import { App } from "antd";
 import dayjs from "dayjs";
 import { isEmpty } from "lodash-es";
 import { useParams } from "react-router-dom";
@@ -86,6 +89,7 @@ export const useChatState = (conversationId: string) => {
 export const useChatMessage = (options: UseChatMessageOptions) => {
   const { conversationId, historyLimit = 10 } = options;
   const dispatch = useAppDispatch();
+  const { message } = App.useApp();
   const { messages, isLoading, isStreaming } = useChatState(conversationId);
 
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -167,12 +171,20 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
 
           // 更新消息思考内容
           reasoning: data => {
-            const { status, content } = data || {};
+            const { status, content, duration } = data || {};
             if (status === "start") {
               dispatch(setReasoning({ conversationId, data: true }));
             } else if (status === "done") {
               emitter.emit(EventType.ReasoningDone);
               dispatch(setReasoning({ conversationId, data: false }));
+              if (duration) {
+                dispatch(
+                  setReasoningDuration({
+                    conversationId,
+                    data: duration,
+                  })
+                );
+              }
             }
             dispatch(
               appendReasoningToLastMessage({
@@ -200,13 +212,22 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
             if (!role && data?.status === "done") {
               emitter.emit(EventType.ToolCallDone);
               dispatch(setCallingTools({ conversationId, data: false }));
+              if (data.duration) {
+                dispatch(
+                  setToolCallsDuration({
+                    conversationId,
+                    data: data.duration,
+                  })
+                );
+              }
+            } else {
+              dispatch(
+                appendToolCallToLastMessage({
+                  conversationId,
+                  data,
+                })
+              );
             }
-            dispatch(
-              appendToolCallToLastMessage({
-                conversationId,
-                data,
-              })
-            );
           },
 
           // 更新会话标题
@@ -244,7 +265,12 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
             );
             resetState(conversationId);
           },
-          error: () => {},
+          error: data => {
+            const { msg } = data || {};
+            if (msg) {
+              message.error(msg);
+            }
+          },
         };
 
         // 开始流式传输

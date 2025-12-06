@@ -8,7 +8,7 @@ from loguru import logger
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select, delete
 
-from app.models.chat import ChatMessageItem, ChatMessageItemReq, MessageStatus
+from app.models.chat import ChatMessageItem, ChatMessageItemReq, CollectedResponse, MessageStatus
 from app.models.db import ConversationDb, MessageDb
 from app.utils.date import get_datetime_now
 from app.core.db import engine
@@ -156,20 +156,26 @@ class MessageService:
         conversation: ConversationDb,
         assistant_message: MessageDb,
         *,
-        content: Optional[str],
-        reasoning: Optional[str],
-        tool_calls: Optional[list[dict]],
+        assistant_payload: CollectedResponse,
         status: MessageStatus,
         extra_metadata: Optional[dict[str, Any]] = None,
     ) -> MessageDb:
         assistant_message.status = status
         assistant_message.updated_at = get_datetime_now()
-        if content:
-            assistant_message.content = content
-        if reasoning:
-            assistant_message.reasoning = reasoning
-        if tool_calls:
-            assistant_message.tool_calls = tool_calls
+        if assistant_payload.content:
+            assistant_message.content = assistant_payload.content
+        if assistant_payload.reasoning:
+            assistant_message.reasoning = assistant_payload.reasoning
+        if assistant_payload.tool_calls:
+            assistant_message.tool_calls = assistant_payload.tool_calls
+        if assistant_payload.tool_calls_duration:
+            assistant_message.tool_calls_duration = assistant_payload.tool_calls_duration
+        if assistant_payload.reasoning_duration:
+            assistant_message.reasoning_duration = assistant_payload.reasoning_duration
+        if assistant_payload.content_duration:
+            assistant_message.content_duration = assistant_payload.content_duration
+        if assistant_payload.total_duration:
+            assistant_message.total_duration = assistant_payload.total_duration
         if extra_metadata:
             merged_metadata = dict(assistant_message.message_metadata or {})
             merged_metadata.update(extra_metadata)
