@@ -1,7 +1,7 @@
 """
 测试 Time MCP Server
 """
-from app.mcp.mcp_servers.time_mcp.server import mcp
+from .server import mcp
 import asyncio
 from fastmcp import Client
 

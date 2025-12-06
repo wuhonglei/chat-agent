@@ -32,6 +32,7 @@ from app.mcp.mcp_servers.weather_mcp.server import mcp as weather_mcp
 from app.mcp.mcp_servers.tavily_mcp.server import mcp as tavily_mcp
 from app.mcp.mcp_servers.confluence_mcp.server import mcp as mcp_confluence
 from app.mcp.mcp_servers.code_exec_mcp.server import mcp as code_exec_mcp
+from app.mcp.mcp_servers.ip_locator_mcp.server import mcp as ip_locator_mcp
 # fmt: on
 
 # 导入 MCP servers
@@ -49,6 +50,7 @@ mcp_config = {
         "weather-mcp": weather_mcp,
         "tavily-mcp": tavily_mcp,
         "code-exec-mcp": code_exec_mcp,
+        "ip-locator-mcp": ip_locator_mcp,
     }
 }
 

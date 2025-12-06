@@ -6,7 +6,6 @@ Documentation: https://docs.tavily.com/
 
 from typing import List
 from fastmcp import FastMCP
-from mcp.types import CallToolResult
 from pydantic import Field
 from tavily import AsyncTavilyClient
 from fastmcp.tools.tool import ToolResult
@@ -15,6 +14,7 @@ from fastmcp.tools.tool import ToolResult
 from .config import config
 from .models import TavilySearchResponse, TavilyExtractResponse, TavilyCrawlResponse, TavilyMapResponse
 from .utils import format_results, format_crawl_results, format_map_results
+
 # Create MCP instance and Tavily client
 mcp = FastMCP(
     name="Tavily Search MCP Service",
