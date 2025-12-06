@@ -32,7 +32,6 @@ export interface ChatMessage {
   reasoning: string;
   createdAt: string;
   updatedAt: string;
-  sources: SearchSource[];
   toolCalls: ToolCallMessage[];
   messageMetadata: Omit<ChatInputFormValues, "message">;
   status: MessageStatus;

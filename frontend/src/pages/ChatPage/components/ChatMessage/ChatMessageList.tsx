@@ -16,7 +16,6 @@ interface ChatMessageListProps {
   className?: string;
   onEditMessage: (index: number, content: string) => void;
   onReSend: (index: number, message: ChatMessageType) => void;
-  onSourceClick: (index: number, message: ChatMessageType) => void;
 }
 
 const ChatMessageList: React.FC<ChatMessageListProps> = ({
@@ -26,7 +25,6 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
   isReasoning = false,
   isCallingTools = false,
   className,
-  onSourceClick,
   onEditMessage,
   onReSend,
 }) => {
@@ -45,7 +43,6 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
           key={message.id}
           message={message}
           onReSend={onReSend}
-          onSourceClick={onSourceClick}
           onEditMessage={onEditMessage}
           isLoading={isLoading && index === messages.length - 1}
           isStreaming={isStreaming && index === messages.length - 1}

@@ -19,15 +19,12 @@ import {
   clearMessagesAfterIndex,
   DEFAULT_CHAT_STATE,
   lastMessageCheck,
-  prependContentToLastMessage,
-  prependSourceToLastReasoningMessage,
   removeMessageById,
   resetChatState,
   setCallingTools,
   setLoading,
   setMessages,
   setReasoning,
-  setSources,
   setStreaming,
   setTempMessages,
   updateMessageModifiedTime,
@@ -46,7 +43,6 @@ import { MessageStatus, TitleCreatedBy } from "@/constants";
 import { emitter, EventType } from "@/events";
 import { db } from "@/indexDB";
 import {
-  buildFootnoteDefinition,
   getHistoryMessageIds,
   getRemovedMessageIds,
   isTitleCreatedByDefault,
@@ -194,21 +190,6 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
                 conversationId,
                 data: content || "",
               })
-            );
-          },
-
-          // 更新消息来源
-          sources: data => {
-            dispatch(setSources({ conversationId, data }));
-            const sourceStr = buildFootnoteDefinition(data);
-            dispatch(
-              prependSourceToLastReasoningMessage({
-                conversationId,
-                data: sourceStr,
-              })
-            );
-            dispatch(
-              prependContentToLastMessage({ conversationId, data: sourceStr })
             );
           },
 

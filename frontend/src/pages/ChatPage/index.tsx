@@ -3,16 +3,14 @@ import { useCachedRequest, useConversationInfo } from "@/hooks/chat";
 import {
   ChatInputFormValues,
   ChatMessage as ChatMessageType,
-  SourceData,
 } from "@/interfaces";
 import { useMemoizedFn } from "ahooks";
 import { Form } from "antd";
 import classNames from "classnames";
-import React, { useState } from "react";
+import React from "react";
 import { useParams } from "react-router-dom";
 import ChatInput from "./components/ChatInput";
 import { ChatMessageList } from "./components/ChatMessage";
-import SourceSider from "./components/SourceSider";
 import TopHeader from "./components/TopHeader";
 import styles from "./index.module.css";
 
@@ -29,20 +27,9 @@ const ChatPage: React.FC = () => {
   });
   const { isStreaming, isLoading, isReasoning, isCallingTools } =
     useChatState(conversationId);
-  const [sourceData, setSourceData] = useState<SourceData | undefined>();
   const [form] = Form.useForm<ChatInputFormValues>();
 
   useCachedRequest(conversationId, conversationInfo);
-
-  const handleSourceClick = useMemoizedFn(
-    (index: number, message: ChatMessageType) => {
-      if (sourceData?.index === index) {
-        setSourceData(undefined);
-      } else {
-        setSourceData({ index, sources: message.sources || [] });
-      }
-    }
-  );
 
   const handleEditMessage = useMemoizedFn((index: number, content: string) => {
     sendMessage({ ...form.getFieldsValue(), content }, { index });
@@ -56,10 +43,6 @@ const ChatPage: React.FC = () => {
 
   const handleAbortMessage = useMemoizedFn(() => {
     abortMessage(conversationId);
-  });
-
-  const handleCloseSource = useMemoizedFn(() => {
-    setSourceData(undefined);
   });
 
   return (
@@ -81,7 +64,6 @@ const ChatPage: React.FC = () => {
             isReasoning={isReasoning}
             isCallingTools={isCallingTools}
             conversationId={conversationId}
-            onSourceClick={handleSourceClick}
             onEditMessage={handleEditMessage}
             className={styles["markdown-container"]}
           />
@@ -97,8 +79,6 @@ const ChatPage: React.FC = () => {
             内容由 AI 生成，请仔细甄别
           </div>
         </div>
-        {/* Sources panel */}
-        <SourceSider sourceData={sourceData} onClose={handleCloseSource} />
       </main>
     </section>
   );

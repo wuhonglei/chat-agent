@@ -1,6 +1,5 @@
 import { ChatMessage } from "./chat";
 import { ConversationInfo } from "./conversation";
-import { SearchSource } from "./chat";
 import { ToolCallMessage } from "./tooCall";
 
 // Stream types
@@ -25,10 +24,6 @@ export type StreamMessage =
       data: {
         content?: string;
       };
-    }
-  | {
-      type: "sources";
-      data: SearchSource[];
     }
   | {
       type: "tool_call";
