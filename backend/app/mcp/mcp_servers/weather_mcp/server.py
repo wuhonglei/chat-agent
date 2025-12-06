@@ -4,40 +4,20 @@
 文档地址: https://dev.qweather.com/docs/start/
 """
 
-import httpx
 from fastmcp import Client
 from fastmcp.client.transports import FastMCPTransport
-from typing import Optional, Dict, Any, List
+from typing import List
 from fastmcp import FastMCP
 from pydantic import Field
+from .utils import make_request
 
 # 需要在 weather_mcp 目录的上层执行: uv run -m weather_mcp.server
-from .config import config
 from .models import CitySearchResponse, WeatherNowResponse, WeatherNow, City, WeatherDaily, WeatherDailyResponse, WeatherAlertResponse, WeatherAlert
 
 # 创建 MCP 实例
 mcp = FastMCP(
     name="Weather MCP Service",
 )
-
-
-async def make_request(endpoint: str, params: Dict[str, Any]) -> dict[str, Any]:
-    """发送 HTTP 请求到和风天气 API"""
-    url = f"{config.QWEATHER_BASE_URL}{endpoint}"
-    params["key"] = config.QWEATHER_API_KEY
-
-    async with httpx.AsyncClient(timeout=config.QWEATHER_TIMEOUT) as client:
-        try:
-            response = await client.get(url, params=params)
-            response.raise_for_status()
-            data = response.json()
-            if data.get("code") != "200":
-                raise Exception(data)
-            return data
-        except httpx.HTTPError as e:
-            raise Exception(f"HTTP 请求失败: {e}")
-        except Exception as e:
-            raise Exception(f"请求处理失败: {e}")
 
 
 @mcp.tool(name="search_city")
@@ -77,7 +57,7 @@ async def search_city(
 @mcp.tool(name="get_current_weather")
 async def get_current_weather(
     location: str = Field(...,
-                          description="位置信息，可以是 LocationID（如：101010100）或经纬度坐标（如：116.41,39.92）"),
+                          description="位置信息，可以是 LocationID（如：101010100）或 经纬度坐标（如：116.41,39.92）"),
     lang: str = Field(default="zh", description="多语言设置，支持 zh（中文）、en（英文）等"),
     unit: str = Field(default="m", description="单位设置，m（公制）或 i（英制）")
 ) -> WeatherNow:
