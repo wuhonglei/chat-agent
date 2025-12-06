@@ -31,11 +31,15 @@ from app.mcp.mcp_servers.time_mcp.server import mcp as time_mcp
 from app.mcp.mcp_servers.weather_mcp.server import mcp as weather_mcp
 from app.mcp.mcp_servers.tavily_mcp.server import mcp as tavily_mcp
 from app.mcp.mcp_servers.confluence_mcp.server import mcp as mcp_confluence
+from app.mcp.mcp_servers.confluence_mcp.server import check_availability as confluence_check_availability
 from app.mcp.mcp_servers.code_exec_mcp.server import mcp as code_exec_mcp
 from app.mcp.mcp_servers.ip_locator_mcp.server import mcp as ip_locator_mcp
 # fmt: on
 
 # 导入 MCP servers
+# 对于需要可用性检测的服务器，可以配置 availability_checker 函数
+# 格式: {"server": server_instance, "availability_checker": check_function}
+# 或者直接使用 server_instance（不需要检测的服务器）
 mcp_config = {
     "mcpServers": {
         "ip-locator-mcp": ip_locator_mcp,
@@ -47,7 +51,10 @@ mcp_config = {
             },
             "verify_ssl": VERIFY_SSL
         },
-        "confluence-mcp": mcp_confluence,
+        "confluence-mcp": {
+            "server": mcp_confluence,
+            "availability_checker": confluence_check_availability,
+        },
         "weather-mcp": weather_mcp,
         "tavily-mcp": tavily_mcp,
         "code-exec-mcp": code_exec_mcp,
@@ -105,10 +112,43 @@ class MCPClientManager:
         logger.info("开始初始化 MCP Client Manager...")
 
         # 注册所有 MCP servers
-        self.servers = mcp_config["mcpServers"]
+        self.servers = copy.deepcopy(mcp_config["mcpServers"])
 
         # 为每个 server 创建 client
-        for server_name, server_instance in self.servers.items():
+        # 使用 list() 创建副本，以便在迭代时安全地修改字典
+        for server_name, server_config in list(self.servers.items()):
+            # 检查是否需要可用性检测
+            # 如果配置是字典且包含 availability_checker，则进行检测
+            availability_checker = None
+            server_instance = server_config
+
+            if isinstance(server_config, dict) and "availability_checker" in server_config:
+                availability_checker = server_config.get(
+                    "availability_checker")
+                server_instance = server_config.get("server", server_config)
+                # 更新 self.servers 中的值，使用实际的 server 实例
+                self.servers[server_name] = server_instance
+
+            # 如果有可用性检测函数，先进行检测
+            if availability_checker and callable(availability_checker):
+                logger.info(f"正在检测 {server_name} 可用性...")
+                try:
+                    is_available = await availability_checker()
+                    if not is_available:
+                        logger.warning(
+                            f"{server_name} 不可用，跳过注册该服务器"
+                        )
+                        # 从 servers 中移除，避免后续处理
+                        del self.servers[server_name]
+                        continue
+                    logger.info(f"✓ {server_name} 可用性检测通过")
+                except Exception as e:
+                    logger.warning(
+                        f"{server_name} 可用性检测异常: {e}，跳过注册该服务器"
+                    )
+                    del self.servers[server_name]
+                    continue
+
             try:
                 # 根据服务器类型选择不同的传输方式
                 if isinstance(server_instance, FastMCP):
