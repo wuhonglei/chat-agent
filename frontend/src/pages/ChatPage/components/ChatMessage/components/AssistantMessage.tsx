@@ -13,7 +13,6 @@ interface AssistantMessageProps {
   isLoading: boolean;
   isReasoning: boolean;
   isCallingTools: boolean;
-  onSourceClick: () => void;
   onReSend: () => void;
 }
 
@@ -23,7 +22,6 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
   isStreaming,
   isLoading,
   isCallingTools,
-  onSourceClick,
   onReSend,
 }) => {
   const displayContent = useThrottle(message.content, {
@@ -48,9 +46,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
           {/* 渲染思考内容 */}
           <ReasoningBlock
             isReasoning={isReasoning}
-            sources={message.sources}
             reasoning={message.reasoning}
-            onSourceClick={onSourceClick}
             isStreaming={isStreaming}
           />
           {/* 渲染模型返回的内容 */}
@@ -61,11 +57,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
       )}
       footer={
         isStreaming ? null : (
-          <AssistantOperation
-            message={message}
-            onReSend={onReSend}
-            onSourceClick={onSourceClick}
-          />
+          <AssistantOperation message={message} onReSend={onReSend} />
         )
       }
     />

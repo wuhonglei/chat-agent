@@ -1,19 +1,16 @@
 import CopyButton from "@/components/common/CopyButton";
 import { ChatMessage as ChatMessageType } from "@/interfaces";
 import { RedoOutlined } from "@ant-design/icons";
-import { Button, Divider } from "antd";
+import { Button } from "antd";
 import classNames from "classnames";
-import { isEmpty } from "lodash-es";
-import SourceAbstract from "./SourceAbstract";
 
 type Props = {
   message: ChatMessageType;
   onReSend: () => void;
-  onSourceClick: () => void;
 };
 
 export default function AssistantOperation(props: Props) {
-  const { message, onReSend, onSourceClick } = props;
+  const { message, onReSend } = props;
 
   return (
     <div
@@ -23,17 +20,6 @@ export default function AssistantOperation(props: Props) {
     >
       <CopyButton size="middle" text={message.content} children={null} />
       <Button type="text" icon={<RedoOutlined />} onClick={onReSend} />
-      {!isEmpty(message.sources) && (
-        <>
-          <Divider orientation="vertical" />
-          <SourceAbstract
-            mode="postSource"
-            bordered={false}
-            sources={message.sources}
-            onClick={onSourceClick}
-          />
-        </>
-      )}
     </div>
   );
 }
