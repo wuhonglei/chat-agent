@@ -50,7 +50,6 @@ mcp_config = {
         "weather-mcp": weather_mcp,
         "tavily-mcp": tavily_mcp,
         "code-exec-mcp": code_exec_mcp,
-        "ip-locator-mcp": ip_locator_mcp,
     }
 }
 
@@ -394,7 +393,7 @@ class MCPClientManager:
             server['online'] = health_status.get(server['id'], False)
         return mcp_config_for_fe_copy
 
-    async def get_tools_for_llm(self, server_names: Optional[list[str]] = None) -> List[Dict[str, Any]]:
+    async def get_tools_for_llm(self, server_names: Optional[list[str]] = None, client_ip: str | None = None) -> List[Dict[str, Any]]:
         """
         获取格式化后的工具列表，用于 LLM function calling
 
@@ -405,7 +404,13 @@ class MCPClientManager:
             raise RuntimeError("MCPClientManager 未初始化，请先调用 initialize()")
 
         formatted_tools = []
-        server_names = self.tools_by_server.keys() if server_names is None else server_names
+        server_names = list(self.tools_by_server.keys()
+                            ) if server_names is None else server_names
+        if client_ip:
+            server_names.append("ip-locator-mcp")
+        else:
+            server_names = list(set(server_names) - {"ip-locator-mcp"})
+
         for server_name in server_names:
             if server_name not in self.tools_by_server:
                 continue

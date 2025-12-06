@@ -24,6 +24,7 @@ async def chat_stream(
     request: Request,
     chat_request: ChatRequest,
     _auth: None = Depends(require_auth),
+    client_ip: str | None = Depends(get_client_ip),
 ):
     """Stream chat response, 按需保存用户与助手消息"""
     conversation_id = chat_request.conversation_id
@@ -77,7 +78,8 @@ async def chat_stream(
                     chat_request.history_ids)
                 async for chunk in chat_service.stream_message(
                     chat_request=chat_request,
-                    history=history
+                    history=history,
+                    client_ip=client_ip
                 ):
                     yield chunk
             except Exception as streaming_error:

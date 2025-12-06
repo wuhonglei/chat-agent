@@ -211,6 +211,7 @@ class ChatService:
         self,
         chat_request: ChatRequest,
         history: list[ChatMessageItemReq],
+        client_ip: str | None,
     ) -> AsyncGenerator[str, None]:
         """Stream chat response"""
         try:
