@@ -6,13 +6,13 @@
 
 from fastmcp import Client
 from fastmcp.client.transports import FastMCPTransport
-from typing import List
+from typing import List, Literal
 from fastmcp import FastMCP
 from pydantic import Field
 from .utils import make_request
 
 # 需要在 weather_mcp 目录的上层执行: uv run -m weather_mcp.server
-from .models import CitySearchResponse, WeatherNowResponse, WeatherNow, City, WeatherDaily, WeatherDailyResponse, WeatherAlertResponse, WeatherAlert
+from .models import CitySearchResponse, WeatherHourlyResponse, WeatherNowResponse, WeatherNow, City, WeatherDaily, WeatherDailyResponse, WeatherAlertResponse, WeatherAlert, WeatherHourly
 
 # 创建 MCP 实例
 mcp = FastMCP(
@@ -80,41 +80,54 @@ async def get_current_weather(
         raise
 
 
-@mcp.tool(name="get_weather_forecast")
-async def get_weather_forecast(
+@mcp.tool(name="get_weather_hourly_forecast")
+async def get_weather_hourly_forecast(
     location: str = Field(..., description="位置信息，可以是 LocationID 或经纬度坐标"),
-    days: str = Field(
-        default="1d", description="预报天数，支持 1d、3d、7d、10d、15d、30d"),
+    hours: Literal["24h", "72h", "168h"] = Field(
+        default="24h", description="预报小时数，可选值：24h（24小时预报）、72h（72小时预报）、168h（168小时预报）"),
+    lang: str = Field(default="zh", description="多语言设置"),
+    unit: str = Field(default="m", description="单位设置（m=公制，i=英制）")
+) -> List[WeatherHourly]:
+    """
+    逐小时天气预报API，提供全球城市24-168小时范围内逐小时天气预报，包括：温度、天气状况、风力、风速、风向、相对湿度、大气压强、降水概率、露点温度、云量。
+    """
+    params = {
+        "location": location,
+        "hours": hours,
+        "lang": lang,
+        "unit": unit
+    }
+    try:
+        data = await make_request("/v7/weather/hourly", params)
+        weather_hourly_response = WeatherHourlyResponse.model_validate(data)
+        return weather_hourly_response.hourly
+    except Exception:
+        raise
+
+
+@mcp.tool(name="get_weather_daily_forecast")
+async def get_weather_daily_forecast(
+    location: str = Field(..., description="位置信息，可以是 LocationID 或经纬度坐标"),
+    days: Literal["3d", "7d", "10d", "15d", "30d"] = Field(
+        default="3d", description="预报天数，支持 3d、7d、10d、15d、30d"),
     lang: str = Field(default="zh", description="多语言设置"),
     unit: str = Field(default="m", description="单位设置（m=公制，i=英制）")
 ) -> List[WeatherDaily]:
     """
-    获取未来几天（1d、3d、7d、10d、15d、30d）的天气预报信息
+    获取未来几天（3d、7d、10d、15d、30d）的天气预报信息
     @return:
         - List[WeatherDaily]: 天气预报数据, 每个预报包含日期、日出时间、日落时间、月出时间、月落时间、月相、月相图标、最高温度、最低温度、白天天气图标、白天天气状况、夜间天气图标、夜间天气状况、白天风向360度、白天风向、白天风力等级、白天风速、夜间风向360度、夜间风向、夜间风力等级、夜间风速、降水量、紫外线指数、相对湿度、大气压强、能见度、云量。
     """
-    # 验证天数参数
-    valid_days = ["1d", "3d", "7d", "10d", "15d", "30d"]
-    if days not in valid_days:
-        raise ValueError(f"无效的天数参数，支持: {', '.join(valid_days)}")
-
     params = {
         "location": location,
         "lang": lang,
         "unit": unit
     }
 
-    # api 不支持1d，所以需要转换为3d
-    new_days = '3d' if days == '1d' else days
-
     try:
-        data = await make_request(f"/v7/weather/{new_days}", params)
+        data = await make_request(f"/v7/weather/{days}", params)
         weather_daily_response = WeatherDailyResponse.model_validate(data)
-        daily = weather_daily_response.daily
-        if days == '1d':
-            return [daily[0]]
-        else:
-            return daily
+        return weather_daily_response.daily
 
     except Exception:
         raise

@@ -75,7 +75,7 @@ const ChatPage: React.FC = () => {
             onStop={handleAbortMessage}
             className={styles["input-container"]}
           />
-          <div className="mx-auto py-1.5 text-black-quaternary text-xs">
+          <div className="mx-auto py-1 md:py-1.5 text-black-quaternary text-xs">
             内容由 AI 生成，请仔细甄别
           </div>
         </div>

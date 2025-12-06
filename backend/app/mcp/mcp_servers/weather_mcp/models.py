@@ -114,3 +114,26 @@ class WeatherAlertResponse(WeatherCommonResponse):
     warning: List[WeatherAlert] = Field(..., description="天气预警数据")
     updateTime: str = Field(..., description="API更新时间")
     fxLink: str = Field(..., description="和风天气链接")
+
+
+class WeatherHourly(BaseModel):
+    fxTime: str = Field(..., description="预报时间")
+    temp: str = Field(..., description="温度")
+    icon: str = Field(..., description="天气图标代码")
+    text: str = Field(..., description="天气状况文字描述")
+    wind360: str = Field(..., description="风向360度")
+    windDir: str = Field(..., description="风向")
+    windScale: str = Field(..., description="风力等级")
+    windSpeed: str = Field(..., description="风速")
+    humidity: str = Field(..., description="相对湿度")
+    pop: str = Field(..., description="降水概率")
+    precip: str = Field(..., description="降水量")
+    pressure: str = Field(..., description="大气压强")
+    cloud: str = Field(..., description="云量")
+    dew: str = Field(..., description="露点温度")
+
+
+class WeatherHourlyResponse(WeatherCommonResponse):
+    hourly: List[WeatherHourly] = Field(..., description="逐小时天气预报数据")
+    updateTime: str = Field(..., description="API更新时间")
+    fxLink: str = Field(..., description="和风天气链接")
