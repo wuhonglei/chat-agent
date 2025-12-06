@@ -11,8 +11,6 @@ from app.models.response import ApiResponse
 from app.models.token import SecretTokenInfo
 from app.services.user_service import UserService
 from app.utils.auth_deps import get_auth_token_info
-from app.utils.network import get_client_ip
-from loguru import logger
 router = APIRouter()
 
 
@@ -20,10 +18,8 @@ router = APIRouter()
 async def get_user_detail(
     db: Session = Depends(get_db),
     token_info: SecretTokenInfo = Depends(get_auth_token_info),
-    client_ip: str | None = Depends(get_client_ip),
 ):
     """获取用户信息"""
-    logger.info(f"Client IP: {client_ip}")
     user_service = UserService(db)
     user = user_service.get_user(token_info.user_id)
     if not user:
