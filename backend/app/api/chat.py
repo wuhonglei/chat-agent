@@ -27,6 +27,8 @@ async def chat_stream(
     client_ip: str | None = Depends(get_client_ip),
 ):
     """Stream chat response, 按需保存用户与助手消息"""
+    logger.info(f"Client IP: {client_ip}")
+
     conversation_id = chat_request.conversation_id
     state = cast(AppState, request.app.state)
 
@@ -84,6 +86,7 @@ async def chat_stream(
                     yield chunk
             except Exception as streaming_error:
                 logger.error(f"Streaming response failed: {streaming_error}")
+                yield chat_service.format_sse_message('error', {'msg': str(streaming_error)})
                 raise
             chat_service.total_duration = get_time_duration(start_time)
             assistant_payload = chat_service.get_collected_response()

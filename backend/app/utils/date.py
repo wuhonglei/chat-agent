@@ -15,7 +15,6 @@ def get_current_date() -> str:
 
 def get_datetime_now(with_timezone: bool = True) -> datetime:
     """获取当前时间"""
-    logger.debug("获取当前时间")
     if with_timezone:
         return datetime.now(timezone.utc)
     else:

@@ -12,11 +12,7 @@ Country Code: {response.countryCode}
 Region: {response.region}
 Region Name: {response.regionName}
 City: {response.city}
-Zip: {response.zip}
 Latitude: {response.lat:.6f}
 Longitude: {response.lon:.6f}
 Timezone: {response.timezone}
-ISP: {response.isp}
-Org: {response.org}
-AS: {response.as_field}
 """.strip()

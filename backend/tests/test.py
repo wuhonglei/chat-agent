@@ -1,2 +1,2 @@
-from zoneinfo import ZoneInfo
-print(ZoneInfo(""))
+a = [1, 2, 3]
+set(None)

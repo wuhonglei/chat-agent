@@ -11,12 +11,8 @@ class IPLocatorResponse(BaseModel):
     region: str = Field(..., description="地区代码")
     regionName: str = Field(..., description="地区名称")
     city: str = Field(..., description="城市名称")
-    zip: Optional[str] = Field(None, description="邮政编码")
     lat: float = Field(..., description="纬度")
     lon: float = Field(..., description="经度")
     timezone: str = Field(..., description="时区")
-    isp: Optional[str] = Field(None, description="互联网服务提供商")
-    org: Optional[str] = Field(None, description="组织名称")
-    as_field: Optional[str] = Field(None, alias="as", description="AS 号码和名称")
 
-    model_config = ConfigDict(populate_by_name=True, extra='allow')
+    model_config = ConfigDict(extra='allow')

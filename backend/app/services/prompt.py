@@ -7,12 +7,6 @@ from app.utils.date import get_current_datetime_str, get_current_date
 
 default_system_prompt_template = Template("""
 You are a helpful assistant.
-{% if current_datetime %}
-Current date and time: {{ current_datetime }}
-{% endif %}
-{% if current_date %}
-When providing information about current events, versions, or time-sensitive topics, always use the current date {{ current_date }} as reference.
-{% endif %}
 """.strip())
 
 system_prompt_with_references = """
@@ -36,8 +30,6 @@ system_prompt_with_references = """
 system_prompt_for_tool_calls_template = Template("""
 You are a helpful assistant ONLY for tool calling. Your role is to analyze the user's request and determine which tools to call.
 
-Current date and time: {{ current_datetime }}.
-
 IMPORTANT RULES:
 1. You MUST NOT provide the final answer to the user's question
 2. You MUST NOT explain or interpret the results
@@ -45,7 +37,6 @@ IMPORTANT RULES:
 4. If you don't need any tools, respond with exactly: "finish."
 5. Do not add any additional text, explanations, or commentary
 6. Your response should be minimal and focused only on tool calling
-7. When calling search tools, use the current date {{ current_date }} for time-sensitive queries
 
 Your task is to call tools, not to answer questions directly.
 """.strip())
@@ -63,22 +54,10 @@ User has manually selected the following tools for this request:
 IMPORTANT RULES:
 - If none of the selected tools are suitable, respond with "finish."
 - You are ONLY responsible for calling tools. Do NOT provide the final answer. Just call the appropriate tools or respond with "finish."
+- Current datetime: {{ current_datetime }}.
+- Client IP: {{ client_ip }}.
 """.strip())
 
-# 用户消息提示词（包含工具调用历史）
-user_message_with_tool_calls_template = Template("""
-{{ user_message }}
-
-<tool_calls_history>
-{% for (assistant_message, tool_call_message) in tool_call_messages %}
-    <tool_call>
-        <function_name>{{ assistant_message.tool_calls[0].function.name }}</function_name>
-        <parameters>{{ assistant_message.tool_calls[0].function.arguments }}</parameters>
-        <result>{{ tool_call_message.content }}</result>
-    </tool_call>
-{% endfor %}
-</tool_calls_history>
-""".strip())
 
 # 根据用户消息和模型回答生成标题系统提示词模板(中文)
 system_prompt_for_title_template = Template("""
@@ -118,32 +97,15 @@ def get_default_system_prompt(include_date: bool) -> str:
         return system_prompt_dict['default'].render()
 
 
-def get_prompt_with_mcp_servers(user_message: str, mcp_auto_mode: bool, server_names: list[str]) -> tuple[str, str]:
+def get_prompt_with_mcp_servers(user_message: str, mcp_auto_mode: bool, server_names: list[str], client_ip: str | None) -> tuple[str, str]:
     id_by_config = {config['id']: config for config in mcp_config_for_fe}
     server_names = server_names or []
     mcp_configs = [id_by_config[server_name]
                    for server_name in server_names if server_name in id_by_config]
-    system_prompt = system_prompt_dict['for_tool_calls'].render(
-        current_datetime=get_current_datetime_str(), current_date=get_current_date())
+    system_prompt = system_prompt_dict['for_tool_calls'].render()
     new_user_message = user_message_prompt_dict['for_tool_calls'].render(
-        user_message=user_message, mcp_auto_mode=mcp_auto_mode, mcp_configs=mcp_configs)
+        user_message=user_message, mcp_auto_mode=mcp_auto_mode, mcp_configs=mcp_configs, current_datetime=get_current_datetime_str(), client_ip=client_ip)
     return new_user_message, system_prompt
-
-
-def get_prompt_with_tool_history(user_message: str, tool_call_messages: list[ToolCallMessage]) -> str:
-    new_tool_call_messages: list[tuple[AssistantToolCallMessage, ToolCallResultMessage]] = [
-    ]
-    one_circle = tuple()
-    for msg in tool_call_messages:
-        if msg.role == 'assistant':
-            one_circle = (msg,)
-        elif msg.role == 'tool' and len(one_circle) == 1 and not msg.is_error:
-            one_circle += (msg,)
-            new_tool_call_messages.append(one_circle)
-            one_circle = tuple()
-
-    return user_message_with_tool_calls_template.render(
-        user_message=user_message, tool_call_messages=new_tool_call_messages)
 
 
 def get_prompt_for_title(user_message: str, model_answer: str) -> tuple[str, str]:

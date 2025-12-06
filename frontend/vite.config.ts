@@ -26,6 +26,9 @@ export default defineConfig(({ mode }) => {
         "/api": {
           target: env.VITE_PROXY_TARGET || "http://localhost:8000",
           changeOrigin: true,
+          headers: {
+            "X-Real-IP": "14.154.22.216", // 模拟真实环境访问时，会自动带上这个头，表示用户 IP
+          },
         },
       },
     },

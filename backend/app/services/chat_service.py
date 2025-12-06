@@ -5,6 +5,7 @@ from typing import Any, Optional, cast
 
 from loguru import logger
 from openai import AsyncOpenAI
+from openai.types.chat import ChatCompletionMessage
 
 from app.core.config import settings
 from app.models.chat import ChatMessageItemReq, ChatRequest, CollectedResponse
@@ -12,7 +13,7 @@ from app.models.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallRe
 from app.utils.common import filter_dict
 from app.utils.time import get_current_time, get_time_duration
 from app.mcp.mcp_client import MCPClientManager
-from app.services.prompt import get_default_system_prompt, get_prompt_for_title, get_prompt_with_mcp_servers, get_prompt_with_tool_history
+from app.services.prompt import get_default_system_prompt, get_prompt_for_title, get_prompt_with_mcp_servers
 from pydantic import BaseModel
 
 
@@ -111,20 +112,20 @@ class ChatService:
                 tools=tools if tools else None,
                 stream=False,
             )
-            assistant_message: ToolCallMessage = response.choices[0].message
+            openai_message: ChatCompletionMessage = response.choices[0].message
 
-            if not assistant_message.tool_calls:
+            if not openai_message.tool_calls:
                 logger.info(
-                    "No tool calls, returning tool_call_messages. Assistant response: " + (assistant_message.content if assistant_message.content else 'empty'))
+                    "No tool calls, returning tool_call_messages. Assistant response: " + (openai_message.content if openai_message.content else 'empty'))
                 yield None
                 return
 
             # Handle tool calls
             assistant_message = AssistantToolCallMessage(**{
                 'role': 'assistant',
-                'content': assistant_message.content,
-                'reasoning_content': assistant_message.reasoning_content,
-                'tool_calls': assistant_message.tool_calls,
+                'content': openai_message.content,
+                'tool_calls': openai_message.tool_calls,
+                'reasoning_content': hasattr(openai_message, 'reasoning_content') and openai_message.reasoning_content or None,
             })
             self.collected_tool_calls.append(assistant_message)
             yield assistant_message
@@ -225,11 +226,11 @@ class ChatService:
             # Get MCP tools for LLM
             server_names = None if mcp_auto_mode else filter_dict(
                 source_config.model_dump(), [True])
-            tools = await self.mcp_manager.get_tools_for_llm(server_names)
+            tools = await self.mcp_manager.get_tools_for_llm(server_names, client_ip)
             if tools:
                 # Call LLM with tools and stream results
                 new_user_message, system_prompt = get_prompt_with_mcp_servers(
-                    user_message, mcp_auto_mode, server_names)
+                    user_message, mcp_auto_mode, server_names, client_ip)
                 new_messages = self._compose_messages_without_tool_calls(
                     system_prompt, history,  new_user_message)
 
@@ -259,7 +260,7 @@ class ChatService:
 
         except Exception as e:
             logger.error(f"Failed to stream message: {e}")
-            yield self.format_sse_message('error', str(e))
+            raise
 
     async def generate_title(self, user_message: str) -> str:
         """Generate title for the chat"""
