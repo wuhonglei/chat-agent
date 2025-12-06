@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any, Optional
 
 from sqlalchemy import JSON as SQLJSON
-from sqlalchemy import Column, DateTime, ForeignKey, String
+from sqlalchemy import Column, DateTime, ForeignKey, String, Float
 from sqlmodel import SQLModel, Field
 
 from app.utils.date import get_datetime_now
@@ -115,4 +115,24 @@ class MessageDb(SQLModel, table=True):
         default=None,
         description="关联的用户消息 ID",
         max_length=36
+    )
+    tool_calls_duration: Optional[float] = Field(
+        default=None,
+        sa_type=Float,
+        description="工具调用耗时（秒）"
+    )
+    reasoning_duration: Optional[float] = Field(
+        default=None,
+        sa_type=Float,
+        description="推理耗时（秒）"
+    )
+    content_duration: Optional[float] = Field(
+        default=None,
+        sa_type=Float,
+        description="内容生成耗时（秒）"
+    )
+    total_duration: Optional[float] = Field(
+        default=None,
+        sa_type=Float,
+        description="总耗时（秒）"
     )
