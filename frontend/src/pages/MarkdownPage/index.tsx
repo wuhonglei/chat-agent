@@ -7,6 +7,7 @@ import code from "./raw/code.md?raw";
 import mermaid from "./raw/mermaid.md?raw";
 import reactMarkdown from "./raw/react-markdown.md?raw";
 import simplify from "./raw/simplify.md?raw";
+import weather from "./raw/weather.md?raw";
 
 const items = [
   {
@@ -25,6 +26,10 @@ const items = [
     key: "4",
     label: "Code",
   },
+  {
+    key: "5",
+    label: "Weather",
+  },
 ];
 
 const content = {
@@ -32,10 +37,13 @@ const content = {
   [items[1]?.key]: reactMarkdown,
   [items[2]?.key]: mermaid,
   [items[3]?.key]: code,
+  [items[4]?.key]: weather,
 };
 
 const MarkdownPage = () => {
   const [activeKey, setActiveKey] = useState(items[0].key);
+  const code = content[activeKey];
+  console.info("code", code);
 
   return (
     <div className="flex flex-col h-full">
@@ -49,7 +57,7 @@ const MarkdownPage = () => {
       <MarkdownContainer
         className={classNames(styles.container, "flex-1 text-base")}
       >
-        {content[activeKey]}
+        {code}
       </MarkdownContainer>
     </div>
   );
