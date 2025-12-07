@@ -28,7 +28,7 @@ class City(BaseModel):
 
 
 class CitySearchResponse(WeatherCommonResponse):
-    location: List[City] = Field(..., description="城市列表")
+    location: list[City] = Field(..., description="城市列表")
 
 
 class WeatherNow(BaseModel):
@@ -126,11 +126,13 @@ class WeatherHourly(BaseModel):
     windScale: str = Field(..., description="风力等级")
     windSpeed: str = Field(..., description="风速")
     humidity: str = Field(..., description="相对湿度")
-    pop: str = Field(..., description="降水概率")
     precip: str = Field(..., description="降水量")
     pressure: str = Field(..., description="大气压强")
     cloud: str = Field(..., description="云量")
     dew: str = Field(..., description="露点温度")
+    # 可选字段，因为逐小时预报 API 可能不返回这些字段
+    feelsLike: str | None = Field(default=None, description="体感温度")
+    vis: str | None = Field(default=None, description="能见度")
 
 
 class WeatherHourlyResponse(WeatherCommonResponse):

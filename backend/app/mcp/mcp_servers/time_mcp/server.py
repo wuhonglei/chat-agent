@@ -9,21 +9,16 @@ from zoneinfo import ZoneInfo
 from tzlocal import get_localzone_name
 
 from fastmcp import FastMCP
-from pydantic import BaseModel, Field
+from fastmcp.tools.tool import ToolResult
+from pydantic import Field
 
+from .models import TimeResponse
+from .utils import format_results
 
 # 创建 MCP 实例
 mcp = FastMCP(
     name="Time MCP Service"
 )
-
-
-class TimeResponse(BaseModel):
-    """时间查询响应模型"""
-    current_time: str = Field(..., description="当前时间，格式为 YYYY-MM-DD HH:MM:SS")
-    timezone: str = Field(..., description="时区名称")
-    utc_offset: str = Field(..., description="UTC 偏移量")
-    timestamp: int = Field(..., description="Unix 时间戳")
 
 
 @mcp.tool(name="get_current_time")
@@ -62,25 +57,29 @@ async def get_current_time(
         # 获取 Unix 时间戳
         timestamp = int(now.timestamp())
 
-        return TimeResponse(
-            current_time=current_time_str,
-            timezone=timezone,
-            utc_offset=utc_offset,
-            timestamp=timestamp
+        data = TimeResponse(
+            structured_content=TimeResponse(
+                current_time=current_time_str,
+                timezone=timezone,
+                utc_offset=utc_offset,
+                timestamp=timestamp
+            ),
+            content=format_results(data)
         )
-
     except Exception as e:
         # 如果指定的时区无效，使用本地时区作为后备
         local_tz = get_localzone_name()
         tz = ZoneInfo(local_tz)
         now = datetime.now(tz)
 
-        return TimeResponse(
+        data = TimeResponse(
             current_time=now.strftime("%Y-%m-%d %H:%M:%S"),
             timezone=f"{timezone}(无效，使用本地时区: {local_tz})",
             utc_offset=now.strftime("%z"),
             timestamp=int(now.timestamp())
         )
+    finally:
+        return ToolResult(structured_content=data, content=format_results(data))
 
 
 if __name__ == "__main__":

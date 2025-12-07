@@ -300,8 +300,7 @@ async def check_availability(timeout: float = 5.0) -> bool:
         return is_available
     except asyncio.TimeoutError:
         logger.warning(
-            f"Confluence MCP 可用性检测超时（{timeout}秒），"
-            "可能无法连接到公司内网"
+            f"Confluence MCP 可用性检测超时（{timeout}秒），可能无法连接到公司内网"
         )
         return False
     except Exception as e:
