@@ -4,10 +4,10 @@
 {
   location: "广东省深圳市",
   data: {
-    obsTime: "2025-12-07T13:16:00+08:00",
+    obsTime: "2025-12-07T20:16:00+08:00",
     temp: "23",
     feelsLike: "22",
-    icon: "101",
+    icon: "300",
     text: "多云",
     wind360: "45",
     windDir: "东北风",

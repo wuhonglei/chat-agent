@@ -1,12 +1,17 @@
 import { WeatherNowProps } from "@/interfaces/weather";
 import { formatTime } from "@/utils";
 import styles from "./index.module.css";
+import daytimeStyles from "./theme/daytime.module.css";
+import nighttimeStyles from "./theme/night.module.css";
+import { getWeatherBackgroundClass, isDaytime } from "./utils";
 
 export default function WeatherNow({ data, location }: WeatherNowProps) {
   const { tempMin, tempMax, temp, icon, text, obsTime } = data;
+  const bgStyles = isDaytime(obsTime) ? daytimeStyles : nighttimeStyles;
+  const backgroundClass = getWeatherBackgroundClass(icon, bgStyles);
 
   return (
-    <div className={styles.container}>
+    <div className={`${styles.container} ${backgroundClass}`}>
       {/* 位置 */}
       <div className={styles.location}>{location}</div>
 

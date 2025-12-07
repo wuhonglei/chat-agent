@@ -1,0 +1,44 @@
+/* 默认背景（紫色渐变） */
+.bgDefault {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* 晴天背景（黄色/橙色渐变） */
+.bgSunny {
+  background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+}
+
+/* 多云背景（灰色/蓝色渐变） */
+.bgCloudy {
+  background: linear-gradient(135deg, #a8c0d6 0%, #7d9bc1 100%);
+}
+
+/* 阴天背景（深灰色渐变） */
+.bgOvercast {
+  background: linear-gradient(135deg, #6c7a89 0%, #4a5568 100%);
+}
+
+/* 雨天背景（蓝色/深蓝色渐变） */
+.bgRainy {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+/* 雪天背景（浅蓝色/深蓝色渐变，保持文字可读性） */
+.bgSnowy {
+  background: linear-gradient(135deg, #89c4f4 0%, #5b9bd5 100%);
+}
+
+/* 雾/霾/沙尘背景（灰黄色渐变） */
+.bgFoggy {
+  background: linear-gradient(135deg, #d4c5a9 0%, #b8a082 100%);
+}
+
+/* 热天背景（红色/橙色渐变） */
+.bgHot {
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+}
+
+/* 冷天背景（深蓝色渐变） */
+.bgCold {
+  background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
+}
