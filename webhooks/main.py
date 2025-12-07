@@ -54,14 +54,15 @@ def run_command(cmd, cwd):
         log_msg = f"执行命令：{cmd}\n工作目录：{cwd}"
         logger.info(log_msg)
 
-        # 使用 Popen 实时读取输出
+        # 使用 Popen 实时读取输出，创建新进程组以便后续管理
         process = subprocess.Popen(
             cmd, cwd=cwd, shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,  # 将 stderr 合并到 stdout
             text=True,
             bufsize=1,  # 行缓冲
-            universal_newlines=True
+            universal_newlines=True,
+            preexec_fn=os.setsid  # 创建新进程组
         )
 
         # 实时读取并打印输出（loguru 会自动写入已配置的文件）
@@ -100,16 +101,35 @@ def terminate_previous_deploy():
             logger.info("检测到正在进行的部署，正在强制终止...")
 
             try:
-                # 强制终止部署进程
-                current_deploy_info['process'].terminate()
+                # 获取进程组ID并终止整个进程组（包括子进程）
+                try:
+                    pgid = os.getpgid(current_deploy_info['process'].pid)
+                    logger.info(f"终止进程组 {pgid}（包括子进程）")
+                    os.killpg(pgid, signal.SIGTERM)
+                except ProcessLookupError:
+                    # 如果进程已经不存在，直接返回
+                    logger.info("进程已经不存在，无需终止")
+                    return
+                except Exception as e:
+                    logger.warning(f"使用进程组终止失败，尝试直接终止进程：{e}")
+                    # 回退到直接终止进程
+                    current_deploy_info['process'].terminate()
 
                 # 等待进程结束，最多等待5秒
                 current_deploy_info['process'].join(timeout=5)
 
-                # 如果进程还没结束，强制杀死
+                # 如果进程还没结束，使用 SIGKILL 强制终止进程组
                 if current_deploy_info['process'].is_alive():
-                    current_deploy_info['process'].kill()
-                    current_deploy_info['process'].join(timeout=2)
+                    try:
+                        pgid = os.getpgid(current_deploy_info['process'].pid)
+                        logger.warning(f"进程组 {pgid} 未在预期时间内结束，强制杀死")
+                        os.killpg(pgid, signal.SIGKILL)
+                        current_deploy_info['process'].join(timeout=2)
+                    except Exception as e:
+                        logger.warning(f"强制杀死进程组失败：{e}")
+                        # 最后的回退方案：直接杀死进程
+                        current_deploy_info['process'].kill()
+                        current_deploy_info['process'].join(timeout=2)
 
             except Exception as e:
                 logger.warning(f"终止部署进程时出错：{e}")
