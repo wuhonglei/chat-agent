@@ -3,6 +3,7 @@ from flask import Flask
 import subprocess
 import os
 import threading
+import time
 from datetime import datetime
 from dotenv import load_dotenv
 from loguru import logger
@@ -89,7 +90,7 @@ def async_deploy(commit_sha=None, commit_message=None, log_file_path=None):
         log_file_path: 日志文件路径
     """
     # 记录部署开始时间
-    deploy_start_time = datetime.now()
+    deploy_start_time = time.time()
 
     # 为本次部署添加独立的日志文件 sink
     sink_id = None
@@ -141,10 +142,9 @@ def async_deploy(commit_sha=None, commit_message=None, log_file_path=None):
             raise Exception(error_msg)
 
         # 计算部署时长
-        deploy_end_time = datetime.now()
-        deploy_duration = deploy_end_time - deploy_start_time
-        duration_seconds = deploy_duration.total_seconds()
-        duration_formatted = ".1f"
+        deploy_end_time = time.time()
+        deploy_duration = round(deploy_end_time - deploy_start_time, 2)
+        duration_formatted = f"{deploy_duration} 秒"
 
         logger.info("异步部署成功完成！")
         logger.info(f"部署总时长: {duration_formatted}")
@@ -162,10 +162,9 @@ def async_deploy(commit_sha=None, commit_message=None, log_file_path=None):
 
     except Exception as e:
         # 计算部署时长（即使失败也要计算）
-        deploy_end_time = datetime.now()
-        deploy_duration = deploy_end_time - deploy_start_time
-        duration_seconds = deploy_duration.total_seconds()
-        duration_formatted = ".1f"
+        deploy_end_time = time.time()
+        deploy_duration = round(deploy_end_time - deploy_start_time, 2)
+        duration_formatted = f"{deploy_duration} 秒"
 
         error_msg = f"异步部署出现异常：{e}"
         logger.error(error_msg)
