@@ -13,7 +13,7 @@ from app.models.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallRe
 from app.utils.common import filter_dict
 from app.utils.time import get_current_time, get_time_duration
 from app.mcp.mcp_client import MCPClientManager
-from app.services.prompt import get_default_system_prompt, get_prompt_for_title, get_prompt_with_mcp_servers
+from app.services.prompt import get_default_system_prompt, get_prompt_for_title, get_prompt_with_mcp_servers, get_user_message_for_component_render
 from pydantic import BaseModel
 
 
@@ -28,7 +28,7 @@ class ChatService:
         self.mcp_manager = mcp_manager
         self.collected_content = ''  # 收集的完整响应内容
         self.collected_reasoning = ''  # 收集的推理内容
-        self.collected_tool_calls: list[ToolCallMessage] = []  # 工具调用记录
+        self.collected_tool_call_messages: list[ToolCallMessage] = []  # 工具调用记录
         self.total_duration: Optional[float] = None  # 总耗时
         self.tool_calls_duration: Optional[float] = None  # 工具调用耗时
         self.reasoning_duration: Optional[float] = None  # 推理耗时
@@ -108,7 +108,7 @@ class ChatService:
             # Call LLM with tools
             response = await self.client.chat.completions.create(
                 model=model,
-                messages=messages + self.collected_tool_calls,
+                messages=messages + self.collected_tool_call_messages,
                 tools=tools if tools else None,
                 stream=False,
             )
@@ -127,7 +127,7 @@ class ChatService:
                 'tool_calls': openai_message.tool_calls,
                 'reasoning_content': hasattr(openai_message, 'reasoning_content') and openai_message.reasoning_content or None,
             })
-            self.collected_tool_calls.append(assistant_message)
+            self.collected_tool_call_messages.append(assistant_message)
             yield assistant_message
             logger.info(f'需要调用 {len(assistant_message.tool_calls)} 个工具:')
             logger.info(
@@ -149,7 +149,8 @@ class ChatService:
                         "duration": get_time_duration(start_time),
                         "content": f'Tool {tool_name} has hit max iterations, skipping'
                     })
-                    self.collected_tool_calls.append(tool_call_result_message)
+                    self.collected_tool_call_messages.append(
+                        tool_call_result_message)
                     yield tool_call_result_message
                     continue
 
@@ -174,7 +175,8 @@ class ChatService:
                         "tool_call_id": tool_call.id,
                         "duration": get_time_duration(start_time),
                     })
-                    self.collected_tool_calls.append(tool_call_result_message)
+                    self.collected_tool_call_messages.append(
+                        tool_call_result_message)
                     yield tool_call_result_message
 
                 except Exception as e:
@@ -186,7 +188,8 @@ class ChatService:
                         "tool_call_id": tool_call.id,
                         "duration": get_time_duration(start_time),
                     })
-                    self.collected_tool_calls.append(tool_call_result_message)
+                    self.collected_tool_call_messages.append(
+                        tool_call_result_message)
                     yield tool_call_result_message
 
         # If we hit max iterations, return error message
@@ -229,10 +232,10 @@ class ChatService:
             tools = await self.mcp_manager.get_tools_for_llm(server_names, client_ip)
             if tools:
                 # Call LLM with tools and stream results
-                new_user_message, system_prompt = get_prompt_with_mcp_servers(
+                system_prompt, tool_call_user_message = get_prompt_with_mcp_servers(
                     user_message, mcp_auto_mode, server_names, client_ip)
                 new_messages = self._compose_messages_without_tool_calls(
-                    system_prompt, history,  new_user_message)
+                    system_prompt, history,  tool_call_user_message)
 
                 # Stream tool calls and collect messages
                 start_time = get_current_time()
@@ -243,7 +246,7 @@ class ChatService:
                     if message:
                         yield self.format_sse_message('tool_call', message.model_dump(exclude_none=True))
 
-                if self.collected_tool_calls:
+                if self.collected_tool_call_messages:
                     self.tool_calls_duration = get_time_duration(start_time)
                     yield self.format_sse_message('tool_call', {
                         'status': 'done',
@@ -251,9 +254,11 @@ class ChatService:
                     })
 
             system_prompt = get_default_system_prompt(include_date=False)
+            tool_call_user_message = get_user_message_for_component_render(
+                user_message, self.collected_tool_call_messages)
             # 将工具调用历史拼接到用户消息中
             new_messages = self._compose_messages_with_tool_calls(
-                system_prompt, history, user_message, self.collected_tool_calls)
+                system_prompt, history, self.collected_tool_call_messages, tool_call_user_message)
             async for chunk in self._stream_final_response(new_messages, final_model):
                 yield chunk
             return
@@ -264,7 +269,7 @@ class ChatService:
 
     async def generate_title(self, user_message: str) -> str:
         """Generate title for the chat"""
-        new_user_message, system_prompt = get_prompt_for_title(
+        system_prompt, new_user_message = get_prompt_for_title(
             user_message, self.collected_content)
         messages = self._compose_messages_without_tool_calls(
             system_prompt, [], new_user_message)
@@ -281,7 +286,7 @@ class ChatService:
             content=self.collected_content,
             reasoning=self.collected_reasoning,
             tool_calls=[tool_call.model_dump(
-                exclude_none=True) for tool_call in self.collected_tool_calls],
+                exclude_none=True) for tool_call in self.collected_tool_call_messages],
             tool_calls_duration=self.tool_calls_duration,
             reasoning_duration=self.reasoning_duration,
             content_duration=self.content_duration,
@@ -308,8 +313,8 @@ class ChatService:
     def _compose_messages_with_tool_calls(
         system_prompt: Optional[str],
         history: list[ChatMessageItemReq],
-        user_message: str,
         tool_call_messages: list[ToolCallMessage],
+        user_message: str,
     ) -> list[dict]:
         """Build prompt for LLM with context"""
         if not tool_call_messages:

@@ -1,7 +1,8 @@
-from jinja2 import Template
 from app.mcp.mcp_client import mcp_config_for_fe
-from app.models.llm import ToolCallMessage, AssistantToolCallMessage, ToolCallResultMessage
-from app.utils.date import get_current_datetime_str, get_current_date
+from app.models.llm import (AssistantToolCallMessage, ToolCallMessage,
+                            ToolCallResultMessage)
+from app.utils.date import get_current_date, get_current_datetime_str
+from jinja2 import Template
 
 # ============= 系统提示词 =============
 
@@ -58,6 +59,63 @@ user_message_for_title_template = Template("""
 模型回答：{{ model_answer }}
 """.strip())
 
+user_message_for_weather_component_template = Template("""
+请根据上面天气工具调用结果生成天气组件的 props 数据, 用于辅助用户理解天气情况, 组件 props 数据格式为：
+{
+  location: "城市名称"
+  data: { /* WeatherNow 类型的所有字段 */ },
+}
+
+具体要求：
+1. data 对象必须包含：
+   - obsTime: 使用当前时间或模拟时间（ISO 格式）
+   - temp: "20" （当前温度，字符串格式）
+   - feelsLike: "体感温度"
+   - icon: "100" （天气图标代码）
+   - text: "晴/多云/雨等"
+   - wind360: "180"
+   - windDir: "南风"
+   - windScale: "3"
+   - windSpeed: "12"
+   - humidity: "65"
+   - precip: "0.0"
+   - pressure: "1013"
+   - vis: "10"
+   - cloud: "25"
+   - dew: "15"
+   - tempMin?: "18"
+   - tempMax?: "22"
+
+2. location: 生成一个中国城市名称，如"北京市"
+
+输出示例：
+```component_weather
+{
+  location: "北京市",
+  data: {
+    obsTime: "2025-12-07T12:00:00+08:00",
+    temp: "20",
+    feelsLike: "18",
+    icon: "100",
+    text: "晴",
+    wind360: "180",
+    windDir: "南风",
+    windScale: "3",
+    windSpeed: "12",
+    humidity: "65",
+    precip: "0.0",
+    pressure: "1013",
+    vis: "10",
+    cloud: "25",
+    dew: "15",
+    tempMin: "18",
+    tempMax: "22",
+    fxLink: "https://www.qweather.com/weather/beijing-101010100.html"
+  }
+}
+```
+""".strip())
+
 # ============= 系统提示词和用户消息提示词字典 =============
 system_prompt_dict = {
     'default': default_system_prompt_template,
@@ -68,6 +126,7 @@ system_prompt_dict = {
 user_message_prompt_dict = {
     'for_tool_calls': user_message_for_tool_call_template,
     'for_title': user_message_for_title_template,
+    'for_weather_component': user_message_for_weather_component_template,
 }
 
 
@@ -81,6 +140,22 @@ def get_default_system_prompt(include_date: bool) -> str:
         return system_prompt_dict['default'].render()
 
 
+def get_user_message_for_component_render(user_message: str, tool_call_messages: list[ToolCallMessage]) -> str:
+    """Get user message for component render"""
+    has_weather_tool_call = any(
+        tool_call.role == 'tool' and '天气' in tool_call.content for tool_call in tool_call_messages)
+    if not has_weather_tool_call:
+        return user_message
+
+    user_messages = [
+        f'用户消息: {user_message}',
+    ]
+
+    user_messages.append(
+        user_message_prompt_dict['for_weather_component'].render())
+    return '\n'.join(user_messages)
+
+
 def get_prompt_with_mcp_servers(user_message: str, mcp_auto_mode: bool, server_names: list[str], client_ip: str | None) -> tuple[str, str]:
     id_by_config = {config['id']: config for config in mcp_config_for_fe}
     server_names = server_names or []
@@ -89,11 +164,11 @@ def get_prompt_with_mcp_servers(user_message: str, mcp_auto_mode: bool, server_n
     system_prompt = system_prompt_dict['for_tool_calls'].render()
     new_user_message = user_message_prompt_dict['for_tool_calls'].render(
         user_message=user_message, mcp_auto_mode=mcp_auto_mode, mcp_configs=mcp_configs, current_datetime=get_current_datetime_str(), client_ip=client_ip)
-    return new_user_message, system_prompt
+    return system_prompt, new_user_message
 
 
 def get_prompt_for_title(user_message: str, model_answer: str) -> tuple[str, str]:
     new_user_message = user_message_prompt_dict['for_title'].render(
         user_message=user_message, model_answer=model_answer)
     new_system_prompt = system_prompt_dict['for_title'].render()
-    return new_user_message, new_system_prompt
+    return new_system_prompt, new_user_message
