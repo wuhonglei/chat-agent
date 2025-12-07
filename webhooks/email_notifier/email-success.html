@@ -5,14 +5,15 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <title>部署成功通知</title>
     <style media="all" type="text/css">
+      /* 核心样式和响应式设计保持不变 */
       @media all {
         .btn-primary table td:hover {
-          background-color: #ec0867 !important;
+          background-color: #2541c7 !important; /* 调整按钮悬停颜色 */
         }
 
         .btn-primary a:hover {
-          background-color: #ec0867 !important;
-          border-color: #ec0867 !important;
+          background-color: #2541c7 !important; /* 调整按钮悬停颜色 */
+          border-color: #2541c7 !important;
         }
       }
       @media only screen and (max-width: 640px) {
@@ -85,19 +86,51 @@
           line-height: inherit;
         }
       }
+      /* 新增或修改的样式 */
+      .header {
+        background-color: #3155ed; /* 突出主题色 */
+        border-top-left-radius: 16px;
+        border-top-right-radius: 16px;
+        color: #ffffff;
+        padding: 20px 24px;
+        text-align: center;
+      }
+      .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 24px;
+      }
+      .data-table td {
+        padding: 8px 0;
+        border-bottom: 1px solid #eeeeee;
+        font-size: 15px;
+      }
+      .data-table tr:last-child td {
+        border-bottom: none;
+      }
+      .data-label {
+        color: #555555;
+        font-weight: bold;
+        width: 30%; /* 保证标签宽度一致 */
+        padding-right: 15px;
+      }
+      .data-value {
+        color: #333333;
+        word-break: break-all;
+      }
     </style>
   </head>
   <body
     style="
-      font-family: Helvetica, sans-serif;
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
       -webkit-font-smoothing: antialiased;
       font-size: 16px;
-      line-height: 1.3;
-      -ms-text-size-adjust: 100%;
-      -webkit-text-size-adjust: 100%;
+      line-height: 1.5;
+      width: 100vw;
+      min-height: 100vh;
       background-color: #f4f5f6;
       margin: 0;
-      padding: 0;
+      padding: 0; /* body padding 转移到 container td */
     "
   >
     <table
@@ -119,7 +152,7 @@
       <tr>
         <td
           style="
-            font-family: Helvetica, sans-serif;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
             font-size: 16px;
             vertical-align: top;
           "
@@ -130,11 +163,11 @@
         <td
           class="container"
           style="
-            font-family: Helvetica, sans-serif;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
             font-size: 16px;
             vertical-align: top;
             max-width: 600px;
-            padding: 24px 12px;
+            padding: 24px 12px; /* 增加上下边距 */
             width: 600px;
             margin: 0 auto;
           "
@@ -151,7 +184,6 @@
               padding: 0;
             "
           >
-            <!-- START CENTERED WHITE CONTAINER -->
             <span
               class="preheader"
               style="
@@ -180,107 +212,250 @@
                 mso-table-rspace: 0pt;
                 background: #ffffff;
                 border: 1px solid #eaebed;
-                border-radius: 16px;
+                border-radius: 16px; /* 增加圆角 */
                 width: 100%;
               "
               width="100%"
             >
-              <!-- START MAIN CONTENT AREA -->
+              <tr>
+                <td
+                  class="header"
+                  style="
+                    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+                    font-size: 16px;
+                    vertical-align: top;
+                  "
+                  valign="top"
+                >
+                  <img
+                    src="https://ai-chat-1258352625.cos.ap-guangzhou.myqcloud.com/logo/logo.webp"
+                    alt="Logo"
+                    style="
+                      display: block;
+                      margin: 0 auto 16px auto;
+                      max-width: 120px;
+                      height: auto;
+                    "
+                    width="120"
+                  />
+                  <h1
+                    style="
+                      font-family: 'Helvetica Neue', Helvetica, Arial,
+                        sans-serif;
+                      font-size: 28px;
+                      font-weight: 700;
+                      margin: 0;
+                      color: #ffffff;
+                    "
+                  >
+                    部署任务成功 ✅
+                  </h1>
+                </td>
+              </tr>
               <tr>
                 <td
                   class="wrapper"
                   style="
-                    font-family: Helvetica, sans-serif;
+                    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
                     font-size: 16px;
                     vertical-align: top;
                     box-sizing: border-box;
-                    padding: 24px;
+                    padding: 24px; /* 增加内边距 */
                   "
                   valign="top"
                 >
-                  <h1
-                    style="
-                      font-family: Helvetica, sans-serif;
-                      font-size: 24px;
-                      font-weight: bold;
-                      margin: 0;
-                      margin-bottom: 16px;
-                      color: #0867ec;
-                    "
-                  >
-                    部署任务成功 ✅！
-                  </h1>
                   <p
                     style="
-                      font-family: Helvetica, sans-serif;
+                      font-family: 'Helvetica Neue', Helvetica, Arial,
+                        sans-serif;
                       font-size: 16px;
                       font-weight: normal;
                       margin: 0;
-                      margin-bottom: 12px;
+                      margin-bottom: 20px;
+                      color: #333333;
                     "
                   >
-                    <strong>仓库路径:</strong> {{ repo_path }}
+                    您的部署任务已成功完成。以下是任务详情：
                   </p>
-                  <p
+
+                  <table
+                    role="presentation"
+                    border="0"
+                    cellpadding="0"
+                    cellspacing="0"
+                    class="data-table"
+                  >
+                    <tr>
+                      <td class="data-label">仓库路径:</td>
+                      <td class="data-value">
+                        <strong style="color: #3155ed">{{ repo_path }}</strong>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="data-label">部署脚本:</td>
+                      <td class="data-value">{{ deploy_script }}</td>
+                    </tr>
+                    <tr>
+                      <td class="data-label">提交 SHA:</td>
+                      <td class="data-value">{{ commit_sha or 'N/A' }}</td>
+                    </tr>
+                    <tr>
+                      <td class="data-label">提交信息:</td>
+                      <td class="data-value">{{ commit_message or 'N/A' }}</td>
+                    </tr>
+                    <tr>
+                      <td class="data-label">部署时间:</td>
+                      <td class="data-value">{{ deploy_time }}</td>
+                    </tr>
+                    <tr>
+                      <td class="data-label">访问链接:</td>
+                      <td class="data-value">
+                        <a
+                          href="https://chat.wuhonglei.cn"
+                          style="color: #3155ed; text-decoration: underline"
+                          >点击访问</a
+                        >
+                      </td>
+                    </tr>
+                  </table>
+
+                  <table
+                    role="presentation"
+                    border="0"
+                    cellpadding="0"
+                    cellspacing="0"
+                    class="btn btn-primary"
                     style="
-                      font-family: Helvetica, sans-serif;
-                      font-size: 16px;
-                      font-weight: normal;
-                      margin: 0;
-                      margin-bottom: 12px;
+                      border-collapse: separate;
+                      mso-table-lspace: 0pt;
+                      mso-table-rspace: 0pt;
+                      width: 100%;
+                      box-sizing: border-box;
                     "
+                    width="100%"
                   >
-                    <strong>部署脚本:</strong> {{ deploy_script }}
-                  </p>
-                  <p
-                    style="
-                      font-family: Helvetica, sans-serif;
-                      font-size: 16px;
-                      font-weight: normal;
-                      margin: 0;
-                      margin-bottom: 12px;
-                    "
-                  >
-                    <strong>提交 SHA:</strong> {{ commit_sha or 'N/A' }}
-                  </p>
-                  <p
-                    style="
-                      font-family: Helvetica, sans-serif;
-                      font-size: 16px;
-                      font-weight: normal;
-                      margin: 0;
-                      margin-bottom: 12px;
-                    "
-                  >
-                    <strong>提交信息:</strong> {{ commit_message or 'N/A' }}
-                  </p>
-                  <p
-                    style="
-                      font-family: Helvetica, sans-serif;
-                      font-size: 16px;
-                      font-weight: normal;
-                      margin: 0;
-                      margin-bottom: 16px;
-                    "
-                  >
-                    <strong>部署时间:</strong> {{ deploy_time }}
-                  </p>
+                    <tbody>
+                      <tr>
+                        <td
+                          align="center"
+                          style="
+                            font-family: 'Helvetica Neue', Helvetica, Arial,
+                              sans-serif;
+                            font-size: 16px;
+                            vertical-align: top;
+                            padding-bottom: 16px;
+                          "
+                          valign="top"
+                        >
+                          <table
+                            role="presentation"
+                            border="0"
+                            cellpadding="0"
+                            cellspacing="0"
+                            style="
+                              border-collapse: separate;
+                              mso-table-lspace: 0pt;
+                              mso-table-rspace: 0pt;
+                              width: auto;
+                            "
+                          >
+                            <tbody>
+                              <tr>
+                                <td
+                                  style="
+                                    font-family: 'Helvetica Neue', Helvetica,
+                                      Arial, sans-serif;
+                                    font-size: 16px;
+                                    vertical-align: top;
+                                    background-color: #3155ed;
+                                    border-radius: 4px;
+                                    text-align: center;
+                                  "
+                                  valign="top"
+                                  bgcolor="#3155ED"
+                                >
+                                  <a
+                                    href="{{ log_url or '#' }}"
+                                    target="_blank"
+                                    style="
+                                      border: solid 1px #3155ed;
+                                      border-radius: 4px;
+                                      box-sizing: border-box;
+                                      cursor: pointer;
+                                      display: inline-block;
+                                      font-size: 16px;
+                                      font-weight: bold;
+                                      margin: 0;
+                                      padding: 12px 25px;
+                                      text-decoration: none;
+                                      text-transform: capitalize;
+                                      background-color: #3155ed;
+                                      border-color: #3155ed;
+                                      color: #ffffff;
+                                    "
+                                    >查看部署日志</a
+                                  >
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </td>
               </tr>
-
-              <!-- END MAIN CONTENT AREA -->
             </table>
 
-            <!-- START FOOTER -->
-
-            <!-- END FOOTER -->
-
-            <!-- END CENTERED WHITE CONTAINER -->
+            <div
+              class="footer"
+              style="
+                clear: both;
+                margin-top: 10px;
+                text-align: center;
+                width: 100%;
+              "
+            >
+              <table
+                role="presentation"
+                border="0"
+                cellpadding="0"
+                cellspacing="0"
+                style="
+                  border-collapse: separate;
+                  mso-table-lspace: 0pt;
+                  mso-table-rspace: 0pt;
+                  width: 100%;
+                "
+                width="100%"
+              >
+                <tr>
+                  <td
+                    class="content-block"
+                    style="
+                      font-family: 'Helvetica Neue', Helvetica, Arial,
+                        sans-serif;
+                      vertical-align: top;
+                      padding: 0 10px 0 10px;
+                      font-size: 13px;
+                      color: #9a9a9a;
+                      text-align: center;
+                    "
+                    valign="top"
+                    align="center"
+                  >
+                    <span class="apple-link"
+                      >此邮件由自动化部署系统发送，请勿回复。</span
+                    >
+                  </td>
+                </tr>
+              </table>
+            </div>
           </div>
         </td>
         <td
           style="
-            font-family: Helvetica, sans-serif;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
             font-size: 16px;
             vertical-align: top;
           "
