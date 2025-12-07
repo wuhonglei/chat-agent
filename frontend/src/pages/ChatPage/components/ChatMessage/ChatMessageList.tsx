@@ -35,7 +35,10 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
       scrollableNodeProps={{
         ref: containerRef,
       }}
-      className={classNames("flex-1 h-0 px-2 pb-4 relative", className)}
+      className={classNames(
+        "flex-1 h-0 px-2 pb-4 relative outline-none",
+        className
+      )}
     >
       {messages.map((message, index) => (
         <ChatMessageItem
