@@ -2,8 +2,9 @@ from github_webhook import Webhook
 from flask import Flask
 import subprocess
 import os
-import threading
+import multiprocessing
 import time
+import signal
 from datetime import datetime
 from dotenv import load_dotenv
 from loguru import logger
@@ -31,6 +32,15 @@ LOG_DIR = os.getenv('LOG_DIR', './logs')  # 日志文件存储目录
 
 # 确保日志目录存在
 os.makedirs(LOG_DIR, exist_ok=True)
+
+# 全局变量用于跟踪当前的部署状态
+current_deploy_info = {
+    'process': None,
+    'start_time': None,
+    'commit_sha': None,
+    'log_file_path': None
+}
+deploy_lock = multiprocessing.Lock()
 
 
 def run_command(cmd, cwd):
@@ -81,6 +91,42 @@ def run_command(cmd, cwd):
         return False
 
 
+def terminate_previous_deploy():
+    """终止之前的部署进程"""
+    global current_deploy_info
+
+    with deploy_lock:
+        if current_deploy_info['process'] and current_deploy_info['process'].is_alive():
+            logger.info("检测到正在进行的部署，正在强制终止...")
+
+            try:
+                # 强制终止部署进程
+                current_deploy_info['process'].terminate()
+
+                # 等待进程结束，最多等待5秒
+                current_deploy_info['process'].join(timeout=5)
+
+                # 如果进程还没结束，强制杀死
+                if current_deploy_info['process'].is_alive():
+                    current_deploy_info['process'].kill()
+                    current_deploy_info['process'].join(timeout=2)
+
+            except Exception as e:
+                logger.warning(f"终止部署进程时出错：{e}")
+
+            # 记录终止信息
+            if current_deploy_info['start_time']:
+                duration = round(
+                    time.time() - current_deploy_info['start_time'], 2)
+                logger.info(f"之前的部署已被强制终止（运行时长：{duration}秒）")
+
+            # 清理全局状态
+            current_deploy_info['process'] = None
+            current_deploy_info['start_time'] = None
+            current_deploy_info['commit_sha'] = None
+            current_deploy_info['log_file_path'] = None
+
+
 def async_deploy(commit_sha=None, commit_message=None, log_file_path=None):
     """异步执行部署任务
 
@@ -89,8 +135,19 @@ def async_deploy(commit_sha=None, commit_message=None, log_file_path=None):
         commit_message: commit 消息
         log_file_path: 日志文件路径
     """
+    # 获取当前进程
+    current_process = multiprocessing.current_process()
+
     # 记录部署开始时间
     deploy_start_time = time.time()
+
+    # 更新全局状态
+    global current_deploy_info
+    with deploy_lock:
+        current_deploy_info['process'] = current_process
+        current_deploy_info['start_time'] = deploy_start_time
+        current_deploy_info['commit_sha'] = commit_sha
+        current_deploy_info['log_file_path'] = log_file_path
 
     # 为本次部署添加独立的日志文件 sink
     sink_id = None
@@ -189,6 +246,14 @@ def async_deploy(commit_sha=None, commit_message=None, log_file_path=None):
             except Exception as e:
                 logger.warning(f"移除日志 sink 失败：{e}")
 
+        # 清理全局状态（如果当前进程是活跃部署进程）
+        with deploy_lock:
+            if current_deploy_info['process'] == current_process:
+                current_deploy_info['process'] = None
+                current_deploy_info['start_time'] = None
+                current_deploy_info['commit_sha'] = None
+                current_deploy_info['log_file_path'] = None
+
 
 @webhook.hook(event_type='push')
 def on_push(payload):
@@ -218,13 +283,15 @@ def on_push(payload):
 
     logger.info(f"本次部署日志文件：{log_file_path}")
 
+    # 终止之前的部署进程（如果存在）
+    terminate_previous_deploy()
+
     # 启动异步部署任务
-    deploy_thread = threading.Thread(
+    deploy_process = multiprocessing.Process(
         target=async_deploy,
-        args=(commit_sha, commit_message, log_file_path),
-        daemon=True
+        args=(commit_sha, commit_message, log_file_path)
     )
-    deploy_thread.start()
+    deploy_process.start()
 
     # 实际返回是 github_webhook 内部处理(返回内容是 return "", 204)
     return "", 204
