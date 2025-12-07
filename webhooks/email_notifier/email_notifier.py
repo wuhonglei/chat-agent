@@ -163,7 +163,7 @@ class EmailNotifier:
 
     def send_deploy_success_notification(
         self, repo_path, deploy_script, commit_sha=None,
-        commit_message=None, log_file_path=None
+        commit_message=None, deploy_duration=None, log_file_path=None
     ):
         """发送部署成功通知邮件"""
         subject = "部署成功通知"
@@ -173,7 +173,8 @@ class EmailNotifier:
             deploy_script=deploy_script,
             commit_sha=commit_sha,
             commit_message=commit_message,
-            deploy_time=deploy_time
+            deploy_time=deploy_time,
+            deploy_duration=deploy_duration
         )
 
         return self.send_email(
@@ -182,7 +183,7 @@ class EmailNotifier:
 
     def send_deploy_failed_notification(
         self, repo_path, deploy_script, commit_sha=None,
-        commit_message=None, error_message=None, log_file_path=None
+        commit_message=None, error_message=None, deploy_duration=None, log_file_path=None
     ):
         """发送部署失败通知邮件"""
         subject = "部署失败通知"
@@ -193,7 +194,8 @@ class EmailNotifier:
             commit_sha=commit_sha,
             commit_message=commit_message,
             deploy_time=deploy_time,
-            error_message=error_message or '未知错误'
+            error_message=error_message or '未知错误',
+            deploy_duration=deploy_duration
         )
 
         return self.send_email(

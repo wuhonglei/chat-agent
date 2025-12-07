@@ -88,6 +88,9 @@ def async_deploy(commit_sha=None, commit_message=None, log_file_path=None):
         commit_message: commit 消息
         log_file_path: 日志文件路径
     """
+    # 记录部署开始时间
+    deploy_start_time = datetime.now()
+
     # 为本次部署添加独立的日志文件 sink
     sink_id = None
     if log_file_path:
@@ -137,7 +140,14 @@ def async_deploy(commit_sha=None, commit_message=None, log_file_path=None):
             logger.error(error_msg)
             raise Exception(error_msg)
 
+        # 计算部署时长
+        deploy_end_time = datetime.now()
+        deploy_duration = deploy_end_time - deploy_start_time
+        duration_seconds = deploy_duration.total_seconds()
+        duration_formatted = ".1f"
+
         logger.info("异步部署成功完成！")
+        logger.info(f"部署总时长: {duration_formatted}")
         logger.info("=== 部署任务结束 ===")
 
         # 发送成功通知邮件（附带日志文件）
@@ -146,12 +156,20 @@ def async_deploy(commit_sha=None, commit_message=None, log_file_path=None):
             deploy_script=DEPLOY_SCRIPT,
             commit_sha=commit_sha,
             commit_message=commit_message,
+            deploy_duration=duration_formatted,
             log_file_path=log_file_path
         )
 
     except Exception as e:
+        # 计算部署时长（即使失败也要计算）
+        deploy_end_time = datetime.now()
+        deploy_duration = deploy_end_time - deploy_start_time
+        duration_seconds = deploy_duration.total_seconds()
+        duration_formatted = ".1f"
+
         error_msg = f"异步部署出现异常：{e}"
         logger.error(error_msg)
+        logger.error(f"部署总时长: {duration_formatted}")
         logger.error("=== 部署任务异常结束 ===")
 
         # 发送失败通知邮件（附带日志文件）
@@ -161,6 +179,7 @@ def async_deploy(commit_sha=None, commit_message=None, log_file_path=None):
             commit_sha=commit_sha,
             commit_message=commit_message,
             error_message=str(e),
+            deploy_duration=duration_formatted,
             log_file_path=log_file_path
         )
     finally:
