@@ -111,6 +111,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   const handleNewConversion = () => {
     navigate("/chat");
+    if (isSmallScreen) {
+      setCollapsed(true);
+    }
   };
 
   const handleEditConversationTitle = useMemoizedFn(
