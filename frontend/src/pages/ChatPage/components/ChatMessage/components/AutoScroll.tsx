@@ -16,7 +16,8 @@ export default function AutoScroll({
 }: Props) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const _isScrollByUser = useIsScrollByUser(containerRef); // 滚动是否由用户触发
-  const isScrollByUser = isStreaming && _isScrollByUser;
+  const isScrollByUserRef = useRef(isStreaming && _isScrollByUser);
+  isScrollByUserRef.current = isStreaming && _isScrollByUser;
   const userScrollUpRef = useRef(false); // 用户是否向上滚动
   const lastScrollTopRef = useRef(0);
 
@@ -29,7 +30,7 @@ export default function AutoScroll({
       const scrollDelta = currentScrollTop - lastScrollTopRef.current;
       lastScrollTopRef.current = currentScrollTop;
 
-      if (!isScrollByUser) return;
+      if (!isScrollByUserRef.current) return;
 
       // 滚动条向上滚动(用户看到上面的内容)
       if (scrollDelta < 0) {
