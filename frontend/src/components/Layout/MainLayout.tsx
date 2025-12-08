@@ -9,11 +9,11 @@ import {
   updateConversationInfo,
 } from "@/store/slices/conversationSlice";
 import { Conversations, XProvider } from "@ant-design/x";
-import { useMemoizedFn, useSize } from "ahooks";
+import { useClickAway, useMemoizedFn, useSize } from "ahooks";
 import { App, Button, Layout, theme } from "antd";
 import classNames from "classnames";
 import { isEmpty } from "lodash-es";
-import React, { ReactNode, useState } from "react";
+import React, { ReactNode, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import SimpleBar from "simplebar-react";
 import SiteLogo from "../common/SiteLogo";
@@ -54,6 +54,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const isSmallScreen = width ? width <= DEFAULT_THRESHOLD : false;
   const sidebarStyles = useSidebarStyles(collapsed, isSmallScreen);
   const hideSidebar = useHideSidebar();
+  const siderBarRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const onDeleteConversation = useMemoizedFn(async (id: string) => {
     modal.confirm({
       centered: true,
@@ -78,6 +80,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     onDeleteConversation,
     setEditConversionInfo
   );
+
+  /**
+   * 小屏模式下，点击内容区域时，折叠菜单
+   */
+  useClickAway(event => {
+    const isContentClick = contentRef.current?.contains(event.target as Node);
+    if (isSmallScreen && isContentClick && !collapsed) {
+      setCollapsed(true);
+    }
+  }, siderBarRef);
 
   const handleMenuClick = (pathname: string) => {
     // 点击的菜单和当前路径相同，则不进行跳转
@@ -123,11 +135,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           collapsible
           width={261}
           trigger={null}
+          ref={siderBarRef}
           collapsed={collapsed}
           onCollapse={handleCollapse}
           collapsedWidth={collapsedWidth}
           className={classNames(
-            "flex flex-col border-r-1",
+            "flex flex-col border-r",
             styles["aside-container"],
             hideSidebar && "hidden",
             !collapsed && "px-3"
@@ -202,7 +215,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             </div>
           )}
         </Sider>
-        <Content className="h-full bg-white">{children}</Content>
+        <Content className="h-full bg-white" ref={contentRef}>
+          {children}
+        </Content>
       </Layout>
     </XProvider>
   );
