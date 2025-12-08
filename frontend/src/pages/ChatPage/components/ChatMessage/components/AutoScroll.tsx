@@ -1,3 +1,4 @@
+import { useIsScrollByUser } from "@/hooks/ui";
 import { ChatMessage } from "@/interfaces";
 import { useThrottleFn } from "ahooks";
 import { useEffect, useRef } from "react";
@@ -14,58 +15,62 @@ export default function AutoScroll({
   containerRef,
 }: Props) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const userScrollUpRef = useRef(false);
+  const _isScrollByUser = useIsScrollByUser(containerRef); // 滚动是否由用户触发
+  const isScrollByUser = isStreaming && _isScrollByUser;
+  const userScrollUpRef = useRef(false); // 用户是否向上滚动
+  const lastScrollTopRef = useRef(0);
 
-  const { run: onWheel } = useThrottleFn(
-    (event: WheelEvent) => {
+  const { run: onScroll } = useThrottleFn(
+    () => {
       const container = containerRef.current;
       if (!container) return;
 
-      // 向下滚动
-      if (event.deltaY > 0) {
-        // 如果用户没有向上滚动过，则维持自动滚动
-        if (!userScrollUpRef.current) {
-          return;
-        }
+      const currentScrollTop = container.scrollTop;
+      const scrollDelta = currentScrollTop - lastScrollTopRef.current;
+      lastScrollTopRef.current = currentScrollTop;
 
+      if (!isScrollByUser) return;
+
+      // 滚动条向上滚动(用户看到上面的内容)
+      if (scrollDelta < 0) {
+        userScrollUpRef.current = true;
+      } else if (scrollDelta >= 0) {
+        // 滚动条向下滚动(用户看到下面的内容)
         const isAtBottom =
           container.scrollTop + container.clientHeight >=
           container.scrollHeight - 10;
         // 当用户滚动到最底部时，恢复自动滚动
         userScrollUpRef.current = !isAtBottom;
-      } else {
-        userScrollUpRef.current = true;
       }
     },
-    {
-      wait: 100, // 节流时间
-    }
+    { wait: 100 }
   );
 
   useEffect(() => {
+    const container = containerRef.current;
+    // 流式输出结束，重置用户滚动标志。这样下次流式输出开始时，会自动滚动到最底部
     if (!isStreaming) {
       userScrollUpRef.current = false;
       return;
     }
-
-    const container = containerRef.current;
     if (!container) return;
 
-    container.addEventListener("wheel", onWheel, {
-      passive: true,
-    } as AddEventListenerOptions);
-    return () =>
-      container?.removeEventListener(
-        "wheel",
-        onWheel as unknown as EventListener
-      );
-  }, [isStreaming, onWheel, containerRef]);
+    // 初始化滚动位置
+    lastScrollTopRef.current = container.scrollTop;
+
+    container.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      container.removeEventListener("scroll", onScroll);
+    };
+  }, [isStreaming, onScroll, containerRef]);
 
   useEffect(() => {
-    if (messagesEndRef.current && !userScrollUpRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    if (!userScrollUpRef.current && messagesEndRef.current) {
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 0);
     }
-  }, [messages]);
+  }, [messages, userScrollUpRef]);
 
   return <div ref={messagesEndRef} />;
 }

@@ -1,6 +1,6 @@
 from app.mcp.mcp_client import mcp_config_for_fe
-from app.models.llm import (AssistantToolCallMessage, ToolCallMessage,
-                            ToolCallResultMessage)
+from app.models.llm import ToolCallMessage
+from app.utils.common import has_tool_call_with_name
 from app.utils.date import get_current_date, get_current_datetime_str
 from jinja2 import Template
 
@@ -142,8 +142,8 @@ def get_default_system_prompt(include_date: bool) -> str:
 
 def get_user_message_for_component_render(user_message: str, tool_call_messages: list[ToolCallMessage]) -> str:
     """Get user message for component render"""
-    has_weather_tool_call = any(
-        tool_call.role == 'tool' and '天气' in tool_call.content for tool_call in tool_call_messages)
+    has_weather_tool_call = has_tool_call_with_name(
+        tool_call_messages, 'weather')
     if not has_weather_tool_call:
         return user_message
 

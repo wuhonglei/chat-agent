@@ -16,32 +16,32 @@ export default function FloatButtonBottom({
 }: Props) {
   const [visible, setVisible] = useState<boolean>(false);
 
-  const onWheelHandler = useMemoizedFn(() => {
+  const onScrollHandler = useMemoizedFn(() => {
     const container = containerRef.current;
     if (!container) return;
     const distanceToBottom =
       container.scrollHeight - container.scrollTop - container.clientHeight;
     setVisible(distanceToBottom >= visibilityHeight);
   });
-  const { run: onWheelThrottled } = useThrottleFn(onWheelHandler, {
+  const { run: onScrollThrottled } = useThrottleFn(onScrollHandler, {
     wait: 100,
   });
-  const { run: onWheelDebounced } = useDebounceFn(onWheelHandler, {
+  const { run: onScrollDebounced } = useDebounceFn(onScrollHandler, {
     wait: 500,
   });
-  useEmitter(EventType.BlockCollapse, onWheelDebounced);
+  useEmitter(EventType.BlockCollapse, onScrollDebounced);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    container.addEventListener("wheel", onWheelThrottled, {
+    container.addEventListener("scroll", onScrollThrottled, {
       passive: true, // 表示回调中不会执行 preventDefault()
     } as AddEventListenerOptions);
 
     return () => {
-      container?.removeEventListener("wheel", onWheelThrottled);
+      container?.removeEventListener("scroll", onScrollThrottled);
     };
-  }, [onWheelThrottled, containerRef]);
+  }, [onScrollThrottled, containerRef]);
 
   const scrollToBottom = useMemoizedFn(() => {
     containerRef.current?.scrollTo({
