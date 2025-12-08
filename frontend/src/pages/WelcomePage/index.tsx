@@ -1,16 +1,16 @@
-import ChatInput from "@/pages/ChatPage/components/ChatInput";
 import { ChatInputFormValues } from "@/interfaces";
-import { Form } from "antd";
+import ChatInput from "@/pages/ChatPage/components/ChatInput";
 import { registerConversation } from "@/store/slices/conversationSlice";
+import { Form } from "antd";
 
-import classNames from "classnames";
-import parentStyles from "../ChatPage/index.module.css";
-import { useNavigate } from "react-router-dom";
+import { TitleCreatedBy } from "@/constants";
+import { useNewConversation } from "@/hooks";
 import { useAppDispatch } from "@/store/hooks";
 import { useMemoizedFn } from "ahooks";
-import { useNewConversation } from "@/hooks";
-import { TitleCreatedBy } from "@/constants";
 import Title from "antd/es/typography/Title";
+import classNames from "classnames";
+import { useNavigate } from "react-router-dom";
+import parentStyles from "../ChatPage/index.module.css";
 
 export default function EmptyChatPage() {
   const navigate = useNavigate();
@@ -38,10 +38,15 @@ export default function EmptyChatPage() {
   );
 
   return (
-    <div className={classNames("h-full bg-white flex", parentStyles.container)}>
+    <div
+      className={classNames(
+        "h-full bg-white flex flex-col justify-end md:justify-center",
+        parentStyles.container
+      )}
+    >
       <div
         className={classNames(
-          "flex flex-col gap-4 items-center w-full my-auto",
+          "flex flex-col gap-4 items-center w-full",
           parentStyles["input-container"]
         )}
       >
