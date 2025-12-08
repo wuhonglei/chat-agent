@@ -1,7 +1,7 @@
 import CollapseIcon from "@/assets/svg/CollapseIcon.svg?react";
 import NewConversionIcon from "@/assets/svg/NewConversionIcon.svg?react";
 import { TitleCreatedBy } from "@/constants";
-import { useWebTitle } from "@/hooks";
+import { useIsSmallScreen, useWebTitle } from "@/hooks";
 import { EditConversationInfo } from "@/interfaces";
 import { useAppDispatch } from "@/store/hooks";
 import {
@@ -9,7 +9,7 @@ import {
   updateConversationInfo,
 } from "@/store/slices/conversationSlice";
 import { Conversations, XProvider } from "@ant-design/x";
-import { useClickAway, useMemoizedFn, useSize } from "ahooks";
+import { useClickAway, useMemoizedFn } from "ahooks";
 import { App, Button, Layout, theme } from "antd";
 import classNames from "classnames";
 import { isEmpty } from "lodash-es";
@@ -31,7 +31,6 @@ const { useToken } = theme;
 
 const { Sider, Content } = Layout;
 const collapsedWidth = 0;
-const DEFAULT_THRESHOLD = 768;
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -44,14 +43,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const { token } = useToken();
   const [editConversionInfo, setEditConversionInfo] =
     useState<EditConversationInfo | null>(null);
-  const [collapsed, setCollapsed] = useState(
-    () => window.innerWidth <= DEFAULT_THRESHOLD
-  );
+  const isSmallScreen = useIsSmallScreen();
+  const [collapsed, setCollapsed] = useState(isSmallScreen);
   const conversationInfo = useConversionInfo();
   useWebTitle(conversationInfo); // 更新 document.title
   const dispatch = useAppDispatch();
-  const { width } = useSize(document.body) || {};
-  const isSmallScreen = width ? width <= DEFAULT_THRESHOLD : false;
   const sidebarStyles = useSidebarStyles(collapsed, isSmallScreen);
   const hideSidebar = useHideSidebar();
   const siderBarRef = useRef<HTMLDivElement>(null);

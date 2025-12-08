@@ -39,8 +39,9 @@ export default function EmptyChatPage() {
 
   return (
     <div
+      // 小屏模式下，输入框在底部, 手机浏览器底部的工具栏会遮挡输入框，所以需要留出空间
       className={classNames(
-        "h-full bg-white flex items-end md:items-center",
+        "h-full bg-white flex items-end md:items-center pb-14 md:pb-0",
         parentStyles.container
       )}
     >
