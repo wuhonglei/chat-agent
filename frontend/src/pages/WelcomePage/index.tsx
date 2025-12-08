@@ -40,7 +40,7 @@ export default function EmptyChatPage() {
   return (
     <div
       className={classNames(
-        "h-full bg-white flex flex-col justify-end md:justify-center",
+        "h-full bg-white flex items-end md:items-center",
         parentStyles.container
       )}
     >
