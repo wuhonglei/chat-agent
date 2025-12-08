@@ -49,9 +49,14 @@ export default function AutoScroll({
 
   useEffect(() => {
     const container = containerRef.current;
-    // 流式输出结束，重置用户滚动标志。这样下次流式输出开始时，会自动滚动到最底部
     if (!isStreaming) {
-      userScrollUpRef.current = false;
+      /**
+       * 流式输出结束，重置用户滚动标志。这样下次流式输出开始时，会自动滚动到最底部
+       * 延迟是为了避免下面的 useEffect 触发，导致滚动到最底部
+       */
+      setTimeout(() => {
+        userScrollUpRef.current = false;
+      }, 1000);
       return;
     }
     if (!container) return;
