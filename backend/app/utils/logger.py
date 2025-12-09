@@ -7,11 +7,72 @@
 4. 合理使用日志级别
 """
 
+import json
 import sys
 from contextvars import ContextVar
 from typing import Any, Optional
 
 from loguru import logger
+
+
+def production_sink(message):
+    """生产环境自定义 sink，输出精简的 JSON 格式日志
+
+    移除的冗余字段：
+    - text: 格式化的文本（JSON 日志中不需要）
+    - elapsed: 时间间隔（通常不需要）
+    - process.name, thread.name: 进程/线程名称（通常不需要）
+    - level.icon: 级别图标（JSON 中不需要）
+    - time.repr: 时间字符串表示（只需要 timestamp）
+    - file.path: 完整文件路径（只需要文件名）
+
+    保留的必要字段：
+    - timestamp: 时间戳（便于排序和查询）
+    - level: 日志级别
+    - message: 日志消息
+    - module: 模块名
+    - function: 函数名
+    - file: 文件名（简化）
+    - line: 行号
+    - extra: 上下文信息（request_id, user_id 等）
+    - exception: 异常信息（如果有）
+    """
+    record = message.record
+    # 构建精简的日志记录
+    serialized = {
+        "timestamp": record["time"].timestamp(),
+        "level": record["level"].name,
+        "message": record["message"],
+        "module": record["module"],
+        "function": record["function"],
+        "file": record["file"].name,
+        "line": record["line"],
+    }
+
+    # 添加 extra 字段（包含 request_id, user_id, client_ip 等上下文信息）
+    if record["extra"]:
+        serialized["extra"] = record["extra"]
+
+    # 添加异常信息（如果有）
+    if record["exception"]:
+        # 将 traceback 转换为字符串以便 JSON 序列化
+        traceback_str = None
+        try:
+            traceback_str = str(record["exception"].traceback)
+        except Exception:
+            pass
+
+        exception_info = {
+            "type": record["exception"].type.__name__,
+            "value": str(record["exception"].value),
+        }
+        if traceback_str:
+            exception_info["traceback"] = traceback_str
+        serialized["exception"] = exception_info
+
+    # 输出 JSON 格式
+    sys.stderr.write(json.dumps(serialized, ensure_ascii=False) + "\n")
+
 
 # 上下文变量，用于存储请求相关的上下文信息
 request_id_var: ContextVar[Optional[str]] = ContextVar(
@@ -107,28 +168,27 @@ def setup_logger(debug: bool = False) -> None:
     """
     logger.remove()  # 移除默认的 handler
 
-    # 配置日志格式
-    production_log_format = (
-        "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
-        "<level>{level: <8}</level> | "
-        "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
-        "<level>{message}</level>"
-    )
-
-    debug_log_format = (
-        "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
-        "<level>{level: <8}</level> | "
-        "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
-        "<level>{message}</level> | "
-        "{extra}"
-    )
-
-    logger.add(
-        sys.stderr,
-        level="DEBUG" if debug else "INFO",
-        format=debug_log_format if debug else production_log_format,
-        serialize=not debug,
-    )
+    if debug:
+        debug_log_format = (
+            "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
+            "<level>{level: <8}</level> | "
+            "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
+            "<level>{message}</level> | "
+            "{extra}"
+        )
+        # 调试模式：使用格式化的文本输出
+        logger.add(
+            sys.stderr,
+            level="DEBUG",
+            format=debug_log_format,
+        )
+    else:
+        # 生产模式：使用自定义 sink 输出精简的 JSON
+        logger.add(
+            production_sink,
+            level="INFO",
+            serialize=False,  # 不使用默认序列化，使用自定义 sink
+        )
 
 
 # 导出常用的日志函数
