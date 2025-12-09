@@ -171,7 +171,7 @@ class Settings(BaseSettings):
         """
         自定义配置源优先级
         优先级（从高到低）：
-        1. 初始化参数（init_settings）
+        1. 初始化参数（init_settings）- Settings 类构造函数初始化参数
         2. 环境变量（env_settings）- 可覆盖 Nacos 配置，用于 Docker 等场景
         3. Nacos 配置中心（从 .env 文件读取连接信息）
         """

@@ -1,5 +1,6 @@
 """Main FastAPI application"""
 
+import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -11,6 +12,12 @@ from app.core.db import create_db_and_tables
 from app.mcp.mcp_client import get_mcp_manager
 from app.models import UserDb, ConversationDb, MessageDb  # 导入模型以注册表到 metadata
 from app.jwt.jwt_manager import initialize_jwt_manager
+
+logger.remove()  # 移除默认的 handler
+logger.add(
+    sys.stderr,
+    level="DEBUG" if settings.app.debug else "INFO",
+)
 
 
 @asynccontextmanager
