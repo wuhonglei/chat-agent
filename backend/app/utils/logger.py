@@ -120,14 +120,16 @@ def log_info(message: str, **kwargs: Any) -> None:
     extra = {**context, **kwargs}
     # 使用 loguru 的 extra 参数传递结构化数据
     # 同时为了可读性，也在 message 中包含关键信息
-    logger.bind(**extra).info(message)
+    # depth=1 跳过当前包装函数，记录实际调用者的位置信息
+    logger.opt(depth=1).bind(**extra).info(message)
 
 
 def log_warning(message: str, **kwargs: Any) -> None:
     """记录 WARNING 级别日志"""
     context = get_log_context()
     extra = {**context, **kwargs}
-    logger.bind(**extra).warning(message)
+    # depth=1 跳过当前包装函数，记录实际调用者的位置信息
+    logger.opt(depth=1).bind(**extra).warning(message)
 
 
 def log_error(message: str, error: Optional[Exception] = None, **kwargs: Any) -> None:
@@ -140,24 +142,27 @@ def log_error(message: str, error: Optional[Exception] = None, **kwargs: Any) ->
     """
     context = get_log_context()
     extra = {**context, **kwargs}
+    # depth=1 跳过当前包装函数，记录实际调用者的位置信息
     if error:
-        logger.bind(**extra).error(message, exc_info=error)
+        logger.opt(depth=1).bind(**extra).error(message, exc_info=error)
     else:
-        logger.bind(**extra).error(message)
+        logger.opt(depth=1).bind(**extra).error(message)
 
 
 def log_debug(message: str, **kwargs: Any) -> None:
     """记录 DEBUG 级别日志"""
     context = get_log_context()
     extra = {**context, **kwargs}
-    logger.bind(**extra).debug(message)
+    # depth=1 跳过当前包装函数，记录实际调用者的位置信息
+    logger.opt(depth=1).bind(**extra).debug(message)
 
 
 def log_exception(message: str, **kwargs: Any) -> None:
     """记录异常日志（包含完整的堆栈信息）"""
     context = get_log_context()
     extra = {**context, **kwargs}
-    logger.bind(**extra).exception(message)
+    # depth=1 跳过当前包装函数，记录实际调用者的位置信息
+    logger.opt(depth=1).bind(**extra).exception(message)
 
 
 def setup_logger(debug: bool = False) -> None:
