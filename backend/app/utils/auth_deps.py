@@ -2,13 +2,14 @@
 认证相关的 FastAPI 依赖函数
 """
 
-from fastapi import Request, Response, HTTPException, Depends
-from loguru import logger
 import jwt
+from fastapi import Depends, HTTPException, Request, Response
+
 from app.jwt.jwt_manager import JWTManager, get_jwt_manager
 from app.models.auth import RefreshTokenRequest
 from app.models.token import SecretTokenInfo
 from app.services.cloudbase_service import CloudbaseService
+from app.utils.logger import log_error, log_info, user_id_var
 
 
 async def get_auth_token_info(
@@ -49,11 +50,17 @@ async def get_auth_token_info(
         # 如果没有过期，直接获取 user_id
         if not payload.get("user_id"):
             raise HTTPException(status_code=401, detail="Token 中缺少 user_id")
+
+        # 绑定 user_id 到日志上下文
+        user_id = payload.get("user_id")
+        if user_id:
+            user_id_var.set(user_id)
+
         return SecretTokenInfo(**payload)
 
     except jwt.ExpiredSignatureError:
         # 3. 如果过期，使用 refresh_token 刷新 access token
-        logger.info("Token 已过期，尝试使用 refresh_token 刷新")
+        log_info("Token expired, attempting to refresh")
 
         # 先解码 token（不验证签名）以获取 refresh_token
         try:
@@ -70,6 +77,9 @@ async def get_auth_token_info(
             if not user_id:
                 raise HTTPException(
                     status_code=401, detail="无法从过期 token 中获取 user_id")
+
+            # 绑定 user_id 到日志上下文
+            user_id_var.set(user_id)
 
             # 使用 refresh_token 刷新 access token
             refresh_request = RefreshTokenRequest(refresh_token=refresh_token)
@@ -88,22 +98,22 @@ async def get_auth_token_info(
 
             # 在响应头中返回新的 token
             response.headers["x-secret-token-info"] = new_secret_token_info_str
-            logger.info(f"Token 刷新成功，user_id: {user_id}")
+            log_info("Token refreshed successfully", user_id=user_id)
 
             return SecretTokenInfo(**new_secret_token_info)
 
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Token 刷新失败: {e}")
+            log_error("Token refresh failed", error=e)
             raise HTTPException(status_code=401, detail="Token 刷新失败，请重新登录")
 
     except jwt.InvalidTokenError as e:
-        logger.error(f"Token 验证失败: {e}")
+        log_error("Token validation failed", error=e)
         raise HTTPException(status_code=401, detail="无效的认证令牌")
 
     except Exception as e:
-        logger.error(f"Token 处理异常: {e}")
+        log_error("Token processing error", error=e)
         raise HTTPException(status_code=401, detail="认证失败")
 
 

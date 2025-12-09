@@ -1,6 +1,5 @@
 from datetime import datetime, timezone
 from datetime import timezone
-from loguru import logger
 
 
 def get_current_datetime_str() -> str:

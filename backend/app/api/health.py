@@ -1,11 +1,13 @@
 """Health check endpoints"""
 
-from fastapi import APIRouter, Request
 from typing import cast
+
+from fastapi import APIRouter, Request
+
 from app.models.app_state import AppState
-from app.models.response import ApiResponse
 from app.models.mcp import MCPConfigForFeDict
-from loguru import logger
+from app.models.response import ApiResponse
+from app.utils.logger import log_error
 
 
 router = APIRouter()
@@ -25,7 +27,7 @@ async def mcp_health_check(request: Request) -> ApiResponse[dict[str, bool]]:
         health_check_result = await state.mcp_manager.health_check()
         return ApiResponse.success(data=health_check_result, msg="MCP健康检查成功")
     except Exception as e:
-        logger.error(f"MCP health check failed: {e}")
+        log_error("MCP health check failed", error=e)
         return ApiResponse.error(code=1, msg=f"MCP健康检查失败: {str(e)}")
 
 
@@ -37,5 +39,5 @@ async def mcp_config(request: Request) -> ApiResponse[list[MCPConfigForFeDict]]:
         mcp_config_for_fe = await state.mcp_manager.get_mcp_config_for_fe()
         return ApiResponse.success(data=mcp_config_for_fe, msg="获取MCP配置成功")
     except Exception as e:
-        logger.error(f"Get MCP config for FE failed: {e}")
+        log_error("Get MCP config for FE failed", error=e)
         return ApiResponse.error(code=1, msg=f"获取MCP配置失败: {str(e)}")

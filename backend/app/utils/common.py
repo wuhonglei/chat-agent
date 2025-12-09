@@ -2,7 +2,6 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from loguru import logger
 from app.models.llm import AssistantToolCallMessage, ToolCallMessage
 
 

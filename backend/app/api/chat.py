@@ -3,19 +3,20 @@
 from collections.abc import AsyncGenerator
 from typing import cast
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from loguru import logger
-from fastapi import Depends
-from app.models.chat import ChatRequest, MessageStatus
-from app.services.chat_service import ChatService
+
 from app.models.app_state import AppState
-from app.services.message_service import MessageService
+from app.models.chat import ChatRequest, MessageStatus
 from app.models.db import MessageDb
+from app.services.chat_service import ChatService
+from app.services.message_service import MessageService
 from app.utils.auth_deps import require_auth
 from app.utils.common import gen_uuid
-from app.utils.time import get_current_time, get_time_duration
+from app.utils.logger import log_error, log_info
 from app.utils.network import get_client_ip
+from app.utils.time import get_current_time, get_time_duration
+
 router = APIRouter()
 
 
@@ -27,8 +28,6 @@ async def chat_stream(
     client_ip: str | None = Depends(get_client_ip),
 ):
     """Stream chat response, 按需保存用户与助手消息"""
-    logger.info(f"Client IP: {client_ip}")
-
     conversation_id = chat_request.conversation_id
     state = cast(AppState, request.app.state)
 
@@ -36,6 +35,17 @@ async def chat_stream(
 
     user_metadata = chat_request.model_dump(
         exclude_none=True, exclude=['content'])
+
+    # 记录请求信息（不包含敏感内容）
+    log_info(
+        "Chat stream request received",
+        conversation_id=conversation_id,
+        client_ip=client_ip,
+        message_length=len(
+            chat_request.content) if chat_request.content else 0,
+        history_count=len(
+            chat_request.history_ids) if chat_request.history_ids else 0,
+    )
 
     try:
         user_message_id = gen_uuid()
@@ -57,10 +67,21 @@ async def chat_stream(
                 metadata=user_metadata,
             )
 
+            log_info(
+                "Messages created",
+                conversation_id=conversation_id,
+                user_message_id=user_message_id,
+                assistant_message_id=assistant_message_id,
+            )
+
     except HTTPException:
         raise
     except Exception as exc:
-        logger.error(f"Failed to persist user message: {exc}")
+        log_error(
+            "Failed to persist user message",
+            error=exc,
+            conversation_id=conversation_id,
+        )
         raise HTTPException(status_code=500, detail="用户消息写入失败") from exc
 
     async def generate() -> AsyncGenerator[str, None]:
@@ -85,7 +106,13 @@ async def chat_stream(
                 ):
                     yield chunk
             except Exception as streaming_error:
-                logger.error(f"Streaming response failed: {streaming_error}")
+                log_error(
+                    "Streaming response failed",
+                    error=streaming_error,
+                    conversation_id=conversation_id,
+                    user_message_id=user_message_id,
+                    assistant_message_id=assistant_message_id,
+                )
                 yield chat_service.format_sse_message('error', {'msg': str(streaming_error)})
                 raise
             chat_service.total_duration = get_time_duration(start_time)
@@ -99,8 +126,12 @@ async def chat_stream(
                     status=MessageStatus.DONE,
                 )
             except Exception as persist_error:
-                logger.error(
-                    f"Failed to persist assistant message: {persist_error}")
+                log_error(
+                    "Failed to persist assistant message",
+                    error=persist_error,
+                    conversation_id=conversation_id,
+                    assistant_message_id=assistant_message_id,
+                )
                 yield chat_service.format_sse_message('error', {'msg': str(persist_error)})
                 raise
 

@@ -5,7 +5,8 @@ from collections.abc import Awaitable, Callable
 from typing import Any, TypeVar
 
 from fastapi import HTTPException
-from loguru import logger
+
+from app.utils.logger import log_error, log_exception, log_warning
 
 # 类型变量，用于保持函数签名
 F = TypeVar("F", bound=Callable[..., Any])
@@ -59,11 +60,10 @@ def handle_api_exceptions(
                 raise
             except Exception as e:
                 # 记录异常日志
-                # 使用 % 格式化避免异常消息中的花括号被解析为格式化占位符
                 if log_exception:
-                    logger.exception("%s失败", op_name)
+                    log_exception(f"{op_name} failed")
                 else:
-                    logger.error("%s失败: %s", op_name, str(e))
+                    log_error(f"{op_name} failed", error=e)
 
                 # 转换为 HTTPException
                 raise HTTPException(
@@ -79,11 +79,10 @@ def handle_api_exceptions(
             except HTTPException:
                 raise
             except Exception as e:
-                # 使用 % 格式化避免异常消息中的花括号被解析为格式化占位符
                 if log_exception:
-                    logger.exception("%s失败", op_name)
+                    log_exception(f"{op_name} failed")
                 else:
-                    logger.error("%s失败: %s", op_name, str(e))
+                    log_error(f"{op_name} failed", error=e)
 
                 raise HTTPException(
                     status_code=default_status_code,
@@ -145,8 +144,7 @@ def handle_api_exceptions_with_cleanup(
             except HTTPException:
                 raise
             except Exception as e:
-                # 使用 % 格式化避免异常消息中的花括号被解析为格式化占位符
-                logger.exception("%s失败", op_name)
+                log_exception(f"{op_name} failed")
                 raise HTTPException(
                     status_code=default_status_code,
                     detail=error_msg if not str(
@@ -158,8 +156,10 @@ def handle_api_exceptions_with_cleanup(
                     try:
                         cleanup_func()
                     except Exception as cleanup_error:
-                        logger.warning("%s清理失败: %s", op_name,
-                                       str(cleanup_error))
+                        log_warning(
+                            f"{op_name} cleanup failed",
+                            error=str(cleanup_error),
+                        )
 
         @functools.wraps(func)
         def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -168,8 +168,7 @@ def handle_api_exceptions_with_cleanup(
             except HTTPException:
                 raise
             except Exception as e:
-                # 使用 % 格式化避免异常消息中的花括号被解析为格式化占位符
-                logger.exception("%s失败", op_name)
+                log_exception(f"{op_name} failed")
                 raise HTTPException(
                     status_code=default_status_code,
                     detail=error_msg if not str(
@@ -180,8 +179,10 @@ def handle_api_exceptions_with_cleanup(
                     try:
                         cleanup_func()
                     except Exception as cleanup_error:
-                        logger.warning("%s清理失败: %s", op_name,
-                                       str(cleanup_error))
+                        log_warning(
+                            f"{op_name} cleanup failed",
+                            error=str(cleanup_error),
+                        )
 
         import asyncio
         if asyncio.iscoroutinefunction(func):

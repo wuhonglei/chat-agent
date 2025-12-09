@@ -1,6 +1,5 @@
 import os
 from app.models.config import MCPConfig
-from loguru import logger
 
 
 def inject_mcp_env_vars(mcp_config: MCPConfig) -> None:
@@ -26,4 +25,5 @@ def inject_mcp_env_vars(mcp_config: MCPConfig) -> None:
                 injected_count += 1
 
     if injected_count > 0:
-        logger.info(f"已从 config.yaml 注入 {injected_count} 个 MCP 环境变量")
+        from app.utils.logger import log_info
+        log_info("Injected MCP environment variables", count=injected_count)

@@ -1,5 +1,4 @@
 from sqlmodel import SQLModel, create_engine, Session
-from loguru import logger
 from app.core.config import settings
 from typing import Generator
 # 数据库连接字符串
@@ -45,6 +44,7 @@ def create_db_and_tables():
         SQLModel.metadata.create_all(engine, checkfirst=True)
 
         # 然后创建/更新表结构
-        logger.info("Database tables created/verified successfully")
+        from app.utils.logger import log_info
+        log_info("Database tables created/verified successfully")
     except Exception as e:
         raise e

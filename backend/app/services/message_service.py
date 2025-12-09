@@ -4,7 +4,6 @@ from typing import Any, Optional
 from datetime import datetime
 
 from fastapi import HTTPException
-from loguru import logger
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select, delete
 
@@ -52,7 +51,8 @@ class MessageService:
         messages = self.db.exec(select(MessageDb.id, MessageDb.role, MessageDb.content, MessageDb.tool_calls).where(
             MessageDb.id.in_(message_ids))).all()
         if not messages:
-            logger.error(f"消息不存在: {message_ids}")
+            from app.utils.logger import log_error
+            log_error("Messages not found", message_ids=message_ids)
             return []
 
         # 创建字典映射，key 为 message_id，value 为消息元组
@@ -62,7 +62,9 @@ class MessageService:
         # 按照 message_ids 的顺序遍历，保证返回顺序一致
         for message_id in message_ids:
             if message_id not in messages_dict:
-                logger.warning(f"消息 ID {message_id} 不存在，跳过")
+                from app.utils.logger import log_warning
+                log_warning("Message ID not found, skipping",
+                            message_id=message_id)
                 continue
 
             id, role, content, tool_call_messages = messages_dict[message_id]
@@ -106,11 +108,12 @@ class MessageService:
             return message
         except SQLAlchemyError as exc:
             self.db.rollback()
-            logger.error(
-                "消息入库失败 conversation_id=%s role=%s error=%s",
-                message.conversation_id,
-                message.role,
-                exc,
+            from app.utils.logger import log_error
+            log_error(
+                "Failed to persist message",
+                error=exc,
+                conversation_id=message.conversation_id,
+                role=message.role,
             )
             raise
 
