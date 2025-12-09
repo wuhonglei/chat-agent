@@ -1,0 +1,77 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /positions/positions.yaml
+
+clients:
+  - url: http://10.0.0.6:3100/loki/api/v1/push  # 远程Loki地址
+
+scrape_configs:
+  # 收集backend应用的日志文件
+  - job_name: backend_app
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: ai-doc-backend
+          app: ai-doc
+          host: ai-doc-server
+          __path__: /var/log/app/backend/*.log
+    pipeline_stages:
+      # 如果Java日志有多行堆栈跟踪，可以启用多行合并
+      # - multiline:
+      #     firstline: '^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}'
+      #     max_wait_time: 3s
+
+  # 收集postgres容器日志
+  - job_name: postgres_container
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 10s
+        filters:
+          - name: name
+            values: ["ai-doc-postgres"]
+    relabel_configs:
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+      - source_labels: ['__meta_docker_container_id']
+        target_label: 'container_id'
+    pipeline_stages:
+      - docker: {}  # 自动解析Docker JSON日志格式
+
+  # 收集backend容器日志
+  - job_name: backend_container
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 10s
+        filters:
+          - name: name
+            values: ["ai-doc-backend"]
+    relabel_configs:
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+      - source_labels: ['__meta_docker_container_id']
+        target_label: 'container_id'
+    pipeline_stages:
+      - docker: {}  # 自动解析Docker JSON日志格式
+
+  # 收集frontend容器日志
+  - job_name: frontend_container
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 10s
+        filters:
+          - name: name
+            values: ["ai-doc-frontend"]
+    relabel_configs:
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+      - source_labels: ['__meta_docker_container_id']
+        target_label: 'container_id'
+    pipeline_stages:
+      - docker: {}  # 自动解析Docker JSON日志格式

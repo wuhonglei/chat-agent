@@ -68,6 +68,3 @@ htmlcov/
 *.bak
 *.tmp
 .cache/
-
-# 本地测试文件
-/test/

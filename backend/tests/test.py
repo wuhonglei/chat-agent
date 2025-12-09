@@ -1,9 +1,9 @@
-from typing import Literal
-from pydantic import Field
+from loguru import logger
 
-
-def test(a: Literal["24h", "72h", "168h"] = Field(default="24h")) -> str:
-    return a
-
-
-print(test('25'))
+# ✅ 推荐：记录元数据和摘要
+logger.info(
+    f"Chat request received: "
+    f"conversation_id={1}, "
+    f"client_ip={2}, "
+    f"message_length={3}"  # 只记录长度，不记录内容
+)

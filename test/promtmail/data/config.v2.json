@@ -1,0 +1,166 @@
+{
+  "StreamConfig": {},
+  "State": {
+    "Running": true,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 1785463,
+    "ExitCode": 0,
+    "Error": "",
+    "StartedAt": "2025-12-08T15:45:45.216579357Z",
+    "FinishedAt": "0001-01-01T00:00:00Z",
+    "Health": { "Status": "starting", "FailingStreak": 0, "Log": null }
+  },
+  "ID": "6ba42d1478269f72a62442b6632d919cd4c5d47ce094cb95757494dfe020da20",
+  "Created": "2025-12-08T15:45:34.415045657Z",
+  "Managed": false,
+  "Path": "/app/start.sh",
+  "Args": [],
+  "Config": {
+    "Hostname": "6ba42d147826",
+    "Domainname": "",
+    "User": "",
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "AttachStderr": true,
+    "ExposedPorts": { "8000/tcp": {} },
+    "Tty": false,
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Env": [
+      "NACOS_PASSWORD=qJZqTJeFtsGky4h",
+      "PG_DB=ai_assistant_db",
+      "NACOS_SERVER_ADDRESSES=1.12.53.9:8848",
+      "PG_USER_NAME=wuhonglei",
+      "NACOS_CONFIG_TYPE=yaml",
+      "NACOS_NAMESPACE=public",
+      "NACOS_USERNAME=nacos",
+      "NACOS_GROUP=DEFAULT_GROUP",
+      "DATABASE__HOST=postgres",
+      "PG_PASSWORD=ugbzVrahrP9hG_9",
+      "NACOS_DATA_ID=ai-chat-dev",
+      "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+      "GPG_KEY=7169605F62C751356D054A26A821E680E5FA6305",
+      "PYTHON_VERSION=3.13.3",
+      "PYTHON_SHA256=40f868bcbdeb8149a3149580bb9bfd407b3321cd48f0be631af955ac92c0e041",
+      "TZ=Asia/Shanghai",
+      "DEBIAN_FRONTEND=noninteractive"
+    ],
+    "Cmd": ["/app/start.sh"],
+    "Healthcheck": {
+      "Test": ["CMD", "curl", "-f", "http://localhost:8000/"],
+      "Interval": 30000000000,
+      "Timeout": 10000000000,
+      "StartPeriod": 40000000000,
+      "Retries": 5
+    },
+    "Image": "ai-doc-backend",
+    "Volumes": null,
+    "WorkingDir": "/app",
+    "Entrypoint": null,
+    "Labels": {
+      "com.docker.compose.config-hash": "9a6c6ed0621a6296a9cb9eb569058c5c0fda1b076bb6d3b485c70a4c5a571a78",
+      "com.docker.compose.container-number": "1",
+      "com.docker.compose.depends_on": "postgres:service_healthy:false",
+      "com.docker.compose.image": "sha256:b7819e3d0159f61d380cc9afdac8ddf0afb325b86a45011120529c64e2b17092",
+      "com.docker.compose.oneoff": "False",
+      "com.docker.compose.project": "ai-doc",
+      "com.docker.compose.project.config_files": "/home/ubuntu/ai-doc/docker-compose.yml",
+      "com.docker.compose.project.working_dir": "/home/ubuntu/ai-doc",
+      "com.docker.compose.service": "backend",
+      "com.docker.compose.version": "5.0.0"
+    }
+  },
+  "Image": "sha256:b7819e3d0159f61d380cc9afdac8ddf0afb325b86a45011120529c64e2b17092",
+  "ImageManifest": null,
+  "NetworkSettings": {
+    "SandboxID": "c2b95794a64a43a8cec6f0701432d7e7f089e757ca680197f755188b41506c67",
+    "SandboxKey": "/var/run/docker/netns/c2b95794a64a",
+    "Networks": {
+      "ai-doc_ai-doc-network": {
+        "IPAMConfig": null,
+        "Links": null,
+        "Aliases": ["ai-doc-backend", "backend"],
+        "DriverOpts": null,
+        "GwPriority": 0,
+        "NetworkID": "a86016e5de21b48eb9e464a92f5e8094907f4bf969f0ec51552acccdd60b8994",
+        "EndpointID": "58e28dec58d58a4ffc4abedfef5f780d844e7900ab9d1439971106422fa92b09",
+        "Gateway": "172.18.0.1",
+        "IPAddress": "172.18.0.3",
+        "MacAddress": "86:a7:e4:4c:c8:e4",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "DNSNames": ["ai-doc-backend", "backend", "6ba42d147826"],
+        "IPAMOperational": false,
+        "DesiredMacAddress": ""
+      }
+    },
+    "Service": null,
+    "Ports": {
+      "8000/tcp": [
+        { "HostIp": "0.0.0.0", "HostPort": "8000" },
+        { "HostIp": "::", "HostPort": "8000" }
+      ]
+    },
+    "HasSwarmEndpoint": false
+  },
+  "LogPath": "/var/lib/docker/containers/6ba42d1478269f72a62442b6632d919cd4c5d47ce094cb95757494dfe020da20/6ba42d1478269f72a62442b6632d919cd4c5d47ce094cb95757494dfe020da20-json.log",
+  "Name": "/ai-doc-backend",
+  "Driver": "overlay2",
+  "OS": "linux",
+  "ImagePlatform": { "architecture": "amd64", "os": "linux" },
+  "RestartCount": 0,
+  "HasBeenStartedBefore": true,
+  "HasBeenManuallyStopped": false,
+  "MountPoints": {
+    "/app/data": {
+      "Source": "/home/ubuntu/ai-doc/backend/data",
+      "Destination": "/app/data",
+      "RW": true,
+      "Name": "",
+      "Driver": "",
+      "Type": "bind",
+      "Relabel": "rw",
+      "Propagation": "rprivate",
+      "Spec": {
+        "Type": "bind",
+        "Source": "/home/ubuntu/ai-doc/backend/data",
+        "Target": "/app/data"
+      },
+      "SkipMountpointCreation": false
+    },
+    "/app/logs": {
+      "Source": "/home/ubuntu/ai-doc/backend/logs",
+      "Destination": "/app/logs",
+      "RW": true,
+      "Name": "",
+      "Driver": "",
+      "Type": "bind",
+      "Relabel": "rw",
+      "Propagation": "rprivate",
+      "Spec": {
+        "Type": "bind",
+        "Source": "/home/ubuntu/ai-doc/backend/logs",
+        "Target": "/app/logs"
+      },
+      "SkipMountpointCreation": false
+    }
+  },
+  "SecretReferences": null,
+  "ConfigReferences": null,
+  "MountLabel": "",
+  "ProcessLabel": "",
+  "AppArmorProfile": "docker-default",
+  "SeccompProfile": "",
+  "NoNewPrivileges": false,
+  "WritableCgroups": null,
+  "HostnamePath": "/var/lib/docker/containers/6ba42d1478269f72a62442b6632d919cd4c5d47ce094cb95757494dfe020da20/hostname",
+  "HostsPath": "/var/lib/docker/containers/6ba42d1478269f72a62442b6632d919cd4c5d47ce094cb95757494dfe020da20/hosts",
+  "ShmPath": "",
+  "ResolvConfPath": "/var/lib/docker/containers/6ba42d1478269f72a62442b6632d919cd4c5d47ce094cb95757494dfe020da20/resolv.conf",
+  "LocalLogCacheMeta": { "HaveNotifyEnabled": false }
+}
