@@ -143,7 +143,8 @@ class ChatService:
             # 只在 debug 模式下记录详细消息内容
             log_debug(
                 "Assistant message details",
-                message=assistant_message.model_dump(exclude_none=True),
+                assistant_message=assistant_message.model_dump(
+                    exclude_none=True),
             )
 
             # Execute tool calls and stream results
