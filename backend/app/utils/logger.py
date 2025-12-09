@@ -14,6 +14,8 @@ from typing import Any, Optional
 
 from loguru import logger
 
+from app.utils.time import format_datetime_to_iso8601
+
 
 def production_sink(message):
     """生产环境自定义 sink，输出精简的 JSON 格式日志
@@ -27,7 +29,7 @@ def production_sink(message):
     - file.path: 完整文件路径（只需要文件名）
 
     保留的必要字段：
-    - timestamp: 时间戳（便于排序和查询）
+    - timestamp: 时间戳（ISO 8601 格式，系统本地时区，便于阅读和理解）
     - level: 日志级别
     - message: 日志消息
     - module: 模块名
@@ -36,11 +38,17 @@ def production_sink(message):
     - line: 行号
     - extra: 上下文信息（request_id, user_id 等）
     - exception: 异常信息（如果有）
+
+    时间戳格式说明：
+    - 使用 ISO 8601 格式字符串（如 "2024-01-01T12:00:00.123456+08:00"）
+    - 使用系统本地时区，便于本地开发和调试时直观理解时间
+    - 包含微秒精度，便于精确排序和调试
+    - 人类可读，同时所有日志系统都支持解析
     """
     record = message.record
     # 构建精简的日志记录
     serialized = {
-        "timestamp": record["time"].timestamp(),
+        "timestamp": format_datetime_to_iso8601(record["time"]),
         "level": record["level"].name,
         "message": record["message"],
         "module": record["module"],

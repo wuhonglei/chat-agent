@@ -36,6 +36,41 @@ class LoggingMiddleware(BaseHTTPMiddleware):
     注意：
     - request_id 和上下文绑定对所有请求都执行（这是必要的）
     - 但日志记录可以跳过某些高频低价值的端点（如健康检查）
+
+    执行顺序说明（FastAPI 请求处理流程）：
+    ┌─────────────────────────────────────────────────────────────┐
+    │ 1. 中间件（Middleware）- 最外层                             │
+    │    ├─ 生成 request_id 并绑定到上下文                        │
+    │    ├─ 记录 "Request started" 日志                           │
+    │    └─ 调用 call_next(request)                               │
+    │         ↓                                                    │
+    │ 2. 路由匹配（Router Matching）                               │
+    │         ↓                                                    │
+    │ 3. 依赖注入（Dependencies）- 按声明顺序执行                  │
+    │    ├─ Depends(get_jwt_manager) - JWT 管理器                 │
+    │    ├─ Depends(require_auth) - 认证验证                      │
+    │    │   └─ 内部调用 get_auth_token_info()                    │
+    │    │       ├─ 解析并验证 JWT token                          │
+    │    │       ├─ 绑定 user_id 到日志上下文                     │
+    │    │       └─ 如果 token 过期，自动刷新                     │
+    │    ├─ Depends(get_db) - 数据库会话                          │
+    │    └─ 其他依赖...                                            │
+    │         ↓                                                    │
+    │ 4. 路由处理函数（Route Handler）                             │
+    │    └─ 执行业务逻辑                                           │
+    │         ↓                                                    │
+    │ 5. 依赖清理（Dependencies Cleanup）- 按相反顺序执行          │
+    │    └─ 如：关闭数据库会话                                    │
+    │         ↓                                                    │
+    │ 6. 中间件继续（Middleware Continue）                         │
+    │    ├─ 添加响应头 X-Request-ID                                │
+    │    └─ 记录 "Request completed" 日志                          │
+    └─────────────────────────────────────────────────────────────┘
+
+    关键点：
+    - 中间件在依赖注入之前执行，因此 request_id 在所有依赖中可用
+    - 依赖注入中的 user_id 绑定是在路由处理函数执行前完成的
+    - 因此路由处理函数中的日志已经包含完整的上下文信息
     """
 
     async def dispatch(self, request: Request, call_next):

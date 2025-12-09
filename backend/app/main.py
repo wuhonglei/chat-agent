@@ -52,6 +52,7 @@ app = FastAPI(
 )
 
 # 添加日志中间件（必须在路由之前添加）
+# 执行顺序：中间件 → 路由匹配 → 依赖注入 → 路由处理函数 → 依赖清理 → 中间件继续
 app.add_middleware(LoggingMiddleware)
 
 # Include routers
