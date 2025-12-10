@@ -7,7 +7,7 @@ from app.core.db import get_db
 from app.models.db import MessageDb
 from app.models.response import ApiResponse
 from app.utils.auth_deps import require_auth
-from app.utils.logger import log_error
+from app.utils.logger import logger
 
 router = APIRouter()
 
@@ -23,5 +23,6 @@ async def delete_message(message_id: str, db: Session = Depends(get_db), _auth: 
         db.commit()
         return ApiResponse.success(data=message_id, msg="消息删除成功")
     except Exception as exc:
-        log_error("Failed to delete message", error=exc, message_id=message_id)
+        logger.error("Failed to delete message",
+                     error=exc, message_id=message_id)
         raise HTTPException(status_code=500, detail="消息删除失败") from exc

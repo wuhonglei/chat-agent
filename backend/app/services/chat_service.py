@@ -10,7 +10,7 @@ from app.core.config import settings
 from app.models.chat import ChatMessageItemReq, ChatRequest, CollectedResponse
 from app.models.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallResultMessage
 from app.utils.common import filter_dict
-from app.utils.logger import log_debug, log_error, log_info
+from app.utils.logger import logger
 from app.utils.time import get_current_time, get_time_duration
 from app.mcp.mcp_client import MCPClientManager
 from app.services.prompt import get_default_system_prompt, get_prompt_for_title, get_prompt_with_mcp_servers, get_user_message_for_component_render
@@ -46,7 +46,7 @@ class ChatService:
             messages=messages,
             stream=True,
         )
-        log_info("Using LLM model", model=model)
+        logger.info("Using LLM model", model=model)
         start_reasoning = False
         start_content = False
         async for chunk in response:
@@ -102,8 +102,8 @@ class ChatService:
         iterations_by_tool = {
             tool['function']['name']: max_iterations_by_tool for tool in tools}
         for iteration in range(max_total_iterations):
-            log_info("Tool call iteration started", iteration=iteration +
-                     1, max_iterations=max_total_iterations)
+            logger.info("Tool call iteration started", iteration=iteration +
+                        1, max_iterations=max_total_iterations)
 
             # Call LLM with tools
             response = await self.client.chat.completions.create(
@@ -115,7 +115,7 @@ class ChatService:
             openai_message: ChatCompletionMessage = response.choices[0].message
 
             if not openai_message.tool_calls:
-                log_info(
+                logger.info(
                     "No tool calls needed",
                     has_content=bool(openai_message.content),
                     content_length=len(
@@ -135,13 +135,13 @@ class ChatService:
             yield assistant_message
             tool_count = len(
                 assistant_message.tool_calls) if assistant_message.tool_calls else 0
-            log_info(
+            logger.info(
                 "Tool calls required",
                 tool_count=tool_count,
                 iteration=iteration + 1,
             )
             # 只在 debug 模式下记录详细消息内容
-            log_debug(
+            logger.debug(
                 "Assistant message details",
                 assistant_message=assistant_message.model_dump(
                     exclude_none=True),
@@ -154,7 +154,7 @@ class ChatService:
 
                 # Check if tool has reached max iterations BEFORE calling
                 if iterations_by_tool[tool_name] <= 0:
-                    log_info(
+                    logger.info(
                         "Tool max iterations reached, skipping",
                         tool_name=tool_name,
                         iteration=iteration + 1,
@@ -177,24 +177,24 @@ class ChatService:
                     # Call the tool via MCP manager
                     # Parse arguments
                     arguments = json.loads(tool_call.function.arguments)
-                    log_info(
+                    logger.info(
                         "Calling MCP tool",
                         tool_name=tool_name,
                         iteration=iteration + 1,
                     )
-                    log_debug(
+                    logger.debug(
                         "MCP tool arguments",
                         tool_name=tool_name,
                         arguments=arguments,
                     )
                     result = await self.mcp_manager.call_tool(tool_name, arguments)
                     content = self.mcp_manager.format_mcp_result(result)
-                    log_info(
+                    logger.info(
                         "MCP tool result received",
                         tool_name=tool_name,
                         result_length=len(content) if content else 0,
                     )
-                    log_debug(
+                    logger.debug(
                         "MCP tool result preview",
                         tool_name=tool_name,
                         result_preview=content[:200] + '...' +
@@ -214,7 +214,7 @@ class ChatService:
                     yield tool_call_result_message
 
                 except Exception as e:
-                    log_error(
+                    logger.error(
                         "Failed to call tool",
                         error=e,
                         tool_name=tool_name,
@@ -232,7 +232,7 @@ class ChatService:
                     yield tool_call_result_message
 
         # If we hit max iterations, return error message
-        log_info(
+        logger.info(
             "Max iterations reached",
             max_iterations=max_total_iterations,
         )
@@ -306,7 +306,7 @@ class ChatService:
             return
 
         except Exception as e:
-            log_error("Failed to stream message", error=e)
+            logger.error("Failed to stream message", error=e)
             raise
 
     async def generate_title(self, user_message: str) -> str:

@@ -13,7 +13,7 @@ from app.services.chat_service import ChatService
 from app.services.message_service import MessageService
 from app.utils.auth_deps import require_auth
 from app.utils.common import gen_uuid
-from app.utils.logger import log_error, log_info
+from app.utils.logger import logger
 from app.utils.network import get_public_client_ip
 from app.utils.time import get_current_time, get_time_duration
 
@@ -37,7 +37,7 @@ async def chat_stream(
         exclude_none=True, exclude=['content'])
 
     # 记录请求信息（不包含敏感内容）
-    log_info(
+    logger.info(
         "Chat stream request received",
         conversation_id=conversation_id,
         client_ip=client_ip,
@@ -67,7 +67,7 @@ async def chat_stream(
                 metadata=user_metadata,
             )
 
-            log_info(
+            logger.info(
                 "Messages created",
                 conversation_id=conversation_id,
                 user_message_id=user_message_id,
@@ -77,7 +77,7 @@ async def chat_stream(
     except HTTPException:
         raise
     except Exception as exc:
-        log_error(
+        logger.error(
             "Failed to persist user message",
             error=exc,
             conversation_id=conversation_id,
@@ -106,7 +106,7 @@ async def chat_stream(
                 ):
                     yield chunk
             except Exception as streaming_error:
-                log_error(
+                logger.error(
                     "Streaming response failed",
                     error=streaming_error,
                     conversation_id=conversation_id,
@@ -126,7 +126,7 @@ async def chat_stream(
                     status=MessageStatus.DONE,
                 )
             except Exception as persist_error:
-                log_error(
+                logger.error(
                     "Failed to persist assistant message",
                     error=persist_error,
                     conversation_id=conversation_id,

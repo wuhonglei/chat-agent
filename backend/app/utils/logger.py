@@ -12,7 +12,7 @@ import sys
 from contextvars import ContextVar
 from typing import Any, Optional
 
-from loguru import logger
+from loguru import logger as _loguru_logger
 
 from app.utils.time import format_datetime_to_iso8601
 
@@ -136,7 +136,7 @@ def log_info(message: str, **kwargs: Any) -> None:
     # 使用 loguru 的 extra 参数传递结构化数据
     # 同时为了可读性，也在 message 中包含关键信息
     # depth=1 跳过当前包装函数，记录实际调用者的位置信息
-    logger.opt(depth=1).bind(**extra).info(message)
+    _loguru_logger.opt(depth=1).bind(**extra).info(message)
 
 
 def log_warning(message: str, **kwargs: Any) -> None:
@@ -144,7 +144,7 @@ def log_warning(message: str, **kwargs: Any) -> None:
     context = get_log_context()
     extra = {**context, **kwargs}
     # depth=1 跳过当前包装函数，记录实际调用者的位置信息
-    logger.opt(depth=1).bind(**extra).warning(message)
+    _loguru_logger.opt(depth=1).bind(**extra).warning(message)
 
 
 def log_error(message: str, error: Optional[Exception] = None, **kwargs: Any) -> None:
@@ -159,9 +159,10 @@ def log_error(message: str, error: Optional[Exception] = None, **kwargs: Any) ->
     extra = {**context, **kwargs}
     # depth=1 跳过当前包装函数，记录实际调用者的位置信息
     if error:
-        logger.opt(depth=1).bind(**extra).error(message, exc_info=error)
+        _loguru_logger.opt(depth=1).bind(
+            **extra).error(message, exc_info=error)
     else:
-        logger.opt(depth=1).bind(**extra).error(message)
+        _loguru_logger.opt(depth=1).bind(**extra).error(message)
 
 
 def log_debug(message: str, **kwargs: Any) -> None:
@@ -169,7 +170,7 @@ def log_debug(message: str, **kwargs: Any) -> None:
     context = get_log_context()
     extra = {**context, **kwargs}
     # depth=1 跳过当前包装函数，记录实际调用者的位置信息
-    logger.opt(depth=1).bind(**extra).debug(message)
+    _loguru_logger.opt(depth=1).bind(**extra).debug(message)
 
 
 def log_exception(message: str, **kwargs: Any) -> None:
@@ -177,7 +178,70 @@ def log_exception(message: str, **kwargs: Any) -> None:
     context = get_log_context()
     extra = {**context, **kwargs}
     # depth=1 跳过当前包装函数，记录实际调用者的位置信息
-    logger.opt(depth=1).bind(**extra).exception(message)
+    _loguru_logger.opt(depth=1).bind(**extra).exception(message)
+
+
+class LoggerWrapper:
+    """日志包装器，自动添加上下文信息
+
+    使用方式：
+        from app.utils.logger import logger
+        logger.info("消息", key="value")
+        logger.warning("警告")
+        logger.error("错误", error=exception)
+        logger.debug("调试信息")
+        logger.exception("异常信息")
+    """
+
+    def info(self, message: str, **kwargs: Any) -> None:
+        """记录 INFO 级别日志
+
+        Args:
+            message: 日志消息
+            **kwargs: 结构化字段（键值对，便于查询和统计）
+        """
+        context = get_log_context()
+        extra = {**context, **kwargs}
+        # depth=1 跳过当前包装函数，记录实际调用者的位置信息
+        _loguru_logger.opt(depth=1).bind(**extra).info(message)
+
+    def warning(self, message: str, **kwargs: Any) -> None:
+        """记录 WARNING 级别日志"""
+        context = get_log_context()
+        extra = {**context, **kwargs}
+        _loguru_logger.opt(depth=1).bind(**extra).warning(message)
+
+    def error(self, message: str, error: Optional[Exception] = None, **kwargs: Any) -> None:
+        """记录 ERROR 级别日志
+
+        Args:
+            message: 错误消息
+            error: 异常对象（可选）
+            **kwargs: 额外的上下文信息
+        """
+        context = get_log_context()
+        extra = {**context, **kwargs}
+        if error:
+            _loguru_logger.opt(depth=1).bind(
+                **extra).error(message, exc_info=error)
+        else:
+            _loguru_logger.opt(depth=1).bind(**extra).error(message)
+
+    def debug(self, message: str, **kwargs: Any) -> None:
+        """记录 DEBUG 级别日志"""
+        context = get_log_context()
+        extra = {**context, **kwargs}
+        _loguru_logger.opt(depth=1).bind(**extra).debug(message)
+
+    def exception(self, message: str, **kwargs: Any) -> None:
+        """记录异常日志（包含完整的堆栈信息）"""
+        context = get_log_context()
+        extra = {**context, **kwargs}
+        _loguru_logger.opt(depth=1).bind(**extra).exception(message)
+
+
+# 创建 logger 实例供外部使用
+logger = LoggerWrapper()
 
 
 def setup_logger(debug: bool = False) -> None:
@@ -186,7 +250,7 @@ def setup_logger(debug: bool = False) -> None:
     Args:
         debug: 是否启用 DEBUG 级别日志
     """
-    logger.remove()  # 移除默认的 handler
+    _loguru_logger.remove()  # 移除默认的 handler
 
     if debug:
         debug_log_format = (
@@ -197,31 +261,33 @@ def setup_logger(debug: bool = False) -> None:
             "{extra}"
         )
         # 调试模式：使用格式化的文本输出
-        logger.add(
+        _loguru_logger.add(
             sys.stderr,
             level="DEBUG",
             format=debug_log_format,
         )
     else:
         # 生产模式：使用自定义 sink 输出精简的 JSON
-        logger.add(
+        _loguru_logger.add(
             production_sink,
             level="INFO",
             serialize=False,  # 不使用默认序列化，使用自定义 sink
         )
 
 
-# 导出常用的日志函数
+# 导出 logger 对象和常用工具
 __all__ = [
-    "log_info",
-    "log_warning",
-    "log_error",
-    "log_debug",
-    "log_exception",
+    "logger",  # logger 对象，通过 logger.info, logger.warning 等方式使用
     "setup_logger",
     "request_id_var",
     "user_id_var",
     "anonymous_user_id_var",
     "client_ip_var",
     "get_log_context",
+    # 保留旧函数以保持向后兼容（可选，如果不需要可以删除）
+    "log_info",
+    "log_warning",
+    "log_error",
+    "log_debug",
+    "log_exception",
 ]

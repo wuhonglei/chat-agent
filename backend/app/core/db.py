@@ -44,7 +44,7 @@ def create_db_and_tables():
         SQLModel.metadata.create_all(engine, checkfirst=True)
 
         # 然后创建/更新表结构
-        from app.utils.logger import log_info
-        log_info("Database tables created/verified successfully")
+        from app.utils.logger import logger
+        logger.info("Database tables created/verified successfully")
     except Exception as e:
         raise e

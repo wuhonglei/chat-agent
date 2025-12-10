@@ -16,7 +16,7 @@ from app.models.response import ApiResponse
 from app.models.token import SecretTokenInfo
 from app.utils.auth_deps import get_auth_token_info, require_auth
 from app.utils.date import get_datetime_now
-from app.utils.logger import log_debug, log_error
+from app.utils.logger import logger
 
 router = APIRouter()
 
@@ -40,12 +40,13 @@ async def register_conversation(request: RegisterConversationRequest, db: Sessio
         db.add(conversation)
         db.commit()
         db.refresh(conversation)
-        log_debug("Conversation registered", conversation_id=conversation.id)
+        logger.debug("Conversation registered",
+                     conversation_id=conversation.id)
         conversation_info = ConversationInfo.model_validate(
             conversation_to_dict(conversation))
         return ApiResponse.success(data=conversation_info, msg="对话创建成功")
     except Exception as e:
-        log_error("Failed to register conversation", error=e)
+        logger.error("Failed to register conversation", error=e)
         return ApiResponse.error(code=1, msg=f"创建对话失败: {str(e)}")
 
 
@@ -56,7 +57,7 @@ async def get_conversations(db: Session = Depends(get_db), token_info: SecretTok
         conversations = db.exec(select(ConversationDb).where(
             ConversationDb.user_id == token_info.user_id).order_by(
             ConversationDb.last_message_created_at.desc())).all()
-        log_debug("Found conversations", count=len(conversations))
+        logger.debug("Found conversations", count=len(conversations))
         conversation_list = [ConversationInfo.model_validate(
             conversation_to_dict(conv)) for conv in conversations]
         data = {
@@ -67,7 +68,7 @@ async def get_conversations(db: Session = Depends(get_db), token_info: SecretTok
         }
         return ApiResponse.success(data=data, msg="获取对话列表成功")
     except Exception as e:
-        log_error("Failed to get conversations", error=e)
+        logger.error("Failed to get conversations", error=e)
         return ApiResponse.error(code=1, msg=f"获取对话列表失败: {str(e)}")
 
 
@@ -77,8 +78,8 @@ async def get_messages(conversation_id: str, db: Session = Depends(get_db), _aut
     try:
         conversation = db.get(ConversationDb, conversation_id)
         if not conversation:
-            log_error("Conversation not found",
-                      conversation_id=conversation_id)
+            logger.error("Conversation not found",
+                         conversation_id=conversation_id)
             return ApiResponse.error(code=404, msg="对话不存在", data=None)
 
         messages = db.exec(select(MessageDb).where(
@@ -93,8 +94,8 @@ async def get_messages(conversation_id: str, db: Session = Depends(get_db), _aut
         }
         return ApiResponse.success(data=data, msg="获取消息列表成功")
     except Exception as e:
-        log_error("Failed to get messages", error=e,
-                  conversation_id=conversation_id)
+        logger.error("Failed to get messages", error=e,
+                     conversation_id=conversation_id)
         return ApiResponse.error(code=1, msg=f"获取消息列表失败: {str(e)}")
 
 
@@ -104,17 +105,17 @@ async def get_conversation(conversation_id: str, db: Session = Depends(get_db), 
     try:
         conversation = db.get(ConversationDb, conversation_id)
         if not conversation:
-            log_error("Conversation not found",
-                      conversation_id=conversation_id)
+            logger.error("Conversation not found",
+                         conversation_id=conversation_id)
             return ApiResponse.error(code=404, msg="对话不存在", data=None)
 
-        log_debug("Found conversation", conversation_id=conversation_id)
+        logger.debug("Found conversation", conversation_id=conversation_id)
         conversation_info = ConversationInfo.model_validate(
             conversation_to_dict(conversation))
         return ApiResponse.success(data=conversation_info, msg="获取对话详情成功")
     except Exception as e:
-        log_error("Failed to get conversation", error=e,
-                  conversation_id=conversation_id)
+        logger.error("Failed to get conversation", error=e,
+                     conversation_id=conversation_id)
         return ApiResponse.error(code=1, msg=f"获取对话详情失败: {str(e)}")
 
 
@@ -124,8 +125,8 @@ async def update_conversation(conversation_id: str, request: UpdateConversationR
     try:
         conversation = db.get(ConversationDb, conversation_id)
         if not conversation:
-            log_error("Conversation not found",
-                      conversation_id=conversation_id)
+            logger.error("Conversation not found",
+                         conversation_id=conversation_id)
             return ApiResponse.error(code=404, msg="对话不存在", data=None)
 
         conversation.title = request.title
@@ -135,8 +136,8 @@ async def update_conversation(conversation_id: str, request: UpdateConversationR
         db.refresh(conversation)
         return ApiResponse.success(data=conversation_to_dict(conversation), msg="更新对话成功")
     except Exception as e:
-        log_error("Failed to update conversation",
-                  error=e, conversation_id=conversation_id)
+        logger.error("Failed to update conversation",
+                     error=e, conversation_id=conversation_id)
         return ApiResponse.error(code=1, msg=f"更新对话失败: {str(e)}")
 
 
@@ -146,14 +147,14 @@ async def delete_conversation(conversation_id: str, db: Session = Depends(get_db
     try:
         conversation = db.get(ConversationDb, conversation_id)
         if not conversation:
-            log_error("Conversation not found",
-                      conversation_id=conversation_id)
+            logger.error("Conversation not found",
+                         conversation_id=conversation_id)
             return ApiResponse.error(code=404, msg="对话不存在", data=None)
 
         db.delete(conversation)
         db.commit()
         return ApiResponse.success(data=conversation_id, msg="删除对话成功")
     except Exception as e:
-        log_error("Failed to delete conversation",
-                  error=e, conversation_id=conversation_id)
+        logger.error("Failed to delete conversation",
+                     error=e, conversation_id=conversation_id)
         return ApiResponse.error(code=1, msg=f"删除对话失败: {str(e)}")

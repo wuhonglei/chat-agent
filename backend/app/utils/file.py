@@ -4,8 +4,7 @@ from pathlib import Path
 
 import aiofiles
 from fastapi import UploadFile
-from app.utils.logger import log_debug
-from app.utils.logger import log_warning
+from app.utils.logger import logger
 
 
 def get_file_extension(filename: str) -> str:
@@ -115,7 +114,7 @@ class TempFileManager:
     def __enter__(self) -> "TempFileManager":
         """同步上下文管理器入口"""
         self.file_path = self._generate_file_path()
-        log_debug("创建临时文件", file_path=self.file_path)
+        logger.debug("创建临时文件", file_path=self.file_path)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -126,7 +125,7 @@ class TempFileManager:
     async def __aenter__(self) -> "TempFileManager":
         """异步上下文管理器入口"""
         self.file_path = self._generate_file_path()
-        log_debug("创建临时文件", file_path=self.file_path)
+        logger.debug("创建临时文件", file_path=self.file_path)
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -139,9 +138,9 @@ class TempFileManager:
         if self.file_path and self.file_path.exists():
             try:
                 self.file_path.unlink()
-                log_debug("已删除临时文件", file_path=self.file_path)
+                logger.debug("已删除临时文件", file_path=self.file_path)
             except Exception as e:
-                log_warning("删除临时文件失败", file_path=self.file_path, error=e)
+                logger.warning("删除临时文件失败", file_path=self.file_path, error=e)
 
     @property
     def path(self) -> Path:

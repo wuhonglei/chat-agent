@@ -6,7 +6,7 @@ from typing import Any, TypeVar
 
 from fastapi import HTTPException
 
-from app.utils.logger import log_error, log_exception, log_warning
+from app.utils.logger import logger
 
 # 类型变量，用于保持函数签名
 F = TypeVar("F", bound=Callable[..., Any])
@@ -61,9 +61,9 @@ def handle_api_exceptions(
             except Exception as e:
                 # 记录异常日志
                 if log_exception:
-                    log_exception(f"{op_name} failed")
+                    logger.exception(f"{op_name} failed")
                 else:
-                    log_error(f"{op_name} failed", error=e)
+                    logger.error(f"{op_name} failed", error=e)
 
                 # 转换为 HTTPException
                 raise HTTPException(
@@ -80,9 +80,9 @@ def handle_api_exceptions(
                 raise
             except Exception as e:
                 if log_exception:
-                    log_exception(f"{op_name} failed")
+                    logger.exception(f"{op_name} failed")
                 else:
-                    log_error(f"{op_name} failed", error=e)
+                    logger.error(f"{op_name} failed", error=e)
 
                 raise HTTPException(
                     status_code=default_status_code,
@@ -144,7 +144,7 @@ def handle_api_exceptions_with_cleanup(
             except HTTPException:
                 raise
             except Exception as e:
-                log_exception(f"{op_name} failed")
+                logger.exception(f"{op_name} failed")
                 raise HTTPException(
                     status_code=default_status_code,
                     detail=error_msg if not str(
@@ -156,7 +156,7 @@ def handle_api_exceptions_with_cleanup(
                     try:
                         cleanup_func()
                     except Exception as cleanup_error:
-                        log_warning(
+                        logger.warning(
                             f"{op_name} cleanup failed",
                             error=str(cleanup_error),
                         )
@@ -168,7 +168,7 @@ def handle_api_exceptions_with_cleanup(
             except HTTPException:
                 raise
             except Exception as e:
-                log_exception(f"{op_name} failed")
+                logger.exception(f"{op_name} failed")
                 raise HTTPException(
                     status_code=default_status_code,
                     detail=error_msg if not str(
@@ -179,7 +179,7 @@ def handle_api_exceptions_with_cleanup(
                     try:
                         cleanup_func()
                     except Exception as cleanup_error:
-                        log_warning(
+                        logger.warning(
                             f"{op_name} cleanup failed",
                             error=str(cleanup_error),
                         )

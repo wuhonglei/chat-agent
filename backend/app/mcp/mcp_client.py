@@ -18,7 +18,7 @@ from fastmcp.client.transports import (
 from app.core.config import settings
 from app.models.mcp import MCPConfigForFeDict
 from app.mcp.utils import inject_mcp_env_vars
-from app.utils.logger import log_error, log_info, log_warning
+from app.utils.logger import logger
 from app.utils.mcp import create_mcp_http_client_with_ssl_config
 
 VERIFY_SSL = not settings.app.debug
@@ -109,10 +109,10 @@ class MCPClientManager:
     async def initialize(self) -> None:
         """初始化所有 MCP Server 连接"""
         if self._initialized:
-            log_warning("MCPClientManager already initialized")
+            logger.warning("MCPClientManager already initialized")
             return
 
-        log_info("Initializing MCP Client Manager")
+        logger.info("Initializing MCP Client Manager")
 
         # 注册所有 MCP servers
         self.servers = copy.deepcopy(mcp_config["mcpServers"])
@@ -134,22 +134,22 @@ class MCPClientManager:
 
             # 如果有可用性检测函数，先进行检测
             if availability_checker and callable(availability_checker):
-                log_info("Checking server availability",
-                         server_name=server_name)
+                logger.info("Checking server availability",
+                            server_name=server_name)
                 try:
                     is_available = await availability_checker()
                     if not is_available:
-                        log_warning(
+                        logger.warning(
                             "Server unavailable, skipping",
                             server_name=server_name,
                         )
                         # 从 servers 中移除，避免后续处理
                         del self.servers[server_name]
                         continue
-                    log_info("Server availability check passed",
-                             server_name=server_name)
+                    logger.info("Server availability check passed",
+                                server_name=server_name)
                 except Exception as e:
-                    log_warning(
+                    logger.warning(
                         "Server availability check failed",
                         server_name=server_name,
                         error=str(e),
@@ -162,7 +162,7 @@ class MCPClientManager:
                 if isinstance(server_instance, FastMCP):
                     # 本地 FastMCP 服务器
                     transport = FastMCPTransport(server_instance)
-                    log_info(
+                    logger.info(
                         "Using FastMCPTransport for local server",
                         server_name=server_name,
                         transport_type="FastMCPTransport",
@@ -179,7 +179,7 @@ class MCPClientManager:
                         headers=server_instance.get("headers", {}),
                         httpx_client_factory=httpx_client_factory
                     )
-                    log_info(
+                    logger.info(
                         "Using StreamableHttpTransport for remote server",
                         server_name=server_name,
                         transport_type="StreamableHttpTransport",
@@ -187,7 +187,7 @@ class MCPClientManager:
                     )
                 elif isinstance(server_instance, dict) and "command" in server_instance:
                     transport = StdioTransport(**server_instance)
-                    log_info(
+                    logger.info(
                         "Using StdioTransport for local server",
                         server_name=server_name,
                         transport_type="StdioTransport",
@@ -195,7 +195,7 @@ class MCPClientManager:
                 else:
                     # 其他类型的服务器实例
                     transport = server_instance
-                    log_info(
+                    logger.info(
                         "Using custom transport for server",
                         server_name=server_name,
                         transport_type="custom",
@@ -204,9 +204,9 @@ class MCPClientManager:
                 client = Client(transport=transport)
                 self.clients[server_name] = client
 
-                log_info("MCP Server registered", server_name=server_name)
+                logger.info("MCP Server registered", server_name=server_name)
             except Exception as e:
-                log_error(
+                logger.error(
                     "Failed to register MCP Server",
                     error=e,
                     server_name=server_name,
@@ -222,7 +222,7 @@ class MCPClientManager:
                 for tool in tools:
                     tool_name = tool.name
                     if tool_name in self.tools_map:
-                        log_warning(
+                        logger.warning(
                             "Tool name conflict",
                             tool_name=tool_name,
                             existing_server=self.tools_map[tool_name],
@@ -230,32 +230,32 @@ class MCPClientManager:
                         )
                     self.tools_map[tool_name] = server_name
 
-                log_info(
+                logger.info(
                     "MCP Server connected",
                     server_name=server_name,
                     tool_count=len(tools),
                 )
 
             except Exception as e:
-                log_error(
+                logger.error(
                     "Failed to connect MCP Server",
                     error=e,
                     server_name=server_name,
                 )
 
         self._initialized = True
-        log_info(
+        logger.info(
             "MCP Client Manager initialized",
             total_tools=len(self.tools_map),
         )
 
     def cleanup(self) -> None:
         """清理所有连接"""
-        log_info("Cleaning up MCP Client Manager")
+        logger.info("Cleaning up MCP Client Manager")
         self.clients.clear()
         self.tools_map.clear()
         self._initialized = False
-        log_info("MCP Client Manager cleanup completed")
+        logger.info("MCP Client Manager cleanup completed")
 
     async def list_tools(self, server_names: Optional[list[str]] = None) -> Dict[str, List[Any]]:
         """
@@ -286,7 +286,7 @@ class MCPClientManager:
         results = await asyncio.gather(*tasks, return_exceptions=True)
         for server_name, tools in zip(server_names, results):
             if isinstance(tools, Exception):
-                log_error(
+                logger.error(
                     "Failed to get tools list",
                     error=tools,
                     server_name=server_name,
@@ -330,21 +330,21 @@ class MCPClientManager:
         client = self.clients[server_name]
 
         try:
-            log_info(
+            logger.info(
                 "Calling tool",
                 tool_name=tool_name,
                 server_name=server_name,
             )
             async with client:
                 result = await client.call_tool(tool_name, arguments or {}, timeout=30)
-            log_info(
+            logger.info(
                 "Tool executed successfully",
                 tool_name=tool_name,
                 server_name=server_name,
             )
             return result
         except Exception as e:
-            log_error(
+            logger.error(
                 "Tool execution failed",
                 error=e,
                 tool_name=tool_name,
@@ -446,13 +446,13 @@ class MCPClientManager:
                 # # 尝试列出工具来检查连接是否正常(为了避免该请求比较耗时，因此临时注释)
                 # async with client:
                 #     await client.list_tools()
-                log_info("Health check passed", server_name=server_name)
+                logger.info("Health check passed", server_name=server_name)
                 if server_name in self.tools_by_server:
                     return server_name, True
                 else:
                     return server_name, False
             except Exception as e:
-                log_error(
+                logger.error(
                     "Health check failed",
                     error=e,
                     server_name=server_name,
@@ -472,7 +472,7 @@ class MCPClientManager:
         for result in results:
             if isinstance(result, Exception):
                 # 如果任务本身出现异常，记录错误
-                log_error("Health check task exception", error=result)
+                logger.error("Health check task exception", error=result)
             else:
                 server_name, is_healthy = result
                 health_status[server_name] = is_healthy

@@ -12,7 +12,7 @@ from app.utils.network import get_audit_client_ip
 from app.utils.logger import (
     client_id_var,
     client_ip_var,
-    log_info,
+    logger,
     request_id_var,
     user_id_var,
     anonymous_user_id_var,
@@ -31,6 +31,38 @@ def should_skip_logging(path: str) -> bool:
     return path in SKIP_LOGGING_PATHS
 
 
+def set_context_var(request: Request) -> None:
+    """设置日志上下文变量
+
+    从请求中提取并设置以下上下文变量：
+    - request_id: 请求 ID（从请求头获取或生成新的）
+    - user_id: 用户 ID（从 JWT token 中提取）
+    - anonymous_user_id: 匿名用户 ID（从请求头获取）
+    - client_id: 客户端 ID（从请求头获取）
+    - client_ip: 客户端 IP（从请求中提取）
+
+    Args:
+        request: FastAPI 请求对象
+    """
+    # 生成 request_id（所有请求都需要，用于追踪）
+    request_id = request.headers.get("X-Request-ID") or gen_uuid()
+    request_id_var.set(request_id)
+
+    # 获取 user_id（所有请求都需要，用于追踪）
+    if user_id := get_user_id_from_token(request.headers.get("Authorization")):
+        user_id_var.set(user_id)
+    elif anonymous_user_id := request.headers.get("X-Anonymous-User-ID"):
+        anonymous_user_id_var.set(anonymous_user_id)
+
+    # 获取客户端 ID（所有请求都需要，用于追踪）
+    if client_id := request.headers.get("X-Client-ID"):
+        client_id_var.set(client_id)
+
+    # 获取客户端 IP（所有请求都需要，用于安全审计）
+    if client_ip := get_audit_client_ip(request):
+        client_ip_var.set(client_ip)
+
+
 class LoggingMiddleware(BaseHTTPMiddleware):
     """日志中间件
 
@@ -38,7 +70,6 @@ class LoggingMiddleware(BaseHTTPMiddleware):
     1. 为每个请求生成唯一的 request_id（所有请求都需要）
     2. 将 request_id、client_ip 等绑定到日志上下文（所有请求都需要）
     3. 记录请求开始和结束日志（可配置跳过某些路径）
-    4. 在响应头中返回 request_id（便于前端追踪）
 
     注意：
     - request_id 和上下文绑定对所有请求都执行（这是必要的）
@@ -47,7 +78,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
     执行顺序说明（FastAPI 请求处理流程）：
     ┌─────────────────────────────────────────────────────────────┐
     │ 1. 中间件（Middleware）- 最外层                             │
-    │    ├─ 生成 request_id 并绑定到上下文                        │
+    │    ├─ 设置日志上下文变量（request_id、user_id 等）          │
     │    ├─ 记录 "Request started" 日志                           │
     │    └─ 调用 call_next(request)                               │
     │         ↓                                                    │
@@ -70,7 +101,6 @@ class LoggingMiddleware(BaseHTTPMiddleware):
     │    └─ 如：关闭数据库会话                                    │
     │         ↓                                                    │
     │ 6. 中间件继续（Middleware Continue）                         │
-    │    ├─ 添加响应头 X-Request-ID                                │
     │    └─ 记录 "Request completed" 日志                          │
     └─────────────────────────────────────────────────────────────┘
 
@@ -81,24 +111,8 @@ class LoggingMiddleware(BaseHTTPMiddleware):
     """
 
     async def dispatch(self, request: Request, call_next):
-        # 生成 request_id（所有请求都需要，用于追踪）
-        request_id = request.headers.get("X-Request-ID") or gen_uuid()
-        request_id_var.set(request_id)
-
-        # 获取 user_id（所有请求都需要，用于追踪）
-        if user_id := get_user_id_from_token(request.headers.get("Authorization")):
-            user_id_var.set(user_id)
-        elif anonymous_user_id := request.headers.get(
-                "X-Anonymous-User-ID"):
-            anonymous_user_id_var.set(anonymous_user_id)
-
-        # 获取客户端 ID（所有请求都需要，用于追踪）
-        if client_id := request.headers.get("X-Client-ID"):
-            client_id_var.set(client_id)
-
-        # 获取客户端 IP（所有请求都需要，用于安全审计）
-        if client_ip := get_audit_client_ip(request):
-            client_ip_var.set(client_ip)
+        # 设置日志上下文变量
+        set_context_var(request)
 
         # 判断是否需要记录详细日志
         should_log = not should_skip_logging(request.url.path)
@@ -106,7 +120,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         # 记录请求开始（仅对需要记录的请求）
         start_time = time.time()
         if should_log:
-            log_info(
+            logger.info(
                 "Request started",
                 method=request.method,
                 path=request.url.path,
@@ -123,7 +137,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
             # 记录请求完成（仅对需要记录的请求）
             if should_log:
-                log_info(
+                logger.info(
                     "Request completed",
                     method=request.method,
                     path=request.url.path,
@@ -138,8 +152,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             process_time = time.time() - start_time
 
             # 记录请求失败（错误日志总是记录，即使路径在跳过列表中）
-            from app.utils.logger import log_error
-            log_error(
+            logger.error(
                 "Request failed",
                 method=request.method,
                 path=request.url.path,
@@ -148,8 +161,3 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                 error_type=type(e).__name__,
             )
             raise
-
-
-def get_request_id() -> str | None:
-    """获取当前请求的 request_id"""
-    return request_id_var.get()

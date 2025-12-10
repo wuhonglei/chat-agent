@@ -109,8 +109,8 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
         except Exception as e:
             # 如果 Nacos 配置获取失败，记录错误但不中断程序
             import sys
-            from app.utils.logger import log_error
-            log_error(
+            from app.utils.logger import logger
+            logger.error(
                 "Failed to load config from Nacos",
                 error=e,
             )

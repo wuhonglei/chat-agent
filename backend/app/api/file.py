@@ -12,7 +12,7 @@ from app.services.object_storage_service import ObjectStorageService
 from app.utils.auth_deps import require_auth
 from app.utils.decorators import handle_api_exceptions
 from app.utils.file import TempFileManager, get_file_extension, write_file_async
-from app.utils.logger import log_info
+from app.utils.logger import logger
 
 router = APIRouter()
 
@@ -41,7 +41,7 @@ async def upload_avatar(
     avatar_dir = Path(settings.storage.avatar_dir)
 
     file_size = file.size if hasattr(file, 'size') else None
-    log_info(
+    logger.info(
         "Avatar upload started",
         filename=file.filename,
         content_type=file.content_type,
@@ -53,7 +53,7 @@ async def upload_avatar(
     async with TempFileManager(avatar_dir, file_ext) as temp_file:
         # 写入文件
         await write_file_async(str(temp_file.path), file)
-        log_info(
+        logger.info(
             f"文件已保存到临时文件: "
             f"temp_file_path={str(temp_file.path)}",
         )
@@ -68,7 +68,7 @@ async def upload_avatar(
                 local_path=str(temp_file.path),
                 cos_path=cos_path
             )
-            log_info(
+            logger.info(
                 f"文件已上传到 COS: "
                 f"cos_path={cos_path}, file_url={new_file_url}",
             )
