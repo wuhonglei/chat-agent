@@ -1,6 +1,5 @@
 from fastapi import Request
 from ipaddress import ip_address
-from app.utils.logger import logger
 
 
 def validate_client_ip(ip: str, keep_private_ip: bool = False) -> str | None:
@@ -58,7 +57,6 @@ def get_client_ip(request: Request) -> str | None:
     """
     # 1. 优先检查 X-Forwarded-For（适用于多级代理）
     x_forwarded_for = request.headers.get("X-Forwarded-For")
-    logger.info("X-Forwarded-For", x_forwarded_for=x_forwarded_for)
     if x_forwarded_for:
         # 分割并取第一个IP，去除空格
         ip = x_forwarded_for.split(",")[0].strip()
@@ -67,7 +65,6 @@ def get_client_ip(request: Request) -> str | None:
 
     # 2. 检查 X-Real-IP（某些代理服务器使用）
     x_real_ip = request.headers.get("X-Real-IP")
-    logger.info("X-Real-IP", x_real_ip=x_real_ip)
     if x_real_ip:
         ip = x_real_ip.strip()
         if ip:
@@ -76,8 +73,6 @@ def get_client_ip(request: Request) -> str | None:
     # 3. 使用直接连接的客户端IP
     if request.client and request.client.host:
         ip = request.client.host.strip()
-        logger.info("request.client.host",
-                    request_client_host=request.client.host)
         if ip:
             return ip
 

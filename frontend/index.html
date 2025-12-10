@@ -17,20 +17,6 @@
           env: location.hostname.includes("localhost")
             ? "development"
             : "production",
-          api: {
-            retCodeHandler(data) {
-              // 自定义返回码处理
-              try {
-                const result = JSON.parse(data);
-                return {
-                  isErr: result.code !== 0, // 非0为异常
-                  code: result.code,
-                };
-              } catch (e) {
-                return { isErr: true };
-              }
-            },
-          },
         });
       }
     </script>
