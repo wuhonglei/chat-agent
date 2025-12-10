@@ -16,6 +16,7 @@
     "@ant-design/x-markdown": "^2.1.0",
     "@microsoft/fetch-event-source": "^2.0.1",
     "@reduxjs/toolkit": "^2.0.0",
+    "aegis-web-sdk": "^1.41.10",
     "ahooks": "^3.9.5",
     "antd": "^6.0.0",
     "antd-img-crop": "^4.27.0",

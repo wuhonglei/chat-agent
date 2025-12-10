@@ -24,13 +24,12 @@ declare function gtag(
 /**
  * 腾讯云监控团队提供的前端监控 aegis 类型定义
  * 文档: https://www.npmjs.com/package/aegis-web-sdk
+ * 通过 CDN 引入的全局变量，使用 aegis-web-sdk 包的类型定义
  */
-declare namespace aegis {
-  interface Params {
-    name: string; // "XXX请求成功"; 必填
-    ext1?: string | number; // "额外参数1"
-    ext2?: string | number; // "额外参数2"
-    ext3?: string | number; // "额外参数3"
-  }
-  function reportEvent(params: Params): void;
+import type Aegis from "aegis-web-sdk";
+
+declare global {
+  // 声明全局变量 aegis，类型为 Aegis 实例
+  // eslint-disable-next-line no-var
+  var aegis: Aegis | undefined;
 }

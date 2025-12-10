@@ -8,6 +8,7 @@ class AuthHeader {
   constructor() {
     this.secretTokenInfo = localStorage.getItem(tokenName) || "";
     this.jwtPayload = this.decodeJwtPayload(this.secretTokenInfo);
+    this.updateAegisConfig();
   }
 
   public getJwtPayload(): JwtPayload | null {
@@ -26,12 +27,20 @@ class AuthHeader {
     this.secretTokenInfo = token;
     localStorage.setItem(tokenName, token);
     this.jwtPayload = this.decodeJwtPayload(token);
+    this.updateAegisConfig();
+  }
+
+  private updateAegisConfig(): void {
+    aegis?.setConfig({
+      uin: this.getUserId(),
+    });
   }
 
   public removeAuthorizationHeader(): void {
     this.secretTokenInfo = "";
     localStorage.removeItem(tokenName);
     this.jwtPayload = null;
+    this.updateAegisConfig();
   }
 
   private decodeJwtPayload(token: string): JwtPayload | null {
