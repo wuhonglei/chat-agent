@@ -12,6 +12,7 @@ import {
   isUserDetailApi,
   jumpToLocation,
   redirectToLogin,
+  reportError,
   toChatPage,
 } from "@/utils";
 import camelcaseKeys from "camelcase-keys";
@@ -78,6 +79,12 @@ apiClient.interceptors.response.use(
     if (code !== 0) {
       const message = getMessageInstance();
       message.error(msg);
+      // 上报API错误
+      reportError(`API Error: ${msg}`, {
+        code,
+        url: response.config.url,
+        method: response.config.method,
+      });
       // 当前 conversation 不存在
       if (isConversationNotFound(code, response.config.url)) {
         toChatPage(undefined);
@@ -106,6 +113,13 @@ apiClient.interceptors.response.use(
         return Promise.reject(error);
       }
 
+      // 上报API网络错误
+      reportError("API Network Error", {
+        status: error.response.status,
+        url: error.config?.url,
+        method: error.config?.method,
+      });
+
       // Convert error response to camelCase
       if (isPlainObject(error.response.data)) {
         error.response.data = camelcaseKeys(error.response.data, {
@@ -119,6 +133,10 @@ apiClient.interceptors.response.use(
       }
       console.error("API Error:", error.response.data);
     } else if (error.request) {
+      // 上报API请求错误
+      reportError("API Request Error", {
+        url: error.config?.url,
+      });
       console.error("Network Error:", error.request);
     } else {
       console.error("Error:", error.message);

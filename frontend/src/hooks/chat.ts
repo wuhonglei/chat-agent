@@ -49,6 +49,7 @@ import {
   getRemovedMessageIds,
   isTitleCreatedByDefault,
   isUserRole,
+  reportError,
 } from "@/utils";
 import { useMemoizedFn, useRequest } from "ahooks";
 import { App } from "antd";
@@ -270,6 +271,8 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
             if (msg) {
               message.error(msg);
             }
+            // 流式输出时，返回消息类型为 error 时，上报错误
+            reportError(`Stream Error: ${msg}`, { msg, conversationId });
           },
         };
 
@@ -299,8 +302,11 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
             }
           },
           (error: Error) => {
-            // 流错误
-            console.error("Stream error:", error);
+            // 流式传输错误
+            reportError(`Stream Error: ${error.message}`, {
+              error: error.message,
+              conversationId,
+            });
             resetState(conversationId);
           },
           () => {

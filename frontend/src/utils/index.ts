@@ -1,3 +1,4 @@
+export * from "./aegis";
 export * from "./chat";
 export * from "./common";
 export * from "./conversion";
