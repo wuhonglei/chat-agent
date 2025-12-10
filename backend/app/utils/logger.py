@@ -43,10 +43,7 @@ def production_sink(message):
     - timestamp: 时间戳（ISO 8601 格式，系统本地时区，便于阅读和理解）
     - level: 日志级别
     - message: 日志消息
-    - module: 模块名
-    - function: 函数名
-    - file: 文件名（简化）
-    - line: 行号
+    - location: 代码位置（格式：file:line:function，便于快速定位问题）
     - extra: 上下文信息（request_id, user_id 等）
     - exception: 异常信息（如果有）
 
@@ -58,14 +55,14 @@ def production_sink(message):
     """
     record = message.record
     # 构建精简的日志记录
+    # 合并代码位置信息为紧凑格式：module:function:line（与 debug_log_format 保持一致）
+    location = f"{record['name']}:{record['function']}:{record['line']}"
+
     serialized = {
         "timestamp": format_datetime_to_iso8601(record["time"]),
         "level": record["level"].name,
         "message": record["message"],
-        "module": record["module"],
-        "function": record["function"],
-        "file": record["file"].name,
-        "line": record["line"],
+        "location": location,
     }
 
     # 添加 extra 字段（包含 request_id, user_id, client_ip 等上下文信息）
