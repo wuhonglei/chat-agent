@@ -2,7 +2,10 @@ import axios, { AxiosResponse, InternalAxiosRequestConfig } from "axios";
 
 import { authHeader } from "@/constants";
 import {
+  getAnonymousUserId,
+  getClientId,
   getRedirectUrl,
+  getUUID,
   isConversationNotFound,
   isInLoginPage,
   isUnAuthorized,
@@ -25,6 +28,24 @@ const apiClient = axios.create({
   },
 });
 
+export function addRequestHeaders<T extends Record<string, string>>(
+  headers: T
+): T {
+  const newHeaders = {
+    ...headers,
+    Authorization: authHeader.getAuthorizationHeader(),
+    "X-Request-ID": getUUID(),
+    "X-Client-ID": getClientId(),
+  } as Record<string, string>;
+
+  // 如果用户未登录，则添加匿名 ID
+  if (!authHeader.getUserId()) {
+    newHeaders["X-Anonymous-User-ID"] = getAnonymousUserId();
+  }
+
+  return newHeaders as T;
+}
+
 // Request interceptor - Convert all request data to snake_case
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
@@ -36,8 +57,7 @@ apiClient.interceptors.request.use(
     if (isPlainObject(config.params)) {
       config.params = snakecaseKeys(config.params, { deep: true });
     }
-    // Add token or other auth headers here if needed
-    config.headers.Authorization = authHeader.getAuthorizationHeader();
+    config.headers = addRequestHeaders(config.headers);
     return config;
   },
   error => {

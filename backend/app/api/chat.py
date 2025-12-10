@@ -14,7 +14,7 @@ from app.services.message_service import MessageService
 from app.utils.auth_deps import require_auth
 from app.utils.common import gen_uuid
 from app.utils.logger import log_error, log_info
-from app.utils.network import get_client_ip
+from app.utils.network import get_public_client_ip
 from app.utils.time import get_current_time, get_time_duration
 
 router = APIRouter()
@@ -25,7 +25,7 @@ async def chat_stream(
     request: Request,
     chat_request: ChatRequest,
     _auth: None = Depends(require_auth),
-    client_ip: str | None = Depends(get_client_ip),
+    client_ip: str | None = Depends(get_public_client_ip),
 ):
     """Stream chat response, 按需保存用户与助手消息"""
     conversation_id = chat_request.conversation_id

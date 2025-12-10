@@ -9,7 +9,45 @@ from app.jwt.jwt_manager import JWTManager, get_jwt_manager
 from app.models.auth import RefreshTokenRequest
 from app.models.token import SecretTokenInfo
 from app.services.cloudbase_service import CloudbaseService
-from app.utils.logger import log_error, log_info, user_id_var
+from app.utils.logger import log_error, log_info
+
+
+def get_auth_token(authorization: str) -> str:
+    """从请求头中获取认证令牌"""
+    return authorization.replace("Bearer ", "").strip()
+
+
+def get_user_id_from_token(
+    authorization: str | None,
+    jwt_manager: JWTManager | None = None
+) -> str | None:
+    """从 token 中获取 user_id
+
+    可以在中间件或依赖注入中使用。
+    - 在中间件中：需要手动传入 jwt_manager 或从 request.app.state 获取
+    - 在依赖注入中：可以使用 Depends(get_jwt_manager) 传入
+
+    Args:
+        authorization: Authorization 请求头的值，例如 "Bearer xxx"
+        jwt_manager: JWT 管理器实例。如果为 None，则使用 get_jwt_manager() 获取
+
+    Returns:
+        user_id 字符串，如果无法获取则返回 None
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+
+    # 如果没有提供 jwt_manager，则获取全局实例
+    if jwt_manager is None:
+        jwt_manager = get_jwt_manager()
+
+    token = get_auth_token(authorization)
+    try:
+        payload = jwt_manager.decode_token_without_verification(token)
+        return payload.get("user_id")
+    except Exception as e:
+        log_error("Failed to get user_id from token", error=e)
+        return None
 
 
 async def get_auth_token_info(
@@ -42,7 +80,7 @@ async def get_auth_token_info(
     if not auth_header or not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="缺少认证令牌")
 
-    token = auth_header.replace("Bearer ", "").strip()
+    token = get_auth_token(auth_header)
 
     # 2. 验证 jwt 的签名一致性和过期时间
     try:
@@ -50,11 +88,6 @@ async def get_auth_token_info(
         # 如果没有过期，直接获取 user_id
         if not payload.get("user_id"):
             raise HTTPException(status_code=401, detail="Token 中缺少 user_id")
-
-        # 绑定 user_id 到日志上下文
-        user_id = payload.get("user_id")
-        if user_id:
-            user_id_var.set(user_id)
 
         return SecretTokenInfo(**payload)
 
@@ -77,9 +110,6 @@ async def get_auth_token_info(
             if not user_id:
                 raise HTTPException(
                     status_code=401, detail="无法从过期 token 中获取 user_id")
-
-            # 绑定 user_id 到日志上下文
-            user_id_var.set(user_id)
 
             # 使用 refresh_token 刷新 access token
             refresh_request = RefreshTokenRequest(refresh_token=refresh_token)

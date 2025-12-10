@@ -16,6 +16,17 @@ from loguru import logger
 
 from app.utils.time import format_datetime_to_iso8601
 
+# 上下文变量，用于存储请求相关的上下文信息
+request_id_var: ContextVar[Optional[str]] = ContextVar(
+    "request_id", default=None)
+user_id_var: ContextVar[Optional[str]] = ContextVar("user_id", default=None)
+anonymous_user_id_var: ContextVar[Optional[str]] = ContextVar(
+    "anonymous_user_id", default=None)
+client_id_var: ContextVar[Optional[str]] = ContextVar(
+    "client_id", default=None)
+client_ip_var: ContextVar[Optional[str]] = ContextVar(
+    "client_ip", default=None)
+
 
 def production_sink(message):
     """生产环境自定义 sink，输出精简的 JSON 格式日志
@@ -82,14 +93,6 @@ def production_sink(message):
     sys.stderr.write(json.dumps(serialized, ensure_ascii=False) + "\n")
 
 
-# 上下文变量，用于存储请求相关的上下文信息
-request_id_var: ContextVar[Optional[str]] = ContextVar(
-    "request_id", default=None)
-user_id_var: ContextVar[Optional[str]] = ContextVar("user_id", default=None)
-client_ip_var: ContextVar[Optional[str]] = ContextVar(
-    "client_ip", default=None)
-
-
 def get_log_context() -> dict[str, Any]:
     """获取当前日志上下文信息"""
     context = {}
@@ -97,6 +100,10 @@ def get_log_context() -> dict[str, Any]:
         context["request_id"] = request_id
     if user_id := user_id_var.get():
         context["user_id"] = user_id
+    if anonymous_user_id := anonymous_user_id_var.get():
+        context["anonymous_user_id"] = anonymous_user_id
+    if client_id := client_id_var.get():
+        context["client_id"] = client_id
     if client_ip := client_ip_var.get():
         context["client_ip"] = client_ip
     return context
@@ -214,6 +221,7 @@ __all__ = [
     "setup_logger",
     "request_id_var",
     "user_id_var",
+    "anonymous_user_id_var",
     "client_ip_var",
     "get_log_context",
 ]

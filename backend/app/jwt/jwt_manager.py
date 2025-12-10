@@ -78,7 +78,7 @@ class JWTManager:
         )
         return payload
 
-    def decode_token_without_verification(self, token):
+    def decode_token_without_verification(self, token) -> dict[str, Any]:
         """解码 token 但不验证签名（仅用于调试）"""
         return jwt.decode(token, options={"verify_signature": False})
 

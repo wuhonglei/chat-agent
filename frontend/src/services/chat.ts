@@ -1,17 +1,17 @@
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 import { AxiosResponse } from "axios";
 
-import {
-  ChatRequest,
-  StreamMessage,
-  MCPConfigItem,
-  ChatMessage,
-} from "@/interfaces";
-import { apiClient } from "./base";
-import snakecaseKeys from "snakecase-keys";
-import camelcaseKeys from "camelcase-keys";
 import { authHeader } from "@/constants";
+import {
+  ChatMessage,
+  ChatRequest,
+  MCPConfigItem,
+  StreamMessage,
+} from "@/interfaces";
 import { isUnAuthorized, toLoginPage } from "@/utils";
+import camelcaseKeys from "camelcase-keys";
+import snakecaseKeys from "snakecase-keys";
+import { addRequestHeaders, apiClient } from "./base";
 
 // Chat API
 export const chatAPI = {
@@ -38,10 +38,9 @@ export const chatAPI = {
   ): Promise<void> => {
     await fetchEventSource(`${apiClient.defaults.baseURL}/chat/stream`, {
       method: "POST",
-      headers: {
+      headers: addRequestHeaders({
         "Content-Type": "application/json",
-        Authorization: authHeader.getAuthorizationHeader(),
-      },
+      }),
       body: JSON.stringify(
         snakecaseKeys(data as unknown as Record<string, unknown>, {
           deep: true,

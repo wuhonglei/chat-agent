@@ -1,9 +1,9 @@
 import {
+  ConversationDetailResponse,
   ConversationInfo,
   ConversationListResponse,
   CreateConversationRequest,
   UpdateConversationRequest,
-  ConversationDetailResponse,
 } from "@/interfaces";
 import { apiClient } from "./base";
 

@@ -6,11 +6,18 @@ from uuid import uuid4
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app.utils.auth_deps import get_user_id_from_token
+from app.utils.common import gen_uuid
+from app.utils.network import get_audit_client_ip
 from app.utils.logger import (
+    client_id_var,
     client_ip_var,
     log_info,
     request_id_var,
+    user_id_var,
+    anonymous_user_id_var,
 )
+
 
 # 不需要记录日志的路径（通常是健康检查、监控等高频低价值请求）
 SKIP_LOGGING_PATHS = {
@@ -75,12 +82,23 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         # 生成 request_id（所有请求都需要，用于追踪）
-        request_id = str(uuid4())
+        request_id = request.headers.get("X-Request-ID") or gen_uuid()
         request_id_var.set(request_id)
 
+        # 获取 user_id（所有请求都需要，用于追踪）
+        if user_id := get_user_id_from_token(request.headers.get("Authorization")):
+            user_id_var.set(user_id)
+        elif anonymous_user_id := request.headers.get(
+                "X-Anonymous-User-ID"):
+            anonymous_user_id_var.set(anonymous_user_id)
+
+        # 获取客户端 ID（所有请求都需要，用于追踪）
+        if client_id := request.headers.get("X-Client-ID"):
+            client_id_var.set(client_id)
+
         # 获取客户端 IP（所有请求都需要，用于安全审计）
-        client_ip = request.client.host if request.client else None
-        client_ip_var.set(client_ip)
+        if client_ip := get_audit_client_ip(request):
+            client_ip_var.set(client_ip)
 
         # 判断是否需要记录详细日志
         should_log = not should_skip_logging(request.url.path)
@@ -102,9 +120,6 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
             # 计算处理时间
             process_time = time.time() - start_time
-
-            # 在响应头中添加 request_id（所有请求都需要，便于前端追踪）
-            response.headers["X-Request-ID"] = request_id
 
             # 记录请求完成（仅对需要记录的请求）
             if should_log:
