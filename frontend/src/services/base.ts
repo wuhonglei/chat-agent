@@ -16,7 +16,7 @@ import {
   toChatPage,
 } from "@/utils";
 import camelcaseKeys from "camelcase-keys";
-import { isPlainObject, isString } from "lodash-es";
+import { isPlainObject, isString, pick } from "lodash-es";
 import snakecaseKeys from "snakecase-keys";
 import { getMessageInstance } from "../utils/message";
 
@@ -47,6 +47,16 @@ export function addRequestHeaders<T extends Record<string, string>>(
   return newHeaders as T;
 }
 
+/**
+ * 从 headers 中提取 X-Request-ID 和 X-Client-ID
+ * 兼容 AxiosHeaders 和普通对象
+ */
+function extractRequestHeaders(
+  headers: unknown
+): Record<string, string> | undefined {
+  return pick(headers, ["X-Request-ID", "X-Client-ID"]);
+}
+
 // Request interceptor - Convert all request data to snake_case
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
@@ -68,6 +78,7 @@ apiClient.interceptors.request.use(
 
 // Response interceptor - Convert all response data to camelCase
 apiClient.interceptors.response.use(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (response: AxiosResponse<{ data: any; code: number; msg: string }>) => {
     const { code, msg, data: responseData } = response.data;
     // 如果响应头部中有 x-secret-token-info 则更新
@@ -84,6 +95,7 @@ apiClient.interceptors.response.use(
         code,
         url: response.config.url,
         method: response.config.method,
+        ...extractRequestHeaders(response.config.headers),
       });
       // 当前 conversation 不存在
       if (isConversationNotFound(code, response.config.url)) {
@@ -118,6 +130,7 @@ apiClient.interceptors.response.use(
         status: error.response.status,
         url: error.config?.url,
         method: error.config?.method,
+        ...extractRequestHeaders(error.config?.headers),
       });
 
       // Convert error response to camelCase
@@ -136,6 +149,7 @@ apiClient.interceptors.response.use(
       // 上报API请求错误
       reportError("API Request Error", {
         url: error.config?.url,
+        ...extractRequestHeaders(error.config?.headers),
       });
       console.error("Network Error:", error.request);
     } else {
