@@ -40,7 +40,9 @@ async def execute_single_tool(tool_call: ChatCompletionMessageToolCall, mcp_clie
     tool_name = tool_call.function.name
     tool_args = json.loads(tool_call.function.arguments)
     logger.info(f"执行工具: {tool_name}, 参数: {tool_args}")
-    result = await mcp_client_manager.call_tool(tool_name, tool_args)
+    result, filtered_params = await mcp_client_manager.call_tool(tool_name, tool_args)
+    if filtered_params:
+        logger.warning(f"被过滤的参数: {filtered_params}")
     logger.info(f"工具结果:")
     result_str = mcp_client_manager.format_mcp_result(result)
     logger.info(result_str[:200] + "..." + result_str[-200:]

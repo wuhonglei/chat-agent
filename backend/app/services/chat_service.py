@@ -187,8 +187,23 @@ class ChatService:
                         tool_name=tool_name,
                         arguments=arguments,
                     )
-                    result = await self.mcp_manager.call_tool(tool_name, arguments)
+                    result, filtered_params = await self.mcp_manager.call_tool(tool_name, arguments)
                     content = self.mcp_manager.format_mcp_result(result)
+
+                    # 如果有参数被过滤，在返回内容前添加警告信息，告知 LLM
+                    if filtered_params:
+                        warning_msg = (
+                            f"⚠️ 警告：以下参数被忽略（工具 {tool_name} 不支持这些参数）："
+                            f"{', '.join(filtered_params)}。"
+                            f"请勿在后续调用中使用这些参数。\n\n"
+                        )
+                        content = warning_msg + content
+                        logger.info(
+                            "Added filtered params warning to tool result",
+                            tool_name=tool_name,
+                            filtered_params=filtered_params,
+                        )
+
                     logger.info(
                         "MCP tool result received",
                         tool_name=tool_name,

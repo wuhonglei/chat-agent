@@ -300,7 +300,7 @@ class MCPClientManager:
         self,
         tool_name: str,
         arguments: Optional[Dict[str, Any]] = None
-    ) -> Any:
+    ) -> tuple[Any, list[str]]:
         """
         调用指定的工具
 
@@ -309,7 +309,7 @@ class MCPClientManager:
             arguments: 工具参数
 
         Returns:
-            工具执行结果
+            tuple: (工具执行结果, 被过滤的参数列表)
 
         Raises:
             ValueError: 工具不存在
@@ -329,20 +329,33 @@ class MCPClientManager:
         server_name = self.tools_map[tool_name]
         client = self.clients[server_name]
 
+        # 过滤掉工具不支持的参数
+        filtered_arguments = self._filter_tool_arguments(
+            tool_name, server_name, arguments or {})
+
+        # 记录被过滤的参数
+        removed_params = list(set(arguments or {}) - set(filtered_arguments))
+
         try:
             logger.info(
                 "Calling tool",
                 tool_name=tool_name,
                 server_name=server_name,
             )
+            if removed_params:
+                logger.warning(
+                    "Filtered unsupported tool arguments",
+                    tool_name=tool_name,
+                    removed_params=removed_params,
+                )
             async with client:
-                result = await client.call_tool(tool_name, arguments or {}, timeout=30)
+                result = await client.call_tool(tool_name, filtered_arguments, timeout=30)
             logger.info(
                 "Tool executed successfully",
                 tool_name=tool_name,
                 server_name=server_name,
             )
-            return result
+            return result, removed_params
         except Exception as e:
             logger.error(
                 "Tool execution failed",
@@ -351,6 +364,45 @@ class MCPClientManager:
                 server_name=server_name,
             )
             raise
+
+    def _filter_tool_arguments(
+        self,
+        tool_name: str,
+        server_name: str,
+        arguments: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        根据工具的 schema 过滤掉不支持的参数
+
+        Args:
+            tool_name: 工具名称
+            server_name: 服务器名称
+            arguments: 原始参数
+
+        Returns:
+            过滤后的参数
+        """
+        if server_name not in self.tools_by_server:
+            return arguments
+
+        # 查找工具的 schema
+        for tool in self.tools_by_server[server_name]:
+            if tool.name == tool_name:
+                if hasattr(tool, 'inputSchema') and tool.inputSchema:
+                    # 获取工具支持的参数列表
+                    properties = tool.inputSchema.get('properties', {})
+                    supported_params = set(properties.keys())
+
+                    # 过滤掉不支持的参数
+                    filtered = {
+                        key: value
+                        for key, value in arguments.items()
+                        if key in supported_params
+                    }
+                    return filtered
+
+        # 如果找不到工具定义，返回原始参数（让 fastmcp 自己处理验证）
+        return arguments
 
     @staticmethod
     def format_mcp_result(result: Any) -> str:
