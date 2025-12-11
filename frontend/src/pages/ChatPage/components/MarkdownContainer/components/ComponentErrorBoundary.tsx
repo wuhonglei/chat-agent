@@ -1,3 +1,4 @@
+import { debounce } from "lodash-es";
 import { Component, ErrorInfo, ReactNode } from "react";
 import CodeHighlighter from "./CodeHighlighter";
 
@@ -18,6 +19,8 @@ interface State {
  * 当组件内部执行出错时，降级为代码高亮展示
  */
 class ComponentErrorBoundary extends Component<Props, State> {
+  private resetErrorDebounced = debounce(this.resetError, 1000);
+
   constructor(props: Props) {
     super(props);
     this.state = { hasError: false };
@@ -27,6 +30,10 @@ class ComponentErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
+  private resetError() {
+    this.setState({ hasError: false, error: undefined });
+  }
+
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // 记录错误信息
     console.warn("组件渲染错误，降级为代码展示:", error, errorInfo);
@@ -34,6 +41,15 @@ class ComponentErrorBoundary extends Component<Props, State> {
     // 调用外部错误处理函数
     if (this.props.onError) {
       this.props.onError(error, errorInfo);
+    }
+  }
+
+  componentDidUpdate(prevProps: Props) {
+    // 当 fallbackCode 变化时，重置错误状态，允许重新尝试渲染
+    // 这样可以处理 JSON 从非法变为合法的情况
+    const codeChanged = prevProps.fallbackCode !== this.props.fallbackCode;
+    if (this.state.hasError && codeChanged) {
+      this.resetErrorDebounced();
     }
   }
 

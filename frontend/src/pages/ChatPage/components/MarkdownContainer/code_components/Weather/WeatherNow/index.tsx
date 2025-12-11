@@ -23,7 +23,11 @@ export default function WeatherNow({ data, location }: WeatherNowProps) {
         </div>
         <div className={styles.description}>
           {text || "-"}
-          <img src={`/weatherIcon/weather-icon-S2/64/${icon}.png`} alt={text} />
+          <img
+            src={`/weatherIcon/weather-icon-S2/64/${icon}.png`}
+            alt={text}
+            onError={e => e.currentTarget.remove()}
+          />
         </div>
       </div>
 
