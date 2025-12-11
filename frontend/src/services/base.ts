@@ -54,7 +54,7 @@ export function addRequestHeaders<T extends Record<string, string>>(
 function extractRequestHeaders(
   headers: unknown
 ): Record<string, string> | undefined {
-  return pick(headers, ["X-Request-ID", "X-Client-ID"]);
+  return pick(headers, ["X-Request-ID", "X-Client-ID", "X-Anonymous-User-ID"]);
 }
 
 // Request interceptor - Convert all request data to snake_case
@@ -91,8 +91,9 @@ apiClient.interceptors.response.use(
       const message = getMessageInstance();
       message.error(msg);
       // 上报API错误
-      reportError(`API Error: ${msg}`, {
+      reportError("API Error", {
         code,
+        msg,
         url: response.config.url,
         method: response.config.method,
         ...extractRequestHeaders(response.config.headers),

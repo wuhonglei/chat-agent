@@ -1,11 +1,14 @@
+import { WeatherNowProps } from "@/interfaces/weather";
 import { WeatherNow } from "@/pages/ChatPage/components/MarkdownContainer/code_components/Weather";
 import CodeHighlighter from "@/pages/ChatPage/components/MarkdownContainer/components/CodeHighlighter";
+import ComponentErrorBoundary from "@/pages/ChatPage/components/MarkdownContainer/components/ComponentErrorBoundary";
+import { reportError } from "@/utils/aegis";
 import { Mermaid } from "@ant-design/x";
 import XMarkdown from "@ant-design/x-markdown";
 import Latex from "@ant-design/x-markdown/plugins/Latex";
 import classNames from "classnames";
 import { jsonrepair } from "jsonrepair";
-import React, { memo } from "react";
+import React, { ErrorInfo, memo } from "react";
 import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 import InlineCode from "./components/InlineCode";
 import { useLanguage, useMarkdownTheme } from "./hooks";
@@ -22,6 +25,14 @@ const CustomCodeBlock = memo(
   ({ inline, className, children }: CustomCodeBlockProps) => {
     const code = String(children).replace(/\n$/, "");
     const language = useLanguage(className, code, inline);
+
+    const handleError = (error: Error, errorInfo: ErrorInfo) => {
+      console.error("组件渲染错误，降级为代码展示:", error, errorInfo);
+      reportError("Component Error", {
+        error: error,
+        componentStack: errorInfo.componentStack,
+      });
+    };
 
     if (inline || !language) {
       return <InlineCode>{code}</InlineCode>;
@@ -44,8 +55,17 @@ const CustomCodeBlock = memo(
 
     if (language === "component_weather") {
       try {
-        const parsedData = JSON.parse(jsonrepair(code));
-        return React.createElement(WeatherNow, parsedData);
+        const parsedData: WeatherNowProps = JSON.parse(jsonrepair(code));
+        // 使用错误边界包裹组件，捕获组件内部执行错误
+        return (
+          <ComponentErrorBoundary
+            fallbackCode={code}
+            fallbackLang="json"
+            onError={handleError}
+          >
+            <WeatherNow {...parsedData} />
+          </ComponentErrorBoundary>
+        );
       } catch (error) {
         // JSON 解析失败时，降级为代码高亮展示
         console.warn("天气组件 JSON 解析失败，降级为代码展示:", error);

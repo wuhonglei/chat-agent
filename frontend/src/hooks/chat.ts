@@ -272,7 +272,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
               message.error(msg);
             }
             // 流式输出时，返回消息类型为 error 时，上报错误
-            reportError(`Stream Error: ${msg}`, { msg, conversationId });
+            reportError("Stream Error", { error: data, conversationId });
           },
         };
 
@@ -303,8 +303,8 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
           },
           (error: Error) => {
             // 流式传输错误
-            reportError(`Stream Error: ${error.message}`, {
-              error: error.message,
+            reportError("Stream Error", {
+              error: error,
               conversationId,
             });
             resetState(conversationId);
