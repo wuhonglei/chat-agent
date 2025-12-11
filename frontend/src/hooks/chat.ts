@@ -50,6 +50,7 @@ import {
   isTitleCreatedByDefault,
   isUserRole,
   reportError,
+  reportEvent,
 } from "@/utils";
 import { useMemoizedFn, useRequest } from "ahooks";
 import { App } from "antd";
@@ -265,6 +266,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
               })
             );
             resetState(conversationId);
+            reportEvent("message_stream_done", data);
           },
           error: data => {
             const { msg } = data || {};
@@ -303,7 +305,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
           },
           (error: Error) => {
             // 流式传输错误
-            reportError("Stream Error", {
+            reportError("streamMessage onError", {
               error: error,
               conversationId,
             });

@@ -40,7 +40,17 @@ export type StreamMessage =
   | {
       type: "done";
       data: {
+        userMessageId: string;
+        conversationId: string;
+        assistantMessageId: string;
         lastMessageUpdatedAt: string;
+        contentLength: number;
+        reasoningLength: number;
+        toolCallsLength: number;
+        toolCallsDuration: number;
+        reasoningDuration: number;
+        contentDuration: number;
+        totalDuration: number;
       };
     }
   | {

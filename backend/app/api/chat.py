@@ -142,7 +142,19 @@ async def chat_stream(
                     'title': title
                 })
 
-            yield chat_service.format_sse_message('done', {'last_message_updated_at': assistant_message.updated_at.isoformat()})
+            yield chat_service.format_sse_message('done', {
+                'content_length': len(assistant_payload.content),
+                'reasoning_length': len(assistant_payload.reasoning),
+                'tool_calls_length': len(assistant_payload.tool_calls),
+                'tool_calls_duration': assistant_payload.tool_calls_duration,
+                'reasoning_duration': assistant_payload.reasoning_duration,
+                'content_duration': assistant_payload.content_duration,
+                'total_duration': assistant_payload.total_duration,
+                'user_message_id': user_message_id,
+                'conversation_id': conversation_id,
+                'assistant_message_id': assistant_message_id,
+                'last_message_updated_at': assistant_message.updated_at.isoformat(),
+            })
 
         return
 
