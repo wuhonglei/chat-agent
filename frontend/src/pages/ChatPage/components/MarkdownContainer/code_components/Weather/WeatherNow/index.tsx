@@ -1,5 +1,5 @@
 import { WeatherNowProps } from "@/interfaces/weather";
-import { formatTime } from "@/utils";
+import { formatTime, reportError } from "@/utils";
 import styles from "./index.module.css";
 import daytimeStyles from "./theme/daytime.module.css";
 import nighttimeStyles from "./theme/night.module.css";
@@ -9,6 +9,13 @@ export default function WeatherNow({ data, location }: WeatherNowProps) {
   const { tempMin, tempMax, temp, icon, text, obsTime } = data;
   const bgStyles = isDaytime(obsTime) ? daytimeStyles : nighttimeStyles;
   const backgroundClass = getWeatherBackgroundClass(icon, bgStyles);
+
+  function handleIconError(e: React.SyntheticEvent<HTMLImageElement>) {
+    e.currentTarget.remove();
+    reportError("Weather Icon Error", {
+      icon,
+    });
+  }
 
   return (
     <div className={`${styles.container} ${backgroundClass}`}>
@@ -24,9 +31,9 @@ export default function WeatherNow({ data, location }: WeatherNowProps) {
         <div className={styles.description}>
           {text || "-"}
           <img
-            src={`/weatherIcon/weather-icon-S2/64/${icon}.png`}
             alt={text}
-            onError={e => e.currentTarget.remove()}
+            src={`/weatherIcon/weather-icon-S2/64/${icon}.png`}
+            onError={handleIconError}
           />
         </div>
       </div>
