@@ -20,11 +20,9 @@ frontend/
 ├── src/
 │   ├── components/          # 可复用组件
 │   │   ├── Chat/           # 聊天相关组件
-│   │   ├── Document/       # 文档管理组件
 │   │   └── Layout/         # 布局组件
 │   ├── pages/              # 页面组件
 │   │   ├── ChatPage.tsx    # 聊天页面
-│   │   ├── DocumentsPage.tsx # 文档管理页面
 │   │   └── KnowledgeBasePage.tsx # 知识库页面
 │   ├── services/           # API 服务
 │   ├── store/              # Redux store
@@ -45,9 +43,8 @@ frontend/
 
 ## 功能特性
 
-- 📝 **文档管理**: 支持上传、查看和管理文档
 - 💬 **智能对话**: 与 AI 助手进行自然语言对话
-- 🔍 **知识检索**: 基于上传的文档进行智能问答
+- 🔍 **知识检索**: 基于外部内容进行智能问答
 - 📚 **知识库管理**: 创建和管理多个知识库
 - 🎨 **响应式设计**: 适配桌面和移动设备
 - 🌐 **实时通信**: 支持 SSE (Server-Sent Events) 流式响应
@@ -134,11 +131,6 @@ npm run build
 ## API 集成
 
 前端通过 `/api` 路径代理到后端服务，主要接口包括：
-
-- **文档管理**
-  - `POST /documents/upload` - 上传文档
-  - `GET /documents` - 获取文档列表
-  - `DELETE /documents/{id}` - 删除文档
 
 - **对话交互**
   - `POST /chat/stream` - 流式对话（SSE）

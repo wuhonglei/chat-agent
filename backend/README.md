@@ -4,12 +4,10 @@
 
 ## 功能特性
 
-- **文档管理**：支持 PDF、Word、Markdown、纯文本等多种格式文档上传和解析
-- **智能问答**：基于 RAG 技术的精准文档问答
+- **智能问答**：基于 RAG 技术的精准问答
 - **向量检索**：使用 ChromaDB 进行高效向量存储和检索
 - **内部系统集成**：支持 Confluence、Google Workspace 等企业内部系统知识库检索
 - **联网搜索**：支持联网搜索，通过 [tavily](https://www.tavily.com/) 获取最新信息
-- **文件搜索**: 支持对用户上传的文件(全部文件或指定文件)进行检索
 - **混合搜索**：结合向量检索和 BM25 关键词搜索，提高检索准确性
 - **重排序**：使用 Sentence Transformers 对检索结果进行重排序
 - **缓存机制**：Redis 缓存提升响应速度
@@ -19,7 +17,6 @@
 - **框架**: FastAPI
 - **LLM**: DeepSeek API
 - **向量数据库**: ChromaDB
-- **文档处理**: LangChain, Unstructured
 - **缓存**: Redis
 - **语言**: Python 3.10+
 
@@ -36,7 +33,6 @@ backend/
 │   └── main.py        # 应用入口
 ├── config/            # 配置文件
 ├── data/             # 数据存储目录
-│   ├── documents/    # 上传的文档
 │   ├── vectordb/     # 向量数据库存储
 │   └── temp/         # 临时文件
 ├── tests/            # 测试文件
@@ -143,12 +139,6 @@ docker exec -it ai-doc-backend uv run alembic upgrade head
 
 ## API 接口
 
-### 文档管理
-
-- `POST /api/v1/documents/upload` - 上传文档
-- `GET /api/v1/documents` - 获取文档列表
-- `DELETE /api/v1/documents/{doc_id}` - 删除文档
-
 ### 问答接口
 
 - `POST /api/v1/chat/ask` - 提问
@@ -178,13 +168,7 @@ CHROMA_PERSIST_DIRECTORY=./data/vectordb
 CHROMA_COLLECTION_NAME=documents
 ```
 
-### 文档处理配置
 
-```env
-CHUNK_SIZE=1000          # 文档分块大小
-CHUNK_OVERLAP=200        # 分块重叠字符数
-MAX_FILE_SIZE_MB=50      # 最大文件大小
-```
 
 ## Docker 部署
 
@@ -255,8 +239,6 @@ mypy app/
 ## 安全考虑
 
 - API 密钥使用环境变量管理
-- 文件上传大小限制
-- 文件类型白名单验证
 - 预留 JWT 认证接口
 
 ## 常见问题

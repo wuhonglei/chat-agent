@@ -5,12 +5,11 @@
 ## 🌟 主要特性
 
 - 🔍 **多源搜索**: 联网搜索、Confluence 内网搜索、Google Docs/Slides 搜索
-- 📄 **文档处理**: PDF、Word、Markdown 等本地文档的深度分析
 - 🤖 **智能问答**: 基于 DeepSeek 大模型的精准回答与深度推理
 - 🔗 **外部集成**: 支持 Confluence、Google Docs、Google Slides 等平台
 - 💬 **交互体验**: 多轮对话、实时中断、智能滚动、输入折叠
 - 📊 **可视化支持**: Mermaid 流程图、思维导图渲染
-- 🎨 **优秀交互**: 打字机效果、引用高亮、拖拽上传
+- 🎨 **优秀交互**: 打字机效果、引用高亮
 
 ## 🚀 快速开始
 
@@ -104,7 +103,6 @@ ai-doc/
 - **Web 框架**: FastAPI
 - **向量数据库**: Chroma
 - **LLM**: DeepSeek Chat API
-- **文档处理**: LangChain
 - **缓存**: Redis
 
 ### 前端
@@ -119,10 +117,6 @@ ai-doc/
 
 ### 主要接口
 
-- `POST /api/documents/upload` - 上传文档
-- `POST /api/documents/import-url` - 导入外部文档
-- `GET /api/documents` - 获取文档列表
-- `DELETE /api/documents/{id}` - 删除文档
 - `POST /api/chat` - 发送问答请求
 - `POST /api/chat/stream` - 流式问答
 - `GET /api/knowledge-base/export` - 导出知识库
@@ -130,29 +124,15 @@ ai-doc/
 
 ## 🔍 使用指南
 
-### 上传文档
-
-1. 拖拽文档到上传区域或点击选择文件
-2. 支持批量上传多个文档
-3. 系统自动处理和索引文档内容
-
-### 导入外部文档
-
-1. 选择文档来源（Confluence/Google Docs）
-2. 输入文档链接
-3. 系统自动抓取和处理文档内容
-
 ### 智能问答
 
 1. 在对话框输入您的问题
-2. 系统会从知识库中检索相关内容
-3. 基于检索结果生成准确回答
+2. 系统会通过多源搜索获取相关信息
+3. 基于搜索结果生成准确回答
 4. 点击引用可查看原文内容
 
 ### 知识库管理
 
-- 查看所有文档列表
-- 删除不需要的文档
 - 导出整个知识库
 - 查看知识库统计信息
 

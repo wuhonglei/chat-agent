@@ -16,7 +16,6 @@ LangChain 的主要组件包括：
 | -------------------- | ----------------------------- | ---------------------------------------------------------------------- |
 | **企业内部知识库**   | Document Loaders + Vector Stores | 加载 Confluence、Google Workspace 等文档，生成嵌入并存储到向量数据库中。 |
 | **联网搜索**         | Tools + API 调用              | 使用工具（如 Tavily API 或自定义联网搜索工具）获取实时数据并处理。       |
-| **本地文件搜索**     | Document Loaders + Vector Stores | 加载用户上传的文件，解析内容并生成嵌入向量。                            |
 
 ---
 
@@ -118,14 +117,7 @@ content: |-
 
 ---
 
-#### **3. 本地文件搜索**
-- **目标**：支持用户上传文件（如 PDF、Word）的检索。
-- **实现步骤**：
-  1. **加载文件**：
-     - 使用 LangChain 的 `Document Loaders` 加载本地文件。
-     - 示例：支持 PDF、Word 文件解析。
-  2. **生成嵌入**：
-     - 对文件内容进行分块并生成嵌入向量。
+
   3. **存储到向量数据库**：
      - 使用 LangChain 支持的向量存储（如 FAISS）。
   4. **检索内容**：
@@ -133,43 +125,16 @@ content: |-
   5. **整合到 LLM**：
      - 将检索的内容作为上下文输入到 LLM 中生成回答。
 
-- **代码示例**：
-````artifact
-id: langchain_local_files
-name: 本地文件检索
-type: code.python
-content: |-
-  from langchain.document_loaders import PyPDFLoader, UnstructuredFileLoader
-  from langchain.embeddings import OpenAIEmbeddings
-  from langchain.vectorstores import FAISS
-  from langchain.chains import RetrievalQA
 
-  # 加载本地文件
-  loader = PyPDFLoader("example.pdf")  # 支持 PDF 文件
-  documents = loader.load()
-
-  # 嵌入生成
-  embeddings = OpenAIEmbeddings()
-  vectorstore = FAISS.from_documents(documents, embeddings)
-
-  # 检索内容
-  retriever = vectorstore.as_retriever()
-  qa_chain = RetrievalQA.from_chain_type(llm=OpenAI(), retriever=retriever)
-
-  # 问答
-  query = "PDF 文件中提到的关键技术是什么？"
-  result = qa_chain.run(query)
-  print(result)
-````
 
 ---
 
 ### **总结**
 
-通过 LangChain，可以实现对 **企业内部知识库**、**联网搜索** 和 **本地文件搜索** 的统一检索流程。以下是它的优势：
+通过 LangChain，可以实现对 **企业内部知识库** 和 **联网搜索** 的统一检索流程。以下是它的优势：
 1. **模块化**：每个检索来源可以单独实现并灵活组合。
-2. **嵌入统一**：无论是企业文档、联网搜索还是本地文件，最终都可以生成嵌入向量并存储到统一的向量数据库中。
-3. **扩展性**：支持多种文档格式、搜索 API 和存储后端。
+2. **嵌入统一**：无论是企业文档还是联网搜索，最终都可以生成嵌入向量并存储到统一的向量数据库中。
+3. **扩展性**：支持多种搜索 API 和存储后端。
 4. **统一问答**：通过 `RetrievalQA` 或自定义链，统一处理检索和生成回答。
 
 如果你需要更具体的实现帮助或优化建议，可以告诉我！
