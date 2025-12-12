@@ -26,7 +26,6 @@ class AuthHeader {
     localStorage.setItem(tokenName, token);
 
     this.jwtPayload = this.decodeJwtPayload(token);
-    this.setUserId(this.jwtPayload?.user_id || "");
     this.updateAegisConfig();
   }
 
@@ -38,13 +37,11 @@ class AuthHeader {
     localStorage.setItem(this.userIdKey, userId);
   }
 
-  private removeUserId(): void {
-    localStorage.removeItem(this.userIdKey);
-  }
-
   private updateAegisConfig(): void {
+    const userId = this.jwtPayload?.user_id || "";
+    this.setUserId(userId);
     aegis?.setConfig({
-      uin: this.getUserId(),
+      uin: userId,
     });
   }
 
@@ -52,7 +49,6 @@ class AuthHeader {
     this.secretTokenInfo = "";
     localStorage.removeItem(tokenName);
     this.jwtPayload = null;
-    this.removeUserId();
     this.updateAegisConfig();
   }
 
