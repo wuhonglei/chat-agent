@@ -21,8 +21,8 @@
 ### 2.1 外部内容集成模块
 
 #### 2.1.1 外部链接接入
-- **链接支持**：支持Confluence、Google Docs、Google Slides等云端文档链接
-- **云端文档抓取**：自动抓取Confluence、Google Docs等云端文档内容
+- **链接支持**：支持Confluence等云端文档链接
+- **云端文档抓取**：自动抓取Confluence等云端文档内容
 - **元数据提取**：提取文档标题、作者、创建时间、来源链接等元信息
 - **预处理优化**：去除无关字符、格式化文本
 - **增量同步**：定期同步云端文档的更新
@@ -101,7 +101,7 @@
 - **Web框架**：FastAPI（Python）
 - **向量数据库**：Chroma
 - **LLM集成**：DeepSeek API
-- **外部集成**：Confluence API、Google Drive API
+- **外部集成**：Confluence API
 
 ### 3.3 RAG技术组件
 - **Embedding模型**：DeepSeek Embeddings/BGE模型
@@ -167,7 +167,7 @@
 
 ### 6.2 第二阶段：核心功能（3周）
 - 实现混合检索和重排序
-- 集成外部文档链接（Confluence、Google Docs）
+- 集成外部文档链接（Confluence）
 - 优化答案生成
 - 实现打字机效果和引用高亮
 
@@ -236,7 +236,7 @@
 - 用户问答满意度达到90%以上
 - 支持大量外部内容的知识库
 - 支持100个并发用户访问
-- 成功集成Confluence、Google Docs等外部平台
+- 成功集成Confluence等外部平台
 - 实现知识库分享和下载功能
 - 界面流畅，用户体验良好
 

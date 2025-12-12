@@ -14,7 +14,7 @@ LangChain 的主要组件包括：
 #### **三种检索来源与 LangChain 的组件映射**
 | 检索来源             | LangChain 组件                 | 功能说明                                                                 |
 | -------------------- | ----------------------------- | ---------------------------------------------------------------------- |
-| **企业内部知识库**   | Document Loaders + Vector Stores | 加载 Confluence、Google Workspace 等文档，生成嵌入并存储到向量数据库中。 |
+| **企业内部知识库**   | Document Loaders + Vector Stores | 加载 Confluence 等文档，生成嵌入并存储到向量数据库中。 |
 | **联网搜索**         | Tools + API 调用              | 使用工具（如 Tavily API 或自定义联网搜索工具）获取实时数据并处理。       |
 
 ---
@@ -22,11 +22,11 @@ LangChain 的主要组件包括：
 ### **具体实现流程**
 
 #### **1. 企业内部知识库检索**
-- **目标**：支持 Confluence、Google Workspace 等企业文档的检索。
+- **目标**：支持 Confluence 等企业文档的检索。
 - **实现步骤**：
   1. **加载文档**：
      - 使用 LangChain 的 `Document Loaders` 组件加载企业内部文档。
-     - 示例：Confluence API、Google Workspace API。
+     - 示例：Confluence API。
   2. **生成嵌入**：
      - 使用 `Embeddings`（如 OpenAI Embeddings 或 Hugging Face Embeddings）生成向量。
   3. **存储到向量数据库**：

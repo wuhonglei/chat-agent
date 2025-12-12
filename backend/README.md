@@ -6,7 +6,7 @@
 
 - **智能问答**：基于 RAG 技术的精准问答
 - **向量检索**：使用 ChromaDB 进行高效向量存储和检索
-- **内部系统集成**：支持 Confluence、Google Workspace 等企业内部系统知识库检索
+- **内部系统集成**：支持 Confluence 等企业内部系统知识库检索
 - **联网搜索**：支持联网搜索，通过 [tavily](https://www.tavily.com/) 获取最新信息
 - **混合搜索**：结合向量检索和 BM25 关键词搜索，提高检索准确性
 - **重排序**：使用 Sentence Transformers 对检索结果进行重排序

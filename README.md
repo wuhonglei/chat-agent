@@ -4,9 +4,9 @@
 
 ## 🌟 主要特性
 
-- 🔍 **多源搜索**: 联网搜索、Confluence 内网搜索、Google Docs/Slides 搜索
+- 🔍 **多源搜索**: 联网搜索、Confluence 内网搜索
 - 🤖 **智能问答**: 基于 DeepSeek 大模型的精准回答与深度推理
-- 🔗 **外部集成**: 支持 Confluence、Google Docs、Google Slides 等平台
+- 🔗 **外部集成**: 支持 Confluence 等平台
 - 💬 **交互体验**: 多轮对话、实时中断、智能滚动、输入折叠
 - 📊 **可视化支持**: Mermaid 流程图、思维导图渲染
 - 🎨 **优秀交互**: 打字机效果、引用高亮
@@ -153,12 +153,7 @@ CONFLUENCE_USERNAME=your_email@company.com
 CONFLUENCE_API_TOKEN=your_token
 ```
 
-### Google Workspace 集成（可选）
 
-```env
-GOOGLE_CLIENT_ID=your_client_id
-GOOGLE_CLIENT_SECRET=your_client_secret
-```
 
 ## 🤝 贡献指南
 
