@@ -135,8 +135,7 @@ class ChatService:
             })
             self.collected_tool_call_messages.append(assistant_message)
             yield assistant_message
-            tool_count = len(
-                assistant_message.tool_calls) if assistant_message.tool_calls else 0
+            tool_count = len(assistant_message.tool_calls)
             logger.info(
                 "Tool calls required",
                 tool_count=tool_count,
@@ -248,23 +247,22 @@ class ChatService:
                     return tool_call_result_message
 
             # Execute all tool calls in parallel
-            if assistant_message.tool_calls:
-                logger.info(
-                    "Executing tool calls in parallel",
-                    tool_count=len(assistant_message.tool_calls),
-                    iteration=iteration + 1,
-                )
-                # Create tasks for all tool calls
-                tasks = [execute_single_tool(
-                    tool_call) for tool_call in assistant_message.tool_calls]
-                # Execute all tasks in parallel
-                tool_results = await asyncio.gather(*tasks)
+            logger.info(
+                "Executing tool calls in parallel",
+                tool_count=tool_count,
+                iteration=iteration + 1,
+            )
+            # Create tasks for all tool calls
+            tasks = [execute_single_tool(
+                tool_call) for tool_call in assistant_message.tool_calls]
+            # Execute all tasks in parallel
+            tool_results = await asyncio.gather(*tasks)
 
-                # Yield results in original order and collect them
-                for tool_call_result_message in tool_results:
-                    self.collected_tool_call_messages.append(
-                        tool_call_result_message)
-                    yield tool_call_result_message
+            # Yield results in original order and collect them
+            for tool_call_result_message in tool_results:
+                self.collected_tool_call_messages.append(
+                    tool_call_result_message)
+                yield tool_call_result_message
 
         # If we hit max iterations, return error message
         logger.info(
