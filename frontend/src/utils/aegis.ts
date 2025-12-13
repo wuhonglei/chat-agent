@@ -3,6 +3,8 @@
  * 用于统一管理前端埋点上报
  */
 
+import { get } from "lodash-es";
+
 /**
  * 上报自定义事件
  * @param name 事件名称
@@ -51,21 +53,11 @@ export function reportSpeed(
  * @param error 错误对象或错误消息
  * @param params 额外参数
  */
-export function reportError(
-  error: Error | string,
-  params?: Record<string, any>
-): void {
+export function reportError(error: string, params?: Record<string, any>): void {
   try {
     if (typeof aegis !== "undefined" && aegis) {
-      const errorInfo =
-        error instanceof Error
-          ? {
-              msg: error.message,
-              stack: error.stack,
-              ...params,
-            }
-          : { msg: error, ...params };
-
+      const stack = get(params, "error.stack");
+      const errorInfo = { msg: error, stack, ...params };
       aegis.error(errorInfo);
     }
   } catch (e) {

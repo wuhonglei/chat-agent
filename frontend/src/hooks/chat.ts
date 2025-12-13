@@ -324,6 +324,10 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
         );
       } catch (error) {
         console.error("Failed to send message:", error);
+        reportError("Failed to send message", {
+          error: error,
+          conversationId,
+        });
         resetState(conversationId);
       }
     }
