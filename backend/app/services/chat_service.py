@@ -108,6 +108,7 @@ class ChatService:
             # Call LLM with tools
             response = await self.client.chat.completions.create(
                 model=model,
+                parallel_tool_calls=True,  # 启用并行工具调用
                 messages=messages + self.collected_tool_call_messages,
                 tools=tools if tools else None,
                 stream=False,
