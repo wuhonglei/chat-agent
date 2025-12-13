@@ -29,7 +29,7 @@ async def locate_ip(
     """
     url = f"http://ip-api.com/json/{ip_address}"
 
-    async with httpx.AsyncClient(timeout=2.0) as client:
+    async with httpx.AsyncClient(timeout=2.0, trust_env=False) as client:
         try:
             response = await client.get(url)
             response.raise_for_status()

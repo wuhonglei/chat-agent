@@ -7,7 +7,7 @@
 from fastmcp import Client
 from fastmcp.client.transports import FastMCPTransport
 from fastmcp.tools.tool import ToolResult
-from typing import List, Literal
+from typing import Literal
 from fastmcp import FastMCP
 from pydantic import Field
 from .utils import make_request, format_cities, format_current_weather, format_weather_hourly_forecast
