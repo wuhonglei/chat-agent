@@ -201,7 +201,7 @@ class MCPClientManager:
                         transport_type="custom",
                     )
 
-                client = Client(transport=transport)
+                client = Client(transport=transport, init_timeout=5.0)
                 self.clients[server_name] = client
 
                 logger.info("MCP Server registered", server_name=server_name)
