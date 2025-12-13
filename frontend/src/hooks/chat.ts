@@ -301,6 +301,10 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
               handler(messageData as any);
             } else {
               console.warn(`Unknown message type: ${type}`);
+              reportError("streamMessage onMessage Unknown Message Type", {
+                type,
+                conversationId,
+              });
             }
           },
           (error: Error) => {

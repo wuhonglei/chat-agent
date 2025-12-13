@@ -81,12 +81,6 @@ export const chatAPI = {
         }
       },
       onerror(err) {
-        // 上报流式传输错误
-        reportError("Stream Error", {
-          error: err instanceof Error ? err.message : String(err),
-          url: `${apiClient.defaults.baseURL}/chat/stream`,
-          method: "POST",
-        });
         onError(err as Error);
         throw err;
       },
