@@ -56,7 +56,9 @@ system_prompt_for_title_template = Template("""
 
 user_message_for_title_template = Template("""
 用户消息：{{ user_message }}
+{% if model_answer %}
 模型回答：{{ model_answer }}
+{% endif %}
 """.strip())
 
 user_message_for_weather_component_template = Template("""
@@ -168,7 +170,7 @@ def get_prompt_with_mcp_servers(user_message: str, mcp_auto_mode: bool, server_n
 
 
 def get_prompt_for_title(user_message: str, model_answer: str) -> tuple[str, str]:
+    new_system_prompt = system_prompt_dict['for_title'].render()
     new_user_message = user_message_prompt_dict['for_title'].render(
         user_message=user_message, model_answer=model_answer)
-    new_system_prompt = system_prompt_dict['for_title'].render()
     return new_system_prompt, new_user_message

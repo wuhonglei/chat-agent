@@ -95,6 +95,13 @@ async def chat_stream(
             yield chat_service.format_sse_message('ack', user_message)
             yield chat_service.format_sse_message('ack', assistant_message)
             yield chat_service.format_sse_message('refresh_conversation', conversation)
+            if chat_request.regenerate_title:
+                title = await chat_service.generate_title(chat_request.content)
+                yield chat_service.format_sse_message('title', {
+                    'id': conversation_id,
+                    'title': title
+                })
+
             start_time = get_current_time()
             try:
                 history = message_service.get_flatten_messages_by_ids(
@@ -134,13 +141,6 @@ async def chat_stream(
                 )
                 yield chat_service.format_sse_message('error', {'msg': str(persist_error)})
                 raise
-
-            if chat_request.regenerate_title:
-                title = await chat_service.generate_title(chat_request.content)
-                yield chat_service.format_sse_message('title', {
-                    'id': conversation_id,
-                    'title': title
-                })
 
             yield chat_service.format_sse_message('done', {
                 'content_length': len(assistant_payload.content),
