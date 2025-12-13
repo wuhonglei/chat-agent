@@ -46,19 +46,16 @@ IMPORTANT RULES:
 
 # 根据用户消息和模型回答生成标题系统提示词模板(中文)
 system_prompt_for_title_template = Template("""
-你是一个智能问答助手。你的任务是根据用户消息和模型回答生成一个标题。
+你是一个智能问答助手。你的任务是根据用户消息生成一个标题。
 
 规则：
-1. 仔细分析用户消息和模型回答，确保标题准确、简洁、有吸引力
+1. 仔细分析用户消息，确保标题准确、简洁、有吸引力
 2. 标题必须简洁明了，不要超过15个字
-3. 标题必须准确反映用户消息和模型回答的内容
+3. 标题必须准确反映用户消息的内容
 """.strip())
 
 user_message_for_title_template = Template("""
 用户消息：{{ user_message }}
-{% if model_answer %}
-模型回答：{{ model_answer }}
-{% endif %}
 """.strip())
 
 user_message_for_weather_component_template = Template("""
@@ -169,8 +166,8 @@ def get_prompt_with_mcp_servers(user_message: str, mcp_auto_mode: bool, server_n
     return system_prompt, new_user_message
 
 
-def get_prompt_for_title(user_message: str, model_answer: str) -> tuple[str, str]:
+def get_prompt_for_title(user_message: str) -> tuple[str, str]:
     new_system_prompt = system_prompt_dict['for_title'].render()
     new_user_message = user_message_prompt_dict['for_title'].render(
-        user_message=user_message, model_answer=model_answer)
+        user_message=user_message)
     return new_system_prompt, new_user_message

@@ -326,8 +326,7 @@ class ChatService:
 
     async def generate_title(self, user_message: str) -> str:
         """Generate title for the chat"""
-        system_prompt, new_user_message = get_prompt_for_title(
-            user_message, self.collected_content)
+        system_prompt, new_user_message = get_prompt_for_title(user_message)
         messages = self._compose_messages_without_tool_calls(
             system_prompt, [], new_user_message)
         title_response = await self.client.chat.completions.create(
