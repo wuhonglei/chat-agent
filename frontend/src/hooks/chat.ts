@@ -135,7 +135,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
         const regenerateTitle =
           isEmpty(historyIds) && isTitleCreatedByDefault(createdBy);
 
-        // 对于在指定位置修改 message 或 重发 message 的场景，需要删除改位置之后的所有 message
+        // 对于在指定位置修改 message 或 重发 message 的场景，需要删除该位置之后的所有 message
         if (!isEmpty(removedMessageIds)) {
           dispatch(clearMessagesAfterIndex({ conversationId, data: index! }));
         }
@@ -145,6 +145,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
           // 添加消息
           ack: data => {
             if (isUserRole(data.role) && !isEmpty(removedMessageIds)) {
+              // 收到新的用户消息，删除 store 中旧的用户消息
               dispatch(
                 removeMessageById({
                   conversationId,
