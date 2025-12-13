@@ -180,12 +180,14 @@ class ChatService:
                     logger.info(
                         "Calling MCP tool",
                         tool_name=tool_name,
+                        tool_call_id=tool_call.id,
                         iteration=iteration + 1,
                     )
                     logger.debug(
                         "MCP tool arguments",
                         tool_name=tool_name,
                         arguments=arguments,
+                        tool_call_id=tool_call.id,
                     )
                     result, filtered_params = await self.mcp_manager.call_tool(tool_name, arguments)
                     content = self.mcp_manager.format_mcp_result(result)
@@ -204,18 +206,6 @@ class ChatService:
                             filtered_params=filtered_params,
                         )
 
-                    logger.info(
-                        "MCP tool result received",
-                        tool_name=tool_name,
-                        result_length=len(content) if content else 0,
-                    )
-                    logger.debug(
-                        "MCP tool result preview",
-                        tool_name=tool_name,
-                        result_preview=content[:200] + '...' +
-                        content[-200:] if len(content) > 400 else content,
-                    )
-
                     # Add tool result to messages
                     tool_call_result_message = ToolCallResultMessage(**{
                         "role": "tool",
@@ -224,17 +214,24 @@ class ChatService:
                         "tool_call_id": tool_call.id,
                         "duration": get_time_duration(start_time),
                     })
+                    logger.info(
+                        "MCP tool result received",
+                        tool_name=tool_name,
+                        tool_call_id=tool_call.id,
+                        duration=tool_call_result_message.duration,
+                        content_length=len(content) if content else 0,
+                    )
+                    logger.debug(
+                        "MCP tool result preview",
+                        tool_name=tool_name,
+                        tool_call_id=tool_call.id,
+                        content=content[:200] + '...' +
+                        content[-200:] if len(content) > 400 else content,
+                    )
                     self.collected_tool_call_messages.append(
                         tool_call_result_message)
                     yield tool_call_result_message
-
                 except Exception as e:
-                    logger.error(
-                        "Failed to call tool",
-                        error=e,
-                        tool_name=tool_name,
-                        iteration=iteration + 1,
-                    )
                     tool_call_result_message = ToolCallResultMessage(**{
                         "role": "tool",
                         "is_error": True,
@@ -245,6 +242,15 @@ class ChatService:
                     self.collected_tool_call_messages.append(
                         tool_call_result_message)
                     yield tool_call_result_message
+                    logger.error(
+                        "Failed to call tool",
+                        error=e,
+                        tool_name=tool_name,
+                        iteration=iteration + 1,
+                        tool_call_id=tool_call.id,
+                        duration=get_time_duration(start_time),
+                        content_length=len(str(e)) if str(e) else 0,
+                    )
 
         # If we hit max iterations, return error message
         logger.info(
