@@ -1,4 +1,5 @@
 """Chat service for RAG-based Q&A"""
+import asyncio
 import json
 from collections.abc import AsyncGenerator, AsyncIterator
 from typing import Any, Optional, cast
@@ -148,8 +149,9 @@ class ChatService:
                     exclude_none=True),
             )
 
-            # Execute tool calls and stream results
-            for tool_call in assistant_message.tool_calls:
+            # Execute tool calls in parallel and stream results
+            async def execute_single_tool(tool_call: Any) -> ToolCallResultMessage:
+                """Execute a single tool call and return the result message"""
                 tool_name = cast(str, tool_call.function.name)
                 start_time = get_current_time()
 
@@ -160,17 +162,13 @@ class ChatService:
                         tool_name=tool_name,
                         iteration=iteration + 1,
                     )
-                    tool_call_result_message = ToolCallResultMessage(**{
+                    return ToolCallResultMessage(**{
                         "role": "tool",
                         "is_error": True,
                         "tool_call_id": tool_call.id,
                         "duration": get_time_duration(start_time),
                         "content": f'Tool {tool_name} has hit max iterations, skipping'
                     })
-                    self.collected_tool_call_messages.append(
-                        tool_call_result_message)
-                    yield tool_call_result_message
-                    continue
 
                 # Decrement AFTER checking
                 iterations_by_tool[tool_name] -= 1
@@ -229,9 +227,7 @@ class ChatService:
                         content=content[:200] + '...' +
                         content[-200:] if len(content) > 400 else content,
                     )
-                    self.collected_tool_call_messages.append(
-                        tool_call_result_message)
-                    yield tool_call_result_message
+                    return tool_call_result_message
                 except Exception as e:
                     tool_call_result_message = ToolCallResultMessage(**{
                         "role": "tool",
@@ -240,9 +236,6 @@ class ChatService:
                         "tool_call_id": tool_call.id,
                         "duration": get_time_duration(start_time),
                     })
-                    self.collected_tool_call_messages.append(
-                        tool_call_result_message)
-                    yield tool_call_result_message
                     logger.error(
                         "Failed to call tool",
                         error=e,
@@ -252,6 +245,26 @@ class ChatService:
                         duration=get_time_duration(start_time),
                         content_length=len(str(e)) if str(e) else 0,
                     )
+                    return tool_call_result_message
+
+            # Execute all tool calls in parallel
+            if assistant_message.tool_calls:
+                logger.info(
+                    "Executing tool calls in parallel",
+                    tool_count=len(assistant_message.tool_calls),
+                    iteration=iteration + 1,
+                )
+                # Create tasks for all tool calls
+                tasks = [execute_single_tool(
+                    tool_call) for tool_call in assistant_message.tool_calls]
+                # Execute all tasks in parallel
+                tool_results = await asyncio.gather(*tasks)
+
+                # Yield results in original order and collect them
+                for tool_call_result_message in tool_results:
+                    self.collected_tool_call_messages.append(
+                        tool_call_result_message)
+                    yield tool_call_result_message
 
         # If we hit max iterations, return error message
         logger.info(
