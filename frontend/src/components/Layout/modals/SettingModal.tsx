@@ -1,12 +1,12 @@
-import { useEffect } from "react";
-import { App, Form, Input, Modal } from "antd";
 import { UserInfo } from "@/interfaces";
-import AvatarUploader from "./AvatarUploader";
-import { isEqual, pick } from "lodash-es";
-import { useRequest } from "ahooks";
 import { userAPI } from "@/services";
 import { useAppDispatch } from "@/store/hooks";
 import { setUserInfo } from "@/store/slices/userSlice";
+import { useRequest } from "ahooks";
+import { App, Form, Input, Modal } from "antd";
+import { isEqual, pick } from "lodash-es";
+import { useEffect } from "react";
+import AvatarUploader from "./AvatarUploader";
 
 type Props = {
   open: boolean;
@@ -71,6 +71,9 @@ export default function SettingModal({ open, onCancel, data }: Props) {
           ]}
         >
           <Input placeholder="请输入用户名" />
+        </Form.Item>
+        <Form.Item label="手机号" name="phone">
+          <Input placeholder="请输入手机号" disabled />
         </Form.Item>
         <Form.Item label="头像" name="avatar">
           <AvatarUploader />
