@@ -1,8 +1,8 @@
-import { WeatherNowProps } from "@/interfaces/weather";
 import { formatTime, reportError } from "@/utils";
 import styles from "./index.module.css";
 import daytimeStyles from "./theme/daytime.module.css";
 import nighttimeStyles from "./theme/night.module.css";
+import type { WeatherNowProps } from "./type";
 import { getWeatherBackgroundClass, isDaytime } from "./utils";
 
 export default function WeatherNow({ data, location }: WeatherNowProps) {

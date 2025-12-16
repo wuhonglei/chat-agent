@@ -49,8 +49,11 @@ export interface WeatherNowProps {
   data: WeatherNowData;
   /** 空气质量指数（可选） */
   aqi?: {
+    /** 空气质量等级 */
     level: string;
+    /** 空气质量类别 */
     category: string;
-    aqi?: string;
+    /** 空气质量指数 */
+    aqi: string;
   };
 }
