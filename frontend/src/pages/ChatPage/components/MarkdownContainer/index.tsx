@@ -1,5 +1,5 @@
+import { WeatherNow } from "@/componentTools/components/Weather";
 import { WeatherNowProps } from "@/interfaces/weather";
-import { WeatherNow } from "@/pages/ChatPage/components/MarkdownContainer/code_components/Weather";
 import CodeHighlighter from "@/pages/ChatPage/components/MarkdownContainer/components/CodeHighlighter";
 import ComponentErrorBoundary from "@/pages/ChatPage/components/MarkdownContainer/components/ComponentErrorBoundary";
 import { reportError } from "@/utils/aegis";
