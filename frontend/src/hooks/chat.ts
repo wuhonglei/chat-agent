@@ -292,7 +292,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
             const { type, data: messageData } = data;
 
             // 处理加载状态
-            if (!["ack", "refresh_conversation"].includes(type)) {
+            if (!["ack", "refresh_conversation", "title"].includes(type)) {
               dispatch(setLoading({ conversationId, data: false }));
             }
 
