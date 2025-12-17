@@ -13,7 +13,7 @@
 ### 数据流
 
 ```
-前端注册组件（使用 props 类型） → Vite 构建时生成 JSON schema 到 public 目录 →
+前端注册组件（使用 typeSourceFile 指定类型文件路径） → 构建时/脚本生成 JSON schema 到 public 目录 →
 前端发送请求时只传递组件名称 → 后端根据组件名称请求获取 schema →
 后端根据条件生成组件数据 → 后端返回带组件标识的 code 块 → 前端解析并渲染组件
 ```
@@ -23,7 +23,7 @@
 在 `src/componentTools/index.ts` 中注册所有组件工具，每个组件包含：
 - `name`: 组件唯一标识
 - `component`: React 组件
-- `props`: TypeScript 类型定义（组件的 Props 类型）
+- `typeSourceFile`: 组件 Props 类型定义文件的路径（用于生成 JSON Schema）
 - `when`: 触发条件（tool_names, tool_call_content, user_message_content, assistant_message_content）
 
 ### Schema 生成机制
@@ -35,9 +35,9 @@
 
 ## 实现步骤
 
-### 步骤1: 修改 ComponentToolItem 接口
+### 步骤1: ComponentToolItem 接口定义
 
-在 `src/interfaces/componentTools.ts` 中修改接口定义：
+在 `src/interfaces/componentTools.ts` 中的接口定义：
 
 ```typescript
 /**
@@ -57,14 +57,15 @@ export interface ComponentToolRequestItem {
 /**
  * 组件工具项（前端注册使用）
  */
-export interface ComponentToolItem<T = any> {
-  name: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+export interface ComponentToolItem extends ComponentToolRequestItem {
   component: React.ComponentType<any>;
-  props: T; // TypeScript 类型定义（用于生成 JSON Schema）
-  when: ComponentToolRequestItem["when"];
+  typeSourceFile: string; // 组件类型定义的文件路径（用于生成 JSON Schema）
 }
 ```
+
+**说明**：
+- `ComponentToolItem` 继承了 `ComponentToolRequestItem`，添加了 `component` 和 `typeSourceFile` 字段
+- `typeSourceFile` 用于指定组件 Props 类型定义文件的路径，可以通过构建工具或脚本读取该文件来生成 JSON Schema
 
 ### 步骤2: 扩展 ChatRequest 接口
 
@@ -173,105 +174,26 @@ const CustomCodeBlock = memo(({ inline, className, children }: CustomCodeBlockPr
 
 ### 步骤6: 创建 Vite 插件生成 JSON Schema
 
-#### 6.1 创建 Vite 插件
+#### 6.1 Schema 生成方式
 
-创建 `vite-plugins/generate-component-schemas.ts`：
+Schema 需要通过 Vite 插件在构建时自动生成。
 
-```typescript
-import * as fs from "fs";
-import * as path from "path";
-import type { Plugin } from "vite";
-import { createRequire } from "module";
+**使用 Vite 插件生成 Schema**
 
-const require = createRequire(import.meta.url);
+创建一个 Vite 插件，在构建时自动从 `componentTools/index.ts` 中读取 `typeSourceFile` 字段，并生成对应的 JSON Schema。
 
-const TJS: typeof import("typescript-json-schema") = require("typescript-json-schema");
+插件需要实现以下功能：
+1. 读取 `src/componentTools/index.ts` 模块
+2. 遍历 `componentTools` 数组，提取每个组件的 `name` 和 `typeSourceFile`
+3. 从 `typeSourceFile` 指定的文件中解析类型定义（如 `WeatherNowProps`）
+4. 使用 `typescript-json-schema` 生成 JSON Schema
+5. 将 Schema 文件输出到 `public/component-schemas/{component_name}.json`
 
-interface ComponentSchemaConfig {
-  name: string;
-  typeName: string;
-  sourceFile: string;
-}
-
-/**
- * 从 componentTools/index.ts 中提取组件配置
- * 这里需要解析文件或使用配置数组
- */
-const componentConfigs: ComponentSchemaConfig[] = [
-  {
-    name: "weather_now",
-    typeName: "WeatherNowProps",
-    sourceFile: path.resolve(process.cwd(), "src/componentTools/components/WeatherNow/type.ts"),
-  },
-  // 添加更多组件的配置
-];
-
-/**
- * Vite 插件：在构建时生成组件的 JSON Schema
- */
-export function generateComponentSchemas(): Plugin {
-  return {
-    name: "generate-component-schemas",
-    buildStart() {
-      const outputDir = path.resolve(process.cwd(), "public/component-schemas");
-
-      // 确保输出目录存在
-      if (!fs.existsSync(outputDir)) {
-        fs.mkdirSync(outputDir, { recursive: true });
-      }
-
-      console.log(`开始生成 ${componentConfigs.length} 个组件的 Schema...\n`);
-
-      for (const config of componentConfigs) {
-        try {
-          const compilerOptions = {
-            strictNullChecks: true,
-            esModuleInterop: true,
-            allowSyntheticDefaultImports: true,
-            skipLibCheck: true,
-            baseUrl: process.cwd(),
-            paths: {
-              "@/*": ["src/*"],
-            },
-          };
-
-          const program = TJS.getProgramFromFiles([config.sourceFile], compilerOptions);
-          const generator = TJS.buildGenerator(program, {
-            required: true,
-            strictNullChecks: true,
-            ignoreErrors: false,
-          } as any);
-
-          if (!generator) {
-            throw new Error(`Schema 生成器创建失败: ${config.typeName}`);
-          }
-
-          const schema = generator.getSchemaForSymbol(config.typeName);
-
-          if (!schema) {
-            throw new Error(`无法找到类型 "${config.typeName}"`);
-          }
-
-          const outputPath = path.join(outputDir, `${config.name}.json`);
-          fs.writeFileSync(outputPath, JSON.stringify(schema, null, 2), "utf-8");
-          console.log(`✅ ${config.name} Schema 生成成功: ${outputPath}`);
-        } catch (error) {
-          console.error(`❌ ${config.name} Schema 生成失败:`, error);
-          if (error instanceof Error) {
-            console.error(error.message);
-          }
-        }
-      }
-
-      console.log(`\n✅ 所有 Schema 生成完成！`);
-    },
-  };
-}
-```
+**注意**：需要确保插件能够正确解析 `componentTools/index.ts` 中的 `typeSourceFile` 字段，并读取对应的类型定义文件。
 
 #### 6.2 在 vite.config.ts 中使用插件
 
-修改 `vite.config.ts`：
+在 `vite.config.ts` 中添加插件：
 
 ```typescript
 import { generateComponentSchemas } from "./vite-plugins/generate-component-schemas";
@@ -288,7 +210,7 @@ export default defineConfig(({ mode }) => {
           icon: true,
         },
       }),
-      generateComponentSchemas(), // 新增：在构建时生成 schema
+      generateComponentSchemas(), // 在构建时自动生成 schema
     ],
     // ... 其他配置
   };
@@ -305,20 +227,22 @@ export default defineConfig(({ mode }) => {
 - `/component-schemas/weather_now.json`
 - `/component-schemas/{component_name}.json`
 
-### 步骤7: 在 componentTools/index.ts 中使用 props 定义
+### 步骤7: 在 componentTools/index.ts 中注册组件
 
-修改 `src/componentTools/index.ts`，使用 props 类型定义而不是 schema：
+在 `src/componentTools/index.ts` 中注册组件，使用 `typeSourceFile` 指定类型定义文件路径：
 
 ```typescript
 import { ComponentToolItem } from "@/interfaces";
+import { createRequire } from "module";
 import WeatherNow from "./components/WeatherNow";
-import type { WeatherNowProps } from "./components/WeatherNow/type";
+
+const require = createRequire(import.meta.url);
 
 const componentTools: ComponentToolItem[] = [
   {
     name: "weather_now",
     component: WeatherNow,
-    props: {} as WeatherNowProps, // 使用类型定义，用于 Vite 插件生成 schema
+    typeSourceFile: require.resolve("./components/WeatherNow/type.ts"),
     when: {
       tool_names: ["weather"],
     },
@@ -328,7 +252,10 @@ const componentTools: ComponentToolItem[] = [
 export default componentTools;
 ```
 
-**注意**：`props: {} as WeatherNowProps` 只是用于类型推断，实际值不会被使用。Vite 插件会从类型定义中提取信息生成 JSON Schema。
+**说明**：
+- 使用 `require.resolve()` 来获取类型定义文件的绝对路径
+- `typeSourceFile` 指向包含组件 Props 类型定义的文件（例如：`type.ts`）
+- Schema 生成工具可以读取此文件路径，解析其中的类型定义（如 `WeatherNowProps`），并生成对应的 JSON Schema
 
 ## 后端交互协议
 
@@ -406,21 +333,33 @@ Host: example.com
 ## 添加新组件的流程
 
 1. **创建组件**：在 `src/componentTools/components/` 下创建新组件
-2. **定义类型**：在组件目录下定义组件的 Props 类型（例如：`type.ts`）
-3. **注册组件**：在 `src/componentTools/index.ts` 中添加组件注册，使用 `props` 字段指定类型
-4. **配置 Vite 插件**：在 `vite-plugins/generate-component-schemas.ts` 的 `componentConfigs` 数组中添加组件配置
+2. **定义类型**：在组件目录下定义组件的 Props 类型（例如：`type.ts`），确保导出的接口名称与组件 Props 类型名称一致（如 `WeatherNowProps`）
+3. **注册组件**：在 `src/componentTools/index.ts` 中添加组件注册，使用 `typeSourceFile` 字段指定类型定义文件路径：
+   ```typescript
+   {
+     name: "component_name",
+     component: Component,
+     typeSourceFile: require.resolve("./components/Component/type.ts"),
+     when: {
+       tool_names: ["tool_name"],
+     },
+   }
+   ```
+4. **生成 Schema**：运行 `npm run build`，Vite 插件会自动读取 `typeSourceFile` 字段并生成对应的 JSON Schema 文件到 `public/component-schemas/` 目录
 5. **配置触发条件**：设置 `when` 字段，定义何时后端应该生成该组件
-6. **构建生成 Schema**：运行 `npm run build`，Vite 插件会自动生成 JSON Schema 到 `public/component-schemas/` 目录
+6. **验证 Schema**：检查生成的 JSON Schema 文件是否位于 `public/component-schemas/{component_name}.json`
 
 ## 注意事项
 
-1. **Schema 同步**：确保生成的 JSON Schema 与 TypeScript 类型定义保持一致，每次修改类型后需要重新构建
-2. **构建时生成**：JSON Schema 在构建时生成，开发环境不会自动生成，需要运行构建命令
-3. **Schema 访问**：确保构建后的 `public/component-schemas/` 目录可以被后端访问
-4. **错误处理**：组件渲染失败时，应该降级为代码展示
-5. **性能优化**：组件映射表在模块加载时创建，避免重复创建
-6. **类型安全**：使用 TypeScript 确保类型安全，避免运行时错误
-7. **后端缓存**：建议后端缓存获取到的 JSON Schema，避免频繁请求
+1. **Schema 同步**：确保生成的 JSON Schema 与 TypeScript 类型定义保持一致，每次修改类型定义后需要重新构建
+2. **类型文件路径**：`typeSourceFile` 应指向包含组件 Props 类型定义的文件，确保使用 `require.resolve()` 获取绝对路径
+3. **类型命名**：确保类型定义文件中导出的接口名称与组件的 Props 类型名称一致（如 `WeatherNowProps`）
+4. **Schema 生成**：Vite 插件会在构建时自动生成 Schema 文件，Schema 文件输出到 `public/component-schemas/` 目录
+5. **Schema 访问**：确保构建后的 `public/component-schemas/` 目录可以被后端访问（通过 HTTP 请求）
+6. **错误处理**：组件渲染失败时，应该降级为代码展示
+7. **性能优化**：组件映射表在模块加载时创建，避免重复创建
+8. **类型安全**：使用 TypeScript 确保类型安全，避免运行时错误
+9. **后端缓存**：建议后端缓存获取到的 JSON Schema，避免频繁请求前端资源
 
 ## 示例：添加新组件
 
@@ -444,15 +383,17 @@ Host: example.com
 3. **注册组件**：
    ```typescript
    // src/componentTools/index.ts
+   import { createRequire } from "module";
    import Chart from "./components/Chart";
-   import type { ChartProps } from "./components/Chart/type";
+
+   const require = createRequire(import.meta.url);
 
    const componentTools: ComponentToolItem[] = [
      // ... 现有组件
      {
        name: "chart",
        component: Chart,
-       props: {} as ChartProps, // 用于类型推断和生成 schema
+       typeSourceFile: require.resolve("./components/Chart/type.ts"),
        when: {
          tool_names: ["data_visualization"],
        },
@@ -460,24 +401,11 @@ Host: example.com
    ];
    ```
 
-4. **配置 Vite 插件**：
-   ```typescript
-   // vite-plugins/generate-component-schemas.ts
-   const componentConfigs: ComponentSchemaConfig[] = [
-     // ... 现有配置
-     {
-       name: "chart",
-       typeName: "ChartProps",
-       sourceFile: path.resolve(process.cwd(), "src/componentTools/components/Chart/type.ts"),
-     },
-   ];
-   ```
-
-5. **构建生成 Schema**：
+4. **生成 Schema**：
    ```bash
    npm run build
    ```
-   构建完成后，会在 `public/component-schemas/chart.json` 生成 JSON Schema。
+   构建完成后，Vite 插件会自动在 `public/component-schemas/chart.json` 生成 JSON Schema。
 
 6. **后端获取 Schema**：
    后端可以通过 `GET /component-schemas/chart.json` 获取该组件的 JSON Schema。

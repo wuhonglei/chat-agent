@@ -1,73 +1,55 @@
 # JSON Schema 自动生成指南
 
-本文档介绍如何根据 TypeScript 组件的 props 类型定义自动生成 JSON Schema。
+> **注意**：本文档已过时。脚本生成方式已移除，现在使用 Vite 插件在构建时自动生成 Schema。
+> 
+> 请参考 [组件工具实现方案](./component-tools-implementation.md) 了解当前的 Schema 生成方式。
 
-## 使用方法
+## 当前实现方式
 
-### 1. 准备工作
+Schema 现在通过 Vite 插件在构建时自动生成。插件会：
 
-确保你的组件 Props 类型定义在 `src/interfaces/` 目录下，例如：
+1. 读取 `src/componentTools/index.ts` 模块
+2. 遍历 `componentTools` 数组，提取每个组件的 `name` 和 `typeSourceFile`
+3. 从 `typeSourceFile` 指定的文件中解析类型定义（如 `WeatherNowProps`）
+4. 使用 `typescript-json-schema` 生成 JSON Schema
+5. 将 Schema 文件输出到 `public/component-schemas/{component_name}.json`
 
-```typescript
-// src/interfaces/weather.ts
-export interface WeatherNowProps {
-  /** 位置信息 */
-  location: string;
-  /** 天气数据 */
-  data: WeatherNowData;
-  /** 空气质量指数（可选） */
-  aqi?: {
-    level: string;
-    category: string;
-    aqi?: string;
-  };
-}
-```
+### 组件注册
 
-### 2. 配置生成脚本
-
-编辑 `scripts/generate-all-schemas.ts` 文件，在 `schemaConfigs` 数组中添加你的组件配置：
+在 `src/componentTools/index.ts` 中注册组件时，使用 `typeSourceFile` 字段指定类型定义文件路径：
 
 ```typescript
-const schemaConfigs: SchemaConfig[] = [
-  {
-    typeName: "WeatherNowProps", // 要生成的类型名称
-    sourceFile: path.resolve(__dirname, "../src/interfaces/weather.ts"), // 类型定义文件路径
-    outputPath: path.resolve(
-      __dirname,
-      "../src/componentTools/components/Weather/WeatherNow/schema.json"
-    ), // 输出文件路径
-  },
-  // 添加更多组件的配置...
-];
-```
+import { ComponentToolItem } from "@/interfaces";
+import { createRequire } from "module";
+import WeatherNow from "./components/WeatherNow";
 
-### 3. 运行生成命令
-
-```bash
-npm run generate-all-schemas
-```
-
-### 4. 使用生成的 Schema
-
-生成的 schema 会自动保存到指定路径，然后你可以在 `src/componentTools/index.ts` 中导入使用：
-
-```typescript
-import weatherNowSchema from "./components/Weather/WeatherNow/schema.json";
+const require = createRequire(import.meta.url);
 
 const componentTools: ComponentToolItem[] = [
   {
     name: "weather_now",
     component: WeatherNow,
-    schema: weatherNowSchema,
-    // ...
+    typeSourceFile: require.resolve("./components/WeatherNow/type.ts"),
+    when: {
+      tool_names: ["weather"],
+    },
   },
 ];
 ```
 
+### 生成 Schema
+
+运行构建命令即可自动生成 Schema：
+
+```bash
+npm run build
+```
+
+生成的 Schema 文件将位于 `public/component-schemas/{component_name}.json`。
+
 ## 类型支持
 
-脚本支持以下 TypeScript 类型特性：
+Schema 生成支持以下 TypeScript 类型特性：
 
 - ✅ 基本类型：`string`, `number`, `boolean`
 - ✅ 对象类型：`object`, 嵌套对象
@@ -77,60 +59,6 @@ const componentTools: ComponentToolItem[] = [
 - ✅ 注释：JSDoc 注释会转换为 `description`
 - ✅ 类型引用：使用 `$ref` 引用其他类型定义
 
-## 注意事项
+## 更多信息
 
-1. **路径别名**：脚本支持 `@/*` 路径别名，确保类型定义文件中的导入路径正确。
-
-2. **类型导出**：确保要生成的类型是 `export` 导出的，且类型名称与配置中的 `typeName` 完全一致。
-
-3. **必需字段识别**：脚本会自动识别哪些字段是必需的（没有 `?` 的字段）。
-
-4. **嵌套类型**：如果类型引用了其他类型（如 `WeatherNowData`），它们会被自动提取到 `definitions` 中。
-
-5. **可选字段**：可选字段（使用 `?` 标记）不会出现在 `required` 数组中。
-
-## 示例
-
-完整的生成流程示例：
-
-```bash
-# 1. 编辑脚本配置
-vim scripts/generate-all-schemas.ts
-
-# 2. 运行生成命令
-npm run generate-all-schemas
-
-# 输出：
-# ✅ Schema 生成成功！
-# 📄 类型: WeatherNowProps
-# 📝 源文件: /path/to/src/interfaces/weather.ts
-# 💾 输出文件: /path/to/schema.json
-```
-
-## 故障排查
-
-### 问题：找不到类型
-
-**错误信息**：`❌ 无法找到类型 "YourTypeName"`
-
-**解决方案**：
-1. 检查类型名称是否正确（大小写敏感）
-2. 确保类型是 `export` 导出的
-3. 检查源文件路径是否正确
-
-### 问题：路径解析错误
-
-**错误信息**：模块找不到等
-
-**解决方案**：
-1. 确保 `tsconfig.json` 中配置了路径别名
-2. 检查 `baseUrl` 和 `paths` 配置是否正确
-
-### 问题：生成的 schema 缺少某些字段
-
-**可能原因**：
-- 字段使用了不支持的类型（如函数类型）
-- 字段使用了泛型且未指定具体类型
-
-**解决方案**：检查类型定义，确保所有字段都是 JSON Schema 支持的类型。
-
+详细的实现说明请参考 [组件工具实现方案](./component-tools-implementation.md) 文档。
