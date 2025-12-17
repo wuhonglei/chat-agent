@@ -15,6 +15,7 @@ const logError = debug("vite-plugin:component-schemas:error");
 const logWarn = debug("vite-plugin:component-schemas:warn");
 
 // 启用错误和警告日志（即使 DEBUG 未设置也会显示）
+log.enabled = false;
 logError.enabled = true;
 logWarn.enabled = true;
 

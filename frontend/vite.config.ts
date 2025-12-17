@@ -9,7 +9,6 @@ import { generateComponentSchemas } from "./vite-plugins/generate-component-sche
 export default defineConfig(({ mode }) => {
   // 加载环境变量
   const env = loadEnv(mode, process.cwd(), "");
-  console.info("VITE_PROXY_TARGET:", env.VITE_PROXY_TARGET);
 
   return {
     plugins: [
