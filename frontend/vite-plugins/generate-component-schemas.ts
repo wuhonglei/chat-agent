@@ -1,6 +1,6 @@
 import debug from "debug";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
-import { dirname, relative, resolve } from "path";
+import { dirname, normalize, relative, resolve } from "path";
 import * as ts from "typescript";
 import * as TJS from "typescript-json-schema";
 import { fileURLToPath } from "url";
@@ -18,6 +18,12 @@ const logWarn = debug("vite-plugin:component-schemas:warn");
 log.enabled = false;
 logError.enabled = true;
 logWarn.enabled = true;
+
+type ComponentToolMeta = { name: string; typeSourceFile: string };
+
+function normalizeFilePath(filePath: string): string {
+  return normalize(filePath).replace(/\\/g, "/");
+}
 
 /**
  * 从 TypeScript 文件中提取导出的接口名称
@@ -168,9 +174,7 @@ function generateSchema(
 /**
  * 从 componentTools/index.ts 中提取组件信息
  */
-function extractComponentTools(
-  projectRoot: string
-): Array<{ name: string; typeSourceFile: string }> {
+function extractComponentTools(projectRoot: string): ComponentToolMeta[] {
   const indexPath = resolve(projectRoot, "src/componentTools/index.ts");
 
   if (!existsSync(indexPath)) {
@@ -189,7 +193,7 @@ function extractComponentTools(
       /\{\s*name:\s*["']([^"']+)["'],[\s\S]*?component:\s*\w+,[\s\S]*?typeSourceFile:\s*require\.resolve\(["']([^"']+)["']\)/g
     );
 
-    const components: Array<{ name: string; typeSourceFile: string }> = [];
+    const components: ComponentToolMeta[] = [];
 
     for (const match of Array.from(componentMatches)) {
       const name = match[1];
@@ -211,44 +215,136 @@ function extractComponentTools(
   }
 }
 
+function generateAllComponentSchemas(
+  projectRoot: string,
+  outputDir: string
+): ComponentToolMeta[] {
+  log("开始生成组件 JSON Schema...");
+
+  const components = extractComponentTools(projectRoot);
+
+  if (components.length === 0) {
+    logWarn("未找到任何组件工具");
+    return [];
+  }
+
+  log(`找到 ${components.length} 个组件工具`);
+
+  let successCount = 0;
+  for (const component of components) {
+    if (
+      generateSchema(
+        component.name,
+        component.typeSourceFile,
+        outputDir,
+        projectRoot
+      )
+    ) {
+      successCount++;
+    }
+  }
+
+  log(`Schema 生成完成: ${successCount}/${components.length} 成功`);
+
+  return components;
+}
+
+function createWatchTargets(
+  componentIndexPath: string,
+  projectRoot: string,
+  components: ComponentToolMeta[]
+): Set<string> {
+  const targets = new Set<string>();
+  targets.add(normalizeFilePath(componentIndexPath));
+
+  for (const component of components) {
+    const absoluteTypeFile = resolve(projectRoot, component.typeSourceFile);
+    targets.add(normalizeFilePath(absoluteTypeFile));
+  }
+
+  return targets;
+}
+
+function debounce<T extends (...args: unknown[]) => void>(
+  fn: T,
+  delay = 200
+): (...args: Parameters<T>) => void {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  return (...args: Parameters<T>) => {
+    if (timer) {
+      clearTimeout(timer);
+    }
+
+    timer = setTimeout(() => {
+      timer = null;
+      fn(...args);
+    }, delay);
+  };
+}
+
 /**
  * Vite 插件：生成组件 JSON Schema
  */
 export function generateComponentSchemas(): Plugin {
+  const projectRoot = resolve(__dirname, "..");
+  const outputDir = resolve(projectRoot, "public/component-schemas");
+  const componentIndexPath = resolve(
+    projectRoot,
+    "src/componentTools/index.ts"
+  );
+
+  let lastComponents: ComponentToolMeta[] = [];
+  let watchTargets = new Set<string>();
+
+  const updateWatchTargets = (components: ComponentToolMeta[]) => {
+    watchTargets = createWatchTargets(
+      componentIndexPath,
+      projectRoot,
+      components
+    );
+  };
+
+  const runGeneration = () => {
+    lastComponents = generateAllComponentSchemas(projectRoot, outputDir);
+    updateWatchTargets(lastComponents);
+  };
+
   return {
     name: "generate-component-schemas",
     buildStart() {
-      const projectRoot = resolve(__dirname, "..");
-      const outputDir = resolve(projectRoot, "public/component-schemas");
-
-      log("开始生成组件 JSON Schema...");
-
-      // 提取组件信息
-      const components = extractComponentTools(projectRoot);
-
-      if (components.length === 0) {
-        logWarn("未找到任何组件工具");
-        return;
-      }
-
-      log(`找到 ${components.length} 个组件工具`);
-
-      // 为每个组件生成 Schema
-      let successCount: number = 0;
-      for (const component of components) {
-        if (
-          generateSchema(
-            component.name,
-            component.typeSourceFile,
-            outputDir,
-            projectRoot
-          )
-        ) {
-          successCount++;
+      runGeneration();
+    },
+    configureServer(server) {
+      if (watchTargets.size === 0) {
+        if (lastComponents.length === 0) {
+          runGeneration();
+        } else {
+          updateWatchTargets(lastComponents);
         }
       }
 
-      log(`Schema 生成完成: ${successCount}/${components.length} 成功`);
+      const regenerateWithDebounce = debounce(() => {
+        runGeneration();
+      }, 200);
+
+      const handleFileEvent = (file: string) => {
+        const normalized = normalizeFilePath(resolve(projectRoot, file));
+        if (watchTargets.has(normalized)) {
+          log(`检测到 ${file} 变更，自动重新生成组件 JSON Schema...`);
+          regenerateWithDebounce();
+        }
+      };
+
+      server.watcher.on("change", handleFileEvent);
+      server.watcher.on("add", handleFileEvent);
+      server.watcher.on("unlink", handleFileEvent);
+
+      server.httpServer?.once("close", () => {
+        server.watcher.off("change", handleFileEvent);
+        server.watcher.off("add", handleFileEvent);
+        server.watcher.off("unlink", handleFileEvent);
+      });
     },
   };
 }
