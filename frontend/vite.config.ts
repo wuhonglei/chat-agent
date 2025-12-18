@@ -19,7 +19,13 @@ export default defineConfig(({ mode }) => {
           icon: true, // 让 SVG 自适应 (width/height = 1em)
         },
       }),
-      generateComponentSchemas(), // 在构建时自动生成组件 JSON Schema
+      generateComponentSchemas({
+        inputPath: "src/componentTools/index.ts",
+        outputDirs: [
+          "src/componentTools/component-schemas",
+          "public/component-schemas",
+        ],
+      }), // 在构建时自动生成组件 JSON Schema
     ],
     server: {
       host: true,

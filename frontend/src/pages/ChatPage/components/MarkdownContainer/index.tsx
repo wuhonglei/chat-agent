@@ -1,5 +1,4 @@
-import { WeatherNow } from "@/componentTools/components/Weather";
-import { WeatherNowProps } from "@/interfaces/weather";
+import { componentMap, validateComponentProps } from "@/componentTools/helper";
 import CodeHighlighter from "@/pages/ChatPage/components/MarkdownContainer/components/CodeHighlighter";
 import ComponentErrorBoundary from "@/pages/ChatPage/components/MarkdownContainer/components/ComponentErrorBoundary";
 import { reportError } from "@/utils/aegis";
@@ -8,7 +7,7 @@ import XMarkdown from "@ant-design/x-markdown";
 import Latex from "@ant-design/x-markdown/plugins/Latex";
 import classNames from "classnames";
 import { jsonrepair } from "jsonrepair";
-import React, { ErrorInfo, memo } from "react";
+import React, { ErrorInfo, memo, Suspense } from "react";
 import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 import InlineCode from "./components/InlineCode";
 import { useLanguage, useMarkdownTheme } from "./hooks";
@@ -53,23 +52,48 @@ const CustomCodeBlock = memo(
       );
     }
 
-    if (language === "component_weather") {
+    // 处理组件代码块（格式：component_<component_name>）
+    if (language?.startsWith("component_")) {
+      const componentName = language.replace("component_", "");
+      const Component = componentMap.get(componentName);
+      // 降级渲染：当组件渲染失败时，显示原始 JSON 代码
+      const fallbackCodeBlock = (
+        <CodeHighlighter lang="json">{code}</CodeHighlighter>
+      );
+
       try {
-        const parsedData: WeatherNowProps = JSON.parse(jsonrepair(code));
-        // 使用错误边界包裹组件，捕获组件内部执行错误
+        if (!Component) {
+          throw new Error(`未找到组件: ${componentName}`);
+        }
+
+        const parsedData = JSON.parse(jsonrepair(code));
+        const { valid, errors } = validateComponentProps(
+          componentName,
+          parsedData
+        );
+        if (!valid) {
+          throw new Error(
+            `组件 ${componentName} 的 props 不合法: ${errors?.join(", ")}`
+          );
+        }
+
+        // 使用错误边界和 Suspense 包裹组件，支持懒加载和错误捕获
         return (
           <ComponentErrorBoundary
-            fallbackCode={code}
-            fallbackLang="json"
             onError={handleError}
+            fallback={fallbackCodeBlock}
           >
-            <WeatherNow {...parsedData} />
+            <Suspense fallback={fallbackCodeBlock}>
+              <Component {...parsedData} />
+            </Suspense>
           </ComponentErrorBoundary>
         );
       } catch (error) {
-        // JSON 解析失败时，降级为代码高亮展示
-        console.warn("天气组件 JSON 解析失败，降级为代码展示:", error);
-        return <CodeHighlighter lang="json">{code}</CodeHighlighter>;
+        console.warn(
+          `组件 ${componentName} JSON 解析失败，降级为代码展示:`,
+          error
+        );
+        return fallbackCodeBlock;
       }
     }
 

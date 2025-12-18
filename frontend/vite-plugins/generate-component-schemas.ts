@@ -21,6 +21,22 @@ logWarn.enabled = true;
 
 type ComponentToolMeta = { name: string; typeSourceFile: string };
 
+/**
+ * 插件配置选项
+ */
+export interface GenerateComponentSchemasOptions {
+  /**
+   * 组件工具索引文件路径（相对于项目根目录）
+   * @default "src/componentTools/index.ts"
+   */
+  inputPath?: string;
+  /**
+   * 输出目录数组（相对于项目根目录）
+   * @default ["public/component-schemas"]
+   */
+  outputDirs?: string[];
+}
+
 function normalizeFilePath(filePath: string): string {
   return normalize(filePath).replace(/\\/g, "/");
 }
@@ -174,8 +190,11 @@ function generateSchema(
 /**
  * 从 componentTools/index.ts 中提取组件信息
  */
-function extractComponentTools(projectRoot: string): ComponentToolMeta[] {
-  const indexPath = resolve(projectRoot, "src/componentTools/index.ts");
+function extractComponentTools(
+  projectRoot: string,
+  inputPath: string
+): ComponentToolMeta[] {
+  const indexPath = resolve(projectRoot, inputPath);
 
   if (!existsSync(indexPath)) {
     logError(`组件工具索引文件不存在: ${indexPath}`);
@@ -186,11 +205,15 @@ function extractComponentTools(projectRoot: string): ComponentToolMeta[] {
     const content = readFileSync(indexPath, "utf-8");
     const componentToolsDir = dirname(indexPath);
 
-    // 使用正则表达式提取组件信息
-    // 匹配: { name: "xxx", component: Xxx, typeSourceFile: require.resolve("..."), ... }
-    // 支持多行匹配（使用 [\s\S] 代替 . 来匹配包括换行符在内的所有字符）
+    /**
+     * 使用正则表达式提取组件信息
+     * 匹配: { name: "xxx", component: Xxx 或 lazy(...), typeSourceFile: "...", ... }
+     * 支持多行匹配（使用 [\s\S] 代替 . 来匹配包括换行符在内的所有字符）
+     * 支持懒加载格式: component: lazy(() => import(...))
+     * 支持直接字符串路径: typeSourceFile: "./components/WeatherNow/type.ts"
+     */
     const componentMatches = content.matchAll(
-      /\{\s*name:\s*["']([^"']+)["'],[\s\S]*?component:\s*\w+,[\s\S]*?typeSourceFile:\s*require\.resolve\(["']([^"']+)["']\)/g
+      /\{\s*name:\s*["']([^"']+)["'],[\s\S]*?component:\s*[^,]+,[\s\S]*?typeSourceFile:\s*["']([^"']+)["']/g
     );
 
     const components: ComponentToolMeta[] = [];
@@ -217,11 +240,12 @@ function extractComponentTools(projectRoot: string): ComponentToolMeta[] {
 
 function generateAllComponentSchemas(
   projectRoot: string,
-  outputDir: string
+  inputPath: string,
+  outputDirs: string[]
 ): ComponentToolMeta[] {
   log("开始生成组件 JSON Schema...");
 
-  const components = extractComponentTools(projectRoot);
+  const components = extractComponentTools(projectRoot, inputPath);
 
   if (components.length === 0) {
     logWarn("未找到任何组件工具");
@@ -232,14 +256,22 @@ function generateAllComponentSchemas(
 
   let successCount = 0;
   for (const component of components) {
-    if (
-      generateSchema(
-        component.name,
-        component.typeSourceFile,
-        outputDir,
-        projectRoot
-      )
-    ) {
+    let componentSuccess = false;
+    // 为每个输出目录生成 Schema
+    for (const outputDir of outputDirs) {
+      const absoluteOutputDir = resolve(projectRoot, outputDir);
+      if (
+        generateSchema(
+          component.name,
+          component.typeSourceFile,
+          absoluteOutputDir,
+          projectRoot
+        )
+      ) {
+        componentSuccess = true;
+      }
+    }
+    if (componentSuccess) {
       successCount++;
     }
   }
@@ -286,13 +318,16 @@ function debounce<T extends (...args: unknown[]) => void>(
 /**
  * Vite 插件：生成组件 JSON Schema
  */
-export function generateComponentSchemas(): Plugin {
+export function generateComponentSchemas(
+  options: Partial<GenerateComponentSchemasOptions> = {}
+): Plugin {
   const projectRoot = resolve(__dirname, "..");
-  const outputDir = resolve(projectRoot, "public/component-schemas");
-  const componentIndexPath = resolve(
-    projectRoot,
-    "src/componentTools/index.ts"
-  );
+
+  // 使用配置或默认值
+  const inputPath = options.inputPath || "src/componentTools/index.ts";
+  const outputDirs = options.outputDirs || ["public/component-schemas"];
+
+  const componentIndexPath = resolve(projectRoot, inputPath);
 
   let lastComponents: ComponentToolMeta[] = [];
   let watchTargets = new Set<string>();
@@ -306,7 +341,11 @@ export function generateComponentSchemas(): Plugin {
   };
 
   const runGeneration = () => {
-    lastComponents = generateAllComponentSchemas(projectRoot, outputDir);
+    lastComponents = generateAllComponentSchemas(
+      projectRoot,
+      inputPath,
+      outputDirs
+    );
     updateWatchTargets(lastComponents);
   };
 

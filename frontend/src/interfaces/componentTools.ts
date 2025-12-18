@@ -13,6 +13,8 @@ export interface ComponentToolRequestItem {
 }
 
 export interface ComponentToolItem extends ComponentToolRequestItem {
-  component: React.ComponentType<any>;
+  component:
+    | React.ComponentType<any>
+    | React.LazyExoticComponent<React.ComponentType<any>>;
   typeSourceFile: string; // 组件类型定义的文件路径
 }
