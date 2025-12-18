@@ -75,7 +75,7 @@ function getTypeScriptConfig(projectRoot: string): ts.CompilerOptions {
         paths: parsedConfig.options.paths || {
           "@/*": ["src/*"],
         },
-        // 覆盖 moduleResolution 为 NodeJs，以便 typescript-json-schema 能正确解析
+        // 覆盖 moduleResolution 为 Node10，以便 typescript-json-schema 能正确解析
         moduleResolution: ts.ModuleResolutionKind.Node10,
       };
 
@@ -91,7 +91,7 @@ function getTypeScriptConfig(projectRoot: string): ts.CompilerOptions {
     esModuleInterop: true,
     skipLibCheck: true,
     module: ts.ModuleKind.ESNext,
-    moduleResolution: ts.ModuleResolutionKind.NodeJs, // typescript-json-schema 需要 Node 解析模式
+    moduleResolution: ts.ModuleResolutionKind.Node10, // typescript-json-schema 需要 Node 解析模式
     target: ts.ScriptTarget.ES2020,
     baseUrl: projectRoot,
     paths: {
