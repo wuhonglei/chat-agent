@@ -23,7 +23,7 @@ export default defineConfig(({ mode }) => {
         inputPath: "src/componentTools/index.ts",
         outputDirs: [
           "src/componentTools/component-schemas",
-          "public/component-schemas",
+          "../backend/data/component-schemas",
         ],
       }), // 在构建时自动生成组件 JSON Schema
     ],
