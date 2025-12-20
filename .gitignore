@@ -29,3 +29,5 @@ htmlcov/
 *.bak
 *.tmp
 .cache/
+
+test/temp/
