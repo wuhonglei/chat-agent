@@ -80,6 +80,7 @@ export interface ChatRequest extends ChatInputFormValues {
   historyIds: string[];
   regenerateTitle: boolean;
   removedMessageIds: string[];
+  componentToolNames: string[]; // 组件工具名称列表
 }
 
 export interface SourceData {

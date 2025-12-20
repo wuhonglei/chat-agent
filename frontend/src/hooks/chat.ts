@@ -41,6 +41,7 @@ import {
 } from "@/store/slices/conversationSlice";
 import { useEffect, useMemo, useRef } from "react";
 
+import { componentToolNames } from "@/componentTools/helper";
 import { MessageStatus, TitleCreatedBy } from "@/constants";
 import { emitter, EventType } from "@/events";
 import { db } from "@/indexDB";
@@ -287,6 +288,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
             regenerateTitle,
             removedMessageIds,
             conversationId,
+            componentToolNames,
           },
           (data: StreamMessage) => {
             const { type, data: messageData } = data;

@@ -28,6 +28,8 @@ async def chat_stream(
     client_ip: str | None = Depends(get_public_client_ip),
 ):
     """Stream chat response, 按需保存用户与助手消息"""
+    logger.info("Chat stream request received",
+                chat_request=chat_request.model_dump(exclude_none=True))
     conversation_id = chat_request.conversation_id
     state = cast(AppState, request.app.state)
 
@@ -35,17 +37,6 @@ async def chat_stream(
 
     user_metadata = chat_request.model_dump(
         exclude_none=True, exclude=['content'])
-
-    # 记录请求信息（不包含敏感内容）
-    logger.info(
-        "Chat stream request received",
-        conversation_id=conversation_id,
-        client_ip=client_ip,
-        message_length=len(
-            chat_request.content) if chat_request.content else 0,
-        history_count=len(
-            chat_request.history_ids) if chat_request.history_ids else 0,
-    )
 
     try:
         user_message_id = gen_uuid()

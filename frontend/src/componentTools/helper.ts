@@ -6,6 +6,9 @@ type ComponentType =
   | React.ComponentType<Record<string, unknown>>
   | React.LazyExoticComponent<React.ComponentType<Record<string, unknown>>>;
 
+export const componentToolNames = componentTools.map(
+  (tool: ComponentToolItem) => tool.name
+);
 export const componentMap = new Map<string, ComponentType>(
   componentTools.map((tool: ComponentToolItem) => [
     tool.name,

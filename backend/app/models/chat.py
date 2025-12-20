@@ -102,6 +102,8 @@ class ChatRequest(BaseModel):
     mcp_auto_mode: bool = Field(
         True, description="Whether to use mcp auto mode")
     think_mode: bool = Field(False, description="Whether to use think mode")
+    component_tool_names: list[str] = Field(
+        default_factory=list, description="Component tool names, e.g. ['weather']")
 
 
 class ChatSource(BaseModel):
