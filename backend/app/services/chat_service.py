@@ -14,7 +14,7 @@ from app.utils.common import filter_dict
 from app.utils.logger import logger
 from app.utils.time import get_current_time, get_time_duration
 from app.mcp.mcp_client import MCPClientManager
-from app.prompts import get_default_system_prompt, get_prompt_for_title, get_prompt_with_mcp_servers, get_user_message_for_component_render
+from app.prompts import get_default_system_prompt, get_prompt_for_title, get_prompt_with_mcp_servers
 from pydantic import BaseModel
 
 
@@ -329,11 +329,9 @@ class ChatService:
                     })
 
             system_prompt = get_default_system_prompt(include_date=False)
-            tool_call_user_message = get_user_message_for_component_render(
-                user_message, self.collected_tool_call_messages)
             # 将工具调用历史拼接到用户消息中
             new_messages = self._compose_messages_with_tool_calls(
-                system_prompt, history, self.collected_tool_call_messages, tool_call_user_message)
+                system_prompt, history, self.collected_tool_call_messages, user_message)
             async for chunk in self._stream_final_response(new_messages, final_model):
                 yield chunk
             return
