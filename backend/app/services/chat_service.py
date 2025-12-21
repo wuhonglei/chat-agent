@@ -14,7 +14,7 @@ from app.utils.common import filter_dict
 from app.utils.logger import logger
 from app.utils.time import get_current_time, get_time_duration
 from app.mcp.mcp_client import MCPClientManager
-from app.services.prompt import get_default_system_prompt, get_prompt_for_title, get_prompt_with_mcp_servers, get_user_message_for_component_render
+from app.prompts import get_default_system_prompt, get_prompt_for_title, get_prompt_with_mcp_servers, get_user_message_for_component_render
 from pydantic import BaseModel
 
 
