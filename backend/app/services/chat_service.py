@@ -15,6 +15,9 @@ from app.utils.logger import logger
 from app.utils.time import get_current_time, get_time_duration
 from app.mcp.mcp_client import MCPClientManager
 from app.prompts import get_default_system_prompt, get_prompt_for_title, get_prompt_with_mcp_servers
+from app.services.component_schema_service import ComponentSchemaService
+from app.utils.component_tools import convert_schema_to_tool_definition
+from app.prompts.prompt_utils import get_user_message_with_component_data
 from pydantic import BaseModel
 
 
@@ -30,6 +33,7 @@ class ChatService:
         self.collected_content = ''  # 收集的完整响应内容
         self.collected_reasoning = ''  # 收集的推理内容
         self.collected_tool_call_messages: list[ToolCallMessage] = []  # 工具调用记录
+        self.collected_component_data: list[dict] = []  # 收集的组件工具调用结果
         self.total_duration: Optional[float] = None  # 总耗时
         self.tool_calls_duration: Optional[float] = None  # 工具调用耗时
         self.reasoning_duration: Optional[float] = None  # 推理耗时

@@ -29,6 +29,7 @@ services:
     container_name: ai-doc-backend
     environment:
       DATABASE__HOST: postgres
+      COMPONENT_SCHEMA_API_URL: http://frontend:3000/component-schemas/
     env_file:
       - .env
     # 暴露端口到宿主机，可通过宿主机 IP:8000 访问

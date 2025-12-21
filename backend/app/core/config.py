@@ -154,6 +154,7 @@ class Settings(BaseSettings):
     security: SecurityConfig = Field(default_factory=SecurityConfig)
     cloudbase: CloudbaseConfig = Field(..., description="Cloudbase 配置")
     database: DatabaseConfig = Field(..., description="数据库配置")
+    component_schema_api_url: str = Field(..., description="组件 Schema API 地址")
 
     model_config = SettingsConfigDict(
         extra='allow',

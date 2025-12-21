@@ -37,6 +37,7 @@ async def chat_stream(
         chat_request=chat_request.model_dump(exclude_none=True),
     )
 
+    component_tool_names = chat_request.component_tool_names
     chat_service = ChatService(mcp_manager=mcp_manager)
     user_metadata = chat_request.model_dump(
         exclude_none=True, exclude=['content']

@@ -77,3 +77,33 @@ def get_prompt_for_title(user_message: str) -> tuple[str, str]:
     system_prompt = get_system_prompt_for_title()
     user_message_prompt = get_user_message_for_title(user_message)
     return system_prompt, user_message_prompt
+
+
+def get_user_message_with_component_data(
+    user_message: str,
+    component_data: list[dict],
+) -> str:
+    """
+    将组件数据拼接到用户消息中
+
+    Args:
+        user_message: 原始用户消息
+        component_data: 组件数据列表，格式为 [{type, data}, ...]
+
+    Returns:
+        拼接后的用户消息
+    """
+    if not component_data:
+        return user_message
+
+    from app.prompts.user_prompt import user_message_with_component_data_template
+    import json
+
+    component_data_json = json.dumps(
+        component_data, ensure_ascii=False, indent=2)
+
+    return user_message_with_component_data_template.render(
+        user_message=user_message,
+        component_data=component_data,
+        component_data_json=component_data_json,
+    )
