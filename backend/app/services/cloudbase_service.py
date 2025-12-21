@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from app.utils.logger import logger
 
 from app.core.config import settings
-from app.models.auth import SendSmsRequest, SendSmsResponse, SigninRequest, SigninResponse, SignoutRequest, SignoutResponse, SignupRequest, SignupResponse, RefreshTokenRequest, RefreshTokenResponse, VerifySmsRequest, VerifySmsResponse
+from app.schemas.auth import SendSmsRequest, SendSmsResponse, SigninRequest, SigninResponse, SignoutRequest, SignoutResponse, SignupRequest, SignupResponse, RefreshTokenRequest, RefreshTokenResponse, VerifySmsRequest, VerifySmsResponse
 
 
 class CloudbaseService:

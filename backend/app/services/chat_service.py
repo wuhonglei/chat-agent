@@ -8,8 +8,8 @@ from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletionMessage
 
 from app.core.config import settings
-from app.models.chat import ChatMessageItemReq, ChatRequest, CollectedResponse
-from app.models.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallResultMessage
+from app.schemas.chat import ChatMessageItemReq, ChatRequest, CollectedResponse
+from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallResultMessage
 from app.utils.common import filter_dict
 from app.utils.logger import logger
 from app.utils.time import get_current_time, get_time_duration

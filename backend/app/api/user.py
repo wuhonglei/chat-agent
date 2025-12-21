@@ -6,9 +6,9 @@ from fastapi import APIRouter, Depends
 from sqlmodel import Session
 from fastapi import HTTPException
 from app.core.db import get_db
-from app.models.user import UpdateUserInfo
-from app.models.response import ApiResponse
-from app.models.token import SecretTokenInfo
+from app.schemas.user import UpdateUserInfo
+from app.schemas.response import ApiResponse
+from app.schemas.token import SecretTokenInfo
 from app.services.user_service import UserService
 from app.utils.auth_deps import get_auth_token_info
 router = APIRouter()

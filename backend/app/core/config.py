@@ -11,7 +11,7 @@ from pydantic_settings import (
     SettingsConfigDict,
 )
 
-from app.models.config import (
+from app.schemas.config import (
     AppConfig,
     CloudbaseConfig,
     DatabaseConfig,

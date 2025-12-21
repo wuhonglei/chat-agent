@@ -4,7 +4,7 @@ from typing import Optional
 from enum import Enum
 
 from pydantic import BaseModel, Field, ConfigDict
-from app.models.chat import ChatMessageItemReq
+from app.schemas.chat import ChatMessageItemReq
 
 
 class CreatedBy(str, Enum):

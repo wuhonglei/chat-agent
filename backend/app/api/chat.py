@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from app.models.app_state import AppState
-from app.models.chat import ChatRequest, MessageStatus
+from app.schemas.chat import ChatRequest, MessageStatus
 from app.models.db import MessageDb
 from app.services.chat_service import ChatService
 from app.services.message_service import MessageService

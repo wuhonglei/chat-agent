@@ -1,5 +1,5 @@
 import os
-from app.models.config import MCPConfig
+from app.schemas.config import MCPConfig
 
 
 def inject_mcp_env_vars(mcp_config: MCPConfig) -> None:

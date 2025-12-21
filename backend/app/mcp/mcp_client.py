@@ -16,7 +16,7 @@ from fastmcp.client.transports import (
 )
 
 from app.core.config import settings
-from app.models.mcp import MCPConfigForFeDict
+from app.schemas.mcp import MCPConfigForFeDict
 from app.mcp.utils import inject_mcp_env_vars
 from app.utils.logger import logger
 from app.utils.mcp import create_mcp_http_client_with_ssl_config

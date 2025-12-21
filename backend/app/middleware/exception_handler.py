@@ -5,7 +5,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
-from app.models.response import ApiResponse
+from app.schemas.response import ApiResponse
 from app.utils.logger import logger
 
 

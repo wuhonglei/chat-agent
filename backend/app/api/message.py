@@ -5,7 +5,7 @@ from sqlmodel import Session
 
 from app.core.db import get_db
 from app.models.db import MessageDb
-from app.models.response import ApiResponse
+from app.schemas.response import ApiResponse
 from app.utils.auth_deps import require_auth
 
 router = APIRouter()

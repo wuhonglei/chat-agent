@@ -7,7 +7,7 @@ from sqlmodel import SQLModel, Field
 
 from app.utils.date import get_datetime_now
 from app.utils.common import gen_uuid
-from app.models.conversation import CreatedBy
+from app.schemas.conversation import CreatedBy
 
 
 class UserDb(SQLModel, table=True):

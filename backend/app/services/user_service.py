@@ -5,9 +5,9 @@ from typing import Optional
 
 from sqlmodel import Session, select
 
-from app.models.auth import VerifySmsResponse
+from app.schemas.auth import VerifySmsResponse
 from app.models.db import UserDb
-from app.models.user import UpdateUserInfo
+from app.schemas.user import UpdateUserInfo
 from app.utils.date import get_datetime_now
 from app.services.base_service import BaseService
 

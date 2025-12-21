@@ -7,7 +7,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, UploadFile
 
 from app.core.config import settings
-from app.models.response import ApiResponse
+from app.schemas.response import ApiResponse
 from app.services.object_storage_service import ObjectStorageService
 from app.utils.auth_deps import require_auth
 from app.utils.file import TempFileManager, get_file_extension, write_file_async

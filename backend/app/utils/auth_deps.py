@@ -5,9 +5,9 @@
 import jwt
 from fastapi import Depends, HTTPException, Request, Response
 
-from app.jwt.jwt_manager import JWTManager, get_jwt_manager
-from app.models.auth import RefreshTokenRequest
-from app.models.token import SecretTokenInfo
+from app.core.jwt import JWTManager, get_jwt_manager
+from app.schemas.auth import RefreshTokenRequest
+from app.schemas.token import SecretTokenInfo
 from app.services.cloudbase_service import CloudbaseService
 from app.utils.logger import logger
 

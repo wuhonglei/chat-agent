@@ -8,7 +8,6 @@ from openai.types.chat import ChatCompletionMessageFunctionToolCall
 from pydantic import BaseModel, Field, ConfigDict
 
 from app.utils.date import get_datetime_now
-from app.models.llm import ToolCallMessage
 
 
 class MessageStatus(str, Enum):

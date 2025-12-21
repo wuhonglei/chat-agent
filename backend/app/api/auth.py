@@ -5,14 +5,13 @@
 from fastapi import APIRouter, Depends, Request, Response
 from sqlmodel import Session
 from app.core.db import get_db
-from app.models.auth import SendSmsRequest, SendSmsResponseForFrontend, SignoutRequest, VerifySmsRequestFromFrontend
-from app.models.auth import SigninRequest, SignupRequest
+from app.schemas.auth import SendSmsRequest, SendSmsResponseForFrontend, SignoutRequest, VerifySmsRequestFromFrontend
+from app.schemas.auth import SigninRequest, SignupRequest
 from app.models.db import UserDb
-from app.models.response import ApiResponse
-from app.models.token import SecretTokenInfo
+from app.schemas.response import ApiResponse
 from app.services.cloudbase_service import CloudbaseService
 from app.services.user_service import UserService
-from app.jwt.jwt_manager import JWTManager, get_jwt_manager
+from app.core.jwt import JWTManager, get_jwt_manager
 from app.utils.auth_deps import get_auth_token_info
 
 router = APIRouter()

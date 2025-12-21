@@ -1,5 +1,5 @@
 from app.mcp.mcp_client import mcp_config_for_fe
-from app.models.llm import ToolCallMessage
+from app.schemas.llm import ToolCallMessage
 from app.utils.common import has_tool_call_with_name
 from app.utils.date import get_current_date, get_current_datetime_str
 from jinja2 import Template

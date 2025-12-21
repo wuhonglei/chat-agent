@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from app.models.llm import AssistantToolCallMessage, ToolCallMessage
+from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage
 
 
 def remove_leading_whitespace(text: str) -> str:

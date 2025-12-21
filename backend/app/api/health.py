@@ -5,8 +5,8 @@ from typing import cast
 from fastapi import APIRouter, Request
 
 from app.models.app_state import AppState
-from app.models.mcp import MCPConfigForFeDict
-from app.models.response import ApiResponse
+from app.schemas.mcp import MCPConfigForFeDict
+from app.schemas.response import ApiResponse
 from app.utils.logger import logger
 
 

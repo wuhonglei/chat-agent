@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select, delete
 
-from app.models.chat import ChatMessageItem, ChatMessageItemReq, CollectedResponse, MessageStatus
+from app.schemas.chat import ChatMessageItemReq, CollectedResponse, MessageStatus
 from app.models.db import ConversationDb, MessageDb
 from app.utils.date import get_datetime_now
 from app.services.base_service import BaseService
