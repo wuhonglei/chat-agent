@@ -1,8 +1,11 @@
 """Main FastAPI application"""
 
+from fastapi import HTTPException
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
 
 from app.api import auth, chat, health, conversation, message, user, file
 from app.core.config import settings
@@ -11,6 +14,11 @@ from app.mcp.mcp_client import get_mcp_manager
 from app.models import UserDb, ConversationDb, MessageDb  # 导入模型以注册表到 metadata
 from app.jwt.jwt_manager import initialize_jwt_manager
 from app.middleware import LoggingMiddleware
+from app.middleware.exception_handler import (
+    general_exception_handler,
+    http_exception_handler,
+    validation_exception_handler,
+)
 from app.utils.logger import logger, setup_logger
 
 # 配置日志系统
@@ -54,6 +62,17 @@ app = FastAPI(
 # 添加日志中间件（必须在路由之前添加）
 # 执行顺序：中间件 → 路由匹配 → 依赖注入 → 路由处理函数 → 依赖清理 → 中间件继续
 app.add_middleware(LoggingMiddleware)
+
+# 注册全局异常处理器（按优先级顺序注册）
+# 1. 验证异常处理器（最具体）
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(ValidationError, validation_exception_handler)
+
+# 2. HTTP 异常处理器
+app.add_exception_handler(HTTPException, http_exception_handler)
+
+# 3. 通用异常处理器（兜底，必须最后注册）
+app.add_exception_handler(Exception, general_exception_handler)
 
 # Include routers
 app.include_router(user.router, prefix="/api/user", tags=["user"])

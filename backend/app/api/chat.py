@@ -78,8 +78,10 @@ async def chat_stream(
     async def generate() -> AsyncGenerator[str, None]:
         with MessageService() as message_service:
             conversation = message_service.get_conversation(conversation_id)
-            user_message = message_service.db.get(MessageDb, user_message_id)
-            assistant_message = message_service.db.get(
+            # 使用 session 属性访问数据库会话
+            user_message = message_service.session.get(
+                MessageDb, user_message_id)
+            assistant_message = message_service.session.get(
                 MessageDb, assistant_message_id)
 
             # 立即返回 ack，提示前端消息已入库

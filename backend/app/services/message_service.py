@@ -10,36 +10,36 @@ from sqlmodel import Session, select, delete
 from app.models.chat import ChatMessageItem, ChatMessageItemReq, CollectedResponse, MessageStatus
 from app.models.db import ConversationDb, MessageDb
 from app.utils.date import get_datetime_now
-from app.core.db import engine
+from app.services.base_service import BaseService
 
 
-class MessageService:
+class MessageService(BaseService):
     """处理会话消息的入库与状态更新"""
 
-    def __init__(self):
-        pass
+    def __init__(self, db: Optional[Session] = None):
+        """
+        初始化消息服务
 
-    def __enter__(self):
-        self.db: Optional[Session] = Session(engine)
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        if self.db:
-            self.db.close()
-            self.db = None
+        Args:
+            db: 数据库会话。如果为 None，则必须通过上下文管理器使用
+        """
+        super().__init__(db)
 
     def get_conversation(self, conversation_id: str) -> ConversationDb:
-        conversation = self.db.get(ConversationDb, conversation_id)
+        """获取对话"""
+        db = self._ensure_db()
+        conversation = db.get(ConversationDb, conversation_id)
         if not conversation:
             raise HTTPException(status_code=404, detail="对话不存在")
         return conversation
 
     def remove_messages(self, message_ids: list[str]) -> None:
+        """删除消息"""
         if not message_ids:
-            return True
-        self.db.exec(delete(MessageDb).where(MessageDb.id.in_(message_ids)))
-        self.db.commit()
-        return True
+            return
+        db = self._ensure_db()
+        db.exec(delete(MessageDb).where(MessageDb.id.in_(message_ids)))
+        # 事务由 get_db() 或 BaseService.__exit__ 自动提交
 
     def get_flatten_messages_by_ids(self, message_ids: list[str]) -> list[ChatMessageItemReq]:
         """获取消息的扁平化列表
@@ -48,7 +48,8 @@ class MessageService:
         if not message_ids:
             return []
 
-        messages = self.db.exec(select(MessageDb.id, MessageDb.role, MessageDb.content, MessageDb.tool_calls).where(
+        db = self._ensure_db()
+        messages = db.exec(select(MessageDb.id, MessageDb.role, MessageDb.content, MessageDb.tool_calls).where(
             MessageDb.id.in_(message_ids))).all()
         if not messages:
             from app.utils.logger import logger
@@ -90,24 +91,35 @@ class MessageService:
         last_message_created_at: datetime,
         last_message_updated_at: datetime,
     ) -> None:
+        """更新对话的最后消息时间"""
         conversation.last_message_created_at = last_message_created_at
         conversation.last_message_updated_at = last_message_updated_at
-        self.db.add(conversation)
+        db = self._ensure_db()
+        db.add(conversation)
 
     def _persist_message(
         self,
         message: MessageDb,
         conversation: ConversationDb,
     ) -> MessageDb:
+        """持久化消息到数据库
+
+        注意：此方法需要立即提交事务（用于流式响应场景），
+        因此手动调用 commit()，而不是依赖自动提交。
+        """
+        db = self._ensure_db()
         try:
             self._touch_conversation(
                 conversation, message.created_at, message.updated_at)
-            self.db.add(message)
-            self.db.commit()
-            self.db.refresh(message)
+            db.add(message)
+            # 流式响应需要立即看到数据，所以手动提交
+            # 如果使用依赖注入的 db，这里提交后 get_db() 不会再提交（已提交的事务不会重复提交）
+            db.commit()
+            # 所有字段都有 default_factory 或手动设置，不需要 refresh()
+            # 注意：commit() 后对象变为 Detached 状态，refresh() 会报错
             return message
         except SQLAlchemyError as exc:
-            self.db.rollback()
+            db.rollback()
             from app.utils.logger import logger
             logger.error(
                 "Failed to persist message",

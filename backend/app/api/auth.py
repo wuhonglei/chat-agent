@@ -14,7 +14,6 @@ from app.services.cloudbase_service import CloudbaseService
 from app.services.user_service import UserService
 from app.jwt.jwt_manager import JWTManager, get_jwt_manager
 from app.utils.auth_deps import get_auth_token_info
-from app.utils.logger import logger
 
 router = APIRouter()
 
@@ -70,13 +69,11 @@ async def logout(
     response: Response,
 ) -> ApiResponse[None]:
     """登出"""
-    try:
-        token_info = await get_auth_token_info(request, response)
-        await CloudbaseService.signout(SignoutRequest(access_token=token_info.access_token))
+    token_info = await get_auth_token_info(request, response)
+    await CloudbaseService.signout(
+        SignoutRequest(access_token=token_info.access_token)
+    )
 
-        with UserService(None) as user_service:
-            user_service.update_user_last_logout(token_info.user_id)
-        return ApiResponse.success(data=None)
-    except Exception as e:
-        logger.error("Logout failed", error=e)
-        return ApiResponse.error(code=500, msg=str(e))
+    with UserService() as user_service:
+        user_service.update_user_last_logout(token_info.user_id)
+    return ApiResponse.success(data=None)

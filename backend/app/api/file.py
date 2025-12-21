@@ -10,7 +10,6 @@ from app.core.config import settings
 from app.models.response import ApiResponse
 from app.services.object_storage_service import ObjectStorageService
 from app.utils.auth_deps import require_auth
-from app.utils.decorators import handle_api_exceptions
 from app.utils.file import TempFileManager, get_file_extension, write_file_async
 from app.utils.logger import logger
 
@@ -18,10 +17,6 @@ router = APIRouter()
 
 
 @router.post("/upload_avatar")
-@handle_api_exceptions(
-    operation_name="上传头像",
-    default_message="头像上传失败"
-)
 async def upload_avatar(
     file: UploadFile = File(...),
     _auth: None = Depends(require_auth),

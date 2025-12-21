@@ -27,6 +27,10 @@ def get_db() -> Generator[Session, None, None]:
     session = Session(engine)
     try:
         yield session
+        session.commit()  # 成功时自动提交事务
+    except Exception:
+        session.rollback()  # 异常时自动回滚事务
+        raise
     finally:
         session.close()
 
