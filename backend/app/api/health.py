@@ -1,16 +1,17 @@
 """Health check endpoints"""
 
-from typing import cast
+from fastapi import APIRouter, Depends, Request
 
-from fastapi import APIRouter, Request
-
-from app.models.app_state import AppState
+from app.mcp.mcp_client import MCPClientManager
 from app.schemas.mcp import MCPConfigForFeDict
 from app.schemas.response import ApiResponse
-from app.utils.logger import logger
-
 
 router = APIRouter()
+
+
+def get_mcp_manager(request: Request) -> MCPClientManager:
+    """获取 MCP Manager 依赖注入函数"""
+    return request.app.state.mcp_manager
 
 
 @router.get("")
@@ -20,24 +21,18 @@ async def health_check() -> ApiResponse[dict]:
 
 
 @router.get("/mcp")
-async def mcp_health_check(request: Request) -> ApiResponse[dict[str, bool]]:
+async def mcp_health_check(
+    mcp_manager: MCPClientManager = Depends(get_mcp_manager),
+) -> ApiResponse[dict[str, bool]]:
     """MCP health check"""
-    state = cast(AppState, request.app.state)
-    try:
-        health_check_result = await state.mcp_manager.health_check()
-        return ApiResponse.success(data=health_check_result, msg="MCP健康检查成功")
-    except Exception as e:
-        logger.error("MCP health check failed", error=e)
-        return ApiResponse.error(code=1, msg=f"MCP健康检查失败: {str(e)}")
+    health_check_result = await mcp_manager.health_check()
+    return ApiResponse.success(data=health_check_result, msg="MCP健康检查成功")
 
 
 @router.get("/mcp_config")
-async def mcp_config(request: Request) -> ApiResponse[list[MCPConfigForFeDict]]:
+async def mcp_config(
+    mcp_manager: MCPClientManager = Depends(get_mcp_manager),
+) -> ApiResponse[list[MCPConfigForFeDict]]:
     """Get MCP config for FE"""
-    state = cast(AppState, request.app.state)
-    try:
-        mcp_config_for_fe = await state.mcp_manager.get_mcp_config_for_fe()
-        return ApiResponse.success(data=mcp_config_for_fe, msg="获取MCP配置成功")
-    except Exception as e:
-        logger.error("Get MCP config for FE failed", error=e)
-        return ApiResponse.error(code=1, msg=f"获取MCP配置失败: {str(e)}")
+    mcp_config_for_fe = await mcp_manager.get_mcp_config_for_fe()
+    return ApiResponse.success(data=mcp_config_for_fe, msg="获取MCP配置成功")
