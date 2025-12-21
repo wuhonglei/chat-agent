@@ -1,11 +1,8 @@
 """Object storage service"""
 
 import asyncio
-import logging
 from app.core.config import settings
 from qcloud_cos import CosConfig, CosS3Client
-
-logger = logging.getLogger(__name__)
 
 
 class ObjectStorageService:

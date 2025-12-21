@@ -7,7 +7,7 @@ from fastapi.responses import StreamingResponse
 
 from app.mcp.mcp_client import MCPClientManager
 from app.schemas.chat import ChatRequest, MessageStatus
-from app.models.db import MessageDb
+from app.models import MessageDb
 from app.services.chat_service import ChatService
 from app.services.message_service import MessageService
 from app.utils.auth_deps import require_auth

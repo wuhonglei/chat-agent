@@ -7,11 +7,10 @@ from typing import Optional
 from fastapi import HTTPException
 from sqlmodel import Session, select
 
-from app.models.db import ConversationDb, MessageDb
+from app.models import ConversationDb, MessageDb
 from app.schemas.conversation import (
     ConversationInfo,
     CreatedBy,
-    RegisterConversationRequest,
     UpdateConversationRequest,
 )
 from app.schemas.chat import ChatMessageItem

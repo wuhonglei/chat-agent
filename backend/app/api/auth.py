@@ -7,7 +7,7 @@ from sqlmodel import Session
 from app.core.db import get_db
 from app.schemas.auth import SendSmsRequest, SendSmsResponseForFrontend, SignoutRequest, VerifySmsRequestFromFrontend
 from app.schemas.auth import SigninRequest, SignupRequest
-from app.models.db import UserDb
+from app.models import UserDb
 from app.schemas.response import ApiResponse
 from app.services.cloudbase_service import CloudbaseService
 from app.services.user_service import UserService
