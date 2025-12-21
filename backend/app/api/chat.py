@@ -1,12 +1,11 @@
 """Chat endpoints for Q&A"""
 
 from collections.abc import AsyncGenerator
-from typing import cast
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 
-from app.models.app_state import AppState
+from app.mcp.mcp_client import MCPClientManager
 from app.schemas.chat import ChatRequest, MessageStatus
 from app.models.db import MessageDb
 from app.services.chat_service import ChatService
@@ -20,121 +19,102 @@ from app.utils.time import get_current_time, get_time_duration
 router = APIRouter()
 
 
+def get_mcp_manager(request: Request) -> MCPClientManager:
+    """获取 MCP Manager 依赖注入函数"""
+    return request.app.state.mcp_manager
+
+
 @router.post("/stream")
 async def chat_stream(
-    request: Request,
     chat_request: ChatRequest,
+    mcp_manager: MCPClientManager = Depends(get_mcp_manager),
     _auth: None = Depends(require_auth),
     client_ip: str | None = Depends(get_public_client_ip),
 ):
     """Stream chat response, 按需保存用户与助手消息"""
-    logger.info("Chat stream request received",
-                chat_request=chat_request.model_dump(exclude_none=True))
-    conversation_id = chat_request.conversation_id
-    state = cast(AppState, request.app.state)
+    logger.info(
+        "Chat stream request received",
+        chat_request=chat_request.model_dump(exclude_none=True),
+    )
 
-    chat_service = ChatService(mcp_manager=state.mcp_manager)
-
+    chat_service = ChatService(mcp_manager=mcp_manager)
     user_metadata = chat_request.model_dump(
-        exclude_none=True, exclude=['content'])
+        exclude_none=True, exclude=['content']
+    )
 
-    try:
-        user_message_id = gen_uuid()
-        assistant_message_id = gen_uuid()
-        with MessageService() as message_service:
-            conversation = message_service.get_conversation(conversation_id)
-            message_service.remove_messages(chat_request.removed_message_ids)
-            message_service.create_user_message(
-                conversation=conversation,
-                message_id=user_message_id,
-                content=chat_request.content,
-                metadata={**user_metadata,
-                          "reply_message_id": assistant_message_id},
-            )
-            message_service.create_assistant_message(
-                conversation=conversation,
-                message_id=assistant_message_id,
-                reply_to=user_message_id,
-                metadata=user_metadata,
-            )
-
-            logger.info(
-                "Messages created",
-                conversation_id=conversation_id,
-                user_message_id=user_message_id,
-                assistant_message_id=assistant_message_id,
-            )
-
-    except HTTPException:
-        raise
-    except Exception as exc:
-        logger.error(
-            "Failed to persist user message",
-            error=exc,
-            conversation_id=conversation_id,
+    # 创建用户消息和助手消息
+    user_message_id = gen_uuid()
+    assistant_message_id = gen_uuid()
+    with MessageService() as message_service:
+        conversation = message_service.get_conversation(
+            chat_request.conversation_id)
+        message_service.remove_messages(chat_request.removed_message_ids)
+        message_service.create_user_message(
+            conversation=conversation,
+            message_id=user_message_id,
+            content=chat_request.content,
+            metadata={**user_metadata,
+                      "reply_message_id": assistant_message_id},
         )
-        raise HTTPException(status_code=500, detail="用户消息写入失败") from exc
+        message_service.create_assistant_message(
+            conversation=conversation,
+            message_id=assistant_message_id,
+            reply_to=user_message_id,
+            metadata=user_metadata,
+        )
+        logger.info(
+            "Messages created",
+            conversation_id=chat_request.conversation_id,
+            user_message_id=user_message_id,
+            assistant_message_id=assistant_message_id,
+        )
 
     async def generate() -> AsyncGenerator[str, None]:
+        """生成流式响应"""
         with MessageService() as message_service:
-            conversation = message_service.get_conversation(conversation_id)
-            # 使用 session 属性访问数据库会话
+            conversation = message_service.get_conversation(
+                chat_request.conversation_id)
             user_message = message_service.session.get(
                 MessageDb, user_message_id)
             assistant_message = message_service.session.get(
                 MessageDb, assistant_message_id)
 
-            # 立即返回 ack，提示前端消息已入库
+            # 发送初始确认消息
             yield chat_service.format_sse_message('ack', user_message)
             yield chat_service.format_sse_message('ack', assistant_message)
             yield chat_service.format_sse_message('refresh_conversation', conversation)
+
+            # 如果需要重新生成标题
             if chat_request.regenerate_title:
                 title = await chat_service.generate_title(chat_request.content)
                 yield chat_service.format_sse_message('title', {
-                    'id': conversation_id,
+                    'id': chat_request.conversation_id,
                     'title': title
                 })
 
+            # 流式生成响应
             start_time = get_current_time()
-            try:
-                history = message_service.get_flatten_messages_by_ids(
-                    chat_request.history_ids)
-                async for chunk in chat_service.stream_message(
-                    chat_request=chat_request,
-                    history=history,
-                    client_ip=client_ip
-                ):
-                    yield chunk
-            except Exception as streaming_error:
-                logger.error(
-                    "Streaming response failed",
-                    error=streaming_error,
-                    conversation_id=conversation_id,
-                    user_message_id=user_message_id,
-                    assistant_message_id=assistant_message_id,
-                )
-                yield chat_service.format_sse_message('error', {'msg': str(streaming_error)})
-                raise
+            history = message_service.get_flatten_messages_by_ids(
+                chat_request.history_ids
+            )
+            async for chunk in chat_service.stream_message(
+                chat_request=chat_request,
+                history=history,
+                client_ip=client_ip
+            ):
+                yield chunk
+
+            # 更新助手消息
             chat_service.total_duration = get_time_duration(start_time)
             assistant_payload = chat_service.get_collected_response()
+            assistant_message = message_service.update_assistant_message(
+                conversation,
+                assistant_message,
+                assistant_payload=assistant_payload,
+                status=MessageStatus.DONE,
+            )
 
-            try:
-                assistant_message = message_service.update_assistant_message(
-                    conversation,
-                    assistant_message,
-                    assistant_payload=assistant_payload,
-                    status=MessageStatus.DONE,
-                )
-            except Exception as persist_error:
-                logger.error(
-                    "Failed to persist assistant message",
-                    error=persist_error,
-                    conversation_id=conversation_id,
-                    assistant_message_id=assistant_message_id,
-                )
-                yield chat_service.format_sse_message('error', {'msg': str(persist_error)})
-                raise
-
+            # 发送完成消息
             yield chat_service.format_sse_message('done', {
                 'content_length': len(assistant_payload.content),
                 'reasoning_length': len(assistant_payload.reasoning),
@@ -144,12 +124,10 @@ async def chat_stream(
                 'content_duration': assistant_payload.content_duration,
                 'total_duration': assistant_payload.total_duration,
                 'user_message_id': user_message_id,
-                'conversation_id': conversation_id,
+                'conversation_id': chat_request.conversation_id,
                 'assistant_message_id': assistant_message_id,
                 'last_message_updated_at': assistant_message.updated_at.isoformat(),
             })
-
-        return
 
     return StreamingResponse(
         generate(),
