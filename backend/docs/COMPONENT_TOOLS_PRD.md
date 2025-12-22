@@ -201,8 +201,12 @@ component_tool_names = chat_request.component_tool_names  # 例如: ['weather']
 ### 3. 组件工具定义转换
 
 #### 3.1 转换时机
-- **触发条件**：在 MCP tools 调用结束后
-- **位置**：`app/services/chat_service.py` 的 `stream_message` 方法中，MCP tools 调用完成后
+- **触发条件**：在 MCP tools 调用完成后，调用 `_call_llm_with_component_tools` 方法时
+- **位置**：`app/services/chat_service.py` 的 `_call_llm_with_component_tools` 方法内部
+- **流程**：
+  1. 在 `stream_message` 方法中，`_call_llm_with_mcp_tools` 执行完毕后
+  2. 调用 `_call_llm_with_component_tools` 方法
+  3. 在 `_call_llm_with_component_tools` 内部，获取 schema 并转换为 tool 定义格式
 
 #### 3.2 转换格式
 将获取到的 JSON schema 转换为 LLM 可用的 tool 定义格式，格式如下：
@@ -211,67 +215,58 @@ component_tool_names = chat_request.component_tool_names  # 例如: ['weather']
 {
     "type": "function",
     "function": {
-        "name": "component_{component_tool_name}",  # 例如: "component_weather"
+        "name": "generate_component_{component_tool_name}",  # 例如: "generate_component_weather"
         "description": "生成 {component_tool_name} 组件的 props 数据",
         "parameters": {
             "type": "object",
             "properties": {
-                "type": {
-                    "type": "string",
-                    "description": "组件类型名称",
-                    "enum": ["{component_tool_name}"]  # 固定为组件名称
-                },
-                "data": {
-                    # 从 JSON schema 转换而来，需要处理 $ref 引用
-                    "type": "object",
-                    "properties": {
-                        # ... schema 中的 properties
-                    },
-                    "required": [
-                        # ... schema 中的 required
-                    ]
-                }
+                # ... schema 中的 properties
             },
-            "required": ["type", "data"]
+            "required": [
+                # ... schema 中的 required
+            ]
         }
     }
 }
 ```
 
 **说明**：
-- `parameters.properties.type`：固定为组件类型名称（如 "weather"）
-- `parameters.properties.data`：从 JSON schema 转换而来，包含组件的 props 定义
-- LLM 调用此工具时，返回的数据格式为 `{"type": "weather", "data": {...}}`
+- `parameters.properties`：从 JSON schema 转换而来，包含组件的 props 定义
+- LLM 调用此工具时，返回的数据格式为 `{...}`
 
 #### 3.3 Schema 转换规则
-- 工具 `parameters` 包含两个字段：`type` 和 `data`
-- `type` 字段：固定为组件类型名称（如 "weather"），使用 `enum` 限制
-- `data` 字段：从 JSON schema 转换而来
-  - 将 JSON schema 的 `properties` 映射到 `parameters.properties.data.properties`
-  - 将 JSON schema 的 `required` 映射到 `parameters.properties.data.required`
+- 工具 `parameters.properties`：从 JSON schema 转换而来
 - 处理 `$ref` 引用（如 `#/definitions/WeatherNowData`），需要展开定义
 - 保留 `description` 字段，用于 LLM 理解工具用途
-- `parameters.required` 必须包含 `["type", "data"]`
+- `parameters.required` 必须包含 `[...]`
 
 ### 4. LLM 工具调用流程
 
 #### 4.1 工具提供
 - 在 MCP tools 调用完成后，将转换后的组件工具定义添加到 tools 列表中
-- 提供给 LLM API 进行后续调用
+- 使用 `_call_llm_with_component_tools` 方法进行后续调用
+  - **方法位置**：`app/services/chat_service.py` 的 `_call_llm_with_component_tools` 方法
+  - **调用时机**：在 `stream_message` 方法中，MCP tools 调用完成后（`_call_llm_with_mcp_tools` 执行完毕）
+  - **输入参数**：
+    - `messages`: 包含 system message、user message 和 MCP tool call messages 的消息列表
+    - `model`: LLM 模型名称
+    - `component_tool_names`: 组件工具名称列表（例如：`['weather']`）
+  - **功能**：
+    - 获取并转换组件工具的 JSON schema 为 LLM tool 定义格式
+    - 将组件工具添加到 tools 列表
+    - 调用 LLM API，让 LLM 决定是否调用组件工具
+    - 收集组件工具调用的结果，存储到 `self.collected_component_data` 中
+  - **返回**：异步生成器，yield 工具调用相关的消息（`ToolCallMessage`）
 
 #### 4.2 工具调用
 - LLM 根据上下文和用户需求，决定是否调用组件工具
-- 调用时，LLM 需要返回格式为 `{type, data}` 的数据结构
-  - `type` 字段：组件类型名称（如 "weather"）
-  - `data` 字段：符合 JSON schema 定义的 props 数据
-- 工具名称格式：`component_{component_tool_name}`（例如：`component_weather`）
+- 调用时，LLM 需要返回格式为 json schema 填充后的数据
+- 工具名称格式：`generate_component_{component_tool_name}`（例如：`generate_component_weather`）
 
 #### 4.3 调用结果
 - 工具调用返回的数据格式如下：
   ```json
   {
-    "type": "weather",
-    "data": {
       // json schema 填充后的数据，符合组件 JSON schema 定义的 properties
       "location": "北京市",
       "data": {
@@ -282,11 +277,8 @@ component_tool_names = chat_request.component_tool_names  # 例如: ['weather']
       "aqi": {
         // ... 可选字段
       }
-    }
   }
   ```
-- `type` 字段：组件类型名称（如 "weather"），对应 `component_tool_name`
-- `data` 字段：符合 JSON schema 定义的 props 数据
 - 需要收集所有组件工具调用的结果
 
 ### 5. 数据拼接
@@ -297,12 +289,9 @@ component_tool_names = chat_request.component_tool_names  # 例如: ['weather']
   ```python
   [
     {
-      "type": "weather",
-      "data": {
-        "location": "北京市",
-        "data": { ... },
-        "aqi": { ... }
-      }
+      "location": "北京市",
+      "data": { ... },
+      "aqi": { ... }
     },
     // ... 其他组件数据
   ]
@@ -312,7 +301,7 @@ component_tool_names = chat_request.component_tool_names  # 例如: ['weather']
 - 将所有收集到的组件数据拼接到最终的 `user_prompt` 中
 - 拼接位置：在 `app/services/chat_service.py` 的 `stream_message` 方法中，调用 `_stream_final_response` 之前
 - 拼接方式：将组件数据以结构化格式添加到 user_message 中，供 LLM 生成最终回复
-- 数据格式：保持 `{type, data}` 结构，便于前端识别和渲染
+- 数据格式：保持 `{...}` 结构，便于前端识别和渲染
 
 ## 实现要点
 
@@ -325,22 +314,27 @@ component_tool_names = chat_request.component_tool_names  # 例如: ['weather']
 ### 2. Schema 转换
 - **函数**：创建独立的函数处理 JSON schema 到 LLM tool 格式的转换
 - **$ref 处理**：需要递归处理 schema 中的 `$ref` 引用，展开 `definitions` 中的定义
-- **工具命名**：统一使用 `component_{component_tool_name}` 格式
+- **工具命名**：统一使用 `generate_component_{component_tool_name}` 格式
 
 ### 3. 时机控制
-- **MCP tools 调用**：在 `_call_llm_with_tools` 方法中完成
-- **组件工具添加**：在 MCP tools 调用完成后，在 `stream_message` 方法中添加组件工具
+- **MCP tools 调用**：在 `_call_llm_with_mcp_tools` 方法中完成
+- **组件工具调用**：在 MCP tools 调用完成后，使用 `_call_llm_with_component_tools` 方法进行组件工具的调用
+  - 在 `stream_message` 方法中，`_call_llm_with_mcp_tools` 执行完毕后调用
+  - `_call_llm_with_component_tools` 内部会获取 schema、转换格式、调用 LLM 并收集结果
 - **最终回复生成**：在 `_stream_final_response` 调用前，将组件工具调用的结果拼接到 user_prompt
 
 ### 4. 数据收集
-- **收集位置**：在 `_call_llm_with_tools` 方法中，识别组件工具调用并收集结果
-- **存储位置**：在 `ChatService` 实例中存储收集到的组件数据
-- **数据格式**：使用列表存储，每个元素为工具调用返回的完整数据对象
+- **收集位置**：在 `_call_llm_with_component_tools` 方法中，识别组件工具调用并收集结果
+  - 当 LLM 调用组件工具（`generate_component_{component_tool_name}`）时，从工具调用的 arguments 中提取 `data` 字段
+  - 将提取的数据存储到 `self.collected_component_data` 列表中
+- **存储位置**：在 `ChatService` 实例中存储收集到的组件数据（`self.collected_component_data`）
+- **数据格式**：使用列表存储，每个元素为工具调用返回的完整数据对象（符合 JSON schema 的 props 数据）
   ```python
   [
     {
-      "type": "weather",
-      "data": { ... }  # 符合 JSON schema 的 props 数据
+      "location": "北京市",
+      "data": { ... },
+      "aqi": { ... }
     }
   ]
   ```
@@ -355,12 +349,9 @@ component_tool_names = chat_request.component_tool_names  # 例如: ['weather']
   组件数据:
   [
     {
-      "type": "weather",
-      "data": {
-        "location": "北京市",
-        "data": { ... },
-        "aqi": { ... }
-      }
+      "location": "北京市",
+      "data": { ... },
+      "aqi": { ... }
     }
   ]
   ```
@@ -371,7 +362,8 @@ component_tool_names = chat_request.component_tool_names  # 例如: ['weather']
 - **入口**：`app/api/chat.py:40-41`（获取 `component_tool_names`）
 - **主要逻辑**：`app/services/chat_service.py`
   - `stream_message`：主流程控制
-  - `_call_llm_with_tools`：工具调用处理
+  - `_call_llm_with_mcp_tools`：MCP 工具调用处理
+  - `_call_llm_with_component_tools`：组件工具调用处理（在 MCP tools 调用完成后执行）
   - `_stream_final_response`：最终回复生成
 - **Prompt 处理**：`app/prompts/prompt.py`
   - `get_user_message_for_component_render`：用户消息处理
@@ -387,21 +379,18 @@ component_tool_names = chat_request.component_tool_names  # 例如: ['weather']
 ```
 1. 接收 component_tool_names
    ↓
-2. 使用 ComponentSchemaService 获取并缓存 JSON schemas（如果未缓存）
+2. 执行 MCP tools 调用（通过 _call_llm_with_mcp_tools）
    ↓
-3. 执行 MCP tools 调用
+3. 调用 _call_llm_with_component_tools 方法：
+   - 使用 ComponentSchemaService 获取并缓存 JSON schemas（如果未缓存）
+   - 将 JSON schemas 转换为 LLM tool 定义（使用 convert_schema_to_tool_definition）
+   - 添加组件工具到 tools 列表
+   - 调用 LLM API，让 LLM 决定是否调用组件工具
+   - 收集所有组件工具调用返回的数据（格式：json schema 填充后的数据）
    ↓
-4. 将 JSON schemas 转换为 LLM tool 定义
+4. 将收集到的组件数据拼接到 user_prompt（使用 get_user_message_with_component_data）
    ↓
-5. 添加组件工具到 tools 列表
-   ↓
-6. LLM 调用组件工具，返回格式为 {type, data} 的数据
-   ↓
-7. 收集所有组件工具调用返回的数据（格式：{type, data}）
-   ↓
-8. 将收集到的组件数据拼接到 user_prompt
-   ↓
-9. 生成最终回复
+5. 生成最终回复（通过 _stream_final_response）
 ```
 
 ## 注意事项

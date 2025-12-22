@@ -21,12 +21,3 @@ IMPORTANT RULES:
 user_message_for_title_template = Template("""
 用户消息：{{ user_message }}
 """.strip())
-
-user_message_with_component_data_template = Template("""
-{{ user_message }}
-
-{% if component_data %}
-组件数据:
-{{ component_data_json }}
-{% endif %}
-""".strip())

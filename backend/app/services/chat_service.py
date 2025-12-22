@@ -4,8 +4,10 @@ import json
 from collections.abc import AsyncGenerator, AsyncIterator
 from typing import Any, Optional, cast
 
+from jsonschema import validate, ValidationError as JsonSchemaValidationError
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletionMessage
+from starlette.background import P
 
 from app.core.config import settings
 from app.schemas.chat import ChatMessageItemReq, ChatRequest, CollectedResponse
@@ -17,7 +19,7 @@ from app.mcp.mcp_client import MCPClientManager
 from app.prompts import get_default_system_prompt, get_prompt_for_title, get_prompt_with_mcp_servers
 from app.services.component_schema_service import ComponentSchemaService
 from app.utils.component_tools import convert_schema_to_tool_definition
-from app.prompts.prompt_utils import get_user_message_with_component_data
+from app.prompts.prompt_utils import get_prompt_for_component_render_data, get_user_message_with_component_data
 from pydantic import BaseModel
 
 
@@ -32,8 +34,9 @@ class ChatService:
         self.mcp_manager = mcp_manager
         self.collected_content = ''  # 收集的完整响应内容
         self.collected_reasoning = ''  # 收集的推理内容
-        self.collected_tool_call_messages: list[ToolCallMessage] = []  # 工具调用记录
-        self.collected_component_data: list[dict] = []  # 收集的组件工具调用结果
+        # 工具调用记录
+        self.collected_mcp_tool_call_messages: list[ToolCallMessage] = []
+        self.collected_component_tool_call_messages: list[ToolCallMessage] = []
         self.total_duration: Optional[float] = None  # 总耗时
         self.tool_calls_duration: Optional[float] = None  # 工具调用耗时
         self.reasoning_duration: Optional[float] = None  # 推理耗时
@@ -89,7 +92,7 @@ class ChatService:
                 'duration': self.content_duration,
             })
 
-    async def _call_llm_with_tools(
+    async def _call_llm_with_mcp_tools(
         self,
         messages: list[dict],
         model: str,
@@ -114,7 +117,7 @@ class ChatService:
             response = await self.client.chat.completions.create(
                 model=model,
                 parallel_tool_calls=True,  # 启用并行工具调用
-                messages=messages + self.collected_tool_call_messages,
+                messages=messages + self.collected_mcp_tool_call_messages,
                 tools=tools if tools else None,
                 stream=False,
             )
@@ -137,7 +140,7 @@ class ChatService:
                 'tool_calls': openai_message.tool_calls,
                 'reasoning_content': hasattr(openai_message, 'reasoning_content') and openai_message.reasoning_content or None,
             })
-            self.collected_tool_call_messages.append(assistant_message)
+            self.collected_mcp_tool_call_messages.append(assistant_message)
             yield assistant_message
             tool_count = len(assistant_message.tool_calls)
             logger.info(
@@ -264,7 +267,7 @@ class ChatService:
 
             # Yield results in original order and collect them
             for tool_call_result_message in tool_results:
-                self.collected_tool_call_messages.append(
+                self.collected_mcp_tool_call_messages.append(
                     tool_call_result_message)
                 yield tool_call_result_message
 
@@ -274,6 +277,217 @@ class ChatService:
             max_iterations=max_total_iterations,
         )
         yield None
+        return
+
+    async def _call_llm_with_component_tools(
+        self,
+        # system message + user_message + mcp tool messages
+        messages: list[dict],
+        model: str,
+        component_tool_names: list[str],
+    ) -> AsyncGenerator[ToolCallMessage, ToolCallMessage]:
+        """Call LLM with component tools and collect component data
+
+        Args:
+            messages: 包含 system message、user message 和 MCP tool call messages 的消息列表
+            model: LLM 模型名称
+            component_tool_names: 组件工具名称列表（例如：['weather']）
+
+        Yields:
+            ToolCallMessage: 工具调用相关的消息
+        """
+        if not component_tool_names:
+            return
+
+        # 获取并转换组件工具的 JSON schema 为 LLM tool 定义格式
+        schema_service = ComponentSchemaService()
+        try:
+            schemas = await schema_service.get_schemas(component_tool_names)
+        except Exception as e:
+            logger.error(
+                "Failed to get component schemas",
+                component_tool_names=component_tool_names,
+                error=e,
+            )
+            return
+
+        if not schemas:
+            logger.warning(
+                "No schemas retrieved",
+                component_tool_names=component_tool_names,
+            )
+            return
+
+        # 将 JSON schemas 转换为 LLM tool 定义
+        component_tools = []
+        for component_tool_name, json_schema in schemas.items():
+            try:
+                tool_definition = convert_schema_to_tool_definition(
+                    component_tool_name, json_schema
+                )
+                component_tools.append(tool_definition)
+                logger.info(
+                    "Component tool definition created",
+                    component_tool_name=component_tool_name,
+                )
+            except Exception as e:
+                logger.error(
+                    "Failed to convert schema to tool definition",
+                    component_tool_name=component_tool_name,
+                    error=e,
+                )
+                continue
+
+        if not component_tools:
+            logger.warning("No component tools created")
+            return
+
+        # 调用 LLM API，让 LLM 决定是否调用组件工具
+        max_iterations = 10  # 组件工具调用最多迭代 3 次
+
+        for iteration in range(max_iterations):
+            logger.info(
+                "Component tool call iteration started",
+                iteration=iteration + 1,
+                max_iterations=max_iterations,
+            )
+
+            # 调用 LLM
+            response = await self.client.chat.completions.create(
+                model=model,
+                messages=messages + self.collected_component_tool_call_messages,
+                tools=component_tools,
+                stream=False,
+            )
+            openai_message: ChatCompletionMessage = response.choices[0].message
+
+            if not openai_message.tool_calls:
+                logger.info(
+                    "No component tool calls needed",
+                    has_content=bool(openai_message.content),
+                )
+                return
+
+            # 处理组件工具调用
+            assistant_message = AssistantToolCallMessage(**{
+                'role': 'assistant',
+                'content': openai_message.content,
+                'tool_calls': openai_message.tool_calls,
+                'reasoning_content': hasattr(openai_message, 'reasoning_content') and openai_message.reasoning_content or None,
+            })
+            self.collected_component_tool_call_messages.append(
+                assistant_message)
+            yield assistant_message
+
+            tool_count = len(assistant_message.tool_calls)
+            logger.info(
+                "Component tool calls required",
+                tool_count=tool_count,
+                iteration=iteration + 1,
+            )
+
+            # 收集组件工具调用的结果
+            for tool_call in assistant_message.tool_calls:
+                tool_name = cast(str, tool_call.function.name)
+                component_name_prefix = "generate_component_"
+                # 提取组件名称（去掉 generate_component_ 前缀）
+                component_tool_name = tool_name.replace(
+                    component_name_prefix, "")
+                if component_tool_name not in schemas:
+                    logger.warning(
+                        "Component schema not found",
+                        tool_name=tool_name,
+                        component_tool_name=component_tool_name,
+                        tool_call_id=tool_call.id,
+                    )
+                    tool_call_result_message = ToolCallResultMessage(**{
+                        "role": "tool",
+                        "is_error": True,
+                        "content": f"Component schema not found for tool {tool_name}, skipping",
+                        "tool_call_id": tool_call.id,
+                        "duration": 0.0,
+                    })
+                    self.collected_component_tool_call_messages.append(
+                        tool_call_result_message)
+                    yield tool_call_result_message
+                    continue
+
+                try:
+                    # 解析工具调用的 arguments
+                    arguments = json.loads(tool_call.function.arguments)
+                    schema = schemas[component_tool_name]
+                    try:
+                        validate(instance=arguments, schema=schema)
+                        logger.debug(
+                            "Component tool call arguments validated",
+                            tool_name=tool_name,
+                            component_tool_name=component_tool_name,
+                            tool_call_id=tool_call.id,
+                        )
+                    except JsonSchemaValidationError as e:
+                        error_msg = f"JSON schema validation failed: {e.message}"
+                        logger.warning(
+                            "Component tool call arguments validation failed",
+                            tool_name=tool_name,
+                            component_tool_name=component_tool_name,
+                            tool_call_id=tool_call.id,
+                            validation_error=error_msg,
+                            arguments=arguments,
+                        )
+                        tool_call_result_message = ToolCallResultMessage(**{
+                            "role": "tool",
+                            "is_error": True,
+                            "content": error_msg,
+                            "tool_call_id": tool_call.id,
+                            "duration": 0.0,
+                        })
+                        self.collected_component_tool_call_messages.append(
+                            tool_call_result_message)
+                        yield tool_call_result_message
+                        continue
+
+                    logger.info(
+                        "Component tool call arguments",
+                        tool_name=tool_name,
+                        arguments=arguments,
+                        tool_call_id=tool_call.id,
+                    )
+
+                    # 创建工具调用结果消息
+                    tool_call_result_message = ToolCallResultMessage(**{
+                        "role": "tool",
+                        "is_error": False,
+                        "content": "Component data generated successfully",
+                        "tool_call_id": tool_call.id,
+                        "duration": 0.0,
+                    })
+                    self.collected_component_tool_call_messages.append(
+                        tool_call_result_message)
+                    yield tool_call_result_message
+
+                except Exception as e:
+                    logger.error(
+                        "Failed to process component tool call",
+                        tool_name=tool_name,
+                        tool_call_id=tool_call.id,
+                        error=e,
+                    )
+                    # 创建错误消息
+                    tool_call_result_message = ToolCallResultMessage(**{
+                        "role": "tool",
+                        "is_error": True,
+                        "content": f"Failed to process component tool call: {str(e)}",
+                        "tool_call_id": tool_call.id,
+                        "duration": 0.0,
+                    })
+                    self.collected_component_tool_call_messages.append(
+                        tool_call_result_message)
+                    yield tool_call_result_message
+
+        logger.info(
+            "Component tool call iterations completed",
+            max_iterations=max_iterations,
+        )
         return
 
     def format_sse_message(self, msg_type: str, data=None) -> str:
@@ -318,24 +532,55 @@ class ChatService:
 
                 # Stream tool calls and collect messages
                 start_time = get_current_time()
-                async for message in self._call_llm_with_tools(
+                async for message in self._call_llm_with_mcp_tools(
                     new_messages, final_model, tools
                 ):
                     # Update accumulated messages
                     if message:
                         yield self.format_sse_message('tool_call', message.model_dump(exclude_none=True))
 
-                if self.collected_tool_call_messages:
+                if self.collected_mcp_tool_call_messages:
                     self.tool_calls_duration = get_time_duration(start_time)
                     yield self.format_sse_message('tool_call', {
                         'status': 'done',
                         'duration': self.tool_calls_duration,
                     })
 
+            # 在 MCP tools 调用完成后，调用组件工具
+            component_tool_names = chat_request.component_tool_names
+            if component_tool_names:
+                # 准备消息列表（包含 system message、user message 和 MCP tool messages）
+                system_prompt, component_user_message = get_prompt_for_component_render_data(
+                    user_message)
+                component_messages = self._compose_messages_with_tool_calls(
+                    system_prompt, [], self.collected_mcp_tool_call_messages, component_user_message
+                )
+
+                # 调用组件工具
+                start_time = get_current_time()
+                async for message in self._call_llm_with_component_tools(
+                    component_messages, final_model, component_tool_names
+                ):
+                    if message:
+                        yield self.format_sse_message('tool_call', message.model_dump(exclude_none=True))
+
+                if self.collected_component_tool_call_messages:
+                    self.component_tool_calls_duration = get_time_duration(
+                        start_time)
+                    yield self.format_sse_message('tool_call', {
+                        'status': 'done',
+                        'duration': self.component_tool_calls_duration,
+                    })
+
+            # 将组件数据拼接到 user_message
+            final_user_message = get_user_message_with_component_data(
+                user_message, self.collected_component_tool_call_messages
+            )
+
             system_prompt = get_default_system_prompt(include_date=False)
             # 将工具调用历史拼接到用户消息中
             new_messages = self._compose_messages_with_tool_calls(
-                system_prompt, history, self.collected_tool_call_messages, user_message)
+                system_prompt, history, self.collected_mcp_tool_call_messages, final_user_message)
             async for chunk in self._stream_final_response(new_messages, final_model):
                 yield chunk
             return
@@ -362,7 +607,7 @@ class ChatService:
             content=self.collected_content,
             reasoning=self.collected_reasoning,
             tool_calls=[tool_call.model_dump(
-                exclude_none=True) for tool_call in self.collected_tool_call_messages],
+                exclude_none=True) for tool_call in self.collected_mcp_tool_call_messages],
             tool_calls_duration=self.tool_calls_duration,
             reasoning_duration=self.reasoning_duration,
             content_duration=self.content_duration,

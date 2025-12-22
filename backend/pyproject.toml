@@ -46,6 +46,7 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "gunicorn>=23.0.0",
     "fastmcp>=2.13.3",
+    "jsonschema>=4.25.0",  # JSON Schema validation
 ]
 
 [project.optional-dependencies]

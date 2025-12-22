@@ -1,6 +1,5 @@
 """组件 Schema 服务，负责获取和缓存组件的 JSON Schema"""
 import json
-from typing import Optional
 import httpx
 from app.core.config import settings
 from app.utils.logger import logger

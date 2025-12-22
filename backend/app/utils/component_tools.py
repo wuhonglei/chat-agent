@@ -102,24 +102,12 @@ def convert_schema_to_tool_definition(
         {
             "type": "function",
             "function": {
-                "name": "component_{component_tool_name}",
+                "name": "generate_component_{component_tool_name}",
                 "description": "生成 {component_tool_name} 组件的 props 数据",
                 "parameters": {
                     "type": "object",
-                    "properties": {
-                        "type": {
-                            "type": "string",
-                            "description": "组件类型名称",
-                            "enum": ["{component_tool_name}"]
-                        },
-                        "data": {
-                            # 从 JSON schema 转换而来
-                            "type": "object",
-                            "properties": {...},
-                            "required": [...]
-                        }
-                    },
-                    "required": ["type", "data"]
+                    "properties": {...},
+                    "required": [...]
                 }
             }
         }
@@ -131,27 +119,16 @@ def convert_schema_to_tool_definition(
     schema_properties = expanded_schema.get("properties", {})
     schema_required = expanded_schema.get("required", [])
 
-    # 构建 tool 定义
+    # 构建 tool 定义，按照文档要求的格式
     tool_definition = {
         "type": "function",
         "function": {
-            "name": f"component_{component_tool_name}",
+            "name": f"generate_component_{component_tool_name}",
             "description": f"生成 {component_tool_name} 组件的 props 数据",
             "parameters": {
                 "type": "object",
-                "properties": {
-                    "type": {
-                        "type": "string",
-                        "description": "组件类型名称",
-                        "enum": [component_tool_name],
-                    },
-                    "data": {
-                        "type": "object",
-                        "properties": schema_properties,
-                        "required": schema_required,
-                    },
-                },
-                "required": ["type", "data"],
+                "properties": schema_properties,
+                "required": schema_required,
             },
         },
     }
