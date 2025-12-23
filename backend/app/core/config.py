@@ -3,10 +3,7 @@
 from typing import Any
 
 import yaml
-try:
-    from nacos_sdk_rust import NacosClient
-except ImportError:
-    from nacos import NacosClient
+from nacos import NacosClient
 from pydantic import Field
 from pydantic_settings import (
     BaseSettings,
