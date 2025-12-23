@@ -11,6 +11,7 @@ from app.prompts.system_prompt import (
 from app.prompts.user_prompt import (
     user_message_for_tool_call_template,
     user_message_for_title_template,
+    user_message_with_component_data_template,
 )
 from app.schemas.llm import ToolCallMessage
 from app.utils.date import get_current_date, get_current_datetime_str
@@ -101,14 +102,31 @@ def get_user_message_with_component_data(
     if not component_tool_call_messages:
         return user_message
 
-    component_data = []
-    for tool_call_message in component_tool_call_messages:
-        component_data.append({
-            'component_name': tool_call_message.tool_call.name,
-            'props': tool_call_message.tool_call.arguments,
-        })
+    component_data: list[str] = []
+    # 助手消息中的 tool_calls 按 id 分组
+    tool_call_by_id = {
+        tool_call.id: tool_call
+        for assistant_message in component_tool_call_messages
+        if assistant_message.role == 'assistant'
+        for tool_call in (assistant_message.tool_calls or [])
+    }
+    for tool_call_result_message in component_tool_call_messages:
+        if tool_call_result_message.role == 'tool' and not tool_call_result_message.is_error:
+            tool_call = tool_call_by_id.get(
+                tool_call_result_message.tool_call_id)
+            if tool_call:
+                component_dict = {
+                    'component_name': tool_call.function.name.replace('generate_component_', ''),
+                    'props': json.loads(tool_call.function.arguments),
+                }
+                # 将组件数据序列化为 JSON 字符串，便于在模板中直接使用
+                component_data.append(json.dumps(
+                    component_dict, ensure_ascii=False, indent=2))
 
-    # return user_message_with_component_data_template.render(
-    #     user_message=user_message,
-    #     component_tool_call_messages=component_tool_call_messages,
-    # )
+    if not component_data:
+        return user_message
+
+    return user_message_with_component_data_template.render(
+        user_message=user_message,
+        component_data=component_data,
+    )

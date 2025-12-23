@@ -139,9 +139,15 @@ class CollectedResponse(BaseModel):
     reasoning: str = Field(default="", description="Collected reasoning")
     tool_calls: list[dict] = Field(
         default_factory=list, description="Collected tool calls")
+    component_tool_calls: list[dict] = Field(
+        default_factory=list, description="Collected component tool calls")
     tool_calls_duration: Optional[float] = Field(
         default=None,
-        description="工具调用耗时（秒）"
+        description="MCP 工具调用耗时（秒）"
+    )
+    component_tool_calls_duration: Optional[float] = Field(
+        default=None,
+        description="组件工具调用耗时（秒），不包含 MCP 工具调用耗时"
     )
     reasoning_duration: Optional[float] = Field(
         default=None,

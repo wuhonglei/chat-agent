@@ -37,6 +37,8 @@ class MessageDb(SQLModel, table=True):
         default=None, description="Reasoning content")
     tool_calls: Optional[list[dict]] = Field(
         default=None, sa_type=SQLJSON, description="Tool calls")
+    component_tool_calls: Optional[list[dict]] = Field(
+        default=None, sa_type=SQLJSON, description="Component tool calls")
     message_metadata: dict[str, Any] = Field(
         default_factory=dict, sa_type=SQLJSON)  # 元数据（模型调用、配置）
     status: str = Field(
@@ -52,6 +54,11 @@ class MessageDb(SQLModel, table=True):
         default=None,
         sa_type=Float,
         description="工具调用耗时（秒）"
+    )
+    component_tool_calls_duration: Optional[float] = Field(
+        default=None,
+        sa_type=Float,
+        description="组件工具调用耗时（秒）"
     )
     reasoning_duration: Optional[float] = Field(
         default=None,

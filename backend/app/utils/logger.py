@@ -16,6 +16,32 @@ from loguru import logger as _loguru_logger
 
 from app.utils.time import format_datetime_to_iso8601
 
+
+def _make_json_serializable(obj: Any) -> Any:
+    """递归地将对象转换为 JSON 可序列化的格式
+
+    将异常对象、datetime 对象等不可序列化的对象转换为字符串
+    """
+    if isinstance(obj, Exception):
+        return {
+            "type": obj.__class__.__name__,
+            "message": str(obj),
+        }
+    elif isinstance(obj, dict):
+        return {key: _make_json_serializable(value) for key, value in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [_make_json_serializable(item) for item in obj]
+    elif isinstance(obj, (str, int, float, bool, type(None))):
+        return obj
+    else:
+        # 对于其他不可序列化的对象，转换为字符串
+        try:
+            json.dumps(obj)
+            return obj
+        except (TypeError, ValueError):
+            return str(obj)
+
+
 # 上下文变量，用于存储请求相关的上下文信息
 request_id_var: ContextVar[Optional[str]] = ContextVar(
     "request_id", default=None)
@@ -66,8 +92,9 @@ def production_sink(message):
     }
 
     # 添加 extra 字段（包含 request_id, user_id, client_ip 等上下文信息）
+    # 需要将 extra 中的不可序列化对象（如异常对象）转换为可序列化格式
     if record["extra"]:
-        serialized["extra"] = record["extra"]
+        serialized["extra"] = _make_json_serializable(record["extra"])
 
     # 添加异常信息（如果有）
     if record["exception"]:

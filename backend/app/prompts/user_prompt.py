@@ -21,3 +21,15 @@ IMPORTANT RULES:
 user_message_for_title_template = Template("""
 用户消息：{{ user_message }}
 """.strip())
+
+user_message_with_component_data_template = Template("""
+用户消息：{{ user_message }}
+
+可以使用以下组件数据在文本中合适的展示位置展示:
+{% for component in component_data %}
+```json
+{{ component }}
+```
+{% endfor %}
+注意：组件数据需要按照 JSON 格式展示，不要使用其他格式。
+""".strip())

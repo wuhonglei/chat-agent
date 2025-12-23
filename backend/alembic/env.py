@@ -21,7 +21,7 @@ if config.config_file_name is not None:
 
 # Import application settings and metadata
 from app.core.db import SQLALCHEMY_DATABASE_URL, engine  # noqa: E402
-from app.models import db  # noqa: F401,E402  # Import models to register them with SQLModel metadata
+from app.models import UserDb, ConversationDb, MessageDb  # noqa: F401,E402  # Import models to register them with SQLModel metadata
 
 target_metadata = SQLModel.metadata
 

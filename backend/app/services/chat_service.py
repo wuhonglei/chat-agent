@@ -7,7 +7,6 @@ from typing import Any, Optional, cast
 from jsonschema import validate, ValidationError as JsonSchemaValidationError
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletionMessage
-from starlette.background import P
 
 from app.core.config import settings
 from app.schemas.chat import ChatMessageItemReq, ChatRequest, CollectedResponse
@@ -537,11 +536,11 @@ class ChatService:
                 ):
                     # Update accumulated messages
                     if message:
-                        yield self.format_sse_message('tool_call', message.model_dump(exclude_none=True))
+                        yield self.format_sse_message('mcp_tool_call', message.model_dump(exclude_none=True))
 
                 if self.collected_mcp_tool_call_messages:
                     self.tool_calls_duration = get_time_duration(start_time)
-                    yield self.format_sse_message('tool_call', {
+                    yield self.format_sse_message('mcp_tool_call', {
                         'status': 'done',
                         'duration': self.tool_calls_duration,
                     })
@@ -562,12 +561,12 @@ class ChatService:
                     component_messages, final_model, component_tool_names
                 ):
                     if message:
-                        yield self.format_sse_message('tool_call', message.model_dump(exclude_none=True))
+                        yield self.format_sse_message('component_tool_call', message.model_dump(exclude_none=True))
 
                 if self.collected_component_tool_call_messages:
                     self.component_tool_calls_duration = get_time_duration(
                         start_time)
-                    yield self.format_sse_message('tool_call', {
+                    yield self.format_sse_message('component_tool_call', {
                         'status': 'done',
                         'duration': self.component_tool_calls_duration,
                     })
@@ -608,7 +607,10 @@ class ChatService:
             reasoning=self.collected_reasoning,
             tool_calls=[tool_call.model_dump(
                 exclude_none=True) for tool_call in self.collected_mcp_tool_call_messages],
+            component_tool_calls=[tool_call.model_dump(
+                exclude_none=True) for tool_call in self.collected_component_tool_call_messages],
             tool_calls_duration=self.tool_calls_duration,
+            component_tool_calls_duration=self.component_tool_calls_duration,
             reasoning_duration=self.reasoning_duration,
             content_duration=self.content_duration,
             total_duration=self.total_duration,
