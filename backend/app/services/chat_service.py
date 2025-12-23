@@ -187,12 +187,7 @@ class ChatService:
                         tool_name=tool_name,
                         tool_call_id=tool_call.id,
                         iteration=iteration + 1,
-                    )
-                    logger.debug(
-                        "MCP tool arguments",
-                        tool_name=tool_name,
                         arguments=arguments,
-                        tool_call_id=tool_call.id,
                     )
                     result, filtered_params = await self.mcp_manager.call_tool(tool_name, arguments)
                     content = self.mcp_manager.format_mcp_result(result)
@@ -225,11 +220,6 @@ class ChatService:
                         tool_call_id=tool_call.id,
                         duration=tool_call_result_message.duration,
                         content_length=len(content) if content else 0,
-                    )
-                    logger.debug(
-                        "MCP tool result preview",
-                        tool_name=tool_name,
-                        tool_call_id=tool_call.id,
                         content=content[:200] + '...' +
                         content[-200:] if len(content) > 400 else content,
                     )
@@ -434,6 +424,17 @@ class ChatService:
                     self.collected_component_tool_call_messages.append(
                         tool_call_result_message)
                     yield tool_call_result_message
+
+                    # 从 component_tools 中移除已成功构造的组件
+                    component_tools[:] = [
+                        tool for tool in component_tools
+                        if tool.get("function", {}).get("name") != tool_name
+                    ]
+                    logger.debug(
+                        "Component tool removed from list",
+                        tool_name=tool_name,
+                        remaining_tools=len(component_tools),
+                    )
                 except JsonSchemaValidationError as e:
                     error_msg = f"JSON schema validation failed: {e.message}"
                     logger.warning(
