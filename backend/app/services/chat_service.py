@@ -156,6 +156,8 @@ class ChatService:
             )
 
             # Execute tool calls in parallel and stream results
+            tools_to_remove = set()  # 收集需要移除的工具名称
+
             async def execute_single_tool(tool_call: Any) -> ToolCallResultMessage:
                 """Execute a single tool call and return the result message"""
                 tool_name = cast(str, tool_call.function.name)
@@ -168,6 +170,8 @@ class ChatService:
                         tool_name=tool_name,
                         iteration=iteration + 1,
                     )
+                    # 标记该工具需要从列表中移除
+                    tools_to_remove.add(tool_name)
                     return ToolCallResultMessage(**{
                         "role": "tool",
                         "is_error": True,
@@ -178,6 +182,11 @@ class ChatService:
 
                 # Decrement AFTER checking
                 iterations_by_tool[tool_name] -= 1
+
+                # 如果工具达到上限，标记需要移除
+                if iterations_by_tool[tool_name] <= 0:
+                    tools_to_remove.add(tool_name)
+
                 try:
                     # Call the tool via MCP manager
                     # Parse arguments
@@ -254,6 +263,23 @@ class ChatService:
                 tool_call) for tool_call in assistant_message.tool_calls]
             # Execute all tasks in parallel
             tool_results = await asyncio.gather(*tasks)
+
+            # Remove tools that have reached max iterations from the tools list
+            if tools_to_remove:
+                original_count = len(tools)
+                tools[:] = [
+                    tool for tool in tools
+                    if tool.get("function", {}).get("name") not in tools_to_remove
+                ]
+                removed_count = original_count - len(tools)
+                logger.info(
+                    "Removed tools that reached max iterations",
+                    removed_tools=list(tools_to_remove),
+                    removed_count=removed_count,
+                    remaining_tools=len(tools),
+                    iteration=iteration + 1,
+                )
+                tools_to_remove.clear()  # 清空集合，为下次迭代准备
 
             # Yield results in original order and collect them
             for tool_call_result_message in tool_results:
