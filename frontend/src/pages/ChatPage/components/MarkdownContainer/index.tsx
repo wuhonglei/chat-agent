@@ -52,25 +52,25 @@ const CustomCodeBlock = memo(
       );
     }
 
-    // 处理组件代码块（格式：component_<component_name>）
-    if (language?.startsWith("component_")) {
-      const componentName = language.replace("component_", "");
-      const Component = componentMap.get(componentName);
+    if (
+      language === "json" &&
+      code.includes("component_name") &&
+      code.includes("props")
+    ) {
       // 降级渲染：当组件渲染失败时，显示原始 JSON 代码
       const fallbackCodeBlock = (
         <CodeHighlighter lang="json">{code}</CodeHighlighter>
       );
 
       try {
+        const parsedData = JSON.parse(jsonrepair(code));
+        const componentName = parsedData.component_name;
+        const Component = componentMap.get(componentName);
         if (!Component) {
           throw new Error(`未找到组件: ${componentName}`);
         }
-
-        const parsedData = JSON.parse(jsonrepair(code));
-        const { valid, errors } = validateComponentProps(
-          componentName,
-          parsedData
-        );
+        const props = parsedData.props;
+        const { valid, errors } = validateComponentProps(componentName, props);
         if (!valid) {
           throw new Error(
             `组件 ${componentName} 的 props 不合法: ${errors?.join(", ")}`
@@ -84,15 +84,11 @@ const CustomCodeBlock = memo(
             fallback={fallbackCodeBlock}
           >
             <Suspense fallback={fallbackCodeBlock}>
-              <Component {...parsedData} />
+              <Component {...props} />
             </Suspense>
           </ComponentErrorBoundary>
         );
       } catch (error) {
-        console.warn(
-          `组件 ${componentName} JSON 解析失败，降级为代码展示:`,
-          error
-        );
         return fallbackCodeBlock;
       }
     }

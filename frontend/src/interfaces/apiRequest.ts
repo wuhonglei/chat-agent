@@ -27,7 +27,11 @@ export type StreamMessage =
       };
     }
   | {
-      type: "tool_call";
+      type: "mcp_tool_call";
+      data: ToolCallMessage;
+    }
+  | {
+      type: "component_tool_call";
       data: ToolCallMessage;
     }
   | {

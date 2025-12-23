@@ -12,23 +12,26 @@ import { chatAPI } from "@/services";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   addMessage,
+  appendComponentToolCallToLastMessage,
   appendContentToLastMessage,
+  appendMcpToolCallToLastMessage,
   appendReasoningToLastMessage,
-  appendToolCallToLastMessage,
   clearLastMessage,
   clearMessagesAfterIndex,
   DEFAULT_CHAT_STATE,
   lastMessageCheck,
   removeMessageById,
   resetChatState,
-  setCallingTools,
+  setCallingComponentTools,
+  setCallingMcpTools,
+  setComponentToolCallsDuration,
   setLoading,
+  setMcpToolCallsDuration,
   setMessages,
   setReasoning,
   setReasoningDuration,
   setStreaming,
   setTempMessages,
-  setToolCallsDuration,
   updateMessageModifiedTime,
   updateMessageStatus,
 } from "@/store/slices/chatSlice";
@@ -209,16 +212,16 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
             );
           },
 
-          // 工具调用
-          tool_call: data => {
+          // Mcp 工具调用
+          mcp_tool_call: data => {
             const { role } = data;
-            dispatch(setCallingTools({ conversationId, data: true }));
+            dispatch(setCallingMcpTools({ conversationId, data: true }));
             if (!role && data?.status === "done") {
-              emitter.emit(EventType.ToolCallDone);
-              dispatch(setCallingTools({ conversationId, data: false }));
+              emitter.emit(EventType.McpToolCallDone);
+              dispatch(setCallingMcpTools({ conversationId, data: false }));
               if (data.duration) {
                 dispatch(
-                  setToolCallsDuration({
+                  setMcpToolCallsDuration({
                     conversationId,
                     data: data.duration,
                   })
@@ -226,7 +229,34 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
               }
             } else {
               dispatch(
-                appendToolCallToLastMessage({
+                appendMcpToolCallToLastMessage({
+                  conversationId,
+                  data,
+                })
+              );
+            }
+          },
+
+          // 组件工具调用
+          component_tool_call: data => {
+            const { role } = data;
+            dispatch(setCallingComponentTools({ conversationId, data: true }));
+            if (!role && data?.status === "done") {
+              emitter.emit(EventType.ComponentToolCallDone);
+              dispatch(
+                setCallingComponentTools({ conversationId, data: false })
+              );
+              if (data.duration) {
+                dispatch(
+                  setComponentToolCallsDuration({
+                    conversationId,
+                    data: data.duration,
+                  })
+                );
+              }
+            } else {
+              dispatch(
+                appendComponentToolCallToLastMessage({
                   conversationId,
                   data,
                 })

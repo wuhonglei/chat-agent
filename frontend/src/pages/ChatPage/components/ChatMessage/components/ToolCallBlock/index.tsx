@@ -16,6 +16,11 @@ type Props = {
   isCallingTools: boolean;
   isStreaming: boolean;
   toolCallsDuration?: number;
+  eventType: EventType;
+  titles: {
+    doing: string;
+    done: string;
+  };
   toolCalls: ToolCallMessage[] | undefined;
 };
 
@@ -23,6 +28,8 @@ const ToolCallBlock = ({
   isCallingTools,
   isStreaming,
   toolCallsDuration,
+  eventType,
+  titles,
   toolCalls,
 }: Props) => {
   const timelineMessages = useTimelineMessages(toolCalls);
@@ -39,7 +46,7 @@ const ToolCallBlock = ({
    * 工具调用结束后，折叠工具调用内容
    */
   useEmitterWithCondition(
-    EventType.ToolCallDone,
+    eventType,
     () => {
       setTimeout(() => {
         setExpanded(false);
@@ -65,10 +72,7 @@ const ToolCallBlock = ({
       }}
       title={
         <TitleWithDuration
-          titles={{
-            doing: "工具调用中",
-            done: "已完成工具调用",
-          }}
+          titles={titles}
           isDoing={isCallingTools}
           duration={toolCallsDuration}
         />

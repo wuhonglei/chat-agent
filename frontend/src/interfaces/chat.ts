@@ -33,10 +33,12 @@ export interface ChatMessage {
   createdAt: string;
   updatedAt: string;
   toolCallsDuration: number;
+  componentToolCallsDuration: number;
   reasoningDuration: number;
   contentDuration: number;
   totalDuration: number;
   toolCalls: ToolCallMessage[];
+  componentToolCalls: ToolCallMessage[];
   status: MessageStatus;
   messageMetadata: Omit<ChatInputFormValues, "message">;
   replyTo: string; // role为assistant时，回复到哪个user消息
@@ -100,5 +102,6 @@ export interface ChatConversationState {
   isLoading: boolean;
   isStreaming: boolean;
   isReasoning: boolean;
-  isCallingTools: boolean;
+  isCallingMcpTools: boolean;
+  isCallingComponentTools: boolean;
 }

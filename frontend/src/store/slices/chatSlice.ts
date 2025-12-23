@@ -24,7 +24,8 @@ export const getDefaultChatState = (): ChatConversationState => ({
   isLoading: false,
   isStreaming: false,
   isReasoning: false,
-  isCallingTools: false,
+  isCallingMcpTools: false,
+  isCallingComponentTools: false,
 });
 
 // 稳定的默认状态，避免每次创建新对象
@@ -152,7 +153,7 @@ const chatSlice = createSlice({
       const chatState = conversationIdCheck(state, conversationId);
       chatState.isReasoning = data;
     },
-    setCallingTools: (
+    setCallingMcpTools: (
       state,
       action: PayloadAction<ConversationActionPayload<boolean>>
     ) => {
@@ -160,7 +161,18 @@ const chatSlice = createSlice({
       const chatState = conversationIdCheck(state, conversationId);
       const lastMessage = lastMessageCheck(chatState.messages);
       if (lastMessage) {
-        chatState.isCallingTools = data;
+        chatState.isCallingMcpTools = data;
+      }
+    },
+    setCallingComponentTools: (
+      state,
+      action: PayloadAction<ConversationActionPayload<boolean>>
+    ) => {
+      const { conversationId, data } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      const lastMessage = lastMessageCheck(chatState.messages);
+      if (lastMessage) {
+        chatState.isCallingComponentTools = data;
       }
     },
     setReasoningDuration: (
@@ -174,7 +186,7 @@ const chatSlice = createSlice({
         lastMessage.reasoningDuration = data;
       }
     },
-    setToolCallsDuration: (
+    setMcpToolCallsDuration: (
       state,
       action: PayloadAction<ConversationActionPayload<number>>
     ) => {
@@ -183,6 +195,28 @@ const chatSlice = createSlice({
       const lastMessage = lastMessageCheck(chatState.messages);
       if (lastMessage) {
         lastMessage.toolCallsDuration = data;
+      }
+    },
+    setComponentToolCallsDuration: (
+      state,
+      action: PayloadAction<ConversationActionPayload<number>>
+    ) => {
+      const { conversationId, data } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      const lastMessage = lastMessageCheck(chatState.messages);
+      if (lastMessage) {
+        lastMessage.componentToolCallsDuration = data;
+      }
+    },
+    appendComponentToolCallToLastMessage: (
+      state,
+      action: PayloadAction<ConversationActionPayload<ToolCallMessage>>
+    ) => {
+      const { conversationId, data } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      const lastMessage = lastMessageCheck(chatState.messages);
+      if (lastMessage) {
+        lastMessage.componentToolCalls.push(data);
       }
     },
     prependContentToLastMessage: (
@@ -229,7 +263,7 @@ const chatSlice = createSlice({
         lastMessage.reasoning += data;
       }
     },
-    appendToolCallToLastMessage: (
+    appendMcpToolCallToLastMessage: (
       state,
       action: PayloadAction<ConversationActionPayload<ToolCallMessage>>
     ) => {
@@ -269,7 +303,7 @@ const chatSlice = createSlice({
       chatState.isLoading = false;
       chatState.isStreaming = false;
       chatState.isReasoning = false;
-      chatState.isCallingTools = false;
+      chatState.isCallingMcpTools = false;
     },
     // 删除会话时调用
     clearChatState: (
@@ -290,14 +324,17 @@ export const {
   removeMessageById,
   setStreaming,
   setLoading,
-  setCallingTools,
+  setCallingMcpTools,
+  setCallingComponentTools,
   setReasoningDuration,
-  setToolCallsDuration,
+  setMcpToolCallsDuration,
+  setComponentToolCallsDuration,
   prependContentToLastMessage,
   appendContentToLastMessage,
   prependSourceToLastReasoningMessage,
   appendReasoningToLastMessage,
-  appendToolCallToLastMessage,
+  appendMcpToolCallToLastMessage,
+  appendComponentToolCallToLastMessage,
   setReasoning,
   updateMessageStatus,
   updateMessageModifiedTime,

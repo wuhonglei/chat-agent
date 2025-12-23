@@ -1,3 +1,4 @@
+import { EventType } from "@/events";
 import { ChatMessage as ChatMessageType } from "@/interfaces";
 import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
 import { Bubble } from "@ant-design/x";
@@ -12,7 +13,8 @@ interface AssistantMessageProps {
   isStreaming: boolean;
   isLoading: boolean;
   isReasoning: boolean;
-  isCallingTools: boolean;
+  isCallingMcpTools: boolean;
+  isCallingComponentTools: boolean;
   onReSend: () => void;
 }
 
@@ -21,7 +23,8 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
   isReasoning,
   isStreaming,
   isLoading,
-  isCallingTools,
+  isCallingMcpTools,
+  isCallingComponentTools,
   onReSend,
 }) => {
   const displayContent = useThrottle(message.content, {
@@ -38,11 +41,29 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
       content={displayContent}
       contentRender={displayContent => (
         <div className="flex flex-col gap-2">
+          {/* 渲染 Mcp 工具调用 */}
           <ToolCallBlock
+            titles={{
+              doing: "工具调用中",
+              done: "已完成工具调用",
+            }}
             isStreaming={isStreaming}
-            isCallingTools={isCallingTools}
             toolCalls={message.toolCalls}
+            isCallingTools={isCallingMcpTools}
+            eventType={EventType.McpToolCallDone}
             toolCallsDuration={message.toolCallsDuration}
+          />
+          {/* 渲染组件工具调用 */}
+          <ToolCallBlock
+            titles={{
+              doing: "组件数据构造中",
+              done: "已完成组件数据构造",
+            }}
+            isStreaming={isStreaming}
+            toolCalls={message.componentToolCalls}
+            isCallingTools={isCallingComponentTools}
+            eventType={EventType.ComponentToolCallDone}
+            toolCallsDuration={message.componentToolCallsDuration}
           />
           {/* 渲染思考内容 */}
           <ReasoningBlock
