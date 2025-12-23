@@ -16,6 +16,7 @@ class ComponentSchemaService:
         base_url: str = settings.component_schema_api_url,
         timeout: int = 5,
         max_retries: int = 2,
+        debug: bool = False,
     ):
         """
         初始化 ComponentSchemaService
@@ -24,10 +25,12 @@ class ComponentSchemaService:
             base_url: Schema API 基础地址
             timeout: 请求超时时间（秒）
             max_retries: 最大重试次数
+            debug: 是否为调试模式
         """
         self.base_url = base_url.rstrip('/')
         self.timeout = timeout
         self.max_retries = max_retries
+        self.debug = debug
 
     async def get_schema(self, component_tool_name: str) -> dict:
         """
@@ -42,8 +45,8 @@ class ComponentSchemaService:
         Raises:
             Exception: 当获取 Schema 失败时抛出异常
         """
-        # 先检查缓存
-        if component_tool_name in self._schema_cache:
+        # 非调试模式下，先检查缓存
+        if not self.debug and component_tool_name in self._schema_cache:
             logger.debug(
                 "Schema cache hit",
                 component_tool_name=component_tool_name,

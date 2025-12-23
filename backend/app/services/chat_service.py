@@ -26,6 +26,7 @@ class ChatService:
     """Handle chat interactions with RAG"""
 
     def __init__(self, mcp_manager: MCPClientManager):
+        self.debug = settings.app.debug
         self.client = AsyncOpenAI(
             api_key=settings.llm.api_key,
             base_url=settings.llm.api_base,
@@ -299,7 +300,7 @@ class ChatService:
             return
 
         # 获取并转换组件工具的 JSON schema 为 LLM tool 定义格式
-        schema_service = ComponentSchemaService()
+        schema_service = ComponentSchemaService(debug=self.debug)
         try:
             schemas = await schema_service.get_schemas(component_tool_names)
         except Exception as e:
@@ -342,7 +343,7 @@ class ChatService:
             return
 
         # 调用 LLM API，让 LLM 决定是否调用组件工具
-        max_iterations = 10  # 组件工具调用最多迭代 3 次
+        max_iterations = len(component_tools)  # 组件工具调用最多迭代次数
 
         for iteration in range(max_iterations):
             logger.info(
@@ -411,47 +412,17 @@ class ChatService:
                     yield tool_call_result_message
                     continue
 
+                # 解析工具调用的 arguments
                 try:
-                    # 解析工具调用的 arguments
                     arguments = json.loads(tool_call.function.arguments)
                     schema = schemas[component_tool_name]
-                    try:
-                        validate(instance=arguments, schema=schema)
-                        logger.debug(
-                            "Component tool call arguments validated",
-                            tool_name=tool_name,
-                            component_tool_name=component_tool_name,
-                            tool_call_id=tool_call.id,
-                        )
-                    except JsonSchemaValidationError as e:
-                        error_msg = f"JSON schema validation failed: {e.message}"
-                        logger.warning(
-                            "Component tool call arguments validation failed",
-                            tool_name=tool_name,
-                            component_tool_name=component_tool_name,
-                            tool_call_id=tool_call.id,
-                            validation_error=error_msg,
-                            arguments=arguments,
-                        )
-                        tool_call_result_message = ToolCallResultMessage(**{
-                            "role": "tool",
-                            "is_error": True,
-                            "content": error_msg,
-                            "tool_call_id": tool_call.id,
-                            "duration": 0.0,
-                        })
-                        self.collected_component_tool_call_messages.append(
-                            tool_call_result_message)
-                        yield tool_call_result_message
-                        continue
-
-                    logger.info(
-                        "Component tool call arguments",
+                    validate(instance=arguments, schema=schema)
+                    logger.debug(
+                        "Component tool call arguments validated",
                         tool_name=tool_name,
                         arguments=arguments,
                         tool_call_id=tool_call.id,
                     )
-
                     # 创建工具调用结果消息
                     tool_call_result_message = ToolCallResultMessage(**{
                         "role": "tool",
@@ -463,25 +434,27 @@ class ChatService:
                     self.collected_component_tool_call_messages.append(
                         tool_call_result_message)
                     yield tool_call_result_message
-
-                except Exception as e:
-                    logger.error(
-                        "Failed to process component tool call",
+                except JsonSchemaValidationError as e:
+                    error_msg = f"JSON schema validation failed: {e.message}"
+                    logger.warning(
+                        "Component tool call arguments validation failed",
                         tool_name=tool_name,
+                        component_tool_name=component_tool_name,
                         tool_call_id=tool_call.id,
-                        error=e,
+                        validation_error=error_msg,
+                        arguments=arguments,
                     )
-                    # 创建错误消息
                     tool_call_result_message = ToolCallResultMessage(**{
                         "role": "tool",
                         "is_error": True,
-                        "content": f"Failed to process component tool call: {str(e)}",
+                        "content": error_msg,
                         "tool_call_id": tool_call.id,
                         "duration": 0.0,
                     })
                     self.collected_component_tool_call_messages.append(
                         tool_call_result_message)
                     yield tool_call_result_message
+                    continue
 
         logger.info(
             "Component tool call iterations completed",
