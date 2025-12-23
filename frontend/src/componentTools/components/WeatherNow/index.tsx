@@ -6,7 +6,7 @@ import type { WeatherNowProps } from "./type";
 import { getWeatherBackgroundClass, isDaytime } from "./utils";
 
 export default function WeatherNow({ data, location }: WeatherNowProps) {
-  const { tempMin, tempMax, temp, icon, text, obsTime } = data;
+  const { temp, icon, text, obsTime } = data;
   const bgStyles = isDaytime(obsTime) ? daytimeStyles : nighttimeStyles;
   const backgroundClass = getWeatherBackgroundClass(icon, bgStyles);
 
@@ -37,15 +37,6 @@ export default function WeatherNow({ data, location }: WeatherNowProps) {
           />
         </div>
       </div>
-
-      {/* 温度范围 */}
-      {(tempMin || tempMax) && (
-        <div className={styles.tempRange}>
-          {tempMax && <span className={styles.tempMax}>{tempMax}°C</span>}
-          {tempMin && tempMax && <span className={styles.separator}> / </span>}
-          {tempMin && <span className={styles.tempMin}>{tempMin}°C</span>}
-        </div>
-      )}
 
       {/* 预报时间 */}
       <div className={styles.time}>更新时间: {formatTime(obsTime)}</div>

@@ -33,10 +33,6 @@ export interface WeatherNowData {
   cloud: string;
   /** 露点温度 */
   dew: string;
-  /** 最低温度 */
-  tempMin?: string;
-  /** 最高温度 */
-  tempMax?: string;
 }
 
 /**
@@ -47,13 +43,4 @@ export interface WeatherNowProps {
   location: string;
   /** 天气数据 */
   data: WeatherNowData;
-  /** 空气质量指数（可选） */
-  aqi?: {
-    /** 空气质量等级 */
-    level: string;
-    /** 空气质量类别 */
-    category: string;
-    /** 空气质量指数 */
-    aqi: string;
-  };
 }
