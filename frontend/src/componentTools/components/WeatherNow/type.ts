@@ -36,7 +36,7 @@ export interface WeatherNowData {
 }
 
 /**
- * 天气组件 Props
+ * 展示实时天气的组件
  */
 export interface WeatherNowProps {
   /** 位置信息 */

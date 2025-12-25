@@ -46,12 +46,12 @@ class ComponentSchemaService:
             Exception: 当获取 Schema 失败时抛出异常
         """
         # 非调试模式下，先检查缓存
-        if not self.debug and component_tool_name in self._schema_cache:
+        if not self.debug and component_tool_name in ComponentSchemaService._schema_cache:
             logger.debug(
                 "Schema cache hit",
                 component_tool_name=component_tool_name,
             )
-            return self._schema_cache[component_tool_name]
+            return ComponentSchemaService._schema_cache[component_tool_name]
 
         # 缓存未命中，从 API 获取
         logger.info(
@@ -61,7 +61,7 @@ class ComponentSchemaService:
         schema = await self._fetch_schema_from_api(component_tool_name)
 
         # 更新缓存
-        self._schema_cache[component_tool_name] = schema
+        ComponentSchemaService._schema_cache[component_tool_name] = schema
         logger.info(
             "Schema cached",
             component_tool_name=component_tool_name,
@@ -190,6 +190,11 @@ class ComponentSchemaService:
             error=last_exception,
         )
         raise last_exception
+
+    @classmethod
+    def get_schema_cache(cls) -> dict[str, dict]:
+        """获取缓存"""
+        return cls._schema_cache
 
     @classmethod
     def clear_cache(cls):

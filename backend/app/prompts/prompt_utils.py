@@ -15,6 +15,7 @@ from app.prompts.user_prompt import (
 )
 from app.schemas.llm import ToolCallMessage
 from app.utils.date import get_current_date, get_current_datetime_str
+from app.utils.logger import logger
 
 
 def get_default_system_prompt(include_date: bool = False) -> str:
@@ -97,12 +98,13 @@ def get_prompt_for_component_render_data(
 def get_user_message_with_component_data(
     user_message: str,
     component_tool_call_messages: list[ToolCallMessage],
+    component_schema: dict[str, dict],
 ) -> str:
     """Get user message with component data"""
     if not component_tool_call_messages:
         return user_message
 
-    component_data: list[str] = []
+    component_data: list[dict] = []
     # 助手消息中的 tool_calls 按 id 分组
     tool_call_by_id = {
         tool_call.id: tool_call
@@ -115,18 +117,27 @@ def get_user_message_with_component_data(
             tool_call = tool_call_by_id.get(
                 tool_call_result_message.tool_call_id)
             if tool_call:
+                component_name = tool_call.function.name.replace(
+                    'generate_component_', '')
+                component_description = component_schema.get(
+                    component_name, {}).get('description', '')
                 component_dict = {
-                    'component_name': tool_call.function.name.replace('generate_component_', ''),
+                    'component_name': component_name,
+                    'component_description': component_description,
                     'props': json.loads(tool_call.function.arguments),
                 }
                 # 将组件数据序列化为 JSON 字符串，便于在模板中直接使用
-                component_data.append(json.dumps(
-                    component_dict, ensure_ascii=False, indent=2))
+                component_data.append(component_dict)
 
     if not component_data:
         return user_message
 
-    return user_message_with_component_data_template.render(
+    user_message_with_component_data = user_message_with_component_data_template.render(
         user_message=user_message,
         component_data=component_data,
     )
+    logger.debug(
+        "User message with component data",
+        user_message_with_component_data=user_message_with_component_data,
+    )
+    return user_message_with_component_data

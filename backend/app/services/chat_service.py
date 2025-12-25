@@ -41,6 +41,8 @@ class ChatService:
         self.tool_calls_duration: Optional[float] = None  # 工具调用耗时
         self.reasoning_duration: Optional[float] = None  # 推理耗时
         self.content_duration: Optional[float] = None  # 内容生成耗时
+        self.schema_service = ComponentSchemaService(
+            debug=self.debug)  # 复用 ComponentSchemaService 实例
 
     async def _stream_final_response(
         self,
@@ -316,9 +318,8 @@ class ChatService:
             return
 
         # 获取并转换组件工具的 JSON schema 为 LLM tool 定义格式
-        schema_service = ComponentSchemaService(debug=self.debug)
         try:
-            schemas = await schema_service.get_schemas(component_tool_names)
+            schemas = await self.schema_service.get_schemas(component_tool_names)
         except Exception as e:
             logger.error(
                 "Failed to get component schemas",
@@ -573,7 +574,7 @@ class ChatService:
 
             # 将组件数据拼接到 user_message
             final_user_message = get_user_message_with_component_data(
-                user_message, self.collected_component_tool_call_messages
+                user_message, self.collected_component_tool_call_messages, self.schema_service.get_schema_cache()
             )
 
             system_prompt = get_default_system_prompt(include_date=False)
