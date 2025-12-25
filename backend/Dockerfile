@@ -34,7 +34,11 @@ COPY pyproject.toml .
 COPY uv.lock .
 
 # Install Python dependencies using uv with Chinese mirror
-RUN uv pip install --system -e . --index-url https://mirrors.aliyun.com/pypi/simple/
+# 从 lockfile 导出 requirements.txt 并安装所有依赖（包括 nacos-sdk-python）
+# 这样可以确保所有在 uv.lock 中的依赖都被正确安装
+RUN uv export --format requirements.txt --all-packages > /tmp/requirements.txt && \
+    uv pip install --system -r /tmp/requirements.txt --index-url https://mirrors.aliyun.com/pypi/simple/ && \
+    rm /tmp/requirements.txt
 
 # Copy application code
 COPY alembic.ini .
