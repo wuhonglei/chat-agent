@@ -25,12 +25,12 @@ user_message_for_title_template = Template("""
 user_message_with_component_data_template = Template("""
 用户消息：{{ user_message }}
 
-请在文本中合适的返回以下 json 组件数据(组件数据是 json 格式，不要使用其他格式):
+请在文本中合适的返回以下 markdown 格式的 json 组件数据(组件数据是 json 格式，不要使用其他格式):
 {% for component in component_data %}
 组件名称：{{ component.component_name }}
 组件描述：{{ component.component_description }}
 ```json
-{{ dict(component_name=component.component_name, props=component.props) | tojson(indent=2) }}
+{{ component.component_json_str }}
 ```
 
 {% endfor %}

@@ -121,12 +121,21 @@ def get_user_message_with_component_data(
                     'generate_component_', '')
                 component_description = component_schema.get(
                     component_name, {}).get('description', '')
+                props = json.loads(tool_call.function.arguments)
+                # 创建要输出的 JSON 数据（不包含 component_description）
+                component_json_data = {
+                    'component_name': component_name,
+                    'props': props,
+                }
+                # 序列化为 JSON 字符串（设置 ensure_ascii=False 以保留中文）
+                component_json_str = json.dumps(
+                    component_json_data, indent=2, ensure_ascii=False
+                )
                 component_dict = {
                     'component_name': component_name,
                     'component_description': component_description,
-                    'props': json.loads(tool_call.function.arguments),
+                    'component_json_str': component_json_str,  # 预处理的 JSON 字符串
                 }
-                # 将组件数据序列化为 JSON 字符串，便于在模板中直接使用
                 component_data.append(component_dict)
 
     if not component_data:
