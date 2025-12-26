@@ -27,24 +27,21 @@ class SourceConfig(BaseModel):
 
 class ComponentToolWhen(BaseModel):
     """Component tool when condition model"""
-    tool_names: Optional[list[str]] = Field(
+    mcp_tool_names: Optional[list[str]] = Field(
         None, description="当 mcp 工具名称匹配时，后端才会组装对应的组件"
     )
-    tool_call_content: Optional[list[str]] = Field(
+    mcp_tool_call_content: Optional[list[str]] = Field(
         None, description="当 mcp 工具调用内容匹配时，后端才会组装对应的组件"
     )
-    user_message_content: Optional[list[str]] = Field(
+    user_message: Optional[str] = Field(
         None, description="当用户消息内容匹配时，后端才会组装对应的组件"
-    )
-    assistant_message_content: Optional[list[str]] = Field(
-        None, description="当 ai 消息内容匹配时，后端才会组装对应的组件"
     )
 
 
 class ComponentToolConfig(BaseModel):
     """Component tool configuration model"""
     name: str = Field(..., description="Component tool name, e.g. 'weather'")
-    whenCondition: Literal["and", "or"] = Field(
+    when_condition: Literal["and", "or"] = Field(
         "and", description="Condition logic: 'and' or 'or'"
     )
     when: ComponentToolWhen = Field(

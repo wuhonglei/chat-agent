@@ -9,7 +9,7 @@ from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletionMessage
 
 from app.core.config import settings
-from app.schemas.chat import ChatMessageItemReq, ChatRequest, CollectedResponse
+from app.schemas.chat import ChatMessageItemReq, ChatRequest, CollectedResponse, ComponentToolConfig, ComponentToolWhen
 from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallResultMessage
 from app.utils.common import filter_dict
 from app.utils.logger import logger
@@ -303,6 +303,126 @@ class ChatService:
         yield None
         return
 
+    def _check_component_condition(
+        self,
+        component_config: ComponentToolConfig,
+        mcp_tool_names: list[str],
+        mcp_tool_call_contents: list[str],
+        user_message: str,
+    ) -> bool:
+        """检查组件是否满足条件
+
+        Args:
+            component_config: 组件配置
+            mcp_tool_names: 已调用的 MCP 工具名称列表
+            mcp_tool_call_contents: MCP 工具响应内容列表
+            user_message: 用户消息内容
+
+        Returns:
+            bool: 是否满足条件
+        """
+        when = component_config.when
+        when_condition = component_config.when_condition
+
+        # 收集所有条件的匹配结果
+        condition_results = []
+
+        # 检查 mcp_tool_names 条件
+        if when.mcp_tool_names is not None:
+            # 检查是否有任何已调用的工具名称匹配
+            matched = any(
+                tool_name in mcp_tool_names
+                for tool_name in when.mcp_tool_names
+            )
+            condition_results.append(matched)
+            logger.debug(
+                "Checking mcp_tool_names condition",
+                component_name=component_config.name,
+                expected_tools=when.mcp_tool_names,
+                actual_tools=mcp_tool_names,
+                matched=matched,
+            )
+
+        # 检查 mcp_tool_call_content 条件
+        if when.mcp_tool_call_content is not None:
+            # 检查是否有任何工具响应内容包含指定的字符串
+            matched = any(
+                any(keyword in content for content in mcp_tool_call_contents)
+                for keyword in when.mcp_tool_call_content
+            )
+            condition_results.append(matched)
+            logger.debug(
+                "Checking mcp_tool_call_content condition",
+                component_name=component_config.name,
+                expected_keywords=when.mcp_tool_call_content,
+                matched=matched,
+            )
+
+        # 检查 user_message 条件
+        if when.user_message is not None:
+            # 检查用户消息是否包含指定的字符串
+            matched = when.user_message in user_message
+            condition_results.append(matched)
+            logger.debug(
+                "Checking user_message condition",
+                component_name=component_config.name,
+                expected_keyword=when.user_message,
+                matched=matched,
+            )
+
+        # 如果没有设置任何条件，默认返回 True（允许调用）
+        if not condition_results:
+            logger.debug(
+                "No conditions set, allowing component",
+                component_name=component_config.name,
+            )
+            return True
+
+        # 根据 when_condition 决定组合逻辑
+        if when_condition == "and":
+            # 所有条件都必须满足
+            result = all(condition_results)
+        else:  # "or"
+            # 至少一个条件满足即可
+            result = any(condition_results)
+
+        logger.info(
+            "Component condition check result",
+            component_name=component_config.name,
+            when_condition=when_condition,
+            condition_results=condition_results,
+            result=result,
+        )
+
+        return result
+
+    def _extract_mcp_tool_info(
+        self,
+        mcp_tool_call_messages: list[ToolCallMessage],
+    ) -> tuple[list[str], list[str]]:
+        """从 MCP 工具调用消息中提取工具名称和响应内容
+
+        Args:
+            mcp_tool_call_messages: MCP 工具调用消息列表
+
+        Returns:
+            tuple[list[str], list[str]]: (工具名称列表, 工具响应内容列表)
+        """
+        tool_names: list[str] = []
+        tool_call_contents: list[str] = []
+
+        for message in mcp_tool_call_messages:
+            if isinstance(message, AssistantToolCallMessage) and message.tool_calls:
+                # 从 assistant 消息中提取工具名称
+                for tool_call in message.tool_calls:
+                    tool_name = tool_call.function.name
+                    tool_names.append(tool_name)
+            elif isinstance(message, ToolCallResultMessage) and not message.is_error:
+                # 从 tool 消息中提取响应内容
+                tool_call_contents.append(message.content)
+
+        return tool_names, tool_call_contents
+
     async def _call_llm_with_component_tools(
         self,
         # system message + user_message + mcp tool messages
@@ -554,30 +674,61 @@ class ChatService:
                     })
 
             # 在 MCP tools 调用完成后，调用组件工具
-            component_tool_names = chat_request.component_tool_names
-            if component_tool_names:
-                # 准备消息列表（包含 system message、user message 和 MCP tool messages）
-                system_prompt, component_user_message = get_prompt_for_component_render_data(
-                    user_message)
-                component_messages = self._compose_messages_with_tool_calls(
-                    system_prompt, [], self.collected_mcp_tool_call_messages, component_user_message
+            component_tools_for_backend = chat_request.component_tools_for_backend
+            if component_tools_for_backend:
+                # 提取 MCP 工具信息
+                mcp_tool_names, mcp_tool_call_contents = self._extract_mcp_tool_info(
+                    self.collected_mcp_tool_call_messages
                 )
 
-                # 调用组件工具
-                start_time = get_current_time()
-                async for message in self._call_llm_with_component_tools(
-                    component_messages, tool_model, component_tool_names
-                ):
-                    if message:
-                        yield self.format_sse_message('component_tool_call', message.model_dump(exclude_none=True))
+                # 根据条件过滤组件工具
+                filtered_component_tools = []
+                for component_config in component_tools_for_backend:
+                    if self._check_component_condition(
+                        component_config,
+                        mcp_tool_names,
+                        mcp_tool_call_contents,
+                        user_message,
+                    ):
+                        filtered_component_tools.append(component_config.name)
+                        logger.info(
+                            "Component tool condition satisfied",
+                            component_name=component_config.name,
+                        )
+                    else:
+                        logger.info(
+                            "Component tool condition not satisfied, skipping",
+                            component_name=component_config.name,
+                        )
 
-                if self.collected_component_tool_call_messages:
-                    self.component_tool_calls_duration = get_time_duration(
-                        start_time)
-                    yield self.format_sse_message('component_tool_call', {
-                        'status': 'done',
-                        'duration': self.component_tool_calls_duration,
-                    })
+                if filtered_component_tools:
+                    # 准备消息列表（包含 system message、user message 和 MCP tool messages）
+                    system_prompt, component_user_message = get_prompt_for_component_render_data(
+                        user_message)
+                    component_messages = self._compose_messages_with_tool_calls(
+                        system_prompt, [], self.collected_mcp_tool_call_messages, component_user_message
+                    )
+
+                    # 调用组件工具
+                    start_time = get_current_time()
+                    async for message in self._call_llm_with_component_tools(
+                        component_messages, tool_model, filtered_component_tools
+                    ):
+                        if message:
+                            yield self.format_sse_message('component_tool_call', message.model_dump(exclude_none=True))
+
+                    if self.collected_component_tool_call_messages:
+                        self.component_tool_calls_duration = get_time_duration(
+                            start_time)
+                        yield self.format_sse_message('component_tool_call', {
+                            'status': 'done',
+                            'duration': self.component_tool_calls_duration,
+                        })
+                else:
+                    logger.info(
+                        "No component tools passed condition check",
+                        total_components=len(component_tools_for_backend),
+                    )
 
             # 将组件数据拼接到 user_message
             final_user_message = get_user_message_with_component_data(
