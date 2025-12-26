@@ -3,12 +3,17 @@ import styles from "./index.module.css";
 import daytimeStyles from "./theme/daytime.module.css";
 import nighttimeStyles from "./theme/night.module.css";
 import type { WeatherNowProps } from "./type";
-import { getWeatherBackgroundClass, isDaytime } from "./utils";
+import {
+  extractTemperature,
+  getWeatherBackgroundClass,
+  isDaytime,
+} from "./utils";
 
 export default function WeatherNow({ data, location }: WeatherNowProps) {
   const { temp, icon, text, obsTime } = data;
   const bgStyles = isDaytime(obsTime) ? daytimeStyles : nighttimeStyles;
   const backgroundClass = getWeatherBackgroundClass(icon, bgStyles);
+  const temperature = extractTemperature(temp);
 
   function handleIconError(e: React.SyntheticEvent<HTMLImageElement>) {
     e.currentTarget.remove();
@@ -25,8 +30,8 @@ export default function WeatherNow({ data, location }: WeatherNowProps) {
       {/* 当前温度和天气描述 */}
       <div className={styles.mainInfo}>
         <div className={styles.temperature}>
-          <span className={styles.tempValue}>{temp || "-"}</span>
-          <span className={styles.tempUnit}>°C</span>
+          <span className={styles.tempValue}>{temperature.value || "-"}</span>
+          <span className={styles.tempUnit}>{temperature.unit}</span>
         </div>
         <div className={styles.description}>
           {text || "-"}

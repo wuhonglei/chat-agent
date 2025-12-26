@@ -69,3 +69,36 @@ export function getWeatherBackgroundClass(
   // 默认/未知 (999 或其他)
   return styles.bgDefault;
 }
+
+/**
+ * 提取温度值和单位
+ */
+// 或者如果你想要更灵活的正则表达式（匹配更多格式）
+export function extractTemperature(str: string): {
+  value?: number;
+  unit: string;
+} {
+  // 这个正则表达式更灵活，可以匹配更多格式
+  const pattern = /(-?\d+(?:\.\d+)?)\s*([℃°C]|Celsius|centigrade)?/i;
+  const match = str.match(pattern);
+
+  if (!match) {
+    return {
+      value: undefined,
+      unit: "",
+    };
+  }
+
+  const value = parseFloat(match[1]);
+  let unit = match[2] || null;
+
+  // 标准化单位表示
+  if (
+    unit &&
+    (unit.toLowerCase() === "celsius" || unit.toLowerCase() === "centigrade")
+  ) {
+    unit = "°C";
+  }
+
+  return { value, unit: unit || "°C" };
+}

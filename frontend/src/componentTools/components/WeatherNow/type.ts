@@ -8,9 +8,9 @@ export interface WeatherNowData {
   /** 天气图标代码 */
   icon: string;
   /** 温度 */
-  temp?: string;
+  temp: string;
   /** 天气状况文字描述 */
-  text?: string;
+  text: string;
   /** 体感温度 */
   feelsLike?: string;
   /** 风向360度 */
