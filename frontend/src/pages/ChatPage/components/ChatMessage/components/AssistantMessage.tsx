@@ -1,6 +1,8 @@
+import ReactIcon from "@/assets/svg/ReactIcon.svg?react";
 import { EventType } from "@/events";
 import { ChatMessage as ChatMessageType } from "@/interfaces";
 import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
+import { ToolOutlined } from "@ant-design/icons";
 import { Bubble } from "@ant-design/x";
 import { useThrottle } from "ahooks";
 import React from "react";
@@ -47,6 +49,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
               doing: "工具调用中",
               done: "已完成工具调用",
             }}
+            icon={<ToolOutlined />}
             isStreaming={isStreaming}
             toolCalls={message.toolCalls}
             isCallingTools={isCallingMcpTools}
@@ -56,9 +59,10 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
           {/* 渲染组件工具调用 */}
           <ToolCallBlock
             titles={{
-              doing: "组件数据构造中",
-              done: "已完成组件数据构造",
+              doing: "组件构造中",
+              done: "已完成组件构造",
             }}
+            icon={<ReactIcon width={16} height={16} fill="currentColor" />}
             isStreaming={isStreaming}
             toolCalls={message.componentToolCalls}
             isCallingTools={isCallingComponentTools}

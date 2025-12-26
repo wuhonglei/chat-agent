@@ -1,7 +1,6 @@
 import { EventType, useEmitterWithCondition } from "@/events";
 import { ToolCallMessage } from "@/interfaces";
 import { isCallingTool } from "@/utils";
-import { ToolOutlined } from "@ant-design/icons";
 import { Think, ThoughtChain } from "@ant-design/x";
 import { useMemoizedFn } from "ahooks";
 import { isEmpty } from "lodash-es";
@@ -21,6 +20,7 @@ type Props = {
     doing: string;
     done: string;
   };
+  icon: React.ReactNode;
   toolCalls: ToolCallMessage[] | undefined;
 };
 
@@ -30,6 +30,7 @@ const ToolCallBlock = ({
   toolCallsDuration,
   eventType,
   titles,
+  icon,
   toolCalls,
 }: Props) => {
   const timelineMessages = useTimelineMessages(toolCalls);
@@ -61,9 +62,9 @@ const ToolCallBlock = ({
 
   return (
     <Think
+      icon={icon}
       expanded={expanded}
       blink={isCallingTools}
-      icon={<ToolOutlined />}
       onExpand={handleExpandChange}
       styles={{
         content: {
