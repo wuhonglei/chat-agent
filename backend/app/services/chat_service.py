@@ -31,6 +31,11 @@ class ChatService:
             api_key=settings.llm.api_key,
             base_url=settings.llm.api_base,
         )
+        self.tool_model_config = settings.tool
+        self.tool_client = AsyncOpenAI(
+            api_key=settings.tool.api_key,
+            base_url=settings.tool.api_base,
+        )
         self.mcp_manager = mcp_manager
         self.collected_content = ''  # 收集的完整响应内容
         self.collected_reasoning = ''  # 收集的推理内容
@@ -114,7 +119,7 @@ class ChatService:
                         1, max_iterations=max_total_iterations)
 
             # Call LLM with tools
-            response = await self.client.chat.completions.create(
+            response = await self.tool_client.chat.completions.create(
                 model=model,
                 parallel_tool_calls=True,  # 启用并行工具调用
                 messages=messages + self.collected_mcp_tool_call_messages,
@@ -369,7 +374,7 @@ class ChatService:
             )
 
             # 调用 LLM
-            response = await self.client.chat.completions.create(
+            response = await self.tool_client.chat.completions.create(
                 model=model,
                 messages=messages + self.collected_component_tool_call_messages,
                 tools=component_tools,
@@ -517,6 +522,7 @@ class ChatService:
             think_mode = chat_request.think_mode
             user_message = chat_request.content
             final_model = settings.llm.think_model if think_mode else settings.llm.model
+            tool_model = self.tool_model_config.think_model if think_mode else self.tool_model_config.model
 
             # Get MCP tools for LLM
             server_names = None if mcp_auto_mode else filter_dict(
@@ -532,7 +538,7 @@ class ChatService:
                 # Stream tool calls and collect messages
                 start_time = get_current_time()
                 async for message in self._call_llm_with_mcp_tools(
-                    new_messages, final_model, tools
+                    new_messages, tool_model, tools
                 ):
                     # Update accumulated messages
                     if message:
@@ -558,7 +564,7 @@ class ChatService:
                 # 调用组件工具
                 start_time = get_current_time()
                 async for message in self._call_llm_with_component_tools(
-                    component_messages, final_model, component_tool_names
+                    component_messages, tool_model, component_tool_names
                 ):
                     if message:
                         yield self.format_sse_message('component_tool_call', message.model_dump(exclude_none=True))
