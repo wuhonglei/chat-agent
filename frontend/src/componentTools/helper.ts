@@ -1,4 +1,5 @@
 import { ComponentToolItem } from "@/interfaces";
+import { pick } from "lodash-es";
 import componentTools from ".";
 import { schemaValidator } from "./validate";
 
@@ -6,9 +7,10 @@ type ComponentType =
   | React.ComponentType<Record<string, unknown>>
   | React.LazyExoticComponent<React.ComponentType<Record<string, unknown>>>;
 
-export const componentToolNames = componentTools.map(
-  (tool: ComponentToolItem) => tool.name
+export const componentToolsForBackend = componentTools.map(
+  (tool: ComponentToolItem) => pick(tool, ["name", "whenCondition", "when"])
 );
+
 export const componentMap = new Map<string, ComponentType>(
   componentTools.map((tool: ComponentToolItem) => [
     tool.name,

@@ -4,6 +4,7 @@
 
 export interface ComponentToolRequestItem {
   name: string;
+  whenCondition: "and" | "or"; // 当条件为 and 时，所有条件都满足时才展示组件；当条件为 or 时，只要有一个条件满足时就展示组件
   when: {
     tool_names?: string[]; // 当 mcp 工具名称匹配时，后端才会组装对应的组件
     tool_call_content?: string[]; // 当 mcp 工具调用内容匹配时，后端才会组装对应的组件

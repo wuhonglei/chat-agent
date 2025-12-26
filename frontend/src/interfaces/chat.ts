@@ -5,6 +5,7 @@ import {
   SearchSourceType,
   TitleCreatedBy,
 } from "@/constants";
+import { ComponentToolRequestItem } from "./componentTools";
 import { ToolCallMessage } from "./tooCall";
 
 export interface SearchSourceMetaData {
@@ -82,7 +83,10 @@ export interface ChatRequest extends ChatInputFormValues {
   historyIds: string[];
   regenerateTitle: boolean;
   removedMessageIds: string[];
-  componentToolNames: string[]; // 组件工具名称列表
+  componentToolsForBackend: Pick<
+    ComponentToolRequestItem,
+    "name" | "whenCondition" | "when"
+  >[];
 }
 
 export interface SourceData {
