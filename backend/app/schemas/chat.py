@@ -1,7 +1,7 @@
 """Chat models"""
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Optional, Literal
 from enum import Enum
 
 from openai.types.chat import ChatCompletionMessageFunctionToolCall
@@ -22,6 +22,33 @@ class SourceConfig(BaseModel):
     """Source configuration model"""
     model_config = ConfigDict(
         extra='allow'
+    )
+
+
+class ComponentToolWhen(BaseModel):
+    """Component tool when condition model"""
+    tool_names: Optional[list[str]] = Field(
+        None, description="当 mcp 工具名称匹配时，后端才会组装对应的组件"
+    )
+    tool_call_content: Optional[list[str]] = Field(
+        None, description="当 mcp 工具调用内容匹配时，后端才会组装对应的组件"
+    )
+    user_message_content: Optional[list[str]] = Field(
+        None, description="当用户消息内容匹配时，后端才会组装对应的组件"
+    )
+    assistant_message_content: Optional[list[str]] = Field(
+        None, description="当 ai 消息内容匹配时，后端才会组装对应的组件"
+    )
+
+
+class ComponentToolConfig(BaseModel):
+    """Component tool configuration model"""
+    name: str = Field(..., description="Component tool name, e.g. 'weather'")
+    whenCondition: Literal["and", "or"] = Field(
+        "and", description="Condition logic: 'and' or 'or'"
+    )
+    when: ComponentToolWhen = Field(
+        default_factory=ComponentToolWhen, description="When condition configuration"
     )
 
 
@@ -101,8 +128,8 @@ class ChatRequest(BaseModel):
     mcp_auto_mode: bool = Field(
         True, description="Whether to use mcp auto mode")
     think_mode: bool = Field(False, description="Whether to use think mode")
-    component_tool_names: list[str] = Field(
-        default_factory=list, description="Component tool names, e.g. ['weather']")
+    component_tools_for_backend: list[ComponentToolConfig] = Field(
+        default_factory=list, description="Component tools for backend")
 
 
 class ChatSource(BaseModel):
