@@ -44,6 +44,7 @@ class ChatService:
         self.collected_component_tool_call_messages: list[ToolCallMessage] = []
         self.total_duration: Optional[float] = None  # 总耗时
         self.tool_calls_duration: Optional[float] = None  # 工具调用耗时
+        self.component_tool_calls_duration: Optional[float] = None  # 组件工具调用耗时
         self.reasoning_duration: Optional[float] = None  # 推理耗时
         self.content_duration: Optional[float] = None  # 内容生成耗时
         self.schema_service = ComponentSchemaService(
