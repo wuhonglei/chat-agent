@@ -329,10 +329,10 @@ class ChatService:
 
         # 检查 mcp_tool_names 条件
         if when.mcp_tool_names is not None:
-            # 检查是否有任何已调用的工具名称匹配
+            # 检查是否有任何已调用的工具名称部分包含匹配
             matched = any(
-                tool_name in mcp_tool_names
-                for tool_name in when.mcp_tool_names
+                any(expected_tool in actual_tool for actual_tool in mcp_tool_names)
+                for expected_tool in when.mcp_tool_names
             )
             condition_results.append(matched)
             logger.debug(
@@ -654,8 +654,8 @@ class ChatService:
                 # Call LLM with tools and stream results
                 system_prompt, tool_call_user_message = get_prompt_with_mcp_servers(
                     user_message, mcp_auto_mode, server_names, client_ip)
-                new_messages = self._compose_messages_without_tool_calls(
-                    system_prompt, history,  tool_call_user_message)
+                new_messages = self._compose_messages(
+                    system_prompt, history, tool_call_user_message)
 
                 # Stream tool calls and collect messages
                 start_time = get_current_time()
@@ -705,8 +705,8 @@ class ChatService:
                     # 准备消息列表（包含 system message、user message 和 MCP tool messages）
                     system_prompt, component_user_message = get_prompt_for_component_render_data(
                         user_message)
-                    component_messages = self._compose_messages_with_tool_calls(
-                        system_prompt, [], self.collected_mcp_tool_call_messages, component_user_message
+                    component_messages = self._compose_messages(
+                        system_prompt, [], component_user_message, self.collected_mcp_tool_call_messages
                     )
 
                     # 调用组件工具
@@ -737,8 +737,8 @@ class ChatService:
 
             system_prompt = get_default_system_prompt(include_date=False)
             # 将工具调用历史拼接到用户消息中
-            new_messages = self._compose_messages_with_tool_calls(
-                system_prompt, history, self.collected_mcp_tool_call_messages, final_user_message)
+            new_messages = self._compose_messages(
+                system_prompt, history, final_user_message, self.collected_mcp_tool_call_messages)
             async for chunk in self._stream_final_response(new_messages, final_model):
                 yield chunk
             return
@@ -750,7 +750,7 @@ class ChatService:
     async def generate_title(self, user_message: str) -> str:
         """Generate title for the chat"""
         system_prompt, new_user_message = get_prompt_for_title(user_message)
-        messages = self._compose_messages_without_tool_calls(
+        messages = self._compose_messages(
             system_prompt, [], new_user_message)
         title_response = await self.client.chat.completions.create(
             model=settings.llm.model,
@@ -776,12 +776,23 @@ class ChatService:
         )
 
     @staticmethod
-    def _compose_messages_without_tool_calls(
+    def _compose_messages(
         system_prompt: str,
         history: list[ChatMessageItemReq],
         user_message: str,
+        tool_call_messages: Optional[list[ToolCallMessage]] = None,
     ) -> list[dict]:
-        """Build prompt for LLM without context"""
+        """Build prompt for LLM
+
+        Args:
+            system_prompt: System prompt message
+            history: Conversation history
+            user_message: Current user message
+            tool_call_messages: Optional tool call messages (assistant tool calls and tool results)
+
+        Returns:
+            Message list with correct order: system_prompt -> history -> user_message -> tool_call_messages
+        """
         messages = [
             {"role": "system", "content": system_prompt}]
 
@@ -789,17 +800,11 @@ class ChatService:
         messages.extend(history)
 
         messages.append({"role": "user", "content": user_message})
+
+        # 如果有 tool_call_messages，转换为字典格式并追加
+        if tool_call_messages:
+            for tool_call_message in tool_call_messages:
+                messages.append(
+                    tool_call_message.model_dump(exclude_none=True))
+
         return messages
-
-    @staticmethod
-    def _compose_messages_with_tool_calls(
-        system_prompt: Optional[str],
-        history: list[ChatMessageItemReq],
-        tool_call_messages: list[ToolCallMessage],
-        user_message: str,
-    ) -> list[dict]:
-        """Build prompt for LLM with context"""
-        if not tool_call_messages:
-            return ChatService._compose_messages_without_tool_calls(system_prompt, history, user_message)
-
-        return ChatService._compose_messages_without_tool_calls(system_prompt, history + tool_call_messages, user_message)
