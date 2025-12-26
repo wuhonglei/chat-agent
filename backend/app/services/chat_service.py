@@ -793,8 +793,9 @@ class ChatService:
         Returns:
             Message list with correct order: system_prompt -> history -> user_message -> tool_call_messages
         """
-        messages = [
-            {"role": "system", "content": system_prompt}]
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
 
         history = history or []
         messages.extend(history)
