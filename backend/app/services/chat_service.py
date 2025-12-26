@@ -115,6 +115,8 @@ class ChatService:
         """
         max_total_iterations = 10  # Prevent infinite loops
         max_iterations_by_tool = 5
+        # 复制列表以避免修改原始参数（后续会修改 tools 列表）
+        tools = list(tools) if tools else []
         iterations_by_tool = {
             tool['function']['name']: max_iterations_by_tool for tool in tools}
         for iteration in range(max_total_iterations):
@@ -170,6 +172,16 @@ class ChatService:
                 """Execute a single tool call and return the result message"""
                 tool_name = cast(str, tool_call.function.name)
                 start_time = get_current_time()
+
+                # 正常情况下，所有工具都应该在 iterations_by_tool 中（初始化时同步）
+                # 如果不在，说明有异常，使用 get 方法安全获取，默认值为 0（视为已用完）
+                if tool_name not in iterations_by_tool:
+                    logger.warning(
+                        "Tool not found in iterations tracking (unexpected), initializing as exhausted",
+                        tool_name=tool_name,
+                        iteration=iteration + 1,
+                    )
+                    iterations_by_tool[tool_name] = 0
 
                 # Check if tool has reached max iterations BEFORE calling
                 if iterations_by_tool[tool_name] <= 0:
@@ -279,6 +291,8 @@ class ChatService:
                     tool for tool in tools
                     if tool.get("function", {}).get("name") not in tools_to_remove
                 ]
+                # 注意：不从 iterations_by_tool 移除记录，保留用于防御性检查
+                # 如果 LLM 错误地尝试调用已移除的工具，可以通过 iterations_by_tool[tool_name] <= 0 判断
                 removed_count = original_count - len(tools)
                 logger.info(
                     "Removed tools that reached max iterations",
