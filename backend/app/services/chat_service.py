@@ -802,9 +802,37 @@ class ChatService:
         messages.append({"role": "user", "content": user_message})
 
         # 如果有 tool_call_messages，转换为字典格式并追加
-        if tool_call_messages:
-            for tool_call_message in tool_call_messages:
-                messages.append(
-                    tool_call_message.model_dump(exclude_none=True))
+        if not tool_call_messages:
+            return messages
+
+        valid_tool_call_ids = set()
+        for message in tool_call_messages:
+            if isinstance(message, ToolCallResultMessage):
+                if not message.is_error:
+                    valid_tool_call_ids.add(message.tool_call_id)
+
+        # 只保留正确的工具调用（ToolCallResultMessage is_error=False）
+        filtered_tool_call_messages = []
+        for message in tool_call_messages:
+            if isinstance(message, AssistantToolCallMessage):
+                # 保留 assistant 工具调用中有效的工具调用
+                # 使用 model_copy() 创建副本，避免修改原始对象
+                filtered_tool_calls = [
+                    tool_call for tool_call in (message.tool_calls or [])
+                    if tool_call.id in valid_tool_call_ids
+                ]
+                if filtered_tool_calls:
+                    # 创建新对象副本，只更新 tool_calls 字段
+                    filtered_message = message.model_copy(
+                        update={"tool_calls": filtered_tool_calls})
+                    filtered_tool_call_messages.append(filtered_message)
+            elif isinstance(message, ToolCallResultMessage):
+                # 只保留没有错误的工具调用结果
+                if not message.is_error:
+                    filtered_tool_call_messages.append(message)
+
+        # 将过滤后的消息转换为字典格式并追加
+        for message in filtered_tool_call_messages:
+            messages.append(message.model_dump(exclude_none=True))
 
         return messages
