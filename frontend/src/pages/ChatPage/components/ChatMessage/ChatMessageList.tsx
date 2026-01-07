@@ -36,11 +36,9 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
     <SimpleBar
       scrollableNodeProps={{
         ref: containerRef,
+        className: "outline-none",
       }}
-      className={classNames(
-        "flex-1 h-0 px-2 pb-4 relative outline-none",
-        className
-      )}
+      className={classNames("flex-1 h-0 px-2 pb-4 relative ", className)}
     >
       {messages.map((message, index) => (
         <ChatMessageItem
