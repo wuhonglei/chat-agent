@@ -17,7 +17,8 @@
       "jinja": true,
       "justMyCode": false,
       "env": {
-        "PYTHONPATH": "${workspaceFolder}"
+        "PYTHONPATH": "${workspaceFolder}",
+        "APP__DEBUG": "1"
       }
     },
     {
