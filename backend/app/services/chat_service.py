@@ -151,6 +151,9 @@ class ChatService:
                 'duration': 0.0,
             })
 
+        logger.info("Stream final response completed",
+                    duration=get_time_duration(start_time))
+
     async def _call_llm_with_mcp_tools(
         self,
         messages: list[dict],
