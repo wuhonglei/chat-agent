@@ -161,8 +161,7 @@ class ChatService:
             # 只在 debug 模式下记录详细消息内容
             logger.debug(
                 "Assistant message details",
-                assistant_message=assistant_message.model_dump(
-                    exclude_none=True),
+                assistant_message=assistant_message.model_dump(),
             )
 
             # Execute tool calls in parallel and stream results
@@ -637,7 +636,7 @@ class ChatService:
 
         # 如果 data 是 BaseModel
         if isinstance(data, BaseModel):
-            data = data.model_dump(mode="json", exclude_none=True)
+            data = data.model_dump(mode="json")
         if msg_type == 'content':
             self.collected_content += data.get('content') or ''
         elif msg_type == 'reasoning':
@@ -678,7 +677,7 @@ class ChatService:
                 ):
                     # Update accumulated messages
                     if message:
-                        yield self.format_sse_message('mcp_tool_call', message.model_dump(exclude_none=True))
+                        yield self.format_sse_message('mcp_tool_call', message.model_dump())
 
                 if self.collected_mcp_tool_call_messages:
                     self.tool_calls_duration = get_time_duration(start_time)
@@ -729,7 +728,7 @@ class ChatService:
                         component_messages, tool_model, filtered_component_tools
                     ):
                         if message:
-                            yield self.format_sse_message('component_tool_call', message.model_dump(exclude_none=True))
+                            yield self.format_sse_message('component_tool_call', message.model_dump())
 
                     if self.collected_component_tool_call_messages:
                         self.component_tool_calls_duration = get_time_duration(
@@ -779,9 +778,9 @@ class ChatService:
             content=self.collected_content,
             reasoning=self.collected_reasoning,
             tool_calls=[tool_call.model_dump(
-                exclude_none=True) for tool_call in self.collected_mcp_tool_call_messages],
+            ) for tool_call in self.collected_mcp_tool_call_messages],
             component_tool_calls=[tool_call.model_dump(
-                exclude_none=True) for tool_call in self.collected_component_tool_call_messages],
+            ) for tool_call in self.collected_component_tool_call_messages],
             tool_calls_duration=self.tool_calls_duration,
             component_tool_calls_duration=self.component_tool_calls_duration,
             reasoning_duration=self.reasoning_duration,
@@ -858,6 +857,6 @@ class ChatService:
 
         # 将过滤后的消息转换为字典格式并追加
         for message in filtered_tool_call_messages:
-            messages.append(message.model_dump(exclude_none=True))
+            messages.append(message.model_dump())
 
         return messages

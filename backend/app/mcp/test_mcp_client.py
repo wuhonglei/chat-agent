@@ -76,8 +76,7 @@ async def chat_with_deepseek_single(
         )
 
         assistant_message = response.choices[0].message
-        assistant_message_dict = assistant_message.model_dump(
-            exclude_none=True)
+        assistant_message_dict = assistant_message.model_dump()
 
         # 将助手消息添加到历史
         messages.append(assistant_message_dict)
