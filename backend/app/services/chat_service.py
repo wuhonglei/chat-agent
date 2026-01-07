@@ -66,9 +66,11 @@ class ChatService:
         logger.info("Using LLM model", model=model)
         reasoning_started = False
         content_started = False
+        # 重命名变量，区分推理和内容的计时，避免混淆
         last_reasoning_time = start_time
+        last_content_time = start_time
+
         async for chunk in response:
-            # For streaming responses, use delta instead of message
             # 安全检查：确保 choices 存在且不为空
             if not chunk.choices:
                 continue
@@ -78,11 +80,15 @@ class ChatService:
                 continue
 
             # 处理 reasoning_content
-            if getattr(delta, 'reasoning_content', None):
-                # 如果之前在输出 content，现在又开始 reasoning，需要先结束 content
+            reasoning_content = getattr(delta, 'reasoning_content', None)
+            content = getattr(delta, 'content', None)
+
+            # 1. 优先处理推理内容（允许同时存在推理和内容的极端情况）
+            if reasoning_content:
+                # 如果之前在输出 content，先结束 content
                 if content_started:
                     self.content_duration = get_time_duration(
-                        last_reasoning_time)
+                        last_content_time)
                     yield self.format_sse_message('content', {
                         'status': 'done',
                         'content': '',
@@ -95,12 +101,12 @@ class ChatService:
                 last_reasoning_time = get_current_time()
                 yield self.format_sse_message('reasoning', {
                     'status': status,
-                    'content': delta.reasoning_content,
+                    'content': reasoning_content,
                 })
 
-            # 处理 content
-            elif getattr(delta, 'content', None):
-                # 如果之前在输出 reasoning，现在开始输出 content，需要结束 reasoning
+            # 2. 处理 content（不再用 elif，避免推理内容覆盖内容的判断）
+            if content:
+                # 如果之前在输出 reasoning，先结束 reasoning
                 if reasoning_started:
                     self.reasoning_duration = get_time_duration(
                         last_reasoning_time)
@@ -112,27 +118,37 @@ class ChatService:
 
                 status = 'start' if not content_started else 'continue'
                 content_started = True
-                last_reasoning_time = get_current_time()
+                last_content_time = get_current_time()
                 yield self.format_sse_message('content', {
                     'status': status,
-                    'content': delta.content,
+                    'content': content,
                 })
 
-        # 处理循环结束后的状态
-        # 如果最后是 reasoning，需要发送 reasoning 的 done 状态
+        # 处理循环结束后的收尾逻辑（关键修复：分开判断，不再用 elif）
+        # 1. 如果推理未结束，发送推理 done 状态
         if reasoning_started:
             self.reasoning_duration = get_time_duration(last_reasoning_time)
             yield self.format_sse_message('reasoning', {
                 'status': 'done',
                 'duration': self.reasoning_duration,
             })
-        # 如果最后是 content 或同时有 content，需要发送 content 的 done 状态
-        elif content_started:
-            self.content_duration = get_time_duration(last_reasoning_time)
+
+        # 2. 如果内容未结束，发送内容 done 状态（独立判断，即使有推理也会处理）
+        if content_started:
+            self.content_duration = get_time_duration(last_content_time)
             yield self.format_sse_message('content', {
                 'status': 'done',
                 'content': '',
                 'duration': self.content_duration,
+            })
+
+        # 3. 关键补充：处理「有推理但无内容」的边界情况
+        if reasoning_started and not content_started and not content:
+            # 发送一个空的 content done 状态，确保前端感知到内容结束
+            yield self.format_sse_message('content', {
+                'status': 'done',
+                'content': '',
+                'duration': 0.0,
             })
 
     async def _call_llm_with_mcp_tools(
