@@ -288,8 +288,8 @@ class ChatService:
                     # Add tool result to messages
                     tool_call_result_message = ToolCallResultMessage(**{
                         "role": "tool",
-                        "is_error": False,
                         "content": content,
+                        "is_error": len(content or '') == 0,
                         "tool_call_id": tool_call.id,
                         "duration": get_time_duration(start_time),
                     })

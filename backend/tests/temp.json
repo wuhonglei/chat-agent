@@ -1,24 +1,4 @@
 {
-  "type": "ack",
-  "data": {
-    "id": "7774c17e-411f-46eb-901a-1a52a20ad175",
-    "content": "帮我查询今天的天气",
-    "message_metadata": {
-      "mcp_auto_mode": true,
-      "think_mode": false,
-      "history_size": 0,
-      "regenerate_title": true,
-      "source_config": {
-        "context7": false,
-        "confluence-mcp": true,
-        "weather-mcp": true,
-        "tavily-mcp": true
-      }
-    },
-    "reply_to": "66d6363d-d350-450f-beb0-5b092ab36e79",
-    "created_at": "2025-11-08T23:52:33.447695+08:00",
-    "conversation_id": "933ad8b7-48ec-4d99-a42e-91732b9e83e3",
-    "role": "assistant",
-    "status": "pending"
-  }
+  "role": "user",
+  "content": "用户消息：查下深圳天气\n\n请在文本中合适位置返回 markdown 格式的 json 组件数据:\n\n1. 组件名称：weather\n组件描述：展示实时天气的组件\n```json\n{\n  \"component_name\": \"weather\",\n  \"props\": {\n    \"data\": {\n      \"cloud\": \"0\",\n      \"dew\": \"-7\",\n      \"feelsLike\": \"7\",\n      \"humidity\": \"41\",\n      \"icon\": \"150\",\n      \"obsTime\": \"2026-01-07T23:48+08:00\",\n      \"precip\": \"0.0\",\n      \"pressure\": \"1019\",\n      \"temp\": \"11\",\n      \"text\": \"晴\",\n      \"vis\": \"19\",\n      \"wind360\": \"45\",\n      \"windDir\": \"东北风\",\n      \"windScale\": \"3\",\n      \"windSpeed\": \"17\"\n    },\n    \"location\": \"深圳\"\n  }\n}\n```\n\n"
 }
