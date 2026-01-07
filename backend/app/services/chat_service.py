@@ -14,6 +14,7 @@ from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallR
 from app.utils.common import filter_dict
 from app.utils.logger import logger
 from app.utils.time import get_current_time, get_time_duration
+from app.utils.message import clear_reasoning_content, format_message_for_llm, format_assistant_tool_call_message
 from app.mcp.mcp_client import MCPClientManager
 from app.prompts import get_default_system_prompt, get_prompt_for_title, get_prompt_with_mcp_servers
 from app.services.component_schema_service import ComponentSchemaService
@@ -811,7 +812,11 @@ class ChatService:
             messages.append({"role": "system", "content": system_prompt})
 
         history = history or []
-        messages.extend(history)
+        # 处理历史消息，确保包含 tool_calls 的 assistant 消息有 reasoning_content 字段
+        for msg in history:
+            msg_dict = format_message_for_llm(msg)
+            msg_dict = clear_reasoning_content(msg_dict)
+            messages.append(msg_dict)
 
         messages.append({"role": "user", "content": user_message})
 
@@ -857,6 +862,10 @@ class ChatService:
 
         # 将过滤后的消息转换为字典格式并追加
         for message in filtered_tool_call_messages:
-            messages.append(message.model_dump())
+            if isinstance(message, AssistantToolCallMessage):
+                message_dict = format_assistant_tool_call_message(message)
+            else:
+                message_dict = format_message_for_llm(message)
+            messages.append(message_dict)
 
         return messages
