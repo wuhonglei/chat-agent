@@ -147,7 +147,7 @@ class ChatService:
             # 发送一个空的 content done 状态，确保前端感知到内容结束
             yield self.format_sse_message('content', {
                 'status': 'done',
-                'content': '',
+                'content': '[模型已完成深入推理，详见思考过程]',
                 'duration': 0.0,
             })
 
