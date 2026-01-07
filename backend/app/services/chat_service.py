@@ -64,49 +64,71 @@ class ChatService:
             stream=True,
         )
         logger.info("Using LLM model", model=model)
-        start_reasoning = False
-        start_content = False
+        reasoning_started = False
+        content_started = False
+        last_reasoning_time = start_time
         async for chunk in response:
             # For streaming responses, use delta instead of message
             # 安全检查：确保 choices 存在且不为空
             if not chunk.choices:
                 continue
+
             delta = getattr(chunk.choices[0], 'delta', None)
-            if delta and getattr(delta, 'reasoning_content', None):
-                status = 'start' if not start_reasoning else 'continue'
-                start_reasoning = True
+            if not delta:
+                continue
+
+            # 处理 reasoning_content
+            if getattr(delta, 'reasoning_content', None):
+                # 如果之前在输出 content，现在又开始 reasoning，需要先结束 content
+                if content_started:
+                    self.content_duration = get_time_duration(
+                        last_reasoning_time)
+                    yield self.format_sse_message('content', {
+                        'status': 'done',
+                        'content': '',
+                        'duration': self.content_duration,
+                    })
+                    content_started = False
+
+                status = 'start' if not reasoning_started else 'continue'
+                reasoning_started = True
+                last_reasoning_time = get_current_time()
                 yield self.format_sse_message('reasoning', {
                     'status': status,
                     'content': delta.reasoning_content,
                 })
-            elif delta and getattr(delta, 'content', None):
-                if start_reasoning:
-                    start_reasoning = False
-                    self.reasoning_duration = get_time_duration(start_time)
+
+            # 处理 content
+            elif getattr(delta, 'content', None):
+                # 如果之前在输出 reasoning，现在开始输出 content，需要结束 reasoning
+                if reasoning_started:
+                    self.reasoning_duration = get_time_duration(
+                        last_reasoning_time)
                     yield self.format_sse_message('reasoning', {
                         'status': 'done',
                         'duration': self.reasoning_duration,
                     })
-                    start_time = get_current_time()
+                    reasoning_started = False
 
-                status = 'start' if not start_content else 'continue'
-                start_content = True
+                status = 'start' if not content_started else 'continue'
+                content_started = True
+                last_reasoning_time = get_current_time()
                 yield self.format_sse_message('content', {
                     'status': status,
                     'content': delta.content,
                 })
 
         # 处理循环结束后的状态
-        # 如果只有 reasoning_content 而没有 content，需要发送 reasoning 的 done 状态
-        if start_reasoning and not start_content:
-            self.reasoning_duration = get_time_duration(start_time)
+        # 如果最后是 reasoning，需要发送 reasoning 的 done 状态
+        if reasoning_started:
+            self.reasoning_duration = get_time_duration(last_reasoning_time)
             yield self.format_sse_message('reasoning', {
                 'status': 'done',
                 'duration': self.reasoning_duration,
             })
-        # 如果只有 content 或同时有两者，发送 content 的 done 状态
-        elif start_content:
-            self.content_duration = get_time_duration(start_time)
+        # 如果最后是 content 或同时有 content，需要发送 content 的 done 状态
+        elif content_started:
+            self.content_duration = get_time_duration(last_reasoning_time)
             yield self.format_sse_message('content', {
                 'status': 'done',
                 'content': '',
