@@ -349,7 +349,7 @@ class MCPClientManager:
                     removed_params=removed_params,
                 )
             async with client:
-                result = await client.call_tool(tool_name, filtered_arguments, timeout=30)
+                result = await client.call_tool(tool_name, filtered_arguments, timeout=60)
             logger.info(
                 "Tool executed successfully",
                 tool_name=tool_name,
