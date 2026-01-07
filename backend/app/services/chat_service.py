@@ -68,6 +68,9 @@ class ChatService:
         start_content = False
         async for chunk in response:
             # For streaming responses, use delta instead of message
+            # 安全检查：确保 choices 存在且不为空
+            if not chunk.choices:
+                continue
             delta = getattr(chunk.choices[0], 'delta', None)
             if delta and getattr(delta, 'reasoning_content', None):
                 status = 'start' if not start_reasoning else 'continue'
@@ -93,7 +96,16 @@ class ChatService:
                     'content': delta.content,
                 })
 
-        if start_content:
+        # 处理循环结束后的状态
+        # 如果只有 reasoning_content 而没有 content，需要发送 reasoning 的 done 状态
+        if start_reasoning and not start_content:
+            self.reasoning_duration = get_time_duration(start_time)
+            yield self.format_sse_message('reasoning', {
+                'status': 'done',
+                'duration': self.reasoning_duration,
+            })
+        # 如果只有 content 或同时有两者，发送 content 的 done 状态
+        elif start_content:
             self.content_duration = get_time_duration(start_time)
             yield self.format_sse_message('content', {
                 'status': 'done',
@@ -657,7 +669,6 @@ class ChatService:
             source_config = chat_request.source_config
             think_mode = chat_request.think_mode
             user_message = chat_request.content
-            final_model = settings.llm.think_model if think_mode else settings.llm.model
             tool_model = self.tool_model_config.think_model if think_mode else self.tool_model_config.model
 
             # Get MCP tools for LLM
@@ -753,6 +764,7 @@ class ChatService:
             # 将工具调用历史拼接到用户消息中
             new_messages = self._compose_messages(
                 system_prompt, history, final_user_message, self.collected_mcp_tool_call_messages)
+            final_model = settings.llm.think_model if think_mode else settings.llm.model
             async for chunk in self._stream_final_response(new_messages, final_model):
                 yield chunk
             return
