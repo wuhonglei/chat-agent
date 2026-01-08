@@ -167,6 +167,8 @@ class ChatService:
         Returns:
             list[AssistantMessage]: Final tool call messages
         """
+        logger.info("MCP tool calls", model=model, tools_count=len(
+            tools), messages_count=len(messages))
         max_total_iterations = 10  # Prevent infinite loops
         max_iterations_by_tool = 5
         # 复制列表以避免修改原始参数（后续会修改 tools 列表）
