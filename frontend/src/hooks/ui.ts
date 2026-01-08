@@ -17,12 +17,22 @@ export function useIsScrollByUser(
 ) {
   const [scrollByUser, setScrollByUser] = useState(false);
 
+  // 桌面端：滚动停止后延迟重置（等待惯性滚动结束）
+  const { run: onWheelEnd, cancel: cancelWheelEnd } = useDebounceFn(
+    () => {
+      setScrollByUser(false);
+    },
+    { wait: 500 }
+  );
+
   // 桌面端：处理 wheel 事件
   const { run: onWheel } = useThrottleFn(
     () => {
       const container = containerRef.current;
       if (!container) return;
+      cancelWheelEnd(); // 取消之前的重置
       setScrollByUser(true);
+      onWheelEnd(); // 延迟重置
     },
     {
       wait: 100, // 节流时间
@@ -76,8 +86,9 @@ export function useIsScrollByUser(
         "touchend",
         onTouchEnd as unknown as EventListener
       );
+      cancelWheelEnd(); // 清理时取消延迟重置
     };
-  }, [onWheel, onTouchStart, onTouchEnd, containerRef]);
+  }, [onWheel, onTouchStart, onTouchEnd, cancelWheelEnd, containerRef]);
 
   return scrollByUser;
 }
