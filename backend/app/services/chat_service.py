@@ -2,7 +2,7 @@
 import asyncio
 import json
 from collections.abc import AsyncGenerator, AsyncIterator
-from typing import Any, Optional, cast
+from typing import Any, Optional, cast, TYPE_CHECKING, Callable
 
 from jsonschema import validate, ValidationError as JsonSchemaValidationError
 from openai import AsyncOpenAI
@@ -10,152 +10,202 @@ from openai.types.chat import ChatCompletionMessage
 
 from app.core.config import settings
 from app.schemas.chat import ChatMessageItemReq, ChatRequest, CollectedResponse, ComponentToolConfig, ComponentToolWhen
+from app.schemas.config import LLMConfig
 from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallResultMessage
 from app.utils.common import filter_dict
 from app.utils.logger import logger
 from app.utils.time import get_current_time, get_time_duration
 from app.utils.message import clear_reasoning_content, format_message_for_llm, format_assistant_tool_call_message
-from app.utils.model import get_model_extra_body
+from app.utils.model import format_sse_message, get_model_extra_body
 from app.mcp.mcp_client import MCPClientManager
 from app.prompts import get_default_system_prompt, get_prompt_for_title, get_prompt_with_mcp_servers
 from app.services.component_schema_service import ComponentSchemaService
 from app.utils.component_tools import convert_schema_to_tool_definition
 from app.prompts.prompt_utils import get_prompt_for_component_render_data, get_user_message_with_component_data
 from pydantic import BaseModel
+from abc import ABC
 
 
-class ChatService:
-    """Handle chat interactions with RAG"""
+class BaseAgent(ABC):
+    """Agent基类，定义所有agent的通用接口和共享功能"""
 
-    def __init__(self, mcp_manager: MCPClientManager):
-        self.debug = settings.app.debug
+    def __init__(self, llm_config: LLMConfig):
+        """初始化agent，接收依赖项以访问所需资源
+
+        Args:
+            llm_config: LLM配置，用于初始化客户端和模型配置
+        """
+        # 根据传入的llm_config初始化OpenAI客户端
         self.client = AsyncOpenAI(
-            api_key=settings.llm.api_key,
-            base_url=settings.llm.api_base,
+            api_key=llm_config.api_key,
+            base_url=llm_config.api_base,
         )
-        self.tool_model_config = settings.tool
-        self.tool_client = AsyncOpenAI(
-            api_key=settings.tool.api_key,
-            base_url=settings.tool.api_base,
-        )
-        self.mcp_manager = mcp_manager
-        self.collected_content = ''  # 收集的完整响应内容
-        self.collected_reasoning = ''  # 收集的推理内容
-        # 工具调用记录
-        self.collected_mcp_tool_call_messages: list[ToolCallMessage] = []
-        self.collected_component_tool_call_messages: list[ToolCallMessage] = []
-        self.total_duration: Optional[float] = None  # 总耗时
-        self.tool_calls_duration: Optional[float] = None  # 工具调用耗时
-        self.component_tool_calls_duration: Optional[float] = None  # 组件工具调用耗时
-        self.reasoning_duration: Optional[float] = None  # 推理耗时
-        self.content_duration: Optional[float] = None  # 内容生成耗时
-        self.schema_service = ComponentSchemaService(
-            debug=self.debug)  # 复用 ComponentSchemaService 实例
+        # 模型配置（从传入的llm_config获取）
+        self.model_config = llm_config
 
-    async def _stream_final_response(
+    async def stream_execute(self, *args, **kwargs) -> AsyncGenerator[str, None]:
+        """流式执行agent的核心逻辑，子类必须实现
+
+        Yields:
+            str: SSE格式的消息
+        """
+        pass
+
+    async def execute(self, *args, **kwargs):
+        """非流式执行agent的核心逻辑，子类可选实现
+
+        默认实现抛出 NotImplementedError，子类如果需要非流式执行可以重写此方法
+        """
+        raise NotImplementedError(
+            "This agent does not support non-streaming execution")
+
+    @staticmethod
+    def format_sse_message(msg_type: str, data=None) -> str:
+        return format_sse_message(msg_type, data)
+
+    def _compose_messages(
         self,
-        messages: list[dict],
-        model: str,
-        extra_body: dict[str, Any],
-    ) -> AsyncIterator[str]:
-        """Stream final response"""
+        system_prompt: str,
+        history: list[ChatMessageItemReq],
+        user_message: str,
+        tool_call_messages: Optional[list[ToolCallMessage]] = None,
+    ) -> list[dict]:
+        """Build prompt for LLM
+
+        Args:
+            system_prompt: System prompt message
+            history: Conversation history
+            user_message: Current user message
+            tool_call_messages: Optional tool call messages (assistant tool calls and tool results)
+
+        Returns:
+            Message list with correct order: system_prompt -> history -> user_message -> tool_call_messages
+        """
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+
+        history = history or []
+        # 处理历史消息，确保包含 tool_calls 的 assistant 消息有 reasoning_content 字段
+        for msg in history:
+            msg_dict = format_message_for_llm(msg)
+            msg_dict = clear_reasoning_content(msg_dict)
+            messages.append(msg_dict)
+
+        messages.append({"role": "user", "content": user_message})
+
+        # 如果有 tool_call_messages，转换为字典格式并追加
+        if not tool_call_messages:
+            return messages
+
+        # 第一步：收集所有有效的 tool_call_id（从成功的 ToolCallResultMessage）
+        valid_tool_call_ids = set()
+        for message in tool_call_messages:
+            if isinstance(message, ToolCallResultMessage):
+                if not message.is_error:
+                    valid_tool_call_ids.add(message.tool_call_id)
+
+        # 第二步：收集 assistant 消息中实际存在的 tool_call_id（只保留那些有成功结果的）
+        # 这样可以确保 tool 消息和 assistant 消息成对出现
+        assistant_tool_call_ids = set()
+        for message in tool_call_messages:
+            if isinstance(message, AssistantToolCallMessage):
+                for tool_call in (message.tool_calls or []):
+                    if tool_call.id in valid_tool_call_ids:
+                        assistant_tool_call_ids.add(tool_call.id)
+
+        # 第三步：只保留正确的工具调用（ToolCallResultMessage is_error=False 且有对应的 assistant 消息）
+        filtered_tool_call_messages = []
+        for message in tool_call_messages:
+            if isinstance(message, AssistantToolCallMessage):
+                # 保留 assistant 工具调用中有效的工具调用
+                # 使用 model_copy() 创建副本，避免修改原始对象
+                filtered_tool_calls = [
+                    tool_call for tool_call in (message.tool_calls or [])
+                    if tool_call.id in assistant_tool_call_ids
+                ]
+                if filtered_tool_calls:
+                    # 创建新对象副本，只更新 tool_calls 字段
+                    filtered_message = message.model_copy(
+                        update={"tool_calls": filtered_tool_calls})
+                    filtered_tool_call_messages.append(filtered_message)
+            elif isinstance(message, ToolCallResultMessage):
+                # 只保留没有错误且有对应 assistant 消息的工具调用结果
+                if not message.is_error and message.tool_call_id in assistant_tool_call_ids:
+                    filtered_tool_call_messages.append(message)
+
+        # 将过滤后的消息转换为字典格式并追加
+        for message in filtered_tool_call_messages:
+            if isinstance(message, AssistantToolCallMessage):
+                message_dict = format_assistant_tool_call_message(message)
+            else:
+                message_dict = format_message_for_llm(message)
+            messages.append(message_dict)
+
+        return messages
+
+
+class MCPToolsAgent(BaseAgent):
+    """MCP工具调用Agent - 负责处理MCP工具调用逻辑"""
+
+    def __init__(self, llm_config: LLMConfig, mcp_manager: MCPClientManager):
+        super().__init__(llm_config)
+        self.mcp_manager = mcp_manager
+        self.collected_messages: list[ToolCallMessage] = []
+        self.duration: Optional[float] = None
+
+    async def stream_execute(
+        self,
+        chat_request: ChatRequest,
+        history: list[ChatMessageItemReq],
+        client_ip: str | None
+    ) -> AsyncGenerator[str, None]:
+        """
+        流式执行MCP工具调用并返回SSE消息
+
+        Args:
+            chat_request: 聊天请求
+            history: 对话历史
+            client_ip: 客户端IP
+
+        Yields:
+            str: SSE格式的消息
+        """
+        mcp_auto_mode = chat_request.mcp_auto_mode
+        source_config = chat_request.source_config
+        think_mode = chat_request.think_mode
+        user_message = chat_request.content
+        tool_model = self.model_config.think_model if think_mode else self.model_config.model
+        extra_body = get_model_extra_body(think_mode)
+
+        # 获取MCP工具
+        server_names = None if mcp_auto_mode else filter_dict(
+            source_config.model_dump(), [True])
+        tools = await self.mcp_manager.get_tools_for_llm(server_names, client_ip)
+
+        if not tools:
+            return
+
+        # 准备消息
+        system_prompt, tool_call_user_message = get_prompt_with_mcp_servers(
+            user_message, mcp_auto_mode, server_names, client_ip)
+        new_messages = self._compose_messages(
+            system_prompt, history, tool_call_user_message)
+
+        # 流式调用LLM并收集工具调用消息
         start_time = get_current_time()
-        response = await self.client.chat.completions.create(
-            model=model,
-            messages=messages,
-            stream=True,
-            extra_body=extra_body,
-        )
-        logger.info("Using LLM model", model=model)
-        reasoning_started = False
-        content_started = False
-        # 重命名变量，区分推理和内容的计时，避免混淆
-        last_reasoning_time = start_time
-        last_content_time = start_time
+        async for message in self._call_llm_with_mcp_tools(
+            new_messages, tool_model, extra_body, tools
+        ):
+            if message:
+                yield self.format_sse_message('mcp_tool_call', message.model_dump())
 
-        async for chunk in response:
-            # 安全检查：确保 choices 存在且不为空
-            if not chunk.choices:
-                continue
-
-            delta = getattr(chunk.choices[0], 'delta', None)
-            if not delta:
-                continue
-
-            # 处理 reasoning_content
-            reasoning_content = getattr(delta, 'reasoning_content', None)
-            content = getattr(delta, 'content', None)
-
-            # 1. 优先处理推理内容（允许同时存在推理和内容的极端情况）
-            if reasoning_content:
-                # 如果之前在输出 content，先结束 content
-                if content_started:
-                    self.content_duration = get_time_duration(
-                        last_content_time)
-                    yield self.format_sse_message('content', {
-                        'status': 'done',
-                        'content': '',
-                        'duration': self.content_duration,
-                    })
-                    content_started = False
-
-                status = 'start' if not reasoning_started else 'continue'
-                reasoning_started = True
-                last_reasoning_time = get_current_time()
-                yield self.format_sse_message('reasoning', {
-                    'status': status,
-                    'content': reasoning_content,
-                })
-
-            # 2. 处理 content（不再用 elif，避免推理内容覆盖内容的判断）
-            if content:
-                # 如果之前在输出 reasoning，先结束 reasoning
-                if reasoning_started:
-                    self.reasoning_duration = get_time_duration(
-                        last_reasoning_time)
-                    yield self.format_sse_message('reasoning', {
-                        'status': 'done',
-                        'duration': self.reasoning_duration,
-                    })
-                    reasoning_started = False
-
-                status = 'start' if not content_started else 'continue'
-                content_started = True
-                last_content_time = get_current_time()
-                yield self.format_sse_message('content', {
-                    'status': status,
-                    'content': content,
-                })
-
-        # 处理循环结束后的收尾逻辑（关键修复：分开判断，不再用 elif）
-        # 1. 如果推理未结束，发送推理 done 状态
-        if reasoning_started:
-            self.reasoning_duration = get_time_duration(last_reasoning_time)
-            yield self.format_sse_message('reasoning', {
+        if self.collected_messages:
+            self.duration = get_time_duration(start_time)
+            yield self.format_sse_message('mcp_tool_call', {
                 'status': 'done',
-                'duration': self.reasoning_duration,
+                'duration': self.duration,
             })
-
-        # 2. 如果内容未结束，发送内容 done 状态（独立判断，即使有推理也会处理）
-        if content_started:
-            self.content_duration = get_time_duration(last_content_time)
-            yield self.format_sse_message('content', {
-                'status': 'done',
-                'content': '',
-                'duration': self.content_duration,
-            })
-
-        # 3. 关键补充：处理「有推理但无内容」的边界情况
-        if reasoning_started and not content_started and not content:
-            # 发送一个空的 content done 状态，确保前端感知到内容结束
-            yield self.format_sse_message('content', {
-                'status': 'done',
-                'content': '[模型已完成深入推理，详见思考过程]',
-                'duration': 0.0,
-            })
-
-        logger.info("Stream final response completed",
-                    duration=get_time_duration(start_time))
 
     async def _call_llm_with_mcp_tools(
         self,
@@ -166,10 +216,14 @@ class ChatService:
     ) -> AsyncGenerator[ToolCallMessage, ToolCallMessage]:
         """Call LLM with MCP tools and handle tool calls, streaming results
 
+        Args:
+            messages: 消息列表
+            model: 模型名称
+            extra_body: 额外参数
+            tools: 工具列表
+
         Yields:
-            tuple[str, list]: First element is SSE message (or None), second is accumulated messages
-        Returns:
-            list[AssistantMessage]: Final tool call messages
+            ToolCallMessage: Tool call related messages
         """
         logger.info("MCP tool calls", model=model, tools_count=len(
             tools), messages_count=len(messages), extra_body=extra_body)
@@ -184,10 +238,10 @@ class ChatService:
                         1, max_iterations=max_total_iterations)
 
             # Call LLM with tools
-            response = await self.tool_client.chat.completions.create(
+            response = await self.client.chat.completions.create(
                 model=model,
                 parallel_tool_calls=True,  # 启用并行工具调用
-                messages=messages + self.collected_mcp_tool_call_messages,
+                messages=messages + self.collected_messages,
                 tools=tools if tools else None,
                 stream=False,
                 extra_body=extra_body,
@@ -211,7 +265,7 @@ class ChatService:
                 'tool_calls': openai_message.tool_calls,
                 'reasoning_content': hasattr(openai_message, 'reasoning_content') and openai_message.reasoning_content or None,
             })
-            self.collected_mcp_tool_call_messages.append(assistant_message)
+            self.collected_messages.append(assistant_message)
             yield assistant_message
             tool_count = len(assistant_message.tool_calls)
             logger.info(
@@ -279,7 +333,8 @@ class ChatService:
                         arguments=arguments,
                     )
                     result, filtered_params = await self.mcp_manager.call_tool(tool_name, arguments)
-                    content = self.mcp_manager.format_mcp_result(result)
+                    content = self.mcp_manager.format_mcp_result(
+                        result)
 
                     # 如果有参数被过滤，在返回内容前添加警告信息，告知 LLM
                     if filtered_params:
@@ -365,8 +420,7 @@ class ChatService:
 
             # Yield results in original order and collect them
             for tool_call_result_message in tool_results:
-                self.collected_mcp_tool_call_messages.append(
-                    tool_call_result_message)
+                self.collected_messages.append(tool_call_result_message)
                 yield tool_call_result_message
 
         # If we hit max iterations, return error message
@@ -376,6 +430,94 @@ class ChatService:
         )
         yield None
         return
+
+
+class ComponentToolsAgent(BaseAgent):
+    """组件工具调用Agent - 负责处理组件工具调用逻辑"""
+
+    def __init__(self, llm_config: LLMConfig, schema_service: ComponentSchemaService):
+        super().__init__(llm_config)
+        self.schema_service = schema_service
+        self.collected_messages: list[ToolCallMessage] = []
+        self.duration: Optional[float] = None
+
+    async def stream_execute(
+        self,
+        user_message: str,
+        mcp_tool_call_messages: list[ToolCallMessage],
+        component_tools_for_backend: list[ComponentToolConfig],
+        think_mode: bool,
+    ) -> AsyncGenerator[str, None]:
+        """
+        流式执行组件工具调用并返回SSE消息
+
+        Args:
+            user_message: 用户消息
+            mcp_tool_call_messages: MCP工具调用消息列表
+            component_tools_for_backend: 组件工具配置列表
+            think_mode: 是否使用思考模式
+
+        Yields:
+            str: SSE格式的消息
+        """
+        if not component_tools_for_backend:
+            return
+
+        # 提取MCP工具信息
+        mcp_tool_names, mcp_tool_call_contents = self._extract_mcp_tool_info(
+            mcp_tool_call_messages
+        )
+
+        # 根据条件过滤组件工具
+        filtered_component_tools = []
+        for component_config in component_tools_for_backend:
+            if self._check_component_condition(
+                component_config,
+                mcp_tool_names,
+                mcp_tool_call_contents,
+                user_message,
+            ):
+                filtered_component_tools.append(component_config.name)
+                logger.info(
+                    "Component tool condition satisfied",
+                    component_name=component_config.name,
+                )
+            else:
+                logger.info(
+                    "Component tool condition not satisfied, skipping",
+                    component_name=component_config.name,
+                )
+
+        if not filtered_component_tools:
+            logger.info(
+                "No component tools passed condition check",
+                total_components=len(component_tools_for_backend),
+            )
+            return
+
+        # 准备消息列表
+        system_prompt, component_user_message = get_prompt_for_component_render_data(
+            user_message)
+        component_messages = self._compose_messages(
+            system_prompt, [], component_user_message, mcp_tool_call_messages
+        )
+
+        # 调用组件工具
+        tool_model = self.model_config.think_model if think_mode else self.model_config.model
+        extra_body = get_model_extra_body(think_mode)
+        start_time = get_current_time()
+        async for message in self._call_llm_with_component_tools(
+            component_messages, tool_model, extra_body, filtered_component_tools
+        ):
+            if message:
+                yield self.format_sse_message('component_tool_call', message.model_dump())
+
+        if self.collected_messages:
+            self.duration = get_time_duration(start_time)
+            yield self.format_sse_message('component_tool_call', {
+                'status': 'done',
+                'duration': self.duration,
+            })
 
     def _check_component_condition(
         self,
@@ -572,9 +714,9 @@ class ChatService:
             )
 
             # 调用 LLM
-            response = await self.tool_client.chat.completions.create(
+            response = await self.client.chat.completions.create(
                 model=model,
-                messages=messages + self.collected_component_tool_call_messages,
+                messages=messages + self.collected_messages,
                 tools=component_tools,
                 stream=False,
                 extra_body=extra_body,
@@ -595,8 +737,7 @@ class ChatService:
                 'tool_calls': openai_message.tool_calls,
                 'reasoning_content': hasattr(openai_message, 'reasoning_content') and openai_message.reasoning_content or None,
             })
-            self.collected_component_tool_call_messages.append(
-                assistant_message)
+            self.collected_messages.append(assistant_message)
             yield assistant_message
 
             tool_count = len(assistant_message.tool_calls)
@@ -627,8 +768,7 @@ class ChatService:
                         "tool_call_id": tool_call.id,
                         "duration": 0.0,
                     })
-                    self.collected_component_tool_call_messages.append(
-                        tool_call_result_message)
+                    self.collected_messages.append(tool_call_result_message)
                     yield tool_call_result_message
                     continue
 
@@ -651,8 +791,7 @@ class ChatService:
                         "tool_call_id": tool_call.id,
                         "duration": 0.0,
                     })
-                    self.collected_component_tool_call_messages.append(
-                        tool_call_result_message)
+                    self.collected_messages.append(tool_call_result_message)
                     yield tool_call_result_message
 
                     # 从 component_tools 中移除已成功构造的组件
@@ -682,8 +821,7 @@ class ChatService:
                         "tool_call_id": tool_call.id,
                         "duration": 0.0,
                     })
-                    self.collected_component_tool_call_messages.append(
-                        tool_call_result_message)
+                    self.collected_messages.append(tool_call_result_message)
                     yield tool_call_result_message
                     continue
 
@@ -693,19 +831,216 @@ class ChatService:
         )
         return
 
-    def format_sse_message(self, msg_type: str, data=None) -> str:
-        """Format SSE (Server-Sent Events) message"""
-        if data is None:
-            return f"data: {json.dumps({'type': msg_type, 'data': {}}, ensure_ascii=False)}\n\n"
 
-        # 如果 data 是 BaseModel
+class ResponseGenerationAgent(BaseAgent):
+    """响应生成Agent - 负责生成最终的聊天响应"""
+
+    def __init__(self, llm_config: LLMConfig):
+        super().__init__(llm_config)
+        self.content = ''
+        self.reasoning = ''
+        self.reasoning_duration: Optional[float] = None
+        self.content_duration: Optional[float] = None
+        self.total_duration: Optional[float] = None
+
+    def format_sse_message(self, msg_type: str, data=None) -> str:
+        """格式化SSE消息，并更新状态（如果需要）"""
         if isinstance(data, BaseModel):
             data = data.model_dump(mode="json")
         if msg_type == 'content':
-            self.collected_content += data.get('content') or ''
+            self.content += data.get('content') or ''
         elif msg_type == 'reasoning':
-            self.collected_reasoning += data.get('content') or ''
-        return f"data: {json.dumps({'type': msg_type, 'data': data}, ensure_ascii=False)}\n\n"
+            self.reasoning += data.get('content') or ''
+
+        return super().format_sse_message(msg_type, data)
+
+    async def stream_execute(
+        self,
+        history: list[ChatMessageItemReq],
+        user_message: str,
+        mcp_tool_call_messages: list[ToolCallMessage],
+        component_tool_call_messages: list[ToolCallMessage],
+        think_mode: bool,
+    ) -> AsyncGenerator[str, None]:
+        """
+        流式生成最终响应
+
+        Args:
+            history: 对话历史
+            user_message: 用户消息（已包含组件数据）
+            mcp_tool_call_messages: MCP工具调用消息
+            component_tool_call_messages: 组件工具调用消息
+            think_mode: 是否使用思考模式
+
+        Yields:
+            str: SSE格式的响应消息
+        """
+        system_prompt = get_default_system_prompt(include_date=False)
+        new_messages = self._compose_messages(
+            system_prompt, history, user_message, mcp_tool_call_messages)
+        final_model = self.model_config.think_model if think_mode else self.model_config.model
+        extra_body = get_model_extra_body(think_mode)
+        async for chunk in self._stream_final_response(new_messages, final_model, extra_body):
+            yield chunk
+
+    async def _stream_final_response(
+        self,
+        messages: list[dict],
+        model: str,
+        extra_body: dict[str, Any],
+    ) -> AsyncIterator[str]:
+        """Stream final response"""
+        start_time = get_current_time()
+        response = await self.client.chat.completions.create(
+            model=model,
+            messages=messages,
+            stream=True,
+            extra_body=extra_body,
+        )
+        logger.info("Using LLM model", model=model)
+        reasoning_started = False
+        content_started = False
+        # 重命名变量，区分推理和内容的计时，避免混淆
+        last_reasoning_time = start_time
+        last_content_time = start_time
+
+        async for chunk in response:
+            # 安全检查：确保 choices 存在且不为空
+            if not chunk.choices:
+                continue
+
+            delta = getattr(chunk.choices[0], 'delta', None)
+            if not delta:
+                continue
+
+            # 处理 reasoning_content
+            reasoning_content = getattr(delta, 'reasoning_content', None)
+            content = getattr(delta, 'content', None)
+
+            # 1. 优先处理推理内容（允许同时存在推理和内容的极端情况）
+            if reasoning_content:
+                # 如果之前在输出 content，先结束 content
+                if content_started:
+                    content_duration = get_time_duration(last_content_time)
+                    self.content_duration = content_duration
+                    yield self.format_sse_message('content', {
+                        'status': 'done',
+                        'content': '',
+                        'duration': content_duration,
+                    })
+                    content_started = False
+
+                status = 'start' if not reasoning_started else 'continue'
+                reasoning_started = True
+                last_reasoning_time = get_current_time()
+                yield self.format_sse_message('reasoning', {
+                    'status': status,
+                    'content': reasoning_content,
+                })
+
+            # 2. 处理 content（不再用 elif，避免推理内容覆盖内容的判断）
+            if content:
+                # 如果之前在输出 reasoning，先结束 reasoning
+                if reasoning_started:
+                    reasoning_duration = get_time_duration(last_reasoning_time)
+                    self.reasoning_duration = reasoning_duration
+                    yield self.format_sse_message('reasoning', {
+                        'status': 'done',
+                        'duration': reasoning_duration,
+                    })
+                    reasoning_started = False
+
+                status = 'start' if not content_started else 'continue'
+                content_started = True
+                last_content_time = get_current_time()
+                yield self.format_sse_message('content', {
+                    'status': status,
+                    'content': content,
+                })
+
+        # 处理循环结束后的收尾逻辑（关键修复：分开判断，不再用 elif）
+        # 1. 如果推理未结束，发送推理 done 状态
+        if reasoning_started:
+            reasoning_duration = get_time_duration(last_reasoning_time)
+            self.reasoning_duration = reasoning_duration
+            yield self.format_sse_message('reasoning', {
+                'status': 'done',
+                'duration': reasoning_duration,
+            })
+
+        # 2. 如果内容未结束，发送内容 done 状态（独立判断，即使有推理也会处理）
+        if content_started:
+            content_duration = get_time_duration(last_content_time)
+            self.content_duration = content_duration
+            yield self.format_sse_message('content', {
+                'status': 'done',
+                'content': '',
+                'duration': content_duration,
+            })
+
+        # 3. 关键补充：处理「有推理但无内容」的边界情况
+        if reasoning_started and not content_started and not content:
+            # 发送一个空的 content done 状态，确保前端感知到内容结束
+            yield self.format_sse_message('content', {
+                'status': 'done',
+                'content': '[模型已完成深入推理，详见思考过程]',
+                'duration': 0.0,
+            })
+
+        logger.info("Stream final response completed",
+                    duration=self.total_duration)
+        self.total_duration = get_time_duration(start_time)
+
+
+class TitleGenerationAgent(BaseAgent):
+    """标题生成Agent - 负责生成对话标题"""
+
+    def __init__(self, llm_config: LLMConfig):
+        super().__init__(llm_config)
+        self.duration: Optional[float] = None
+
+    async def execute(self, user_message: str) -> str:
+        """
+        生成对话标题
+
+        Args:
+            user_message: 用户消息
+
+        Returns:
+            str: 生成的标题
+        """
+        start_time = get_current_time()
+        system_prompt, new_user_message = get_prompt_for_title(user_message)
+        messages = self._compose_messages(system_prompt, [], new_user_message)
+        title_response = await self.client.chat.completions.create(
+            model=self.model_config.model,
+            messages=messages,
+            stream=False,
+        )
+        self.duration = get_time_duration(start_time)
+        return title_response.choices[0].message.content
+
+
+class ChatService:
+    """Handle chat interactions with RAG"""
+
+    def __init__(self, mcp_manager: MCPClientManager):
+        self.debug = settings.app.debug
+        self.mcp_manager = mcp_manager
+        self.schema_service = ComponentSchemaService(
+            debug=self.debug)  # 复用 ComponentSchemaService 实例
+
+        # 初始化各个Agent
+        # MCP工具和组件工具使用tool配置
+        self.mcp_tools_agent = MCPToolsAgent(
+            settings.tool, self.mcp_manager)
+        self.component_tools_agent = ComponentToolsAgent(
+            settings.tool, self.schema_service)
+        # 响应生成和标题生成使用llm配置
+        self.response_generation_agent = ResponseGenerationAgent(
+            settings.llm)
+        self.title_generation_agent = TitleGenerationAgent(
+            settings.llm)
 
     async def stream_message(
         self,
@@ -713,110 +1048,45 @@ class ChatService:
         history: list[ChatMessageItemReq],
         client_ip: str | None,
     ) -> AsyncGenerator[str, None]:
-        """Stream chat response"""
+        """Stream chat response using agent architecture"""
         try:
-            # Choose between retrieval and MCP tool calling
-            mcp_auto_mode = chat_request.mcp_auto_mode
-            source_config = chat_request.source_config
             think_mode = chat_request.think_mode
             user_message = chat_request.content
-            tool_model = self.tool_model_config.think_model if think_mode else self.tool_model_config.model
-            extra_body = get_model_extra_body(think_mode)
-            # Get MCP tools for LLM
-            server_names = None if mcp_auto_mode else filter_dict(
-                source_config.model_dump(), [True])
-            tools = await self.mcp_manager.get_tools_for_llm(server_names, client_ip)
-            if tools:
-                # Call LLM with tools and stream results
-                system_prompt, tool_call_user_message = get_prompt_with_mcp_servers(
-                    user_message, mcp_auto_mode, server_names, client_ip)
-                new_messages = self._compose_messages(
-                    system_prompt, history, tool_call_user_message)
 
-                # Stream tool calls and collect messages
-                start_time = get_current_time()
-                async for message in self._call_llm_with_mcp_tools(
-                    new_messages, tool_model, extra_body, tools
-                ):
-                    # Update accumulated messages
-                    if message:
-                        yield self.format_sse_message('mcp_tool_call', message.model_dump())
+            # 阶段1: MCP工具调用
+            async for message in self.mcp_tools_agent.stream_execute(
+                chat_request,
+                history,
+                client_ip,
+            ):
+                yield message
 
-                if self.collected_mcp_tool_call_messages:
-                    self.tool_calls_duration = get_time_duration(start_time)
-                    yield self.format_sse_message('mcp_tool_call', {
-                        'status': 'done',
-                        'duration': self.tool_calls_duration,
-                    })
-
-            # 在 MCP tools 调用完成后，调用组件工具
+            # 阶段2: 组件工具调用
             component_tools_for_backend = chat_request.component_tools_for_backend
             if component_tools_for_backend:
-                # 提取 MCP 工具信息
-                mcp_tool_names, mcp_tool_call_contents = self._extract_mcp_tool_info(
-                    self.collected_mcp_tool_call_messages
-                )
-
-                # 根据条件过滤组件工具
-                filtered_component_tools = []
-                for component_config in component_tools_for_backend:
-                    if self._check_component_condition(
-                        component_config,
-                        mcp_tool_names,
-                        mcp_tool_call_contents,
-                        user_message,
-                    ):
-                        filtered_component_tools.append(component_config.name)
-                        logger.info(
-                            "Component tool condition satisfied",
-                            component_name=component_config.name,
-                        )
-                    else:
-                        logger.info(
-                            "Component tool condition not satisfied, skipping",
-                            component_name=component_config.name,
-                        )
-
-                if filtered_component_tools:
-                    # 准备消息列表（包含 system message、user message 和 MCP tool messages）
-                    system_prompt, component_user_message = get_prompt_for_component_render_data(
-                        user_message)
-                    component_messages = self._compose_messages(
-                        system_prompt, [], component_user_message, self.collected_mcp_tool_call_messages
-                    )
-
-                    # 调用组件工具
-                    start_time = get_current_time()
-                    async for message in self._call_llm_with_component_tools(
-                        component_messages, tool_model, extra_body, filtered_component_tools
-                    ):
-                        if message:
-                            yield self.format_sse_message('component_tool_call', message.model_dump())
-
-                    if self.collected_component_tool_call_messages:
-                        self.component_tool_calls_duration = get_time_duration(
-                            start_time)
-                        yield self.format_sse_message('component_tool_call', {
-                            'status': 'done',
-                            'duration': self.component_tool_calls_duration,
-                        })
-                else:
-                    logger.info(
-                        "No component tools passed condition check",
-                        total_components=len(component_tools_for_backend),
-                    )
+                async for message in self.component_tools_agent.stream_execute(
+                    user_message,
+                    self.mcp_tools_agent.collected_messages,
+                    component_tools_for_backend,
+                    think_mode,
+                ):
+                    yield message
 
             # 将组件数据拼接到 user_message
             final_user_message = get_user_message_with_component_data(
-                user_message, self.collected_component_tool_call_messages, self.schema_service.get_schema_cache()
+                user_message,
+                self.component_tools_agent.collected_messages,
+                self.schema_service.get_schema_cache()
             )
 
-            system_prompt = get_default_system_prompt(include_date=False)
-            # 将工具调用历史拼接到用户消息中
-            new_messages = self._compose_messages(
-                system_prompt, history, final_user_message, self.collected_mcp_tool_call_messages)
-            final_model = settings.llm.think_model if think_mode else settings.llm.model
-            async for chunk in self._stream_final_response(new_messages, final_model, extra_body):
+            # 阶段3: 最终响应生成
+            async for chunk in self.response_generation_agent.stream_execute(
+                history,
+                final_user_message,
+                self.mcp_tools_agent.collected_messages,
+                self.component_tools_agent.collected_messages,
+                think_mode,
+            ):
                 yield chunk
             return
 
@@ -826,109 +1096,20 @@ class ChatService:
 
     async def generate_title(self, user_message: str) -> str:
         """Generate title for the chat"""
-        system_prompt, new_user_message = get_prompt_for_title(user_message)
-        messages = self._compose_messages(
-            system_prompt, [], new_user_message)
-        title_response = await self.client.chat.completions.create(
-            model=settings.llm.model,
-            messages=messages,
-            stream=False,
-        )
-        return title_response.choices[0].message.content
+        return await self.title_generation_agent.execute(user_message)
 
     def get_collected_response(self) -> CollectedResponse:
         """获取已收集的助手消息内容"""
         return CollectedResponse(
-            content=self.collected_content,
-            reasoning=self.collected_reasoning,
+            content=self.response_generation_agent.content,
+            reasoning=self.response_generation_agent.reasoning,
             tool_calls=[tool_call.model_dump(
-            ) for tool_call in self.collected_mcp_tool_call_messages],
+            ) for tool_call in self.mcp_tools_agent.collected_messages],
             component_tool_calls=[tool_call.model_dump(
-            ) for tool_call in self.collected_component_tool_call_messages],
-            tool_calls_duration=self.tool_calls_duration,
-            component_tool_calls_duration=self.component_tool_calls_duration,
-            reasoning_duration=self.reasoning_duration,
-            content_duration=self.content_duration,
-            total_duration=self.total_duration,
+            ) for tool_call in self.component_tools_agent.collected_messages],
+            tool_calls_duration=self.mcp_tools_agent.duration,
+            component_tool_calls_duration=self.component_tools_agent.duration,
+            reasoning_duration=self.response_generation_agent.reasoning_duration,
+            content_duration=self.response_generation_agent.content_duration,
+            total_duration=self.response_generation_agent.total_duration,
         )
-
-    @staticmethod
-    def _compose_messages(
-        system_prompt: str,
-        history: list[ChatMessageItemReq],
-        user_message: str,
-        tool_call_messages: Optional[list[ToolCallMessage]] = None,
-    ) -> list[dict]:
-        """Build prompt for LLM
-
-        Args:
-            system_prompt: System prompt message
-            history: Conversation history
-            user_message: Current user message
-            tool_call_messages: Optional tool call messages (assistant tool calls and tool results)
-
-        Returns:
-            Message list with correct order: system_prompt -> history -> user_message -> tool_call_messages
-        """
-        messages = []
-        if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-
-        history = history or []
-        # 处理历史消息，确保包含 tool_calls 的 assistant 消息有 reasoning_content 字段
-        for msg in history:
-            msg_dict = format_message_for_llm(msg)
-            msg_dict = clear_reasoning_content(msg_dict)
-            messages.append(msg_dict)
-
-        messages.append({"role": "user", "content": user_message})
-
-        # 如果有 tool_call_messages，转换为字典格式并追加
-        if not tool_call_messages:
-            return messages
-
-        # 第一步：收集所有有效的 tool_call_id（从成功的 ToolCallResultMessage）
-        valid_tool_call_ids = set()
-        for message in tool_call_messages:
-            if isinstance(message, ToolCallResultMessage):
-                if not message.is_error:
-                    valid_tool_call_ids.add(message.tool_call_id)
-
-        # 第二步：收集 assistant 消息中实际存在的 tool_call_id（只保留那些有成功结果的）
-        # 这样可以确保 tool 消息和 assistant 消息成对出现
-        assistant_tool_call_ids = set()
-        for message in tool_call_messages:
-            if isinstance(message, AssistantToolCallMessage):
-                for tool_call in (message.tool_calls or []):
-                    if tool_call.id in valid_tool_call_ids:
-                        assistant_tool_call_ids.add(tool_call.id)
-
-        # 第三步：只保留正确的工具调用（ToolCallResultMessage is_error=False 且有对应的 assistant 消息）
-        filtered_tool_call_messages = []
-        for message in tool_call_messages:
-            if isinstance(message, AssistantToolCallMessage):
-                # 保留 assistant 工具调用中有效的工具调用
-                # 使用 model_copy() 创建副本，避免修改原始对象
-                filtered_tool_calls = [
-                    tool_call for tool_call in (message.tool_calls or [])
-                    if tool_call.id in assistant_tool_call_ids
-                ]
-                if filtered_tool_calls:
-                    # 创建新对象副本，只更新 tool_calls 字段
-                    filtered_message = message.model_copy(
-                        update={"tool_calls": filtered_tool_calls})
-                    filtered_tool_call_messages.append(filtered_message)
-            elif isinstance(message, ToolCallResultMessage):
-                # 只保留没有错误且有对应 assistant 消息的工具调用结果
-                if not message.is_error and message.tool_call_id in assistant_tool_call_ids:
-                    filtered_tool_call_messages.append(message)
-
-        # 将过滤后的消息转换为字典格式并追加
-        for message in filtered_tool_call_messages:
-            if isinstance(message, AssistantToolCallMessage):
-                message_dict = format_assistant_tool_call_message(message)
-            else:
-                message_dict = format_message_for_llm(message)
-            messages.append(message_dict)
-
-        return messages
