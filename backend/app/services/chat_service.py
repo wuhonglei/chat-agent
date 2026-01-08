@@ -20,14 +20,13 @@ class ChatService:
 
     def __init__(self, mcp_manager: MCPClientManager):
         self.debug = settings.app.debug
-        self.mcp_manager = mcp_manager
         self.schema_service = ComponentSchemaService(
             debug=self.debug)  # 复用 ComponentSchemaService 实例
 
         # 初始化各个Agent
         # MCP工具和组件工具使用tool配置
         self.mcp_tools_agent = MCPToolsAgent(
-            settings.tool, self.mcp_manager)
+            settings.tool, mcp_manager)
         self.component_tools_agent = ComponentToolsAgent(
             settings.tool, self.schema_service)
         # 响应生成和标题生成使用llm配置

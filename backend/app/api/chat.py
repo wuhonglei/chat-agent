@@ -38,7 +38,6 @@ async def chat_stream(
         chat_request=chat_request.model_dump(exclude_none=True),
     )
 
-    chat_service = ChatService(mcp_manager=mcp_manager)
     user_metadata = chat_request.model_dump(
         exclude_none=True, exclude=['content']
     )
@@ -84,6 +83,8 @@ async def chat_stream(
             yield format_sse_message('ack', user_message)
             yield format_sse_message('ack', assistant_message)
             yield format_sse_message('refresh_conversation', conversation)
+
+            chat_service = ChatService(mcp_manager=mcp_manager)
 
             # 如果需要重新生成标题
             if chat_request.regenerate_title:
