@@ -75,17 +75,14 @@ def format_assistant_tool_call_message(message: AssistantToolCallMessage) -> dic
     return message_dict
 
 
-def clear_reasoning_content(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def clear_reasoning_content(message: dict[str, Any]) -> dict[str, Any]:
     """
     清除消息中的 reasoning_content 字段
 
     Args:
-        messages: 消息列表
+        message: 消息字典
 
     Returns:
-        清除 reasoning_content 字段后的消息列表
+        清除 reasoning_content 字段后的消息字典
     """
-    return [
-        {k: v for k, v in message.items() if k != 'reasoning_content'}
-        for message in messages
-    ]
+    return {k: v for k, v in message.items() if k != 'reasoning_content'}
