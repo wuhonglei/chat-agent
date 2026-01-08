@@ -15,6 +15,7 @@ from app.utils.common import filter_dict
 from app.utils.logger import logger
 from app.utils.time import get_current_time, get_time_duration
 from app.utils.message import clear_reasoning_content, format_message_for_llm, format_assistant_tool_call_message
+from app.utils.model import get_model_extra_body
 from app.mcp.mcp_client import MCPClientManager
 from app.prompts import get_default_system_prompt, get_prompt_for_title, get_prompt_with_mcp_servers
 from app.services.component_schema_service import ComponentSchemaService
@@ -55,6 +56,7 @@ class ChatService:
         self,
         messages: list[dict],
         model: str,
+        extra_body: dict[str, Any],
     ) -> AsyncIterator[str]:
         """Stream final response"""
         start_time = get_current_time()
@@ -62,6 +64,7 @@ class ChatService:
             model=model,
             messages=messages,
             stream=True,
+            extra_body=extra_body,
         )
         logger.info("Using LLM model", model=model)
         reasoning_started = False
@@ -158,6 +161,7 @@ class ChatService:
         self,
         messages: list[dict],
         model: str,
+        extra_body: dict[str, Any],
         tools: list[dict],
     ) -> AsyncGenerator[ToolCallMessage, ToolCallMessage]:
         """Call LLM with MCP tools and handle tool calls, streaming results
@@ -186,6 +190,7 @@ class ChatService:
                 messages=messages + self.collected_mcp_tool_call_messages,
                 tools=tools if tools else None,
                 stream=False,
+                extra_body=extra_body,
             )
             openai_message: ChatCompletionMessage = response.choices[0].message
 
@@ -497,6 +502,7 @@ class ChatService:
         # system message + user_message + mcp tool messages
         messages: list[dict],
         model: str,
+        extra_body: dict[str, Any],
         component_tool_names: list[str],
     ) -> AsyncGenerator[ToolCallMessage, ToolCallMessage]:
         """Call LLM with component tools and collect component data
@@ -504,6 +510,7 @@ class ChatService:
         Args:
             messages: 包含 system message、user message 和 MCP tool call messages 的消息列表
             model: LLM 模型名称
+            extra_body: 模型额外参数
             component_tool_names: 组件工具名称列表（例如：['weather']）
 
         Yields:
@@ -570,6 +577,7 @@ class ChatService:
                 messages=messages + self.collected_component_tool_call_messages,
                 tools=component_tools,
                 stream=False,
+                extra_body=extra_body,
             )
             openai_message: ChatCompletionMessage = response.choices[0].message
 
@@ -713,7 +721,7 @@ class ChatService:
             think_mode = chat_request.think_mode
             user_message = chat_request.content
             tool_model = self.tool_model_config.think_model if think_mode else self.tool_model_config.model
-
+            extra_body = get_model_extra_body(think_mode)
             # Get MCP tools for LLM
             server_names = None if mcp_auto_mode else filter_dict(
                 source_config.model_dump(), [True])
@@ -728,7 +736,7 @@ class ChatService:
                 # Stream tool calls and collect messages
                 start_time = get_current_time()
                 async for message in self._call_llm_with_mcp_tools(
-                    new_messages, tool_model, tools
+                    new_messages, tool_model, extra_body, tools
                 ):
                     # Update accumulated messages
                     if message:
@@ -780,7 +788,7 @@ class ChatService:
                     # 调用组件工具
                     start_time = get_current_time()
                     async for message in self._call_llm_with_component_tools(
-                        component_messages, tool_model, filtered_component_tools
+                        component_messages, tool_model, extra_body, filtered_component_tools
                     ):
                         if message:
                             yield self.format_sse_message('component_tool_call', message.model_dump())
@@ -808,7 +816,7 @@ class ChatService:
             new_messages = self._compose_messages(
                 system_prompt, history, final_user_message, self.collected_mcp_tool_call_messages)
             final_model = settings.llm.think_model if think_mode else settings.llm.model
-            async for chunk in self._stream_final_response(new_messages, final_model):
+            async for chunk in self._stream_final_response(new_messages, final_model, extra_body):
                 yield chunk
             return
 
