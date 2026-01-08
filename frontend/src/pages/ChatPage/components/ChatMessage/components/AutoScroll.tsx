@@ -6,7 +6,7 @@ import { useEffect, useRef } from "react";
 type Props = {
   messages: ChatMessage[];
   isStreaming: boolean;
-  containerRef: React.RefObject<HTMLElement>;
+  containerRef: React.RefObject<HTMLElement | null>;
 };
 
 export default function AutoScroll({

@@ -7,7 +7,7 @@ import React, { useEffect, useState } from "react";
 type Props = {
   className?: string;
   visibilityHeight: number;
-  containerRef: React.RefObject<HTMLElement>;
+  containerRef: React.RefObject<HTMLElement | null>;
 };
 
 export default function FloatButtonBottom({

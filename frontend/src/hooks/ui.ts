@@ -12,7 +12,9 @@ export function useIsSmallScreen() {
  * @param containerRef
  * @returns boolean
  */
-export function useIsScrollByUser(containerRef: React.RefObject<HTMLElement>) {
+export function useIsScrollByUser(
+  containerRef: React.RefObject<HTMLElement | null>
+) {
   const [scrollByUser, setScrollByUser] = useState(false);
 
   // 桌面端：处理 wheel 事件
