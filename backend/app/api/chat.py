@@ -13,6 +13,7 @@ from app.services.message_service import MessageService
 from app.utils.auth_deps import require_auth
 from app.utils.common import gen_uuid
 from app.utils.logger import logger
+from app.utils.model import format_sse_message
 from app.utils.network import get_public_client_ip
 from app.utils.time import get_current_time, get_time_duration
 
@@ -37,7 +38,6 @@ async def chat_stream(
         chat_request=chat_request.model_dump(exclude_none=True),
     )
 
-    chat_service = ChatService(mcp_manager=mcp_manager)
     user_metadata = chat_request.model_dump(
         exclude_none=True, exclude=['content']
     )
@@ -80,14 +80,16 @@ async def chat_stream(
                 MessageDb, assistant_message_id)
 
             # 发送初始确认消息
-            yield chat_service.format_sse_message('ack', user_message)
-            yield chat_service.format_sse_message('ack', assistant_message)
-            yield chat_service.format_sse_message('refresh_conversation', conversation)
+            yield format_sse_message('ack', user_message)
+            yield format_sse_message('ack', assistant_message)
+            yield format_sse_message('refresh_conversation', conversation)
+
+            chat_service = ChatService(mcp_manager=mcp_manager)
 
             # 如果需要重新生成标题
             if chat_request.regenerate_title:
                 title = await chat_service.generate_title(chat_request.content)
-                yield chat_service.format_sse_message('title', {
+                yield format_sse_message('title', {
                     'id': chat_request.conversation_id,
                     'title': title
                 })
@@ -115,7 +117,7 @@ async def chat_stream(
             )
 
             # 发送完成消息
-            yield chat_service.format_sse_message('done', {
+            yield format_sse_message('done', {
                 'content_length': len(assistant_payload.content),
                 'reasoning_length': len(assistant_payload.reasoning),
                 'tool_calls_length': len(assistant_payload.tool_calls),
