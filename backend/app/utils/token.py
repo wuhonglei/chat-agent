@@ -8,6 +8,9 @@ from openai import BaseModel
 import tiktoken
 from app.utils.logger import logger
 
+# encoding 缓存字典，在模块级别共享，便于多个 TokenCalculator 实例共享
+_encoding_map: dict[str, tiktoken.Encoding] = {}
+
 
 class TokenCalculator:
     """Token 计算工具类"""
@@ -22,8 +25,6 @@ class TokenCalculator:
     DEFAULT_ENCODING_NAME = "cl100k_base"
     # 本地 token 文件目录路径
     LOCAL_TOKEN_DIR = Path(__file__).parent.parent.parent / "data" / "token"
-    # encoding 缓存字典
-    _encoding_map: dict[str, tiktoken.Encoding] = {}
 
     def __init__(self, model: str):
         """
@@ -46,7 +47,7 @@ class TokenCalculator:
         Returns:
             tiktoken.Encoding 对象，如果不存在则返回 None
         """
-        return cls._encoding_map.get(key)
+        return _encoding_map.get(key)
 
     @classmethod
     def _set_cached_encoding(cls, key: str, encoding: tiktoken.Encoding) -> None:
@@ -57,7 +58,7 @@ class TokenCalculator:
             key: 缓存键（模型名称或 encoding 名称）
             encoding: tiktoken.Encoding 对象
         """
-        cls._encoding_map[key] = encoding
+        _encoding_map[key] = encoding
         logger.debug(f"已将 encoding 缓存: {key}")
 
     def _get_encoding(self, model: str) -> tiktoken.Encoding:
