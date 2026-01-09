@@ -3,6 +3,7 @@ import json
 from typing import Any
 
 import tiktoken
+from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallResultMessage
 from app.utils.logger import logger
 
 
@@ -104,3 +105,105 @@ class TokenCalculator:
         """
         calculator = cls(model)
         return calculator.get_max_context_tokens()
+
+    def count_messages_tokens(self, messages: list[dict]) -> int:
+        """
+        计算消息列表的 token 数量
+
+        注意：这是一个简化的计算方式，实际 API 调用时的 token 数量可能略有不同
+        因为需要考虑消息格式、工具定义等额外开销
+
+        Args:
+            messages: 消息列表，格式为 [{"role": "system", "content": "..."}, ...]
+
+        Returns:
+            token 数量
+        """
+        total_tokens = 0
+        # 每条消息的基础开销（role + 格式标记等），大约 4 tokens
+        base_tokens_per_message = 4
+
+        for message in messages:
+            total_tokens += base_tokens_per_message
+
+            # 计算 content 的 token
+            content = message.get("content", "")
+            if content:
+                total_tokens += self.count_tokens(content)
+
+            # 计算 reasoning_content 的 token（如果存在）
+            reasoning_content = message.get("reasoning_content", "")
+            if reasoning_content:
+                total_tokens += self.count_tokens(reasoning_content)
+
+            # 计算 tool_calls 的 token（如果存在）
+            tool_calls = message.get("tool_calls", [])
+            if tool_calls:
+                # 将 tool_calls 序列化为 JSON 字符串来计算 token
+                tool_calls_str = json.dumps(tool_calls, ensure_ascii=False)
+                total_tokens += self.count_tokens(tool_calls_str)
+
+        return total_tokens
+
+    def count_tools_tokens(self, tools: list[dict]) -> int:
+        """
+        计算工具定义的 token 数量
+
+        Args:
+            tools: 工具定义列表
+
+        Returns:
+            token 数量
+        """
+        if not tools:
+            return 0
+        tools_str = json.dumps(tools, ensure_ascii=False)
+        return self.count_tokens(tools_str)
+
+    def count_tool_call_messages_tokens(
+        self,
+        tool_call_messages: list[ToolCallMessage],
+        collect_tool_names: bool = False
+    ) -> tuple[int, list[str]]:
+        """
+        计算工具调用消息列表的 token 数量
+
+        Args:
+            tool_call_messages: 工具调用消息列表（AssistantToolCallMessage 和 ToolCallResultMessage）
+            collect_tool_names: 是否收集工具名称列表
+
+        Returns:
+            tuple[int, list[str]]: (completion_tokens, tool_names)
+            - completion_tokens: 输出 token 数量
+            - tool_names: 工具名称列表（如果 collect_tool_names=True）
+        """
+        completion_tokens = 0
+        tool_names: list[str] = []
+
+        for message in tool_call_messages:
+            if isinstance(message, AssistantToolCallMessage):
+                # 计算 content 的 token
+                if message.content:
+                    completion_tokens += self.count_tokens(message.content)
+                # 计算 reasoning_content 的 token
+                if message.reasoning_content:
+                    completion_tokens += self.count_tokens(
+                        message.reasoning_content)
+                # 计算 tool_calls 的 token
+                if message.tool_calls:
+                    tool_calls_str = json.dumps(
+                        [tc.model_dump() for tc in message.tool_calls],
+                        ensure_ascii=False
+                    )
+                    completion_tokens += self.count_tokens(tool_calls_str)
+                    # 收集工具名称（如果需要）
+                    if collect_tool_names:
+                        for tool_call in message.tool_calls:
+                            tool_name = tool_call.function.name
+                            if tool_name not in tool_names:
+                                tool_names.append(tool_name)
+            elif isinstance(message, ToolCallResultMessage) and message.content:
+                # 计算工具调用结果的 token
+                completion_tokens += self.count_tokens(message.content)
+
+        return completion_tokens, tool_names

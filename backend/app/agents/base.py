@@ -1,13 +1,14 @@
 """Base Agent class for all agents"""
 from collections.abc import AsyncGenerator
-from typing import Optional
-from abc import ABC
+from typing import Optional, Any
+from abc import ABC, abstractmethod
 
 from openai import AsyncOpenAI
 
 from app.schemas.chat import ChatMessageItemReq
 from app.schemas.config import LLMConfig
 from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallResultMessage
+from app.schemas.token_stats import TokenUsage
 from app.utils.message import clear_reasoning_content, format_message_for_llm, format_assistant_tool_call_message
 from app.utils.model import format_sse_message
 from app.utils.token import TokenCalculator
@@ -50,6 +51,51 @@ class BaseAgent(ABC):
     @staticmethod
     def format_sse_message(msg_type: str, data=None) -> str:
         return format_sse_message(msg_type, data)
+
+    def _create_token_usage(
+        self,
+        prompt_tokens: int,
+        completion_tokens: int,
+    ) -> TokenUsage:
+        """
+        创建 TokenUsage 对象（辅助方法）
+
+        Args:
+            prompt_tokens: 输入 token 数量
+            completion_tokens: 输出 token 数量
+
+        Returns:
+            TokenUsage 对象
+        """
+        return TokenUsage(
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=prompt_tokens + completion_tokens
+        )
+
+    @abstractmethod
+    def _create_token_stats(
+        self,
+        prompt_tokens: int,
+        completion_tokens: int,
+        model_name: str,
+        duration: Optional[float],
+        **kwargs: Any
+    ) -> Any:
+        """
+        创建 token 统计对象（抽象方法，子类必须实现）
+
+        Args:
+            prompt_tokens: 输入 token 数量
+            completion_tokens: 输出 token 数量
+            model_name: 使用的模型名称
+            duration: 执行耗时（秒）
+            **kwargs: 子类特定的额外参数
+
+        Returns:
+            TokenStats 对象（具体类型由子类决定）
+        """
+        pass
 
     def _compose_messages(
         self,

@@ -3,10 +3,10 @@ from collections.abc import AsyncGenerator
 
 from app.core.config import settings
 from app.schemas.chat import ChatMessageItemReq, ChatRequest, CollectedResponse
+from app.schemas.token_stats import TotalTokenStats
 from app.utils.logger import logger
 from app.mcp.mcp_client import MCPClientManager
 from app.services.component_schema_service import ComponentSchemaService
-from app.prompts.prompt_utils import get_user_message_with_component_data
 from app.agents import (
     MCPToolsAgent,
     ComponentToolsAgent,
@@ -31,7 +31,7 @@ class ChatService:
             settings.tool, self.schema_service)
         # 响应生成和标题生成使用llm配置
         self.response_generation_agent = ResponseGenerationAgent(
-            settings.llm)
+            settings.llm, self.schema_service)
         self.title_generation_agent = TitleGenerationAgent(
             settings.llm)
 
@@ -65,17 +65,10 @@ class ChatService:
                 ):
                     yield message
 
-            # 将组件数据拼接到 user_message
-            final_user_message = get_user_message_with_component_data(
-                user_message,
-                self.component_tools_agent.collected_messages,
-                self.schema_service.get_schema_cache()
-            )
-
             # 阶段3: 最终响应生成
             async for chunk in self.response_generation_agent.stream_execute(
                 history,
-                final_user_message,
+                user_message,
                 self.mcp_tools_agent.collected_messages,
                 self.component_tools_agent.collected_messages,
                 think_mode,
@@ -93,6 +86,14 @@ class ChatService:
 
     def get_collected_response(self) -> CollectedResponse:
         """获取已收集的助手消息内容"""
+        # 收集所有 token 统计信息
+        total_token_stats = TotalTokenStats(
+            mcp_tools=self.mcp_tools_agent.token_stats,
+            component_tools=self.component_tools_agent.token_stats,
+            response_generation=self.response_generation_agent.token_stats,
+            title_generation=self.title_generation_agent.token_stats,
+        )
+
         return CollectedResponse(
             content=self.response_generation_agent.content,
             reasoning=self.response_generation_agent.reasoning,
@@ -105,4 +106,10 @@ class ChatService:
             reasoning_duration=self.response_generation_agent.reasoning_duration,
             content_duration=self.response_generation_agent.content_duration,
             total_duration=self.response_generation_agent.total_duration,
+            token_stats=total_token_stats.model_dump(mode="json") if any([
+                self.mcp_tools_agent.token_stats,
+                self.component_tools_agent.token_stats,
+                self.response_generation_agent.token_stats,
+                self.title_generation_agent.token_stats,
+            ]) else None,
         )

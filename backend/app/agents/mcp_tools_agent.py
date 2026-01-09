@@ -9,10 +9,12 @@ from openai.types.chat import ChatCompletionMessage
 from app.schemas.chat import ChatMessageItemReq, ChatRequest
 from app.schemas.config import LLMConfig
 from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallResultMessage
+from app.schemas.token_stats import MCPToolsTokenStats
 from app.utils.common import filter_dict
 from app.utils.logger import logger
 from app.utils.time import get_current_time, get_time_duration
 from app.utils.model import get_model_extra_body
+from app.utils.token import TokenCalculator
 from app.mcp.mcp_client import MCPClientManager
 from app.prompts import get_prompt_with_mcp_servers
 from app.agents.base import BaseAgent
@@ -26,6 +28,26 @@ class MCPToolsAgent(BaseAgent):
         self.mcp_manager = mcp_manager
         self.collected_messages: list[ToolCallMessage] = []
         self.duration: Optional[float] = None
+        self.token_stats: Optional[MCPToolsTokenStats] = None
+
+    def _create_token_stats(
+        self,
+        prompt_tokens: int,
+        completion_tokens: int,
+        model_name: str,
+        duration: Optional[float],
+        **kwargs: Any
+    ) -> MCPToolsTokenStats:
+        """创建 MCP 工具调用的 token 统计对象"""
+        return MCPToolsTokenStats(
+            agent_name="mcp_tools_agent",
+            model_name=model_name,
+            token_usage=self._create_token_usage(
+                prompt_tokens, completion_tokens),
+            duration=duration,
+            tool_calls_count=kwargs.get('tool_calls_count', 0),
+            tool_names=kwargs.get('tool_names', [])
+        )
 
     async def stream_execute(
         self,
@@ -65,6 +87,13 @@ class MCPToolsAgent(BaseAgent):
         new_messages = self._compose_messages(
             system_prompt, history, tool_call_user_message)
 
+        # 初始化 token 统计
+        token_calculator = TokenCalculator(tool_model)
+        # 计算输入 token（包括消息和工具定义）
+        prompt_tokens = token_calculator.count_messages_tokens(new_messages)
+        tools_tokens = token_calculator.count_tools_tokens(tools)
+        total_prompt_tokens = prompt_tokens + tools_tokens
+
         # 流式调用LLM并收集工具调用消息
         start_time = get_current_time()
         async for message in self._call_llm_with_mcp_tools(
@@ -75,6 +104,24 @@ class MCPToolsAgent(BaseAgent):
 
         if self.collected_messages:
             self.duration = get_time_duration(start_time)
+
+            # 计算输出 token（助手消息 + 工具调用结果）
+            completion_tokens, tool_names = token_calculator.count_tool_call_messages_tokens(
+                self.collected_messages,
+                collect_tool_names=True
+            )
+
+            # 创建 token 统计对象
+            self.token_stats = self._create_token_stats(
+                prompt_tokens=total_prompt_tokens,
+                completion_tokens=completion_tokens,
+                model_name=tool_model,
+                duration=self.duration,
+                tool_calls_count=len(
+                    [m for m in self.collected_messages if isinstance(m, AssistantToolCallMessage)]),
+                tool_names=tool_names
+            )
+
             yield self.format_sse_message('mcp_tool_call', {
                 'status': 'done',
                 'duration': self.duration,
