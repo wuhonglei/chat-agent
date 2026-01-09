@@ -317,11 +317,13 @@ class ComponentToolsAgent(BaseAgent):
                 return
 
             # 处理组件工具调用
+            reasoning_content = hasattr(
+                openai_message, 'reasoning_content') and openai_message.reasoning_content or None
             assistant_message = AssistantToolCallMessage(**{
                 'role': 'assistant',
                 'content': openai_message.content,
                 'tool_calls': openai_message.tool_calls,
-                'reasoning_content': hasattr(openai_message, 'reasoning_content') and openai_message.reasoning_content or None,
+                'reasoning_content': reasoning_content,
             })
             self.collected_messages.append(assistant_message)
             yield assistant_message
