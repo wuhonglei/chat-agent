@@ -1,6 +1,7 @@
 """Token 计算和消息截断工具"""
 import os
 import json
+import base64
 from pathlib import Path
 from urllib.error import URLError, HTTPError
 
@@ -146,19 +147,12 @@ class TokenCalculator:
                 f"{encoding_name}.tiktoken"
             if local_token_file.exists():
                 try:
-                    # 设置 TIKTOKEN_CACHE_DIR 环境变量，让 tiktoken 从本地目录加载
-                    original_cache_dir = os.environ.get("TIKTOKEN_CACHE_DIR")
-                    os.environ["TIKTOKEN_CACHE_DIR"] = str(
-                        self.LOCAL_TOKEN_DIR)
+                    # 直接从本地文件加载 encoding，避免网络请求
                     logger.info(
-                        f"从本地目录加载 encoding: {local_token_file}，缓存目录: {self.LOCAL_TOKEN_DIR}"
+                        f"从本地文件直接加载 encoding: {local_token_file}"
                     )
-                    encoding = tiktoken.get_encoding(encoding_name)
-                    # 恢复原始缓存目录（如果存在）
-                    if original_cache_dir is not None:
-                        os.environ["TIKTOKEN_CACHE_DIR"] = original_cache_dir
-                    elif "TIKTOKEN_CACHE_DIR" in os.environ:
-                        del os.environ["TIKTOKEN_CACHE_DIR"]
+                    encoding = self._load_encoding_from_local_file(
+                        encoding_name, local_token_file)
                     # 成功加载后，存储到缓存中
                     self._set_cached_encoding(encoding_name, encoding)
                     return encoding
@@ -166,11 +160,6 @@ class TokenCalculator:
                     logger.warning(
                         f"从本地文件加载 encoding 失败: {e}，回退到默认方式"
                     )
-                    # 恢复原始缓存目录
-                    if original_cache_dir is not None:
-                        os.environ["TIKTOKEN_CACHE_DIR"] = original_cache_dir
-                    elif "TIKTOKEN_CACHE_DIR" in os.environ:
-                        del os.environ["TIKTOKEN_CACHE_DIR"]
 
         # 如果本地加载失败，尝试默认方式（可能会再次尝试网络请求）
         try:
@@ -181,6 +170,89 @@ class TokenCalculator:
         except Exception as e:
             logger.error(f"无法加载 encoding {encoding_name}: {e}")
             raise
+
+    def _load_encoding_from_local_file(
+        self, encoding_name: str, local_file: Path
+    ) -> tiktoken.Encoding:
+        """
+        从本地文件直接加载 encoding，避免网络请求
+
+        Args:
+            encoding_name: encoding 名称，如 "cl100k_base"
+            local_file: 本地 .tiktoken 文件路径
+
+        Returns:
+            tiktoken.Encoding 对象
+        """
+        # 目前只支持 cl100k_base，其他编码可以后续扩展
+        if encoding_name == "cl100k_base":
+            # cl100k_base 的配置（来自 tiktoken_ext/openai_public.py）
+            ENDOFTEXT = "<|endoftext|>"
+            FIM_PREFIX = "<|fim_prefix|>"
+            FIM_MIDDLE = "<|fim_middle|>"
+            FIM_SUFFIX = "<|fim_suffix|>"
+            ENDOFPROMPT = "<|endofprompt|>"
+
+            pat_str = r"""'(?i:[sdmt]|ll|ve|re)|[^\r\n\p{L}\p{N}]?+\p{L}++|\p{N}{1,3}+| ?[^\s\p{L}\p{N}]++[\r\n]*+|\s++$|\s*[\r\n]|\s+(?!\S)|\s"""
+            special_tokens = {
+                ENDOFTEXT: 100257,
+                FIM_PREFIX: 100258,
+                FIM_MIDDLE: 100259,
+                FIM_SUFFIX: 100260,
+                ENDOFPROMPT: 100276,
+            }
+
+            # 从本地文件直接读取并解析 BPE ranks
+            mergeable_ranks = self._load_bpe_from_local_file(local_file)
+
+            # 创建 Encoding 对象
+            encoding = tiktoken.Encoding(
+                name=encoding_name,
+                pat_str=pat_str,
+                mergeable_ranks=mergeable_ranks,
+                special_tokens=special_tokens,
+            )
+            return encoding
+        else:
+            # 对于其他编码，尝试使用默认方式（但会设置缓存目录）
+            original_cache_dir = os.environ.get("TIKTOKEN_CACHE_DIR")
+            try:
+                os.environ["TIKTOKEN_CACHE_DIR"] = str(self.LOCAL_TOKEN_DIR)
+                encoding = tiktoken.get_encoding(encoding_name)
+                return encoding
+            finally:
+                if original_cache_dir is not None:
+                    os.environ["TIKTOKEN_CACHE_DIR"] = original_cache_dir
+                elif "TIKTOKEN_CACHE_DIR" in os.environ:
+                    del os.environ["TIKTOKEN_CACHE_DIR"]
+
+    def _load_bpe_from_local_file(self, local_file: Path) -> dict[bytes, int]:
+        """
+        从本地 .tiktoken 文件直接读取并解析 BPE ranks
+
+        Args:
+            local_file: 本地 .tiktoken 文件路径
+
+        Returns:
+            BPE ranks 字典，格式为 {token_bytes: rank}
+        """
+        mergeable_ranks = {}
+        with open(local_file, "rb") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    # 每行格式：base64_encoded_token rank
+                    token_b64, rank_str = line.split(b" ", 1)
+                    token = base64.b64decode(token_b64)
+                    rank = int(rank_str)
+                    mergeable_ranks[token] = rank
+                except Exception as e:
+                    raise ValueError(
+                        f"解析本地 BPE 文件失败，行内容: {line!r}, 错误: {e}"
+                    ) from e
+        return mergeable_ranks
 
     def get_max_context_tokens(self) -> int:
         """
