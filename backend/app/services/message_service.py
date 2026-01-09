@@ -196,6 +196,8 @@ class MessageService(BaseService):
             assistant_message.content_duration = assistant_payload.content_duration
         if assistant_payload.total_duration:
             assistant_message.total_duration = assistant_payload.total_duration
+        if assistant_payload.token_stats:
+            assistant_message.token_stats = assistant_payload.token_stats
         if extra_metadata:
             merged_metadata = dict(assistant_message.message_metadata or {})
             merged_metadata.update(extra_metadata)

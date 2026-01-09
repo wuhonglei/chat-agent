@@ -43,7 +43,6 @@ class ChatService:
     ) -> AsyncGenerator[str, None]:
         """Stream chat response using agent architecture"""
         try:
-            think_mode = chat_request.think_mode
             user_message = chat_request.content
 
             # 阶段1: MCP工具调用

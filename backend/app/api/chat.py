@@ -130,6 +130,7 @@ async def chat_stream(
                 'user_message_id': user_message_id,
                 'conversation_id': chat_request.conversation_id,
                 'assistant_message_id': assistant_message_id,
+                'token_stats': assistant_payload.token_stats,
                 'last_message_updated_at': assistant_message.updated_at.isoformat(),
             })
 
