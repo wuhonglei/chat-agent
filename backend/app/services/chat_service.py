@@ -61,7 +61,6 @@ class ChatService:
                     user_message,
                     self.mcp_tools_agent.collected_messages,
                     component_tools_for_backend,
-                    think_mode,
                 ):
                     yield message
 
@@ -71,7 +70,6 @@ class ChatService:
                 user_message,
                 self.mcp_tools_agent.collected_messages,
                 self.component_tools_agent.collected_messages,
-                think_mode,
             ):
                 yield chunk
             return
