@@ -10,6 +10,7 @@ from app.schemas.config import LLMConfig
 from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallResultMessage
 from app.utils.message import clear_reasoning_content, format_message_for_llm, format_assistant_tool_call_message
 from app.utils.model import format_sse_message
+from app.utils.token import TokenCalculator
 
 
 class BaseAgent(ABC):
@@ -28,6 +29,7 @@ class BaseAgent(ABC):
         )
         # 模型配置（从传入的llm_config获取）
         self.model_config = llm_config
+        self.token_calculator = TokenCalculator(llm_config.model)
 
     async def stream_execute(self, *args, **kwargs) -> AsyncGenerator[str, None]:
         """流式执行agent的核心逻辑，子类必须实现
