@@ -36,7 +36,18 @@ class TokenCalculator:
             model: 模型名称
         """
         self.model = model
-        self.encoding = tiktoken.encoding_for_model(model)
+        self.encoding = self._get_encoding(model)
+
+    def _get_encoding(self, model: str) -> tiktoken.Encoding:
+        try:
+            return tiktoken.encoding_for_model(model)
+        except KeyError:
+            # 如果模型无法自动映射，使用默认的 encoding
+            # 大多数现代模型（包括 Qwen）使用 cl100k_base
+            logger.warning(
+                f"无法自动映射模型 {model} 到 tokenizer，使用默认 encoding: {self.DEFAULT_ENCODING_NAME}"
+            )
+            return tiktoken.get_encoding(self.DEFAULT_ENCODING_NAME)
 
     def get_max_context_tokens(self) -> int:
         """
