@@ -8,10 +8,6 @@ from openai import BaseModel
 import tiktoken
 from app.utils.logger import logger
 
-# 配置代理（替换为你的有效代理地址和端口）
-os.environ["HTTP_PROXY"] = "http://127.0.0.1:7890"  # 替换为你的 HTTP 代理
-os.environ["HTTPS_PROXY"] = "http://127.0.0.1:7890"  # HTTPS 代理通常与 HTTP 代理一致
-
 
 class TokenCalculator:
     """Token 计算工具类"""
