@@ -15,31 +15,23 @@ class BaseTokenStats(BaseModel):
     agent_name: str = Field(..., description="Agent 名称")
     model_name: str = Field(..., description="使用的模型名称")
     token_usage: TokenUsage = Field(..., description="Token 使用量")
-    duration: Optional[float] = Field(None, description="执行耗时（秒）")
 
 
 class MCPToolsTokenStats(BaseTokenStats):
     """MCP 工具调用的 Token 统计"""
-    tool_calls_count: int = Field(..., description="工具调用次数")
-    tool_names: list[str] = Field(
-        default_factory=list, description="调用的工具名称列表")
+    tool_calls_count: int = Field(..., description="工具调用数量")
+    tool_names: list[str] = Field(..., description="工具名称列表")
 
 
 class ComponentToolsTokenStats(BaseTokenStats):
     """组件工具调用的 Token 统计"""
-    tool_calls_count: int = Field(..., description="组件工具调用次数")
-    component_names: list[str] = Field(
-        default_factory=list, description="组件名称列表")
-    mcp_tool_context_tokens: int = Field(
-        0, description="MCP 工具上下文占用的 token 数量")
+    pass
 
 
 class ResponseGenerationTokenStats(BaseTokenStats):
     """响应生成的 Token 统计"""
     reasoning_tokens: Optional[int] = Field(None, description="推理内容 token 数量")
     content_tokens: Optional[int] = Field(None, description="回答内容 token 数量")
-    reasoning_duration: Optional[float] = Field(None, description="推理耗时（秒）")
-    content_duration: Optional[float] = Field(None, description="内容生成耗时（秒）")
 
 
 class TitleGenerationTokenStats(BaseTokenStats):

@@ -2,6 +2,8 @@ from typing import Any
 import httpx
 from mcp.shared._httpx_utils import McpHttpClientFactory
 
+from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallResultMessage
+
 
 def create_mcp_http_client_with_ssl_config(
     verify_ssl: bool = True
@@ -35,3 +37,37 @@ def create_mcp_http_client_with_ssl_config(
         return httpx.AsyncClient(**kwargs)
 
     return factory
+
+
+def extract_tool_names(collected_messages: list[ToolCallMessage]) -> list[str]:
+    """
+    从收集的工具调用消息中提取工具名称列表
+
+    Args:
+        collected_messages: 工具调用消息列表
+
+    Returns:
+        list[str]: 工具名称列表
+    """
+    tool_names = []
+    for message in collected_messages:
+        if isinstance(message, AssistantToolCallMessage) and message.tool_calls:
+            for tool_call in message.tool_calls:
+                tool_names.append(tool_call.function.name)
+    return tool_names
+
+
+def count_tool_calls(collected_messages: list[ToolCallMessage]) -> int:
+    """
+    统计工具调用结果消息的数量
+
+    Args:
+        collected_messages: 工具调用消息列表
+
+    Returns:
+        int: 工具调用结果消息的数量
+    """
+    return len([
+        m for m in collected_messages
+        if isinstance(m, ToolCallResultMessage)
+    ])

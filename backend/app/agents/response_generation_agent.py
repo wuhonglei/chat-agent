@@ -11,9 +11,6 @@ from app.schemas.token_stats import ResponseGenerationTokenStats
 from app.services.component_schema_service import ComponentSchemaService
 from app.utils.logger import logger
 from app.utils.time import get_current_time, get_time_duration
-from app.utils.model import get_model_extra_body
-from app.utils.token import TokenCalculator
-from app.utils.message import format_message_for_llm, format_assistant_tool_call_message
 from app.prompts import get_default_system_prompt
 from app.prompts.prompt_utils import get_user_message_with_component_data
 from app.agents.base import BaseAgent
@@ -22,8 +19,8 @@ from app.agents.base import BaseAgent
 class ResponseGenerationAgent(BaseAgent):
     """响应生成Agent - 负责生成最终的聊天响应"""
 
-    def __init__(self, llm_config: LLMConfig, schema_service: ComponentSchemaService):
-        super().__init__(llm_config)
+    def __init__(self, llm_config: LLMConfig, schema_service: ComponentSchemaService, think_mode: bool = False):
+        super().__init__(llm_config, think_mode)
         self.content = ''
         self.reasoning = ''
         self.schema_service = schema_service
@@ -43,25 +40,37 @@ class ResponseGenerationAgent(BaseAgent):
 
         return super().format_sse_message(msg_type, data)
 
-    def _create_token_stats(
+    def create_token_stats(
         self,
-        prompt_tokens: int,
-        completion_tokens: int,
-        model_name: str,
-        duration: Optional[float],
-        **kwargs: Any
+        messages: list[dict],
+        reasoning: str,
+        content: str,
     ) -> ResponseGenerationTokenStats:
-        """创建响应生成的 token 统计对象"""
+        """创建响应生成的 token 统计对象
+
+        Args:
+            messages: 消息列表（用于计算 prompt_tokens）
+            reasoning: 推理内容（用于计算 reasoning_tokens）
+            content: 回答内容（用于计算 content_tokens）
+
+        Returns:
+            ResponseGenerationTokenStats: token 统计对象
+        """
+        # 计算输入 token
+        prompt_tokens = self.token_calculator.count_messages_tokens(messages)
+
+        # 计算输出 token
+        reasoning_tokens = self.token_calculator.count_tokens(reasoning)
+        content_tokens = self.token_calculator.count_tokens(content)
+        completion_tokens = reasoning_tokens + content_tokens
+
         return ResponseGenerationTokenStats(
             agent_name="response_generation_agent",
-            model_name=model_name,
+            model_name=self.model,
             token_usage=self._create_token_usage(
                 prompt_tokens, completion_tokens),
-            duration=duration,
-            reasoning_tokens=kwargs.get('reasoning_tokens'),
-            content_tokens=kwargs.get('content_tokens'),
-            reasoning_duration=kwargs.get('reasoning_duration'),
-            content_duration=kwargs.get('content_duration'),
+            reasoning_tokens=reasoning_tokens,
+            content_tokens=content_tokens,
         )
 
     async def stream_execute(
@@ -70,7 +79,6 @@ class ResponseGenerationAgent(BaseAgent):
         user_message: str,
         mcp_tool_call_messages: list[ToolCallMessage],
         component_tool_call_messages: list[ToolCallMessage],
-        think_mode: bool,
     ) -> AsyncGenerator[str, None]:
         """
         流式生成最终响应
@@ -80,7 +88,6 @@ class ResponseGenerationAgent(BaseAgent):
             user_message: 原始用户消息
             mcp_tool_call_messages: MCP工具调用消息
             component_tool_call_messages: 组件工具调用消息
-            think_mode: 是否使用思考模式
 
         Yields:
             str: SSE格式的响应消息
@@ -95,27 +102,24 @@ class ResponseGenerationAgent(BaseAgent):
         system_prompt = get_default_system_prompt(include_date=False)
         new_messages = self._compose_messages(
             system_prompt, history, final_user_message, mcp_tool_call_messages)
-        final_model = self.model_config.think_model if think_mode else self.model_config.model
-        extra_body = get_model_extra_body(think_mode)
-
-        # 计算输入 token（使用基类的 token_calculator）
-        # 注意：不需要将 component_tool_call_messages 添加到消息列表中，
-        # 因为组件数据已经通过 get_user_message_with_component_data 拼接到 final_user_message 中了
-        prompt_tokens = self.token_calculator.count_messages_tokens(
-            new_messages)
 
         async for chunk in self._stream_final_response(
-            new_messages, final_model, extra_body, self.token_calculator, prompt_tokens
+            new_messages, self.model, self.extra_body
         ):
             yield chunk
+
+        # 创建 token 统计对象（内部进行所有 token 计算）
+        self.token_stats = self.create_token_stats(
+            messages=new_messages,
+            reasoning=self.reasoning,
+            content=self.content
+        )
 
     async def _stream_final_response(
         self,
         messages: list[dict],
         model: str,
         extra_body: dict[str, Any],
-        token_calculator: TokenCalculator,
-        prompt_tokens: int,
     ) -> AsyncIterator[str]:
         """Stream final response"""
         start_time = get_current_time()
@@ -216,25 +220,6 @@ class ResponseGenerationAgent(BaseAgent):
             })
 
         self.total_duration = get_time_duration(start_time)
-
-        # 计算输出 token
-        reasoning_tokens = token_calculator.count_tokens(
-            self.reasoning) if self.reasoning else 0
-        content_tokens = token_calculator.count_tokens(
-            self.content) if self.content else 0
-        completion_tokens = reasoning_tokens + content_tokens
-
-        # 创建 token 统计对象
-        self.token_stats = self._create_token_stats(
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            model_name=model,
-            duration=self.total_duration,
-            reasoning_tokens=reasoning_tokens if self.reasoning else None,
-            content_tokens=content_tokens if self.content else None,
-            reasoning_duration=self.reasoning_duration,
-            content_duration=self.content_duration,
-        )
 
         logger.info("Stream final response completed",
                     duration=self.total_duration)

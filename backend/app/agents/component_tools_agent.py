@@ -12,8 +12,6 @@ from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallR
 from app.utils.logger import logger
 from app.schemas.token_stats import ComponentToolsTokenStats
 from app.utils.time import get_current_time, get_time_duration
-from app.utils.model import get_model_extra_body
-from app.utils.token import TokenCalculator
 from app.services.component_schema_service import ComponentSchemaService
 from app.utils.component_tools import convert_schema_to_tool_definition
 from app.prompts.prompt_utils import get_prompt_for_component_render_data
@@ -23,31 +21,39 @@ from app.agents.base import BaseAgent
 class ComponentToolsAgent(BaseAgent):
     """组件工具调用Agent - 负责处理组件工具调用逻辑"""
 
-    def __init__(self, llm_config: LLMConfig, schema_service: ComponentSchemaService):
-        super().__init__(llm_config)
+    def __init__(self, llm_config: LLMConfig, schema_service: ComponentSchemaService, think_mode: bool = False):
+        super().__init__(llm_config, think_mode)
         self.schema_service = schema_service
         self.collected_messages: list[ToolCallMessage] = []
         self.token_stats: Optional[ComponentToolsTokenStats] = None
         self.duration: Optional[float] = None
 
-    def _create_token_stats(
+    def create_token_stats(
         self,
-        prompt_tokens: int,
-        completion_tokens: int,
-        model_name: str,
-        duration: Optional[float],
-        **kwargs: Any
+        component_messages: list[dict],
     ) -> ComponentToolsTokenStats:
-        """创建组件工具调用的 token 统计对象"""
+        """创建组件工具调用的 token 统计对象
+
+        Args:
+            component_messages: 组件消息列表（用于计算 prompt_tokens）
+
+        Returns:
+            ComponentToolsTokenStats: token 统计对象
+        """
+        # 计算输入 token（系统提示 + 用户消息 + MCP工具上下文）
+        prompt_tokens = self.token_calculator.count_messages_tokens(
+            component_messages)
+
+        # 计算组件工具的输出token（助手消息 + 工具调用结果）
+        completion_tokens = self.token_calculator.count_messages_tokens(
+            self.collected_messages
+        )
+
         return ComponentToolsTokenStats(
+            model_name=self.model,
             agent_name="component_tools_agent",
-            model_name=model_name,
             token_usage=self._create_token_usage(
                 prompt_tokens, completion_tokens),
-            duration=duration,
-            tool_calls_count=kwargs.get('tool_calls_count', 0),
-            component_names=kwargs.get('component_names', []),
-            mcp_tool_context_tokens=kwargs.get('mcp_tool_context_tokens', 0)
         )
 
     async def stream_execute(
@@ -55,7 +61,6 @@ class ComponentToolsAgent(BaseAgent):
         user_message: str,
         mcp_tool_call_messages: list[ToolCallMessage],
         component_tools_for_backend: list[ComponentToolConfig],
-        think_mode: bool,
     ) -> AsyncGenerator[str, None]:
         """
         流式执行组件工具调用并返回SSE消息
@@ -64,7 +69,6 @@ class ComponentToolsAgent(BaseAgent):
             user_message: 用户消息
             mcp_tool_call_messages: MCP工具调用消息列表
             component_tools_for_backend: 组件工具配置列表
-            think_mode: 是否使用思考模式
 
         Yields:
             str: SSE格式的消息
@@ -113,46 +117,18 @@ class ComponentToolsAgent(BaseAgent):
         )
 
         # 初始化 token 统计
-        tool_model = self.model_config.think_model if think_mode else self.model_config.model
-        token_calculator = TokenCalculator(tool_model)
-        extra_body = get_model_extra_body(think_mode)
-
-        # 计算输入 token（系统提示 + 用户消息 + MCP工具上下文）
-        prompt_tokens = token_calculator.count_messages_tokens(
-            component_messages)
-        # 单独计算 MCP 工具上下文占用的 token（用于统计）
-        mcp_tool_context_content = " ".join([
-            msg.content for msg in mcp_tool_call_messages
-            if hasattr(msg, "content") and msg.content
-        ])
-        mcp_tool_context_tokens = token_calculator.count_tokens(
-            mcp_tool_context_content) if mcp_tool_context_content else 0
-
         start_time = get_current_time()
         async for message in self._call_llm_with_component_tools(
-            component_messages, tool_model, extra_body, filtered_component_tools
+            component_messages, self.model, self.extra_body, filtered_component_tools
         ):
             if message:
                 yield self.format_sse_message('component_tool_call', message.model_dump())
 
         if self.collected_messages:
             self.duration = get_time_duration(start_time)
-            # 计算组件工具的输出token（助手消息 + 工具调用结果）
-            completion_tokens, _ = token_calculator.count_tool_call_messages_tokens(
-                self.collected_messages,
-                collect_tool_names=False
-            )
-
-            # 创建token统计对象
-            self.token_stats = self._create_token_stats(
-                prompt_tokens=prompt_tokens,
-                completion_tokens=completion_tokens,
-                model_name=tool_model,
-                duration=self.duration,
-                tool_calls_count=len(
-                    [m for m in self.collected_messages if isinstance(m, AssistantToolCallMessage)]),
-                component_names=filtered_component_tools,
-                mcp_tool_context_tokens=mcp_tool_context_tokens
+            # 创建token统计对象（内部进行所有token计算）
+            self.token_stats = self.create_token_stats(
+                component_messages=component_messages,
             )
             yield self.format_sse_message('component_tool_call', {
                 'status': 'done',

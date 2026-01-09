@@ -8,20 +8,21 @@ from openai import AsyncOpenAI
 from app.schemas.chat import ChatMessageItemReq
 from app.schemas.config import LLMConfig
 from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallResultMessage
-from app.schemas.token_stats import TokenUsage
+from app.schemas.token_stats import BaseTokenStats, TokenUsage
 from app.utils.message import clear_reasoning_content, format_message_for_llm, format_assistant_tool_call_message
-from app.utils.model import format_sse_message
+from app.utils.model import format_sse_message, get_model_extra_body
 from app.utils.token import TokenCalculator
 
 
 class BaseAgent(ABC):
     """Agent基类，定义所有agent的通用接口和共享功能"""
 
-    def __init__(self, llm_config: LLMConfig):
+    def __init__(self, llm_config: LLMConfig, think_mode: bool = False):
         """初始化agent，接收依赖项以访问所需资源
 
         Args:
             llm_config: LLM配置，用于初始化客户端和模型配置
+            think_mode: 是否使用思考模式
         """
         # 根据传入的llm_config初始化OpenAI客户端
         self.client = AsyncOpenAI(
@@ -30,6 +31,7 @@ class BaseAgent(ABC):
         )
         # 模型配置（从传入的llm_config获取）
         self.model_config = llm_config
+        self.think_mode = think_mode
         self.token_calculator = TokenCalculator(llm_config.model)
 
     async def stream_execute(self, *args, **kwargs) -> AsyncGenerator[str, None]:
@@ -51,6 +53,26 @@ class BaseAgent(ABC):
     @staticmethod
     def format_sse_message(msg_type: str, data=None) -> str:
         return format_sse_message(msg_type, data)
+
+    @property
+    def model(self) -> str:
+        """
+        根据 think_mode 获取对应的模型名称
+
+        Returns:
+            str: 模型名称
+        """
+        return self.model_config.think_model if self.think_mode else self.model_config.model
+
+    @property
+    def extra_body(self) -> dict[str, Any]:
+        """
+        根据 think_mode 获取模型额外参数
+
+        Returns:
+            dict[str, Any]: 模型额外参数
+        """
+        return get_model_extra_body(self.think_mode)
 
     def _create_token_usage(
         self,
@@ -74,26 +96,19 @@ class BaseAgent(ABC):
         )
 
     @abstractmethod
-    def _create_token_stats(
+    def create_token_stats(
         self,
-        prompt_tokens: int,
-        completion_tokens: int,
-        model_name: str,
-        duration: Optional[float],
-        **kwargs: Any
-    ) -> Any:
+        *args: Any,
+        **kwargs: dict[str, Any]
+    ) -> BaseTokenStats:
         """
         创建 token 统计对象（抽象方法，子类必须实现）
 
         Args:
-            prompt_tokens: 输入 token 数量
-            completion_tokens: 输出 token 数量
-            model_name: 使用的模型名称
-            duration: 执行耗时（秒）
-            **kwargs: 子类特定的额外参数
+            kwargs: 子类特定的额外参数
 
         Returns:
-            TokenStats 对象（具体类型由子类决定）
+            BaseTokenStats 对象
         """
         pass
 
