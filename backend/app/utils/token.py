@@ -6,6 +6,7 @@ from pathlib import Path
 from urllib.error import URLError, HTTPError
 
 from openai import BaseModel
+from openai._utils import is_dict
 import tiktoken
 from app.utils.logger import logger
 
@@ -314,7 +315,7 @@ class TokenCalculator:
 
         for message in messages:
             total_tokens += base_tokens_per_message
-            if isinstance(message, BaseModel):
+            if not is_dict(message) and hasattr(message, 'model_dump'):
                 message = message.model_dump()
 
             # 计算 content 的 token
