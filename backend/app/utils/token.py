@@ -1,12 +1,14 @@
 """Token 计算和消息截断工具"""
+import os
 import json
-import time
 
 from openai import BaseModel
 import tiktoken
-from requests.exceptions import SSLError, RequestException
-from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallResultMessage
 from app.utils.logger import logger
+
+# 配置代理（替换为你的有效代理地址和端口）
+os.environ["HTTP_PROXY"] = "http://127.0.0.1:7890"  # 替换为你的 HTTP 代理
+os.environ["HTTPS_PROXY"] = "http://127.0.0.1:7890"  # HTTPS 代理通常与 HTTP 代理一致
 
 
 class TokenCalculator:
@@ -16,13 +18,6 @@ class TokenCalculator:
     MODEL_LIMITS = {
         "deepseek-chat": 131072,
         "deepseek-reasoner": 131072,
-        "gpt-4": 8192,
-        "gpt-4-turbo": 128000,
-        "gpt-4o": 128000,
-        "gpt-3.5-turbo": 16385,
-        "claude-3-opus": 200000,
-        "claude-3-sonnet": 200000,
-        "claude-3-haiku": 200000,
     }
 
     DEFAULT_LIMIT = 131072  # deepseek 的默认限制
