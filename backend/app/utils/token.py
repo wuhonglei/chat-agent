@@ -36,19 +36,7 @@ class TokenCalculator:
             model: 模型名称
         """
         self.model = model
-        self._encoding = None
-
-    @property
-    def encoding(self) -> tiktoken.Encoding:
-        """
-        获取模型的编码器（延迟加载）
-
-        Returns:
-            tiktoken.Encoding 对象
-        """
-        if self._encoding is None:
-            self._encoding = self._get_token_encoding()
-        return self._encoding
+        self.encoding = tiktoken.encoding_for_model(model)
 
     def get_max_context_tokens(self) -> int:
         """
@@ -64,79 +52,6 @@ class TokenCalculator:
 
         # 默认值：131072（deepseek 的默认限制）
         return self.DEFAULT_LIMIT
-
-    def _get_token_encoding(self) -> tiktoken.Encoding:
-        """
-        根据模型选择编码器，默认使用 cl100k_base（GPT-4 和大多数现代模型使用）
-        对于 deepseek 模型，也使用 cl100k_base
-
-        如果网络请求失败（如 SSL 错误），会重试并尝试使用本地缓存
-
-        Returns:
-            tiktoken.Encoding 对象
-        """
-        max_retries = 3
-        retry_delay = 1  # 秒
-
-        for attempt in range(max_retries):
-            try:
-                # 尝试获取编码器
-                encoding = tiktoken.get_encoding(self.DEFAULT_ENCODING_NAME)
-                return encoding
-            except Exception as e:
-                # 检查是否是网络相关的错误
-                is_network_error = (
-                    isinstance(e, (SSLError, RequestException)) or
-                    "SSL" in str(type(e).__name__) or
-                    "Connection" in str(type(e).__name__) or
-                    "network" in str(e).lower() or
-                    "openaipublic.blob.core.windows.net" in str(e)
-                )
-
-                if not is_network_error:
-                    # 如果不是网络错误，直接抛出
-                    raise
-
-                # 网络错误（SSL 错误、连接错误等）
-                if attempt < max_retries - 1:
-                    logger.warning(
-                        f"获取 tiktoken 编码失败 (尝试 {attempt + 1}/{max_retries}): {e}，"
-                        f"{retry_delay} 秒后重试"
-                    )
-                    time.sleep(retry_delay)
-                    retry_delay *= 2  # 指数退避
-                else:
-                    # 最后一次尝试失败，尝试使用本地缓存或降级方案
-                    logger.error(
-                        f"获取 tiktoken 编码失败，尝试使用本地缓存或降级方案: {e}"
-                    )
-                    # 尝试使用 encoding_for_model，它可能会使用不同的下载方式
-                    try:
-                        encoding = tiktoken.encoding_for_model(self.model)
-                        logger.info("使用 encoding_for_model 成功获取编码")
-                        return encoding
-                    except Exception as fallback_error:
-                        logger.error(
-                            f"降级方案也失败: {fallback_error}，"
-                            "将使用简化的字符计数作为近似值"
-                        )
-                        # 如果所有方法都失败，返回一个简化的编码器
-                        # 注意：这只是一个降级方案，精度会降低
-                        raise RuntimeError(
-                            "无法初始化 tiktoken 编码器，可能是网络问题。"
-                            "请检查网络连接或代理设置。"
-                        ) from e
-            except KeyError:
-                # 如果编码器不存在，使用默认的
-                try:
-                    encoding = tiktoken.encoding_for_model(self.model)
-                    return encoding
-                except Exception as e:
-                    logger.error(f"无法获取模型编码: {e}")
-                    raise
-
-        # 理论上不会到达这里
-        raise RuntimeError("无法获取 tiktoken 编码器")
 
     def count_tokens(self, text: str) -> int:
         """
