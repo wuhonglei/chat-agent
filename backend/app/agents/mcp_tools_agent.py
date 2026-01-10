@@ -30,46 +30,6 @@ class MCPToolsAgent(BaseAgent):
         self.duration: Optional[float] = None
         self.token_stats: Optional[MCPToolsTokenStats] = None
 
-    def create_token_stats(
-        self,
-        input_messages: list[dict],
-        tools: list[dict],
-        output_messages: list[ToolCallMessage],
-    ) -> MCPToolsTokenStats:
-        """创建 MCP 工具调用的 token 统计对象
-
-        Args:
-            messages: 消息列表（用于计算 prompt_tokens）
-            tools: 工具定义列表（用于计算 tools_tokens）
-            output_messages: 收集的工具调用消息列表（用于计算 completion_tokens）
-
-        Returns:
-            MCPToolsTokenStats: token 统计对象
-        """
-        # 计算输入 token（包括消息和工具定义）
-        prompt_tokens = self.token_calculator.count_messages_tokens(
-            input_messages)  # 系统提示词、历史消息、用户消息
-        tool_definition_tokens = self.token_calculator.count_tokens(
-            json.dumps(tools))
-        total_prompt_tokens = prompt_tokens + tool_definition_tokens
-
-        # 计算输出 token（助手消息 + 工具调用结果）
-        completion_tokens = self.token_calculator.count_messages_tokens(
-            output_messages)
-
-        tool_call_names = extract_tool_call_names(output_messages)
-        tool_call_count = count_tool_calls(output_messages)
-
-        return MCPToolsTokenStats(
-            agent_name="mcp_tools_agent",
-            model_name=self.model,
-            token_usage=self._create_token_usage(
-                total_prompt_tokens, completion_tokens),
-            tool_call_count=tool_call_count,
-            tool_definition_tokens=tool_definition_tokens,
-            tool_call_names=tool_call_names,
-        )
-
     async def stream_execute(
         self,
         chat_request: ChatRequest,
@@ -126,6 +86,7 @@ class MCPToolsAgent(BaseAgent):
             yield self.format_sse_message('mcp_tool_call', {
                 'status': 'done',
                 'duration': self.duration,
+                'token_stats': self.token_stats.model_dump(),
             })
 
     async def _call_llm_with_mcp_tools(
@@ -355,3 +316,43 @@ class MCPToolsAgent(BaseAgent):
         )
         yield None
         return
+
+    def create_token_stats(
+        self,
+        input_messages: list[dict],
+        tools: list[dict],
+        output_messages: list[ToolCallMessage],
+    ) -> MCPToolsTokenStats:
+        """创建 MCP 工具调用的 token 统计对象
+
+        Args:
+            messages: 消息列表（用于计算 prompt_tokens）
+            tools: 工具定义列表（用于计算 tools_tokens）
+            output_messages: 收集的工具调用消息列表（用于计算 completion_tokens）
+
+        Returns:
+            MCPToolsTokenStats: token 统计对象
+        """
+        # 计算输入 token（包括消息和工具定义）
+        prompt_tokens = self.token_calculator.count_messages_tokens(
+            input_messages)  # 系统提示词、历史消息、用户消息
+        tool_definition_tokens = self.token_calculator.count_tokens(
+            json.dumps(tools))
+        total_prompt_tokens = prompt_tokens + tool_definition_tokens
+
+        # 计算输出 token（助手消息 + 工具调用结果）
+        completion_tokens = self.token_calculator.count_messages_tokens(
+            output_messages)
+
+        tool_call_names = extract_tool_call_names(output_messages)
+        tool_call_count = count_tool_calls(output_messages)
+
+        return MCPToolsTokenStats(
+            agent_name="mcp_tools_agent",
+            model_name=self.model,
+            token_usage=self._create_token_usage(
+                total_prompt_tokens, completion_tokens),
+            tool_call_count=tool_call_count,
+            tool_definition_tokens=tool_definition_tokens,
+            tool_call_names=tool_call_names,
+        )

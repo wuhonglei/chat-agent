@@ -40,39 +40,6 @@ class ResponseGenerationAgent(BaseAgent):
 
         return super().format_sse_message(msg_type, data)
 
-    def create_token_stats(
-        self,
-        messages: list[dict],
-        reasoning: str,
-        content: str,
-    ) -> ResponseGenerationTokenStats:
-        """创建响应生成的 token 统计对象
-
-        Args:
-            messages: 消息列表（用于计算 prompt_tokens）
-            reasoning: 推理内容（用于计算 reasoning_tokens）
-            content: 回答内容（用于计算 content_tokens）
-
-        Returns:
-            ResponseGenerationTokenStats: token 统计对象
-        """
-        # 计算输入 token
-        prompt_tokens = self.token_calculator.count_messages_tokens(messages)
-
-        # 计算输出 token
-        reasoning_tokens = self.token_calculator.count_tokens(reasoning)
-        content_tokens = self.token_calculator.count_tokens(content)
-        completion_tokens = reasoning_tokens + content_tokens
-
-        return ResponseGenerationTokenStats(
-            agent_name="response_generation_agent",
-            model_name=self.model,
-            token_usage=self._create_token_usage(
-                prompt_tokens, completion_tokens),
-            reasoning_tokens=reasoning_tokens,
-            content_tokens=content_tokens,
-        )
-
     async def stream_execute(
         self,
         history: list[ChatMessageItemReq],
@@ -110,10 +77,29 @@ class ResponseGenerationAgent(BaseAgent):
 
         # 创建 token 统计对象（内部进行所有 token 计算）
         self.token_stats = self.create_token_stats(
-            messages=new_messages,
+            input_messages=new_messages,
             reasoning=self.reasoning,
             content=self.content
         )
+
+    def _finish_streaming_type(
+        self,
+        msg_type: str,
+        start_time: float,
+        fallback_content: str = '',
+    ) -> str:
+        """结束某个类型的流式输出并返回 done 消息"""
+        duration = get_time_duration(start_time)
+        if msg_type == 'reasoning':
+            self.reasoning_duration = duration
+        elif msg_type == 'content':
+            self.content_duration = duration
+
+        return self.format_sse_message(msg_type, {
+            'status': 'done',
+            'content': fallback_content,
+            'duration': duration,
+        })
 
     async def _stream_final_response(
         self,
@@ -121,7 +107,12 @@ class ResponseGenerationAgent(BaseAgent):
         model: str,
         extra_body: dict[str, Any],
     ) -> AsyncIterator[str]:
-        """Stream final response"""
+        """Stream final response
+
+        模型返回内容只有2种情况：
+        1. 只有 content
+        2. 先有 reasoning_content，结束后才会有 content
+        """
         start_time = get_current_time()
         response = await self.client.chat.completions.create(
             model=model,
@@ -130,96 +121,106 @@ class ResponseGenerationAgent(BaseAgent):
             extra_body=extra_body,
         )
         logger.info("Using LLM model", model=model)
-        reasoning_started = False
-        content_started = False
-        # 重命名变量，区分推理和内容的计时，避免混淆
-        last_reasoning_time = start_time
-        last_content_time = start_time
+
+        # 状态追踪：None -> 'reasoning' -> 'content' 或 None -> 'content'
+        current_phase = None  # None, 'reasoning', 'content'
+        phase_start_time = None
 
         async for chunk in response:
-            # 安全检查：确保 choices 存在且不为空
-            if not chunk.choices:
+            if not chunk.choices or not getattr(chunk.choices[0], 'delta', None):
                 continue
 
-            delta = getattr(chunk.choices[0], 'delta', None)
-            if not delta:
-                continue
-
-            # 处理 reasoning_content
+            delta = chunk.choices[0].delta
             reasoning_content = getattr(delta, 'reasoning_content', None)
             content = getattr(delta, 'content', None)
 
-            # 1. 优先处理推理内容（允许同时存在推理和内容的极端情况）
+            # 处理推理内容
             if reasoning_content:
-                # 如果之前在输出 content，先结束 content
-                if content_started:
-                    content_duration = get_time_duration(last_content_time)
-                    self.content_duration = content_duration
-                    yield self.format_sse_message('content', {
-                        'status': 'done',
-                        'content': '',
-                        'duration': content_duration,
-                    })
-                    content_started = False
-
-                status = 'start' if not reasoning_started else 'continue'
-                reasoning_started = True
-                last_reasoning_time = get_current_time()
-                yield self.format_sse_message('reasoning', {
-                    'status': status,
-                    'content': reasoning_content,
-                })
-
-            # 2. 处理 content（不再用 elif，避免推理内容覆盖内容的判断）
-            if content:
-                # 如果之前在输出 reasoning，先结束 reasoning
-                if reasoning_started:
-                    reasoning_duration = get_time_duration(last_reasoning_time)
-                    self.reasoning_duration = reasoning_duration
+                if current_phase != 'reasoning':
+                    # 开始推理阶段
+                    current_phase = 'reasoning'
+                    phase_start_time = get_current_time()
                     yield self.format_sse_message('reasoning', {
-                        'status': 'done',
-                        'duration': reasoning_duration,
+                        'status': 'start',
+                        'content': reasoning_content,
                     })
-                    reasoning_started = False
+                else:
+                    # 继续推理阶段
+                    yield self.format_sse_message('reasoning', {
+                        'status': 'continue',
+                        'content': reasoning_content,
+                    })
 
-                status = 'start' if not content_started else 'continue'
-                content_started = True
-                last_content_time = get_current_time()
-                yield self.format_sse_message('content', {
-                    'status': status,
-                    'content': content,
-                })
+            # 处理实际内容
+            if content:
+                if current_phase == 'reasoning':
+                    # 从推理阶段切换到内容阶段：先结束推理
+                    yield self._finish_streaming_type('reasoning', phase_start_time)
+                    current_phase = 'content'
+                    phase_start_time = get_current_time()
+                    yield self.format_sse_message('content', {
+                        'status': 'start',
+                        'content': content,
+                    })
+                elif current_phase != 'content':
+                    # 直接开始内容阶段（没有推理）
+                    current_phase = 'content'
+                    phase_start_time = get_current_time()
+                    yield self.format_sse_message('content', {
+                        'status': 'start',
+                        'content': content,
+                    })
+                else:
+                    # 继续内容阶段
+                    yield self.format_sse_message('content', {
+                        'status': 'continue',
+                        'content': content,
+                    })
 
-        # 处理循环结束后的收尾逻辑（关键修复：分开判断，不再用 elif）
-        # 1. 如果推理未结束，发送推理 done 状态
-        if reasoning_started:
-            reasoning_duration = get_time_duration(last_reasoning_time)
-            self.reasoning_duration = reasoning_duration
-            yield self.format_sse_message('reasoning', {
-                'status': 'done',
-                'duration': reasoning_duration,
-            })
-
-        # 2. 如果内容未结束，发送内容 done 状态（独立判断，即使有推理也会处理）
-        if content_started:
-            content_duration = get_time_duration(last_content_time)
-            self.content_duration = content_duration
-            yield self.format_sse_message('content', {
-                'status': 'done',
-                'content': '',
-                'duration': content_duration,
-            })
-
-        # 3. 关键补充：处理「有推理但无内容」的边界情况
-        if reasoning_started and not content_started and not content:
-            # 发送一个空的 content done 状态，确保前端感知到内容结束
-            yield self.format_sse_message('content', {
-                'status': 'done',
-                'content': '[模型已完成深入推理，详见思考过程]',
-                'duration': 0.0,
-            })
+        # 收尾：结束当前仍在进行的阶段
+        if current_phase == 'reasoning':
+            # 情况2：只有推理，没有内容
+            yield self._finish_streaming_type('reasoning', phase_start_time)
+            # 发送占位消息，确保前端感知到内容结束
+            yield self._finish_streaming_type('content', get_current_time(), '[模型已完成深入推理，详见思考过程]')
+        elif current_phase == 'content':
+            # 情况1或情况2：有内容（可能之前有推理，可能没有）
+            yield self._finish_streaming_type('content', phase_start_time)
 
         self.total_duration = get_time_duration(start_time)
-
         logger.info("Stream final response completed",
                     duration=self.total_duration)
+
+    def create_token_stats(
+        self,
+        input_messages: list[dict],
+        reasoning: str,
+        content: str,
+    ) -> ResponseGenerationTokenStats:
+        """创建响应生成的 token 统计对象
+
+        Args:
+            messages: 消息列表（用于计算 prompt_tokens）
+            reasoning: 推理内容（用于计算 reasoning_tokens）
+            content: 回答内容（用于计算 content_tokens）
+
+        Returns:
+            ResponseGenerationTokenStats: token 统计对象
+        """
+        # 计算输入 token
+        prompt_tokens = self.token_calculator.count_messages_tokens(
+            input_messages)
+
+        # 计算输出 token
+        reasoning_tokens = self.token_calculator.count_tokens(reasoning)
+        content_tokens = self.token_calculator.count_tokens(content)
+        completion_tokens = reasoning_tokens + content_tokens
+
+        return ResponseGenerationTokenStats(
+            agent_name="response_generation_agent",
+            model_name=self.model,
+            token_usage=self._create_token_usage(
+                prompt_tokens, completion_tokens),
+            reasoning_tokens=reasoning_tokens,
+            content_tokens=content_tokens,
+        )

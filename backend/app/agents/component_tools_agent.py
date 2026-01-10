@@ -134,6 +134,7 @@ class ComponentToolsAgent(BaseAgent):
             yield self.format_sse_message('component_tool_call', {
                 'status': 'done',
                 'duration': self.duration,
+                'token_stats': self.token_stats.model_dump(),
             })
 
     def _filter_component_tools(
