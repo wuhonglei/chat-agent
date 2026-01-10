@@ -191,7 +191,7 @@ async def tavily_crawl(
         raise
 
 
-@mcp.tool(name="tavily_map")
+# @mcp.tool(name="tavily_map")
 async def tavily_map(
     url: str = Field(..., description="The root URL to begin the mapping"),
     instructions: str = Field(
