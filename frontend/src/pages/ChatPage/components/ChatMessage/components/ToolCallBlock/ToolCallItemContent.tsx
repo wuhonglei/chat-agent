@@ -2,43 +2,13 @@ import { ToolCallStatus } from "@/constants";
 import { TimelineMessage } from "@/interfaces";
 import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
 import CodeHighlighter from "@/pages/ChatPage/components/MarkdownContainer/components/CodeHighlighter";
-import { isPlainObject } from "lodash-es";
+import { prettyCount } from "@/utils/common";
 import React, { useMemo } from "react";
+import { stringifyArgs, stringifyContentWithLanguage } from "./utils";
 
 type Props = {
   message: TimelineMessage;
 };
-
-function stringifyArgs(args: string): string {
-  if (!args) {
-    return "";
-  }
-
-  try {
-    return JSON.stringify(JSON.parse(args), null, 2);
-  } catch {
-    return args;
-  }
-}
-
-function stringifyContentWithLanguage<
-  T extends string | Record<string, unknown>,
->(content: T | undefined): [string, string] {
-  if (!content) {
-    return ["", ""];
-  }
-
-  if (isPlainObject(content)) {
-    return [JSON.stringify(content, null, 2), "json"];
-  }
-
-  try {
-    const str = JSON.stringify(JSON.parse(content as string), null, 2);
-    return [str, "json"];
-  } catch {
-    return [content as string, "markdown"];
-  }
-}
 
 const ToolCallItemContent: React.FC<Props> = ({ message }) => {
   const { status, reasoningContent, content } = message;
@@ -66,7 +36,12 @@ const ToolCallItemContent: React.FC<Props> = ({ message }) => {
       {status === ToolCallStatus.ToolResultSuccess && (
         <CodeHighlighter
           lang={language}
-          header={"result is:"}
+          header={[
+            "result is:",
+            message.tokenCount
+              ? ` (${prettyCount(message.tokenCount)} tokens)`
+              : "",
+          ].filter(Boolean)}
           styles={{ code: { maxHeight: 300, width: "100%", overflow: "auto" } }}
         >
           {contentStr}

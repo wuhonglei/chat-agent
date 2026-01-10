@@ -26,3 +26,11 @@ export function getClientId(): string {
 
   return clientId || "";
 }
+
+// 封装成实用函数
+export function prettyCount(num: number, locale = "en-US", digits = 1) {
+  return new Intl.NumberFormat(locale, {
+    notation: "compact",
+    maximumFractionDigits: digits,
+  }).format(num);
+}

@@ -6,7 +6,7 @@ import React from "react";
 import CustomHeader from "./CustomHeader";
 
 type Props = CodeHighlighterProps & {
-  header?: string;
+  header?: React.ReactNode;
 };
 
 const CodeHighlighter = ({ header, ...restProps }: Props) => {

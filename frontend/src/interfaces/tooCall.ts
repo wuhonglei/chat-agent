@@ -32,6 +32,7 @@ export interface ToolCallEndItemMessage {
   content: string;
   toolCallId: string;
   duration: number;
+  tokenCount?: number;
 }
 
 export type ToolCallMessage =
@@ -54,6 +55,7 @@ export type TimelineMessage =
       toolCall: ToolCall;
       duration: number;
       reasoningContent: string;
+      tokenCount?: number;
       content: string | Record<string, unknown>;
       status: ToolCallStatus.ToolResultSuccess | ToolCallStatus.ToolResultError;
     };
