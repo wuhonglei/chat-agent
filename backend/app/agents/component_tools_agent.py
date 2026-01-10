@@ -60,7 +60,7 @@ class ComponentToolsAgent(BaseAgent):
         tool_call_count = count_tool_calls(output_messages)
 
         return ComponentToolsTokenStats(
-            model_name=self.model,
+            model_name=self.model_name,
             agent_name="component_tools_agent",
             think_mode=self.think_mode,
             token_usage=self._create_token_usage(
@@ -119,7 +119,7 @@ class ComponentToolsAgent(BaseAgent):
         # 初始化 token 统计
         start_time = get_current_time()
         async for message in self._call_llm_with_component_tools(
-            input_messages, self.model, self.extra_body, component_tools, schemas
+            input_messages, self.model_name, self.extra_body, component_tools, schemas
         ):
             if message:
                 yield self.format_sse_message('component_tool_call', message.model_dump())

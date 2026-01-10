@@ -68,7 +68,7 @@ class ResponseGenerationAgent(BaseAgent):
             system_prompt, history, final_user_message, mcp_tool_call_messages)
 
         async for chunk in self._stream_final_response(
-            new_messages, self.model, self.extra_body
+            new_messages, self.model_name, self.extra_body
         ):
             yield chunk
 
@@ -215,7 +215,7 @@ class ResponseGenerationAgent(BaseAgent):
 
         return ResponseGenerationTokenStats(
             agent_name="response_generation_agent",
-            model_name=self.model,
+            model_name=self.model_name,
             think_mode=self.think_mode,
             token_usage=self._create_token_usage(
                 prompt_tokens, completion_tokens),

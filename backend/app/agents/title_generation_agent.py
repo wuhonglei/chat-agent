@@ -38,7 +38,7 @@ class TitleGenerationAgent(BaseAgent):
 
         return TitleGenerationTokenStats(
             agent_name="title_generation_agent",
-            model_name=self.model,
+            model_name=self.model_name,
             think_mode=self.think_mode,
             token_usage=self._create_token_usage(
                 prompt_tokens, completion_tokens),
@@ -60,7 +60,7 @@ class TitleGenerationAgent(BaseAgent):
         messages = self._compose_messages(system_prompt, [], new_user_message)
 
         title_response = await self.client.chat.completions.create(
-            model=self.model,
+            model=self.model_name,
             messages=messages,
             stream=False,
         )

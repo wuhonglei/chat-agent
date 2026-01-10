@@ -27,15 +27,15 @@ class ChatService:
 
         # 初始化各个Agent
         self.title_generation_agent = TitleGenerationAgent(
-            think_mode=False, llm_config=settings.llm)
+            think_mode=False, llm_config=settings.tool_call_model)
         # MCP工具和组件工具使用tool配置
         self.mcp_tools_agent = MCPToolsAgent(
-            think_mode=think_mode, llm_config=settings.llm, mcp_manager=mcp_manager)
+            think_mode=think_mode, llm_config=settings.tool_call_model, mcp_manager=mcp_manager)
         self.component_tools_agent = ComponentToolsAgent(
-            think_mode=think_mode, llm_config=settings.llm, schema_service=self.schema_service)
+            think_mode=think_mode, llm_config=settings.tool_call_model, schema_service=self.schema_service)
         # 响应生成和标题生成使用llm配置
         self.response_generation_agent = ResponseGenerationAgent(
-            think_mode=think_mode, llm_config=settings.llm, schema_service=self.schema_service)
+            think_mode=think_mode, llm_config=settings.response_model, schema_service=self.schema_service)
 
     async def stream_message(
         self,

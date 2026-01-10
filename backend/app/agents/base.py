@@ -32,7 +32,7 @@ class BaseAgent(ABC):
         # 模型配置（从传入的llm_config获取）
         self.model_config = llm_config
         self.think_mode = think_mode
-        self.token_calculator = TokenCalculator(llm_config.model)
+        self.token_calculator = TokenCalculator(llm_config.model_name)
 
     async def stream_execute(self, *args, **kwargs) -> AsyncGenerator[str, None]:
         """流式执行agent的核心逻辑，子类必须实现
@@ -55,14 +55,14 @@ class BaseAgent(ABC):
         return format_sse_message(msg_type, data)
 
     @property
-    def model(self) -> str:
+    def model_name(self) -> str:
         """
         根据 think_mode 获取对应的模型名称
 
         Returns:
             str: 模型名称
         """
-        return self.model_config.think_model if self.think_mode else self.model_config.model
+        return self.model_config.think_model_name if self.think_mode else self.model_config.model_name
 
     @property
     def extra_body(self) -> dict[str, Any]:

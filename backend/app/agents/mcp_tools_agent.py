@@ -69,7 +69,7 @@ class MCPToolsAgent(BaseAgent):
         # 流式调用LLM并收集工具调用消息
         start_time = get_current_time()
         async for message in self._call_llm_with_mcp_tools(
-            input_messages, self.model, self.extra_body, tools
+            input_messages, self.model_name, self.extra_body, tools
         ):
             if message:
                 yield self.format_sse_message('mcp_tool_call', message.model_dump())
@@ -349,7 +349,7 @@ class MCPToolsAgent(BaseAgent):
 
         return MCPToolsTokenStats(
             agent_name="mcp_tools_agent",
-            model_name=self.model,
+            model_name=self.model_name,
             think_mode=self.think_mode,
             token_usage=self._create_token_usage(
                 total_prompt_tokens, completion_tokens),

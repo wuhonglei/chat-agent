@@ -148,8 +148,8 @@ class Settings(BaseSettings):
     """Application settings - 使用层级结构匹配 YAML 配置"""
 
     app: AppConfig = Field(default_factory=AppConfig)
-    llm: LLMConfig = Field(..., description="LLM 模型配置")
-    tool: LLMConfig = Field(..., description="mcp 工具调用模型 API 配置")
+    response_model: LLMConfig = Field(..., description="响应生成模型 API 配置")
+    tool_call_model: LLMConfig = Field(..., description="mcp 工具调用模型 API 配置")
     mcp: MCPConfig = Field(default_factory=MCPConfig)
     storage: StorageConfig = Field(default_factory=StorageConfig)
     security: SecurityConfig = Field(default_factory=SecurityConfig)

@@ -16,8 +16,8 @@ class LLMConfig(BaseModel):
     """LLM 模型 API 配置"""
     api_key: str
     api_base: str = "https://api.deepseek.com/v1"
-    model: str = "deepseek-chat"
-    think_model: str = "deepseek-reasoner"
+    model_name: str = "deepseek-chat"
+    think_model_name: str = "deepseek-reasoner"
 
 
 class Context7Config(BaseModel):
