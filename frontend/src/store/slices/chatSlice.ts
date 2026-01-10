@@ -55,7 +55,8 @@ export function lastMessageCheck(
     return undefined;
   }
 
-  return messages.at(-1)?.role === "assistant" ? messages.at(-1) : undefined;
+  const lastMessage = messages.at(-1);
+  return lastMessage?.role === "assistant" ? lastMessage : undefined;
 }
 
 // 注意：lastMessageUpdateAt 的更新已移至 updateLastMessageTimeMiddleware 中自动处理
@@ -241,17 +242,6 @@ const chatSlice = createSlice({
         lastMessage.content += data;
       }
     },
-    prependSourceToLastReasoningMessage: (
-      state,
-      action: PayloadAction<ConversationActionPayload<string>>
-    ) => {
-      const { conversationId, data } = action.payload;
-      const chatState = conversationIdCheck(state, conversationId);
-      const lastMessage = lastMessageCheck(chatState.messages);
-      if (lastMessage && lastMessage.messageMetadata.thinkMode) {
-        lastMessage.reasoning = data + lastMessage.reasoning;
-      }
-    },
     appendReasoningToLastMessage: (
       state,
       action: PayloadAction<ConversationActionPayload<string>>
@@ -331,7 +321,6 @@ export const {
   setComponentToolCallsDuration,
   prependContentToLastMessage,
   appendContentToLastMessage,
-  prependSourceToLastReasoningMessage,
   appendReasoningToLastMessage,
   appendMcpToolCallToLastMessage,
   appendComponentToolCallToLastMessage,
