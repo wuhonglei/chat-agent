@@ -13,6 +13,7 @@ from app.agents import (
     ResponseGenerationAgent,
     TitleGenerationAgent,
 )
+from app.utils.model import format_sse_message
 
 
 class ChatService:
@@ -75,7 +76,10 @@ class ChatService:
 
         except Exception as e:
             logger.error("Failed to stream message", error=e)
-            raise
+            yield format_sse_message('error', {
+                'content': str(e),
+            })
+            return
 
     async def generate_title(self, user_message: str) -> str:
         """Generate title for the chat"""

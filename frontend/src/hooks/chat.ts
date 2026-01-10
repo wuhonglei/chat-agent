@@ -301,9 +301,9 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
             reportEvent("message_stream_done", data);
           },
           error: data => {
-            const { msg } = data || {};
-            if (msg) {
-              message.error(msg);
+            const { content } = data || {};
+            if (content) {
+              message.error(content);
             }
             // 流式输出时，返回消息类型为 error 时，上报错误
             reportError("Stream Error", { error: data, conversationId });

@@ -60,9 +60,7 @@ export type StreamMessage =
   | {
       type: "error";
       data: {
-        msg?: string;
-        code?: number;
-        details?: unknown;
+        content: string; // 错误信息
       };
     };
 
