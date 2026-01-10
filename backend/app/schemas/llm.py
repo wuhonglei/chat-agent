@@ -16,6 +16,7 @@ class ToolCallResultMessage(BaseModel):
     is_error: bool
     content: str
     duration: float
+    token_count: Optional[int]  # content token 计数
 
 
 ToolCallMessage: TypeAlias = AssistantToolCallMessage | ToolCallResultMessage

@@ -274,6 +274,7 @@ class MCPToolsAgent(BaseAgent):
                         "content": content,
                         "is_error": len(content or '') == 0,
                         "tool_call_id": tool_call.id,
+                        "token_count": self.token_calculator.count_tokens(content),
                         "duration": get_time_duration(start_time),
                     })
                     logger.info(

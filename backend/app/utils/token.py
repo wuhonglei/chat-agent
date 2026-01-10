@@ -270,7 +270,7 @@ class TokenCalculator:
         # 默认值：131072（deepseek 的默认限制）
         return self.DEFAULT_LIMIT
 
-    def count_tokens(self, text: str) -> int:
+    def count_tokens(self, text: str | None) -> int:
         """
         计算文本的 token 数量
 
