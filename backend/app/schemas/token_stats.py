@@ -19,13 +19,16 @@ class BaseTokenStats(BaseModel):
 
 class MCPToolsTokenStats(BaseTokenStats):
     """MCP 工具调用的 Token 统计"""
-    tool_calls_count: int = Field(..., description="工具调用数量")
-    tool_names: list[str] = Field(..., description="工具名称列表")
+    tool_call_count: int = Field(..., description="被调用的工具数量")
+    tool_call_names: list[str] = Field(..., description="被调用的工具名称列表")
+    tool_definition_tokens: int = Field(..., description="工具定义 token 数量")
 
 
 class ComponentToolsTokenStats(BaseTokenStats):
     """组件工具调用的 Token 统计"""
-    pass
+    tool_call_count: int = Field(..., description="被调用的组件工具数量")
+    tool_call_names: list[str] = Field(..., description="被调用的组件工具名称列表")
+    tool_definition_tokens: int = Field(..., description="组件工具定义 token 数量")
 
 
 class ResponseGenerationTokenStats(BaseTokenStats):

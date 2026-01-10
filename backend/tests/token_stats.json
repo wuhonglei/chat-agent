@@ -1,0 +1,40 @@
+{
+  "mcp_tools": {
+    "agent_name": "mcp_tools_agent",
+    "model_name": "qwen-flash",
+    "token_usage": {
+      "prompt_tokens": 8029,
+      "completion_tokens": 4045,
+      "total_tokens": 12074
+    },
+    "tool_calls_count": 5,
+    "tool_names": [
+      "search_city",
+      "get_current_weather",
+      "get_weather_daily_forecast",
+      "get_weather_hourly_forecast",
+      "get_weather_alerts"
+    ]
+  },
+  "component_tools": {
+    "agent_name": "component_tools_agent",
+    "model_name": "qwen-flash",
+    "token_usage": {
+      "prompt_tokens": 4049,
+      "completion_tokens": 216,
+      "total_tokens": 4265
+    }
+  },
+  "response_generation": {
+    "agent_name": "response_generation_agent",
+    "model_name": "deepseek-chat",
+    "token_usage": {
+      "prompt_tokens": 4230,
+      "completion_tokens": 524,
+      "total_tokens": 4754
+    },
+    "reasoning_tokens": 0,
+    "content_tokens": 524
+  },
+  "title_generation": null
+}

@@ -39,35 +39,35 @@ def create_mcp_http_client_with_ssl_config(
     return factory
 
 
-def extract_tool_names(collected_messages: list[ToolCallMessage]) -> list[str]:
+def extract_tool_call_names(output_messages: list[ToolCallMessage]) -> list[str]:
     """
     从收集的工具调用消息中提取工具名称列表
 
     Args:
-        collected_messages: 工具调用消息列表
+        output_messages: 工具调用消息列表
 
     Returns:
         list[str]: 工具名称列表
     """
     tool_names = []
-    for message in collected_messages:
+    for message in output_messages:
         if isinstance(message, AssistantToolCallMessage) and message.tool_calls:
             for tool_call in message.tool_calls:
                 tool_names.append(tool_call.function.name)
     return tool_names
 
 
-def count_tool_calls(collected_messages: list[ToolCallMessage]) -> int:
+def count_tool_calls(output_messages: list[ToolCallMessage]) -> int:
     """
     统计工具调用结果消息的数量
 
     Args:
-        collected_messages: 工具调用消息列表
+        output_messages: 工具调用消息列表
 
     Returns:
         int: 工具调用结果消息的数量
     """
     return len([
-        m for m in collected_messages
+        m for m in output_messages
         if isinstance(m, ToolCallResultMessage)
     ])

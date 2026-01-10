@@ -9,6 +9,7 @@ from openai.types.chat import ChatCompletionMessage
 from app.schemas.chat import ComponentToolConfig
 from app.schemas.config import LLMConfig
 from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallResultMessage
+from app.utils.mcp import extract_tool_call_names, count_tool_calls
 from app.utils.logger import logger
 from app.utils.message import format_tool_call_messages_for_llm, normalize_message_to_dict
 from app.schemas.token_stats import ComponentToolsTokenStats
@@ -25,13 +26,15 @@ class ComponentToolsAgent(BaseAgent):
     def __init__(self, llm_config: LLMConfig, schema_service: ComponentSchemaService, think_mode: bool = False):
         super().__init__(llm_config, think_mode)
         self.schema_service = schema_service
-        self.collected_messages: list[ToolCallMessage] = []
+        self.output_messages: list[ToolCallMessage] = []
         self.token_stats: Optional[ComponentToolsTokenStats] = None
         self.duration: Optional[float] = None
 
     def create_token_stats(
         self,
-        component_messages: list[dict],
+        input_messages: list[dict],
+        tools: list[dict],
+        output_messages: list[ToolCallMessage],
     ) -> ComponentToolsTokenStats:
         """创建组件工具调用的 token 统计对象
 
@@ -43,18 +46,27 @@ class ComponentToolsAgent(BaseAgent):
         """
         # 计算输入 token（系统提示 + 用户消息 + MCP工具上下文）
         prompt_tokens = self.token_calculator.count_messages_tokens(
-            component_messages)
+            input_messages)
+        tool_definition_tokens = self.token_calculator.count_tokens(
+            json.dumps(tools))
+        total_prompt_tokens = prompt_tokens + tool_definition_tokens
 
         # 计算组件工具的输出token（助手消息 + 工具调用结果）
         completion_tokens = self.token_calculator.count_messages_tokens(
-            self.collected_messages
+            output_messages
         )
+
+        tool_call_names = extract_tool_call_names(output_messages)
+        tool_call_count = count_tool_calls(output_messages)
 
         return ComponentToolsTokenStats(
             model_name=self.model,
             agent_name="component_tools_agent",
             token_usage=self._create_token_usage(
-                prompt_tokens, completion_tokens),
+                total_prompt_tokens, completion_tokens),
+            tool_call_count=tool_call_count,
+            tool_call_names=tool_call_names,
+            tool_definition_tokens=tool_definition_tokens,
         )
 
     async def stream_execute(
@@ -77,12 +89,74 @@ class ComponentToolsAgent(BaseAgent):
         if not component_tools_for_backend:
             return
 
+        # 根据条件过滤组件工具
+        filtered_component_tools = self._filter_component_tools(
+            component_tools_for_backend,
+            mcp_tool_call_messages,
+            user_message,
+        )
+
+        if not filtered_component_tools:
+            self.token_stats = None
+            logger.info(
+                "No component tools passed condition check",
+                total_components=len(component_tools_for_backend),
+            )
+            return
+
+        # 准备消息列表
+        system_prompt, component_user_message = get_prompt_for_component_render_data(
+            user_message)
+        input_messages = self._compose_messages(
+            system_prompt, [], component_user_message, mcp_tool_call_messages
+        )
+
+        component_tools, schemas = await self._get_component_tools(filtered_component_tools)
+        if not component_tools:
+            return
+
+        # 初始化 token 统计
+        start_time = get_current_time()
+        async for message in self._call_llm_with_component_tools(
+            input_messages, self.model, self.extra_body, component_tools, schemas
+        ):
+            if message:
+                yield self.format_sse_message('component_tool_call', message.model_dump())
+
+        if self.output_messages:
+            self.duration = get_time_duration(start_time)
+            # 创建token统计对象（内部进行所有token计算）
+            self.token_stats = self.create_token_stats(
+                input_messages=input_messages,
+                tools=component_tools,
+                output_messages=self.output_messages,
+            )
+            yield self.format_sse_message('component_tool_call', {
+                'status': 'done',
+                'duration': self.duration,
+            })
+
+    def _filter_component_tools(
+        self,
+        component_tools_for_backend: list[ComponentToolConfig],
+        mcp_tool_call_messages: list[ToolCallMessage],
+        user_message: str,
+    ) -> list[str]:
+        """根据条件过滤组件工具
+
+        Args:
+            component_tools_for_backend: 组件工具配置列表
+            mcp_tool_call_messages: MCP工具调用消息列表
+            user_message: 用户消息内容
+
+        Returns:
+            list[str]: 过滤后的组件工具名称列表
+        """
         # 提取MCP工具信息
         mcp_tool_names, mcp_tool_call_contents = self._extract_mcp_tool_info(
             mcp_tool_call_messages
         )
 
-        # 根据条件过滤组件工具
         filtered_component_tools = []
         for component_config in component_tools_for_backend:
             if self._check_component_condition(
@@ -101,40 +175,7 @@ class ComponentToolsAgent(BaseAgent):
                     "Component tool condition not satisfied, skipping",
                     component_name=component_config.name,
                 )
-
-        if not filtered_component_tools:
-            self.token_stats = None
-            logger.info(
-                "No component tools passed condition check",
-                total_components=len(component_tools_for_backend),
-            )
-            return
-
-        # 准备消息列表
-        system_prompt, component_user_message = get_prompt_for_component_render_data(
-            user_message)
-        component_messages = self._compose_messages(
-            system_prompt, [], component_user_message, mcp_tool_call_messages
-        )
-
-        # 初始化 token 统计
-        start_time = get_current_time()
-        async for message in self._call_llm_with_component_tools(
-            component_messages, self.model, self.extra_body, filtered_component_tools
-        ):
-            if message:
-                yield self.format_sse_message('component_tool_call', message.model_dump())
-
-        if self.collected_messages:
-            self.duration = get_time_duration(start_time)
-            # 创建token统计对象（内部进行所有token计算）
-            self.token_stats = self.create_token_stats(
-                component_messages=component_messages,
-            )
-            yield self.format_sse_message('component_tool_call', {
-                'status': 'done',
-                'duration': self.duration,
-            })
+        return filtered_component_tools
 
     def _check_component_condition(
         self,
@@ -241,7 +282,7 @@ class ComponentToolsAgent(BaseAgent):
         Returns:
             tuple[list[str], list[str]]: (工具名称列表, 工具响应内容列表)
         """
-        tool_names: list[str] = []
+        tool_call_names: list[str] = []
         tool_call_contents: list[str] = []
 
         for message in mcp_tool_call_messages:
@@ -249,36 +290,28 @@ class ComponentToolsAgent(BaseAgent):
                 # 从 assistant 消息中提取工具名称
                 for tool_call in message.tool_calls:
                     tool_name = tool_call.function.name
-                    tool_names.append(tool_name)
+                    tool_call_names.append(tool_name)
             elif isinstance(message, ToolCallResultMessage) and not message.is_error:
                 # 从 tool 消息中提取响应内容
                 tool_call_contents.append(message.content)
 
-        return tool_names, tool_call_contents
+        return tool_call_names, tool_call_contents
 
-    async def _call_llm_with_component_tools(
+    async def _get_component_tools(
         self,
-        # system message + user_message + mcp tool messages
-        messages: list[dict],
-        model: str,
-        extra_body: dict[str, Any],
         component_tool_names: list[str],
-    ) -> AsyncGenerator[ToolCallMessage, ToolCallMessage]:
-        """Call LLM with component tools and collect component data
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]] | None:
+        """获取并转换组件工具为 LLM tool 定义格式
 
         Args:
-            messages: 包含 system message、user message 和 MCP tool call messages 的消息列表
-            model: LLM 模型名称
-            extra_body: 模型额外参数
-            component_tool_names: 组件工具名称列表（例如：['weather']）
+            component_tool_names: 组件工具名称列表
 
-        Yields:
-            ToolCallMessage: 工具调用相关的消息
+        Returns:
+            tuple[list[dict[str, Any]], dict[str, Any]] | None: 
+                (LLM tool 定义列表, schemas 字典) 的元组。
+                如果获取失败或为空，返回 None。
         """
-        if not component_tool_names:
-            return
-
-        # 获取并转换组件工具的 JSON schema 为 LLM tool 定义格式
+        # 获取组件工具的 JSON schema
         try:
             schemas = await self.schema_service.get_schemas(component_tool_names)
         except Exception as e:
@@ -287,14 +320,14 @@ class ComponentToolsAgent(BaseAgent):
                 component_tool_names=component_tool_names,
                 error=e,
             )
-            return
+            return None
 
         if not schemas:
             logger.warning(
                 "No schemas retrieved",
                 component_tool_names=component_tool_names,
             )
-            return
+            return None
 
         # 将 JSON schemas 转换为 LLM tool 定义
         component_tools = []
@@ -318,11 +351,33 @@ class ComponentToolsAgent(BaseAgent):
 
         if not component_tools:
             logger.warning("No component tools created")
-            return
+            return None
 
+        return component_tools, schemas
+
+    async def _call_llm_with_component_tools(
+        self,
+        # system message + user_message + mcp tool messages
+        messages: list[dict],
+        model: str,
+        extra_body: dict[str, Any],
+        component_tools: list[dict[str, Any]],
+        schemas: dict[str, Any],
+    ) -> AsyncGenerator[ToolCallMessage, ToolCallMessage]:
+        """Call LLM with component tools and collect component data
+
+        Args:
+            messages: 包含 system message、user message 和 MCP tool call messages 的消息列表
+            model: LLM 模型名称
+            extra_body: 模型额外参数
+            component_tools: 组件工具列表
+            schemas: 组件工具 schemas 字典
+
+        Yields:
+            ToolCallMessage: 工具调用相关的消息
+        """
         # 调用 LLM API，让 LLM 决定是否调用组件工具
         max_iterations = len(component_tools)  # 组件工具调用最多迭代次数
-
         for iteration in range(max_iterations):
             logger.info(
                 "Component tool call iteration started",
@@ -333,7 +388,7 @@ class ComponentToolsAgent(BaseAgent):
             # 调用 LLM
             # 格式化 collected_messages，过滤掉额外的字段（如 token_count, duration, is_error）
             formatted_collected_messages = format_tool_call_messages_for_llm(
-                self.collected_messages, clear_reasoning_content=False)
+                self.output_messages, clear_reasoning_content=False)
             response = await self.client.chat.completions.create(
                 model=model,
                 messages=messages + formatted_collected_messages,
@@ -359,7 +414,7 @@ class ComponentToolsAgent(BaseAgent):
                 'tool_calls': openai_message.tool_calls,
                 'reasoning_content': reasoning_content,
             })
-            self.collected_messages.append(assistant_message)
+            self.output_messages.append(assistant_message)
             yield assistant_message
 
             tool_count = len(assistant_message.tool_calls)
@@ -390,7 +445,7 @@ class ComponentToolsAgent(BaseAgent):
                         "tool_call_id": tool_call.id,
                         "duration": 0.0,
                     })
-                    self.collected_messages.append(tool_call_result_message)
+                    self.output_messages.append(tool_call_result_message)
                     yield tool_call_result_message
                     continue
 
@@ -413,7 +468,7 @@ class ComponentToolsAgent(BaseAgent):
                         "tool_call_id": tool_call.id,
                         "duration": 0.0,
                     })
-                    self.collected_messages.append(tool_call_result_message)
+                    self.output_messages.append(tool_call_result_message)
                     yield tool_call_result_message
 
                     # 从 component_tools 中移除已成功构造的组件
@@ -443,7 +498,7 @@ class ComponentToolsAgent(BaseAgent):
                         "tool_call_id": tool_call.id,
                         "duration": 0.0,
                     })
-                    self.collected_messages.append(tool_call_result_message)
+                    self.output_messages.append(tool_call_result_message)
                     yield tool_call_result_message
                     continue
 

@@ -58,7 +58,7 @@ class ChatService:
             if component_tools_for_backend:
                 async for message in self.component_tools_agent.stream_execute(
                     user_message,
-                    self.mcp_tools_agent.collected_messages,
+                    self.mcp_tools_agent.output_messages,
                     component_tools_for_backend,
                 ):
                     yield message
@@ -67,8 +67,8 @@ class ChatService:
             async for chunk in self.response_generation_agent.stream_execute(
                 history,
                 user_message,
-                self.mcp_tools_agent.collected_messages,
-                self.component_tools_agent.collected_messages,
+                self.mcp_tools_agent.output_messages,
+                self.component_tools_agent.output_messages,
             ):
                 yield chunk
             return
@@ -95,9 +95,9 @@ class ChatService:
             content=self.response_generation_agent.content,
             reasoning=self.response_generation_agent.reasoning,
             tool_calls=[tool_call.model_dump(
-            ) for tool_call in self.mcp_tools_agent.collected_messages],
+            ) for tool_call in self.mcp_tools_agent.output_messages],
             component_tool_calls=[tool_call.model_dump(
-            ) for tool_call in self.component_tools_agent.collected_messages],
+            ) for tool_call in self.component_tools_agent.output_messages],
             tool_calls_duration=self.mcp_tools_agent.duration,
             component_tool_calls_duration=self.component_tools_agent.duration,
             reasoning_duration=self.response_generation_agent.reasoning_duration,
