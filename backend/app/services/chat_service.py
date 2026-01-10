@@ -1,5 +1,6 @@
 """Chat service for RAG-based Q&A"""
 from collections.abc import AsyncGenerator
+from math import fabs
 
 from app.core.config import settings
 from app.schemas.chat import ChatMessageItemReq, ChatRequest, CollectedResponse
@@ -19,22 +20,22 @@ from app.utils.model import format_sse_message
 class ChatService:
     """Handle chat interactions with RAG"""
 
-    def __init__(self, mcp_manager: MCPClientManager):
+    def __init__(self, think_mode: bool, mcp_manager: MCPClientManager):
         self.debug = settings.app.debug
         self.schema_service = ComponentSchemaService(
             debug=self.debug)  # 复用 ComponentSchemaService 实例
 
         # 初始化各个Agent
+        self.title_generation_agent = TitleGenerationAgent(
+            think_mode=False, llm_config=settings.llm)
         # MCP工具和组件工具使用tool配置
         self.mcp_tools_agent = MCPToolsAgent(
-            settings.tool, mcp_manager)
+            think_mode=think_mode, llm_config=settings.llm, mcp_manager=mcp_manager)
         self.component_tools_agent = ComponentToolsAgent(
-            settings.tool, self.schema_service)
+            think_mode=think_mode, llm_config=settings.llm, schema_service=self.schema_service)
         # 响应生成和标题生成使用llm配置
         self.response_generation_agent = ResponseGenerationAgent(
-            settings.llm, self.schema_service)
-        self.title_generation_agent = TitleGenerationAgent(
-            settings.llm)
+            think_mode=think_mode, llm_config=settings.llm, schema_service=self.schema_service)
 
     async def stream_message(
         self,

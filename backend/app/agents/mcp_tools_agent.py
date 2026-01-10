@@ -23,8 +23,8 @@ from app.agents.base import BaseAgent
 class MCPToolsAgent(BaseAgent):
     """MCP工具调用Agent - 负责处理MCP工具调用逻辑"""
 
-    def __init__(self, llm_config: LLMConfig, mcp_manager: MCPClientManager, think_mode: bool = False):
-        super().__init__(llm_config, think_mode)
+    def __init__(self, think_mode: bool, llm_config: LLMConfig, mcp_manager: MCPClientManager):
+        super().__init__(think_mode, llm_config)
         self.mcp_manager = mcp_manager
         self.output_messages: list[ToolCallMessage] = []
         self.duration: Optional[float] = None
@@ -350,6 +350,7 @@ class MCPToolsAgent(BaseAgent):
         return MCPToolsTokenStats(
             agent_name="mcp_tools_agent",
             model_name=self.model,
+            think_mode=self.think_mode,
             token_usage=self._create_token_usage(
                 total_prompt_tokens, completion_tokens),
             tool_call_count=tool_call_count,

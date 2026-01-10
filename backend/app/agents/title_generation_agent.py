@@ -11,8 +11,8 @@ from app.agents.base import BaseAgent
 class TitleGenerationAgent(BaseAgent):
     """标题生成Agent - 负责生成对话标题"""
 
-    def __init__(self, llm_config: LLMConfig, think_mode: bool = False):
-        super().__init__(llm_config, think_mode)
+    def __init__(self, think_mode: bool, llm_config: LLMConfig):
+        super().__init__(think_mode, llm_config)
         self.duration: Optional[float] = None
         self.token_stats: Optional[TitleGenerationTokenStats] = None
 
@@ -39,6 +39,7 @@ class TitleGenerationAgent(BaseAgent):
         return TitleGenerationTokenStats(
             agent_name="title_generation_agent",
             model_name=self.model,
+            think_mode=self.think_mode,
             token_usage=self._create_token_usage(
                 prompt_tokens, completion_tokens),
             title=title

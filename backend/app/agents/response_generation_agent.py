@@ -19,8 +19,8 @@ from app.agents.base import BaseAgent
 class ResponseGenerationAgent(BaseAgent):
     """响应生成Agent - 负责生成最终的聊天响应"""
 
-    def __init__(self, llm_config: LLMConfig, schema_service: ComponentSchemaService, think_mode: bool = False):
-        super().__init__(llm_config, think_mode)
+    def __init__(self, think_mode: bool, llm_config: LLMConfig, schema_service: ComponentSchemaService):
+        super().__init__(think_mode, llm_config)
         self.content = ''
         self.reasoning = ''
         self.schema_service = schema_service
@@ -216,6 +216,7 @@ class ResponseGenerationAgent(BaseAgent):
         return ResponseGenerationTokenStats(
             agent_name="response_generation_agent",
             model_name=self.model,
+            think_mode=self.think_mode,
             token_usage=self._create_token_usage(
                 prompt_tokens, completion_tokens),
             reasoning_tokens=reasoning_tokens,

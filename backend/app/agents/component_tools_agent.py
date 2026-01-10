@@ -23,8 +23,8 @@ from app.agents.base import BaseAgent
 class ComponentToolsAgent(BaseAgent):
     """组件工具调用Agent - 负责处理组件工具调用逻辑"""
 
-    def __init__(self, llm_config: LLMConfig, schema_service: ComponentSchemaService, think_mode: bool = False):
-        super().__init__(llm_config, think_mode)
+    def __init__(self, think_mode: bool, llm_config: LLMConfig, schema_service: ComponentSchemaService):
+        super().__init__(think_mode, llm_config)
         self.schema_service = schema_service
         self.output_messages: list[ToolCallMessage] = []
         self.token_stats: Optional[ComponentToolsTokenStats] = None
@@ -62,6 +62,7 @@ class ComponentToolsAgent(BaseAgent):
         return ComponentToolsTokenStats(
             model_name=self.model,
             agent_name="component_tools_agent",
+            think_mode=self.think_mode,
             token_usage=self._create_token_usage(
                 total_prompt_tokens, completion_tokens),
             tool_call_count=tool_call_count,

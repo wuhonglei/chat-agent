@@ -17,12 +17,12 @@ from app.utils.token import TokenCalculator
 class BaseAgent(ABC):
     """Agent基类，定义所有agent的通用接口和共享功能"""
 
-    def __init__(self, llm_config: LLMConfig, think_mode: bool = False):
-        """初始化agent，接收依赖项以访问所需资源
+    def __init__(self, think_mode: bool, llm_config: LLMConfig):
+        """初始化agent，接收思考模式和LLM配置
 
         Args:
-            llm_config: LLM配置，用于初始化客户端和模型配置
             think_mode: 是否使用思考模式
+            llm_config: LLM配置，用于初始化客户端和模型配置
         """
         # 根据传入的llm_config初始化OpenAI客户端
         self.client = AsyncOpenAI(

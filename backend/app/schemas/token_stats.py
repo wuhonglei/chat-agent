@@ -14,6 +14,7 @@ class BaseTokenStats(BaseModel):
     """Token 统计基类"""
     agent_name: str = Field(..., description="Agent 名称")
     model_name: str = Field(..., description="使用的模型名称")
+    think_mode: bool = Field(..., description="是否使用思考模式")
     token_usage: TokenUsage = Field(..., description="Token 使用量")
 
 
