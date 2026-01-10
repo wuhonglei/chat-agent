@@ -9,7 +9,7 @@ from app.schemas.chat import ChatMessageItemReq
 from app.schemas.config import LLMConfig
 from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallResultMessage
 from app.schemas.token_stats import BaseTokenStats, TokenUsage
-from app.utils.message import clear_reasoning_content, format_message_for_llm, format_assistant_tool_call_message
+from app.utils.message import normalize_message_to_dict
 from app.utils.model import format_sse_message, get_model_extra_body
 from app.utils.token import TokenCalculator
 
@@ -135,10 +135,9 @@ class BaseAgent(ABC):
             messages.append({"role": "system", "content": system_prompt})
 
         history = history or []
-        # 处理历史消息，确保包含 tool_calls 的 assistant 消息有 reasoning_content 字段
         for msg in history:
-            msg_dict = format_message_for_llm(msg)
-            msg_dict = clear_reasoning_content(msg_dict)
+            # history message 中的 reasoning_content 字段已在 chat.py 中清除
+            msg_dict = normalize_message_to_dict(msg)
             messages.append(msg_dict)
 
         messages.append({"role": "user", "content": user_message})
@@ -185,10 +184,7 @@ class BaseAgent(ABC):
 
         # 将过滤后的消息转换为字典格式并追加
         for message in filtered_tool_call_messages:
-            if isinstance(message, AssistantToolCallMessage):
-                message_dict = format_assistant_tool_call_message(message)
-            else:
-                message_dict = format_message_for_llm(message)
+            message_dict = normalize_message_to_dict(message)
             messages.append(message_dict)
 
         return messages

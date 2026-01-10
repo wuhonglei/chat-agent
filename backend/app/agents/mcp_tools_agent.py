@@ -10,10 +10,10 @@ from app.schemas.chat import ChatMessageItemReq, ChatRequest
 from app.schemas.config import LLMConfig
 from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallResultMessage
 from app.schemas.token_stats import MCPToolsTokenStats
-from app.utils.common import filter_dict
+from app.utils.common import include_fields
 from app.utils.logger import logger
+from app.utils.message import format_tool_call_messages_for_llm
 from app.utils.time import get_current_time, get_time_duration
-from app.utils.token import TokenCalculator
 from app.utils.mcp import extract_tool_names, count_tool_calls
 from app.mcp.mcp_client import MCPClientManager
 from app.prompts import get_prompt_with_mcp_servers
@@ -90,7 +90,7 @@ class MCPToolsAgent(BaseAgent):
         user_message = chat_request.content
 
         # 获取MCP工具
-        server_names = None if mcp_auto_mode else filter_dict(
+        server_names = None if mcp_auto_mode else include_fields(
             source_config.model_dump(), [True])
         tools = await self.mcp_manager.get_tools_for_llm(server_names, client_ip)
 
@@ -156,10 +156,13 @@ class MCPToolsAgent(BaseAgent):
                         1, max_iterations=max_total_iterations)
 
             # Call LLM with tools
+            # 格式化 collected_messages，过滤掉额外的字段（如 token_count, duration, is_error）
+            formatted_collected_messages = format_tool_call_messages_for_llm(
+                self.collected_messages, clear_reasoning_content=False)
             response = await self.client.chat.completions.create(
                 model=model,
                 parallel_tool_calls=True,  # 启用并行工具调用
-                messages=messages + self.collected_messages,
+                messages=messages + formatted_collected_messages,
                 tools=tools if tools else None,
                 stream=False,
                 extra_body=extra_body,

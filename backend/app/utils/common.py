@@ -24,7 +24,7 @@ def exclude_fields(dict_data: dict, fields: list[str]) -> dict:
     return {k: v for k, v in dict_data.items() if k not in fields}
 
 
-def filter_dict(dict_data: dict, values: Optional[list[Any]] = None) -> list[Any]:
+def include_fields(dict_data: dict, values: Optional[list[Any]] = None) -> list[Any]:
     """过滤字典，返回值为指定值的键"""
     values = values or [True]
     return [k for k, v in dict_data.items() if v in values]

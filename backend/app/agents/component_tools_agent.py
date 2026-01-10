@@ -10,6 +10,7 @@ from app.schemas.chat import ComponentToolConfig
 from app.schemas.config import LLMConfig
 from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallResultMessage
 from app.utils.logger import logger
+from app.utils.message import format_tool_call_messages_for_llm, normalize_message_to_dict
 from app.schemas.token_stats import ComponentToolsTokenStats
 from app.utils.time import get_current_time, get_time_duration
 from app.services.component_schema_service import ComponentSchemaService
@@ -330,9 +331,12 @@ class ComponentToolsAgent(BaseAgent):
             )
 
             # 调用 LLM
+            # 格式化 collected_messages，过滤掉额外的字段（如 token_count, duration, is_error）
+            formatted_collected_messages = format_tool_call_messages_for_llm(
+                self.collected_messages, clear_reasoning_content=False)
             response = await self.client.chat.completions.create(
                 model=model,
-                messages=messages + self.collected_messages,
+                messages=messages + formatted_collected_messages,
                 tools=component_tools,
                 stream=False,
                 extra_body=extra_body,

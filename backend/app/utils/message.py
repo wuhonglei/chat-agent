@@ -1,7 +1,8 @@
 """消息处理工具函数"""
 from typing import Any
+from toolz import dissoc, get
 
-from app.schemas.llm import AssistantToolCallMessage
+from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallResultMessage
 
 
 def normalize_message_to_dict(message: Any) -> dict[str, Any]:
@@ -22,67 +23,76 @@ def normalize_message_to_dict(message: Any) -> dict[str, Any]:
         return dict(message)
 
 
-def ensure_reasoning_content_for_tool_calls(message_dict: dict[str, Any]) -> dict[str, Any]:
+def clear_reasoning_content_from_history(history: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
-    确保包含 tool_calls 的 assistant 消息有 reasoning_content 字段
-    这是 deepseek-reasoner 模型的要求
+    清除历史消息中的 reasoning_content 字段
 
     Args:
-        message_dict: 消息字典
-
-    Returns:
-        处理后的消息字典
-    """
-    # 对于包含 tool_calls 的 assistant 消息，确保包含 reasoning_content 字段
-    if message_dict.get('role') == 'assistant' and message_dict.get('tool_calls'):
-        if 'reasoning_content' not in message_dict or message_dict.get('reasoning_content') is None:
-            message_dict['reasoning_content'] = ''
-    return message_dict
-
-
-def format_message_for_llm(message: Any) -> dict[str, Any]:
-    """
-    格式化消息为 LLM API 所需的格式
-    统一处理消息转换和 reasoning_content 字段
-
-    Args:
-        message: 消息对象，可以是 Pydantic 模型、字典或其他对象
-
-    Returns:
-        格式化后的消息字典
-    """
-    message_dict = normalize_message_to_dict(message)
-    message_dict = ensure_reasoning_content_for_tool_calls(message_dict)
-    return message_dict
-
-
-def format_assistant_tool_call_message(message: AssistantToolCallMessage) -> dict[str, Any]:
-    """
-    格式化 AssistantToolCallMessage 为 LLM API 所需的格式
-    确保包含 reasoning_content 字段（如果包含 tool_calls）
-
-    Args:
-        message: AssistantToolCallMessage 对象
-
-    Returns:
-        格式化后的消息字典
-    """
-    message_dict = message.model_dump()
-    # 对于包含 tool_calls 的 assistant 消息，确保包含 reasoning_content 字段
-    if message.tool_calls:
-        if message_dict.get('reasoning_content') is None:
-            message_dict['reasoning_content'] = ''
-    return message_dict
-
-
-def clear_reasoning_content(message: dict[str, Any]) -> dict[str, Any]:
-    """
-    清除消息中的 reasoning_content 字段
-
-    Args:
-        message: 消息字典
+        history: 历史消息列表
 
     Returns:
         清除 reasoning_content 字段后的消息字典
     """
-    return {k: v for k, v in message.items() if k != 'reasoning_content'}
+    return dissoc(history, 'reasoning_content')
+
+
+def format_assistant_tool_call_message(message: AssistantToolCallMessage | dict, clear_reasoning_content: bool = True) -> dict[str, Any]:
+    """
+    格式化 AssistantToolCallMessage 为 LLM API 所需的格式
+    只保留 API 需要的字段：role, tool_calls
+    过滤掉额外的字段：reasoning_content
+
+    Args:
+        message: AssistantToolCallMessage 对象
+        clear_reasoning_content: 如果为 True，则清除 reasoning_content 字段；如果为 False，则保留
+    """
+    message = normalize_message_to_dict(message)
+    return {
+        "role": get('role', message),
+        "content": get('content', message, None),
+        "reasoning_content": None if clear_reasoning_content else get('reasoning_content', message, None),
+        "tool_calls": get('tool_calls', message),
+    }
+
+
+def format_tool_call_result_message(message: ToolCallResultMessage | dict) -> dict[str, Any]:
+    """
+    格式化 ToolCallResultMessage 为 LLM API 所需的格式
+    只保留 API 需要的字段：role, tool_call_id, content
+    过滤掉额外的字段：token_count, duration, is_error
+
+    Args:
+        message: ToolCallResultMessage 对象
+
+    Returns:
+        格式化后的消息字典，只包含 API 需要的字段
+    """
+    message = normalize_message_to_dict(message)
+    return {
+        "role": get('role', message),
+        "tool_call_id": get('tool_call_id', message),
+        "content": get('content', message, ''),
+    }
+
+
+def format_tool_call_message_for_llm(message: ToolCallMessage | dict, clear_reasoning_content: bool = False) -> dict[str, Any]:
+    """
+    格式化工具调用消息为 LLM API 所需的格式
+    """
+    message = normalize_message_to_dict(message)
+    is_assistant_message = get('role', message) == 'assistant'
+    if is_assistant_message:
+        return format_assistant_tool_call_message(message, clear_reasoning_content)
+    else:
+        return format_tool_call_result_message(message)
+
+
+def format_tool_call_messages_for_llm(messages: list[ToolCallMessage | dict], clear_reasoning_content: bool = False) -> list[dict[str, Any]]:
+    """
+    格式化工具调用消息为 LLM API 所需的格式
+    """
+    new_messages = []
+    for _message in messages:
+        new_messages.append(format_tool_call_message_for_llm(
+            _message, clear_reasoning_content))
+    return new_messages
