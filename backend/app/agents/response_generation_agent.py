@@ -29,15 +29,12 @@ class ResponseGenerationAgent(BaseAgent):
         self.total_duration: Optional[float] = None
         self.token_stats: Optional[ResponseGenerationTokenStats] = None
 
-    def format_sse_message(self, msg_type: str, data=None) -> str:
+    def format_sse_message(self, msg_type: str, data: dict[str, Any] | None = None) -> str:
         """格式化SSE消息，并更新状态（如果需要）"""
-        if isinstance(data, BaseModel):
-            data = data.model_dump(mode="json")
         if msg_type == 'content':
             self.content += data.get('content') or ''
         elif msg_type == 'reasoning':
             self.reasoning += data.get('content') or ''
-
         return super().format_sse_message(msg_type, data)
 
     async def stream_execute(
