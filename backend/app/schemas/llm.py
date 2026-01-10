@@ -1,5 +1,5 @@
 from typing import Literal, Optional, TypeAlias
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from openai.types.chat import ChatCompletionMessageFunctionToolCall
 
 
@@ -16,7 +16,8 @@ class ToolCallResultMessage(BaseModel):
     is_error: bool
     content: str
     duration: float
-    token_count: Optional[int]  # content token 计数
+    token_count: Optional[int] = Field(
+        default=None, description="Content token count")
 
 
 ToolCallMessage: TypeAlias = AssistantToolCallMessage | ToolCallResultMessage
