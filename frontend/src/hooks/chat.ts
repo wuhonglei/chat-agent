@@ -176,38 +176,14 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
             dispatch(refreshConversionInList(data as ConversationInfo));
           },
 
-          // 更新消息思考内容
-          reasoning: data => {
-            const { status, content, duration } = data || {};
-            if (status === "start") {
-              dispatch(setReasoning({ conversationId, data: true }));
-            } else if (status === "done") {
-              emitter.emit(EventType.ReasoningDone);
-              dispatch(setReasoning({ conversationId, data: false }));
-              if (duration) {
-                dispatch(
-                  setReasoningDuration({
-                    conversationId,
-                    data: duration,
-                  })
-                );
-              }
-            }
+          // 更新会话标题
+          title: data => {
+            const { id, title } = data;
             dispatch(
-              appendReasoningToLastMessage({
-                conversationId,
-                data: content || "",
-              })
-            );
-          },
-
-          // 更新消息内容
-          content: data => {
-            const { content } = data || {};
-            dispatch(
-              appendContentToLastMessage({
-                conversationId,
-                data: content || "",
+              updateConversationInfo({
+                id,
+                title,
+                createdBy: TitleCreatedBy.LLM,
               })
             );
           },
@@ -264,14 +240,38 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
             }
           },
 
-          // 更新会话标题
-          title: data => {
-            const { id, title } = data;
+          // 更新消息思考内容
+          reasoning: data => {
+            const { status, content, duration } = data || {};
+            if (status === "start") {
+              dispatch(setReasoning({ conversationId, data: true }));
+            } else if (status === "done") {
+              emitter.emit(EventType.ReasoningDone);
+              dispatch(setReasoning({ conversationId, data: false }));
+              if (duration) {
+                dispatch(
+                  setReasoningDuration({
+                    conversationId,
+                    data: duration,
+                  })
+                );
+              }
+            }
             dispatch(
-              updateConversationInfo({
-                id,
-                title,
-                createdBy: TitleCreatedBy.LLM,
+              appendReasoningToLastMessage({
+                conversationId,
+                data: content || "",
+              })
+            );
+          },
+
+          // 更新消息内容
+          content: data => {
+            const { content } = data || {};
+            dispatch(
+              appendContentToLastMessage({
+                conversationId,
+                data: content || "",
               })
             );
           },
