@@ -39,6 +39,11 @@ const TitleWithDuration: React.FC<Props> = ({
         <Tooltip
           placement="topLeft"
           trigger={["click", "hover"]}
+          styles={{
+            container: {
+              minWidth: 280,
+            },
+          }}
           title={<TokenStatsTooltip tokenStats={tokenStats} />}
         >
           <PieChartOutlined className="ml-1 cursor-pointer" />
