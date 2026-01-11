@@ -87,7 +87,7 @@ class MCPToolsAgent(BaseAgent):
             yield self.format_sse_message('mcp_tool_call', {
                 'status': 'done',
                 'duration': self.duration,
-                'token_stats': self.token_stats.model_dump(),
+                'token_stats': self.token_stats.model_dump(mode="json"),
             })
 
     async def _call_llm_with_mcp_tools(
