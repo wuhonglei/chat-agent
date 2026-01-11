@@ -1,16 +1,13 @@
 """Chat models"""
 
 from datetime import datetime
-from typing import Any, Optional, Literal, TYPE_CHECKING
+from typing import Any, Optional, Literal
 from enum import Enum
 
 from openai.types.chat import ChatCompletionMessageFunctionToolCall
 from pydantic import BaseModel, Field, ConfigDict
 
 from app.utils.date import get_datetime_now
-
-if TYPE_CHECKING:
-    from app.models import ConversationDb, MessageDb
 
 
 class MessageStatus(str, Enum):
@@ -192,14 +189,3 @@ class CollectedResponse(BaseModel):
         default=None,
         description="Token 使用统计信息，包含各个阶段（MCP 工具调用、组件工具调用、响应生成、标题生成）的 token 使用量"
     )
-
-
-class ChatMessagesResult(BaseModel):
-    """聊天消息创建结果"""
-    user_message_id: str = Field(..., description="用户消息ID")
-    assistant_message_id: str = Field(..., description="助手消息ID")
-    user_message: "MessageDb" = Field(..., description="用户消息")
-    assistant_message: "MessageDb" = Field(..., description="助手消息")
-    conversation: "ConversationDb" = Field(..., description="对话")
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)

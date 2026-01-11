@@ -7,11 +7,21 @@ from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select, delete
 
-from app.schemas.chat import ChatMessageItemReq, CollectedResponse, MessageStatus, ChatMessagesResult
+from pydantic import BaseModel, Field
+from app.schemas.chat import ChatMessageItemReq, CollectedResponse, MessageStatus
 from app.models import ConversationDb, MessageDb
 from app.utils.date import get_datetime_now
 from app.utils.common import gen_uuid
 from app.services.base_service import BaseService
+
+
+class ChatMessagesResult(BaseModel):
+    """聊天消息创建结果"""
+    user_message_id: str = Field(..., description="用户消息ID")
+    assistant_message_id: str = Field(..., description="助手消息ID")
+    user_message: MessageDb = Field(..., description="用户消息")
+    assistant_message: MessageDb = Field(..., description="助手消息")
+    conversation: ConversationDb = Field(..., description="对话")
 
 
 class MessageService(BaseService):
