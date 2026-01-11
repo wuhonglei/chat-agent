@@ -96,7 +96,7 @@ async def tavily_extract(
     query: Optional[str] = Field(
         default=None, description="用户意图查询，用于重新排序提取的内容块"),
     chunks_per_source: int = Field(
-        default=3, ge=1, le=5, description="每个源返回的最大相关块数（1-5，默认3）"),
+        default=3, ge=1, le=5, description="每个源返回的最大相关块数（1-5，默认3）, 仅当提供 query 时有效"),
     extract_depth: str = Field(
         default="advanced", description="提取深度。'basic'为基本提取（每5个成功URL提取消耗1积分），'advanced'为高级提取（每5个成功URL提取消耗2积分），包含表格和嵌入内容。选项：'basic', 'advanced'"),
     include_images: bool = Field(
