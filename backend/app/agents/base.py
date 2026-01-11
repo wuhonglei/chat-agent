@@ -176,13 +176,15 @@ class BaseAgent(ABC):
         # 准备日志上下文
         log_context = {
             'model': model,
-            'messages_count': len(messages),
             'stream': stream,
+            'extra_body': extra_body,
+            'messages_count': len(messages),
         }
         if tools is not None:
             log_context['tools_count'] = len(tools)
 
         try:
+            logger.info("Calling LLM API", **log_context)
             response = await self.client.chat.completions.create(**api_params)
             return response
         except APIConnectionError as e:

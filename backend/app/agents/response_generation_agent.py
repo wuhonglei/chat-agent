@@ -115,7 +115,6 @@ class ResponseGenerationAgent(BaseAgent):
             stream=True,
             extra_body=extra_body,
         )
-        logger.info("Using LLM model", model=model)
 
         # 状态追踪：None -> 'reasoning' -> 'content' 或 None -> 'content'
         current_phase = None  # None, 'reasoning', 'content'

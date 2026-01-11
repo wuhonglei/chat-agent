@@ -105,10 +105,6 @@ async def tavily_extract(
         default=False, description="是否包含favicon URL"),
     format: str = Field(
         default="markdown", description="内容格式。'markdown'返回markdown格式，'text'返回纯文本格式（可能增加延迟）。选项：'markdown', 'text'"),
-    timeout: float = Field(
-        default=30.0, ge=1.0, le=60.0, description="超时时间（1.0-60.0秒）"),
-    include_usage: bool = Field(
-        default=False, description="是否包含积分使用信息")
 ) -> TavilyExtractResponse:
     """
     A powerful web content extraction tool that retrieves and processes raw content from specified URLs,
@@ -122,8 +118,6 @@ async def tavily_extract(
             "include_images": include_images,
             "include_favicon": include_favicon,
             "format": format,
-            "timeout": timeout,
-            "include_usage": include_usage
         }
 
         # 只有当query不为None时才添加
@@ -172,8 +166,6 @@ async def tavily_crawl(
         default="markdown", description="The format of the extracted web page content. 'markdown' returns content in markdown format, 'text' returns plain text and may increase latency. Options: 'markdown', 'text'"),
     include_favicon: bool = Field(
         default=False, description="Whether to include the favicon URL for each result"),
-    timeout: float = Field(
-        default=None, ge=1.0, le=60.0, description="Maximum time in seconds to wait for the URL extraction before timing out (1-60 seconds). If not specified, default timeouts are applied based on extract_depth: 10 seconds for basic extraction and 30 seconds for advanced extraction")
 ) -> TavilyCrawlResponse:
     """
     A powerful web crawler that initiates a structured web crawl starting from a specified base URL.
@@ -196,7 +188,6 @@ async def tavily_crawl(
             extract_depth=extract_depth,
             format=format,
             include_favicon=include_favicon,
-            timeout=timeout
         )
         try:
             data = TavilyCrawlResponse.model_validate(response)
