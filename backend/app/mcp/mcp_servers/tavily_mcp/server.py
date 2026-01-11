@@ -4,7 +4,7 @@ Based on Tavily API for web search, content extraction, crawling and mapping
 Documentation: https://docs.tavily.com/
 """
 
-from typing import List
+from typing import List, Optional
 from fastmcp import FastMCP
 from pydantic import Field
 from tavily import AsyncTavilyClient
@@ -92,17 +92,23 @@ async def tavily_search(
 @mcp.tool(name="tavily_extract")
 async def tavily_extract(
     urls: List[str] = Field(...,
-                            description="The URL(s) to extract content from"),
+                            description="要提取内容的URL（字符串或数组）"),
+    query: Optional[str] = Field(
+        default=None, description="用户意图查询，用于重新排序提取的内容块"),
+    chunks_per_source: int = Field(
+        default=3, ge=1, le=5, description="每个源返回的最大相关块数（1-5，默认3）"),
     extract_depth: str = Field(
-        default="advanced", description="The depth of the extraction process. 'basic' costs 1 credit per 5 successful URL extractions, 'advanced' costs 2 credits per 5 successful URL extractions. Options: 'basic', 'advanced'"),
+        default="advanced", description="提取深度。'basic'为基本提取（每5个成功URL提取消耗1积分），'advanced'为高级提取（每5个成功URL提取消耗2积分），包含表格和嵌入内容。选项：'basic', 'advanced'"),
     include_images: bool = Field(
-        default=False, description="Include a list of images extracted from the URLs in the response"),
+        default=False, description="是否在响应中包含图片列表"),
     include_favicon: bool = Field(
-        default=False, description="Whether to include the favicon URL for each result"),
+        default=False, description="是否包含favicon URL"),
     format: str = Field(
-        default="markdown", description="The format of the extracted web page content. 'markdown' returns content in markdown format, 'text' returns plain text and may increase latency. Options: 'markdown', 'text'"),
-    timeout: int = Field(
-        default=30, ge=1, le=60, description="Maximum time in seconds to wait for the URL extraction before timing out (1-60 seconds). If not specified, default timeouts are applied based on extract_depth: 10 seconds for basic extraction and 30 seconds for advanced extraction")
+        default="markdown", description="内容格式。'markdown'返回markdown格式，'text'返回纯文本格式（可能增加延迟）。选项：'markdown', 'text'"),
+    timeout: float = Field(
+        default=30.0, ge=1.0, le=60.0, description="超时时间（1.0-60.0秒）"),
+    include_usage: bool = Field(
+        default=False, description="是否包含积分使用信息")
 ) -> TavilyExtractResponse:
     """
     A powerful web content extraction tool that retrieves and processes raw content from specified URLs,
@@ -110,14 +116,25 @@ async def tavily_extract(
     """
     try:
         # Use AsyncTavilyClient.extract method
-        response = await client.extract(
-            urls=urls,
-            extract_depth=extract_depth,
-            include_images=include_images,
-            include_favicon=include_favicon,
-            format=format,
-            timeout=timeout
-        )
+        extract_params = {
+            "urls": urls,
+            "extract_depth": extract_depth,
+            "include_images": include_images,
+            "include_favicon": include_favicon,
+            "format": format,
+            "timeout": timeout,
+            "include_usage": include_usage
+        }
+
+        # 只有当query不为None时才添加
+        if query is not None:
+            extract_params["query"] = query
+
+        # 只有当chunks_per_source不为默认值时才添加（让API使用默认值）
+        if chunks_per_source != 3:
+            extract_params["chunks_per_source"] = chunks_per_source
+
+        response = await client.extract(**extract_params)
         try:
             data = TavilyExtractResponse.model_validate(response)
             return ToolResult(structured_content=data, content=format_results(data))
