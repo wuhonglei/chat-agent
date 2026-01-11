@@ -36,18 +36,24 @@ const TitleWithDuration: React.FC<Props> = ({
       {titles.done}
       <span className="ml-1 text-black-tertiary">{duration}s</span>
       {!isEmpty(tokenStats) && (
-        <Tooltip
-          placement="topLeft"
-          trigger={["click", "hover"]}
-          styles={{
-            container: {
-              minWidth: 280,
-            },
+        <span
+          onClick={e => {
+            e.stopPropagation();
+            e.preventDefault();
           }}
-          title={<TokenStatsTooltip tokenStats={tokenStats} />}
         >
-          <PieChartOutlined className="ml-1 cursor-pointer" />
-        </Tooltip>
+          <Tooltip
+            trigger={["click", "hover"]}
+            styles={{
+              container: {
+                minWidth: 280,
+              },
+            }}
+            title={<TokenStatsTooltip tokenStats={tokenStats} />}
+          >
+            <PieChartOutlined className="ml-1 cursor-pointer" />
+          </Tooltip>
+        </span>
       )}
     </>
   );

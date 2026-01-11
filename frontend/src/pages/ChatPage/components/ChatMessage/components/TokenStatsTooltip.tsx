@@ -3,7 +3,7 @@ import {
   MCPToolsTokenStats,
 } from "@/interfaces/token";
 import { prettyCount } from "@/utils";
-import { Descriptions } from "antd";
+import { ConfigProvider, Descriptions } from "antd";
 import { isEmpty } from "lodash-es";
 import React from "react";
 
@@ -108,19 +108,37 @@ const TokenStatsTooltip: React.FC<TokenStatsTooltipProps> = ({
   const items = getDescriptionItems(tokenStats);
 
   return (
-    <Descriptions
-      bordered
-      column={1}
-      size="small"
-      items={items}
-      title="Token 统计信息"
-      styles={{
-        root: { color: "white" },
-        title: { color: "white" },
-        content: { color: "white" },
-        label: { color: "white", fontWeight: "bold" },
+    <div
+      onClick={e => {
+        e.stopPropagation();
+        e.preventDefault();
       }}
-    />
+    >
+      <ConfigProvider
+        theme={{
+          token: {
+            colorSplit: "rgba(255, 255, 255, 0.45)",
+            colorText: "white",
+            colorTextHeading: "white",
+            colorTextSecondary: "white",
+            colorTextTertiary: "white",
+            colorTextQuaternary: "white",
+          },
+        }}
+      >
+        <Descriptions
+          bordered
+          column={1}
+          size="small"
+          items={items}
+          title="Token 统计信息"
+          styles={{
+            header: { marginBottom: 8 },
+            label: { fontWeight: "bold" },
+          }}
+        />
+      </ConfigProvider>
+    </div>
   );
 };
 
