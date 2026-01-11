@@ -1,9 +1,12 @@
 """Base Agent class for all agents"""
 from collections.abc import AsyncGenerator
-from typing import Optional, Any
+from typing import Optional, Any, Union, overload, Literal
 from abc import ABC, abstractmethod
 
 from openai import AsyncOpenAI, APIError, APIConnectionError, RateLimitError, APIStatusError
+from openai.types.chat import ChatCompletion
+from openai._streaming import AsyncStream
+from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
 
 from app.schemas.chat import ChatMessageItemReq
 from app.schemas.config import LLMConfig
@@ -97,29 +100,58 @@ class BaseAgent(ABC):
             total_tokens=prompt_tokens + completion_tokens
         )
 
+    @overload
     async def _call_llm_api(
         self,
         model: str,
         messages: list[dict],
+        stream: Literal[False],
         *,
         tools: Optional[list[dict]] = None,
-        stream: bool = False,
         parallel_tool_calls: Optional[bool] = None,
         extra_body: Optional[dict[str, Any]] = None,
-    ) -> Any:
+    ) -> ChatCompletion:
+        ...
+
+    @overload
+    async def _call_llm_api(
+        self,
+        model: str,
+        messages: list[dict],
+        stream: Literal[True],
+        *,
+        tools: Optional[list[dict]] = None,
+        parallel_tool_calls: Optional[bool] = None,
+        extra_body: Optional[dict[str, Any]] = None,
+    ) -> AsyncStream[ChatCompletionChunk]:
+        ...
+
+    async def _call_llm_api(
+        self,
+        model: str,
+        messages: list[dict],
+        stream: bool,
+        *,
+        tools: Optional[list[dict]] = None,
+        parallel_tool_calls: Optional[bool] = None,
+        extra_body: Optional[dict[str, Any]] = None,
+    ) -> Union[ChatCompletion, AsyncStream[ChatCompletionChunk]]:
         """
         调用 LLM API 的统一方法，包含错误处理
 
         Args:
             model: 模型名称
             messages: 消息列表
+            stream: 是否使用流式响应
+                - False: 返回 ChatCompletion 对象
+                - True: 返回 AsyncStream[ChatCompletionChunk] 异步迭代器
             tools: 工具列表（可选）
-            stream: 是否使用流式响应（默认 False）
             parallel_tool_calls: 是否启用并行工具调用（可选）
             extra_body: 额外参数（可选）
 
         Returns:
-            API 响应对象
+            - 当 stream=False 时，返回 ChatCompletion 对象
+            - 当 stream=True 时，返回 AsyncStream[ChatCompletionChunk] 异步迭代器
 
         Raises:
             APIError: 各种 API 相关错误
