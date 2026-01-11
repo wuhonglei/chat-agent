@@ -6,6 +6,7 @@ from app.core.config import settings
 from app.schemas.chat import ChatMessageItemReq, ChatRequest, CollectedResponse
 from app.schemas.token_stats import TotalTokenStats
 from app.utils.logger import logger
+from app.utils.time import get_current_time, get_time_duration
 from app.mcp.mcp_client import MCPClientManager
 from app.services.component_schema_service import ComponentSchemaService
 from app.agents import (
@@ -44,28 +45,62 @@ class ChatService:
         client_ip: str | None,
     ) -> AsyncGenerator[str, None]:
         """Stream chat response using agent architecture"""
+        start_time = get_current_time()
         try:
             user_message = chat_request.content
+            logger.info(
+                "Starting chat message stream",
+                user_message_length=len(user_message),
+                history_length=len(history),
+                client_ip=client_ip,
+                has_component_tools=bool(
+                    chat_request.component_tools_for_backend),
+            )
 
             # 阶段1: MCP工具调用
+            logger.debug("Starting MCP tools agent execution")
+            mcp_start_time = get_current_time()
             async for message in self.mcp_tools_agent.stream_execute(
                 chat_request,
                 history,
                 client_ip,
             ):
                 yield message
+            mcp_duration = get_time_duration(mcp_start_time)
+            logger.debug(
+                "MCP tools agent execution completed",
+                duration=mcp_duration,
+                tool_calls_count=len(self.mcp_tools_agent.output_messages),
+            )
 
             # 阶段2: 组件工具调用
             component_tools_for_backend = chat_request.component_tools_for_backend
             if component_tools_for_backend:
+                logger.debug(
+                    "Starting component tools agent execution",
+                    component_tools_count=len(component_tools_for_backend),
+                )
+                component_start_time = get_current_time()
                 async for message in self.component_tools_agent.stream_execute(
                     user_message,
                     self.mcp_tools_agent.output_messages,
                     component_tools_for_backend,
                 ):
                     yield message
+                component_duration = get_time_duration(component_start_time)
+                logger.debug(
+                    "Component tools agent execution completed",
+                    duration=component_duration,
+                    tool_calls_count=len(
+                        self.component_tools_agent.output_messages),
+                )
+            else:
+                logger.debug(
+                    "Skipping component tools agent (no component tools)")
 
             # 阶段3: 最终响应生成
+            logger.debug("Starting response generation agent execution")
+            response_start_time = get_current_time()
             async for chunk in self.response_generation_agent.stream_execute(
                 history,
                 user_message,
@@ -73,10 +108,29 @@ class ChatService:
                 self.component_tools_agent.output_messages,
             ):
                 yield chunk
+            response_duration = get_time_duration(response_start_time)
+            logger.debug(
+                "Response generation agent execution completed",
+                duration=response_duration,
+            )
+
+            total_duration = get_time_duration(start_time)
+            logger.info(
+                "Chat message stream completed",
+                total_duration=total_duration,
+                mcp_tool_calls_count=len(self.mcp_tools_agent.output_messages),
+                component_tool_calls_count=len(
+                    self.component_tools_agent.output_messages),
+            )
             return
 
         except Exception as e:
-            logger.error("Failed to stream message", error=e)
+            total_duration = get_time_duration(start_time)
+            logger.error(
+                "Failed to stream message",
+                error=e,
+                duration=total_duration,
+            )
             yield format_sse_message('error', {
                 'content': str(e),
             })
