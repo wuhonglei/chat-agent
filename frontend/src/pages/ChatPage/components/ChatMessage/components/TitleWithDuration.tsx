@@ -4,6 +4,7 @@ import {
 } from "@/interfaces/token";
 import { PieChartOutlined } from "@ant-design/icons";
 import { Tooltip } from "antd";
+import { isEmpty } from "lodash-es";
 import React from "react";
 import TokenStatsTooltip from "./TokenStatsTooltip";
 
@@ -34,7 +35,7 @@ const TitleWithDuration: React.FC<Props> = ({
     <>
       {titles.done}
       <span className="ml-1 text-black-tertiary">{duration}s</span>
-      {tokenStats && (
+      {!isEmpty(tokenStats) && (
         <Tooltip
           placement="topLeft"
           trigger={["click", "hover"]}
