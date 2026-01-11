@@ -40,6 +40,7 @@ class TitleGenerationAgent(BaseAgent):
             agent_name="title_generation_agent",
             model_name=self.model_name,
             think_mode=self.think_mode,
+            model_limit=self.model_limit,
             token_usage=self._create_token_usage(
                 prompt_tokens, completion_tokens),
             title=title

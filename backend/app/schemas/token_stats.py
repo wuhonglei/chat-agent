@@ -15,6 +15,7 @@ class BaseTokenStats(BaseModel):
     agent_name: str = Field(..., description="Agent 名称")
     model_name: str = Field(..., description="使用的模型名称")
     think_mode: bool = Field(..., description="是否使用思考模式")
+    model_limit: int = Field(..., description="模型限制的 token 数量")
     token_usage: TokenUsage = Field(..., description="Token 使用量")
 
 

@@ -33,6 +33,7 @@ class BaseAgent(ABC):
         self.model_config = llm_config
         self.think_mode = think_mode
         self.token_calculator = TokenCalculator(llm_config.model_name)
+        self.model_limit = self.token_calculator.get_max_context_tokens()
 
     async def stream_execute(self, *args, **kwargs) -> AsyncGenerator[str, None]:
         """流式执行agent的核心逻辑，子类必须实现

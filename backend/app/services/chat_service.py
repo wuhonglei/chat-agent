@@ -1,6 +1,5 @@
 """Chat service for RAG-based Q&A"""
 from collections.abc import AsyncGenerator
-from math import fabs
 
 from app.core.config import settings
 from app.schemas.chat import ChatMessageItemReq, ChatRequest, CollectedResponse

@@ -11,7 +11,6 @@ from app.schemas.config import LLMConfig
 from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallResultMessage
 from app.utils.mcp import extract_tool_call_names, count_tool_calls
 from app.utils.logger import logger
-from app.utils.common import normalize_to_dict
 from app.utils.message import format_tool_call_messages_for_llm
 from app.schemas.token_stats import ComponentToolsTokenStats
 from app.utils.time import get_current_time, get_time_duration
@@ -64,6 +63,7 @@ class ComponentToolsAgent(BaseAgent):
             model_name=self.model_name,
             agent_name="component_tools_agent",
             think_mode=self.think_mode,
+            model_limit=self.model_limit,
             token_usage=self._create_token_usage(
                 total_prompt_tokens, completion_tokens),
             tool_call_count=tool_call_count,

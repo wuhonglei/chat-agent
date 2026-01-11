@@ -264,10 +264,17 @@ class TokenCalculator:
         Returns:
             最大上下文 token 数量
         """
-        # 检查模型名称是否包含已知的模型标识
-        for model_key, limit in self.MODEL_LIMITS.items():
-            if model_key in self.model.lower():
-                return limit
+        model_to_check = self.model.lower()
+
+        # 首先尝试精确匹配
+        if model_to_check in self.MODEL_LIMITS:
+            return self.MODEL_LIMITS[model_to_check]
+
+        # 如果没有精确匹配，尝试前缀匹配（支持带版本号的模型名）
+        # 例如：deepseek-chat-v1 会匹配到 deepseek-chat
+        for model_key in self.MODEL_LIMITS:
+            if model_to_check.startswith(model_key):
+                return self.MODEL_LIMITS[model_key]
 
         # 默认值：131072（deepseek 的默认限制）
         return self.DEFAULT_LIMIT
@@ -283,20 +290,6 @@ class TokenCalculator:
             token 数量
         """
         return len(self.encoding.encode(text or ""))
-
-    @classmethod
-    def get_max_context_tokens_for_model(cls, model: str) -> int:
-        """
-        类方法：获取指定模型的最大上下文 token 数量
-
-        Args:
-            model: 模型名称
-
-        Returns:
-            最大上下文 token 数量
-        """
-        calculator = cls(model)
-        return calculator.get_max_context_tokens()
 
     def count_messages_tokens(self, messages: list[dict | BaseModel]) -> int:
         """

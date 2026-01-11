@@ -2,8 +2,6 @@
 from collections.abc import AsyncGenerator, AsyncIterator
 from typing import Any, Optional
 
-from pydantic import BaseModel
-
 from app.schemas.chat import ChatMessageItemReq
 from app.schemas.config import LLMConfig
 from app.schemas.llm import ToolCallMessage
@@ -217,6 +215,7 @@ class ResponseGenerationAgent(BaseAgent):
             agent_name="response_generation_agent",
             model_name=self.model_name,
             think_mode=self.think_mode,
+            model_limit=self.token_calculator.get_max_context_tokens(),
             token_usage=self._create_token_usage(
                 prompt_tokens, completion_tokens),
             reasoning_tokens=reasoning_tokens,

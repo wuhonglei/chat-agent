@@ -80,6 +80,7 @@ class MCPToolsAgent(BaseAgent):
             self.token_stats = self.create_token_stats(
                 input_messages=input_messages,
                 tools=tools,
+                model_limit=self.model_limit,
                 output_messages=self.output_messages
             )
 
@@ -351,6 +352,7 @@ class MCPToolsAgent(BaseAgent):
             agent_name="mcp_tools_agent",
             model_name=self.model_name,
             think_mode=self.think_mode,
+            model_limit=self.model_limit,
             token_usage=self._create_token_usage(
                 total_prompt_tokens, completion_tokens),
             tool_call_count=tool_call_count,
