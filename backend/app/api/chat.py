@@ -61,62 +61,152 @@ async def chat_stream(
 
     async def generate() -> AsyncGenerator[str, None]:
         """生成流式响应"""
-        with MessageService() as message_service:
-            conversation = message_service.get_conversation(
-                chat_request.conversation_id)
-            user_message = message_service.session.get(
-                MessageDb, user_message_id)
-            assistant_message = message_service.session.get(
-                MessageDb, assistant_message_id)
+        logger.info(
+            "Starting stream response generation",
+            conversation_id=chat_request.conversation_id,
+            user_message_id=user_message_id,
+            assistant_message_id=assistant_message_id,
+        )
+        try:
+            with MessageService() as message_service:
+                conversation = message_service.get_conversation(
+                    chat_request.conversation_id)
+                user_message = message_service.session.get(
+                    MessageDb, user_message_id)
+                assistant_message = message_service.session.get(
+                    MessageDb, assistant_message_id)
 
-            # 发送初始确认消息
-            yield format_sse_message('ack', user_message)
-            yield format_sse_message('ack', assistant_message)
-            yield format_sse_message('refresh_conversation', conversation)
+                logger.debug(
+                    "Retrieved conversation and messages",
+                    conversation_id=chat_request.conversation_id,
+                    user_message_role=user_message.role if user_message else None,
+                    assistant_message_status=assistant_message.status if assistant_message else None,
+                )
 
-            chat_service = ChatService(
-                think_mode=chat_request.think_mode,
-                mcp_manager=mcp_manager)
+                # 发送初始确认消息
+                logger.debug("Sending initial acknowledgment messages")
+                yield format_sse_message('ack', user_message)
+                yield format_sse_message('ack', assistant_message)
+                yield format_sse_message('refresh_conversation', conversation)
+                logger.debug("Initial acknowledgment messages sent")
 
-            # 如果需要重新生成标题
-            if chat_request.regenerate_title:
-                title = await chat_service.generate_title(chat_request.content)
-                yield format_sse_message('title', {
-                    'id': chat_request.conversation_id,
-                    'title': title,
-                    'token_stats': chat_service.title_generation_agent.token_stats.model_dump(mode="json"),
-                })
+                chat_service = ChatService(
+                    think_mode=chat_request.think_mode,
+                    mcp_manager=mcp_manager)
+                logger.debug(
+                    "ChatService created",
+                    conversation_id=chat_request.conversation_id,
+                    think_mode=chat_request.think_mode,
+                )
 
-            # 流式生成响应
-            start_time = get_current_time()
-            history = message_service.get_flatten_messages_by_ids(
-                chat_request.history_ids
+                # 如果需要重新生成标题
+                if chat_request.regenerate_title:
+                    logger.info(
+                        "Regenerating conversation title",
+                        conversation_id=chat_request.conversation_id,
+                    )
+                    title = await chat_service.generate_title(chat_request.content)
+                    logger.info(
+                        "Title generated",
+                        conversation_id=chat_request.conversation_id,
+                        title=title,
+                        title_length=len(title) if title else 0,
+                    )
+                    yield format_sse_message('title', {
+                        'id': chat_request.conversation_id,
+                        'title': title,
+                        'token_stats': chat_service.title_generation_agent.token_stats.model_dump(mode="json"),
+                    })
+
+                # 流式生成响应
+                start_time = get_current_time()
+                history = message_service.get_flatten_messages_by_ids(
+                    chat_request.history_ids
+                )
+                logger.info(
+                    "Starting stream message generation",
+                    conversation_id=chat_request.conversation_id,
+                    history_count=len(history),
+                    history_ids_count=len(chat_request.history_ids),
+                    client_ip=client_ip,
+                )
+
+                chunk_count = 0
+                async for chunk in chat_service.stream_message(
+                    chat_request=chat_request,
+                    history=history,
+                    client_ip=client_ip
+                ):
+                    chunk_count += 1
+                    yield chunk
+
+                logger.info(
+                    "Stream message generation completed",
+                    conversation_id=chat_request.conversation_id,
+                    total_chunks=chunk_count,
+                )
+
+                # 更新助手消息
+                chat_service.total_duration = get_time_duration(start_time)
+                assistant_payload = chat_service.get_collected_response()
+
+                logger.debug(
+                    "Collected assistant response",
+                    conversation_id=chat_request.conversation_id,
+                    content_length=len(assistant_payload.content),
+                    reasoning_length=len(assistant_payload.reasoning),
+                    tool_calls_count=len(assistant_payload.tool_calls),
+                    component_tool_calls_count=len(
+                        assistant_payload.component_tool_calls),
+                    total_duration=chat_service.total_duration,
+                )
+
+                assistant_message = message_service.update_assistant_message(
+                    conversation,
+                    assistant_message,
+                    assistant_payload=assistant_payload,
+                    status=MessageStatus.DONE,
+                )
+
+                logger.info(
+                    "Assistant message updated",
+                    conversation_id=chat_request.conversation_id,
+                    assistant_message_id=assistant_message_id,
+                    status=MessageStatus.DONE,
+                    updated_at=str(
+                        assistant_message.updated_at) if assistant_message.updated_at else None,
+                )
+
+                # 发送完成消息
+                done_payload = {
+                    'content_length': len(assistant_payload.content),
+                    'reasoning_length': len(assistant_payload.reasoning),
+                    'tool_calls_length': len(assistant_payload.tool_calls),
+                    'component_tool_calls_length': len(assistant_payload.component_tool_calls),
+                    **pick_fields(assistant_payload.model_dump(mode="json"), ['tool_calls_duration', 'component_tool_calls_duration', 'reasoning_duration', 'content_duration', 'total_duration', 'token_stats']),
+                    **pick_fields(assistant_message.model_dump(mode="json"), ['updated_at']),
+                }
+                logger.info(
+                    "Sending done message",
+                    conversation_id=chat_request.conversation_id,
+                    **done_payload,
+                )
+                yield format_sse_message('done', done_payload)
+                logger.info(
+                    "Stream response generation completed successfully",
+                    conversation_id=chat_request.conversation_id,
+                )
+        except Exception as e:
+            logger.error(
+                "Error during stream response generation",
+                conversation_id=chat_request.conversation_id,
+                error=str(e),
+                error_type=type(e).__name__,
+                exc_info=True,
             )
-            async for chunk in chat_service.stream_message(
-                chat_request=chat_request,
-                history=history,
-                client_ip=client_ip
-            ):
-                yield chunk
-
-            # 更新助手消息
-            chat_service.total_duration = get_time_duration(start_time)
-            assistant_payload = chat_service.get_collected_response()
-            assistant_message = message_service.update_assistant_message(
-                conversation,
-                assistant_message,
-                assistant_payload=assistant_payload,
-                status=MessageStatus.DONE,
-            )
-
-            # 发送完成消息
-            yield format_sse_message('done', {
-                'content_length': len(assistant_payload.content),
-                'reasoning_length': len(assistant_payload.reasoning),
-                'tool_calls_length': len(assistant_payload.tool_calls),
-                'component_tool_calls_length': len(assistant_payload.component_tool_calls),
-                **pick_fields(assistant_payload.model_dump(mode="json"), ['tool_calls_duration', 'component_tool_calls_duration', 'reasoning_duration', 'content_duration', 'total_duration', 'token_stats']),
-                **pick_fields(assistant_message.model_dump(mode="json"), ['updated_at']),
+            yield format_sse_message('error', {
+                'content': str(e),
+                'conversation_id': chat_request.conversation_id,
             })
 
     return StreamingResponse(
