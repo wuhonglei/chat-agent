@@ -11,7 +11,8 @@ from app.schemas.config import LLMConfig
 from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallResultMessage
 from app.utils.mcp import extract_tool_call_names, count_tool_calls
 from app.utils.logger import logger
-from app.utils.message import format_tool_call_messages_for_llm, normalize_message_to_dict
+from app.utils.common import normalize_to_dict
+from app.utils.message import format_tool_call_messages_for_llm
 from app.schemas.token_stats import ComponentToolsTokenStats
 from app.utils.time import get_current_time, get_time_duration
 from app.services.component_schema_service import ComponentSchemaService

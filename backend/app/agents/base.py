@@ -9,7 +9,7 @@ from app.schemas.chat import ChatMessageItemReq
 from app.schemas.config import LLMConfig
 from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallResultMessage
 from app.schemas.token_stats import BaseTokenStats, TokenUsage
-from app.utils.message import normalize_message_to_dict
+from app.utils.common import normalize_to_dict
 from app.utils.model import format_sse_message, get_model_extra_body
 from app.utils.token import TokenCalculator
 
@@ -137,7 +137,7 @@ class BaseAgent(ABC):
         history = history or []
         for msg in history:
             # history message 中的 reasoning_content 字段已在 chat.py 中清除
-            msg_dict = normalize_message_to_dict(msg)
+            msg_dict = normalize_to_dict(msg)
             messages.append(msg_dict)
 
         messages.append({"role": "user", "content": user_message})
@@ -184,7 +184,7 @@ class BaseAgent(ABC):
 
         # 将过滤后的消息转换为字典格式并追加
         for message in filtered_tool_call_messages:
-            message_dict = normalize_message_to_dict(message)
+            message_dict = normalize_to_dict(message)
             messages.append(message_dict)
 
         return messages

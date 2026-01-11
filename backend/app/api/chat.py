@@ -11,7 +11,7 @@ from app.models import MessageDb
 from app.services.chat_service import ChatService
 from app.services.message_service import MessageService
 from app.utils.auth_deps import require_auth
-from app.utils.common import include_fields
+from app.utils.common import pick_fields
 from app.utils.logger import logger
 from app.utils.model import format_sse_message
 from app.utils.network import get_public_client_ip
@@ -115,8 +115,8 @@ async def chat_stream(
                 'reasoning_length': len(assistant_payload.reasoning),
                 'tool_calls_length': len(assistant_payload.tool_calls),
                 'component_tool_calls_length': len(assistant_payload.component_tool_calls),
-                **include_fields(assistant_payload, ['tool_calls_duration', 'component_tool_calls_duration', 'reasoning_duration', 'content_duration', 'total_duration', 'token_stats']),
-                **include_fields(assistant_message, ['updated_at']),
+                **pick_fields(assistant_payload.model_dump(mode="json"), ['tool_calls_duration', 'component_tool_calls_duration', 'reasoning_duration', 'content_duration', 'total_duration', 'token_stats']),
+                **pick_fields(assistant_message.model_dump(mode="json"), ['updated_at']),
             })
 
     return StreamingResponse(

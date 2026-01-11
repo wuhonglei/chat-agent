@@ -10,7 +10,6 @@ from app.schemas.chat import ChatMessageItemReq, ChatRequest
 from app.schemas.config import LLMConfig
 from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallResultMessage
 from app.schemas.token_stats import MCPToolsTokenStats
-from app.utils.common import include_fields
 from app.utils.logger import logger
 from app.utils.message import format_tool_call_messages_for_llm
 from app.utils.time import get_current_time, get_time_duration
@@ -53,8 +52,9 @@ class MCPToolsAgent(BaseAgent):
         user_message = chat_request.content
 
         # 获取MCP工具
-        server_names = None if mcp_auto_mode else include_fields(
-            source_config.model_dump(), [True])
+        server_names = None if mcp_auto_mode else [
+            key for key, value in source_config.model_dump().items() if value is True
+        ]
         tools = await self.mcp_manager.get_tools_for_llm(server_names, client_ip)
 
         if not tools:

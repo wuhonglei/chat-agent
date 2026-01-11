@@ -8,7 +8,7 @@ from urllib.error import URLError, HTTPError
 from openai import BaseModel
 import tiktoken
 from app.utils.logger import logger
-from app.utils.message import normalize_message_to_dict
+from app.utils.common import normalize_to_dict
 
 # encoding 缓存字典，在模块级别共享，便于多个 TokenCalculator 实例共享
 _encoding_map: dict[str, tiktoken.Encoding] = {}
@@ -315,7 +315,7 @@ class TokenCalculator:
 
         for message in messages:
             total_tokens += base_tokens_per_message
-            message = normalize_message_to_dict(message)
+            message = normalize_to_dict(message)
 
             # 计算 content 的 token
             content = message.get("content", "")

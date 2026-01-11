@@ -3,24 +3,7 @@ from typing import Any
 from toolz import dissoc, get
 
 from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallResultMessage
-
-
-def normalize_message_to_dict(message: Any) -> dict[str, Any]:
-    """
-    将消息对象转换为字典格式
-
-    Args:
-        message: 消息对象，可以是 Pydantic 模型、字典或其他对象
-
-    Returns:
-        字典格式的消息
-    """
-    if hasattr(message, 'model_dump'):
-        return message.model_dump()
-    elif isinstance(message, dict):
-        return message.copy()
-    else:
-        return dict(message)
+from app.utils.common import normalize_to_dict
 
 
 def clear_reasoning_content_from_history(history: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -46,7 +29,7 @@ def format_assistant_tool_call_message(message: AssistantToolCallMessage | dict,
         message: AssistantToolCallMessage 对象
         clear_reasoning_content: 如果为 True，则清除 reasoning_content 字段；如果为 False，则保留
     """
-    message = normalize_message_to_dict(message)
+    message = normalize_to_dict(message)
     return {
         "role": get('role', message),
         "content": get('content', message, None),
@@ -67,7 +50,7 @@ def format_tool_call_result_message(message: ToolCallResultMessage | dict) -> di
     Returns:
         格式化后的消息字典，只包含 API 需要的字段
     """
-    message = normalize_message_to_dict(message)
+    message = normalize_to_dict(message)
     return {
         "role": get('role', message),
         "tool_call_id": get('tool_call_id', message),
@@ -79,7 +62,7 @@ def format_tool_call_message_for_llm(message: ToolCallMessage | dict, clear_reas
     """
     格式化工具调用消息为 LLM API 所需的格式
     """
-    message = normalize_message_to_dict(message)
+    message = normalize_to_dict(message)
     is_assistant_message = get('role', message) == 'assistant'
     if is_assistant_message:
         return format_assistant_tool_call_message(message, clear_reasoning_content)

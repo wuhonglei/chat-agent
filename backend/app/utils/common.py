@@ -1,6 +1,5 @@
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage
 
@@ -19,15 +18,42 @@ def remove_all_whitespace(text: str) -> str:
     return '\n'.join(processed_lines)
 
 
-def exclude_fields(dict_data: dict, fields: list[str]) -> dict:
+def normalize_to_dict(data: Any) -> dict[str, Any]:
+    """
+    将消息对象转换为字典格式
+
+    Args:
+        data: 消息对象，可以是 Pydantic 模型、字典或其他对象
+
+    Returns:
+        字典格式的消息
+    """
+    if hasattr(data, 'model_dump'):
+        return data.model_dump()
+    elif isinstance(data, dict):
+        return data
+    else:
+        return dict(data)
+
+
+def omit_fields(dict_data: dict, fields: list[str]) -> dict:
     """移除指定字段"""
     return {k: v for k, v in dict_data.items() if k not in fields}
 
 
-def include_fields(dict_data: dict, values: Optional[list[Any]] = None) -> list[Any]:
-    """过滤字典，返回值为指定值的键"""
-    values = values or [True]
-    return [k for k, v in dict_data.items() if v in values]
+def pick_fields(dict_data: dict, field_names: list[str]) -> dict:
+    """
+    根据字段名列表从对象中提取字段并返回字典
+
+    Args:
+        dict_data: 字典
+        field_names: 要提取的字段名列表
+
+    Returns:
+        dict: 包含指定字段的字典
+    """
+    # 根据字段名列表过滤
+    return {k: v for k, v in dict_data.items() if k in field_names}
 
 
 def gen_uuid() -> str:
