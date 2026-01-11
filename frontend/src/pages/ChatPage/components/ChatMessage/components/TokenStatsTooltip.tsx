@@ -2,6 +2,7 @@ import {
   ComponentToolsTokenStats,
   MCPToolsTokenStats,
 } from "@/interfaces/token";
+import { prettyCount } from "@/utils";
 import { Descriptions } from "antd";
 import { isEmpty } from "lodash-es";
 import React from "react";
@@ -29,28 +30,28 @@ const getDescriptionItems = (
     },
     {
       key: "thinkMode",
-      label: "思考模式",
-      children: tokenStats.thinkMode ? "是" : "否",
+      label: "深度思考",
+      children: tokenStats.thinkMode ? "启用" : "未启用",
     },
     {
       key: "modelLimit",
       label: "模型限制",
-      children: `${tokenStats.modelLimit.toLocaleString()} tokens`,
+      children: prettyCount(tokenStats.modelLimit),
     },
     {
       key: "promptTokens",
       label: "输入 tokens",
-      children: tokenStats.tokenUsage.promptTokens.toLocaleString(),
+      children: prettyCount(tokenStats.tokenUsage.promptTokens),
     },
     {
       key: "completionTokens",
       label: "输出 tokens",
-      children: tokenStats.tokenUsage.completionTokens.toLocaleString(),
+      children: prettyCount(tokenStats.tokenUsage.completionTokens),
     },
     {
       key: "totalTokens",
       label: "总 tokens",
-      children: tokenStats.tokenUsage.totalTokens.toLocaleString(),
+      children: prettyCount(tokenStats.tokenUsage.totalTokens),
     },
     ...(isMCP
       ? [
@@ -62,7 +63,7 @@ const getDescriptionItems = (
           {
             key: "toolDefinitionTokens",
             label: "工具定义 tokens",
-            children: tokenStats.toolDefinitionTokens.toLocaleString(),
+            children: prettyCount(tokenStats.toolDefinitionTokens),
           },
           ...(isEmpty(tokenStats.toolCallNames)
             ? []
@@ -85,7 +86,7 @@ const getDescriptionItems = (
           {
             key: "componentToolDefinitionTokens",
             label: "组件工具定义 tokens",
-            children: tokenStats.toolDefinitionTokens.toLocaleString(),
+            children: prettyCount(tokenStats.toolDefinitionTokens),
           },
           ...(isEmpty(tokenStats.toolCallNames)
             ? []
@@ -107,16 +108,19 @@ const TokenStatsTooltip: React.FC<TokenStatsTooltipProps> = ({
   const items = getDescriptionItems(tokenStats);
 
   return (
-    <div className="max-w-[400px]">
-      <Descriptions
-        bordered
-        column={1}
-        size="small"
-        items={items}
-        title="Token 统计信息"
-        labelStyle={{ fontWeight: "bold" }}
-      />
-    </div>
+    <Descriptions
+      bordered
+      column={1}
+      size="small"
+      items={items}
+      title="Token 统计信息"
+      styles={{
+        root: { color: "white" },
+        title: { color: "white" },
+        content: { color: "white" },
+        label: { color: "white", fontWeight: "bold" },
+      }}
+    />
   );
 };
 

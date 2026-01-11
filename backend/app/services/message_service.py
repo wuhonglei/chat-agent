@@ -174,6 +174,7 @@ class MessageService(BaseService):
             conversation_id=conversation.id,
             message_metadata=metadata or {},
             status=MessageStatus.PENDING,
+            token_stats={},
             reply_to=reply_to,
         )
         return self._persist_message(message, conversation)

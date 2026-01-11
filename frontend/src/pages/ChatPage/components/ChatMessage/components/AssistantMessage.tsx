@@ -55,6 +55,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
             isCallingTools={isCallingMcpTools}
             eventType={EventType.McpToolCallDone}
             toolCallsDuration={message.toolCallsDuration}
+            tokenStats={message.tokenStats?.mcpTools}
           />
           {/* 渲染组件工具调用 */}
           <ToolCallBlock
@@ -67,6 +68,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
             toolCalls={message.componentToolCalls}
             isCallingTools={isCallingComponentTools}
             eventType={EventType.ComponentToolCallDone}
+            tokenStats={message.tokenStats?.componentTools}
             toolCallsDuration={message.componentToolCallsDuration}
           />
           {/* 渲染思考内容 */}
