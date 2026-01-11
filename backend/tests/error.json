@@ -1,0 +1,6 @@
+{
+  "type": "error",
+  "data": {
+    "content": "Error code: 400 - {'error': {'message': 'Input data may contain inappropriate content. For details, see: https://help.aliyun.com/zh/model-studio/error-code#inappropriate-content', 'type': 'data_inspection_failed', 'param': None, 'code': 'data_inspection_failed'}, 'id': 'chatcmpl-f9ebc2c1-7ebb-911a-9eb5-7c8d2570cf82', 'request_id': 'f9ebc2c1-7ebb-911a-9eb5-7c8d2570cf82'}"
+  }
+}

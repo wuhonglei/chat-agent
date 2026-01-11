@@ -93,7 +93,8 @@ async def chat_stream(
                 title = await chat_service.generate_title(chat_request.content)
                 yield format_sse_message('title', {
                     'id': chat_request.conversation_id,
-                    'title': title
+                    'title': title,
+                    'token_stats': chat_service.title_generation_agent.token_stats.model_dump(mode="json"),
                 })
 
             # 流式生成响应
