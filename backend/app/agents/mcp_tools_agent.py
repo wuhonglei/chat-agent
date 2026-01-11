@@ -123,12 +123,12 @@ class MCPToolsAgent(BaseAgent):
             # 格式化 collected_messages，过滤掉额外的字段（如 token_count, duration, is_error）
             formatted_collected_messages = format_tool_call_messages_for_llm(
                 self.output_messages, clear_reasoning_content=False)
-            response = await self.client.chat.completions.create(
+            response = await self._call_llm_api(
                 model=model,
-                parallel_tool_calls=True,  # 启用并行工具调用
                 messages=messages + formatted_collected_messages,
                 tools=tools if tools else None,
                 stream=False,
+                parallel_tool_calls=True,  # 启用并行工具调用
                 extra_body=extra_body,
             )
             openai_message: ChatCompletionMessage = response.choices[0].message

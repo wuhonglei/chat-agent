@@ -3,7 +3,7 @@ from collections.abc import AsyncGenerator
 from typing import Optional, Any
 from abc import ABC, abstractmethod
 
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, APIError, APIConnectionError, RateLimitError, APIStatusError
 
 from app.schemas.chat import ChatMessageItemReq
 from app.schemas.config import LLMConfig
@@ -12,6 +12,7 @@ from app.schemas.token_stats import BaseTokenStats, TokenUsage
 from app.utils.common import normalize_to_dict
 from app.utils.model import format_sse_message, get_model_extra_body
 from app.utils.token import TokenCalculator
+from app.utils.logger import logger
 
 
 class BaseAgent(ABC):
@@ -95,6 +96,109 @@ class BaseAgent(ABC):
             completion_tokens=completion_tokens,
             total_tokens=prompt_tokens + completion_tokens
         )
+
+    async def _call_llm_api(
+        self,
+        model: str,
+        messages: list[dict],
+        *,
+        tools: Optional[list[dict]] = None,
+        stream: bool = False,
+        parallel_tool_calls: Optional[bool] = None,
+        extra_body: Optional[dict[str, Any]] = None,
+    ) -> Any:
+        """
+        调用 LLM API 的统一方法，包含错误处理
+
+        Args:
+            model: 模型名称
+            messages: 消息列表
+            tools: 工具列表（可选）
+            stream: 是否使用流式响应（默认 False）
+            parallel_tool_calls: 是否启用并行工具调用（可选）
+            extra_body: 额外参数（可选）
+
+        Returns:
+            API 响应对象
+
+        Raises:
+            APIError: 各种 API 相关错误
+            Exception: 其他未预期的错误
+        """
+        # 构建 API 调用参数
+        api_params: dict[str, Any] = {
+            'model': model,
+            'messages': messages,
+            'stream': stream,
+        }
+
+        if tools is not None:
+            api_params['tools'] = tools
+
+        if parallel_tool_calls is not None:
+            api_params['parallel_tool_calls'] = parallel_tool_calls
+
+        if extra_body is not None:
+            api_params['extra_body'] = extra_body
+
+        # 准备日志上下文
+        log_context = {
+            'model': model,
+            'messages_count': len(messages),
+            'stream': stream,
+        }
+        if tools is not None:
+            log_context['tools_count'] = len(tools)
+
+        try:
+            response = await self.client.chat.completions.create(**api_params)
+            return response
+        except APIConnectionError as e:
+            logger.error(
+                "Failed to connect to LLM API",
+                error=str(e),
+                error_type=type(e).__name__,
+                **log_context,
+                exc_info=True,
+            )
+            raise  # 重新抛出异常，让上层处理
+        except RateLimitError as e:
+            logger.error(
+                "LLM API rate limit exceeded",
+                error=str(e),
+                error_type=type(e).__name__,
+                **log_context,
+                exc_info=True,
+            )
+            raise  # 重新抛出异常，让上层处理
+        except APIStatusError as e:
+            logger.error(
+                "LLM API returned an error status",
+                error=str(e),
+                error_type=type(e).__name__,
+                status_code=getattr(e, 'status_code', None),
+                **log_context,
+                exc_info=True,
+            )
+            raise  # 重新抛出异常，让上层处理
+        except APIError as e:
+            logger.error(
+                "LLM API error occurred",
+                error=str(e),
+                error_type=type(e).__name__,
+                **log_context,
+                exc_info=True,
+            )
+            raise  # 重新抛出异常，让上层处理
+        except Exception as e:
+            logger.error(
+                "Unexpected error during LLM API call",
+                error=str(e),
+                error_type=type(e).__name__,
+                **log_context,
+                exc_info=True,
+            )
+            raise  # 重新抛出异常，让上层处理
 
     @abstractmethod
     def create_token_stats(

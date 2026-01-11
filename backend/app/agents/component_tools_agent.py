@@ -30,47 +30,6 @@ class ComponentToolsAgent(BaseAgent):
         self.token_stats: Optional[ComponentToolsTokenStats] = None
         self.duration: Optional[float] = None
 
-    def create_token_stats(
-        self,
-        input_messages: list[dict],
-        tools: list[dict],
-        output_messages: list[ToolCallMessage],
-    ) -> ComponentToolsTokenStats:
-        """创建组件工具调用的 token 统计对象
-
-        Args:
-            component_messages: 组件消息列表（用于计算 prompt_tokens）
-
-        Returns:
-            ComponentToolsTokenStats: token 统计对象
-        """
-        # 计算输入 token（系统提示 + 用户消息 + MCP工具上下文）
-        prompt_tokens = self.token_calculator.count_messages_tokens(
-            input_messages)
-        tool_definition_tokens = self.token_calculator.count_tokens(
-            json.dumps(tools))
-        total_prompt_tokens = prompt_tokens + tool_definition_tokens
-
-        # 计算组件工具的输出token（助手消息 + 工具调用结果）
-        completion_tokens = self.token_calculator.count_messages_tokens(
-            output_messages
-        )
-
-        tool_call_names = extract_tool_call_names(output_messages)
-        tool_call_count = count_tool_calls(output_messages)
-
-        return ComponentToolsTokenStats(
-            model_name=self.model_name,
-            agent_name="component_tools",
-            think_mode=self.think_mode,
-            model_limit=self.model_limit,
-            token_usage=self._create_token_usage(
-                total_prompt_tokens, completion_tokens),
-            tool_call_count=tool_call_count,
-            tool_call_names=tool_call_names,
-            tool_definition_tokens=tool_definition_tokens,
-        )
-
     async def stream_execute(
         self,
         user_message: str,
@@ -392,7 +351,7 @@ class ComponentToolsAgent(BaseAgent):
             # 格式化 collected_messages，过滤掉额外的字段（如 token_count, duration, is_error）
             formatted_collected_messages = format_tool_call_messages_for_llm(
                 self.output_messages, clear_reasoning_content=False)
-            response = await self.client.chat.completions.create(
+            response = await self._call_llm_api(
                 model=model,
                 messages=messages + formatted_collected_messages,
                 tools=component_tools,
@@ -510,3 +469,44 @@ class ComponentToolsAgent(BaseAgent):
             max_iterations=max_iterations,
         )
         return
+
+    def create_token_stats(
+        self,
+        input_messages: list[dict],
+        tools: list[dict],
+        output_messages: list[ToolCallMessage],
+    ) -> ComponentToolsTokenStats:
+        """创建组件工具调用的 token 统计对象
+
+        Args:
+            component_messages: 组件消息列表（用于计算 prompt_tokens）
+
+        Returns:
+            ComponentToolsTokenStats: token 统计对象
+        """
+        # 计算输入 token（系统提示 + 用户消息 + MCP工具上下文）
+        prompt_tokens = self.token_calculator.count_messages_tokens(
+            input_messages)
+        tool_definition_tokens = self.token_calculator.count_tokens(
+            json.dumps(tools))
+        total_prompt_tokens = prompt_tokens + tool_definition_tokens
+
+        # 计算组件工具的输出token（助手消息 + 工具调用结果）
+        completion_tokens = self.token_calculator.count_messages_tokens(
+            output_messages
+        )
+
+        tool_call_names = extract_tool_call_names(output_messages)
+        tool_call_count = count_tool_calls(output_messages)
+
+        return ComponentToolsTokenStats(
+            model_name=self.model_name,
+            agent_name="component_tools",
+            think_mode=self.think_mode,
+            model_limit=self.model_limit,
+            token_usage=self._create_token_usage(
+                total_prompt_tokens, completion_tokens),
+            tool_call_count=tool_call_count,
+            tool_call_names=tool_call_names,
+            tool_definition_tokens=tool_definition_tokens,
+        )
