@@ -9,7 +9,7 @@ import {
   MCPToolsTokenStats,
 } from "@/interfaces/token";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { isEmpty } from "lodash-es";
+import { isEmpty, set } from "lodash-es";
 
 interface ChatStateMap {
   [conversionId: string]: ChatConversationState;
@@ -221,7 +221,7 @@ const chatSlice = createSlice({
       const chatState = conversationIdCheck(state, conversationId);
       const lastMessage = lastMessageCheck(chatState.messages);
       if (lastMessage) {
-        lastMessage.tokenStats.mcpTools = data;
+        set(lastMessage.tokenStats, "mcpTools", data);
       }
     },
     setComponentToolsTokenStats: (
@@ -232,7 +232,7 @@ const chatSlice = createSlice({
       const chatState = conversationIdCheck(state, conversationId);
       const lastMessage = lastMessageCheck(chatState.messages);
       if (lastMessage) {
-        lastMessage.tokenStats.componentTools = data;
+        set(lastMessage.tokenStats, "componentTools", data);
       }
     },
     appendComponentToolCallToLastMessage: (
