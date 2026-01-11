@@ -4,6 +4,10 @@ import {
   ChatMessage,
   ToolCallMessage,
 } from "@/interfaces";
+import {
+  ComponentToolsTokenStats,
+  MCPToolsTokenStats,
+} from "@/interfaces/token";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { isEmpty } from "lodash-es";
 
@@ -18,7 +22,7 @@ interface ConversationActionPayload<T = unknown> {
 }
 
 export const getDefaultChatState = (): ChatConversationState => ({
-  messages: [],
+  messages: [] as ChatMessage[],
   messageLoaded: false,
   lastMessageUpdateAt: "",
   isLoading: false,
@@ -209,6 +213,28 @@ const chatSlice = createSlice({
         lastMessage.componentToolCallsDuration = data;
       }
     },
+    setMcpToolsTokenStats: (
+      state,
+      action: PayloadAction<ConversationActionPayload<MCPToolsTokenStats>>
+    ) => {
+      const { conversationId, data } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      const lastMessage = lastMessageCheck(chatState.messages);
+      if (lastMessage) {
+        lastMessage.tokenStats.mcpTools = data;
+      }
+    },
+    setComponentToolsTokenStats: (
+      state,
+      action: PayloadAction<ConversationActionPayload<ComponentToolsTokenStats>>
+    ) => {
+      const { conversationId, data } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      const lastMessage = lastMessageCheck(chatState.messages);
+      if (lastMessage) {
+        lastMessage.tokenStats.componentTools = data;
+      }
+    },
     appendComponentToolCallToLastMessage: (
       state,
       action: PayloadAction<ConversationActionPayload<ToolCallMessage>>
@@ -319,6 +345,8 @@ export const {
   setReasoningDuration,
   setMcpToolCallsDuration,
   setComponentToolCallsDuration,
+  setMcpToolsTokenStats,
+  setComponentToolsTokenStats,
   prependContentToLastMessage,
   appendContentToLastMessage,
   appendReasoningToLastMessage,

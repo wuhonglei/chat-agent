@@ -1,4 +1,5 @@
 import { ToolCallStatus } from "@/constants";
+import { ComponentToolsTokenStats, MCPToolsTokenStats } from "./token";
 
 export interface ToolCall {
   id: string;
@@ -15,6 +16,7 @@ export interface ToolCallProcessMessage {
   status: "done";
   content: string;
   duration?: number;
+  tokenStats?: MCPToolsTokenStats | ComponentToolsTokenStats;
 }
 
 // 工具调用结果消息

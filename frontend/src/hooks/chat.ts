@@ -25,8 +25,10 @@ import {
   setCallingComponentTools,
   setCallingMcpTools,
   setComponentToolCallsDuration,
+  setComponentToolsTokenStats,
   setLoading,
   setMcpToolCallsDuration,
+  setMcpToolsTokenStats,
   setMessages,
   setReasoning,
   setReasoningDuration,
@@ -48,6 +50,10 @@ import { componentToolsForBackend } from "@/componentTools/helper";
 import { MessageStatus, TitleCreatedBy } from "@/constants";
 import { emitter, EventType } from "@/events";
 import { db } from "@/indexDB";
+import {
+  ComponentToolsTokenStats,
+  MCPToolsTokenStats,
+} from "@/interfaces/token";
 import {
   getHistoryMessageIds,
   getRemovedMessageIds,
@@ -203,6 +209,14 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
                   })
                 );
               }
+              if (data?.tokenStats) {
+                dispatch(
+                  setMcpToolsTokenStats({
+                    conversationId,
+                    data: data.tokenStats as MCPToolsTokenStats,
+                  })
+                );
+              }
             } else {
               dispatch(
                 appendMcpToolCallToLastMessage({
@@ -227,6 +241,14 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
                   setComponentToolCallsDuration({
                     conversationId,
                     data: data.duration,
+                  })
+                );
+              }
+              if (data?.tokenStats) {
+                dispatch(
+                  setComponentToolsTokenStats({
+                    conversationId,
+                    data: data.tokenStats as ComponentToolsTokenStats,
                   })
                 );
               }
