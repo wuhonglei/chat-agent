@@ -7,9 +7,10 @@ from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select, delete
 
-from app.schemas.chat import ChatMessageItemReq, CollectedResponse, MessageStatus
+from app.schemas.chat import ChatMessageItemReq, CollectedResponse, MessageStatus, ChatMessagesResult
 from app.models import ConversationDb, MessageDb
 from app.utils.date import get_datetime_now
+from app.utils.common import gen_uuid
 from app.services.base_service import BaseService
 
 
@@ -166,6 +167,63 @@ class MessageService(BaseService):
             reply_to=reply_to,
         )
         return self._persist_message(message, conversation)
+
+    def create_chat_messages(
+        self,
+        conversation_id: str,
+        content: str,
+        user_metadata: dict[str, Any],
+        removed_message_ids: Optional[list[str]] = None,
+    ) -> ChatMessagesResult:
+        """创建聊天消息（用户消息和助手消息）
+
+        Args:
+            conversation_id: 对话ID
+            content: 用户消息内容
+            user_metadata: 用户消息元数据
+            removed_message_ids: 需要删除的消息ID列表
+
+        Returns:
+            ChatMessagesResult: 包含创建的消息和对话信息
+        """
+        # 生成消息ID
+        user_message_id = gen_uuid()
+        assistant_message_id = gen_uuid()
+
+        # 获取对话
+        conversation = self.get_conversation(conversation_id)
+
+        # 删除指定消息
+        if removed_message_ids:
+            self.remove_messages(removed_message_ids)
+
+        # 创建用户消息（包含 reply_message_id 到助手消息的关联）
+        user_metadata_with_reply = {
+            **user_metadata,
+            "reply_message_id": assistant_message_id,
+        }
+        user_message = self.create_user_message(
+            conversation=conversation,
+            message_id=user_message_id,
+            content=content,
+            metadata=user_metadata_with_reply,
+        )
+
+        # 创建助手消息
+        assistant_message = self.create_assistant_message(
+            conversation=conversation,
+            message_id=assistant_message_id,
+            reply_to=user_message_id,
+            metadata=user_metadata,
+        )
+
+        return ChatMessagesResult(
+            user_message_id=user_message_id,
+            assistant_message_id=assistant_message_id,
+            user_message=user_message,
+            assistant_message=assistant_message,
+            conversation=conversation,
+        )
 
     def update_assistant_message(
         self,

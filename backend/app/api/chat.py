@@ -11,7 +11,6 @@ from app.models import MessageDb
 from app.services.chat_service import ChatService
 from app.services.message_service import MessageService
 from app.utils.auth_deps import require_auth
-from app.utils.common import gen_uuid
 from app.utils.logger import logger
 from app.utils.model import format_sse_message
 from app.utils.network import get_public_client_ip
@@ -43,25 +42,15 @@ async def chat_stream(
     )
 
     # 创建用户消息和助手消息
-    user_message_id = gen_uuid()
-    assistant_message_id = gen_uuid()
     with MessageService() as message_service:
-        conversation = message_service.get_conversation(
-            chat_request.conversation_id)
-        message_service.remove_messages(chat_request.removed_message_ids)
-        message_service.create_user_message(
-            conversation=conversation,
-            message_id=user_message_id,
+        messages_result = message_service.create_chat_messages(
+            conversation_id=chat_request.conversation_id,
             content=chat_request.content,
-            metadata={**user_metadata,
-                      "reply_message_id": assistant_message_id},
+            user_metadata=user_metadata,
+            removed_message_ids=chat_request.removed_message_ids,
         )
-        message_service.create_assistant_message(
-            conversation=conversation,
-            message_id=assistant_message_id,
-            reply_to=user_message_id,
-            metadata=user_metadata,
-        )
+        user_message_id = messages_result.user_message_id
+        assistant_message_id = messages_result.assistant_message_id
         logger.info(
             "Messages created",
             conversation_id=chat_request.conversation_id,
