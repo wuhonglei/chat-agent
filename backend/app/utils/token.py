@@ -21,6 +21,8 @@ class TokenCalculator:
     MODEL_LIMITS = {
         "deepseek-chat": 131072,
         "deepseek-reasoner": 131072,
+        "qwen-plus": 131072,
+        "qwen-flash": 131072,
     }
 
     DEFAULT_LIMIT = 131072  # deepseek 的默认限制
