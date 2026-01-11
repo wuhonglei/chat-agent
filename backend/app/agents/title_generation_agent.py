@@ -37,7 +37,7 @@ class TitleGenerationAgent(BaseAgent):
         completion_tokens = self.token_calculator.count_tokens(title)
 
         return TitleGenerationTokenStats(
-            agent_name="title_generation_agent",
+            agent_name="title_generation",
             model_name=self.model_name,
             think_mode=self.think_mode,
             model_limit=self.model_limit,

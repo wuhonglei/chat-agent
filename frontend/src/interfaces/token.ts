@@ -24,6 +24,7 @@ export interface BaseTokenStats {
  * MCP 工具调用的 Token 统计
  */
 export interface MCPToolsTokenStats extends BaseTokenStats {
+  agentName: "mcp-tools";
   toolCallCount: number; // 被调用的工具数量
   toolCallNames: string[]; // 被调用的工具名称列表
   toolDefinitionTokens: number; // 工具定义 token 数量
@@ -33,6 +34,7 @@ export interface MCPToolsTokenStats extends BaseTokenStats {
  * 组件工具调用的 Token 统计
  */
 export interface ComponentToolsTokenStats extends BaseTokenStats {
+  agentName: "component-tools";
   toolCallCount: number; // 被调用的组件工具数量
   toolCallNames: string[]; // 被调用的组件工具名称列表
   toolDefinitionTokens: number; // 组件工具定义 token 数量
@@ -42,6 +44,7 @@ export interface ComponentToolsTokenStats extends BaseTokenStats {
  * 响应生成的 Token 统计
  */
 export interface ResponseGenerationTokenStats extends BaseTokenStats {
+  agentName: "response-generation";
   reasoningTokens?: number; // 推理内容 token 数量
   contentTokens?: number; // 回答内容 token 数量
 }
@@ -50,6 +53,7 @@ export interface ResponseGenerationTokenStats extends BaseTokenStats {
  * 标题生成的 Token 统计
  */
 export interface TitleGenerationTokenStats extends BaseTokenStats {
+  agentName: "title-generation";
   title?: string; // 生成的标题
 }
 

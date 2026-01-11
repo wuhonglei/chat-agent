@@ -212,7 +212,7 @@ class ResponseGenerationAgent(BaseAgent):
         completion_tokens = reasoning_tokens + content_tokens
 
         return ResponseGenerationTokenStats(
-            agent_name="response_generation_agent",
+            agent_name="response_generation",
             model_name=self.model_name,
             think_mode=self.think_mode,
             model_limit=self.token_calculator.get_max_context_tokens(),

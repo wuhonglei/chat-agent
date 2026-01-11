@@ -6,7 +6,7 @@ import {
   TitleCreatedBy,
 } from "@/constants";
 import { ComponentToolRequestItem } from "./componentTools";
-import { TokenStats } from "./token";
+import { TotalTokenStats } from "./token";
 import { ToolCallMessage } from "./tooCall";
 
 export interface SearchSourceMetaData {
@@ -44,7 +44,7 @@ export interface ChatMessage {
   status: MessageStatus;
   messageMetadata: Omit<ChatInputFormValues, "message">;
   replyTo: string; // role为assistant时，回复到哪个user消息
-  tokenStats: TokenStats;
+  tokenStats: TotalTokenStats;
 }
 
 export interface ChatHistory {

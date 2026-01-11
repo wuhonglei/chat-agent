@@ -61,7 +61,7 @@ class ComponentToolsAgent(BaseAgent):
 
         return ComponentToolsTokenStats(
             model_name=self.model_name,
-            agent_name="component_tools_agent",
+            agent_name="component_tools",
             think_mode=self.think_mode,
             model_limit=self.model_limit,
             token_usage=self._create_token_usage(
