@@ -39,6 +39,13 @@ class MCPToolsAgent(BaseAgent):
         )
         self.compression_trigger_threshold = compression_config.compression_trigger_threshold
 
+    def get_server_names(self, mcp_auto_mode: bool, source_config: dict) -> list[str]:
+        """获取MCP工具服务器名称"""
+        if mcp_auto_mode:
+            return None
+
+        return [key for key, value in source_config.model_dump().items() if value is True]
+
     async def stream_execute(
         self,
         chat_request: ChatRequest,
@@ -62,9 +69,7 @@ class MCPToolsAgent(BaseAgent):
         user_message = chat_request.content
 
         # 获取MCP工具
-        server_names = None if mcp_auto_mode else [
-            key for key, value in source_config.model_dump().items() if value is True
-        ]
+        server_names = self.get_server_names(mcp_auto_mode, source_config)
         tools = await self.mcp_manager.get_tools_for_llm(server_names, client_ip)
 
         if not tools:
