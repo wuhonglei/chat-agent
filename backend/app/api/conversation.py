@@ -12,6 +12,7 @@ from app.schemas.conversation import (
 from app.schemas.response import ApiResponse
 from app.schemas.token import SecretTokenInfo
 from app.services.conversation_service import ConversationService
+from app.utils.logger import logger
 from app.utils.auth_deps import get_auth_token_info, require_auth
 
 router = APIRouter()
@@ -56,6 +57,9 @@ async def get_messages(
 ) -> ApiResponse[dict]:
     """Get messages by conversation ID"""
     service = ConversationService(db)
+    if not service.get_conversation(conversation_id):
+        return ApiResponse.error(code=404, msg="会话不存在")
+
     chat_messages = service.get_messages(conversation_id)
     data = {
         "total": len(chat_messages),
@@ -75,6 +79,9 @@ async def get_conversation(
     """Get a conversation by ID"""
     service = ConversationService(db)
     conversation_info = service.get_conversation_info(conversation_id)
+    if not conversation_info:
+        return ApiResponse.error(code=404, msg="会话不存在")
+
     return ApiResponse.success(data=conversation_info, msg="获取对话详情成功")
 
 
@@ -87,7 +94,10 @@ async def update_conversation(
 ) -> ApiResponse[ConversationInfo]:
     """Update a conversation by ID"""
     service = ConversationService(db)
-    conversation_info = service.update_conversation(conversation_id, request)
+    conversation = service.get_conversation(conversation_id)
+    if not conversation:
+        return ApiResponse.error(code=404, msg="会话不存在")
+    conversation_info = service.update_conversation(conversation, request)
     return ApiResponse.success(data=conversation_info, msg="更新对话成功")
 
 
@@ -99,5 +109,8 @@ async def delete_conversation(
 ) -> ApiResponse[str]:
     """Delete a conversation by ID"""
     service = ConversationService(db)
-    conversation_id = service.delete_conversation(conversation_id)
-    return ApiResponse.success(data=conversation_id, msg="删除对话成功")
+    conversation = service.get_conversation(conversation_id)
+    if not conversation:
+        return ApiResponse.error(code=404, msg="会话不存在")
+    service.delete_conversation(conversation)
+    return ApiResponse.success(data=conversation.id, msg="删除对话成功")

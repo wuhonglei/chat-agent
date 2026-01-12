@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlmodel import Session, select
 
 from app.models import ConversationDb, MessageDb
@@ -77,16 +76,14 @@ class ConversationService(BaseService):
         """获取对话"""
         db = self._ensure_db()
         conversation = db.get(ConversationDb, conversation_id)
-        if not conversation:
-            logger.error("Conversation not found",
-                         conversation_id=conversation_id)
-            raise HTTPException(status_code=404, detail="对话不存在")
         return conversation
 
-    def get_conversation_info(self, conversation_id: str) -> ConversationInfo:
+    def get_conversation_info(self, conversation_id: str) -> Optional[ConversationInfo]:
         """获取对话信息"""
         conversation = self.get_conversation(conversation_id)
-        logger.debug("Found conversation", conversation_id=conversation_id)
+        if not conversation:
+            return None
+
         conversation_info = ConversationInfo.model_validate(
             self.conversation_to_dict(conversation)
         )
@@ -95,9 +92,6 @@ class ConversationService(BaseService):
     def get_messages(self, conversation_id: str) -> list[ChatMessageItem]:
         """获取对话的消息列表"""
         db = self._ensure_db()
-        # 先检查对话是否存在
-        self.get_conversation(conversation_id)
-
         messages = db.exec(
             select(MessageDb)
             .where(MessageDb.conversation_id == conversation_id)
@@ -110,11 +104,9 @@ class ConversationService(BaseService):
         return chat_messages
 
     def update_conversation(
-        self, conversation_id: str, request: UpdateConversationRequest
+        self, conversation: ConversationDb, request: UpdateConversationRequest
     ) -> ConversationInfo:
         """更新对话"""
-        conversation = self.get_conversation(conversation_id)
-
         conversation.title = request.title
         conversation.created_by = request.created_by
         conversation.updated_at = get_datetime_now()
@@ -125,10 +117,9 @@ class ConversationService(BaseService):
         )
         return conversation_info
 
-    def delete_conversation(self, conversation_id: str) -> str:
+    def delete_conversation(self, conversation: ConversationDb) -> str:
         """删除对话"""
         db = self._ensure_db()
-        conversation = self.get_conversation(conversation_id)
         db.delete(conversation)
         # 事务由 get_db() 自动提交
-        return conversation_id
+        return conversation.id
