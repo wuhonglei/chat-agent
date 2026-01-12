@@ -319,8 +319,10 @@ class MCPToolsAgent(BaseAgent):
             # The iterations_by_tool dictionary is kept for defensive checks in execute_single_tool
 
             # Yield results in original order and collect them
+            current_iteration_results: list[ToolCallMessage] = []
             for tool_call_result_message in tool_results:
                 self.output_messages.append(tool_call_result_message)
+                current_iteration_results.append(tool_call_result_message)
                 yield tool_call_result_message
 
             # Perform iteration context compression if needed
@@ -335,21 +337,6 @@ class MCPToolsAgent(BaseAgent):
                     current_context_length=current_context_length,
                     threshold=self.compression_trigger_threshold
                 )
-
-                # Get current iteration results (the tool results we just collected)
-                current_iteration_results = [
-                    msg for msg in self.output_messages
-                    if hasattr(msg, 'iteration') and getattr(msg, 'iteration', None) == iteration
-                ]
-
-                # If no iteration markers, use recent messages as current iteration
-                if not current_iteration_results:
-                    # Approximate: use the last N messages as current iteration
-                    # This is a heuristic since we don't have explicit iteration markers
-                    # assistant + tool results
-                    recent_messages = self.output_messages[-len(
-                        tool_results)*2:]
-                    current_iteration_results = recent_messages
 
                 # Compress the context
                 compressed_context = self.iteration_compressor.compress_iteration_context(

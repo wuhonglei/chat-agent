@@ -117,7 +117,8 @@ class IterationCompressionConfig(BaseModel):
     current_iteration_retention: float = Field(description="当前迭代结果保留率")
     recent_iteration_retention: float = Field(description="最近迭代结果保留率")
     early_iteration_retention: float = Field(description="早期迭代结果保留率")
-    compression_trigger_threshold: int = Field(description="压缩触发阈值")
+    compression_trigger_threshold: int = Field(
+        description="到目前为止所有工具调用相关消息的累积上下文长度阈值")
     single_result_precompress_threshold: int = Field(description="单结果预压缩阈值")
 
 
