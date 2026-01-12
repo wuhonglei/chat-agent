@@ -39,41 +39,6 @@ class MCPToolsAgent(BaseAgent):
         )
         self.compression_trigger_threshold = compression_config.compression_trigger_threshold
 
-    def _calculate_message_content_length(self, msg: ToolCallMessage) -> int:
-        """
-        计算消息的实际内容长度（用于上下文压缩判断）
-        
-        对于 AssistantToolCallMessage：计算 content + reasoning_content + tool_calls（序列化为 JSON）
-        对于 ToolCallResultMessage：计算 content
-        
-        Args:
-            msg: 工具调用消息对象
-            
-        Returns:
-            消息的实际内容长度（字符数）
-        """
-        length = 0
-        
-        if isinstance(msg, AssistantToolCallMessage):
-            # 计算 content
-            if msg.content:
-                length += len(msg.content)
-            
-            # 计算 reasoning_content
-            if msg.reasoning_content:
-                length += len(msg.reasoning_content)
-            
-            # 计算 tool_calls（序列化为 JSON）
-            if msg.tool_calls:
-                length += len(json.dumps(msg.tool_calls, ensure_ascii=False))
-        
-        elif isinstance(msg, ToolCallResultMessage):
-            # 计算 content
-            if msg.content:
-                length += len(msg.content)
-        
-        return length
-
     def get_server_names(self, mcp_auto_mode: bool, source_config: dict) -> list[str]:
         """获取MCP工具服务器名称"""
         if mcp_auto_mode:
@@ -362,10 +327,8 @@ class MCPToolsAgent(BaseAgent):
 
             # Perform iteration context compression if needed
             # Check if compression is needed based on context length
-            # Calculate actual content length: content + reasoning_content + tool_calls for AssistantToolCallMessage,
-            # and content for ToolCallResultMessage
-            current_context_length = sum(self._calculate_message_content_length(msg)
-                                         for msg in self.output_messages)
+            # Use token count instead of character count for more accurate measurement
+            current_context_length = self.token_calculator.count_messages_tokens(self.output_messages)
 
             if current_context_length > self.compression_trigger_threshold and iteration < max_total_iterations - 1:
                 logger.debug(
