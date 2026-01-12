@@ -256,7 +256,7 @@ class IterationCompressor:
 
     def compress_iteration_context(
         self,
-        current_tool_results: List[Dict[str, Any]],
+        current_iteration_results: List[Dict[str, Any]],
         historical_context: List[Dict[str, Any]],
         iteration: int,
         max_context_length: Optional[int] = None
@@ -283,7 +283,7 @@ class IterationCompressor:
                 compressed_context.append(compressed_result)
 
         # Add current iteration results (keep most intact)
-        for result in current_tool_results:
+        for result in current_iteration_results:
             compressed_context.append(result)
 
         # Ensure total length doesn't exceed limit
