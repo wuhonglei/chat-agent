@@ -36,7 +36,7 @@ class ContextCompressionAgent(BaseAgent):
         self.tool_result_compressor = ToolResultCompressor(
             llm_config, self.compression_config)
         self.iteration_compressor = IterationCompressor(
-            max_context_length=self.compression_config['iteration_compression'].max_iteration_context_length
+            max_context_length=self.compression_config.iteration_compression.max_iteration_context_length
         )
         self.context_monitor = ContextMonitor(llm_config.model_name)
 
@@ -136,8 +136,7 @@ class ContextCompressionAgent(BaseAgent):
             # Check if pre-compression is needed for large results
             if isinstance(result.get('content'), str):
                 content_length = len(result['content'])
-                precompress_threshold = self.compression_config[
-                    'iteration_compression']['single_result_precompress_threshold']
+                precompress_threshold = self.compression_config.iteration_compression.single_result_precompress_threshold
 
                 if content_length > precompress_threshold:
                     logger.debug(
@@ -328,12 +327,12 @@ class ToolResultCompressor:
 
     def _get_max_length_for_type(self, content_type: ContentType) -> int:
         """Get maximum length for content type"""
-        config = self.compression_config['single_round']
+        config = self.compression_config.single_round
 
         if content_type == ContentType.WEB_CONTENT:
-            return config['max_web_content_length']
+            return config.max_web_content_length
         elif content_type == ContentType.SEARCH_RESULTS:
             # Search results have different logic
-            return config['max_generic_length']
+            return config.max_generic_length
         else:
-            return config['max_generic_length']
+            return config.max_generic_length
