@@ -79,12 +79,23 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
                 return
 
             # 更新缓存
+            old_config_keys = set(self._config_cache.keys()) if self._config_cache else set()
             self._config_cache = new_config
+            new_config_keys = set(new_config.keys())
+
+            # 计算配置变化
+            added_keys = new_config_keys - old_config_keys
+            removed_keys = old_config_keys - new_config_keys
+            modified_keys = old_config_keys & new_config_keys  # 可能被修改的键
 
             logger.info(
                 "Nacos 配置已更新",
                 data_id=self._connection_config.data_id if self._connection_config else "unknown",
-                group=self._connection_config.group if self._connection_config else "unknown"
+                group=self._connection_config.group if self._connection_config else "unknown",
+                config_keys_count=len(new_config),
+                added_keys=list(added_keys) if added_keys else None,
+                removed_keys=list(removed_keys) if removed_keys else None,
+                config_size=len(actual_content) if isinstance(actual_content, str) else "unknown"
             )
 
         except Exception as e:
@@ -211,6 +222,22 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
     def __call__(self) -> dict[str, Any]:
         """加载并返回配置字典"""
         return self._get_nacos_config()
+
+    def get_config_status(self) -> dict[str, Any]:
+        """获取配置状态信息"""
+        return {
+            "client_connected": self._nacos_client is not None,
+            "watcher_started": self._watcher_started,
+            "cache_loaded": self._config_cache is not None,
+            "config_keys_count": len(self._config_cache) if self._config_cache else 0,
+            "connection_config": {
+                "server_addresses": self._connection_config.server_addresses if self._connection_config else None,
+                "namespace": self._connection_config.namespace if self._connection_config else None,
+                "data_id": self._connection_config.data_id if self._connection_config else None,
+                "group": self._connection_config.group if self._connection_config else None,
+                "config_type": self._connection_config.config_type if self._connection_config else None,
+            } if self._connection_config else None
+        }
 
     def close(self) -> None:
         """关闭 Nacos 客户端连接"""
