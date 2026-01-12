@@ -8,6 +8,7 @@ from collections.abc import AsyncGenerator
 from enum import Enum
 
 from app.utils.logger import logger
+from app.utils.token import TokenCalculator
 
 
 class ContentType(str, Enum):
@@ -32,8 +33,9 @@ class CompressionResult:
 class GenericCompressor:
     """Generic content compressor for various content types"""
 
-    def __init__(self, max_length: int = 4000):
+    def __init__(self, max_length: int, token_calculator: TokenCalculator):
         self.max_length = max_length
+        self.token_calculator = token_calculator
 
     def compress(self, content: str, content_type: ContentType = ContentType.GENERIC) -> CompressionResult:
         """
@@ -47,7 +49,7 @@ class GenericCompressor:
         import time
         start_time = time.time()
 
-        original_length = len(content)
+        original_length = self.token_calculator.count_tokens(content)
 
         try:
             # Detect content type
@@ -65,12 +67,14 @@ class GenericCompressor:
                 compressed = self._compress_generic_content(content)
 
             # Ensure length limit
-            if len(compressed) > self.max_length:
+            compressed_tokens = self.token_calculator.count_tokens(compressed)
+            if compressed_tokens > self.max_length:
                 compressed = self._intelligent_truncate(
                     compressed, self.max_length)
 
-            compression_ratio = len(
-                compressed) / original_length if original_length > 0 else 1.0
+            compressed_tokens = self.token_calculator.count_tokens(compressed)
+            compression_ratio = compressed_tokens / \
+                original_length if original_length > 0 else 1.0
             processing_time = time.time() - start_time
 
             return CompressionResult(
@@ -181,9 +185,16 @@ class GenericCompressor:
         try:
             data = json.loads(content)
             # Simple API response compression - keep structure but limit depth
-            return json.dumps(data, indent=2, ensure_ascii=False)[:self.max_length]
+            json_str = json.dumps(data, indent=2, ensure_ascii=False)
+            # Truncate based on tokens
+            if self.token_calculator.count_tokens(json_str) > self.max_length:
+                return self._intelligent_truncate(json_str, self.max_length)
+            return json_str
         except:
-            return content[:self.max_length]
+            # Fallback: truncate based on tokens
+            if self.token_calculator.count_tokens(content) > self.max_length:
+                return self._intelligent_truncate(content, self.max_length)
+            return content
 
     def _compress_generic_content(self, content: str) -> str:
         """Generic content compression using simple heuristics"""
@@ -204,29 +215,39 @@ class GenericCompressor:
             compressed_sentences.append(sentence)
 
             # Limit total length
-            if len(' '.join(compressed_sentences)) > self.max_length * 0.8:
+            current_text = ' '.join(compressed_sentences)
+            if self.token_calculator.count_tokens(current_text) > self.max_length * 0.8:
                 break
 
         return '. '.join(compressed_sentences)
 
     def _intelligent_truncate(self, content: str, max_length: int) -> str:
-        """Intelligently truncate content to max_length"""
-        if len(content) <= max_length:
+        """Intelligently truncate content to max_length (in tokens)"""
+        if self.token_calculator.count_tokens(content) <= max_length:
             return content
 
         # Try to truncate at sentence boundaries
         sentences = re.split(r'[.!?]+', content)
         truncated = ""
         for sentence in sentences:
-            if len(truncated + sentence) + 1 > max_length:
+            test_text = truncated + sentence + ". "
+            if self.token_calculator.count_tokens(test_text) > max_length:
                 break
-            truncated += sentence + ". "
+            truncated = test_text
 
         if len(truncated) > 0:
             return truncated.rstrip()
         else:
-            # Fallback to hard truncation
-            return content[:max_length]
+            # Fallback to hard truncation based on tokens
+            # Gradually truncate character by character until token limit is reached
+            truncated_content = ""
+            for char in content:
+                test_content = truncated_content + char
+                if self.token_calculator.count_tokens(test_content) > max_length:
+                    break
+                truncated_content = test_content
+            # Final fallback to first 100 chars
+            return truncated_content if truncated_content else content[:100]
 
     def _extract_key_info(self, content: str) -> List[str]:
         """Extract key information from compressed content"""
@@ -250,9 +271,9 @@ class GenericCompressor:
 class IterationCompressor:
     """Compressor for MCP tool iteration contexts"""
 
-    def __init__(self, max_context_length: int = 8000):
+    def __init__(self, max_context_length: int, token_calculator: TokenCalculator):
         self.max_context_length = max_context_length
-        self.generic_compressor = GenericCompressor(max_length=4000)
+        self.token_calculator = token_calculator
 
     def compress_iteration_context(
         self,
@@ -299,13 +320,14 @@ class IterationCompressor:
         }
         return config.get(age, 0.3)
 
-    def _compress_single_result(self, result: Dict[str, Any], retention_ratio: float) -> Dict[str, Any]:
+    def _compress_single_result(self, result: dict, retention_ratio: float) -> dict:
         """Compress a single tool result based on retention ratio"""
         compressed = result.copy()
 
         # Compress content field if it exists
         if 'content' in compressed and isinstance(compressed['content'], str):
-            original_length = len(compressed['content'])
+            original_length = self.token_calculator.count_tokens(
+                compressed['content'])
             target_length = int(original_length * retention_ratio)
 
             if target_length < original_length:
@@ -317,7 +339,10 @@ class IterationCompressor:
                 except ValueError:
                     content_type_enum = ContentType.GENERIC
 
-                compressor = GenericCompressor(max_length=target_length)
+                compressor = GenericCompressor(
+                    max_length=target_length,
+                    token_calculator=self.token_calculator
+                )
                 compression_result = compressor.compress(
                     compressed['content'],
                     content_type=content_type_enum
@@ -325,15 +350,17 @@ class IterationCompressor:
                 compressed['content'] = compression_result.compressed_content
                 compressed['compression_info'] = {
                     'original_length': original_length,
-                    'compressed_length': len(compression_result.compressed_content),
+                    'compressed_length': self.token_calculator.count_tokens(
+                        compression_result.compressed_content),
                     'compression_ratio': compression_result.compression_ratio
                 }
 
         return compressed
 
     def _ensure_total_length(self, context: List[Dict[str, Any]], max_length: int) -> List[Dict[str, Any]]:
-        """Ensure total context length doesn't exceed max_length"""
-        total_length = sum(len(str(result)) for result in context)
+        """Ensure total context length doesn't exceed max_length (in tokens)"""
+
+        total_length = self.token_calculator.count_messages_tokens(context)
 
         if total_length <= max_length:
             return context
@@ -344,7 +371,8 @@ class IterationCompressor:
 
         for result in reversed(sorted_context):  # Start from most recent
             compressed_context.insert(0, result)
-            current_length = sum(len(str(r)) for r in compressed_context)
+            current_length = self.token_calculator.count_messages_tokens(
+                compressed_context)
 
             if current_length > max_length:
                 # Remove the oldest result if still over limit
@@ -358,11 +386,10 @@ class IterationCompressor:
 class ContextMonitor:
     """Monitor context length and trigger compression"""
 
-    def __init__(self, model_name: str):
-        from app.utils.token import TokenCalculator
-        self.token_calculator = TokenCalculator(model_name)
-        self.compression_threshold = 6000  # Trigger compression at 6000 chars
-        self.max_context_length = self.token_calculator.get_max_context_tokens()
+    def __init__(self, token_calculator: TokenCalculator, compression_threshold: int):
+        self.token_calculator = token_calculator
+        self.compression_threshold = compression_threshold
+        self.max_context_length = token_calculator.get_max_context_tokens()
 
     def check_and_compress(self, tool_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
@@ -371,20 +398,22 @@ class ContextMonitor:
         2. Trigger compression if over threshold
         3. Return compressed results
         """
-        total_chars = sum(len(str(result)) for result in tool_results)
+        total_tokens = self.token_calculator.count_messages_tokens(
+            tool_results)
 
-        if total_chars < self.compression_threshold:
+        if total_tokens < self.compression_threshold:
             return tool_results
 
         logger.info(
             "Context length exceeds threshold, triggering compression",
-            total_chars=total_chars,
+            total_tokens=total_tokens,
             threshold=self.compression_threshold
         )
 
         # Compress results
         compressor = GenericCompressor(
-            max_length=self.compression_threshold // len(tool_results) or 1000)
+            max_length=self.compression_threshold // len(tool_results) or 1000,
+            token_calculator=self.token_calculator)
 
         compressed_results = []
         for result in tool_results:
@@ -404,8 +433,8 @@ class ContextMonitor:
                 compressed_result = result.copy()
                 compressed_result['content'] = compression_result.compressed_content
                 compressed_result['compression_info'] = {
-                    'original_length': len(result['content']),
-                    'compressed_length': len(compression_result.compressed_content),
+                    'original_length': self.token_calculator.count_tokens(result['content']),
+                    'compressed_length': self.token_calculator.count_tokens(compression_result.compressed_content),
                     'compression_ratio': compression_result.compression_ratio
                 }
                 compressed_results.append(compressed_result)
@@ -416,4 +445,4 @@ class ContextMonitor:
 
     def estimate_tokens(self, content: str) -> int:
         """Estimate token count for content"""
-        return self.token_calculator.estimate_tokens(content)
+        return self.token_calculator.count_tokens(content)

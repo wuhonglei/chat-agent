@@ -2,7 +2,7 @@
 import asyncio
 import json
 from collections.abc import AsyncGenerator
-from typing import Any, Optional, cast
+from typing import Any, Optional
 
 from openai.types.chat import ChatCompletionMessage, ChatCompletionMessageFunctionToolCall
 
@@ -35,7 +35,8 @@ class MCPToolsAgent(BaseAgent):
         compression_config = settings.compression.iteration_compression
         # Iteration compressor for managing context between iterations
         self.iteration_compressor = IterationCompressor(
-            max_context_length=compression_config.max_iteration_context_length
+            max_context_length=compression_config.max_iteration_context_length,
+            token_calculator=self.token_calculator
         )
         self.compression_trigger_threshold = compression_config.compression_trigger_threshold
 
@@ -326,9 +327,8 @@ class MCPToolsAgent(BaseAgent):
                 yield tool_call_result_message
 
             # Perform iteration context compression if needed
-            # Check if compression is needed based on context length
-            # Use token count instead of character count for more accurate measurement
-            current_context_length = self.token_calculator.count_messages_tokens(self.output_messages)
+            current_context_length = self.token_calculator.count_messages_tokens(
+                self.output_messages)
 
             if current_context_length > self.compression_trigger_threshold and iteration < max_total_iterations - 1:
                 logger.debug(
@@ -339,7 +339,7 @@ class MCPToolsAgent(BaseAgent):
                 )
 
                 # Compress the context
-                compressed_context = self.iteration_compressor.compress_iteration_context(
+                compressed_context: list[dict] = self.iteration_compressor.compress_iteration_context(
                     current_results=current_iteration_results,
                     historical_context=compressed_historical_context,
                     iteration=iteration
@@ -352,8 +352,8 @@ class MCPToolsAgent(BaseAgent):
                     "Iteration context compressed",
                     iteration=iteration + 1,
                     original_length=current_context_length,
-                    compressed_length=sum(len(str(msg))
-                                          for msg in compressed_context)
+                    compressed_length=self.token_calculator.count_messages_tokens(
+                        compressed_context)
                 )
 
         # If we hit max iterations, return error message

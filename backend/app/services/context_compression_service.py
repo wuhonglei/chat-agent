@@ -7,6 +7,7 @@ from app.core.config import settings
 from app.utils.compression import ContextMonitor
 from app.utils.logger import logger
 from app.utils.time import get_current_time, get_time_duration
+from app.utils.token import TokenCalculator
 
 
 @dataclass
@@ -23,17 +24,18 @@ class CompressionResult:
 class ContextCompressionService:
     """Service for handling context compression operations"""
 
-    def __init__(self, model_name: str):
+    def __init__(self, model_name: str, token_calculator: TokenCalculator, compression_threshold: int):
         """
         Initialize context compression service
 
         Args:
             model_name: LLM model name for token calculations
+            token_calculator: Token calculator for token calculations
         """
         self.model_name = model_name
-        self.context_monitor = ContextMonitor(model_name)
-        # Set compression threshold from config
-        self.context_monitor.compression_threshold = settings.compression.iteration_compression.compression_trigger_threshold
+        self.token_calculator = token_calculator
+        self.context_monitor = ContextMonitor(
+            token_calculator, compression_threshold)
 
     async def compress_tool_messages(
         self,

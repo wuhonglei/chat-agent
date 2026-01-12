@@ -2,16 +2,14 @@
 
 from collections.abc import AsyncGenerator
 from typing import Any, Dict, List, Literal, Optional
-import time
 
 from app.agents.base import BaseAgent
 from app.schemas.config import LLMConfig
-from app.schemas.token_stats import BaseTokenStats, TokenUsage
+from app.schemas.token_stats import BaseTokenStats
 from app.utils.compression import (
     GenericCompressor,
     IterationCompressor,
     ContextMonitor,
-    CompressionResult,
     ContentType
 )
 from app.utils.logger import logger
@@ -36,9 +34,11 @@ class ContextCompressionAgent(BaseAgent):
         self.tool_result_compressor = ToolResultCompressor(
             llm_config, self.compression_config)
         self.iteration_compressor = IterationCompressor(
-            max_context_length=self.compression_config.iteration_compression.max_iteration_context_length
+            max_context_length=self.compression_config.iteration_compression.max_iteration_context_length,
+            token_calculator=self.token_calculator
         )
-        self.context_monitor = ContextMonitor(llm_config.model_name)
+        self.context_monitor = ContextMonitor(
+            llm_config.model_name, token_calculator=self.token_calculator)
 
         # Compression stats
         self.compression_stats = {

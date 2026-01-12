@@ -291,6 +291,15 @@ class TokenCalculator:
         """
         return len(self.encoding.encode(text or ""))
 
+    def count_message_tokens(self, message: dict | BaseModel) -> int:
+        total_tokens = 0
+        message = normalize_to_dict(message)
+        total_tokens += self.count_tokens(message.get("content", ""))
+        total_tokens += self.count_tokens(message.get("reasoning_content", ""))
+        total_tokens += self.count_tokens(
+            json.dumps(message.get("tool_calls", [])))
+        return total_tokens
+
     def count_messages_tokens(self, messages: list[dict | BaseModel]) -> int:
         """
         计算消息列表的 token 数量
@@ -310,21 +319,6 @@ class TokenCalculator:
 
         for message in messages:
             total_tokens += base_tokens_per_message
-            message = normalize_to_dict(message)
-
-            # 计算 content 的 token
-            content = message.get("content", "")
-            if content:
-                total_tokens += self.count_tokens(content)
-
-            # 计算 reasoning_content 的 token（如果存在）
-            reasoning_content = message.get("reasoning_content", "")
-            if reasoning_content:
-                total_tokens += self.count_tokens(reasoning_content)
-
-            # 计算 tool_calls 的 token（如果存在）
-            tool_calls = message.get("tool_calls", [])
-            if tool_calls:
-                total_tokens += self.count_tokens(json.dumps(tool_calls))
+            total_tokens += self.count_message_tokens(message)
 
         return total_tokens
