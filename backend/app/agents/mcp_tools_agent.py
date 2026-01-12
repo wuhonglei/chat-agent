@@ -11,7 +11,7 @@ from app.schemas.config import LLMConfig
 from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallResultMessage
 from app.schemas.token_stats import MCPToolsTokenStats
 from app.utils.logger import logger
-from app.utils.message import format_tool_call_message_for_llm, format_tool_call_messages_for_llm
+from app.utils.message import format_tool_call_messages_for_llm
 from app.utils.time import get_current_time, get_time_duration
 from app.utils.mcp import extract_tool_call_names, count_tool_calls
 from app.utils.compression import IterationCompressor
@@ -38,6 +38,41 @@ class MCPToolsAgent(BaseAgent):
             max_context_length=compression_config.max_iteration_context_length
         )
         self.compression_trigger_threshold = compression_config.compression_trigger_threshold
+
+    def _calculate_message_content_length(self, msg: ToolCallMessage) -> int:
+        """
+        计算消息的实际内容长度（用于上下文压缩判断）
+        
+        对于 AssistantToolCallMessage：计算 content + reasoning_content + tool_calls（序列化为 JSON）
+        对于 ToolCallResultMessage：计算 content
+        
+        Args:
+            msg: 工具调用消息对象
+            
+        Returns:
+            消息的实际内容长度（字符数）
+        """
+        length = 0
+        
+        if isinstance(msg, AssistantToolCallMessage):
+            # 计算 content
+            if msg.content:
+                length += len(msg.content)
+            
+            # 计算 reasoning_content
+            if msg.reasoning_content:
+                length += len(msg.reasoning_content)
+            
+            # 计算 tool_calls（序列化为 JSON）
+            if msg.tool_calls:
+                length += len(json.dumps(msg.tool_calls, ensure_ascii=False))
+        
+        elif isinstance(msg, ToolCallResultMessage):
+            # 计算 content
+            if msg.content:
+                length += len(msg.content)
+        
+        return length
 
     def get_server_names(self, mcp_auto_mode: bool, source_config: dict) -> list[str]:
         """获取MCP工具服务器名称"""
@@ -319,16 +354,17 @@ class MCPToolsAgent(BaseAgent):
             # The iterations_by_tool dictionary is kept for defensive checks in execute_single_tool
 
             # Yield results in original order and collect them
-            current_iteration_results: list[dict] = []
+            current_iteration_results: list[ToolCallMessage] = []
             for tool_call_result_message in tool_results:
                 self.output_messages.append(tool_call_result_message)
-                current_iteration_results.append(
-                    format_tool_call_message_for_llm(tool_call_result_message))
+                current_iteration_results.append(tool_call_result_message)
                 yield tool_call_result_message
 
             # Perform iteration context compression if needed
             # Check if compression is needed based on context length
-            current_context_length = sum(len(str(msg))
+            # Calculate actual content length: content + reasoning_content + tool_calls for AssistantToolCallMessage,
+            # and content for ToolCallResultMessage
+            current_context_length = sum(self._calculate_message_content_length(msg)
                                          for msg in self.output_messages)
 
             if current_context_length > self.compression_trigger_threshold and iteration < max_total_iterations - 1:
@@ -341,7 +377,7 @@ class MCPToolsAgent(BaseAgent):
 
                 # Compress the context
                 compressed_context = self.iteration_compressor.compress_iteration_context(
-                    current_iteration_results=current_iteration_results,
+                    current_results=current_iteration_results,
                     historical_context=compressed_historical_context,
                     iteration=iteration
                 )
