@@ -37,52 +37,140 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
     def __init__(self, settings_cls: type[BaseSettings]):
         super().__init__(settings_cls)
         self._config_cache: dict[str, Any] | None = None
+        self._nacos_client: NacosClient | None = None
+        self._connection_config: NacosConnectionConfig | None = None
+        self._watcher_started: bool = False
 
-    def _get_nacos_config(self) -> dict[str, Any]:
-        """从 Nacos 获取配置"""
-        # 如果已经缓存，直接返回
-        if self._config_cache is not None:
-            return self._config_cache
+    def _config_change_listener(self, config_content) -> None:
+        """配置变化回调函数
 
-        # 使用 pydantic_settings 从环境变量读取 Nacos 配置信息
-        nacos_conn_config = NacosConnectionConfig()
+        当 Nacos 配置发生变化时，此函数会被自动调用来更新缓存
+        """
+        if not config_content:
+            logger.warning("收到空的配置内容，跳过更新")
+            return
+
+        try:
+            # 处理不同格式的配置内容
+            actual_content = None
+            if isinstance(config_content, dict):
+                # 如果是字典格式，提取实际的配置内容
+                actual_content = config_content.get(
+                    'content') or config_content.get('raw_content')
+            elif isinstance(config_content, str):
+                # 如果是字符串格式，直接使用
+                actual_content = config_content
+            else:
+                logger.warning(f"不支持的配置内容格式: {type(config_content)}")
+                return
+
+            if not actual_content:
+                logger.warning("未找到有效的配置内容")
+                return
+
+            # 根据配置类型解析新的配置内容
+            if self._connection_config and self._connection_config.config_type == "yaml":
+                new_config = yaml.safe_load(actual_content) or {}
+            elif self._connection_config and self._connection_config.config_type == "json":
+                new_config = json.loads(actual_content)
+            else:
+                logger.warning(
+                    f"不支持的配置类型: {self._connection_config.config_type if self._connection_config else 'unknown'}")
+                return
+
+            # 更新缓存
+            self._config_cache = new_config
+
+            logger.info(
+                "Nacos 配置已更新",
+                data_id=self._connection_config.data_id if self._connection_config else "unknown",
+                group=self._connection_config.group if self._connection_config else "unknown"
+            )
+
+        except Exception as e:
+            logger.error(
+                "处理配置更新时发生错误",
+                error=e,
+                config_type=type(config_content).__name__,
+                has_content=bool(config_content)
+            )
+
+    def _ensure_nacos_client(self) -> None:
+        """确保 Nacos 客户端已初始化并启动监听器"""
+        if self._nacos_client is not None:
+            return
+
+        # 初始化连接配置
+        if self._connection_config is None:
+            self._connection_config = NacosConnectionConfig()
 
         try:
             # 初始化 Nacos 客户端
             client_kwargs = {
-                "server_addresses": nacos_conn_config.server_addresses,
+                "server_addresses": self._connection_config.server_addresses,
             }
-            if nacos_conn_config.namespace:
-                client_kwargs["namespace"] = nacos_conn_config.namespace
-            if nacos_conn_config.username and nacos_conn_config.password:
-                client_kwargs["username"] = nacos_conn_config.username
-                client_kwargs["password"] = nacos_conn_config.password
+            if self._connection_config.namespace:
+                client_kwargs["namespace"] = self._connection_config.namespace
+            if self._connection_config.username and self._connection_config.password:
+                client_kwargs["username"] = self._connection_config.username
+                client_kwargs["password"] = self._connection_config.password
 
-            client = NacosClient(**client_kwargs)
+            self._nacos_client = NacosClient(**client_kwargs)
+
+            # 启动配置监听器（只启动一次）
+            if not self._watcher_started:
+                self._nacos_client.add_config_watcher(
+                    data_id=self._connection_config.data_id,
+                    group=self._connection_config.group,
+                    cb=self._config_change_listener
+                )
+                self._watcher_started = True
+                logger.info(
+                    "Nacos 配置监听器已启动",
+                    data_id=self._connection_config.data_id,
+                    group=self._connection_config.group
+                )
+
+        except Exception as e:
+            logger.error(
+                "Failed to initialize Nacos client",
+                error=e,
+            )
+            raise
+
+    def _get_nacos_config(self) -> dict[str, Any]:
+        """从 Nacos 获取配置"""
+        # 如果已经缓存且客户端已初始化，直接返回缓存
+        if self._config_cache is not None and self._nacos_client is not None:
+            return self._config_cache
+
+        try:
+            # 确保客户端已初始化
+            self._ensure_nacos_client()
 
             # 获取配置内容
-            config_content = client.get_config(
-                data_id=nacos_conn_config.data_id,
-                group=nacos_conn_config.group,
+            config_content = self._nacos_client.get_config(
+                data_id=self._connection_config.data_id,
+                group=self._connection_config.group,
                 timeout=5,
             )
 
             if not config_content:
                 raise ValueError(
                     f"Failed to get config from Nacos: "
-                    f"data_id={nacos_conn_config.data_id}, "
-                    f"group={nacos_conn_config.group}"
+                    f"data_id={self._connection_config.data_id}, "
+                    f"group={self._connection_config.group}"
                 )
 
             # 根据配置类型解析
-            if nacos_conn_config.config_type == "yaml":
+            if self._connection_config.config_type == "yaml":
                 parsed_config = yaml.safe_load(config_content) or {}
-            elif nacos_conn_config.config_type == "json":
+            elif self._connection_config.config_type == "json":
                 parsed_config = json.loads(config_content)
             else:
                 logger.warning(
                     f"Warning: Unsupported config type: "
-                    f"{nacos_conn_config.config_type}"
+                    f"{self._connection_config.config_type}"
                 )
                 parsed_config = {}
 
@@ -91,7 +179,6 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
 
         except Exception as e:
             # 如果 Nacos 配置获取失败，记录错误但不中断程序
-
             logger.error(
                 "Failed to load config from Nacos",
                 error=e,
@@ -124,3 +211,22 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
     def __call__(self) -> dict[str, Any]:
         """加载并返回配置字典"""
         return self._get_nacos_config()
+
+    def close(self) -> None:
+        """关闭 Nacos 客户端连接"""
+        if self._nacos_client:
+            try:
+                self._nacos_client.close()
+                logger.info("Nacos 客户端连接已关闭")
+            except Exception as e:
+                logger.error(
+                    "关闭 Nacos 客户端连接时发生错误",
+                    error=e
+                )
+            finally:
+                self._nacos_client = None
+                self._watcher_started = False
+
+    def __del__(self) -> None:
+        """析构函数，确保资源被正确清理"""
+        self.close()
