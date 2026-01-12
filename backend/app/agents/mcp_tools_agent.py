@@ -133,6 +133,23 @@ class MCPToolsAgent(BaseAgent):
             logger.info("Tool call iteration started", iteration=iteration +
                         1, max_iterations=max_total_iterations)
 
+            # Filter out tools that have reached max iterations BEFORE calling LLM
+            # This prevents LLM from seeing tools it cannot use
+            original_count = len(tools)
+            tools[:] = [
+                tool for tool in tools
+                if iterations_by_tool.get(tool.get("function", {}).get("name"), 0) > 0
+            ]
+            filtered_count = original_count - len(tools)
+
+            if filtered_count > 0:
+                logger.info(
+                    "Pre-filtered tools that reached max iterations",
+                    filtered_out=filtered_count,
+                    remaining_tools=len(tools),
+                    iteration=iteration + 1,
+                )
+
             # Call LLM with tools
             # 格式化 collected_messages，过滤掉额外的字段（如 token_count, duration, is_error）
             formatted_collected_messages = format_tool_call_messages_for_llm(
@@ -179,7 +196,6 @@ class MCPToolsAgent(BaseAgent):
             )
 
             # Execute tool calls in parallel and stream results
-            tools_to_remove = set()  # 收集需要移除的工具名称
 
             async def execute_single_tool(tool_call: Any) -> ToolCallResultMessage:
                 """Execute a single tool call and return the result message"""
@@ -203,8 +219,7 @@ class MCPToolsAgent(BaseAgent):
                         tool_name=tool_name,
                         iteration=iteration + 1,
                     )
-                    # 标记该工具需要从列表中移除
-                    tools_to_remove.add(tool_name)
+                    # Note: Tool should have been filtered out before LLM call, this is defensive check
                     return ToolCallResultMessage(**{
                         "role": "tool",
                         "is_error": True,
@@ -216,9 +231,7 @@ class MCPToolsAgent(BaseAgent):
                 # Decrement AFTER checking
                 iterations_by_tool[tool_name] -= 1
 
-                # 如果工具达到上限，标记需要移除
-                if iterations_by_tool[tool_name] <= 0:
-                    tools_to_remove.add(tool_name)
+                # Note: Tools are pre-filtered before LLM call, this decrement is for tracking only
 
                 try:
                     # Call the tool via MCP manager
@@ -299,24 +312,8 @@ class MCPToolsAgent(BaseAgent):
             # Execute all tasks in parallel
             tool_results = await asyncio.gather(*tasks)
 
-            # Remove tools that have reached max iterations from the tools list
-            if tools_to_remove:
-                original_count = len(tools)
-                tools[:] = [
-                    tool for tool in tools
-                    if tool.get("function", {}).get("name") not in tools_to_remove
-                ]
-                # 注意：不从 iterations_by_tool 移除记录，保留用于防御性检查
-                # 如果 LLM 错误地尝试调用已移除的工具，可以通过 iterations_by_tool[tool_name] <= 0 判断
-                removed_count = original_count - len(tools)
-                logger.info(
-                    "Removed tools that reached max iterations",
-                    removed_tools=list(tools_to_remove),
-                    removed_count=removed_count,
-                    remaining_tools=len(tools),
-                    iteration=iteration + 1,
-                )
-                tools_to_remove.clear()  # 清空集合，为下次迭代准备
+            # Note: Tools are now pre-filtered before LLM call, so no need to remove them here
+            # The iterations_by_tool dictionary is kept for defensive checks in execute_single_tool
 
             # Yield results in original order and collect them
             for tool_call_result_message in tool_results:
