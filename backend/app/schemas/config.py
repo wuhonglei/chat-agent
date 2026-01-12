@@ -14,34 +14,37 @@ class AppConfig(BaseModel):
 
 class LLMConfig(BaseModel):
     """LLM 模型 API 配置"""
-    api_key: str
-    api_base: str = "https://api.deepseek.com/v1"
-    model_name: str = "deepseek-chat"
-    think_model_name: str = "deepseek-reasoner"
+    api_key: str = Field(description="LLM API 密钥")
+    api_base: str = Field(description="LLM API 基础地址")
+    model_name: str = Field(description="默认模型名称")
+    think_model_name: str = Field(description="推理模型名称")
 
 
 class Context7Config(BaseModel):
     """Context7 MCP 配置"""
-    api_key: str = ""
+    api_key: str = Field(description="Context7 API 密钥")
 
 
 class ConfluenceMCPConfig(BaseModel):
     """Confluence MCP 配置"""
-    CONFLUENCE_URL: str = ""  # 与环境变量名一致
-    CONFLUENCE_PERSONAL_TOKEN: str = ""  # 与环境变量名一致
-    CONFLUENCE_AUTH_TYPE: str = "pat"  # 认证类型：pat, basic, oauth，与环境变量名一致
+    CONFLUENCE_URL: str = Field(description="Confluence URL")  # 与环境变量名一致
+    CONFLUENCE_PERSONAL_TOKEN: str = Field(
+        description="Confluence Personal Token")  # 与环境变量名一致
+    # 认证类型：pat, basic, oauth，与环境变量名一致
+    CONFLUENCE_AUTH_TYPE: str = Field(
+        description="Confluence 认证类型：pat, basic, oauth")
 
 
 class WeatherMCPConfig(BaseModel):
     """Weather MCP 配置"""
-    QWEATHER_API_KEY: str = ""  # 与环境变量名一致
-    QWEATHER_BASE_URL: str = ""  # 与环境变量名一致
-    QWEATHER_TIMEOUT: int = 10  # 与环境变量名一致
+    QWEATHER_API_KEY: str = Field(description="和风天气 API 密钥")  # 与环境变量名一致
+    QWEATHER_BASE_URL: str = Field(description="和风天气 API 基础地址")  # 与环境变量名一致
+    QWEATHER_TIMEOUT: int = Field(description="和风天气 API 超时时间")  # 与环境变量名一致
 
 
 class TavilyMCPConfig(BaseModel):
     """Tavily MCP 配置"""
-    TAVILY_API_KEY: str = ""  # 与环境变量名一致
+    TAVILY_API_KEY: str = Field(description="Tavily API 密钥")  # 与环境变量名一致
 
 
 class MCPConfig(BaseModel):
@@ -76,10 +79,10 @@ class StorageConfig(BaseModel):
 
 class JWTConfig(BaseModel):
     """JWT 安全配置"""
-    version: str = "v1"
-    algorithm: str = "RS256"
-    private_key: str = ""  # 私钥内容（PEM 格式）
-    public_key: str = ""  # 公钥内容（PEM 格式）
+    version: str = Field(description="JWT 版本")
+    algorithm: str = Field(description="JWT 算法")
+    private_key: str = Field(description="私钥内容（PEM 格式）")
+    public_key: str = Field(description="公钥内容（PEM 格式）")
 
 
 class SecurityConfig(BaseModel):
@@ -94,13 +97,11 @@ class CloudbaseConfig(BaseModel):
 
 class DatabaseConfig(BaseModel):
     """PostgreSQL 数据库配置"""
-    host: str = "localhost"
-    port: int = 5432
-    db: str = "ai_assistant_db"
-    username: str = Field(...,
-                          description="The username of the PostgreSQL database")
-    password: str = Field(...,
-                          description="The password of the PostgreSQL database")
+    host: str = Field(description="PostgreSQL 数据库主机")
+    port: int = Field(description="PostgreSQL 数据库端口")
+    db: str = Field(description="PostgreSQL 数据库名称")
+    username: str = Field(description="PostgreSQL 数据库用户名")
+    password: str = Field(description="PostgreSQL 数据库密码")
 
 
 class SingleRoundConfig(BaseModel):

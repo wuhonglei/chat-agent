@@ -1,19 +1,11 @@
-class Test:
-    """Test class"""
-    shared_state = {
-        'count': 0
-    }
-
-    def __init__(self):
-        self.name = "Test"
-
-    def test(self):
-        self.shared_state['count'] += 1
+from typing import Optional
+from pydantic import BaseModel, Field
 
 
-test1 = Test()
-test2 = Test()
-test1.test()
-test2.test()
-print(test1.shared_state['count'])
-print(test2.shared_state['count'])
+class Test(BaseModel):
+    name: str = Field(description="name")
+    age: Optional[int] = Field(default=None, description="age")
+
+
+test = Test(name="John")
+print(test.model_dump())
