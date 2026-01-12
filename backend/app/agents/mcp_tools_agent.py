@@ -4,7 +4,7 @@ import json
 from collections.abc import AsyncGenerator
 from typing import Any, Optional, cast
 
-from openai.types.chat import ChatCompletionMessage
+from openai.types.chat import ChatCompletionMessage, ChatCompletionMessageFunctionToolCall
 
 from app.schemas.chat import ChatMessageItemReq, ChatRequest
 from app.schemas.config import LLMConfig
@@ -200,11 +200,9 @@ class MCPToolsAgent(BaseAgent):
                 assistant_message=assistant_message.model_dump(),
             )
 
-            # Execute tool calls in parallel and stream results
-
-            async def execute_single_tool(tool_call: Any) -> ToolCallResultMessage:
+            async def execute_single_tool(tool_call: ChatCompletionMessageFunctionToolCall) -> ToolCallResultMessage:
                 """Execute a single tool call and return the result message"""
-                tool_name = cast(str, tool_call.function.name)
+                tool_name = tool_call.function.name
                 start_time = get_current_time()
 
                 # 正常情况下，所有工具都应该在 iterations_by_tool 中（初始化时同步）
@@ -313,7 +311,7 @@ class MCPToolsAgent(BaseAgent):
             )
             # Create tasks for all tool calls
             tasks = [execute_single_tool(
-                tool_call) for tool_call in assistant_message.tool_calls]
+                tool_call) for tool_call in assistant_message.tool_calls if tool_call is not None]
             # Execute all tasks in parallel
             tool_results = await asyncio.gather(*tasks)
 
