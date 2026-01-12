@@ -14,6 +14,7 @@ from pydantic_settings import (
 from app.schemas.config import (
     AppConfig,
     CloudbaseConfig,
+    CompressionConfig,
     DatabaseConfig,
     LLMConfig,
     MCPConfig,
@@ -156,6 +157,8 @@ class Settings(BaseSettings):
     cloudbase: CloudbaseConfig = Field(..., description="Cloudbase 配置")
     database: DatabaseConfig = Field(..., description="数据库配置")
     component_schema_api_url: str = Field(..., description="组件 Schema API 地址")
+    compression: CompressionConfig = Field(
+        default_factory=CompressionConfig, description="上下文压缩配置")
 
     model_config = SettingsConfigDict(
         extra='allow',

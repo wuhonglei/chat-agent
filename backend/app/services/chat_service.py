@@ -8,11 +8,13 @@ from app.utils.logger import logger
 from app.utils.time import get_current_time, get_time_duration
 from app.mcp.mcp_client import MCPClientManager
 from app.services.component_schema_service import ComponentSchemaService
+from app.services.context_compression_service import ContextCompressionService
 from app.agents import (
     MCPToolsAgent,
     ComponentToolsAgent,
     ResponseGenerationAgent,
     TitleGenerationAgent,
+    ContextCompressionAgent,
 )
 from app.utils.model import format_sse_message
 
@@ -36,6 +38,12 @@ class ChatService:
         # 响应生成和标题生成使用llm配置
         self.response_generation_agent = ResponseGenerationAgent(
             think_mode=think_mode, llm_config=settings.response_model, schema_service=self.schema_service)
+        # 上下文压缩Agent
+        self.context_compression_agent = ContextCompressionAgent(
+            think_mode=False, llm_config=settings.tool_call_model)
+        # 上下文压缩服务
+        self.context_compression_service = ContextCompressionService(
+            model_name=settings.tool_call_model.model_name)
 
     async def stream_message(
         self,
@@ -97,13 +105,35 @@ class ChatService:
                 logger.debug(
                     "Skipping component tools agent (no component tools)")
 
+            # 阶段2.5: 上下文压缩（可选，在MCP工具和响应生成之间）
+            compression_result = await self.context_compression_service.compress_tool_messages(
+                self.mcp_tools_agent.output_messages
+            )
+            compressed_mcp_messages = compression_result.compressed_messages
+
+            # Log compression statistics
+            if compression_result.was_compressed:
+                logger.debug(
+                    "Context compression applied",
+                    duration=compression_result.duration,
+                    original_length=compression_result.original_length,
+                    compressed_length=compression_result.compressed_length,
+                    compression_ratio=compression_result.compression_ratio,
+                )
+            else:
+                logger.debug(
+                    "Context compression skipped - below threshold",
+                    original_length=compression_result.original_length,
+                    threshold=self.context_compression_service.context_monitor.compression_threshold
+                )
+
             # 阶段3: 最终响应生成
             logger.debug("Starting response generation agent execution")
             response_start_time = get_current_time()
             async for chunk in self.response_generation_agent.stream_execute(
                 history,
                 user_message,
-                self.mcp_tools_agent.output_messages,
+                compressed_mcp_messages,
                 self.component_tools_agent.output_messages,
             ):
                 yield chunk

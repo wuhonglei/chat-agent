@@ -46,8 +46,6 @@ async def tavily_search(
         default=False, description="Also perform an image search and include the results in the response"),
     include_image_descriptions: bool = Field(
         default=False, description="When include_images is true, also add a descriptive text for each image"),
-    include_favicon: bool = Field(
-        default=True, description="Whether to include the favicon URL for each result"),
     include_domains: List[str] = Field(
         default=None, description="A list of domains to specifically include in the search results (max 300 domains)"),
     exclude_domains: List[str] = Field(
@@ -74,7 +72,6 @@ async def tavily_search(
             end_date=end_date,
             include_images=include_images,
             include_image_descriptions=include_image_descriptions,
-            include_favicon=include_favicon,
             include_domains=include_domains,
             exclude_domains=exclude_domains,
             country=country

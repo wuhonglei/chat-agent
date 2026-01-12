@@ -44,6 +44,15 @@ class TitleGenerationTokenStats(BaseTokenStats):
     title: Optional[str] = Field(None, description="生成的标题")
 
 
+class CompressionTokenStats(BaseTokenStats):
+    """上下文压缩的 Token 统计"""
+    compression_ratio: float = Field(..., description="压缩比例")
+    processing_time: float = Field(..., description="处理耗时（秒）")
+    original_content_length: Optional[int] = Field(None, description="原始内容长度")
+    compressed_content_length: Optional[int] = Field(
+        None, description="压缩后内容长度")
+
+
 class TotalTokenStats(BaseModel):
     """总 Token 统计（汇总所有阶段）"""
     mcp_tools: Optional[MCPToolsTokenStats] = Field(

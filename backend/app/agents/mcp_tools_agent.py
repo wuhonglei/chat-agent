@@ -14,9 +14,12 @@ from app.utils.logger import logger
 from app.utils.message import format_tool_call_messages_for_llm
 from app.utils.time import get_current_time, get_time_duration
 from app.utils.mcp import extract_tool_call_names, count_tool_calls
+from app.utils.compression import IterationCompressor
 from app.mcp.mcp_client import MCPClientManager
 from app.prompts import get_prompt_with_mcp_servers
 from app.agents.base import BaseAgent
+# Import compression config
+from app.core.config import settings
 
 
 class MCPToolsAgent(BaseAgent):
@@ -28,6 +31,13 @@ class MCPToolsAgent(BaseAgent):
         self.output_messages: list[ToolCallMessage] = []
         self.duration: Optional[float] = None
         self.token_stats: Optional[MCPToolsTokenStats] = None
+
+        compression_config = settings.compression.iteration_compression
+        # Iteration compressor for managing context between iterations
+        self.iteration_compressor = IterationCompressor(
+            max_context_length=compression_config['max_iteration_context_length']
+        )
+        self.compression_trigger_threshold = compression_config['compression_trigger_threshold']
 
     async def stream_execute(
         self,
@@ -115,6 +125,10 @@ class MCPToolsAgent(BaseAgent):
         tools = list(tools) if tools else []
         iterations_by_tool = {
             tool['function']['name']: max_iterations_by_tool for tool in tools}
+
+        # Store compressed historical context for iterations
+        compressed_historical_context: list[dict] = []
+
         for iteration in range(max_total_iterations):
             logger.info("Tool call iteration started", iteration=iteration +
                         1, max_iterations=max_total_iterations)
@@ -308,6 +322,52 @@ class MCPToolsAgent(BaseAgent):
             for tool_call_result_message in tool_results:
                 self.output_messages.append(tool_call_result_message)
                 yield tool_call_result_message
+
+            # Perform iteration context compression if needed
+            # Check if compression is needed based on context length
+            current_context_length = sum(len(str(msg))
+                                         for msg in self.output_messages)
+
+            if current_context_length > self.compression_trigger_threshold and iteration < max_total_iterations - 1:
+                logger.debug(
+                    "Compressing iteration context",
+                    iteration=iteration + 1,
+                    current_context_length=current_context_length,
+                    threshold=self.compression_trigger_threshold
+                )
+
+                # Get current iteration results (the tool results we just collected)
+                current_iteration_results = [
+                    msg for msg in self.output_messages
+                    if hasattr(msg, 'iteration') and getattr(msg, 'iteration', None) == iteration
+                ]
+
+                # If no iteration markers, use recent messages as current iteration
+                if not current_iteration_results:
+                    # Approximate: use the last N messages as current iteration
+                    # This is a heuristic since we don't have explicit iteration markers
+                    # assistant + tool results
+                    recent_messages = self.output_messages[-len(
+                        tool_results)*2:]
+                    current_iteration_results = recent_messages
+
+                # Compress the context
+                compressed_context = self.iteration_compressor.compress_iteration_context(
+                    current_results=current_iteration_results,
+                    historical_context=compressed_historical_context,
+                    iteration=iteration
+                )
+
+                # Update historical context for next iteration
+                compressed_historical_context = compressed_context
+
+                logger.debug(
+                    "Iteration context compressed",
+                    iteration=iteration + 1,
+                    original_length=current_context_length,
+                    compressed_length=sum(len(str(msg))
+                                          for msg in compressed_context)
+                )
 
         # If we hit max iterations, return error message
         logger.info(

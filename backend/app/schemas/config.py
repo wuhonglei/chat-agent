@@ -101,3 +101,33 @@ class DatabaseConfig(BaseModel):
                           description="The username of the PostgreSQL database")
     password: str = Field(...,
                           description="The password of the PostgreSQL database")
+
+
+class CompressionConfig(BaseModel):
+    """上下文压缩配置"""
+    enabled: bool = True
+
+    # 单轮压缩配置
+    single_round: dict = Field(default_factory=lambda: {
+        'max_web_content_length': 8000,      # 网页内容最大长度
+        'max_search_results': 10,            # 搜索结果最大数量
+        'max_generic_length': 4000,          # 通用内容最大长度
+    })
+
+    # 迭代间压缩配置
+    iteration_compression: dict = Field(default_factory=lambda: {
+        'max_iteration_context_length': 8000,  # 单次迭代最大上下文长度
+        'current_iteration_retention': 0.9,    # 当前迭代结果保留率
+        'recent_iteration_retention': 0.6,     # 最近迭代结果保留率
+        'early_iteration_retention': 0.3,      # 早期迭代结果保留率
+        'compression_trigger_threshold': 10000,  # 压缩触发阈值
+        'single_result_precompress_threshold': 3000,  # 单结果预压缩阈值
+    })
+
+    # 多轮压缩配置（为未来扩展预留）
+    multi_round: dict = Field(default_factory=lambda: {
+        'max_rounds': 5,                     # 最大保留轮次数
+        'time_decay_factor': 0.7,            # 时间衰减因子
+        'relevance_threshold': 0.6,          # 相关性阈值
+        'max_total_tokens': 25000,           # 总上下文最大token数
+    })
