@@ -1,11 +1,13 @@
 """Nacos 配置相关"""
 
 from typing import Any
-
+import json
 import yaml
 from nacos import NacosClient
 from pydantic import Field
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
+
+from app.utils.logger import logger
 
 
 class NacosConnectionConfig(BaseSettings):
@@ -76,16 +78,11 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
             if nacos_conn_config.config_type == "yaml":
                 parsed_config = yaml.safe_load(config_content) or {}
             elif nacos_conn_config.config_type == "json":
-                import json
-
                 parsed_config = json.loads(config_content)
             else:
-                # 其他类型暂不支持，返回空字典
-                import sys
-                print(
+                logger.warning(
                     f"Warning: Unsupported config type: "
-                    f"{nacos_conn_config.config_type}",
-                    file=sys.stderr,
+                    f"{nacos_conn_config.config_type}"
                 )
                 parsed_config = {}
 
@@ -94,8 +91,7 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
 
         except Exception as e:
             # 如果 Nacos 配置获取失败，记录错误但不中断程序
-            import sys
-            from app.utils.logger import logger
+
             logger.error(
                 "Failed to load config from Nacos",
                 error=e,

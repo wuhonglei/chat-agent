@@ -1,9 +1,5 @@
 """Application configuration"""
 
-from typing import Any
-
-import yaml
-from nacos import NacosClient
 from pydantic import Field
 from pydantic_settings import (
     BaseSettings,
@@ -11,7 +7,7 @@ from pydantic_settings import (
     SettingsConfigDict,
 )
 
-from app.core.nacos.config import NacosConfigSettingsSource, NacosConnectionConfig
+from app.core.nacos.config import NacosConfigSettingsSource
 from app.schemas.config import (
     AppConfig,
     CloudbaseConfig,
