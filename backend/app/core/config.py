@@ -24,16 +24,15 @@ class Settings(BaseSettings):
     """Application settings - 使用层级结构匹配 YAML 配置"""
 
     app: AppConfig = Field(default_factory=AppConfig)
-    response_model: LLMConfig = Field(..., description="响应生成模型 API 配置")
-    tool_call_model: LLMConfig = Field(..., description="mcp 工具调用模型 API 配置")
-    mcp: MCPConfig = Field(default_factory=MCPConfig)
-    storage: StorageConfig = Field(default_factory=StorageConfig)
-    security: SecurityConfig = Field(default_factory=SecurityConfig)
-    cloudbase: CloudbaseConfig = Field(..., description="Cloudbase 配置")
-    database: DatabaseConfig = Field(..., description="数据库配置")
-    component_schema_api_url: str = Field(..., description="组件 Schema API 地址")
-    compression: CompressionConfig = Field(
-        default_factory=CompressionConfig, description="上下文压缩配置")
+    response_model: LLMConfig = Field(description="响应生成模型 API 配置")
+    tool_call_model: LLMConfig = Field(description="mcp 工具调用模型 API 配置")
+    mcp: MCPConfig = Field(description="MCP 工具配置")
+    storage: StorageConfig = Field(description="S3 存储配置")
+    security: SecurityConfig = Field(description="JWT 安全配置")
+    cloudbase: CloudbaseConfig = Field(description="Cloudbase 配置")
+    database: DatabaseConfig = Field(description="PostgreSQL 数据库配置")
+    component_schema_api_url: str = Field(description="组件 Schema API URL")
+    compression: CompressionConfig = Field(description="上下文压缩配置")
 
     model_config = SettingsConfigDict(
         extra='allow',

@@ -1,25 +1,29 @@
 """Main FastAPI application"""
 
-from fastapi import HTTPException
-from contextlib import asynccontextmanager
-
-from fastapi import FastAPI
-from fastapi.exceptions import RequestValidationError
-from pydantic import ValidationError
-
-from app.api import auth, chat, health, conversation, message, user, file
-from app.core.config import settings
-from app.core.db import create_db_and_tables
-from app.mcp.mcp_client import get_mcp_manager
-from app.models import UserDb, ConversationDb, MessageDb  # 导入模型以注册表到 metadata
-from app.core.jwt import initialize_jwt_manager
-from app.middleware import LoggingMiddleware
+from app.utils.logger import logger, setup_logger
 from app.middleware.exception_handler import (
     general_exception_handler,
     http_exception_handler,
     validation_exception_handler,
 )
-from app.utils.logger import logger, setup_logger
+from app.middleware import LoggingMiddleware
+from app.core.jwt import initialize_jwt_manager
+from app.models import UserDb, ConversationDb, MessageDb  # 导入模型以注册表到 metadata
+from app.mcp.mcp_client import get_mcp_manager
+from app.core.db import create_db_and_tables
+from app.core.config import settings
+from app.api import auth, chat, health, conversation, message, user, file
+from pydantic import ValidationError
+from fastapi.exceptions import RequestValidationError
+from fastapi import FastAPI
+from contextlib import asynccontextmanager
+from fastapi import HTTPException
+import warnings
+
+# 忽略 nacos 库中的 SSL DeprecationWarning
+warnings.filterwarnings(
+    "ignore", category=DeprecationWarning, module="nacos.*")
+
 
 # 配置日志系统
 setup_logger(debug=settings.app.debug)
