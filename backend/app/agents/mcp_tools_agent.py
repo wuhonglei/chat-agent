@@ -35,9 +35,9 @@ class MCPToolsAgent(BaseAgent):
         compression_config = settings.compression.iteration_compression
         # Iteration compressor for managing context between iterations
         self.iteration_compressor = IterationCompressor(
-            max_context_length=compression_config['max_iteration_context_length']
+            max_context_length=compression_config.max_iteration_context_length
         )
-        self.compression_trigger_threshold = compression_config['compression_trigger_threshold']
+        self.compression_trigger_threshold = compression_config.compression_trigger_threshold
 
     async def stream_execute(
         self,

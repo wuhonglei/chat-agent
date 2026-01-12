@@ -33,8 +33,7 @@ class ContextCompressionService:
         self.model_name = model_name
         self.context_monitor = ContextMonitor(model_name)
         # Set compression threshold from config
-        self.context_monitor.compression_threshold = settings.compression.iteration_compression[
-            'compression_trigger_threshold']
+        self.context_monitor.compression_threshold = settings.compression.iteration_compression.compression_trigger_threshold
 
     async def compress_tool_messages(
         self,

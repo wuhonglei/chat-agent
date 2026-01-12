@@ -30,16 +30,13 @@ class ContextCompressionAgent(BaseAgent):
         else:
             # Import settings to get default config
             from app.core.config import settings
-            self.compression_config = {
-                'single_round': settings.compression.single_round,
-                'iteration_compression': settings.compression.iteration_compression,
-            }
+            self.compression_config = settings.compression
 
         # Compressor components
         self.tool_result_compressor = ToolResultCompressor(
             llm_config, self.compression_config)
         self.iteration_compressor = IterationCompressor(
-            max_context_length=self.compression_config['iteration_compression']['max_iteration_context_length']
+            max_context_length=self.compression_config['iteration_compression'].max_iteration_context_length
         )
         self.context_monitor = ContextMonitor(llm_config.model_name)
 

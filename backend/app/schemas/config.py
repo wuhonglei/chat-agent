@@ -103,31 +103,77 @@ class DatabaseConfig(BaseModel):
                           description="The password of the PostgreSQL database")
 
 
+class SingleRoundConfig(BaseModel):
+    """单轮压缩配置"""
+    max_web_content_length: int = Field(
+        default=8000,
+        description="网页内容最大长度"
+    )
+    max_search_results: int = Field(
+        default=10,
+        description="搜索结果最大数量"
+    )
+    max_generic_length: int = Field(
+        default=4000,
+        description="通用内容最大长度"
+    )
+
+
+class IterationCompressionConfig(BaseModel):
+    """迭代间压缩配置"""
+    max_iteration_context_length: int = Field(
+        default=8000,
+        description="单次迭代最大上下文长度"
+    )
+    current_iteration_retention: float = Field(
+        default=0.9,
+        description="当前迭代结果保留率"
+    )
+    recent_iteration_retention: float = Field(
+        default=0.6,
+        description="最近迭代结果保留率"
+    )
+    early_iteration_retention: float = Field(
+        default=0.3,
+        description="早期迭代结果保留率"
+    )
+    compression_trigger_threshold: int = Field(
+        default=10000,
+        description="压缩触发阈值"
+    )
+    single_result_precompress_threshold: int = Field(
+        default=3000,
+        description="单结果预压缩阈值"
+    )
+
+
+class MultiRoundConfig(BaseModel):
+    """多轮压缩配置（为未来扩展预留）"""
+    max_rounds: int = Field(
+        default=5,
+        description="最大保留轮次数"
+    )
+    time_decay_factor: float = Field(
+        default=0.7,
+        description="时间衰减因子"
+    )
+    relevance_threshold: float = Field(
+        default=0.6,
+        description="相关性阈值"
+    )
+    max_total_tokens: int = Field(
+        default=25000,
+        description="总上下文最大token数"
+    )
+
+
 class CompressionConfig(BaseModel):
     """上下文压缩配置"""
-    enabled: bool = True
-
-    # 单轮压缩配置
-    single_round: dict = Field(default_factory=lambda: {
-        'max_web_content_length': 8000,      # 网页内容最大长度
-        'max_search_results': 10,            # 搜索结果最大数量
-        'max_generic_length': 4000,          # 通用内容最大长度
-    })
-
-    # 迭代间压缩配置
-    iteration_compression: dict = Field(default_factory=lambda: {
-        'max_iteration_context_length': 8000,  # 单次迭代最大上下文长度
-        'current_iteration_retention': 0.9,    # 当前迭代结果保留率
-        'recent_iteration_retention': 0.6,     # 最近迭代结果保留率
-        'early_iteration_retention': 0.3,      # 早期迭代结果保留率
-        'compression_trigger_threshold': 10000,  # 压缩触发阈值
-        'single_result_precompress_threshold': 3000,  # 单结果预压缩阈值
-    })
-
-    # 多轮压缩配置（为未来扩展预留）
-    multi_round: dict = Field(default_factory=lambda: {
-        'max_rounds': 5,                     # 最大保留轮次数
-        'time_decay_factor': 0.7,            # 时间衰减因子
-        'relevance_threshold': 0.6,          # 相关性阈值
-        'max_total_tokens': 25000,           # 总上下文最大token数
-    })
+    enabled: bool = Field(
+        default=True,
+        description="是否启用上下文压缩功能"
+    )
+    single_round: SingleRoundConfig = Field(default_factory=SingleRoundConfig)
+    iteration_compression: IterationCompressionConfig = Field(
+        default_factory=IterationCompressionConfig)
+    multi_round: MultiRoundConfig = Field(default_factory=MultiRoundConfig)
