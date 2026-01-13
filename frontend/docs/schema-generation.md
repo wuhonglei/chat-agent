@@ -1,7 +1,7 @@
 # JSON Schema 自动生成指南
 
 > **注意**：本文档已过时。脚本生成方式已移除，现在使用 Vite 插件在构建时自动生成 Schema。
-> 
+>
 > 请参考 [组件工具实现方案](./component-tools-implementation.md) 了解当前的 Schema 生成方式。
 
 ## 当前实现方式
