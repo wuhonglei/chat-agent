@@ -1,7 +1,7 @@
 {
   "flake8.enabled": false,
   "python.defaultInterpreterPath": ".venv/bin/python",
-  "cSpell.words": ["Cloudbase"],
+  "cSpell.words": ["Cloudbase", "mypy", "nacos"],
   // 配置使用 ruff 而不是 black 进行格式化
   "notebook.formatOnSave.enabled": true,
   "notebook.codeActionsOnSave": {
