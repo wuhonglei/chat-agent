@@ -397,7 +397,7 @@ class MCPToolsAgent(BaseAgent):
                 # Compress the context
                 compressed_context: list[dict] = (
                     self.iteration_compressor.compress_iteration_context(
-                        current_results=current_iteration_results,
+                        current_iteration_results=current_iteration_results,
                         historical_context=compressed_historical_context,
                         iteration=iteration,
                     )
