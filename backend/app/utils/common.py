@@ -61,7 +61,9 @@ def gen_uuid() -> str:
     return str(uuid.uuid4())
 
 
-def has_tool_call_with_name(tool_call_messages: list[ToolCallMessage], tool_name: str) -> bool:
+def has_tool_call_with_name(
+    tool_call_messages: list[ToolCallMessage], tool_name: str
+) -> bool:
     """
     检查工具调用消息列表中是否包含指定名称的工具调用
 

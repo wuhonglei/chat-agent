@@ -36,15 +36,21 @@ class ConfluenceMCPConfig(BaseModel):
         description="Confluence Personal Token"
     )  # 与环境变量名一致
     # 认证类型：pat, basic, oauth，与环境变量名一致
-    CONFLUENCE_AUTH_TYPE: str = Field(description="Confluence 认证类型：pat, basic, oauth")
+    CONFLUENCE_AUTH_TYPE: str = Field(
+        description="Confluence 认证类型：pat, basic, oauth"
+    )
 
 
 class WeatherMCPConfig(BaseModel):
     """Weather MCP 配置"""
 
     QWEATHER_API_KEY: str = Field(description="和风天气 API 密钥")  # 与环境变量名一致
-    QWEATHER_BASE_URL: str = Field(description="和风天气 API 基础地址")  # 与环境变量名一致
-    QWEATHER_TIMEOUT: int = Field(description="和风天气 API 超时时间")  # 与环境变量名一致
+    QWEATHER_BASE_URL: str = Field(
+        description="和风天气 API 基础地址"
+    )  # 与环境变量名一致
+    QWEATHER_TIMEOUT: int = Field(
+        description="和风天气 API 超时时间"
+    )  # 与环境变量名一致
 
 
 class TavilyMCPConfig(BaseModel):

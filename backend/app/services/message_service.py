@@ -53,7 +53,9 @@ class MessageService(BaseService):
         db.exec(delete(MessageDb).where(MessageDb.id.in_(message_ids)))
         # 事务由 get_db() 或 BaseService.__exit__ 自动提交
 
-    def get_flatten_messages_by_ids(self, message_ids: list[str]) -> list[ChatMessageItemReq]:
+    def get_flatten_messages_by_ids(
+        self, message_ids: list[str]
+    ) -> list[ChatMessageItemReq]:
         """获取消息的扁平化列表
         组装顺序参考: https://api-docs.deepseek.com/zh-cn/guides/thinking_mode
         """
@@ -62,9 +64,9 @@ class MessageService(BaseService):
 
         db = self._ensure_db()
         messages = db.exec(
-            select(MessageDb.id, MessageDb.role, MessageDb.content, MessageDb.tool_calls).where(
-                MessageDb.id.in_(message_ids)
-            )
+            select(
+                MessageDb.id, MessageDb.role, MessageDb.content, MessageDb.tool_calls
+            ).where(MessageDb.id.in_(message_ids))
         ).all()
         if not messages:
             from app.utils.logger import logger
@@ -132,7 +134,9 @@ class MessageService(BaseService):
         """
         db = self._ensure_db()
         try:
-            self._touch_conversation(conversation, message.created_at, message.updated_at)
+            self._touch_conversation(
+                conversation, message.created_at, message.updated_at
+            )
             db.add(message)
             # 流式响应需要立即看到数据，所以手动提交
             # 如果使用依赖注入的 db，这里提交后 get_db() 不会再提交（已提交的事务不会重复提交）
@@ -266,9 +270,13 @@ class MessageService(BaseService):
         if assistant_payload.tool_calls:
             assistant_message.tool_calls = assistant_payload.tool_calls
         if assistant_payload.tool_calls_duration:
-            assistant_message.tool_calls_duration = assistant_payload.tool_calls_duration
+            assistant_message.tool_calls_duration = (
+                assistant_payload.tool_calls_duration
+            )
         if assistant_payload.component_tool_calls:
-            assistant_message.component_tool_calls = assistant_payload.component_tool_calls
+            assistant_message.component_tool_calls = (
+                assistant_payload.component_tool_calls
+            )
         if assistant_payload.component_tool_calls_duration:
             assistant_message.component_tool_calls_duration = (
                 assistant_payload.component_tool_calls_duration

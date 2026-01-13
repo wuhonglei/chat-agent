@@ -46,14 +46,18 @@ class JWTManager:
         if not self.private_key:
             raise ValueError("Private key not loaded")
 
-        token = jwt.encode(payload=payload_data, key=self.private_key, algorithm=self.algorithm)
+        token = jwt.encode(
+            payload=payload_data, key=self.private_key, algorithm=self.algorithm
+        )
 
         return token
 
     def get_payload_with_expiration(self, payload_data: dict[str, Any]):
         """获取 payload 并设置过期时间"""
         now = get_unix_timestamp()
-        expiration = now + 35 * 25 * 3600  # 35 天后过期，过期后 refresh_token 也过期，必须重新登录
+        expiration = (
+            now + 35 * 25 * 3600
+        )  # 35 天后过期，过期后 refresh_token 也过期，必须重新登录
         payload = {
             **payload_data,
             "exp": expiration,  # 令牌的过期时间
@@ -67,7 +71,9 @@ class JWTManager:
         if not self.public_key:
             raise ValueError("Public key not loaded")
 
-        payload = jwt.decode(jwt=token, key=self.public_key, algorithms=[self.algorithm])
+        payload = jwt.decode(
+            jwt=token, key=self.public_key, algorithms=[self.algorithm]
+        )
         return payload
 
     def decode_token_without_verification(self, token) -> dict[str, Any]:

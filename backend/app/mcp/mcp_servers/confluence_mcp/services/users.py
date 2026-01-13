@@ -14,7 +14,9 @@ logger = logging.getLogger("mcp-atlassian")
 class UsersMixin(ConfluenceClient):
     """Mixin for Confluence user operations."""
 
-    def get_user_details_by_accountid(self, account_id: str, expand: str = None) -> dict[str, Any]:
+    def get_user_details_by_accountid(
+        self, account_id: str, expand: str = None
+    ) -> dict[str, Any]:
         """Get user details by account ID.
 
         Args:
@@ -29,7 +31,9 @@ class UsersMixin(ConfluenceClient):
         """
         return self.confluence.get_user_details_by_accountid(account_id, expand)
 
-    def get_user_details_by_username(self, username: str, expand: str = None) -> dict[str, Any]:
+    def get_user_details_by_username(
+        self, username: str, expand: str = None
+    ) -> dict[str, Any]:
         """Get user details by username.
 
         This is typically used for Confluence Server/DC instances where username
@@ -91,4 +95,6 @@ class UsersMixin(ConfluenceClient):
                 f"Unexpected error fetching current Confluence user details: {e}",
                 exc_info=True,
             )
-            raise MCPAtlassianAuthenticationError(f"Confluence token validation failed: {e}") from e
+            raise MCPAtlassianAuthenticationError(
+                f"Confluence token validation failed: {e}"
+            ) from e

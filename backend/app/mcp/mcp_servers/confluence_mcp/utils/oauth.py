@@ -110,7 +110,9 @@ class OAuthConfig:
 
             # Log more details about the response
             logger.debug(f"Token exchange response status: {response.status_code}")
-            logger.debug(f"Token exchange response headers: {pprint.pformat(response.headers)}")
+            logger.debug(
+                f"Token exchange response headers: {pprint.pformat(response.headers)}"
+            )
             logger.debug(f"Token exchange response body: {response.text[:500]}...")
 
             if not response.ok:
@@ -343,7 +345,9 @@ class OAuthConfig:
                 logger.debug(f"Loaded OAuth tokens from keyring for {username}")
                 return json.loads(token_json)
         except Exception as e:
-            logger.warning(f"Failed to load tokens from keyring: {e}. Trying file fallback.")
+            logger.warning(
+                f"Failed to load tokens from keyring: {e}. Trying file fallback."
+            )
 
         # Fall back to loading from file if keyring fails or returns None
         return OAuthConfig._load_tokens_from_file(client_id)
@@ -366,7 +370,9 @@ class OAuthConfig:
         try:
             with open(token_path) as f:
                 token_data = json.load(f)
-                logger.debug(f"Loaded OAuth tokens from file {token_path} (fallback storage)")
+                logger.debug(
+                    f"Loaded OAuth tokens from file {token_path} (fallback storage)"
+                )
                 return token_data
         except Exception as e:
             logger.error(f"Failed to load tokens from file: {e}")

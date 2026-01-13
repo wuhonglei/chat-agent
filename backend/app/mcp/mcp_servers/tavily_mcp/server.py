@@ -122,7 +122,9 @@ async def tavily_search(
 @mcp.tool(name="tavily_extract")
 async def tavily_extract(
     urls: list[str] = Field(..., description="要提取内容的URL（字符串或数组）"),
-    query: str | None = Field(default=None, description="用户意图查询，用于重新排序提取的内容块"),
+    query: str | None = Field(
+        default=None, description="用户意图查询，用于重新排序提取的内容块"
+    ),
     chunks_per_source: int = Field(
         default=3,
         ge=1,
@@ -254,7 +256,9 @@ async def tavily_crawl(
         )
         try:
             data = TavilyCrawlResponse.model_validate(response)
-            return ToolResult(structured_content=data, content=format_crawl_results(data))
+            return ToolResult(
+                structured_content=data, content=format_crawl_results(data)
+            )
         except Exception as e:
             raise ValueError(f"爬取响应验证失败: {str(e)}")
     except Exception:
@@ -344,7 +348,9 @@ if __name__ == "__main__":
         default="http",
         help="Transport mode: http or stdio",
     )
-    parser.add_argument("--port", type=int, default=8002, help="Port number for HTTP mode")
+    parser.add_argument(
+        "--port", type=int, default=8002, help="Port number for HTTP mode"
+    )
 
     args = parser.parse_args()
 

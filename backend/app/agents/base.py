@@ -4,14 +4,24 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
 from typing import Any, Literal, overload
 
-from openai import APIConnectionError, APIError, APIStatusError, AsyncOpenAI, RateLimitError
+from openai import (
+    APIConnectionError,
+    APIError,
+    APIStatusError,
+    AsyncOpenAI,
+    RateLimitError,
+)
 from openai._streaming import AsyncStream
 from openai.types.chat import ChatCompletion
 from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
 
 from app.schemas.chat import ChatMessageItemReq
 from app.schemas.config import LLMConfig
-from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallResultMessage
+from app.schemas.llm import (
+    AssistantToolCallMessage,
+    ToolCallMessage,
+    ToolCallResultMessage,
+)
 from app.schemas.token_stats import BaseTokenStats, TokenUsage
 from app.utils.common import normalize_to_dict
 from app.utils.logger import logger
@@ -68,7 +78,9 @@ class BaseAgent(ABC):
             str: 模型名称
         """
         return (
-            self.model_config.think_model_name if self.think_mode else self.model_config.model_name
+            self.model_config.think_model_name
+            if self.think_mode
+            else self.model_config.model_name
         )
 
     @property
@@ -235,7 +247,9 @@ class BaseAgent(ABC):
             raise  # 重新抛出异常，让上层处理
 
     @abstractmethod
-    def create_token_stats(self, *args: Any, **kwargs: dict[str, Any]) -> BaseTokenStats:
+    def create_token_stats(
+        self, *args: Any, **kwargs: dict[str, Any]
+    ) -> BaseTokenStats:
         """
         创建 token 统计对象（抽象方法，子类必须实现）
 
@@ -316,7 +330,10 @@ class BaseAgent(ABC):
                     filtered_tool_call_messages.append(filtered_message)
             elif isinstance(message, ToolCallResultMessage):
                 # 只保留没有错误且有对应 assistant 消息的工具调用结果
-                if not message.is_error and message.tool_call_id in assistant_tool_call_ids:
+                if (
+                    not message.is_error
+                    and message.tool_call_id in assistant_tool_call_ids
+                ):
                     filtered_tool_call_messages.append(message)
 
         # 将过滤后的消息转换为字典格式并追加

@@ -260,7 +260,9 @@ async def test_get_current_weather_basic():
         mock_request.return_value = MOCK_WEATHER_NOW_RESPONSE
 
         async with mcp_client:
-            result = await mcp_client.call_tool("get_current_weather", {"location": "101010100"})
+            result = await mcp_client.call_tool(
+                "get_current_weather", {"location": "101010100"}
+            )
             data = get_result_data(result)
 
             assert data["code"] == "200"
@@ -347,7 +349,9 @@ async def test_get_weather_alerts_no_alerts():
         mock_request.return_value = MOCK_WEATHER_ALERTS_RESPONSE
 
         async with mcp_client:
-            result = await mcp_client.call_tool("get_weather_alerts", {"location": "101010100"})
+            result = await mcp_client.call_tool(
+                "get_weather_alerts", {"location": "101010100"}
+            )
             data = get_result_data(result)
             assert data["code"] == "200"
             assert "warning" in data

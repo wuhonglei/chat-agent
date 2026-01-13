@@ -29,7 +29,9 @@ class ConfluenceSearchResult(ApiModel, TimestampMixin):
     search_duration: int | None = None
 
     @classmethod
-    def from_api_response(cls, data: dict[str, Any], **kwargs: Any) -> "ConfluenceSearchResult":
+    def from_api_response(
+        cls, data: dict[str, Any], **kwargs: Any
+    ) -> "ConfluenceSearchResult":
         """
         Create a ConfluenceSearchResult from a Confluence API response.
 

@@ -100,7 +100,11 @@ class SearchMixin(ConfluenceClient):
         """
         highlight_start = "@@@hl@@@"
         highlight_end = "@@@endhl@@@"
-        if not excerpt or highlight_start not in excerpt or highlight_end not in excerpt:
+        if (
+            not excerpt
+            or highlight_start not in excerpt
+            or highlight_end not in excerpt
+        ):
             return ""
 
         # Remove highlight markers
@@ -111,7 +115,9 @@ class SearchMixin(ConfluenceClient):
         return clean_text.strip()
 
     @handle_atlassian_api_errors("Confluence API")
-    def search_user(self, cql: str, limit: int = 10) -> list[ConfluenceUserSearchResult]:
+    def search_user(
+        self, cql: str, limit: int = 10
+    ) -> list[ConfluenceUserSearchResult]:
         """
         Search users using Confluence Query Language (CQL).
 
@@ -127,7 +133,9 @@ class SearchMixin(ConfluenceClient):
                 Confluence API (401/403)
         """
         # Execute the user search query using the direct API endpoint
-        results = self.confluence.get("rest/api/search/user", params={"cql": cql, "limit": limit})
+        results = self.confluence.get(
+            "rest/api/search/user", params={"cql": cql, "limit": limit}
+        )
 
         # Convert the response to a user search result model
         search_result = ConfluenceUserSearchResults.from_api_response(results or {})

@@ -63,11 +63,15 @@ class TotalTokenStats(BaseModel):
     """总 Token 统计（汇总所有阶段）"""
 
     mcp_tools: MCPToolsTokenStats | None = Field(None, description="MCP 工具调用统计")
-    component_tools: ComponentToolsTokenStats | None = Field(None, description="组件工具调用统计")
+    component_tools: ComponentToolsTokenStats | None = Field(
+        None, description="组件工具调用统计"
+    )
     response_generation: ResponseGenerationTokenStats | None = Field(
         None, description="响应生成统计"
     )
-    title_generation: TitleGenerationTokenStats | None = Field(None, description="标题生成统计")
+    title_generation: TitleGenerationTokenStats | None = Field(
+        None, description="标题生成统计"
+    )
 
     @property
     def total_prompt_tokens(self) -> int:

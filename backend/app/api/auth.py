@@ -57,12 +57,16 @@ async def verify_sms(
     else:
         phone_number = verify_sms_request.phone_number
         token_info = await CloudbaseService.signup(
-            SignupRequest(verification_token=verification_token, phone_number=phone_number)
+            SignupRequest(
+                verification_token=verification_token, phone_number=phone_number
+            )
         )
 
     user = user_service.get_user_by_sub(token_info.sub)
     if not user:
-        user = user_service.create_user_from_cloudbase(token_info, verify_sms_request.phone_number)
+        user = user_service.create_user_from_cloudbase(
+            token_info, verify_sms_request.phone_number
+        )
     else:
         user = user_service.update_user_last_login(user, "sms")
 

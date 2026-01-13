@@ -43,7 +43,9 @@ class LabelsMixin(ConfluenceClient):
 
         except Exception as e:
             logger.error(f"Failed fetching labels from page {page_id}: {str(e)}")
-            raise Exception(f"Failed fetching labels from page {page_id}: {str(e)}") from e
+            raise Exception(
+                f"Failed fetching labels from page {page_id}: {str(e)}"
+            ) from e
 
     def add_page_label(self, page_id: str, name: str) -> list[ConfluenceLabel]:
         """
@@ -72,4 +74,6 @@ class LabelsMixin(ConfluenceClient):
             return self.get_page_labels(page_id)
         except Exception as e:
             logger.error(f"Error adding label '{name}' to page {page_id}: {str(e)}")
-            raise Exception(f"Failed to add label '{name}' to page {page_id}: {str(e)}") from e
+            raise Exception(
+                f"Failed to add label '{name}' to page {page_id}: {str(e)}"
+            ) from e

@@ -50,7 +50,9 @@ async def execute_single_tool(
     logger.info("工具结果:")
     result_str = mcp_client_manager.format_mcp_result(result)
     logger.info(
-        result_str[:200] + "..." + result_str[-200:] if len(result_str) > 200 else result_str
+        result_str[:200] + "..." + result_str[-200:]
+        if len(result_str) > 200
+        else result_str
     )
     return result
 
@@ -168,7 +170,9 @@ async def test_mcp_client():
 
     logger.info(f"\n可用的 MCP 工具 ({len(tools)} 个):")
     for i, tool in enumerate(tools, 1):
-        logger.info(f"{i}. {tool['function']['name']}: {tool['function']['description']}")
+        logger.info(
+            f"{i}. {tool['function']['name']}: {tool['function']['description']}"
+        )
 
     # 4. 使用 DeepSeek API 调用工具
     logger.info("\n" + "=" * 60)
@@ -226,7 +230,9 @@ async def test_mcp_client():
     correct_count = 0
     for i, result in enumerate(results):
         if isinstance(result, Exception):
-            logger.error(f"第 {i + 1} 个用户消息处理失败: {type(result).__name__}: {result}")
+            logger.error(
+                f"第 {i + 1} 个用户消息处理失败: {type(result).__name__}: {result}"
+            )
         elif result is True:
             correct_count += 1
     logger.info(f"成功处理的用户消息数量: {correct_count}")

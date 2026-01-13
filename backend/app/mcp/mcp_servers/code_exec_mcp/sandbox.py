@@ -52,14 +52,18 @@ class SandboxExecutor:
         """设置资源限制"""
         # 设置 CPU 时间限制（软限制和硬限制）
         try:
-            resource.setrlimit(resource.RLIMIT_CPU, (self.cpu_time_limit, self.cpu_time_limit))
+            resource.setrlimit(
+                resource.RLIMIT_CPU, (self.cpu_time_limit, self.cpu_time_limit)
+            )
         except (ValueError, OSError):
             pass  # 在某些系统上可能不支持
 
         # 设置内存限制
         try:
             memory_limit_bytes = self.memory_limit_mb * 1024 * 1024
-            resource.setrlimit(resource.RLIMIT_AS, (memory_limit_bytes, memory_limit_bytes))
+            resource.setrlimit(
+                resource.RLIMIT_AS, (memory_limit_bytes, memory_limit_bytes)
+            )
         except (ValueError, OSError):
             pass  # 在某些系统上可能不支持
 

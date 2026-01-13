@@ -26,17 +26,23 @@ async def test_time_tool():
 
             # 测试获取指定时区时间
             print("\n2. 测试获取上海时区时间:")
-            result = await client.call_tool("get_current_time", {"timezone": "Asia/Shanghai"})
+            result = await client.call_tool(
+                "get_current_time", {"timezone": "Asia/Shanghai"}
+            )
             print(f"结果: {result}")
 
             # 测试获取纽约时区时间
             print("\n3. 测试获取纽约时区时间:")
-            result = await client.call_tool("get_current_time", {"timezone": "America/New_York"})
+            result = await client.call_tool(
+                "get_current_time", {"timezone": "America/New_York"}
+            )
             print(f"结果: {result}")
 
             # 测试无效时区（应该回退到本地时区）
             print("\n4. 测试无效时区:")
-            result = await client.call_tool("get_current_time", {"timezone": "Invalid/Timezone"})
+            result = await client.call_tool(
+                "get_current_time", {"timezone": "Invalid/Timezone"}
+            )
             print(f"结果: {result}")
 
             print("\n✅ 所有测试完成！")

@@ -28,7 +28,12 @@ def validate_client_ip(ip: str, keep_private_ip: bool = False) -> str | None:
         # multicast: 多播地址，不是真实客户端
         # reserved: 保留地址，未使用
         # link-local: 169.254.0.0/16 - 链路本地，通常是配置失败
-        if ip_obj.is_loopback or ip_obj.is_multicast or ip_obj.is_reserved or ip_obj.is_link_local:
+        if (
+            ip_obj.is_loopback
+            or ip_obj.is_multicast
+            or ip_obj.is_reserved
+            or ip_obj.is_link_local
+        ):
             return None
 
         # 如果不需要保留私有IP，则排除私有IP

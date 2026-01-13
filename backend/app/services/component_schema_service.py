@@ -49,7 +49,10 @@ class ComponentSchemaService:
             Exception: 当获取 Schema 失败时抛出异常
         """
         # 非调试模式下，先检查缓存
-        if not self.debug and component_tool_name in ComponentSchemaService._schema_cache:
+        if (
+            not self.debug
+            and component_tool_name in ComponentSchemaService._schema_cache
+        ):
             logger.debug(
                 "Schema cache hit",
                 component_tool_name=component_tool_name,

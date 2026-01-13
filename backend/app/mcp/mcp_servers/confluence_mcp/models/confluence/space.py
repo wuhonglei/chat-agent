@@ -24,7 +24,9 @@ class ConfluenceSpace(ApiModel):
     status: str = "current"  # "current", "archived", etc.
 
     @classmethod
-    def from_api_response(cls, data: dict[str, Any], **kwargs: Any) -> "ConfluenceSpace":
+    def from_api_response(
+        cls, data: dict[str, Any], **kwargs: Any
+    ) -> "ConfluenceSpace":
         """
         Create a ConfluenceSpace from a Confluence API response.
 

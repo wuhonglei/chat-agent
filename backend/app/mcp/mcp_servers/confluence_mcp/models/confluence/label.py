@@ -27,7 +27,9 @@ class ConfluenceLabel(ApiModel):
     type: str = "label"
 
     @classmethod
-    def from_api_response(cls, data: dict[str, Any], **kwargs: Any) -> "ConfluenceLabel":
+    def from_api_response(
+        cls, data: dict[str, Any], **kwargs: Any
+    ) -> "ConfluenceLabel":
         """
         Create a ConfluenceLabel from a Confluence API response.
 

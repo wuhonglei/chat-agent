@@ -33,7 +33,9 @@ class ResponseGenerationAgent(BaseAgent):
         self.total_duration: float | None = None
         self.token_stats: ResponseGenerationTokenStats | None = None
 
-    def format_sse_message(self, msg_type: str, data: dict[str, Any] | None = None) -> str:
+    def format_sse_message(
+        self, msg_type: str, data: dict[str, Any] | None = None
+    ) -> str:
         """格式化SSE消息，并更新状态（如果需要）"""
         if msg_type == "content":
             self.content += data.get("content") or ""

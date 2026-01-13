@@ -122,7 +122,9 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                 "Request started",
                 method=request.method,
                 path=request.url.path,
-                query_params=str(request.query_params) if request.query_params else None,
+                query_params=str(request.query_params)
+                if request.query_params
+                else None,
             )
 
         # 处理请求

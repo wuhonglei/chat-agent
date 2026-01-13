@@ -75,8 +75,12 @@ class ContextCompressionService:
         if should_compress:
             # Perform compression
             compressed_messages = self.context_monitor.check_and_compress(messages)
-            compressed_length = self.token_calculator.count_messages_tokens(compressed_messages)
-            compression_ratio = compressed_length / original_length if original_length > 0 else 1.0
+            compressed_length = self.token_calculator.count_messages_tokens(
+                compressed_messages
+            )
+            compression_ratio = (
+                compressed_length / original_length if original_length > 0 else 1.0
+            )
             was_compressed = True
 
             logger.debug(

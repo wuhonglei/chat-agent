@@ -28,7 +28,9 @@ class ConfluenceUserSearchResult(ApiModel):
     score: float = 0.0
 
     @classmethod
-    def from_api_response(cls, data: dict[str, Any], **kwargs: Any) -> "ConfluenceUserSearchResult":
+    def from_api_response(
+        cls, data: dict[str, Any], **kwargs: Any
+    ) -> "ConfluenceUserSearchResult":
         """
         Create a ConfluenceUserSearchResult from a Confluence API response.
 
@@ -117,7 +119,9 @@ class ConfluenceUserSearchResults(ApiModel, TimestampMixin):
         # Convert search results to ConfluenceUserSearchResult models
         results = []
         for result_data in data.get("results", []):
-            user_result = ConfluenceUserSearchResult.from_api_response(result_data, **kwargs)
+            user_result = ConfluenceUserSearchResult.from_api_response(
+                result_data, **kwargs
+            )
             results.append(user_result)
 
         return cls(

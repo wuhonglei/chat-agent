@@ -92,7 +92,9 @@ class TokenCalculator:
             return encoding
         except (ConnectionError, TimeoutError, URLError, HTTPError) as e:
             # 捕获网络错误，尝试从本地加载
-            logger.warning(f"加载模型 {model} 的 encoding 时发生网络错误: {e}，尝试从本地加载")
+            logger.warning(
+                f"加载模型 {model} 的 encoding 时发生网络错误: {e}，尝试从本地加载"
+            )
             encoding = self._get_encoding_with_fallback(self.DEFAULT_ENCODING_NAME)
             # 将本地加载的 encoding 也缓存到模型名下
             self._set_cached_encoding(model, encoding)
@@ -111,7 +113,9 @@ class TokenCalculator:
                     "refused",
                 ]
             ):
-                logger.warning(f"加载模型 {model} 的 encoding 时发生网络错误: {e}，尝试从本地加载")
+                logger.warning(
+                    f"加载模型 {model} 的 encoding 时发生网络错误: {e}，尝试从本地加载"
+                )
                 encoding = self._get_encoding_with_fallback(self.DEFAULT_ENCODING_NAME)
                 # 将本地加载的 encoding 也缓存到模型名下
                 self._set_cached_encoding(model, encoding)
@@ -120,7 +124,9 @@ class TokenCalculator:
             raise
         except Exception as e:
             # 捕获其他未知异常，尝试从本地加载
-            logger.warning(f"加载模型 {model} 的 encoding 时发生未知错误: {e}，尝试从本地加载")
+            logger.warning(
+                f"加载模型 {model} 的 encoding 时发生未知错误: {e}，尝试从本地加载"
+            )
             encoding = self._get_encoding_with_fallback(self.DEFAULT_ENCODING_NAME)
             # 将本地加载的 encoding 也缓存到模型名下
             self._set_cached_encoding(model, encoding)
@@ -149,7 +155,9 @@ class TokenCalculator:
                 try:
                     # 直接从本地文件加载 encoding，避免网络请求
                     logger.info(f"从本地文件直接加载 encoding: {local_token_file}")
-                    encoding = self._load_encoding_from_local_file(encoding_name, local_token_file)
+                    encoding = self._load_encoding_from_local_file(
+                        encoding_name, local_token_file
+                    )
                     # 成功加载后，存储到缓存中
                     self._set_cached_encoding(encoding_name, encoding)
                     return encoding
@@ -244,7 +252,9 @@ class TokenCalculator:
                     rank = int(rank_str)
                     mergeable_ranks[token] = rank
                 except Exception as e:
-                    raise ValueError(f"解析本地 BPE 文件失败，行内容: {line!r}, 错误: {e}") from e
+                    raise ValueError(
+                        f"解析本地 BPE 文件失败，行内容: {line!r}, 错误: {e}"
+                    ) from e
         return mergeable_ranks
 
     def get_max_context_tokens(self) -> int:

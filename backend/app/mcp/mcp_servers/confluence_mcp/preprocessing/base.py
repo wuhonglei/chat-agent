@@ -98,7 +98,9 @@ class BasePreprocessor:
                         user_element, account_id, confluence_client
                     )
                 elif userkey and isinstance(userkey, str):
-                    self._replace_user_mention_by_userkey(user_element, userkey, confluence_client)
+                    self._replace_user_mention_by_userkey(
+                        user_element, userkey, confluence_client
+                    )
 
     def _process_user_profile_macros_in_soup(
         self, soup: BeautifulSoup, confluence_client: Confluence | None = None
@@ -112,7 +114,9 @@ class BasePreprocessor:
             soup: BeautifulSoup object containing HTML
             confluence_client: Optional Confluence client for user lookups
         """
-        profile_macros = soup.find_all("ac:structured-macro", attrs={"ac:name": "profile"})
+        profile_macros = soup.find_all(
+            "ac:structured-macro", attrs={"ac:name": "profile"}
+        )
 
         for macro_element in profile_macros:
             user_param = macro_element.find("ac:parameter", attrs={"ac:name": "user"})
@@ -141,25 +145,33 @@ class BasePreprocessor:
             if confluence_client and user_identifier_for_log:
                 try:
                     if account_id and isinstance(account_id, str):
-                        user_details = confluence_client.get_user_details_by_accountid(account_id)
+                        user_details = confluence_client.get_user_details_by_accountid(
+                            account_id
+                        )
                         display_name = user_details.get("displayName")
                     elif userkey and isinstance(userkey, str):
                         # For Confluence Server/DC, use userkey
-                        user_details = confluence_client.get_user_details_by_userkey(userkey)
+                        user_details = confluence_client.get_user_details_by_userkey(
+                            userkey
+                        )
                         display_name = user_details.get("displayName")
                 except Exception as e:
                     logger.warning(
                         f"Error fetching user details for profile macro (user: {user_identifier_for_log}): {e}"
                     )
             elif not confluence_client:
-                logger.warning("Confluence client not available for User Profile Macro processing.")
+                logger.warning(
+                    "Confluence client not available for User Profile Macro processing."
+                )
 
             if display_name:
                 replacement_text = f"@{display_name}"
                 macro_element.replace_with(replacement_text)
             else:
                 fallback_identifier = (
-                    user_identifier_for_log if user_identifier_for_log else "unknown_user"
+                    user_identifier_for_log
+                    if user_identifier_for_log
+                    else "unknown_user"
                 )
                 fallback_text = f"[User Profile: {fallback_identifier}]"
                 macro_element.replace_with(fallback_text)
@@ -191,7 +203,9 @@ class BasePreprocessor:
                     code_content = code_content[:-3]  # Remove "]]>"
 
                 # Find language parameter if it exists
-                language_param = macro_element.find("ac:parameter", attrs={"ac:name": "language"})
+                language_param = macro_element.find(
+                    "ac:parameter", attrs={"ac:name": "language"}
+                )
                 language = language_param.string if language_param else ""
 
                 # Create new pre/code block
@@ -284,7 +298,9 @@ class BasePreprocessor:
                     logger.debug(f"Processed image: {filename} for page {page_id}")
                 elif filename and not page_id:
                     # If no page_id provided, create a placeholder
-                    logger.warning(f"Image found but no page_id provided for {filename}")
+                    logger.warning(
+                        f"Image found but no page_id provided for {filename}"
+                    )
                     placeholder = f"[Image: {filename}]"
                     image_element.replace_with(placeholder)
                 else:
@@ -368,7 +384,9 @@ class BasePreprocessor:
                 if has_cached:
                     user_details = self.cache_user_details["account_id"][account_id]
                 else:
-                    user_details = confluence_client.get_user_details_by_accountid(account_id)
+                    user_details = confluence_client.get_user_details_by_accountid(
+                        account_id
+                    )
                     self.cache_user_details["account_id"][account_id] = user_details
                 display_name = user_details.get("displayName", "")
                 if display_name:
@@ -403,7 +421,9 @@ class BasePreprocessor:
                 if has_cached:
                     user_details = self.cache_user_details["userkey"][userkey]
                 else:
-                    user_details = confluence_client.get_user_details_by_userkey(userkey)
+                    user_details = confluence_client.get_user_details_by_userkey(
+                        userkey
+                    )
                     self.cache_user_details["userkey"][userkey] = user_details
                 display_name = user_details.get("displayName", "")
                 if display_name:

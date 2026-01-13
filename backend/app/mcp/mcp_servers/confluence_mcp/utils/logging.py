@@ -10,7 +10,9 @@ import sys
 from typing import TextIO
 
 
-def setup_logging(level: int = logging.WARNING, stream: TextIO = sys.stderr) -> logging.Logger:
+def setup_logging(
+    level: int = logging.WARNING, stream: TextIO = sys.stderr
+) -> logging.Logger:
     """
     Configure MCP-Atlassian logging with level-based stream routing.
 

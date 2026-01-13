@@ -71,8 +71,12 @@ class ChatMessageItem(BaseModel):
     conversation_id: str = Field(..., description="Conversation ID")
     reasoning: str | None = Field(None, description="Reasoning content")
     tool_calls: list[dict] | None = Field(None, description="Tool calls")
-    created_at: datetime = Field(default_factory=get_datetime_now, description="Message timestamp")
-    message_metadata: dict[str, Any] = Field(default_factory=dict, description="Message metadata")
+    created_at: datetime = Field(
+        default_factory=get_datetime_now, description="Message timestamp"
+    )
+    message_metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Message metadata"
+    )
     status: str = Field(
         default="pending",
         description="Message persistence status (pending|done|failed)",
@@ -81,12 +85,20 @@ class ChatMessageItem(BaseModel):
         default=None,
         description="ID of the user message this assistant message replies to",
     )
-    tool_calls_duration: float | None = Field(default=None, description="工具调用耗时（秒）")
+    tool_calls_duration: float | None = Field(
+        default=None, description="工具调用耗时（秒）"
+    )
     reasoning_duration: float | None = Field(default=None, description="推理耗时（秒）")
-    content_duration: float | None = Field(default=None, description="内容生成耗时（秒）")
+    content_duration: float | None = Field(
+        default=None, description="内容生成耗时（秒）"
+    )
     total_duration: float | None = Field(default=None, description="总耗时（秒）")
-    created_at: datetime = Field(default_factory=get_datetime_now, description="Message created at")
-    updated_at: datetime = Field(default_factory=get_datetime_now, description="Message updated at")
+    created_at: datetime = Field(
+        default_factory=get_datetime_now, description="Message created at"
+    )
+    updated_at: datetime = Field(
+        default_factory=get_datetime_now, description="Message updated at"
+    )
 
     model_config = ConfigDict(extra="allow")
 
@@ -97,11 +109,15 @@ class ChatRequest(BaseModel):
     content: str = Field(..., description="User message")
     conversation_id: str = Field(..., description="Conversation ID")
     history_ids: list[str] = Field(default_factory=list, description="Chat history IDs")
-    removed_message_ids: list[str] | None = Field(None, description="Message IDs to be removed")
+    removed_message_ids: list[str] | None = Field(
+        None, description="Message IDs to be removed"
+    )
     source_config: SourceConfig = Field(
         default_factory=SourceConfig, description="Source configuration"
     )
-    regenerate_title: bool | None = Field(False, description="Whether to regenerate title")
+    regenerate_title: bool | None = Field(
+        False, description="Whether to regenerate title"
+    )
     mcp_auto_mode: bool = Field(True, description="Whether to use mcp auto mode")
     think_mode: bool = Field(False, description="Whether to use think mode")
     component_tools_for_backend: list[ComponentToolConfig] = Field(
@@ -115,7 +131,9 @@ class ChatSource(BaseModel):
     content: str = Field(..., description="Source content snippet")
     title: str = Field(..., description="Source title")
     url: str | None = Field(None, description="Source URL")
-    source: str = Field(..., description="Source type (e.g., confluence, web, google_docs)")
+    source: str = Field(
+        ..., description="Source type (e.g., confluence, web, google_docs)"
+    )
     score: float = Field(..., description="Relevance score")
     favicon: str | None = Field(None, description="Web search source favicon")
     metadata: dict[str, Any] = Field(
@@ -128,9 +146,13 @@ class ChatResponse(BaseModel):
     """Chat response model"""
 
     message: str = Field(..., description="Assistant response")
-    sources: list[ChatSource] = Field(default_factory=list, description="Source documents")
+    sources: list[ChatSource] = Field(
+        default_factory=list, description="Source documents"
+    )
     session_id: str = Field(..., description="Session ID")
-    created_at: datetime = Field(default_factory=get_datetime_now, description="Response timestamp")
+    created_at: datetime = Field(
+        default_factory=get_datetime_now, description="Response timestamp"
+    )
 
 
 class CollectedResponse(BaseModel):
@@ -138,16 +160,22 @@ class CollectedResponse(BaseModel):
 
     content: str = Field(default="", description="Collected content")
     reasoning: str = Field(default="", description="Collected reasoning")
-    tool_calls: list[dict] = Field(default_factory=list, description="Collected tool calls")
+    tool_calls: list[dict] = Field(
+        default_factory=list, description="Collected tool calls"
+    )
     component_tool_calls: list[dict] = Field(
         default_factory=list, description="Collected component tool calls"
     )
-    tool_calls_duration: float | None = Field(default=None, description="MCP 工具调用耗时（秒）")
+    tool_calls_duration: float | None = Field(
+        default=None, description="MCP 工具调用耗时（秒）"
+    )
     component_tool_calls_duration: float | None = Field(
         default=None, description="组件工具调用耗时（秒），不包含 MCP 工具调用耗时"
     )
     reasoning_duration: float | None = Field(default=None, description="推理耗时（秒）")
-    content_duration: float | None = Field(default=None, description="内容生成耗时（秒）")
+    content_duration: float | None = Field(
+        default=None, description="内容生成耗时（秒）"
+    )
     total_duration: float | None = Field(default=None, description="总耗时（秒）")
     token_stats: dict | None = Field(
         default=None,

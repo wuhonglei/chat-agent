@@ -175,7 +175,9 @@ def format_weather_hourly_forecast(hourly: list[WeatherHourly]) -> str:
     将逐小时天气预报响应格式化为人类可读的文本
     """
     separator = "\n" + "-" * 50 + "\n"
-    return separator.join([hourly_template.render(hour=hour).strip() for hour in hourly])
+    return separator.join(
+        [hourly_template.render(hour=hour).strip() for hour in hourly]
+    )
 
 
 def format_weather_daily_forecast(daily: list[WeatherDaily]) -> str:
@@ -183,7 +185,9 @@ def format_weather_daily_forecast(daily: list[WeatherDaily]) -> str:
     将逐日天气预报响应格式化为人类可读的文本
     """
     separator = "\n" + "-" * 50 + "\n"
-    return separator.join([daily_template.render(daily=daily).strip() for daily in daily])
+    return separator.join(
+        [daily_template.render(daily=daily).strip() for daily in daily]
+    )
 
 
 def format_weather_alerts(alerts: list[WeatherAlert]) -> str:
@@ -191,4 +195,6 @@ def format_weather_alerts(alerts: list[WeatherAlert]) -> str:
     将天气预警响应格式化为人类可读的文本
     """
     separator = "\n" + "-" * 50 + "\n"
-    return separator.join([alert_template.render(alert=alert).strip() for alert in alerts])
+    return separator.join(
+        [alert_template.render(alert=alert).strip() for alert in alerts]
+    )

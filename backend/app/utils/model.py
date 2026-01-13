@@ -36,4 +36,6 @@ def format_sse_message(msg_type: str, data=None) -> str:
     if isinstance(data, BaseModel):
         data = data.model_dump(mode="json")
 
-    return f"data: {json.dumps({'type': msg_type, 'data': data}, ensure_ascii=False)}\n\n"
+    return (
+        f"data: {json.dumps({'type': msg_type, 'data': data}, ensure_ascii=False)}\n\n"
+    )

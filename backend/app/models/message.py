@@ -14,7 +14,9 @@ class MessageDb(SQLModel, table=True):
 
     __tablename__ = "messages"
 
-    id: str = Field(default_factory=gen_uuid, primary_key=True, index=True, max_length=36)
+    id: str = Field(
+        default_factory=gen_uuid, primary_key=True, index=True, max_length=36
+    )
     conversation_id: str = Field(
         sa_column=Column(
             String(36), ForeignKey("conversations.id", ondelete="CASCADE"), index=True
@@ -32,15 +34,21 @@ class MessageDb(SQLModel, table=True):
         sa_type=DateTime(timezone=True),
     )
     reasoning: str | None = Field(default=None, description="Reasoning content")
-    tool_calls: list[dict] | None = Field(default=None, sa_type=SQLJSON, description="Tool calls")
+    tool_calls: list[dict] | None = Field(
+        default=None, sa_type=SQLJSON, description="Tool calls"
+    )
     component_tool_calls: list[dict] | None = Field(
         default=None, sa_type=SQLJSON, description="Component tool calls"
     )
     message_metadata: dict[str, Any] = Field(
         default_factory=dict, sa_type=SQLJSON
     )  # 元数据（模型调用、配置）
-    status: str = Field(default="pending", description="消息落库状态，pending|done|failed")
-    reply_to: str | None = Field(default=None, description="关联的用户消息 ID", max_length=36)
+    status: str = Field(
+        default="pending", description="消息落库状态，pending|done|failed"
+    )
+    reply_to: str | None = Field(
+        default=None, description="关联的用户消息 ID", max_length=36
+    )
     tool_calls_duration: float | None = Field(
         default=None, sa_type=Float, description="工具调用耗时（秒）"
     )
@@ -53,7 +61,9 @@ class MessageDb(SQLModel, table=True):
     content_duration: float | None = Field(
         default=None, sa_type=Float, description="内容生成耗时（秒）"
     )
-    total_duration: float | None = Field(default=None, sa_type=Float, description="总耗时（秒）")
+    total_duration: float | None = Field(
+        default=None, sa_type=Float, description="总耗时（秒）"
+    )
     token_stats: dict | None = Field(
         default=None,
         sa_type=SQLJSON,

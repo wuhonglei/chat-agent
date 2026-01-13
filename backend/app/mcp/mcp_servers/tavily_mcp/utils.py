@@ -66,7 +66,9 @@ def format_crawl_results(response: TavilyCrawlResponse) -> str:
         if page.raw_content:
             # Truncate content if it's too long
             content_preview = (
-                page.raw_content[:200] + "..." if len(page.raw_content) > 200 else page.raw_content
+                page.raw_content[:200] + "..."
+                if len(page.raw_content) > 200
+                else page.raw_content
             )
             output.append(f"Content: {content_preview}")
         if page.favicon:

@@ -40,7 +40,9 @@ class ConversationListResponse(BaseModel):
     total: int = Field(..., description="Total number of conversations")
     offset: int = Field(..., description="Offset for pagination")
     limit: int = Field(..., description="Limit for pagination")
-    conversations: list[ConversationInfo] = Field(..., description="List of conversations")
+    conversations: list[ConversationInfo] = Field(
+        ..., description="List of conversations"
+    )
 
 
 class ConversationDetailResponse(ConversationInfo):

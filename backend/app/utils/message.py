@@ -12,7 +12,9 @@ from app.schemas.llm import (
 from app.utils.common import normalize_to_dict
 
 
-def clear_reasoning_content_from_history(history: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def clear_reasoning_content_from_history(
+    history: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
     """
     清除历史消息中的 reasoning_content 字段
 
@@ -92,5 +94,7 @@ def format_tool_call_messages_for_llm(
     """
     new_messages = []
     for _message in messages:
-        new_messages.append(format_tool_call_message_for_llm(_message, clear_reasoning_content))
+        new_messages.append(
+            format_tool_call_message_for_llm(_message, clear_reasoning_content)
+        )
     return new_messages

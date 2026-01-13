@@ -46,7 +46,9 @@ def quote_cql_identifier_if_needed(identifier: str) -> str:
     # Rule 4: Contains internal quotes or backslashes (always needs quoting+escaping)
     elif '"' in identifier or "\\" in identifier:
         needs_quoting = True
-        logger.debug(f"Identifier '{identifier}' needs quoting (contains quotes/backslashes).")
+        logger.debug(
+            f"Identifier '{identifier}' needs quoting (contains quotes/backslashes)."
+        )
 
     # Add more rules here if other characters prove problematic (e.g., spaces, hyphens)
     # elif ' ' in identifier or '-' in identifier:

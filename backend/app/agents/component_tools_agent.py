@@ -12,7 +12,11 @@ from app.agents.base import BaseAgent
 from app.prompts.prompt_utils import get_prompt_for_component_render_data
 from app.schemas.chat import ComponentToolConfig
 from app.schemas.config import LLMConfig
-from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallResultMessage
+from app.schemas.llm import (
+    AssistantToolCallMessage,
+    ToolCallMessage,
+    ToolCallResultMessage,
+)
 from app.schemas.token_stats import ComponentToolsTokenStats
 from app.services.component_schema_service import ComponentSchemaService
 from app.utils.component_tools import convert_schema_to_tool_definition
@@ -73,12 +77,16 @@ class ComponentToolsAgent(BaseAgent):
             return
 
         # 准备消息列表
-        system_prompt, component_user_message = get_prompt_for_component_render_data(user_message)
+        system_prompt, component_user_message = get_prompt_for_component_render_data(
+            user_message
+        )
         input_messages = self._compose_messages(
             system_prompt, [], component_user_message, mcp_tool_call_messages
         )
 
-        component_tools, schemas = await self._get_component_tools(filtered_component_tools)
+        component_tools, schemas = await self._get_component_tools(
+            filtered_component_tools
+        )
         if not component_tools:
             return
 
@@ -88,7 +96,9 @@ class ComponentToolsAgent(BaseAgent):
             input_messages, self.model_name, self.extra_body, component_tools, schemas
         ):
             if message:
-                yield self.format_sse_message("component_tool_call", message.model_dump())
+                yield self.format_sse_message(
+                    "component_tool_call", message.model_dump()
+                )
 
         if self.output_messages:
             self.duration = get_time_duration(start_time)
@@ -124,7 +134,9 @@ class ComponentToolsAgent(BaseAgent):
             list[str]: 过滤后的组件工具名称列表
         """
         # 提取MCP工具信息
-        mcp_tool_names, mcp_tool_call_contents = self._extract_mcp_tool_info(mcp_tool_call_messages)
+        mcp_tool_names, mcp_tool_call_contents = self._extract_mcp_tool_info(
+            mcp_tool_call_messages
+        )
 
         filtered_component_tools = []
         for component_config in component_tools_for_backend:
@@ -519,7 +531,9 @@ class ComponentToolsAgent(BaseAgent):
             agent_name="component_tools",
             think_mode=self.think_mode,
             model_limit=self.model_limit,
-            token_usage=self._create_token_usage(total_prompt_tokens, completion_tokens),
+            token_usage=self._create_token_usage(
+                total_prompt_tokens, completion_tokens
+            ),
             tool_call_count=tool_call_count,
             tool_call_names=tool_call_names,
             tool_definition_tokens=tool_definition_tokens,

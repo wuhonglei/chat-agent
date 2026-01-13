@@ -50,7 +50,9 @@ def _make_json_serializable(obj: Any) -> Any:
 # 上下文变量，用于存储请求相关的上下文信息
 request_id_var: ContextVar[str | None] = ContextVar("request_id", default=None)
 user_id_var: ContextVar[str | None] = ContextVar("user_id", default=None)
-anonymous_user_id_var: ContextVar[str | None] = ContextVar("anonymous_user_id", default=None)
+anonymous_user_id_var: ContextVar[str | None] = ContextVar(
+    "anonymous_user_id", default=None
+)
 client_id_var: ContextVar[str | None] = ContextVar("client_id", default=None)
 client_ip_var: ContextVar[str | None] = ContextVar("client_ip", default=None)
 
@@ -107,7 +109,9 @@ def production_sink(message: Message) -> None:
             pass
 
         exception_info = {
-            "type": record["exception"].type.__name__ if record["exception"].type else "Unknown",
+            "type": record["exception"].type.__name__
+            if record["exception"].type
+            else "Unknown",
             "value": str(record["exception"].value),
         }
         if traceback_str:
@@ -235,7 +239,9 @@ class LoggerWrapper:
         extra = {**context, **kwargs}
         _loguru_logger.opt(depth=1).bind(**extra).warning(message)
 
-    def error(self, message: str, error: Exception | None = None, **kwargs: Any) -> None:
+    def error(
+        self, message: str, error: Exception | None = None, **kwargs: Any
+    ) -> None:
         """记录 ERROR 级别日志
 
         Args:

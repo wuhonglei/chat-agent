@@ -36,7 +36,9 @@ mcp = FastMCP(
 
 @mcp.tool(name="search_city")
 async def search_city(
-    location: str = Field(..., description="需要查询地区的名称，支持文字。例如 location=北京"),
+    location: str = Field(
+        ..., description="需要查询地区的名称，支持文字。例如 location=北京"
+    ),
     adm: str = Field(
         default="",
         description="城市的上级行政区划，可设定只在某个行政区划范围内进行搜索，用于排除重名城市或对结果进行过滤。例如 adm=beijing",
@@ -46,9 +48,14 @@ async def search_city(
         description="搜索范围，可设定只在某个国家或地区范围内进行搜索，国家和地区名称需使用ISO 3166 所定义的国家代码。如果不设置此参数，搜索范围将在所有城市。例如 range=cn",
     ),
     number: int = Field(
-        default=1, ge=1, le=20, description="返回结果的数量，取值范围1-20，默认返回 1 个结果。"
+        default=1,
+        ge=1,
+        le=20,
+        description="返回结果的数量，取值范围1-20，默认返回 1 个结果。",
     ),
-    lang: str = Field(default="zh", description="多语言设置，支持 zh（中文）、en（英文）等"),
+    lang: str = Field(
+        default="zh", description="多语言设置，支持 zh（中文）、en（英文）等"
+    ),
 ) -> CitySearchResponse:
     """
     搜索城市信息
@@ -80,7 +87,9 @@ async def get_current_weather(
         ...,
         description="位置信息，必须是 LocationID（如：101010100）或经纬度坐标（如：116.41,39.92）。如果只有城市名称，请先使用 search_city 工具获取 LocationID。",
     ),
-    lang: str = Field(default="zh", description="多语言设置，支持 zh（中文）、en（英文）等"),
+    lang: str = Field(
+        default="zh", description="多语言设置，支持 zh（中文）、en（英文）等"
+    ),
     unit: str = Field(default="m", description="单位设置，m（公制）或 i（英制）"),
 ) -> WeatherNowResponse:
     """

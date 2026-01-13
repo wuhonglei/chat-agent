@@ -51,7 +51,9 @@ def get_user_message_for_tool_calls(
     id_by_config = {config["id"]: config for config in mcp_config_for_fe}
     server_names = server_names or []
     mcp_configs = [
-        id_by_config[server_name] for server_name in server_names if server_name in id_by_config
+        id_by_config[server_name]
+        for server_name in server_names
+        if server_name in id_by_config
     ]
 
     return user_message_for_tool_call_template.render(
@@ -115,10 +117,15 @@ def get_user_message_with_component_data(
         for tool_call in (assistant_message.tool_calls or [])
     }
     for tool_call_result_message in component_tool_call_messages:
-        if tool_call_result_message.role == "tool" and not tool_call_result_message.is_error:
+        if (
+            tool_call_result_message.role == "tool"
+            and not tool_call_result_message.is_error
+        ):
             tool_call = tool_call_by_id.get(tool_call_result_message.tool_call_id)
             if tool_call:
-                component_name = tool_call.function.name.replace("generate_component_", "")
+                component_name = tool_call.function.name.replace(
+                    "generate_component_", ""
+                )
                 component_description = component_schema.get(component_name, {}).get(
                     "description", ""
                 )
@@ -129,7 +136,9 @@ def get_user_message_with_component_data(
                     "props": props,
                 }
                 # 序列化为 JSON 字符串（设置 ensure_ascii=False 以保留中文）
-                component_json_str = json.dumps(component_json_data, indent=2, ensure_ascii=False)
+                component_json_str = json.dumps(
+                    component_json_data, indent=2, ensure_ascii=False
+                )
                 component_dict = {
                     "component_name": component_name,
                     "component_description": component_description,

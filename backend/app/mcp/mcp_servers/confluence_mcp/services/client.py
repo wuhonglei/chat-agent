@@ -107,7 +107,9 @@ class ConfluenceClient:
         if proxies:
             self.confluence._session.proxies.update(proxies)
             for k, v in proxies.items():
-                log_config_param(logger, "Confluence", f"{k.upper()}_PROXY", v, sensitive=True)
+                log_config_param(
+                    logger, "Confluence", f"{k.upper()}_PROXY", v, sensitive=True
+                )
         if self.config.no_proxy and isinstance(self.config.no_proxy, str):
             os.environ["NO_PROXY"] = self.config.no_proxy
             log_config_param(logger, "Confluence", "NO_PROXY", self.config.no_proxy)
@@ -134,7 +136,9 @@ class ConfluenceClient:
     def _validate_authentication(self) -> None:
         """Validate authentication by making a simple API call."""
         try:
-            logger.debug("Testing Confluence authentication by making a simple API call...")
+            logger.debug(
+                "Testing Confluence authentication by making a simple API call..."
+            )
             # Make a simple API call to test authentication
             spaces = self.confluence.get_all_spaces(start=0, limit=1)
             if spaces is not None:
@@ -167,7 +171,9 @@ class ConfluenceClient:
             self.confluence._session.headers[header_name] = header_value
             logger.debug(f"Applied custom header: {header_name}")
 
-    def _process_html_content(self, html_content: str, space_key: str) -> tuple[str, str]:
+    def _process_html_content(
+        self, html_content: str, space_key: str
+    ) -> tuple[str, str]:
         """Process HTML content into both HTML and markdown formats.
 
         Args:
@@ -177,4 +183,6 @@ class ConfluenceClient:
         Returns:
             Tuple of (processed_html, processed_markdown)
         """
-        return self.preprocessor.process_html_content(html_content, space_key, self.confluence)
+        return self.preprocessor.process_html_content(
+            html_content, space_key, self.confluence
+        )

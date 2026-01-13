@@ -66,8 +66,12 @@ async def _confluence_get_page(
     if page_id:
         return await asyncio.to_thread(confluence_fetcher.get_page_content, page_id)
     elif title and space_key:
-        return await asyncio.to_thread(confluence_fetcher.get_page_by_title, space_key, title)
-    raise ValueError("Either 'page_id' OR both 'title' and 'space_key' must be provided.")
+        return await asyncio.to_thread(
+            confluence_fetcher.get_page_by_title, space_key, title
+        )
+    raise ValueError(
+        "Either 'page_id' OR both 'title' and 'space_key' must be provided."
+    )
 
 
 @mcp.tool()
@@ -121,7 +125,9 @@ async def shopee_confluence_search(
         original_query = query
         try:
             query = f'siteSearch ~ "{original_query}"'
-            logger.info(f"Converting simple search term to CQL using siteSearch: {query}")
+            logger.info(
+                f"Converting simple search term to CQL using siteSearch: {query}"
+            )
             pages = await asyncio.to_thread(
                 confluence_fetcher.search,
                 query,
@@ -226,7 +232,9 @@ async def shopee_confluence_get_page_children(
         description="Whether to convert page content to markdown (true) or keep it in raw HTML format (false). Only relevant if include_content is true.",
         default=True,
     ),
-    start: int = Field(description="Starting index for pagination (0-based)", default=0, ge=0),
+    start: int = Field(
+        description="Starting index for pagination (0-based)", default=0, ge=0
+    ),
 ) -> list[ConfluencePage]:
     """Get child pages of a specific page from Shopee internal company knowledge base Confluence."""
     if include_content and "body" not in expand:
@@ -283,7 +291,9 @@ async def check_availability(timeout: float = 5.0) -> bool:
         async def check_connection():
             try:
                 # 尝试获取一个空间列表（限制为1个，减少网络开销）
-                spaces = await asyncio.to_thread(confluence_fetcher.get_spaces, start=0, limit=1)
+                spaces = await asyncio.to_thread(
+                    confluence_fetcher.get_spaces, start=0, limit=1
+                )
                 return spaces is not None
             except Exception as e:
                 logger.debug(f"Confluence 连接检测失败: {e}")
@@ -293,7 +303,9 @@ async def check_availability(timeout: float = 5.0) -> bool:
         is_available = await asyncio.wait_for(check_connection(), timeout=timeout)
         return is_available
     except asyncio.TimeoutError:
-        logger.warning(f"Confluence MCP 可用性检测超时（{timeout}秒），可能无法连接到公司内网")
+        logger.warning(
+            f"Confluence MCP 可用性检测超时（{timeout}秒），可能无法连接到公司内网"
+        )
         return False
     except Exception as e:
         logger.warning(f"Confluence MCP 可用性检测失败，可能无法连接到公司内网: {e}")
@@ -310,7 +322,9 @@ if __name__ == "__main__":
         default="http",
         help="Transport mode: http or stdio",
     )
-    parser.add_argument("--port", type=int, default=8003, help="Port number for HTTP mode")
+    parser.add_argument(
+        "--port", type=int, default=8003, help="Port number for HTTP mode"
+    )
 
     args = parser.parse_args()
 

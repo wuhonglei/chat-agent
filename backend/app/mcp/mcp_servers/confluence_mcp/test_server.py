@@ -26,7 +26,9 @@ async def test_get_page_children():
 
 async def test_get_page_content():
     async with client:
-        result = await client.call_tool("shopee_confluence_get_page", {"page_id": "2923648424"})
+        result = await client.call_tool(
+            "shopee_confluence_get_page", {"page_id": "2923648424"}
+        )
     print(result.data)
 
 

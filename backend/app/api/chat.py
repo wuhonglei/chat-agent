@@ -67,9 +67,13 @@ async def chat_stream(
         )
         try:
             with MessageService() as message_service:
-                conversation = message_service.get_conversation(chat_request.conversation_id)
+                conversation = message_service.get_conversation(
+                    chat_request.conversation_id
+                )
                 user_message = message_service.session.get(MessageDb, user_message_id)
-                assistant_message = message_service.session.get(MessageDb, assistant_message_id)
+                assistant_message = message_service.session.get(
+                    MessageDb, assistant_message_id
+                )
 
                 logger.debug(
                     "Retrieved conversation and messages",
@@ -122,7 +126,9 @@ async def chat_stream(
 
                 # 流式生成响应
                 start_time = get_current_time()
-                history = message_service.get_flatten_messages_by_ids(chat_request.history_ids)
+                history = message_service.get_flatten_messages_by_ids(
+                    chat_request.history_ids
+                )
                 logger.info(
                     "Starting stream message generation",
                     conversation_id=chat_request.conversation_id,
@@ -154,7 +160,9 @@ async def chat_stream(
                     content_length=len(assistant_payload.content),
                     reasoning_length=len(assistant_payload.reasoning),
                     tool_calls_count=len(assistant_payload.tool_calls),
-                    component_tool_calls_count=len(assistant_payload.component_tool_calls),
+                    component_tool_calls_count=len(
+                        assistant_payload.component_tool_calls
+                    ),
                     total_duration=chat_service.total_duration,
                 )
 
@@ -180,7 +188,9 @@ async def chat_stream(
                     "content_length": len(assistant_payload.content),
                     "reasoning_length": len(assistant_payload.reasoning),
                     "tool_calls_length": len(assistant_payload.tool_calls),
-                    "component_tool_calls_length": len(assistant_payload.component_tool_calls),
+                    "component_tool_calls_length": len(
+                        assistant_payload.component_tool_calls
+                    ),
                     **pick_fields(
                         assistant_payload.model_dump(mode="json"),
                         [
@@ -192,7 +202,9 @@ async def chat_stream(
                             "token_stats",
                         ],
                     ),
-                    **pick_fields(assistant_message.model_dump(mode="json"), ["updated_at"]),
+                    **pick_fields(
+                        assistant_message.model_dump(mode="json"), ["updated_at"]
+                    ),
                 }
                 logger.info(
                     "Sending done message",

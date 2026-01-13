@@ -33,7 +33,9 @@ class ConfluenceVersion(ApiModel, TimestampMixin):
     by: ConfluenceUser | None = None
 
     @classmethod
-    def from_api_response(cls, data: dict[str, Any], **kwargs: Any) -> "ConfluenceVersion":
+    def from_api_response(
+        cls, data: dict[str, Any], **kwargs: Any
+    ) -> "ConfluenceVersion":
         """
         Create a ConfluenceVersion from a Confluence API response.
 
@@ -173,7 +175,11 @@ class ConfluencePage(ApiModel, TimestampMixin):
 
         # Process attachments
         attachments = []
-        if attachments_data := data.get("children", {}).get("attachment", {}).get("results", []):
+        if (
+            attachments_data := data.get("children", {})
+            .get("attachment", {})
+            .get("results", [])
+        ):
             attachments = [
                 ConfluenceAttachment.from_api_response(attachment)
                 for attachment in attachments_data
@@ -248,7 +254,9 @@ class ConfluencePage(ApiModel, TimestampMixin):
             result["version"] = self.version.number
 
         # Add attachments if available
-        result["attachments"] = [attachment.to_simplified_dict() for attachment in self.attachments]
+        result["attachments"] = [
+            attachment.to_simplified_dict() for attachment in self.attachments
+        ]
 
         # Add content if it's not empty
         if self.content and self.content_format:
@@ -257,7 +265,9 @@ class ConfluencePage(ApiModel, TimestampMixin):
         # Add ancestors if there are any
         if self.ancestors:
             result["ancestors"] = [
-                {"id": a.get("id"), "title": a.get("title")} for a in self.ancestors if "id" in a
+                {"id": a.get("id"), "title": a.get("title")}
+                for a in self.ancestors
+                if "id" in a
             ]
 
         return result

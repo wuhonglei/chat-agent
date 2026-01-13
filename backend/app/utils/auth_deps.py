@@ -101,13 +101,16 @@ async def get_auth_token_info(
 
             if not refresh_token:
                 raise HTTPException(
-                    status_code=401, detail="Token 已过期且缺少 refresh_token，请重新登录"
+                    status_code=401,
+                    detail="Token 已过期且缺少 refresh_token，请重新登录",
                 )
 
             # 从过期 token 中获取 user_id（如果存在）
             user_id = expired_payload.get("user_id")
             if not user_id:
-                raise HTTPException(status_code=401, detail="无法从过期 token 中获取 user_id")
+                raise HTTPException(
+                    status_code=401, detail="无法从过期 token 中获取 user_id"
+                )
 
             # 使用 refresh_token 刷新 access token
             refresh_request = RefreshTokenRequest(refresh_token=refresh_token)

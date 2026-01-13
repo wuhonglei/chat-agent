@@ -35,7 +35,11 @@ class CallbackHandler(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         """Handle GET requests (OAuth callback)."""
-        global authorization_code, callback_received, callback_error, authorization_state
+        global \
+            authorization_code, \
+            callback_received, \
+            callback_error, \
+            authorization_state
 
         # Parse the query parameters from the URL
         query = urllib.parse.urlparse(self.path).query
@@ -52,9 +56,13 @@ class CallbackHandler(http.server.BaseHTTPRequestHandler):
             if "state" in params:
                 authorization_state = params["state"][0]
             callback_received = True
-            self._send_response("Authorization successful! You can close this window now.")
+            self._send_response(
+                "Authorization successful! You can close this window now."
+            )
         else:
-            self._send_response("Invalid callback: Authorization code missing", status=400)
+            self._send_response(
+                "Invalid callback: Authorization code missing", status=400
+            )
 
     def _send_response(self, message: str, status: int = 200) -> None:
         """Send response to the browser."""
@@ -155,7 +163,9 @@ def wait_for_callback(timeout: int = 300) -> bool:
         time.sleep(1)
 
     if not callback_received:
-        logger.error(f"Timed out waiting for authorization callback after {timeout} seconds")
+        logger.error(
+            f"Timed out waiting for authorization callback after {timeout} seconds"
+        )
         return False
 
     if callback_error:
@@ -223,7 +233,9 @@ def run_oauth_flow(args: OAuthSetupArgs) -> bool:
     # Open the browser for authorization
     logger.info(f"Opening browser for authorization at {auth_url}")
     webbrowser.open(auth_url)
-    logger.info("If the browser doesn't open automatically, please visit this URL manually.")
+    logger.info(
+        "If the browser doesn't open automatically, please visit this URL manually."
+    )
 
     # Wait for the callback
     if not wait_for_callback():
@@ -261,7 +273,9 @@ def run_oauth_flow(args: OAuthSetupArgs) -> bool:
                 "However, to use them in your application, you need these environment variables:"
             )
             logger.info("")
-            logger.info("Add the following to your .env file or set as environment variables:")
+            logger.info(
+                "Add the following to your .env file or set as environment variables:"
+            )
             logger.info("------------------------------------------------------------")
             logger.info(f"ATLASSIAN_OAUTH_CLIENT_ID={oauth_config.client_id}")
             logger.info(f"ATLASSIAN_OAUTH_CLIENT_SECRET={oauth_config.client_secret}")
@@ -351,7 +365,11 @@ def _prompt_for_input(prompt: str, env_var: str = None, is_secret: bool = False)
     value = os.getenv(env_var, "") if env_var else ""
     if value:
         if is_secret:
-            masked = value[:3] + "*" * (len(value) - 6) + value[-3:] if len(value) > 6 else "****"
+            masked = (
+                value[:3] + "*" * (len(value) - 6) + value[-3:]
+                if len(value) > 6
+                else "****"
+            )
             print(f"{prompt} [{masked}]: ", end="")
         else:
             print(f"{prompt} [{value}]: ", end="")
@@ -379,9 +397,12 @@ def run_oauth_setup() -> int:
         "OAuth Client Secret", "ATLASSIAN_OAUTH_CLIENT_SECRET", is_secret=True
     )
 
-    default_redirect = os.getenv("ATLASSIAN_OAUTH_REDIRECT_URI", "http://localhost:8080/callback")
+    default_redirect = os.getenv(
+        "ATLASSIAN_OAUTH_REDIRECT_URI", "http://localhost:8080/callback"
+    )
     redirect_uri = (
-        _prompt_for_input("OAuth Redirect URI", "ATLASSIAN_OAUTH_REDIRECT_URI") or default_redirect
+        _prompt_for_input("OAuth Redirect URI", "ATLASSIAN_OAUTH_REDIRECT_URI")
+        or default_redirect
     )
 
     default_scope = os.getenv(

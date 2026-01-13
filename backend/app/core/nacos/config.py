@@ -58,7 +58,9 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
             actual_content = None
             if isinstance(config_content, dict):
                 # 如果是字典格式，提取实际的配置内容
-                actual_content = config_content.get("content") or config_content.get("raw_content")
+                actual_content = config_content.get("content") or config_content.get(
+                    "raw_content"
+                )
             elif isinstance(config_content, str):
                 # 如果是字符串格式，直接使用
                 actual_content = config_content
@@ -71,9 +73,15 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
                 return
 
             # 根据配置类型解析新的配置内容
-            if self._connection_config and self._connection_config.config_type == "yaml":
+            if (
+                self._connection_config
+                and self._connection_config.config_type == "yaml"
+            ):
                 new_config = yaml.safe_load(actual_content) or {}
-            elif self._connection_config and self._connection_config.config_type == "json":
+            elif (
+                self._connection_config
+                and self._connection_config.config_type == "json"
+            ):
                 new_config = json.loads(actual_content)
             else:
                 logger.warning(
@@ -82,7 +90,9 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
                 return
 
             # 更新缓存
-            old_config_keys = set(self._config_cache.keys()) if self._config_cache else set()
+            old_config_keys = (
+                set(self._config_cache.keys()) if self._config_cache else set()
+            )
             self._config_cache = new_config
             new_config_keys = set(new_config.keys())
 
@@ -92,12 +102,18 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
 
             logger.info(
                 "Nacos 配置已更新",
-                data_id=self._connection_config.data_id if self._connection_config else "unknown",
-                group=self._connection_config.group if self._connection_config else "unknown",
+                data_id=self._connection_config.data_id
+                if self._connection_config
+                else "unknown",
+                group=self._connection_config.group
+                if self._connection_config
+                else "unknown",
                 config_keys_count=len(new_config),
                 added_keys=list(added_keys) if added_keys else None,
                 removed_keys=list(removed_keys) if removed_keys else None,
-                config_size=len(actual_content) if isinstance(actual_content, str) else "unknown",
+                config_size=len(actual_content)
+                if isinstance(actual_content, str)
+                else "unknown",
             )
 
         except Exception as e:

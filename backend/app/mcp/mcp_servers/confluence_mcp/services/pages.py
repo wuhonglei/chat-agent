@@ -29,7 +29,9 @@ class PagesMixin(ConfluenceClient):
             )
         return None
 
-    def get_page_content(self, page_id: str, *, convert_to_markdown: bool = True) -> ConfluencePage:
+    def get_page_content(
+        self, page_id: str, *, convert_to_markdown: bool = True
+    ) -> ConfluencePage:
         """
         Get content of a specific page.
 
@@ -49,13 +51,17 @@ class PagesMixin(ConfluenceClient):
             # Use v2 API for OAuth authentication, v1 API for token/basic auth
             v2_adapter = self._v2_adapter
             if v2_adapter:
-                logger.debug(f"Using v2 API for OAuth authentication to get page '{page_id}'")
+                logger.debug(
+                    f"Using v2 API for OAuth authentication to get page '{page_id}'"
+                )
                 page = v2_adapter.get_page(
                     page_id=page_id,
                     expand="body.storage,version,space",
                 )
             else:
-                logger.debug(f"Using v1 API for token/basic authentication to get page '{page_id}'")
+                logger.debug(
+                    f"Using v1 API for token/basic authentication to get page '{page_id}'"
+                )
                 page = self.confluence.get_page_by_id(
                     page_id=page_id,
                     expand="body.storage,version,space",
@@ -98,7 +104,9 @@ class PagesMixin(ConfluenceClient):
                 logger.error(f"HTTP error during API call: {http_err}", exc_info=False)
                 raise http_err
         except Exception as e:
-            logger.error(f"Error retrieving page content for page ID {page_id}: {str(e)}")
+            logger.error(
+                f"Error retrieving page content for page ID {page_id}: {str(e)}"
+            )
             raise Exception(f"Error retrieving page content: {str(e)}") from e
 
     def get_page_ancestors(self, page_id: str) -> list[ConfluencePage]:
@@ -314,7 +322,9 @@ class PagesMixin(ConfluenceClient):
             # Use v2 API for OAuth authentication, v1 API for token/basic auth
             v2_adapter = self._v2_adapter
             if v2_adapter:
-                logger.debug(f"Using v2 API for OAuth authentication to create page '{title}'")
+                logger.debug(
+                    f"Using v2 API for OAuth authentication to create page '{title}'"
+                )
                 result = v2_adapter.create_page(
                     space_key=space_key,
                     title=title,
@@ -341,7 +351,9 @@ class PagesMixin(ConfluenceClient):
 
             return self.get_page_content(page_id)
         except Exception as e:
-            logger.error(f"Error creating page '{title}' in space {space_key}: {str(e)}")
+            logger.error(
+                f"Error creating page '{title}' in space {space_key}: {str(e)}"
+            )
             raise Exception(
                 f"Failed to create page '{title}' in space {space_key}: {str(e)}"
             ) from e
@@ -397,7 +409,9 @@ class PagesMixin(ConfluenceClient):
             # Use v2 API for OAuth authentication, v1 API for token/basic auth
             v2_adapter = self._v2_adapter
             if v2_adapter:
-                logger.debug(f"Using v2 API for OAuth authentication to update page '{page_id}'")
+                logger.debug(
+                    f"Using v2 API for OAuth authentication to update page '{page_id}'"
+                )
                 response = v2_adapter.update_page(
                     page_id=page_id,
                     title=title,
@@ -525,7 +539,9 @@ class PagesMixin(ConfluenceClient):
             # Use v2 API for OAuth authentication, v1 API for token/basic auth
             v2_adapter = self._v2_adapter
             if v2_adapter:
-                logger.debug(f"Using v2 API for OAuth authentication to delete page '{page_id}'")
+                logger.debug(
+                    f"Using v2 API for OAuth authentication to delete page '{page_id}'"
+                )
                 return v2_adapter.delete_page(page_id=page_id)
             else:
                 logger.debug(

@@ -58,7 +58,11 @@ class SpacesMixin(ConfluenceClient):
                         space_key = display_url.split("/spaces/")[1].split("/")[0]
 
                 # Try to extract from content expandable
-                if not space_key and "content" in result and "_expandable" in result["content"]:
+                if (
+                    not space_key
+                    and "content" in result
+                    and "_expandable" in result["content"]
+                ):
                     expandable = result["content"].get("_expandable", {})
                     space_path = expandable.get("space", "")
                     if space_path and space_path.startswith("/rest/api/space/"):

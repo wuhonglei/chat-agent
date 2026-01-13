@@ -325,7 +325,9 @@ class ConfluenceV2Adapter:
 
             # Add version information
             if "version" in v2_response:
-                v1_compatible["version"] = {"number": v2_response["version"].get("number", 1)}
+                v1_compatible["version"] = {
+                    "number": v2_response["version"].get("number", 1)
+                }
 
             return v1_compatible
 
@@ -363,7 +365,9 @@ class ConfluenceV2Adapter:
                 return True
 
             # If we get here, it's an unexpected success status
-            logger.warning(f"Delete page returned unexpected status {response.status_code}")
+            logger.warning(
+                f"Delete page returned unexpected status {response.status_code}"
+            )
             return True
 
         except HTTPError as e:

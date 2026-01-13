@@ -52,7 +52,9 @@ def should_include_tool(tool_name: str, enabled_tools: list[str] | None) -> bool
         True if the tool should be included, False otherwise.
     """
     if enabled_tools is None:
-        logger.debug(f"Including tool '{tool_name}' because enabled_tools filter is None.")
+        logger.debug(
+            f"Including tool '{tool_name}' because enabled_tools filter is None."
+        )
         return True
     should_include = tool_name in enabled_tools
     logger.debug(

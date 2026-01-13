@@ -35,7 +35,9 @@ class ConversationService(BaseService):
         """
         return conversation.model_dump(mode="json")
 
-    def register_conversation(self, title: str | None, user_id: str) -> ConversationInfo:
+    def register_conversation(
+        self, title: str | None, user_id: str
+    ) -> ConversationInfo:
         """注册新对话"""
         db = self._ensure_db()
         conversation = ConversationDb(
@@ -47,7 +49,9 @@ class ConversationService(BaseService):
         # 所有字段（id, created_at, updated_at 等）都通过 default_factory 在对象创建时生成
         # 不需要 refresh()，事务由 get_db() 自动提交
         logger.debug("Conversation registered", conversation_id=conversation.id)
-        conversation_info = ConversationInfo.model_validate(self.conversation_to_dict(conversation))
+        conversation_info = ConversationInfo.model_validate(
+            self.conversation_to_dict(conversation)
+        )
         return conversation_info
 
     def get_conversations(self, user_id: str) -> list[ConversationInfo]:
@@ -77,7 +81,9 @@ class ConversationService(BaseService):
         if not conversation:
             return None
 
-        conversation_info = ConversationInfo.model_validate(self.conversation_to_dict(conversation))
+        conversation_info = ConversationInfo.model_validate(
+            self.conversation_to_dict(conversation)
+        )
         return conversation_info
 
     def get_messages(self, conversation_id: str) -> list[ChatMessageItem]:
@@ -89,7 +95,8 @@ class ConversationService(BaseService):
             .order_by(MessageDb.created_at.asc())
         ).all()
         chat_messages = [
-            ChatMessageItem.model_validate(message.model_dump(mode="json")) for message in messages
+            ChatMessageItem.model_validate(message.model_dump(mode="json"))
+            for message in messages
         ]
         return chat_messages
 
@@ -102,7 +109,9 @@ class ConversationService(BaseService):
         conversation.updated_at = get_datetime_now()
         # updated_at 已在代码中手动设置，不需要 refresh()
         # 事务由 get_db() 自动提交
-        conversation_info = ConversationInfo.model_validate(self.conversation_to_dict(conversation))
+        conversation_info = ConversationInfo.model_validate(
+            self.conversation_to_dict(conversation)
+        )
         return conversation_info
 
     def delete_conversation(self, conversation: ConversationDb) -> str:

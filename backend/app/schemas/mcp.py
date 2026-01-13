@@ -4,7 +4,9 @@ from pydantic import BaseModel, Field
 
 
 class MCPConfigForFE(BaseModel):
-    id: str = Field(description="MCP ID, should be the same value as mcp_config['mcpServers'][id]")
+    id: str = Field(
+        description="MCP ID, should be the same value as mcp_config['mcpServers'][id]"
+    )
     name: str = Field(description="MCP Name")
     icon: str = Field(description="MCP Icon")
     description: str = Field(description="MCP Description")

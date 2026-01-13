@@ -13,7 +13,9 @@ class ConversationDb(SQLModel, table=True):
 
     __tablename__ = "conversations"
 
-    id: str = Field(default_factory=gen_uuid, primary_key=True, index=True, max_length=36)
+    id: str = Field(
+        default_factory=gen_uuid, primary_key=True, index=True, max_length=36
+    )
     title: str
     created_by: str = Field(
         default=CreatedBy.DEFAULT,
@@ -26,8 +28,12 @@ class ConversationDb(SQLModel, table=True):
         foreign_key="users.id",
         description="关联用户",
     )
-    created_at: datetime = Field(default_factory=get_datetime_now, sa_type=DateTime(timezone=True))
-    updated_at: datetime = Field(default_factory=get_datetime_now, sa_type=DateTime(timezone=True))
+    created_at: datetime = Field(
+        default_factory=get_datetime_now, sa_type=DateTime(timezone=True)
+    )
+    updated_at: datetime = Field(
+        default_factory=get_datetime_now, sa_type=DateTime(timezone=True)
+    )
     last_message_created_at: datetime = Field(
         default_factory=get_datetime_now, sa_type=DateTime(timezone=True)
     )

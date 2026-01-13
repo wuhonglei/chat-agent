@@ -32,7 +32,9 @@ class ConfluenceComment(ApiModel, TimestampMixin):
     type: str = "comment"  # "comment", "page", etc.
 
     @classmethod
-    def from_api_response(cls, data: dict[str, Any], **kwargs: Any) -> "ConfluenceComment":
+    def from_api_response(
+        cls, data: dict[str, Any], **kwargs: Any
+    ) -> "ConfluenceComment":
         """
         Create a ConfluenceComment from a Confluence API response.
 
