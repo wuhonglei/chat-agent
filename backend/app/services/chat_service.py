@@ -54,7 +54,7 @@ class ChatService:
         self.context_compression_agent = ContextCompressionAgent(
             think_mode=False,
             llm_config=settings.tool_call_model,
-            compression_config=settings.compression.iteration_compression,
+            compression_config=settings.compression,
         )
         # 上下文压缩服务
         self.context_compression_service = ContextCompressionService(
