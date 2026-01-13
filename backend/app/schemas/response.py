@@ -1,6 +1,7 @@
 """统一响应格式模型"""
 
-from typing import Generic, TypeVar, Optional
+from typing import Generic, TypeVar
+
 from pydantic import BaseModel, Field
 
 T = TypeVar("T")
@@ -11,9 +12,10 @@ class ApiResponse(BaseModel, Generic[T]):
 
     格式: { code, msg, data }
     """
+
     code: int = Field(..., description="响应状态码，0表示成功，非0表示失败")
     msg: str = Field(..., description="响应消息")
-    data: Optional[T] = Field(None, description="响应数据")
+    data: T | None = Field(None, description="响应数据")
 
     @classmethod
     def success(cls, data: T = None, msg: str = "操作成功") -> "ApiResponse[T]":

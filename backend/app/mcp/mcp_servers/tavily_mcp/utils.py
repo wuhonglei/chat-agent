@@ -1,4 +1,9 @@
-from .models import TavilySearchResponse, TavilyExtractResponse, TavilyCrawlResponse, TavilyMapResponse
+from .models import (
+    TavilyCrawlResponse,
+    TavilyExtractResponse,
+    TavilyMapResponse,
+    TavilySearchResponse,
+)
 
 
 def format_results(response: TavilySearchResponse | TavilyExtractResponse) -> str:
@@ -18,7 +23,7 @@ def format_results(response: TavilySearchResponse | TavilyExtractResponse) -> st
         output.append(f"Answer: {response.answer}")
 
     # Format detailed search results
-    output.append('Detailed Results:')
+    output.append("Detailed Results:")
     for result in response.results:
         output.append(f"\nTitle: {result.title}")
         output.append(f"URL: {result.url}")
@@ -31,13 +36,13 @@ def format_results(response: TavilySearchResponse | TavilyExtractResponse) -> st
 
     # Add images section if available
     if hasattr(response, "images") and response.images and len(response.images) > 0:
-        output.append('\nImages:')
+        output.append("\nImages:")
         for index, image in enumerate(response.images, start=1):
             output.append(f"\n[{index}] URL: {image.url}")
             if image.description:
                 output.append(f"   Description: {image.description}")
 
-    return '\n'.join(output)
+    return "\n".join(output)
 
 
 def format_crawl_results(response: TavilyCrawlResponse) -> str:
@@ -52,21 +57,22 @@ def format_crawl_results(response: TavilyCrawlResponse) -> str:
     """
     output = []
 
-    output.append('Crawl Results:')
+    output.append("Crawl Results:")
     output.append(f"Base URL: {response.base_url}")
 
-    output.append('\nCrawled Pages:')
+    output.append("\nCrawled Pages:")
     for index, page in enumerate(response.results, start=1):
         output.append(f"\n[{index}] URL: {page.url}")
         if page.raw_content:
             # Truncate content if it's too long
-            content_preview = page.raw_content[:200] + "..." if len(
-                page.raw_content) > 200 else page.raw_content
+            content_preview = (
+                page.raw_content[:200] + "..." if len(page.raw_content) > 200 else page.raw_content
+            )
             output.append(f"Content: {content_preview}")
         if page.favicon:
             output.append(f"Favicon: {page.favicon}")
 
-    return '\n'.join(output)
+    return "\n".join(output)
 
 
 def format_map_results(response: TavilyMapResponse) -> str:
@@ -81,11 +87,11 @@ def format_map_results(response: TavilyMapResponse) -> str:
     """
     output = []
 
-    output.append('Site Map Results:')
+    output.append("Site Map Results:")
     output.append(f"Base URL: {response.base_url}")
 
-    output.append('\nMapped Pages:')
+    output.append("\nMapped Pages:")
     for index, page in enumerate(response.results, start=1):
         output.append(f"\n[{index}] URL: {page}")
 
-    return '\n'.join(output)
+    return "\n".join(output)

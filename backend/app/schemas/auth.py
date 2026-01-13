@@ -1,4 +1,3 @@
-from typing import Optional
 from pydantic import BaseModel, Field
 
 
@@ -14,12 +13,12 @@ class SendSmsResponse(BaseModel):
 
     verification_id: str = Field(..., description="Verification ID")
     expires_in: int = Field(..., description="Expires in")
-    is_user: bool = Field(
-        False, description="Is user registered in the cloudbase")
+    is_user: bool = Field(False, description="Is user registered in the cloudbase")
 
 
 class SendSmsResponseForFrontend(SendSmsResponse):
     """Send SMS response for frontend"""
+
     phone_number: str = Field(..., description="Phone number")
 
 
@@ -32,9 +31,9 @@ class VerifySmsRequest(BaseModel):
 
 class VerifySmsRequestFromFrontend(VerifySmsRequest):
     """Verify SMS request from frontend"""
+
     phone_number: str = Field(..., description="Phone number")
-    is_user: bool = Field(
-        False, description="Is user registered in the cloudbase")
+    is_user: bool = Field(False, description="Is user registered in the cloudbase")
 
 
 class VerifySmsResponse(BaseModel):
@@ -69,17 +68,20 @@ class SignupRequest(BaseModel):
 
 class SignupResponse(SigninResponse):
     """Signup response"""
+
     pass
 
 
 class SignoutRequest(BaseModel):
     """Sign out request"""
+
     access_token: str = Field(..., description="Access token")
 
 
 class SignoutResponse(BaseModel):
     """Sign out response"""
-    redirect_uri: Optional[str] = Field(None, description="Redirect URI")
+
+    redirect_uri: str | None = Field(None, description="Redirect URI")
 
 
 class RefreshTokenRequest(BaseModel):
@@ -91,4 +93,5 @@ class RefreshTokenRequest(BaseModel):
 
 class RefreshTokenResponse(SigninResponse):
     """Refresh token response"""
+
     pass

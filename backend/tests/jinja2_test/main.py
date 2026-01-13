@@ -1,7 +1,8 @@
 from jinja2 import Template
 
 # 你的原始模板
-original_template = Template("""
+original_template = Template(
+    """
 You are a helpful assistant just for MCP tools calling.
 User has made a request and manually selected the following MCP servers:
 {% if not mcp_auto_mode %}
@@ -9,15 +10,16 @@ User has made a request and manually selected the following MCP servers:
     - {{ server.id }}: {{ server.description }}
     {% endfor %}
 {% endif %}
-""")
+"""
+)
 
 # 测试数据
 test_data = {
     "mcp_auto_mode": False,
     "mcp_configs": [
         {"id": "server1", "description": "Database access server"},
-        {"id": "server2", "description": "File system server"}
-    ]
+        {"id": "server2", "description": "File system server"},
+    ],
 }
 
 try:

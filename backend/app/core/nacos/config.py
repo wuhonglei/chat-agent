@@ -1,11 +1,16 @@
 """Nacos 配置相关"""
 
-from typing import Any
 import json
+from typing import Any
+
 import yaml
 from nacos import NacosClient
 from pydantic import Field
-from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+)
 
 from app.utils.logger import logger
 
@@ -13,10 +18,8 @@ from app.utils.logger import logger
 class NacosConnectionConfig(BaseSettings):
     """Nacos 连接配置 - 从环境变量读取"""
 
-    server_addresses: str = Field(
-        ..., description="Nacos 服务地址"
-    )
-    namespace: str = Field('public', description="Nacos 命名空间ID")
+    server_addresses: str = Field(..., description="Nacos 服务地址")
+    namespace: str = Field("public", description="Nacos 命名空间ID")
     username: str = Field(..., description="Nacos 登录用户名")
     password: str = Field(..., description="Nacos 登录密码")
     data_id: str = Field(..., description="配置ID")
@@ -27,7 +30,7 @@ class NacosConnectionConfig(BaseSettings):
         env_prefix="NACOS_",
         env_file=".env",
         case_sensitive=False,
-        extra='ignore',
+        extra="ignore",
     )
 
 
@@ -55,8 +58,7 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
             actual_content = None
             if isinstance(config_content, dict):
                 # 如果是字典格式，提取实际的配置内容
-                actual_content = config_content.get(
-                    'content') or config_content.get('raw_content')
+                actual_content = config_content.get("content") or config_content.get("raw_content")
             elif isinstance(config_content, str):
                 # 如果是字符串格式，直接使用
                 actual_content = config_content
@@ -75,12 +77,12 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
                 new_config = json.loads(actual_content)
             else:
                 logger.warning(
-                    f"不支持的配置类型: {self._connection_config.config_type if self._connection_config else 'unknown'}")
+                    f"不支持的配置类型: {self._connection_config.config_type if self._connection_config else 'unknown'}"
+                )
                 return
 
             # 更新缓存
-            old_config_keys = set(self._config_cache.keys()
-                                  ) if self._config_cache else set()
+            old_config_keys = set(self._config_cache.keys()) if self._config_cache else set()
             self._config_cache = new_config
             new_config_keys = set(new_config.keys())
 
@@ -95,8 +97,7 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
                 config_keys_count=len(new_config),
                 added_keys=list(added_keys) if added_keys else None,
                 removed_keys=list(removed_keys) if removed_keys else None,
-                config_size=len(actual_content) if isinstance(
-                    actual_content, str) else "unknown"
+                config_size=len(actual_content) if isinstance(actual_content, str) else "unknown",
             )
 
         except Exception as e:
@@ -104,7 +105,7 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
                 "处理配置更新时发生错误",
                 error=e,
                 config_type=type(config_content).__name__,
-                has_content=bool(config_content)
+                has_content=bool(config_content),
             )
 
     def _ensure_nacos_client(self) -> None:
@@ -134,13 +135,13 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
                 self._nacos_client.add_config_watcher(
                     data_id=self._connection_config.data_id,
                     group=self._connection_config.group,
-                    cb=self._config_change_listener
+                    cb=self._config_change_listener,
                 )
                 self._watcher_started = True
                 logger.info(
                     "Nacos 配置监听器已启动",
                     data_id=self._connection_config.data_id,
-                    group=self._connection_config.group
+                    group=self._connection_config.group,
                 )
 
         except Exception as e:
@@ -181,8 +182,7 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
                 parsed_config = json.loads(config_content)
             else:
                 logger.warning(
-                    f"Warning: Unsupported config type: "
-                    f"{self._connection_config.config_type}"
+                    f"Warning: Unsupported config type: {self._connection_config.config_type}"
                 )
                 parsed_config = {}
 
@@ -198,9 +198,7 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
             self._config_cache = {}
             return {}
 
-    def get_field_value(
-        self, field: Any, field_name: str
-    ) -> tuple[Any, str | None]:
+    def get_field_value(self, field: Any, field_name: str) -> tuple[Any, str | None]:
         """获取字段值（从 Nacos 配置中）"""
         yaml_data = self._get_nacos_config()
         if not yaml_data:
@@ -208,7 +206,7 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
 
         try:
             # 递归查找字段值
-            keys = field_name.split('__')
+            keys = field_name.split("__")
             value = yaml_data
             for key in keys:
                 if isinstance(value, dict) and key in value:
@@ -231,10 +229,7 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
                 self._nacos_client.close()
                 logger.info("Nacos 客户端连接已关闭")
             except Exception as e:
-                logger.error(
-                    "关闭 Nacos 客户端连接时发生错误",
-                    error=e
-                )
+                logger.error("关闭 Nacos 客户端连接时发生错误", error=e)
             finally:
                 self._nacos_client = None
                 self._watcher_started = False

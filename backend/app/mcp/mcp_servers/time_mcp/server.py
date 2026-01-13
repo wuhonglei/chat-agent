@@ -4,29 +4,26 @@ Time MCP Server
 """
 
 from datetime import datetime
-from typing import Optional
 from zoneinfo import ZoneInfo
-from tzlocal import get_localzone_name
 
 from fastmcp import FastMCP
 from fastmcp.tools.tool import ToolResult
 from pydantic import Field
+from tzlocal import get_localzone_name
 
 from .models import TimeResponse
 from .utils import format_results
 
 # 创建 MCP 实例
-mcp = FastMCP(
-    name="Time MCP Service"
-)
+mcp = FastMCP(name="Time MCP Service")
 
 
 @mcp.tool(name="get_current_time")
 async def get_current_time(
-    timezone: Optional[str] = Field(
+    timezone: str | None = Field(
         default_factory=get_localzone_name,
-        description="指定时区，如果不提供则使用本地时区。支持的格式：'Asia/Shanghai', 'America/New_York', 'Europe/London' 等"
-    )
+        description="指定时区，如果不提供则使用本地时区。支持的格式：'Asia/Shanghai', 'America/New_York', 'Europe/London' 等",
+    ),
 ) -> TimeResponse:
     """
     获取指定时区的当前时间
@@ -62,9 +59,9 @@ async def get_current_time(
                 current_time=current_time_str,
                 timezone=timezone,
                 utc_offset=utc_offset,
-                timestamp=timestamp
+                timestamp=timestamp,
             ),
-            content=format_results(data)
+            content=format_results(data),
         )
     except Exception as e:
         # 如果指定的时区无效，使用本地时区作为后备
@@ -76,20 +73,22 @@ async def get_current_time(
             current_time=now.strftime("%Y-%m-%d %H:%M:%S"),
             timezone=f"{timezone}(无效，使用本地时区: {local_tz})",
             utc_offset=now.strftime("%z"),
-            timestamp=int(now.timestamp())
+            timestamp=int(now.timestamp()),
         )
-    finally:
-        return ToolResult(structured_content=data, content=format_results(data))
+    return ToolResult(structured_content=data, content=format_results(data))
 
 
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Time MCP Server")
-    parser.add_argument("--transport", choices=["http", "stdio"], default="http",
-                        help="传输方式：http 或 stdio")
-    parser.add_argument("--port", type=int, default=8003,
-                        help="HTTP 模式下的端口号")
+    parser.add_argument(
+        "--transport",
+        choices=["http", "stdio"],
+        default="http",
+        help="传输方式：http 或 stdio",
+    )
+    parser.add_argument("--port", type=int, default=8003, help="HTTP 模式下的端口号")
 
     args = parser.parse_args()
 

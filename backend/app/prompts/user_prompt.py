@@ -1,8 +1,10 @@
 """用户消息提示词模板模块"""
+
 from jinja2 import Template
 
 # ============= 工具调用用户消息提示词 =============
-user_message_for_tool_call_template = Template("""
+user_message_for_tool_call_template = Template(
+    """
 {{ user_message }}
 
 {% if not mcp_auto_mode %}
@@ -16,13 +18,17 @@ IMPORTANT RULES:
 - You are ONLY responsible for calling tools. Do NOT provide the final answer. Just call the appropriate tools or respond with "finish."
 - Current datetime: {{ current_datetime }}.
 - Client IP: {{ client_ip }}.
-""".strip())
+""".strip()
+)
 
-user_message_for_title_template = Template("""
+user_message_for_title_template = Template(
+    """
 用户消息：{{ user_message }}
-""".strip())
+""".strip()
+)
 
-user_message_with_component_data_template = Template("""
+user_message_with_component_data_template = Template(
+    """
 用户消息：{{ user_message }}
 
 请在文本中合适位置返回 markdown 格式的 json 组件数据:
@@ -34,4 +40,5 @@ user_message_with_component_data_template = Template("""
 ```
 
 {% endfor %}
-""".strip())
+""".strip()
+)

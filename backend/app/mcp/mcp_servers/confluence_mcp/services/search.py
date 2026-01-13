@@ -98,23 +98,20 @@ class SearchMixin(ConfluenceClient):
 
         Removes @@@hl@@@ and @@@endhl@@@ markers from excerpt and unescapes HTML entities
         """
-        highlight_start = '@@@hl@@@'
-        highlight_end = '@@@endhl@@@'
+        highlight_start = "@@@hl@@@"
+        highlight_end = "@@@endhl@@@"
         if not excerpt or highlight_start not in excerpt or highlight_end not in excerpt:
             return ""
 
         # Remove highlight markers
-        clean_text = excerpt.replace(
-            highlight_start, "").replace(highlight_end, "")
+        clean_text = excerpt.replace(highlight_start, "").replace(highlight_end, "")
 
         # Unescape HTML entities using Python's built-in html module
         clean_text = html.unescape(clean_text)
         return clean_text.strip()
 
     @handle_atlassian_api_errors("Confluence API")
-    def search_user(
-        self, cql: str, limit: int = 10
-    ) -> list[ConfluenceUserSearchResult]:
+    def search_user(self, cql: str, limit: int = 10) -> list[ConfluenceUserSearchResult]:
         """
         Search users using Confluence Query Language (CQL).
 
@@ -130,13 +127,10 @@ class SearchMixin(ConfluenceClient):
                 Confluence API (401/403)
         """
         # Execute the user search query using the direct API endpoint
-        results = self.confluence.get(
-            "rest/api/search/user", params={"cql": cql, "limit": limit}
-        )
+        results = self.confluence.get("rest/api/search/user", params={"cql": cql, "limit": limit})
 
         # Convert the response to a user search result model
-        search_result = ConfluenceUserSearchResults.from_api_response(
-            results or {})
+        search_result = ConfluenceUserSearchResults.from_api_response(results or {})
 
         # Return the list of user search results
         return search_result.results

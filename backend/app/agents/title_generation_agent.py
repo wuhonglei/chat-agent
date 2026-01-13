@@ -1,11 +1,10 @@
 """Title Generation Agent for generating conversation titles"""
-from typing import Any, Optional
 
+from app.agents.base import BaseAgent
+from app.prompts import get_prompt_for_title
 from app.schemas.config import LLMConfig
 from app.schemas.token_stats import TitleGenerationTokenStats
 from app.utils.time import get_current_time, get_time_duration
-from app.prompts import get_prompt_for_title
-from app.agents.base import BaseAgent
 
 
 class TitleGenerationAgent(BaseAgent):
@@ -13,8 +12,8 @@ class TitleGenerationAgent(BaseAgent):
 
     def __init__(self, think_mode: bool, llm_config: LLMConfig):
         super().__init__(think_mode, llm_config)
-        self.duration: Optional[float] = None
-        self.token_stats: Optional[TitleGenerationTokenStats] = None
+        self.duration: float | None = None
+        self.token_stats: TitleGenerationTokenStats | None = None
 
     def create_token_stats(
         self,
@@ -41,9 +40,8 @@ class TitleGenerationAgent(BaseAgent):
             model_name=self.model_name,
             think_mode=self.think_mode,
             model_limit=self.model_limit,
-            token_usage=self._create_token_usage(
-                prompt_tokens, completion_tokens),
-            title=title
+            token_usage=self._create_token_usage(prompt_tokens, completion_tokens),
+            title=title,
         )
 
     async def execute(self, user_message: str) -> str:
@@ -70,9 +68,6 @@ class TitleGenerationAgent(BaseAgent):
         title = title_response.choices[0].message.content or ""
 
         # 创建 token 统计对象（内部进行所有 token 计算）
-        self.token_stats = self.create_token_stats(
-            messages=messages,
-            title=title
-        )
+        self.token_stats = self.create_token_stats(messages=messages, title=title)
 
         return title

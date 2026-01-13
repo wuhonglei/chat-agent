@@ -55,15 +55,10 @@ class SpacesMixin(ConfluenceClient):
                     space_name = container.get("title")
                     display_url = container.get("displayUrl", "")
                     if display_url and "/spaces/" in display_url:
-                        space_key = display_url.split(
-                            "/spaces/")[1].split("/")[0]
+                        space_key = display_url.split("/spaces/")[1].split("/")[0]
 
                 # Try to extract from content expandable
-                if (
-                    not space_key
-                    and "content" in result
-                    and "_expandable" in result["content"]
-                ):
+                if not space_key and "content" in result and "_expandable" in result["content"]:
                     expandable = result["content"].get("_expandable", {})
                     space_path = expandable.get("space", "")
                     if space_path and space_path.startswith("/rest/api/space/"):
@@ -90,15 +85,12 @@ class SpacesMixin(ConfluenceClient):
             logger.error(f"Invalid value in Confluence spaces: {str(e)}")
             return {}
         except TypeError as e:
-            logger.error(
-                f"Type error when processing Confluence spaces: {str(e)}")
+            logger.error(f"Type error when processing Confluence spaces: {str(e)}")
             return {}
         except requests.RequestException as e:
             logger.error(f"Network error when fetching spaces: {str(e)}")
             return {}
         except Exception as e:  # noqa: BLE001 - Intentional fallback with logging
-            logger.error(
-                f"Unexpected error fetching Confluence spaces: {str(e)}")
-            logger.debug(
-                "Full exception details for Confluence spaces:", exc_info=True)
+            logger.error(f"Unexpected error fetching Confluence spaces: {str(e)}")
+            logger.debug("Full exception details for Confluence spaces:", exc_info=True)
             return {}

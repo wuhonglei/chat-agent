@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 
@@ -30,7 +28,7 @@ class BaseService:
             user = service.get_user(user_id)
     """
 
-    def __init__(self, db: Optional[Session] = None):
+    def __init__(self, db: Session | None = None):
         """
         初始化服务
 
@@ -82,8 +80,7 @@ class BaseService:
         """
         if self.db is None:
             raise ValueError(
-                "Database session is required. "
-                "Either pass db to __init__ or use context manager."
+                "Database session is required. Either pass db to __init__ or use context manager."
             )
         return self.db
 

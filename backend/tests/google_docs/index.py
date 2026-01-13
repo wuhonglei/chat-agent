@@ -1,10 +1,11 @@
 # 片段0：通用鉴权与服务构建
 from __future__ import annotations
+
 import os
-from typing import List
+
+from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 
 # 根据需要选择最小权限
@@ -22,8 +23,7 @@ def get_services():
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                "credentials.json", SCOPES)
+            flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
             creds = flow.run_local_server(port=0)
         with open("token.json", "w") as token:
             token.write(creds.to_json())
@@ -31,6 +31,7 @@ def get_services():
     drive = build("drive", "v3", credentials=creds)
     docs = build("docs", "v1", credentials=creds)
     return drive, docs
+
 
 # 片段1：检索 Google Docs 文档（按名称关键词、类型过滤）
 
@@ -40,9 +41,17 @@ def search_docs(drive, query_text: str, page_size: int = 10):
     mime_gdoc = "application/vnd.google-apps.document"
     # Drive 查询语法示例：name contains 'xxx' and mimeType='...'
     q = f"name contains '{query_text}' and mimeType='{mime_gdoc}' and trashed = false"
-    results = drive.files().list(q=q, pageSize=page_size,
-                                 fields="files(id, name, owners(displayName), modifiedTime)").execute()
+    results = (
+        drive.files()
+        .list(
+            q=q,
+            pageSize=page_size,
+            fields="files(id, name, owners(displayName), modifiedTime)",
+        )
+        .execute()
+    )
     return results.get("files", [])
+
 
 # 片段2：使用 Docs API 解析文档结构并抽取纯文本
 
@@ -67,6 +76,7 @@ def extract_doc_text(docs, document_id: str) -> str:
 
     read_elements(content)
     return "".join(texts)
+
 
 # 片段3：通过 Drive API 导出为 TXT 或 HTML
 

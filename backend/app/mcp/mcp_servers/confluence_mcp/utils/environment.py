@@ -28,9 +28,7 @@ def get_available_services() -> dict[str, bool | None]:
             ]
         ):
             confluence_is_setup = True
-            logger.info(
-                "Using Confluence OAuth 2.0 (3LO) authentication (Cloud-only features)"
-            )
+            logger.info("Using Confluence OAuth 2.0 (3LO) authentication (Cloud-only features)")
         elif all(
             [
                 os.getenv("ATLASSIAN_OAUTH_ACCESS_TOKEN"),
@@ -81,9 +79,7 @@ def get_available_services() -> dict[str, bool | None]:
             ]
         ):
             jira_is_setup = True
-            logger.info(
-                "Using Jira OAuth 2.0 (3LO) authentication (Cloud-only features)"
-            )
+            logger.info("Using Jira OAuth 2.0 (3LO) authentication (Cloud-only features)")
         elif all(
             [
                 os.getenv("ATLASSIAN_OAUTH_ACCESS_TOKEN"),
@@ -109,9 +105,7 @@ def get_available_services() -> dict[str, bool | None]:
                 os.getenv("JIRA_USERNAME") and os.getenv("JIRA_API_TOKEN")
             ):
                 jira_is_setup = True
-                logger.info(
-                    "Using Jira Server/Data Center authentication (PAT or Basic Auth)"
-                )
+                logger.info("Using Jira Server/Data Center authentication (PAT or Basic Auth)")
     elif os.getenv("ATLASSIAN_OAUTH_ENABLE", "").lower() in ("true", "1", "yes"):
         jira_is_setup = True
         logger.info(
@@ -119,12 +113,8 @@ def get_available_services() -> dict[str, bool | None]:
         )
 
     if not confluence_is_setup:
-        logger.info(
-            "Confluence is not configured or required environment variables are missing."
-        )
+        logger.info("Confluence is not configured or required environment variables are missing.")
     if not jira_is_setup:
-        logger.info(
-            "Jira is not configured or required environment variables are missing."
-        )
+        logger.info("Jira is not configured or required environment variables are missing.")
 
     return {"confluence": confluence_is_setup, "jira": jira_is_setup}

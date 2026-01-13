@@ -1,6 +1,6 @@
 import asyncio
-from fastmcp import FastMCP
-from fastmcp import Client
+
+from fastmcp import Client, FastMCP
 from fastmcp.client.transports import FastMCPTransport
 
 mcp = FastMCP("Demo 🚀")

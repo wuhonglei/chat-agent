@@ -92,9 +92,7 @@ class ConfluenceAttachment(ApiModel):
     file_size: int | None = None
 
     @classmethod
-    def from_api_response(
-        cls, data: dict[str, Any], **kwargs: Any
-    ) -> "ConfluenceAttachment":
+    def from_api_response(cls, data: dict[str, Any], **kwargs: Any) -> "ConfluenceAttachment":
         """
         Create a ConfluenceAttachment from a Confluence API response.
 

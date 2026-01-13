@@ -29,9 +29,7 @@ async def validation_exception_handler(
 
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content=ApiResponse.error(
-            code=422, msg=error_msg, data={"errors": errors}
-        ).model_dump(),
+        content=ApiResponse.error(code=422, msg=error_msg, data={"errors": errors}).model_dump(),
     )
 
 
@@ -55,8 +53,7 @@ async def http_exception_handler(request: Request, exc: Exception) -> JSONRespon
 
         return JSONResponse(
             status_code=status_code,
-            content=ApiResponse.error(
-                code=error_code, msg=str(detail)).model_dump(),
+            content=ApiResponse.error(code=error_code, msg=str(detail)).model_dump(),
         )
 
     # 如果不是 HTTPException，继续抛出（由通用异常处理器处理）
@@ -74,7 +71,5 @@ async def general_exception_handler(request: Request, exc: Exception) -> JSONRes
 
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content=ApiResponse.error(
-            code=500, msg="服务器内部错误，请稍后重试"
-        ).model_dump(),
+        content=ApiResponse.error(code=500, msg="服务器内部错误，请稍后重试").model_dump(),
     )

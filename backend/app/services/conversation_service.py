@@ -2,26 +2,24 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 from sqlmodel import Session, select
 
 from app.models import ConversationDb, MessageDb
+from app.schemas.chat import ChatMessageItem
 from app.schemas.conversation import (
     ConversationInfo,
     CreatedBy,
     UpdateConversationRequest,
 )
-from app.schemas.chat import ChatMessageItem
-from app.utils.date import get_datetime_now
 from app.services.base_service import BaseService
+from app.utils.date import get_datetime_now
 from app.utils.logger import logger
 
 
 class ConversationService(BaseService):
     """对话服务"""
 
-    def __init__(self, db: Optional[Session] = None):
+    def __init__(self, db: Session | None = None):
         """
         初始化对话服务
 
@@ -37,9 +35,7 @@ class ConversationService(BaseService):
         """
         return conversation.model_dump(mode="json")
 
-    def register_conversation(
-        self, title: Optional[str], user_id: str
-    ) -> ConversationInfo:
+    def register_conversation(self, title: str | None, user_id: str) -> ConversationInfo:
         """注册新对话"""
         db = self._ensure_db()
         conversation = ConversationDb(
@@ -50,11 +46,8 @@ class ConversationService(BaseService):
         db.add(conversation)
         # 所有字段（id, created_at, updated_at 等）都通过 default_factory 在对象创建时生成
         # 不需要 refresh()，事务由 get_db() 自动提交
-        logger.debug("Conversation registered",
-                     conversation_id=conversation.id)
-        conversation_info = ConversationInfo.model_validate(
-            self.conversation_to_dict(conversation)
-        )
+        logger.debug("Conversation registered", conversation_id=conversation.id)
+        conversation_info = ConversationInfo.model_validate(self.conversation_to_dict(conversation))
         return conversation_info
 
     def get_conversations(self, user_id: str) -> list[ConversationInfo]:
@@ -78,15 +71,13 @@ class ConversationService(BaseService):
         conversation = db.get(ConversationDb, conversation_id)
         return conversation
 
-    def get_conversation_info(self, conversation_id: str) -> Optional[ConversationInfo]:
+    def get_conversation_info(self, conversation_id: str) -> ConversationInfo | None:
         """获取对话信息"""
         conversation = self.get_conversation(conversation_id)
         if not conversation:
             return None
 
-        conversation_info = ConversationInfo.model_validate(
-            self.conversation_to_dict(conversation)
-        )
+        conversation_info = ConversationInfo.model_validate(self.conversation_to_dict(conversation))
         return conversation_info
 
     def get_messages(self, conversation_id: str) -> list[ChatMessageItem]:
@@ -98,8 +89,7 @@ class ConversationService(BaseService):
             .order_by(MessageDb.created_at.asc())
         ).all()
         chat_messages = [
-            ChatMessageItem.model_validate(message.model_dump(mode="json"))
-            for message in messages
+            ChatMessageItem.model_validate(message.model_dump(mode="json")) for message in messages
         ]
         return chat_messages
 
@@ -112,9 +102,7 @@ class ConversationService(BaseService):
         conversation.updated_at = get_datetime_now()
         # updated_at 已在代码中手动设置，不需要 refresh()
         # 事务由 get_db() 自动提交
-        conversation_info = ConversationInfo.model_validate(
-            self.conversation_to_dict(conversation)
-        )
+        conversation_info = ConversationInfo.model_validate(self.conversation_to_dict(conversation))
         return conversation_info
 
     def delete_conversation(self, conversation: ConversationDb) -> str:

@@ -33,9 +33,7 @@ class ConfluenceVersion(ApiModel, TimestampMixin):
     by: ConfluenceUser | None = None
 
     @classmethod
-    def from_api_response(
-        cls, data: dict[str, Any], **kwargs: Any
-    ) -> "ConfluenceVersion":
+    def from_api_response(cls, data: dict[str, Any], **kwargs: Any) -> "ConfluenceVersion":
         """
         Create a ConfluenceVersion from a Confluence API response.
 
@@ -61,8 +59,7 @@ class ConfluenceVersion(ApiModel, TimestampMixin):
 
     def to_simplified_dict(self) -> dict[str, Any]:
         """Convert to simplified dictionary for API response."""
-        result = {"number": self.number,
-                  "when": self.format_timestamp(self.when)}
+        result = {"number": self.number, "when": self.format_timestamp(self.when)}
 
         if self.message:
             result["message"] = self.message
@@ -141,8 +138,7 @@ class ConfluencePage(ApiModel, TimestampMixin):
                     # Extract space key from REST API path
                     if space_path.startswith("/rest/api/space/"):
                         space_key = space_path.split("/rest/api/space/")[1]
-                        space_data = {"key": space_key,
-                                      "name": f"Space {space_key}"}
+                        space_data = {"key": space_key, "name": f"Space {space_key}"}
 
         # Create space model
         space = ConfluenceSpace.from_api_response(space_data)
@@ -158,8 +154,7 @@ class ConfluencePage(ApiModel, TimestampMixin):
         elif include_body and "body" in data:
             body = data.get("body", {})
             if content_format in body:
-                content = body.get(content_format, {}).get(
-                    "value", EMPTY_STRING)
+                content = body.get(content_format, {}).get("value", EMPTY_STRING)
 
         # Adjust content_format if convert_to_markdown is False and content is processed HTML
         convert_to_markdown = kwargs.get("convert_to_markdown", True)
@@ -178,11 +173,7 @@ class ConfluencePage(ApiModel, TimestampMixin):
 
         # Process attachments
         attachments = []
-        if (
-            attachments_data := data.get("children", {})
-            .get("attachment", {})
-            .get("results", [])
-        ):
+        if attachments_data := data.get("children", {}).get("attachment", {}).get("results", []):
             attachments = [
                 ConfluenceAttachment.from_api_response(attachment)
                 for attachment in attachments_data
@@ -257,21 +248,16 @@ class ConfluencePage(ApiModel, TimestampMixin):
             result["version"] = self.version.number
 
         # Add attachments if available
-        result["attachments"] = [
-            attachment.to_simplified_dict() for attachment in self.attachments
-        ]
+        result["attachments"] = [attachment.to_simplified_dict() for attachment in self.attachments]
 
         # Add content if it's not empty
         if self.content and self.content_format:
-            result["content"] = {"value": self.content,
-                                 "format": self.content_format}
+            result["content"] = {"value": self.content, "format": self.content_format}
 
         # Add ancestors if there are any
         if self.ancestors:
             result["ancestors"] = [
-                {"id": a.get("id"), "title": a.get("title")}
-                for a in self.ancestors
-                if "id" in a
+                {"id": a.get("id"), "title": a.get("title")} for a in self.ancestors if "id" in a
             ]
 
         return result

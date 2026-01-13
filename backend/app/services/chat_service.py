@@ -1,9 +1,14 @@
 """Chat service for RAG-based Q&A"""
+
 from collections.abc import AsyncGenerator
 
-from app.agents import (ComponentToolsAgent, ContextCompressionAgent,
-                        MCPToolsAgent, ResponseGenerationAgent,
-                        TitleGenerationAgent)
+from app.agents import (
+    ComponentToolsAgent,
+    ContextCompressionAgent,
+    MCPToolsAgent,
+    ResponseGenerationAgent,
+    TitleGenerationAgent,
+)
 from app.core.config import settings
 from app.mcp.mcp_client import MCPClientManager
 from app.schemas.chat import ChatMessageItemReq, ChatRequest, CollectedResponse
@@ -21,26 +26,38 @@ class ChatService:
     def __init__(self, think_mode: bool, mcp_manager: MCPClientManager):
         self.debug = settings.app.debug
         self.schema_service = ComponentSchemaService(
-            debug=self.debug)  # 复用 ComponentSchemaService 实例
+            debug=self.debug
+        )  # 复用 ComponentSchemaService 实例
 
         # 初始化各个Agent
         self.title_generation_agent = TitleGenerationAgent(
-            think_mode=False, llm_config=settings.tool_call_model)
+            think_mode=False, llm_config=settings.tool_call_model
+        )
         # MCP工具和组件工具使用tool配置
         self.mcp_tools_agent = MCPToolsAgent(
-            think_mode=think_mode, llm_config=settings.tool_call_model, mcp_manager=mcp_manager)
+            think_mode=think_mode,
+            llm_config=settings.tool_call_model,
+            mcp_manager=mcp_manager,
+        )
         self.component_tools_agent = ComponentToolsAgent(
-            think_mode=think_mode, llm_config=settings.tool_call_model, schema_service=self.schema_service)
+            think_mode=think_mode,
+            llm_config=settings.tool_call_model,
+            schema_service=self.schema_service,
+        )
         # 响应生成和标题生成使用llm配置
         self.response_generation_agent = ResponseGenerationAgent(
-            think_mode=think_mode, llm_config=settings.response_model, schema_service=self.schema_service)
+            think_mode=think_mode,
+            llm_config=settings.response_model,
+            schema_service=self.schema_service,
+        )
         # 上下文压缩Agent
         self.context_compression_agent = ContextCompressionAgent(
-            think_mode=False, llm_config=settings.tool_call_model)
+            think_mode=False, llm_config=settings.tool_call_model
+        )
         # 上下文压缩服务
         self.context_compression_service = ContextCompressionService(
             token_calculator=self.response_generation_agent.token_calculator,
-            compression_threshold=settings.compression.iteration_compression.compression_trigger_threshold
+            compression_threshold=settings.compression.iteration_compression.compression_trigger_threshold,
         )
 
     async def stream_message(
@@ -58,8 +75,7 @@ class ChatService:
                 user_message_length=len(user_message),
                 history_length=len(history),
                 client_ip=client_ip,
-                has_component_tools=bool(
-                    chat_request.component_tools_for_backend),
+                has_component_tools=bool(chat_request.component_tools_for_backend),
             )
 
             # 阶段1: MCP工具调用
@@ -96,12 +112,10 @@ class ChatService:
                 logger.debug(
                     "Component tools agent execution completed",
                     duration=component_duration,
-                    tool_calls_count=len(
-                        self.component_tools_agent.output_messages),
+                    tool_calls_count=len(self.component_tools_agent.output_messages),
                 )
             else:
-                logger.debug(
-                    "Skipping component tools agent (no component tools)")
+                logger.debug("Skipping component tools agent (no component tools)")
 
             # 阶段2.5: 上下文压缩（可选，在MCP工具和响应生成之间）
             compression_result = await self.context_compression_service.compress_tool_messages(
@@ -122,7 +136,7 @@ class ChatService:
                 logger.debug(
                     "Context compression skipped - below threshold",
                     original_length=compression_result.original_length,
-                    threshold=self.context_compression_service.context_monitor.compression_threshold
+                    threshold=self.context_compression_service.context_monitor.compression_threshold,
                 )
 
             # 阶段3: 最终响应生成
@@ -146,8 +160,7 @@ class ChatService:
                 "Chat message stream completed",
                 total_duration=total_duration,
                 mcp_tool_calls_count=len(self.mcp_tools_agent.output_messages),
-                component_tool_calls_count=len(
-                    self.component_tools_agent.output_messages),
+                component_tool_calls_count=len(self.component_tools_agent.output_messages),
             )
             return
 
@@ -158,9 +171,12 @@ class ChatService:
                 error=e,
                 duration=total_duration,
             )
-            yield format_sse_message('error', {
-                'content': str(e),
-            })
+            yield format_sse_message(
+                "error",
+                {
+                    "content": str(e),
+                },
+            )
             return
 
     async def generate_title(self, user_message: str) -> str:
@@ -180,19 +196,27 @@ class ChatService:
         return CollectedResponse(
             content=self.response_generation_agent.content,
             reasoning=self.response_generation_agent.reasoning,
-            tool_calls=[tool_call.model_dump(mode="json")
-                        for tool_call in self.mcp_tools_agent.output_messages],
-            component_tool_calls=[tool_call.model_dump(mode="json")
-                                  for tool_call in self.component_tools_agent.output_messages],
+            tool_calls=[
+                tool_call.model_dump(mode="json")
+                for tool_call in self.mcp_tools_agent.output_messages
+            ],
+            component_tool_calls=[
+                tool_call.model_dump(mode="json")
+                for tool_call in self.component_tools_agent.output_messages
+            ],
             tool_calls_duration=self.mcp_tools_agent.duration,
             component_tool_calls_duration=self.component_tools_agent.duration,
             reasoning_duration=self.response_generation_agent.reasoning_duration,
             content_duration=self.response_generation_agent.content_duration,
             total_duration=self.response_generation_agent.total_duration,
-            token_stats=total_token_stats.model_dump(mode="json") if any([
-                self.mcp_tools_agent.token_stats,
-                self.component_tools_agent.token_stats,
-                self.response_generation_agent.token_stats,
-                self.title_generation_agent.token_stats,
-            ]) else None,
+            token_stats=total_token_stats.model_dump(mode="json")
+            if any(
+                [
+                    self.mcp_tools_agent.token_stats,
+                    self.component_tools_agent.token_stats,
+                    self.response_generation_agent.token_stats,
+                    self.title_generation_agent.token_stats,
+                ]
+            )
+            else None,
         )

@@ -35,8 +35,8 @@ class Settings(BaseSettings):
     compression: CompressionConfig = Field(description="上下文压缩配置")
 
     model_config = SettingsConfigDict(
-        extra='allow',
-        env_nested_delimiter='__',  # 支持使用 __ 访问嵌套字段，如 DATABASE__HOST
+        extra="allow",
+        env_nested_delimiter="__",  # 支持使用 __ 访问嵌套字段，如 DATABASE__HOST
     )
 
     @classmethod
@@ -57,9 +57,9 @@ class Settings(BaseSettings):
         """
         nacos_settings = NacosConfigSettingsSource(settings_cls)
         return (
-            init_settings,      # 初始化参数（最高优先级）
-            env_settings,        # 环境变量（可覆盖 Nacos 配置）
-            nacos_settings,      # Nacos 配置中心
+            init_settings,  # 初始化参数（最高优先级）
+            env_settings,  # 环境变量（可覆盖 Nacos 配置）
+            nacos_settings,  # Nacos 配置中心
         )
 
 

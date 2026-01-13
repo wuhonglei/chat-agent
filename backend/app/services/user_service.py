@@ -1,21 +1,20 @@
 from __future__ import annotations
 
 import string
-from typing import Optional
 
 from sqlmodel import Session, select
 
-from app.schemas.auth import VerifySmsResponse
 from app.models import UserDb
+from app.schemas.auth import VerifySmsResponse
 from app.schemas.user import UpdateUserInfo
-from app.utils.date import get_datetime_now
 from app.services.base_service import BaseService
+from app.utils.date import get_datetime_now
 
 
 class UserService(BaseService):
     """用户服务"""
 
-    def __init__(self, db: Optional[Session] = None):
+    def __init__(self, db: Session | None = None):
         """
         初始化用户服务
 
@@ -44,7 +43,9 @@ class UserService(BaseService):
         user = db.exec(select(UserDb).where(UserDb.sub == sub)).first()
         return user
 
-    def create_user_from_cloudbase(self, token_info: VerifySmsResponse, phone_number: string) -> UserDb:
+    def create_user_from_cloudbase(
+        self, token_info: VerifySmsResponse, phone_number: string
+    ) -> UserDb:
         """从 Cloudbase 创建用户"""
         db = self._ensure_db()
         user = UserDb(

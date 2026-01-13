@@ -1,5 +1,3 @@
-from typing import Any
-
 from pydantic import BaseModel, Field
 
 
@@ -15,6 +13,7 @@ class CloudBaseTokenInfo(BaseModel):
 
 class SecretTokenInfo(CloudBaseTokenInfo):
     """Secret token info"""
+
     user_id: str = Field(..., description="User ID")
     iat: int = Field(..., description="Issue at")
     exp: int = Field(..., description="Expires at")

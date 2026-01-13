@@ -1,23 +1,21 @@
 """日志中间件 - 为每个请求生成 request_id 并绑定到日志上下文"""
 
 import time
-from uuid import uuid4
 
-from fastapi import Request, Response
+from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.utils.auth_deps import get_user_id_from_token
 from app.utils.common import gen_uuid
-from app.utils.network import get_audit_client_ip
 from app.utils.logger import (
+    anonymous_user_id_var,
     client_id_var,
     client_ip_var,
     logger,
     request_id_var,
     user_id_var,
-    anonymous_user_id_var,
 )
-
+from app.utils.network import get_audit_client_ip
 
 # 不需要记录日志的路径（通常是健康检查、监控等高频低价值请求）
 SKIP_LOGGING_PATHS = {
@@ -124,8 +122,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                 "Request started",
                 method=request.method,
                 path=request.url.path,
-                query_params=str(
-                    request.query_params) if request.query_params else None,
+                query_params=str(request.query_params) if request.query_params else None,
             )
 
         # 处理请求

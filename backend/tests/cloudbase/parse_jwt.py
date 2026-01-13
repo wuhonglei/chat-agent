@@ -2,18 +2,19 @@
 解码 JWT
 """
 
-import jwt
-import os
 import json
-from dotenv import load_dotenv
 from pathlib import Path
+
+import jwt
+from dotenv import load_dotenv
+
 load_dotenv()
 
 
 def get_jwt_token(json_path: str) -> str:
-    with open(json_path, 'r') as f:
+    with open(json_path) as f:
         data = json.load(f)
-    return data['verification_id']
+    return data["verification_id"]
 
 
 def parse_jwt(jwt_token: str) -> dict:
@@ -23,11 +24,11 @@ def parse_jwt(jwt_token: str) -> dict:
 
 
 def main():
-    json_path = Path(__file__).parent / 'data' / 'new_send_sms.json'
+    json_path = Path(__file__).parent / "data" / "new_send_sms.json"
     jwt_token = get_jwt_token(json_path)
     decoded_payload = parse_jwt(jwt_token)
     print("Decoded JWT payload:", decoded_payload)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

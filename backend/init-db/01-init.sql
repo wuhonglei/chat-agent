@@ -14,7 +14,7 @@ CREATE EXTENSION IF NOT EXISTS "btree_gin";      -- GIN 索引优化
 ALTER DATABASE ai_assistant_db SET search_path TO public;
 
 -- 输出初始化完成信息
-SELECT 
+SELECT
     current_database() as database_name,
     current_user as current_user,
     version() as postgres_version,

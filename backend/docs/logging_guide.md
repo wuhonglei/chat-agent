@@ -158,7 +158,7 @@ async def chat_stream(
         conversation_id=chat_request.conversation_id,
         message_length=len(chat_request.content) if chat_request.content else 0,
     )
-    
+
     try:
         # 业务逻辑
         ...
@@ -249,4 +249,3 @@ log_error("Failed to create message", error=exc, user_id=user_id)
 2. **结构化**：便于日志收集系统解析
 3. **一致性**：统一的日志格式
 4. **安全性**：避免意外记录敏感信息
-

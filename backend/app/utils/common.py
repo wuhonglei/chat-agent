@@ -6,16 +6,16 @@ from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage
 
 def remove_leading_whitespace(text: str) -> str:
     """移除每行前面的空白符"""
-    lines = text.split('\n')
+    lines = text.split("\n")
     processed_lines = [line.lstrip() for line in lines if line.strip()]
-    return '\n'.join(processed_lines)
+    return "\n".join(processed_lines)
 
 
 def remove_all_whitespace(text: str) -> str:
     """移除每行前面和后面的空白符"""
-    lines = text.split('\n')
+    lines = text.split("\n")
     processed_lines = [line.strip() for line in lines if line.strip()]
-    return '\n'.join(processed_lines)
+    return "\n".join(processed_lines)
 
 
 def normalize_to_dict(data: Any) -> dict[str, Any]:
@@ -28,7 +28,7 @@ def normalize_to_dict(data: Any) -> dict[str, Any]:
     Returns:
         字典格式的消息
     """
-    if hasattr(data, 'model_dump'):
+    if hasattr(data, "model_dump"):
         return data.model_dump()
     elif isinstance(data, dict):
         return data
@@ -73,8 +73,11 @@ def has_tool_call_with_name(tool_call_messages: list[ToolCallMessage], tool_name
         如果找到匹配的工具调用返回 True，否则返回 False
     """
     return any(
-        isinstance(tool_call, AssistantToolCallMessage) and tool_call.tool_calls and
-        any(tool_name.lower() in tool_call_item.function.name.lower()
-            for tool_call_item in tool_call.tool_calls)
+        isinstance(tool_call, AssistantToolCallMessage)
+        and tool_call.tool_calls
+        and any(
+            tool_name.lower() in tool_call_item.function.name.lower()
+            for tool_call_item in tool_call.tool_calls
+        )
         for tool_call in tool_call_messages
     )

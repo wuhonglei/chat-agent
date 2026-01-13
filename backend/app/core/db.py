@@ -1,6 +1,9 @@
-from sqlmodel import SQLModel, create_engine, Session
+from collections.abc import Generator
+
+from sqlmodel import Session, SQLModel, create_engine
+
 from app.core.config import settings
-from typing import Generator
+
 # 数据库连接字符串
 # 格式：postgresql://用户名:密码@主机:端口/数据库名
 SQLALCHEMY_DATABASE_URL = f"postgresql://{settings.database.username}:{settings.database.password}@{settings.database.host}:{settings.database.port}/{settings.database.db}"
@@ -49,6 +52,7 @@ def create_db_and_tables():
 
         # 然后创建/更新表结构
         from app.utils.logger import logger
+
         logger.info("Database tables created/verified successfully")
     except Exception as e:
         raise e

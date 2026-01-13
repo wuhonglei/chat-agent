@@ -1,14 +1,16 @@
 """Token 计算和消息截断工具"""
-import os
-import json
-import base64
-from pathlib import Path
-from urllib.error import URLError, HTTPError
 
-from openai import BaseModel
+import base64
+import json
+import os
+from pathlib import Path
+from urllib.error import HTTPError, URLError
+
 import tiktoken
-from app.utils.logger import logger
+from openai import BaseModel
+
 from app.utils.common import normalize_to_dict
+from app.utils.logger import logger
 
 
 class TokenCalculator:
@@ -84,18 +86,14 @@ class TokenCalculator:
             logger.warning(
                 f"无法自动映射模型 {model} 到 tokenizer，使用默认 encoding: {self.DEFAULT_ENCODING_NAME}"
             )
-            encoding = self._get_encoding_with_fallback(
-                self.DEFAULT_ENCODING_NAME)
+            encoding = self._get_encoding_with_fallback(self.DEFAULT_ENCODING_NAME)
             # 将默认 encoding 也缓存到模型名下
             self._set_cached_encoding(model, encoding)
             return encoding
         except (ConnectionError, TimeoutError, URLError, HTTPError) as e:
             # 捕获网络错误，尝试从本地加载
-            logger.warning(
-                f"加载模型 {model} 的 encoding 时发生网络错误: {e}，尝试从本地加载"
-            )
-            encoding = self._get_encoding_with_fallback(
-                self.DEFAULT_ENCODING_NAME)
+            logger.warning(f"加载模型 {model} 的 encoding 时发生网络错误: {e}，尝试从本地加载")
+            encoding = self._get_encoding_with_fallback(self.DEFAULT_ENCODING_NAME)
             # 将本地加载的 encoding 也缓存到模型名下
             self._set_cached_encoding(model, encoding)
             return encoding
@@ -105,13 +103,16 @@ class TokenCalculator:
             error_str = str(e).lower()
             if any(
                 keyword in error_str
-                for keyword in ["connection", "network", "timeout", "unreachable", "refused"]
+                for keyword in [
+                    "connection",
+                    "network",
+                    "timeout",
+                    "unreachable",
+                    "refused",
+                ]
             ):
-                logger.warning(
-                    f"加载模型 {model} 的 encoding 时发生网络错误: {e}，尝试从本地加载"
-                )
-                encoding = self._get_encoding_with_fallback(
-                    self.DEFAULT_ENCODING_NAME)
+                logger.warning(f"加载模型 {model} 的 encoding 时发生网络错误: {e}，尝试从本地加载")
+                encoding = self._get_encoding_with_fallback(self.DEFAULT_ENCODING_NAME)
                 # 将本地加载的 encoding 也缓存到模型名下
                 self._set_cached_encoding(model, encoding)
                 return encoding
@@ -119,11 +120,8 @@ class TokenCalculator:
             raise
         except Exception as e:
             # 捕获其他未知异常，尝试从本地加载
-            logger.warning(
-                f"加载模型 {model} 的 encoding 时发生未知错误: {e}，尝试从本地加载"
-            )
-            encoding = self._get_encoding_with_fallback(
-                self.DEFAULT_ENCODING_NAME)
+            logger.warning(f"加载模型 {model} 的 encoding 时发生未知错误: {e}，尝试从本地加载")
+            encoding = self._get_encoding_with_fallback(self.DEFAULT_ENCODING_NAME)
             # 将本地加载的 encoding 也缓存到模型名下
             self._set_cached_encoding(model, encoding)
             return encoding
@@ -146,23 +144,17 @@ class TokenCalculator:
 
         # 检查本地 token 目录是否存在
         if self.LOCAL_TOKEN_DIR.exists() and self.LOCAL_TOKEN_DIR.is_dir():
-            local_token_file = self.LOCAL_TOKEN_DIR / \
-                f"{encoding_name}.tiktoken"
+            local_token_file = self.LOCAL_TOKEN_DIR / f"{encoding_name}.tiktoken"
             if local_token_file.exists():
                 try:
                     # 直接从本地文件加载 encoding，避免网络请求
-                    logger.info(
-                        f"从本地文件直接加载 encoding: {local_token_file}"
-                    )
-                    encoding = self._load_encoding_from_local_file(
-                        encoding_name, local_token_file)
+                    logger.info(f"从本地文件直接加载 encoding: {local_token_file}")
+                    encoding = self._load_encoding_from_local_file(encoding_name, local_token_file)
                     # 成功加载后，存储到缓存中
                     self._set_cached_encoding(encoding_name, encoding)
                     return encoding
                 except Exception as e:
-                    logger.warning(
-                        f"从本地文件加载 encoding 失败: {e}，回退到默认方式"
-                    )
+                    logger.warning(f"从本地文件加载 encoding 失败: {e}，回退到默认方式")
 
         # 如果本地加载失败，尝试默认方式（可能会再次尝试网络请求）
         try:
@@ -252,9 +244,7 @@ class TokenCalculator:
                     rank = int(rank_str)
                     mergeable_ranks[token] = rank
                 except Exception as e:
-                    raise ValueError(
-                        f"解析本地 BPE 文件失败，行内容: {line!r}, 错误: {e}"
-                    ) from e
+                    raise ValueError(f"解析本地 BPE 文件失败，行内容: {line!r}, 错误: {e}") from e
         return mergeable_ranks
 
     def get_max_context_tokens(self) -> int:
@@ -296,8 +286,7 @@ class TokenCalculator:
         message = normalize_to_dict(message)
         total_tokens += self.count_tokens(message.get("content", ""))
         total_tokens += self.count_tokens(message.get("reasoning_content", ""))
-        total_tokens += self.count_tokens(
-            json.dumps(message.get("tool_calls", [])))
+        total_tokens += self.count_tokens(json.dumps(message.get("tool_calls", [])))
         return total_tokens
 
     def count_messages_tokens(self, messages: list[dict | BaseModel]) -> int:

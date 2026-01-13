@@ -119,4 +119,3 @@ uv run -m app.mcp.mcp_servers.code_exec_mcp.server --transport stdio
 ```bash
 uv run -m app.mcp.mcp_servers.code_exec_mcp.server --transport http --port 8003
 ```
-

@@ -7,27 +7,27 @@ https://docs.cloudbase.net/http-api/auth/auth-grant-token
 原来 access token 如果在有效期，也可以正常使用。
 """
 
-import requests
-import os
 import json
+import os
+
+import requests
 from dotenv import load_dotenv
+
 load_dotenv()
 
-env_id = os.environ.get('env_id')
-refresh_token = os.environ.get('refresh_token')
+env_id = os.environ.get("env_id")
+refresh_token = os.environ.get("refresh_token")
 
 url = f"https://{env_id}.api.tcloudbasegateway.com/auth/v1/token"
 
-payload = json.dumps({
-    "grant_type": "refresh_token",
-    "refresh_token": refresh_token,
-})
-headers = {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json'
-}
+payload = json.dumps(
+    {
+        "grant_type": "refresh_token",
+        "refresh_token": refresh_token,
+    }
+)
+headers = {"Content-Type": "application/json", "Accept": "application/json"}
 
-response = requests.request(
-    "POST", url, headers=headers, data=payload, verify=False)
+response = requests.request("POST", url, headers=headers, data=payload, verify=False)
 
 print(response.text)

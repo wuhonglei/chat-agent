@@ -2,15 +2,16 @@
 用户信息
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
-from fastapi import HTTPException
+
 from app.core.db import get_db
-from app.schemas.user import UpdateUserInfo
 from app.schemas.response import ApiResponse
 from app.schemas.token import SecretTokenInfo
+from app.schemas.user import UpdateUserInfo
 from app.services.user_service import UserService
 from app.utils.auth_deps import get_auth_token_info
+
 router = APIRouter()
 
 

@@ -1,6 +1,5 @@
 import asyncio
 import time
-from typing import List
 
 
 async def fetch_data(task_id: int, delay: float) -> str:
@@ -21,7 +20,7 @@ async def simple_gather_example():
         fetch_data(1, 1.0),
         fetch_data(2, 2.0),
         fetch_data(3, 1.5),
-        fetch_data(4, 0.5)
+        fetch_data(4, 0.5),
     ]
 
     start_time = time.time()

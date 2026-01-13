@@ -1,6 +1,9 @@
 """组件 Schema 服务，负责获取和缓存组件的 JSON Schema"""
+
 import json
+
 import httpx
+
 from app.core.config import settings
 from app.utils.logger import logger
 
@@ -27,7 +30,7 @@ class ComponentSchemaService:
             max_retries: 最大重试次数
             debug: 是否为调试模式
         """
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.max_retries = max_retries
         self.debug = debug
@@ -84,6 +87,7 @@ class ComponentSchemaService:
 
         # 并行获取所有 Schema
         import asyncio
+
         tasks = [self.get_schema(name) for name in component_tool_names]
         schemas = await asyncio.gather(*tasks, return_exceptions=True)
 

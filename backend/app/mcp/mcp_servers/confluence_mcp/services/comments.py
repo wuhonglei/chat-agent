@@ -42,10 +42,11 @@ class CommentsMixin(ConfluenceClient):
             for comment_data in comments_response.get("results", []):
                 # Get the content based on format
                 body = comment_data["body"]["view"]["value"]
-                processed_html, processed_markdown = (
-                    self.preprocessor.process_html_content(
-                        body, space_key=space_key, confluence_client=self.confluence
-                    )
+                (
+                    processed_html,
+                    processed_markdown,
+                ) = self.preprocessor.process_html_content(
+                    body, space_key=space_key, confluence_client=self.confluence
                 )
 
                 # Create a copy of the comment data to modify

@@ -2,16 +2,31 @@
 
 用于调用 Cloudbase 认证相关的 API
 """
+
 import httpx
 from fastapi import HTTPException
-from app.utils.logger import logger
 
 from app.core.config import settings
-from app.schemas.auth import SendSmsRequest, SendSmsResponse, SigninRequest, SigninResponse, SignoutRequest, SignoutResponse, SignupRequest, SignupResponse, RefreshTokenRequest, RefreshTokenResponse, VerifySmsRequest, VerifySmsResponse
+from app.schemas.auth import (
+    RefreshTokenRequest,
+    RefreshTokenResponse,
+    SendSmsRequest,
+    SendSmsResponse,
+    SigninRequest,
+    SigninResponse,
+    SignoutRequest,
+    SignoutResponse,
+    SignupRequest,
+    SignupResponse,
+    VerifySmsRequest,
+    VerifySmsResponse,
+)
+from app.utils.logger import logger
 
 
 class CloudbaseService:
     """Cloudbase 服务类"""
+
     VERIFY_SSL = not settings.app.debug  # 如果DEBUG为True，则不验证SSL证书
     BASE_URL = f"https://{settings.cloudbase.env_id}.api.tcloudbasegateway.com"
 
@@ -39,28 +54,23 @@ class CloudbaseService:
                     json=payload,
                     headers={
                         "Content-Type": "application/json",
-                        "Accept": "application/json"
+                        "Accept": "application/json",
                     },
-                    timeout=10.0
+                    timeout=10.0,
                 )
 
                 if response.status_code == 200:
                     data = response.json()
                     return SendSmsResponse(**data)
                 else:
-                    logger.error(
-                        f"Cloudbase 发送短信失败: {response.status_code}, {response.text}"
-                    )
+                    logger.error(f"Cloudbase 发送短信失败: {response.status_code}, {response.text}")
                     raise HTTPException(
                         status_code=response.status_code,
-                        detail=f"发送短信验证码失败: {response.text}"
+                        detail=f"发送短信验证码失败: {response.text}",
                     )
             except httpx.RequestError as e:
                 logger.error("Cloudbase 发送短信请求失败", error=e)
-                raise HTTPException(
-                    status_code=500,
-                    detail="认证服务暂时不可用"
-                )
+                raise HTTPException(status_code=500, detail="认证服务暂时不可用")
 
     @staticmethod
     async def verify_sms(verify_sms_request: VerifySmsRequest) -> VerifySmsResponse:
@@ -87,9 +97,9 @@ class CloudbaseService:
                     json=payload,
                     headers={
                         "Content-Type": "application/json",
-                        "Accept": "application/json"
+                        "Accept": "application/json",
                     },
-                    timeout=10.0
+                    timeout=10.0,
                 )
 
                 if response.status_code == 200:
@@ -100,18 +110,14 @@ class CloudbaseService:
                         "Cloudbase 验证短信失败",
                         status_code=response.status_code,
                         detail=response.text,
-                        error=response.text
+                        error=response.text,
                     )
                     raise HTTPException(
-                        status_code=response.status_code,
-                        detail="验证短信验证码失败"
+                        status_code=response.status_code, detail="验证短信验证码失败"
                     )
             except httpx.RequestError as e:
                 logger.error("Cloudbase 验证短信请求失败", error=e)
-                raise HTTPException(
-                    status_code=500,
-                    detail="认证服务暂时不可用"
-                )
+                raise HTTPException(status_code=500, detail="认证服务暂时不可用")
 
     @staticmethod
     async def signin(signin_request: SigninRequest) -> SigninResponse:
@@ -137,9 +143,9 @@ class CloudbaseService:
                     json=payload,
                     headers={
                         "Content-Type": "application/json",
-                        "Accept": "application/json"
+                        "Accept": "application/json",
                     },
-                    timeout=10.0
+                    timeout=10.0,
                 )
 
                 if response.status_code == 200:
@@ -150,18 +156,15 @@ class CloudbaseService:
                         "Cloudbase 登录失败",
                         status_code=response.status_code,
                         detail=response.text,
-                        error=response.text
+                        error=response.text,
                     )
                     raise HTTPException(
                         status_code=response.status_code,
-                        detail=f"登录失败: {response.text}"
+                        detail=f"登录失败: {response.text}",
                     )
             except httpx.RequestError as e:
                 logger.error("Cloudbase 登录请求失败", error=e)
-                raise HTTPException(
-                    status_code=500,
-                    detail="认证服务暂时不可用"
-                )
+                raise HTTPException(status_code=500, detail="认证服务暂时不可用")
 
     @staticmethod
     async def signup(signup_request: SignupRequest) -> SignupResponse:
@@ -187,9 +190,9 @@ class CloudbaseService:
                     json=payload,
                     headers={
                         "Content-Type": "application/json",
-                        "Accept": "application/json"
+                        "Accept": "application/json",
                     },
-                    timeout=10.0
+                    timeout=10.0,
                 )
 
                 if response.status_code == 200:
@@ -200,18 +203,15 @@ class CloudbaseService:
                         "Cloudbase 注册失败",
                         status_code=response.status_code,
                         detail=response.text,
-                        error=response.text
+                        error=response.text,
                     )
                     raise HTTPException(
                         status_code=response.status_code,
-                        detail=f"注册失败: {response.text}"
+                        detail=f"注册失败: {response.text}",
                     )
             except httpx.RequestError as e:
                 logger.error("Cloudbase 注册请求失败", error=e)
-                raise HTTPException(
-                    status_code=500,
-                    detail="认证服务暂时不可用"
-                )
+                raise HTTPException(status_code=500, detail="认证服务暂时不可用")
 
     @staticmethod
     async def signout(signout_request: SignoutRequest) -> SignoutResponse:
@@ -232,9 +232,9 @@ class CloudbaseService:
                     headers={
                         "Content-Type": "application/json",
                         "Accept": "application/json",
-                        "Authorization": f"Bearer {signout_request.access_token}"
+                        "Authorization": f"Bearer {signout_request.access_token}",
                     },
-                    timeout=10.0
+                    timeout=10.0,
                 )
 
                 if response.status_code == 200:
@@ -245,21 +245,17 @@ class CloudbaseService:
                         "Cloudbase 登出失败",
                         status_code=response.status_code,
                         detail=response.text,
-                        error=response.text
+                        error=response.text,
                     )
-                    raise HTTPException(
-                        status_code=response.status_code,
-                        detail=f"登出失败"
-                    )
+                    raise HTTPException(status_code=response.status_code, detail="登出失败")
             except httpx.RequestError as e:
                 logger.error("Cloudbase 登出请求失败", error=e)
-                raise HTTPException(
-                    status_code=500,
-                    detail="认证服务暂时不可用"
-                )
+                raise HTTPException(status_code=500, detail="认证服务暂时不可用")
 
     @staticmethod
-    async def refresh_token(refresh_token_request: RefreshTokenRequest) -> RefreshTokenResponse:
+    async def refresh_token(
+        refresh_token_request: RefreshTokenRequest,
+    ) -> RefreshTokenResponse:
         """刷新 Cloudbase token
 
         Args:
@@ -282,9 +278,9 @@ class CloudbaseService:
                     json=payload,
                     headers={
                         "Content-Type": "application/json",
-                        "Accept": "application/json"
+                        "Accept": "application/json",
                     },
-                    timeout=10.0
+                    timeout=10.0,
                 )
 
                 if response.status_code == 200:
@@ -295,15 +291,9 @@ class CloudbaseService:
                         "Cloudbase token 刷新失败",
                         status_code=response.status_code,
                         detail=response.text,
-                        error=response.text
+                        error=response.text,
                     )
-                    raise HTTPException(
-                        status_code=401,
-                        detail="Token 刷新失败，请重新登录"
-                    )
+                    raise HTTPException(status_code=401, detail="Token 刷新失败，请重新登录")
             except httpx.RequestError as e:
                 logger.error("Cloudbase token 刷新请求失败", error=e)
-                raise HTTPException(
-                    status_code=500,
-                    detail="认证服务暂时不可用"
-                )
+                raise HTTPException(status_code=500, detail="认证服务暂时不可用")

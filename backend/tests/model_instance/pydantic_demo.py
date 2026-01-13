@@ -1,7 +1,6 @@
 # 方式1：使用验证器
-from pydantic import field_validator, validator
-from pydantic import BaseModel, Field
-from typing import Optional
+
+from pydantic import BaseModel, Field, field_validator
 
 
 class Person(BaseModel):
@@ -12,9 +11,9 @@ class Person(BaseModel):
 
 class YourModel(BaseModel):
     name: str = Field(default="John")
-    person: Optional[Person] = Field(default_factory=dict)
+    person: Person | None = Field(default_factory=dict)
 
-    @field_validator('person')
+    @field_validator("person")
     def validate_person(cls, v):
         if v is None:
             return {}

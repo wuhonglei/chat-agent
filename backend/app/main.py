@@ -1,28 +1,27 @@
 """Main FastAPI application"""
 
-from app.utils.logger import logger, setup_logger
+import warnings
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, HTTPException
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
+
+from app.api import auth, chat, conversation, file, health, message, user
+from app.core.config import settings
+from app.core.db import create_db_and_tables
+from app.core.jwt import initialize_jwt_manager
+from app.mcp.mcp_client import get_mcp_manager
+from app.middleware import LoggingMiddleware
 from app.middleware.exception_handler import (
     general_exception_handler,
     http_exception_handler,
     validation_exception_handler,
 )
-from app.middleware import LoggingMiddleware
-from app.core.jwt import initialize_jwt_manager
-from app.models import UserDb, ConversationDb, MessageDb  # 导入模型以注册表到 metadata
-from app.mcp.mcp_client import get_mcp_manager
-from app.core.db import create_db_and_tables
-from app.core.config import settings
-from app.api import auth, chat, health, conversation, message, user, file
-from pydantic import ValidationError
-from fastapi.exceptions import RequestValidationError
-from fastapi import FastAPI
-from contextlib import asynccontextmanager
-from fastapi import HTTPException
-import warnings
+from app.utils.logger import logger, setup_logger
 
 # 忽略 nacos 库中的 SSL DeprecationWarning
-warnings.filterwarnings(
-    "ignore", category=DeprecationWarning, module="nacos.*")
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="nacos.*")
 
 
 # 配置日志系统
@@ -83,8 +82,7 @@ app.include_router(user.router, prefix="/api/user", tags=["user"])
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
 app.include_router(message.router, prefix="/api/message", tags=["message"])
-app.include_router(conversation.router,
-                   prefix="/api/conversation", tags=["conversation"])
+app.include_router(conversation.router, prefix="/api/conversation", tags=["conversation"])
 app.include_router(health.router, prefix="/api/health", tags=["health"])
 app.include_router(file.router, prefix="/api/file", tags=["file"])
 

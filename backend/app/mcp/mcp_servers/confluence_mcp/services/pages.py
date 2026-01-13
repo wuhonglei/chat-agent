@@ -29,9 +29,7 @@ class PagesMixin(ConfluenceClient):
             )
         return None
 
-    def get_page_content(
-        self, page_id: str, *, convert_to_markdown: bool = True
-    ) -> ConfluencePage:
+    def get_page_content(self, page_id: str, *, convert_to_markdown: bool = True) -> ConfluencePage:
         """
         Get content of a specific page.
 
@@ -51,17 +49,13 @@ class PagesMixin(ConfluenceClient):
             # Use v2 API for OAuth authentication, v1 API for token/basic auth
             v2_adapter = self._v2_adapter
             if v2_adapter:
-                logger.debug(
-                    f"Using v2 API for OAuth authentication to get page '{page_id}'"
-                )
+                logger.debug(f"Using v2 API for OAuth authentication to get page '{page_id}'")
                 page = v2_adapter.get_page(
                     page_id=page_id,
                     expand="body.storage,version,space",
                 )
             else:
-                logger.debug(
-                    f"Using v1 API for token/basic authentication to get page '{page_id}'"
-                )
+                logger.debug(f"Using v1 API for token/basic authentication to get page '{page_id}'")
                 page = self.confluence.get_page_by_id(
                     page_id=page_id,
                     expand="body.storage,version,space",
@@ -70,7 +64,10 @@ class PagesMixin(ConfluenceClient):
             space_key = page.get("space", {}).get("key", "")
             content = page["body"]["storage"]["value"]
             processed_html, processed_markdown = self.preprocessor.process_html_content(
-                content, page_id=page_id, space_key=space_key, confluence_client=self.confluence
+                content,
+                page_id=page_id,
+                space_key=space_key,
+                confluence_client=self.confluence,
             )
 
             # Use the appropriate content format based on the convert_to_markdown flag
@@ -98,13 +95,10 @@ class PagesMixin(ConfluenceClient):
                 logger.error(error_msg)
                 raise MCPAtlassianAuthenticationError(error_msg) from http_err
             else:
-                logger.error(
-                    f"HTTP error during API call: {http_err}", exc_info=False)
+                logger.error(f"HTTP error during API call: {http_err}", exc_info=False)
                 raise http_err
         except Exception as e:
-            logger.error(
-                f"Error retrieving page content for page ID {page_id}: {str(e)}"
-            )
+            logger.error(f"Error retrieving page content for page ID {page_id}: {str(e)}")
             raise Exception(f"Error retrieving page content: {str(e)}") from e
 
     def get_page_ancestors(self, page_id: str) -> list[ConfluencePage]:
@@ -149,12 +143,10 @@ class PagesMixin(ConfluenceClient):
                 logger.error(error_msg)
                 raise MCPAtlassianAuthenticationError(error_msg) from http_err
             else:
-                logger.error(
-                    f"HTTP error during API call: {http_err}", exc_info=False)
+                logger.error(f"HTTP error during API call: {http_err}", exc_info=False)
                 raise http_err
         except Exception as e:
-            logger.error(
-                f"Error fetching ancestors for page {page_id}: {str(e)}")
+            logger.error(f"Error fetching ancestors for page {page_id}: {str(e)}")
             logger.debug("Full exception details:", exc_info=True)
             return []
 
@@ -322,9 +314,7 @@ class PagesMixin(ConfluenceClient):
             # Use v2 API for OAuth authentication, v1 API for token/basic auth
             v2_adapter = self._v2_adapter
             if v2_adapter:
-                logger.debug(
-                    f"Using v2 API for OAuth authentication to create page '{title}'"
-                )
+                logger.debug(f"Using v2 API for OAuth authentication to create page '{title}'")
                 result = v2_adapter.create_page(
                     space_key=space_key,
                     title=title,
@@ -351,9 +341,7 @@ class PagesMixin(ConfluenceClient):
 
             return self.get_page_content(page_id)
         except Exception as e:
-            logger.error(
-                f"Error creating page '{title}' in space {space_key}: {str(e)}"
-            )
+            logger.error(f"Error creating page '{title}' in space {space_key}: {str(e)}")
             raise Exception(
                 f"Failed to create page '{title}' in space {space_key}: {str(e)}"
             ) from e
@@ -409,9 +397,7 @@ class PagesMixin(ConfluenceClient):
             # Use v2 API for OAuth authentication, v1 API for token/basic auth
             v2_adapter = self._v2_adapter
             if v2_adapter:
-                logger.debug(
-                    f"Using v2 API for OAuth authentication to update page '{page_id}'"
-                )
+                logger.debug(f"Using v2 API for OAuth authentication to update page '{page_id}'")
                 response = v2_adapter.update_page(
                     page_id=page_id,
                     title=title,
@@ -442,8 +428,7 @@ class PagesMixin(ConfluenceClient):
             return self.get_page_content(page_id)
         except Exception as e:
             logger.error(f"Error updating page {page_id}: {str(e)}")
-            raise Exception(
-                f"Failed to update page {page_id}: {str(e)}") from e
+            raise Exception(f"Failed to update page {page_id}: {str(e)}") from e
 
     def get_page_children(
         self,
@@ -494,8 +479,7 @@ class PagesMixin(ConfluenceClient):
                 # Only process content if we have "body" expanded
                 content_override = None
                 if "body" in page and convert_to_markdown:
-                    content = page.get("body", {}).get(
-                        "storage", {}).get("value", "")
+                    content = page.get("body", {}).get("storage", {}).get("value", "")
                     if content:
                         _, processed_markdown = self.preprocessor.process_html_content(
                             content,
@@ -518,8 +502,7 @@ class PagesMixin(ConfluenceClient):
             return page_models
 
         except Exception as e:
-            logger.error(
-                f"Error fetching child pages for page {page_id}: {str(e)}")
+            logger.error(f"Error fetching child pages for page {page_id}: {str(e)}")
             logger.debug("Full exception details:", exc_info=True)
             return []
 
@@ -542,9 +525,7 @@ class PagesMixin(ConfluenceClient):
             # Use v2 API for OAuth authentication, v1 API for token/basic auth
             v2_adapter = self._v2_adapter
             if v2_adapter:
-                logger.debug(
-                    f"Using v2 API for OAuth authentication to delete page '{page_id}'"
-                )
+                logger.debug(f"Using v2 API for OAuth authentication to delete page '{page_id}'")
                 return v2_adapter.delete_page(page_id=page_id)
             else:
                 logger.debug(
@@ -574,5 +555,4 @@ class PagesMixin(ConfluenceClient):
 
         except Exception as e:
             logger.error(f"Error deleting page {page_id}: {str(e)}")
-            raise Exception(
-                f"Failed to delete page {page_id}: {str(e)}") from e
+            raise Exception(f"Failed to delete page {page_id}: {str(e)}") from e

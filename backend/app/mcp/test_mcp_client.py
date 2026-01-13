@@ -2,18 +2,20 @@
 在 backend 目录执行:
 uv run -m app.mcp.test_mcp_client
 """
-import os
-import json
+
 import asyncio
+import json
+import os
+from pathlib import Path
+from typing import Any
+
+from dotenv import load_dotenv
+from loguru import logger
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletionMessageToolCall
-from dotenv import load_dotenv
-from pathlib import Path
-from typing import List, Dict, Any
 from pydantic import BaseModel
-from loguru import logger
 
-from app.mcp.mcp_client import get_mcp_manager, MCPClientManager
+from app.mcp.mcp_client import MCPClientManager, get_mcp_manager
 
 load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
@@ -24,16 +26,18 @@ logger.add(
     format="| {time:YYYY-MM-DD HH:mm:ss} | {level} | {message}",
     rotation="10 MB",
     retention="7 days",
-    encoding="utf-8"
+    encoding="utf-8",
 )
 
 
 class UserMessage(BaseModel):
     message: str
-    tool_calls: List[Dict[str, Any]]
+    tool_calls: list[dict[str, Any]]
 
 
-async def execute_single_tool(tool_call: ChatCompletionMessageToolCall, mcp_client_manager: MCPClientManager):
+async def execute_single_tool(
+    tool_call: ChatCompletionMessageToolCall, mcp_client_manager: MCPClientManager
+):
     """
     执行单个工具调用
     """
@@ -43,10 +47,11 @@ async def execute_single_tool(tool_call: ChatCompletionMessageToolCall, mcp_clie
     result, filtered_params = await mcp_client_manager.call_tool(tool_name, tool_args)
     if filtered_params:
         logger.warning(f"被过滤的参数: {filtered_params}")
-    logger.info(f"工具结果:")
+    logger.info("工具结果:")
     result_str = mcp_client_manager.format_mcp_result(result)
-    logger.info(result_str[:200] + "..." + result_str[-200:]
-                if len(result_str) > 200 else result_str)
+    logger.info(
+        result_str[:200] + "..." + result_str[-200:] if len(result_str) > 200 else result_str
+    )
     return result
 
 
@@ -54,15 +59,13 @@ async def chat_with_deepseek_single(
     mcp_client_manager: MCPClientManager,
     deepseek_client: AsyncOpenAI,
     user_message: UserMessage,
-    tools: List[Dict[str, Any]],
-    max_iterations: int = 5
+    tools: list[dict[str, Any]],
+    max_iterations: int = 5,
 ) -> bool:
     # 初始化对话历史
-    messages = [
-        {"role": "user", "content": user_message.message}
-    ]
+    messages = [{"role": "user", "content": user_message.message}]
     logger.info(f"用户: {user_message.message}")
-    logger.info(f"{'='*60}\n")
+    logger.info(f"{'=' * 60}\n")
     used_tools = {}
 
     for iteration in range(max_iterations):
@@ -70,9 +73,7 @@ async def chat_with_deepseek_single(
 
         # 调用 DeepSeek API
         response = await deepseek_client.chat.completions.create(
-            model="deepseek-reasoner",
-            messages=messages,
-            tools=tools if tools else None
+            model="deepseek-reasoner", messages=messages, tools=tools if tools else None
         )
 
         assistant_message = response.choices[0].message
@@ -91,36 +92,37 @@ async def chat_with_deepseek_single(
                 tool_name = tool_call.function.name
                 tool_arguments = json.loads(tool_call.function.arguments)
                 used_tools[tool_name] = tool_arguments
-                tasks.append(execute_single_tool(
-                    tool_call, mcp_client_manager))
+                tasks.append(execute_single_tool(tool_call, mcp_client_manager))
             tool_results = await asyncio.gather(*tasks)
             for tool_result in tool_results:
-                messages.append({
-                    "role": "tool",
-                    "tool_call_id": tool_call.id,
-                    "content": mcp_client_manager.format_mcp_result(tool_result)
-                })
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tool_call.id,
+                        "content": mcp_client_manager.format_mcp_result(tool_result),
+                    }
+                )
         else:
             # 没有工具调用，返回最终答案
             final_response = assistant_message.content
-            messages.append({
-                "role": "assistant",
-                "content": final_response
-            })
-            logger.info(f"\n{'='*60}")
-            logger.info(f"DeepSeek 回复:")
-            logger.info(final_response[:200] + "..." + final_response[-200:]
-                        if len(final_response) > 200 else final_response)
-            logger.info(f"{'='*60}\n")
+            messages.append({"role": "assistant", "content": final_response})
+            logger.info(f"\n{'=' * 60}")
+            logger.info("DeepSeek 回复:")
+            logger.info(
+                final_response[:200] + "..." + final_response[-200:]
+                if len(final_response) > 200
+                else final_response
+            )
+            logger.info(f"{'=' * 60}\n")
 
     # 判断 UserMessage.tool_calls 列表中的每个工具 name 或 arguments 是否在 messages 中存在
     for tool_call in user_message.tool_calls:
-        if tool_call['name'] not in used_tools:
+        if tool_call["name"] not in used_tools:
             raise ValueError(f"未找到工具调用: {tool_call}")
-        if tool_call.get('arguments'):
+        if tool_call.get("arguments"):
             # 将字典转换为可比较的格式进行比较
-            tool_args = tool_call['arguments']
-            used_args = used_tools[tool_call['name']]
+            tool_args = tool_call["arguments"]
+            used_args = used_tools[tool_call["name"]]
             if tool_args != used_args:
                 raise ValueError(f"未找到工具调用参数: {tool_call['arguments']}")
 
@@ -130,10 +132,10 @@ async def chat_with_deepseek_single(
 async def chat_with_deepseek(
     mcp_client_manager: MCPClientManager,
     deepseek_client: AsyncOpenAI,
-    user_messages: List[UserMessage],
-    tools: List[Dict[str, Any]],
-    max_iterations: int = 5
-) -> List[bool]:
+    user_messages: list[UserMessage],
+    tools: list[dict[str, Any]],
+    max_iterations: int = 5,
+) -> list[bool]:
     """
     使用 DeepSeek API 处理对话，并在需要时调用 MCP 工具
 
@@ -150,7 +152,8 @@ async def chat_with_deepseek(
     tasks = []
     for user_message in user_messages:
         task = chat_with_deepseek_single(
-            mcp_client_manager, deepseek_client, user_message, tools, max_iterations)
+            mcp_client_manager, deepseek_client, user_message, tools, max_iterations
+        )
         tasks.append(task)
     results = await asyncio.gather(*tasks, return_exceptions=True)
     return results
@@ -160,19 +163,17 @@ async def test_mcp_client():
     mcp_client_manager = await get_mcp_manager()
     tools = await mcp_client_manager.get_tools_for_llm()
     deepseek_client = AsyncOpenAI(
-        api_key=os.getenv("LLM_API_KEY"),
-        base_url="https://api.deepseek.com/v1"
+        api_key=os.getenv("LLM_API_KEY"), base_url="https://api.deepseek.com/v1"
     )
 
     logger.info(f"\n可用的 MCP 工具 ({len(tools)} 个):")
     for i, tool in enumerate(tools, 1):
-        logger.info(
-            f"{i}. {tool['function']['name']}: {tool['function']['description']}")
+        logger.info(f"{i}. {tool['function']['name']}: {tool['function']['description']}")
 
     # 4. 使用 DeepSeek API 调用工具
-    logger.info("\n" + "="*60)
+    logger.info("\n" + "=" * 60)
     logger.info("开始 DeepSeek + MCP Tools 演示")
-    logger.info("="*60)
+    logger.info("=" * 60)
 
     # 查询 Confluence
     user_messages = [
@@ -206,9 +207,7 @@ async def test_mcp_client():
         # ),
         UserMessage(
             message="帮我总结下面网页内容: https://confluence.shopee.io/display/MKT/01+FE+code+specification",
-            tool_calls=[{
-                    "name": "shopee_confluence_get_page"
-            }]
+            tool_calls=[{"name": "shopee_confluence_get_page"}],
         ),
         # UserMessage(
         #     message="北京今天天气怎么样？",
@@ -221,14 +220,13 @@ async def test_mcp_client():
         mcp_client_manager=mcp_client_manager,
         deepseek_client=deepseek_client,
         user_messages=user_messages,
-        tools=tools
+        tools=tools,
     )
     # 判断 results 中正确的数量
     correct_count = 0
     for i, result in enumerate(results):
         if isinstance(result, Exception):
-            logger.error(
-                f"第 {i+1} 个用户消息处理失败: {type(result).__name__}: {result}")
+            logger.error(f"第 {i + 1} 个用户消息处理失败: {type(result).__name__}: {result}")
         elif result is True:
             correct_count += 1
     logger.info(f"成功处理的用户消息数量: {correct_count}")

@@ -82,9 +82,7 @@ class JiraPreprocessor(BasePreprocessor):
             # Extract issue key if it's a Jira issue link
             issue_key_match = re.search(r"browse/([A-Z]+-\d+)", link_url)
             # Check if it's a Confluence wiki link
-            confluence_match = re.search(
-                r"wiki/spaces/.+?/pages/\d+/(.+?)(?:\?|$)", link_url
-            )
+            confluence_match = re.search(r"wiki/spaces/.+?/pages/\d+/(.+?)(?:\?|$)", link_url)
 
             if issue_key_match:
                 issue_key = issue_key_match.group(1)
@@ -174,9 +172,7 @@ class JiraPreprocessor(BasePreprocessor):
         # Quote blocks
         output = re.sub(
             r"\{quote\}([\s\S]*)\{quote\}",
-            lambda match: "\n".join(
-                [f"> {line}" for line in match.group(1).split("\n")]
-            ),
+            lambda match: "\n".join([f"> {line}" for line in match.group(1).split("\n")]),
             output,
             flags=re.MULTILINE,
         )
@@ -327,9 +323,7 @@ class JiraPreprocessor(BasePreprocessor):
         # Multi-level numbered list
         output = re.sub(
             r"^(\s+)1\. (.*)$",
-            lambda match: "#" * (int(len(match.group(1)) / 4) + 2)
-            + " "
-            + match.group(2),
+            lambda match: "#" * (int(len(match.group(1)) / 4) + 2) + " " + match.group(2),
             output,
             flags=re.MULTILINE,
         )
@@ -338,9 +332,7 @@ class JiraPreprocessor(BasePreprocessor):
         tag_map = {"cite": "??", "del": "-", "ins": "+", "sup": "^", "sub": "~"}
 
         for tag, replacement in tag_map.items():
-            output = re.sub(
-                rf"<{tag}>(.*?)<\/{tag}>", rf"{replacement}\1{replacement}", output
-            )
+            output = re.sub(rf"<{tag}>(.*?)<\/{tag}>", rf"{replacement}\1{replacement}", output)
 
         # Colored text
         output = re.sub(

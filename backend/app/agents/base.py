@@ -1,11 +1,12 @@
 """Base Agent class for all agents"""
-from collections.abc import AsyncGenerator
-from typing import Optional, Any, Union, overload, Literal
-from abc import ABC, abstractmethod
 
-from openai import AsyncOpenAI, APIError, APIConnectionError, RateLimitError, APIStatusError
-from openai.types.chat import ChatCompletion
+from abc import ABC, abstractmethod
+from collections.abc import AsyncGenerator
+from typing import Any, Literal, overload
+
+from openai import APIConnectionError, APIError, APIStatusError, AsyncOpenAI, RateLimitError
 from openai._streaming import AsyncStream
+from openai.types.chat import ChatCompletion
 from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
 
 from app.schemas.chat import ChatMessageItemReq
@@ -13,9 +14,9 @@ from app.schemas.config import LLMConfig
 from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallResultMessage
 from app.schemas.token_stats import BaseTokenStats, TokenUsage
 from app.utils.common import normalize_to_dict
+from app.utils.logger import logger
 from app.utils.model import format_sse_message, get_model_extra_body
 from app.utils.token import TokenCalculator
-from app.utils.logger import logger
 
 
 class BaseAgent(ABC):
@@ -45,15 +46,14 @@ class BaseAgent(ABC):
         Yields:
             str: SSE格式的消息
         """
-        pass
+        raise NotImplementedError("This agent does not support non-streaming execution")
 
     async def execute(self, *args, **kwargs):
         """非流式执行agent的核心逻辑，子类可选实现
 
         默认实现抛出 NotImplementedError，子类如果需要非流式执行可以重写此方法
         """
-        raise NotImplementedError(
-            "This agent does not support non-streaming execution")
+        raise NotImplementedError("This agent does not support non-streaming execution")
 
     @staticmethod
     def format_sse_message(msg_type: str, data=None) -> str:
@@ -67,7 +67,9 @@ class BaseAgent(ABC):
         Returns:
             str: 模型名称
         """
-        return self.model_config.think_model_name if self.think_mode else self.model_config.model_name
+        return (
+            self.model_config.think_model_name if self.think_mode else self.model_config.model_name
+        )
 
     @property
     def extra_body(self) -> dict[str, Any]:
@@ -97,7 +99,7 @@ class BaseAgent(ABC):
         return TokenUsage(
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
-            total_tokens=prompt_tokens + completion_tokens
+            total_tokens=prompt_tokens + completion_tokens,
         )
 
     @overload
@@ -107,11 +109,10 @@ class BaseAgent(ABC):
         messages: list[dict],
         stream: Literal[False],
         *,
-        tools: Optional[list[dict]] = None,
-        parallel_tool_calls: Optional[bool] = None,
-        extra_body: Optional[dict[str, Any]] = None,
-    ) -> ChatCompletion:
-        ...
+        tools: list[dict] | None = None,
+        parallel_tool_calls: bool | None = None,
+        extra_body: dict[str, Any] | None = None,
+    ) -> ChatCompletion: ...
 
     @overload
     async def _call_llm_api(
@@ -120,11 +121,10 @@ class BaseAgent(ABC):
         messages: list[dict],
         stream: Literal[True],
         *,
-        tools: Optional[list[dict]] = None,
-        parallel_tool_calls: Optional[bool] = None,
-        extra_body: Optional[dict[str, Any]] = None,
-    ) -> AsyncStream[ChatCompletionChunk]:
-        ...
+        tools: list[dict] | None = None,
+        parallel_tool_calls: bool | None = None,
+        extra_body: dict[str, Any] | None = None,
+    ) -> AsyncStream[ChatCompletionChunk]: ...
 
     async def _call_llm_api(
         self,
@@ -132,10 +132,10 @@ class BaseAgent(ABC):
         messages: list[dict],
         stream: bool,
         *,
-        tools: Optional[list[dict]] = None,
-        parallel_tool_calls: Optional[bool] = None,
-        extra_body: Optional[dict[str, Any]] = None,
-    ) -> Union[ChatCompletion, AsyncStream[ChatCompletionChunk]]:
+        tools: list[dict] | None = None,
+        parallel_tool_calls: bool | None = None,
+        extra_body: dict[str, Any] | None = None,
+    ) -> ChatCompletion | AsyncStream[ChatCompletionChunk]:
         """
         调用 LLM API 的统一方法，包含错误处理
 
@@ -159,29 +159,29 @@ class BaseAgent(ABC):
         """
         # 构建 API 调用参数
         api_params: dict[str, Any] = {
-            'model': model,
-            'messages': messages,
-            'stream': stream,
+            "model": model,
+            "messages": messages,
+            "stream": stream,
         }
 
         if tools is not None:
-            api_params['tools'] = tools
+            api_params["tools"] = tools
 
         if parallel_tool_calls is not None:
-            api_params['parallel_tool_calls'] = parallel_tool_calls
+            api_params["parallel_tool_calls"] = parallel_tool_calls
 
         if extra_body is not None:
-            api_params['extra_body'] = extra_body
+            api_params["extra_body"] = extra_body
 
         # 准备日志上下文
         log_context = {
-            'model': model,
-            'stream': stream,
-            'extra_body': extra_body,
-            'messages_count': len(messages),
+            "model": model,
+            "stream": stream,
+            "extra_body": extra_body,
+            "messages_count": len(messages),
         }
         if tools is not None:
-            log_context['tools_count'] = len(tools)
+            log_context["tools_count"] = len(tools)
 
         try:
             logger.info("Calling LLM API", **log_context)
@@ -210,7 +210,7 @@ class BaseAgent(ABC):
                 "LLM API returned an error status",
                 error=str(e),
                 error_type=type(e).__name__,
-                status_code=getattr(e, 'status_code', None),
+                status_code=getattr(e, "status_code", None),
                 **log_context,
                 exc_info=True,
             )
@@ -235,11 +235,7 @@ class BaseAgent(ABC):
             raise  # 重新抛出异常，让上层处理
 
     @abstractmethod
-    def create_token_stats(
-        self,
-        *args: Any,
-        **kwargs: dict[str, Any]
-    ) -> BaseTokenStats:
+    def create_token_stats(self, *args: Any, **kwargs: dict[str, Any]) -> BaseTokenStats:
         """
         创建 token 统计对象（抽象方法，子类必须实现）
 
@@ -256,7 +252,7 @@ class BaseAgent(ABC):
         system_prompt: str,
         history: list[ChatMessageItemReq],
         user_message: str,
-        tool_call_messages: Optional[list[ToolCallMessage]] = None,
+        tool_call_messages: list[ToolCallMessage] | None = None,
     ) -> list[dict]:
         """Build prompt for LLM
 
@@ -297,7 +293,7 @@ class BaseAgent(ABC):
         assistant_tool_call_ids = set()
         for message in tool_call_messages:
             if isinstance(message, AssistantToolCallMessage):
-                for tool_call in (message.tool_calls or []):
+                for tool_call in message.tool_calls or []:
                     if tool_call.id in valid_tool_call_ids:
                         assistant_tool_call_ids.add(tool_call.id)
 
@@ -308,13 +304,15 @@ class BaseAgent(ABC):
                 # 保留 assistant 工具调用中有效的工具调用
                 # 使用 model_copy() 创建副本，避免修改原始对象
                 filtered_tool_calls = [
-                    tool_call for tool_call in (message.tool_calls or [])
+                    tool_call
+                    for tool_call in (message.tool_calls or [])
                     if tool_call.id in assistant_tool_call_ids
                 ]
                 if filtered_tool_calls:
                     # 创建新对象副本，只更新 tool_calls 字段
                     filtered_message = message.model_copy(
-                        update={"tool_calls": filtered_tool_calls})
+                        update={"tool_calls": filtered_tool_calls}
+                    )
                     filtered_tool_call_messages.append(filtered_message)
             elif isinstance(message, ToolCallResultMessage):
                 # 只保留没有错误且有对应 assistant 消息的工具调用结果

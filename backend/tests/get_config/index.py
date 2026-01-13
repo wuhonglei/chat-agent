@@ -1,7 +1,8 @@
-from nacos import NacosClient
 import json
-from dotenv import load_dotenv
 import os
+
+from dotenv import load_dotenv
+from nacos import NacosClient
 
 load_dotenv()
 
@@ -16,8 +17,8 @@ def get_nacos_config():
     SERVER_ADDRESSES = os.getenv("NACOS_SERVER_ADDRESSES")
     # 命名空间ID（默认public，自定义命名空间需填ID而非名称）
     NAMESPACE = os.getenv("NACOS_NAMESPACE")
-    USERNAME = os.getenv("NACOS_USERNAME")    # Nacos 登录用户名（默认nacos）
-    PASSWORD = os.getenv("NACOS_PASSWORD")    # Nacos 登录密码（默认nacos）
+    USERNAME = os.getenv("NACOS_USERNAME")  # Nacos 登录用户名（默认nacos）
+    PASSWORD = os.getenv("NACOS_PASSWORD")  # Nacos 登录密码（默认nacos）
 
     # -------------------------- 2. 配置目标配置信息 --------------------------
     DATA_ID = os.getenv("NACOS_DATA_ID")  # 配置ID（必填）
@@ -32,7 +33,7 @@ def get_nacos_config():
             server_addresses=SERVER_ADDRESSES,
             namespace=NAMESPACE,
             username=USERNAME,
-            password=PASSWORD
+            password=PASSWORD,
         )
 
         # 方式2：无认证（仅适用于 Nacos 未开启认证的场景）
@@ -40,15 +41,10 @@ def get_nacos_config():
 
         # -------------------------- 4. 获取配置 --------------------------
         # get_config 方法参数：data_id, group, timeout=3（超时时间，单位秒）
-        config_content = client.get_config(
-            data_id=DATA_ID,
-            group=GROUP,
-            timeout=5
-        )
+        config_content = client.get_config(data_id=DATA_ID, group=GROUP, timeout=5)
 
         if not config_content:
-            raise ValueError(
-                f"获取配置失败：data_id={DATA_ID}, group={GROUP} 对应的配置不存在")
+            raise ValueError(f"获取配置失败：data_id={DATA_ID}, group={GROUP} 对应的配置不存在")
 
         # -------------------------- 5. 解析配置（根据 CONFIG_TYPE 适配） --------------------------
         parsed_config = {}
@@ -56,11 +52,12 @@ def get_nacos_config():
             parsed_config = json.loads(config_content)
         elif CONFIG_TYPE == "yaml":
             import yaml
+
             parsed_config = yaml.safe_load(config_content)
         elif CONFIG_TYPE == "properties":
             # 解析 properties 格式（key=value）
-            from io import StringIO
             from configparser import ConfigParser
+
             config_parser = ConfigParser()
             config_parser.read_string(config_content)
             # properties 无section时默认DEFAULT
@@ -69,7 +66,7 @@ def get_nacos_config():
             # 文本格式直接返回
             parsed_config = config_content
 
-        print(f"✅ 成功获取 Nacos 配置：")
+        print("✅ 成功获取 Nacos 配置：")
         print(f"原始配置内容：\n{config_content}\n")
         print(f"解析后配置：\n{parsed_config}")
 

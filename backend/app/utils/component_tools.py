@@ -1,8 +1,11 @@
 """组件工具相关的工具函数"""
+
 from typing import Any
 
 
-def resolve_ref(schema: dict, ref_path: str, definitions: dict) -> dict:
+def resolve_ref(
+    schema: dict[str, Any], ref_path: str, definitions: dict[str, Any]
+) -> dict[str, Any]:
     """
     解析 JSON Schema 中的 $ref 引用
 
@@ -24,7 +27,7 @@ def resolve_ref(schema: dict, ref_path: str, definitions: dict) -> dict:
         return schema
 
     # 获取引用的定义
-    ref_definition = definitions[ref_name]
+    ref_definition: dict[str, Any] = definitions[ref_name]
 
     # 递归处理引用定义中的 $ref
     if isinstance(ref_definition, dict):
@@ -40,13 +43,12 @@ def resolve_ref(schema: dict, ref_path: str, definitions: dict) -> dict:
                     )
                 else:
                     resolved_properties[prop_name] = prop_schema
-            ref_definition = {**ref_definition,
-                              "properties": resolved_properties}
+            ref_definition = {**ref_definition, "properties": resolved_properties}
 
     return ref_definition
 
 
-def expand_schema_refs(schema: dict) -> dict:
+def expand_schema_refs(schema: Any) -> Any:
     """
     展开 JSON Schema 中的所有 $ref 引用
 
@@ -88,8 +90,8 @@ def expand_schema_refs(schema: dict) -> dict:
 
 def convert_schema_to_tool_definition(
     component_tool_name: str,
-    json_schema: dict,
-) -> dict:
+    json_schema: dict[str, Any],
+) -> dict[str, Any]:
     """
     将 JSON Schema 转换为 LLM 可用的 tool 定义格式
 

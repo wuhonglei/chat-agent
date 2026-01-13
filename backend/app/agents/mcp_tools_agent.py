@@ -1,25 +1,27 @@
 """MCP Tools Agent for handling MCP tool calls"""
+
 import asyncio
 import json
 from collections.abc import AsyncGenerator
-from typing import Any, Optional
+from typing import Any
 
 from openai.types.chat import ChatCompletionMessage, ChatCompletionMessageFunctionToolCall
 
+from app.agents.base import BaseAgent
+
+# Import compression config
+from app.core.config import settings
+from app.mcp.mcp_client import MCPClientManager
+from app.prompts import get_prompt_with_mcp_servers
 from app.schemas.chat import ChatMessageItemReq, ChatRequest
 from app.schemas.config import LLMConfig
 from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallResultMessage
 from app.schemas.token_stats import MCPToolsTokenStats
+from app.utils.compression import IterationCompressor
 from app.utils.logger import logger
+from app.utils.mcp import count_tool_calls, extract_tool_call_names
 from app.utils.message import format_tool_call_messages_for_llm
 from app.utils.time import get_current_time, get_time_duration
-from app.utils.mcp import extract_tool_call_names, count_tool_calls
-from app.utils.compression import IterationCompressor
-from app.mcp.mcp_client import MCPClientManager
-from app.prompts import get_prompt_with_mcp_servers
-from app.agents.base import BaseAgent
-# Import compression config
-from app.core.config import settings
 
 
 class MCPToolsAgent(BaseAgent):
@@ -29,14 +31,14 @@ class MCPToolsAgent(BaseAgent):
         super().__init__(think_mode, llm_config)
         self.mcp_manager = mcp_manager
         self.output_messages: list[ToolCallMessage] = []
-        self.duration: Optional[float] = None
-        self.token_stats: Optional[MCPToolsTokenStats] = None
+        self.duration: float | None = None
+        self.token_stats: MCPToolsTokenStats | None = None
 
         compression_config = settings.compression.iteration_compression
         # Iteration compressor for managing context between iterations
         self.iteration_compressor = IterationCompressor(
             max_context_length=compression_config.max_iteration_context_length,
-            token_calculator=self.token_calculator
+            token_calculator=self.token_calculator,
         )
         self.compression_trigger_threshold = compression_config.compression_trigger_threshold
 
@@ -51,7 +53,7 @@ class MCPToolsAgent(BaseAgent):
         self,
         chat_request: ChatRequest,
         history: list[ChatMessageItemReq],
-        client_ip: str | None
+        client_ip: str | None,
     ) -> AsyncGenerator[str, None]:
         """
         流式执行MCP工具调用并返回SSE消息
@@ -78,9 +80,9 @@ class MCPToolsAgent(BaseAgent):
 
         # 准备消息
         system_prompt, tool_call_user_message = get_prompt_with_mcp_servers(
-            user_message, mcp_auto_mode, server_names, client_ip)
-        input_messages = self._compose_messages(
-            system_prompt, history, tool_call_user_message, [])
+            user_message, mcp_auto_mode, server_names, client_ip
+        )
+        input_messages = self._compose_messages(system_prompt, history, tool_call_user_message, [])
 
         # 流式调用LLM并收集工具调用消息
         start_time = get_current_time()
@@ -88,7 +90,7 @@ class MCPToolsAgent(BaseAgent):
             input_messages, self.model_name, self.extra_body, tools
         ):
             if message:
-                yield self.format_sse_message('mcp_tool_call', message.model_dump())
+                yield self.format_sse_message("mcp_tool_call", message.model_dump())
 
         if self.output_messages:
             self.duration = get_time_duration(start_time)
@@ -96,14 +98,17 @@ class MCPToolsAgent(BaseAgent):
             self.token_stats = self.create_token_stats(
                 input_messages=input_messages,
                 tools=tools,
-                output_messages=self.output_messages
+                output_messages=self.output_messages,
             )
 
-            yield self.format_sse_message('mcp_tool_call', {
-                'status': 'done',
-                'duration': self.duration,
-                'token_stats': self.token_stats.model_dump(mode="json"),
-            })
+            yield self.format_sse_message(
+                "mcp_tool_call",
+                {
+                    "status": "done",
+                    "duration": self.duration,
+                    "token_stats": self.token_stats.model_dump(mode="json"),
+                },
+            )
 
     async def _call_llm_with_mcp_tools(
         self,
@@ -123,27 +128,35 @@ class MCPToolsAgent(BaseAgent):
         Yields:
             ToolCallMessage: Tool call related messages
         """
-        logger.info("MCP tool calls", model=model, tools_count=len(
-            tools), messages_count=len(messages), extra_body=extra_body)
+        logger.info(
+            "MCP tool calls",
+            model=model,
+            tools_count=len(tools),
+            messages_count=len(messages),
+            extra_body=extra_body,
+        )
         max_total_iterations = 10  # Prevent infinite loops
         max_iterations_by_tool = 5
         # 复制列表以避免修改原始参数（后续会修改 tools 列表）
         tools = list(tools) if tools else []
-        iterations_by_tool = {
-            tool['function']['name']: max_iterations_by_tool for tool in tools}
+        iterations_by_tool = {tool["function"]["name"]: max_iterations_by_tool for tool in tools}
 
         # Store compressed historical context for iterations
         compressed_historical_context: list[dict] = []
 
         for iteration in range(max_total_iterations):
-            logger.info("Tool call iteration started", iteration=iteration +
-                        1, max_iterations=max_total_iterations)
+            logger.info(
+                "Tool call iteration started",
+                iteration=iteration + 1,
+                max_iterations=max_total_iterations,
+            )
 
             # Filter out tools that have reached max iterations BEFORE calling LLM
             # This prevents LLM from seeing tools it cannot use
             original_count = len(tools)
             tools[:] = [
-                tool for tool in tools
+                tool
+                for tool in tools
                 if iterations_by_tool.get(tool.get("function", {}).get("name"), 0) > 0
             ]
             filtered_count = original_count - len(tools)
@@ -159,7 +172,8 @@ class MCPToolsAgent(BaseAgent):
             # Call LLM with tools
             # 格式化 collected_messages，过滤掉额外的字段（如 token_count, duration, is_error）
             formatted_collected_messages = format_tool_call_messages_for_llm(
-                self.output_messages, clear_reasoning_content=False)
+                self.output_messages, clear_reasoning_content=False
+            )
             response = await self._call_llm_api(
                 model=model,
                 messages=messages + formatted_collected_messages,
@@ -174,19 +188,22 @@ class MCPToolsAgent(BaseAgent):
                 logger.info(
                     "No tool calls needed",
                     has_content=bool(openai_message.content),
-                    content_length=len(
-                        openai_message.content) if openai_message.content else 0,
+                    content_length=len(openai_message.content) if openai_message.content else 0,
                 )
                 yield None
                 return
 
             # Handle tool calls
-            assistant_message = AssistantToolCallMessage(**{
-                'role': 'assistant',
-                'content': openai_message.content,
-                'tool_calls': openai_message.tool_calls,
-                'reasoning_content': hasattr(openai_message, 'reasoning_content') and openai_message.reasoning_content or None,
-            })
+            assistant_message = AssistantToolCallMessage(
+                **{
+                    "role": "assistant",
+                    "content": openai_message.content,
+                    "tool_calls": openai_message.tool_calls,
+                    "reasoning_content": hasattr(openai_message, "reasoning_content")
+                    and openai_message.reasoning_content
+                    or None,
+                }
+            )
             self.output_messages.append(assistant_message)
             yield assistant_message
             tool_count = len(assistant_message.tool_calls)
@@ -201,7 +218,10 @@ class MCPToolsAgent(BaseAgent):
                 assistant_message=assistant_message.model_dump(),
             )
 
-            async def execute_single_tool(tool_call: ChatCompletionMessageFunctionToolCall) -> ToolCallResultMessage:
+            async def execute_single_tool(
+                tool_call: ChatCompletionMessageFunctionToolCall,
+                current_iteration: int = iteration,
+            ) -> ToolCallResultMessage:
                 """Execute a single tool call and return the result message"""
                 tool_name = tool_call.function.name
                 start_time = get_current_time()
@@ -212,7 +232,7 @@ class MCPToolsAgent(BaseAgent):
                     logger.warning(
                         "Tool not found in iterations tracking (unexpected), initializing as exhausted",
                         tool_name=tool_name,
-                        iteration=iteration + 1,
+                        iteration=current_iteration + 1,
                     )
                     iterations_by_tool[tool_name] = 0
 
@@ -221,16 +241,18 @@ class MCPToolsAgent(BaseAgent):
                     logger.info(
                         "Tool max iterations reached, skipping",
                         tool_name=tool_name,
-                        iteration=iteration + 1,
+                        iteration=current_iteration + 1,
                     )
                     # Note: Tool should have been filtered out before LLM call, this is defensive check
-                    return ToolCallResultMessage(**{
-                        "role": "tool",
-                        "is_error": True,
-                        "tool_call_id": tool_call.id,
-                        "duration": get_time_duration(start_time),
-                        "content": f'Tool {tool_name} has hit max iterations, skipping'
-                    })
+                    return ToolCallResultMessage(
+                        **{
+                            "role": "tool",
+                            "is_error": True,
+                            "tool_call_id": tool_call.id,
+                            "duration": get_time_duration(start_time),
+                            "content": f"Tool {tool_name} has hit max iterations, skipping",
+                        }
+                    )
 
                 # Decrement AFTER checking
                 iterations_by_tool[tool_name] -= 1
@@ -245,12 +267,11 @@ class MCPToolsAgent(BaseAgent):
                         "Calling MCP tool",
                         tool_name=tool_name,
                         tool_call_id=tool_call.id,
-                        iteration=iteration + 1,
+                        iteration=current_iteration + 1,
                         arguments=arguments,
                     )
                     result, filtered_params = await self.mcp_manager.call_tool(tool_name, arguments)
-                    content = self.mcp_manager.format_mcp_result(
-                        result)
+                    content = self.mcp_manager.format_mcp_result(result)
 
                     # 如果有参数被过滤，在返回内容前添加警告信息，告知 LLM
                     if filtered_params:
@@ -267,37 +288,42 @@ class MCPToolsAgent(BaseAgent):
                         )
 
                     # Add tool result to messages
-                    tool_call_result_message = ToolCallResultMessage(**{
-                        "role": "tool",
-                        "content": content,
-                        "is_error": len(content or '') == 0,
-                        "tool_call_id": tool_call.id,
-                        "token_count": self.token_calculator.count_tokens(content),
-                        "duration": get_time_duration(start_time),
-                    })
+                    tool_call_result_message = ToolCallResultMessage(
+                        **{
+                            "role": "tool",
+                            "content": content,
+                            "is_error": len(content or "") == 0,
+                            "tool_call_id": tool_call.id,
+                            "token_count": self.token_calculator.count_tokens(content),
+                            "duration": get_time_duration(start_time),
+                        }
+                    )
                     logger.info(
                         "MCP tool result received",
                         tool_name=tool_name,
                         tool_call_id=tool_call.id,
                         duration=tool_call_result_message.duration,
                         content_length=len(content) if content else 0,
-                        content=content[:200] + '...' +
-                        content[-200:] if len(content) > 400 else content,
+                        content=content[:200] + "..." + content[-200:]
+                        if len(content) > 400
+                        else content,
                     )
                     return tool_call_result_message
                 except Exception as e:
-                    tool_call_result_message = ToolCallResultMessage(**{
-                        "role": "tool",
-                        "is_error": True,
-                        "content": str(e),
-                        "tool_call_id": tool_call.id,
-                        "duration": get_time_duration(start_time),
-                    })
+                    tool_call_result_message = ToolCallResultMessage(
+                        **{
+                            "role": "tool",
+                            "is_error": True,
+                            "content": str(e),
+                            "tool_call_id": tool_call.id,
+                            "duration": get_time_duration(start_time),
+                        }
+                    )
                     logger.error(
                         "Failed to call tool",
                         error=e,
                         tool_name=tool_name,
-                        iteration=iteration + 1,
+                        iteration=current_iteration + 1,
                         tool_call_id=tool_call.id,
                         duration=get_time_duration(start_time),
                         content_length=len(str(e)) if str(e) else 0,
@@ -311,8 +337,11 @@ class MCPToolsAgent(BaseAgent):
                 iteration=iteration + 1,
             )
             # Create tasks for all tool calls
-            tasks = [execute_single_tool(
-                tool_call) for tool_call in assistant_message.tool_calls if tool_call is not None]
+            tasks = [
+                execute_single_tool(tool_call, iteration)
+                for tool_call in assistant_message.tool_calls
+                if tool_call is not None
+            ]
             # Execute all tasks in parallel
             tool_results = await asyncio.gather(*tasks)
 
@@ -328,21 +357,27 @@ class MCPToolsAgent(BaseAgent):
 
             # Perform iteration context compression if needed
             current_context_length = self.token_calculator.count_messages_tokens(
-                self.output_messages)
+                self.output_messages
+            )
 
-            if current_context_length > self.compression_trigger_threshold and iteration < max_total_iterations - 1:
+            if (
+                current_context_length > self.compression_trigger_threshold
+                and iteration < max_total_iterations - 1
+            ):
                 logger.debug(
                     "Compressing iteration context",
                     iteration=iteration + 1,
                     current_context_length=current_context_length,
-                    threshold=self.compression_trigger_threshold
+                    threshold=self.compression_trigger_threshold,
                 )
 
                 # Compress the context
-                compressed_context: list[dict] = self.iteration_compressor.compress_iteration_context(
-                    current_results=current_iteration_results,
-                    historical_context=compressed_historical_context,
-                    iteration=iteration
+                compressed_context: list[dict] = (
+                    self.iteration_compressor.compress_iteration_context(
+                        current_results=current_iteration_results,
+                        historical_context=compressed_historical_context,
+                        iteration=iteration,
+                    )
                 )
 
                 # Update historical context for next iteration
@@ -353,7 +388,8 @@ class MCPToolsAgent(BaseAgent):
                     iteration=iteration + 1,
                     original_length=current_context_length,
                     compressed_length=self.token_calculator.count_messages_tokens(
-                        compressed_context)
+                        compressed_context
+                    ),
                 )
 
         # If we hit max iterations, return error message
@@ -382,14 +418,13 @@ class MCPToolsAgent(BaseAgent):
         """
         # 计算输入 token（包括消息和工具定义）
         prompt_tokens = self.token_calculator.count_messages_tokens(
-            input_messages)  # 系统提示词、历史消息、用户消息
-        tool_definition_tokens = self.token_calculator.count_tokens(
-            json.dumps(tools))
+            input_messages
+        )  # 系统提示词、历史消息、用户消息
+        tool_definition_tokens = self.token_calculator.count_tokens(json.dumps(tools))
         total_prompt_tokens = prompt_tokens + tool_definition_tokens
 
         # 计算输出 token（助手消息 + 工具调用结果）
-        completion_tokens = self.token_calculator.count_messages_tokens(
-            output_messages)
+        completion_tokens = self.token_calculator.count_messages_tokens(output_messages)
 
         tool_call_names = extract_tool_call_names(output_messages)
         tool_call_count = count_tool_calls(output_messages)
@@ -399,8 +434,7 @@ class MCPToolsAgent(BaseAgent):
             model_name=self.model_name,
             think_mode=self.think_mode,
             model_limit=self.model_limit,
-            token_usage=self._create_token_usage(
-                total_prompt_tokens, completion_tokens),
+            token_usage=self._create_token_usage(total_prompt_tokens, completion_tokens),
             tool_call_count=tool_call_count,
             tool_definition_tokens=tool_definition_tokens,
             tool_call_names=tool_call_names,

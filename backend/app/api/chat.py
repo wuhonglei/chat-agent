@@ -6,8 +6,8 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 
 from app.mcp.mcp_client import MCPClientManager
-from app.schemas.chat import ChatRequest, MessageStatus
 from app.models import MessageDb
+from app.schemas.chat import ChatRequest, MessageStatus
 from app.services.chat_service import ChatService
 from app.services.message_service import MessageService
 from app.utils.auth_deps import require_auth
@@ -38,9 +38,7 @@ async def chat_stream(
         chat_request=chat_request.model_dump(exclude_none=True),
     )
 
-    user_metadata = chat_request.model_dump(
-        exclude_none=True, exclude=['content']
-    )
+    user_metadata = chat_request.model_dump(exclude_none=True, exclude=["content"])
 
     # 创建用户消息和助手消息
     with MessageService() as message_service:
@@ -69,30 +67,29 @@ async def chat_stream(
         )
         try:
             with MessageService() as message_service:
-                conversation = message_service.get_conversation(
-                    chat_request.conversation_id)
-                user_message = message_service.session.get(
-                    MessageDb, user_message_id)
-                assistant_message = message_service.session.get(
-                    MessageDb, assistant_message_id)
+                conversation = message_service.get_conversation(chat_request.conversation_id)
+                user_message = message_service.session.get(MessageDb, user_message_id)
+                assistant_message = message_service.session.get(MessageDb, assistant_message_id)
 
                 logger.debug(
                     "Retrieved conversation and messages",
                     conversation_id=chat_request.conversation_id,
                     user_message_role=user_message.role if user_message else None,
-                    assistant_message_status=assistant_message.status if assistant_message else None,
+                    assistant_message_status=assistant_message.status
+                    if assistant_message
+                    else None,
                 )
 
                 # 发送初始确认消息
                 logger.debug("Sending initial acknowledgment messages")
-                yield format_sse_message('ack', user_message)
-                yield format_sse_message('ack', assistant_message)
-                yield format_sse_message('refresh_conversation', conversation)
+                yield format_sse_message("ack", user_message)
+                yield format_sse_message("ack", assistant_message)
+                yield format_sse_message("refresh_conversation", conversation)
                 logger.debug("Initial acknowledgment messages sent")
 
                 chat_service = ChatService(
-                    think_mode=chat_request.think_mode,
-                    mcp_manager=mcp_manager)
+                    think_mode=chat_request.think_mode, mcp_manager=mcp_manager
+                )
                 logger.debug(
                     "ChatService created",
                     conversation_id=chat_request.conversation_id,
@@ -112,17 +109,20 @@ async def chat_stream(
                         title=title,
                         title_length=len(title) if title else 0,
                     )
-                    yield format_sse_message('title', {
-                        'id': chat_request.conversation_id,
-                        'title': title,
-                        'token_stats': chat_service.title_generation_agent.token_stats.model_dump(mode="json"),
-                    })
+                    yield format_sse_message(
+                        "title",
+                        {
+                            "id": chat_request.conversation_id,
+                            "title": title,
+                            "token_stats": chat_service.title_generation_agent.token_stats.model_dump(
+                                mode="json"
+                            ),
+                        },
+                    )
 
                 # 流式生成响应
                 start_time = get_current_time()
-                history = message_service.get_flatten_messages_by_ids(
-                    chat_request.history_ids
-                )
+                history = message_service.get_flatten_messages_by_ids(chat_request.history_ids)
                 logger.info(
                     "Starting stream message generation",
                     conversation_id=chat_request.conversation_id,
@@ -133,9 +133,7 @@ async def chat_stream(
 
                 chunk_count = 0
                 async for chunk in chat_service.stream_message(
-                    chat_request=chat_request,
-                    history=history,
-                    client_ip=client_ip
+                    chat_request=chat_request, history=history, client_ip=client_ip
                 ):
                     chunk_count += 1
                     yield chunk
@@ -156,8 +154,7 @@ async def chat_stream(
                     content_length=len(assistant_payload.content),
                     reasoning_length=len(assistant_payload.reasoning),
                     tool_calls_count=len(assistant_payload.tool_calls),
-                    component_tool_calls_count=len(
-                        assistant_payload.component_tool_calls),
+                    component_tool_calls_count=len(assistant_payload.component_tool_calls),
                     total_duration=chat_service.total_duration,
                 )
 
@@ -173,25 +170,36 @@ async def chat_stream(
                     conversation_id=chat_request.conversation_id,
                     assistant_message_id=assistant_message_id,
                     status=MessageStatus.DONE,
-                    updated_at=str(
-                        assistant_message.updated_at) if assistant_message.updated_at else None,
+                    updated_at=str(assistant_message.updated_at)
+                    if assistant_message.updated_at
+                    else None,
                 )
 
                 # 发送完成消息
                 done_payload = {
-                    'content_length': len(assistant_payload.content),
-                    'reasoning_length': len(assistant_payload.reasoning),
-                    'tool_calls_length': len(assistant_payload.tool_calls),
-                    'component_tool_calls_length': len(assistant_payload.component_tool_calls),
-                    **pick_fields(assistant_payload.model_dump(mode="json"), ['tool_calls_duration', 'component_tool_calls_duration', 'reasoning_duration', 'content_duration', 'total_duration', 'token_stats']),
-                    **pick_fields(assistant_message.model_dump(mode="json"), ['updated_at']),
+                    "content_length": len(assistant_payload.content),
+                    "reasoning_length": len(assistant_payload.reasoning),
+                    "tool_calls_length": len(assistant_payload.tool_calls),
+                    "component_tool_calls_length": len(assistant_payload.component_tool_calls),
+                    **pick_fields(
+                        assistant_payload.model_dump(mode="json"),
+                        [
+                            "tool_calls_duration",
+                            "component_tool_calls_duration",
+                            "reasoning_duration",
+                            "content_duration",
+                            "total_duration",
+                            "token_stats",
+                        ],
+                    ),
+                    **pick_fields(assistant_message.model_dump(mode="json"), ["updated_at"]),
                 }
                 logger.info(
                     "Sending done message",
                     conversation_id=chat_request.conversation_id,
                     **done_payload,
                 )
-                yield format_sse_message('done', done_payload)
+                yield format_sse_message("done", done_payload)
                 logger.info(
                     "Stream response generation completed successfully",
                     conversation_id=chat_request.conversation_id,
@@ -204,10 +212,13 @@ async def chat_stream(
                 error_type=type(e).__name__,
                 exc_info=True,
             )
-            yield format_sse_message('error', {
-                'content': str(e),
-                'conversation_id': chat_request.conversation_id,
-            })
+            yield format_sse_message(
+                "error",
+                {
+                    "content": str(e),
+                    "conversation_id": chat_request.conversation_id,
+                },
+            )
 
     return StreamingResponse(
         generate(),

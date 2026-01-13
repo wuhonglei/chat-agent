@@ -1,7 +1,7 @@
 """Context Compression Service for compressing tool results and conversation context"""
 
-from typing import List, Any
 from dataclasses import dataclass
+from typing import Any
 
 from app.utils.compression import ContextMonitor
 from app.utils.logger import logger
@@ -12,7 +12,8 @@ from app.utils.token import TokenCalculator
 @dataclass
 class CompressionResult:
     """Compression result with statistics"""
-    compressed_messages: List[Any]
+
+    compressed_messages: list[Any]
     original_length: int
     compressed_length: int
     compression_ratio: float
@@ -31,13 +32,10 @@ class ContextCompressionService:
             token_calculator: Token calculator for token calculations
         """
         self.token_calculator = token_calculator
-        self.context_monitor = ContextMonitor(
-            token_calculator, compression_threshold)
+        self.context_monitor = ContextMonitor(token_calculator, compression_threshold)
 
     async def compress_tool_messages(
-        self,
-        messages: List[Any],
-        force_compress: bool = False
+        self, messages: list[Any], force_compress: bool = False
     ) -> CompressionResult:
         """
         Compress tool messages if needed
@@ -56,29 +54,29 @@ class ContextCompressionService:
                 compressed_length=0,
                 compression_ratio=1.0,
                 duration=0.0,
-                was_compressed=False
+                was_compressed=False,
             )
 
         start_time = get_current_time()
 
-        logger.debug("Starting context compression for tool messages",
-                     message_count=len(messages))
+        logger.debug(
+            "Starting context compression for tool messages",
+            message_count=len(messages),
+        )
 
         # Calculate original length
         original_length = self.token_calculator.count_messages_tokens(messages)
 
         # Decide whether to compress
         should_compress = force_compress or (
-            original_length > self.context_monitor.compression_threshold)
+            original_length > self.context_monitor.compression_threshold
+        )
 
         if should_compress:
             # Perform compression
-            compressed_messages = self.context_monitor.check_and_compress(
-                messages)
-            compressed_length = self.token_calculator.count_messages_tokens(
-                compressed_messages)
-            compression_ratio = compressed_length / \
-                original_length if original_length > 0 else 1.0
+            compressed_messages = self.context_monitor.check_and_compress(messages)
+            compressed_length = self.token_calculator.count_messages_tokens(compressed_messages)
+            compression_ratio = compressed_length / original_length if original_length > 0 else 1.0
             was_compressed = True
 
             logger.debug(
@@ -86,7 +84,7 @@ class ContextCompressionService:
                 original_length=original_length,
                 compressed_length=compressed_length,
                 compression_ratio=compression_ratio,
-                threshold=self.context_monitor.compression_threshold
+                threshold=self.context_monitor.compression_threshold,
             )
         else:
             # No compression needed
@@ -98,7 +96,7 @@ class ContextCompressionService:
             logger.debug(
                 "Context compression skipped - below threshold",
                 original_length=original_length,
-                threshold=self.context_monitor.compression_threshold
+                threshold=self.context_monitor.compression_threshold,
             )
 
         duration = get_time_duration(start_time)
@@ -109,7 +107,7 @@ class ContextCompressionService:
             compressed_length=compressed_length,
             compression_ratio=compression_ratio,
             duration=duration,
-            was_compressed=was_compressed
+            was_compressed=was_compressed,
         )
 
     def update_compression_threshold(self, new_threshold: int) -> None:
@@ -122,6 +120,6 @@ class ContextCompressionService:
         logger.info(
             "Updating compression threshold",
             old_threshold=self.context_monitor.compression_threshold,
-            new_threshold=new_threshold
+            new_threshold=new_threshold,
         )
         self.context_monitor.compression_threshold = new_threshold

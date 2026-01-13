@@ -1,9 +1,9 @@
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class IPLocatorResponse(BaseModel):
     """IP 地址定位响应模型"""
+
     query: str = Field(..., description="查询的 IP 地址")
     status: str = Field(..., description="请求状态，success 表示成功")
     country: str = Field(..., description="国家名称")
@@ -15,4 +15,4 @@ class IPLocatorResponse(BaseModel):
     lon: float = Field(..., description="经度")
     timezone: str = Field(..., description="时区")
 
-    model_config = ConfigDict(extra='allow')
+    model_config = ConfigDict(extra="allow")

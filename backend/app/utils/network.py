@@ -1,5 +1,6 @@
-from fastapi import Request
 from ipaddress import ip_address
+
+from fastapi import Request
 
 
 def validate_client_ip(ip: str, keep_private_ip: bool = False) -> str | None:

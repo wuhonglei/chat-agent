@@ -1,4 +1,5 @@
 import os
+
 from app.schemas.config import MCPConfig
 
 
@@ -26,4 +27,5 @@ def inject_mcp_env_vars(mcp_config: MCPConfig) -> None:
 
     if injected_count > 0:
         from app.utils.logger import logger
+
         logger.info("Injected MCP environment variables", count=injected_count)

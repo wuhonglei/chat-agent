@@ -2,13 +2,14 @@
 和风天气 API 数据模型定义
 """
 
-from typing import List, Dict, Any
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
 class WeatherCommonResponse(BaseModel):
     code: str = Field(..., description="状态码")
-    refer: Dict[str, Any] = Field(..., description="数据来源信息")
+    refer: dict[str, Any] = Field(..., description="数据来源信息")
 
 
 class City(BaseModel):
@@ -86,7 +87,7 @@ class WeatherDaily(BaseModel):
 
 
 class WeatherDailyResponse(WeatherCommonResponse):
-    daily: List[WeatherDaily] = Field(..., description="天气预报数据")
+    daily: list[WeatherDaily] = Field(..., description="天气预报数据")
     updateTime: str = Field(..., description="API更新时间")
     fxLink: str = Field(..., description="和风天气链接")
 
@@ -111,7 +112,7 @@ class WeatherAlert(BaseModel):
 
 
 class WeatherAlertResponse(WeatherCommonResponse):
-    warning: List[WeatherAlert] = Field(..., description="天气预警数据")
+    warning: list[WeatherAlert] = Field(..., description="天气预警数据")
     updateTime: str = Field(..., description="API更新时间")
     fxLink: str = Field(..., description="和风天气链接")
 
@@ -136,6 +137,6 @@ class WeatherHourly(BaseModel):
 
 
 class WeatherHourlyResponse(WeatherCommonResponse):
-    hourly: List[WeatherHourly] = Field(..., description="逐小时天气预报数据")
+    hourly: list[WeatherHourly] = Field(..., description="逐小时天气预报数据")
     updateTime: str = Field(..., description="API更新时间")
     fxLink: str = Field(..., description="和风天气链接")

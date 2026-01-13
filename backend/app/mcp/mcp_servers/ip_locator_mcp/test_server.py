@@ -3,17 +3,17 @@
 """
 
 import asyncio
+
 from fastmcp import Client
 
 from .server import mcp
+
 client = Client(mcp)
 
 
 async def test_locate_ip():
     async with client:
-        result = await client.call_tool("locate_ip", {
-            "ip_address": "24.48.0.1"
-        })
+        result = await client.call_tool("locate_ip", {"ip_address": "24.48.0.1"})
     print(result.data)
 
 

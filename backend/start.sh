@@ -16,7 +16,7 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
         echo "✓ Database connection established!"
         break
     fi
-    
+
     RETRY_COUNT=$((RETRY_COUNT + 1))
     if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
         echo "ERROR: Database connection failed after ${MAX_RETRIES} seconds"
@@ -26,7 +26,7 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
         echo "$ERROR_OUTPUT"
         exit 1
     fi
-    
+
     if [ $((RETRY_COUNT % 5)) -eq 0 ]; then
         echo "Waiting for database... (${RETRY_COUNT}/${MAX_RETRIES})"
         echo "Error: $ERROR_OUTPUT"
@@ -59,4 +59,3 @@ WORKERS=$(($(nproc) * 2))
 
 # 启动 Gunicorn 应用服务器
 exec gunicorn app.main:app -w $WORKERS -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
-

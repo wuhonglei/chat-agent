@@ -29,9 +29,7 @@ class ConfluenceSearchResult(ApiModel, TimestampMixin):
     search_duration: int | None = None
 
     @classmethod
-    def from_api_response(
-        cls, data: dict[str, Any], **kwargs: Any
-    ) -> "ConfluenceSearchResult":
+    def from_api_response(cls, data: dict[str, Any], **kwargs: Any) -> "ConfluenceSearchResult":
         """
         Create a ConfluenceSearchResult from a Confluence API response.
 
@@ -52,8 +50,7 @@ class ConfluenceSearchResult(ApiModel, TimestampMixin):
         for item in data.get("results", []):
             # In Confluence search, the content is nested inside the result item
             if content := item.get("content"):
-                results.append(
-                    ConfluencePage.from_api_response(content, **kwargs))
+                results.append(ConfluencePage.from_api_response(content, **kwargs))
 
         return cls(
             total_size=data.get("totalSize", 0),

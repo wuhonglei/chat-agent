@@ -1,9 +1,11 @@
 import uuid
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 import aiofiles
 from fastapi import UploadFile
+
 from app.utils.logger import logger
 
 
@@ -22,7 +24,7 @@ def get_file_extension(filename: str) -> str:
         >>> get_file_extension('test.txt')
         '.txt'
     """
-    return Path(filename).suffix.lower() if filename else ''
+    return Path(filename).suffix.lower() if filename else ""
 
 
 def get_file_name(filename: str) -> str:
@@ -38,12 +40,12 @@ def get_file_name(filename: str) -> str:
         >>> get_file_name('test.docx')
         'test'
         >>> get_file_name('test.txt')
-        'test' 
+        'test'
     """
-    return Path(filename).stem if filename else ''
+    return Path(filename).stem if filename else ""
 
 
-async def write_file_async(file_path: str, file: UploadFile):
+async def write_file_async(file_path: str, file: UploadFile) -> str:
     """
     写入文件
 
@@ -53,8 +55,10 @@ async def write_file_async(file_path: str, file: UploadFile):
     content = await file.read()
 
     # 异步写入临时文件
-    async with aiofiles.open(file_path, 'wb') as f:
+    async with aiofiles.open(file_path, "wb") as f:
         await f.write(content)
+
+    return file_path
 
 
 class TempFileManager:
@@ -101,14 +105,18 @@ class TempFileManager:
         self.file_path: Path | None = None
         self._ensure_dir_exists()
 
-    def _ensure_dir_exists(self):
+    def _ensure_dir_exists(self) -> None:
         """确保目录存在"""
         self.base_dir.mkdir(parents=True, exist_ok=True)
 
     def _generate_file_path(self) -> Path:
         """生成唯一的文件路径"""
         file_id = str(uuid.uuid4())
-        file_name = f"{self.prefix}{file_id}{self.file_extension}" if self.prefix else f"{file_id}{self.file_extension}"
+        file_name = (
+            f"{self.prefix}{file_id}{self.file_extension}"
+            if self.prefix
+            else f"{file_id}{self.file_extension}"
+        )
         return self.base_dir / file_name
 
     def __enter__(self) -> "TempFileManager":
@@ -117,7 +125,9 @@ class TempFileManager:
         logger.debug("创建临时文件", file_path=self.file_path)
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self, exc_type: type | None, exc_val: Exception | None, exc_tb: object | None
+    ) -> None:
         """同步上下文管理器出口"""
         if self.auto_cleanup:
             self._cleanup()
@@ -128,12 +138,14 @@ class TempFileManager:
         logger.debug("创建临时文件", file_path=self.file_path)
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(
+        self, exc_type: type | None, exc_val: Exception | None, exc_tb: object | None
+    ) -> None:
         """异步上下文管理器出口"""
         if self.auto_cleanup:
             self._cleanup()
 
-    def _cleanup(self):
+    def _cleanup(self) -> None:
         """清理临时文件"""
         if self.file_path and self.file_path.exists():
             try:
@@ -149,11 +161,11 @@ class TempFileManager:
             raise RuntimeError("临时文件尚未创建，请先进入上下文管理器")
         return self.file_path
 
-    def keep(self):
+    def keep(self) -> None:
         """保留文件（不自动删除）"""
         self.auto_cleanup = False
 
-    def remove(self):
+    def remove(self) -> None:
         """手动删除文件"""
         self._cleanup()
 
@@ -164,7 +176,7 @@ async def temp_file_context(
     file_extension: str = "",
     prefix: str = "",
     auto_cleanup: bool = True,
-):
+) -> AsyncGenerator[Path, None]:
     """
     异步临时文件上下文管理器（函数式接口）
 

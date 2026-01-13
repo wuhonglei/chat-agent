@@ -18,8 +18,7 @@ def get_auth_token(authorization: str) -> str:
 
 
 def get_user_id_from_token(
-    authorization: str | None,
-    jwt_manager: JWTManager | None = None
+    authorization: str | None, jwt_manager: JWTManager | None = None
 ) -> str | None:
     """从 token 中获取 user_id
 
@@ -53,7 +52,7 @@ def get_user_id_from_token(
 async def get_auth_token_info(
     request: Request,
     response: Response,
-    jwt_manager: JWTManager = Depends(get_jwt_manager)
+    jwt_manager: JWTManager = Depends(get_jwt_manager),
 ) -> SecretTokenInfo:
     """
     从请求头中解析并验证 JWT token，支持自动刷新
@@ -97,19 +96,18 @@ async def get_auth_token_info(
 
         # 先解码 token（不验证签名）以获取 refresh_token
         try:
-            expired_payload = jwt_manager.decode_token_without_verification(
-                token)
+            expired_payload = jwt_manager.decode_token_without_verification(token)
             refresh_token = expired_payload.get("refresh_token")
 
             if not refresh_token:
                 raise HTTPException(
-                    status_code=401, detail="Token 已过期且缺少 refresh_token，请重新登录")
+                    status_code=401, detail="Token 已过期且缺少 refresh_token，请重新登录"
+                )
 
             # 从过期 token 中获取 user_id（如果存在）
             user_id = expired_payload.get("user_id")
             if not user_id:
-                raise HTTPException(
-                    status_code=401, detail="无法从过期 token 中获取 user_id")
+                raise HTTPException(status_code=401, detail="无法从过期 token 中获取 user_id")
 
             # 使用 refresh_token 刷新 access token
             refresh_request = RefreshTokenRequest(refresh_token=refresh_token)
@@ -118,13 +116,11 @@ async def get_auth_token_info(
             # 生成新的 JWT token
             new_payload = {
                 **new_token_info.model_dump(exclude_none=True),
-                "user_id": user_id
+                "user_id": user_id,
             }
 
-            new_secret_token_info = jwt_manager.get_payload_with_expiration(
-                new_payload)
-            new_secret_token_info_str = jwt_manager.create_token(
-                new_secret_token_info)
+            new_secret_token_info = jwt_manager.get_payload_with_expiration(new_payload)
+            new_secret_token_info_str = jwt_manager.create_token(new_secret_token_info)
 
             # 在响应头中返回新的 token
             response.headers["x-secret-token-info"] = new_secret_token_info_str
@@ -150,7 +146,7 @@ async def get_auth_token_info(
 async def require_auth(
     request: Request,
     response: Response,
-    jwt_manager: JWTManager = Depends(get_jwt_manager)
+    jwt_manager: JWTManager = Depends(get_jwt_manager),
 ) -> None:
     """
     只进行认证验证，不返回 token 信息

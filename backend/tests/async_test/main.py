@@ -1,5 +1,4 @@
 import asyncio
-import time
 
 
 async def test_async_simple():

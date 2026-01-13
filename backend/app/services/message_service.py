@@ -1,22 +1,23 @@
 from __future__ import annotations
 
-from typing import Any, Optional
 from datetime import datetime
+from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy.exc import SQLAlchemyError
-from sqlmodel import Session, select, delete
-
 from pydantic import BaseModel, Field
-from app.schemas.chat import ChatMessageItemReq, CollectedResponse, MessageStatus
+from sqlalchemy.exc import SQLAlchemyError
+from sqlmodel import Session, delete, select
+
 from app.models import ConversationDb, MessageDb
-from app.utils.date import get_datetime_now
-from app.utils.common import gen_uuid
+from app.schemas.chat import ChatMessageItemReq, CollectedResponse, MessageStatus
 from app.services.base_service import BaseService
+from app.utils.common import gen_uuid
+from app.utils.date import get_datetime_now
 
 
 class ChatMessagesResult(BaseModel):
     """聊天消息创建结果"""
+
     user_message_id: str = Field(..., description="用户消息ID")
     assistant_message_id: str = Field(..., description="助手消息ID")
     user_message: MessageDb = Field(..., description="用户消息")
@@ -27,7 +28,7 @@ class ChatMessagesResult(BaseModel):
 class MessageService(BaseService):
     """处理会话消息的入库与状态更新"""
 
-    def __init__(self, db: Optional[Session] = None):
+    def __init__(self, db: Session | None = None):
         """
         初始化消息服务
 
@@ -60,10 +61,14 @@ class MessageService(BaseService):
             return []
 
         db = self._ensure_db()
-        messages = db.exec(select(MessageDb.id, MessageDb.role, MessageDb.content, MessageDb.tool_calls).where(
-            MessageDb.id.in_(message_ids))).all()
+        messages = db.exec(
+            select(MessageDb.id, MessageDb.role, MessageDb.content, MessageDb.tool_calls).where(
+                MessageDb.id.in_(message_ids)
+            )
+        ).all()
         if not messages:
             from app.utils.logger import logger
+
             logger.error("Messages not found", message_ids=message_ids)
             return []
 
@@ -75,24 +80,31 @@ class MessageService(BaseService):
         for message_id in message_ids:
             if message_id not in messages_dict:
                 from app.utils.logger import logger
-                logger.warning("Message ID not found, skipping",
-                               message_id=message_id)
+
+                logger.warning("Message ID not found, skipping", message_id=message_id)
                 continue
 
             id, role, content, tool_call_messages = messages_dict[message_id]
             # 将工具调用消息拼接到消息中
             for tool_call_message in tool_call_messages or []:
-                tool_role = tool_call_message.get('role')
-                if tool_role == 'assistant':
-                    flattened_messages.append(ChatMessageItemReq(
-                        role='assistant', tool_calls=tool_call_message['tool_calls']))
-                elif tool_role == 'tool':
-                    flattened_messages.append(ChatMessageItemReq(
-                        role='tool', tool_call_id=tool_call_message['tool_call_id'], content=tool_call_message['content']))
+                tool_role = tool_call_message.get("role")
+                if tool_role == "assistant":
+                    flattened_messages.append(
+                        ChatMessageItemReq(
+                            role="assistant", tool_calls=tool_call_message["tool_calls"]
+                        )
+                    )
+                elif tool_role == "tool":
+                    flattened_messages.append(
+                        ChatMessageItemReq(
+                            role="tool",
+                            tool_call_id=tool_call_message["tool_call_id"],
+                            content=tool_call_message["content"],
+                        )
+                    )
 
             # 将用户问题或模型最终回答拼接到消息中
-            flattened_messages.append(
-                ChatMessageItemReq(role=role, content=content))
+            flattened_messages.append(ChatMessageItemReq(role=role, content=content))
 
         return flattened_messages
 
@@ -120,8 +132,7 @@ class MessageService(BaseService):
         """
         db = self._ensure_db()
         try:
-            self._touch_conversation(
-                conversation, message.created_at, message.updated_at)
+            self._touch_conversation(conversation, message.created_at, message.updated_at)
             db.add(message)
             # 流式响应需要立即看到数据，所以手动提交
             # 如果使用依赖注入的 db，这里提交后 get_db() 不会再提交（已提交的事务不会重复提交）
@@ -132,6 +143,7 @@ class MessageService(BaseService):
         except SQLAlchemyError as exc:
             db.rollback()
             from app.utils.logger import logger
+
             logger.error(
                 "Failed to persist message",
                 error=exc,
@@ -145,7 +157,7 @@ class MessageService(BaseService):
         conversation: ConversationDb,
         message_id: str,
         content: str,
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> MessageDb:
         message = MessageDb(
             id=message_id,
@@ -162,13 +174,13 @@ class MessageService(BaseService):
         conversation: ConversationDb,
         message_id: str,
         reply_to: str,
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> MessageDb:
         message = MessageDb(
             id=message_id,
             role="assistant",
             content="",
-            reasoning='',
+            reasoning="",
             tool_calls=[],
             component_tool_calls=[],
             conversation_id=conversation.id,
@@ -184,7 +196,7 @@ class MessageService(BaseService):
         conversation_id: str,
         content: str,
         user_metadata: dict[str, Any],
-        removed_message_ids: Optional[list[str]] = None,
+        removed_message_ids: list[str] | None = None,
     ) -> ChatMessagesResult:
         """创建聊天消息（用户消息和助手消息）
 
@@ -243,7 +255,7 @@ class MessageService(BaseService):
         *,
         assistant_payload: CollectedResponse,
         status: MessageStatus,
-        extra_metadata: Optional[dict[str, Any]] = None,
+        extra_metadata: dict[str, Any] | None = None,
     ) -> MessageDb:
         assistant_message.status = status
         assistant_message.updated_at = get_datetime_now()
@@ -258,7 +270,9 @@ class MessageService(BaseService):
         if assistant_payload.component_tool_calls:
             assistant_message.component_tool_calls = assistant_payload.component_tool_calls
         if assistant_payload.component_tool_calls_duration:
-            assistant_message.component_tool_calls_duration = assistant_payload.component_tool_calls_duration
+            assistant_message.component_tool_calls_duration = (
+                assistant_payload.component_tool_calls_duration
+            )
         if assistant_payload.reasoning_duration:
             assistant_message.reasoning_duration = assistant_payload.reasoning_duration
         if assistant_payload.content_duration:

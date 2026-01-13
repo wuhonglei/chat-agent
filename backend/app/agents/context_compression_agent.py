@@ -1,16 +1,16 @@
 """Context Compression Agent for compressing tool results and conversation context"""
 
 from collections.abc import AsyncGenerator
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 from app.agents.base import BaseAgent
 from app.schemas.config import LLMConfig
 from app.schemas.token_stats import BaseTokenStats
 from app.utils.compression import (
+    ContentType,
+    ContextMonitor,
     GenericCompressor,
     IterationCompressor,
-    ContextMonitor,
-    ContentType
 )
 from app.utils.logger import logger
 from app.utils.time import get_current_time, get_time_duration
@@ -19,7 +19,12 @@ from app.utils.time import get_current_time, get_time_duration
 class ContextCompressionAgent(BaseAgent):
     """Context Compression Agent - responsible for intelligently compressing tool results and conversation context"""
 
-    def __init__(self, think_mode: bool, llm_config: LLMConfig, compression_config: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self,
+        think_mode: bool,
+        llm_config: LLMConfig,
+        compression_config: dict[str, Any] | None = None,
+    ):
         super().__init__(think_mode, llm_config)
 
         # Use provided config or default
@@ -28,32 +33,33 @@ class ContextCompressionAgent(BaseAgent):
         else:
             # Import settings to get default config
             from app.core.config import settings
+
             self.compression_config = settings.compression
 
         # Compressor components
-        self.tool_result_compressor = ToolResultCompressor(
-            llm_config, self.compression_config)
+        self.tool_result_compressor = ToolResultCompressor(llm_config, self.compression_config)
         self.iteration_compressor = IterationCompressor(
             max_context_length=self.compression_config.iteration_compression.max_iteration_context_length,
-            token_calculator=self.token_calculator
+            token_calculator=self.token_calculator,
         )
         self.context_monitor = ContextMonitor(
-            llm_config.model_name, token_calculator=self.token_calculator)
+            llm_config.model_name, token_calculator=self.token_calculator
+        )
 
         # Compression stats
         self.compression_stats = {
-            'original_length': 0,
-            'compressed_length': 0,
-            'compression_ratio': 0.0,
-            'processing_time': 0.0,
-            'total_compressions': 0,
+            "original_length": 0,
+            "compressed_length": 0,
+            "compression_ratio": 0.0,
+            "processing_time": 0.0,
+            "total_compressions": 0,
         }
 
     async def stream_execute(
         self,
-        compression_type: Literal['tool_results', 'iteration', 'conversation'],
-        input_data: Dict[str, Any],
-        **kwargs
+        compression_type: Literal["tool_results", "iteration", "conversation"],
+        input_data: dict[str, Any],
+        **kwargs,
     ) -> AsyncGenerator[str, None]:
         """
         Stream execute context compression
@@ -68,43 +74,41 @@ class ContextCompressionAgent(BaseAgent):
         start_time = get_current_time()
 
         try:
-            if compression_type == 'tool_results':
-                async for result in self._compress_tool_results(input_data['results']):
-                    yield self.format_sse_message('compression_progress', result)
+            if compression_type == "tool_results":
+                async for result in self._compress_tool_results(input_data["results"]):
+                    yield self.format_sse_message("compression_progress", result)
 
-            elif compression_type == 'iteration':
+            elif compression_type == "iteration":
                 async for result in self._compress_iteration_context(
-                    input_data['current_results'],
-                    input_data.get('historical_context', []),
-                    input_data.get('iteration', 0)
+                    input_data["current_results"],
+                    input_data.get("historical_context", []),
+                    input_data.get("iteration", 0),
                 ):
-                    yield self.format_sse_message('compression_progress', result)
+                    yield self.format_sse_message("compression_progress", result)
 
-            elif compression_type == 'conversation':
+            elif compression_type == "conversation":
                 async for result in self._compress_conversation_context(
-                    input_data['history'],
-                    input_data.get('current_query', '')
+                    input_data["history"], input_data.get("current_query", "")
                 ):
-                    yield self.format_sse_message('compression_progress', result)
+                    yield self.format_sse_message("compression_progress", result)
 
             else:
-                logger.error("Unknown compression type",
-                             compression_type=compression_type)
-                yield self.format_sse_message('compression_error', {
-                    'error': f'Unknown compression type: {compression_type}'
-                })
+                logger.error("Unknown compression type", compression_type=compression_type)
+                yield self.format_sse_message(
+                    "compression_error",
+                    {"error": f"Unknown compression type: {compression_type}"},
+                )
 
             # Update compression stats
             processing_time = get_time_duration(start_time)
-            self.compression_stats['processing_time'] = processing_time
-            self.compression_stats['total_compressions'] += 1
+            self.compression_stats["processing_time"] = processing_time
+            self.compression_stats["total_compressions"] += 1
 
             logger.info(
                 "Context compression completed",
                 compression_type=compression_type,
                 processing_time=processing_time,
-                compression_ratio=self.compression_stats.get(
-                    'compression_ratio', 0.0)
+                compression_ratio=self.compression_stats.get("compression_ratio", 0.0),
             )
 
         except Exception as e:
@@ -114,17 +118,19 @@ class ContextCompressionAgent(BaseAgent):
                 compression_type=compression_type,
                 error=str(e),
                 processing_time=processing_time,
-                exc_info=True
+                exc_info=True,
             )
-            yield self.format_sse_message('compression_error', {
-                'error': str(e),
-                'compression_type': compression_type
-            })
+            yield self.format_sse_message(
+                "compression_error",
+                {"error": str(e), "compression_type": compression_type},
+            )
 
-    async def _compress_tool_results(self, tool_results: List[Dict[str, Any]]) -> AsyncGenerator[Dict[str, Any], None]:
+    async def _compress_tool_results(
+        self, tool_results: list[dict[str, Any]]
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """Compress tool results"""
         if not tool_results:
-            yield {'status': 'completed', 'message': 'No tool results to compress'}
+            yield {"status": "completed", "message": "No tool results to compress"}
             return
 
         total_original_length = 0
@@ -134,8 +140,8 @@ class ContextCompressionAgent(BaseAgent):
 
         for i, result in enumerate(tool_results):
             # Check if pre-compression is needed for large results
-            if isinstance(result.get('content'), str):
-                content_length = len(result['content'])
+            if isinstance(result.get("content"), str):
+                content_length = len(result["content"])
                 precompress_threshold = self.compression_config.iteration_compression.single_result_precompress_threshold
 
                 if content_length > precompress_threshold:
@@ -143,16 +149,17 @@ class ContextCompressionAgent(BaseAgent):
                         "Pre-compressing large tool result",
                         result_index=i,
                         content_length=content_length,
-                        threshold=precompress_threshold
+                        threshold=precompress_threshold,
                     )
 
                     # Use tool result compressor for large results
-                    compression_result = await self.tool_result_compressor.compress_single_result(result)
+                    compression_result = await self.tool_result_compressor.compress_single_result(
+                        result
+                    )
                     compressed_results.append(compression_result)
 
-                    total_original_length += len(result['content'])
-                    total_compressed_length += len(
-                        compression_result['content'])
+                    total_original_length += len(result["content"])
+                    total_compressed_length += len(compression_result["content"])
                 else:
                     compressed_results.append(result)
                     total_original_length += content_length
@@ -163,91 +170,90 @@ class ContextCompressionAgent(BaseAgent):
             # Report progress
             progress = (i + 1) / len(tool_results)
             yield {
-                'status': 'progress',
-                'progress': progress,
-                'current_result': i + 1,
-                'total_results': len(tool_results),
-                'compression_ratio': total_compressed_length / total_original_length if total_original_length > 0 else 1.0
+                "status": "progress",
+                "progress": progress,
+                "current_result": i + 1,
+                "total_results": len(tool_results),
+                "compression_ratio": total_compressed_length / total_original_length
+                if total_original_length > 0
+                else 1.0,
             }
 
         # Update stats
         if total_original_length > 0:
-            self.compression_stats['compression_ratio'] = total_compressed_length / \
-                total_original_length
-        self.compression_stats['original_length'] = total_original_length
-        self.compression_stats['compressed_length'] = total_compressed_length
+            self.compression_stats["compression_ratio"] = (
+                total_compressed_length / total_original_length
+            )
+        self.compression_stats["original_length"] = total_original_length
+        self.compression_stats["compressed_length"] = total_compressed_length
 
         yield {
-            'status': 'completed',
-            'compressed_results': compressed_results,
-            'original_length': total_original_length,
-            'compressed_length': total_compressed_length,
-            'compression_ratio': self.compression_stats['compression_ratio']
+            "status": "completed",
+            "compressed_results": compressed_results,
+            "original_length": total_original_length,
+            "compressed_length": total_compressed_length,
+            "compression_ratio": self.compression_stats["compression_ratio"],
         }
 
     async def _compress_iteration_context(
         self,
-        current_results: List[Dict[str, Any]],
-        historical_context: List[Dict[str, Any]],
-        iteration: int
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+        current_results: list[dict[str, Any]],
+        historical_context: list[dict[str, Any]],
+        iteration: int,
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """Compress iteration context between MCP tool calls"""
         # Use the iteration compressor
         compressed_context = self.iteration_compressor.compress_iteration_context(
-            current_results,
-            historical_context,
-            iteration
+            current_results, historical_context, iteration
         )
 
         # Calculate compression stats
-        original_length = sum(len(str(r))
-                              for r in historical_context + current_results)
+        original_length = sum(len(str(r)) for r in historical_context + current_results)
         compressed_length = sum(len(str(r)) for r in compressed_context)
 
-        self.compression_stats['original_length'] = original_length
-        self.compression_stats['compressed_length'] = compressed_length
-        self.compression_stats['compression_ratio'] = compressed_length / \
-            original_length if original_length > 0 else 1.0
+        self.compression_stats["original_length"] = original_length
+        self.compression_stats["compressed_length"] = compressed_length
+        self.compression_stats["compression_ratio"] = (
+            compressed_length / original_length if original_length > 0 else 1.0
+        )
 
         yield {
-            'status': 'completed',
-            'compressed_context': compressed_context,
-            'original_length': original_length,
-            'compressed_length': compressed_length,
-            'compression_ratio': self.compression_stats['compression_ratio'],
-            'iteration': iteration
+            "status": "completed",
+            "compressed_context": compressed_context,
+            "original_length": original_length,
+            "compressed_length": compressed_length,
+            "compression_ratio": self.compression_stats["compression_ratio"],
+            "iteration": iteration,
         }
 
     async def _compress_conversation_context(
-        self,
-        history: List[Dict[str, Any]],
-        current_query: str
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+        self, history: list[dict[str, Any]], current_query: str
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """Compress conversation context (placeholder for stage 2)"""
         # For now, just return the history as-is
         # This will be implemented in stage 2
         yield {
-            'status': 'completed',
-            'compressed_history': history,
-            'message': 'Conversation context compression not yet implemented (Stage 2)'
+            "status": "completed",
+            "compressed_history": history,
+            "message": "Conversation context compression not yet implemented (Stage 2)",
         }
 
-    def create_token_stats(self, *args: Any, **kwargs: Dict[str, Any]) -> BaseTokenStats:
+    def create_token_stats(self, *args: Any, **kwargs: dict[str, Any]) -> BaseTokenStats:
         """Create token stats for compression operations"""
         from app.schemas.token_stats import CompressionTokenStats, TokenUsage
 
         # Estimate tokens based on content length
         original_tokens = self.token_calculator.count_tokens(
-            "x" * self.compression_stats.get('original_length', 0)
+            "x" * self.compression_stats.get("original_length", 0)
         )
         compressed_tokens = self.token_calculator.count_tokens(
-            "x" * self.compression_stats.get('compressed_length', 0)
+            "x" * self.compression_stats.get("compressed_length", 0)
         )
 
         token_usage = TokenUsage(
             prompt_tokens=original_tokens,
             completion_tokens=compressed_tokens,
-            total_tokens=original_tokens + compressed_tokens
+            total_tokens=original_tokens + compressed_tokens,
         )
 
         return CompressionTokenStats(
@@ -256,31 +262,28 @@ class ContextCompressionAgent(BaseAgent):
             think_mode=self.think_mode,
             model_limit=self.model_limit,
             token_usage=token_usage,
-            compression_ratio=self.compression_stats.get(
-                'compression_ratio', 1.0),
-            processing_time=self.compression_stats.get('processing_time', 0.0),
-            original_content_length=self.compression_stats.get(
-                'original_length'),
-            compressed_content_length=self.compression_stats.get(
-                'compressed_length')
+            compression_ratio=self.compression_stats.get("compression_ratio", 1.0),
+            processing_time=self.compression_stats.get("processing_time", 0.0),
+            original_content_length=self.compression_stats.get("original_length"),
+            compressed_content_length=self.compression_stats.get("compressed_length"),
         )
 
 
 class ToolResultCompressor:
     """Tool result compressor that handles different content types"""
 
-    def __init__(self, llm_config: LLMConfig, compression_config: Dict[str, Any]):
+    def __init__(self, llm_config: LLMConfig, compression_config: dict[str, Any]):
         self.llm_config = llm_config
         self.compression_config = compression_config
 
-    async def compress_single_result(self, tool_result: Dict[str, Any]) -> Dict[str, Any]:
+    async def compress_single_result(self, tool_result: dict[str, Any]) -> dict[str, Any]:
         """Compress a single tool result based on its content type"""
         compressed_result = tool_result.copy()
 
-        if not isinstance(tool_result.get('content'), str):
+        if not isinstance(tool_result.get("content"), str):
             return compressed_result
 
-        content = tool_result['content']
+        content = tool_result["content"]
         content_type = self._detect_result_type(tool_result)
 
         # Get max length for this content type
@@ -288,33 +291,34 @@ class ToolResultCompressor:
 
         # Compress using generic compressor
         compressor = GenericCompressor(
-            max_length=max_length, token_calculator=self.token_calculator)
+            max_length=max_length, token_calculator=self.token_calculator
+        )
         compression_result = compressor.compress(content, content_type)
 
-        compressed_result['content'] = compression_result.compressed_content
-        compressed_result['compression_info'] = {
-            'original_length': len(content),
-            'compressed_length': len(compression_result.compressed_content),
-            'compression_ratio': compression_result.compression_ratio,
-            'content_type': content_type.value,  # Convert enum to string
-            'key_info_extracted': compression_result.key_info_extracted
+        compressed_result["content"] = compression_result.compressed_content
+        compressed_result["compression_info"] = {
+            "original_length": len(content),
+            "compressed_length": len(compression_result.compressed_content),
+            "compression_ratio": compression_result.compression_ratio,
+            "content_type": content_type.value,  # Convert enum to string
+            "key_info_extracted": compression_result.key_info_extracted,
         }
 
         return compressed_result
 
-    def _detect_result_type(self, tool_result: Dict[str, Any]) -> ContentType:
+    def _detect_result_type(self, tool_result: dict[str, Any]) -> ContentType:
         """Detect the type of tool result"""
-        tool_name = tool_result.get('tool_name', '').lower()
-        content = tool_result.get('content', '')
+        tool_name = tool_result.get("tool_name", "").lower()
+        content = tool_result.get("content", "")
 
-        if 'tavily_extract' in tool_name:
+        if "tavily_extract" in tool_name:
             return ContentType.WEB_CONTENT
-        elif 'tavily_search' in tool_name:
+        elif "tavily_search" in tool_name:
             return ContentType.SEARCH_RESULTS
-        elif tool_result.get('content_type'):
+        elif tool_result.get("content_type"):
             # Try to convert string to enum, fallback to GENERIC if invalid
             try:
-                return ContentType(tool_result['content_type'])
+                return ContentType(tool_result["content_type"])
             except ValueError:
                 return ContentType.GENERIC
         else:

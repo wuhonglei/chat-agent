@@ -1,5 +1,6 @@
-from typing import Any
 import json
+from typing import Any
+
 from pydantic import BaseModel
 
 
@@ -18,7 +19,7 @@ def get_model_extra_body(think_mode: bool) -> dict[str, Any]:
         "thinking": {
             # 兼容 deepseek-reasoner 模型 (https://api-docs.deepseek.com/guides/thinking_mode)
             "type": "enabled"
-        }
+        },
     }
 
 

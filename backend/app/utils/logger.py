@@ -10,9 +10,14 @@
 import json
 import sys
 from contextvars import ContextVar
-from typing import Any, Optional
+from typing import Any
 
 from loguru import logger as _loguru_logger
+
+try:
+    from loguru import Message
+except ImportError:
+    Message = Any  # type: ignore
 
 from app.utils.time import format_datetime_to_iso8601
 
@@ -29,9 +34,9 @@ def _make_json_serializable(obj: Any) -> Any:
         }
     elif isinstance(obj, dict):
         return {key: _make_json_serializable(value) for key, value in obj.items()}
-    elif isinstance(obj, (list, tuple)):
+    elif isinstance(obj, list | tuple):
         return [_make_json_serializable(item) for item in obj]
-    elif isinstance(obj, (str, int, float, bool, type(None))):
+    elif isinstance(obj, str | int | float | bool | type[None]):
         return obj
     else:
         # 对于其他不可序列化的对象，转换为字符串
@@ -43,18 +48,14 @@ def _make_json_serializable(obj: Any) -> Any:
 
 
 # 上下文变量，用于存储请求相关的上下文信息
-request_id_var: ContextVar[Optional[str]] = ContextVar(
-    "request_id", default=None)
-user_id_var: ContextVar[Optional[str]] = ContextVar("user_id", default=None)
-anonymous_user_id_var: ContextVar[Optional[str]] = ContextVar(
-    "anonymous_user_id", default=None)
-client_id_var: ContextVar[Optional[str]] = ContextVar(
-    "client_id", default=None)
-client_ip_var: ContextVar[Optional[str]] = ContextVar(
-    "client_ip", default=None)
+request_id_var: ContextVar[str | None] = ContextVar("request_id", default=None)
+user_id_var: ContextVar[str | None] = ContextVar("user_id", default=None)
+anonymous_user_id_var: ContextVar[str | None] = ContextVar("anonymous_user_id", default=None)
+client_id_var: ContextVar[str | None] = ContextVar("client_id", default=None)
+client_ip_var: ContextVar[str | None] = ContextVar("client_ip", default=None)
 
 
-def production_sink(message):
+def production_sink(message: Message) -> None:
     """生产环境自定义 sink，输出精简的 JSON 格式日志
 
     移除的冗余字段：
@@ -106,12 +107,12 @@ def production_sink(message):
             pass
 
         exception_info = {
-            "type": record["exception"].type.__name__,
+            "type": record["exception"].type.__name__ if record["exception"].type else "Unknown",
             "value": str(record["exception"].value),
         }
         if traceback_str:
             exception_info["traceback"] = traceback_str
-        serialized["exception"] = exception_info
+        serialized["exception"] = exception_info  # type: ignore
 
     # 输出 JSON 格式
     sys.stderr.write(json.dumps(serialized, ensure_ascii=False) + "\n")
@@ -171,7 +172,7 @@ def log_warning(message: str, **kwargs: Any) -> None:
     _loguru_logger.opt(depth=1).bind(**extra).warning(message)
 
 
-def log_error(message: str, error: Optional[Exception] = None, **kwargs: Any) -> None:
+def log_error(message: str, error: Exception | None = None, **kwargs: Any) -> None:
     """记录 ERROR 级别日志
 
     Args:
@@ -183,8 +184,7 @@ def log_error(message: str, error: Optional[Exception] = None, **kwargs: Any) ->
     extra = {**context, **kwargs}
     # depth=1 跳过当前包装函数，记录实际调用者的位置信息
     if error:
-        _loguru_logger.opt(depth=1).bind(
-            **extra).error(message, exc_info=error)
+        _loguru_logger.opt(depth=1).bind(**extra).error(message, exc_info=error)
     else:
         _loguru_logger.opt(depth=1).bind(**extra).error(message)
 
@@ -235,7 +235,7 @@ class LoggerWrapper:
         extra = {**context, **kwargs}
         _loguru_logger.opt(depth=1).bind(**extra).warning(message)
 
-    def error(self, message: str, error: Optional[Exception] = None, **kwargs: Any) -> None:
+    def error(self, message: str, error: Exception | None = None, **kwargs: Any) -> None:
         """记录 ERROR 级别日志
 
         Args:
@@ -246,8 +246,7 @@ class LoggerWrapper:
         context = get_log_context()
         extra = {**context, **kwargs}
         if error:
-            _loguru_logger.opt(depth=1).bind(
-                **extra).error(message, exc_info=error)
+            _loguru_logger.opt(depth=1).bind(**extra).error(message, exc_info=error)
         else:
             _loguru_logger.opt(depth=1).bind(**extra).error(message)
 

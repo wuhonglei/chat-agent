@@ -12,7 +12,6 @@ from app.schemas.conversation import (
 from app.schemas.response import ApiResponse
 from app.schemas.token import SecretTokenInfo
 from app.services.conversation_service import ConversationService
-from app.utils.logger import logger
 from app.utils.auth_deps import get_auth_token_info, require_auth
 
 router = APIRouter()

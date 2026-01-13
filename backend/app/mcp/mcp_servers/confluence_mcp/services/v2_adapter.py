@@ -61,12 +61,10 @@ class ConfluenceV2Adapter:
 
         except HTTPError as e:
             logger.error(f"HTTP error getting space ID for '{space_key}': {e}")
-            raise ValueError(
-                f"Failed to get space ID for '{space_key}': {e}") from e
+            raise ValueError(f"Failed to get space ID for '{space_key}': {e}") from e
         except Exception as e:
             logger.error(f"Error getting space ID for '{space_key}': {e}")
-            raise ValueError(
-                f"Failed to get space ID for '{space_key}': {e}") from e
+            raise ValueError(f"Failed to get space ID for '{space_key}': {e}") from e
 
     def create_page(
         self,
@@ -155,20 +153,16 @@ class ConfluenceV2Adapter:
             version_number = data.get("version", {}).get("number")
 
             if version_number is None:
-                raise ValueError(
-                    f"No version number found for page '{page_id}'")
+                raise ValueError(f"No version number found for page '{page_id}'")
 
             return version_number
 
         except HTTPError as e:
-            logger.error(
-                f"HTTP error getting page version for '{page_id}': {e}")
-            raise ValueError(
-                f"Failed to get page version for '{page_id}': {e}") from e
+            logger.error(f"HTTP error getting page version for '{page_id}': {e}")
+            raise ValueError(f"Failed to get page version for '{page_id}': {e}") from e
         except Exception as e:
             logger.error(f"Error getting page version for '{page_id}': {e}")
-            raise ValueError(
-                f"Failed to get page version for '{page_id}': {e}") from e
+            raise ValueError(f"Failed to get page version for '{page_id}': {e}") from e
 
     def update_page(
         self,
@@ -229,8 +223,7 @@ class ConfluenceV2Adapter:
             # Convert v2 response to v1-compatible format for consistency
             # For update, we need to extract space key from the result
             space_id = result.get("spaceId")
-            space_key = self._get_space_key_from_id(
-                space_id) if space_id else "unknown"
+            space_key = self._get_space_key_from_id(space_id) if space_id else "unknown"
 
             return self._convert_v2_to_v1_format(result, space_key)
 
@@ -271,8 +264,7 @@ class ConfluenceV2Adapter:
             return space_key
 
         except HTTPError as e:
-            logger.error(
-                f"HTTP error getting space key for ID '{space_id}': {e}")
+            logger.error(f"HTTP error getting space key for ID '{space_id}': {e}")
             # Return the space_id as fallback
             return space_id
         except Exception as e:
@@ -308,17 +300,14 @@ class ConfluenceV2Adapter:
             response.raise_for_status()
 
             v2_response = response.json()
-            logger.debug(
-                f"Successfully retrieved page '{page_id}' with v2 API")
+            logger.debug(f"Successfully retrieved page '{page_id}' with v2 API")
 
             # Get space key from space ID
             space_id = v2_response.get("spaceId")
-            space_key = self._get_space_key_from_id(
-                space_id) if space_id else "unknown"
+            space_key = self._get_space_key_from_id(space_id) if space_id else "unknown"
 
             # Convert v2 response to v1-compatible format
-            v1_compatible = self._convert_v2_to_v1_format(
-                v2_response, space_key)
+            v1_compatible = self._convert_v2_to_v1_format(v2_response, space_key)
 
             # Add body.storage structure if body content exists
             if "body" in v2_response and v2_response["body"].get("storage"):
@@ -336,9 +325,7 @@ class ConfluenceV2Adapter:
 
             # Add version information
             if "version" in v2_response:
-                v1_compatible["version"] = {
-                    "number": v2_response["version"].get("number", 1)
-                }
+                v1_compatible["version"] = {"number": v2_response["version"].get("number", 1)}
 
             return v1_compatible
 
@@ -376,9 +363,7 @@ class ConfluenceV2Adapter:
                 return True
 
             # If we get here, it's an unexpected success status
-            logger.warning(
-                f"Delete page returned unexpected status {response.status_code}"
-            )
+            logger.warning(f"Delete page returned unexpected status {response.status_code}")
             return True
 
         except HTTPError as e:

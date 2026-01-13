@@ -345,7 +345,7 @@ component_tool_names = chat_request.component_tool_names  # 例如: ['weather']
 - **示例格式**：
   ```
   用户消息: {original_user_message}
-  
+
   组件数据:
   [
     {
@@ -414,4 +414,3 @@ component_tool_names = chat_request.component_tool_names  # 例如: ['weather']
 4. 测试 prop data 的收集和拼接
 5. 测试多个组件工具同时使用的情况
 6. 测试错误场景（schema 获取失败、转换失败等）
-

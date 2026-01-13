@@ -31,27 +31,22 @@ def quote_cql_identifier_if_needed(identifier: str) -> str:
     # Rule 1: Starts with ~ (Personal Space Key)
     if identifier.startswith("~"):
         needs_quoting = True
-        logger.debug(
-            f"Identifier '{identifier}' needs quoting (starts with ~).")
+        logger.debug(f"Identifier '{identifier}' needs quoting (starts with ~).")
 
     # Rule 2: Is a reserved word (case-insensitive check)
     elif identifier_lower in RESERVED_CQL_WORDS:
         needs_quoting = True
-        logger.debug(
-            f"Identifier '{identifier}' needs quoting (reserved word).")
+        logger.debug(f"Identifier '{identifier}' needs quoting (reserved word).")
 
     # Rule 3: Starts with a number
     elif identifier and identifier[0].isdigit():
         needs_quoting = True
-        logger.debug(
-            f"Identifier '{identifier}' needs quoting (starts with digit).")
+        logger.debug(f"Identifier '{identifier}' needs quoting (starts with digit).")
 
     # Rule 4: Contains internal quotes or backslashes (always needs quoting+escaping)
     elif '"' in identifier or "\\" in identifier:
         needs_quoting = True
-        logger.debug(
-            f"Identifier '{identifier}' needs quoting (contains quotes/backslashes)."
-        )
+        logger.debug(f"Identifier '{identifier}' needs quoting (contains quotes/backslashes).")
 
     # Add more rules here if other characters prove problematic (e.g., spaces, hyphens)
     # elif ' ' in identifier or '-' in identifier:
@@ -59,8 +54,7 @@ def quote_cql_identifier_if_needed(identifier: str) -> str:
 
     if needs_quoting:
         # Escape internal backslashes first, then double quotes
-        escaped_identifier = identifier.replace(
-            "\\", "\\\\").replace('"', '\\"')
+        escaped_identifier = identifier.replace("\\", "\\\\").replace('"', '\\"')
         quoted_escaped = f'"{escaped_identifier}"'
         logger.debug(f"Quoted and escaped identifier: {quoted_escaped}")
         return quoted_escaped

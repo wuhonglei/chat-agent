@@ -46,11 +46,7 @@ class ConfluenceConfig:
             Localhost URLs are always considered non-cloud (Server/Data Center).
         """
         # Multi-Cloud OAuth mode: URL might be None, but we use api.atlassian.com
-        if (
-            self.auth_type == "oauth"
-            and self.oauth_config
-            and self.oauth_config.cloud_id
-        ):
+        if self.auth_type == "oauth" and self.oauth_config and self.oauth_config.cloud_id:
             # OAuth with cloud_id uses api.atlassian.com which is always Cloud
             return True
 
@@ -166,10 +162,7 @@ class ConfluenceConfig:
                     # Minimal OAuth configuration (user-provided tokens mode)
                     # This is valid if we have oauth_config but missing client credentials
                     # In this case, we expect authentication to come from user-provided headers
-                    elif (
-                        not self.oauth_config.client_id
-                        and not self.oauth_config.client_secret
-                    ):
+                    elif not self.oauth_config.client_id and not self.oauth_config.client_secret:
                         logger.debug(
                             "Minimal OAuth config detected - expecting user-provided tokens via headers"
                         )
@@ -186,7 +179,5 @@ class ConfluenceConfig:
             return bool(self.personal_token)
         elif self.auth_type == "basic":
             return bool(self.username and self.api_token)
-        logger.warning(
-            f"Unknown or unsupported auth_type: {self.auth_type} in ConfluenceConfig"
-        )
+        logger.warning(f"Unknown or unsupported auth_type: {self.auth_type} in ConfluenceConfig")
         return False

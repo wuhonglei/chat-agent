@@ -1,13 +1,14 @@
 """Confluence FastMCP server instance and tool definitions."""
 
-import logging
 import asyncio
+import logging
+
 from fastmcp import FastMCP
 from pydantic import Field
-from .services import ConfluenceFetcher, ConfluenceConfig
+
 from .config import config
 from .models.confluence import ConfluencePage
-
+from .services import ConfluenceConfig, ConfluenceFetcher
 
 logger = logging.getLogger(__name__)
 
@@ -15,11 +16,13 @@ mcp = FastMCP(
     name="Shopee Internal Company Knowledge Base Confluence MCP Service",
 )
 
-confluence_fetcher = ConfluenceFetcher(config=ConfluenceConfig(
-    url=config.CONFLUENCE_URL,
-    personal_token=config.CONFLUENCE_PERSONAL_TOKEN,
-    auth_type=config.CONFLUENCE_AUTH_TYPE,
-))
+confluence_fetcher = ConfluenceFetcher(
+    config=ConfluenceConfig(
+        url=config.CONFLUENCE_URL,
+        personal_token=config.CONFLUENCE_PERSONAL_TOKEN,
+        auth_type=config.CONFLUENCE_AUTH_TYPE,
+    )
+)
 
 
 async def _confluence_get_page(
@@ -64,8 +67,7 @@ async def _confluence_get_page(
         return await asyncio.to_thread(confluence_fetcher.get_page_content, page_id)
     elif title and space_key:
         return await asyncio.to_thread(confluence_fetcher.get_page_by_title, space_key, title)
-    raise ValueError(
-        "Either 'page_id' OR both 'title' and 'space_key' must be provided.")
+    raise ValueError("Either 'page_id' OR both 'title' and 'space_key' must be provided.")
 
 
 @mcp.tool()
@@ -119,26 +121,26 @@ async def shopee_confluence_search(
         original_query = query
         try:
             query = f'siteSearch ~ "{original_query}"'
-            logger.info(
-                f"Converting simple search term to CQL using siteSearch: {query}"
-            )
+            logger.info(f"Converting simple search term to CQL using siteSearch: {query}")
             pages = await asyncio.to_thread(
                 confluence_fetcher.search,
-                query, limit=limit, spaces_filter=spaces_filter
+                query,
+                limit=limit,
+                spaces_filter=spaces_filter,
             )
         except Exception as e:
-            logger.warning(
-                f"siteSearch failed ('{e}'), falling back to text search.")
+            logger.warning(f"siteSearch failed ('{e}'), falling back to text search.")
             query = f'text ~ "{original_query}"'
             logger.info(f"Falling back to text search with CQL: {query}")
             pages = await asyncio.to_thread(
                 confluence_fetcher.search,
-                query, limit=limit, spaces_filter=spaces_filter
+                query,
+                limit=limit,
+                spaces_filter=spaces_filter,
             )
     else:
         pages = await asyncio.to_thread(
-            confluence_fetcher.search,
-            query, limit=limit, spaces_filter=spaces_filter
+            confluence_fetcher.search, query, limit=limit, spaces_filter=spaces_filter
         )
 
     # If include_content is True, fetch detailed content for each page
@@ -154,7 +156,8 @@ async def shopee_confluence_search(
                 return detailed_page
             except Exception as e:
                 logger.warning(
-                    f"Failed to fetch detailed content for page {page.id} ({page.title}): {e}")
+                    f"Failed to fetch detailed content for page {page.id} ({page.title}): {e}"
+                )
                 # Return the original page if detailed content fetch fails
                 return page
 
@@ -163,8 +166,7 @@ async def shopee_confluence_search(
             *[fetch_page_content(page) for page in pages],
         )
 
-        logger.info(
-            f"Successfully fetched detailed content for {len(pages)} pages")
+        logger.info(f"Successfully fetched detailed content for {len(pages)} pages")
 
     return pages
 
@@ -224,8 +226,7 @@ async def shopee_confluence_get_page_children(
         description="Whether to convert page content to markdown (true) or keep it in raw HTML format (false). Only relevant if include_content is true.",
         default=True,
     ),
-    start: int = Field(
-        description="Starting index for pagination (0-based)", default=0, ge=0),
+    start: int = Field(description="Starting index for pagination (0-based)", default=0, ge=0),
 ) -> list[ConfluencePage]:
     """Get child pages of a specific page from Shopee internal company knowledge base Confluence."""
     if include_content and "body" not in expand:
@@ -282,31 +283,20 @@ async def check_availability(timeout: float = 5.0) -> bool:
         async def check_connection():
             try:
                 # 尝试获取一个空间列表（限制为1个，减少网络开销）
-                spaces = await asyncio.to_thread(
-                    confluence_fetcher.get_spaces,
-                    start=0,
-                    limit=1
-                )
+                spaces = await asyncio.to_thread(confluence_fetcher.get_spaces, start=0, limit=1)
                 return spaces is not None
             except Exception as e:
                 logger.debug(f"Confluence 连接检测失败: {e}")
                 return False
 
         # 设置超时，避免在内网不可用时长时间等待
-        is_available = await asyncio.wait_for(
-            check_connection(),
-            timeout=timeout
-        )
+        is_available = await asyncio.wait_for(check_connection(), timeout=timeout)
         return is_available
     except asyncio.TimeoutError:
-        logger.warning(
-            f"Confluence MCP 可用性检测超时（{timeout}秒），可能无法连接到公司内网"
-        )
+        logger.warning(f"Confluence MCP 可用性检测超时（{timeout}秒），可能无法连接到公司内网")
         return False
     except Exception as e:
-        logger.warning(
-            f"Confluence MCP 可用性检测失败，可能无法连接到公司内网: {e}"
-        )
+        logger.warning(f"Confluence MCP 可用性检测失败，可能无法连接到公司内网: {e}")
         return False
 
 
@@ -314,10 +304,13 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Confluence MCP Server")
-    parser.add_argument("--transport", choices=["http", "stdio"], default="http",
-                        help="Transport mode: http or stdio")
-    parser.add_argument("--port", type=int, default=8003,
-                        help="Port number for HTTP mode")
+    parser.add_argument(
+        "--transport",
+        choices=["http", "stdio"],
+        default="http",
+        help="Transport mode: http or stdio",
+    )
+    parser.add_argument("--port", type=int, default=8003, help="Port number for HTTP mode")
 
     args = parser.parse_args()
 

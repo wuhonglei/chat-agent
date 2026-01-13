@@ -36,8 +36,7 @@ def check_write_access(func: F) -> F:
             action_description = tool_name.replace(
                 "_", " "
             )  # e.g., "create_issue" -> "create issue"
-            logger.warning(
-                f"Attempted to call tool '{tool_name}' in read-only mode.")
+            logger.warning(f"Attempted to call tool '{tool_name}' in read-only mode.")
             raise ValueError(f"Cannot {action_description} in read-only mode.")
 
         return await func(ctx, *args, **kwargs)
@@ -69,8 +68,7 @@ def handle_atlassian_api_errors(service_name: str = "Atlassian API") -> Callable
                         "Token may be expired or invalid. Please verify credentials."
                     )
                     logger.error(error_msg)
-                    raise MCPAtlassianAuthenticationError(
-                        error_msg) from http_err
+                    raise MCPAtlassianAuthenticationError(error_msg) from http_err
                 else:
                     operation_name = getattr(func, "__name__", "API operation")
                     logger.error(
@@ -80,26 +78,20 @@ def handle_atlassian_api_errors(service_name: str = "Atlassian API") -> Callable
                     raise http_err
             except KeyError as e:
                 operation_name = getattr(func, "__name__", "API operation")
-                logger.error(
-                    f"Missing key in {operation_name} results: {str(e)}")
+                logger.error(f"Missing key in {operation_name} results: {str(e)}")
                 return []
             except requests.RequestException as e:
                 operation_name = getattr(func, "__name__", "API operation")
-                logger.error(
-                    f"Network error during {operation_name}: {str(e)}")
+                logger.error(f"Network error during {operation_name}: {str(e)}")
                 return []
             except (ValueError, TypeError) as e:
                 operation_name = getattr(func, "__name__", "API operation")
-                logger.error(
-                    f"Error processing {operation_name} results: {str(e)}")
+                logger.error(f"Error processing {operation_name} results: {str(e)}")
                 return []
             except Exception as e:  # noqa: BLE001 - Intentional fallback with logging
                 operation_name = getattr(func, "__name__", "API operation")
-                logger.error(
-                    f"Unexpected error during {operation_name}: {str(e)}")
-                logger.debug(
-                    f"Full exception details for {operation_name}:", exc_info=True
-                )
+                logger.error(f"Unexpected error during {operation_name}: {str(e)}")
+                logger.debug(f"Full exception details for {operation_name}:", exc_info=True)
                 return []
 
         return wrapper

@@ -8,12 +8,14 @@ class User(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
-user = User(**{
-    "name": "John",
-    "age": 30,
-    "email": {'value': "john@example.com"},
-})
+user = User(
+    **{
+        "name": "John",
+        "age": 30,
+        "email": {"value": "john@example.com"},
+    }
+)
 
-print(user.email['value'])
+print(user.email["value"])
 
-print(hasattr(user, 'not_exist'))
+print(hasattr(user, "not_exist"))

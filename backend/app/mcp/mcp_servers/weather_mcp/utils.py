@@ -1,10 +1,13 @@
-from typing import Dict, Any
+from typing import Any
+
 import httpx
-from .config import config
-from .models import City, WeatherDaily, WeatherHourly, WeatherNow, WeatherAlert
 from jinja2 import Template
 
-city_template = Template("""
+from .config import config
+from .models import City, WeatherAlert, WeatherDaily, WeatherHourly, WeatherNow
+
+city_template = Template(
+    """
 城市名称：{{ city.name }}
 城市ID：{{ city.id }}
 纬度：{{ city.lat }}
@@ -18,10 +21,12 @@ UTC偏移：{{ city.utcOffset }}
 类型：{{ city.type }}
 排名：{{ city.rank }}
 和风天气链接：{{ city.fxLink }}
-""".strip())
+""".strip()
+)
 
 
-now_template = Template("""
+now_template = Template(
+    """
 观测时间：{{ now.obsTime }}
 温度：{{ now.temp }}℃
 体感温度：{{ now.feelsLike }}℃
@@ -37,10 +42,12 @@ now_template = Template("""
 能见度：{{ now.vis }}
 云量：{{ now.cloud }}
 露点温度：{{ now.dew }}
-""".strip())
+""".strip()
+)
 
 
-daily_template = Template("""
+daily_template = Template(
+    """
 预报日期：{{ daily.fxDate }}
 日出时间：{{ daily.sunrise }}
 日落时间：{{ daily.sunset }}
@@ -54,9 +61,11 @@ daily_template = Template("""
 白天天气状况：{{ daily.textDay }}
 夜间天气图标：{{ daily.iconNight }}
 夜间天气状况：{{ daily.textNight }}
-""".strip())
+""".strip()
+)
 
-alert_template = Template("""
+alert_template = Template(
+    """
 预警ID：{{ alert.id }}
 发布机构：{{ alert.sender }}
 发布时间：{{ alert.pubTime }}
@@ -73,10 +82,11 @@ alert_template = Template("""
 确定性：{{ alert.certainty }}
 预警内容：{{ alert.text }}
 相关信息：{{ alert.related }}
-""".strip())
+""".strip()
+)
 
 
-async def make_request(endpoint: str, params: Dict[str, Any]) -> dict[str, Any]:
+async def make_request(endpoint: str, params: dict[str, Any]) -> dict[str, Any]:
     """发送 HTTP 请求到和风天气 API"""
     url = f"{config.QWEATHER_BASE_URL}{endpoint}"
     params["key"] = config.QWEATHER_API_KEY
@@ -103,8 +113,7 @@ async def make_request(endpoint: str, params: Dict[str, Any]) -> dict[str, Any]:
             # 尝试解析响应体中的错误信息
             try:
                 error_data = e.response.json()
-                error_code = error_data.get(
-                    "code", str(e.response.status_code))
+                error_code = error_data.get("code", str(e.response.status_code))
                 error_msg = error_data.get("message", e.response.text)
                 if e.response.status_code == 400:
                     if "location" in str(error_data).lower():
@@ -115,7 +124,8 @@ async def make_request(endpoint: str, params: Dict[str, Any]) -> dict[str, Any]:
                             f"原始错误: {error_msg}"
                         )
                 raise Exception(
-                    f"HTTP {e.response.status_code} 错误 (代码: {error_code}): {error_msg}")
+                    f"HTTP {e.response.status_code} 错误 (代码: {error_code}): {error_msg}"
+                )
             except Exception:
                 raise Exception(f"HTTP 请求失败: {e}")
         except httpx.HTTPError as e:
@@ -128,7 +138,7 @@ def format_cities(cities: list[City]) -> str:
     """
     将城市响应格式化为人类可读的文本
     """
-    separator = '\n' + '-' * 50 + '\n'
+    separator = "\n" + "-" * 50 + "\n"
     return separator.join([city_template.render(city=city).strip() for city in cities])
 
 
@@ -139,7 +149,8 @@ def format_current_weather(now: WeatherNow) -> str:
     return now_template.render(now=now).strip()
 
 
-hourly_template = Template("""
+hourly_template = Template(
+    """
 预报时间：{{ hour.fxTime }}
 温度：{{ hour.temp }}℃
 {% if hour.feelsLike %}体感温度：{{ hour.feelsLike }}℃
@@ -155,14 +166,15 @@ hourly_template = Template("""
 {% if hour.vis %}能见度：{{ hour.vis }}
 {% endif %}云量：{{ hour.cloud }}
 露点温度：{{ hour.dew }}
-""".strip())
+""".strip()
+)
 
 
 def format_weather_hourly_forecast(hourly: list[WeatherHourly]) -> str:
     """
     将逐小时天气预报响应格式化为人类可读的文本
     """
-    separator = '\n' + '-' * 50 + '\n'
+    separator = "\n" + "-" * 50 + "\n"
     return separator.join([hourly_template.render(hour=hour).strip() for hour in hourly])
 
 
@@ -170,7 +182,7 @@ def format_weather_daily_forecast(daily: list[WeatherDaily]) -> str:
     """
     将逐日天气预报响应格式化为人类可读的文本
     """
-    separator = '\n' + '-' * 50 + '\n'
+    separator = "\n" + "-" * 50 + "\n"
     return separator.join([daily_template.render(daily=daily).strip() for daily in daily])
 
 
@@ -178,5 +190,5 @@ def format_weather_alerts(alerts: list[WeatherAlert]) -> str:
     """
     将天气预警响应格式化为人类可读的文本
     """
-    separator = '\n' + '-' * 50 + '\n'
+    separator = "\n" + "-" * 50 + "\n"
     return separator.join([alert_template.render(alert=alert).strip() for alert in alerts])

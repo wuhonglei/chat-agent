@@ -1,9 +1,12 @@
 """
 测试 Time MCP Server
 """
-from .server import mcp
+
 import asyncio
+
 from fastmcp import Client
+
+from .server import mcp
 
 
 async def test_time_tool():
@@ -41,6 +44,7 @@ async def test_time_tool():
     except Exception as e:
         print(f"❌ 测试失败: {e}")
         import traceback
+
         traceback.print_exc()
 
 

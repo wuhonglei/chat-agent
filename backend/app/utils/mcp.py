@@ -1,14 +1,20 @@
 from typing import Any
+
 import httpx
 from mcp.shared._httpx_utils import McpHttpClientFactory
 
-from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallResultMessage
+from app.schemas.llm import (
+    AssistantToolCallMessage,
+    ToolCallMessage,
+    ToolCallResultMessage,
+)
 
 
 def create_mcp_http_client_with_ssl_config(
-    verify_ssl: bool = True
+    verify_ssl: bool = True,
 ) -> McpHttpClientFactory:
     """创建支持 SSL 验证配置的 MCP HTTP 客户端工厂"""
+
     def factory(
         headers: dict[str, str] | None = None,
         timeout: httpx.Timeout | None = None,
@@ -67,7 +73,4 @@ def count_tool_calls(output_messages: list[ToolCallMessage]) -> int:
     Returns:
         int: 工具调用结果消息的数量
     """
-    return len([
-        m for m in output_messages
-        if isinstance(m, ToolCallResultMessage)
-    ])
+    return len([m for m in output_messages if isinstance(m, ToolCallResultMessage)])

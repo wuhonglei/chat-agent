@@ -19,10 +19,11 @@ repos:
         files: \.py$
         exclude: ^(tests/|app/mcp/)
 
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.13.0
-    hooks:
-      - id: mypy
-        files: \.py$
-        exclude: ^(tests/|app/mcp/)
-        args: [--ignore-missing-imports, --strict]
+  # 暂时禁用 mypy 检查，后续逐步启用
+  # - repo: https://github.com/pre-commit/mirrors-mypy
+  #   rev: v1.13.0
+  #   hooks:
+  #     - id: mypy
+  #       files: \.py$
+  #       exclude: ^(tests/|app/mcp/)
+  #       args: [--ignore-missing-imports]

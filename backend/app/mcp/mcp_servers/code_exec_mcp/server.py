@@ -7,7 +7,7 @@ from fastmcp import FastMCP
 from pydantic import Field
 
 from .config import config
-from .sandbox import SandboxExecutor, CodeExecutionError, TimeoutError
+from .sandbox import CodeExecutionError, SandboxExecutor, TimeoutError
 
 mcp = FastMCP(
     name="Code Execution MCP Service",
@@ -25,15 +25,19 @@ executor = SandboxExecutor(
 
 @mcp.tool(name="python_code_exec")
 def python_code_exec(
-    code: str = Field(..., description="要执行的 Python 代码", examples=[
-        "print(1.1 + 2.2)",  # 加法
-        "print(10 - 3)",  # 减法
-        "print(5 * 4)",  # 乘法
-        "print(15 / 3)",  # 除法
-        "print(2 ** 3)",  # 幂运算
-        "print(17 % 5)",  # 取模
-        "print((10 + 5) * 2)",  # 混合运算
-    ])
+    code: str = Field(
+        ...,
+        description="要执行的 Python 代码",
+        examples=[
+            "print(1.1 + 2.2)",  # 加法
+            "print(10 - 3)",  # 减法
+            "print(5 * 4)",  # 乘法
+            "print(15 / 3)",  # 除法
+            "print(2 ** 3)",  # 幂运算
+            "print(17 % 5)",  # 取模
+            "print((10 + 5) * 2)",  # 混合运算
+        ],
+    ),
 ) -> str:
     """
     安全执行 Python 代码并返回结果
@@ -68,14 +72,9 @@ if __name__ == "__main__":
         "--transport",
         choices=["http", "stdio"],
         default="http",
-        help="传输方式：http 或 stdio"
+        help="传输方式：http 或 stdio",
     )
-    parser.add_argument(
-        "--port",
-        type=int,
-        default=8004,
-        help="HTTP 模式下的端口号"
-    )
+    parser.add_argument("--port", type=int, default=8004, help="HTTP 模式下的端口号")
 
     args = parser.parse_args()
 

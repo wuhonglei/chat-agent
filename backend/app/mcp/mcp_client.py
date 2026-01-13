@@ -3,21 +3,19 @@
 用于连接和管理多个 MCP Server，提供统一的工具调用接口
 """
 
+# noqa: E402
+
 import asyncio
 import copy
-from typing import Any, Dict, List, Optional
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastmcp import Client, FastMCP
-from fastmcp.client.transports import (
-    FastMCPTransport,
-    StdioTransport,
-    StreamableHttpTransport,
-)
+from fastmcp.client.transports import FastMCPTransport, StdioTransport, StreamableHttpTransport
 
 from app.core.config import settings
-from app.schemas.mcp import MCPConfigForFeDict
 from app.mcp.utils import inject_mcp_env_vars
+from app.schemas.mcp import MCPConfigForFeDict
 from app.utils.logger import logger
 from app.utils.mcp import create_mcp_http_client_with_ssl_config
 
@@ -30,13 +28,16 @@ inject_mcp_env_vars(settings.mcp)
 # 导入 MCP servers（必须在注入环境变量之后）
 # 注意：这些导入的顺序很重要，不要使用自动格式化工具调整顺序
 # fmt: off
-from app.mcp.mcp_servers.time_mcp.server import mcp as time_mcp
-from app.mcp.mcp_servers.weather_mcp.server import mcp as weather_mcp
-from app.mcp.mcp_servers.tavily_mcp.server import mcp as tavily_mcp
-from app.mcp.mcp_servers.confluence_mcp.server import mcp as mcp_confluence
-from app.mcp.mcp_servers.confluence_mcp.server import check_availability as confluence_check_availability
-from app.mcp.mcp_servers.code_exec_mcp.server import mcp as code_exec_mcp
-from app.mcp.mcp_servers.ip_locator_mcp.server import mcp as ip_locator_mcp
+from app.mcp.mcp_servers.code_exec_mcp.server import mcp as code_exec_mcp  # noqa: E402
+from app.mcp.mcp_servers.confluence_mcp.server import (  # noqa: E402
+    check_availability as confluence_check_availability,
+)
+from app.mcp.mcp_servers.confluence_mcp.server import mcp as mcp_confluence  # noqa: E402
+from app.mcp.mcp_servers.ip_locator_mcp.server import mcp as ip_locator_mcp  # noqa: E402
+from app.mcp.mcp_servers.tavily_mcp.server import mcp as tavily_mcp  # noqa: E402
+from app.mcp.mcp_servers.time_mcp.server import mcp as time_mcp  # noqa: E402
+from app.mcp.mcp_servers.weather_mcp.server import mcp as weather_mcp  # noqa: E402
+
 # fmt: on
 
 # 导入 MCP servers
@@ -49,10 +50,8 @@ mcp_config = {
         "time-mcp": time_mcp,
         "context7": {
             "url": "https://mcp.context7.com/mcp",
-            "headers": {
-                "CONTEXT7_API_KEY": settings.mcp.context7.api_key
-            },
-            "verify_ssl": VERIFY_SSL
+            "headers": {"CONTEXT7_API_KEY": settings.mcp.context7.api_key},
+            "verify_ssl": VERIFY_SSL,
         },
         "confluence-mcp": {
             "server": mcp_confluence,
@@ -64,32 +63,38 @@ mcp_config = {
     }
 }
 
-mcp_config_for_fe: List[MCPConfigForFeDict] = [{
-    'id': 'context7',
-    'name': 'Context7',
-    'icon': 'https://context7.com/favicon.ico',
-    'description': '为 LLM 和 AI 代码编辑器提供最新文档',
-}, {
-    'id': 'confluence-mcp',
-    'name': 'Confluence',
-    'icon': 'https://www.atlassian.com/favicon.ico',
-    'description': 'Shopee 内部公司知识库查询',
-}, {
-    'id': 'weather-mcp',
-    'name': '天气查询',
-    'icon': 'https://www.qweather.com/favicon.ico',
-    'description': '天气信息查询',
-}, {
-    'id': 'tavily-mcp',
-    'name': '联网搜索',
-    'icon': 'https://www.tavily.com/favicon.ico',
-    'description': '联网搜索和内容提取',
-}, {
-    'id': 'code-exec-mcp',
-    'name': '代码执行',
-    'icon': 'https://www.python.org/static/favicon.ico',
-    'description': '安全的 Python 代码执行服务，使用沙箱隔离确保安全性',
-}]
+mcp_config_for_fe: list[MCPConfigForFeDict] = [
+    {
+        "id": "context7",
+        "name": "Context7",
+        "icon": "https://context7.com/favicon.ico",
+        "description": "为 LLM 和 AI 代码编辑器提供最新文档",
+    },
+    {
+        "id": "confluence-mcp",
+        "name": "Confluence",
+        "icon": "https://www.atlassian.com/favicon.ico",
+        "description": "Shopee 内部公司知识库查询",
+    },
+    {
+        "id": "weather-mcp",
+        "name": "天气查询",
+        "icon": "https://www.qweather.com/favicon.ico",
+        "description": "天气信息查询",
+    },
+    {
+        "id": "tavily-mcp",
+        "name": "联网搜索",
+        "icon": "https://www.tavily.com/favicon.ico",
+        "description": "联网搜索和内容提取",
+    },
+    {
+        "id": "code-exec-mcp",
+        "name": "代码执行",
+        "icon": "https://www.python.org/static/favicon.ico",
+        "description": "安全的 Python 代码执行服务，使用沙箱隔离确保安全性",
+    },
+]
 
 
 class MCPClientManager:
@@ -100,10 +105,10 @@ class MCPClientManager:
 
     def __init__(self):
         """初始化 MCP Client 管理器"""
-        self.servers: Dict[str, Any] = {}  # MCP server 实例
-        self.clients: Dict[str, Client] = {}  # Client 实例
-        self.tools_map: Dict[str, str] = {}  # 工具名 -> server 名映射
-        self.tools_by_server: Dict[str, List[Any]] = {}  # server 名 -> 工具列表映射
+        self.servers: dict[str, Any] = {}  # MCP server 实例
+        self.clients: dict[str, Client] = {}  # Client 实例
+        self.tools_map: dict[str, str] = {}  # 工具名 -> server 名映射
+        self.tools_by_server: dict[str, list[Any]] = {}  # server 名 -> 工具列表映射
         self._initialized = False
 
     async def initialize(self) -> None:
@@ -126,16 +131,14 @@ class MCPClientManager:
             server_instance = server_config
 
             if isinstance(server_config, dict) and "availability_checker" in server_config:
-                availability_checker = server_config.get(
-                    "availability_checker")
+                availability_checker = server_config.get("availability_checker")
                 server_instance = server_config.get("server", server_config)
                 # 更新 self.servers 中的值，使用实际的 server 实例
                 self.servers[server_name] = server_instance
 
             # 如果有可用性检测函数，先进行检测
             if availability_checker and callable(availability_checker):
-                logger.info("Checking server availability",
-                            server_name=server_name)
+                logger.info("Checking server availability", server_name=server_name)
                 try:
                     is_available = await availability_checker()
                     if not is_available:
@@ -146,8 +149,7 @@ class MCPClientManager:
                         # 从 servers 中移除，避免后续处理
                         del self.servers[server_name]
                         continue
-                    logger.info("Server availability check passed",
-                                server_name=server_name)
+                    logger.info("Server availability check passed", server_name=server_name)
                 except Exception as e:
                     logger.warning(
                         "Server availability check failed",
@@ -169,15 +171,13 @@ class MCPClientManager:
                     )
                 elif isinstance(server_instance, dict) and "url" in server_instance:
                     # 远程 HTTP 服务器
-                    verify_ssl = server_instance.get(
-                        "verify_ssl", True)  # 默认启用 SSL 验证
-                    httpx_client_factory = create_mcp_http_client_with_ssl_config(
-                        verify_ssl)
+                    verify_ssl = server_instance.get("verify_ssl", True)  # 默认启用 SSL 验证
+                    httpx_client_factory = create_mcp_http_client_with_ssl_config(verify_ssl)
 
                     transport = StreamableHttpTransport(
                         url=server_instance["url"],
                         headers=server_instance.get("headers", {}),
-                        httpx_client_factory=httpx_client_factory
+                        httpx_client_factory=httpx_client_factory,
                     )
                     logger.info(
                         "Using StreamableHttpTransport for remote server",
@@ -257,7 +257,7 @@ class MCPClientManager:
         self._initialized = False
         logger.info("MCP Client Manager cleanup completed")
 
-    async def list_tools(self, server_names: Optional[list[str]] = None) -> Dict[str, List[Any]]:
+    async def list_tools(self, server_names: list[str] | None = None) -> dict[str, list[Any]]:
         """
         列出所有可用的工具
 
@@ -272,7 +272,7 @@ class MCPClientManager:
         if not server_names:
             return {}
 
-        async def list_tools_for_server(server_name: str) -> List[Any]:
+        async def list_tools_for_server(server_name: str) -> list[Any]:
             if server_name not in self.clients:
                 return []
 
@@ -281,8 +281,7 @@ class MCPClientManager:
                 tools = await client.list_tools()
             return tools
 
-        tasks = [list_tools_for_server(server_name)
-                 for server_name in server_names]
+        tasks = [list_tools_for_server(server_name) for server_name in server_names]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         for server_name, tools in zip(server_names, results):
             if isinstance(tools, Exception):
@@ -297,9 +296,7 @@ class MCPClientManager:
         return all_tools
 
     async def call_tool(
-        self,
-        tool_name: str,
-        arguments: Optional[Dict[str, Any]] = None
+        self, tool_name: str, arguments: dict[str, Any] | None = None
     ) -> tuple[Any, list[str]]:
         """
         调用指定的工具
@@ -321,17 +318,13 @@ class MCPClientManager:
         # 查找工具所属的 server
         if tool_name not in self.tools_map:
             available_tools = ", ".join(self.tools_map.keys())
-            raise ValueError(
-                f"工具 '{tool_name}' 不存在。"
-                f"可用工具: {available_tools}"
-            )
+            raise ValueError(f"工具 '{tool_name}' 不存在。可用工具: {available_tools}")
 
         server_name = self.tools_map[tool_name]
         client = self.clients[server_name]
 
         # 过滤掉工具不支持的参数
-        filtered_arguments = self._filter_tool_arguments(
-            tool_name, server_name, arguments or {})
+        filtered_arguments = self._filter_tool_arguments(tool_name, server_name, arguments or {})
 
         # 记录被过滤的参数
         removed_params = list(set(arguments or {}) - set(filtered_arguments))
@@ -366,11 +359,8 @@ class MCPClientManager:
             raise
 
     def _filter_tool_arguments(
-        self,
-        tool_name: str,
-        server_name: str,
-        arguments: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, tool_name: str, server_name: str, arguments: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         根据工具的 schema 过滤掉不支持的参数
 
@@ -388,16 +378,14 @@ class MCPClientManager:
         # 查找工具的 schema
         for tool in self.tools_by_server[server_name]:
             if tool.name == tool_name:
-                if hasattr(tool, 'inputSchema') and tool.inputSchema:
+                if hasattr(tool, "inputSchema") and tool.inputSchema:
                     # 获取工具支持的参数列表
-                    properties = tool.inputSchema.get('properties', {})
+                    properties = tool.inputSchema.get("properties", {})
                     supported_params = set(properties.keys())
 
                     # 过滤掉不支持的参数
                     filtered = {
-                        key: value
-                        for key, value in arguments.items()
-                        if key in supported_params
+                        key: value for key, value in arguments.items() if key in supported_params
                     }
                     return filtered
 
@@ -410,25 +398,25 @@ class MCPClientManager:
         格式化 MCP 结果
         """
         # 处理结果
-        if hasattr(result, 'content'):
+        if hasattr(result, "content"):
             # 如果结果有 content 属性
             if isinstance(result.content, list):
                 # 如果是列表，提取所有文本内容
                 text_parts = []
                 for item in result.content:
-                    if hasattr(item, 'text'):
+                    if hasattr(item, "text"):
                         text_parts.append(item.text)
-                    elif isinstance(item, dict) and 'text' in item:
-                        text_parts.append(item['text'])
+                    elif isinstance(item, dict) and "text" in item:
+                        text_parts.append(item["text"])
                 return "\n".join(text_parts)
-            elif hasattr(result.content, 'text'):
+            elif hasattr(result.content, "text"):
                 return result.content.text
             else:
                 return str(result.content)
         else:
             return str(result)
 
-    async def get_tool_info(self, tool_name: str) -> Optional[Any]:
+    async def get_tool_info(self, tool_name: str) -> Any | None:
         """
         获取工具的详细信息
 
@@ -455,7 +443,7 @@ class MCPClientManager:
 
         return None
 
-    def get_server_for_tool(self, tool_name: str) -> Optional[str]:
+    def get_server_for_tool(self, tool_name: str) -> str | None:
         """
         获取工具所属的 server 名称
 
@@ -482,7 +470,7 @@ class MCPClientManager:
         finally:
             self.cleanup()
 
-    async def health_check(self) -> Dict[str, bool]:
+    async def health_check(self) -> dict[str, bool]:
         """
         检查所有 server 的健康状态
 
@@ -513,8 +501,7 @@ class MCPClientManager:
 
         # 并发执行所有服务器的健康检查
         tasks = [
-            check_single_server(server_name, client)
-            for server_name, client in self.clients.items()
+            check_single_server(server_name, client) for server_name, client in self.clients.items()
         ]
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -531,7 +518,7 @@ class MCPClientManager:
 
         return health_status
 
-    async def get_mcp_config_for_fe(self) -> List[MCPConfigForFeDict]:
+    async def get_mcp_config_for_fe(self) -> list[MCPConfigForFeDict]:
         """
         获取用于前端展示的 MCP 配置
 
@@ -544,10 +531,12 @@ class MCPClientManager:
         health_status = await self.health_check()
         mcp_config_for_fe_copy = copy.deepcopy(mcp_config_for_fe)
         for server in mcp_config_for_fe_copy:
-            server['online'] = health_status.get(server['id'], False)
+            server["online"] = health_status.get(server["id"], False)
         return mcp_config_for_fe_copy
 
-    async def get_tools_for_llm(self, server_names: Optional[list[str]], client_ip: str | None = None) -> List[Dict[str, Any]]:
+    async def get_tools_for_llm(
+        self, server_names: list[str] | None, client_ip: str | None = None
+    ) -> list[dict[str, Any]]:
         """
         获取格式化后的工具列表，用于 LLM function calling
 
@@ -558,8 +547,9 @@ class MCPClientManager:
             raise RuntimeError("MCPClientManager 未初始化，请先调用 initialize()")
 
         formatted_tools = []
-        final_server_names = set(self.tools_by_server.keys(
-        ))if server_names is None else set(server_names)
+        final_server_names = (
+            set(self.tools_by_server.keys()) if server_names is None else set(server_names)
+        )
         if client_ip:
             final_server_names.add("ip-locator-mcp")
         else:
@@ -570,14 +560,16 @@ class MCPClientManager:
                 continue
             tools = self.tools_by_server[server_name]
             for tool in tools:
-                formatted_tools.append({
-                    "type": "function",
-                    "function": {
-                        "name": tool.name,
-                        "description": tool.description or "",
-                        "parameters": tool.inputSchema if hasattr(tool, 'inputSchema') else {}
+                formatted_tools.append(
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": tool.name,
+                            "description": tool.description or "",
+                            "parameters": tool.inputSchema if hasattr(tool, "inputSchema") else {},
+                        },
                     }
-                })
+                )
 
         return formatted_tools
 

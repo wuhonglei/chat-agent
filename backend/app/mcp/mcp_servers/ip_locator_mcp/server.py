@@ -6,22 +6,19 @@ IP Locator MCP Server
 
 import httpx
 from fastmcp import FastMCP
-from pydantic import Field
 from fastmcp.tools.tool import ToolResult
+from pydantic import Field
 
 from .models import IPLocatorResponse
 from .utils import format_results
 
-
 # 创建 MCP 实例
-mcp = FastMCP(
-    name="IP Locator MCP Service"
-)
+mcp = FastMCP(name="IP Locator MCP Service")
 
 
 @mcp.tool(name="locate_ip")
 async def locate_ip(
-    ip_address: str = Field(..., description="查询的 IP 地址")
+    ip_address: str = Field(..., description="查询的 IP 地址"),
 ) -> IPLocatorResponse:
     """
     定位 IP 地址
@@ -41,7 +38,10 @@ async def locate_ip(
                 raise Exception(f"IP 定位查询失败: {error_message}")
 
             structured_content = IPLocatorResponse.model_validate(data)
-            return ToolResult(structured_content=structured_content, content=format_results(structured_content))
+            return ToolResult(
+                structured_content=structured_content,
+                content=format_results(structured_content),
+            )
         except httpx.HTTPError as e:
             raise Exception(f"HTTP 请求失败: {e}")
         except Exception as e:

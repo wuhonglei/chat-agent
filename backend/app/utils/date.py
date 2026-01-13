@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from datetime import timezone
 
 
 def get_current_datetime_str() -> str:

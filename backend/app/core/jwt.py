@@ -1,10 +1,12 @@
+from typing import Any
+
 import jwt
-from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
-from app.schemas.config import SecurityConfig
-from typing import Any, Optional
-from app.utils.date import get_unix_timestamp
+from cryptography.hazmat.primitives import serialization
+
 from app.core.config import settings
+from app.schemas.config import SecurityConfig
+from app.utils.date import get_unix_timestamp
 
 
 class JWTManager:
@@ -20,9 +22,9 @@ class JWTManager:
 
         try:
             self.private_key = serialization.load_pem_private_key(
-                key_content.encode('utf-8'),
+                key_content.encode("utf-8"),
                 password=password,
-                backend=default_backend()
+                backend=default_backend(),
             )
         except Exception as e:
             raise ValueError(f"Failed to load private key: {e}")
@@ -34,8 +36,7 @@ class JWTManager:
 
         try:
             self.public_key = serialization.load_pem_public_key(
-                key_content.encode('utf-8'),
-                backend=default_backend()
+                key_content.encode("utf-8"), backend=default_backend()
             )
         except Exception as e:
             raise ValueError(f"Failed to load public key: {e}")
@@ -45,11 +46,7 @@ class JWTManager:
         if not self.private_key:
             raise ValueError("Private key not loaded")
 
-        token = jwt.encode(
-            payload=payload_data,
-            key=self.private_key,
-            algorithm=self.algorithm
-        )
+        token = jwt.encode(payload=payload_data, key=self.private_key, algorithm=self.algorithm)
 
         return token
 
@@ -70,11 +67,7 @@ class JWTManager:
         if not self.public_key:
             raise ValueError("Public key not loaded")
 
-        payload = jwt.decode(
-            jwt=token,
-            key=self.public_key,
-            algorithms=[self.algorithm]
-        )
+        payload = jwt.decode(jwt=token, key=self.public_key, algorithms=[self.algorithm])
         return payload
 
     def decode_token_without_verification(self, token) -> dict[str, Any]:
@@ -83,7 +76,7 @@ class JWTManager:
 
 
 # 全局单例实例
-_jwt_manager: Optional[JWTManager] = None
+_jwt_manager: JWTManager | None = None
 
 
 def get_jwt_manager() -> JWTManager:
