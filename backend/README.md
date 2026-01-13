@@ -225,11 +225,30 @@ ruff check app/ --fix
 
 ### 类型检查
 
+项目已配置严格的类型检查，可以在开发过程中及早发现参数不匹配等错误。
+
+#### 安装依赖
 ```bash
-make check
+# 安装生产依赖（不包含 mypy）
+uv sync
+
+# 安装开发依赖（包含 mypy）
+uv sync --extra dev
 ```
 
-项目已配置严格的类型检查，可以在开发过程中及早发现参数不匹配等错误。详见 [类型检查指南](docs/type_checking_guide.md)。
+#### 运行类型检查
+```bash
+# 使用 make 命令
+make check
+
+# 或直接使用 mypy
+uv run mypy app/
+
+# 检查特定文件
+uv run mypy app/agents/context_compression_agent.py
+```
+
+详见 [类型检查指南](docs/type_checking_guide.md)。
 
 ## 性能优化
 
