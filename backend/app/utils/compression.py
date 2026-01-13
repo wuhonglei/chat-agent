@@ -3,9 +3,8 @@
 from typing import List, Dict, Any, Optional
 import re
 import json
-from dataclasses import dataclass
-from collections.abc import AsyncGenerator
 from enum import Enum
+from pydantic import BaseModel
 
 from app.utils.logger import logger
 from app.utils.token import TokenCalculator
@@ -19,8 +18,7 @@ class ContentType(str, Enum):
     GENERIC = "generic"
 
 
-@dataclass
-class CompressionResult:
+class CompressionResult(BaseModel):
     """Compression result data structure"""
     original_content: str
     compressed_content: str
@@ -391,18 +389,17 @@ class ContextMonitor:
         self.compression_threshold = compression_threshold
         self.max_context_length = token_calculator.get_max_context_tokens()
 
-    def check_and_compress(self, tool_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def check_and_compress(self, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
         Check context length and compress if needed
         1. Estimate token count
         2. Trigger compression if over threshold
         3. Return compressed results
         """
-        total_tokens = self.token_calculator.count_messages_tokens(
-            tool_results)
+        total_tokens = self.token_calculator.count_messages_tokens(messages)
 
         if total_tokens < self.compression_threshold:
-            return tool_results
+            return messages
 
         logger.info(
             "Context length exceeds threshold, triggering compression",
@@ -412,11 +409,11 @@ class ContextMonitor:
 
         # Compress results
         compressor = GenericCompressor(
-            max_length=self.compression_threshold // len(tool_results) or 1000,
+            max_length=self.compression_threshold // len(messages) or 1000,
             token_calculator=self.token_calculator)
 
         compressed_results = []
-        for result in tool_results:
+        for result in messages:
             if isinstance(result.get('content'), str):
                 # Convert string content_type to enum, fallback to GENERIC
                 content_type_str = result.get(
@@ -442,7 +439,3 @@ class ContextMonitor:
                 compressed_results.append(result)
 
         return compressed_results
-
-    def estimate_tokens(self, content: str) -> int:
-        """Estimate token count for content"""
-        return self.token_calculator.count_tokens(content)

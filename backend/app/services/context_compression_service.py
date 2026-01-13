@@ -1,9 +1,8 @@
 """Context Compression Service for compressing tool results and conversation context"""
 
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Any
 from dataclasses import dataclass
 
-from app.core.config import settings
 from app.utils.compression import ContextMonitor
 from app.utils.logger import logger
 from app.utils.time import get_current_time, get_time_duration
@@ -24,15 +23,13 @@ class CompressionResult:
 class ContextCompressionService:
     """Service for handling context compression operations"""
 
-    def __init__(self, model_name: str, token_calculator: TokenCalculator, compression_threshold: int):
+    def __init__(self, token_calculator: TokenCalculator, compression_threshold: int):
         """
         Initialize context compression service
 
         Args:
-            model_name: LLM model name for token calculations
             token_calculator: Token calculator for token calculations
         """
-        self.model_name = model_name
         self.token_calculator = token_calculator
         self.context_monitor = ContextMonitor(
             token_calculator, compression_threshold)
@@ -68,7 +65,7 @@ class ContextCompressionService:
                      message_count=len(messages))
 
         # Calculate original length
-        original_length = sum(len(str(msg)) for msg in messages)
+        original_length = self.token_calculator.count_messages_tokens(messages)
 
         # Decide whether to compress
         should_compress = force_compress or (
@@ -78,8 +75,8 @@ class ContextCompressionService:
             # Perform compression
             compressed_messages = self.context_monitor.check_and_compress(
                 messages)
-            compressed_length = sum(len(str(msg))
-                                    for msg in compressed_messages)
+            compressed_length = self.token_calculator.count_messages_tokens(
+                compressed_messages)
             compression_ratio = compressed_length / \
                 original_length if original_length > 0 else 1.0
             was_compressed = True
@@ -128,16 +125,3 @@ class ContextCompressionService:
             new_threshold=new_threshold
         )
         self.context_monitor.compression_threshold = new_threshold
-
-    def get_compression_stats(self) -> Dict[str, Any]:
-        """
-        Get current compression configuration and statistics
-
-        Returns:
-            Dict containing compression settings
-        """
-        return {
-            'compression_threshold': self.context_monitor.compression_threshold,
-            'model_name': self.model_name,
-            'compression_enabled': True
-        }

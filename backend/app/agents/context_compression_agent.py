@@ -237,10 +237,10 @@ class ContextCompressionAgent(BaseAgent):
         from app.schemas.token_stats import CompressionTokenStats, TokenUsage
 
         # Estimate tokens based on content length
-        original_tokens = self.token_calculator.estimate_tokens(
+        original_tokens = self.token_calculator.count_tokens(
             "x" * self.compression_stats.get('original_length', 0)
         )
-        compressed_tokens = self.token_calculator.estimate_tokens(
+        compressed_tokens = self.token_calculator.count_tokens(
             "x" * self.compression_stats.get('compressed_length', 0)
         )
 
@@ -264,10 +264,6 @@ class ContextCompressionAgent(BaseAgent):
             compressed_content_length=self.compression_stats.get(
                 'compressed_length')
         )
-
-    def get_compression_stats(self) -> Dict[str, Any]:
-        """Get compression statistics"""
-        return self.compression_stats.copy()
 
 
 class ToolResultCompressor:

@@ -43,7 +43,6 @@ class ChatService:
             think_mode=False, llm_config=settings.tool_call_model)
         # 上下文压缩服务
         self.context_compression_service = ContextCompressionService(
-            model_name=settings.tool_call_model.model_name,
             token_calculator=self.response_generation_agent.token_calculator,
             compression_threshold=settings.compression.iteration_compression.compression_trigger_threshold
         )
