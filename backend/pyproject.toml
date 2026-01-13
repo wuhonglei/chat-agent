@@ -104,8 +104,6 @@ module = "app.tests.*"
 ignore_errors = true
 
 [tool.ruff]
-line-length = 100
-target-version = "py310"
 exclude = [
     ".git",
     ".venv",
