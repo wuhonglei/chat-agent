@@ -16,6 +16,7 @@ from app.schemas.token_stats import TotalTokenStats
 from app.services.component_schema_service import ComponentSchemaService
 from app.services.context_compression_service import ContextCompressionService
 from app.utils.logger import logger
+from app.utils.message import format_tool_call_messages_for_llm
 from app.utils.model import format_sse_message
 from app.utils.time import get_current_time, get_time_duration
 
@@ -122,7 +123,9 @@ class ChatService:
             # 阶段2.5: 上下文压缩（可选，在MCP工具和响应生成之间）
             compression_result = (
                 await self.context_compression_service.compress_tool_messages(
-                    self.mcp_tools_agent.output_messages
+                    format_tool_call_messages_for_llm(
+                        self.mcp_tools_agent.output_messages
+                    )
                 )
             )
             compressed_mcp_messages = compression_result.compressed_messages

@@ -35,7 +35,7 @@ class ContextCompressionService:
         self.context_monitor = ContextMonitor(token_calculator, compression_threshold)
 
     async def compress_tool_messages(
-        self, messages: list[Any], force_compress: bool = False
+        self, messages: list[dict], force_compress: bool = False
     ) -> CompressionResult:
         """
         Compress tool messages if needed
@@ -73,8 +73,9 @@ class ContextCompressionService:
         )
 
         if should_compress:
-            # Perform compression
+            # Perform compression - the compression function now handles both dicts and objects
             compressed_messages = self.context_monitor.check_and_compress(messages)
+
             compressed_length = self.token_calculator.count_messages_tokens(
                 compressed_messages
             )
