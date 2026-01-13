@@ -2,14 +2,12 @@
   "flake8.enabled": false,
   "python.defaultInterpreterPath": ".venv/bin/python",
   "cSpell.words": ["Cloudbase", "mypy", "nacos"],
-  // 配置使用 ruff 而不是 black 进行格式化
-  "notebook.formatOnSave.enabled": true,
-  "notebook.codeActionsOnSave": {
-    "notebook.source.fixAll": "explicit",
-    "notebook.source.organizeImports": "explicit"
-  },
+  // 配置使用 ruff 进行格式化和导入排序
   "[python]": {
     "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": "explicit"
+    },
     "editor.defaultFormatter": "charliermarsh.ruff"
   }
 }
