@@ -52,7 +52,9 @@ class ChatService:
         )
         # 上下文压缩Agent
         self.context_compression_agent = ContextCompressionAgent(
-            think_mode=False, llm_config=settings.tool_call_model
+            think_mode=False,
+            llm_config=settings.tool_call_model,
+            compression_config=settings.compression.iteration_compression,
         )
         # 上下文压缩服务
         self.context_compression_service = ContextCompressionService(
@@ -118,8 +120,10 @@ class ChatService:
                 logger.debug("Skipping component tools agent (no component tools)")
 
             # 阶段2.5: 上下文压缩（可选，在MCP工具和响应生成之间）
-            compression_result = await self.context_compression_service.compress_tool_messages(
-                self.mcp_tools_agent.output_messages
+            compression_result = (
+                await self.context_compression_service.compress_tool_messages(
+                    self.mcp_tools_agent.output_messages
+                )
             )
             compressed_mcp_messages = compression_result.compressed_messages
 
@@ -160,7 +164,9 @@ class ChatService:
                 "Chat message stream completed",
                 total_duration=total_duration,
                 mcp_tool_calls_count=len(self.mcp_tools_agent.output_messages),
-                component_tool_calls_count=len(self.component_tools_agent.output_messages),
+                component_tool_calls_count=len(
+                    self.component_tools_agent.output_messages
+                ),
             )
             return
 

@@ -76,7 +76,9 @@ class GenericCompressor:
                 compressed = self._intelligent_truncate(compressed, self.max_length)
 
             compressed_tokens = self.token_calculator.count_tokens(compressed)
-            compression_ratio = compressed_tokens / original_length if original_length > 0 else 1.0
+            compression_ratio = (
+                compressed_tokens / original_length if original_length > 0 else 1.0
+            )
             processing_time = time.time() - start_time
 
             return CompressionResult(
@@ -105,15 +107,23 @@ class GenericCompressor:
         content_lower = content.lower()
 
         # Web content patterns
-        if any(pattern in content_lower for pattern in ["<html", "<body", "http://", "https://"]):
+        if any(
+            pattern in content_lower
+            for pattern in ["<html", "<body", "http://", "https://"]
+        ):
             return ContentType.WEB_CONTENT
 
         # Search results patterns
-        if any(pattern in content_lower for pattern in ["search results", "query:", "results for"]):
+        if any(
+            pattern in content_lower
+            for pattern in ["search results", "query:", "results for"]
+        ):
             return ContentType.SEARCH_RESULTS
 
         # API response patterns
-        if content.strip().startswith(("{", "[")) and content.strip().endswith(("}", "]")):
+        if content.strip().startswith(("{", "[")) and content.strip().endswith(
+            ("}", "]")
+        ):
             try:
                 json.loads(content)
                 return ContentType.API_RESPONSE
@@ -125,12 +135,24 @@ class GenericCompressor:
     def _compress_web_content(self, content: str) -> str:
         """Compress web content by removing navigation, ads, and boilerplate"""
         # Remove common web elements
-        content = re.sub(r"<script[^>]*>.*?</script>", "", content, flags=re.DOTALL | re.IGNORECASE)
-        content = re.sub(r"<style[^>]*>.*?</style>", "", content, flags=re.DOTALL | re.IGNORECASE)
-        content = re.sub(r"<nav[^>]*>.*?</nav>", "", content, flags=re.DOTALL | re.IGNORECASE)
-        content = re.sub(r"<header[^>]*>.*?</header>", "", content, flags=re.DOTALL | re.IGNORECASE)
-        content = re.sub(r"<footer[^>]*>.*?</footer>", "", content, flags=re.DOTALL | re.IGNORECASE)
-        content = re.sub(r"<aside[^>]*>.*?</aside>", "", content, flags=re.DOTALL | re.IGNORECASE)
+        content = re.sub(
+            r"<script[^>]*>.*?</script>", "", content, flags=re.DOTALL | re.IGNORECASE
+        )
+        content = re.sub(
+            r"<style[^>]*>.*?</style>", "", content, flags=re.DOTALL | re.IGNORECASE
+        )
+        content = re.sub(
+            r"<nav[^>]*>.*?</nav>", "", content, flags=re.DOTALL | re.IGNORECASE
+        )
+        content = re.sub(
+            r"<header[^>]*>.*?</header>", "", content, flags=re.DOTALL | re.IGNORECASE
+        )
+        content = re.sub(
+            r"<footer[^>]*>.*?</footer>", "", content, flags=re.DOTALL | re.IGNORECASE
+        )
+        content = re.sub(
+            r"<aside[^>]*>.*?</aside>", "", content, flags=re.DOTALL | re.IGNORECASE
+        )
 
         # Remove HTML tags but keep content
         content = re.sub(r"<[^>]+>", " ", content)
@@ -318,7 +340,9 @@ class IterationCompressor:
             retention_ratio = self._get_retention_ratio(age)
 
             if retention_ratio > 0:
-                compressed_result = self._compress_single_result(hist_result, retention_ratio)
+                compressed_result = self._compress_single_result(
+                    hist_result, retention_ratio
+                )
                 compressed_context.append(compressed_result)
 
         # Add current iteration results (keep most intact)
@@ -388,7 +412,9 @@ class IterationCompressor:
 
         for result in reversed(sorted_context):  # Start from most recent
             compressed_context.insert(0, result)
-            current_length = self.token_calculator.count_messages_tokens(compressed_context)
+            current_length = self.token_calculator.count_messages_tokens(
+                compressed_context
+            )
 
             if current_length > max_length:
                 # Remove the oldest result if still over limit
@@ -407,7 +433,9 @@ class ContextMonitor:
         self.compression_threshold = compression_threshold
         self.max_context_length = token_calculator.get_max_context_tokens()
 
-    def check_and_compress(self, messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def check_and_compress(
+        self, messages: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """
         Check context length and compress if needed
         1. Estimate token count
@@ -447,7 +475,9 @@ class ContextMonitor:
                 compressed_result = result.copy()
                 compressed_result["content"] = compression_result.compressed_content
                 compressed_result["compression_info"] = {
-                    "original_length": self.token_calculator.count_tokens(result["content"]),
+                    "original_length": self.token_calculator.count_tokens(
+                        result["content"]
+                    ),
                     "compressed_length": self.token_calculator.count_tokens(
                         compression_result.compressed_content
                     ),

@@ -4,7 +4,7 @@ from collections.abc import AsyncGenerator
 from typing import Any, Literal
 
 from app.agents.base import BaseAgent
-from app.schemas.config import LLMConfig
+from app.schemas.config import CompressionConfig, LLMConfig
 from app.schemas.token_stats import BaseTokenStats
 from app.utils.compression import (
     ContentType,
@@ -23,21 +23,15 @@ class ContextCompressionAgent(BaseAgent):
         self,
         think_mode: bool,
         llm_config: LLMConfig,
-        compression_config: dict[str, Any] | None = None,
+        compression_config: CompressionConfig,
     ):
         super().__init__(think_mode, llm_config)
-
-        # Use provided config or default
-        if compression_config:
-            self.compression_config = compression_config
-        else:
-            # Import settings to get default config
-            from app.core.config import settings
-
-            self.compression_config = settings.compression
+        self.compression_config = compression_config
 
         # Compressor components
-        self.tool_result_compressor = ToolResultCompressor(llm_config, self.compression_config)
+        self.tool_result_compressor = ToolResultCompressor(
+            llm_config, self.compression_config
+        )
         self.iteration_compressor = IterationCompressor(
             max_context_length=self.compression_config.iteration_compression.max_iteration_context_length,
             token_calculator=self.token_calculator,
@@ -93,7 +87,9 @@ class ContextCompressionAgent(BaseAgent):
                     yield self.format_sse_message("compression_progress", result)
 
             else:
-                logger.error("Unknown compression type", compression_type=compression_type)
+                logger.error(
+                    "Unknown compression type", compression_type=compression_type
+                )
                 yield self.format_sse_message(
                     "compression_error",
                     {"error": f"Unknown compression type: {compression_type}"},
@@ -153,8 +149,8 @@ class ContextCompressionAgent(BaseAgent):
                     )
 
                     # Use tool result compressor for large results
-                    compression_result = await self.tool_result_compressor.compress_single_result(
-                        result
+                    compression_result = (
+                        await self.tool_result_compressor.compress_single_result(result)
                     )
                     compressed_results.append(compression_result)
 
@@ -238,7 +234,9 @@ class ContextCompressionAgent(BaseAgent):
             "message": "Conversation context compression not yet implemented (Stage 2)",
         }
 
-    def create_token_stats(self, *args: Any, **kwargs: dict[str, Any]) -> BaseTokenStats:
+    def create_token_stats(
+        self, *args: Any, **kwargs: dict[str, Any]
+    ) -> BaseTokenStats:
         """Create token stats for compression operations"""
         from app.schemas.token_stats import CompressionTokenStats, TokenUsage
 
@@ -276,7 +274,9 @@ class ToolResultCompressor:
         self.llm_config = llm_config
         self.compression_config = compression_config
 
-    async def compress_single_result(self, tool_result: dict[str, Any]) -> dict[str, Any]:
+    async def compress_single_result(
+        self, tool_result: dict[str, Any]
+    ) -> dict[str, Any]:
         """Compress a single tool result based on its content type"""
         compressed_result = tool_result.copy()
 

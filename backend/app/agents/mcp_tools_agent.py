@@ -5,7 +5,10 @@ import json
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from openai.types.chat import ChatCompletionMessage, ChatCompletionMessageFunctionToolCall
+from openai.types.chat import (
+    ChatCompletionMessage,
+    ChatCompletionMessageFunctionToolCall,
+)
 
 from app.agents.base import BaseAgent
 
@@ -15,7 +18,11 @@ from app.mcp.mcp_client import MCPClientManager
 from app.prompts import get_prompt_with_mcp_servers
 from app.schemas.chat import ChatMessageItemReq, ChatRequest
 from app.schemas.config import LLMConfig
-from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage, ToolCallResultMessage
+from app.schemas.llm import (
+    AssistantToolCallMessage,
+    ToolCallMessage,
+    ToolCallResultMessage,
+)
 from app.schemas.token_stats import MCPToolsTokenStats
 from app.utils.compression import IterationCompressor
 from app.utils.logger import logger
@@ -27,7 +34,9 @@ from app.utils.time import get_current_time, get_time_duration
 class MCPToolsAgent(BaseAgent):
     """MCP工具调用Agent - 负责处理MCP工具调用逻辑"""
 
-    def __init__(self, think_mode: bool, llm_config: LLMConfig, mcp_manager: MCPClientManager):
+    def __init__(
+        self, think_mode: bool, llm_config: LLMConfig, mcp_manager: MCPClientManager
+    ):
         super().__init__(think_mode, llm_config)
         self.mcp_manager = mcp_manager
         self.output_messages: list[ToolCallMessage] = []
@@ -40,14 +49,20 @@ class MCPToolsAgent(BaseAgent):
             max_context_length=compression_config.max_iteration_context_length,
             token_calculator=self.token_calculator,
         )
-        self.compression_trigger_threshold = compression_config.compression_trigger_threshold
+        self.compression_trigger_threshold = (
+            compression_config.compression_trigger_threshold
+        )
 
-    def get_server_names(self, mcp_auto_mode: bool, source_config: dict) -> list[str]:
+    def get_server_names(
+        self, mcp_auto_mode: bool, source_config: dict
+    ) -> list[str] | None:
         """获取MCP工具服务器名称"""
         if mcp_auto_mode:
             return None
 
-        return [key for key, value in source_config.model_dump().items() if value is True]
+        return [
+            key for key, value in source_config.model_dump().items() if value is True
+        ]
 
     async def stream_execute(
         self,
@@ -82,7 +97,9 @@ class MCPToolsAgent(BaseAgent):
         system_prompt, tool_call_user_message = get_prompt_with_mcp_servers(
             user_message, mcp_auto_mode, server_names, client_ip
         )
-        input_messages = self._compose_messages(system_prompt, history, tool_call_user_message, [])
+        input_messages = self._compose_messages(
+            system_prompt, history, tool_call_user_message, []
+        )
 
         # 流式调用LLM并收集工具调用消息
         start_time = get_current_time()
@@ -139,7 +156,9 @@ class MCPToolsAgent(BaseAgent):
         max_iterations_by_tool = 5
         # 复制列表以避免修改原始参数（后续会修改 tools 列表）
         tools = list(tools) if tools else []
-        iterations_by_tool = {tool["function"]["name"]: max_iterations_by_tool for tool in tools}
+        iterations_by_tool = {
+            tool["function"]["name"]: max_iterations_by_tool for tool in tools
+        }
 
         # Store compressed historical context for iterations
         compressed_historical_context: list[dict] = []
@@ -188,7 +207,9 @@ class MCPToolsAgent(BaseAgent):
                 logger.info(
                     "No tool calls needed",
                     has_content=bool(openai_message.content),
-                    content_length=len(openai_message.content) if openai_message.content else 0,
+                    content_length=len(openai_message.content)
+                    if openai_message.content
+                    else 0,
                 )
                 yield None
                 return
@@ -270,7 +291,9 @@ class MCPToolsAgent(BaseAgent):
                         iteration=current_iteration + 1,
                         arguments=arguments,
                     )
-                    result, filtered_params = await self.mcp_manager.call_tool(tool_name, arguments)
+                    result, filtered_params = await self.mcp_manager.call_tool(
+                        tool_name, arguments
+                    )
                     content = self.mcp_manager.format_mcp_result(result)
 
                     # 如果有参数被过滤，在返回内容前添加警告信息，告知 LLM
@@ -434,7 +457,9 @@ class MCPToolsAgent(BaseAgent):
             model_name=self.model_name,
             think_mode=self.think_mode,
             model_limit=self.model_limit,
-            token_usage=self._create_token_usage(total_prompt_tokens, completion_tokens),
+            token_usage=self._create_token_usage(
+                total_prompt_tokens, completion_tokens
+            ),
             tool_call_count=tool_call_count,
             tool_definition_tokens=tool_definition_tokens,
             tool_call_names=tool_call_names,
