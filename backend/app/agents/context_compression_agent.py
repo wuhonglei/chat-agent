@@ -37,7 +37,8 @@ class ContextCompressionAgent(BaseAgent):
             token_calculator=self.token_calculator,
         )
         self.context_monitor = ContextMonitor(
-            llm_config.model_name, token_calculator=self.token_calculator
+            self.token_calculator,
+            self.compression_config.iteration_compression.compression_trigger_threshold,
         )
 
         # Compression stats
