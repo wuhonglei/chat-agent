@@ -15,9 +15,6 @@ repos:
         args: [--fix]
         files: \.py$
         exclude: ^(tests/|app/mcp/)
-      - id: ruff-format
-        files: \.py$
-        exclude: ^(tests/|app/mcp/)
 
   # 暂时禁用 mypy 检查，后续逐步启用
   # - repo: https://github.com/pre-commit/mirrors-mypy
