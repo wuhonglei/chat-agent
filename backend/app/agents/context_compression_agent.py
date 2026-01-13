@@ -272,7 +272,6 @@ class ToolResultCompressor:
     def __init__(self, llm_config: LLMConfig, compression_config: Dict[str, Any]):
         self.llm_config = llm_config
         self.compression_config = compression_config
-        self.generic_compressor = GenericCompressor()
 
     async def compress_single_result(self, tool_result: Dict[str, Any]) -> Dict[str, Any]:
         """Compress a single tool result based on its content type"""
@@ -319,7 +318,7 @@ class ToolResultCompressor:
                 return ContentType.GENERIC
         else:
             # Auto-detect based on content
-            return self.generic_compressor._detect_content_type(content)
+            return GenericCompressor.detect_content_type(content)
 
     def _get_max_length_for_type(self, content_type: ContentType) -> int:
         """Get maximum length for content type"""

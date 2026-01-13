@@ -52,7 +52,7 @@ class GenericCompressor:
         try:
             # Detect content type
             if content_type == ContentType.GENERIC:
-                content_type = self._detect_content_type(content)
+                content_type = GenericCompressor.detect_content_type(content)
 
             # Apply type-specific compression
             if content_type == ContentType.WEB_CONTENT:
@@ -96,7 +96,8 @@ class GenericCompressor:
                 processing_time=time.time() - start_time
             )
 
-    def _detect_content_type(self, content: str) -> ContentType:
+    @staticmethod
+    def detect_content_type(content: str) -> ContentType:
         """Detect content type based on content patterns"""
         content_lower = content.lower()
 
