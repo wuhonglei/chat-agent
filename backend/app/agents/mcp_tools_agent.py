@@ -395,9 +395,13 @@ class MCPToolsAgent(BaseAgent):
                 )
 
                 # Compress the context
+                # Convert ToolCallResultMessage objects to dictionaries for compression
+                current_results_dicts = format_tool_call_messages_for_llm(
+                    current_iteration_results
+                )
                 compressed_context: list[dict] = (
                     self.iteration_compressor.compress_iteration_context(
-                        current_iteration_results=current_iteration_results,
+                        current_iteration_results=current_results_dicts,
                         historical_context=compressed_historical_context,
                         iteration=iteration,
                     )
