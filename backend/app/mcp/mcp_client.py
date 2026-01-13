@@ -11,7 +11,11 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 from fastmcp import Client, FastMCP
-from fastmcp.client.transports import FastMCPTransport, StdioTransport, StreamableHttpTransport
+from fastmcp.client.transports import (
+    FastMCPTransport,
+    StdioTransport,
+    StreamableHttpTransport,
+)
 
 from app.core.config import settings
 from app.mcp.utils import inject_mcp_env_vars
@@ -32,8 +36,12 @@ from app.mcp.mcp_servers.code_exec_mcp.server import mcp as code_exec_mcp  # noq
 from app.mcp.mcp_servers.confluence_mcp.server import (
     check_availability as confluence_check_availability,  # noqa: E402
 )
-from app.mcp.mcp_servers.confluence_mcp.server import mcp as mcp_confluence  # noqa: E402
-from app.mcp.mcp_servers.ip_locator_mcp.server import mcp as ip_locator_mcp  # noqa: E402
+from app.mcp.mcp_servers.confluence_mcp.server import (
+    mcp as mcp_confluence,  # noqa: E402
+)
+from app.mcp.mcp_servers.ip_locator_mcp.server import (
+    mcp as ip_locator_mcp,  # noqa: E402
+)
 from app.mcp.mcp_servers.tavily_mcp.server import mcp as tavily_mcp  # noqa: E402
 from app.mcp.mcp_servers.time_mcp.server import mcp as time_mcp  # noqa: E402
 from app.mcp.mcp_servers.weather_mcp.server import mcp as weather_mcp  # noqa: E402
@@ -130,7 +138,10 @@ class MCPClientManager:
             availability_checker = None
             server_instance = server_config
 
-            if isinstance(server_config, dict) and "availability_checker" in server_config:
+            if (
+                isinstance(server_config, dict)
+                and "availability_checker" in server_config
+            ):
                 availability_checker = server_config.get("availability_checker")
                 server_instance = server_config.get("server", server_config)
                 # 更新 self.servers 中的值，使用实际的 server 实例
@@ -149,7 +160,9 @@ class MCPClientManager:
                         # 从 servers 中移除，避免后续处理
                         del self.servers[server_name]
                         continue
-                    logger.info("Server availability check passed", server_name=server_name)
+                    logger.info(
+                        "Server availability check passed", server_name=server_name
+                    )
                 except Exception as e:
                     logger.warning(
                         "Server availability check failed",
@@ -171,8 +184,12 @@ class MCPClientManager:
                     )
                 elif isinstance(server_instance, dict) and "url" in server_instance:
                     # 远程 HTTP 服务器
-                    verify_ssl = server_instance.get("verify_ssl", True)  # 默认启用 SSL 验证
-                    httpx_client_factory = create_mcp_http_client_with_ssl_config(verify_ssl)
+                    verify_ssl = server_instance.get(
+                        "verify_ssl", True
+                    )  # 默认启用 SSL 验证
+                    httpx_client_factory = create_mcp_http_client_with_ssl_config(
+                        verify_ssl
+                    )
 
                     transport = StreamableHttpTransport(
                         url=server_instance["url"],
@@ -257,7 +274,9 @@ class MCPClientManager:
         self._initialized = False
         logger.info("MCP Client Manager cleanup completed")
 
-    async def list_tools(self, server_names: list[str] | None = None) -> dict[str, list[Any]]:
+    async def list_tools(
+        self, server_names: list[str] | None = None
+    ) -> dict[str, list[Any]]:
         """
         列出所有可用的工具
 
@@ -324,7 +343,9 @@ class MCPClientManager:
         client = self.clients[server_name]
 
         # 过滤掉工具不支持的参数
-        filtered_arguments = self._filter_tool_arguments(tool_name, server_name, arguments or {})
+        filtered_arguments = self._filter_tool_arguments(
+            tool_name, server_name, arguments or {}
+        )
 
         # 记录被过滤的参数
         removed_params = list(set(arguments or {}) - set(filtered_arguments))
@@ -342,7 +363,9 @@ class MCPClientManager:
                     removed_params=removed_params,
                 )
             async with client:
-                result = await client.call_tool(tool_name, filtered_arguments, timeout=60)
+                result = await client.call_tool(
+                    tool_name, filtered_arguments, timeout=60
+                )
             logger.info(
                 "Tool executed successfully",
                 tool_name=tool_name,
@@ -385,7 +408,9 @@ class MCPClientManager:
 
                     # 过滤掉不支持的参数
                     filtered = {
-                        key: value for key, value in arguments.items() if key in supported_params
+                        key: value
+                        for key, value in arguments.items()
+                        if key in supported_params
                     }
                     return filtered
 
@@ -501,7 +526,8 @@ class MCPClientManager:
 
         # 并发执行所有服务器的健康检查
         tasks = [
-            check_single_server(server_name, client) for server_name, client in self.clients.items()
+            check_single_server(server_name, client)
+            for server_name, client in self.clients.items()
         ]
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -548,7 +574,9 @@ class MCPClientManager:
 
         formatted_tools = []
         final_server_names = (
-            set(self.tools_by_server.keys()) if server_names is None else set(server_names)
+            set(self.tools_by_server.keys())
+            if server_names is None
+            else set(server_names)
         )
         if client_ip:
             final_server_names.add("ip-locator-mcp")
@@ -566,7 +594,9 @@ class MCPClientManager:
                         "function": {
                             "name": tool.name,
                             "description": tool.description or "",
-                            "parameters": tool.inputSchema if hasattr(tool, "inputSchema") else {},
+                            "parameters": tool.inputSchema
+                            if hasattr(tool, "inputSchema")
+                            else {},
                         },
                     }
                 )
