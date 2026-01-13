@@ -3,7 +3,7 @@
 用于连接和管理多个 MCP Server，提供统一的工具调用接口
 """
 
-# noqa: E402
+# ruff: noqa: E402
 
 import asyncio
 import copy
@@ -29,8 +29,8 @@ inject_mcp_env_vars(settings.mcp)
 # 注意：这些导入的顺序很重要，不要使用自动格式化工具调整顺序
 # fmt: off
 from app.mcp.mcp_servers.code_exec_mcp.server import mcp as code_exec_mcp  # noqa: E402
-from app.mcp.mcp_servers.confluence_mcp.server import (  # noqa: E402
-    check_availability as confluence_check_availability,
+from app.mcp.mcp_servers.confluence_mcp.server import (
+    check_availability as confluence_check_availability,  # noqa: E402
 )
 from app.mcp.mcp_servers.confluence_mcp.server import mcp as mcp_confluence  # noqa: E402
 from app.mcp.mcp_servers.ip_locator_mcp.server import mcp as ip_locator_mcp  # noqa: E402
