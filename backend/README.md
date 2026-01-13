@@ -219,7 +219,6 @@ uv pip install -e ".[dev]"
 ### 代码格式化
 
 ```bash
-black app/
 ruff check app/ --fix
 ```
 

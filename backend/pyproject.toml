@@ -56,7 +56,6 @@ dev = [
     "pytest-asyncio>=0.21.0",
     "pytest-cov>=4.1.0",
     "ruff>=0.1.0",
-    "black>=23.9.1",
     "mypy>=1.18.1",
     "pre-commit>=3.6.0",
     "ipython>=8.0.0",
@@ -101,9 +100,6 @@ quote-style = "double"
 indent-style = "space"
 line-ending = "auto"
 skip-magic-trailing-comma = false
-
-[tool.black]
-# 使用默认配置，通过 pre-commit hooks 控制格式化
 
 [tool.pytest.ini_options]
 minversion = "6.0"

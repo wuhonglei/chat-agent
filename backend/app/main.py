@@ -21,7 +21,8 @@ from app.middleware.exception_handler import (
 from app.utils.logger import logger, setup_logger
 
 # 忽略 nacos 库中的 SSL DeprecationWarning
-warnings.filterwarnings("ignore", category=DeprecationWarning, module="nacos.*")
+warnings.filterwarnings(
+    "ignore", category=DeprecationWarning, module="nacos.*")
 
 
 # 配置日志系统
@@ -82,7 +83,8 @@ app.include_router(user.router, prefix="/api/user", tags=["user"])
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
 app.include_router(message.router, prefix="/api/message", tags=["message"])
-app.include_router(conversation.router, prefix="/api/conversation", tags=["conversation"])
+app.include_router(conversation.router,
+                   prefix="/api/conversation", tags=["conversation"])
 app.include_router(health.router, prefix="/api/health", tags=["health"])
 app.include_router(file.router, prefix="/api/file", tags=["file"])
 
