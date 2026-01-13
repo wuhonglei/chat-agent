@@ -127,6 +127,7 @@ class SingleRoundConfig(BaseModel):
     max_web_content_length: int = Field(description="网页内容最大长度")
     max_search_results: int = Field(description="搜索结果最大数量")
     max_generic_length: int = Field(description="通用内容最大长度")
+    tool_message_compression_threshold: int = Field(default=10000, description="工具消息压缩触发阈值")
 
 
 class IterationCompressionConfig(BaseModel):

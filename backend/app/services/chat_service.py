@@ -60,7 +60,7 @@ class ChatService:
         # 上下文压缩服务
         self.context_compression_service = ContextCompressionService(
             token_calculator=self.response_generation_agent.token_calculator,
-            compression_threshold=settings.compression.iteration_compression.compression_trigger_threshold,
+            compression_threshold=settings.compression.single_round.tool_message_compression_threshold,
         )
 
     async def stream_message(
