@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 1
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -78,7 +78,7 @@ requires-dist = [
     { name = "keyring", specifier = ">=25.6.0" },
     { name = "loguru", specifier = ">=0.7.0" },
     { name = "markdownify", specifier = ">=1.2.0" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.7.0" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.18.1" },
     { name = "nacos-sdk-python", specifier = ">=2.0.9" },
     { name = "openai", specifier = ">=1.10.0" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.6.0" },

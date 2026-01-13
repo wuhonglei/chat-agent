@@ -226,8 +226,10 @@ ruff check app/ --fix
 ### 类型检查
 
 ```bash
-mypy app/
+make check
 ```
+
+项目已配置严格的类型检查，可以在开发过程中及早发现参数不匹配等错误。详见 [类型检查指南](docs/type_checking_guide.md)。
 
 ## 性能优化
 

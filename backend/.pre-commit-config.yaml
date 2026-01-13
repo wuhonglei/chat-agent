@@ -1,0 +1,38 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-merge-conflict
+
+  - repo: https://github.com/psf/black
+    rev: 23.9.1
+    hooks:
+      - id: black
+        language_version: python3.10
+        files: \.py$
+        exclude: ^(tests/|app/mcp/)
+
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.1.0
+    hooks:
+      - id: ruff
+        args: [--fix]
+        files: \.py$
+        exclude: ^(tests/|app/mcp/)
+      - id: ruff-format
+        files: \.py$
+        exclude: ^(tests/|app/mcp/)
+
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: python -m mypy
+        language: system
+        files: \.py$
+        exclude: ^(tests/|app/mcp/)
+        args: [--ignore-missing-imports, --strict]

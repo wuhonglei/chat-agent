@@ -1,22 +1,18 @@
 """Chat service for RAG-based Q&A"""
 from collections.abc import AsyncGenerator
 
+from app.agents import (ComponentToolsAgent, ContextCompressionAgent,
+                        MCPToolsAgent, ResponseGenerationAgent,
+                        TitleGenerationAgent)
 from app.core.config import settings
+from app.mcp.mcp_client import MCPClientManager
 from app.schemas.chat import ChatMessageItemReq, ChatRequest, CollectedResponse
 from app.schemas.token_stats import TotalTokenStats
-from app.utils.logger import logger
-from app.utils.time import get_current_time, get_time_duration
-from app.mcp.mcp_client import MCPClientManager
 from app.services.component_schema_service import ComponentSchemaService
 from app.services.context_compression_service import ContextCompressionService
-from app.agents import (
-    MCPToolsAgent,
-    ComponentToolsAgent,
-    ResponseGenerationAgent,
-    TitleGenerationAgent,
-    ContextCompressionAgent,
-)
+from app.utils.logger import logger
 from app.utils.model import format_sse_message
+from app.utils.time import get_current_time, get_time_duration
 
 
 class ChatService:

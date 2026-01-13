@@ -1,6 +1,11 @@
 {
   "flake8.enabled": false,
   "python.defaultInterpreterPath": ".venv/bin/python",
-  "python.formatting.provider": "ruff",
-  "cSpell.words": ["Cloudbase"]
+  "cSpell.words": ["Cloudbase"],
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit",
+    "source.fixAll": "explicit"
+  },
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false
 }
