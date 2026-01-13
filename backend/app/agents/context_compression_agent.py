@@ -287,7 +287,8 @@ class ToolResultCompressor:
         max_length = self._get_max_length_for_type(content_type)
 
         # Compress using generic compressor
-        compressor = GenericCompressor(max_length=max_length)
+        compressor = GenericCompressor(
+            max_length=max_length, token_calculator=self.token_calculator)
         compression_result = compressor.compress(content, content_type)
 
         compressed_result['content'] = compression_result.compressed_content
