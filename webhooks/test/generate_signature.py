@@ -56,7 +56,7 @@ def main():
     print(f"Signature: {signature}")
     print()
     print("Postman Headers:")
-    print(f"X-Github-Event: create")
+    print("X-Github-Event: create")
     print(f"X-Hub-Signature: {signature}")
     print("Content-Type: application/json")
     print()

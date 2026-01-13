@@ -3,4 +3,3 @@ set -e
 
 cd "$(dirname "$0")/.."
 npm run lint-staged --prefix frontend
-

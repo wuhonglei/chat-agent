@@ -10,58 +10,58 @@ echo "🚀 开始部署 AI-Doc 项目..."
 # 检查 Docker 是否安装
 if ! command -v docker &> /dev/null; then
     echo "📦 Docker 未安装，正在安装 Docker..."
-    
+
     # 检测操作系统类型
     if [ -f /etc/redhat-release ]; then
         # CentOS/RHEL 系统
         echo "检测到 CentOS/RHEL 系统，开始安装 Docker..."
-        
+
         # 安装必要的工具
         sudo yum install -y yum-utils
-        
+
         # 添加 Docker 官方仓库
         sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-        
+
         # 安装 Docker 引擎
         sudo yum install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-        
+
         # 启动 Docker 服务
         sudo systemctl start docker
         sudo systemctl enable docker
-        
+
         echo "✅ Docker 安装完成"
     elif [ -f /etc/debian_version ]; then
         # Debian/Ubuntu 系统
         echo "检测到 Debian/Ubuntu 系统，开始安装 Docker..."
-        
+
         # 更新包索引
         sudo apt-get update
-        
+
         # 安装必要的工具
         sudo apt-get install -y ca-certificates curl gnupg lsb-release
-        
+
         # 添加 Docker 官方 GPG 密钥
         sudo mkdir -p /etc/apt/keyrings
         curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-        
+
         # 添加 Docker 官方仓库
         echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-        
+
         # 安装 Docker 引擎
         sudo apt-get update
         sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-        
+
         # 启动 Docker 服务
         sudo systemctl start docker
         sudo systemctl enable docker
-        
+
         echo "✅ Docker 安装完成"
     else
         echo "❌ 不支持的操作系统，请手动安装 Docker"
         echo "参考: https://docs.docker.com/engine/install/"
         exit 1
     fi
-    
+
     # 验证安装
     if ! command -v docker &> /dev/null; then
         echo "❌ Docker 安装失败，请检查错误信息"
@@ -130,4 +130,3 @@ echo "📋 常用命令："
 echo "  查看日志: $DOCKER_COMPOSE_CMD logs -f"
 echo "  停止服务: $DOCKER_COMPOSE_CMD down"
 echo "  重启服务: $DOCKER_COMPOSE_CMD restart"
-
