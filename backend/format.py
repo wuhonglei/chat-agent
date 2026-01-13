@@ -24,7 +24,9 @@ def run_command(cmd, description):
             print(f"Error:\n{result.stderr}")
 
         if result.returncode != 0:
-            print(f"Warning: {description} returned non-zero exit code {result.returncode}")
+            print(
+                f"Warning: {description} returned non-zero exit code {result.returncode}"
+            )
             return False
         else:
             print(f"✓ {description} completed")
