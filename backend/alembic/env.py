@@ -4,9 +4,9 @@ import sys
 from logging.config import fileConfig
 from pathlib import Path
 
-from alembic import context
 from sqlmodel import SQLModel
 
+from alembic import context
 
 # Ensure project root is on the Python path so Alembic can import application modules
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -21,7 +21,6 @@ if config.config_file_name is not None:
 
 # Import application settings and metadata
 from app.core.db import SQLALCHEMY_DATABASE_URL, engine  # noqa: E402
-from app.models import UserDb, ConversationDb, MessageDb  # noqa: F401,E402  # Import models to register them with SQLModel metadata
 
 target_metadata = SQLModel.metadata
 
@@ -33,7 +32,7 @@ def run_migrations_offline() -> None:
         url=url,
         target_metadata=target_metadata,
         literal_binds=True,
-        dialect_opts={"paramstyle": "named"},
+        dialect_opts={'paramstyle': 'named'},
         compare_type=True,
         compare_server_default=True,
     )

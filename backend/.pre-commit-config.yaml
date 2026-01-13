@@ -8,16 +8,8 @@ repos:
       - id: check-added-large-files
       - id: check-merge-conflict
 
-  - repo: https://github.com/psf/black
-    rev: 23.9.1
-    hooks:
-      - id: black
-        language_version: python3.10
-        files: \.py$
-        exclude: ^(tests/|app/mcp/)
-
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.1.0
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
     hooks:
       - id: ruff
         args: [--fix]
@@ -27,12 +19,10 @@ repos:
         files: \.py$
         exclude: ^(tests/|app/mcp/)
 
-  - repo: local
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.13.0
     hooks:
       - id: mypy
-        name: mypy
-        entry: python -m mypy
-        language: system
         files: \.py$
         exclude: ^(tests/|app/mcp/)
         args: [--ignore-missing-imports, --strict]
