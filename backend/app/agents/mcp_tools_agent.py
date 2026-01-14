@@ -60,7 +60,9 @@ class MCPToolsAgent(BaseAgent):
         else:
             # Compression disabled - set components to None
             self.iteration_compressor = None
-            self.compression_trigger_threshold = float('inf')  # Never trigger compression
+            self.compression_trigger_threshold = float(
+                "inf"
+            )  # Never trigger compression
 
     def get_server_names(
         self, mcp_auto_mode: bool, source_config: dict
