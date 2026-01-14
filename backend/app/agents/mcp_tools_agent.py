@@ -30,7 +30,11 @@ from app.schemas.token_stats import MCPToolsTokenStats
 from app.utils.compression import IterationCompressor
 from app.utils.logger import logger
 from app.utils.mcp import count_tool_calls, extract_tool_call_names
-from app.utils.message import find_last_user_message, format_tool_call_messages_for_llm
+from app.utils.message import (
+    find_last_user_message,
+    format_tool_call_message_for_llm,
+    format_tool_call_messages_for_llm,
+)
 from app.utils.time import get_current_time, get_time_duration
 
 
@@ -424,10 +428,15 @@ class MCPToolsAgent(BaseAgent):
             # The iterations_by_tool dictionary is kept for defensive checks in execute_single_tool
 
             # Yield results in original order and collect them
-            current_iteration_results: list[ToolCallMessage] = []
+            current_iteration_results: list[dict] = []
             for tool_call_result_message in tool_results:
                 self.output_messages.append(tool_call_result_message)
-                current_iteration_results.append(tool_call_result_message)
+                current_iteration_results.append(
+                    {
+                        **format_tool_call_message_for_llm(tool_call_result_message),
+                        "iteration": iteration + 1,
+                    }
+                )
                 yield tool_call_result_message
 
             # Perform iteration context compression if needed and enabled
@@ -447,14 +456,9 @@ class MCPToolsAgent(BaseAgent):
                         threshold=self.compression_trigger_threshold,
                     )
 
-                    # Compress the context
-                    # Convert ToolCallResultMessage objects to dictionaries for compression
-                    current_results_dicts = format_tool_call_messages_for_llm(
-                        current_iteration_results
-                    )
                     compressed_context: list[dict] = (
                         self.iteration_compressor.compress_iteration_context(
-                            current_iteration_results=current_results_dicts,
+                            current_iteration_results=current_iteration_results,
                             historical_context=compressed_historical_context,
                             iteration=iteration,
                         )
