@@ -35,7 +35,7 @@ def format_search_results(
             if is_chunked:
                 chunks = result.content.split("[...]")
                 for idx, chunk in enumerate(chunks, start=1):
-                    temp_output.append(f"[{idx}] 内容摘要: {chunk}")
+                    temp_output.append(f"[{idx}] 相关内容: {chunk}")
             else:
                 temp_output.append(f"网页内容: {result.content}")
         output.append("\n".join(temp_output))
@@ -75,7 +75,7 @@ def format_extract_results(is_chunked: bool, response: TavilyExtractResponse) ->
             if is_chunked:
                 chunks = result.raw_content.split("[...]")
                 for idx, chunk in enumerate(chunks, start=1):
-                    temp_output.append(f"[{idx}] 内容摘要: {chunk}")
+                    temp_output.append(f"[{idx}] 相关内容: {chunk}")
             else:
                 temp_output.append(f"提取内容: {result.raw_content}")
         output.append("\n".join(temp_output))
@@ -91,7 +91,7 @@ def format_extract_results(is_chunked: bool, response: TavilyExtractResponse) ->
     return "\n".join(output)
 
 
-def format_crawl_results(response: TavilyCrawlResponse) -> str:
+def format_crawl_results(is_chunked: bool, response: TavilyCrawlResponse) -> str:
     """
     将 Tavily Crawl API 响应格式化为人类可读的文本
 
@@ -108,17 +108,16 @@ def format_crawl_results(response: TavilyCrawlResponse) -> str:
 
     output.append("\nCrawled Pages:")
     for index, page in enumerate(response.results, start=1):
-        output.append(f"\n[{index}] URL: {page.url}")
+        temp_output: list[str] = []
+        temp_output.append(f"[{index}] URL: {page.url}")
         if page.raw_content:
-            # Truncate content if it's too long
-            content_preview = (
-                page.raw_content[:200] + "..."
-                if len(page.raw_content) > 200
-                else page.raw_content
-            )
-            output.append(f"Content: {content_preview}")
-        if page.favicon:
-            output.append(f"Favicon: {page.favicon}")
+            if is_chunked:
+                chunks = page.raw_content.split("[...]")
+                for idx, chunk in enumerate(chunks, start=1):
+                    temp_output.append(f"[{idx}] 相关内容: {chunk}")
+            else:
+                temp_output.append(f"提取内容: {page.raw_content}")
+        output.append("\n".join(temp_output))
 
     return "\n".join(output)
 

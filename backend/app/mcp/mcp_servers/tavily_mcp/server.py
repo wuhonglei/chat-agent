@@ -123,7 +123,7 @@ async def tavily_search(
                 data.results = low_score_results[0:1]
                 ignored_results = low_score_results[1:]
 
-            is_chunked = search_depth in ["advanced", "fast"]
+            is_chunked = search_depth in ["advanced", "fast"] and query is not None
             return ToolResult(
                 structured_content=data,
                 content=format_search_results(is_chunked, data, ignored_results),
@@ -163,7 +163,7 @@ async def tavily_extract(
         response = await client.extract(**extract_params)
         try:
             data = TavilyExtractResponse.model_validate(response)
-            is_chunked = extract_depth in ["advanced"]
+            is_chunked = extract_depth in ["advanced"] and query is not None
             return ToolResult(
                 structured_content=data,
                 content=format_extract_results(is_chunked, data),
@@ -224,13 +224,6 @@ async def tavily_crawl(
         default="basic",
         description="The depth of the extraction process. 'basic' costs 1 credit per 5 successful URL extractions, 'advanced' costs 2 credits per 5 successful URL extractions. Options: 'basic', 'advanced'",
     ),
-    format: str = Field(
-        default="markdown",
-        description="The format of the extracted web page content. 'markdown' returns content in markdown format, 'text' returns plain text and may increase latency. Options: 'markdown', 'text'",
-    ),
-    include_favicon: bool = Field(
-        default=False, description="Whether to include the favicon URL for each result"
-    ),
 ) -> TavilyCrawlResponse:
     """
     A powerful web crawler that initiates a structured web crawl starting from a specified base URL.
@@ -238,26 +231,35 @@ async def tavily_crawl(
     You can control how deep and wide it goes, and guide it to focus on specific sections of the site.
     """
     try:
+        crawl_params = {"url": url, "extract_depth": extract_depth}
+        if instructions:
+            crawl_params["instructions"] = instructions
+        if max_depth:
+            crawl_params["max_depth"] = max_depth
+        if max_breadth:
+            crawl_params["max_breadth"] = max_breadth
+        if limit:
+            crawl_params["limit"] = limit
+        if select_paths:
+            crawl_params["select_paths"] = select_paths
+        if select_domains:
+            crawl_params["select_domains"] = select_domains
+        if exclude_paths:
+            crawl_params["exclude_paths"] = exclude_paths
+        if exclude_domains:
+            crawl_params["exclude_domains"] = exclude_domains
+        if allow_external:
+            crawl_params["allow_external"] = allow_external
+
         # Use AsyncTavilyClient.crawl method
         response = await client.crawl(
-            url=url,
-            instructions=instructions,
-            max_depth=max_depth,
-            max_breadth=max_breadth,
-            limit=limit,
-            select_paths=select_paths if select_paths else None,
-            select_domains=select_domains if select_domains else None,
-            exclude_paths=exclude_paths if exclude_paths else None,
-            exclude_domains=exclude_domains if exclude_domains else None,
-            allow_external=allow_external,
-            extract_depth=extract_depth,
-            format=format,
-            include_favicon=include_favicon,
+            **crawl_params,
         )
         try:
             data = TavilyCrawlResponse.model_validate(response)
+            is_chunked = extract_depth in ["advanced"] and instructions is not None
             return ToolResult(
-                structured_content=data, content=format_crawl_results(data)
+                structured_content=data, content=format_crawl_results(is_chunked, data)
             )
         except Exception as e:
             raise ValueError(f"爬取响应验证失败: {str(e)}")

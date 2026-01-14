@@ -82,10 +82,6 @@ class TavilyCrawlResultItem(BaseModel):
 
     url: str = Field(..., description="爬取内容的URL")
     raw_content: str = Field(..., description="爬取的原始内容")
-    images: list[TavilyImage] = Field(
-        default_factory=list, description="爬取的图片列表"
-    )
-    favicon: str | None = Field(None, description="网站图标URL")
 
 
 class TavilyCrawlResponse(BaseModel):
