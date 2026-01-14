@@ -26,16 +26,16 @@ def format_search_results(
     # Format detailed search results
     output.append("网页搜索结果 (Tavily Search API):")
     for index, result in enumerate(response.results, start=1):
-        temp_output: list[str] = []
-        temp_output.append(f"[{index}] 标题: {result.title}")
+        temp_output: list[str] = [f"搜索结果 [{index}] 的详细信息如下:"]
+        temp_output.append(f"标题: {result.title}")
         temp_output.append(f"URL: {result.url}")
         if result.score:
             temp_output.append(f"相关性分数: {result.score}")
         if result.content:
             if is_chunked:
                 chunks = result.content.split("[...]")
-                for idx, chunk in enumerate(chunks, start=1):
-                    temp_output.append(f"[{idx}] 相关内容: {chunk}")
+                for _, chunk in enumerate(chunks, start=1):
+                    temp_output.append(f"- 相关内容: {chunk}")
             else:
                 temp_output.append(f"网页内容: {result.content}")
         output.append("\n".join(temp_output))
@@ -43,8 +43,8 @@ def format_search_results(
     if ignored_results:
         output.append("\n以下结果因相关性分数低于阈值 0.5 而被忽略（可作为补充信息）:")
         for index, result in enumerate(ignored_results, start=1):
-            temp_output: list[str] = []
-            temp_output.append(f"[{index}] 标题: {result.title}")
+            temp_output: list[str] = [f"搜索结果 [{index}] 的详细信息如下:"]
+            temp_output.append(f"标题: {result.title}")
             temp_output.append(f"URL: {result.url}")
             if result.score:
                 temp_output.append(f"相关性分数: {result.score}")
@@ -68,14 +68,14 @@ def format_extract_results(is_chunked: bool, response: TavilyExtractResponse) ->
     # Format successful extraction results
     output.append("网页提取结果 (Tavily Extract API):")
     for index, result in enumerate(response.results, start=1):
-        temp_output: list[str] = []
-        temp_output.append(f"[{index}] 标题: {result.title}")
+        temp_output: list[str] = [f"提取结果 [{index}] 的详细信息如下:"]
+        temp_output.append(f"标题: {result.title}")
         temp_output.append(f"URL: {result.url}")
         if result.raw_content:
             if is_chunked:
                 chunks = result.raw_content.split("[...]")
-                for idx, chunk in enumerate(chunks, start=1):
-                    temp_output.append(f"[{idx}] 相关内容: {chunk}")
+                for _, chunk in enumerate(chunks, start=1):
+                    temp_output.append(f"- 相关内容: {chunk}")
             else:
                 temp_output.append(f"提取内容: {result.raw_content}")
         output.append("\n".join(temp_output))
@@ -83,8 +83,8 @@ def format_extract_results(is_chunked: bool, response: TavilyExtractResponse) ->
     if response.failed_results:
         output.append("\n网页提取失败的URL:")
         for index, failed in enumerate(response.failed_results, start=1):
-            temp_output: list[str] = []
-            temp_output.append(f"[{index}] URL: {failed.url}")
+            temp_output: list[str] = [f"提取失败的URL [{index}] 的详细信息如下:"]
+            temp_output.append(f"URL: {failed.url}")
             temp_output.append(f"错误: {failed.error}")
             output.append("\n".join(temp_output))
 
@@ -108,15 +108,15 @@ def format_crawl_results(is_chunked: bool, response: TavilyCrawlResponse) -> str
 
     output.append("\nCrawled Pages:")
     for index, page in enumerate(response.results, start=1):
-        temp_output: list[str] = []
-        temp_output.append(f"[{index}] URL: {page.url}")
+        temp_output: list[str] = [f"爬取结果 [{index}] 的详细信息如下:"]
+        temp_output.append(f"URL: {page.url}")
         if page.raw_content:
             if is_chunked:
                 chunks = page.raw_content.split("[...]")
-                for idx, chunk in enumerate(chunks, start=1):
-                    temp_output.append(f"[{idx}] 相关内容: {chunk}")
+                for _, chunk in enumerate(chunks, start=1):
+                    temp_output.append(f"- 相关内容: {chunk}")
             else:
-                temp_output.append(f"提取内容: {page.raw_content}")
+                temp_output.append(f"爬取内容: {page.raw_content}")
         output.append("\n".join(temp_output))
 
     return "\n".join(output)
