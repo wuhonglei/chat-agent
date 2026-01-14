@@ -17,7 +17,12 @@ from .models import (
     TavilyMapResponse,
     TavilySearchResponse,
 )
-from .utils import format_crawl_results, format_map_results, format_results
+from .utils import (
+    format_crawl_results,
+    format_extract_results,
+    format_map_results,
+    format_search_results,
+)
 
 # Create MCP instance and Tavily client
 mcp = FastMCP(
@@ -39,13 +44,13 @@ async def tavily_search(
     ),
     search_depth: str = Field(
         default="advanced",
-        description="The depth of the search. 'basic' costs 1 API credit, 'advanced' costs 2 API credits. Options: 'basic', 'advanced'",
+        description="The depth of the search. Options: 'advanced', 'basic', 'fast', 'ultra-fast'. advanced: Highest relevance with increased latency. Best for detailed, high-precision queries. Returns multiple semantically relevant snippets per URL (configurable via chunks_per_source). basic: A balanced option for relevance and latency. Ideal for general-purpose searches. Returns one NLP summary per URL. fast: Prioritizes lower latency while maintaining good relevance. Returns multiple semantically relevant snippets per URL (configurable via chunks_per_source). ultra-fast: Minimizes latency above all else. Best for time-critical use cases. Returns one NLP summary per URL.",
     ),
     chunks_per_source: int = Field(
         default=3,
         ge=1,
         le=5,
-        description="Maximum number of relevant chunks returned per source (1-5). Available only when search_depth is 'advanced'",
+        description="Maximum number of relevant chunks returned per source (1-5). Available when search_depth is 'advanced' or 'fast'",
     ),
     max_results: int = Field(
         default=5,
@@ -64,14 +69,6 @@ async def tavily_search(
     end_date: str = Field(
         default=None,
         description="Will return all results before the specified end date. Format: YYYY-MM-DD",
-    ),
-    include_images: bool = Field(
-        default=False,
-        description="Also perform an image search and include the results in the response",
-    ),
-    include_image_descriptions: bool = Field(
-        default=False,
-        description="When include_images is true, also add a descriptive text for each image",
     ),
     include_domains: list[str] = Field(
         default=None,
@@ -103,15 +100,15 @@ async def tavily_search(
             time_range=time_range,
             start_date=start_date,
             end_date=end_date,
-            include_images=include_images,
-            include_image_descriptions=include_image_descriptions,
             include_domains=include_domains,
             exclude_domains=exclude_domains,
             country=country,
         )
         try:
             data = TavilySearchResponse.model_validate(response)
-            return ToolResult(structured_content=data, content=format_results(data))
+            return ToolResult(
+                structured_content=data, content=format_search_results(data)
+            )
         except Exception as e:
             raise ValueError(f"搜索响应验证失败: {str(e)}")
     except Exception:
@@ -167,7 +164,9 @@ async def tavily_extract(
         response = await client.extract(**extract_params)
         try:
             data = TavilyExtractResponse.model_validate(response)
-            return ToolResult(structured_content=data, content=format_results(data))
+            return ToolResult(
+                structured_content=data, content=format_extract_results(data)
+            )
         except Exception as e:
             raise ValueError(f"提取响应验证失败: {str(e)}")
     except Exception:
