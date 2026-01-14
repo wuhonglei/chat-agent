@@ -147,6 +147,7 @@ def format_extract_results(is_chunked: bool, response: TavilyExtractResponse) ->
             temp_output.append(f"URL: {failed.url}")
             temp_output.append(f"错误: {failed.error}")
             output.append("\n".join(temp_output))
+            output.append("\n")
 
     return "\n".join(output)
 
