@@ -136,6 +136,9 @@ async def tavily_search(
 
 @mcp.tool(name="tavily_extract")
 async def tavily_extract(
+    query: str | None = Field(
+        default=None, description="User intent for reranking extracted content chunks. When provided, chunks are reranked based on relevance to this query."
+    ),
     urls: list[str] = Field(..., description="要提取内容的URL（字符串或数组）"),
     extract_depth: str = Field(
         default="advanced",
