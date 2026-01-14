@@ -106,14 +106,6 @@ def format_search_results(
             temp_output.append(f"URL: {result.url}")
             if result.score:
                 temp_output.append(f"相关性分数: {result.score:.2f}")
-            content = clean_invisible_chars(result.content)
-            if content:
-                if is_chunked:
-                    chunks = content.split("[...]")
-                    for _, chunk in enumerate(chunks, start=1):
-                        temp_output.append(f"- 相关内容: {chunk}")
-                else:
-                    temp_output.append(f"网页内容: {content}")
             output.append("\n".join(temp_output))
 
     return "\n".join(output)
