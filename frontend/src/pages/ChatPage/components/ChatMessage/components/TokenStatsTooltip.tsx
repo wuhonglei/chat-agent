@@ -19,11 +19,6 @@ const getDescriptionItems = (
 
   const items: DescriptionsProps["items"] = [
     {
-      key: "agentName",
-      label: "Agent 名称",
-      children: tokenStats.agentName,
-    },
-    {
       key: "modelName",
       label: "模型名称",
       children: tokenStats.modelName,
@@ -82,12 +77,12 @@ const getDescriptionItems = (
     items.push(
       {
         key: "componentToolCallCount",
-        label: "组件工具调用次数",
+        label: "工具调用次数",
         children: tokenStats.toolCallCount,
       },
       {
         key: "componentToolDefinitionTokens",
-        label: "组件工具定义 tokens",
+        label: "工具定义 tokens",
         children: prettyCount(tokenStats.toolDefinitionTokens),
       }
     );
