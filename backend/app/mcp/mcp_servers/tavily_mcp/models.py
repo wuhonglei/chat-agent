@@ -14,8 +14,6 @@ class TavilySearchResultItem(BaseModel):
     url: str | None = Field(None, description="搜索结果的URL")
     content: str | None = Field(None, description="搜索结果的内容摘要")
     score: float | None = Field(None, description="搜索结果的相关性分数")
-    raw_content: str | None = Field(None, description="原始HTML内容")
-    favicon: str | None = Field(None, description="网站图标URL")
 
 
 class TavilyImage(BaseModel):
@@ -37,8 +35,6 @@ class TavilySearchResponse(BaseModel):
     """Tavily搜索API响应"""
 
     query: str | None = Field(None, description="执行的搜索查询")
-    answer: str | None = Field(None, description="LLM生成的答案")
-    images: list[TavilyImage] = Field(default_factory=list, description="相关图片列表")
     results: list[TavilySearchResultItem] = Field(..., description="搜索结果列表")
     response_time: float = Field(..., description="请求响应时间（秒）")
     auto_parameters: TavilyAutoParameters | None = Field(

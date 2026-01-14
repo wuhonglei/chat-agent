@@ -3,12 +3,17 @@ from .models import (
     TavilyExtractResponse,
     TavilyMapResponse,
     TavilySearchResponse,
+    TavilySearchResultItem,
 )
 
 
-def format_results(response: TavilySearchResponse | TavilyExtractResponse) -> str:
+def format_search_results(
+    search_depth: str,
+    response: TavilySearchResponse,
+    ignored_results: list[TavilySearchResultItem],
+) -> str:
     """
-    将 Tavily API 响应格式化为人类可读的文本
+    将 Tavily Search API 响应格式化为人类可读的文本
 
     Args:
         response: TavilySearchResponse 对象
@@ -17,30 +22,73 @@ def format_results(response: TavilySearchResponse | TavilyExtractResponse) -> st
         格式化后的字符串
     """
     output = []
-
-    # Include answer if available
-    if hasattr(response, "answer") and response.answer:
-        output.append(f"答案: {response.answer}")
+    is_chunked = search_depth in ["advanced", "fast"]
 
     # Format detailed search results
-    output.append("Detailed Results:")
-    for result in response.results:
-        output.append(f"\n标题: {result.title}")
-        output.append(f"URL 链接: {result.url}")
-        if hasattr(result, "content") and result.content:
-            output.append(f"搜索摘要: {result.content}")
-        if hasattr(result, "raw_content") and result.raw_content:
-            output.append(f"网页内容: {result.raw_content}")
-        if hasattr(result, "favicon") and result.favicon:
+    output.append("网页搜索结果(Tavily Search API):")
+    for index, result in enumerate(response.results, start=1):
+        temp_output: list[str] = []
+        temp_output.append(f"[{index}] 标题: {result.title}")
+        temp_output.append(f"URL: {result.url}")
+        if result.score:
+            temp_output.append(f"相关性分数: {result.score}")
+        if result.content:
+            if is_chunked:
+                chunks = result.content.split("[...]")
+                for idx, chunk in enumerate(chunks, start=1):
+                    temp_output.append(f"[{idx}] 内容摘要: {chunk}")
+            else:
+                temp_output.append(f"网页内容: {result.content}")
+        output.append("\n".join(temp_output))
+
+    if ignored_results:
+        output.append("\n以下结果因相关性分数低于阈值 0.5 而被忽略（可作为补充信息）:")
+        for index, result in enumerate(ignored_results, start=1):
+            temp_output: list[str] = []
+            temp_output.append(f"[{index}] 标题: {result.title}")
+            temp_output.append(f"URL: {result.url}")
+            if result.score:
+                temp_output.append(f"相关性分数: {result.score}")
+            output.append("\n".join(temp_output))
+
+    return "\n".join(output)
+
+
+def format_extract_results(response: TavilyExtractResponse) -> str:
+    """
+    将 Tavily Extract API 响应格式化为人类可读的文本
+
+    Args:
+        response: TavilyExtractResponse 对象
+
+    Returns:
+        格式化后的字符串
+    """
+    output = []
+
+    # Format successful extraction results
+    output.append("提取结果:")
+    for index, result in enumerate(response.results, start=1):
+        output.append(f"\n[{index}] 标题: {result.title}")
+        output.append(f"URL: {result.url}")
+        if result.raw_content:
+            # Truncate content if it's too long
+            content_preview = (
+                result.raw_content[:300] + "..."
+                if len(result.raw_content) > 300
+                else result.raw_content
+            )
+            output.append(f"提取内容: {content_preview}")
+        if result.images:
+            output.append(f"图片数量: {len(result.images)} 张")
+        if result.favicon:
             output.append(f"网站图标: {result.favicon}")
 
-    # Add images section if available
-    if hasattr(response, "images") and response.images and len(response.images) > 0:
-        output.append("图片列表:")
-        for index, image in enumerate(response.images, start=1):
-            output.append(f"[{index}] 图片 URL: {image.url}")
-            if image.description:
-                output.append(f"图片描述: {image.description}")
+    # Format failed results if any
+    if response.failed_results:
+        output.append(f"\n提取失败的URL ({len(response.failed_results)} 个):")
+        for failed in response.failed_results:
+            output.append(f"• {failed.url} - 错误: {failed.error}")
 
     return "\n".join(output)
 
