@@ -121,29 +121,36 @@ class ChatService:
                 logger.debug("Skipping component tools agent (no component tools)")
 
             # 阶段2.5: 上下文压缩（可选，在MCP工具和响应生成之间）
-            compression_result = (
-                await self.context_compression_service.compress_tool_messages(
-                    format_tool_call_messages_for_llm(
-                        self.mcp_tools_agent.output_messages
+            if settings.compression.enabled:
+                compression_result = (
+                    await self.context_compression_service.compress_tool_messages(
+                        format_tool_call_messages_for_llm(
+                            self.mcp_tools_agent.output_messages
+                        )
                     )
                 )
-            )
-            compressed_mcp_messages = compression_result.compressed_messages
+                compressed_mcp_messages = compression_result.compressed_messages
 
-            # Log compression statistics
-            if compression_result.was_compressed:
-                logger.debug(
-                    "Context compression applied",
-                    duration=compression_result.duration,
-                    original_length=compression_result.original_length,
-                    compressed_length=compression_result.compressed_length,
-                    compression_ratio=compression_result.compression_ratio,
-                )
+                # Log compression statistics
+                if compression_result.was_compressed:
+                    logger.debug(
+                        "Context compression applied",
+                        duration=compression_result.duration,
+                        original_length=compression_result.original_length,
+                        compressed_length=compression_result.compressed_length,
+                        compression_ratio=compression_result.compression_ratio,
+                    )
+                else:
+                    logger.debug(
+                        "Context compression skipped - below threshold",
+                        original_length=compression_result.original_length,
+                        threshold=self.context_compression_service.context_monitor.compression_threshold,
+                    )
             else:
-                logger.debug(
-                    "Context compression skipped - below threshold",
-                    original_length=compression_result.original_length,
-                    threshold=self.context_compression_service.context_monitor.compression_threshold,
+                # Compression disabled - use original messages
+                logger.debug("Context compression disabled - using original messages")
+                compressed_mcp_messages = format_tool_call_messages_for_llm(
+                    self.mcp_tools_agent.output_messages
                 )
 
             # 阶段3: 最终响应生成
