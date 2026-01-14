@@ -137,12 +137,12 @@ async def tavily_search(
 
 @mcp.tool(name="tavily_extract")
 async def tavily_extract(
+    urls: list[str] = Field(
+        ..., description="The URLs to extract content from (max 100 URLs)"
+    ),
     query: str | None = Field(
         default=None,
         description="User intent for reranking extracted content chunks. When provided, chunks are reranked based on relevance to this query.",
-    ),
-    urls: list[str] = Field(
-        ..., description="The URLs to extract content from (max 100 URLs)"
     ),
     extract_depth: str = Field(
         default="advanced",
@@ -155,12 +155,10 @@ async def tavily_extract(
     """
     try:
         # Use AsyncTavilyClient.extract method
-        extract_params = {
-            "urls": urls,
-            "query": query,
-            "extract_depth": extract_depth,
-            "format": "markdown",
-        }
+        extract_params = {"urls": urls, "extract_depth": extract_depth}
+
+        if query:
+            extract_params["query"] = query
 
         response = await client.extract(**extract_params)
         try:
