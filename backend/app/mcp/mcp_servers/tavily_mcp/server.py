@@ -123,9 +123,10 @@ async def tavily_search(
                 data.results = low_score_results[0:1]
                 ignored_results = low_score_results[1:]
 
+            is_chunked = search_depth in ["advanced", "fast"]
             return ToolResult(
                 structured_content=data,
-                content=format_search_results(search_depth, data, ignored_results),
+                content=format_search_results(is_chunked, data, ignored_results),
             )
         except Exception as e:
             raise ValueError(f"搜索响应验证失败: {str(e)}")
@@ -137,9 +138,12 @@ async def tavily_search(
 @mcp.tool(name="tavily_extract")
 async def tavily_extract(
     query: str | None = Field(
-        default=None, description="User intent for reranking extracted content chunks. When provided, chunks are reranked based on relevance to this query."
+        default=None,
+        description="User intent for reranking extracted content chunks. When provided, chunks are reranked based on relevance to this query.",
     ),
-    urls: list[str] = Field(..., description="要提取内容的URL（字符串或数组）"),
+    urls: list[str] = Field(
+        ..., description="The URLs to extract content from (max 100 URLs)"
+    ),
     extract_depth: str = Field(
         default="advanced",
         description="The depth of the extraction process. advanced extraction retrieves more data, including tables and embedded content, with higher success but may increase latency.basic extraction costs 1 credit per 5 successful URL extractions, while advanced extraction costs 2 credits per 5 successful URL extractions.",
@@ -153,6 +157,7 @@ async def tavily_extract(
         # Use AsyncTavilyClient.extract method
         extract_params = {
             "urls": urls,
+            "query": query,
             "extract_depth": extract_depth,
             "format": "markdown",
         }
@@ -160,8 +165,10 @@ async def tavily_extract(
         response = await client.extract(**extract_params)
         try:
             data = TavilyExtractResponse.model_validate(response)
+            is_chunked = extract_depth in ["advanced"]
             return ToolResult(
-                structured_content=data, content=format_extract_results(data)
+                structured_content=data,
+                content=format_extract_results(is_chunked, data),
             )
         except Exception as e:
             raise ValueError(f"提取响应验证失败: {str(e)}")

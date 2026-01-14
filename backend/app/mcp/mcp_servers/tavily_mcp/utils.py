@@ -8,7 +8,7 @@ from .models import (
 
 
 def format_search_results(
-    search_depth: str,
+    is_chunked: bool,
     response: TavilySearchResponse,
     ignored_results: list[TavilySearchResultItem],
 ) -> str:
@@ -22,7 +22,6 @@ def format_search_results(
         格式化后的字符串
     """
     output = []
-    is_chunked = search_depth in ["advanced", "fast"]
 
     # Format detailed search results
     output.append("网页搜索结果 (Tavily Search API):")
@@ -54,7 +53,7 @@ def format_search_results(
     return "\n".join(output)
 
 
-def format_extract_results(response: TavilyExtractResponse) -> str:
+def format_extract_results(is_chunked: bool, response: TavilyExtractResponse) -> str:
     """
     将 Tavily Extract API 响应格式化为人类可读的文本
 
@@ -73,7 +72,12 @@ def format_extract_results(response: TavilyExtractResponse) -> str:
         temp_output.append(f"[{index}] 标题: {result.title}")
         temp_output.append(f"URL: {result.url}")
         if result.raw_content:
-            temp_output.append(f"提取内容: {result.raw_content}")
+            if is_chunked:
+                chunks = result.raw_content.split("[...]")
+                for idx, chunk in enumerate(chunks, start=1):
+                    temp_output.append(f"[{idx}] 内容摘要: {chunk}")
+            else:
+                temp_output.append(f"提取内容: {result.raw_content}")
         output.append("\n".join(temp_output))
 
     if response.failed_results:
