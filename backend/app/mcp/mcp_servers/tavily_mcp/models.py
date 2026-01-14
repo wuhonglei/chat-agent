@@ -10,10 +10,10 @@ from pydantic import BaseModel, Field
 class TavilySearchResultItem(BaseModel):
     """单个搜索结果"""
 
-    title: str = Field(..., description="搜索结果的标题")
-    url: str = Field(..., description="搜索结果的URL")
-    content: str = Field(..., description="搜索结果的内容摘要")
-    score: float = Field(..., description="搜索结果的相关性分数")
+    title: str | None = Field(None, description="搜索结果的标题")
+    url: str | None = Field(None, description="搜索结果的URL")
+    content: str | None = Field(None, description="搜索结果的内容摘要")
+    score: float | None = Field(None, description="搜索结果的相关性分数")
     raw_content: str | None = Field(None, description="原始HTML内容")
     favicon: str | None = Field(None, description="网站图标URL")
 
@@ -36,7 +36,7 @@ class TavilyAutoParameters(BaseModel):
 class TavilySearchResponse(BaseModel):
     """Tavily搜索API响应"""
 
-    query: str = Field(..., description="执行的搜索查询")
+    query: str | None = Field(None, description="执行的搜索查询")
     answer: str | None = Field(None, description="LLM生成的答案")
     images: list[TavilyImage] = Field(default_factory=list, description="相关图片列表")
     results: list[TavilySearchResultItem] = Field(..., description="搜索结果列表")
@@ -53,13 +53,13 @@ class TavilySearchResponse(BaseModel):
 class TavilyExtractResultItem(BaseModel):
     """单个提取结果"""
 
-    title: str = Field(..., description="提取内容的标题")
-    url: str = Field(..., description="提取内容的URL")
-    raw_content: str = Field(..., description="提取的原始内容")
+    title: str | None = Field(default="", description="提取内容的标题")
+    url: str | None = Field(default="", description="提取内容的URL")
+    raw_content: str | None = Field(default="", description="提取的原始内容")
     images: list[TavilyImage] = Field(
         default_factory=list, description="提取的图片列表"
     )
-    favicon: str | None = Field(None, description="网站图标URL")
+    favicon: str | None = Field(default="", description="网站图标URL")
 
 
 class TavilyFailedResultItem(BaseModel):

@@ -1,6 +1,9 @@
-import json
+from pydantic import BaseModel, Field
 
-if __name__ == "__main__":
-    pass
 
-print(json.dumps([]))
+class Person(BaseModel):
+    name: str | None = Field(default="", description="人名称")
+
+
+person = Person.model_validate({"name": None})
+print(person)
