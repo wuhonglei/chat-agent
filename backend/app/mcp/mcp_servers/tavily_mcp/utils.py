@@ -103,13 +103,12 @@ def format_crawl_results(is_chunked: bool, response: TavilyCrawlResponse) -> str
     """
     output = []
 
-    output.append("Crawl Results:")
-    output.append(f"Base URL: {response.base_url}")
+    output.append("网页爬取结果 (Tavily Crawl API):")
+    output.append(f"爬取的基础URL: {response.base_url}")
 
-    output.append("\nCrawled Pages:")
     for index, page in enumerate(response.results, start=1):
         temp_output: list[str] = [f"爬取结果 [{index}] 的详细信息如下:"]
-        temp_output.append(f"URL: {page.url}")
+        temp_output.append(f"爬取的URL: {page.url}")
         if page.raw_content:
             if is_chunked:
                 chunks = page.raw_content.split("[...]")
