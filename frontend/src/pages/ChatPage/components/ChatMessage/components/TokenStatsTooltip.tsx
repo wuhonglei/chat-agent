@@ -3,7 +3,7 @@ import {
   MCPToolsTokenStats,
 } from "@/interfaces/token";
 import { prettyCount } from "@/utils";
-import { ConfigProvider, Descriptions } from "antd";
+import { ConfigProvider, Descriptions, DescriptionsProps } from "antd";
 import { isEmpty } from "lodash-es";
 import React from "react";
 
@@ -17,7 +17,7 @@ const getDescriptionItems = (
   const isMCP = tokenStats.agentName === "mcp_tools";
   const isComponentTools = tokenStats.agentName === "component_tools";
 
-  return [
+  const items: DescriptionsProps["items"] = [
     {
       key: "agentName",
       label: "Agent 名称",
@@ -53,53 +53,55 @@ const getDescriptionItems = (
       label: "总 tokens",
       children: prettyCount(tokenStats.tokenUsage.totalTokens),
     },
-    ...(isMCP
-      ? [
-          {
-            key: "toolCallCount",
-            label: "工具调用次数",
-            children: tokenStats.toolCallCount,
-          },
-          {
-            key: "toolDefinitionTokens",
-            label: "工具定义 tokens",
-            children: prettyCount(tokenStats.toolDefinitionTokens),
-          },
-          ...(isEmpty(tokenStats.toolCallNames)
-            ? []
-            : [
-                {
-                  key: "toolCallNames",
-                  label: "工具名称",
-                  children: tokenStats.toolCallNames.join(", "),
-                },
-              ]),
-        ]
-      : []),
-    ...(isComponentTools
-      ? [
-          {
-            key: "componentToolCallCount",
-            label: "组件工具调用次数",
-            children: tokenStats.toolCallCount,
-          },
-          {
-            key: "componentToolDefinitionTokens",
-            label: "组件工具定义 tokens",
-            children: prettyCount(tokenStats.toolDefinitionTokens),
-          },
-          ...(isEmpty(tokenStats.toolCallNames)
-            ? []
-            : [
-                {
-                  key: "toolCallNames",
-                  label: "工具名称",
-                  children: tokenStats.toolCallNames.join(", "),
-                },
-              ]),
-        ]
-      : []),
   ];
+
+  if (isMCP) {
+    items.push(
+      {
+        key: "toolCallCount",
+        label: "工具调用次数",
+        children: tokenStats.toolCallCount,
+      },
+      {
+        key: "toolDefinitionTokens",
+        label: "工具定义 tokens",
+        children: prettyCount(tokenStats.toolDefinitionTokens),
+      }
+    );
+
+    if (!isEmpty(tokenStats.toolCallNames)) {
+      items.push({
+        key: "toolCallNames",
+        label: "工具名称",
+        children: tokenStats.toolCallNames.join("\n"),
+      });
+    }
+  }
+
+  if (isComponentTools) {
+    items.push(
+      {
+        key: "componentToolCallCount",
+        label: "组件工具调用次数",
+        children: tokenStats.toolCallCount,
+      },
+      {
+        key: "componentToolDefinitionTokens",
+        label: "组件工具定义 tokens",
+        children: prettyCount(tokenStats.toolDefinitionTokens),
+      }
+    );
+
+    if (!isEmpty(tokenStats.toolCallNames)) {
+      items.push({
+        key: "toolCallNames",
+        label: "工具名称",
+        children: tokenStats.toolCallNames.join("\n"),
+      });
+    }
+  }
+
+  return items;
 };
 
 const TokenStatsTooltip: React.FC<TokenStatsTooltipProps> = ({
