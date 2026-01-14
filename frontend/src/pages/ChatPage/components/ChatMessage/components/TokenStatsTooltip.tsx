@@ -14,8 +14,8 @@ type TokenStatsTooltipProps = {
 const getDescriptionItems = (
   tokenStats: MCPToolsTokenStats | ComponentToolsTokenStats
 ) => {
-  const isMCP = tokenStats.agentName === "mcp-tools";
-  const isComponentTools = tokenStats.agentName === "component-tools";
+  const isMCP = tokenStats.agentName === "mcp_tools";
+  const isComponentTools = tokenStats.agentName === "component_tools";
 
   return [
     {

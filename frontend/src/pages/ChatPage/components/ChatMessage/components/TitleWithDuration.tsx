@@ -46,7 +46,7 @@ const TitleWithDuration: React.FC<Props> = ({
             trigger={["click", "hover"]}
             styles={{
               container: {
-                minWidth: 280,
+                minWidth: 300,
               },
             }}
             title={<TokenStatsTooltip tokenStats={tokenStats} />}

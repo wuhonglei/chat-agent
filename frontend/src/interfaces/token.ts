@@ -24,7 +24,7 @@ export interface BaseTokenStats {
  * MCP 工具调用的 Token 统计
  */
 export interface MCPToolsTokenStats extends BaseTokenStats {
-  agentName: "mcp-tools";
+  agentName: "mcp_tools";
   toolCallCount: number; // 被调用的工具数量
   toolCallNames: string[]; // 被调用的工具名称列表
   toolDefinitionTokens: number; // 工具定义 token 数量
@@ -34,7 +34,7 @@ export interface MCPToolsTokenStats extends BaseTokenStats {
  * 组件工具调用的 Token 统计
  */
 export interface ComponentToolsTokenStats extends BaseTokenStats {
-  agentName: "component-tools";
+  agentName: "component_tools";
   toolCallCount: number; // 被调用的组件工具数量
   toolCallNames: string[]; // 被调用的组件工具名称列表
   toolDefinitionTokens: number; // 组件工具定义 token 数量
