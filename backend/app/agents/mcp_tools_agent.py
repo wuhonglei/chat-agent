@@ -156,6 +156,148 @@ class MCPToolsAgent(BaseAgent):
                 disabled_tools.append(tool_name)
         return available_tools, disabled_tools
 
+    async def _execute_single_tool(
+        self,
+        tool_call: ChatCompletionMessageFunctionToolCall,
+        current_iteration: int,
+        iterations_by_tool: dict[str, int],
+    ) -> ToolCallResultMessage:
+        """Execute a single tool call and return the result message"""
+        tool_name = tool_call.function.name
+        start_time = get_current_time()
+
+        # 正常情况下，所有工具都应该在 iterations_by_tool 中（初始化时同步）
+        # 如果不在，说明有异常，使用 get 方法安全获取，默认值为 0（视为已用完）
+        if tool_name not in iterations_by_tool:
+            logger.warning(
+                "Tool not found in iterations tracking (unexpected), initializing as exhausted",
+                tool_name=tool_name,
+                iteration=current_iteration + 1,
+            )
+            iterations_by_tool[tool_name] = 0
+
+        # Check if tool has reached max iterations BEFORE calling
+        if iterations_by_tool[tool_name] <= 0:
+            logger.info(
+                "Tool max iterations reached, skipping",
+                tool_name=tool_name,
+                iteration=current_iteration + 1,
+            )
+            # Note: Tool should have been filtered out before LLM call, this is defensive check
+            return ToolCallResultMessage(
+                **{
+                    "role": "tool",
+                    "is_error": True,
+                    "tool_call_id": tool_call.id,
+                    "duration": get_time_duration(start_time),
+                    "content": f"Tool {tool_name} has hit max iterations, skipping",
+                }
+            )
+
+        # Decrement AFTER checking
+        iterations_by_tool[tool_name] -= 1
+
+        # Note: Tools are pre-filtered before LLM call, this decrement is for tracking only
+
+        try:
+            # Call the tool via MCP manager
+            # Parse arguments
+            arguments = json.loads(tool_call.function.arguments)
+            logger.info(
+                "Calling MCP tool",
+                tool_name=tool_name,
+                tool_call_id=tool_call.id,
+                iteration=current_iteration + 1,
+                arguments=arguments,
+            )
+            result, filtered_params = await self.mcp_manager.call_tool(
+                tool_name, arguments
+            )
+            content = self.mcp_manager.format_mcp_result(result)
+
+            # 如果有参数被过滤，在返回内容前添加警告信息，告知 LLM
+            if filtered_params:
+                warning_msg = (
+                    f"⚠️ 警告：以下参数被忽略（工具 {tool_name} 不支持这些参数）："
+                    f"{', '.join(filtered_params)}。"
+                    f"请勿在后续调用中使用这些参数。\n\n"
+                )
+                content = warning_msg + content
+                logger.info(
+                    "Added filtered params warning to tool result",
+                    tool_name=tool_name,
+                    filtered_params=filtered_params,
+                )
+
+            # Add tool result to messages
+            tool_call_result_message = ToolCallResultMessage(
+                **{
+                    "role": "tool",
+                    "content": content,
+                    "is_error": len(content or "") == 0,
+                    "tool_call_id": tool_call.id,
+                    "token_count": self.token_calculator.count_tokens(content),
+                    "duration": get_time_duration(start_time),
+                }
+            )
+            logger.info(
+                "MCP tool result received",
+                tool_name=tool_name,
+                tool_call_id=tool_call.id,
+                duration=tool_call_result_message.duration,
+                content_length=len(content) if content else 0,
+                content=content[:200] + "..." + content[-200:]
+                if len(content) > 400
+                else content,
+            )
+            return tool_call_result_message
+        except Exception as e:
+            tool_call_result_message = ToolCallResultMessage(
+                **{
+                    "role": "tool",
+                    "is_error": True,
+                    "content": str(e),
+                    "tool_call_id": tool_call.id,
+                    "duration": get_time_duration(start_time),
+                }
+            )
+            logger.error(
+                "Failed to call tool",
+                error=e,
+                tool_name=tool_name,
+                iteration=current_iteration + 1,
+                tool_call_id=tool_call.id,
+                duration=get_time_duration(start_time),
+                content_length=len(str(e)) if str(e) else 0,
+            )
+            return tool_call_result_message
+
+    async def _execute_tool_calls_parallel(
+        self,
+        tool_calls: list[ChatCompletionMessageFunctionToolCall],
+        current_iteration: int,
+        iterations_by_tool: dict[str, int],
+    ) -> list[ToolCallResultMessage]:
+        """Execute multiple tool calls in parallel and return the results
+
+        Args:
+            tool_calls: List of tool calls to execute
+            current_iteration: Current iteration number
+            iterations_by_tool: Dictionary tracking remaining iterations for each tool
+
+        Returns:
+            List of tool call result messages
+        """
+        # Create tasks for all tool calls
+        tasks = [
+            self._execute_single_tool(tool_call, current_iteration, iterations_by_tool)
+            for tool_call in tool_calls
+            if tool_call is not None
+        ]
+        # Execute all tasks in parallel
+        tool_results = await asyncio.gather(*tasks)
+        return tool_results
+
     async def _call_llm_with_mcp_tools(
         self,
         messages: list[dict],
@@ -268,134 +410,15 @@ class MCPToolsAgent(BaseAgent):
                 assistant_message=assistant_message.model_dump(),
             )
 
-            async def execute_single_tool(
-                tool_call: ChatCompletionMessageFunctionToolCall,
-                current_iteration: int = iteration,
-            ) -> ToolCallResultMessage:
-                """Execute a single tool call and return the result message"""
-                tool_name = tool_call.function.name
-                start_time = get_current_time()
-
-                # 正常情况下，所有工具都应该在 iterations_by_tool 中（初始化时同步）
-                # 如果不在，说明有异常，使用 get 方法安全获取，默认值为 0（视为已用完）
-                if tool_name not in iterations_by_tool:
-                    logger.warning(
-                        "Tool not found in iterations tracking (unexpected), initializing as exhausted",
-                        tool_name=tool_name,
-                        iteration=current_iteration + 1,
-                    )
-                    iterations_by_tool[tool_name] = 0
-
-                # Check if tool has reached max iterations BEFORE calling
-                if iterations_by_tool[tool_name] <= 0:
-                    logger.info(
-                        "Tool max iterations reached, skipping",
-                        tool_name=tool_name,
-                        iteration=current_iteration + 1,
-                    )
-                    # Note: Tool should have been filtered out before LLM call, this is defensive check
-                    return ToolCallResultMessage(
-                        **{
-                            "role": "tool",
-                            "is_error": True,
-                            "tool_call_id": tool_call.id,
-                            "duration": get_time_duration(start_time),
-                            "content": f"Tool {tool_name} has hit max iterations, skipping",
-                        }
-                    )
-
-                # Decrement AFTER checking
-                iterations_by_tool[tool_name] -= 1
-
-                # Note: Tools are pre-filtered before LLM call, this decrement is for tracking only
-
-                try:
-                    # Call the tool via MCP manager
-                    # Parse arguments
-                    arguments = json.loads(tool_call.function.arguments)
-                    logger.info(
-                        "Calling MCP tool",
-                        tool_name=tool_name,
-                        tool_call_id=tool_call.id,
-                        iteration=current_iteration + 1,
-                        arguments=arguments,
-                    )
-                    result, filtered_params = await self.mcp_manager.call_tool(
-                        tool_name, arguments
-                    )
-                    content = self.mcp_manager.format_mcp_result(result)
-
-                    # 如果有参数被过滤，在返回内容前添加警告信息，告知 LLM
-                    if filtered_params:
-                        warning_msg = (
-                            f"⚠️ 警告：以下参数被忽略（工具 {tool_name} 不支持这些参数）："
-                            f"{', '.join(filtered_params)}。"
-                            f"请勿在后续调用中使用这些参数。\n\n"
-                        )
-                        content = warning_msg + content
-                        logger.info(
-                            "Added filtered params warning to tool result",
-                            tool_name=tool_name,
-                            filtered_params=filtered_params,
-                        )
-
-                    # Add tool result to messages
-                    tool_call_result_message = ToolCallResultMessage(
-                        **{
-                            "role": "tool",
-                            "content": content,
-                            "is_error": len(content or "") == 0,
-                            "tool_call_id": tool_call.id,
-                            "token_count": self.token_calculator.count_tokens(content),
-                            "duration": get_time_duration(start_time),
-                        }
-                    )
-                    logger.info(
-                        "MCP tool result received",
-                        tool_name=tool_name,
-                        tool_call_id=tool_call.id,
-                        duration=tool_call_result_message.duration,
-                        content_length=len(content) if content else 0,
-                        content=content[:200] + "..." + content[-200:]
-                        if len(content) > 400
-                        else content,
-                    )
-                    return tool_call_result_message
-                except Exception as e:
-                    tool_call_result_message = ToolCallResultMessage(
-                        **{
-                            "role": "tool",
-                            "is_error": True,
-                            "content": str(e),
-                            "tool_call_id": tool_call.id,
-                            "duration": get_time_duration(start_time),
-                        }
-                    )
-                    logger.error(
-                        "Failed to call tool",
-                        error=e,
-                        tool_name=tool_name,
-                        iteration=current_iteration + 1,
-                        tool_call_id=tool_call.id,
-                        duration=get_time_duration(start_time),
-                        content_length=len(str(e)) if str(e) else 0,
-                    )
-                    return tool_call_result_message
-
             # Execute all tool calls in parallel
             logger.info(
                 "Executing tool calls in parallel",
                 tool_count=tool_count,
                 iteration=iteration + 1,
             )
-            # Create tasks for all tool calls
-            tasks = [
-                execute_single_tool(tool_call, iteration)
-                for tool_call in assistant_message.tool_calls
-                if tool_call is not None
-            ]
-            # Execute all tasks in parallel
-            tool_results = await asyncio.gather(*tasks)
+            tool_results = await self._execute_tool_calls_parallel(
+                assistant_message.tool_calls, iteration, iterations_by_tool
+            )
 
             # Note: Tools are now pre-filtered before LLM call, so no need to remove them here
             # The iterations_by_tool dictionary is kept for defensive checks in execute_single_tool
