@@ -4,7 +4,6 @@ from collections.abc import AsyncGenerator
 
 from app.agents import (
     ComponentToolsAgent,
-    ContextCompressionAgent,
     MCPToolsAgent,
     ResponseGenerationAgent,
     TitleGenerationAgent,
@@ -50,12 +49,6 @@ class ChatService:
             think_mode=think_mode,
             llm_config=settings.response_model,
             schema_service=self.schema_service,
-        )
-        # 上下文压缩Agent
-        self.context_compression_agent = ContextCompressionAgent(
-            think_mode=False,
-            llm_config=settings.tool_call_model,
-            compression_config=settings.compression,
         )
         # 上下文压缩服务
         self.context_compression_service = ContextCompressionService(
