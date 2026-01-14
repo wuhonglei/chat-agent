@@ -46,8 +46,6 @@ user_message_with_component_data_template = Template(
 
 disabled_tools_message_template = Template(
     """
-以下工具已达到最大迭代次数，已被禁用, 请不要再尝试调用它们：
-{% for tool in disabled_tools %}- {{ tool }}
-{% endfor %}
+注意：以下工具已达到5次调用上限，当前不可再调用: {{ ', '.join(disabled_tools) }}
 """.strip()
 )

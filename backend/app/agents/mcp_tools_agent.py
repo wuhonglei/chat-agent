@@ -175,7 +175,7 @@ class MCPToolsAgent(BaseAgent):
             extra_body=extra_body,
         )
         max_total_iterations = 10  # Prevent infinite loops
-        max_iterations_by_tool = 1
+        max_iterations_by_tool = 5
         # 复制列表以避免修改原始参数（后续会修改 tools 列表）
         tools = list(tools) if tools else []
         iterations_by_tool = {
