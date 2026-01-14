@@ -20,27 +20,27 @@ def format_results(response: TavilySearchResponse | TavilyExtractResponse) -> st
 
     # Include answer if available
     if hasattr(response, "answer") and response.answer:
-        output.append(f"Answer: {response.answer}")
+        output.append(f"答案: {response.answer}")
 
     # Format detailed search results
     output.append("Detailed Results:")
     for result in response.results:
-        output.append(f"\nTitle: {result.title}")
-        output.append(f"URL: {result.url}")
+        output.append(f"\n标题: {result.title}")
+        output.append(f"URL 链接: {result.url}")
         if hasattr(result, "content") and result.content:
-            output.append(f"Content: {result.content}")
+            output.append(f"搜索摘要: {result.content}")
         if hasattr(result, "raw_content") and result.raw_content:
-            output.append(f"Raw Content: {result.raw_content}")
+            output.append(f"网页内容: {result.raw_content}")
         if hasattr(result, "favicon") and result.favicon:
-            output.append(f"Favicon: {result.favicon}")
+            output.append(f"网站图标: {result.favicon}")
 
     # Add images section if available
     if hasattr(response, "images") and response.images and len(response.images) > 0:
-        output.append("\nImages:")
+        output.append("图片列表:")
         for index, image in enumerate(response.images, start=1):
-            output.append(f"\n[{index}] URL: {image.url}")
+            output.append(f"[{index}] 图片 URL: {image.url}")
             if image.description:
-                output.append(f"   Description: {image.description}")
+                output.append(f"图片描述: {image.description}")
 
     return "\n".join(output)
 

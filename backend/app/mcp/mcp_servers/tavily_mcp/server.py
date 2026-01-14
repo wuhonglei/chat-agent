@@ -48,7 +48,7 @@ async def tavily_search(
         description="Maximum number of relevant chunks returned per source (1-5). Available only when search_depth is 'advanced'",
     ),
     max_results: int = Field(
-        default=10,
+        default=5,
         ge=0,
         le=20,
         description="The maximum number of search results to return (0-20)",
