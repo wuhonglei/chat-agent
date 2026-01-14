@@ -154,13 +154,11 @@ async def tavily_extract(
     ideal for data collection, content analysis, and research tasks.
     """
     try:
-        # Use AsyncTavilyClient.extract method
-        extract_params = {"urls": urls, "extract_depth": extract_depth}
-
-        if query:
-            extract_params["query"] = query
-
-        response = await client.extract(**extract_params)
+        response = await client.extract(
+            urls=urls,
+            extract_depth=extract_depth,
+            query=query,
+        )
         try:
             data = TavilyExtractResponse.model_validate(response)
             is_chunked = extract_depth in ["advanced"] and query is not None
@@ -231,29 +229,18 @@ async def tavily_crawl(
     You can control how deep and wide it goes, and guide it to focus on specific sections of the site.
     """
     try:
-        crawl_params = {"url": url, "extract_depth": extract_depth}
-        if instructions:
-            crawl_params["instructions"] = instructions
-        if max_depth:
-            crawl_params["max_depth"] = max_depth
-        if max_breadth:
-            crawl_params["max_breadth"] = max_breadth
-        if limit:
-            crawl_params["limit"] = limit
-        if select_paths:
-            crawl_params["select_paths"] = select_paths
-        if select_domains:
-            crawl_params["select_domains"] = select_domains
-        if exclude_paths:
-            crawl_params["exclude_paths"] = exclude_paths
-        if exclude_domains:
-            crawl_params["exclude_domains"] = exclude_domains
-        if allow_external:
-            crawl_params["allow_external"] = allow_external
-
-        # Use AsyncTavilyClient.crawl method
         response = await client.crawl(
-            **crawl_params,
+            url=url,
+            instructions=instructions,
+            max_depth=max_depth,
+            max_breadth=max_breadth,
+            limit=limit,
+            select_paths=select_paths,
+            select_domains=select_domains,
+            exclude_paths=exclude_paths,
+            exclude_domains=exclude_domains,
+            allow_external=allow_external,
+            extract_depth=extract_depth,
         )
         try:
             data = TavilyCrawlResponse.model_validate(response)
@@ -317,7 +304,6 @@ async def tavily_map(
     Perfect for site audits, content discovery, and understanding website architecture.
     """
     try:
-        # Use AsyncTavilyClient.map method
         response = await client.map(
             url=url,
             instructions=instructions,
