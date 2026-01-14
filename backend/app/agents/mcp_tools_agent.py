@@ -46,15 +46,21 @@ class MCPToolsAgent(BaseAgent):
         self.duration: float | None = None
         self.token_stats: MCPToolsTokenStats | None = None
 
-        compression_config = settings.compression.iteration_compression
-        # Iteration compressor for managing context between iterations
-        self.iteration_compressor = IterationCompressor(
-            max_context_length=compression_config.max_iteration_context_length,
-            token_calculator=self.token_calculator,
-        )
-        self.compression_trigger_threshold = (
-            compression_config.compression_trigger_threshold
-        )
+        # Initialize compression components only if compression is enabled
+        if settings.compression.enabled:
+            compression_config = settings.compression.iteration_compression
+            # Iteration compressor for managing context between iterations
+            self.iteration_compressor = IterationCompressor(
+                max_context_length=compression_config.max_iteration_context_length,
+                token_calculator=self.token_calculator,
+            )
+            self.compression_trigger_threshold = (
+                compression_config.compression_trigger_threshold
+            )
+        else:
+            # Compression disabled - set components to None
+            self.iteration_compressor = None
+            self.compression_trigger_threshold = float('inf')  # Never trigger compression
 
     def get_server_names(
         self, mcp_auto_mode: bool, source_config: dict
@@ -399,45 +405,51 @@ class MCPToolsAgent(BaseAgent):
                 current_iteration_results.append(tool_call_result_message)
                 yield tool_call_result_message
 
-            # Perform iteration context compression if needed
-            current_context_length = self.token_calculator.count_messages_tokens(
-                self.output_messages
-            )
-
-            if (
-                current_context_length > self.compression_trigger_threshold
-                and iteration < max_total_iterations - 1
-            ):
-                logger.debug(
-                    "Compressing iteration context",
-                    iteration=iteration + 1,
-                    current_context_length=current_context_length,
-                    threshold=self.compression_trigger_threshold,
+            # Perform iteration context compression if needed and enabled
+            if settings.compression.enabled and self.iteration_compressor is not None:
+                current_context_length = self.token_calculator.count_messages_tokens(
+                    self.output_messages
                 )
 
-                # Compress the context
-                # Convert ToolCallResultMessage objects to dictionaries for compression
-                current_results_dicts = format_tool_call_messages_for_llm(
-                    current_iteration_results
-                )
-                compressed_context: list[dict] = (
-                    self.iteration_compressor.compress_iteration_context(
-                        current_iteration_results=current_results_dicts,
-                        historical_context=compressed_historical_context,
-                        iteration=iteration,
+                if (
+                    current_context_length > self.compression_trigger_threshold
+                    and iteration < max_total_iterations - 1
+                ):
+                    logger.debug(
+                        "Compressing iteration context",
+                        iteration=iteration + 1,
+                        current_context_length=current_context_length,
+                        threshold=self.compression_trigger_threshold,
                     )
-                )
 
-                # Update historical context for next iteration
-                compressed_historical_context = compressed_context
+                    # Compress the context
+                    # Convert ToolCallResultMessage objects to dictionaries for compression
+                    current_results_dicts = format_tool_call_messages_for_llm(
+                        current_iteration_results
+                    )
+                    compressed_context: list[dict] = (
+                        self.iteration_compressor.compress_iteration_context(
+                            current_iteration_results=current_results_dicts,
+                            historical_context=compressed_historical_context,
+                            iteration=iteration,
+                        )
+                    )
 
+                    # Update historical context for next iteration
+                    compressed_historical_context = compressed_context
+
+                    logger.debug(
+                        "Iteration context compressed",
+                        iteration=iteration + 1,
+                        original_length=current_context_length,
+                        compressed_length=self.token_calculator.count_messages_tokens(
+                            compressed_context
+                        ),
+                    )
+            else:
                 logger.debug(
-                    "Iteration context compressed",
+                    "Iteration context compression disabled",
                     iteration=iteration + 1,
-                    original_length=current_context_length,
-                    compressed_length=self.token_calculator.count_messages_tokens(
-                        compressed_context
-                    ),
                 )
 
         # If we hit max iterations, return error message
