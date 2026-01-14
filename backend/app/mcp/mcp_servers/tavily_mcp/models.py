@@ -52,10 +52,6 @@ class TavilyExtractResultItem(BaseModel):
     title: str | None = Field(default="", description="提取内容的标题")
     url: str | None = Field(default="", description="提取内容的URL")
     raw_content: str | None = Field(default="", description="提取的原始内容")
-    images: list[TavilyImage] = Field(
-        default_factory=list, description="提取的图片列表"
-    )
-    favicon: str | None = Field(default="", description="网站图标URL")
 
 
 class TavilyFailedResultItem(BaseModel):

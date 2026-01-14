@@ -25,7 +25,7 @@ def format_search_results(
     is_chunked = search_depth in ["advanced", "fast"]
 
     # Format detailed search results
-    output.append("网页搜索结果(Tavily Search API):")
+    output.append("网页搜索结果 (Tavily Search API):")
     for index, result in enumerate(response.results, start=1):
         temp_output: list[str] = []
         temp_output.append(f"[{index}] 标题: {result.title}")
@@ -67,28 +67,22 @@ def format_extract_results(response: TavilyExtractResponse) -> str:
     output = []
 
     # Format successful extraction results
-    output.append("提取结果:")
+    output.append("网页提取结果 (Tavily Extract API):")
     for index, result in enumerate(response.results, start=1):
-        output.append(f"\n[{index}] 标题: {result.title}")
-        output.append(f"URL: {result.url}")
+        temp_output: list[str] = []
+        temp_output.append(f"[{index}] 标题: {result.title}")
+        temp_output.append(f"URL: {result.url}")
         if result.raw_content:
-            # Truncate content if it's too long
-            content_preview = (
-                result.raw_content[:300] + "..."
-                if len(result.raw_content) > 300
-                else result.raw_content
-            )
-            output.append(f"提取内容: {content_preview}")
-        if result.images:
-            output.append(f"图片数量: {len(result.images)} 张")
-        if result.favicon:
-            output.append(f"网站图标: {result.favicon}")
+            temp_output.append(f"提取内容: {result.raw_content}")
+        output.append("\n".join(temp_output))
 
-    # Format failed results if any
     if response.failed_results:
-        output.append(f"\n提取失败的URL ({len(response.failed_results)} 个):")
-        for failed in response.failed_results:
-            output.append(f"• {failed.url} - 错误: {failed.error}")
+        output.append("\n网页提取失败的URL:")
+        for index, failed in enumerate(response.failed_results, start=1):
+            temp_output: list[str] = []
+            temp_output.append(f"[{index}] URL: {failed.url}")
+            temp_output.append(f"错误: {failed.error}")
+            output.append("\n".join(temp_output))
 
     return "\n".join(output)
 
