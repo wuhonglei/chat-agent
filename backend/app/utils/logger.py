@@ -36,7 +36,7 @@ def _make_json_serializable(obj: Any) -> Any:
         return {key: _make_json_serializable(value) for key, value in obj.items()}
     elif isinstance(obj, list | tuple):
         return [_make_json_serializable(item) for item in obj]
-    elif isinstance(obj, str | int | float | bool | type[None]):
+    elif isinstance(obj, str | int | float | bool) or obj is None:
         return obj
     else:
         # 对于其他不可序列化的对象，转换为字符串
