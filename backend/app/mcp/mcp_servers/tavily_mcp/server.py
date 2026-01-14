@@ -139,7 +139,7 @@ async def tavily_extract(
     urls: list[str] = Field(..., description="要提取内容的URL（字符串或数组）"),
     extract_depth: str = Field(
         default="advanced",
-        description="提取深度。'basic'为基本提取（每5个成功URL提取消耗1积分），'advanced'为高级提取（每5个成功URL提取消耗2积分），包含表格和嵌入内容。选项：'basic', 'advanced'",
+        description="The depth of the extraction process. advanced extraction retrieves more data, including tables and embedded content, with higher success but may increase latency.basic extraction costs 1 credit per 5 successful URL extractions, while advanced extraction costs 2 credits per 5 successful URL extractions.",
     ),
 ) -> TavilyExtractResponse:
     """
