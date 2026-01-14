@@ -87,24 +87,33 @@ def format_search_results(
         temp_output.append(f"标题: {clean_invisible_chars(result.title)}")
         temp_output.append(f"URL: {result.url}")
         if result.score:
-            temp_output.append(f"相关性分数: {result.score}")
-        if result.content:
+            temp_output.append(f"相关性分数: {result.score:.2f}")
+        content = clean_invisible_chars(result.content)
+        if content:
             if is_chunked:
-                chunks = result.content.split("[...]")
+                chunks = content.split("[...]")
                 for _, chunk in enumerate(chunks, start=1):
                     temp_output.append(f"- 相关内容: {chunk}")
             else:
-                temp_output.append(f"网页内容: {result.content}")
+                temp_output.append(f"网页内容: {content}")
         output.append("\n".join(temp_output))
 
     if ignored_results:
         output.append("\n以下结果因相关性分数低于阈值 0.5 而被忽略（可作为补充信息）:")
         for index, result in enumerate(ignored_results, start=1):
-            temp_output: list[str] = [f"搜索结果 [{index}] 的详细信息如下:"]
+            temp_output: list[str] = [f"被忽略的搜索结果 [{index}] 的详细信息如下:"]
             temp_output.append(f"标题: {clean_invisible_chars(result.title)}")
             temp_output.append(f"URL: {result.url}")
             if result.score:
-                temp_output.append(f"相关性分数: {result.score}")
+                temp_output.append(f"相关性分数: {result.score:.2f}")
+            content = clean_invisible_chars(result.content)
+            if content:
+                if is_chunked:
+                    chunks = content.split("[...]")
+                    for _, chunk in enumerate(chunks, start=1):
+                        temp_output.append(f"- 相关内容: {chunk}")
+                else:
+                    temp_output.append(f"网页内容: {content}")
             output.append("\n".join(temp_output))
 
     return "\n".join(output)
@@ -128,13 +137,14 @@ def format_extract_results(is_chunked: bool, response: TavilyExtractResponse) ->
         temp_output: list[str] = [f"提取结果 [{index}] 的详细信息如下:"]
         temp_output.append(f"标题: {clean_invisible_chars(result.title)}")
         temp_output.append(f"URL: {result.url}")
-        if result.raw_content:
+        raw_content = clean_invisible_chars(result.raw_content)
+        if raw_content:
             if is_chunked:
-                chunks = result.raw_content.split("[...]")
+                chunks = raw_content.split("[...]")
                 for _, chunk in enumerate(chunks, start=1):
                     temp_output.append(f"- 相关内容: {chunk}")
             else:
-                temp_output.append(f"提取内容: {result.raw_content}")
+                temp_output.append(f"提取内容: {raw_content}")
         output.append("\n".join(temp_output))
 
     if response.failed_results:
