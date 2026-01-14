@@ -109,7 +109,7 @@ def format_search_results(
             output.append("\n".join(temp_output))
             output.append("\n")
 
-    return "\n".join(output)
+    return "\n\n".join(output)
 
 
 def format_extract_results(is_chunked: bool, response: TavilyExtractResponse) -> str:
@@ -149,7 +149,7 @@ def format_extract_results(is_chunked: bool, response: TavilyExtractResponse) ->
             output.append("\n".join(temp_output))
             output.append("\n")
 
-    return "\n".join(output)
+    return "\n\n".join(output)
 
 
 def format_crawl_results(is_chunked: bool, response: TavilyCrawlResponse) -> str:
@@ -170,16 +170,17 @@ def format_crawl_results(is_chunked: bool, response: TavilyCrawlResponse) -> str
     for index, page in enumerate(response.results, start=1):
         temp_output: list[str] = [f"爬取结果 [{index}] 的详细信息如下:"]
         temp_output.append(f"爬取的URL: {page.url}")
-        if page.raw_content:
+        raw_content = clean_invisible_chars(page.raw_content)
+        if raw_content:
             if is_chunked:
-                chunks = page.raw_content.split("[...]")
+                chunks = raw_content.split("[...]")
                 for _, chunk in enumerate(chunks, start=1):
                     temp_output.append(f"- 相关内容: {chunk}")
             else:
-                temp_output.append(f"爬取内容: {page.raw_content}")
+                temp_output.append(f"爬取内容: {raw_content}")
         output.append("\n".join(temp_output))
 
-    return "\n".join(output)
+    return "\n\n".join(output)
 
 
 def format_map_results(response: TavilyMapResponse) -> str:
