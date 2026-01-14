@@ -107,6 +107,7 @@ def format_search_results(
             if result.score:
                 temp_output.append(f"相关性分数: {result.score:.2f}")
             output.append("\n".join(temp_output))
+            output.append("\n")
 
     return "\n".join(output)
 
