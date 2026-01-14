@@ -15,7 +15,10 @@ from app.agents.base import BaseAgent
 # Import compression config
 from app.core.config import settings
 from app.mcp.mcp_client import MCPClientManager
-from app.prompts import get_prompt_with_mcp_servers
+from app.prompts import (
+    get_prompt_with_mcp_servers,
+    get_user_message_with_disabled_tools,
+)
 from app.schemas.chat import ChatMessageItemReq, ChatRequest
 from app.schemas.config import LLMConfig
 from app.schemas.llm import (
@@ -27,7 +30,7 @@ from app.schemas.token_stats import MCPToolsTokenStats
 from app.utils.compression import IterationCompressor
 from app.utils.logger import logger
 from app.utils.mcp import count_tool_calls, extract_tool_call_names
-from app.utils.message import format_tool_call_messages_for_llm
+from app.utils.message import find_last_user_message, format_tool_call_messages_for_llm
 from app.utils.time import get_current_time, get_time_duration
 
 
@@ -104,7 +107,11 @@ class MCPToolsAgent(BaseAgent):
         # 流式调用LLM并收集工具调用消息
         start_time = get_current_time()
         async for message in self._call_llm_with_mcp_tools(
-            input_messages, self.model_name, self.extra_body, tools
+            input_messages,
+            self.model_name,
+            self.extra_body,
+            tools,
+            tool_call_user_message,
         ):
             if message:
                 yield self.format_sse_message("mcp_tool_call", message.model_dump())
@@ -127,12 +134,27 @@ class MCPToolsAgent(BaseAgent):
                 },
             )
 
+    def _get_tools_state(
+        self, tools: list[dict], iterations_by_tool: dict[str, int]
+    ) -> tuple[list[dict], int]:
+        """Get the description of the tools"""
+        available_tools: list[dict] = []
+        disabled_tools: list[str] = []
+        for tool in tools:
+            tool_name = tool.get("function", {}).get("name", "")
+            if iterations_by_tool.get(tool_name, 0) > 0:
+                available_tools.append(tool)
+            else:
+                disabled_tools.append(tool_name)
+        return available_tools, disabled_tools
+
     async def _call_llm_with_mcp_tools(
         self,
         messages: list[dict],
         model: str,
         extra_body: dict[str, Any],
         tools: list[dict],
+        tool_call_user_message: str,
     ) -> AsyncGenerator[ToolCallMessage, ToolCallMessage]:
         """Call LLM with MCP tools and handle tool calls, streaming results
 
@@ -141,7 +163,7 @@ class MCPToolsAgent(BaseAgent):
             model: 模型名称
             extra_body: 额外参数
             tools: 工具列表
-
+            tool_call_user_message: 工具调用用户消息
         Yields:
             ToolCallMessage: Tool call related messages
         """
@@ -153,7 +175,7 @@ class MCPToolsAgent(BaseAgent):
             extra_body=extra_body,
         )
         max_total_iterations = 10  # Prevent infinite loops
-        max_iterations_by_tool = 5
+        max_iterations_by_tool = 1
         # 复制列表以避免修改原始参数（后续会修改 tools 列表）
         tools = list(tools) if tools else []
         iterations_by_tool = {
@@ -172,21 +194,20 @@ class MCPToolsAgent(BaseAgent):
 
             # Filter out tools that have reached max iterations BEFORE calling LLM
             # This prevents LLM from seeing tools it cannot use
-            original_count = len(tools)
-            tools[:] = [
-                tool
-                for tool in tools
-                if iterations_by_tool.get(tool.get("function", {}).get("name"), 0) > 0
-            ]
-            filtered_count = original_count - len(tools)
-
-            if filtered_count > 0:
+            available_tools, disabled_tools = self._get_tools_state(
+                tools, iterations_by_tool
+            )
+            if disabled_tools:
                 logger.info(
                     "Pre-filtered tools that reached max iterations",
-                    filtered_out=filtered_count,
-                    remaining_tools=len(tools),
+                    disabled_tools=disabled_tools,
                     iteration=iteration + 1,
                 )
+                last_user_message = find_last_user_message(messages)
+                if last_user_message:
+                    last_user_message["content"] = get_user_message_with_disabled_tools(
+                        tool_call_user_message, disabled_tools
+                    )
 
             # Call LLM with tools
             # 格式化 collected_messages，过滤掉额外的字段（如 token_count, duration, is_error）
@@ -196,7 +217,7 @@ class MCPToolsAgent(BaseAgent):
             response = await self._call_llm_api(
                 model=model,
                 messages=messages + formatted_collected_messages,
-                tools=tools if tools else None,
+                tools=available_tools if available_tools else None,
                 stream=False,
                 parallel_tool_calls=True,  # 启用并行工具调用
                 extra_body=extra_body,

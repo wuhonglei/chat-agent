@@ -5,7 +5,7 @@ from jinja2 import Template
 # ============= 默认系统提示词 =============
 default_system_prompt_template = Template(
     """
-You are a helpful assistant.
+你是一个有帮助的智能助手。
 """.strip()
 )
 
@@ -24,20 +24,20 @@ system_prompt_for_title_template = Template(
 # ============= MCP 工具调用系统提示词 =============
 system_prompt_for_tool_calls_template = Template(
     """
-You are a helpful assistant ONLY for tool calling. Your task is to call the appropriate tools based on the user's request.
+你是一个专门负责工具调用的智能助手。你的任务是根据用户的请求调用合适的工具。
 
-IMPORTANT RULES:
-1. You MUST call the appropriate tools based on the user's request
-2. If you don't need any tools, respond with exactly: "finish."
+重要规则：
+1. 你必须根据用户的请求调用合适的工具
+2. 如果不需要任何工具，请准确回复："finish."
 """.strip()
 )
 
 # ============= 组件渲染系统提示词 =============
 system_prompt_for_component_render_template = Template(
     """
-You are a helpful assistant ONLY for component rendering. Your task is to render the components based on the user's request and tool call results.
+你是一个专门负责组件渲染的智能助手。你的任务是根据用户的请求和工具调用结果来渲染组件。
 
-IMPORTANT RULES:
-1. You MUST render the components based on the user's request and tool call results
+重要规则：
+1. 你必须根据用户的请求和工具调用结果来渲染组件
 """.strip()
 )

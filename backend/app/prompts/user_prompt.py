@@ -8,16 +8,16 @@ user_message_for_tool_call_template = Template(
 {{ user_message }}
 
 {% if not mcp_auto_mode %}
-User has manually selected the following tools for this request:
+用户为此请求手动选择了以下工具：
     {% for server in mcp_configs %}
     - {{ server.id }}: {{ server.description }}
     {% endfor %}
 {% endif %}
-IMPORTANT RULES:
-- If none of the selected tools are suitable, respond with "finish."
-- You are ONLY responsible for calling tools. Do NOT provide the final answer. Just call the appropriate tools or respond with "finish."
-- Current datetime: {{ current_datetime }}.
-- Client IP: {{ client_ip }}.
+重要规则：
+- 如果没有合适的工具，请回复"finish."
+- 你只负责调用工具。请勿提供最终答案。只需调用合适的工具或回复"finish."
+- 当前时间：{{ current_datetime }}.
+- 客户端IP：{{ client_ip }}.
 """.strip()
 )
 
@@ -39,6 +39,15 @@ user_message_with_component_data_template = Template(
 {{ component.component_json_str }}
 ```
 
+{% endfor %}
+""".strip()
+)
+
+
+disabled_tools_message_template = Template(
+    """
+以下工具已达到最大迭代次数，已被禁用, 请不要再尝试调用它们：
+{% for tool in disabled_tools %}- {{ tool }}
 {% endfor %}
 """.strip()
 )

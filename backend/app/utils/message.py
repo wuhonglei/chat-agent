@@ -98,3 +98,13 @@ def format_tool_call_messages_for_llm(
             format_tool_call_message_for_llm(_message, clear_reasoning_content)
         )
     return new_messages
+
+
+def find_last_user_message(messages: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """
+    查找最后一个用户消息
+    """
+    for message in reversed(messages):
+        if message.get("role") == "user":
+            return message
+    return None

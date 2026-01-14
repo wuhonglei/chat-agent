@@ -273,6 +273,38 @@ class LoggerWrapper:
 logger = LoggerWrapper()
 
 
+def debug_sink(message: Message) -> None:
+    """调试环境自定义 sink，提供可读的格式化输出
+
+    当 extra 为空时，不显示 extra 部分
+    """
+    record = message.record
+
+    # 构建基础格式
+    time_str = record["time"].strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]  # 保留毫秒
+    level_str = f"{record['level'].name:<8}"
+    location_str = f"{record['name']}:{record['function']}:{record['line']}"
+
+    # 构建输出字符串
+    output_parts = [
+        f"\x1b[32m{time_str}\x1b[0m",  # 绿色时间
+        f"\x1b[34m{level_str}\x1b[0m",  # 蓝色级别
+        f"\x1b[36m{location_str}\x1b[0m",  # 青色位置
+        f"\x1b[34m{record['message']}\x1b[0m",  # 蓝色消息
+    ]
+
+    # 只有当 extra 不为空时才添加 extra 部分
+    if record["extra"]:
+        extra_str = str(_make_json_serializable(record["extra"]))
+        output_parts.append(extra_str)
+
+    # 如果有异常信息，也添加异常
+    if record["exception"]:
+        output_parts.append(f"\n{record['exception'].traceback}")
+
+    sys.stderr.write(" | ".join(output_parts) + "\n")
+
+
 def setup_logger(debug: bool = False) -> None:
     """配置日志系统
 
@@ -282,18 +314,10 @@ def setup_logger(debug: bool = False) -> None:
     _loguru_logger.remove()  # 移除默认的 handler
 
     if debug:
-        debug_log_format = (
-            "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
-            "<level>{level: <8}</level> | "
-            "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
-            "<level>{message}</level> | "
-            "{extra}"
-        )
-        # 调试模式：使用格式化的文本输出
+        # 调试模式：使用自定义 sink 提供可读的格式化输出
         _loguru_logger.add(
-            sys.stderr,
+            debug_sink,
             level="DEBUG",
-            format=debug_log_format,
         )
     else:
         # 生产模式：使用自定义 sink 输出精简的 JSON

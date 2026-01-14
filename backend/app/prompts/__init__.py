@@ -5,6 +5,7 @@ from app.prompts.prompt_utils import (
     get_prompt_for_title,
     get_prompt_with_mcp_servers,
     get_user_message_with_component_data,
+    get_user_message_with_disabled_tools,
 )
 
 __all__ = [
@@ -12,4 +13,5 @@ __all__ = [
     "get_prompt_for_title",
     "get_prompt_with_mcp_servers",
     "get_user_message_with_component_data",
+    "get_user_message_with_disabled_tools",
 ]

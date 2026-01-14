@@ -10,6 +10,7 @@ from app.prompts.system_prompt import (
     system_prompt_for_tool_calls_template,
 )
 from app.prompts.user_prompt import (
+    disabled_tools_message_template,
     user_message_for_title_template,
     user_message_for_tool_call_template,
     user_message_with_component_data_template,
@@ -158,3 +159,16 @@ def get_user_message_with_component_data(
         user_message_with_component_data=user_message_with_component_data,
     )
     return user_message_with_component_data
+
+
+def get_user_message_with_disabled_tools(
+    user_message: str, disabled_tools: list[str]
+) -> str:
+    """Get disabled tools message"""
+    if not disabled_tools:
+        return user_message
+
+    disabled_note = disabled_tools_message_template.render(
+        disabled_tools=disabled_tools
+    )
+    return f"{user_message}\n\n{disabled_note}"
