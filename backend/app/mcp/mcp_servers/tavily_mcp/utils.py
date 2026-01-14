@@ -109,7 +109,7 @@ def format_search_results(
             output.append("\n".join(temp_output))
             output.append("\n")
 
-    return "\n\n".join(output)
+    return "\n".join(output)
 
 
 def format_extract_results(is_chunked: bool, response: TavilyExtractResponse) -> str:
@@ -149,7 +149,7 @@ def format_extract_results(is_chunked: bool, response: TavilyExtractResponse) ->
             output.append("\n".join(temp_output))
             output.append("\n")
 
-    return "\n\n".join(output)
+    return "\n".join(output)
 
 
 def format_crawl_results(is_chunked: bool, response: TavilyCrawlResponse) -> str:
@@ -180,7 +180,7 @@ def format_crawl_results(is_chunked: bool, response: TavilyCrawlResponse) -> str
                 temp_output.append(f"爬取内容: {raw_content}")
         output.append("\n".join(temp_output))
 
-    return "\n\n".join(output)
+    return "\n".join(output)
 
 
 def format_map_results(response: TavilyMapResponse) -> str:
