@@ -1,3 +1,5 @@
+import re
+
 from .models import (
     TavilyCrawlResponse,
     TavilyExtractResponse,
@@ -5,6 +7,61 @@ from .models import (
     TavilySearchResponse,
     TavilySearchResultItem,
 )
+
+
+def clean_invisible_chars(
+    raw_str: str, full_clean: bool = False, keep_edges: bool = False
+) -> str:
+    """
+    清理字符串中的常见不可见 Unicode 字符（解决文本处理中的"隐形坑"）
+
+    Args:
+        raw_str: 待处理的原始字符串
+        full_clean: 是否全量清理（True：移除所有不可打印字符；False：仅移除高频有害不可见字符，默认）
+        keep_edges: 仅清理字符串首尾的不可见字符（True：仅首尾；False：全局清理，默认）
+
+    Returns:
+        清理后的干净字符串
+
+    Raises:
+        TypeError: 输入不是字符串类型时抛出
+    """
+    # 输入类型校验
+    if not isinstance(raw_str, str):
+        raise TypeError(
+            f"输入必须是字符串类型，当前输入类型为 {type(raw_str).__name__}"
+        )
+
+    # 情况1：仅清理首尾不可见字符（先定义待清理的字符集合）
+    invisible_char_set = {
+        "\u200b",
+        "\u200c",
+        "\u200d",
+        "\ufeff",
+        "\u00a0",
+        "\u202f",
+        "\t",
+        "\n",
+        "\r",
+        " ",
+    }
+    if keep_edges:
+        edge_clean_chars = "".join(invisible_char_set)
+        return raw_str.strip(edge_clean_chars)
+
+    # 情况2：全局清理（分 普通清理 / 全量清理 两种粒度）
+    if full_clean:
+        # 全量清理：匹配所有 Unicode 不可打印字符（\p{C}），支持多语言环境
+        # re.UNICODE 开启 Unicode 匹配支持，兼容 Python 3.7+
+        full_clean_pattern = re.compile(r"\p{C}", flags=re.UNICODE)
+        cleaned_str = full_clean_pattern.sub("", raw_str)
+    else:
+        # 普通清理（默认推荐）：仅移除高频有害不可见字符，保留正常排版（如换行、Tab 缩进）
+        # 匹配：零宽度系列 + 不换行空格 + BOM 标记，不影响正常文本格式
+        normal_clean_pattern = re.compile(r"[\u200b\u200c\u200d\ufeff\u00a0\u202f]")
+        cleaned_str = normal_clean_pattern.sub("", raw_str)
+
+    return cleaned_str
 
 
 def format_search_results(
@@ -27,7 +84,7 @@ def format_search_results(
     output.append("网页搜索结果 (Tavily Search API):")
     for index, result in enumerate(response.results, start=1):
         temp_output: list[str] = [f"搜索结果 [{index}] 的详细信息如下:"]
-        temp_output.append(f"标题: {result.title}")
+        temp_output.append(f"标题: {clean_invisible_chars(result.title)}")
         temp_output.append(f"URL: {result.url}")
         if result.score:
             temp_output.append(f"相关性分数: {result.score}")
@@ -44,7 +101,7 @@ def format_search_results(
         output.append("\n以下结果因相关性分数低于阈值 0.5 而被忽略（可作为补充信息）:")
         for index, result in enumerate(ignored_results, start=1):
             temp_output: list[str] = [f"搜索结果 [{index}] 的详细信息如下:"]
-            temp_output.append(f"标题: {result.title}")
+            temp_output.append(f"标题: {clean_invisible_chars(result.title)}")
             temp_output.append(f"URL: {result.url}")
             if result.score:
                 temp_output.append(f"相关性分数: {result.score}")
@@ -69,7 +126,7 @@ def format_extract_results(is_chunked: bool, response: TavilyExtractResponse) ->
     output.append("网页提取结果 (Tavily Extract API):")
     for index, result in enumerate(response.results, start=1):
         temp_output: list[str] = [f"提取结果 [{index}] 的详细信息如下:"]
-        temp_output.append(f"标题: {result.title}")
+        temp_output.append(f"标题: {clean_invisible_chars(result.title)}")
         temp_output.append(f"URL: {result.url}")
         if result.raw_content:
             if is_chunked:
