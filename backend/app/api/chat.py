@@ -126,19 +126,22 @@ async def chat_stream(
 
                 # 流式生成响应
                 start_time = get_current_time()
-                history = message_service.get_chat_messages_by_ids(
+                history_messages = message_service.get_history_messages_by_ids(
                     chat_request.history_ids
                 )
                 logger.info(
                     "Starting stream message generation",
                     conversation_id=chat_request.conversation_id,
                     history_ids_count=len(chat_request.history_ids),
+                    history_messages_count=len(history_messages),
                     client_ip=client_ip,
                 )
 
                 chunk_count = 0
                 async for chunk in chat_service.stream_message(
-                    chat_request=chat_request, history=history, client_ip=client_ip
+                    chat_request=chat_request,
+                    history_messages=history_messages,
+                    client_ip=client_ip,
                 ):
                     chunk_count += 1
                     yield chunk

@@ -10,7 +10,7 @@ from app.agents import (
 )
 from app.core.config import settings
 from app.mcp.mcp_client import MCPClientManager
-from app.schemas.chat import ChatMessageItemReq, ChatRequest, CollectedResponse
+from app.schemas.chat import ChatMessageItem, ChatRequest, CollectedResponse
 from app.schemas.token_stats import TotalTokenStats
 from app.services.component_schema_service import ComponentSchemaService
 from app.utils.logger import logger
@@ -52,7 +52,7 @@ class ChatService:
     async def stream_message(
         self,
         chat_request: ChatRequest,
-        history: list[ChatMessageItemReq],
+        history_messages: list[ChatMessageItem],
         client_ip: str | None,
     ) -> AsyncGenerator[str, None]:
         """Stream chat response using agent architecture"""
@@ -62,7 +62,7 @@ class ChatService:
             logger.info(
                 "Starting chat message stream",
                 user_message_length=len(user_message),
-                history_length=len(history),
+                history_messages_count=len(history_messages),
                 client_ip=client_ip,
                 has_component_tools=bool(chat_request.component_tools_for_backend),
             )
@@ -72,7 +72,7 @@ class ChatService:
             mcp_start_time = get_current_time()
             async for message in self.mcp_tools_agent.stream_execute(
                 chat_request,
-                history,
+                history_messages,
                 client_ip,
             ):
                 yield message
@@ -110,7 +110,7 @@ class ChatService:
             logger.debug("Starting response generation agent execution")
             response_start_time = get_current_time()
             async for chunk in self.response_generation_agent.stream_execute(
-                history,
+                history_messages,
                 user_message,
                 self.mcp_tools_agent.output_messages,
                 self.component_tools_agent.output_messages,

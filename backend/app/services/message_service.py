@@ -58,7 +58,9 @@ class MessageService(BaseService):
         db.exec(delete(MessageDb).where(MessageDb.id.in_(message_ids)))
         # 事务由 get_db() 或 BaseService.__exit__ 自动提交
 
-    def get_chat_messages_by_ids(self, message_ids: list[str]) -> list[ChatMessageItem]:
+    def get_history_messages_by_ids(
+        self, message_ids: list[str]
+    ) -> list[ChatMessageItem]:
         """获取消息列表，按照 message_ids 的顺序返回"""
         if not message_ids:
             return []

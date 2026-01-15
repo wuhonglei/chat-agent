@@ -6,7 +6,7 @@ from typing import Any
 from app.agents.base import BaseAgent
 from app.prompts import get_default_system_prompt
 from app.prompts.prompt_utils import get_user_message_with_component_data
-from app.schemas.chat import ChatMessageItemReq
+from app.schemas.chat import ChatMessageItem
 from app.schemas.config import LLMConfig
 from app.schemas.llm import ToolCallMessage
 from app.schemas.token_stats import ResponseGenerationTokenStats
@@ -45,7 +45,7 @@ class ResponseGenerationAgent(BaseAgent):
 
     async def stream_execute(
         self,
-        history: list[ChatMessageItemReq],
+        history_messages: list[ChatMessageItem],
         user_message: str,
         mcp_tool_call_messages: list[ToolCallMessage],
         component_tool_call_messages: list[ToolCallMessage],
@@ -54,7 +54,7 @@ class ResponseGenerationAgent(BaseAgent):
         流式生成最终响应
 
         Args:
-            history: 对话历史
+            history_messages: 对话历史消息列表
             user_message: 原始用户消息
             mcp_tool_call_messages: MCP工具调用消息
             component_tool_call_messages: 组件工具调用消息
@@ -71,7 +71,7 @@ class ResponseGenerationAgent(BaseAgent):
 
         system_prompt = get_default_system_prompt(include_date=False)
         new_messages = self._compose_messages(
-            system_prompt, history, final_user_message, mcp_tool_call_messages
+            system_prompt, history_messages, final_user_message, mcp_tool_call_messages
         )
 
         async for chunk in self._stream_final_response(

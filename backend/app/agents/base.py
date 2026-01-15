@@ -15,7 +15,7 @@ from openai._streaming import AsyncStream
 from openai.types.chat import ChatCompletion
 from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
 
-from app.schemas.chat import ChatMessageItemReq
+from app.schemas.chat import ChatMessageItem
 from app.schemas.config import LLMConfig
 from app.schemas.llm import (
     AssistantToolCallMessage,
@@ -264,7 +264,7 @@ class BaseAgent(ABC):
     def _compose_messages(
         self,
         system_prompt: str,
-        history: list[ChatMessageItemReq],
+        history_messages: list[ChatMessageItem],
         user_message: str,
         tool_call_messages: list[ToolCallMessage] | None = None,
     ) -> list[dict]:
@@ -272,7 +272,7 @@ class BaseAgent(ABC):
 
         Args:
             system_prompt: System prompt message
-            history: Conversation history
+            history_messages: Conversation history messages
             user_message: Current user message
             tool_call_messages: Optional tool call messages (assistant tool calls and tool results)
 
@@ -283,7 +283,7 @@ class BaseAgent(ABC):
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
 
-        history = history or []
+        history = history_messages or []
         for msg in history:
             # history message 中的 reasoning_content 字段已在 chat.py 中清除
             msg_dict = normalize_to_dict(msg)

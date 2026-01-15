@@ -18,7 +18,7 @@ from app.prompts import (
     get_prompt_with_mcp_servers,
     get_user_message_with_disabled_tools,
 )
-from app.schemas.chat import ChatMessageItemReq, ChatRequest
+from app.schemas.chat import ChatMessageItem, ChatRequest
 from app.schemas.config import LLMConfig
 from app.schemas.llm import (
     AssistantToolCallMessage,
@@ -62,7 +62,7 @@ class MCPToolsAgent(BaseAgent):
     async def stream_execute(
         self,
         chat_request: ChatRequest,
-        history: list[ChatMessageItemReq],
+        history_messages: list[ChatMessageItem],
         client_ip: str | None,
     ) -> AsyncGenerator[str, None]:
         """
@@ -70,7 +70,7 @@ class MCPToolsAgent(BaseAgent):
 
         Args:
             chat_request: 聊天请求
-            history: 对话历史
+            history_messages: 对话历史消息列表
             client_ip: 客户端IP
 
         Yields:
@@ -93,7 +93,7 @@ class MCPToolsAgent(BaseAgent):
             user_message, mcp_auto_mode, server_names, client_ip
         )
         input_messages = self._compose_messages(
-            system_prompt, history, tool_call_user_message, []
+            system_prompt, history_messages, tool_call_user_message, []
         )
 
         # 流式调用LLM并收集工具调用消息
