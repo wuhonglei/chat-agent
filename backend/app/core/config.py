@@ -11,7 +11,6 @@ from app.core.nacos.config import NacosConfigSettingsSource
 from app.schemas.config import (
     AppConfig,
     CloudbaseConfig,
-    CompressionConfig,
     DatabaseConfig,
     LLMConfig,
     MCPConfig,
@@ -32,7 +31,6 @@ class Settings(BaseSettings):
     cloudbase: CloudbaseConfig = Field(description="Cloudbase 配置")
     database: DatabaseConfig = Field(description="PostgreSQL 数据库配置")
     component_schema_api_url: str = Field(description="组件 Schema API URL")
-    compression: CompressionConfig = Field(description="上下文压缩配置")
 
     model_config = SettingsConfigDict(
         extra="allow",
