@@ -132,7 +132,6 @@ async def chat_stream(
                 logger.info(
                     "Starting stream message generation",
                     conversation_id=chat_request.conversation_id,
-                    history_count=len(history),
                     history_ids_count=len(chat_request.history_ids),
                     client_ip=client_ip,
                 )
