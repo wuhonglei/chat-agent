@@ -92,7 +92,7 @@ def format_search_results(response: TavilySearchResponse) -> str:
             if is_chunked:
                 chunks = content.split("[...]")
                 for i, chunk in enumerate(chunks, start=1):
-                    temp_output.append(f"- 第 {i} 个相关内容: {chunk}")
+                    temp_output.append(f"第 {i} 个相关内容: {chunk}")
             else:
                 temp_output.append(f"网页内容: {content}")
         output.append("\n".join(temp_output))
@@ -136,7 +136,7 @@ def format_extract_results(response: TavilyExtractResponse) -> str:
             if is_chunked:
                 chunks = raw_content.split("[...]")
                 for i, chunk in enumerate(chunks, start=1):
-                    temp_output.append(f"- 第 {i} 个相关内容: {chunk}")
+                    temp_output.append(f"第 {i} 个相关内容: {chunk}")
             else:
                 temp_output.append(f"提取内容: {raw_content}")
         output.append("\n".join(temp_output))
@@ -176,7 +176,7 @@ def format_crawl_results(response: TavilyCrawlResponse) -> str:
             if is_chunked:
                 chunks = raw_content.split("[...]")
                 for i, chunk in enumerate(chunks, start=1):
-                    temp_output.append(f"- 第 {i} 个相关内容: {chunk}")
+                    temp_output.append(f"第 {i} 个相关内容: {chunk}")
             else:
                 temp_output.append(f"爬取内容: {raw_content}")
         output.append("\n".join(temp_output))
