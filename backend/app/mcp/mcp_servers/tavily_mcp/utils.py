@@ -81,9 +81,9 @@ def format_search_results(
     output = []
 
     # Format detailed search results
-    output.append("网页搜索结果 (Tavily Search API):")
+    output.append(f"{len(response.results)} 个网页搜索结果 (Tavily Search API) 如下:")
     for index, result in enumerate(response.results, start=1):
-        temp_output: list[str] = [f"搜索结果 [{index}] 的详细信息如下:"]
+        temp_output: list[str] = [f"\n第 {index} 个搜索结果的详细信息如下:"]
         temp_output.append(f"标题: {clean_invisible_chars(result.title)}")
         temp_output.append(f"URL: {result.url}")
         if result.score:
@@ -99,15 +99,16 @@ def format_search_results(
         output.append("\n".join(temp_output))
 
     if ignored_results:
-        output.append("\n以下结果因相关性分数低于阈值 0.5 而被忽略（可作为补充信息）:")
+        output.append(
+            f"\n{len(ignored_results)} 个结果因相关性分数低于阈值 0.5 而被忽略（可作为补充信息）:"
+        )
         for index, result in enumerate(ignored_results, start=1):
-            temp_output: list[str] = [f"被忽略的搜索结果 [{index}] 的详细信息如下:"]
+            temp_output: list[str] = [f"\n第 {index} 个被忽略的搜索结果的详细信息如下:"]
             temp_output.append(f"标题: {clean_invisible_chars(result.title)}")
             temp_output.append(f"URL: {result.url}")
             if result.score:
                 temp_output.append(f"相关性分数: {result.score:.2f}")
             output.append("\n".join(temp_output))
-            output.append("\n")
 
     return "\n".join(output)
 
@@ -125,9 +126,9 @@ def format_extract_results(is_chunked: bool, response: TavilyExtractResponse) ->
     output = []
 
     # Format successful extraction results
-    output.append("网页提取结果 (Tavily Extract API):")
+    output.append(f"{len(response.results)} 个网页提取结果 (Tavily Extract API) 如下:")
     for index, result in enumerate(response.results, start=1):
-        temp_output: list[str] = [f"提取结果 [{index}] 的详细信息如下:"]
+        temp_output: list[str] = [f"\n第 {index} 个提取结果的详细信息如下:"]
         temp_output.append(f"标题: {clean_invisible_chars(result.title)}")
         temp_output.append(f"URL: {result.url}")
         raw_content = clean_invisible_chars(result.raw_content)
@@ -141,13 +142,12 @@ def format_extract_results(is_chunked: bool, response: TavilyExtractResponse) ->
         output.append("\n".join(temp_output))
 
     if response.failed_results:
-        output.append("\n网页提取失败的URL:")
+        output.append(f"\n{len(response.failed_results)} 个网页提取失败的URL:")
         for index, failed in enumerate(response.failed_results, start=1):
-            temp_output: list[str] = [f"提取失败的URL [{index}] 的详细信息如下:"]
+            temp_output: list[str] = [f"\n第 {index} 个提取失败的URL的详细信息如下:"]
             temp_output.append(f"URL: {failed.url}")
             temp_output.append(f"错误: {failed.error}")
             output.append("\n".join(temp_output))
-            output.append("\n")
 
     return "\n".join(output)
 
@@ -164,11 +164,11 @@ def format_crawl_results(is_chunked: bool, response: TavilyCrawlResponse) -> str
     """
     output = []
 
-    output.append("网页爬取结果 (Tavily Crawl API):")
+    output.append(f"{len(response.results)} 个网页爬取结果 (Tavily Crawl API) 如下:")
     output.append(f"爬取的基础URL: {response.base_url}")
 
     for index, page in enumerate(response.results, start=1):
-        temp_output: list[str] = [f"爬取结果 [{index}] 的详细信息如下:"]
+        temp_output: list[str] = [f"\n第 {index} 个爬取结果的详细信息如下:"]
         temp_output.append(f"爬取的URL: {page.url}")
         raw_content = clean_invisible_chars(page.raw_content)
         if raw_content:
@@ -195,11 +195,11 @@ def format_map_results(response: TavilyMapResponse) -> str:
     """
     output = []
 
-    output.append("Site Map Results:")
+    output.append(f"{len(response.results)} 个Site Map Results:")
     output.append(f"Base URL: {response.base_url}")
 
-    output.append("\nMapped Pages:")
+    output.append(f"\n{len(response.results)} 个Mapped Pages:")
     for index, page in enumerate(response.results, start=1):
-        output.append(f"\n[{index}] URL: {page}")
+        output.append(f"\n第 {index} 个Mapped Page: {page}")
 
     return "\n".join(output)
