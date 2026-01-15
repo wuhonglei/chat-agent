@@ -92,8 +92,8 @@ def format_search_results(
         if content:
             if is_chunked:
                 chunks = content.split("[...]")
-                for _, chunk in enumerate(chunks, start=1):
-                    temp_output.append(f"- 相关内容: {chunk}")
+                for i, chunk in enumerate(chunks, start=1):
+                    temp_output.append(f"- 第 {i} 个相关内容: {chunk}")
             else:
                 temp_output.append(f"网页内容: {content}")
         output.append("\n".join(temp_output))
@@ -135,8 +135,8 @@ def format_extract_results(is_chunked: bool, response: TavilyExtractResponse) ->
         if raw_content:
             if is_chunked:
                 chunks = raw_content.split("[...]")
-                for _, chunk in enumerate(chunks, start=1):
-                    temp_output.append(f"- 相关内容: {chunk}")
+                for i, chunk in enumerate(chunks, start=1):
+                    temp_output.append(f"- 第 {i} 个相关内容: {chunk}")
             else:
                 temp_output.append(f"提取内容: {raw_content}")
         output.append("\n".join(temp_output))
@@ -174,8 +174,8 @@ def format_crawl_results(is_chunked: bool, response: TavilyCrawlResponse) -> str
         if raw_content:
             if is_chunked:
                 chunks = raw_content.split("[...]")
-                for _, chunk in enumerate(chunks, start=1):
-                    temp_output.append(f"- 相关内容: {chunk}")
+                for i, chunk in enumerate(chunks, start=1):
+                    temp_output.append(f"- 第 {i} 个相关内容: {chunk}")
             else:
                 temp_output.append(f"爬取内容: {raw_content}")
         output.append("\n".join(temp_output))
