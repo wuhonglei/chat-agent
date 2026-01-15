@@ -13,7 +13,6 @@ from openai.types.chat import (
 from app.agents.base import BaseAgent
 
 # Import compression config
-from app.core.config import settings
 from app.mcp.mcp_client import MCPClientManager
 from app.prompts import (
     get_prompt_with_mcp_servers,
@@ -27,7 +26,6 @@ from app.schemas.llm import (
     ToolCallResultMessage,
 )
 from app.schemas.token_stats import MCPToolsTokenStats
-from app.utils.compression import IterationCompressor
 from app.utils.logger import logger
 from app.utils.mcp import count_tool_calls, extract_tool_call_names
 from app.utils.message import (
@@ -49,24 +47,6 @@ class MCPToolsAgent(BaseAgent):
         self.output_messages: list[ToolCallMessage] = []
         self.duration: float | None = None
         self.token_stats: MCPToolsTokenStats | None = None
-
-        # Initialize compression components only if compression is enabled
-        if settings.compression.enabled:
-            compression_config = settings.compression.iteration_compression
-            # Iteration compressor for managing context between iterations
-            self.iteration_compressor = IterationCompressor(
-                max_context_length=compression_config.max_iteration_context_length,
-                token_calculator=self.token_calculator,
-            )
-            self.compression_trigger_threshold = (
-                compression_config.compression_trigger_threshold
-            )
-        else:
-            # Compression disabled - set components to None
-            self.iteration_compressor = None
-            self.compression_trigger_threshold = float(
-                "inf"
-            )  # Never trigger compression
 
     def get_server_names(
         self, mcp_auto_mode: bool, source_config: dict
@@ -201,8 +181,6 @@ class MCPToolsAgent(BaseAgent):
         # Decrement AFTER checking
         iterations_by_tool[tool_name] -= 1
 
-        # Note: Tools are pre-filtered before LLM call, this decrement is for tracking only
-
         try:
             # Call the tool via MCP manager
             # Parse arguments
@@ -336,9 +314,6 @@ class MCPToolsAgent(BaseAgent):
             tool["function"]["name"]: max_iterations_by_tool for tool in tools
         }
 
-        # Store compressed historical context for iterations
-        compressed_historical_context: list[dict] = []
-
         for iteration in range(max_total_iterations):
             logger.info(
                 "Tool call iteration started",
@@ -438,48 +413,6 @@ class MCPToolsAgent(BaseAgent):
                     }
                 )
                 yield tool_call_result_message
-
-            # Perform iteration context compression if needed and enabled
-            if settings.compression.enabled and self.iteration_compressor is not None:
-                current_context_length = self.token_calculator.count_messages_tokens(
-                    self.output_messages
-                )
-
-                if (
-                    current_context_length > self.compression_trigger_threshold
-                    and iteration < max_total_iterations - 1
-                ):
-                    logger.debug(
-                        "Compressing iteration context",
-                        iteration=iteration + 1,
-                        current_context_length=current_context_length,
-                        threshold=self.compression_trigger_threshold,
-                    )
-
-                    compressed_context: list[dict] = (
-                        self.iteration_compressor.compress_iteration_context(
-                            current_iteration_results=current_iteration_results,
-                            historical_context=compressed_historical_context,
-                            iteration=iteration,
-                        )
-                    )
-
-                    # Update historical context for next iteration
-                    compressed_historical_context = compressed_context
-
-                    logger.debug(
-                        "Iteration context compressed",
-                        iteration=iteration + 1,
-                        original_length=current_context_length,
-                        compressed_length=self.token_calculator.count_messages_tokens(
-                            compressed_context
-                        ),
-                    )
-            else:
-                logger.debug(
-                    "Iteration context compression disabled",
-                    iteration=iteration + 1,
-                )
 
         # If we hit max iterations, return error message
         logger.info(
