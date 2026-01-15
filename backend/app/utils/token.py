@@ -279,6 +279,12 @@ class TokenCalculator:
         # 默认值：131072（deepseek 的默认限制）
         return self.DEFAULT_LIMIT
 
+    def get_compression_threshold(self, threshold_ratio: float) -> int:
+        """
+        获取压缩阈值
+        """
+        return int(self.get_max_context_tokens() * threshold_ratio)
+
     def count_tokens(self, text: str | None) -> int:
         """
         计算文本的 token 数量

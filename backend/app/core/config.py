@@ -11,6 +11,7 @@ from app.core.nacos.config import NacosConfigSettingsSource
 from app.schemas.config import (
     AppConfig,
     CloudbaseConfig,
+    CompressionConfig,
     DatabaseConfig,
     LLMConfig,
     MCPConfig,
@@ -25,11 +26,15 @@ class Settings(BaseSettings):
     app: AppConfig = Field(default_factory=AppConfig)
     response_model: LLMConfig = Field(description="响应生成模型 API 配置")
     tool_call_model: LLMConfig = Field(description="mcp 工具调用模型 API 配置")
+    summarizer_model: LLMConfig = Field(description="摘要生成模型 API 配置")
     mcp: MCPConfig = Field(description="MCP 工具配置")
     storage: StorageConfig = Field(description="S3 存储配置")
     security: SecurityConfig = Field(description="JWT 安全配置")
     cloudbase: CloudbaseConfig = Field(description="Cloudbase 配置")
     database: DatabaseConfig = Field(description="PostgreSQL 数据库配置")
+    compression: CompressionConfig = Field(
+        default_factory=CompressionConfig, description="上下文压缩配置"
+    )
     component_schema_api_url: str = Field(description="组件 Schema API URL")
 
     model_config = SettingsConfigDict(
