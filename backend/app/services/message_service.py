@@ -9,10 +9,15 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, delete, select
 
 from app.models import ConversationDb, MessageDb
-from app.schemas.chat import ChatMessageItemReq, CollectedResponse, MessageStatus
+from app.schemas.chat import (
+    ChatMessageItem,
+    CollectedResponse,
+    MessageStatus,
+)
 from app.services.base_service import BaseService
 from app.utils.common import gen_uuid
 from app.utils.date import get_datetime_now
+from app.utils.logger import logger
 
 
 class ChatMessagesResult(BaseModel):
@@ -53,62 +58,33 @@ class MessageService(BaseService):
         db.exec(delete(MessageDb).where(MessageDb.id.in_(message_ids)))
         # 事务由 get_db() 或 BaseService.__exit__ 自动提交
 
-    def get_flatten_messages_by_ids(
-        self, message_ids: list[str]
-    ) -> list[ChatMessageItemReq]:
-        """获取消息的扁平化列表
-        组装顺序参考: https://api-docs.deepseek.com/zh-cn/guides/thinking_mode
-        """
+    def get_chat_messages_by_ids(self, message_ids: list[str]) -> list[ChatMessageItem]:
+        """获取消息列表，按照 message_ids 的顺序返回"""
         if not message_ids:
             return []
 
         db = self._ensure_db()
-        messages = db.exec(
-            select(
-                MessageDb.id, MessageDb.role, MessageDb.content, MessageDb.tool_calls
-            ).where(MessageDb.id.in_(message_ids))
-        ).all()
+        messages = db.exec(select(MessageDb).where(MessageDb.id.in_(message_ids))).all()
         if not messages:
-            from app.utils.logger import logger
-
             logger.error("Messages not found", message_ids=message_ids)
             return []
 
         # 创建字典映射，key 为 message_id，value 为消息元组
         messages_dict = {msg[0]: msg for msg in messages}
 
-        flattened_messages: list[ChatMessageItemReq] = []
+        chat_messages: list[ChatMessageItem] = []
         # 按照 message_ids 的顺序遍历，保证返回顺序一致
         for message_id in message_ids:
             if message_id not in messages_dict:
-                from app.utils.logger import logger
-
                 logger.warning("Message ID not found, skipping", message_id=message_id)
                 continue
 
-            id, role, content, tool_call_messages = messages_dict[message_id]
-            # 将工具调用消息拼接到消息中
-            for tool_call_message in tool_call_messages or []:
-                tool_role = tool_call_message.get("role")
-                if tool_role == "assistant":
-                    flattened_messages.append(
-                        ChatMessageItemReq(
-                            role="assistant", tool_calls=tool_call_message["tool_calls"]
-                        )
-                    )
-                elif tool_role == "tool":
-                    flattened_messages.append(
-                        ChatMessageItemReq(
-                            role="tool",
-                            tool_call_id=tool_call_message["tool_call_id"],
-                            content=tool_call_message["content"],
-                        )
-                    )
+            message = ChatMessageItem.model_validate(
+                messages_dict[message_id].model_dump(mode="json")
+            )
+            chat_messages.append(message)
 
-            # 将用户问题或模型最终回答拼接到消息中
-            flattened_messages.append(ChatMessageItemReq(role=role, content=content))
-
-        return flattened_messages
+        return chat_messages
 
     def _touch_conversation(
         self,

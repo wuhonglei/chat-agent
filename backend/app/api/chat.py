@@ -126,7 +126,7 @@ async def chat_stream(
 
                 # 流式生成响应
                 start_time = get_current_time()
-                history = message_service.get_flatten_messages_by_ids(
+                history = message_service.get_chat_messages_by_ids(
                     chat_request.history_ids
                 )
                 logger.info(
