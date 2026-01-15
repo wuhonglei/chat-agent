@@ -64,11 +64,7 @@ def clean_invisible_chars(
     return cleaned_str
 
 
-def format_search_results(
-    is_chunked: bool,
-    response: TavilySearchResponse,
-    ignored_results: list[TavilySearchResultItem],
-) -> str:
+def format_search_results(response: TavilySearchResponse) -> str:
     """
     将 Tavily Search API 响应格式化为人类可读的文本
 
@@ -79,10 +75,13 @@ def format_search_results(
         格式化后的字符串
     """
     output = []
+    is_chunked = response.is_chunked
+    filtered_results = response.filtered_results
+    ignored_results = response.ignored_results
 
     # Format detailed search results
     output.append(f"{len(response.results)} 个网页搜索结果 (Tavily Search API) 如下:")
-    for index, result in enumerate(response.results, start=1):
+    for index, result in enumerate(filtered_results, start=1):
         temp_output: list[str] = [f"\n第 {index} 个搜索结果的详细信息如下:"]
         temp_output.append(f"标题: {clean_invisible_chars(result.title)}")
         temp_output.append(f"URL: {result.url}")
@@ -113,7 +112,7 @@ def format_search_results(
     return "\n".join(output)
 
 
-def format_extract_results(is_chunked: bool, response: TavilyExtractResponse) -> str:
+def format_extract_results(response: TavilyExtractResponse) -> str:
     """
     将 Tavily Extract API 响应格式化为人类可读的文本
 
@@ -124,6 +123,7 @@ def format_extract_results(is_chunked: bool, response: TavilyExtractResponse) ->
         格式化后的字符串
     """
     output = []
+    is_chunked = response.is_chunked
 
     # Format successful extraction results
     output.append(f"{len(response.results)} 个网页提取结果 (Tavily Extract API) 如下:")
@@ -152,7 +152,7 @@ def format_extract_results(is_chunked: bool, response: TavilyExtractResponse) ->
     return "\n".join(output)
 
 
-def format_crawl_results(is_chunked: bool, response: TavilyCrawlResponse) -> str:
+def format_crawl_results(response: TavilyCrawlResponse) -> str:
     """
     将 Tavily Crawl API 响应格式化为人类可读的文本
 
@@ -163,6 +163,7 @@ def format_crawl_results(is_chunked: bool, response: TavilyCrawlResponse) -> str
         格式化后的字符串
     """
     output = []
+    is_chunked = response.is_chunked
 
     output.append(f"{len(response.results)} 个网页爬取结果 (Tavily Crawl API) 如下:")
     output.append(f"爬取的基础URL: {response.base_url}")
@@ -181,6 +182,39 @@ def format_crawl_results(is_chunked: bool, response: TavilyCrawlResponse) -> str
         output.append("\n".join(temp_output))
 
     return "\n".join(output)
+
+
+def filter_search_results_by_score(
+    results: list[TavilySearchResultItem],
+    threshold: float = 0.5,
+) -> tuple[list[TavilySearchResultItem], list[TavilySearchResultItem]]:
+    """
+    根据相关性分数过滤搜索结果，优先选择高分结果
+
+    Args:
+        results: 搜索结果列表
+        threshold: 分数阈值，高于此值的被视为高分结果
+
+    Returns:
+        tuple: (过滤后的结果列表, 被忽略的结果列表)
+    """
+    high_score_results: list[TavilySearchResultItem] = []
+    low_score_results: list[TavilySearchResultItem] = []
+
+    for result in results:
+        if result.score is not None and result.score > threshold:
+            high_score_results.append(result)
+        else:
+            low_score_results.append(result)
+
+    if high_score_results:
+        filtered_results = high_score_results
+        ignored_results = low_score_results
+    else:
+        filtered_results = low_score_results[0:1] if low_score_results else []
+        ignored_results = low_score_results[1:] if len(low_score_results) > 1 else []
+
+    return filtered_results, ignored_results
 
 
 def format_map_results(response: TavilyMapResponse) -> str:

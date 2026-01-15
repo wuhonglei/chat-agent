@@ -16,9 +16,9 @@ from .models import (
     TavilyExtractResponse,
     TavilyMapResponse,
     TavilySearchResponse,
-    TavilySearchResultItem,
 )
 from .utils import (
+    filter_search_results_by_score,
     format_crawl_results,
     format_extract_results,
     format_map_results,
@@ -107,26 +107,16 @@ async def tavily_search(
         )
         try:
             data = TavilySearchResponse.model_validate(response)
-            high_score_results: list[TavilySearchResultItem] = []
-            low_score_results: list[TavilySearchResultItem] = []
-            threshold = 0.5
-            for result in data.results:
-                if result.score is not None and result.score > threshold:
-                    high_score_results.append(result)
-                else:
-                    low_score_results.append(result)
+            data.is_chunked = search_depth in ["advanced", "fast"] and query is not None
 
-            if high_score_results:
-                data.results = high_score_results
-                ignored_results = low_score_results
-            else:
-                data.results = low_score_results[0:1]
-                ignored_results = low_score_results[1:]
+            # 根据分数过滤搜索结果
+            data.filtered_results, data.ignored_results = (
+                filter_search_results_by_score(data.results)
+            )
 
-            is_chunked = search_depth in ["advanced", "fast"] and query is not None
             return ToolResult(
                 structured_content=data,
-                content=format_search_results(is_chunked, data, ignored_results),
+                content=format_search_results(data),
             )
         except Exception as e:
             raise ValueError(f"搜索响应验证失败: {str(e)}")
@@ -161,10 +151,10 @@ async def tavily_extract(
         )
         try:
             data = TavilyExtractResponse.model_validate(response)
-            is_chunked = extract_depth in ["advanced"] and query is not None
+            data.is_chunked = extract_depth in ["advanced"] and query is not None
             return ToolResult(
                 structured_content=data,
-                content=format_extract_results(is_chunked, data),
+                content=format_extract_results(data),
             )
         except Exception as e:
             raise ValueError(f"提取响应验证失败: {str(e)}")
@@ -244,9 +234,9 @@ async def tavily_crawl(
         )
         try:
             data = TavilyCrawlResponse.model_validate(response)
-            is_chunked = extract_depth in ["advanced"] and instructions is not None
+            data.is_chunked = extract_depth in ["advanced"] and instructions is not None
             return ToolResult(
-                structured_content=data, content=format_crawl_results(is_chunked, data)
+                structured_content=data, content=format_crawl_results(data)
             )
         except Exception as e:
             raise ValueError(f"爬取响应验证失败: {str(e)}")

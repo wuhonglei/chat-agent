@@ -42,6 +42,16 @@ class TavilySearchResponse(BaseModel):
     )
     request_id: str | None = Field(None, description="唯一请求标识符")
 
+    # 以下字段由工具调用者填充
+    is_chunked: bool | None = Field(default=False, description="是否返回分块的搜索结果")
+    threshold: float | None = Field(default=0.5, description="相关性分数阈值")
+    filtered_results: list[TavilySearchResultItem] | None = Field(
+        default_factory=list, description="过滤后的搜索结果列表"
+    )
+    ignored_results: list[TavilySearchResultItem] | None = Field(
+        default_factory=list, description="忽略的搜索结果列表"
+    )
+
 
 # ================================ Extract API ================================
 
@@ -64,6 +74,7 @@ class TavilyFailedResultItem(BaseModel):
 class TavilyExtractResponse(BaseModel):
     """Tavily提取API响应"""
 
+    is_chunked: bool | None = Field(default=False, description="是否返回分块的提取结果")
     results: list[TavilyExtractResultItem] = Field(
         ..., description="成功提取的内容列表"
     )
@@ -87,6 +98,7 @@ class TavilyCrawlResultItem(BaseModel):
 class TavilyCrawlResponse(BaseModel):
     """Tavily爬取API响应"""
 
+    is_chunked: bool | None = Field(default=False, description="是否返回分块的爬取结果")
     base_url: str = Field(..., description="爬取的基础URL")
     results: list[TavilyCrawlResultItem] = Field(..., description="爬取结果列表")
     response_time: float = Field(..., description="请求响应时间（秒）")
