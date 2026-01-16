@@ -38,9 +38,9 @@ export function getContentTokenCountDesc(
 ): string {
   const { contentTokenCount, originalTokenCount, relevanceApplied } = message;
   if (relevanceApplied && originalTokenCount && contentTokenCount) {
-    return `(${prettyCount(originalTokenCount)} tokens) -> (${prettyCount(contentTokenCount)} tokens)`;
+    return ` (${prettyCount(originalTokenCount)} tokens) -> (${prettyCount(contentTokenCount)} tokens)`;
   } else if (contentTokenCount) {
-    return `(${prettyCount(contentTokenCount)} tokens)`;
+    return ` (${prettyCount(contentTokenCount)} tokens)`;
   }
   return "";
 }
