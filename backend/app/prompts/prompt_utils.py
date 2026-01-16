@@ -8,6 +8,7 @@ from app.prompts.system_prompt import (
     system_prompt_for_component_render_template,
     system_prompt_for_title_template,
     system_prompt_for_tool_calls_template,
+    system_prompt_for_tool_result_compression_template,
 )
 from app.prompts.user_prompt import (
     disabled_tools_message_template,
@@ -33,6 +34,13 @@ def get_system_prompt_for_tool_calls() -> str:
 def get_system_prompt_for_title() -> str:
     """Get system prompt for title generation"""
     return system_prompt_for_title_template.render()
+
+
+def get_system_prompt_for_tool_result_compression(max_tokens: int) -> str:
+    """Get system prompt for tool result compression"""
+    return system_prompt_for_tool_result_compression_template.render(
+        max_tokens=max_tokens
+    )
 
 
 def get_user_message_for_tool_calls(

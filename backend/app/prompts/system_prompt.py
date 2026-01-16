@@ -41,3 +41,15 @@ system_prompt_for_component_render_template = Template(
 1. 你必须根据用户的请求和工具调用结果来渲染组件
 """.strip()
 )
+
+# ============= 工具结果压缩系统提示词 =============
+system_prompt_for_tool_result_compression_template = Template(
+    """
+你是工具结果压缩助手，请基于用户问题提炼关键内容。
+
+要求：
+1. 输出不超过 {{ max_tokens }} token
+2. 只保留与问题相关的要点
+3. 使用简洁的要点列表
+""".strip()
+)
