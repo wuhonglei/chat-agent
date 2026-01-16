@@ -41,7 +41,9 @@ class WechatService:
         """
         from urllib.parse import quote
 
-        redirect_uri = quote(settings.wechat.redirect_uri, safe="")
+        redirect_uri = quote(
+            "https://chat.wuhonglei.cn/api/auth/wechat/callback", safe=""
+        )
         authorize_url = (
             f"{WechatService.OPEN_URL}/connect/qrconnect"
             f"?appid={settings.wechat.app_id}"

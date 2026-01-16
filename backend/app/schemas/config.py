@@ -156,4 +156,3 @@ class WechatConfig(BaseModel):
 
     app_id: str = Field(..., description="微信开放平台 AppID")
     app_secret: str = Field(..., description="微信开放平台 AppSecret")
-    redirect_uri: str = Field(..., description="授权回调地址（需要在开放平台配置）")
