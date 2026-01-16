@@ -87,28 +87,28 @@ class ContextCompactor:
         query: str,
         content: str,
     ) -> CompactionResult:
-        original_tokens = self.token_calculator.count_tokens(content)
-        threshold_tokens = self.compression_config.tool_result_max_tokens
+        original_tokens_count = self.token_calculator.count_tokens(content)
+        threshold_tokens_count = self.compression_config.tool_result_max_tokens
 
         if (
             not self.compression_config.enabled
-            or original_tokens <= threshold_tokens
+            or original_tokens_count <= threshold_tokens_count
             or not self.compression_config.relevance_enabled
         ):
             return CompactionResult(
                 content=content,
                 relevance_applied=self.compression_config.relevance_enabled,
-                original_token_count=original_tokens,
-                relevant_token_count=original_tokens,
-                threshold_token_count=threshold_tokens,
+                original_token_count=original_tokens_count,
+                relevant_token_count=original_tokens_count,
+                threshold_token_count=threshold_tokens_count,
             )
 
         relevant_content = self.extract_relevant_markdown(query, content)
-        relevant_tokens = self.token_calculator.count_tokens(relevant_content)
+        relevant_tokens_count = self.token_calculator.count_tokens(relevant_content)
         return CompactionResult(
             content=relevant_content,
             relevance_applied=self.compression_config.relevance_enabled,
-            original_token_count=original_tokens,
-            relevant_token_count=relevant_tokens,
-            threshold_token_count=threshold_tokens,
+            original_token_count=original_tokens_count,
+            relevant_token_count=relevant_tokens_count,
+            threshold_token_count=threshold_tokens_count,
         )

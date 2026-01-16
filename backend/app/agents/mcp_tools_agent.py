@@ -225,7 +225,6 @@ class MCPToolsAgent(BaseAgent):
                     "content": content,
                     "is_error": len(content or "") == 0,
                     "tool_call_id": tool_call.id,
-                    "token_count": self.token_calculator.count_tokens(content),
                     "duration": get_time_duration(start_time),
                 }
             )
@@ -278,9 +277,7 @@ class MCPToolsAgent(BaseAgent):
 
         updated_fields = {
             "content": compaction.content,
-            "content_token_count": self.token_calculator.count_tokens(
-                compaction.content
-            ),
+            "content_token_count": compaction.relevant_token_count,
             "relevance_applied": compaction.relevance_applied,
             "original_token_count": compaction.original_token_count,
             "relevant_token_count": compaction.relevant_token_count,
