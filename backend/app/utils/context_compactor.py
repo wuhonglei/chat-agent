@@ -100,7 +100,6 @@ class ContextCompactor:
     async def compact_markdown_tool_result(
         self,
         query: str,
-        tool_name: str,
         content: str,
     ) -> CompactionResult:
         original_tokens = self.token_calculator.count_tokens(content)

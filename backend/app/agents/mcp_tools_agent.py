@@ -273,7 +273,6 @@ class MCPToolsAgent(BaseAgent):
 
         compaction = await self.compactor.compact_markdown_tool_result(
             query=self.current_user_message,
-            tool_name=tool_name,
             content=content,
         )
 
