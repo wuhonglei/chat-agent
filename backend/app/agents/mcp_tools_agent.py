@@ -230,7 +230,7 @@ class MCPToolsAgent(BaseAgent):
                 }
             )
             tool_call_result_message = await self._compact_tool_result_if_needed(
-                tool_name, tool_call_result_message
+                tool_call_result_message
             )
             logger.info(
                 "MCP tool result received",
@@ -265,7 +265,7 @@ class MCPToolsAgent(BaseAgent):
             return tool_call_result_message
 
     async def _compact_tool_result_if_needed(
-        self, tool_name: str, tool_message: ToolCallResultMessage
+        self, tool_message: ToolCallResultMessage
     ) -> ToolCallResultMessage:
         content = tool_message.content or ""
         if not content:
@@ -282,35 +282,11 @@ class MCPToolsAgent(BaseAgent):
                 compaction.content
             ),
             "relevance_applied": compaction.relevance_applied,
-            "summary_applied": compaction.summary_applied,
             "original_token_count": compaction.original_token_count,
             "relevant_token_count": compaction.relevant_token_count,
-            "summary_token_count": compaction.summary_token_count,
             "threshold_token_count": compaction.threshold_token_count,
         }
         updated_message = tool_message.model_copy(update=updated_fields)
-
-        if compaction.summary_applied:
-            logger.info(
-                "Tool result compacted",
-                tool_name=tool_name,
-                original_token_count=compaction.original_token_count,
-                relevant_token_count=compaction.relevant_token_count,
-                summary_token_count=compaction.summary_token_count,
-                threshold_token_count=compaction.threshold_token_count,
-            )
-        elif (
-            compaction.relevance_applied
-            and compaction.original_token_count != compaction.relevant_token_count
-        ):
-            logger.info(
-                "Tool result filtered by relevance",
-                tool_name=tool_name,
-                original_token_count=compaction.original_token_count,
-                relevant_token_count=compaction.relevant_token_count,
-                threshold_token_count=compaction.threshold_token_count,
-            )
-
         return updated_message
 
     async def _execute_tool_calls_parallel(
