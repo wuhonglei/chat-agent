@@ -1,3 +1,5 @@
+import { ToolResultSuccessTimelineMessage } from "@/interfaces";
+import { prettyCount } from "@/utils";
 import { isPlainObject } from "lodash-es";
 
 export function stringifyArgs(args: string): string {
@@ -29,4 +31,16 @@ export function stringifyContentWithLanguage<
   } catch {
     return [content as string, "markdown"];
   }
+}
+
+export function getContentTokenCountDesc(
+  message: ToolResultSuccessTimelineMessage
+): string {
+  const { contentTokenCount, originalTokenCount, relevanceApplied } = message;
+  if (relevanceApplied && originalTokenCount && contentTokenCount) {
+    return `(${prettyCount(originalTokenCount)} tokens) -> (${prettyCount(contentTokenCount)} tokens)`;
+  } else if (contentTokenCount) {
+    return `(${prettyCount(contentTokenCount)} tokens)`;
+  }
+  return "";
 }

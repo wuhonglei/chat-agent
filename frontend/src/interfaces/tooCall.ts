@@ -34,9 +34,40 @@ export interface ToolCallEndItemMessage {
   content: string;
   toolCallId: string;
   duration: number;
-  contentTokenCount?: number;
   relevanceApplied?: boolean;
-  relevantTokenCount?: number;
+  contentTokenCount?: number;
+  originalTokenCount?: number;
+}
+
+export interface ToolCallingTimelineMessage {
+  key: string;
+  content: string;
+  toolCallId: string;
+  toolCall: ToolCall;
+  reasoningContent: string;
+  status: ToolCallStatus.CallingTool;
+}
+
+export interface ToolResultErrorTimelineMessage {
+  key: string;
+  content: string;
+  toolCallId: string;
+  toolCall: ToolCall;
+  reasoningContent: string;
+  status: ToolCallStatus.ToolResultError;
+}
+
+export interface ToolResultSuccessTimelineMessage {
+  key: string;
+  toolCallId: string;
+  toolCall: ToolCall;
+  duration: number;
+  reasoningContent: string;
+  content: string | Record<string, unknown>;
+  relevanceApplied?: boolean;
+  contentTokenCount?: number;
+  originalTokenCount?: number;
+  status: ToolCallStatus.ToolResultSuccess;
 }
 
 export type ToolCallMessage =
@@ -45,21 +76,6 @@ export type ToolCallMessage =
   | ToolCallEndItemMessage;
 
 export type TimelineMessage =
-  | {
-      key: string;
-      content: string;
-      toolCallId: string;
-      toolCall: ToolCall;
-      reasoningContent: string;
-      status: ToolCallStatus.CallingTool;
-    }
-  | {
-      key: string;
-      toolCallId: string;
-      toolCall: ToolCall;
-      duration: number;
-      reasoningContent: string;
-      tokenCount?: number;
-      content: string | Record<string, unknown>;
-      status: ToolCallStatus.ToolResultSuccess | ToolCallStatus.ToolResultError;
-    };
+  | ToolCallingTimelineMessage
+  | ToolResultErrorTimelineMessage
+  | ToolResultSuccessTimelineMessage;

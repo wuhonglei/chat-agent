@@ -4,6 +4,7 @@ import {
   ToolCallEndItemMessage,
   ToolCallMessage,
   ToolCallStartItemMessage,
+  ToolResultSuccessTimelineMessage,
 } from "@/interfaces";
 import { useMemo } from "react";
 
@@ -36,8 +37,15 @@ export function useTimelineMessages(
       }
 
       if (role === "tool") {
-        const { toolCallId, duration, content, isError, tokenCount } =
-          message as ToolCallEndItemMessage;
+        const {
+          toolCallId,
+          duration,
+          content,
+          isError,
+          relevanceApplied,
+          contentTokenCount,
+          originalTokenCount,
+        } = message as ToolCallEndItemMessage;
         const startIndex = toolCallStartIndex[toolCallId];
         if (startIndex !== undefined) {
           messages[startIndex] = {
@@ -46,12 +54,20 @@ export function useTimelineMessages(
             duration,
             toolCallId,
             toolCall: messages[startIndex].toolCall,
-            tokenCount,
             status: isError
               ? ToolCallStatus.ToolResultError
               : ToolCallStatus.ToolResultSuccess,
             reasoningContent: messages[startIndex].reasoningContent,
           };
+
+          if (!isError) {
+            messages[startIndex] = {
+              ...messages[startIndex],
+              contentTokenCount,
+              originalTokenCount,
+              relevanceApplied,
+            } as ToolResultSuccessTimelineMessage;
+          }
         }
         continue;
       }

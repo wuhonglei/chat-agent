@@ -95,7 +95,7 @@ class ContextCompactor:
         ):
             return CompactionResult(
                 content=content,
-                relevance_applied=self.compression_config.relevance_enabled,
+                relevance_applied=False,
                 original_token_count=original_tokens_count,
                 relevant_token_count=original_tokens_count,
                 threshold_token_count=threshold_tokens_count,
@@ -105,7 +105,7 @@ class ContextCompactor:
         relevant_tokens_count = self.token_calculator.count_tokens(relevant_content)
         return CompactionResult(
             content=relevant_content,
-            relevance_applied=self.compression_config.relevance_enabled,
+            relevance_applied=True,
             original_token_count=original_tokens_count,
             relevant_token_count=relevant_tokens_count,
             threshold_token_count=threshold_tokens_count,

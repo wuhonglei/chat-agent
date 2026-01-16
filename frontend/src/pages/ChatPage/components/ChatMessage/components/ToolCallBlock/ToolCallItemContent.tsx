@@ -2,9 +2,12 @@ import { ToolCallStatus } from "@/constants";
 import { TimelineMessage } from "@/interfaces";
 import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
 import CodeHighlighter from "@/pages/ChatPage/components/MarkdownContainer/components/CodeHighlighter";
-import { prettyCount } from "@/utils/common";
 import React, { useMemo } from "react";
-import { stringifyArgs, stringifyContentWithLanguage } from "./utils";
+import {
+  getContentTokenCountDesc,
+  stringifyArgs,
+  stringifyContentWithLanguage,
+} from "./utils";
 
 type Props = {
   message: TimelineMessage;
@@ -36,12 +39,9 @@ const ToolCallItemContent: React.FC<Props> = ({ message }) => {
       {status === ToolCallStatus.ToolResultSuccess && (
         <CodeHighlighter
           lang={language}
-          header={[
-            "result is:",
-            message.tokenCount
-              ? ` (${prettyCount(message.tokenCount)} tokens)`
-              : "",
-          ].filter(Boolean)}
+          header={["result is:", getContentTokenCountDesc(message)].filter(
+            Boolean
+          )}
           styles={{ code: { maxHeight: 300, width: "100%", overflow: "auto" } }}
         >
           {contentStr}
