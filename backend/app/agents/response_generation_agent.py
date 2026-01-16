@@ -69,7 +69,7 @@ class ResponseGenerationAgent(BaseAgent):
             self.schema_service.get_schema_cache(),
         )
 
-        system_prompt = get_default_system_prompt(include_date=False)
+        system_prompt = get_default_system_prompt()
         new_messages = self._compose_messages(
             system_prompt,
             history_messages,

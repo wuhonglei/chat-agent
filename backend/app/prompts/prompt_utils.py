@@ -16,20 +16,13 @@ from app.prompts.user_prompt import (
     user_message_with_component_data_template,
 )
 from app.schemas.llm import ToolCallMessage
-from app.utils.date import get_current_date, get_current_datetime_str
+from app.utils.date import get_current_datetime_str
 from app.utils.logger import logger
 
 
-def get_default_system_prompt(include_date: bool = False) -> str:
+def get_default_system_prompt() -> str:
     """Get default system prompt with current time information"""
-    if include_date:
-        current_datetime = get_current_datetime_str()
-        current_date = get_current_date()
-        return default_system_prompt_template.render(
-            current_datetime=current_datetime, current_date=current_date
-        )
-    else:
-        return default_system_prompt_template.render()
+    return default_system_prompt_template.render()
 
 
 def get_system_prompt_for_tool_calls() -> str:
