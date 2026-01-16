@@ -22,6 +22,14 @@ class LLMConfig(BaseModel):
     think_model_name: str = Field(description="推理模型名称")
 
 
+class EmbeddingModelConfig(BaseModel):
+    """Embedding 模型 API 配置"""
+
+    api_key: str = Field(description="Embedding API 密钥")
+    api_base: str = Field(description="Embedding API 基础地址")
+    model_name: str = Field(description="默认模型名称")
+
+
 class Context7Config(BaseModel):
     """Context7 MCP 配置"""
 
