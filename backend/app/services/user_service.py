@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import string
+from typing import Any
 
 from sqlmodel import Session, select
 
@@ -9,6 +10,7 @@ from app.schemas.auth import VerifySmsResponse
 from app.schemas.user import UpdateUserInfo
 from app.services.base_service import BaseService
 from app.utils.date import get_datetime_now
+from app.utils.logger import logger
 
 
 class UserService(BaseService):
@@ -92,4 +94,50 @@ class UserService(BaseService):
             db.add(user)
             # updated_at 通过 onupdate 在 Python 层面自动更新，不需要 refresh()
             # 事务由 get_db() 或 BaseService.__exit__ 自动提交
+        return user
+
+    def get_or_create_user_by_openid(
+        self, openid: str, wechat_user_info: dict[str, Any]
+    ) -> UserDb:
+        """根据 openid 查找或创建用户（使用 sub 字段存储 openid）
+
+        Args:
+            openid: 微信用户的 openid
+            wechat_user_info: 微信用户信息字典
+
+        Returns:
+            用户对象
+        """
+        db = self._ensure_db()
+        # 使用 sub 字段存储 openid
+        user = self.get_user_by_sub(openid)
+
+        if not user:
+            # 创建新用户
+            nickname = wechat_user_info.get("nickname", "")
+            avatar = wechat_user_info.get("headimgurl", "")
+            user = UserDb(
+                sub=openid,  # 使用 sub 字段存储 openid
+                name=nickname or f"微信用户_{openid[:8]}",
+                avatar=avatar,
+                last_login_at=get_datetime_now(),
+                last_login_type="wechat",
+                status="active",
+            )
+            db.add(user)
+            logger.info("创建微信用户", openid=openid, user_id=user.id)
+        else:
+            # 更新现有用户
+            user.last_login_at = get_datetime_now()
+            user.last_login_type = "wechat"
+            # 更新昵称和头像（如果微信返回了新的信息）
+            if wechat_user_info.get("nickname"):
+                user.name = wechat_user_info["nickname"]
+            if wechat_user_info.get("headimgurl"):
+                user.avatar = wechat_user_info["headimgurl"]
+            db.add(user)
+            logger.info("更新微信用户登录信息", openid=openid, user_id=user.id)
+
+        # 所有字段都有 default_factory 或手动设置，不需要 refresh()
+        # 事务由 get_db() 或 BaseService.__exit__ 自动提交
         return user

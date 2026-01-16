@@ -149,3 +149,11 @@ class CompressionConfig(BaseModel):
     tool_result_max_tokens: int = Field(
         default=5000, description="单个工具结果最大token数"
     )
+
+
+class WechatConfig(BaseModel):
+    """微信配置（微信开放平台网站应用）"""
+
+    app_id: str = Field(..., description="微信开放平台 AppID")
+    app_secret: str = Field(..., description="微信开放平台 AppSecret")
+    redirect_uri: str = Field(..., description="授权回调地址（需要在开放平台配置）")

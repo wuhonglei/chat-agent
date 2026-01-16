@@ -19,6 +19,7 @@ from app.schemas.config import (
     SecurityConfig,
     StorageConfig,
     SummarizerModelConfig,
+    WechatConfig,
 )
 
 
@@ -38,6 +39,7 @@ class Settings(BaseSettings):
     compression: CompressionConfig = Field(
         default_factory=CompressionConfig, description="上下文压缩配置"
     )
+    wechat: WechatConfig = Field(description="微信配置")
     component_schema_api_url: str = Field(description="组件 Schema API URL")
 
     model_config = SettingsConfigDict(

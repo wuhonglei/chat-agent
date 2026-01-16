@@ -95,3 +95,47 @@ class RefreshTokenResponse(SigninResponse):
     """Refresh token response"""
 
     pass
+
+
+class WechatInitRequest(BaseModel):
+    """微信扫码登录初始化请求"""
+
+    pass
+
+
+class WechatInitResponse(BaseModel):
+    """微信扫码登录初始化响应（网站应用）"""
+
+    authorize_url: str = Field(..., description="授权 URL（用于生成二维码）")
+    state: str = Field(..., description="状态参数，用于标识登录请求和防止 CSRF")
+    expire_seconds: int = Field(
+        default=600, description="状态过期时间（秒），默认 600 秒"
+    )
+
+
+class WechatCheckRequest(BaseModel):
+    """微信扫码登录状态检测请求（网站应用）"""
+
+    state: str = Field(..., description="状态参数")
+
+
+class WechatCheckResponse(BaseModel):
+    """微信扫码登录状态检测响应"""
+
+    status: str = Field(
+        ...,
+        description="登录状态: waiting(等待扫码), scanned(已扫码), confirmed(已确认), expired(已过期)",
+    )
+    user: dict | None = Field(None, description="用户信息（仅在 confirmed 状态时返回）")
+
+
+class WechatCallbackData(BaseModel):
+    """微信回调数据模型"""
+
+    ToUserName: str = Field(..., description="开发者微信号")
+    FromUserName: str = Field(..., description="发送方账号（OpenID）")
+    CreateTime: int = Field(..., description="消息创建时间")
+    MsgType: str = Field(..., description="消息类型")
+    Event: str | None = Field(None, description="事件类型")
+    EventKey: str | None = Field(None, description="事件 KEY 值")
+    Ticket: str | None = Field(None, description="二维码的 ticket")
