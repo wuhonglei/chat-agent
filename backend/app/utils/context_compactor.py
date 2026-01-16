@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 
-from openai import AsyncOpenAI
+from langchain_community.embeddings import DashScopeEmbeddings
+from langchain_community.vectorstores import FAISS
+from langchain_core.documents import Document
+from langchain_text_splitters import MarkdownTextSplitter
 
-from app.schemas.config import CompressionConfig, SummarizerModelConfig
+from app.schemas.config import CompressionConfig, EmbeddingModelConfig
 from app.utils.token import TokenCalculator
 
 
@@ -21,46 +23,26 @@ class CompactionResult:
 
 
 class ContextCompactor:
-    """基于相关性过滤与摘要的上下文压缩器（工具返回为 markdown）"""
+    """基于相关性过滤的上下文压缩器（工具返回为 markdown）"""
 
     def __init__(
         self,
-        summarizer_model: SummarizerModelConfig,
+        embedding_model: EmbeddingModelConfig,
         compression_config: CompressionConfig,
     ) -> None:
-        self.summarizer_model = summarizer_model
+        self.embedding_model = embedding_model
         self.compression_config = compression_config
-        self.client = AsyncOpenAI(
-            api_key=summarizer_model.api_key,
-            base_url=summarizer_model.api_base,
+        self.embeddings = DashScopeEmbeddings(
+            model=embedding_model.model_name,
+            dashscope_api_key=embedding_model.api_key,
         )
-        self.token_calculator = TokenCalculator(summarizer_model.model_name)
+        self.token_calculator = TokenCalculator(embedding_model.model_name)
 
     def _split_markdown(self, content: str) -> list[str]:
-        chunks = [chunk.strip() for chunk in re.split(r"\n{2,}", content) if chunk]
-        return chunks
-
-    def _tokenize_query(self, query: str) -> list[str]:
-        query = query.strip()
-        latin_tokens = re.findall(r"[A-Za-z0-9_]+", query.lower())
-        latin_tokens = [token for token in latin_tokens if len(token) > 1]
-        cjk_tokens = re.findall(r"[\u4e00-\u9fff]", query)
-        tokens = latin_tokens + cjk_tokens
-        if not tokens and query:
-            tokens = [query]
-        return tokens
-
-    def _score_chunk(self, chunk: str, tokens: list[str]) -> int:
-        if not tokens:
-            return 0
-        chunk_lower = chunk.lower()
-        score = 0
-        for token in tokens:
-            if re.fullmatch(r"[\u4e00-\u9fff]", token):
-                score += chunk.count(token)
-            else:
-                score += chunk_lower.count(token)
-        return score
+        splitter = MarkdownTextSplitter(chunk_size=1000, chunk_overlap=200)
+        return [
+            chunk.strip() for chunk in splitter.split_text(content) if chunk.strip()
+        ]
 
     def extract_relevant_markdown(self, query: str, content: str) -> str:
         if not content.strip():
@@ -70,32 +52,35 @@ class ContextCompactor:
         if not chunks:
             return content
 
-        tokens = self._tokenize_query(query)
-        scored_chunks = []
-        for idx, chunk in enumerate(chunks):
-            score = self._score_chunk(chunk, tokens)
-            scored_chunks.append((idx, score, chunk))
+        documents = [
+            Document(page_content=chunk, metadata={"index": idx})
+            for idx, chunk in enumerate(chunks)
+        ]
+        vector_store = FAISS.from_documents(documents, self.embeddings)
+        results = vector_store.similarity_search_with_score(query, k=len(documents))
 
-        relevant = [item for item in scored_chunks if item[1] > 0]
-        if not relevant:
+        if not results:
             return chunks[0]
 
         max_tokens = self.compression_config.tool_result_max_tokens
-        sorted_relevant = sorted(relevant, key=lambda item: item[1], reverse=True)
-        selected_chunks: list[tuple[int, int, str]] = []
+        sorted_relevant = sorted(
+            results, key=lambda item: item[1]
+        )  # score 越小相似度越高
+        selected_chunks: list[tuple[int, str]] = []
         selected_tokens = 0
-        for item in sorted_relevant:
-            chunk_tokens = self.token_calculator.count_tokens(item[2])
+        for doc, _score in sorted_relevant:
+            chunk_text = doc.page_content
+            chunk_tokens = self.token_calculator.count_tokens(chunk_text)
             if selected_tokens + chunk_tokens > max_tokens:
                 continue
-            selected_chunks.append(item)
+            selected_chunks.append((doc.metadata["index"], chunk_text))
             selected_tokens += chunk_tokens
 
         if not selected_chunks:
             return chunks[0]
 
         selected_sorted = sorted(selected_chunks, key=lambda item: item[0])
-        return "\n\n".join(item[2] for item in selected_sorted)
+        return "\n\n".join(item[1] for item in selected_sorted)
 
     async def compact_markdown_tool_result(
         self,

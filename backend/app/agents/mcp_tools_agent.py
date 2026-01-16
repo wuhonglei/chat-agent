@@ -49,7 +49,7 @@ class MCPToolsAgent(BaseAgent):
         self.duration: float | None = None
         self.token_stats: MCPToolsTokenStats | None = None
         self.compactor = ContextCompactor(
-            summarizer_model=settings.summarizer_model,
+            embedding_model=settings.embedding_model,
             compression_config=settings.compression,
         )
         self.current_user_message: str = ""
