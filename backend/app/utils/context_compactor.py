@@ -2,19 +2,17 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 from langchain_community.embeddings import DashScopeEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 from langchain_text_splitters import MarkdownTextSplitter
+from pydantic import BaseModel
 
 from app.schemas.config import CompressionConfig, EmbeddingModelConfig
 from app.utils.token import TokenCalculator
 
 
-@dataclass
-class CompactionResult:
+class CompactionResult(BaseModel):
     content: str
     relevance_applied: bool
     threshold_token_count: int

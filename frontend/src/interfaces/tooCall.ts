@@ -34,7 +34,9 @@ export interface ToolCallEndItemMessage {
   content: string;
   toolCallId: string;
   duration: number;
-  tokenCount?: number;
+  contentTokenCount?: number;
+  relevanceApplied?: boolean;
+  relevantTokenCount?: number;
 }
 
 export type ToolCallMessage =
