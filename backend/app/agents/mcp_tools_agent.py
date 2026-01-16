@@ -279,8 +279,9 @@ class MCPToolsAgent(BaseAgent):
 
         updated_fields = {
             "content": compaction.content,
-            "token_count": self.token_calculator.count_tokens(compaction.content),
-            "reference_id": compaction.reference_id,
+            "content_token_count": self.token_calculator.count_tokens(
+                compaction.content
+            ),
             "relevance_applied": compaction.relevance_applied,
             "summary_applied": compaction.summary_applied,
             "original_token_count": compaction.original_token_count,
@@ -294,7 +295,6 @@ class MCPToolsAgent(BaseAgent):
             logger.info(
                 "Tool result compacted",
                 tool_name=tool_name,
-                reference_id=compaction.reference_id,
                 original_token_count=compaction.original_token_count,
                 relevant_token_count=compaction.relevant_token_count,
                 summary_token_count=compaction.summary_token_count,

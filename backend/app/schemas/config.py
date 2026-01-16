@@ -146,10 +146,6 @@ class CompressionConfig(BaseModel):
 
     enabled: bool = Field(default=True, description="是否启用上下文压缩")
     relevance_enabled: bool = Field(default=True, description="是否启用相关性过滤")
-    reference_enabled: bool = Field(default=True, description="是否启用引用")
     tool_result_max_tokens: int = Field(
         default=5000, description="单个工具结果最大token数"
-    )
-    reference_dir: str = Field(
-        default="./data/tool_results", description="引用存储目录"
     )

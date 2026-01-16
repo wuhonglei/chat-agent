@@ -3,11 +3,8 @@
 from __future__ import annotations
 
 import re
-import uuid
 from dataclasses import dataclass
-from pathlib import Path
 
-import aiofiles
 from openai import AsyncOpenAI
 
 from app.schemas.config import CompressionConfig, SummarizerModelConfig
@@ -18,12 +15,9 @@ from app.utils.token import TokenCalculator
 class CompactionResult:
     content: str
     relevance_applied: bool
-    summary_applied: bool
-    reference_id: str | None
     threshold_token_count: int
     original_token_count: int
     relevant_token_count: int
-    summary_token_count: int | None
 
 
 class ContextCompactor:
@@ -103,23 +97,6 @@ class ContextCompactor:
         selected_sorted = sorted(selected_chunks, key=lambda item: item[0])
         return "\n\n".join(item[2] for item in selected_sorted)
 
-    async def _write_reference(
-        self, tool_name: str, content: str, query: str
-    ) -> str | None:
-        if not self.compression_config.reference_enabled:
-            return None
-
-        base_dir = Path(self.compression_config.reference_dir)
-        base_dir.mkdir(parents=True, exist_ok=True)
-        reference_id = f"{tool_name}-{uuid.uuid4().hex}"
-        file_path = base_dir / f"{reference_id}.md"
-        header = f"<!-- tool: {tool_name} | query: {query} -->\n\n"
-
-        async with aiofiles.open(file_path, "w", encoding="utf-8") as f:
-            await f.write(header + content)
-
-        return reference_id
-
     async def compact_markdown_tool_result(
         self,
         query: str,
@@ -138,7 +115,6 @@ class ContextCompactor:
                 content=content,
                 relevance_applied=self.compression_config.relevance_enabled,
                 summary_applied=False,
-                reference_id=None,
                 original_token_count=original_tokens,
                 relevant_token_count=original_tokens,
                 summary_token_count=None,
@@ -152,20 +128,16 @@ class ContextCompactor:
                 content=relevant_content,
                 relevance_applied=self.compression_config.relevance_enabled,
                 summary_applied=False,
-                reference_id=None,
                 original_token_count=original_tokens,
                 relevant_token_count=relevant_tokens,
                 summary_token_count=None,
                 threshold_token_count=threshold_tokens,
             )
 
-        reference_id = await self._write_reference(tool_name, content, query)
-
         return CompactionResult(
             content=relevant_content,
             relevance_applied=self.compression_config.relevance_enabled,
             summary_applied=False,
-            reference_id=reference_id,
             original_token_count=original_tokens,
             relevant_token_count=relevant_tokens,
             summary_token_count=None,
