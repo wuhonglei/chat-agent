@@ -82,11 +82,11 @@ export function isInputEnter(event: React.KeyboardEvent<Element>) {
 }
 
 export function isFromConfluence(sourceType: SearchSourceType) {
-  return sourceType === SearchSourceType.CONFLUENCE;
+  return sourceType === SearchSourceType.Confluence;
 }
 
 export function isFromWebSearch(sourceType: SearchSourceType) {
-  return sourceType === SearchSourceType.WEB_SEARCH;
+  return sourceType === SearchSourceType.WebSearch;
 }
 
 export function isUserRole(role: RoleType) {
@@ -121,7 +121,7 @@ export function getHistoryMessageIds<T extends ChatMessage>(
       isUserRole(message.role) &&
       isAssistantRole(nextMessage.role) &&
       !isEmpty(nextMessage.content) &&
-      nextMessage.status === MessageStatus.DONE
+      nextMessage.status === MessageStatus.Done
     ) {
       validHistoryIds.push(message.id, nextMessage.id);
       i += 2;

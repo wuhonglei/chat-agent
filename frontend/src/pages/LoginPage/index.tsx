@@ -4,6 +4,7 @@ import type { TabsProps } from "antd";
 import { Tabs } from "antd";
 import React, { useState } from "react";
 import VerifyCodeForm from "./components/VerifyCodeForm";
+import WeChatLoginForm from "./components/WeChatLoginForm";
 
 const LoginPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("verification");
@@ -13,6 +14,11 @@ const LoginPage: React.FC = () => {
       key: "verification",
       label: "验证码登录",
       children: <VerifyCodeForm />,
+    },
+    {
+      key: "wechat",
+      label: "微信登录",
+      children: <WeChatLoginForm />,
     },
   ];
 

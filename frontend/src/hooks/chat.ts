@@ -304,7 +304,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
             dispatch(
               updateMessageStatus({
                 conversationId,
-                data: MessageStatus.DONE,
+                data: MessageStatus.Done,
               })
             );
             dispatch(

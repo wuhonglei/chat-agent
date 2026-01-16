@@ -1,6 +1,11 @@
+import {
+  SendSmsResponse,
+  UserInfo,
+  VerifySmsRequest,
+  WeChatLoginCheckResponse,
+  WeChatLoginInitResponse,
+} from "@/interfaces";
 import { apiClient } from "./base";
-import { UserInfo } from "@/interfaces";
-import { SendSmsResponse, VerifySmsRequest } from "@/interfaces";
 
 export const userAPI = {
   getUserDetail: async (): Promise<UserInfo> => {
@@ -21,5 +26,13 @@ export const userAPI = {
   },
   updateUserInfo: async (data: Partial<UserInfo>): Promise<UserInfo> => {
     return await apiClient.put("/user/update_info", data);
+  },
+  initWeChatLogin: async (): Promise<WeChatLoginInitResponse> => {
+    return await apiClient.post("/auth/wechat/callback");
+  },
+  checkWeChatLoginStatus: async (
+    ticket: string
+  ): Promise<WeChatLoginCheckResponse> => {
+    return await apiClient.post("/auth/wechat/check", { ticket });
   },
 };

@@ -1,13 +1,13 @@
 export enum SearchSourceType {
-  WEB_SEARCH = "web_search",
-  CONFLUENCE = "confluence",
+  WebSearch = "web_search",
+  Confluence = "confluence",
 }
 
 export type RoleType = "user" | "assistant" | "system";
 
 export enum MessageStatus {
-  PENDING = "pending",
-  STOPPED = "stopped",
-  DONE = "done",
-  FAILED = "failed",
+  Pending = "pending",
+  Stopped = "stopped",
+  Done = "done",
+  Failed = "failed",
 }
