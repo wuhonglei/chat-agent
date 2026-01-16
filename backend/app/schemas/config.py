@@ -13,6 +13,26 @@ class AppConfig(BaseModel):
     port: int = 8000
 
 
+class BaseLLMModelConfig(BaseModel):
+    """LLM 模型 API 基础配置"""
+
+    api_key: str = Field(description="API 密钥")
+    api_base: str = Field(description="API 基础地址")
+    model_name: str = Field(description="默认模型名称")
+
+
+class EmbeddingModelConfig(BaseLLMModelConfig):
+    """Embedding 模型 API 配置"""
+
+    pass
+
+
+class SummarizerModelConfig(BaseLLMModelConfig):
+    """摘要生成模型 API 配置"""
+
+    pass
+
+
 class LLMConfig(BaseModel):
     """LLM 模型 API 配置"""
 
@@ -20,14 +40,6 @@ class LLMConfig(BaseModel):
     api_base: str = Field(description="LLM API 基础地址")
     model_name: str = Field(description="默认模型名称")
     think_model_name: str = Field(description="推理模型名称")
-
-
-class EmbeddingModelConfig(BaseModel):
-    """Embedding 模型 API 配置"""
-
-    api_key: str = Field(description="Embedding API 密钥")
-    api_base: str = Field(description="Embedding API 基础地址")
-    model_name: str = Field(description="默认模型名称")
 
 
 class Context7Config(BaseModel):
@@ -132,4 +144,17 @@ class DatabaseConfig(BaseModel):
 class CompressionConfig(BaseModel):
     """上下文压缩配置"""
 
-    pass
+    enabled: bool = Field(default=True, description="是否启用上下文压缩")
+    relevance_enabled: bool = Field(default=True, description="是否启用相关性过滤")
+    tool_result_threshold_ratio: float = Field(
+        default=0.1, description="压缩触发阈值比例"
+    )
+    tool_result_max_tokens: int = Field(
+        default=5000, description="单个工具结果最大token数"
+    )
+    max_relevance_chunks: int = Field(default=12, description="相关片段最多保留条数")
+    summary_max_tokens: int = Field(default=1200, description="摘要目标最大token数")
+    reference_enabled: bool = Field(default=True, description="是否启用引用")
+    reference_dir: str = Field(
+        default="./data/tool_results", description="引用存储目录"
+    )

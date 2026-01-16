@@ -18,6 +18,7 @@ from app.schemas.config import (
     MCPConfig,
     SecurityConfig,
     StorageConfig,
+    SummarizerModelConfig,
 )
 
 
@@ -27,7 +28,7 @@ class Settings(BaseSettings):
     app: AppConfig = Field(default_factory=AppConfig)
     response_model: LLMConfig = Field(description="响应生成模型 API 配置")
     tool_call_model: LLMConfig = Field(description="mcp 工具调用模型 API 配置")
-    summarizer_model: LLMConfig = Field(description="摘要生成模型 API 配置")
+    summarizer_model: SummarizerModelConfig = Field(description="摘要生成模型 API 配置")
     embedding_model: EmbeddingModelConfig = Field(description="Embedding 模型 API 配置")
     mcp: MCPConfig = Field(description="MCP 工具配置")
     storage: StorageConfig = Field(description="S3 存储配置")
