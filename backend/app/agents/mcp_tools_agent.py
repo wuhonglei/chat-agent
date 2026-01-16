@@ -283,10 +283,10 @@ class MCPToolsAgent(BaseAgent):
             "reference_id": compaction.reference_id,
             "relevance_applied": compaction.relevance_applied,
             "summary_applied": compaction.summary_applied,
-            "original_tokens": compaction.original_tokens,
-            "relevant_tokens": compaction.relevant_tokens,
-            "summary_tokens": compaction.summary_tokens,
-            "threshold_tokens": compaction.threshold_tokens,
+            "original_token_count": compaction.original_token_count,
+            "relevant_token_count": compaction.relevant_token_count,
+            "summary_token_count": compaction.summary_token_count,
+            "threshold_token_count": compaction.threshold_token_count,
         }
         updated_message = tool_message.model_copy(update=updated_fields)
 
@@ -295,21 +295,21 @@ class MCPToolsAgent(BaseAgent):
                 "Tool result compacted",
                 tool_name=tool_name,
                 reference_id=compaction.reference_id,
-                original_tokens=compaction.original_tokens,
-                relevant_tokens=compaction.relevant_tokens,
-                summary_tokens=compaction.summary_tokens,
-                threshold_tokens=compaction.threshold_tokens,
+                original_token_count=compaction.original_token_count,
+                relevant_token_count=compaction.relevant_token_count,
+                summary_token_count=compaction.summary_token_count,
+                threshold_token_count=compaction.threshold_token_count,
             )
         elif (
             compaction.relevance_applied
-            and compaction.original_tokens != compaction.relevant_tokens
+            and compaction.original_token_count != compaction.relevant_token_count
         ):
             logger.info(
                 "Tool result filtered by relevance",
                 tool_name=tool_name,
-                original_tokens=compaction.original_tokens,
-                relevant_tokens=compaction.relevant_tokens,
-                threshold_tokens=compaction.threshold_tokens,
+                original_token_count=compaction.original_token_count,
+                relevant_token_count=compaction.relevant_token_count,
+                threshold_token_count=compaction.threshold_token_count,
             )
 
         return updated_message

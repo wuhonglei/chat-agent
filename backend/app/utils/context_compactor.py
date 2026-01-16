@@ -22,10 +22,10 @@ class CompactionResult:
     relevance_applied: bool
     summary_applied: bool
     reference_id: str | None
-    original_tokens: int
-    relevant_tokens: int
-    summary_tokens: int | None
-    threshold_tokens: int
+    threshold_token_count: int
+    original_token_count: int
+    relevant_token_count: int
+    summary_token_count: int | None
 
 
 class ContextCompactor:
@@ -88,13 +88,22 @@ class ContextCompactor:
         if not relevant:
             return chunks[0]
 
-        max_chunks = self.compression_config.max_relevance_chunks
-        if len(relevant) > max_chunks:
-            relevant = sorted(relevant, key=lambda item: item[1], reverse=True)[
-                :max_chunks
-            ]
-        relevant_sorted = sorted(relevant, key=lambda item: item[0])
-        return "\n\n".join(item[2] for item in relevant_sorted)
+        max_tokens = self.compression_config.tool_result_max_tokens
+        sorted_relevant = sorted(relevant, key=lambda item: item[1], reverse=True)
+        selected_chunks: list[tuple[int, int, str]] = []
+        selected_tokens = 0
+        for item in sorted_relevant:
+            chunk_tokens = self.token_calculator.count_tokens(item[2])
+            if selected_tokens + chunk_tokens > max_tokens:
+                continue
+            selected_chunks.append(item)
+            selected_tokens += chunk_tokens
+
+        if not selected_chunks:
+            return chunks[0]
+
+        selected_sorted = sorted(selected_chunks, key=lambda item: item[0])
+        return "\n\n".join(item[2] for item in selected_sorted)
 
     async def _write_reference(
         self, tool_name: str, content: str, query: str
@@ -158,37 +167,23 @@ class ContextCompactor:
         original_tokens = self.token_calculator.count_tokens(content)
         threshold_tokens = self.compression_config.tool_result_max_tokens
 
-        if not self.compression_config.enabled or original_tokens <= threshold_tokens:
+        if (
+            not self.compression_config.enabled
+            or original_tokens <= threshold_tokens
+            or not self.compression_config.relevance_enabled
+        ):
             return CompactionResult(
                 content=content,
-                relevance_applied=False,
+                relevance_applied=self.compression_config.relevance_enabled,
                 summary_applied=False,
                 reference_id=None,
-                original_tokens=original_tokens,
-                relevant_tokens=original_tokens,
-                summary_tokens=None,
-                threshold_tokens=threshold_tokens,
+                original_token_count=original_tokens,
+                relevant_token_count=original_tokens,
+                summary_token_count=None,
+                threshold_token_count=threshold_tokens,
             )
 
-        relevance_applied = self.compression_config.relevance_enabled
-        relevant_content = (
-            self.extract_relevant_markdown(query, content)
-            if relevance_applied
-            else content
-        )
-        relevant_tokens = self.token_calculator.count_tokens(relevant_content)
-
-        if relevant_tokens <= threshold_tokens:
-            return CompactionResult(
-                content=relevant_content,
-                relevance_applied=relevance_applied,
-                summary_applied=False,
-                reference_id=None,
-                original_tokens=original_tokens,
-                relevant_tokens=relevant_tokens,
-                summary_tokens=None,
-                threshold_tokens=threshold_tokens,
-            )
+        relevant_content = self.extract_relevant_markdown(query, content)
 
         target_tokens = min(
             self.compression_config.summary_max_tokens, threshold_tokens
@@ -205,13 +200,15 @@ class ContextCompactor:
             )
             return CompactionResult(
                 content=relevant_content,
-                relevance_applied=relevance_applied,
+                relevance_applied=self.compression_config.relevance_enabled,
                 summary_applied=False,
                 reference_id=None,
-                original_tokens=original_tokens,
-                relevant_tokens=relevant_tokens,
-                summary_tokens=None,
-                threshold_tokens=threshold_tokens,
+                original_token_count=original_tokens,
+                relevant_token_count=self.token_calculator.count_tokens(
+                    relevant_content
+                ),
+                summary_token_count=None,
+                threshold_token_count=threshold_tokens,
             )
 
         summary_tokens = self.token_calculator.count_tokens(summary)
@@ -220,11 +217,11 @@ class ContextCompactor:
 
         return CompactionResult(
             content=compacted_content,
-            relevance_applied=relevance_applied,
+            relevance_applied=self.compression_config.relevance_enabled,
             summary_applied=True,
             reference_id=reference_id,
-            original_tokens=original_tokens,
-            relevant_tokens=relevant_tokens,
-            summary_tokens=summary_tokens,
-            threshold_tokens=threshold_tokens,
+            original_token_count=original_tokens,
+            relevant_token_count=self.token_calculator.count_tokens(relevant_content),
+            summary_token_count=summary_tokens,
+            threshold_token_count=threshold_tokens,
         )
