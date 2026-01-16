@@ -27,12 +27,14 @@ export const userAPI = {
   updateUserInfo: async (data: Partial<UserInfo>): Promise<UserInfo> => {
     return await apiClient.put("/user/update_info", data);
   },
-  initWeChatLogin: async (): Promise<WeChatLoginInitResponse> => {
-    return await apiClient.post("/auth/wechat/callback");
+  initWeChatLogin: async (
+    oldState?: string
+  ): Promise<WeChatLoginInitResponse> => {
+    return await apiClient.post("/auth/wechat/init", { oldState });
   },
   checkWeChatLoginStatus: async (
-    ticket: string
+    state: string
   ): Promise<WeChatLoginCheckResponse> => {
-    return await apiClient.post("/auth/wechat/check", { ticket });
+    return await apiClient.post("/auth/wechat/check", { state });
   },
 };

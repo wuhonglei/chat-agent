@@ -23,9 +23,11 @@ export interface JwtPayload {
 }
 
 export interface WeChatLoginInitResponse {
-  qrCodeUrl: string; // 二维码图片 URL
-  ticket: string; // 二维码 ticket，用于轮询检查状态
-  expiresIn: number; // 过期时间（秒）
+  authorizeUrl: string; // 微信网页授权 URL，包含二维码扫码链接
+  state: string; // 状态码，用于轮询检查登录状态和防 CSRF 攻击
+  expireSeconds: number; // 过期时间（秒）
+  appid: string; // 微信开放平台 AppID
+  redirectUri: string; // 授权回调地址
 }
 
 export interface WeChatLoginCheckResponse {

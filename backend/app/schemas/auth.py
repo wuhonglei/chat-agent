@@ -97,29 +97,31 @@ class RefreshTokenResponse(SigninResponse):
     pass
 
 
-class WechatInitRequest(BaseModel):
+class WeChatInitRequest(BaseModel):
     """微信扫码登录初始化请求"""
 
-    pass
+    old_state: str | None = Field(None, description="旧的状态参数")
 
 
-class WechatInitResponse(BaseModel):
+class WeChatInitResponse(BaseModel):
     """微信扫码登录初始化响应（网站应用）"""
 
     authorize_url: str = Field(..., description="授权 URL（用于生成二维码）")
+    appid: str = Field(..., description="微信开放平台 AppID")
+    redirect_uri: str = Field(..., description="授权回调地址")
     state: str = Field(..., description="状态参数，用于标识登录请求和防止 CSRF")
     expire_seconds: int = Field(
         default=600, description="状态过期时间（秒），默认 600 秒"
     )
 
 
-class WechatCheckRequest(BaseModel):
+class WeChatCheckRequest(BaseModel):
     """微信扫码登录状态检测请求（网站应用）"""
 
     state: str = Field(..., description="状态参数")
 
 
-class WechatCheckResponse(BaseModel):
+class WeChatCheckResponse(BaseModel):
     """微信扫码登录状态检测响应"""
 
     status: str = Field(

@@ -4,10 +4,10 @@ import type { TabsProps } from "antd";
 import { Tabs } from "antd";
 import React, { useState } from "react";
 import VerifyCodeForm from "./components/VerifyCodeForm";
-import WeChatLoginForm from "./components/WeChatLoginForm";
+import WeChatLoginForm from "./components/WeChatLogin";
 
 const LoginPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<string>("verification");
+  const [activeTab, setActiveTab] = useState<string>("wechat");
 
   const tabItems: TabsProps["items"] = [
     {
@@ -37,7 +37,7 @@ const LoginPage: React.FC = () => {
           activeKey={activeTab}
           onChange={setActiveTab}
           classNames={{
-            item: " font-medium",
+            item: "font-medium",
           }}
         />
       </div>

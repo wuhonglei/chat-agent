@@ -22,7 +22,7 @@ _wechat_login_states: dict[str, dict[str, Any]] = {}
 _access_token_cache: dict[str, Any] = {}
 
 
-class WechatService:
+class WeChatService:
     """微信服务类（微信开放平台网站应用）"""
 
     VERIFY_SSL = not settings.app.debug  # 如果DEBUG为True，则不验证SSL证书
@@ -45,7 +45,7 @@ class WechatService:
             "https://chat.wuhonglei.cn/api/auth/wechat/callback", safe=""
         )
         authorize_url = (
-            f"{WechatService.OPEN_URL}/connect/qrconnect"
+            f"{WeChatService.OPEN_URL}/connect/qrconnect"
             f"?appid={settings.wechat.app_id}"
             f"&redirect_uri={redirect_uri}"
             f"&response_type=code"
@@ -68,7 +68,7 @@ class WechatService:
         Raises:
             HTTPException: 当获取失败时
         """
-        url = f"{WechatService.BASE_URL}/sns/oauth2/access_token"
+        url = f"{WeChatService.BASE_URL}/sns/oauth2/access_token"
         params = {
             "appid": settings.wechat.app_id,
             "secret": settings.wechat.app_secret,
@@ -76,7 +76,7 @@ class WechatService:
             "grant_type": "authorization_code",
         }
 
-        async with httpx.AsyncClient(verify=WechatService.VERIFY_SSL) as client:
+        async with httpx.AsyncClient(verify=WeChatService.VERIFY_SSL) as client:
             try:
                 response = await client.get(url, params=params, timeout=10.0)
 
@@ -123,14 +123,14 @@ class WechatService:
         Raises:
             HTTPException: 当获取失败时
         """
-        url = f"{WechatService.BASE_URL}/sns/userinfo"
+        url = f"{WeChatService.BASE_URL}/sns/userinfo"
         params = {
             "access_token": access_token,
             "openid": openid,
             "lang": "zh_CN",
         }
 
-        async with httpx.AsyncClient(verify=WechatService.VERIFY_SSL) as client:
+        async with httpx.AsyncClient(verify=WeChatService.VERIFY_SSL) as client:
             try:
                 response = await client.get(url, params=params, timeout=10.0)
 
@@ -236,6 +236,16 @@ class WechatService:
             login_state["user_id"] = user_id
         if jwt_token:
             login_state["jwt_token"] = jwt_token
+
+    @staticmethod
+    def clear_login_state(state: str | None) -> None:
+        """清除登录状态
+
+        Args:
+            state: 状态参数
+        """
+        if state and state in _wechat_login_states:
+            del _wechat_login_states[state]
 
     @staticmethod
     def generate_scene_str() -> str:

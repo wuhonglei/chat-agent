@@ -5,6 +5,7 @@
 from fastapi import APIRouter, Depends, Request, Response
 from sqlmodel import Session
 
+from app.core.config import settings
 from app.core.db import get_db
 from app.core.jwt import JWTManager, get_jwt_manager
 from app.models import UserDb
@@ -15,14 +16,15 @@ from app.schemas.auth import (
     SignoutRequest,
     SignupRequest,
     VerifySmsRequestFromFrontend,
-    WechatCheckRequest,
-    WechatCheckResponse,
-    WechatInitResponse,
+    WeChatCheckRequest,
+    WeChatCheckResponse,
+    WeChatInitRequest,
+    WeChatInitResponse,
 )
 from app.schemas.response import ApiResponse
 from app.services.cloudbase_service import CloudbaseService
 from app.services.user_service import UserService
-from app.services.wechat_service import WechatService
+from app.services.wechat_service import WeChatService
 from app.utils.auth_deps import get_auth_token_info
 from app.utils.logger import logger
 
@@ -100,20 +102,30 @@ async def logout(
 
 
 @router.post("/wechat/init")
-async def wechat_init() -> ApiResponse[WechatInitResponse]:
+async def wechat_init(
+    wechat_init_request: WeChatInitRequest,
+) -> ApiResponse[WeChatInitResponse]:
     """微信扫码登录初始化（网站应用 OAuth2.0）"""
+    old_state = wechat_init_request.old_state
+    WeChatService.clear_login_state(old_state)
+
     # 生成唯一的 state 参数（用于防止 CSRF 攻击）
-    state = WechatService.generate_scene_str()
+    state = WeChatService.generate_scene_str()
 
     # 生成授权 URL
-    authorize_url = WechatService.generate_authorize_url(state)
+    authorize_url = WeChatService.generate_authorize_url(state)
 
     # 初始化状态（默认 10 分钟过期）
     expire_seconds = 600
-    WechatService.init_login_state(state, expire_seconds)
+    WeChatService.init_login_state(state, expire_seconds)
 
-    response_data = WechatInitResponse(
+    # 回调地址
+    redirect_uri = "https://chat.wuhonglei.cn/api/auth/wechat/callback"
+
+    response_data = WeChatInitResponse(
         authorize_url=authorize_url,
+        appid=settings.wechat.app_id,
+        redirect_uri=redirect_uri,
         state=state,
         expire_seconds=expire_seconds,
     )
@@ -123,17 +135,17 @@ async def wechat_init() -> ApiResponse[WechatInitResponse]:
 
 @router.post("/wechat/check")
 async def wechat_check(
-    check_request: WechatCheckRequest,
+    check_request: WeChatCheckRequest,
     response: Response,
     db: Session = Depends(get_db),
-) -> ApiResponse[WechatCheckResponse]:
+) -> ApiResponse[WeChatCheckResponse]:
     """微信扫码登录状态检测（网站应用）"""
     state = check_request.state
-    login_state = WechatService.get_login_state(state)
+    login_state = WeChatService.get_login_state(state)
 
     if not login_state:
         return ApiResponse.success(
-            data=WechatCheckResponse(status="expired", user=None)
+            data=WeChatCheckResponse(status="expired", user=None)
         )
 
     status = login_state.get("status", "waiting")
@@ -159,10 +171,10 @@ async def wechat_check(
                     "phone": user.phone,
                 }
                 return ApiResponse.success(
-                    data=WechatCheckResponse(status="confirmed", user=user_dict)
+                    data=WeChatCheckResponse(status="confirmed", user=user_dict)
                 )
 
-    return ApiResponse.success(data=WechatCheckResponse(status=status, user=None))
+    return ApiResponse.success(data=WeChatCheckResponse(status=status, user=None))
 
 
 @router.get("/wechat/callback")
@@ -182,22 +194,22 @@ async def wechat_callback(
         return "授权失败：缺少必要参数"
 
     # 验证 state 是否存在
-    login_state = WechatService.get_login_state(state)
+    login_state = WeChatService.get_login_state(state)
     if not login_state:
         logger.warning("微信回调 state 不存在或已过期", state=state)
         return "授权失败：state 无效或已过期"
 
     try:
         # 通过 code 换取 access_token
-        token_data = await WechatService.get_access_token_by_code(code)
+        token_data = await WeChatService.get_access_token_by_code(code)
         access_token = token_data["access_token"]
         openid = token_data["openid"]
 
         # 更新状态为已扫码
-        WechatService.update_login_state(state, "scanned", openid=openid)
+        WeChatService.update_login_state(state, "scanned", openid=openid)
 
         # 获取用户信息
-        wechat_user_info = await WechatService.get_user_info(openid, access_token)
+        wechat_user_info = await WeChatService.get_user_info(openid, access_token)
 
         # 创建或更新用户
         user_service = UserService(db)
@@ -214,7 +226,7 @@ async def wechat_callback(
         jwt_token = jwt_manager.create_token(secret_token_info)
 
         # 更新状态为已确认
-        WechatService.update_login_state(
+        WeChatService.update_login_state(
             state,
             "confirmed",
             openid=openid,

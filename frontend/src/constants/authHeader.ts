@@ -54,7 +54,7 @@ class AuthHeader {
 
   private decodeJwtPayload(token: string): JwtPayload | null {
     try {
-      return jwtDecode(token);
+      return token ? jwtDecode(token) : null;
     } catch (error) {
       console.error("Failed to decode JWT payload:", error);
       return null;

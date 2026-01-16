@@ -1,0 +1,9 @@
+.wx-container {
+  width: 240px;
+  height: 240px;
+
+  iframe {
+    width: 100%;
+    height: 100%;
+  }
+}

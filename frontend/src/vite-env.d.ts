@@ -33,4 +33,32 @@ declare global {
   // 声明全局变量 aegis，类型为 Aegis 实例
   // eslint-disable-next-line no-var
   var aegis: Aegis | undefined;
+
+  // 微信 JS-SDK 类型定义
+  interface WxConfig {
+    debug?: boolean;
+    appId: string;
+    timestamp: number;
+    nonceStr: string;
+    signature: string;
+    jsApiList: string[];
+  }
+
+  interface WxError {
+    errMsg: string;
+  }
+
+  interface Wx {
+    config(config: WxConfig): void;
+    ready(callback: () => void): void;
+    error(callback: (res: WxError) => void): void;
+    checkJsApi(params: {
+      jsApiList: string[];
+      success?: (res: { checkResult: Record<string, boolean> }) => void;
+      fail?: (res: WxError) => void;
+    }): void;
+  }
+
+  // eslint-disable-next-line no-var
+  var wx: Wx | undefined;
 }
