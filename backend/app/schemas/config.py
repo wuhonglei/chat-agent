@@ -124,21 +124,4 @@ class DatabaseConfig(BaseModel):
 class CompressionConfig(BaseModel):
     """上下文压缩配置"""
 
-    enabled: bool = Field(default=True, description="是否启用上下文压缩")
-    threshold_ratio: float = Field(
-        default=0.8, description="压缩触发阈值比例（80%模型限制）"
-    )
-    max_history_messages: int = Field(
-        default=20,
-        description="历史消息滑动窗口大小（对话轮次数）。一轮对话包括：工具调用消息（如果有）+ user消息 + assistant消息",
-    )
-    history_summarization_enabled: bool = Field(
-        default=True, description="是否启用历史摘要"
-    )
-    tool_result_max_tokens: int = Field(
-        default=5000, description="单个工具结果最大token数"
-    )
-    iteration_retention_ratios: dict[int, float] = Field(
-        default_factory=lambda: {0: 0.9, 1: 0.7, 2: 0.5, 3: 0.3},
-        description="迭代结果保留比例配置（键为迭代年龄，值为保留比例）",
-    )
+    pass
