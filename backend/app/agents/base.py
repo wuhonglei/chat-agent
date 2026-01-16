@@ -25,6 +25,7 @@ from app.schemas.llm import (
 from app.schemas.token_stats import BaseTokenStats, TokenUsage
 from app.utils.common import normalize_to_dict
 from app.utils.logger import logger
+from app.utils.message import format_chat_message_for_llm
 from app.utils.model import format_sse_message, get_model_extra_body
 from app.utils.token import TokenCalculator
 
@@ -285,8 +286,7 @@ class BaseAgent(ABC):
 
         history = history_messages or []
         for msg in history:
-            # history message 中的 reasoning_content 字段已在 chat.py 中清除
-            msg_dict = normalize_to_dict(msg)
+            msg_dict = format_chat_message_for_llm(msg, keep_reasoning=False)
             messages.append(msg_dict)
 
         messages.append({"role": "user", "content": user_message})

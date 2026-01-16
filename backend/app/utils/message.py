@@ -4,6 +4,7 @@ from typing import Any
 
 from toolz import dissoc, get
 
+from app.schemas.chat import ChatMessageItem
 from app.schemas.llm import (
     AssistantToolCallMessage,
     ToolCallMessage,
@@ -98,6 +99,23 @@ def format_tool_call_messages_for_llm(
             format_tool_call_message_for_llm(_message, clear_reasoning_content)
         )
     return new_messages
+
+
+def format_chat_message_for_llm(
+    message: ChatMessageItem | dict,
+    keep_reasoning: bool = False,
+) -> dict[str, Any]:
+    """
+    格式化聊天消息为 LLM API 所需的格式（仅用户/助手消息）
+    """
+    message_dict = normalize_to_dict(message)
+    role = get("role", message_dict)
+    content = get("content", message_dict, "")
+    payload: dict[str, Any] = {"role": role, "content": content}
+    reasoning = get("reasoning", message_dict, None)
+    if keep_reasoning and role == "assistant" and reasoning:
+        payload["reasoning"] = reasoning
+    return payload
 
 
 def find_last_user_message(messages: list[dict[str, Any]]) -> dict[str, Any] | None:

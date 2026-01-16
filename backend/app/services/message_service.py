@@ -71,8 +71,8 @@ class MessageService(BaseService):
             logger.error("Messages not found", message_ids=message_ids)
             return []
 
-        # 创建字典映射，key 为 message_id，value 为消息元组
-        messages_dict = {msg[0]: msg for msg in messages}
+        # 创建字典映射，key 为 message_id，value 为消息对象
+        messages_dict = {msg.id: msg for msg in messages}
 
         chat_messages: list[ChatMessageItem] = []
         # 按照 message_ids 的顺序遍历，保证返回顺序一致

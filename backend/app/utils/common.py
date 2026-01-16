@@ -1,6 +1,8 @@
 import uuid
 from typing import Any
 
+from fastapi.encoders import jsonable_encoder
+
 from app.schemas.llm import AssistantToolCallMessage, ToolCallMessage
 
 
@@ -29,11 +31,12 @@ def normalize_to_dict(data: Any) -> dict[str, Any]:
         字典格式的消息
     """
     if hasattr(data, "model_dump"):
-        return data.model_dump()
-    elif isinstance(data, dict):
-        return data
-    else:
-        return dict(data)
+        # 使用 JSON 模式确保 datetime 等类型可序列化
+        return data.model_dump(mode="json")
+    if isinstance(data, dict):
+        return jsonable_encoder(data)
+
+    return jsonable_encoder(data)
 
 
 def omit_fields(dict_data: dict, fields: list[str]) -> dict:

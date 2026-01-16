@@ -71,7 +71,10 @@ class ResponseGenerationAgent(BaseAgent):
 
         system_prompt = get_default_system_prompt(include_date=False)
         new_messages = self._compose_messages(
-            system_prompt, history_messages, final_user_message, mcp_tool_call_messages
+            system_prompt,
+            history_messages,
+            final_user_message,
+            mcp_tool_call_messages,
         )
 
         async for chunk in self._stream_final_response(
