@@ -11,6 +11,7 @@ from openai.types.chat import (
 )
 
 from app.agents.base import BaseAgent
+from app.core.config import settings
 
 # Import compression config
 from app.mcp.mcp_client import MCPClientManager
@@ -26,11 +27,11 @@ from app.schemas.llm import (
     ToolCallResultMessage,
 )
 from app.schemas.token_stats import MCPToolsTokenStats
+from app.utils.context_compactor import ContextCompactor
 from app.utils.logger import logger
 from app.utils.mcp import count_tool_calls, extract_tool_call_names
 from app.utils.message import (
     find_last_user_message,
-    format_tool_call_message_for_llm,
     format_tool_call_messages_for_llm,
 )
 from app.utils.time import get_current_time, get_time_duration
@@ -47,6 +48,11 @@ class MCPToolsAgent(BaseAgent):
         self.output_messages: list[ToolCallMessage] = []
         self.duration: float | None = None
         self.token_stats: MCPToolsTokenStats | None = None
+        self.compactor = ContextCompactor(
+            summarizer_model=settings.summarizer_model,
+            compression_config=settings.compression,
+        )
+        self.current_user_message: str = ""
 
     def get_server_names(
         self, mcp_auto_mode: bool, source_config: dict
@@ -80,6 +86,7 @@ class MCPToolsAgent(BaseAgent):
         source_config = chat_request.source_config
         self.think_mode = chat_request.think_mode
         user_message = chat_request.content
+        self.current_user_message = user_message
 
         # 获取MCP工具
         server_names = self.get_server_names(mcp_auto_mode, source_config)
@@ -222,6 +229,9 @@ class MCPToolsAgent(BaseAgent):
                     "duration": get_time_duration(start_time),
                 }
             )
+            tool_call_result_message = await self._compact_tool_result_if_needed(
+                tool_name, tool_call_result_message
+            )
             logger.info(
                 "MCP tool result received",
                 tool_name=tool_name,
@@ -253,6 +263,56 @@ class MCPToolsAgent(BaseAgent):
                 content_length=len(str(e)) if str(e) else 0,
             )
             return tool_call_result_message
+
+    async def _compact_tool_result_if_needed(
+        self, tool_name: str, tool_message: ToolCallResultMessage
+    ) -> ToolCallResultMessage:
+        content = tool_message.content or ""
+        if not content:
+            return tool_message
+
+        compaction = await self.compactor.compact_markdown_tool_result(
+            query=self.current_user_message,
+            tool_name=tool_name,
+            content=content,
+        )
+
+        updated_fields = {
+            "content": compaction.content,
+            "token_count": self.token_calculator.count_tokens(compaction.content),
+            "reference_id": compaction.reference_id,
+            "relevance_applied": compaction.relevance_applied,
+            "summary_applied": compaction.summary_applied,
+            "original_tokens": compaction.original_tokens,
+            "relevant_tokens": compaction.relevant_tokens,
+            "summary_tokens": compaction.summary_tokens,
+            "threshold_tokens": compaction.threshold_tokens,
+        }
+        updated_message = tool_message.model_copy(update=updated_fields)
+
+        if compaction.summary_applied:
+            logger.info(
+                "Tool result compacted",
+                tool_name=tool_name,
+                reference_id=compaction.reference_id,
+                original_tokens=compaction.original_tokens,
+                relevant_tokens=compaction.relevant_tokens,
+                summary_tokens=compaction.summary_tokens,
+                threshold_tokens=compaction.threshold_tokens,
+            )
+        elif (
+            compaction.relevance_applied
+            and compaction.original_tokens != compaction.relevant_tokens
+        ):
+            logger.info(
+                "Tool result filtered by relevance",
+                tool_name=tool_name,
+                original_tokens=compaction.original_tokens,
+                relevant_tokens=compaction.relevant_tokens,
+                threshold_tokens=compaction.threshold_tokens,
+            )
+
+        return updated_message
 
     async def _execute_tool_calls_parallel(
         self,
@@ -399,19 +459,9 @@ class MCPToolsAgent(BaseAgent):
                 assistant_message.tool_calls, iteration, iterations_by_tool
             )
 
-            # Note: Tools are now pre-filtered before LLM call, so no need to remove them here
-            # The iterations_by_tool dictionary is kept for defensive checks in execute_single_tool
-
             # Yield results in original order and collect them
-            current_iteration_results: list[dict] = []
             for tool_call_result_message in tool_results:
                 self.output_messages.append(tool_call_result_message)
-                current_iteration_results.append(
-                    {
-                        **format_tool_call_message_for_llm(tool_call_result_message),
-                        "iteration": iteration + 1,
-                    }
-                )
                 yield tool_call_result_message
 
         # If we hit max iterations, return error message
