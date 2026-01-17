@@ -320,8 +320,8 @@ else
     # 按依赖顺序更新服务：postgres -> backend -> frontend
     # 注意：数据库通常不需要频繁更新，但为了完整性包含在内
     
-    # 更新 postgres（如果需要）
-    # zero_downtime_deploy "postgres" 60
+    # 更新 postgres
+    zero_downtime_deploy "postgres" 60
     
     # 更新 backend
     BACKEND_DEPLOY_SUCCESS=true
