@@ -128,14 +128,26 @@ zero_downtime_deploy() {
     # 2. 记录旧容器信息和镜像标签（用于回滚）
     local old_container_id=$(docker ps -q -f name="ai-doc-$service")
     local old_image_tag=""
+    local old_image_id=""
+    local backup_container_name=""
     if [ -n "$old_container_id" ]; then
         old_image_tag=$(docker inspect "$old_container_id" --format='{{.Config.Image}}' 2>/dev/null || echo "")
+        old_image_id=$(docker inspect "$old_container_id" --format='{{.Image}}' 2>/dev/null || echo "")
     fi
     
-    # 3. 启动新容器（docker compose 会先停止旧容器再启动新容器）
+    # 3. 启动新容器（先重命名旧容器，以便回滚）
     # 虽然会有短暂停机（通常 1-3 秒），但构建期间服务一直可用
     echo "🚀 启动 $service 新容器（将会有短暂切换时间，通常 1-3 秒）..."
-    $DOCKER_COMPOSE_CMD up -d --no-deps --force-recreate --no-build "$service"
+    
+    # 先重命名旧容器（保留用于回滚），然后启动新容器
+    local backup_container_name="ai-doc-$service-backup-$(date +%s)"
+    if [ -n "$old_container_id" ]; then
+        echo "   备份旧容器为: $backup_container_name"
+        docker rename "ai-doc-$service" "$backup_container_name" 2>/dev/null || true
+    fi
+    
+    # 启动新容器
+    $DOCKER_COMPOSE_CMD up -d --no-deps --no-build "$service"
     
     # 4. 等待新容器健康检查通过
     echo "⏳ 等待 $service 健康检查通过（最多等待 ${max_wait} 秒）..."
@@ -179,43 +191,114 @@ zero_downtime_deploy() {
     
     if [ "$is_healthy" = true ]; then
         echo "✅ $service 更新成功并已就绪"
-        # 清理旧容器（如果还在）
-        if [ -n "$old_container_id" ] && [ "$old_container_id" != "$new_container_id" ]; then
-            docker rm -f "$old_container_id" 2>/dev/null || true
+        # 清理备份的旧容器
+        local backup_containers=$(docker ps -aq --filter "name=ai-doc-$service-backup")
+        if [ -n "$backup_containers" ]; then
+            echo "   清理备份容器..."
+            echo "$backup_containers" | xargs docker rm -f 2>/dev/null || true
         fi
         return 0
     else
         echo "❌ $service 健康检查失败，尝试回滚到旧版本..."
         echo "⚠️  新容器可能存在问题，请检查日志: $DOCKER_COMPOSE_CMD logs $service"
         
-        # 回滚策略：停止新容器，尝试恢复旧容器
+        # 回滚策略：停止新容器，恢复旧容器
         if [ -n "$new_container_id" ]; then
             echo "🔄 停止新容器..."
             docker stop "$new_container_id" 2>/dev/null || true
             docker rm -f "$new_container_id" 2>/dev/null || true
         fi
         
-        # 尝试使用旧镜像重新启动（如果有旧镜像标签）
-        if [ -n "$old_image_tag" ] && [ "$old_image_tag" != "" ]; then
-            echo "🔄 尝试使用旧镜像恢复服务..."
-            # 使用 docker compose 重新启动，这可能会使用旧镜像
+        # 尝试回滚：查找并恢复备份的旧容器
+        echo "🔄 尝试回滚到旧版本..."
+        local rollback_success=false
+        
+        # 方法1: 查找备份的旧容器（通过名称模式匹配）
+        local backup_container=$(docker ps -aq --filter "name=ai-doc-$service-backup" | head -1)
+        if [ -z "$backup_container" ]; then
+            # 如果没找到，尝试查找所有已停止的容器
+            backup_container=$(docker ps -aq --filter "name=ai-doc-$service-backup" --filter "status=exited" | head -1)
+        fi
+        
+        if [ -n "$backup_container" ]; then
+            echo "   发现备份的旧容器，尝试恢复..."
+            # 重命名回原来的名称
+            docker rename "$backup_container" "ai-doc-$service" 2>/dev/null || true
+            # 启动容器
+            docker start "ai-doc-$service" 2>/dev/null && sleep 3
+            local rollback_container=$(docker ps -q -f name="ai-doc-$service")
+            if [ -n "$rollback_container" ]; then
+                echo "✅ 已成功回滚到旧容器"
+                rollback_success=true
+            fi
+        fi
+        
+        # 方法2: 如果旧容器不存在，尝试使用旧镜像直接启动
+        if [ "$rollback_success" = false ] && [ -n "$old_image_id" ] && [ "$old_image_id" != "" ]; then
+            echo "   尝试使用旧镜像启动容器..."
+            # 获取服务配置信息
+            local container_name="ai-doc-$service"
+            local network_name="ai-doc-network"
+            
+            # 根据服务类型构建启动命令
+            if [ "$service" = "backend" ]; then
+                docker run -d \
+                    --name "$container_name" \
+                    --network "$network_name" \
+                    -p 8000:8000 \
+                    -v "$(pwd)/backend/data:/app/data" \
+                    -v "$(pwd)/backend/logs:/app/logs" \
+                    --env-file .env \
+                    -e DATABASE__HOST=postgres \
+                    -e COMPONENT_SCHEMA_API_URL=http://frontend:3000/component-schemas/ \
+                    --restart unless-stopped \
+                    "$old_image_id" 2>/dev/null && rollback_success=true
+            elif [ "$service" = "frontend" ]; then
+                docker run -d \
+                    --name "$container_name" \
+                    --network "$network_name" \
+                    -p 3000:3000 \
+                    --restart unless-stopped \
+                    "$old_image_id" 2>/dev/null && rollback_success=true
+            fi
+            
+            if [ "$rollback_success" = true ]; then
+                sleep 5
+                local rollback_container=$(docker ps -q -f name="ai-doc-$service")
+                if [ -n "$rollback_container" ]; then
+                    echo "✅ 已使用旧镜像启动容器"
+                else
+                    rollback_success=false
+                fi
+            fi
+        fi
+        
+        # 方法3: 如果以上都失败，尝试使用 docker compose 重新启动（可能使用缓存的旧镜像）
+        if [ "$rollback_success" = false ]; then
+            echo "   尝试使用 docker compose 重新启动..."
             $DOCKER_COMPOSE_CMD up -d --no-deps --no-build "$service" 2>/dev/null || true
             sleep 5
             local rollback_container=$(docker ps -q -f name="ai-doc-$service")
             if [ -n "$rollback_container" ]; then
-                echo "⚠️  已回滚到旧版本，但旧容器可能无法正常恢复"
-                echo "💡 建议手动检查并修复问题："
-                echo "   查看日志: $DOCKER_COMPOSE_CMD logs $service"
-                echo "   手动重启: $DOCKER_COMPOSE_CMD restart $service"
-                return 1
+                echo "⚠️  容器已启动，但可能使用的是新镜像，请验证服务是否正常"
+                rollback_success=true
             fi
         fi
         
-        echo "❌ 回滚失败，服务 $service 当前不可用"
-        echo "💡 请手动检查并修复问题："
-        echo "   查看日志: $DOCKER_COMPOSE_CMD logs $service"
-        echo "   手动重启: $DOCKER_COMPOSE_CMD restart $service"
-        return 1
+        if [ "$rollback_success" = true ]; then
+            echo "⚠️  回滚完成，但服务可能不稳定"
+            echo "💡 建议立即检查并修复问题："
+            echo "   查看日志: $DOCKER_COMPOSE_CMD logs $service"
+            echo "   检查状态: docker ps | grep $service"
+            return 1
+        else
+            echo "❌ 回滚失败，服务 $service 当前不可用"
+            echo "💡 请手动检查并修复问题："
+            echo "   查看日志: $DOCKER_COMPOSE_CMD logs $service"
+            echo "   手动重启: $DOCKER_COMPOSE_CMD restart $service"
+            echo "   或使用旧镜像手动启动: docker run ..."
+            return 1
+        fi
     fi
 }
 
