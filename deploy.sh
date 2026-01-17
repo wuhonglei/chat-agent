@@ -99,34 +99,173 @@ if [ ! -f .env ]; then
     fi
 fi
 
-# 停止现有容器
-echo "🛑 停止现有容器..."
-$DOCKER_COMPOSE_CMD down
+# 零停机部署函数
+# 策略：先构建镜像（旧容器继续运行），然后快速切换容器
+zero_downtime_deploy() {
+    local service=$1
+    local max_wait=${2:-120}  # 默认等待 120 秒
+    local check_interval=${3:-5}  # 默认每 5 秒检查一次
+    
+    echo ""
+    echo "🔄 开始更新服务: $service"
+    
+    # 检查服务是否正在运行
+    if ! $DOCKER_COMPOSE_CMD ps | grep -q "$service.*Up"; then
+        echo "⚠️  服务 $service 未运行，直接启动..."
+        $DOCKER_COMPOSE_CMD up -d --build --no-deps "$service"
+        return 0
+    fi
+    
+    # 1. 先构建新镜像（不停止旧容器，这是关键！）
+    echo "🔨 构建 $service 新镜像（旧容器继续运行，服务不中断）..."
+    $DOCKER_COMPOSE_CMD build "$service"
+    
+    if [ $? -ne 0 ]; then
+        echo "❌ $service 镜像构建失败"
+        return 1
+    fi
+    
+    # 2. 记录旧容器 ID（用于回滚）
+    local old_container_id=$(docker ps -q -f name="ai-doc-$service")
+    
+    # 3. 启动新容器（docker compose 会先停止旧容器再启动新容器）
+    # 虽然会有短暂停机（通常 1-3 秒），但构建期间服务一直可用
+    echo "🚀 启动 $service 新容器（将会有短暂切换时间，通常 1-3 秒）..."
+    $DOCKER_COMPOSE_CMD up -d --no-deps --force-recreate --no-build "$service"
+    
+    # 4. 等待新容器健康检查通过
+    echo "⏳ 等待 $service 健康检查通过（最多等待 ${max_wait} 秒）..."
+    local waited=0
+    local is_healthy=false
+    
+    while [ $waited -lt $max_wait ]; do
+        # 检查容器是否在运行
+        local current_container=$(docker ps -q -f name="ai-doc-$service")
+        if [ -n "$current_container" ]; then
+            # 根据服务类型进行健康检查
+            if [ "$service" = "backend" ]; then
+                if docker exec "$current_container" curl -f http://localhost:8000/ > /dev/null 2>&1; then
+                    is_healthy=true
+                    break
+                fi
+            elif [ "$service" = "frontend" ]; then
+                # 前端健康检查：检查容器进程
+                if docker exec "$current_container" ps aux | grep -qE "node|next"; then
+                    is_healthy=true
+                    break
+                fi
+            elif [ "$service" = "postgres" ]; then
+                # 数据库健康检查
+                if docker exec "$current_container" pg_isready -U ${PG_USER_NAME:-postgres} > /dev/null 2>&1; then
+                    is_healthy=true
+                    break
+                fi
+            else
+                # 默认：只要容器运行就认为健康
+                is_healthy=true
+                break
+            fi
+        fi
+        
+        sleep $check_interval
+        waited=$((waited + check_interval))
+        echo "   等待中... (${waited}/${max_wait} 秒)"
+    done
+    
+    if [ "$is_healthy" = true ]; then
+        echo "✅ $service 更新成功并已就绪"
+        # 清理旧容器（如果还在）
+        if [ -n "$old_container_id" ] && [ "$old_container_id" != "$(docker ps -q -f name="ai-doc-$service")" ]; then
+            docker rm -f "$old_container_id" 2>/dev/null || true
+        fi
+        return 0
+    else
+        echo "❌ $service 健康检查失败"
+        echo "⚠️  新容器可能存在问题，请检查日志: $DOCKER_COMPOSE_CMD logs $service"
+        echo "💡 提示：如果需要回滚，可以运行: $DOCKER_COMPOSE_CMD up -d --no-deps $service"
+        return 1
+    fi
+}
 
-# 构建并启动服务
-echo "🔨 构建并启动服务..."
-$DOCKER_COMPOSE_CMD up -d --build
+# 检查是否是首次部署（没有运行中的容器）
+IS_FIRST_DEPLOY=false
+if ! $DOCKER_COMPOSE_CMD ps | grep -q "Up"; then
+    IS_FIRST_DEPLOY=true
+    echo "📦 检测到首次部署，将直接启动所有服务..."
+fi
 
-# 等待服务启动
-echo "⏳ 等待服务启动..."
-sleep 10
+if [ "$IS_FIRST_DEPLOY" = true ]; then
+    # 首次部署：直接构建并启动所有服务
+    echo "🔨 构建并启动所有服务..."
+    $DOCKER_COMPOSE_CMD up -d --build
+else
+    # 更新部署：零停机更新
+    echo "🔄 开始零停机部署更新..."
+    
+    # 按依赖顺序更新服务：postgres -> backend -> frontend
+    # 注意：数据库通常不需要频繁更新，但为了完整性包含在内
+    
+    # 更新 postgres（如果需要）
+    # zero_downtime_deploy "postgres" 60
+    
+    # 更新 backend
+    if ! zero_downtime_deploy "backend" 120; then
+        echo "❌ 后端服务更新失败，部署中止"
+        exit 1
+    fi
+    
+    # 更新 frontend
+    if ! zero_downtime_deploy "frontend" 90; then
+        echo "❌ 前端服务更新失败，部署中止"
+        exit 1
+    fi
+fi
+
+# 等待所有服务稳定
+echo ""
+echo "⏳ 等待所有服务稳定..."
+sleep 5
 
 # 检查服务状态
 echo "📊 检查服务状态..."
 $DOCKER_COMPOSE_CMD ps
 
-# 检查健康状态
-echo "🏥 检查服务健康状态..."
+# 最终健康检查
+echo ""
+echo "🏥 执行最终健康检查..."
+ALL_HEALTHY=true
+
 if $DOCKER_COMPOSE_CMD exec -T backend curl -f http://localhost:8000/ > /dev/null 2>&1; then
     echo "✅ 后端服务运行正常"
 else
-    echo "⚠️  后端服务可能未就绪，请检查日志: $DOCKER_COMPOSE_CMD logs backend"
+    echo "❌ 后端服务健康检查失败"
+    ALL_HEALTHY=false
+fi
+
+if $DOCKER_COMPOSE_CMD ps | grep -q "frontend.*Up"; then
+    echo "✅ 前端服务运行正常"
+else
+    echo "❌ 前端服务未运行"
+    ALL_HEALTHY=false
+fi
+
+if $DOCKER_COMPOSE_CMD exec -T postgres pg_isready -U ${PG_USER_NAME:-postgres} > /dev/null 2>&1; then
+    echo "✅ 数据库服务运行正常"
+else
+    echo "❌ 数据库服务健康检查失败"
+    ALL_HEALTHY=false
 fi
 
 echo ""
-echo "✅ 部署完成！"
+if [ "$ALL_HEALTHY" = true ]; then
+    echo "✅ 部署完成！所有服务运行正常"
+else
+    echo "⚠️  部署完成，但部分服务可能存在问题，请检查日志"
+fi
 echo ""
 echo "📋 常用命令："
 echo "  查看日志: $DOCKER_COMPOSE_CMD logs -f"
+echo "  查看特定服务日志: $DOCKER_COMPOSE_CMD logs -f backend"
 echo "  停止服务: $DOCKER_COMPOSE_CMD down"
 echo "  重启服务: $DOCKER_COMPOSE_CMD restart"
+echo "  查看服务状态: $DOCKER_COMPOSE_CMD ps"
