@@ -346,7 +346,25 @@ if ! $DOCKER_COMPOSE_CMD ps | grep -q "Up"; then
 fi
 
 if [ "$IS_FIRST_DEPLOY" = true ]; then
-    # 首次部署：直接构建并启动所有服务
+    # 首次部署：清理已停止的旧容器，然后构建并启动所有服务
+    echo "🧹 清理已停止的旧容器..."
+    
+    # 清理所有项目相关的已停止容器
+    for service in postgres backend frontend; do
+        local stopped_container=$(docker ps -aq -f name="ai-doc-$service" 2>/dev/null)
+        if [ -n "$stopped_container" ]; then
+            echo "   清理已停止的 $service 容器..."
+            docker rm -f "$stopped_container" 2>/dev/null || true
+        fi
+        
+        # 清理备份容器
+        local backup_containers=$(docker ps -aq --filter "name=ai-doc-$service-backup" 2>/dev/null)
+        if [ -n "$backup_containers" ]; then
+            echo "   清理 $service 的备份容器..."
+            echo "$backup_containers" | xargs docker rm -f 2>/dev/null || true
+        fi
+    done
+    
     echo "🔨 构建并启动所有服务..."
     $DOCKER_COMPOSE_CMD up -d --build
 else
