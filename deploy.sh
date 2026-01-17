@@ -178,6 +178,7 @@ zero_downtime_deploy() {
         compose_service_label=$(docker inspect "$old_container_id" --format='{{ index .Config.Labels "com.docker.compose.service" }}' 2>/dev/null || echo "")
         compose_container_number=$(docker inspect "$old_container_id" --format='{{ index .Config.Labels "com.docker.compose.container-number" }}' 2>/dev/null || echo "")
         compose_config_hash=$(docker inspect "$old_container_id" --format='{{ index .Config.Labels "com.docker.compose.config-hash" }}' 2>/dev/null || echo "")
+        echo "   旧容器 ID: $old_container_id"
     fi
     
     # 3. 启动新容器（先重命名旧容器，以便回滚）
@@ -208,6 +209,7 @@ zero_downtime_deploy() {
     local waited=0
     local is_healthy=false
     local new_container_id=""
+    local logged_new_container=false
     
     while [ $waited -lt $max_wait ]; do
         # 检查容器是否在运行
@@ -216,6 +218,10 @@ zero_downtime_deploy() {
             new_container_id=$(docker ps -q -f name="^/ai-doc-$service$")
         fi
         if [ -n "$new_container_id" ]; then
+            if [ "$logged_new_container" = false ]; then
+                echo "   新容器 ID: $new_container_id"
+                logged_new_container=true
+            fi
             # 根据服务类型进行健康检查
             if [ "$service" = "backend" ]; then
                 if docker exec "$new_container_id" curl -f http://localhost:8000/ > /dev/null 2>&1; then
