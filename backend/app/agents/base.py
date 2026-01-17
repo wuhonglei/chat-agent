@@ -177,11 +177,13 @@ class BaseAgent(ABC):
             "stream": stream,
         }
 
-        if tools is not None:
-            api_params["tools"] = tools
-
         if parallel_tool_calls is not None:
             api_params["parallel_tool_calls"] = parallel_tool_calls
+
+        if tools is not None:
+            api_params["tools"] = tools
+        else:
+            api_params["tool_choice"] = "none"
 
         if extra_body is not None:
             api_params["extra_body"] = extra_body
