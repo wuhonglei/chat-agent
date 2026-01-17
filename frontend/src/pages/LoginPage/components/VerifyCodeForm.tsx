@@ -4,8 +4,9 @@ import { getRedirectUrl, jumpToLocation } from "@/utils";
 import { MobileOutlined, SafetyOutlined } from "@ant-design/icons";
 import { useCountDown, useRequest } from "ahooks";
 import { App, Button, Form, Input, Space } from "antd";
+import { isEmpty } from 'lodash-es';
 import React, { useState } from "react";
-import { validatePhone, validateVerificationCode } from "../utils";
+import { isVerificationCode, validatePhone, validateVerificationCode } from "../utils";
 
 export interface VerificationCodeFormValues {
   phoneNumber: string;
@@ -21,6 +22,7 @@ const VerifyCodeForm: React.FC<VerifyCodeFormProps> = () => {
   const [targetDate, setTargetDate] = useState<number>();
   const [countdown] = useCountDown({ targetDate });
   const { message } = App.useApp();
+  const verificationCode = Form.useWatch("verificationCode", form);
 
   const {
     run: sendSmsCode,
@@ -128,6 +130,7 @@ const VerifyCodeForm: React.FC<VerifyCodeFormProps> = () => {
           htmlType="submit"
           loading={verifySmsCodeLoading}
           className="h-12 text-base font-medium"
+          disabled={isEmpty(smsResponse) || !isVerificationCode(verificationCode)}
         >
           登录
         </Button>

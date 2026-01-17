@@ -1,10 +1,13 @@
 import SiteLogo from "@/components/common/SiteLogo";
 import SiteTitle from "@/components/common/SiteTitle";
+import { useIsSmallScreen } from '@/hooks';
 import React from "react";
 import VerifyCodeForm from "./components/VerifyCodeForm";
 import WeChatLoginForm from "./components/WeChatLogin";
 
 const LoginPage: React.FC = () => {
+  const isSmallScreen = useIsSmallScreen();
+
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4 pb-16 gap-8">
       {/* Logo */}
@@ -21,12 +24,14 @@ const LoginPage: React.FC = () => {
             </h2>
             <VerifyCodeForm />
           </div>
-          <div className="md:pl-6 flex flex-col items-center justify-center">
-            <h2 className="text-lg font-semibold text-gray-900 mb-6">
-              微信登录
-            </h2>
-            <WeChatLoginForm />
-          </div>
+          {!isSmallScreen && (
+            <div className="md:pl-6 flex flex-col items-center justify-center">
+              <h2 className="text-lg font-semibold text-gray-900 mb-6">
+                微信登录
+              </h2>
+              <WeChatLoginForm />
+            </div>
+          )}
         </div>
       </div>
     </div>
