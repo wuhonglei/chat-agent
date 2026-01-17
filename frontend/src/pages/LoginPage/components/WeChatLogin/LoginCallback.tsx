@@ -24,7 +24,6 @@ const LoginCallback = () => {
       const code = params.get("code") || "";
       const state = params.get("state") || "";
       const replaceUri = params.get("replace_uri") || "";
-      debugger;
       const isProd = import.meta.env.PROD;
       if (isProd && Number(replaceUri)) {
         const newUrl = new URL(window.location.href);
