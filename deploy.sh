@@ -351,14 +351,14 @@ if [ "$IS_FIRST_DEPLOY" = true ]; then
     
     # 清理所有项目相关的已停止容器
     for service in postgres backend frontend; do
-        local stopped_container=$(docker ps -aq -f name="ai-doc-$service" 2>/dev/null)
+        stopped_container=$(docker ps -aq -f name="ai-doc-$service" 2>/dev/null)
         if [ -n "$stopped_container" ]; then
             echo "   清理已停止的 $service 容器..."
             docker rm -f "$stopped_container" 2>/dev/null || true
         fi
         
         # 清理备份容器
-        local backup_containers=$(docker ps -aq --filter "name=ai-doc-$service-backup" 2>/dev/null)
+        backup_containers=$(docker ps -aq --filter "name=ai-doc-$service-backup" 2>/dev/null)
         if [ -n "$backup_containers" ]; then
             echo "   清理 $service 的备份容器..."
             echo "$backup_containers" | xargs docker rm -f 2>/dev/null || true
