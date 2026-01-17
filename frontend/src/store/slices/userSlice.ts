@@ -1,6 +1,6 @@
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import { userAPI } from "@/services";
 import { UserInfo } from "@/interfaces";
+import { userAPI } from "@/services";
+import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 
 export const getUserDetail = createAsyncThunk(
   "user/getUserDetail",

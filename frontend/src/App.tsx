@@ -32,9 +32,7 @@ const App: React.FC = () => {
   }, [dispatch]);
 
   return (
-    <BrowserRouter
-      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
-    >
+    <BrowserRouter>
       <MainLayout>
         <Routes>
           {routes.map((route, index) => (

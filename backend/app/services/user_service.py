@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import string
-from typing import Any
 
 from sqlmodel import Session, select
 
 from app.models import UserDb
-from app.schemas.auth import VerifySmsResponse
+from app.schemas.auth import SigninResponse, WeChatUserInfoResponse
 from app.schemas.user import UpdateUserInfo
 from app.services.base_service import BaseService
 from app.utils.date import get_datetime_now
@@ -46,7 +45,7 @@ class UserService(BaseService):
         return user
 
     def create_user_from_cloudbase(
-        self, token_info: VerifySmsResponse, phone_number: string
+        self, token_info: SigninResponse, phone_number: string
     ) -> UserDb:
         """从 Cloudbase 创建用户"""
         db = self._ensure_db()
@@ -97,7 +96,7 @@ class UserService(BaseService):
         return user
 
     def get_or_create_user_by_openid(
-        self, openid: str, wechat_user_info: dict[str, Any]
+        self, openid: str, wechat_user_info: WeChatUserInfoResponse
     ) -> UserDb:
         """根据 openid 查找或创建用户（使用 sub 字段存储 openid）
 
@@ -114,8 +113,8 @@ class UserService(BaseService):
 
         if not user:
             # 创建新用户
-            nickname = wechat_user_info.get("nickname", "")
-            avatar = wechat_user_info.get("headimgurl", "")
+            nickname = wechat_user_info.nickname
+            avatar = wechat_user_info.headimgurl
             user = UserDb(
                 sub=openid,  # 使用 sub 字段存储 openid
                 name=nickname or f"微信用户_{openid[:8]}",
@@ -131,10 +130,10 @@ class UserService(BaseService):
             user.last_login_at = get_datetime_now()
             user.last_login_type = "wechat"
             # 更新昵称和头像（如果微信返回了新的信息）
-            if wechat_user_info.get("nickname"):
-                user.name = wechat_user_info["nickname"]
-            if wechat_user_info.get("headimgurl"):
-                user.avatar = wechat_user_info["headimgurl"]
+            if wechat_user_info.nickname:
+                user.name = wechat_user_info.nickname
+            if wechat_user_info.headimgurl:
+                user.avatar = wechat_user_info.headimgurl
             db.add(user)
             logger.info("更新微信用户登录信息", openid=openid, user_id=user.id)
 

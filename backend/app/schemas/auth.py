@@ -22,22 +22,22 @@ class SendSmsResponseForFrontend(SendSmsResponse):
     phone_number: str = Field(..., description="Phone number")
 
 
-class VerifySmsRequest(BaseModel):
-    """Verify SMS request"""
+class SmsLoginRequest(BaseModel):
+    """Sms login request"""
 
     verification_id: str = Field(..., description="Verification ID")
     verification_code: str = Field(..., description="Verification code")
 
 
-class VerifySmsRequestFromFrontend(VerifySmsRequest):
-    """Verify SMS request from frontend"""
+class SmsLoginRequestFromFrontend(SmsLoginRequest):
+    """Sms login request from frontend"""
 
     phone_number: str = Field(..., description="Phone number")
     is_user: bool = Field(False, description="Is user registered in the cloudbase")
 
 
-class VerifySmsResponse(BaseModel):
-    """Verify SMS response"""
+class SmsLoginResponse(BaseModel):
+    """Sms login response"""
 
     verification_token: str = Field(..., description="Verification token")
     expires_in: int = Field(..., description="Expires in")
@@ -97,22 +97,11 @@ class RefreshTokenResponse(SigninResponse):
     pass
 
 
-class WeChatInitRequest(BaseModel):
-    """微信扫码登录初始化请求"""
-
-    old_state: str | None = Field(None, description="旧的状态参数")
-
-
 class WeChatInitResponse(BaseModel):
     """微信扫码登录初始化响应（网站应用）"""
 
-    authorize_url: str = Field(..., description="授权 URL（用于生成二维码）")
     appid: str = Field(..., description="微信开放平台 AppID")
-    redirect_uri: str = Field(..., description="授权回调地址")
     state: str = Field(..., description="状态参数，用于标识登录请求和防止 CSRF")
-    expire_seconds: int = Field(
-        default=600, description="状态过期时间（秒），默认 600 秒"
-    )
 
 
 class WeChatCheckRequest(BaseModel):
@@ -141,3 +130,49 @@ class WechatCallbackData(BaseModel):
     Event: str | None = Field(None, description="事件类型")
     EventKey: str | None = Field(None, description="事件 KEY 值")
     Ticket: str | None = Field(None, description="二维码的 ticket")
+
+
+class WeChatLoginRequest(BaseModel):
+    """微信扫码登录请求"""
+
+    code: str = Field(..., description="授权码")
+    state: str = Field(..., description="状态参数")
+
+
+class WeChatAccessTokenResponse(BaseModel):
+    """微信 access_token 接口响应"""
+
+    access_token: str = Field(..., description="网页授权接口调用凭证")
+    expires_in: int = Field(
+        ..., description="access_token接口调用凭证超时时间，单位（秒）"
+    )
+    refresh_token: str = Field(..., description="用户刷新access_token")
+    openid: str = Field(..., description="用户唯一标识")
+    scope: str = Field(..., description="用户授权的作用域，使用逗号（,）分隔")
+    unionid: str = Field(
+        ...,
+        description="当且仅当该网站应用已获得该用户的userinfo授权时，才会出现该字段",
+    )
+
+
+class WeChatUserInfoResponse(BaseModel):
+    """微信用户信息接口响应"""
+
+    openid: str = Field(..., description="用户的唯一标识")
+    nickname: str = Field(..., description="用户昵称")
+    sex: int = Field(
+        ..., description="用户的性别，值为1时是男性，值为2时是女性，值为0时是未知"
+    )
+    province: str | None = Field(None, description="用户个人资料填写的省份")
+    city: str | None = Field(None, description="普通用户个人资料填写的城市")
+    country: str | None = Field(None, description="国家，如中国为CN")
+    headimgurl: str = Field(
+        ...,
+        description="用户头像，最后一个数值代表正方形头像大小（有0、46、64、96、132数值可选，0代表640*640正方形头像），用户没有头像时该项为空。若用户更换头像，原有头像URL将失效",
+    )
+    privilege: list[str] | None = Field(
+        None, description="用户特权信息，json 数组，如微信沃卡用户为（chinaunicom）"
+    )
+    unionid: str = Field(
+        None, description="只有在用户将公众号绑定到微信开放平台帐号后，才会出现该字段"
+    )

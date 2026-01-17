@@ -18,8 +18,8 @@ from app.schemas.auth import (
     SignoutResponse,
     SignupRequest,
     SignupResponse,
-    VerifySmsRequest,
-    VerifySmsResponse,
+    SmsLoginRequest,
+    SmsLoginResponse,
 )
 from app.utils.logger import logger
 
@@ -75,22 +75,21 @@ class CloudbaseService:
                 raise HTTPException(status_code=500, detail="认证服务暂时不可用")
 
     @staticmethod
-    async def verify_sms(verify_sms_request: VerifySmsRequest) -> VerifySmsResponse:
-        """验证短信验证码
+    async def sms_login(sms_login_request: SmsLoginRequest) -> SmsLoginResponse:
+        """短信登录
 
         Args:
-            verification_id: 验证码 ID
-            verification_code: 验证码
+            sms_login_request: 短信登录请求
 
         Returns:
-            包含 verification_token 的字典
+            SmsLoginResponse: 短信登录响应
 
         Raises:
             HTTPException: 当验证失败时
         """
         url = f"{CloudbaseService.BASE_URL}/auth/v1/verification/verify"
 
-        payload = verify_sms_request.model_dump(exclude_none=True)
+        payload = sms_login_request.model_dump(exclude_none=True)
 
         async with httpx.AsyncClient(verify=CloudbaseService.VERIFY_SSL) as client:
             try:
@@ -106,7 +105,7 @@ class CloudbaseService:
 
                 if response.status_code == 200:
                     data = response.json()
-                    return VerifySmsResponse(**data)
+                    return SmsLoginResponse(**data)
                 else:
                     logger.error(
                         "Cloudbase 验证短信失败",

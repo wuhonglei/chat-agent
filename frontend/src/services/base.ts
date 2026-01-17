@@ -121,7 +121,6 @@ apiClient.interceptors.response.use(
     if (error.response) {
       // 如果响应状态码为 401，则跳转至登录页面
       if (isUnAuthorized(error.response.status)) {
-        // authHeader.removeAuthorizationHeader();
         redirectToLogin(location.pathname);
         return Promise.reject(error);
       }

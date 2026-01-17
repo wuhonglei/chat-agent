@@ -1,4 +1,5 @@
 import { WeChatLoginInitResponse } from "@/interfaces";
+import { getRedirectUrl } from "@/utils";
 import { trim } from "lodash-es";
 
 export function isPhone(value: string): boolean {
@@ -101,7 +102,9 @@ export function initWxQrCode(
     id: containerId,
     appid: data.appid,
     scope: "snsapi_login", // 固定值
-    redirect_uri: encodeURIComponent(data.redirectUri),
+    redirect_uri: encodeURIComponent(
+      `https://chat.wuhonglei.cn/login/wechat/callback?redirect_url=${getRedirectUrl()}`
+    ),
     state: data.state,
     style: "black", // 默认黑色样式
     href: "", // 自定义样式, stylelite 为 1 时，href 无效

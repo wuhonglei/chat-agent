@@ -1,8 +1,9 @@
 import ChatPage from "@/pages/ChatPage";
-import WelcomePage from "@/pages/WelcomePage";
-import MarkdownPage from "@/pages/MarkdownPage";
-import { RouteObject, Navigate } from "react-router-dom";
 import LoginPage from "@/pages/LoginPage";
+import LoginCallback from "@/pages/LoginPage/components/WeChatLogin/LoginCallback";
+import MarkdownPage from "@/pages/MarkdownPage";
+import WelcomePage from "@/pages/WelcomePage";
+import { Navigate, RouteObject } from "react-router-dom";
 
 export const routes: RouteObject[] = [
   {
@@ -24,5 +25,9 @@ export const routes: RouteObject[] = [
   {
     path: "/login",
     element: <LoginPage />,
+  },
+  {
+    path: "/login/wechat/callback",
+    element: <LoginCallback />,
   },
 ];

@@ -74,7 +74,7 @@ export default function UserAccount() {
           authHeader.removeAuthorizationHeader();
           message.success("退出登录成功");
           setTimeout(() => {
-            toLoginPage(window.location.href);
+            toLoginPage(location.pathname);
           }, 300);
         }
       },

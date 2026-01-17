@@ -2,7 +2,7 @@
 用户认证
 """
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlmodel import Session
 
 from app.core.config import settings
@@ -15,23 +15,22 @@ from app.schemas.auth import (
     SigninRequest,
     SignoutRequest,
     SignupRequest,
-    VerifySmsRequestFromFrontend,
-    WeChatCheckRequest,
-    WeChatCheckResponse,
-    WeChatInitRequest,
+    SmsLoginRequestFromFrontend,
     WeChatInitResponse,
+    WeChatLoginRequest,
 )
 from app.schemas.response import ApiResponse
 from app.services.cloudbase_service import CloudbaseService
 from app.services.user_service import UserService
 from app.services.wechat_service import WeChatService
 from app.utils.auth_deps import get_auth_token_info
+from app.utils.common import gen_uuid
 from app.utils.logger import logger
 
 router = APIRouter()
 
 
-@router.post("/send_sms")
+@router.post("/sms/send")
 async def send_sms(
     send_sms_request: SendSmsRequest,
 ) -> ApiResponse[SendSmsResponseForFrontend]:
@@ -43,26 +42,26 @@ async def send_sms(
     return ApiResponse.success(data=new_data)
 
 
-@router.post("/verify_sms")
-async def verify_sms(
-    verify_sms_request: VerifySmsRequestFromFrontend,
+@router.post("/sms/login")
+async def sms_login(
+    sms_login_request: SmsLoginRequestFromFrontend,
     response: Response,
     db: Session = Depends(get_db),
     jwt_manager: JWTManager = Depends(get_jwt_manager),
 ) -> ApiResponse[UserDb]:
-    """验证短信验证码"""
-    data = await CloudbaseService.verify_sms(verify_sms_request)
+    """短信登录"""
+    data = await CloudbaseService.sms_login(sms_login_request)
     verification_token = data.verification_token
     user_service = UserService(db)
 
     # 如果是新用户，则先注册，否则直接登录
-    if verify_sms_request.is_user:
+    if sms_login_request.is_user:
         # 如果是老用户，则直接登录
         token_info = await CloudbaseService.signin(
             SigninRequest(verification_token=verification_token)
         )
     else:
-        phone_number = verify_sms_request.phone_number
+        phone_number = sms_login_request.phone_number
         token_info = await CloudbaseService.signup(
             SignupRequest(
                 verification_token=verification_token, phone_number=phone_number
@@ -72,14 +71,18 @@ async def verify_sms(
     user = user_service.get_user_by_sub(token_info.sub)
     if not user:
         user = user_service.create_user_from_cloudbase(
-            token_info, verify_sms_request.phone_number
+            token_info, sms_login_request.phone_number
         )
     else:
         user = user_service.update_user_last_login(user, "sms")
 
     # 设置自定义响应头
     secret_token_info = jwt_manager.get_payload_with_expiration(
-        {**token_info.model_dump(exclude_none=True), "user_id": user.id}
+        {
+            **token_info.model_dump(exclude_none=True),
+            "user_id": user.id,
+            "sub": token_info.sub,
+        }
     )
     secret_token_info_str = jwt_manager.create_token(secret_token_info)
     response.headers["x-secret-token-info"] = secret_token_info_str
@@ -102,162 +105,60 @@ async def logout(
 
 
 @router.post("/wechat/init")
-async def wechat_init(
-    wechat_init_request: WeChatInitRequest,
-) -> ApiResponse[WeChatInitResponse]:
+async def wechat_init() -> ApiResponse[WeChatInitResponse]:
     """微信扫码登录初始化（网站应用 OAuth2.0）"""
-    old_state = wechat_init_request.old_state
-    WeChatService.clear_login_state(old_state)
 
     # 生成唯一的 state 参数（用于防止 CSRF 攻击）
-    state = WeChatService.generate_scene_str()
-
-    # 生成授权 URL
-    authorize_url = WeChatService.generate_authorize_url(state)
-
-    # 初始化状态（默认 10 分钟过期）
-    expire_seconds = 600
-    WeChatService.init_login_state(state, expire_seconds)
-
-    # 回调地址
-    redirect_uri = "https://chat.wuhonglei.cn/api/auth/wechat/callback"
-
+    state = gen_uuid()
     response_data = WeChatInitResponse(
-        authorize_url=authorize_url,
         appid=settings.wechat.app_id,
-        redirect_uri=redirect_uri,
         state=state,
-        expire_seconds=expire_seconds,
     )
 
     return ApiResponse.success(data=response_data)
 
 
-@router.post("/wechat/check")
-async def wechat_check(
-    check_request: WeChatCheckRequest,
+@router.post("/wechat/login")
+async def wechat_callback(
+    wechat_login_request: WeChatLoginRequest,
     response: Response,
     db: Session = Depends(get_db),
-) -> ApiResponse[WeChatCheckResponse]:
-    """微信扫码登录状态检测（网站应用）"""
-    state = check_request.state
-    login_state = WeChatService.get_login_state(state)
-
-    if not login_state:
-        return ApiResponse.success(
-            data=WeChatCheckResponse(status="expired", user=None)
-        )
-
-    status = login_state.get("status", "waiting")
-
-    # 如果已确认，返回用户信息和 JWT token
-    if status == "confirmed":
-        user_id = login_state.get("user_id")
-        jwt_token = login_state.get("jwt_token")
-
-        if user_id and jwt_token:
-            # 设置自定义响应头
-            response.headers["x-secret-token-info"] = jwt_token
-
-            # 获取用户信息
-            user_service = UserService(db)
-            user = user_service.get_user(user_id)
-            if user:
-                user_dict = {
-                    "id": user.id,
-                    "name": user.name,
-                    "avatar": user.avatar,
-                    "email": user.email,
-                    "phone": user.phone,
-                }
-                return ApiResponse.success(
-                    data=WeChatCheckResponse(status="confirmed", user=user_dict)
-                )
-
-    return ApiResponse.success(data=WeChatCheckResponse(status=status, user=None))
-
-
-@router.get("/wechat/callback")
-async def wechat_callback(
-    code: str | None = None,
-    state: str | None = None,
-    db: Session = Depends(get_db),
     jwt_manager: JWTManager = Depends(get_jwt_manager),
-) -> str:
+) -> ApiResponse[UserDb]:
     """微信授权回调接口（网站应用 OAuth2.0）
 
     微信授权后会跳转到此接口，并带上 code 和 state 参数
     """
+    code = wechat_login_request.code
+    state = wechat_login_request.state
     if not code or not state:
         logger.warning("微信回调缺少必要参数", code=code, state=state)
-        # 返回错误页面或重定向到前端错误页面
-        return "授权失败：缺少必要参数"
+        raise HTTPException(status_code=401, detail="微信回调缺少必要参数")
 
-    # 验证 state 是否存在
-    login_state = WeChatService.get_login_state(state)
-    if not login_state:
-        logger.warning("微信回调 state 不存在或已过期", state=state)
-        return "授权失败：state 无效或已过期"
+    # 通过 code 换取 access_token
+    token_data = await WeChatService.get_access_token_by_code(code)
 
-    try:
-        # 通过 code 换取 access_token
-        token_data = await WeChatService.get_access_token_by_code(code)
-        access_token = token_data["access_token"]
-        openid = token_data["openid"]
+    # 获取用户信息
+    wechat_user_info = await WeChatService.get_user_info(
+        token_data.openid, token_data.access_token
+    )
 
-        # 更新状态为已扫码
-        WeChatService.update_login_state(state, "scanned", openid=openid)
+    # 创建或更新用户
+    user_service = UserService(db)
+    user = user_service.get_or_create_user_by_openid(
+        token_data.openid, wechat_user_info
+    )
 
-        # 获取用户信息
-        wechat_user_info = await WeChatService.get_user_info(openid, access_token)
+    # 生成 JWT token
+    secret_token_info = jwt_manager.get_payload_with_expiration(
+        {
+            **token_data.model_dump(exclude_none=True),
+            "user_id": user.id,
+            "sub": token_data.openid,
+        }
+    )
+    jwt_token = jwt_manager.create_token(secret_token_info)
+    response.headers["x-secret-token-info"] = jwt_token
 
-        # 创建或更新用户
-        user_service = UserService(db)
-        user = user_service.get_or_create_user_by_openid(openid, wechat_user_info)
-
-        # 生成 JWT token
-        secret_token_info = jwt_manager.get_payload_with_expiration(
-            {
-                "openid": openid,
-                "user_id": user.id,
-                "sub": openid,  # 兼容现有字段
-            }
-        )
-        jwt_token = jwt_manager.create_token(secret_token_info)
-
-        # 更新状态为已确认
-        WeChatService.update_login_state(
-            state,
-            "confirmed",
-            openid=openid,
-            user_id=user.id,
-            jwt_token=jwt_token,
-        )
-
-        logger.info("微信授权成功", openid=openid, user_id=user.id, state=state)
-
-        # 重定向到前端页面（前端页面会轮询 /wechat/check 获取登录状态）
-        # 这里返回一个简单的 HTML 页面，提示用户关闭窗口或自动关闭
-        return """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <title>授权成功</title>
-        </head>
-        <body>
-            <h2>授权成功！</h2>
-            <p>请关闭此窗口，返回应用继续操作。</p>
-            <script>
-                // 可选：自动关闭窗口（如果是从弹窗打开的）
-                setTimeout(function() {
-                    window.close();
-                }, 2000);
-            </script>
-        </body>
-        </html>
-        """
-
-    except Exception as e:
-        logger.error("微信回调处理失败", error=e, code=code, state=state)
-        return f"授权失败：{str(e)}"
+    logger.info("微信授权成功", openid=token_data.openid, user_id=user.id, state=state)
+    return ApiResponse.success(data=user)
