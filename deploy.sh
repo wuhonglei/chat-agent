@@ -109,20 +109,56 @@ zero_downtime_deploy() {
     echo ""
     echo "🔄 开始更新服务: $service"
     
+    # 检查服务是否需要构建（通过检查 docker-compose.yml 是否有 build 配置）
+    local needs_build=false
+    if [ -f docker-compose.yml ]; then
+        # 检查服务配置块中是否有 build 关键字
+        # 从服务名行开始，到下一个服务或文件末尾结束，检查是否有 "build:"
+        local service_config=$(sed -n "/^  $service:/,/^  [a-z]/p" docker-compose.yml 2>/dev/null | head -20)
+        if echo "$service_config" | grep -q "^    build:"; then
+            needs_build=true
+        fi
+    fi
+    
     # 检查服务是否正在运行
     if ! $DOCKER_COMPOSE_CMD ps | grep -q "$service.*Up"; then
-        echo "⚠️  服务 $service 未运行，直接启动..."
-        $DOCKER_COMPOSE_CMD up -d --build --no-deps "$service"
+        echo "⚠️  服务 $service 未运行，准备启动..."
+        
+        # 检查是否存在已停止的旧容器（可能导致名称冲突）
+        local stopped_container=$(docker ps -aq -f name="ai-doc-$service" 2>/dev/null)
+        if [ -n "$stopped_container" ]; then
+            echo "   发现已停止的旧容器，先清理..."
+            docker rm -f "$stopped_container" 2>/dev/null || true
+        fi
+        
+        # 检查是否存在备份容器
+        local backup_containers=$(docker ps -aq --filter "name=ai-doc-$service-backup" 2>/dev/null)
+        if [ -n "$backup_containers" ]; then
+            echo "   清理旧的备份容器..."
+            echo "$backup_containers" | xargs docker rm -f 2>/dev/null || true
+        fi
+        
+        # 根据是否需要构建来决定命令
+        if [ "$needs_build" = true ]; then
+            echo "   构建并启动 $service 服务..."
+            $DOCKER_COMPOSE_CMD up -d --build --no-deps "$service"
+        else
+            echo "   启动 $service 服务（使用预定义镜像）..."
+            $DOCKER_COMPOSE_CMD up -d --no-deps "$service"
+        fi
         return 0
     fi
     
     # 1. 先构建新镜像（不停止旧容器，这是关键！）
-    echo "🔨 构建 $service 新镜像（旧容器继续运行，服务不中断）..."
-    $DOCKER_COMPOSE_CMD build "$service"
-    
-    if [ $? -ne 0 ]; then
-        echo "❌ $service 镜像构建失败"
-        return 1
+    # 只有需要构建的服务才构建镜像
+    if [ "$needs_build" = true ]; then
+        echo "🔨 构建 $service 新镜像（旧容器继续运行，服务不中断）..."
+        $DOCKER_COMPOSE_CMD build "$service"
+        
+        if [ $? -ne 0 ]; then
+            echo "❌ $service 镜像构建失败"
+            return 1
+        fi
     fi
     
     # 2. 记录旧容器信息和镜像标签（用于回滚）
