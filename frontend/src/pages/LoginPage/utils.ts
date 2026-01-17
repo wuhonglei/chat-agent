@@ -95,6 +95,13 @@ export function initWxQrCode(
 
   // 清空容器（避免重复初始化）
   container.innerHTML = "";
+  const isDev = import.meta.env.DEV;
+  const redirectUri = [
+    `https://chat.wuhonglei.cn/login/wechat/callback?redirect_url=${getRedirectUrl()}`,
+    isDev ? "replace_uri=1" : "", // 如果当前的 url 跳转来自本地，则需要添加 replace_uri=1 参数，登录成功后会替换 origin 为 localhost:3000
+  ]
+    .filter(Boolean)
+    .join("&");
 
   // 配置微信登录参数
   const wxLoginOptions: WxLoginOptions = {
@@ -102,9 +109,7 @@ export function initWxQrCode(
     id: containerId,
     appid: data.appid,
     scope: "snsapi_login", // 固定值
-    redirect_uri: encodeURIComponent(
-      `https://chat.wuhonglei.cn/login/wechat/callback?redirect_url=${getRedirectUrl()}`
-    ),
+    redirect_uri: encodeURIComponent(redirectUri),
     state: data.state,
     style: "black", // 默认黑色样式
     href: "", // 自定义样式, stylelite 为 1 时，href 无效
