@@ -457,7 +457,7 @@ if [ "$CLEANUP_IMAGES" = "true" ] || ([ "$CLEANUP_IMAGES" = "auto" ] && [ "$ALL_
     
     # 1. 清理 dangling 镜像（构建过程中产生的未标记镜像）
     echo "   清理 dangling 镜像..."
-    local dangling_before=$(docker images -f "dangling=true" -q 2>/dev/null | wc -l | tr -d ' ')
+    dangling_before=$(docker images -f "dangling=true" -q 2>/dev/null | wc -l | tr -d ' ')
     if [ "$dangling_before" -gt 0 ]; then
         docker image prune -f > /dev/null 2>&1 || true
         echo "   ✅ 已清理 dangling 镜像"
@@ -471,21 +471,21 @@ if [ "$CLEANUP_IMAGES" = "true" ] || ([ "$CLEANUP_IMAGES" = "auto" ] && [ "$ALL_
     echo "   检查未使用的镜像..."
     
     # 获取当前使用的镜像 ID（包括运行中的容器和备份容器）
-    local used_image_ids=""
+    used_image_ids=""
     for service in backend frontend; do
         # 运行中的容器
-        local container_id=$(docker ps -q -f name="ai-doc-$service" 2>/dev/null)
+        container_id=$(docker ps -q -f name="ai-doc-$service" 2>/dev/null)
         if [ -n "$container_id" ]; then
-            local image_id=$(docker inspect "$container_id" --format='{{.Image}}' 2>/dev/null || echo "")
+            image_id=$(docker inspect "$container_id" --format='{{.Image}}' 2>/dev/null || echo "")
             if [ -n "$image_id" ]; then
                 used_image_ids="$used_image_ids|$image_id"
             fi
         fi
         # 备份容器（可能用于回滚）
-        local backup_containers=$(docker ps -aq --filter "name=ai-doc-$service-backup" 2>/dev/null)
+        backup_containers=$(docker ps -aq --filter "name=ai-doc-$service-backup" 2>/dev/null)
         if [ -n "$backup_containers" ]; then
             for backup_id in $backup_containers; do
-                local image_id=$(docker inspect "$backup_id" --format='{{.Image}}' 2>/dev/null || echo "")
+                image_id=$(docker inspect "$backup_id" --format='{{.Image}}' 2>/dev/null || echo "")
                 if [ -n "$image_id" ]; then
                     used_image_ids="$used_image_ids|$image_id"
                 fi
@@ -496,10 +496,10 @@ if [ "$CLEANUP_IMAGES" = "true" ] || ([ "$CLEANUP_IMAGES" = "auto" ] && [ "$ALL_
     # 清理未使用的镜像（但保留最近 24 小时内的，用于回滚）
     # 使用 --filter "until=24h" 只清理 24 小时前未使用的镜像
     echo "   清理 24 小时前未使用的镜像（保留最近版本用于回滚）..."
-    local prune_output=$(docker image prune -a -f --filter "until=24h" 2>&1 || echo "")
+    prune_output=$(docker image prune -a -f --filter "until=24h" 2>&1 || echo "")
     
     if echo "$prune_output" | grep -q "Total reclaimed space"; then
-        local space_reclaimed=$(echo "$prune_output" | grep -oP "Total reclaimed space: \K[0-9.]+[A-Z]+" || echo "")
+        space_reclaimed=$(echo "$prune_output" | grep -oP "Total reclaimed space: \K[0-9.]+[A-Z]+" || echo "")
         echo "   ✅ 已清理未使用的镜像，释放空间: $space_reclaimed"
     else
         echo "   ℹ️  没有需要清理的旧镜像（所有镜像都在使用中或最近 24 小时内）"
