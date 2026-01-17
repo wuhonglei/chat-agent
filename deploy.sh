@@ -153,16 +153,14 @@ zero_downtime_deploy() {
     # 只有需要构建的服务才构建镜像
     if [ "$needs_build" = true ]; then
         echo "🔨 构建 $service 新镜像（旧容器继续运行，服务不中断）..."
-        $DOCKER_COMPOSE_CMD build "$service"
-        
-        if [ $? -ne 0 ]; then
+        if ! $DOCKER_COMPOSE_CMD build "$service"; then
             echo "❌ $service 镜像构建失败"
             return 1
         fi
     fi
     
     # 2. 记录旧容器信息和镜像标签（用于回滚）
-    local old_container_id=$(docker ps -q -f name="ai-doc-$service")
+    local old_container_id=$(docker ps -q -f name="^/ai-doc-$service$")
     local old_image_tag=""
     local old_image_id=""
     local backup_container_name=""
@@ -175,11 +173,12 @@ zero_downtime_deploy() {
     # 虽然会有短暂停机（通常 1-3 秒），但构建期间服务一直可用
     echo "🚀 启动 $service 新容器（将会有短暂切换时间，通常 1-3 秒）..."
     
-    # 先重命名旧容器（保留用于回滚），然后启动新容器
+    # 先重命名并停止旧容器（释放端口，保留用于回滚）
     local backup_container_name="ai-doc-$service-backup-$(date +%s)"
     if [ -n "$old_container_id" ]; then
         echo "   备份旧容器为: $backup_container_name"
         docker rename "ai-doc-$service" "$backup_container_name" 2>/dev/null || true
+        docker stop "$backup_container_name" 2>/dev/null || true
     fi
     
     # 启动新容器
@@ -193,7 +192,7 @@ zero_downtime_deploy() {
     
     while [ $waited -lt $max_wait ]; do
         # 检查容器是否在运行
-        new_container_id=$(docker ps -q -f name="ai-doc-$service")
+        new_container_id=$(docker ps -q -f name="^/ai-doc-$service$")
         if [ -n "$new_container_id" ]; then
             # 根据服务类型进行健康检查
             if [ "$service" = "backend" ]; then
@@ -202,8 +201,8 @@ zero_downtime_deploy() {
                     break
                 fi
             elif [ "$service" = "frontend" ]; then
-                # 前端健康检查：检查容器进程
-                if docker exec "$new_container_id" ps aux | grep -qE "node|next"; then
+                # 前端健康检查：从宿主机访问服务
+                if curl -f http://localhost:3000/ > /dev/null 2>&1; then
                     is_healthy=true
                     break
                 fi
@@ -262,7 +261,7 @@ zero_downtime_deploy() {
             docker rename "$backup_container" "ai-doc-$service" 2>/dev/null || true
             # 启动容器
             docker start "ai-doc-$service" 2>/dev/null && sleep 3
-            local rollback_container=$(docker ps -q -f name="ai-doc-$service")
+            local rollback_container=$(docker ps -q -f name="^/ai-doc-$service$")
             if [ -n "$rollback_container" ]; then
                 echo "✅ 已成功回滚到旧容器"
                 rollback_success=true
@@ -300,7 +299,7 @@ zero_downtime_deploy() {
             
             if [ "$rollback_success" = true ]; then
                 sleep 5
-                local rollback_container=$(docker ps -q -f name="ai-doc-$service")
+                local rollback_container=$(docker ps -q -f name="^/ai-doc-$service$")
                 if [ -n "$rollback_container" ]; then
                     echo "✅ 已使用旧镜像启动容器"
                 else
@@ -314,7 +313,7 @@ zero_downtime_deploy() {
             echo "   尝试使用 docker compose 重新启动..."
             $DOCKER_COMPOSE_CMD up -d --no-deps --no-build "$service" 2>/dev/null || true
             sleep 5
-            local rollback_container=$(docker ps -q -f name="ai-doc-$service")
+            local rollback_container=$(docker ps -q -f name="^/ai-doc-$service$")
             if [ -n "$rollback_container" ]; then
                 echo "⚠️  容器已启动，但可能使用的是新镜像，请验证服务是否正常"
                 rollback_success=true
@@ -375,7 +374,13 @@ else
     # 注意：数据库通常不需要频繁更新，但为了完整性包含在内
     
     # 更新 postgres
-    zero_downtime_deploy "postgres" 60
+    # 数据库不支持零停机更新（避免同数据卷并发写入）
+    echo "🔄 更新 postgres（短暂停机，避免数据风险）..."
+    $DOCKER_COMPOSE_CMD stop postgres 2>/dev/null || true
+    if ! $DOCKER_COMPOSE_CMD up -d --no-deps postgres; then
+        echo "❌ 数据库更新失败，部署中止"
+        exit 1
+    fi
     
     # 更新 backend
     BACKEND_DEPLOY_SUCCESS=true
@@ -425,10 +430,10 @@ else
     ALL_HEALTHY=false
 fi
 
-if $DOCKER_COMPOSE_CMD ps | grep -q "frontend.*Up"; then
+if curl -f http://localhost:3000/ > /dev/null 2>&1; then
     echo "✅ 前端服务运行正常"
 else
-    echo "❌ 前端服务未运行"
+    echo "❌ 前端服务健康检查失败"
     ALL_HEALTHY=false
 fi
 
@@ -474,7 +479,7 @@ if [ "$CLEANUP_IMAGES" = "true" ] || ([ "$CLEANUP_IMAGES" = "auto" ] && [ "$ALL_
     used_image_ids=""
     for service in backend frontend; do
         # 运行中的容器
-        container_id=$(docker ps -q -f name="ai-doc-$service" 2>/dev/null)
+        container_id=$(docker ps -q -f name="^/ai-doc-$service$" 2>/dev/null)
         if [ -n "$container_id" ]; then
             image_id=$(docker inspect "$container_id" --format='{{.Image}}' 2>/dev/null || echo "")
             if [ -n "$image_id" ]; then
