@@ -160,13 +160,24 @@ zero_downtime_deploy() {
     fi
     
     # 2. 记录旧容器信息和镜像标签（用于回滚）
-    local old_container_id=$(docker ps -q -f name="^/ai-doc-$service$")
+    local old_container_id=$($DOCKER_COMPOSE_CMD ps -q "$service" 2>/dev/null)
+    if [ -z "$old_container_id" ]; then
+        old_container_id=$(docker ps -q -f name="^/ai-doc-$service$")
+    fi
     local old_image_tag=""
     local old_image_id=""
     local backup_container_name=""
+    local compose_project=""
+    local compose_service_label=""
+    local compose_container_number=""
+    local compose_config_hash=""
     if [ -n "$old_container_id" ]; then
         old_image_tag=$(docker inspect "$old_container_id" --format='{{.Config.Image}}' 2>/dev/null || echo "")
         old_image_id=$(docker inspect "$old_container_id" --format='{{.Image}}' 2>/dev/null || echo "")
+        compose_project=$(docker inspect "$old_container_id" --format='{{ index .Config.Labels "com.docker.compose.project" }}' 2>/dev/null || echo "")
+        compose_service_label=$(docker inspect "$old_container_id" --format='{{ index .Config.Labels "com.docker.compose.service" }}' 2>/dev/null || echo "")
+        compose_container_number=$(docker inspect "$old_container_id" --format='{{ index .Config.Labels "com.docker.compose.container-number" }}' 2>/dev/null || echo "")
+        compose_config_hash=$(docker inspect "$old_container_id" --format='{{ index .Config.Labels "com.docker.compose.config-hash" }}' 2>/dev/null || echo "")
     fi
     
     # 3. 启动新容器（先重命名旧容器，以便回滚）
@@ -178,11 +189,19 @@ zero_downtime_deploy() {
     if [ -n "$old_container_id" ]; then
         echo "   备份旧容器为: $backup_container_name"
         docker rename "ai-doc-$service" "$backup_container_name" 2>/dev/null || true
+        # 移除 compose 标签，避免 compose 误操作备份容器
+        docker container update \
+            --label-rm com.docker.compose.project \
+            --label-rm com.docker.compose.service \
+            --label-rm com.docker.compose.container-number \
+            --label-rm com.docker.compose.config-hash \
+            --label-rm com.docker.compose.oneoff \
+            "$backup_container_name" > /dev/null 2>&1 || true
         docker stop "$backup_container_name" 2>/dev/null || true
     fi
     
     # 启动新容器
-    $DOCKER_COMPOSE_CMD up -d --no-deps --no-build "$service"
+    $DOCKER_COMPOSE_CMD up -d --no-deps --no-build --force-recreate "$service"
     
     # 4. 等待新容器健康检查通过
     echo "⏳ 等待 $service 健康检查通过（最多等待 ${max_wait} 秒）..."
@@ -192,7 +211,10 @@ zero_downtime_deploy() {
     
     while [ $waited -lt $max_wait ]; do
         # 检查容器是否在运行
-        new_container_id=$(docker ps -q -f name="^/ai-doc-$service$")
+        new_container_id=$($DOCKER_COMPOSE_CMD ps -q "$service" 2>/dev/null)
+        if [ -z "$new_container_id" ]; then
+            new_container_id=$(docker ps -q -f name="^/ai-doc-$service$")
+        fi
         if [ -n "$new_container_id" ]; then
             # 根据服务类型进行健康检查
             if [ "$service" = "backend" ]; then
@@ -259,6 +281,19 @@ zero_downtime_deploy() {
             echo "   发现备份的旧容器，尝试恢复..."
             # 重命名回原来的名称
             docker rename "$backup_container" "ai-doc-$service" 2>/dev/null || true
+            # 恢复 compose 标签，确保后续 compose 可识别
+            if [ -n "$compose_project" ]; then
+                docker container update --label-add "com.docker.compose.project=$compose_project" "ai-doc-$service" > /dev/null 2>&1 || true
+            fi
+            if [ -n "$compose_service_label" ]; then
+                docker container update --label-add "com.docker.compose.service=$compose_service_label" "ai-doc-$service" > /dev/null 2>&1 || true
+            fi
+            if [ -n "$compose_container_number" ]; then
+                docker container update --label-add "com.docker.compose.container-number=$compose_container_number" "ai-doc-$service" > /dev/null 2>&1 || true
+            fi
+            if [ -n "$compose_config_hash" ]; then
+                docker container update --label-add "com.docker.compose.config-hash=$compose_config_hash" "ai-doc-$service" > /dev/null 2>&1 || true
+            fi
             # 启动容器
             docker start "ai-doc-$service" 2>/dev/null && sleep 3
             local rollback_container=$(docker ps -q -f name="^/ai-doc-$service$")
