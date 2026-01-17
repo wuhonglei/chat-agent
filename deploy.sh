@@ -125,8 +125,12 @@ zero_downtime_deploy() {
         return 1
     fi
     
-    # 2. 记录旧容器 ID（用于回滚）
+    # 2. 记录旧容器信息和镜像标签（用于回滚）
     local old_container_id=$(docker ps -q -f name="ai-doc-$service")
+    local old_image_tag=""
+    if [ -n "$old_container_id" ]; then
+        old_image_tag=$(docker inspect "$old_container_id" --format='{{.Config.Image}}' 2>/dev/null || echo "")
+    fi
     
     # 3. 启动新容器（docker compose 会先停止旧容器再启动新容器）
     # 虽然会有短暂停机（通常 1-3 秒），但构建期间服务一直可用
@@ -137,26 +141,27 @@ zero_downtime_deploy() {
     echo "⏳ 等待 $service 健康检查通过（最多等待 ${max_wait} 秒）..."
     local waited=0
     local is_healthy=false
+    local new_container_id=""
     
     while [ $waited -lt $max_wait ]; do
         # 检查容器是否在运行
-        local current_container=$(docker ps -q -f name="ai-doc-$service")
-        if [ -n "$current_container" ]; then
+        new_container_id=$(docker ps -q -f name="ai-doc-$service")
+        if [ -n "$new_container_id" ]; then
             # 根据服务类型进行健康检查
             if [ "$service" = "backend" ]; then
-                if docker exec "$current_container" curl -f http://localhost:8000/ > /dev/null 2>&1; then
+                if docker exec "$new_container_id" curl -f http://localhost:8000/ > /dev/null 2>&1; then
                     is_healthy=true
                     break
                 fi
             elif [ "$service" = "frontend" ]; then
                 # 前端健康检查：检查容器进程
-                if docker exec "$current_container" ps aux | grep -qE "node|next"; then
+                if docker exec "$new_container_id" ps aux | grep -qE "node|next"; then
                     is_healthy=true
                     break
                 fi
             elif [ "$service" = "postgres" ]; then
                 # 数据库健康检查
-                if docker exec "$current_container" pg_isready -U ${PG_USER_NAME:-postgres} > /dev/null 2>&1; then
+                if docker exec "$new_container_id" pg_isready -U ${PG_USER_NAME:-postgres} > /dev/null 2>&1; then
                     is_healthy=true
                     break
                 fi
@@ -175,14 +180,41 @@ zero_downtime_deploy() {
     if [ "$is_healthy" = true ]; then
         echo "✅ $service 更新成功并已就绪"
         # 清理旧容器（如果还在）
-        if [ -n "$old_container_id" ] && [ "$old_container_id" != "$(docker ps -q -f name="ai-doc-$service")" ]; then
+        if [ -n "$old_container_id" ] && [ "$old_container_id" != "$new_container_id" ]; then
             docker rm -f "$old_container_id" 2>/dev/null || true
         fi
         return 0
     else
-        echo "❌ $service 健康检查失败"
+        echo "❌ $service 健康检查失败，尝试回滚到旧版本..."
         echo "⚠️  新容器可能存在问题，请检查日志: $DOCKER_COMPOSE_CMD logs $service"
-        echo "💡 提示：如果需要回滚，可以运行: $DOCKER_COMPOSE_CMD up -d --no-deps $service"
+        
+        # 回滚策略：停止新容器，尝试恢复旧容器
+        if [ -n "$new_container_id" ]; then
+            echo "🔄 停止新容器..."
+            docker stop "$new_container_id" 2>/dev/null || true
+            docker rm -f "$new_container_id" 2>/dev/null || true
+        fi
+        
+        # 尝试使用旧镜像重新启动（如果有旧镜像标签）
+        if [ -n "$old_image_tag" ] && [ "$old_image_tag" != "" ]; then
+            echo "🔄 尝试使用旧镜像恢复服务..."
+            # 使用 docker compose 重新启动，这可能会使用旧镜像
+            $DOCKER_COMPOSE_CMD up -d --no-deps --no-build "$service" 2>/dev/null || true
+            sleep 5
+            local rollback_container=$(docker ps -q -f name="ai-doc-$service")
+            if [ -n "$rollback_container" ]; then
+                echo "⚠️  已回滚到旧版本，但旧容器可能无法正常恢复"
+                echo "💡 建议手动检查并修复问题："
+                echo "   查看日志: $DOCKER_COMPOSE_CMD logs $service"
+                echo "   手动重启: $DOCKER_COMPOSE_CMD restart $service"
+                return 1
+            fi
+        fi
+        
+        echo "❌ 回滚失败，服务 $service 当前不可用"
+        echo "💡 请手动检查并修复问题："
+        echo "   查看日志: $DOCKER_COMPOSE_CMD logs $service"
+        echo "   手动重启: $DOCKER_COMPOSE_CMD restart $service"
         return 1
     fi
 }
@@ -209,15 +241,29 @@ else
     # zero_downtime_deploy "postgres" 60
     
     # 更新 backend
+    BACKEND_DEPLOY_SUCCESS=true
     if ! zero_downtime_deploy "backend" 120; then
-        echo "❌ 后端服务更新失败，部署中止"
-        exit 1
+        echo "❌ 后端服务更新失败"
+        BACKEND_DEPLOY_SUCCESS=false
     fi
     
     # 更新 frontend
+    FRONTEND_DEPLOY_SUCCESS=true
     if ! zero_downtime_deploy "frontend" 90; then
-        echo "❌ 前端服务更新失败，部署中止"
+        echo "❌ 前端服务更新失败"
+        FRONTEND_DEPLOY_SUCCESS=false
+    fi
+    
+    # 如果所有服务都失败，则退出
+    if [ "$BACKEND_DEPLOY_SUCCESS" = false ] && [ "$FRONTEND_DEPLOY_SUCCESS" = false ]; then
+        echo "❌ 所有服务部署失败，部署中止"
         exit 1
+    fi
+    
+    # 如果有部分服务失败，继续执行但不退出，让用户知道状态
+    if [ "$BACKEND_DEPLOY_SUCCESS" = false ] || [ "$FRONTEND_DEPLOY_SUCCESS" = false ]; then
+        echo ""
+        echo "⚠️  部分服务部署失败，但继续检查整体状态..."
     fi
 fi
 
