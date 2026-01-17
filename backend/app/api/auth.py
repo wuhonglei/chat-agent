@@ -82,6 +82,7 @@ async def sms_login(
             **token_info.model_dump(exclude_none=True),
             "user_id": user.id,
             "sub": token_info.sub,
+            "last_login_type": "sms",
         }
     )
     secret_token_info_str = jwt_manager.create_token(secret_token_info)
@@ -93,11 +94,16 @@ async def sms_login(
 @router.post("/logout")
 async def logout(
     request: Request,
-    response: Response,
+    jwt_manager: JWTManager = Depends(get_jwt_manager),
 ) -> ApiResponse[None]:
     """登出"""
-    token_info = await get_auth_token_info(request, response)
-    await CloudbaseService.signout(SignoutRequest(access_token=token_info.access_token))
+    token_info = await get_auth_token_info(request, jwt_manager)
+    last_login_type = token_info.last_login_type
+
+    if last_login_type == "sms":
+        await CloudbaseService.signout(
+            SignoutRequest(access_token=token_info.access_token)
+        )
 
     with UserService() as user_service:
         user_service.update_user_last_logout(token_info.user_id)
@@ -155,6 +161,7 @@ async def wechat_callback(
             **token_data.model_dump(exclude_none=True),
             "user_id": user.id,
             "sub": token_data.openid,
+            "last_login_type": "wechat",
         }
     )
     jwt_token = jwt_manager.create_token(secret_token_info)

@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -17,3 +19,6 @@ class SecretTokenInfo(BaseTokenInfo):
     user_id: str = Field(..., description="User ID")
     iat: int = Field(..., description="Issue at")
     exp: int = Field(..., description="Expires at")
+    last_login_type: Literal["sms", "wechat"] | None = Field(
+        default=None, description="Last login type"
+    )
