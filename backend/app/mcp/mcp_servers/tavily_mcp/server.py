@@ -32,8 +32,8 @@ mcp = FastMCP(
 client = AsyncTavilyClient(api_key=config.TAVILY_API_KEY)
 
 
-@mcp.tool(name="tavily_search")
-async def tavily_search(
+@mcp.tool(name="web_search")
+async def web_search(
     query: str = Field(..., description="The search query to execute with Tavily"),
     auto_parameters: bool = Field(
         default=True,
@@ -125,8 +125,8 @@ async def tavily_search(
         raise
 
 
-@mcp.tool(name="tavily_extract")
-async def tavily_extract(
+@mcp.tool(name="url_content_extract")
+async def url_content_extract(
     urls: list[str] = Field(
         ..., description="The URLs to extract content from (max 100 URLs)"
     ),
@@ -163,8 +163,8 @@ async def tavily_extract(
         raise
 
 
-@mcp.tool(name="tavily_crawl")
-async def tavily_crawl(
+@mcp.tool(name="site_crawl_extract")
+async def site_crawl_extract(
     url: str = Field(..., description="The root URL to begin the crawl"),
     instructions: str = Field(
         default=None,
@@ -245,8 +245,8 @@ async def tavily_crawl(
         raise
 
 
-# @mcp.tool(name="tavily_map")
-async def tavily_map(
+# @mcp.tool(name="web_site_map")
+async def web_site_map(
     url: str = Field(..., description="The root URL to begin the mapping"),
     instructions: str = Field(
         default=None,
