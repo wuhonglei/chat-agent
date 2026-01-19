@@ -75,6 +75,7 @@ class TavilyResultProcessor:
         compaction_result = CompactionResult(
             content="",
             relevance_applied=False,
+            content_token_count=0,
             original_token_count=0,
             relevant_token_count=0,
             threshold_token_count=0,
@@ -91,6 +92,7 @@ class TavilyResultProcessor:
             )
             if compaction.relevance_applied:
                 compaction_result.relevance_applied = True
+            compaction_result.content_token_count += compaction.content_token_count
             compaction_result.original_token_count += compaction.original_token_count
             compaction_result.relevant_token_count += compaction.relevant_token_count
             compaction_result.threshold_token_count += compaction.threshold_token_count

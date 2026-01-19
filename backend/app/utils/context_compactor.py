@@ -14,6 +14,7 @@ from app.utils.token import TokenCalculator
 
 class CompactionResult(BaseModel):
     content: str
+    content_token_count: int
     relevance_applied: bool
     threshold_token_count: int
     original_token_count: int
@@ -84,9 +85,12 @@ class ContextCompactor:
         self,
         query: str,
         content: str,
+        threshold_tokens_count: int | None = None,
     ) -> CompactionResult:
         original_tokens_count = self.token_calculator.count_tokens(content)
-        threshold_tokens_count = self.compression_config.tool_result_max_tokens
+        threshold_tokens_count = (
+            threshold_tokens_count or self.compression_config.tool_result_max_tokens
+        )
 
         if (
             not self.compression_config.enabled
@@ -96,6 +100,7 @@ class ContextCompactor:
             return CompactionResult(
                 content=content,
                 relevance_applied=False,
+                content_token_count=original_tokens_count,
                 original_token_count=original_tokens_count,
                 relevant_token_count=original_tokens_count,
                 threshold_token_count=threshold_tokens_count,
@@ -106,6 +111,7 @@ class ContextCompactor:
         return CompactionResult(
             content=relevant_content,
             relevance_applied=True,
+            content_token_count=relevant_tokens_count,
             original_token_count=original_tokens_count,
             relevant_token_count=relevant_tokens_count,
             threshold_token_count=threshold_tokens_count,

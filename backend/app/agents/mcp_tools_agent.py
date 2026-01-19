@@ -9,7 +9,6 @@ from openai.types.chat import (
     ChatCompletionMessage,
     ChatCompletionMessageFunctionToolCall,
 )
-from toolz import get
 
 from app.agents.base import BaseAgent
 from app.agents.utils import TavilyResultProcessor
@@ -281,9 +280,16 @@ class MCPToolsAgent(BaseAgent):
         tool_name: str,
         structured_content: dict[str, Any],
     ) -> ToolCallResultMessage:
+        tool_query = structured_content.get("query")
+        user_query = self.current_user_message
+        if tool_query and user_query and tool_query.strip() != user_query.strip():
+            query = f"{tool_query}\n\n用户问题: {user_query}"
+        else:
+            query = tool_query or user_query
+
         processor = TavilyResultProcessor(
             compactor=self.compactor,
-            query=get("query", structured_content, self.current_user_message),
+            query=query,
         )
         compaction = await processor.format_result(tool_name, structured_content)
         return tool_call_result_message.model_copy(
