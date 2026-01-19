@@ -7,7 +7,6 @@ Documentation: https://docs.tavily.com/
 from typing import Literal
 
 from fastmcp import FastMCP
-from fastmcp.tools.tool import ToolResult
 from pydantic import Field
 from tavily import AsyncTavilyClient
 
@@ -21,10 +20,6 @@ from .models import (
 )
 from .utils import (
     filter_search_results_by_score,
-    format_crawl_results,
-    format_extract_results,
-    format_map_results,
-    format_search_results,
 )
 
 # Create MCP instance and Tavily client
@@ -126,10 +121,7 @@ async def web_search(
                 filter_search_results_by_score(data.results)
             )
 
-            return ToolResult(
-                structured_content=data,
-                content=format_search_results(data),
-            )
+            return data
         except Exception as e:
             raise ValueError(f"搜索响应验证失败: {str(e)}")
     except Exception:
@@ -164,10 +156,7 @@ async def url_content_extract(
         try:
             data = TavilyExtractResponse.model_validate(response)
             data.is_chunked = extract_depth in ["advanced"] and query is not None
-            return ToolResult(
-                structured_content=data,
-                content=format_extract_results(data),
-            )
+            return data
         except Exception as e:
             raise ValueError(f"提取响应验证失败: {str(e)}")
     except Exception:
@@ -247,9 +236,7 @@ async def site_crawl_extract(
         try:
             data = TavilyCrawlResponse.model_validate(response)
             data.is_chunked = extract_depth in ["advanced"] and instructions is not None
-            return ToolResult(
-                structured_content=data, content=format_crawl_results(data)
-            )
+            return data
         except Exception as e:
             raise ValueError(f"爬取响应验证失败: {str(e)}")
     except Exception:
@@ -320,7 +307,7 @@ async def web_site_map(
         )
         try:
             data = TavilyMapResponse.model_validate(response)
-            return ToolResult(structured_content=data, content=format_map_results(data))
+            return data
         except Exception as e:
             raise ValueError(f"映射响应验证失败: {str(e)}")
     except Exception:

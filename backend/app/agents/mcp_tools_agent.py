@@ -11,9 +11,8 @@ from openai.types.chat import (
 )
 
 from app.agents.base import BaseAgent
+from app.agents.utils import TavilyResultProcessor
 from app.core.config import settings
-
-# Import compression config
 from app.mcp.mcp_client import MCPClientManager
 from app.prompts import (
     get_prompt_with_mcp_servers,
@@ -202,22 +201,8 @@ class MCPToolsAgent(BaseAgent):
             result, filtered_params = await self.mcp_manager.call_tool(
                 tool_name, arguments
             )
+
             content = self.mcp_manager.format_mcp_result(result)
-
-            # 如果有参数被过滤，在返回内容前添加警告信息，告知 LLM
-            if filtered_params:
-                warning_msg = (
-                    f"⚠️ 警告：以下参数被忽略（工具 {tool_name} 不支持这些参数）："
-                    f"{', '.join(filtered_params)}。"
-                    f"请勿在后续调用中使用这些参数。\n\n"
-                )
-                content = warning_msg + content
-                logger.info(
-                    "Added filtered params warning to tool result",
-                    tool_name=tool_name,
-                    filtered_params=filtered_params,
-                )
-
             # Add tool result to messages
             tool_call_result_message = ToolCallResultMessage(
                 **{
@@ -228,9 +213,35 @@ class MCPToolsAgent(BaseAgent):
                     "duration": get_time_duration(start_time),
                 }
             )
-            tool_call_result_message = await self._compact_tool_result_if_needed(
-                tool_call_result_message
-            )
+
+            server_name = self.mcp_manager.get_server_for_tool(tool_name)
+            if server_name == "tavily-mcp" and result.data is not None:
+                tool_call_result_message = await self._apply_tavily_compaction(
+                    tool_call_result_message=tool_call_result_message,
+                    tool_name=tool_name,
+                    result_data=result.data,
+                )
+            else:
+                tool_call_result_message = await self._compact_tool_result_if_needed(
+                    tool_call_result_message
+                )
+            content = tool_call_result_message.content or ""
+
+            # 如果有参数被过滤，在返回内容前添加警告信息，告知 LLM
+            if filtered_params:
+                warning_msg = (
+                    f"⚠️ 警告：以下参数被忽略（工具 {tool_name} 不支持这些参数）："
+                    f"{', '.join(filtered_params)}。"
+                    f"请勿在后续调用中使用这些参数。\n\n"
+                )
+                content = warning_msg + content
+                tool_call_result_message.content = content
+                logger.info(
+                    "Added filtered params warning to tool result",
+                    tool_name=tool_name,
+                    filtered_params=filtered_params,
+                )
+
             logger.info(
                 "MCP tool result received",
                 tool_name=tool_name,
@@ -263,6 +274,21 @@ class MCPToolsAgent(BaseAgent):
             )
             return tool_call_result_message
 
+    async def _apply_tavily_compaction(
+        self,
+        tool_call_result_message: ToolCallResultMessage,
+        tool_name: str,
+        result_data: Any,
+    ) -> ToolCallResultMessage:
+        processor = TavilyResultProcessor(
+            compactor=self.compactor,
+            query=self.current_user_message,
+        )
+        compaction = await processor.format_result(tool_name, result_data)
+        return tool_call_result_message.model_copy(
+            update=compaction.model_dump(mode="json")
+        )
+
     async def _compact_tool_result_if_needed(
         self, tool_message: ToolCallResultMessage
     ) -> ToolCallResultMessage:
@@ -275,16 +301,7 @@ class MCPToolsAgent(BaseAgent):
             content=content,
         )
 
-        updated_fields = {
-            "content": compaction.content,
-            "content_token_count": compaction.relevant_token_count,
-            "relevance_applied": compaction.relevance_applied,
-            "original_token_count": compaction.original_token_count,
-            "relevant_token_count": compaction.relevant_token_count,
-            "threshold_token_count": compaction.threshold_token_count,
-        }
-        updated_message = tool_message.model_copy(update=updated_fields)
-        return updated_message
+        return tool_message.model_copy(update=compaction.model_dump(mode="json"))
 
     async def _execute_tool_calls_parallel(
         self,
