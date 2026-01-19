@@ -7,7 +7,16 @@ from pydantic import BaseModel, Field
 class AssistantToolCallMessage(BaseModel):
     role: Literal["assistant"]
     content: str | None
+    content_token_count: int | None = Field(
+        default=None, description="Content token count"
+    )
     reasoning_content: str | None
+    reasoning_token_count: int | None = Field(
+        default=None, description="Reasoning token count"
+    )
+    tool_call_token_count: int | None = Field(
+        default=None, description="Tool call token count"
+    )
     tool_calls: list[ChatCompletionMessageFunctionToolCall] | None
 
 
