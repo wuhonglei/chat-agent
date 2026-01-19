@@ -16,59 +16,58 @@ class TavilyResultProcessor:
         self.compactor = compactor
         self.query = query
 
-    async def format_result(self, tool_name: str, response: Any) -> CompactionResult:
+    async def format_result(
+        self, tool_name: str, structured_content: dict[str, Any]
+    ) -> CompactionResult:
         if tool_name == "web_search":
-            if not isinstance(response, TavilySearchResponse):
-                return await self._compact_content(str(response))
-            response, compaction_result = await self._compact_search_response(response)
-            formatted = tavily_utils.format_search_results(response)
+            payload = TavilySearchResponse.model_validate(structured_content)
+            payload, compaction_result = await self._compact_search_response(payload)
+            formatted = tavily_utils.format_search_results(payload)
             compaction_result.content = formatted
             return compaction_result
 
         if tool_name == "url_content_extract":
-            if not isinstance(response, TavilyExtractResponse):
-                return await self._compact_content(str(response))
-            response, compaction_result = await self._compact_extract_response(response)
-            formatted = tavily_utils.format_extract_results(response)
+            payload = TavilyExtractResponse.model_validate(structured_content)
+            payload, compaction_result = await self._compact_extract_response(payload)
+            formatted = tavily_utils.format_extract_results(payload)
             compaction_result.content = formatted
             return compaction_result
 
         if tool_name == "site_crawl_extract":
-            if not isinstance(response, TavilyCrawlResponse):
-                return await self._compact_content(str(response))
-            response, compaction_result = await self._compact_crawl_response(response)
-            formatted = tavily_utils.format_crawl_results(response)
+            payload = TavilyCrawlResponse.model_validate(structured_content)
+            payload, compaction_result = await self._compact_crawl_response(payload)
+            formatted = tavily_utils.format_crawl_results(payload)
             compaction_result.content = formatted
             return compaction_result
 
-        return await self._compact_content(str(response))
+        return await self._compact_content(structured_content["content"])
 
     async def _compact_search_response(
-        self, response: TavilySearchResponse
+        self, data: TavilySearchResponse
     ) -> tuple[TavilySearchResponse, CompactionResult]:
         compaction_result = await self._compact_items(
-            response.filtered_results or [],
+            data.filtered_results or [],
             "content",
         )
-        return response, compaction_result
+        return data, compaction_result
 
     async def _compact_extract_response(
-        self, response: TavilyExtractResponse
+        self, data: TavilyExtractResponse
     ) -> tuple[TavilyExtractResponse, CompactionResult]:
         compaction_result = await self._compact_items(
-            response.results or [],
+            data.results or [],
             "raw_content",
         )
-        return response, compaction_result
+        return data, compaction_result
 
     async def _compact_crawl_response(
-        self, response: TavilyCrawlResponse
+        self, data: TavilyCrawlResponse
     ) -> tuple[TavilyCrawlResponse, CompactionResult]:
         compaction_result = await self._compact_items(
-            response.results or [],
+            data.results or [],
             "raw_content",
         )
-        return response, compaction_result
+        return data, compaction_result
 
     async def _compact_items(
         self, items: list[Any], content_attr: str

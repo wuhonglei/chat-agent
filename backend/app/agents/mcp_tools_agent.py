@@ -9,6 +9,7 @@ from openai.types.chat import (
     ChatCompletionMessage,
     ChatCompletionMessageFunctionToolCall,
 )
+from toolz import get
 
 from app.agents.base import BaseAgent
 from app.agents.utils import TavilyResultProcessor
@@ -215,11 +216,11 @@ class MCPToolsAgent(BaseAgent):
             )
 
             server_name = self.mcp_manager.get_server_for_tool(tool_name)
-            if server_name == "tavily-mcp" and result.data is not None:
+            if server_name == "tavily-mcp" and result.structured_content is not None:
                 tool_call_result_message = await self._apply_tavily_compaction(
                     tool_call_result_message=tool_call_result_message,
                     tool_name=tool_name,
-                    result_data=result.data,
+                    structured_content=result.structured_content,
                 )
             else:
                 tool_call_result_message = await self._compact_tool_result_if_needed(
@@ -278,13 +279,13 @@ class MCPToolsAgent(BaseAgent):
         self,
         tool_call_result_message: ToolCallResultMessage,
         tool_name: str,
-        result_data: Any,
+        structured_content: dict[str, Any],
     ) -> ToolCallResultMessage:
         processor = TavilyResultProcessor(
             compactor=self.compactor,
-            query=self.current_user_message,
+            query=get("query", structured_content, self.current_user_message),
         )
-        compaction = await processor.format_result(tool_name, result_data)
+        compaction = await processor.format_result(tool_name, structured_content)
         return tool_call_result_message.model_copy(
             update=compaction.model_dump(mode="json")
         )
