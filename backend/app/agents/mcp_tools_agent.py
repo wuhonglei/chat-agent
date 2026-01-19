@@ -52,6 +52,7 @@ class MCPToolsAgent(BaseAgent):
             compression_config=settings.compression,
         )
         self.current_user_message: str = ""
+        self.token_threshold: int = self.token_calculator.get_compression_threshold(0.5)
 
     def get_server_names(
         self, mcp_auto_mode: bool, source_config: dict
