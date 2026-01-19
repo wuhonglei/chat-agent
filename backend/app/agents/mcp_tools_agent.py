@@ -472,12 +472,11 @@ class MCPToolsAgent(BaseAgent):
             output_tokens = self.token_calculator.count_messages_tokens(
                 self.output_messages
             )
-            token_threshold = self.model_limit * 0.5
-            if output_tokens > token_threshold:
+            if output_tokens > self.token_threshold:
                 logger.info(
                     "Stopping iteration due to token limit exceeded",
                     output_tokens=output_tokens,
-                    token_threshold=token_threshold,
+                    token_threshold=self.token_threshold,
                     model_limit=self.model_limit,
                     iteration=iteration + 1,
                 )
