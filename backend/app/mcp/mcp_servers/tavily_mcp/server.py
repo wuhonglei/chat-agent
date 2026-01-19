@@ -4,6 +4,8 @@ Based on Tavily API for web search, content extraction, crawling and mapping
 Documentation: https://docs.tavily.com/
 """
 
+from typing import Literal
+
 from fastmcp import FastMCP
 from fastmcp.tools.tool import ToolResult
 from pydantic import Field
@@ -34,54 +36,64 @@ client = AsyncTavilyClient(api_key=config.TAVILY_API_KEY)
 
 @mcp.tool(name="web_search")
 async def web_search(
-    query: str = Field(..., description="The search query to execute with Tavily"),
+    query: str = Field(..., description="要执行的搜索查询"),
     auto_parameters: bool = Field(
         default=True,
-        description="When enabled, Tavily automatically configures search parameters based on your query's content and intent. Uses 2 API credits per request when enabled.",
+        description="启用后，Tavily 会根据查询内容与意图自动配置搜索参数。启用时每次请求消耗 2 个 API 额度。",
     ),
-    topic: str = Field(
+    topic: Literal["general", "news", "finance"] = Field(
         default="general",
-        description="The category of the search. Options: 'general', 'news', 'finance'",
+        description="搜索类别：'general'、'news'、'finance'（默认 'general'）",
     ),
-    search_depth: str = Field(
+    search_depth: Literal["advanced", "basic", "fast", "ultra-fast"] = Field(
         default="advanced",
-        description="The depth of the search. Options: 'advanced', 'basic', 'fast', 'ultra-fast'. advanced: Highest relevance with increased latency. Best for detailed, high-precision queries. Returns multiple semantically relevant snippets per URL (configurable via chunks_per_source). basic: A balanced option for relevance and latency. Ideal for general-purpose searches. Returns one NLP summary per URL. fast: Prioritizes lower latency while maintaining good relevance. Returns multiple semantically relevant snippets per URL (configurable via chunks_per_source). ultra-fast: Minimizes latency above all else. Best for time-critical use cases. Returns one NLP summary per URL.",
+        description="搜索深度：'advanced'（相关性最佳）、'basic'（均衡）、'fast'（更低延迟）、'ultra-fast'（最低延迟）",
     ),
     chunks_per_source: int = Field(
         default=3,
         ge=1,
         le=5,
-        description="Maximum number of relevant chunks returned per source (1-5). Available only when search_depth is 'advanced' or 'fast'",
+        description="每个来源返回的相关片段上限（1-5）。仅在 search_depth 为 'advanced' 或 'fast' 时可用",
     ),
     max_results: int = Field(
         default=5,
         ge=0,
         le=20,
-        description="The maximum number of search results to return (0-20)",
+        description="返回的搜索结果最大数量（0-20）",
     ),
-    time_range: str = Field(
+    time_range: Literal[
+        "day",
+        "week",
+        "month",
+        "year",
+        "d",
+        "w",
+        "m",
+        "y",
+    ]
+    | None = Field(
         default=None,
-        description="The time range back from the current date to filter results. Options: 'day', 'week', 'month', 'year', 'd', 'w', 'm', 'y'",
+        description="时间范围：'day'、'week'、'month'、'year' 或简写 'd'、'w'、'm'、'y'",
     ),
     start_date: str = Field(
         default=None,
-        description="Will return all results after the specified start date. Format: YYYY-MM-DD",
+        description="返回指定开始日期之后的结果。格式：YYYY-MM-DD",
     ),
     end_date: str = Field(
         default=None,
-        description="Will return all results before the specified end date. Format: YYYY-MM-DD",
+        description="返回指定结束日期之前的结果。格式：YYYY-MM-DD",
     ),
     include_domains: list[str] = Field(
         default=None,
-        description="A list of domains to specifically include in the search results (max 300 domains)",
+        description="需要包含的域名列表（最多 300 个域名）",
     ),
     exclude_domains: list[str] = Field(
         default=None,
-        description="A list of domains to specifically exclude from the search results (max 150 domains)",
+        description="需要排除的域名列表（最多 150 个域名）",
     ),
     country: str = Field(
         default=None,
-        description="Boost search results from a specific country. Available only if topic is 'general'. Country names must be in lowercase, plain English",
+        description="提升特定国家的搜索结果，仅当 topic 为 'general' 可用。国家名需为小写英文",
     ),
 ) -> TavilySearchResponse:
     """
@@ -128,15 +140,15 @@ async def web_search(
 @mcp.tool(name="url_content_extract")
 async def url_content_extract(
     urls: list[str] = Field(
-        ..., description="The URLs to extract content from (max 100 URLs)"
+        ..., description="要提取内容的 URL 列表（最多 100 个 URL）"
     ),
     query: str | None = Field(
         default=None,
-        description="User intent for reranking extracted content chunks. When provided, chunks are reranked based on relevance to this query.",
+        description="用于对提取内容片段重排的用户意图。提供后会按与该查询的相关性重排。",
     ),
-    extract_depth: str = Field(
+    extract_depth: Literal["advanced", "basic"] = Field(
         default="advanced",
-        description="The depth of the extraction process. advanced extraction retrieves more data, including tables and embedded content, with higher success but may increase latency.basic extraction costs 1 credit per 5 successful URL extractions, while advanced extraction costs 2 credits per 5 successful URL extractions.",
+        description="提取深度：'advanced'（内容更丰富）、'basic'（更省额度）",
     ),
 ) -> TavilyExtractResponse:
     """
@@ -165,52 +177,52 @@ async def url_content_extract(
 
 @mcp.tool(name="site_crawl_extract")
 async def site_crawl_extract(
-    url: str = Field(..., description="The root URL to begin the crawl"),
-    instructions: str = Field(
+    url: str = Field(..., description="开始爬取的根 URL"),
+    instructions: str | None = Field(
         default=None,
-        description="Natural language instructions for the crawler. Instructions specify which types of pages the crawler should return",
+        description="爬虫的自然语言指令，用于指定应返回的页面类型",
     ),
     max_depth: int = Field(
         default=1,
         ge=1,
         le=3,
-        description="Max depth of the crawl. Defines how far from the base URL the crawler can explore (1-3)",
+        description="最大爬取深度，定义从根 URL 可探索的深度（1-3）",
     ),
     max_breadth: int = Field(
         default=20,
         ge=1,
         le=50,
-        description="Max number of links to follow per level of the tree (1-50)",
+        description="每层最多跟随的链接数（1-50）",
     ),
     limit: int = Field(
         default=50,
         ge=1,
         le=200,
-        description="Total number of links the crawler will process before stopping (1-200)",
+        description="爬虫处理的链接总数上限（1-200）",
     ),
     select_paths: list[str] = Field(
         default_factory=list,
-        description="Regex patterns to select only URLs with specific path patterns (e.g., /docs/.*, /api/v1.*)",
+        description="仅选择匹配路径的正则（如 /docs/.*, /api/v1.*）",
     ),
     select_domains: list[str] = Field(
         default_factory=list,
-        description="Regex patterns to restrict crawling to specific domains or subdomains (e.g., ^docs\\.example\\.com$)",
+        description="限制爬取域名或子域名的正则（如 ^docs\\.example\\.com$）",
     ),
     exclude_paths: list[str] = Field(
         default_factory=list,
-        description="Regex patterns to exclude URLs with specific path patterns",
+        description="用于排除路径的正则",
     ),
     exclude_domains: list[str] = Field(
         default_factory=list,
-        description="Regex patterns to exclude specific domains or subdomains from crawling",
+        description="用于排除域名或子域名的正则",
     ),
     allow_external: bool = Field(
         default=True,
-        description="Whether to return external links in the final response",
+        description="是否在最终结果中包含外部链接",
     ),
-    extract_depth: str = Field(
+    extract_depth: Literal["basic", "advanced"] = Field(
         default="basic",
-        description="The depth of the extraction process. 'basic' costs 1 credit per 5 successful URL extractions, 'advanced' costs 2 credits per 5 successful URL extractions. Options: 'basic', 'advanced'",
+        description="提取深度：'basic'（更省额度）、'advanced'（内容更丰富）",
     ),
 ) -> TavilyCrawlResponse:
     """
@@ -247,45 +259,45 @@ async def site_crawl_extract(
 
 # @mcp.tool(name="web_site_map")
 async def web_site_map(
-    url: str = Field(..., description="The root URL to begin the mapping"),
-    instructions: str = Field(
+    url: str = Field(..., description="开始映射的根 URL"),
+    instructions: str | None = Field(
         default=None,
-        description="Natural language instructions for the mapper. When specified, the cost increases to 2 API credits per 10 successful pages instead of 1 API credit per 10 pages",
+        description="映射器自然语言指令。提供后费用从每 10 页 1 额度提高到 2 额度",
     ),
     max_depth: int = Field(
         default=1,
         ge=1,
-        description="Max depth of the mapping. Defines how far from the base URL the crawler can explore",
+        description="最大映射深度，定义从根 URL 可探索多远",
     ),
     max_breadth: int = Field(
         default=20,
         ge=1,
-        description="Max number of links to follow per level of the tree (i.e., per page)",
+        description="每层（每页）最多跟随的链接数",
     ),
     limit: int = Field(
         default=50,
         ge=1,
-        description="Total number of links the crawler will process before stopping",
+        description="映射器处理的链接总数上限",
     ),
     select_paths: list[str] = Field(
         default_factory=list,
-        description="Regex patterns to select only URLs with specific path patterns (e.g., /docs/.*, /api/v1.*)",
+        description="仅选择匹配路径的正则（如 /docs/.*, /api/v1.*）",
     ),
     select_domains: list[str] = Field(
         default_factory=list,
-        description="Regex patterns to select crawling to specific domains or subdomains (e.g., ^docs\\.example\\.com$)",
+        description="仅选择特定域名或子域名的正则（如 ^docs\\.example\\.com$）",
     ),
     exclude_paths: list[str] = Field(
         default_factory=list,
-        description="Regex patterns to exclude URLs with specific path patterns (e.g., /private/.*, /admin/.*)",
+        description="用于排除路径的正则（如 /private/.*, /admin/.*）",
     ),
     exclude_domains: list[str] = Field(
         default_factory=list,
-        description="Regex patterns to exclude specific domains or subdomains from crawling (e.g., ^private\\.example\\.com$)",
+        description="用于排除域名或子域名的正则（如 ^private\\.example\\.com$）",
     ),
     allow_external: bool = Field(
         default=True,
-        description="Whether to include external domain links in the final results list",
+        description="是否在结果列表中包含外部域名链接",
     ),
 ) -> TavilyMapResponse:
     """

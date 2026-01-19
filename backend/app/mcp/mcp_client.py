@@ -93,7 +93,7 @@ mcp_config_for_fe: list[MCPConfigForFeDict] = [
     {
         "id": "tavily-mcp",
         "name": "联网搜索",
-        "icon": "https://www.tavily.com/favicon.ico",
+        "icon": "https://www.tavily.com/logos/favicon.ico",
         "description": "联网搜索和内容提取",
     },
     {
