@@ -20,6 +20,9 @@ executor = SandboxExecutor(
     memory_limit_mb=config.MEMORY_LIMIT_MB,
     max_output_length=config.MAX_OUTPUT_LENGTH,
     allowed_imports=config.ALLOWED_IMPORTS,
+    allow_file_access=config.ALLOW_FILE_ACCESS,
+    allowed_paths=config.ALLOWED_PATHS,
+    allow_network_access=config.ALLOW_NETWORK_ACCESS,
 )
 
 

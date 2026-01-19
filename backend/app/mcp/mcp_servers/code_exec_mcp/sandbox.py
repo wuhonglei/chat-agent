@@ -6,8 +6,6 @@ import subprocess
 import sys
 import tempfile
 
-from RestrictedPython import compile_restricted
-
 
 class CodeExecutionError(Exception):
     """代码执行错误"""
@@ -31,6 +29,9 @@ class SandboxExecutor:
         memory_limit_mb: int = 128,
         max_output_length: int = 10000,
         allowed_imports: list[str] | None = None,
+        allow_file_access: bool = False,
+        allowed_paths: list[str] | None = None,
+        allow_network_access: bool = False,
     ):
         """
         初始化沙箱执行器
@@ -41,12 +42,18 @@ class SandboxExecutor:
             memory_limit_mb: 内存限制（MB）
             max_output_length: 最大输出长度（字符）
             allowed_imports: 允许导入的模块列表
+            allow_file_access: 是否允许文件系统访问
+            allowed_paths: 允许访问的文件路径列表
+            allow_network_access: 是否允许网络访问
         """
         self.timeout = timeout
         self.cpu_time_limit = cpu_time_limit
         self.memory_limit_mb = memory_limit_mb
         self.max_output_length = max_output_length
         self.allowed_imports = allowed_imports or []
+        self.allow_file_access = allow_file_access
+        self.allowed_paths = allowed_paths or []
+        self.allow_network_access = allow_network_access
 
     def _set_resource_limits(self):
         """设置资源限制"""
@@ -75,29 +82,15 @@ class SandboxExecutor:
 
     def _create_safe_script(self, code: str) -> str:
         """创建安全的执行脚本，包含 RestrictedPython 检查和资源限制"""
-        # 使用 RestrictedPython 编译代码以检查安全性
-        # compile_restricted 返回 (code, errors, warnings) 元组
-        result = compile_restricted(code, "<inline>", "exec")
-
-        # 处理返回值：可能是元组或直接是代码对象
-        if isinstance(result, tuple):
-            byte_code, errors, warnings = result
-            if errors:
-                error_msg = "\n".join(errors)
-                raise CodeExecutionError(f"代码安全检查失败: {error_msg}")
-        else:
-            # 如果直接返回代码对象，尝试检查是否有错误属性
-            byte_code = result
-            if hasattr(byte_code, "errors") and byte_code.errors:
-                error_msg = "\n".join(byte_code.errors)
-                raise CodeExecutionError(f"代码安全检查失败: {error_msg}")
-
         # 使用 repr 来安全地嵌入代码
         code_repr = repr(code)
 
         # 创建包装脚本，在子进程中应用资源限制和模块限制
         wrapper_code = f"""import sys
 import resource
+import os
+import traceback
+from RestrictedPython import compile_restricted, safe_globals
 
 # 设置资源限制
 try:
@@ -119,9 +112,14 @@ except (ValueError, OSError):
 # 限制可导入的模块
 _allowed_modules = {self.allowed_imports!r}
 _original_import = __import__
+_allow_network_access = {self.allow_network_access!r}
+
+_network_blocked = {{"socket"}}
 
 def restricted_import(name, globals=None, locals=None, fromlist=(), level=0):
-    if name not in _allowed_modules:
+    if not _allow_network_access and (name in _network_blocked or name.startswith("socket.")):
+        raise ImportError("网络访问被禁止")
+    if not any(name == allowed or name.startswith(allowed + ".") for allowed in _allowed_modules):
         raise ImportError(f"导入 '{{name}}' 被禁止。允许的模块: {{', '.join(_allowed_modules)}}")
     return _original_import(name, globals, locals, fromlist, level)
 
@@ -129,13 +127,65 @@ def restricted_import(name, globals=None, locals=None, fromlist=(), level=0):
 import builtins
 builtins.__import__ = restricted_import
 
+_allow_file_access = {self.allow_file_access!r}
+_allowed_paths = {self.allowed_paths!r}
+_original_open = builtins.open
+
+def _normalize_path(path):
+    return os.path.realpath(os.path.expanduser(path))
+
+def restricted_open(file, *args, **kwargs):
+    if not _allow_file_access:
+        raise PermissionError("文件系统访问被禁止")
+    if not _allowed_paths:
+        raise PermissionError("未配置允许的文件路径")
+    target_path = _normalize_path(file)
+    for allowed in _allowed_paths:
+        allowed_path = _normalize_path(allowed)
+        if target_path == allowed_path or target_path.startswith(allowed_path + os.sep):
+            return _original_open(file, *args, **kwargs)
+    raise PermissionError("访问路径不在允许列表中")
+
+builtins.open = restricted_open
+
+class _LimitedWriter:
+    def __init__(self, stream, max_len):
+        self.stream = stream
+        self.max_len = max_len
+        self.written = 0
+
+    def write(self, data):
+        if not data:
+            return 0
+        if self.written >= self.max_len:
+            return len(data)
+        remaining = self.max_len - self.written
+        chunk = data[:remaining]
+        self.stream.write(chunk)
+        self.stream.flush()
+        self.written += len(chunk)
+        return len(data)
+
+    def flush(self):
+        self.stream.flush()
+
+sys.stdout = _LimitedWriter(sys.stdout, {self.max_output_length})
+sys.stderr = _LimitedWriter(sys.stderr, {self.max_output_length})
+
 try:
-    # 执行用户代码
-    exec({code_repr})
+    # 执行用户代码（RestrictedPython）
+    compiled = compile_restricted({code_repr}, "<inline>", "exec")
+    if isinstance(compiled, tuple):
+        byte_code, errors, _warnings = compiled
+        if errors:
+            raise SyntaxError("\\n".join(errors))
+    else:
+        byte_code = compiled
+    exec(byte_code, safe_globals.copy(), {{}})
 except Exception as e:
-    import traceback
     print(f"执行错误: {{e}}", file=sys.stderr)
     traceback.print_exc(file=sys.stderr)
+    sys.exit(1)
 """
         return wrapper_code
 
