@@ -9,6 +9,7 @@ from openai.types.chat import (
     ChatCompletionMessage,
     ChatCompletionMessageFunctionToolCall,
 )
+from toolz import get
 
 from app.agents.base import BaseAgent
 from app.agents.utils import TavilyResultProcessor
@@ -423,20 +424,13 @@ class MCPToolsAgent(BaseAgent):
 
             # Handle tool calls
             content = openai_message.content or ""
-            reasoning_content = openai_message.reasoning_content or ""
+            reasoning_content = get("reasoning_content", openai_message, "")
             assistant_message = AssistantToolCallMessage(
                 **{
                     "role": "assistant",
                     "content": content,
-                    "content_token_count": self.token_calculator.count_tokens(content),
-                    "tool_call_token_count": self.token_calculator.count_tokens(
-                        json.dumps(openai_message.tool_calls)
-                    ),
                     "tool_calls": openai_message.tool_calls,
                     "reasoning_content": reasoning_content,
-                    "reasoning_token_count": self.token_calculator.count_tokens(
-                        reasoning_content
-                    ),
                 }
             )
             self.output_messages.append(assistant_message)
@@ -467,22 +461,6 @@ class MCPToolsAgent(BaseAgent):
             for tool_call_result_message in tool_results:
                 self.output_messages.append(tool_call_result_message)
                 yield tool_call_result_message
-
-            # Check token usage after each iteration
-            # If output messages exceed 50% of model capacity, stop iteration
-            output_tokens = self.token_calculator.count_messages_tokens(
-                self.output_messages
-            )
-            if output_tokens > self.token_threshold:
-                logger.info(
-                    "Stopping iteration due to token limit exceeded",
-                    output_tokens=output_tokens,
-                    token_threshold=self.token_threshold,
-                    model_limit=self.model_limit,
-                    iteration=iteration + 1,
-                )
-                yield None
-                return
 
         # If we hit max iterations, return error message
         logger.info(
