@@ -129,8 +129,8 @@ async def web_search(
         raise
 
 
-@mcp.tool(name="url_content_extract")
-async def url_content_extract(
+@mcp.tool(name="web_pages_extract")
+async def web_pages_extract(
     urls: list[str] = Field(
         ..., description="要提取内容的 URL 列表（最多 100 个 URL）"
     ),
@@ -164,8 +164,8 @@ async def url_content_extract(
         raise
 
 
-@mcp.tool(name="site_crawl_extract")
-async def site_crawl_extract(
+@mcp.tool(name="web_site_crawl")
+async def web_site_crawl(
     url: str = Field(..., description="开始爬取的根 URL"),
     instructions: str | None = Field(
         default=None,
