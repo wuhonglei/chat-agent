@@ -17,7 +17,7 @@ user_message_for_tool_call_template = Template(
 - 如果没有合适的工具，请回复"finish."
 - 你只负责调用工具。请勿提供最终答案。只需调用合适的工具或回复"finish."
 - 当前时间：{{ current_datetime }}.
-- 客户端IP：{{ client_ip }}.
+{% if client_ip %}- 客户端IP：{{ client_ip }}.{% endif %}
 """.strip()
 )
 

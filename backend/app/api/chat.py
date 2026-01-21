@@ -14,7 +14,6 @@ from app.utils.auth_deps import require_auth
 from app.utils.common import pick_fields
 from app.utils.logger import logger
 from app.utils.model import format_sse_message
-from app.utils.network import get_public_client_ip
 from app.utils.time import get_current_time, get_time_duration
 
 router = APIRouter()
@@ -30,7 +29,6 @@ async def chat_stream(
     chat_request: ChatRequest,
     mcp_manager: MCPClientManager = Depends(get_mcp_manager),
     _auth: None = Depends(require_auth),
-    client_ip: str | None = Depends(get_public_client_ip),
 ):
     """Stream chat response, 按需保存用户与助手消息"""
     logger.info(
@@ -134,14 +132,12 @@ async def chat_stream(
                     conversation_id=chat_request.conversation_id,
                     history_ids_count=len(chat_request.history_ids),
                     history_messages_count=len(history_messages),
-                    client_ip=client_ip,
                 )
 
                 chunk_count = 0
                 async for chunk in chat_service.stream_message(
                     chat_request=chat_request,
                     history_messages=history_messages,
-                    client_ip=client_ip,
                 ):
                     chunk_count += 1
                     yield chunk
