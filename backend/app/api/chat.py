@@ -138,6 +138,7 @@ async def chat_stream(
                 async for chunk in chat_service.stream_message(
                     chat_request=chat_request,
                     history_messages=history_messages,
+                    client_ip=None,
                 ):
                     chunk_count += 1
                     yield chunk
