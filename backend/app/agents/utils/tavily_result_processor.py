@@ -26,21 +26,34 @@ class TavilyResultProcessor:
             compaction_result.content = formatted
             return compaction_result
 
-        if tool_name == "url_content_extract":
+        if tool_name == "web_pages_extract":
             payload = TavilyExtractResponse.model_validate(structured_content)
             payload, compaction_result = await self._compact_extract_response(payload)
             formatted = tavily_utils.format_extract_results(payload)
             compaction_result.content = formatted
             return compaction_result
 
-        if tool_name == "site_crawl_extract":
+        if tool_name == "web_site_crawl":
             payload = TavilyCrawlResponse.model_validate(structured_content)
             payload, compaction_result = await self._compact_crawl_response(payload)
             formatted = tavily_utils.format_crawl_results(payload)
             compaction_result.content = formatted
             return compaction_result
 
-        return await self._compact_content(structured_content["content"])
+        # Fallback for unknown tools - try to get content from structured_content
+        content = structured_content.get("content")
+        if content:
+            return await self._compact_content(content)
+        else:
+            # If no content key, return empty compaction result
+            return CompactionResult(
+                content=str(structured_content),
+                relevance_applied=False,
+                content_token_count=0,
+                original_token_count=0,
+                relevant_token_count=0,
+                threshold_token_count=0,
+            )
 
     async def _compact_search_response(
         self, data: TavilySearchResponse
