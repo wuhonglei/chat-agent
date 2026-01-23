@@ -12,6 +12,10 @@ from app.utils.context_compactor import CompactionResult, ContextCompactor
 
 
 class TavilyResultProcessor:
+    WEB_SEARCH = "web_search"
+    WEB_PAGES_EXTRACT = "web_pages_extract"
+    WEB_SITE_CRAWL = "web_site_crawl"
+
     def __init__(self, compactor: ContextCompactor, query: str) -> None:
         self.compactor = compactor
         self.query = query
@@ -19,21 +23,21 @@ class TavilyResultProcessor:
     async def format_result(
         self, tool_name: str, structured_content: dict[str, Any]
     ) -> CompactionResult:
-        if tool_name == "web_search":
+        if tool_name == self.WEB_SEARCH:
             payload = TavilySearchResponse.model_validate(structured_content)
             payload, compaction_result = await self._compact_search_response(payload)
             formatted = tavily_utils.format_search_results(payload)
             compaction_result.content = formatted
             return compaction_result
 
-        if tool_name == "web_pages_extract":
+        if tool_name == self.WEB_PAGES_EXTRACT:
             payload = TavilyExtractResponse.model_validate(structured_content)
             payload, compaction_result = await self._compact_extract_response(payload)
             formatted = tavily_utils.format_extract_results(payload)
             compaction_result.content = formatted
             return compaction_result
 
-        if tool_name == "web_site_crawl":
+        if tool_name == self.WEB_SITE_CRAWL:
             payload = TavilyCrawlResponse.model_validate(structured_content)
             payload, compaction_result = await self._compact_crawl_response(payload)
             formatted = tavily_utils.format_crawl_results(payload)

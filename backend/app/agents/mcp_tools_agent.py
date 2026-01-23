@@ -49,6 +49,14 @@ from app.utils.vocab import VocabProcessor
 class MCPToolsAgent(BaseAgent):
     """MCP工具调用Agent - 负责处理MCP工具调用逻辑"""
 
+    # 工具名称常量
+    WEB_SEARCH = "web_search"
+    WEB_PAGES_EXTRACT = "web_pages_extract"
+    TAVILY_TOOL_NAME = "tavily-mcp"
+
+    # 相似度阈值
+    QUERY_SIMILARITY_THRESHOLD = 0.7
+
     def __init__(
         self, think_mode: bool, llm_config: LLMConfig, mcp_manager: MCPClientManager
     ):
@@ -205,11 +213,11 @@ class MCPToolsAgent(BaseAgent):
             suffix_user_message.append(get_disabled_tools_message(disabled_tools))
 
         # 增强 web_search 检查
-        if has_tool_been_called(["web_search"], self.output_messages):
+        if has_tool_been_called([self.WEB_SEARCH], self.output_messages):
             suffix_user_message.append(get_gentle_tips_in_web_search())
 
         # 增强 web_pages_extract 检查
-        if has_tool_been_called(["web_pages_extract"], self.output_messages):
+        if has_tool_been_called([self.WEB_PAGES_EXTRACT], self.output_messages):
             if len(self.extracted_urls) >= 3:
                 suffix_user_message.append(
                     f"⚠️ 已提取了 {len(self.extracted_urls)} 个 URL 的内容。如果这些内容已足够回答问题，请回复 'finish'。"
@@ -268,7 +276,7 @@ class MCPToolsAgent(BaseAgent):
             list[str]: web_search 查询列表
         """
         queries = []
-        for call_info in self.tool_call_args_by_name.get("web_search", []):
+        for call_info in self.tool_call_args_by_name.get(self.WEB_SEARCH, []):
             if query := get_in(["arguments", "query"], call_info):
                 queries.append(query)
         return queries
@@ -291,8 +299,8 @@ class MCPToolsAgent(BaseAgent):
             )
             max_similarity = max(max_similarity, similarity)
 
-        # 如果相似度 > 0.7，认为查询相似
-        is_similar = max_similarity > 0.7
+        # 如果相似度 > 阈值，认为查询相似
+        is_similar = max_similarity > self.QUERY_SIMILARITY_THRESHOLD
         return is_similar, max_similarity
 
     def _check_url_overlap(self, urls: list[str]) -> tuple[float, int]:
@@ -328,7 +336,7 @@ class MCPToolsAgent(BaseAgent):
         # 统计工具调用次数
         web_search_count = len(self._get_web_search_queries())  # 已执行的搜索次数
         web_pages_extract_count = len(
-            self.tool_call_args_by_name.get("web_pages_extract", [])
+            self.tool_call_args_by_name.get(self.WEB_PAGES_EXTRACT, [])
         )
         total_tool_calls = count_tool_calls(self.output_messages)
 
@@ -337,7 +345,7 @@ class MCPToolsAgent(BaseAgent):
             tool_arguments = self._extract_tool_call_arguments(tool_calls)
 
             # 检查 web_search 查询相似度
-            for call_info in get_in(["web_search"], tool_arguments, []):
+            for call_info in get_in([self.WEB_SEARCH], tool_arguments, []):
                 query = get_in(["arguments", "query"], call_info)
                 if query:
                     is_similar, similarity = self._check_query_similarity(query)
@@ -348,7 +356,7 @@ class MCPToolsAgent(BaseAgent):
                         )
 
             # 检查 web_pages_extract URL 重叠
-            for call_info in get_in(["web_pages_extract"], tool_arguments, []):
+            for call_info in get_in([self.WEB_PAGES_EXTRACT], tool_arguments, []):
                 urls = get_in(["arguments", "urls"], call_info)
                 if urls:
                     overlap_ratio, extracted_count = self._check_url_overlap(urls)
@@ -432,7 +440,7 @@ class MCPToolsAgent(BaseAgent):
             arguments = json.loads(tool_call.function.arguments)
 
             # URL 去重处理（针对 web_pages_extract）
-            if tool_name == "web_pages_extract" and (urls := get("urls", arguments)):
+            if tool_name == self.WEB_PAGES_EXTRACT and (urls := get("urls", arguments)):
                 # 规范化 URL（去除锚点）
                 normalized_urls = {normalize_url(url) for url in urls if url}
                 # 过滤掉已提取的 URL
@@ -495,7 +503,10 @@ class MCPToolsAgent(BaseAgent):
             )
 
             server_name = self.mcp_manager.get_server_for_tool(tool_name)
-            if server_name == "tavily-mcp" and result.structured_content is not None:
+            if (
+                server_name == self.TAVILY_TOOL_NAME
+                and result.structured_content is not None
+            ):
                 tool_call_result_message = await self._apply_tavily_compaction(
                     tool_call_result_message=tool_call_result_message,
                     tool_name=tool_name,
