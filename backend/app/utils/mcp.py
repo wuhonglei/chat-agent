@@ -74,3 +74,13 @@ def count_tool_calls(output_messages: list[ToolCallMessage]) -> int:
         int: 工具调用结果消息的数量
     """
     return len([m for m in output_messages if isinstance(m, ToolCallResultMessage)])
+
+
+def has_tool_been_called(
+    names: list[str], tool_call_messages: list[ToolCallMessage]
+) -> bool:
+    """
+    Check if any tool in the list has been called.
+    """
+    tool_call_names = extract_tool_call_names(tool_call_messages)
+    return any(tool_name in tool_call_names for tool_name in names)

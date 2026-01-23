@@ -11,6 +11,7 @@ from app.prompts.system_prompt import (
 )
 from app.prompts.user_prompt import (
     disabled_tools_message_template,
+    gentle_tips_in_web_search_template,
     user_message_for_title_template,
     user_message_for_tool_call_template,
     user_message_with_component_data_template,
@@ -154,14 +155,11 @@ def get_user_message_with_component_data(
     return user_message_with_component_data
 
 
-def get_user_message_with_disabled_tools(
-    user_message: str, disabled_tools: list[str]
-) -> str:
+def get_disabled_tools_message(disabled_tools: list[str]) -> str:
     """Get disabled tools message"""
-    if not disabled_tools:
-        return user_message
+    return disabled_tools_message_template.render(disabled_tools=disabled_tools)
 
-    disabled_note = disabled_tools_message_template.render(
-        disabled_tools=disabled_tools
-    )
-    return f"{user_message}\n\n{disabled_note}"
+
+def get_gentle_tips_in_web_search():
+    """Get gentle tips in web search"""
+    return gentle_tips_in_web_search_template.render()

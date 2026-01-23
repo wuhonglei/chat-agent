@@ -16,8 +16,9 @@ from app.agents.utils import TavilyResultProcessor
 from app.core.config import settings
 from app.mcp.mcp_client import MCPClientManager
 from app.prompts import (
+    get_disabled_tools_message,
+    get_gentle_tips_in_web_search,
     get_prompt_with_mcp_servers,
-    get_user_message_with_disabled_tools,
 )
 from app.schemas.chat import ChatMessageItem, ChatRequest
 from app.schemas.config import LLMConfig
@@ -29,7 +30,11 @@ from app.schemas.llm import (
 from app.schemas.token_stats import MCPToolsTokenStats
 from app.utils.context_compactor import ContextCompactor
 from app.utils.logger import logger
-from app.utils.mcp import count_tool_calls, extract_tool_call_names
+from app.utils.mcp import (
+    count_tool_calls,
+    extract_tool_call_names,
+    has_tool_been_called,
+)
 from app.utils.message import (
     find_last_user_message,
     format_tool_call_messages_for_llm,
@@ -384,16 +389,23 @@ class MCPToolsAgent(BaseAgent):
             available_tools, disabled_tools = self._get_tools_state(
                 tools, iterations_by_tool
             )
+            suffix_user_message: list[str] = []
             if disabled_tools:
                 logger.info(
                     "Pre-filtered tools that reached max iterations",
                     disabled_tools=disabled_tools,
                     iteration=iteration + 1,
                 )
+                suffix_user_message.append(get_disabled_tools_message(disabled_tools))
+
+            if has_tool_been_called(["web_search"], self.output_messages):
+                suffix_user_message.append(get_gentle_tips_in_web_search())
+
+            if suffix_user_message:
                 last_user_message = find_last_user_message(messages)
                 if last_user_message:
-                    last_user_message["content"] = get_user_message_with_disabled_tools(
-                        tool_call_user_message, disabled_tools
+                    last_user_message["content"] += (
+                        "\n\n" + "注意:\n" + "\n".join(suffix_user_message)
                     )
 
             # Call LLM with tools

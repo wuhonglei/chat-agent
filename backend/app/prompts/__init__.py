@@ -2,10 +2,11 @@
 
 from app.prompts.prompt_utils import (
     get_default_system_prompt,
+    get_disabled_tools_message,
+    get_gentle_tips_in_web_search,
     get_prompt_for_title,
     get_prompt_with_mcp_servers,
     get_user_message_with_component_data,
-    get_user_message_with_disabled_tools,
 )
 
 __all__ = [
@@ -13,5 +14,6 @@ __all__ = [
     "get_prompt_for_title",
     "get_prompt_with_mcp_servers",
     "get_user_message_with_component_data",
-    "get_user_message_with_disabled_tools",
+    "get_disabled_tools_message",
+    "get_gentle_tips_in_web_search",
 ]
