@@ -72,6 +72,7 @@
     "vite-plugin-svgr": "^4.5.0"
   },
   "lint-staged": {
+    "*.{ts,tsx,js,jsx,json,css,md}": "prettier --write",
     "*.{ts,tsx}": "eslint --max-warnings=0"
   }
 }
