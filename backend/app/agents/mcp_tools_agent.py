@@ -407,6 +407,10 @@ class MCPToolsAgent(BaseAgent):
                     last_user_message["content"] += (
                         "\n\n" + "注意:\n" + "\n".join(suffix_user_message)
                     )
+                    logger.debug(
+                        "Updated last user message",
+                        last_user_message=last_user_message,
+                    )
 
             # Call LLM with tools
             # 格式化 collected_messages，过滤掉额外的字段（如 token_count, duration, is_error）

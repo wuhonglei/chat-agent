@@ -46,12 +46,12 @@ user_message_with_component_data_template = Template(
 
 disabled_tools_message_template = Template(
     """
-以下工具已达到5次调用上限，当前不可再调用: {{ ', '.join(disabled_tools) }}
+以下工具已达到5次调用上限，当前不可再调用: {{ ', '.join(disabled_tools) }}.
 """.strip()
 )
 
 gentle_tips_in_web_search_template = Template(
     """
-目前已经调用了 web search 工具，工具返回内容中已经包含了和用户查询相关的片段，除非你需要完整的网页内容，否则不要再调用 url extract 工具
+目前已经调用了 web search 工具，工具返回内容中已经包含了和用户查询相关的片段，除非你需要完整的网页内容，否则不要再调用 url extract 工具.
 """.strip()
 )
