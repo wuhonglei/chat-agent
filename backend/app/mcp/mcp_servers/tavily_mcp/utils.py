@@ -1,3 +1,4 @@
+import math
 import re
 
 from .models import (
@@ -198,23 +199,36 @@ def filter_search_results_by_score(
     Returns:
         tuple: (过滤后的结果列表, 被忽略的结果列表)
     """
-    high_score_results: list[TavilySearchResultItem] = []
-    low_score_results: list[TavilySearchResultItem] = []
 
-    for result in results:
-        if result.score is not None and result.score > threshold:
-            high_score_results.append(result)
-        else:
-            low_score_results.append(result)
+    def _filter_by_threshold(
+        items: list[TavilySearchResultItem], thresh: float
+    ) -> tuple[list[TavilySearchResultItem], list[TavilySearchResultItem]]:
+        """根据阈值过滤结果"""
+        high, low = [], []
+        for item in items:
+            (high if item.score is not None and item.score > thresh else low).append(
+                item
+            )
+        return high, low
 
+    # 初始过滤
+    high_score_results, low_score_results = _filter_by_threshold(results, threshold)
+
+    # 如果高分结果数量小于总结果数的一半，动态调整阈值
+    if len(high_score_results) < len(results) / 2 and low_score_results:
+        first_low_score = low_score_results[0].score
+        if first_low_score is not None:
+            # 将阈值调整为向下取整到第一位小数（第二位小数置为0）
+            # 例如：0.49 -> 0.40, 0.39 -> 0.30
+            adjusted_threshold = math.floor(first_low_score * 10) / 10
+            high_score_results, low_score_results = _filter_by_threshold(
+                results, adjusted_threshold
+            )
+
+    # 返回结果：有高分结果则返回高分结果，否则返回第一个低分结果
     if high_score_results:
-        filtered_results = high_score_results
-        ignored_results = low_score_results
-    else:
-        filtered_results = low_score_results[0:1] if low_score_results else []
-        ignored_results = low_score_results[1:] if len(low_score_results) > 1 else []
-
-    return filtered_results, ignored_results
+        return high_score_results, low_score_results
+    return (low_score_results[:1] if low_score_results else [], low_score_results[1:])
 
 
 def format_map_results(response: TavilyMapResponse) -> str:
