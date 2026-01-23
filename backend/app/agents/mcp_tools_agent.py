@@ -70,6 +70,7 @@ class MCPToolsAgent(BaseAgent):
         self.tool_call_args_by_name: dict[str, list[dict[str, Any]]] = defaultdict(list)
         self.duration: float | None = None
         self.token_stats: MCPToolsTokenStats | None = None
+        self.compression_config = settings.compression
         self.compactor = ContextCompactor(
             embedding_model=settings.embedding_model,
             compression_config=settings.compression,
@@ -585,6 +586,9 @@ class MCPToolsAgent(BaseAgent):
         processor = TavilyResultProcessor(
             compactor=self.compactor,
             query=query,
+            threshold_tokens_count=int(
+                self.compression_config.tool_result_max_tokens * 1.2  # 增加20%的冗余
+            ),
         )
         compaction = await processor.format_result(tool_name, structured_content)
         return tool_call_result_message.model_copy(
