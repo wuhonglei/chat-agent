@@ -43,11 +43,8 @@ def python_code_exec(
     ),
 ) -> str:
     """
-    安全执行 Python 代码并返回结果
+    安全执行 Python 代码，并返回代码输出结果（stdout）结果
     注意：此工具仅用于执行简单的计算和数据处理任务，不支持文件系统操作、网络访问和图形绘制。
-
-    Returns:
-        代码执行的输出结果（stdout）
     """
     try:
         result = executor.execute(code)
