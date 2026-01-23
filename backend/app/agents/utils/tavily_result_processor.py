@@ -17,10 +17,15 @@ class TavilyResultProcessor:
     WEB_SITE_CRAWL = "web_site_crawl"
 
     def __init__(
-        self, compactor: ContextCompactor, query: str, threshold_tokens_count: int
+        self,
+        compactor: ContextCompactor,
+        query: str,
+        tolerance_tokens_count: int,
+        threshold_tokens_count: int,
     ) -> None:
         self.compactor = compactor
         self.query = query
+        self.tolerance_tokens_count = tolerance_tokens_count
         self.threshold_tokens_count = threshold_tokens_count
 
     async def format_result(
@@ -29,7 +34,7 @@ class TavilyResultProcessor:
         if tool_name == self.WEB_SEARCH:
             payload = TavilySearchResponse.model_validate(structured_content)
             payload, compaction_result = await self._compact_search_response(
-                payload, self.threshold_tokens_count
+                payload, self.tolerance_tokens_count, self.threshold_tokens_count
             )
             formatted = tavily_utils.format_search_results(payload)
             compaction_result.content = formatted
@@ -38,7 +43,7 @@ class TavilyResultProcessor:
         if tool_name == self.WEB_PAGES_EXTRACT:
             payload = TavilyExtractResponse.model_validate(structured_content)
             payload, compaction_result = await self._compact_extract_response(
-                payload, self.threshold_tokens_count
+                payload, self.tolerance_tokens_count, self.threshold_tokens_count
             )
             formatted = tavily_utils.format_extract_results(payload)
             compaction_result.content = formatted
@@ -47,7 +52,7 @@ class TavilyResultProcessor:
         if tool_name == self.WEB_SITE_CRAWL:
             payload = TavilyCrawlResponse.model_validate(structured_content)
             payload, compaction_result = await self._compact_crawl_response(
-                payload, self.threshold_tokens_count
+                payload, self.tolerance_tokens_count, self.threshold_tokens_count
             )
             formatted = tavily_utils.format_crawl_results(payload)
             compaction_result.content = formatted
@@ -56,7 +61,9 @@ class TavilyResultProcessor:
         # Fallback for unknown tools - try to get content from structured_content
         content = structured_content.get("content")
         if content:
-            return await self._compact_content(content, self.threshold_tokens_count)
+            return await self._compact_content(
+                content, self.tolerance_tokens_count, self.threshold_tokens_count
+            )
         else:
             # If no content key, return empty compaction result
             return CompactionResult(
@@ -71,11 +78,13 @@ class TavilyResultProcessor:
     async def _compact_search_response(
         self,
         data: TavilySearchResponse,
+        tolerance_tokens_count: int,
         threshold_tokens_count: int,
     ) -> tuple[TavilySearchResponse, CompactionResult]:
         compaction_result = await self._compact_items(
             data.filtered_results or [],
             "content",
+            tolerance_tokens_count,
             threshold_tokens_count,
         )
         return data, compaction_result
@@ -83,11 +92,13 @@ class TavilyResultProcessor:
     async def _compact_extract_response(
         self,
         data: TavilyExtractResponse,
+        tolerance_tokens_count: int,
         threshold_tokens_count: int,
     ) -> tuple[TavilyExtractResponse, CompactionResult]:
         compaction_result = await self._compact_items(
             data.results or [],
             "raw_content",
+            tolerance_tokens_count,
             threshold_tokens_count,
         )
         return data, compaction_result
@@ -95,17 +106,23 @@ class TavilyResultProcessor:
     async def _compact_crawl_response(
         self,
         data: TavilyCrawlResponse,
+        tolerance_tokens_count: int,
         threshold_tokens_count: int,
     ) -> tuple[TavilyCrawlResponse, CompactionResult]:
         compaction_result = await self._compact_items(
             data.results or [],
             "raw_content",
+            tolerance_tokens_count,
             threshold_tokens_count,
         )
         return data, compaction_result
 
     async def _compact_items(
-        self, items: list[Any], content_attr: str, threshold_tokens_count: int
+        self,
+        items: list[Any],
+        content_attr: str,
+        tolerance_tokens_count: int,
+        threshold_tokens_count: int,
     ) -> CompactionResult:
         compaction_result = CompactionResult(
             content="",
@@ -124,6 +141,7 @@ class TavilyResultProcessor:
             compaction = await self.compactor.compact_markdown_tool_result(
                 query=self.query,
                 content=content,
+                tolerance_tokens_count=tolerance_tokens_count,
                 threshold_tokens_count=threshold_tokens_count,
             )
             if compaction.relevance_applied:
@@ -136,10 +154,11 @@ class TavilyResultProcessor:
         return compaction_result
 
     async def _compact_content(
-        self, content: str, threshold_tokens_count: int
+        self, content: str, tolerance_tokens_count: int, threshold_tokens_count: int
     ) -> CompactionResult:
         return await self.compactor.compact_markdown_tool_result(
             query=self.query,
             content=content,
+            tolerance_tokens_count=tolerance_tokens_count,
             threshold_tokens_count=threshold_tokens_count,
         )

@@ -43,7 +43,9 @@ class ContextCompactor:
             chunk.strip() for chunk in splitter.split_text(content) if chunk.strip()
         ]
 
-    def extract_relevant_markdown(self, query: str, content: str) -> str:
+    def extract_relevant_markdown(
+        self, query: str, content: str, threshold_tokens_count: int
+    ) -> str:
         if not content.strip():
             return content
 
@@ -61,7 +63,6 @@ class ContextCompactor:
         if not results:
             return chunks[0]
 
-        max_tokens = self.compression_config.tool_result_max_tokens
         sorted_relevant = sorted(
             results, key=lambda item: item[1]
         )  # score 越小相似度越高
@@ -70,7 +71,7 @@ class ContextCompactor:
         for doc, _score in sorted_relevant:
             chunk_text = doc.page_content
             chunk_tokens = self.token_calculator.count_tokens(chunk_text)
-            if selected_tokens + chunk_tokens > max_tokens:
+            if selected_tokens + chunk_tokens > threshold_tokens_count:
                 continue
             selected_chunks.append((doc.metadata["index"], chunk_text))
             selected_tokens += chunk_tokens
@@ -85,16 +86,14 @@ class ContextCompactor:
         self,
         query: str,
         content: str,
-        threshold_tokens_count: int | None = None,
+        tolerance_tokens_count: int,
+        threshold_tokens_count: int,
     ) -> CompactionResult:
         original_tokens_count = self.token_calculator.count_tokens(content)
-        threshold_tokens_count = (
-            threshold_tokens_count or self.compression_config.tool_result_max_tokens
-        )
 
         if (
             not self.compression_config.enabled
-            or original_tokens_count <= threshold_tokens_count
+            or original_tokens_count <= tolerance_tokens_count
             or not self.compression_config.relevance_enabled
         ):
             return CompactionResult(
@@ -103,10 +102,12 @@ class ContextCompactor:
                 content_token_count=original_tokens_count,
                 original_token_count=original_tokens_count,
                 relevant_token_count=original_tokens_count,
-                threshold_token_count=threshold_tokens_count,
+                threshold_token_count=tolerance_tokens_count,
             )
 
-        relevant_content = self.extract_relevant_markdown(query, content)
+        relevant_content = self.extract_relevant_markdown(
+            query, content, threshold_tokens_count
+        )
         relevant_tokens_count = self.token_calculator.count_tokens(relevant_content)
         return CompactionResult(
             content=relevant_content,

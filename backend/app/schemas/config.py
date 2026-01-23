@@ -146,8 +146,11 @@ class CompressionConfig(BaseModel):
 
     enabled: bool = Field(default=True, description="是否启用上下文压缩")
     relevance_enabled: bool = Field(default=True, description="是否启用相关性过滤")
-    tool_result_max_tokens: int = Field(
-        default=5000, description="单个工具结果最大token数"
+    tool_result_threshold_tokens: int = Field(
+        default=5000, description="单个工具结果阈值tokens数"
+    )
+    tool_result_tolerance_tokens: int = Field(
+        default=6000, description="单个工具结果容忍的tokens数"
     )
 
 

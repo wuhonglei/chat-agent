@@ -586,9 +586,8 @@ class MCPToolsAgent(BaseAgent):
         processor = TavilyResultProcessor(
             compactor=self.compactor,
             query=query,
-            threshold_tokens_count=int(
-                self.compression_config.tool_result_max_tokens * 1.2  # 增加20%的冗余
-            ),
+            tolerance_tokens_count=self.compression_config.tool_result_tolerance_tokens,
+            threshold_tokens_count=self.compression_config.tool_result_threshold_tokens,
         )
         compaction = await processor.format_result(tool_name, structured_content)
         return tool_call_result_message.model_copy(
@@ -605,6 +604,8 @@ class MCPToolsAgent(BaseAgent):
         compaction = await self.compactor.compact_markdown_tool_result(
             query=self.current_user_message,
             content=content,
+            tolerance_tokens_count=self.compression_config.tool_result_tolerance_tokens,
+            threshold_tokens_count=self.compression_config.tool_result_threshold_tokens,
         )
 
         return tool_message.model_copy(update=compaction.model_dump(mode="json"))
