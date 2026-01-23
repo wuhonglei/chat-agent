@@ -57,6 +57,10 @@ class MCPToolsAgent(BaseAgent):
     # 相似度阈值
     QUERY_SIMILARITY_THRESHOLD = 0.7
 
+    # 迭代次数限制
+    MAX_TOTAL_ITERATIONS = 10  # Prevent infinite loops
+    MAX_ITERATIONS_BY_TOOL = 5
+
     def __init__(
         self, think_mode: bool, llm_config: LLMConfig, mcp_manager: MCPClientManager
     ):
@@ -653,19 +657,17 @@ class MCPToolsAgent(BaseAgent):
             messages_count=len(messages),
             extra_body=extra_body,
         )
-        max_total_iterations = 10  # Prevent infinite loops
-        max_iterations_by_tool = 5
         # 复制列表以避免修改原始参数（后续会修改 tools 列表）
         tools = list(tools) if tools else []
         iterations_by_tool = {
-            tool["function"]["name"]: max_iterations_by_tool for tool in tools
+            tool["function"]["name"]: self.MAX_ITERATIONS_BY_TOOL for tool in tools
         }
 
-        for iteration in range(max_total_iterations):
+        for iteration in range(self.MAX_TOTAL_ITERATIONS):
             logger.info(
                 "Tool call iteration started",
                 iteration=iteration + 1,
-                max_iterations=max_total_iterations,
+                max_iterations=self.MAX_TOTAL_ITERATIONS,
             )
 
             # 更新用户消息，添加工具调用相关的提示信息
@@ -761,7 +763,7 @@ class MCPToolsAgent(BaseAgent):
         # If we hit max iterations, return error message
         logger.info(
             "Max iterations reached",
-            max_iterations=max_total_iterations,
+            max_iterations=self.MAX_TOTAL_ITERATIONS,
         )
         yield None
         return
