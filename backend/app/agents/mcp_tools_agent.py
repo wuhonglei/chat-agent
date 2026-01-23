@@ -404,8 +404,11 @@ class MCPToolsAgent(BaseAgent):
             if suffix_user_message:
                 last_user_message = find_last_user_message(messages)
                 if last_user_message:
-                    last_user_message["content"] += (
-                        "\n\n" + "注意:\n" + "\n".join(suffix_user_message)
+                    last_user_message["content"] = (
+                        tool_call_user_message
+                        + "\n\n"
+                        + "注意:\n"
+                        + "\n".join(suffix_user_message)
                     )
                     logger.debug(
                         "Updated last user message",
