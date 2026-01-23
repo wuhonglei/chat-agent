@@ -1,7 +1,14 @@
 {
   "flake8.enabled": false,
   "python.defaultInterpreterPath": ".venv/bin/python",
-  "cSpell.words": ["Cloudbase", "mypy", "nacos", "Tavily", "wechat"],
+  "cSpell.words": [
+    "Cloudbase",
+    "mypy",
+    "nacos",
+    "stopwords",
+    "Tavily",
+    "wechat"
+  ],
   // 配置使用 ruff 进行格式化和导入排序
   "[python]": {
     "editor.formatOnSave": true,

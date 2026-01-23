@@ -12,6 +12,7 @@ from app.prompts.system_prompt import (
 from app.prompts.user_prompt import (
     disabled_tools_message_template,
     gentle_tips_in_web_search_template,
+    tool_call_sufficient_info_template,
     user_message_for_title_template,
     user_message_for_tool_call_template,
     user_message_with_component_data_template,
@@ -163,3 +164,8 @@ def get_disabled_tools_message(disabled_tools: list[str]) -> str:
 def get_gentle_tips_in_web_search():
     """Get gentle tips in web search"""
     return gentle_tips_in_web_search_template.render()
+
+
+def get_tool_call_sufficient_info_message():
+    """Get message when sufficient info may have been obtained"""
+    return tool_call_sufficient_info_template.render()

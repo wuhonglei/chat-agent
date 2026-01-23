@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+from collections import defaultdict
 from collections.abc import AsyncGenerator
 from typing import Any
 
@@ -9,7 +10,7 @@ from openai.types.chat import (
     ChatCompletionMessage,
     ChatCompletionMessageFunctionToolCall,
 )
-from toolz import get
+from toolz import get, get_in
 
 from app.agents.base import BaseAgent
 from app.agents.utils import TavilyResultProcessor
@@ -19,6 +20,7 @@ from app.prompts import (
     get_disabled_tools_message,
     get_gentle_tips_in_web_search,
     get_prompt_with_mcp_servers,
+    get_tool_call_sufficient_info_message,
 )
 from app.schemas.chat import ChatMessageItem, ChatRequest
 from app.schemas.config import LLMConfig
@@ -28,6 +30,7 @@ from app.schemas.llm import (
     ToolCallResultMessage,
 )
 from app.schemas.token_stats import MCPToolsTokenStats
+from app.utils.common import normalize_url
 from app.utils.context_compactor import ContextCompactor
 from app.utils.logger import logger
 from app.utils.mcp import (
@@ -40,6 +43,7 @@ from app.utils.message import (
     format_tool_call_messages_for_llm,
 )
 from app.utils.time import get_current_time, get_time_duration
+from app.utils.vocab import VocabProcessor
 
 
 class MCPToolsAgent(BaseAgent):
@@ -51,6 +55,7 @@ class MCPToolsAgent(BaseAgent):
         super().__init__(think_mode, llm_config)
         self.mcp_manager = mcp_manager
         self.output_messages: list[ToolCallMessage] = []
+        self.tool_call_args_by_name: dict[str, list[dict[str, Any]]] = defaultdict(list)
         self.duration: float | None = None
         self.token_stats: MCPToolsTokenStats | None = None
         self.compactor = ContextCompactor(
@@ -59,6 +64,10 @@ class MCPToolsAgent(BaseAgent):
         )
         self.current_user_message: str = ""
         self.token_threshold: int = self.token_calculator.get_compression_threshold(0.5)
+        # 跟踪已提取的 URL
+        self.extracted_urls: set[str] = set()
+        # 词汇处理器
+        self.vocab_processor = VocabProcessor()
 
     def get_server_names(
         self, mcp_auto_mode: bool, source_config: dict
@@ -93,6 +102,10 @@ class MCPToolsAgent(BaseAgent):
         self.think_mode = chat_request.think_mode
         user_message = chat_request.content
         self.current_user_message = user_message
+
+        # 重置跟踪属性
+        self.extracted_urls = set()
+        self.tool_call_args_by_name.clear()
 
         # 获取MCP工具
         server_names = self.get_server_names(mcp_auto_mode, source_config)
@@ -141,7 +154,7 @@ class MCPToolsAgent(BaseAgent):
 
     def _get_tools_state(
         self, tools: list[dict], iterations_by_tool: dict[str, int]
-    ) -> tuple[list[dict], int]:
+    ) -> tuple[list[dict], list[str]]:
         """Get the description of the tools"""
         available_tools: list[dict] = []
         disabled_tools: list[str] = []
@@ -152,6 +165,225 @@ class MCPToolsAgent(BaseAgent):
             else:
                 disabled_tools.append(tool_name)
         return available_tools, disabled_tools
+
+    def _update_user_message_with_tool_hints(
+        self,
+        messages: list[dict],
+        tools: list[dict],
+        iterations_by_tool: dict[str, int],
+        tool_call_user_message: str,
+        iteration: int,
+    ) -> tuple[list[dict], list[str]]:
+        """
+        更新用户消息，添加工具调用相关的提示信息
+
+        Args:
+            messages: 消息列表
+            tools: 工具列表
+            iterations_by_tool: 每个工具的剩余迭代次数
+            tool_call_user_message: 工具调用的用户消息
+            iteration: 当前迭代次数
+
+        Returns:
+            tuple[list[dict], list[str]]: (可用工具列表, 禁用工具列表)
+        """
+        # 获取可用工具和禁用工具
+        available_tools, disabled_tools = self._get_tools_state(
+            tools, iterations_by_tool
+        )
+
+        # 构建后缀用户消息列表
+        suffix_user_message: list[str] = []
+
+        # 添加禁用工具提示
+        if disabled_tools:
+            logger.info(
+                "Pre-filtered tools that reached max iterations",
+                disabled_tools=disabled_tools,
+                iteration=iteration + 1,
+            )
+            suffix_user_message.append(get_disabled_tools_message(disabled_tools))
+
+        # 增强 web_search 检查
+        if has_tool_been_called(["web_search"], self.output_messages):
+            suffix_user_message.append(get_gentle_tips_in_web_search())
+
+        # 增强 web_pages_extract 检查
+        if has_tool_been_called(["web_pages_extract"], self.output_messages):
+            if len(self.extracted_urls) >= 3:
+                suffix_user_message.append(
+                    f"⚠️ 已提取了 {len(self.extracted_urls)} 个 URL 的内容。如果这些内容已足够回答问题，请回复 'finish'。"
+                )
+
+        # 检查是否应该继续调用工具（在 LLM 调用前）
+        should_continue, continue_message = self._should_continue_tool_calls(None)
+        if not should_continue:
+            if continue_message:
+                suffix_user_message.append(continue_message)
+            # 如果评估为不应该继续，添加通用提示
+            if iteration >= 1:  # 至少执行了一次迭代
+                suffix_user_message.append(get_tool_call_sufficient_info_message())
+
+        # 如果有后缀消息，更新最后一条用户消息
+        if suffix_user_message:
+            last_user_message = find_last_user_message(messages)
+            if last_user_message:
+                hints_text = "\n".join(suffix_user_message)
+                last_user_message["content"] = (
+                    f"{tool_call_user_message}\n\n注意:\n{hints_text}"
+                )
+                logger.debug(
+                    "Updated last user message",
+                    last_user_message=last_user_message,
+                )
+
+        return available_tools, disabled_tools
+
+    def _extract_tool_call_arguments(
+        self, tool_calls: list[ChatCompletionMessageFunctionToolCall]
+    ) -> dict[str, list[dict[str, Any]]]:
+        """从工具调用中提取参数"""
+        tool_arguments: dict[str, list[dict[str, Any]]] = {}
+        for tool_call in tool_calls:
+            tool_name = tool_call.function.name
+            try:
+                arguments = json.loads(tool_call.function.arguments)
+                if tool_name not in tool_arguments:
+                    tool_arguments[tool_name] = []
+                tool_arguments[tool_name].append(
+                    {
+                        "arguments": arguments,
+                        "tool_call_id": tool_call.id,
+                    }
+                )
+            except (json.JSONDecodeError, Exception):
+                continue
+        return tool_arguments
+
+    def _get_web_search_queries(self) -> list[str]:
+        """
+        从 tool_call_args_by_name 中提取所有 web_search 查询
+
+        Returns:
+            list[str]: web_search 查询列表
+        """
+        queries = []
+        for call_info in self.tool_call_args_by_name.get("web_search", []):
+            if query := get_in(["arguments", "query"], call_info):
+                queries.append(query)
+        return queries
+
+    def _check_query_similarity(self, new_query: str) -> tuple[bool, float]:
+        """
+        检查新查询与历史查询的相似度
+
+        Returns:
+            tuple[bool, float]: (是否相似, 最高相似度)
+        """
+        web_search_queries = self._get_web_search_queries()
+        if not web_search_queries:
+            return False, 0.0
+
+        max_similarity = 0.0
+        for historical_query in web_search_queries:
+            similarity = self.vocab_processor.calculate_query_similarity(
+                new_query, historical_query
+            )
+            max_similarity = max(max_similarity, similarity)
+
+        # 如果相似度 > 0.7，认为查询相似
+        is_similar = max_similarity > 0.7
+        return is_similar, max_similarity
+
+    def _check_url_overlap(self, urls: list[str]) -> tuple[float, int]:
+        """
+        检查 URL 列表与已提取 URL 的重叠度
+
+        Returns:
+            tuple[float, int]: (重叠率, 已提取数量)
+        """
+        if not urls:
+            return 0.0, 0
+
+        normalized_urls = {normalize_url(url) for url in urls if url}
+        extracted_count = len(normalized_urls & self.extracted_urls)
+        overlap_ratio = (
+            extracted_count / len(normalized_urls) if normalized_urls else 0.0
+        )
+
+        return overlap_ratio, extracted_count
+
+    def _should_continue_tool_calls(
+        self, tool_calls: list[ChatCompletionMessageFunctionToolCall] | None
+    ) -> tuple[bool, str | None]:
+        """
+        评估是否应该继续调用工具
+
+        Args:
+            tool_calls: 当前迭代的工具调用列表（如果为 None，表示 LLM 还未决定）
+
+        Returns:
+            tuple[bool, str | None]: (是否应该继续, 提示消息)
+        """
+        # 统计工具调用次数
+        web_search_count = len(self._get_web_search_queries())  # 已执行的搜索次数
+        web_pages_extract_count = len(
+            self.tool_call_args_by_name.get("web_pages_extract", [])
+        )
+        total_tool_calls = count_tool_calls(self.output_messages)
+
+        # 检查当前工具调用（如果已确定）
+        if tool_calls:
+            tool_arguments = self._extract_tool_call_arguments(tool_calls)
+
+            # 检查 web_search 查询相似度
+            for call_info in get_in(["web_search"], tool_arguments, []):
+                query = get_in(["arguments", "query"], call_info)
+                if query:
+                    is_similar, similarity = self._check_query_similarity(query)
+                    if is_similar and web_search_count >= 1:
+                        return (
+                            False,
+                            f"⚠️ 当前查询与历史查询相似度很高（{similarity:.1%}）。如果之前的搜索结果已足够回答问题，请回复 'finish'。",
+                        )
+
+            # 检查 web_pages_extract URL 重叠
+            for call_info in get_in(["web_pages_extract"], tool_arguments, []):
+                urls = get_in(["arguments", "urls"], call_info)
+                if urls:
+                    overlap_ratio, extracted_count = self._check_url_overlap(urls)
+                    if overlap_ratio > 0.7 and web_pages_extract_count >= 1:
+                        return (
+                            False,
+                            f"⚠️ 当前 URL 列表中有 {extracted_count} 个 URL 已在之前提取过（重叠率 {overlap_ratio:.1%}）。如果已获得足够信息，请回复 'finish'。",
+                        )
+
+        # 基于调用次数的检查
+        if web_search_count >= 2:
+            return (
+                False,
+                "⚠️ 已执行了 2 次 web_search。对于简单问题，通常一次搜索已足够。如果搜索结果已足够回答问题，请回复 'finish'。",
+            )
+
+        if web_pages_extract_count >= 2:
+            return (
+                False,
+                "⚠️ 已执行了 2 次 web_pages_extract。如果已提取的内容已足够回答问题，请回复 'finish'。",
+            )
+
+        if len(self.extracted_urls) >= 5:
+            return (
+                False,
+                f"⚠️ 已提取了 {len(self.extracted_urls)} 个 URL 的内容。如果这些内容已足够回答问题，请回复 'finish'。",
+            )
+
+        if total_tool_calls >= 6:
+            return (
+                False,
+                f"⚠️ 已执行了 {total_tool_calls} 次工具调用。如果已获得足够信息，请回复 'finish'。",
+            )
+
+        return True, None
 
     async def _execute_single_tool(
         self,
@@ -198,6 +430,47 @@ class MCPToolsAgent(BaseAgent):
             # Call the tool via MCP manager
             # Parse arguments
             arguments = json.loads(tool_call.function.arguments)
+
+            # URL 去重处理（针对 web_pages_extract）
+            if tool_name == "web_pages_extract" and (urls := get("urls", arguments)):
+                # 规范化 URL（去除锚点）
+                normalized_urls = {normalize_url(url) for url in urls if url}
+                # 过滤掉已提取的 URL
+                new_urls = normalized_urls - self.extracted_urls
+                if not new_urls:
+                    # 所有 URL 都已提取过
+                    logger.info(
+                        "All URLs already extracted, skipping web_pages_extract",
+                        urls=urls,
+                        iteration=current_iteration + 1,
+                    )
+                    return ToolCallResultMessage(
+                        **{
+                            "role": "tool",
+                            "is_error": False,
+                            "tool_call_id": tool_call.id,
+                            "duration": get_time_duration(start_time),
+                            "content": "⚠️ 提示：这些 URL 已经在之前的调用中提取过了。请检查历史工具调用结果，如果已获得足够信息，请回复 'finish'。",
+                        }
+                    )
+                # 更新已提取的 URL 集合
+                self.extracted_urls.update(new_urls)
+                # 更新参数，只提取新的 URL
+                arguments["urls"] = new_urls
+                logger.info(
+                    "Filtered URLs for web_pages_extract",
+                    original_count=len(urls),
+                    new_count=len(new_urls),
+                    iteration=current_iteration + 1,
+                )
+
+            self.tool_call_args_by_name[tool_name].append(
+                {
+                    "arguments": arguments,
+                    "tool_call_id": tool_call.id,
+                }
+            )
+
             logger.info(
                 "Calling MCP tool",
                 tool_name=tool_name,
@@ -384,36 +657,14 @@ class MCPToolsAgent(BaseAgent):
                 max_iterations=max_total_iterations,
             )
 
-            # Filter out tools that have reached max iterations BEFORE calling LLM
-            # This prevents LLM from seeing tools it cannot use
-            available_tools, disabled_tools = self._get_tools_state(
-                tools, iterations_by_tool
+            # 更新用户消息，添加工具调用相关的提示信息
+            available_tools, _ = self._update_user_message_with_tool_hints(
+                messages=messages,
+                tools=tools,
+                iterations_by_tool=iterations_by_tool,
+                tool_call_user_message=tool_call_user_message,
+                iteration=iteration,
             )
-            suffix_user_message: list[str] = []
-            if disabled_tools:
-                logger.info(
-                    "Pre-filtered tools that reached max iterations",
-                    disabled_tools=disabled_tools,
-                    iteration=iteration + 1,
-                )
-                suffix_user_message.append(get_disabled_tools_message(disabled_tools))
-
-            if has_tool_been_called(["web_search"], self.output_messages):
-                suffix_user_message.append(get_gentle_tips_in_web_search())
-
-            if suffix_user_message:
-                last_user_message = find_last_user_message(messages)
-                if last_user_message:
-                    last_user_message["content"] = (
-                        tool_call_user_message
-                        + "\n\n"
-                        + "注意:\n"
-                        + "\n".join(suffix_user_message)
-                    )
-                    logger.debug(
-                        "Updated last user message",
-                        last_user_message=last_user_message,
-                    )
 
             # Call LLM with tools
             # 格式化 collected_messages，过滤掉额外的字段（如 token_count, duration, is_error）
@@ -429,6 +680,21 @@ class MCPToolsAgent(BaseAgent):
                 extra_body=extra_body,
             )
             openai_message: ChatCompletionMessage = response.choices[0].message
+
+            # 检查工具调用是否应该继续（在工具调用确定后）
+            if openai_message.tool_calls:
+                should_continue, continue_message = self._should_continue_tool_calls(
+                    openai_message.tool_calls
+                )
+                if not should_continue and continue_message:
+                    # 如果评估为不应该继续，添加提示但允许执行（保守策略）
+                    logger.info(
+                        "Tool calls may not be necessary",
+                        message=continue_message,
+                        iteration=iteration + 1,
+                    )
+                    # 注意：这里不阻止工具调用，只是记录日志
+                    # 实际的阻止逻辑在 _execute_single_tool 中的 URL 去重
 
             if not openai_message.tool_calls:
                 logger.info(
