@@ -215,6 +215,7 @@ def filter_search_results_by_score(
 
     # 初始过滤
     high_score_results, low_score_results = _filter_by_threshold(results, threshold)
+    adjusted_threshold = threshold  # 默认使用入参阈值，确保所有分支可返回
 
     # 如果高分结果数量小于总结果数的一半，动态调整阈值
     if len(high_score_results) < len(results) / 2 and low_score_results:
@@ -223,8 +224,8 @@ def filter_search_results_by_score(
             # 将阈值调整为向下取整到第一位小数（第二位小数置为0）
             # 例如：0.49 -> 0.40, 0.39 -> 0.30
             adjusted_threshold = math.floor(first_low_score * 10) / 10
-            high_score_results, low_score_results, adjusted_threshold = (
-                _filter_by_threshold(results, adjusted_threshold)
+            high_score_results, low_score_results = _filter_by_threshold(
+                results, adjusted_threshold
             )
 
     # 返回结果：有高分结果则返回高分结果，否则返回第一个低分结果
