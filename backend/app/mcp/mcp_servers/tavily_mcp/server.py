@@ -117,7 +117,7 @@ async def web_search(
             data.is_chunked = search_depth in ["advanced", "fast"] and query is not None
 
             # 根据分数过滤搜索结果
-            data.filtered_results, data.ignored_results = (
+            data.filtered_results, data.ignored_results, data.threshold = (
                 filter_search_results_by_score(data.results)
             )
 

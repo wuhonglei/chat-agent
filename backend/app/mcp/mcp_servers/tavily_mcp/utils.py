@@ -81,7 +81,9 @@ def format_search_results(response: TavilySearchResponse) -> str:
     ignored_results = response.ignored_results
 
     # Format detailed search results
-    output.append(f"{len(response.results)} 个网页搜索结果 (Tavily Search API) 如下:")
+    # 前面是高相关性结果，后面是低分结果
+    if filtered_results:
+        output.append(f"{len(filtered_results)} 个高相关性搜索结果如下:")
     for index, result in enumerate(filtered_results, start=1):
         temp_output: list[str] = [f"\n第 {index} 个搜索结果的详细信息如下:"]
         temp_output.append(f"标题: {clean_invisible_chars(result.title)}")
@@ -100,7 +102,7 @@ def format_search_results(response: TavilySearchResponse) -> str:
 
     if ignored_results:
         output.append(
-            f"\n{len(ignored_results)} 个结果因相关性分数低于阈值 0.5 而被忽略（可作为补充信息）:"
+            f"\n{len(ignored_results)} 个结果因相关性分数低于阈值 {response.threshold} 而被忽略（可作为补充信息）:"
         )
         for index, result in enumerate(ignored_results, start=1):
             temp_output: list[str] = [f"\n第 {index} 个被忽略的搜索结果的详细信息如下:"]
@@ -127,7 +129,7 @@ def format_extract_results(response: TavilyExtractResponse) -> str:
     is_chunked = response.is_chunked
 
     # Format successful extraction results
-    output.append(f"{len(response.results)} 个网页提取结果 (Tavily Extract API) 如下:")
+    output.append(f"{len(response.results)} 个网页提取结果如下:")
     for index, result in enumerate(response.results, start=1):
         temp_output: list[str] = [f"\n第 {index} 个提取结果的详细信息如下:"]
         temp_output.append(f"标题: {clean_invisible_chars(result.title)}")
@@ -166,7 +168,7 @@ def format_crawl_results(response: TavilyCrawlResponse) -> str:
     output = []
     is_chunked = response.is_chunked
 
-    output.append(f"{len(response.results)} 个网页爬取结果 (Tavily Crawl API) 如下:")
+    output.append(f"{len(response.results)} 个网页爬取结果如下:")
     output.append(f"爬取的基础URL: {response.base_url}")
 
     for index, page in enumerate(response.results, start=1):
@@ -188,7 +190,7 @@ def format_crawl_results(response: TavilyCrawlResponse) -> str:
 def filter_search_results_by_score(
     results: list[TavilySearchResultItem],
     threshold: float = 0.5,
-) -> tuple[list[TavilySearchResultItem], list[TavilySearchResultItem]]:
+) -> tuple[list[TavilySearchResultItem], list[TavilySearchResultItem], float]:
     """
     根据相关性分数过滤搜索结果，优先选择高分结果
 
@@ -221,14 +223,18 @@ def filter_search_results_by_score(
             # 将阈值调整为向下取整到第一位小数（第二位小数置为0）
             # 例如：0.49 -> 0.40, 0.39 -> 0.30
             adjusted_threshold = math.floor(first_low_score * 10) / 10
-            high_score_results, low_score_results = _filter_by_threshold(
-                results, adjusted_threshold
+            high_score_results, low_score_results, adjusted_threshold = (
+                _filter_by_threshold(results, adjusted_threshold)
             )
 
     # 返回结果：有高分结果则返回高分结果，否则返回第一个低分结果
     if high_score_results:
-        return high_score_results, low_score_results
-    return (low_score_results[:1] if low_score_results else [], low_score_results[1:])
+        return high_score_results, low_score_results, adjusted_threshold
+    return (
+        low_score_results[:1] if low_score_results else [],
+        low_score_results[1:],
+        adjusted_threshold,
+    )
 
 
 def format_map_results(response: TavilyMapResponse) -> str:
