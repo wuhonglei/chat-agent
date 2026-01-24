@@ -1,3 +1,5 @@
+import json
+
 from app.schemas.llm import ToolCallMessage
 from app.utils.message import (
     filter_tool_call_messages,
