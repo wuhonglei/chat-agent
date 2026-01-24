@@ -65,7 +65,7 @@ def clean_invisible_chars(
     return cleaned_str
 
 
-def format_search_results(response: TavilySearchResponse) -> str:
+def format_query_search_results(response: TavilySearchResponse) -> str:
     """
     将 Tavily Search API 响应格式化为人类可读的文本
 
@@ -76,14 +76,17 @@ def format_search_results(response: TavilySearchResponse) -> str:
         格式化后的字符串
     """
     output = []
+    query = response.query
     is_chunked = response.is_chunked
     filtered_results = response.filtered_results
     ignored_results = response.ignored_results
 
     # Format detailed search results
-    # 前面是高相关性结果，后面是低分结果
     if filtered_results:
-        output.append(f"{len(filtered_results)} 个高相关性搜索结果如下:")
+        output.append(
+            f"执行的搜索查询: {query}\n{len(filtered_results)} 个高相关性搜索结果如下:"
+        )
+    # 先输出高相关性结果
     for index, result in enumerate(filtered_results, start=1):
         temp_output: list[str] = [f"\n第 {index} 个搜索结果的详细信息如下:"]
         temp_output.append(f"标题: {clean_invisible_chars(result.title)}")
@@ -100,9 +103,10 @@ def format_search_results(response: TavilySearchResponse) -> str:
                 temp_output.append(f"网页内容: {content}")
         output.append("\n".join(temp_output))
 
+    # 再输出低分结果
     if ignored_results:
         output.append(
-            f"\n{len(ignored_results)} 个结果因相关性分数低于阈值 {response.threshold} 而被忽略（可作为补充信息）:"
+            f"执行的搜索查询: {query}\n{len(ignored_results)} 个结果因相关性分数低于阈值 {response.threshold} 而被忽略（可作为补充信息）:"
         )
         for index, result in enumerate(ignored_results, start=1):
             temp_output: list[str] = [f"\n第 {index} 个被忽略的搜索结果的详细信息如下:"]
@@ -113,6 +117,16 @@ def format_search_results(response: TavilySearchResponse) -> str:
             output.append("\n".join(temp_output))
 
     return "\n".join(output)
+
+
+def format_multiple_query_search_results(responses: list[TavilySearchResponse]) -> str:
+    """
+    将多个Tavily Search API 响应格式化为人类可读的文本
+    """
+    output = []
+    for response in responses:
+        output.append(format_query_search_results(response))
+    return "\n\n----\n\n".join(output)
 
 
 def format_extract_results(response: TavilyExtractResponse) -> str:

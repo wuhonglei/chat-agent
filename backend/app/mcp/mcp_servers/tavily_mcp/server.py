@@ -5,7 +5,7 @@ Documentation: https://docs.tavily.com/
 """
 
 import asyncio
-from typing import Literal
+from typing import Any, Literal
 
 from fastmcp import FastMCP
 from pydantic import Field
@@ -32,7 +32,9 @@ client = AsyncTavilyClient(api_key=config.TAVILY_API_KEY)
 
 @mcp.tool(name="web_search")
 async def web_search(
-    queries: list[str] = Field(..., description="要执行的搜索查询列表"),
+    queries: list[str] = Field(
+        ..., description="要执行的搜索查询列表, 推荐使用 2-3 个查询"
+    ),
     topic: Literal["general", "news", "finance"] = Field(
         default="general",
         description="搜索类别：'general'、'news'、'finance'（默认 'general'）",
@@ -87,11 +89,11 @@ async def web_search(
         default=None,
         description="提升特定国家的搜索结果，仅当 topic 为 'general' 可用。国家名需为小写英文",
     ),
-) -> list[TavilySearchResponse]:
+) -> dict[str, Any]:
     """
-    A powerful web search tool that provides comprehensive, real-time results using Tavily's AI search engine.
-    Returns relevant web content with customizable parameters for result count, content type, and domain filtering.
-    Ideal for gathering current information, news, and detailed web content analysis.
+    基于 Tavily AI 搜索引擎的网页搜索工具，可提供全面、实时的搜索结果。
+    返回相关的网页内容，支持自定义结果数量、内容类型和域名过滤等参数。
+    适用于获取最新资讯、新闻以及详细的网页内容分析。
     """
     try:
         # 并发生起 client.search 请求
@@ -114,7 +116,7 @@ async def web_search(
         raw_responses = await asyncio.gather(*search_tasks)
 
         try:
-            results_list: list[TavilySearchResponse] = []
+            results_list: list[dict[str, Any]] = []
             for resp in raw_responses:
                 data = TavilySearchResponse.model_validate(resp)
                 data.is_chunked = search_depth in ["advanced", "fast"]
@@ -122,8 +124,8 @@ async def web_search(
                 data.filtered_results, data.ignored_results, data.threshold = (
                     filter_search_results_by_score(data.results)
                 )
-                results_list.append(data)
-            return results_list
+                results_list.append(data.model_dump(mode="json"))
+            return {"results": results_list}
         except Exception as e:
             raise ValueError(f"搜索响应验证失败: {str(e)}")
     except Exception:
@@ -146,8 +148,7 @@ async def web_pages_extract(
     ),
 ) -> TavilyExtractResponse:
     """
-    A powerful web content extraction tool that retrieves and processes raw content from specified URLs,
-    ideal for data collection, content analysis, and research tasks.
+    强大的网页内容提取工具，从指定 URL 获取并处理原始内容，适用于数据收集、内容分析和研究任务。
     """
     try:
         response = await client.extract(
@@ -217,9 +218,9 @@ async def web_site_crawl(
     ),
 ) -> TavilyCrawlResponse:
     """
-    A powerful web crawler that initiates a structured web crawl starting from a specified base URL.
-    The crawler expands from that point like a graph, following internal links across pages.
-    You can control how deep and wide it goes, and guide it to focus on specific sections of the site.
+    强大的网页爬虫工具，从指定基础 URL 开始进行结构化网页爬取。
+    爬虫从该点扩展，像图一样跟随内部链接跨越页面。
+    您可以控制其深入和广泛程度，并引导其专注于网站的特定部分。
     """
     try:
         response = await client.crawl(
@@ -290,9 +291,9 @@ async def web_site_map(
     ),
 ) -> TavilyMapResponse:
     """
-    A powerful web mapping tool that creates a structured map of website URLs,
-    allowing you to discover and analyze site structure, content organization, and navigation paths.
-    Perfect for site audits, content discovery, and understanding website architecture.
+    强大的网页映射工具，创建网站 URL 的结构化映射，
+    允许您发现和分析网站结构、内容组织和导航路径。
+    适用于网站审计、内容发现和理解网站架构。
     """
     try:
         response = await client.map(

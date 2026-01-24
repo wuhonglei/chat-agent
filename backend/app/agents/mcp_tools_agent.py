@@ -513,9 +513,9 @@ class MCPToolsAgent(BaseAgent):
                 and result.structured_content is not None
             ):
                 tool_call_result_message = await self._apply_tavily_compaction(
-                    tool_call_result_message=tool_call_result_message,
                     tool_name=tool_name,
                     structured_content=result.structured_content,
+                    tool_call_result_message=tool_call_result_message,
                 )
             else:
                 tool_call_result_message = await self._compact_tool_result_if_needed(
@@ -572,20 +572,13 @@ class MCPToolsAgent(BaseAgent):
 
     async def _apply_tavily_compaction(
         self,
-        tool_call_result_message: ToolCallResultMessage,
         tool_name: str,
         structured_content: dict[str, Any],
+        tool_call_result_message: ToolCallResultMessage,
     ) -> ToolCallResultMessage:
-        tool_query = structured_content.get("query")
-        user_query = self.current_user_message
-        if tool_query and user_query and tool_query.strip() != user_query.strip():
-            query = f"{tool_query}\n\n用户问题: {user_query}"
-        else:
-            query = tool_query or user_query
-
         processor = TavilyResultProcessor(
             compactor=self.compactor,
-            query=query,
+            user_query=self.current_user_message,
             tolerance_tokens_count=self.compression_config.tool_result_tolerance_tokens,
             threshold_tokens_count=self.compression_config.tool_result_threshold_tokens,
         )

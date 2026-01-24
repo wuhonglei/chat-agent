@@ -34,12 +34,9 @@ class TavilyAutoParameters(BaseModel):
 class TavilySearchResponse(BaseModel):
     """Tavily搜索API响应"""
 
-    query: str | None = Field(None, description="执行的搜索查询")
+    query: str = Field(..., description="执行的搜索查询")
     results: list[TavilySearchResultItem] = Field(..., description="搜索结果列表")
     response_time: float = Field(..., description="请求响应时间（秒）")
-    auto_parameters: TavilyAutoParameters | None = Field(
-        None, description="自动参数配置"
-    )
     request_id: str | None = Field(None, description="唯一请求标识符")
 
     # 以下字段由工具调用者填充
@@ -51,6 +48,12 @@ class TavilySearchResponse(BaseModel):
     ignored_results: list[TavilySearchResultItem] | None = Field(
         default_factory=list, description="忽略的搜索结果列表"
     )
+
+
+class MultipleTavilySearchResponse(BaseModel):
+    """Tavily搜索API响应列表"""
+
+    results: list[TavilySearchResponse] = Field(..., description="搜索结果列表")
 
 
 # ================================ Extract API ================================
@@ -75,6 +78,7 @@ class TavilyExtractResponse(BaseModel):
     """Tavily提取API响应"""
 
     is_chunked: bool | None = Field(default=False, description="是否返回分块的提取结果")
+    query: str | None = Field(None, description="执行的提取查询")
     results: list[TavilyExtractResultItem] = Field(
         ..., description="成功提取的内容列表"
     )
