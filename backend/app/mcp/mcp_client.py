@@ -113,8 +113,8 @@ class MCPClientManager:
 
         logger.info("Initializing MCP Client Manager")
 
-        # 注册所有 MCP servers
-        self.servers = copy.deepcopy(mcp_config["mcpServers"])
+        # 注册所有 MCP servers（浅拷贝以不修改原始配置；深拷贝会因 FastMCP 等含 mappingproxy 而失败）
+        self.servers = dict(mcp_config["mcpServers"])
 
         # 为每个 server 创建 client
         # 使用 list() 创建副本，以便在迭代时安全地修改字典
