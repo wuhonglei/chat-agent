@@ -69,7 +69,9 @@ class ResponseGenerationAgent(BaseAgent):
             self.schema_service.get_schema_cache(),
         )
 
-        system_prompt = get_system_prompt_for_response_generation()
+        system_prompt = get_system_prompt_for_response_generation(
+            has_tool_calls=bool(mcp_tool_call_messages)
+        )
         new_messages = self._compose_messages(
             system_prompt,
             history_messages,

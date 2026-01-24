@@ -28,9 +28,15 @@ def get_default_system_prompt() -> str:
     return default_system_prompt_template.render()
 
 
-def get_system_prompt_for_response_generation() -> str:
-    """Get system prompt for final response generation (forbids DSML/tool-call format in output)"""
-    return system_prompt_for_response_generation_template.render()
+def get_system_prompt_for_response_generation(has_tool_calls: bool = False) -> str:
+    """Get system prompt for final response generation.
+
+    When has_tool_calls=True: 增加禁止 DSML、负向示例与兜底规则，避免模型延续 tool_calls 样式。
+    When has_tool_calls=False: 仅保留基础规则，不注入 DSML 相关提示。
+    """
+    return system_prompt_for_response_generation_template.render(
+        has_tool_calls=has_tool_calls
+    )
 
 
 def get_system_prompt_for_tool_calls() -> str:
