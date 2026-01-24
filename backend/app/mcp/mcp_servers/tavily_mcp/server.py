@@ -5,6 +5,7 @@ Documentation: https://docs.tavily.com/
 """
 
 import asyncio
+import sys
 from typing import Any, Literal
 
 from fastmcp import FastMCP
@@ -13,8 +14,14 @@ from tavily import AsyncTavilyClient
 
 from app.mcp.cache import add_response_caching_if_enabled
 
-# 需要在 tavily_mcp 目录的上层执行: uv run -m tavily_mcp.server
-from .config import config
+# 主应用内直接使用 settings.mcp.tavily_mcp（含 Nacos 下发的 cache_config）；
+# 独立运行 (python -m app.mcp.mcp_servers.tavily_mcp.server) 时使用 .config（.env）
+if "app.core.config" in sys.modules:
+    from app.core.config import settings
+
+    config = settings.mcp.tavily_mcp
+else:
+    from .config import config
 from .models import (
     TavilyCrawlResponse,
     TavilyExtractResponse,

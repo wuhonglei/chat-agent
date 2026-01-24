@@ -11,16 +11,11 @@ from fastmcp.tools.tool import ToolResult
 from pydantic import Field
 from tzlocal import get_localzone_name
 
-from app.mcp.cache import add_response_caching_if_enabled
-
-from .config import config
 from .models import TimeResponse
 from .utils import format_results
 
 # 创建 MCP 实例
 mcp = FastMCP(name="Time MCP Service")
-
-add_response_caching_if_enabled(mcp, config.cache_config)
 
 
 @mcp.tool(name="get_current_time")

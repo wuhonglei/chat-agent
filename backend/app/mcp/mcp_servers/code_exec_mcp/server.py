@@ -6,8 +6,6 @@ Code Execution MCP Server
 from fastmcp import FastMCP
 from pydantic import Field
 
-from app.mcp.cache import add_response_caching_if_enabled
-
 from .config import config
 from .sandbox import CodeExecutionError, SandboxExecutor, TimeoutError
 
@@ -26,8 +24,6 @@ executor = SandboxExecutor(
     allowed_paths=config.ALLOWED_PATHS,
     allow_network_access=config.ALLOW_NETWORK_ACCESS,
 )
-
-add_response_caching_if_enabled(mcp, config.cache_config)
 
 
 @mcp.tool(name="python_code_exec")

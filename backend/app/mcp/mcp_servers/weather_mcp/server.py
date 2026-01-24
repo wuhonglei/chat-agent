@@ -4,6 +4,7 @@
 文档地址: https://dev.qweather.com/docs/start/
 """
 
+import sys
 from typing import Literal
 
 from fastmcp import Client, FastMCP
@@ -13,8 +14,14 @@ from pydantic import Field
 
 from app.mcp.cache import add_response_caching_if_enabled
 
-# 需要在 weather_mcp 目录的上层执行: uv run -m weather_mcp.server
-from .config import config
+# 主应用内直接使用 settings.mcp.weather_mcp（含 Nacos 下发的 cache_config）；
+# 独立运行时使用 .config（.env）
+if "app.core.config" in sys.modules:
+    from app.core.config import settings
+
+    config = settings.mcp.weather_mcp
+else:
+    from .config import config
 from .models import (
     CitySearchResponse,
     WeatherAlertResponse,

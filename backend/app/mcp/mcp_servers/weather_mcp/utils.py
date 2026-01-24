@@ -1,9 +1,17 @@
+import sys
 from typing import Any
 
 import httpx
 from jinja2 import Template
 
-from .config import config
+# 与 server 一致：主应用内用 settings.mcp.weather_mcp，独立运行用 .config
+if "app.core.config" in sys.modules:
+    from app.core.config import settings
+
+    config = settings.mcp.weather_mcp
+else:
+    from .config import config
+
 from .models import City, WeatherAlert, WeatherDaily, WeatherHourly, WeatherNow
 
 city_template = Template(

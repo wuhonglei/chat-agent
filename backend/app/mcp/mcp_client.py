@@ -18,20 +18,12 @@ from fastmcp.client.transports import (
 )
 
 from app.core.config import settings
-from app.mcp.utils import inject_mcp_env_vars
 from app.schemas.mcp import MCPConfigForFeDict
 from app.utils.logger import logger
 from app.utils.mcp import create_mcp_http_client_with_ssl_config
 
 VERIFY_SSL = not settings.app.debug
 
-# 在导入 MCP servers 之前注入 MCP 环境变量
-# 这必须在导入 MCP servers 之前执行，因为它们的 config.py 需要这些环境变量
-inject_mcp_env_vars(settings.mcp)
-
-# 导入 MCP servers（必须在注入环境变量之后）
-# 注意：这些导入的顺序很重要，不要使用自动格式化工具调整顺序
-# fmt: off
 from app.mcp.mcp_servers.code_exec_mcp.server import mcp as code_exec_mcp  # noqa: E402
 from app.mcp.mcp_servers.confluence_mcp.server import (
     check_availability as confluence_check_availability,  # noqa: E402
@@ -46,12 +38,6 @@ from app.mcp.mcp_servers.tavily_mcp.server import mcp as tavily_mcp  # noqa: E40
 from app.mcp.mcp_servers.time_mcp.server import mcp as time_mcp  # noqa: E402
 from app.mcp.mcp_servers.weather_mcp.server import mcp as weather_mcp  # noqa: E402
 
-# fmt: on
-
-# 导入 MCP servers
-# 对于需要可用性检测的服务器，可以配置 availability_checker 函数
-# 格式: {"server": server_instance, "availability_checker": check_function}
-# 或者直接使用 server_instance（不需要检测的服务器）
 mcp_config = {
     "mcpServers": {
         "ip-locator-mcp": ip_locator_mcp,
