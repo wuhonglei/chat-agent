@@ -25,15 +25,7 @@ async def get_current_time(
         description="指定时区，如果不提供则使用本地时区。支持的格式：'Asia/Shanghai', 'America/New_York', 'Europe/London' 等",
     ),
 ) -> TimeResponse:
-    """
-    获取指定时区的当前时间
-
-    Args:
-        timezone: 时区名称，如果不提供则使用本地时区
-
-    Returns:
-        TimeResponse: 包含当前时间、时区信息和时间戳的响应
-    """
+    """获取指定时区的当前时间"""
     try:
         # 如果没有指定时区，使用本地时区
         if not timezone:
