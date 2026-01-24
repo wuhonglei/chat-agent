@@ -63,10 +63,15 @@ class MCPCacheConfig(BaseModel):
     )
 
 
-class Context7Config(BaseModel):
+class Context7MCPConfig(BaseModel):
     """Context7 MCP 配置"""
 
-    api_key: str = Field(description="Context7 API 密钥")
+    url: str = Field(description="Context7 URL")
+    headers: dict[str, str] = Field(description="Context7 Headers")
+    cache_config: MCPCacheConfig = Field(
+        default_factory=MCPCacheConfig,
+        description="工具调用结果缓存配置",
+    )
 
 
 class ConfluenceMCPConfig(BaseModel):
@@ -142,7 +147,7 @@ class CodeExecMCPConfig(BaseModel):
 class MCPConfig(BaseModel):
     """MCP 配置"""
 
-    context7: Context7Config = Field(default_factory=Context7Config)
+    context7_mcp: Context7MCPConfig = Field(default_factory=Context7MCPConfig)
     confluence_mcp: ConfluenceMCPConfig = Field(
         default_factory=ConfluenceMCPConfig,
     )
