@@ -11,6 +11,9 @@ from fastmcp.client.transports import FastMCPTransport
 from fastmcp.tools.tool import ToolResult
 from pydantic import Field
 
+from app.core.config import settings
+from app.mcp.cache import create_response_caching_middleware
+
 # 需要在 weather_mcp 目录的上层执行: uv run -m weather_mcp.server
 from .models import (
     CitySearchResponse,
@@ -32,6 +35,15 @@ from .utils import (
 mcp = FastMCP(
     name="Weather MCP Service",
 )
+
+if settings.mcp.cache_enabled:
+    mcp.add_middleware(
+        create_response_caching_middleware(
+            cache_dir=settings.mcp.cache_dir,
+            call_tool_ttl=settings.mcp.call_tool_ttl,
+            call_tool_excluded=settings.mcp.call_tool_excluded,
+        )
+    )
 
 
 @mcp.tool(name="search_city")

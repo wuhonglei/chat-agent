@@ -6,6 +6,9 @@ import logging
 from fastmcp import FastMCP
 from pydantic import Field
 
+from app.core.config import settings
+from app.mcp.cache import create_response_caching_middleware
+
 from .config import config
 from .models.confluence import ConfluencePage
 from .services import ConfluenceConfig, ConfluenceFetcher
@@ -23,6 +26,15 @@ confluence_fetcher = ConfluenceFetcher(
         auth_type=config.CONFLUENCE_AUTH_TYPE,
     )
 )
+
+if settings.mcp.cache_enabled:
+    mcp.add_middleware(
+        create_response_caching_middleware(
+            cache_dir=settings.mcp.cache_dir,
+            call_tool_ttl=settings.mcp.call_tool_ttl,
+            call_tool_excluded=settings.mcp.call_tool_excluded,
+        )
+    )
 
 
 async def _confluence_get_page(

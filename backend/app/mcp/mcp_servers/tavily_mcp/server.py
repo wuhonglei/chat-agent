@@ -11,6 +11,9 @@ from fastmcp import FastMCP
 from pydantic import Field
 from tavily import AsyncTavilyClient
 
+from app.core.config import settings
+from app.mcp.cache import create_response_caching_middleware
+
 # 需要在 tavily_mcp 目录的上层执行: uv run -m tavily_mcp.server
 from .config import config
 from .models import (
@@ -28,6 +31,15 @@ mcp = FastMCP(
     name="Tavily Search MCP Service",
 )
 client = AsyncTavilyClient(api_key=config.TAVILY_API_KEY)
+
+if settings.mcp.cache_enabled:
+    mcp.add_middleware(
+        create_response_caching_middleware(
+            cache_dir=settings.mcp.cache_dir,
+            call_tool_ttl=settings.mcp.call_tool_ttl,
+            call_tool_excluded=settings.mcp.call_tool_excluded,
+        )
+    )
 
 
 @mcp.tool(name="web_search")

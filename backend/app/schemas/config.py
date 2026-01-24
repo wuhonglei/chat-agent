@@ -93,6 +93,23 @@ class MCPConfig(BaseModel):
         default_factory=TavilyMCPConfig,
     )
 
+    # MCP 工具调用结果缓存配置
+    cache_enabled: bool = Field(
+        default=True, description="是否启用 MCP 工具调用结果缓存"
+    )
+    cache_dir: str = Field(
+        default="./data/mcp_cache",
+        description="缓存存储目录（DiskStore）",
+    )
+    call_tool_ttl: int = Field(
+        default=300,
+        description="工具调用缓存 TTL（秒）",
+    )
+    call_tool_excluded: list[str] = Field(
+        default_factory=lambda: ["python_code_exec"],
+        description="不缓存的工具名列表",
+    )
+
 
 class TencentCOSConfig(BaseModel):
     """腾讯云 COS 存储配置"""
