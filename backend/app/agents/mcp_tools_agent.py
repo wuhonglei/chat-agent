@@ -727,7 +727,7 @@ class MCPToolsAgent(BaseAgent):
 
             # Handle tool calls
             content = openai_message.content or ""
-            reasoning_content = get("reasoning_content", openai_message, "")
+            reasoning_content = getattr(openai_message, "reasoning_content", "")
             assistant_message = AssistantToolCallMessage(
                 **{
                     "role": "assistant",
