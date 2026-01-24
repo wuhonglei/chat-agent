@@ -51,8 +51,6 @@ mcp_config = {
     }
 }
 
-print(mcp_config)
-
 mcp_config_for_fe: list[MCPConfigForFeDict] = [
     {
         "id": "context7-mcp",
