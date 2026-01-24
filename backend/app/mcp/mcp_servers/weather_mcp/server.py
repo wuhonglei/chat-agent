@@ -180,7 +180,7 @@ async def get_weather_daily_forecast(
         raise
 
 
-# @mcp.tool(name="get_weather_alerts")
+@mcp.tool(name="get_weather_alerts", enabled=False)
 async def get_weather_alerts(
     location: str = Field(..., description="位置信息，可以是 LocationID 或经纬度坐标"),
     lang: str = Field(default="zh", description="多语言设置"),

@@ -247,7 +247,7 @@ async def web_site_crawl(
         raise
 
 
-# @mcp.tool(name="web_site_map")
+@mcp.tool(name="web_site_map", enabled=False)
 async def web_site_map(
     url: str = Field(..., description="开始映射的根 URL"),
     instructions: str | None = Field(
