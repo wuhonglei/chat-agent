@@ -17,6 +17,7 @@ from fastmcp.client.transports import (
     StreamableHttpTransport,
 )
 
+from app.core.config import settings
 from app.mcp.mcp_servers.code_exec_mcp.server import mcp as code_exec_mcp  # noqa: E402
 from app.mcp.mcp_servers.confluence_mcp.server import (
     check_availability as confluence_check_availability,  # noqa: E402
@@ -24,7 +25,6 @@ from app.mcp.mcp_servers.confluence_mcp.server import (
 from app.mcp.mcp_servers.confluence_mcp.server import (
     mcp as mcp_confluence,  # noqa: E402
 )
-from app.mcp.mcp_servers.context7_mcp.server import mcp as context7_mcp  # noqa: E402
 from app.mcp.mcp_servers.ip_locator_mcp.server import (
     mcp as ip_locator_mcp,  # noqa: E402
 )
@@ -33,13 +33,14 @@ from app.mcp.mcp_servers.time_mcp.server import mcp as time_mcp  # noqa: E402
 from app.mcp.mcp_servers.weather_mcp.server import mcp as weather_mcp  # noqa: E402
 from app.schemas.mcp import MCPConfigForFeDict
 from app.utils.logger import logger
-from app.utils.mcp import create_mcp_http_client_with_ssl_config
 
 mcp_config = {
     "mcpServers": {
         "ip-locator-mcp": ip_locator_mcp,
         "time-mcp": time_mcp,
-        "context7-mcp": context7_mcp,
+        "context7-mcp": settings.mcp.context7_mcp.model_dump(
+            mode="json", exclude=["cache_config"]
+        ),
         "confluence-mcp": {
             "server": mcp_confluence,
             "availability_checker": confluence_check_availability,
@@ -49,6 +50,8 @@ mcp_config = {
         "code-exec-mcp": code_exec_mcp,
     }
 }
+
+print(mcp_config)
 
 mcp_config_for_fe: list[MCPConfigForFeDict] = [
     {
@@ -162,17 +165,13 @@ class MCPClientManager:
                         transport_type="FastMCPTransport",
                     )
                 elif isinstance(server_instance, dict) and "url" in server_instance:
-                    # 远程 HTTP 服务器（非 Context7：Context7 已拆至 context7_mcp 代理）
+                    # 远程 HTTP 服务器
                     verify_ssl = server_instance.get(
                         "verify_ssl", True
                     )  # 默认启用 SSL 验证
-                    httpx_client_factory = create_mcp_http_client_with_ssl_config(
-                        verify_ssl
-                    )
                     transport = StreamableHttpTransport(
                         url=server_instance["url"],
                         headers=server_instance.get("headers", {}),
-                        httpx_client_factory=httpx_client_factory,
                     )
                     logger.info(
                         "Using StreamableHttpTransport for remote server",

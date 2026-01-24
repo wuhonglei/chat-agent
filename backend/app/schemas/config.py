@@ -68,6 +68,7 @@ class Context7MCPConfig(BaseModel):
 
     url: str = Field(description="Context7 URL")
     headers: dict[str, str] = Field(description="Context7 Headers")
+    verify_ssl: bool = Field(default=True, description="是否验证 SSL")
     cache_config: MCPCacheConfig = Field(
         default_factory=MCPCacheConfig,
         description="工具调用结果缓存配置",
