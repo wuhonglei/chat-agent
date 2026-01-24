@@ -7,7 +7,6 @@ from app.schemas.config import MCPCacheConfig
 
 
 class Settings(BaseSettings):
-    TAVILY_API_KEY: str
     cache_config: MCPCacheConfig = Field(
         default_factory=MCPCacheConfig,
         description="工具调用结果缓存配置",
@@ -22,5 +21,4 @@ class Settings(BaseSettings):
     )
 
 
-# 创建配置实例
 config = Settings()

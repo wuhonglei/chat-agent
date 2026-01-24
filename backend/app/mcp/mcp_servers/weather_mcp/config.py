@@ -1,13 +1,19 @@
 from pathlib import Path
 
-from pydantic import ConfigDict, field_validator
+from pydantic import ConfigDict, Field, field_validator
 from pydantic_settings import BaseSettings
+
+from app.schemas.config import MCPCacheConfig
 
 
 class Settings(BaseSettings):
     QWEATHER_API_KEY: str
     QWEATHER_BASE_URL: str
     QWEATHER_TIMEOUT: int = 10
+    cache_config: MCPCacheConfig = Field(
+        default_factory=MCPCacheConfig,
+        description="工具调用结果缓存配置",
+    )
 
     @field_validator("QWEATHER_BASE_URL")
     def check_qweather_base_url(cls, v):

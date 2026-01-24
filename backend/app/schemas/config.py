@@ -42,6 +42,27 @@ class LLMConfig(BaseModel):
     think_model_name: str = Field(description="推理模型名称")
 
 
+class MCPCacheConfig(BaseModel):
+    """单个 MCP 的 tools/call 结果缓存配置"""
+
+    cache_enabled: bool = Field(
+        default=False,
+        description="是否启用缓存",
+    )
+    cache_dir: str = Field(
+        default="./data/mcp_cache",
+        description="缓存存储目录（DiskStore）",
+    )
+    call_tool_ttl: int = Field(
+        default=300,
+        description="工具调用缓存 TTL（秒）",
+    )
+    call_tool_excluded: list[str] = Field(
+        default_factory=list,
+        description="不缓存的工具名列表",
+    )
+
+
 class Context7Config(BaseModel):
     """Context7 MCP 配置"""
 
@@ -59,6 +80,10 @@ class ConfluenceMCPConfig(BaseModel):
     CONFLUENCE_AUTH_TYPE: str = Field(
         description="Confluence 认证类型：pat, basic, oauth"
     )
+    cache_config: MCPCacheConfig = Field(
+        default_factory=MCPCacheConfig,
+        description="工具调用结果缓存配置",
+    )
 
 
 class WeatherMCPConfig(BaseModel):
@@ -71,12 +96,47 @@ class WeatherMCPConfig(BaseModel):
     QWEATHER_TIMEOUT: int = Field(
         description="和风天气 API 超时时间"
     )  # 与环境变量名一致
+    cache_config: MCPCacheConfig = Field(
+        default_factory=MCPCacheConfig,
+        description="工具调用结果缓存配置",
+    )
 
 
 class TavilyMCPConfig(BaseModel):
     """Tavily MCP 配置"""
 
     TAVILY_API_KEY: str = Field(description="Tavily API 密钥")  # 与环境变量名一致
+    cache_config: MCPCacheConfig = Field(
+        default_factory=MCPCacheConfig,
+        description="工具调用结果缓存配置",
+    )
+
+
+class IpLocatorMCPConfig(BaseModel):
+    """IP Locator MCP 配置"""
+
+    cache_config: MCPCacheConfig = Field(
+        default_factory=MCPCacheConfig,
+        description="工具调用结果缓存配置",
+    )
+
+
+class TimeMCPConfig(BaseModel):
+    """Time MCP 配置"""
+
+    cache_config: MCPCacheConfig = Field(
+        default_factory=MCPCacheConfig,
+        description="工具调用结果缓存配置",
+    )
+
+
+class CodeExecMCPConfig(BaseModel):
+    """Code Exec MCP 配置"""
+
+    cache_config: MCPCacheConfig = Field(
+        default_factory=MCPCacheConfig,
+        description="工具调用结果缓存配置",
+    )
 
 
 class MCPConfig(BaseModel):
@@ -92,22 +152,17 @@ class MCPConfig(BaseModel):
     tavily_mcp: TavilyMCPConfig = Field(
         default_factory=TavilyMCPConfig,
     )
-
-    # MCP 工具调用结果缓存配置
-    cache_enabled: bool = Field(
-        default=True, description="是否启用 MCP 工具调用结果缓存"
+    ip_locator_mcp: IpLocatorMCPConfig = Field(
+        default_factory=IpLocatorMCPConfig,
+        description="IP Locator MCP 配置",
     )
-    cache_dir: str = Field(
-        default="./data/mcp_cache",
-        description="缓存存储目录（DiskStore）",
+    time_mcp: TimeMCPConfig = Field(
+        default_factory=TimeMCPConfig,
+        description="Time MCP 配置",
     )
-    call_tool_ttl: int = Field(
-        default=300,
-        description="工具调用缓存 TTL（秒）",
-    )
-    call_tool_excluded: list[str] = Field(
-        default_factory=lambda: ["python_code_exec"],
-        description="不缓存的工具名列表",
+    code_exec_mcp: CodeExecMCPConfig = Field(
+        default_factory=CodeExecMCPConfig,
+        description="Code Exec MCP 配置",
     )
 
 

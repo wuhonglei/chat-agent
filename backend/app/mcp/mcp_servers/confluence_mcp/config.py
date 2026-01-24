@@ -4,6 +4,8 @@ from typing import Literal
 from pydantic import ConfigDict, Field
 from pydantic_settings import BaseSettings
 
+from app.schemas.config import MCPCacheConfig
+
 
 class Settings(BaseSettings):
     CONFLUENCE_URL: str = Field(..., description="The URL of the Confluence instance")
@@ -12,6 +14,10 @@ class Settings(BaseSettings):
     )
     CONFLUENCE_AUTH_TYPE: Literal["basic", "pat", "oauth"] = Field(
         ..., description="The authentication type of the Confluence instance"
+    )
+    cache_config: MCPCacheConfig = Field(
+        default_factory=MCPCacheConfig,
+        description="工具调用结果缓存配置",
     )
 
     model_config = ConfigDict(

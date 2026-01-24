@@ -2,8 +2,10 @@
 
 from pathlib import Path
 
-from pydantic import ConfigDict
+from pydantic import ConfigDict, Field
 from pydantic_settings import BaseSettings
+
+from app.schemas.config import MCPCacheConfig
 
 
 class CodeExecConfig(BaseSettings):
@@ -29,6 +31,12 @@ class CodeExecConfig(BaseSettings):
 
     # 是否允许网络访问
     ALLOW_NETWORK_ACCESS: bool = False
+
+    # 工具调用结果缓存配置
+    cache_config: MCPCacheConfig = Field(
+        default_factory=MCPCacheConfig,
+        description="工具调用结果缓存配置",
+    )
 
     # 允许的导入模块白名单
     ALLOWED_IMPORTS: list[str] = [
