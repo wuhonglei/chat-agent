@@ -18,14 +18,12 @@ from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
 from app.schemas.chat import ChatMessageItem
 from app.schemas.config import LLMConfig
 from app.schemas.llm import (
-    AssistantToolCallMessage,
     ToolCallMessage,
-    ToolCallResultMessage,
 )
 from app.schemas.token_stats import BaseTokenStats, TokenUsage
 from app.utils.common import normalize_to_dict
 from app.utils.logger import logger
-from app.utils.message import format_chat_message_for_llm
+from app.utils.message import filter_tool_call_messages, format_chat_message_for_llm
 from app.utils.model import format_sse_message, get_model_extra_body
 from app.utils.token import TokenCalculator
 
@@ -293,52 +291,11 @@ class BaseAgent(ABC):
 
         messages.append({"role": "user", "content": user_message})
 
-        # 如果有 tool_call_messages，转换为字典格式并追加
+        # 如果有 tool_call_messages，过滤后转换为字典格式并追加
         if not tool_call_messages:
             return messages
 
-        # 第一步：收集所有有效的 tool_call_id（从成功的 ToolCallResultMessage）
-        valid_tool_call_ids = set()
-        for message in tool_call_messages:
-            if isinstance(message, ToolCallResultMessage):
-                if not message.is_error:
-                    valid_tool_call_ids.add(message.tool_call_id)
-
-        # 第二步：收集 assistant 消息中实际存在的 tool_call_id（只保留那些有成功结果的）
-        # 这样可以确保 tool 消息和 assistant 消息成对出现
-        assistant_tool_call_ids = set()
-        for message in tool_call_messages:
-            if isinstance(message, AssistantToolCallMessage):
-                for tool_call in message.tool_calls or []:
-                    if tool_call.id in valid_tool_call_ids:
-                        assistant_tool_call_ids.add(tool_call.id)
-
-        # 第三步：只保留正确的工具调用（ToolCallResultMessage is_error=False 且有对应的 assistant 消息）
-        filtered_tool_call_messages = []
-        for message in tool_call_messages:
-            if isinstance(message, AssistantToolCallMessage):
-                # 保留 assistant 工具调用中有效的工具调用
-                # 使用 model_copy() 创建副本，避免修改原始对象
-                filtered_tool_calls = [
-                    tool_call
-                    for tool_call in (message.tool_calls or [])
-                    if tool_call.id in assistant_tool_call_ids
-                ]
-                if filtered_tool_calls:
-                    # 创建新对象副本，只更新 tool_calls 字段
-                    filtered_message = message.model_copy(
-                        update={"tool_calls": filtered_tool_calls}
-                    )
-                    filtered_tool_call_messages.append(filtered_message)
-            elif isinstance(message, ToolCallResultMessage):
-                # 只保留没有错误且有对应 assistant 消息的工具调用结果
-                if (
-                    not message.is_error
-                    and message.tool_call_id in assistant_tool_call_ids
-                ):
-                    filtered_tool_call_messages.append(message)
-
-        # 将过滤后的消息转换为字典格式并追加
+        filtered_tool_call_messages = filter_tool_call_messages(tool_call_messages)
         for message in filtered_tool_call_messages:
             message_dict = normalize_to_dict(message)
             messages.append(message_dict)

@@ -4,8 +4,12 @@ from collections.abc import AsyncGenerator, AsyncIterator
 from typing import Any
 
 from app.agents.base import BaseAgent
+from app.agents.utils.response_generation import (
+    get_component_data,
+    get_mcp_tool_items,
+)
 from app.prompts import get_system_prompt_for_response_generation
-from app.prompts.prompt_utils import get_user_message_with_component_data
+from app.prompts.prompt_utils import get_user_message_for_response_generation
 from app.schemas.chat import ChatMessageItem
 from app.schemas.config import LLMConfig
 from app.schemas.llm import ToolCallMessage
@@ -62,22 +66,26 @@ class ResponseGenerationAgent(BaseAgent):
         Yields:
             str: SSE格式的响应消息
         """
-        # 将组件数据拼接到 user_message
-        final_user_message = get_user_message_with_component_data(
+        component_data = get_component_data(
+            component_tool_call_messages, self.schema_service.get_schema_cache()
+        )
+        mcp_tool_items = get_mcp_tool_items(mcp_tool_call_messages)
+        new_user_message = get_user_message_for_response_generation(
             user_message,
-            component_tool_call_messages,
-            self.schema_service.get_schema_cache(),
+            component_data,
+            mcp_tool_items,
         )
 
         system_prompt = get_system_prompt_for_response_generation(
             has_tool_calls=bool(mcp_tool_call_messages)
         )
         logger.debug("System prompt", system_prompt=system_prompt)
+        # MCP 结果已拼接到 final_user_message，不再传入 tool_call_messages
         new_messages = self._compose_messages(
             system_prompt,
             history_messages,
-            final_user_message,
-            mcp_tool_call_messages,
+            new_user_message,
+            [],  # 不再传入 mcp_tool_call_messages，避免模型模仿 DSML/function_calls
         )
 
         async for chunk in self._stream_final_response(

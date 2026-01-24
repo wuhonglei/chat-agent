@@ -101,6 +101,78 @@ def format_tool_call_messages_for_llm(
     return new_messages
 
 
+def filter_tool_call_messages(
+    tool_call_messages: list[ToolCallMessage],
+) -> list[ToolCallMessage]:
+    """过滤工具调用消息，只保留成功的、成对的 assistant+tool 调用。
+
+    第一步：收集所有有效的 tool_call_id（从成功的 ToolCallResultMessage）
+    第二步：收集 assistant 消息中存在的、且有成功结果的 tool_call_id
+    第三步：只保留 is_error=False 且有对应 assistant 的 ToolCallResultMessage，
+           以及 tool_calls 中 id 在 assistant_tool_call_ids 内的 AssistantToolCallMessage
+
+    Args:
+        tool_call_messages: 原始工具调用相关消息（assistant + tool 交替）
+
+    Returns:
+        过滤后的消息列表，保证 assistant 与 tool 成对且无错误
+    """
+    # 第一步：收集所有有效的 tool_call_id（从成功的 ToolCallResultMessage）
+    valid_tool_call_ids = set()
+    for message in tool_call_messages:
+        if isinstance(message, ToolCallResultMessage) and not message.is_error:
+            valid_tool_call_ids.add(message.tool_call_id)
+
+    # 第二步：收集 assistant 消息中实际存在的 tool_call_id（只保留那些有成功结果的）
+    assistant_tool_call_ids = set()
+    for message in tool_call_messages:
+        if isinstance(message, AssistantToolCallMessage):
+            for tool_call in message.tool_calls or []:
+                if tool_call.id in valid_tool_call_ids:
+                    assistant_tool_call_ids.add(tool_call.id)
+
+    # 第三步：只保留正确的工具调用（ToolCallResultMessage is_error=False 且有对应的 assistant 消息）
+    filtered: list[ToolCallMessage] = []
+    for message in tool_call_messages:
+        if isinstance(message, AssistantToolCallMessage):
+            filtered_tool_calls = [
+                tc
+                for tc in (message.tool_calls or [])
+                if tc.id in assistant_tool_call_ids
+            ]
+            if filtered_tool_calls:
+                filtered.append(
+                    message.model_copy(update={"tool_calls": filtered_tool_calls})
+                )
+        elif isinstance(message, ToolCallResultMessage):
+            if not message.is_error and message.tool_call_id in assistant_tool_call_ids:
+                filtered.append(message)
+
+    return filtered
+
+
+def get_assistant_tool_call_messages(
+    tool_call_messages: list[ToolCallMessage],
+) -> list[ToolCallMessage]:
+    """获取 assistant 工具调用消息"""
+    return [
+        message
+        for message in tool_call_messages
+        if isinstance(message, AssistantToolCallMessage)
+    ]
+
+
+def get_tool_call_result_messages(
+    tool_call_messages: list[ToolCallMessage],
+) -> list[ToolCallMessage]:
+    """获取 tool 工具调用消息"""
+    return [
+        message
+        for message in tool_call_messages
+        if isinstance(message, ToolCallResultMessage)
+    ]
+
+
 def format_chat_message_for_llm(
     message: ChatMessageItem | dict,
     keep_reasoning: bool = False,
