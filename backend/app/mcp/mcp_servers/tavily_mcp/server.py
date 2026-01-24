@@ -32,10 +32,6 @@ client = AsyncTavilyClient(api_key=config.TAVILY_API_KEY)
 @mcp.tool(name="web_search")
 async def web_search(
     query: str = Field(..., description="要执行的搜索查询"),
-    auto_parameters: bool = Field(
-        default=True,
-        description="启用后，Tavily 会根据查询内容与意图自动配置搜索参数。启用时每次请求消耗 2 个 API 额度。",
-    ),
     topic: Literal["general", "news", "finance"] = Field(
         default="general",
         description="搜索类别：'general'、'news'、'finance'（默认 'general'）",
@@ -100,7 +96,6 @@ async def web_search(
         # Use AsyncTavilyClient.search method
         response = await client.search(
             query=query,
-            auto_parameters=auto_parameters,
             topic=topic,
             search_depth=search_depth,
             chunks_per_source=chunks_per_source,
