@@ -6,6 +6,7 @@ from app.mcp.mcp_client import mcp_config_for_fe
 from app.prompts.system_prompt import (
     default_system_prompt_template,
     system_prompt_for_component_render_template,
+    system_prompt_for_response_generation_template,
     system_prompt_for_title_template,
     system_prompt_for_tool_calls_template,
 )
@@ -25,6 +26,11 @@ from app.utils.logger import logger
 def get_default_system_prompt() -> str:
     """Get default system prompt with current time information"""
     return default_system_prompt_template.render()
+
+
+def get_system_prompt_for_response_generation() -> str:
+    """Get system prompt for final response generation (forbids DSML/tool-call format in output)"""
+    return system_prompt_for_response_generation_template.render()
 
 
 def get_system_prompt_for_tool_calls() -> str:

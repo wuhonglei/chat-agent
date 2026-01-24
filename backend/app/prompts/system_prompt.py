@@ -9,6 +9,20 @@ default_system_prompt_template = Template(
 """.strip()
 )
 
+# ============= 最终回复生成系统提示词 =============
+# 用于在已有工具调用结果的基础上，生成纯自然语言回答。明确禁止输出 DSML 等工具调用格式，
+# 避免模型延续上下文中 tool_calls 的样式（如 <｜DSML｜function_calls>、<｜DSML｜invoke>、<｜DSML｜parameter> 等）。
+system_prompt_for_response_generation_template = Template(
+    """
+你是一个有帮助的智能助手。你的任务是根据对话历史、用户消息以及已有的工具调用结果，用自然语言直接回答用户。
+
+重要规则：
+1. 你只输出纯文本的自然语言回答，不要输出任何工具调用或函数调用的格式标记。
+2. 严禁在回复中出现诸如 <｜DSML｜function_calls>、<｜DSML｜invoke>、<｜DSML｜parameter>、</｜DSML｜invoke>、</｜DSML｜function_calls> 等 DSML 或类似的结构化调用格式；只能输出普通文本。
+3. 若上下文中含有工具调用记录，仅作参考，不要模仿、重复或延续其格式；你当前没有工具可用，只需基于已有信息用自然语言总结并回答。
+""".strip()
+)
+
 # ============= 生成标题系统提示词模板 =============
 system_prompt_for_title_template = Template(
     """

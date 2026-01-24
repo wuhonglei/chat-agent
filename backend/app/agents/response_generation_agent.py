@@ -4,7 +4,7 @@ from collections.abc import AsyncGenerator, AsyncIterator
 from typing import Any
 
 from app.agents.base import BaseAgent
-from app.prompts import get_default_system_prompt
+from app.prompts import get_system_prompt_for_response_generation
 from app.prompts.prompt_utils import get_user_message_with_component_data
 from app.schemas.chat import ChatMessageItem
 from app.schemas.config import LLMConfig
@@ -69,7 +69,7 @@ class ResponseGenerationAgent(BaseAgent):
             self.schema_service.get_schema_cache(),
         )
 
-        system_prompt = get_default_system_prompt()
+        system_prompt = get_system_prompt_for_response_generation()
         new_messages = self._compose_messages(
             system_prompt,
             history_messages,
