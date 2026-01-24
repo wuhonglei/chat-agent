@@ -72,6 +72,7 @@ class ResponseGenerationAgent(BaseAgent):
         system_prompt = get_system_prompt_for_response_generation(
             has_tool_calls=bool(mcp_tool_call_messages)
         )
+        logger.debug("System prompt", system_prompt=system_prompt)
         new_messages = self._compose_messages(
             system_prompt,
             history_messages,

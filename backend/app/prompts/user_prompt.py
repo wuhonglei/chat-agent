@@ -57,7 +57,6 @@ gentle_tips_in_web_search_template = Template(
     """
 目前已经调用了 web search 工具，工具返回内容中已经包含了和用户查询相关的片段。
 - 除非你需要完整的网页内容，否则不要再调用 web_pages_extract 工具
-- 如果 web_search 的结果已经足够回答问题，请回复 "finish"
 """.strip()
 )
 

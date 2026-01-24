@@ -697,6 +697,11 @@ class MCPToolsAgent(BaseAgent):
                 should_continue, continue_message = self._should_continue_tool_calls(
                     openai_message.tool_calls
                 )
+                logger.debug(
+                    "Should continue tool calls",
+                    should_continue=should_continue,
+                    continue_message=continue_message,
+                )
                 if not should_continue and continue_message:
                     # 如果评估为不应该继续，添加提示但允许执行（保守策略）
                     logger.info(
