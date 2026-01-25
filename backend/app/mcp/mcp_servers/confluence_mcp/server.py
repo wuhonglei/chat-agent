@@ -2,21 +2,13 @@
 
 import asyncio
 import logging
-import sys
 
 from fastmcp import FastMCP
 from pydantic import Field
 
 from app.mcp.cache import add_response_caching_if_enabled
 
-# 主应用内直接使用 settings.mcp.confluence_mcp（含 Nacos 下发的 cache_config）；
-# 独立运行时使用 .config（.env）
-if "app.core.config" in sys.modules:
-    from app.core.config import settings
-
-    config = settings.mcp.confluence_mcp
-else:
-    from .config import config
+from .config import config
 from .models.confluence import ConfluencePage
 from .services import ConfluenceConfig, ConfluenceFetcher
 

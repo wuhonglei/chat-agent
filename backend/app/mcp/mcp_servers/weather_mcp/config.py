@@ -1,27 +1,19 @@
+import sys
 from pathlib import Path
 
-from pydantic import ConfigDict, Field, field_validator
-from pydantic_settings import BaseSettings
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.schemas.config import MCPCacheConfig
 
 
-class Settings(BaseSettings):
+class _Settings(BaseSettings):
     QWEATHER_API_KEY: str
     QWEATHER_BASE_URL: str
     QWEATHER_TIMEOUT: int = 10
-    cache_config: MCPCacheConfig = Field(
-        default_factory=MCPCacheConfig,
-        description="工具调用结果缓存配置",
-    )
+    cache_config: MCPCacheConfig = Field(default_factory=MCPCacheConfig)
 
-    @field_validator("QWEATHER_BASE_URL")
-    def check_qweather_base_url(cls, v):
-        if not v.startswith("http://") and not v.startswith("https://"):
-            raise ValueError("QWEATHER_BASE_URL 必须以 http:// 或 https:// 开头")
-        return v
-
-    model_config = ConfigDict(
+    model_config = SettingsConfigDict(
         # .env 文件作为可选配置源，优先从环境变量读取
         env_file=Path(__file__).parent / ".env",
         env_file_encoding="utf-8",
@@ -32,4 +24,11 @@ class Settings(BaseSettings):
     )
 
 
-config = Settings()
+# 主应用内直接使用 settings.mcp.weather_mcp（含 Nacos 下发的 cache_config）；
+# 独立运行时使用本文件 Settings（.env）
+if "app.core.config" in sys.modules:
+    from app.core.config import settings
+
+    config = settings.mcp.weather_mcp
+else:
+    config = _Settings()  # type: ignore[assignment,call-arg]

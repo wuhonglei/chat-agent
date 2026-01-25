@@ -1,17 +1,9 @@
-import sys
-from typing import Any
+from typing import Any, cast
 
 import httpx
 from jinja2 import Template
 
-# 与 server 一致：主应用内用 settings.mcp.weather_mcp，独立运行用 .config
-if "app.core.config" in sys.modules:
-    from app.core.config import settings
-
-    config = settings.mcp.weather_mcp
-else:
-    from .config import config
-
+from .config import config
 from .models import City, WeatherAlert, WeatherDaily, WeatherHourly, WeatherNow
 
 city_template = Template(
@@ -116,7 +108,7 @@ async def make_request(endpoint: str, params: dict[str, Any]) -> dict[str, Any]:
                         f"原始错误: {error_msg}"
                     )
                 raise Exception(f"API 错误 (代码: {error_code}): {error_msg}")
-            return data
+            return cast(dict[str, Any], data)
         except httpx.HTTPStatusError as e:
             # 尝试解析响应体中的错误信息
             try:

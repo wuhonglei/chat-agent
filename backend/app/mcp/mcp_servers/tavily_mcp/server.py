@@ -5,7 +5,6 @@ Documentation: https://docs.tavily.com/
 """
 
 import asyncio
-import sys
 from typing import Any, Literal
 
 from fastmcp import FastMCP
@@ -14,14 +13,7 @@ from tavily import AsyncTavilyClient
 
 from app.mcp.cache import add_response_caching_if_enabled
 
-# 主应用内直接使用 settings.mcp.tavily_mcp（含 Nacos 下发的 cache_config）；
-# 独立运行 (python -m app.mcp.mcp_servers.tavily_mcp.server) 时使用 .config（.env）
-if "app.core.config" in sys.modules:
-    from app.core.config import settings
-
-    config = settings.mcp.tavily_mcp
-else:
-    from .config import config
+from .config import config
 from .models import (
     TavilyCrawlResponse,
     TavilyExtractResponse,
@@ -80,23 +72,23 @@ async def web_search(
         default=None,
         description="时间范围：'day'、'week'、'month'、'year' 或简写 'd'、'w'、'm'、'y'",
     ),
-    start_date: str = Field(
+    start_date: str | None = Field(
         default=None,
         description="返回指定开始日期之后的结果。格式：YYYY-MM-DD",
     ),
-    end_date: str = Field(
+    end_date: str | None = Field(
         default=None,
         description="返回指定结束日期之前的结果。格式：YYYY-MM-DD",
     ),
-    include_domains: list[str] = Field(
+    include_domains: list[str] | None = Field(
         default=None,
         description="需要包含的域名列表（最多 300 个域名）",
     ),
-    exclude_domains: list[str] = Field(
+    exclude_domains: list[str] | None = Field(
         default=None,
         description="需要排除的域名列表（最多 150 个域名）",
     ),
-    country: str = Field(
+    country: str | None = Field(
         default=None,
         description="提升特定国家的搜索结果，仅当 topic 为 'general' 可用。国家名需为小写英文",
     ),

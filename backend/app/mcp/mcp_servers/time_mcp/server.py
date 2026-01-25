@@ -24,7 +24,7 @@ async def get_current_time(
         default_factory=get_localzone_name,
         description="指定时区，如果不提供则使用本地时区。支持的格式：'Asia/Shanghai', 'America/New_York', 'Europe/London' 等",
     ),
-) -> TimeResponse:
+) -> ToolResult:
     """获取指定时区的当前时间"""
     try:
         # 如果没有指定时区，使用本地时区
@@ -47,15 +47,12 @@ async def get_current_time(
         timestamp = int(now.timestamp())
 
         data = TimeResponse(
-            structured_content=TimeResponse(
-                current_time=current_time_str,
-                timezone=timezone,
-                utc_offset=utc_offset,
-                timestamp=timestamp,
-            ),
-            content=format_results(data),
+            current_time=current_time_str,
+            timezone=timezone,
+            utc_offset=utc_offset,
+            timestamp=timestamp,
         )
-    except Exception as e:
+    except Exception:
         # 如果指定的时区无效，使用本地时区作为后备
         local_tz = get_localzone_name()
         tz = ZoneInfo(local_tz)

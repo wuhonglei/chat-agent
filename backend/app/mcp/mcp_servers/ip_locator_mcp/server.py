@@ -24,7 +24,7 @@ add_response_caching_if_enabled(mcp, config.cache_config)
 @mcp.tool(name="locate_ip")
 async def locate_ip(
     ip_address: str = Field(..., description="查询的 IP 地址"),
-) -> IPLocatorResponse:
+) -> ToolResult:
     """
     定位 IP 地址
     根据提供的 IP 地址查询地理位置信息，包括国家、地区、城市、经纬度、时区、ISP 等信息。

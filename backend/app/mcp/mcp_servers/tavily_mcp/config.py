@@ -1,19 +1,17 @@
+import sys
 from pathlib import Path
 
-from pydantic import ConfigDict, Field
-from pydantic_settings import BaseSettings
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.schemas.config import MCPCacheConfig
 
 
-class Settings(BaseSettings):
+class _Settings(BaseSettings):
     TAVILY_API_KEY: str
-    cache_config: MCPCacheConfig = Field(
-        default_factory=MCPCacheConfig,
-        description="工具调用结果缓存配置",
-    )
+    cache_config: MCPCacheConfig = Field(default_factory=MCPCacheConfig)
 
-    model_config = ConfigDict(
+    model_config = SettingsConfigDict(
         env_file=Path(__file__).parent / ".env",
         env_file_encoding="utf-8",
         case_sensitive=True,
@@ -22,5 +20,11 @@ class Settings(BaseSettings):
     )
 
 
-# 创建配置实例
-config = Settings()
+# 主应用内直接使用 settings.mcp.tavily_mcp（含 Nacos 下发的 cache_config）；
+# 独立运行时使用本文件 Settings（.env）
+if "app.core.config" in sys.modules:
+    from app.core.config import settings
+
+    config = settings.mcp.tavily_mcp
+else:
+    config = _Settings()  # type: ignore[assignment,call-arg]

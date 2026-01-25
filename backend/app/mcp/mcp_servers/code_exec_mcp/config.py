@@ -2,13 +2,13 @@
 
 from pathlib import Path
 
-from pydantic import ConfigDict, Field
-from pydantic_settings import BaseSettings
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.schemas.config import MCPCacheConfig
 
 
-class CodeExecConfig(BaseSettings):
+class _Settings(BaseSettings):
     """代码执行沙箱配置"""
 
     # 执行超时时间（秒）
@@ -57,7 +57,7 @@ class CodeExecConfig(BaseSettings):
         "base64",
     ]
 
-    model_config = ConfigDict(
+    model_config = SettingsConfigDict(
         env_file=Path(__file__).parent / ".env",
         env_file_encoding="utf-8",
         case_sensitive=True,
@@ -66,4 +66,4 @@ class CodeExecConfig(BaseSettings):
     )
 
 
-config = CodeExecConfig()
+config = _Settings()

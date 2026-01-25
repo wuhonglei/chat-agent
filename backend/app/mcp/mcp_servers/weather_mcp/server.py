@@ -4,7 +4,6 @@
 文档地址: https://dev.qweather.com/docs/start/
 """
 
-import sys
 from typing import Literal
 
 from fastmcp import Client, FastMCP
@@ -14,14 +13,7 @@ from pydantic import Field
 
 from app.mcp.cache import add_response_caching_if_enabled
 
-# 主应用内直接使用 settings.mcp.weather_mcp（含 Nacos 下发的 cache_config）；
-# 独立运行时使用 .config（.env）
-if "app.core.config" in sys.modules:
-    from app.core.config import settings
-
-    config = settings.mcp.weather_mcp
-else:
-    from .config import config
+from .config import config
 from .models import (
     CitySearchResponse,
     WeatherAlertResponse,
@@ -68,7 +60,7 @@ async def search_city(
     lang: str = Field(
         default="zh", description="多语言设置，支持 zh（中文）、en（英文）等"
     ),
-) -> CitySearchResponse:
+) -> ToolResult:
     """
     搜索城市信息
     @return:
@@ -103,7 +95,7 @@ async def get_current_weather(
         default="zh", description="多语言设置，支持 zh（中文）、en（英文）等"
     ),
     unit: str = Field(default="m", description="单位设置，m（公制）或 i（英制）"),
-) -> WeatherNowResponse:
+) -> ToolResult:
     """
     获取实时天气信息
 
@@ -135,7 +127,7 @@ async def get_weather_hourly_forecast(
     ),
     lang: str = Field(default="zh", description="多语言设置"),
     unit: str = Field(default="m", description="单位设置（m=公制，i=英制）"),
-) -> WeatherHourlyResponse:
+) -> ToolResult:
     """
     逐小时天气预报API，提供全球城市24-168小时范围内逐小时天气预报，包括：温度、天气状况、风力、风速、风向、相对湿度、大气压强、降水概率、露点温度、云量。
 
@@ -167,7 +159,7 @@ async def get_weather_daily_forecast(
     ),
     lang: str = Field(default="zh", description="多语言设置"),
     unit: str = Field(default="m", description="单位设置（m=公制，i=英制）"),
-) -> WeatherDailyResponse:
+) -> ToolResult:
     """
     获取未来几天（3d、7d、10d、15d、30d）范围内的天气预报信息
 
@@ -196,7 +188,7 @@ async def get_weather_daily_forecast(
 async def get_weather_alerts(
     location: str = Field(..., description="位置信息，可以是 LocationID 或经纬度坐标"),
     lang: str = Field(default="zh", description="多语言设置"),
-) -> WeatherAlertResponse:
+) -> ToolResult:
     """
     获取天气预警信息
 
@@ -216,7 +208,7 @@ async def get_weather_alerts(
         raise
 
 
-async def main():
+async def main() -> None:
     client = Client(transport=FastMCPTransport(mcp))
     async with client:
         tools = await client.list_tools()
