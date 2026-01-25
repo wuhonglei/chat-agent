@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
-from typing import Any, Literal, overload
+from typing import Any, Literal, cast, overload
 
 from openai import (
     APIConnectionError,
@@ -49,7 +49,9 @@ class BaseAgent(ABC):
         self.token_calculator = TokenCalculator(llm_config.model_name)
         self.model_limit = self.token_calculator.get_max_context_tokens()
 
-    async def stream_execute(self, *args, **kwargs) -> AsyncGenerator[str, None]:
+    async def stream_execute(
+        self, *args: Any, **kwargs: Any
+    ) -> AsyncGenerator[str, None]:
         """流式执行agent的核心逻辑，子类必须实现
 
         Yields:
@@ -57,7 +59,7 @@ class BaseAgent(ABC):
         """
         raise NotImplementedError("This agent does not support non-streaming execution")
 
-    async def execute(self, *args, **kwargs):
+    async def execute(self, *args: Any, **kwargs: Any) -> Any:
         """非流式执行agent的核心逻辑，子类可选实现
 
         默认实现抛出 NotImplementedError，子类如果需要非流式执行可以重写此方法
@@ -65,7 +67,7 @@ class BaseAgent(ABC):
         raise NotImplementedError("This agent does not support non-streaming execution")
 
     @staticmethod
-    def format_sse_message(msg_type: str, data=None) -> str:
+    def format_sse_message(msg_type: str, data: Any = None) -> str:
         return format_sse_message(msg_type, data)
 
     @property
@@ -117,10 +119,10 @@ class BaseAgent(ABC):
     async def _call_llm_api(
         self,
         model: str,
-        messages: list[dict],
+        messages: list[dict[str, Any]],
         stream: Literal[False],
         *,
-        tools: list[dict] | None = None,
+        tools: list[dict[str, Any]] | None = None,
         parallel_tool_calls: bool | None = None,
         extra_body: dict[str, Any] | None = None,
     ) -> ChatCompletion: ...
@@ -129,10 +131,10 @@ class BaseAgent(ABC):
     async def _call_llm_api(
         self,
         model: str,
-        messages: list[dict],
+        messages: list[dict[str, Any]],
         stream: Literal[True],
         *,
-        tools: list[dict] | None = None,
+        tools: list[dict[str, Any]] | None = None,
         parallel_tool_calls: bool | None = None,
         extra_body: dict[str, Any] | None = None,
     ) -> AsyncStream[ChatCompletionChunk]: ...
@@ -140,10 +142,10 @@ class BaseAgent(ABC):
     async def _call_llm_api(
         self,
         model: str,
-        messages: list[dict],
+        messages: list[dict[str, Any]],
         stream: bool,
         *,
-        tools: list[dict] | None = None,
+        tools: list[dict[str, Any]] | None = None,
         parallel_tool_calls: bool | None = None,
         extra_body: dict[str, Any] | None = None,
     ) -> ChatCompletion | AsyncStream[ChatCompletionChunk]:
@@ -199,11 +201,11 @@ class BaseAgent(ABC):
         try:
             logger.info("Calling LLM API", **log_context)
             response = await self.client.chat.completions.create(**api_params)
-            return response
+            return cast(ChatCompletion | AsyncStream[ChatCompletionChunk], response)
         except APIConnectionError as e:
             logger.error(
                 "Failed to connect to LLM API",
-                error=str(e),
+                error=e,
                 error_type=type(e).__name__,
                 **log_context,
                 exc_info=True,
@@ -212,7 +214,7 @@ class BaseAgent(ABC):
         except RateLimitError as e:
             logger.error(
                 "LLM API rate limit exceeded",
-                error=str(e),
+                error=e,
                 error_type=type(e).__name__,
                 **log_context,
                 exc_info=True,
@@ -221,7 +223,7 @@ class BaseAgent(ABC):
         except APIStatusError as e:
             logger.error(
                 "LLM API returned an error status",
-                error=str(e),
+                error=e,
                 error_type=type(e).__name__,
                 status_code=getattr(e, "status_code", None),
                 **log_context,
@@ -231,7 +233,7 @@ class BaseAgent(ABC):
         except APIError as e:
             logger.error(
                 "LLM API error occurred",
-                error=str(e),
+                error=e,
                 error_type=type(e).__name__,
                 **log_context,
                 exc_info=True,
@@ -240,7 +242,7 @@ class BaseAgent(ABC):
         except Exception as e:
             logger.error(
                 "Unexpected error during LLM API call",
-                error=str(e),
+                error=e,
                 error_type=type(e).__name__,
                 **log_context,
                 exc_info=True,
@@ -268,7 +270,7 @@ class BaseAgent(ABC):
         history_messages: list[ChatMessageItem],
         user_message: str,
         tool_call_messages: list[ToolCallMessage] | None = None,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Build prompt for LLM
 
         Args:
