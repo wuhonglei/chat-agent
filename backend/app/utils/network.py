@@ -3,7 +3,7 @@ from ipaddress import ip_address
 from fastapi import Request
 
 
-def validate_client_ip(ip: str, keep_private_ip: bool = False) -> str | None:
+def validate_client_ip(ip: str | None, keep_private_ip: bool = False) -> str | None:
     """验证IP地址的有效性
 
     验证规则：
