@@ -44,7 +44,7 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
         self._connection_config: NacosConnectionConfig | None = None
         self._watcher_started: bool = False
 
-    def _config_change_listener(self, config_content) -> None:
+    def _config_change_listener(self, config_content: str | dict[str, Any]) -> None:
         """配置变化回调函数
 
         当 Nacos 配置发生变化时，此函数会被自动调用来更新缓存
@@ -61,12 +61,9 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
                 actual_content = config_content.get("content") or config_content.get(
                     "raw_content"
                 )
-            elif isinstance(config_content, str):
-                # 如果是字符串格式，直接使用
-                actual_content = config_content
             else:
-                logger.warning(f"不支持的配置内容格式: {type(config_content)}")
-                return
+                # 字符串格式：直接使用
+                actual_content = config_content
 
             if not actual_content:
                 logger.warning("未找到有效的配置内容")
@@ -129,9 +126,9 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
         if self._nacos_client is not None:
             return
 
-        # 初始化连接配置
+        # 初始化连接配置（从环境变量 NACOS_* 加载）
         if self._connection_config is None:
-            self._connection_config = NacosConnectionConfig()
+            self._connection_config = NacosConnectionConfig()  # type: ignore[call-arg]
 
         try:
             # 初始化 Nacos 客户端
@@ -176,6 +173,8 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
         try:
             # 确保客户端已初始化
             self._ensure_nacos_client()
+            assert self._nacos_client is not None
+            assert self._connection_config is not None
 
             # 获取配置内容
             config_content = self._nacos_client.get_config(
@@ -214,11 +213,15 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
             self._config_cache = {}
             return {}
 
-    def get_field_value(self, field: Any, field_name: str) -> tuple[Any, str | None]:
-        """获取字段值（从 Nacos 配置中）"""
+    def get_field_value(self, field: Any, field_name: str) -> tuple[Any, str, bool]:
+        """获取字段值（从 Nacos 配置中）
+
+        返回 (value, key, value_is_complex)，与 PydanticBaseSettingsSource 约定一致。
+        当无值时返回 (None, '', False)。
+        """
         yaml_data = self._get_nacos_config()
         if not yaml_data:
-            return None, None
+            return None, "", False
 
         try:
             # 递归查找字段值
@@ -228,11 +231,11 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
                 if isinstance(value, dict) and key in value:
                     value = value[key]
                 else:
-                    return None, None
+                    return None, "", False
 
-            return value, None
+            return value, field_name, False
         except Exception:
-            return None, None
+            return None, "", False
 
     def __call__(self) -> dict[str, Any]:
         """加载并返回配置字典"""
