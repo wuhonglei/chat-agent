@@ -71,4 +71,5 @@ class Settings(BaseSettings):
         )
 
 
-settings = Settings()
+# Settings() 从 model_config 配置的 env/nacos 等源加载，无参调用在运行时可工作，mypy 无法推断
+settings = Settings()  # type: ignore[call-arg]
