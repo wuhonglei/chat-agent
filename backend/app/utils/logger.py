@@ -138,77 +138,6 @@ def get_log_context() -> dict[str, Any]:
     return context
 
 
-def log_info(message: str, **kwargs: Any) -> None:
-    """记录 INFO 级别日志
-
-    使用结构化字段而不是字符串拼接的原因：
-    1. 可查询性：日志收集系统（如 ELK、Loki）可以按字段查询和过滤
-    2. 可解析性：便于解析和统计（如按 app_name 分组统计）
-    3. 可扩展性：容易添加或移除字段，不影响 message 内容
-    4. 一致性：所有日志使用相同的结构化格式
-    5. JSON 支持：可以轻松切换到 JSON 格式输出
-
-    Args:
-        message: 日志消息（人类可读的描述）
-        **kwargs: 结构化字段（键值对，便于查询和统计）
-
-    Example:
-        # ✅ 推荐：使用结构化字段
-        log_info("Application starting", app_name="MyApp", version="1.0.0")
-
-        # ❌ 不推荐：字符串拼接
-        log_info(f"Application {settings.app.name} v{settings.app.version} starting")
-    """
-    context = get_log_context()
-    # 合并上下文和额外字段
-    extra = {**context, **kwargs}
-    # 使用 loguru 的 extra 参数传递结构化数据
-    # 同时为了可读性，也在 message 中包含关键信息
-    # depth=1 跳过当前包装函数，记录实际调用者的位置信息
-    _loguru_logger.opt(depth=1).bind(**extra).info(message)
-
-
-def log_warning(message: str, **kwargs: Any) -> None:
-    """记录 WARNING 级别日志"""
-    context = get_log_context()
-    extra = {**context, **kwargs}
-    # depth=1 跳过当前包装函数，记录实际调用者的位置信息
-    _loguru_logger.opt(depth=1).bind(**extra).warning(message)
-
-
-def log_error(message: str, error: Exception | None = None, **kwargs: Any) -> None:
-    """记录 ERROR 级别日志
-
-    Args:
-        message: 错误消息
-        error: 异常对象（可选）
-        **kwargs: 额外的上下文信息
-    """
-    context = get_log_context()
-    extra = {**context, **kwargs}
-    # depth=1 跳过当前包装函数，记录实际调用者的位置信息
-    if error:
-        _loguru_logger.opt(depth=1).bind(**extra).error(message, exc_info=error)
-    else:
-        _loguru_logger.opt(depth=1).bind(**extra).error(message)
-
-
-def log_debug(message: str, **kwargs: Any) -> None:
-    """记录 DEBUG 级别日志"""
-    context = get_log_context()
-    extra = {**context, **kwargs}
-    # depth=1 跳过当前包装函数，记录实际调用者的位置信息
-    _loguru_logger.opt(depth=1).bind(**extra).debug(message)
-
-
-def log_exception(message: str, **kwargs: Any) -> None:
-    """记录异常日志（包含完整的堆栈信息）"""
-    context = get_log_context()
-    extra = {**context, **kwargs}
-    # depth=1 跳过当前包装函数，记录实际调用者的位置信息
-    _loguru_logger.opt(depth=1).bind(**extra).exception(message)
-
-
 class LoggerWrapper:
     """日志包装器，自动添加上下文信息
 
@@ -337,10 +266,4 @@ __all__ = [
     "anonymous_user_id_var",
     "client_ip_var",
     "get_log_context",
-    # 保留旧函数以保持向后兼容（可选，如果不需要可以删除）
-    "log_info",
-    "log_warning",
-    "log_error",
-    "log_debug",
-    "log_exception",
 ]

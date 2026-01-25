@@ -14,26 +14,26 @@
 ### 导入日志工具
 
 ```python
-from app.utils.logger import log_info, log_error, log_warning, log_debug, log_exception
+from app.utils.logger import logger
 ```
 
 ### 记录不同级别的日志
 
 ```python
 # INFO 级别 - 记录关键操作
-log_info("User logged in", user_id=user_id)
+logger.info("User logged in", user_id=user_id)
 
 # WARNING 级别 - 记录警告信息
-log_warning("Rate limit approaching", user_id=user_id, remaining=10)
+logger.warning("Rate limit approaching", user_id=user_id, remaining=10)
 
 # ERROR 级别 - 记录错误
-log_error("Failed to save message", error=exc, message_id=message_id)
+logger.error("Failed to save message", error=exc, message_id=message_id)
 
 # DEBUG 级别 - 记录调试信息（仅在 debug 模式下）
-log_debug("Processing request", step="validation")
+logger.debug("Processing request", step="validation")
 
 # EXCEPTION 级别 - 记录异常（包含完整堆栈）
-log_exception("Unexpected error occurred", operation="file_upload")
+logger.exception("Unexpected error occurred", operation="file_upload")
 ```
 
 ## 上下文信息
@@ -47,7 +47,7 @@ log_exception("Unexpected error occurred", operation="file_upload")
 ### 手动添加额外上下文
 
 ```python
-log_info(
+logger.info(
     "File uploaded",
     file_id=file_id,
     file_size=file_size,
@@ -66,7 +66,7 @@ log_info(
 
 1. **操作摘要**：操作类型、结果、资源ID
 ```python
-log_info(
+logger.info(
     "Message created",
     message_id=message_id,
     conversation_id=conversation_id,
@@ -76,7 +76,7 @@ log_info(
 
 2. **性能指标**：处理时间、数据大小
 ```python
-log_info(
+logger.info(
     "Request completed",
     process_time="0.123s",
     response_size=1024,
@@ -85,7 +85,7 @@ log_info(
 
 3. **错误信息**：错误类型、错误位置（不含敏感数据）
 ```python
-log_error(
+logger.error(
     "Database connection failed",
     error=exc,
     operation="save_message",
@@ -97,29 +97,29 @@ log_error(
 1. **用户隐私数据**：
 ```python
 # ❌ 错误
-log_info(f"User data: {user}")  # 包含手机号、邮箱等
+logger.info(f"User data: {user}")  # 包含手机号、邮箱等
 
 # ✅ 正确
-log_info("User created", user_id=user.id)
+logger.info("User created", user_id=user.id)
 ```
 
 2. **认证信息**：
 ```python
 # ❌ 错误
-log_info(f"Token: {token}")
-log_info(f"Password: {password}")
+logger.info(f"Token: {token}")
+logger.info(f"Password: {password}")
 
 # ✅ 正确
-log_info("User authenticated", user_id=user_id)
+logger.info("User authenticated", user_id=user_id)
 ```
 
 3. **用户消息内容**：
 ```python
 # ❌ 错误
-log_info(f"User message: {chat_request.content}")
+logger.info(f"User message: {chat_request.content}")
 
 # ✅ 正确
-log_info(
+logger.info(
     "Chat request received",
     conversation_id=conversation_id,
     message_length=len(chat_request.content),
@@ -129,10 +129,10 @@ log_info(
 4. **完整的请求/响应体**：
 ```python
 # ❌ 错误
-log_info(f"Request body: {request.json()}")
+logger.info(f"Request body: {request.json()}")
 
 # ✅ 正确
-log_info(
+logger.info(
     "Request received",
     method=request.method,
     path=request.url.path,
@@ -144,7 +144,7 @@ log_info(
 ### 示例：聊天接口
 
 ```python
-from app.utils.logger import log_info, log_error
+from app.utils.logger import logger
 
 @router.post("/stream")
 async def chat_stream(
@@ -153,7 +153,7 @@ async def chat_stream(
     _auth: None = Depends(require_auth),
 ):
     # 记录请求（不包含敏感内容）
-    log_info(
+    logger.info(
         "Chat stream request received",
         conversation_id=chat_request.conversation_id,
         message_length=len(chat_request.content) if chat_request.content else 0,
@@ -163,7 +163,7 @@ async def chat_stream(
         # 业务逻辑
         ...
     except Exception as exc:
-        log_error(
+        logger.error(
             "Failed to process chat request",
             error=exc,
             conversation_id=chat_request.conversation_id,
@@ -174,20 +174,20 @@ async def chat_stream(
 ## 在服务层中使用
 
 ```python
-from app.utils.logger import log_info, log_warning, log_error
+from app.utils.logger import logger
 
 class MessageService:
     def create_message(self, message_id: str, content: str):
         try:
             # 创建消息
-            log_info(
+            logger.info(
                 "Creating message",
                 message_id=message_id,
                 content_length=len(content),  # 只记录长度，不记录内容
             )
             # ...
         except Exception as e:
-            log_error(
+            logger.error(
                 "Failed to create message",
                 error=e,
                 message_id=message_id,
@@ -238,9 +238,9 @@ logger.error(f"Failed: {exc}")
 
 **新代码：**
 ```python
-from app.utils.logger import log_info, log_error
-log_info("Message created", user_id=user_id, message_id=message_id)
-log_error("Failed to create message", error=exc, user_id=user_id)
+from app.utils.logger import logger
+logger.info("Message created", user_id=user_id, message_id=message_id)
+logger.error("Failed to create message", error=exc, user_id=user_id)
 ```
 
 ### 优势

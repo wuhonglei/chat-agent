@@ -15,11 +15,13 @@ repos:
         files: \.py$
         exclude: ^(tests/|app/mcp/)
 
-  # 暂时禁用 mypy 检查，后续逐步启用
-  # - repo: https://github.com/pre-commit/mirrors-mypy
-  #   rev: v1.13.0
-  #   hooks:
-  #     - id: mypy
-  #       files: \.py$
-  #       exclude: ^(tests/|app/mcp/)
-  #       args: [--ignore-missing-imports]
+  # mypy 类型检查，使用本地 mypy.ini（与 make check 一致；tests/app.mcp 等由 mypy.ini 的 ignore_errors 统一控制）
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: uv
+        language: system
+        types: [python]
+        files: \.py$
+        args: [run, mypy]
