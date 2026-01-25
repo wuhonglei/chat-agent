@@ -14,7 +14,7 @@ help:
 
 # Install dependencies
 install:
-	uv sync --extra dev
+	uv sync --extra dev --group dev
 
 # Start the application
 dev:

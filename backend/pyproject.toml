@@ -114,6 +114,7 @@ skip-magic-trailing-comma = false
 
 [dependency-groups]
 dev = [
+    "types-aiofiles>=24.1.0",
     "types-python-dateutil>=2.9.0.20260124",
     "types-requests>=2.32.4.20260107",
     "types-PyYAML>=6.0.12",
