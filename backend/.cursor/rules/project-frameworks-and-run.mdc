@@ -1,0 +1,93 @@
+---
+description: 项目基本框架与运行方式
+alwaysApply: false
+---
+# AI Doc Backend - 项目框架与运行方式
+
+## 技术栈与框架
+
+### Web 与 API
+- **FastAPI**：主 Web 框架，入口为 `app.main:app`
+- **Uvicorn**：ASGI 服务器，开发与生产均通过 `uvicorn.workers.UvicornWorker` 运行
+- **Gunicorn**：生产环境进程管理（多 worker），在 `start.sh` 中使用
+
+### 数据与校验
+- **Pydantic / pydantic-settings**：请求/响应校验、配置管理；配置支持环境变量与 **Nacos** 配置中心
+- **SQLAlchemy 2.x + SQLModel**：ORM，数据库为 **PostgreSQL**
+- **Alembic**：数据库迁移，迁移文件在 `alembic/versions/`
+
+### 包管理与工具
+- **uv**：包管理与虚拟环境（`uv sync`、`uv run`、`uv venv`），依赖见 `pyproject.toml`、`uv.lock`
+- **Ruff**：代码检查与格式化（`make format-ruff`、`make lint`）
+- **mypy**：类型检查（`make check`）
+
+### 其他核心组件
+- **MCP (Model Context Protocol) / FastMCP**：MCP 客户端与多种 MCP 服务（`app/mcp/`），如 `time_mcp`、`context7_mcp`、`tavily_mcp`、`confluence_mcp` 等
+- **LangChain**：Agent 与工具编排（`app/agents/`）
+- **OpenAI 兼容 API**：对接 DeepSeek 等 LLM
+- **ChromaDB**：向量存储与检索
+- **Loguru**：日志（`app/utils/logger.py`）
+
+---
+
+## 运行方式
+
+### 本地开发（推荐）
+
+```bash
+# 1. 虚拟环境与依赖
+uv venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+uv sync --extra dev --group dev        # 或 make install
+
+# 2. 环境变量（复制并编辑 .env）
+cp .env.example .env
+
+# 3. 数据库迁移（首次或结构变更后）
+uv run alembic upgrade head
+
+# 4. 启动开发服务（热重载，单进程）
+make dev
+# 或: APP__DEBUG=1 uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 --proxy-headers
+```
+
+API 文档：`http://localhost:8000/docs`
+
+### 生产 / 多 worker 启动
+
+```bash
+make start
+# 或: uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4 --log-level info --proxy-headers
+```
+
+### 使用 start.sh（迁移 + Gunicorn）
+
+`start.sh` 会：等待数据库可用 → `alembic upgrade head` → 使用 Gunicorn + Uvicorn worker 启动。
+
+```bash
+./start.sh
+```
+
+---
+
+## 常用 Make 命令
+
+| 命令 | 说明 |
+|------|------|
+| `make dev` | 开发环境启动（热重载） |
+| `make start` | 生产方式启动（多 worker） |
+| `make install` | 安装依赖（含 dev） |
+| `make format` / `make format-ruff` | 代码格式化 |
+| `make lint` | Ruff 检查 |
+| `make check` | mypy 类型检查 |
+| `make test` | 运行 pytest |
+| `make clean` | 清理缓存与临时文件 |
+
+---
+
+## 项目入口与结构要点
+
+- **应用入口**：`app/main.py`，`app = FastAPI(...)`，`lifespan` 中完成：建表、MCP Manager、JWT 初始化
+- **配置**：`app/core/config.py` 的 `Settings`，来源：初始化参数 > 环境变量 > Nacos
+- **路由**：`app/api/`（user、auth、chat、message、conversation、health、file）
+- **业务逻辑**：`app/services/`、`app/agents/`
+- **数据模型**：`app/models/`、`app/schemas/`
