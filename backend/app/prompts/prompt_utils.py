@@ -1,5 +1,7 @@
 """提示词工具函数模块"""
 
+from typing import Any
+
 from app.mcp.mcp_client import mcp_config_for_fe
 from app.prompts.system_prompt import (
     default_system_prompt_template,
@@ -109,19 +111,19 @@ def get_disabled_tools_message(disabled_tools: list[str]) -> str:
     return disabled_tools_message_template.render(disabled_tools=disabled_tools)
 
 
-def get_gentle_tips_in_web_search():
+def get_gentle_tips_in_web_search() -> str:
     """Get gentle tips in web search"""
     return gentle_tips_in_web_search_template.render()
 
 
-def get_tool_call_sufficient_info_message():
+def get_tool_call_sufficient_info_message() -> str:
     """Get message when sufficient info may have been obtained"""
     return tool_call_sufficient_info_template.render()
 
 
 def get_user_message_for_response_generation(
     user_message: str,
-    component_data: list[dict],
+    component_data: list[dict[str, Any]],
     mcp_tool_items: list[dict[str, str]],
 ) -> str:
     """Get user message for response generation"""
