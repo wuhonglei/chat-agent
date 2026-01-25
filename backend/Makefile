@@ -18,15 +18,15 @@ install:
 
 # Start the application
 dev:
-	APP__DEBUG=1 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 --proxy-headers
+	APP__DEBUG=1 uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 --proxy-headers
 
 # Start the application
 start:
-	uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4 --log-level info --proxy-headers
+	uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4 --log-level info --proxy-headers
 
 # Format code
 format:
-	python format.py
+	uv run format.py
 
 # Quick format using ruff
 format-ruff:
