@@ -44,7 +44,9 @@ def get_nacos_config():
         config_content = client.get_config(data_id=DATA_ID, group=GROUP, timeout=5)
 
         if not config_content:
-            raise ValueError(f"获取配置失败：data_id={DATA_ID}, group={GROUP} 对应的配置不存在")
+            raise ValueError(
+                f"获取配置失败：data_id={DATA_ID}, group={GROUP} 对应的配置不存在"
+            )
 
         # -------------------------- 5. 解析配置（根据 CONFIG_TYPE 适配） --------------------------
         parsed_config = {}

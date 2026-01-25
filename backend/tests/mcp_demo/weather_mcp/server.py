@@ -63,7 +63,9 @@ async def make_request(endpoint: str, params: dict[str, Any]) -> dict[str, Any]:
 
 @mcp.tool(name="search_city")
 async def search_city(
-    location: str = Field(..., description="需要查询地区的名称，支持文字。例如 location=北京"),
+    location: str = Field(
+        ..., description="需要查询地区的名称，支持文字。例如 location=北京"
+    ),
     adm: str | None = Field(
         default="",
         description="城市的上级行政区划，可设定只在某个行政区划范围内进行搜索，用于排除重名城市或对结果进行过滤。例如 adm=beijing",
@@ -75,7 +77,9 @@ async def search_city(
     number: int | None = Field(
         default=1, description="返回结果的数量，取值范围1-20，默认返回 1 个结果。"
     ),
-    lang: str | None = Field(default="zh", description="多语言设置，支持 zh（中文）、en（英文）等"),
+    lang: str | None = Field(
+        default="zh", description="多语言设置，支持 zh（中文）、en（英文）等"
+    ),
 ) -> list[City]:
     """
     搜索城市信息
@@ -102,7 +106,9 @@ async def get_current_weather(
         ...,
         description="位置信息，可以是 LocationID（如：101010100）或经纬度坐标（如：116.41,39.92）",
     ),
-    lang: str = Field(default="zh", description="多语言设置，支持 zh（中文）、en（英文）等"),
+    lang: str = Field(
+        default="zh", description="多语言设置，支持 zh（中文）、en（英文）等"
+    ),
     unit: str = Field(default="m", description="单位设置，m（公制）或 i（英制）"),
 ) -> WeatherNow:
     """

@@ -25,15 +25,24 @@ def upgrade() -> None:
     # 添加耗时字段，允许为空
     op.add_column(
         "messages",
-        sa.Column("tool_calls_duration", sa.Float(), nullable=True, comment="工具调用耗时（秒）"),
+        sa.Column(
+            "tool_calls_duration",
+            sa.Float(),
+            nullable=True,
+            comment="工具调用耗时（秒）",
+        ),
     )
     op.add_column(
         "messages",
-        sa.Column("reasoning_duration", sa.Float(), nullable=True, comment="推理耗时（秒）"),
+        sa.Column(
+            "reasoning_duration", sa.Float(), nullable=True, comment="推理耗时（秒）"
+        ),
     )
     op.add_column(
         "messages",
-        sa.Column("content_duration", sa.Float(), nullable=True, comment="内容生成耗时（秒）"),
+        sa.Column(
+            "content_duration", sa.Float(), nullable=True, comment="内容生成耗时（秒）"
+        ),
     )
     op.add_column(
         "messages",

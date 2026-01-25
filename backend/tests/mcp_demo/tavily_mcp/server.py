@@ -350,7 +350,9 @@ if __name__ == "__main__":
         default="http",
         help="Transport mode: http or stdio",
     )
-    parser.add_argument("--port", type=int, default=8002, help="Port number for HTTP mode")
+    parser.add_argument(
+        "--port", type=int, default=8002, help="Port number for HTTP mode"
+    )
 
     args = parser.parse_args()
 

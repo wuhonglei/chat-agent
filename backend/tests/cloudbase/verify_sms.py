@@ -18,7 +18,9 @@ verification_id = os.environ.get("verification_id")
 verification_code = os.environ.get("verification_code")
 url = f"https://{env_id}.api.tcloudbasegateway.com/auth/v1/verification/verify"
 
-payload = json.dumps({"verification_id": verification_id, "verification_code": verification_code})
+payload = json.dumps(
+    {"verification_id": verification_id, "verification_code": verification_code}
+)
 headers = {"Content-Type": "application/json", "Accept": "application/json"}
 
 response = requests.request("POST", url, headers=headers, data=payload)

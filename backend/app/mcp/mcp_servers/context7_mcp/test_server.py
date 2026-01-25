@@ -18,7 +18,9 @@ client = Client(transport=FastMCPTransport(mcp))
 async def main() -> None:
     print("Context7 MCP 连通性测试")
     print(f"  URL: {config.url}")
-    print(f"  API Key: {'已配置' if config.headers.get('CONTEXT7_API_KEY') else '未配置'}")
+    print(
+        f"  API Key: {'已配置' if config.headers.get('CONTEXT7_API_KEY') else '未配置'}"
+    )
     print(f"  缓存: {'开启' if config.cache_config.cache_enabled else '关闭'}\n")
 
     if not config.headers.get("CONTEXT7_API_KEY"):

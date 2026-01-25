@@ -52,7 +52,9 @@ def convert_mcp_tools_to_openai_format(mcp_tools) -> list[dict[str, Any]]:
     return openai_tools
 
 
-async def execute_mcp_tool(client: Client, tool_name: str, arguments: dict[str, Any]) -> str:
+async def execute_mcp_tool(
+    client: Client, tool_name: str, arguments: dict[str, Any]
+) -> str:
     """
     执行 MCP 工具
 

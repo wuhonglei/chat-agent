@@ -28,7 +28,9 @@ def upgrade() -> None:
         "conversations",
         sa.Column("last_message_updated_at", sa.DateTime(timezone=True), nullable=True),
     )
-    op.add_column("messages", sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True))
+    op.add_column(
+        "messages", sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True)
+    )
 
     # 为现有记录设置默认值
     op.execute(

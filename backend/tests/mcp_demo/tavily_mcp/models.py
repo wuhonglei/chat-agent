@@ -40,7 +40,9 @@ class TavilySearchResponse(BaseModel):
     images: list[TavilyImage] = Field(default_factory=list, description="相关图片列表")
     results: list[TavilySearchResultItem] = Field(..., description="搜索结果列表")
     response_time: float = Field(..., description="请求响应时间（秒）")
-    auto_parameters: TavilyAutoParameters | None = Field(None, description="自动参数配置")
+    auto_parameters: TavilyAutoParameters | None = Field(
+        None, description="自动参数配置"
+    )
     request_id: str | None = Field(None, description="唯一请求标识符")
 
 
@@ -52,7 +54,9 @@ class TavilyExtractResultItem(BaseModel):
 
     url: str = Field(..., description="提取内容的URL")
     raw_content: str = Field(..., description="提取的原始内容")
-    images: list[TavilyImage] = Field(default_factory=list, description="提取的图片列表")
+    images: list[TavilyImage] = Field(
+        default_factory=list, description="提取的图片列表"
+    )
     favicon: str | None = Field(None, description="网站图标URL")
 
 
@@ -66,7 +70,9 @@ class TavilyFailedResultItem(BaseModel):
 class TavilyExtractResponse(BaseModel):
     """Tavily提取API响应"""
 
-    results: list[TavilyExtractResultItem] = Field(..., description="成功提取的内容列表")
+    results: list[TavilyExtractResultItem] = Field(
+        ..., description="成功提取的内容列表"
+    )
     failed_results: list[TavilyFailedResultItem] = Field(
         default_factory=list, description="提取失败的URL列表"
     )
@@ -82,7 +88,9 @@ class TavilyCrawlResultItem(BaseModel):
 
     url: str = Field(..., description="爬取内容的URL")
     raw_content: str = Field(..., description="爬取的原始内容")
-    images: list[TavilyImage] = Field(default_factory=list, description="爬取的图片列表")
+    images: list[TavilyImage] = Field(
+        default_factory=list, description="爬取的图片列表"
+    )
     favicon: str | None = Field(None, description="网站图标URL")
 
 
@@ -101,7 +109,9 @@ class TavilyCrawlResponse(BaseModel):
 class TavilyMapResponse(BaseModel):
     """Tavily地图API响应"""
 
-    base_url: str = Field(..., description="映射的基础URL", examples=["docs.tavily.com"])
+    base_url: str = Field(
+        ..., description="映射的基础URL", examples=["docs.tavily.com"]
+    )
     results: list[str] = Field(
         ...,
         description="发现的URL列表",
