@@ -2,13 +2,14 @@
 
 from pathlib import Path
 
+from fastmcp import FastMCP
 from fastmcp.server.middleware.caching import ResponseCachingMiddleware
 from key_value.aio.stores.disk import DiskStore
 
 from app.schemas.config import MCPCacheConfig
 
 
-def add_response_caching_if_enabled(mcp, cache_config: MCPCacheConfig) -> None:
+def add_response_caching_if_enabled(mcp: FastMCP, cache_config: MCPCacheConfig) -> None:
     """
     若 cache_config.cache_enabled 为 True，则为 mcp 添加 ResponseCachingMiddleware。
     否则不添加。封装「读取 cache_config → 判断 enabled → 创建并 add_middleware」整段逻辑。
