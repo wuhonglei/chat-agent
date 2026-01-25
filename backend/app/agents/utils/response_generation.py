@@ -1,6 +1,13 @@
 import json
+from typing import Any
 
-from app.schemas.llm import ToolCallMessage
+from openai.types.chat import ChatCompletionMessageFunctionToolCall
+
+from app.schemas.llm import (
+    AssistantToolCallMessage,
+    ToolCallMessage,
+    ToolCallResultMessage,
+)
 from app.utils.message import (
     filter_tool_call_messages,
     get_assistant_tool_call_messages,
@@ -10,31 +17,27 @@ from app.utils.message import (
 
 def get_component_data(
     component_tool_call_messages: list[ToolCallMessage],
-    component_schema: dict[str, dict],
-) -> list[dict]:
+    component_schema: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
     """获取组件数据"""
     if not component_tool_call_messages:
         return []
 
-    component_data: list[dict] = []
-    tool_call_by_id = {
-        tool_call.id: tool_call
-        for assistant_message in component_tool_call_messages
-        if assistant_message.role == "assistant"
-        for tool_call in (assistant_message.tool_calls or [])
-    }
-    for tool_call_result_message in component_tool_call_messages:
-        if (
-            tool_call_result_message.role == "tool"
-            and not tool_call_result_message.is_error
-        ):
-            tool_call = tool_call_by_id.get(tool_call_result_message.tool_call_id)
+    component_data: list[dict[str, Any]] = []
+    tool_call_by_id: dict[str, ChatCompletionMessageFunctionToolCall] = {}
+    for msg in component_tool_call_messages:
+        if isinstance(msg, AssistantToolCallMessage) and msg.tool_calls:
+            for tc in msg.tool_calls:
+                tool_call_by_id[tc.id] = tc
+    for msg in component_tool_call_messages:
+        if isinstance(msg, ToolCallResultMessage) and not msg.is_error:
+            tool_call = tool_call_by_id.get(msg.tool_call_id)
             if tool_call:
                 component_name = tool_call.function.name.replace(
                     "generate_component_", ""
                 )
-                component_description = component_schema.get(component_name, {}).get(
-                    "description", ""
+                component_description = (
+                    component_schema.get(component_name, {}).get("description") or ""
                 )
                 props = json.loads(tool_call.function.arguments)
                 component_json_data = {
@@ -81,9 +84,15 @@ def get_mcp_tool_items(
             )
 
     mcp_tool_items: list[dict[str, str]] = []
-    for message in result_msgs:
-        name, args = id_to_fn.get(message.tool_call_id, ("unknown", ""))
-        mcp_tool_items.append({"name": name, "args": args, "content": message.content})
+    for result_msg in result_msgs:
+        name, args = id_to_fn.get(result_msg.tool_call_id, ("unknown", ""))
+        mcp_tool_items.append(
+            {
+                "name": name,
+                "args": args,
+                "content": result_msg.content,
+            }
+        )
 
     if not mcp_tool_items:
         return []

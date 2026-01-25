@@ -3,12 +3,13 @@
 import base64
 import json
 import os
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
 
 import tiktoken
-from openai import BaseModel
+from pydantic import BaseModel
 
 from app.utils.common import normalize_to_dict
 from app.utils.logger import logger
@@ -306,7 +307,9 @@ class TokenCalculator:
         total_tokens += self.count_tokens(json.dumps(message.get("tool_calls", [])))
         return total_tokens
 
-    def count_messages_tokens(self, messages: list[dict[str, Any] | BaseModel]) -> int:
+    def count_messages_tokens(
+        self, messages: Sequence[dict[str, Any] | BaseModel]
+    ) -> int:
         """
         计算消息列表的 token 数量
 

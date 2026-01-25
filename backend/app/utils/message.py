@@ -1,5 +1,6 @@
 """消息处理工具函数"""
 
+from collections.abc import Sequence
 from typing import Any
 
 from toolz import dissoc, get
@@ -92,7 +93,7 @@ def format_tool_call_message_for_llm(
 
 
 def format_tool_call_messages_for_llm(
-    messages: list[ToolCallMessage | dict[str, Any]],
+    messages: Sequence[ToolCallMessage | dict[str, Any]],
     clear_reasoning_content: bool = False,
 ) -> list[dict[str, Any]]:
     """
@@ -158,7 +159,7 @@ def filter_tool_call_messages(
 
 def get_assistant_tool_call_messages(
     tool_call_messages: list[ToolCallMessage],
-) -> list[ToolCallMessage]:
+) -> list[AssistantToolCallMessage]:
     """获取 assistant 工具调用消息"""
     return [
         message
@@ -169,7 +170,7 @@ def get_assistant_tool_call_messages(
 
 def get_tool_call_result_messages(
     tool_call_messages: list[ToolCallMessage],
-) -> list[ToolCallMessage]:
+) -> list[ToolCallResultMessage]:
     """获取 tool 工具调用消息"""
     return [
         message

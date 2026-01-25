@@ -4,7 +4,7 @@ import asyncio
 import json
 from collections import defaultdict
 from collections.abc import AsyncGenerator
-from typing import Any
+from typing import Any, cast
 
 from openai.types.chat import (
     ChatCompletionMessage,
@@ -22,7 +22,7 @@ from app.prompts import (
     get_prompt_with_mcp_servers,
     get_tool_call_sufficient_info_message,
 )
-from app.schemas.chat import ChatMessageItem, ChatRequest
+from app.schemas.chat import ChatMessageItem, ChatRequest, SourceConfig
 from app.schemas.config import LLMConfig
 from app.schemas.llm import (
     AssistantToolCallMessage,
@@ -83,7 +83,7 @@ class MCPToolsAgent(BaseAgent):
         self.vocab_processor = VocabProcessor()
 
     def get_server_names(
-        self, mcp_auto_mode: bool, source_config: dict
+        self, mcp_auto_mode: bool, source_config: SourceConfig
     ) -> list[str] | None:
         """获取MCP工具服务器名称"""
         if mcp_auto_mode:
@@ -93,7 +93,7 @@ class MCPToolsAgent(BaseAgent):
             key for key, value in source_config.model_dump().items() if value is True
         ]
 
-    async def stream_execute(
+    async def stream_execute(  # type: ignore[override]
         self,
         chat_request: ChatRequest,
         history_messages: list[ChatMessageItem],
@@ -129,7 +129,7 @@ class MCPToolsAgent(BaseAgent):
 
         # 准备消息
         system_prompt, tool_call_user_message = get_prompt_with_mcp_servers(
-            user_message, mcp_auto_mode, server_names, client_ip
+            user_message, mcp_auto_mode, server_names or [], client_ip
         )
         input_messages = self._compose_messages(
             system_prompt, history_messages, tool_call_user_message, []
@@ -166,10 +166,10 @@ class MCPToolsAgent(BaseAgent):
             )
 
     def _get_tools_state(
-        self, tools: list[dict], iterations_by_tool: dict[str, int]
-    ) -> tuple[list[dict], list[str]]:
+        self, tools: list[dict[str, Any]], iterations_by_tool: dict[str, int]
+    ) -> tuple[list[dict[str, Any]], list[str]]:
         """Get the description of the tools"""
-        available_tools: list[dict] = []
+        available_tools: list[dict[str, Any]] = []
         disabled_tools: list[str] = []
         for tool in tools:
             tool_name = tool.get("function", {}).get("name", "")
@@ -181,12 +181,12 @@ class MCPToolsAgent(BaseAgent):
 
     def _update_user_message_with_tool_hints(
         self,
-        messages: list[dict],
-        tools: list[dict],
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
         iterations_by_tool: dict[str, int],
         tool_call_user_message: str,
         iteration: int,
-    ) -> tuple[list[dict], list[str]]:
+    ) -> tuple[list[dict[str, Any]], list[str]]:
         """
         更新用户消息，添加工具调用相关的提示信息
 
@@ -427,13 +427,11 @@ class MCPToolsAgent(BaseAgent):
             )
             # Note: Tool should have been filtered out before LLM call, this is defensive check
             return ToolCallResultMessage(
-                **{
-                    "role": "tool",
-                    "is_error": True,
-                    "tool_call_id": tool_call.id,
-                    "duration": get_time_duration(start_time),
-                    "content": f"Tool {tool_name} has hit max iterations, skipping",
-                }
+                role="tool",
+                is_error=True,
+                tool_call_id=tool_call.id,
+                duration=get_time_duration(start_time),
+                content=f"Tool {tool_name} has hit max iterations, skipping",
             )
 
         # Decrement AFTER checking
@@ -458,13 +456,11 @@ class MCPToolsAgent(BaseAgent):
                         iteration=current_iteration + 1,
                     )
                     return ToolCallResultMessage(
-                        **{
-                            "role": "tool",
-                            "is_error": False,
-                            "tool_call_id": tool_call.id,
-                            "duration": get_time_duration(start_time),
-                            "content": "⚠️ 提示：这些 URL 已经在之前的调用中提取过了。请检查历史工具调用结果，如果已获得足够信息，请回复 'finish'。",
-                        }
+                        role="tool",
+                        is_error=False,
+                        tool_call_id=tool_call.id,
+                        duration=get_time_duration(start_time),
+                        content="⚠️ 提示：这些 URL 已经在之前的调用中提取过了。请检查历史工具调用结果，如果已获得足够信息，请回复 'finish'。",
                     )
                 # 更新已提取的 URL 集合
                 self.extracted_urls.update(new_urls)
@@ -498,13 +494,11 @@ class MCPToolsAgent(BaseAgent):
             content = self.mcp_manager.format_mcp_result(result)
             # Add tool result to messages
             tool_call_result_message = ToolCallResultMessage(
-                **{
-                    "role": "tool",
-                    "content": content,
-                    "is_error": len(content or "") == 0,
-                    "tool_call_id": tool_call.id,
-                    "duration": get_time_duration(start_time),
-                }
+                role="tool",
+                content=content,
+                is_error=len(content or "") == 0,
+                tool_call_id=tool_call.id,
+                duration=get_time_duration(start_time),
             )
 
             server_name = self.mcp_manager.get_server_for_tool(tool_name)
@@ -551,13 +545,11 @@ class MCPToolsAgent(BaseAgent):
             return tool_call_result_message
         except Exception as e:
             tool_call_result_message = ToolCallResultMessage(
-                **{
-                    "role": "tool",
-                    "is_error": True,
-                    "content": str(e),
-                    "tool_call_id": tool_call.id,
-                    "duration": get_time_duration(start_time),
-                }
+                role="tool",
+                is_error=True,
+                content=str(e),
+                tool_call_id=tool_call.id,
+                duration=get_time_duration(start_time),
             )
             logger.error(
                 "Failed to call tool",
@@ -631,12 +623,12 @@ class MCPToolsAgent(BaseAgent):
 
     async def _call_llm_with_mcp_tools(
         self,
-        messages: list[dict],
+        messages: list[dict[str, Any]],
         model: str,
         extra_body: dict[str, Any],
-        tools: list[dict],
+        tools: list[dict[str, Any]],
         tool_call_user_message: str,
-    ) -> AsyncGenerator[ToolCallMessage, ToolCallMessage]:
+    ) -> AsyncGenerator[ToolCallMessage, None]:
         """Call LLM with MCP tools and handle tool calls, streaming results
 
         Args:
@@ -680,7 +672,8 @@ class MCPToolsAgent(BaseAgent):
             # Call LLM with tools
             # 格式化 collected_messages，过滤掉额外的字段（如 token_count, duration, is_error）
             formatted_collected_messages = format_tool_call_messages_for_llm(
-                self.output_messages, clear_reasoning_content=False
+                self.output_messages,
+                clear_reasoning_content=False,
             )
             response = await self._call_llm_api(
                 model=model,
@@ -695,7 +688,10 @@ class MCPToolsAgent(BaseAgent):
             # 检查工具调用是否应该继续（在工具调用确定后）
             if openai_message.tool_calls:
                 should_continue, continue_message = self._should_continue_tool_calls(
-                    openai_message.tool_calls
+                    cast(
+                        list[ChatCompletionMessageFunctionToolCall] | None,
+                        openai_message.tool_calls,
+                    )
                 )
                 logger.debug(
                     "Should continue tool calls",
@@ -706,13 +702,14 @@ class MCPToolsAgent(BaseAgent):
                     # 如果评估为不应该继续，添加提示但允许执行（保守策略）
                     logger.info(
                         "Tool calls may not be necessary",
-                        message=continue_message,
+                        continue_message=continue_message,
                         iteration=iteration + 1,
                     )
                     # 注意：这里不阻止工具调用，只是记录日志
                     # 实际的阻止逻辑在 _execute_single_tool 中的 URL 去重
 
-            if not openai_message.tool_calls:
+            tool_calls = openai_message.tool_calls
+            if not tool_calls:
                 logger.info(
                     "No tool calls needed",
                     has_content=bool(openai_message.content),
@@ -720,23 +717,22 @@ class MCPToolsAgent(BaseAgent):
                     if openai_message.content
                     else 0,
                 )
-                yield None
                 return
 
             # Handle tool calls
             content = openai_message.content or ""
             reasoning_content = getattr(openai_message, "reasoning_content", "")
             assistant_message = AssistantToolCallMessage(
-                **{
-                    "role": "assistant",
-                    "content": content,
-                    "tool_calls": openai_message.tool_calls,
-                    "reasoning_content": reasoning_content,
-                }
+                role="assistant",
+                content=content,
+                tool_calls=cast(
+                    list[ChatCompletionMessageFunctionToolCall], tool_calls
+                ),
+                reasoning_content=reasoning_content or None,
             )
             self.output_messages.append(assistant_message)
             yield assistant_message
-            tool_count = len(assistant_message.tool_calls)
+            tool_count = len(tool_calls)
             logger.info(
                 "Tool calls required",
                 tool_count=tool_count,
@@ -755,7 +751,9 @@ class MCPToolsAgent(BaseAgent):
                 iteration=iteration + 1,
             )
             tool_results = await self._execute_tool_calls_parallel(
-                assistant_message.tool_calls, iteration, iterations_by_tool
+                cast(list[ChatCompletionMessageFunctionToolCall], tool_calls),
+                iteration,
+                iterations_by_tool,
             )
 
             # Yield results in original order and collect them
@@ -763,18 +761,17 @@ class MCPToolsAgent(BaseAgent):
                 self.output_messages.append(tool_call_result_message)
                 yield tool_call_result_message
 
-        # If we hit max iterations, return error message
+        # If we hit max iterations, return
         logger.info(
             "Max iterations reached",
             max_iterations=self.MAX_TOTAL_ITERATIONS,
         )
-        yield None
         return
 
-    def create_token_stats(
+    def create_token_stats(  # type: ignore[override]
         self,
-        input_messages: list[dict],
-        tools: list[dict],
+        input_messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
         output_messages: list[ToolCallMessage],
     ) -> MCPToolsTokenStats:
         """创建 MCP 工具调用的 token 统计对象

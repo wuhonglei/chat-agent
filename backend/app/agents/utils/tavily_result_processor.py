@@ -33,9 +33,11 @@ class TavilyResultProcessor:
         self, tool_name: str, structured_content: dict[str, Any]
     ) -> CompactionResult:
         if tool_name == self.WEB_SEARCH:
-            payload = MultipleTavilySearchResponse.model_validate(structured_content)
+            search_payload = MultipleTavilySearchResponse.model_validate(
+                structured_content
+            )
             data, compaction_result = await self._compact_search_response(
-                payload.results,
+                search_payload.results,
                 self.tolerance_tokens_count,
                 self.threshold_tokens_count,
             )
@@ -44,20 +46,24 @@ class TavilyResultProcessor:
             return compaction_result
 
         if tool_name == self.WEB_PAGES_EXTRACT:
-            payload = TavilyExtractResponse.model_validate(structured_content)
-            payload, compaction_result = await self._compact_extract_response(
-                payload, self.tolerance_tokens_count, self.threshold_tokens_count
+            extract_payload = TavilyExtractResponse.model_validate(structured_content)
+            extract_payload, compaction_result = await self._compact_extract_response(
+                extract_payload,
+                self.tolerance_tokens_count,
+                self.threshold_tokens_count,
             )
-            formatted = tavily_utils.format_extract_results(payload)
+            formatted = tavily_utils.format_extract_results(extract_payload)
             compaction_result.content = formatted
             return compaction_result
 
         if tool_name == self.WEB_SITE_CRAWL:
-            payload = TavilyCrawlResponse.model_validate(structured_content)
-            payload, compaction_result = await self._compact_crawl_response(
-                payload, self.tolerance_tokens_count, self.threshold_tokens_count
+            crawl_payload = TavilyCrawlResponse.model_validate(structured_content)
+            crawl_payload, compaction_result = await self._compact_crawl_response(
+                crawl_payload,
+                self.tolerance_tokens_count,
+                self.threshold_tokens_count,
             )
-            formatted = tavily_utils.format_crawl_results(payload)
+            formatted = tavily_utils.format_crawl_results(crawl_payload)
             compaction_result.content = formatted
             return compaction_result
 

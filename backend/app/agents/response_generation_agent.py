@@ -37,17 +37,18 @@ class ResponseGenerationAgent(BaseAgent):
         self.total_duration: float | None = None
         self.token_stats: ResponseGenerationTokenStats | None = None
 
-    def format_sse_message(
+    def format_sse_message(  # type: ignore[override]
         self, msg_type: str, data: dict[str, Any] | None = None
     ) -> str:
         """格式化SSE消息，并更新状态（如果需要）"""
-        if msg_type == "content":
-            self.content += data.get("content") or ""
-        elif msg_type == "reasoning":
-            self.reasoning += data.get("content") or ""
+        if data:
+            if msg_type == "content":
+                self.content += data.get("content") or ""
+            elif msg_type == "reasoning":
+                self.reasoning += data.get("content") or ""
         return super().format_sse_message(msg_type, data)
 
-    async def stream_execute(
+    async def stream_execute(  # type: ignore[override]
         self,
         history_messages: list[ChatMessageItem],
         user_message: str,
@@ -122,7 +123,7 @@ class ResponseGenerationAgent(BaseAgent):
 
     async def _stream_final_response(
         self,
-        messages: list[dict],
+        messages: list[dict[str, Any]],
         model: str,
         extra_body: dict[str, Any],
     ) -> AsyncIterator[str]:
@@ -179,6 +180,7 @@ class ResponseGenerationAgent(BaseAgent):
             if content:
                 if current_phase == "reasoning":
                     # 从推理阶段切换到内容阶段：先结束推理
+                    assert phase_start_time is not None
                     yield self._finish_streaming_type("reasoning", phase_start_time)
                     current_phase = "content"
                     phase_start_time = get_current_time()
@@ -213,6 +215,7 @@ class ResponseGenerationAgent(BaseAgent):
         # 收尾：结束当前仍在进行的阶段
         if current_phase == "reasoning":
             # 情况2：只有推理，没有内容
+            assert phase_start_time is not None
             yield self._finish_streaming_type("reasoning", phase_start_time)
             # 发送占位消息，确保前端感知到内容结束
             yield self._finish_streaming_type(
@@ -220,14 +223,15 @@ class ResponseGenerationAgent(BaseAgent):
             )
         elif current_phase == "content":
             # 情况1或情况2：有内容（可能之前有推理，可能没有）
+            assert phase_start_time is not None
             yield self._finish_streaming_type("content", phase_start_time)
 
         self.total_duration = get_time_duration(start_time)
         logger.info("Stream final response completed", duration=self.total_duration)
 
-    def create_token_stats(
+    def create_token_stats(  # type: ignore[override]
         self,
-        input_messages: list[dict],
+        input_messages: list[dict[str, Any]],
         reasoning: str,
         content: str,
     ) -> ResponseGenerationTokenStats:

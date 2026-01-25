@@ -1,5 +1,7 @@
 """Title Generation Agent for generating conversation titles"""
 
+from typing import Any
+
 from app.agents.base import BaseAgent
 from app.prompts import get_prompt_for_title
 from app.schemas.config import LLMConfig
@@ -15,9 +17,9 @@ class TitleGenerationAgent(BaseAgent):
         self.duration: float | None = None
         self.token_stats: TitleGenerationTokenStats | None = None
 
-    def create_token_stats(
+    def create_token_stats(  # type: ignore[override]
         self,
-        messages: list[dict],
+        messages: list[dict[str, Any]],
         title: str,
     ) -> TitleGenerationTokenStats:
         """创建标题生成的 token 统计对象
