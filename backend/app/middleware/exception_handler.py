@@ -10,11 +10,12 @@ from app.utils.logger import logger
 
 
 async def validation_exception_handler(
-    request: Request, exc: RequestValidationError | ValidationError
+    request: Request, exc: Exception
 ) -> JSONResponse:
     """处理请求验证异常"""
+    assert isinstance(exc, (RequestValidationError, ValidationError))
     errors = exc.errors() if hasattr(exc, "errors") else []
-    error_messages = []
+    error_messages: list[str] = []
     for error in errors:
         field = " -> ".join(str(loc) for loc in error.get("loc", []))
         msg = error.get("msg", "验证失败")

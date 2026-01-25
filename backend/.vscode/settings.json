@@ -1,6 +1,9 @@
 {
   "flake8.enabled": false,
   "python.defaultInterpreterPath": ".venv/bin/python",
+  "mypy-type-checker.importStrategy": "fromEnvironment",
+  "mypy-type-checker.cwd": "${workspaceFolder}",
+  "python.analysis.typeCheckingMode": "off",
   "cSpell.words": [
     "Cloudbase",
     "mypy",

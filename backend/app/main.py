@@ -1,6 +1,7 @@
 """Main FastAPI application"""
 
 import warnings
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
@@ -29,7 +30,7 @@ setup_logger(debug=settings.app.debug)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan manager"""
     logger.info(
         "Application starting",
@@ -90,7 +91,7 @@ app.include_router(file.router, prefix="/api/file", tags=["file"])
 
 
 @app.get("/")
-async def root():
+async def root() -> dict[str, str]:
     """Root endpoint"""
     return {
         "name": settings.app.name,

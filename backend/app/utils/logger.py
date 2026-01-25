@@ -17,7 +17,7 @@ from loguru import logger as _loguru_logger
 try:
     from loguru import Message
 except ImportError:
-    Message = Any
+    Message = Any  # type: ignore
 
 from app.utils.time import format_datetime_to_iso8601
 
@@ -87,7 +87,7 @@ def production_sink(message: Message) -> None:
     # 合并代码位置信息为紧凑格式：module:function:line（与 debug_log_format 保持一致）
     location = f"{record['name']}:{record['function']}:{record['line']}"
 
-    serialized = {
+    serialized: dict[str, Any] = {
         "timestamp": format_datetime_to_iso8601(record["time"]),
         "level": record["level"].name,
         "message": record["message"],
