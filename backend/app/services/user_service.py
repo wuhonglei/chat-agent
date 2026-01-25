@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import string
-
 from sqlmodel import Session, select
 
 from app.models import UserDb
@@ -24,7 +22,7 @@ class UserService(BaseService):
         """
         super().__init__(db)
 
-    def get_user(self, user_id: str) -> UserDb:
+    def get_user(self, user_id: str) -> UserDb | None:
         """获取用户"""
         db = self._ensure_db()
         user = db.get(UserDb, user_id)
@@ -38,14 +36,14 @@ class UserService(BaseService):
         # 事务由 get_db() 或 BaseService.__exit__ 自动提交
         return user
 
-    def get_user_by_sub(self, sub: str) -> UserDb:
+    def get_user_by_sub(self, sub: str) -> UserDb | None:
         """通过 sub 获取用户"""
         db = self._ensure_db()
         user = db.exec(select(UserDb).where(UserDb.sub == sub)).first()
         return user
 
     def create_user_from_cloudbase(
-        self, token_info: SigninResponse, phone_number: string
+        self, token_info: SigninResponse, phone_number: str
     ) -> UserDb:
         """从 Cloudbase 创建用户"""
         db = self._ensure_db()
@@ -87,12 +85,13 @@ class UserService(BaseService):
         """更新用户信息"""
         db = self._ensure_db()
         user = self.get_user(user_id)
-        if user:
-            user.name = update_info.name
-            user.avatar = update_info.avatar
-            db.add(user)
-            # updated_at 通过 onupdate 在 Python 层面自动更新，不需要 refresh()
-            # 事务由 get_db() 或 BaseService.__exit__ 自动提交
+        if not user:
+            raise ValueError(f"用户不存在: {user_id}")
+        user.name = update_info.name
+        user.avatar = update_info.avatar
+        db.add(user)
+        # updated_at 通过 onupdate 在 Python 层面自动更新，不需要 refresh()
+        # 事务由 get_db() 或 BaseService.__exit__ 自动提交
         return user
 
     def get_or_create_user_by_openid(

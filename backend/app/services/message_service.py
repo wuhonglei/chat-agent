@@ -55,7 +55,7 @@ class MessageService(BaseService):
         if not message_ids:
             return
         db = self._ensure_db()
-        db.exec(delete(MessageDb).where(MessageDb.id.in_(message_ids)))
+        db.exec(delete(MessageDb).where(MessageDb.id.in_(message_ids)))  # type: ignore[attr-defined]
         # 事务由 get_db() 或 BaseService.__exit__ 自动提交
 
     def get_history_messages_by_ids(
@@ -66,7 +66,7 @@ class MessageService(BaseService):
             return []
 
         db = self._ensure_db()
-        messages = db.exec(select(MessageDb).where(MessageDb.id.in_(message_ids))).all()
+        messages = db.exec(select(MessageDb).where(MessageDb.id.in_(message_ids))).all()  # type: ignore[attr-defined]
         if not messages:
             logger.error("Messages not found", message_ids=message_ids)
             return []

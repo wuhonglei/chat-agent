@@ -73,6 +73,10 @@ async def chat_stream(
                 assistant_message = message_service.session.get(
                     MessageDb, assistant_message_id
                 )
+                if user_message is None or assistant_message is None:
+                    raise ValueError(
+                        f"Message not found: user={user_message_id}, assistant={assistant_message_id}"
+                    )
 
                 logger.debug(
                     "Retrieved conversation and messages",

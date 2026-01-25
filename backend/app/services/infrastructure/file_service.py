@@ -24,7 +24,7 @@ class FileService:
         Returns:
             上传后的文件 URL
         """
-        file_ext = get_file_extension(file.filename)
+        file_ext = get_file_extension(file.filename or "")
         avatar_dir = Path(settings.storage.avatar_dir)
 
         logger.info(
@@ -45,7 +45,7 @@ class FileService:
 
             # 上传到 COS
             with ObjectStorageService() as storage:
-                file_url = await storage.upload_file(
+                file_url: str = await storage.upload_file(
                     local_path=str(temp_file.path),
                     cos_path=cos_path,
                 )

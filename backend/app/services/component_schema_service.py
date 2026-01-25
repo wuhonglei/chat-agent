@@ -1,6 +1,9 @@
 """组件 Schema 服务，负责获取和缓存组件的 JSON Schema"""
 
+from __future__ import annotations
+
 import json
+from typing import Any
 
 import httpx
 
@@ -12,7 +15,7 @@ class ComponentSchemaService:
     """组件 Schema 服务类，负责获取和缓存组件的 JSON Schema"""
 
     # 类变量，用于应用级别的缓存
-    _schema_cache: dict[str, dict] = {}
+    _schema_cache: dict[str, dict[str, Any]] = {}
 
     def __init__(
         self,
@@ -35,7 +38,7 @@ class ComponentSchemaService:
         self.max_retries = max_retries
         self.debug = debug
 
-    async def get_schema(self, component_tool_name: str) -> dict:
+    async def get_schema(self, component_tool_name: str) -> dict[str, Any]:
         """
         获取单个组件的 Schema（带缓存检查）
 
@@ -75,7 +78,9 @@ class ComponentSchemaService:
 
         return schema
 
-    async def get_schemas(self, component_tool_names: list[str]) -> dict[str, dict]:
+    async def get_schemas(
+        self, component_tool_names: list[str]
+    ) -> dict[str, dict[str, Any]]:
         """
         批量获取多个组件的 Schema
 
@@ -94,13 +99,13 @@ class ComponentSchemaService:
         tasks = [self.get_schema(name) for name in component_tool_names]
         schemas = await asyncio.gather(*tasks, return_exceptions=True)
 
-        result = {}
+        result: dict[str, dict[str, Any]] = {}
         for name, schema in zip(component_tool_names, schemas):
-            if isinstance(schema, Exception):
+            if isinstance(schema, BaseException):
                 logger.error(
                     "Failed to get schema",
                     component_tool_name=name,
-                    error=schema,
+                    error=schema if isinstance(schema, Exception) else None,
                 )
                 # 跳过失败的 Schema，不添加到结果中
                 continue
@@ -108,7 +113,7 @@ class ComponentSchemaService:
 
         return result
 
-    async def _fetch_schema_from_api(self, component_tool_name: str) -> dict:
+    async def _fetch_schema_from_api(self, component_tool_name: str) -> dict[str, Any]:
         """
         从 API 获取 Schema（私有方法）
 
@@ -124,14 +129,14 @@ class ComponentSchemaService:
         """
         url = f"{self.base_url}/{component_tool_name}.json"
 
-        last_exception = None
+        last_exception: BaseException | None = None
         for attempt in range(self.max_retries + 1):
             try:
                 async with httpx.AsyncClient(timeout=self.timeout) as client:
                     response = await client.get(url)
                     response.raise_for_status()
 
-                    schema = response.json()
+                    schema: dict[str, Any] = response.json()
                     logger.info(
                         "Schema fetched successfully",
                         component_tool_name=component_tool_name,
@@ -172,7 +177,7 @@ class ComponentSchemaService:
                     url=url,
                     attempt=attempt + 1,
                     max_retries=self.max_retries,
-                    error=str(e),
+                    error=e,
                 )
                 if attempt < self.max_retries:
                     continue
@@ -183,7 +188,7 @@ class ComponentSchemaService:
                     "Schema JSON decode error",
                     component_tool_name=component_tool_name,
                     url=url,
-                    error=str(e),
+                    error=e,
                 )
                 # JSON 解析错误不重试
                 raise
@@ -194,17 +199,21 @@ class ComponentSchemaService:
             component_tool_name=component_tool_name,
             url=url,
             max_retries=self.max_retries,
-            error=last_exception,
+            error=last_exception if isinstance(last_exception, Exception) else None,
         )
+        if last_exception is None:
+            raise RuntimeError(
+                "Schema fetch failed: no exception recorded after retries"
+            )
         raise last_exception
 
     @classmethod
-    def get_schema_cache(cls) -> dict[str, dict]:
+    def get_schema_cache(cls) -> dict[str, dict[str, Any]]:
         """获取缓存"""
         return cls._schema_cache
 
     @classmethod
-    def clear_cache(cls):
+    def clear_cache(cls) -> None:
         """清空缓存（用于测试或强制刷新）"""
         cls._schema_cache.clear()
         logger.info("Schema cache cleared")

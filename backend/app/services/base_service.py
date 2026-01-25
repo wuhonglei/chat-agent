@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
+from typing_extensions import Self
 
 from app.core.db import engine
 from app.utils.logger import logger
@@ -38,14 +39,19 @@ class BaseService:
         self.db = db
         self._own_db = False  # 标记是否由本类创建的数据库会话
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         """上下文管理器入口：如果未提供 db，则创建新的会话"""
         if self.db is None:
             self.db = Session(engine)
             self._own_db = True
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: object | None,
+    ) -> None:
         """上下文管理器出口：自动提交或回滚事务，并关闭会话"""
         if self._own_db and self.db:
             try:

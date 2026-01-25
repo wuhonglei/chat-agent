@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from sqlmodel import Session, select
 
 from app.models import ConversationDb, MessageDb
@@ -28,7 +30,7 @@ class ConversationService(BaseService):
         """
         super().__init__(db)
 
-    def conversation_to_dict(self, conversation: ConversationDb) -> dict:
+    def conversation_to_dict(self, conversation: ConversationDb) -> dict[str, Any]:
         """Convert SQLModel Conversation instance to dict for ConversationInfo
 
         使用 mode="json" 自动将日期时间字段转换为 ISO 格式字符串
@@ -60,7 +62,7 @@ class ConversationService(BaseService):
         conversations = db.exec(
             select(ConversationDb)
             .where(ConversationDb.user_id == user_id)
-            .order_by(ConversationDb.last_message_created_at.desc())
+            .order_by(ConversationDb.last_message_created_at.desc())  # type: ignore[attr-defined]
         ).all()
         logger.debug("Found conversations", count=len(conversations))
         conversation_list = [
@@ -69,7 +71,7 @@ class ConversationService(BaseService):
         ]
         return conversation_list
 
-    def get_conversation(self, conversation_id: str) -> ConversationDb:
+    def get_conversation(self, conversation_id: str) -> ConversationDb | None:
         """获取对话"""
         db = self._ensure_db()
         conversation = db.get(ConversationDb, conversation_id)
@@ -92,7 +94,7 @@ class ConversationService(BaseService):
         messages = db.exec(
             select(MessageDb)
             .where(MessageDb.conversation_id == conversation_id)
-            .order_by(MessageDb.created_at.asc())
+            .order_by(MessageDb.created_at.asc())  # type: ignore[attr-defined]
         ).all()
         chat_messages = [
             ChatMessageItem.model_validate(message.model_dump(mode="json"))

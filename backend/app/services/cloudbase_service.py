@@ -111,7 +111,6 @@ class CloudbaseService:
                         "Cloudbase 验证短信失败",
                         status_code=response.status_code,
                         detail=response.text,
-                        error=response.text,
                     )
                     raise HTTPException(
                         status_code=response.status_code, detail="验证短信验证码失败"
@@ -157,7 +156,6 @@ class CloudbaseService:
                         "Cloudbase 登录失败",
                         status_code=response.status_code,
                         detail=response.text,
-                        error=response.text,
                     )
                     raise HTTPException(
                         status_code=response.status_code,
@@ -204,7 +202,6 @@ class CloudbaseService:
                         "Cloudbase 注册失败",
                         status_code=response.status_code,
                         detail=response.text,
-                        error=response.text,
                     )
                     raise HTTPException(
                         status_code=response.status_code,
@@ -246,7 +243,6 @@ class CloudbaseService:
                         "Cloudbase 登出失败",
                         status_code=response.status_code,
                         detail=response.text,
-                        error=response.text,
                     )
                     raise HTTPException(
                         status_code=response.status_code, detail="登出失败"
@@ -294,7 +290,6 @@ class CloudbaseService:
                         "Cloudbase token 刷新失败",
                         status_code=response.status_code,
                         detail=response.text,
-                        error=response.text,
                     )
                     raise HTTPException(
                         status_code=401, detail="Token 刷新失败，请重新登录"
