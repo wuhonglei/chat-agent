@@ -1,47 +1,72 @@
-from typing import Any
+from typing import Any, cast
 
 import jwt
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec, ed448, ed25519, rsa
 
 from app.core.config import settings
 from app.schemas.config import SecurityConfig
 from app.utils.date import get_unix_timestamp
 
+# PyJWT 接受的密钥类型（RSA / EC / Ed25519 / Ed448），与 cryptography 的 load_pem_* 兼容
+_JWTPrivateKey = (
+    rsa.RSAPrivateKey
+    | ec.EllipticCurvePrivateKey
+    | ed25519.Ed25519PrivateKey
+    | ed448.Ed448PrivateKey
+)
+_JWTPublicKey = (
+    rsa.RSAPublicKey
+    | ec.EllipticCurvePublicKey
+    | ed25519.Ed25519PublicKey
+    | ed448.Ed448PublicKey
+)
+
 
 class JWTManager:
+    algorithm: str
+    private_key: str | _JWTPrivateKey
+    public_key: str | _JWTPublicKey
+
     def __init__(self, security: SecurityConfig = settings.security):
         self.algorithm = security.jwt.algorithm
         self.private_key = security.jwt.private_key
         self.public_key = security.jwt.public_key
 
-    def load_private_key(self, key_content: str, password=None):
+    def load_private_key(self, key_content: str, password: bytes | None = None) -> None:
         """加载私钥（从密钥内容字符串）"""
         if not key_content:
             raise ValueError("Private key content is empty")
 
         try:
-            self.private_key = serialization.load_pem_private_key(
-                key_content.encode("utf-8"),
-                password=password,
-                backend=default_backend(),
+            self.private_key = cast(
+                _JWTPrivateKey,
+                serialization.load_pem_private_key(
+                    key_content.encode("utf-8"),
+                    password=password,
+                    backend=default_backend(),
+                ),
             )
         except Exception as e:
             raise ValueError(f"Failed to load private key: {e}")
 
-    def load_public_key(self, key_content: str):
+    def load_public_key(self, key_content: str) -> None:
         """加载公钥（从密钥内容字符串）"""
         if not key_content:
             raise ValueError("Public key content is empty")
 
         try:
-            self.public_key = serialization.load_pem_public_key(
-                key_content.encode("utf-8"), backend=default_backend()
+            self.public_key = cast(
+                _JWTPublicKey,
+                serialization.load_pem_public_key(
+                    key_content.encode("utf-8"), backend=default_backend()
+                ),
             )
         except Exception as e:
             raise ValueError(f"Failed to load public key: {e}")
 
-    def create_token(self, payload_data: dict[str, Any]):
+    def create_token(self, payload_data: dict[str, Any]) -> str:
         """创建 JWT token"""
         if not self.private_key:
             raise ValueError("Private key not loaded")
@@ -52,7 +77,9 @@ class JWTManager:
 
         return token
 
-    def get_payload_with_expiration(self, payload_data: dict[str, Any]):
+    def get_payload_with_expiration(
+        self, payload_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """获取 payload 并设置过期时间"""
         now = get_unix_timestamp()
         expiration = (
@@ -74,11 +101,13 @@ class JWTManager:
         payload = jwt.decode(
             jwt=token, key=self.public_key, algorithms=[self.algorithm]
         )
-        return payload
+        return cast(dict[str, Any], payload)
 
-    def decode_token_without_verification(self, token) -> dict[str, Any]:
+    def decode_token_without_verification(self, token: str) -> dict[str, Any]:
         """解码 token 但不验证签名（仅用于调试）"""
-        return jwt.decode(token, options={"verify_signature": False})
+        return cast(
+            dict[str, Any], jwt.decode(token, options={"verify_signature": False})
+        )
 
 
 # 全局单例实例
@@ -108,7 +137,7 @@ def initialize_jwt_manager() -> JWTManager:
     return get_jwt_manager()
 
 
-def get_jwt_manager_dep():
+def get_jwt_manager_dep() -> JWTManager:
     """FastAPI 依赖注入函数，用于在路由中获取 JWTManager 实例
 
     使用方式:
