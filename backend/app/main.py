@@ -89,8 +89,6 @@ app.include_router(
 app.include_router(health.router, prefix="/api/health", tags=["health"])
 app.include_router(file.router, prefix="/api/file", tags=["file"])
 
-print(json.dumps(app.routes, indent=2))
-
 
 @app.get("/")
 async def root() -> dict[str, str]:

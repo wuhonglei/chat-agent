@@ -2,4 +2,9 @@
 set -e
 
 cd "$(dirname "$0")/.."
+
 npm run lint-staged --prefix frontend
+
+
+# Backend: ruff + mypy（.pre-commit-config.yaml，仅对暂存的 .py 做类型检查）
+(cd backend && uv run pre-commit run)
