@@ -29,15 +29,15 @@ class ConversationDb(SQLModel, table=True):
         description="关联用户",
     )
     created_at: datetime = Field(
-        default_factory=get_datetime_now, sa_type=DateTime(timezone=True)
+        default_factory=lambda: get_datetime_now(), sa_type=DateTime(timezone=True)
     )
     updated_at: datetime = Field(
-        default_factory=get_datetime_now, sa_type=DateTime(timezone=True)
+        default_factory=lambda: get_datetime_now(), sa_type=DateTime(timezone=True)
     )
     last_message_created_at: datetime = Field(
-        default_factory=get_datetime_now, sa_type=DateTime(timezone=True)
+        default_factory=lambda: get_datetime_now(), sa_type=DateTime(timezone=True)
     )
     last_message_updated_at: datetime = Field(
-        default_factory=get_datetime_now, sa_type=DateTime(timezone=True)
+        default_factory=lambda: get_datetime_now(), sa_type=DateTime(timezone=True)
     )
     is_active: bool = Field(default=True)

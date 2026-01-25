@@ -18,13 +18,13 @@ class ApiResponse(BaseModel, Generic[T]):
     data: T | None = Field(None, description="响应数据")
 
     @classmethod
-    def success(cls, data: T = None, msg: str = "操作成功") -> "ApiResponse[T]":
+    def success(cls, data: T | None = None, msg: str = "操作成功") -> "ApiResponse[T]":
         """创建成功响应"""
         return cls(code=0, msg=msg, data=data)
 
     @classmethod
     def error(
-        cls, code: int = 1, msg: str = "操作失败", data: T = None
+        cls, code: int = 1, msg: str = "操作失败", data: T | None = None
     ) -> "ApiResponse[T]":
         """创建错误响应"""
         return cls(code=code, msg=msg, data=data)

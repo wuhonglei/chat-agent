@@ -31,3 +31,7 @@ config.yaml
 /nacos-data
 
 /data/
+
+.mypy_cache
+
+.ruff_cache

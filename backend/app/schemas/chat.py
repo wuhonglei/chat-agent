@@ -47,7 +47,8 @@ class ComponentToolConfig(BaseModel):
         "and", description="Condition logic: 'and' or 'or'"
     )
     when: ComponentToolWhen = Field(
-        default_factory=ComponentToolWhen, description="When condition configuration"
+        default_factory=ComponentToolWhen,  # type: ignore[arg-type]
+        description="When condition configuration",
     )
 
 
@@ -76,8 +77,10 @@ class ChatMessageItem(BaseModel):
         default_factory=get_datetime_now, description="Message updated at"
     )
     reasoning: str | None = Field(default=None, description="Reasoning content")
-    tool_calls: list[dict] | None = Field(default=None, description="Tool calls")
-    component_tool_calls: list[dict] | None = Field(
+    tool_calls: list[dict[str, Any]] | None = Field(
+        default=None, description="Tool calls"
+    )
+    component_tool_calls: list[dict[str, Any]] | None = Field(
         default=None, description="Component tool calls"
     )
     message_metadata: dict[str, Any] = Field(
@@ -102,7 +105,7 @@ class ChatMessageItem(BaseModel):
         default=None, description="内容生成耗时（秒）"
     )
     total_duration: float | None = Field(default=None, description="总耗时（秒）")
-    token_stats: dict | None = Field(
+    token_stats: dict[str, Any] | None = Field(
         default=None,
         description="Token 使用统计信息，包含各个阶段（MCP 工具调用、组件工具调用、响应生成、标题生成）的 token 使用量",
     )
@@ -167,10 +170,10 @@ class CollectedResponse(BaseModel):
 
     content: str = Field(default="", description="Collected content")
     reasoning: str = Field(default="", description="Collected reasoning")
-    tool_calls: list[dict] = Field(
+    tool_calls: list[dict[str, Any]] = Field(
         default_factory=list, description="Collected tool calls"
     )
-    component_tool_calls: list[dict] = Field(
+    component_tool_calls: list[dict[str, Any]] = Field(
         default_factory=list, description="Collected component tool calls"
     )
     tool_calls_duration: float | None = Field(
@@ -184,7 +187,7 @@ class CollectedResponse(BaseModel):
         default=None, description="内容生成耗时（秒）"
     )
     total_duration: float | None = Field(default=None, description="总耗时（秒）")
-    token_stats: dict | None = Field(
+    token_stats: dict[str, Any] | None = Field(
         default=None,
         description="Token 使用统计信息，包含各个阶段（MCP 工具调用、组件工具调用、响应生成、标题生成）的 token 使用量",
     )

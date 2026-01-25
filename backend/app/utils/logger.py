@@ -17,7 +17,7 @@ from loguru import logger as _loguru_logger
 try:
     from loguru import Message
 except ImportError:
-    Message = Any  # type: ignore
+    Message = Any
 
 from app.utils.time import format_datetime_to_iso8601
 
@@ -116,7 +116,7 @@ def production_sink(message: Message) -> None:
         }
         if traceback_str:
             exception_info["traceback"] = traceback_str
-        serialized["exception"] = exception_info  # type: ignore
+        serialized["exception"] = exception_info
 
     # 输出 JSON 格式
     sys.stderr.write(json.dumps(serialized, ensure_ascii=False) + "\n")

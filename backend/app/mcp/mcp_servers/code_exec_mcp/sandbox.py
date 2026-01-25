@@ -55,7 +55,7 @@ class SandboxExecutor:
         self.allowed_paths = allowed_paths or []
         self.allow_network_access = allow_network_access
 
-    def _set_resource_limits(self):
+    def _set_resource_limits(self) -> None:
         """设置资源限制"""
         # 设置 CPU 时间限制（软限制和硬限制）
         try:

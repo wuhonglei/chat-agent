@@ -26,18 +26,20 @@ class MessageDb(SQLModel, table=True):
     role: str  # "user" | "assistant"
     content: str = Field(default="", description="Message content")
     created_at: datetime = Field(
-        default_factory=get_datetime_now, index=True, sa_type=DateTime(timezone=True)
+        default_factory=lambda: get_datetime_now(),
+        index=True,
+        sa_type=DateTime(timezone=True),
     )
     updated_at: datetime = Field(
-        default_factory=get_datetime_now,
+        default_factory=lambda: get_datetime_now(),
         sa_column_kwargs={"onupdate": get_datetime_now},
         sa_type=DateTime(timezone=True),
     )
     reasoning: str | None = Field(default=None, description="Reasoning content")
-    tool_calls: list[dict] | None = Field(
+    tool_calls: list[dict[str, Any]] | None = Field(
         default=None, sa_type=SQLJSON, description="Tool calls"
     )
-    component_tool_calls: list[dict] | None = Field(
+    component_tool_calls: list[dict[str, Any]] | None = Field(
         default=None, sa_type=SQLJSON, description="Component tool calls"
     )
     message_metadata: dict[str, Any] = Field(
@@ -64,7 +66,7 @@ class MessageDb(SQLModel, table=True):
     total_duration: float | None = Field(
         default=None, sa_type=Float, description="总耗时（秒）"
     )
-    token_stats: dict | None = Field(
+    token_stats: dict[str, Any] | None = Field(
         default=None,
         sa_type=SQLJSON,
         description="Token 使用统计信息，包含各个阶段（MCP 工具调用、组件工具调用、响应生成、标题生成）的 token 使用量",

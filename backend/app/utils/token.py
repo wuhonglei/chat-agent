@@ -4,6 +4,7 @@ import base64
 import json
 import os
 from pathlib import Path
+from typing import Any
 from urllib.error import HTTPError, URLError
 
 import tiktoken
@@ -297,7 +298,7 @@ class TokenCalculator:
         """
         return len(self.encoding.encode(text or ""))
 
-    def count_message_tokens(self, message: dict | BaseModel) -> int:
+    def count_message_tokens(self, message: dict[str, Any] | BaseModel) -> int:
         total_tokens = 0
         message = normalize_to_dict(message)
         total_tokens += self.count_tokens(message.get("content", ""))
@@ -305,7 +306,7 @@ class TokenCalculator:
         total_tokens += self.count_tokens(json.dumps(message.get("tool_calls", [])))
         return total_tokens
 
-    def count_messages_tokens(self, messages: list[dict | BaseModel]) -> int:
+    def count_messages_tokens(self, messages: list[dict[str, Any] | BaseModel]) -> int:
         """
         计算消息列表的 token 数量
 

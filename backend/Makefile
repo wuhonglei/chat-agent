@@ -30,20 +30,20 @@ format:
 
 # Quick format using ruff
 format-ruff:
-	python -m ruff check --fix app/
-	python -m ruff format app/
+	uv run ruff check --fix app/
+	uv run ruff format app/
 
 # Linting
 lint:
-	python -m ruff check app/
+	uv run ruff check app/
 
 # Type checking
 check:
-	python -m mypy app/
+	uv run mypy app/
 
 # Run tests
 test:
-	python -m pytest
+	uv run pytest
 
 # Clean temporary files
 clean:

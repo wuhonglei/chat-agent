@@ -82,39 +82,44 @@ def format_query_search_results(response: TavilySearchResponse) -> str:
     ignored_results = response.ignored_results
 
     # Format detailed search results
-    if filtered_results:
+    results_high = filtered_results or []
+    if results_high:
         output.append(
-            f"执行的搜索查询: {query}\n{len(filtered_results)} 个高相关性搜索结果如下:"
+            f"执行的搜索查询: {query}\n{len(results_high)} 个高相关性搜索结果如下:"
         )
     # 先输出高相关性结果
-    for index, result in enumerate(filtered_results, start=1):
-        temp_output: list[str] = [f"\n第 {index} 个搜索结果的详细信息如下:"]
-        temp_output.append(f"标题: {clean_invisible_chars(result.title)}")
-        temp_output.append(f"URL: {result.url}")
-        if result.score:
-            temp_output.append(f"相关性分数: {result.score:.2f}")
-        content = clean_invisible_chars(result.content)
+    for index, result in enumerate(results_high, start=1):
+        item_lines: list[str] = [f"\n第 {index} 个搜索结果的详细信息如下:"]
+        item_lines.append(f"标题: {clean_invisible_chars(result.title or '')}")
+        item_lines.append(f"URL: {result.url}")
+        if result.score is not None:
+            item_lines.append(f"相关性分数: {result.score:.2f}")
+        content_s = result.content or ""
+        content = clean_invisible_chars(content_s)
         if content:
             if is_chunked:
                 chunks = content.split("[...]")
                 for i, chunk in enumerate(chunks, start=1):
-                    temp_output.append(f"相关内容 {i}: {chunk}")
+                    item_lines.append(f"相关内容 {i}: {chunk}")
             else:
-                temp_output.append(f"网页内容: {content}")
-        output.append("\n".join(temp_output))
+                item_lines.append(f"网页内容: {content}")
+        output.append("\n".join(item_lines))
 
     # 再输出低分结果
-    if ignored_results:
+    results_low = ignored_results or []
+    if results_low:
         output.append(
-            f"执行的搜索查询: {query}\n{len(ignored_results)} 个结果因相关性分数低于阈值 {response.threshold} 而被忽略（可作为补充信息）:"
+            f"执行的搜索查询: {query}\n{len(results_low)} 个结果因相关性分数低于阈值 {response.threshold} 而被忽略（可作为补充信息）:"
         )
-        for index, result in enumerate(ignored_results, start=1):
-            temp_output: list[str] = [f"\n第 {index} 个被忽略的搜索结果的详细信息如下:"]
-            temp_output.append(f"标题: {clean_invisible_chars(result.title)}")
-            temp_output.append(f"URL: {result.url}")
-            if result.score:
-                temp_output.append(f"相关性分数: {result.score:.2f}")
-            output.append("\n".join(temp_output))
+        for index, result in enumerate(results_low, start=1):
+            low_item_lines: list[str] = [
+                f"\n第 {index} 个被忽略的搜索结果的详细信息如下:"
+            ]
+            low_item_lines.append(f"标题: {clean_invisible_chars(result.title or '')}")
+            low_item_lines.append(f"URL: {result.url}")
+            if result.score is not None:
+                low_item_lines.append(f"相关性分数: {result.score:.2f}")
+            output.append("\n".join(low_item_lines))
 
     return "\n".join(output)
 
@@ -145,26 +150,26 @@ def format_extract_results(response: TavilyExtractResponse) -> str:
     # Format successful extraction results
     output.append(f"{len(response.results)} 个网页提取结果如下:")
     for index, result in enumerate(response.results, start=1):
-        temp_output: list[str] = [f"\n第 {index} 个提取结果的详细信息如下:"]
-        temp_output.append(f"标题: {clean_invisible_chars(result.title)}")
-        temp_output.append(f"URL: {result.url}")
-        raw_content = clean_invisible_chars(result.raw_content)
+        item_lines: list[str] = [f"\n第 {index} 个提取结果的详细信息如下:"]
+        item_lines.append(f"标题: {clean_invisible_chars(result.title or '')}")
+        item_lines.append(f"URL: {result.url}")
+        raw_content = clean_invisible_chars(result.raw_content or "")
         if raw_content:
             if is_chunked:
                 chunks = raw_content.split("[...]")
                 for i, chunk in enumerate(chunks, start=1):
-                    temp_output.append(f"相关内容 {i}: {chunk}")
+                    item_lines.append(f"相关内容 {i}: {chunk}")
             else:
-                temp_output.append(f"提取内容: {raw_content}")
-        output.append("\n".join(temp_output))
+                item_lines.append(f"提取内容: {raw_content}")
+        output.append("\n".join(item_lines))
 
     if response.failed_results:
         output.append(f"\n{len(response.failed_results)} 个网页提取失败的URL:")
         for index, failed in enumerate(response.failed_results, start=1):
-            temp_output: list[str] = [f"\n第 {index} 个提取失败的URL的详细信息如下:"]
-            temp_output.append(f"URL: {failed.url}")
-            temp_output.append(f"错误: {failed.error}")
-            output.append("\n".join(temp_output))
+            failed_lines: list[str] = [f"\n第 {index} 个提取失败的URL的详细信息如下:"]
+            failed_lines.append(f"URL: {failed.url}")
+            failed_lines.append(f"错误: {failed.error or ''}")
+            output.append("\n".join(failed_lines))
 
     return "\n".join(output)
 
@@ -186,17 +191,17 @@ def format_crawl_results(response: TavilyCrawlResponse) -> str:
     output.append(f"爬取的基础URL: {response.base_url}")
 
     for index, page in enumerate(response.results, start=1):
-        temp_output: list[str] = [f"\n第 {index} 个爬取结果的详细信息如下:"]
-        temp_output.append(f"爬取的URL: {page.url}")
-        raw_content = clean_invisible_chars(page.raw_content)
+        item_lines: list[str] = [f"\n第 {index} 个爬取结果的详细信息如下:"]
+        item_lines.append(f"爬取的URL: {page.url}")
+        raw_content = clean_invisible_chars(page.raw_content or "")
         if raw_content:
             if is_chunked:
                 chunks = raw_content.split("[...]")
                 for i, chunk in enumerate(chunks, start=1):
-                    temp_output.append(f"相关内容 {i}: {chunk}")
+                    item_lines.append(f"相关内容 {i}: {chunk}")
             else:
-                temp_output.append(f"爬取内容: {raw_content}")
-        output.append("\n".join(temp_output))
+                item_lines.append(f"爬取内容: {raw_content}")
+        output.append("\n".join(item_lines))
 
     return "\n".join(output)
 
@@ -220,7 +225,8 @@ def filter_search_results_by_score(
         items: list[TavilySearchResultItem], thresh: float
     ) -> tuple[list[TavilySearchResultItem], list[TavilySearchResultItem]]:
         """根据阈值过滤结果"""
-        high, low = [], []
+        high: list[TavilySearchResultItem] = []
+        low: list[TavilySearchResultItem] = []
         for item in items:
             (high if item.score is not None and item.score > thresh else low).append(
                 item

@@ -148,15 +148,17 @@ class CodeExecMCPConfig(BaseModel):
 class MCPConfig(BaseModel):
     """MCP 配置"""
 
-    context7_mcp: Context7MCPConfig = Field(default_factory=Context7MCPConfig)
+    context7_mcp: Context7MCPConfig = Field(
+        default_factory=Context7MCPConfig  # type: ignore[arg-type]
+    )
     confluence_mcp: ConfluenceMCPConfig = Field(
-        default_factory=ConfluenceMCPConfig,
+        default_factory=ConfluenceMCPConfig  # type: ignore[arg-type]
     )
     weather_mcp: WeatherMCPConfig = Field(
-        default_factory=WeatherMCPConfig,
+        default_factory=WeatherMCPConfig  # type: ignore[arg-type]
     )
     tavily_mcp: TavilyMCPConfig = Field(
-        default_factory=TavilyMCPConfig,
+        default_factory=TavilyMCPConfig  # type: ignore[arg-type]
     )
     ip_locator_mcp: IpLocatorMCPConfig = Field(
         default_factory=IpLocatorMCPConfig,
@@ -185,7 +187,9 @@ class StorageConfig(BaseModel):
     """存储配置"""
 
     avatar_dir: str = "./data/avatars"
-    tencent_cos: TencentCOSConfig = Field(default_factory=TencentCOSConfig)
+    tencent_cos: TencentCOSConfig = Field(
+        default_factory=TencentCOSConfig  # type: ignore[arg-type]
+    )
 
 
 class JWTConfig(BaseModel):
@@ -200,7 +204,9 @@ class JWTConfig(BaseModel):
 class SecurityConfig(BaseModel):
     """安全配置"""
 
-    jwt: JWTConfig = Field(default_factory=JWTConfig)
+    jwt: JWTConfig = Field(
+        default_factory=JWTConfig  # type: ignore[arg-type]
+    )
 
 
 class CloudbaseConfig(BaseModel):

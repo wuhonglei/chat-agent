@@ -23,7 +23,7 @@ def get_model_extra_body(think_mode: bool) -> dict[str, Any]:
     }
 
 
-def format_sse_message(msg_type: str, data=None) -> str:
+def format_sse_message(msg_type: str, data: Any | None = None) -> str:
     """Format SSE (Server-Sent Events) message
 
     注意：此方法仅用于格式化SSE消息，不负责状态更新。

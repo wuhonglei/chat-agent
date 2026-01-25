@@ -22,16 +22,20 @@ class UserDb(SQLModel, table=True):
     sub: str | None = Field(
         unique=True, index=True, description="User ID in the cloudbase"
     )
-    last_login_at: datetime | None = Field(sa_type=DateTime(timezone=True))
-    last_logout_at: datetime | None = Field(sa_type=DateTime(timezone=True))
+    last_login_at: datetime | None = Field(
+        default=None, sa_type=DateTime(timezone=True)
+    )
+    last_logout_at: datetime | None = Field(
+        default=None, sa_type=DateTime(timezone=True)
+    )
     last_login_type: str | None = Field(default="sms", description="Last login type")
     role: str = Field(default="user")
     status: str = Field(default="active or inactive", description="User status")
     created_at: datetime = Field(
-        default_factory=get_datetime_now, sa_type=DateTime(timezone=True)
+        default_factory=lambda: get_datetime_now(), sa_type=DateTime(timezone=True)
     )
     updated_at: datetime = Field(
-        default_factory=get_datetime_now,
+        default_factory=lambda: get_datetime_now(),
         sa_column_kwargs={"onupdate": get_datetime_now},
         sa_type=DateTime(timezone=True),
     )

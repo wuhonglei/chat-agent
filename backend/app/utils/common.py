@@ -1,5 +1,5 @@
 import uuid
-from typing import Any
+from typing import Any, cast
 
 from fastapi.encoders import jsonable_encoder
 
@@ -30,19 +30,18 @@ def normalize_to_dict(data: Any) -> dict[str, Any]:
     """
     if hasattr(data, "model_dump"):
         # 使用 JSON 模式确保 datetime 等类型可序列化
-        return data.model_dump(mode="json")
+        return cast(dict[str, Any], data.model_dump(mode="json"))
     if isinstance(data, dict):
-        return jsonable_encoder(data)
+        return cast(dict[str, Any], dict(jsonable_encoder(data)))
+    return cast(dict[str, Any], dict(jsonable_encoder(data)))
 
-    return jsonable_encoder(data)
 
-
-def omit_fields(dict_data: dict, fields: list[str]) -> dict:
+def omit_fields(dict_data: dict[str, Any], fields: list[str]) -> dict[str, Any]:
     """移除指定字段"""
     return {k: v for k, v in dict_data.items() if k not in fields}
 
 
-def pick_fields(dict_data: dict, field_names: list[str]) -> dict:
+def pick_fields(dict_data: dict[str, Any], field_names: list[str]) -> dict[str, Any]:
     """
     根据字段名列表从对象中提取字段并返回字典
 

@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -117,7 +119,9 @@ class WeChatCheckResponse(BaseModel):
         ...,
         description="登录状态: waiting(等待扫码), scanned(已扫码), confirmed(已确认), expired(已过期)",
     )
-    user: dict | None = Field(None, description="用户信息（仅在 confirmed 状态时返回）")
+    user: dict[str, Any] | None = Field(
+        None, description="用户信息（仅在 confirmed 状态时返回）"
+    )
 
 
 class WechatCallbackData(BaseModel):
@@ -173,6 +177,6 @@ class WeChatUserInfoResponse(BaseModel):
     privilege: list[str] | None = Field(
         None, description="用户特权信息，json 数组，如微信沃卡用户为（chinaunicom）"
     )
-    unionid: str = Field(
+    unionid: str | None = Field(
         None, description="只有在用户将公众号绑定到微信开放平台帐号后，才会出现该字段"
     )
