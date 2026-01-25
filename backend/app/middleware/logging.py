@@ -1,9 +1,11 @@
 """日志中间件 - 为每个请求生成 request_id 并绑定到日志上下文"""
 
 import time
+from collections.abc import Awaitable, Callable
 
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
 
 from app.utils.auth_deps import get_user_id_from_token
 from app.utils.common import gen_uuid
@@ -108,7 +110,11 @@ class LoggingMiddleware(BaseHTTPMiddleware):
     - 因此路由处理函数中的日志已经包含完整的上下文信息
     """
 
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
         # 设置日志上下文变量
         set_context_var(request)
 
@@ -156,7 +162,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                 method=request.method,
                 path=request.url.path,
                 process_time=f"{process_time:.3f}s",
-                error=str(e),
+                error=e,
                 error_type=type(e).__name__,
             )
             raise
