@@ -33,28 +33,31 @@
       }
     },
     {
-      "name": "Debug MCP Client",
+      "name": "Debug Time MCP 测试 (pytest)",
       "type": "debugpy",
       "request": "launch",
-      "module": "app.mcp.test_mcp_client",
+      "module": "pytest",
+      "args": [
+        "app/mcp/mcp_servers/time_mcp/test_server.py",
+        "-v",
+        "-s",
+        "-k",
+        "${input:timeMcpTestName}"
+      ],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "justMyCode": false,
       "env": {
         "PYTHONPATH": "${workspaceFolder}"
       }
-    },
+    }
+  ],
+  "inputs": [
     {
-      "name": "Debug Confluence MCP Server",
-      "type": "debugpy",
-      "request": "launch",
-      "module": "app.mcp.mcp_servers.confluence_mcp.test_server",
-      "console": "integratedTerminal",
-      "cwd": "${workspaceFolder}",
-      "justMyCode": false,
-      "env": {
-        "PYTHONPATH": "${workspaceFolder}"
-      }
+      "id": "timeMcpTestName",
+      "type": "promptString",
+      "description": "测试名，留空=全部（如 test_get_current_time_with_valid_timezone）",
+      "default": ""
     }
   ]
 }
