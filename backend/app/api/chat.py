@@ -1,6 +1,7 @@
 """Chat endpoints for Q&A"""
 
 from collections.abc import AsyncGenerator
+from typing import cast
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
@@ -21,7 +22,7 @@ router = APIRouter()
 
 def get_mcp_manager(request: Request) -> MCPClientManager:
     """获取 MCP Manager 依赖注入函数"""
-    return request.app.state.mcp_manager
+    return cast(MCPClientManager, request.app.state.mcp_manager)
 
 
 @router.post("/stream")
@@ -29,14 +30,14 @@ async def chat_stream(
     chat_request: ChatRequest,
     mcp_manager: MCPClientManager = Depends(get_mcp_manager),
     _auth: None = Depends(require_auth),
-):
+) -> StreamingResponse:
     """Stream chat response, 按需保存用户与助手消息"""
     logger.info(
         "Chat stream request received",
         chat_request=chat_request.model_dump(exclude_none=True),
     )
 
-    user_metadata = chat_request.model_dump(exclude_none=True, exclude=["content"])
+    user_metadata = chat_request.model_dump(exclude_none=True, exclude={"content"})
 
     # 创建用户消息和助手消息
     with MessageService() as message_service:
@@ -116,8 +117,12 @@ async def chat_stream(
                         {
                             "id": chat_request.conversation_id,
                             "title": title,
-                            "token_stats": chat_service.title_generation_agent.token_stats.model_dump(
-                                mode="json"
+                            "token_stats": (
+                                chat_service.title_generation_agent.token_stats.model_dump(
+                                    mode="json"
+                                )
+                                if chat_service.title_generation_agent.token_stats
+                                else None
                             ),
                         },
                     )
@@ -150,7 +155,7 @@ async def chat_stream(
                 )
 
                 # 更新助手消息
-                chat_service.total_duration = get_time_duration(start_time)
+                total_duration = get_time_duration(start_time)
                 assistant_payload = chat_service.get_collected_response()
 
                 logger.debug(
@@ -162,7 +167,7 @@ async def chat_stream(
                     component_tool_calls_count=len(
                         assistant_payload.component_tool_calls
                     ),
-                    total_duration=chat_service.total_duration,
+                    total_duration=total_duration,
                 )
 
                 assistant_message = message_service.update_assistant_message(
@@ -219,9 +224,8 @@ async def chat_stream(
             logger.error(
                 "Error during stream response generation",
                 conversation_id=chat_request.conversation_id,
-                error=str(e),
+                error=e,
                 error_type=type(e).__name__,
-                exc_info=True,
             )
             yield format_sse_message(
                 "error",

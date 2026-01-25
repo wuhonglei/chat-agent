@@ -1,5 +1,7 @@
 """Health check endpoints"""
 
+from typing import cast
+
 from fastapi import APIRouter, Depends, Request
 
 from app.mcp.mcp_client import MCPClientManager
@@ -11,11 +13,11 @@ router = APIRouter()
 
 def get_mcp_manager(request: Request) -> MCPClientManager:
     """获取 MCP Manager 依赖注入函数"""
-    return request.app.state.mcp_manager
+    return cast(MCPClientManager, request.app.state.mcp_manager)
 
 
 @router.get("")
-async def health_check() -> ApiResponse[dict]:
+async def health_check() -> ApiResponse[dict[str, str]]:
     """Basic health check"""
     return ApiResponse.success(data={"status": "healthy"}, msg="健康检查成功")
 

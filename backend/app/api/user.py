@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 
 from app.core.db import get_db
+from app.models import UserDb
 from app.schemas.response import ApiResponse
 from app.schemas.token import SecretTokenInfo
 from app.schemas.user import UpdateUserInfo
@@ -19,7 +20,7 @@ router = APIRouter()
 async def get_user_detail(
     db: Session = Depends(get_db),
     token_info: SecretTokenInfo = Depends(get_auth_token_info),
-):
+) -> ApiResponse[UserDb]:
     """获取用户信息"""
     user_service = UserService(db)
     user = user_service.get_user(token_info.user_id)
@@ -33,7 +34,7 @@ async def update_user_info(
     update_info: UpdateUserInfo,
     db: Session = Depends(get_db),
     token_info: SecretTokenInfo = Depends(get_auth_token_info),
-):
+) -> ApiResponse[UserDb]:
     """更新用户信息"""
     user_service = UserService(db)
     user = user_service.update_user_info(token_info.user_id, update_info)

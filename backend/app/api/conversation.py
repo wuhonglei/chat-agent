@@ -1,5 +1,7 @@
 """Conversations endpoints"""
 
+from typing import Any
+
 from fastapi import APIRouter, Depends
 from sqlmodel import Session
 
@@ -35,7 +37,7 @@ async def register_conversation(
 async def get_conversations(
     db: Session = Depends(get_db),
     token_info: SecretTokenInfo = Depends(get_auth_token_info),
-) -> ApiResponse[dict]:
+) -> ApiResponse[dict[str, Any]]:
     """Get all conversations"""
     service = ConversationService(db)
     conversations = service.get_conversations(token_info.user_id)
@@ -53,7 +55,7 @@ async def get_messages(
     conversation_id: str,
     db: Session = Depends(get_db),
     _auth: None = Depends(require_auth),
-) -> ApiResponse[dict]:
+) -> ApiResponse[dict[str, Any]]:
     """Get messages by conversation ID"""
     service = ConversationService(db)
     if not service.get_conversation(conversation_id):
