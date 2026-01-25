@@ -7,6 +7,7 @@
 
 import asyncio
 import copy
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -39,7 +40,7 @@ mcp_config = {
         "ip-locator-mcp": ip_locator_mcp,
         "time-mcp": time_mcp,
         "context7-mcp": settings.mcp.context7_mcp.model_dump(
-            mode="json", exclude=["cache_config"]
+            mode="json", exclude={"cache_config"}
         ),
         "confluence-mcp": {
             "server": mcp_confluence,
@@ -57,30 +58,35 @@ mcp_config_for_fe: list[MCPConfigForFeDict] = [
         "name": "Context7",
         "icon": "https://context7.com/favicon.ico",
         "description": "为 LLM 和 AI 代码编辑器提供最新文档",
+        "online": False,
     },
     {
         "id": "confluence-mcp",
         "name": "Confluence",
         "icon": "https://www.atlassian.com/favicon.ico",
         "description": "Shopee 内部公司知识库查询",
+        "online": False,
     },
     {
         "id": "weather-mcp",
         "name": "天气查询",
         "icon": "https://www.qweather.com/favicon.ico",
         "description": "天气信息查询",
+        "online": False,
     },
     {
         "id": "tavily-mcp",
         "name": "联网搜索",
         "icon": "https://www.tavily.com/logos/favicon.ico",
         "description": "联网搜索和内容提取",
+        "online": False,
     },
     {
         "id": "code-exec-mcp",
         "name": "代码执行",
         "icon": "https://www.python.org/static/favicon.ico",
         "description": "安全的 Python 代码执行服务，使用沙箱隔离确保安全性",
+        "online": False,
     },
 ]
 
@@ -91,10 +97,10 @@ class MCPClientManager:
     负责管理多个 MCP Server 的连接和工具调用
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """初始化 MCP Client 管理器"""
         self.servers: dict[str, Any] = {}  # MCP server 实例
-        self.clients: dict[str, Client] = {}  # Client 实例
+        self.clients: dict[str, Client[Any]] = {}  # Client 实例
         self.tools_map: dict[str, str] = {}  # 工具名 -> server 名映射
         self.tools_by_server: dict[str, list[Any]] = {}  # server 名 -> 工具列表映射
         self._initialized = False
@@ -154,6 +160,7 @@ class MCPClientManager:
 
             try:
                 # 根据服务器类型选择不同的传输方式
+                transport: Any
                 if isinstance(server_instance, FastMCP):
                     # 本地 FastMCP 服务器
                     transport = FastMCPTransport(server_instance)
@@ -261,8 +268,10 @@ class MCPClientManager:
         if not self._initialized:
             raise RuntimeError("MCPClientManager 未初始化，请先调用 initialize()")
 
-        all_tools = {}
-        server_names = self.clients.keys() if server_names is None else server_names
+        all_tools: dict[str, list[Any]] = {}
+        server_names = (
+            list(self.clients.keys()) if server_names is None else server_names
+        )
         if not server_names:
             return {}
 
@@ -278,10 +287,12 @@ class MCPClientManager:
         tasks = [list_tools_for_server(server_name) for server_name in server_names]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         for server_name, tools in zip(server_names, results):
-            if isinstance(tools, Exception):
+            if isinstance(tools, BaseException):
                 logger.error(
                     "Failed to get tools list",
-                    error=tools,
+                    error=(
+                        tools if isinstance(tools, Exception) else Exception(str(tools))
+                    ),
                     server_name=server_name,
                 )
             else:
@@ -410,7 +421,7 @@ class MCPClientManager:
                         text_parts.append(item["text"])
                 return "\n".join(text_parts)
             elif hasattr(result.content, "text"):
-                return result.content.text
+                return str(result.content.text)
             else:
                 return str(result.content)
         else:
@@ -456,7 +467,7 @@ class MCPClientManager:
         return self.tools_map.get(tool_name)
 
     @asynccontextmanager
-    async def managed_session(self):
+    async def managed_session(self) -> AsyncIterator["MCPClientManager"]:
         """
         上下文管理器，自动处理初始化和清理
 
@@ -480,7 +491,9 @@ class MCPClientManager:
         if not self._initialized:
             raise RuntimeError("MCPClientManager 未初始化，请先调用 initialize()")
 
-        async def check_single_server(server_name: str, client) -> tuple[str, bool]:
+        async def check_single_server(
+            server_name: str, client: Client[Any]
+        ) -> tuple[str, bool]:
             """检查单个服务器的健康状态"""
             try:
                 # # 尝试列出工具来检查连接是否正常(为了避免该请求比较耗时，因此临时注释)
@@ -508,11 +521,18 @@ class MCPClientManager:
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # 处理结果
-        health_status = {}
+        health_status: dict[str, bool] = {}
         for result in results:
-            if isinstance(result, Exception):
+            if isinstance(result, BaseException):
                 # 如果任务本身出现异常，记录错误
-                logger.error("Health check task exception", error=result)
+                logger.error(
+                    "Health check task exception",
+                    error=(
+                        result
+                        if isinstance(result, Exception)
+                        else Exception(str(result))
+                    ),
+                )
             else:
                 server_name, is_healthy = result
                 health_status[server_name] = is_healthy
