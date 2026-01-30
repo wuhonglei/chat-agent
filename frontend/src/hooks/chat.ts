@@ -99,7 +99,7 @@ export const useChatState = (conversationId: string) => {
 };
 
 export const useChatMessage = (options: UseChatMessageOptions) => {
-  const { conversationId, historyLimit = 10 } = options;
+  const { conversationId, historyLimit = 100 } = options;
   const dispatch = useAppDispatch();
   const { message } = App.useApp();
   const { messages, isLoading, isStreaming } = useChatState(conversationId);
