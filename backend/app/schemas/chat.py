@@ -7,6 +7,7 @@ from typing import Any, Literal
 from openai.types.chat import ChatCompletionMessageFunctionToolCall
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.llm import ToolCallMessage
 from app.utils.date import get_datetime_now
 
 
@@ -77,10 +78,10 @@ class ChatMessageItem(BaseModel):
         default_factory=get_datetime_now, description="Message updated at"
     )
     reasoning: str | None = Field(default=None, description="Reasoning content")
-    tool_calls: list[dict[str, Any]] | None = Field(
+    tool_calls: list[ToolCallMessage] | None = Field(
         default=None, description="Tool calls"
     )
-    component_tool_calls: list[dict[str, Any]] | None = Field(
+    component_tool_calls: list[ToolCallMessage] | None = Field(
         default=None, description="Component tool calls"
     )
     message_metadata: dict[str, Any] = Field(
@@ -165,25 +166,15 @@ class ChatResponse(BaseModel):
     )
 
 
-class TitleGenerationResult(BaseModel):
-    """标题生成结果"""
-
-    title: str = Field(..., description="生成的标题")
-    token_stats: dict[str, Any] | None = Field(
-        None,
-        description="Token 使用统计",
-    )
-
-
 class CollectedResponse(BaseModel):
     """Collected response model"""
 
     content: str = Field(default="", description="Collected content")
     reasoning: str = Field(default="", description="Collected reasoning")
-    tool_calls: list[dict[str, Any]] = Field(
+    tool_calls: list[ToolCallMessage] = Field(
         default_factory=list, description="Collected tool calls"
     )
-    component_tool_calls: list[dict[str, Any]] = Field(
+    component_tool_calls: list[ToolCallMessage] = Field(
         default_factory=list, description="Collected component tool calls"
     )
     tool_calls_duration: float | None = Field(

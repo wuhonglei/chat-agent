@@ -339,14 +339,8 @@ class ChatService:
         return CollectedResponse(
             content=self.response_generation_agent.content,
             reasoning=self.response_generation_agent.reasoning,
-            tool_calls=[
-                tool_call.model_dump(mode="json")
-                for tool_call in self.mcp_tools_agent.output_messages
-            ],
-            component_tool_calls=[
-                tool_call.model_dump(mode="json")
-                for tool_call in self.component_tools_agent.output_messages
-            ],
+            tool_calls=self.mcp_tools_agent.output_messages,
+            component_tool_calls=self.component_tools_agent.output_messages,
             tool_calls_duration=self.mcp_tools_agent.duration,
             component_tool_calls_duration=self.component_tools_agent.duration,
             reasoning_duration=self.response_generation_agent.reasoning_duration,

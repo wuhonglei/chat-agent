@@ -15,7 +15,7 @@ from app.schemas.chat import (
     MessageStatus,
 )
 from app.services.base_service import BaseService
-from app.utils.common import gen_uuid
+from app.utils.common import gen_uuid, normalize_to_dict
 from app.utils.date import get_datetime_now
 from app.utils.logger import logger
 
@@ -262,15 +262,17 @@ class MessageService(BaseService):
         if assistant_payload.reasoning:
             assistant_message.reasoning = assistant_payload.reasoning
         if assistant_payload.tool_calls:
-            assistant_message.tool_calls = assistant_payload.tool_calls
+            assistant_message.tool_calls = [
+                normalize_to_dict(m) for m in assistant_payload.tool_calls
+            ]
         if assistant_payload.tool_calls_duration:
             assistant_message.tool_calls_duration = (
                 assistant_payload.tool_calls_duration
             )
         if assistant_payload.component_tool_calls:
-            assistant_message.component_tool_calls = (
-                assistant_payload.component_tool_calls
-            )
+            assistant_message.component_tool_calls = [
+                normalize_to_dict(m) for m in assistant_payload.component_tool_calls
+            ]
         if assistant_payload.component_tool_calls_duration:
             assistant_message.component_tool_calls_duration = (
                 assistant_payload.component_tool_calls_duration
