@@ -1,5 +1,6 @@
 """Chat service for RAG-based Q&A"""
 
+import asyncio
 from collections.abc import AsyncGenerator
 
 from app.agents import (
@@ -14,9 +15,12 @@ from app.schemas.chat import (
     ChatMessageItem,
     ChatRequest,
     CollectedResponse,
+    MessageStatus,
 )
 from app.schemas.token_stats import TotalTokenStats
 from app.services.component_schema_service import ComponentSchemaService
+from app.services.message_service import MessageService
+from app.utils.common import pick_fields
 from app.utils.logger import logger
 from app.utils.model import format_sse_message
 from app.utils.time import get_current_time, get_time_duration
@@ -181,6 +185,147 @@ class ChatService:
                 "token_stats": token_stats,
             },
         )
+
+    async def stream_response(
+        self,
+        chat_request: ChatRequest,
+        user_message_id: str,
+        assistant_message_id: str,
+    ) -> AsyncGenerator[str, None]:
+        """生成完整流式响应：ack、正文流、标题（可选）、done/error"""
+        conversation_id = chat_request.conversation_id
+        try:
+            with MessageService() as message_service:
+                conversation, user_message, assistant_message = (
+                    message_service.get_conversation_and_messages(
+                        conversation_id, user_message_id, assistant_message_id
+                    )
+                )
+                logger.debug(
+                    "Retrieved conversation and messages",
+                    conversation_id=conversation_id,
+                    user_message_role=user_message.role,
+                    assistant_message_status=assistant_message.status,
+                )
+
+                yield format_sse_message("ack", user_message)
+                yield format_sse_message("ack", assistant_message)
+                yield format_sse_message("refresh_conversation", conversation)
+
+                title_task: asyncio.Task[str] | None = None
+                if chat_request.regenerate_title:
+                    title_task = asyncio.create_task(
+                        self.generate_title(
+                            chat_request.content,
+                            conversation_id=conversation_id,
+                        )
+                    )
+
+                start_time = get_current_time()
+                history_messages = message_service.get_history_messages_by_ids(
+                    chat_request.history_ids
+                )
+                logger.info(
+                    "Starting stream message generation",
+                    conversation_id=conversation_id,
+                    history_ids_count=len(chat_request.history_ids),
+                    history_messages_count=len(history_messages),
+                )
+
+                chunk_count = 0
+                async for chunk in self.stream_message(
+                    chat_request=chat_request,
+                    history_messages=history_messages,
+                    client_ip=None,
+                ):
+                    if title_task is not None and title_task.done():
+                        try:
+                            if title_message := title_task.result():
+                                yield title_message
+                        except Exception:
+                            pass
+                        title_task = None
+                    chunk_count += 1
+                    yield chunk
+
+                if title_task is not None:
+                    try:
+                        if title_message := await title_task:
+                            yield title_message
+                    except Exception as e:
+                        logger.warning(
+                            "Title generation failed, stream continues",
+                            conversation_id=conversation_id,
+                            error=e,
+                        )
+
+                logger.info(
+                    "Stream message generation completed",
+                    conversation_id=conversation_id,
+                    total_chunks=chunk_count,
+                )
+
+                assistant_payload = self.get_collected_response()
+                assistant_message = message_service.update_assistant_message(
+                    conversation,
+                    assistant_message,
+                    assistant_payload=assistant_payload,
+                    status=MessageStatus.DONE,
+                )
+
+                logger.info(
+                    "Assistant message updated",
+                    conversation_id=conversation_id,
+                    assistant_message_id=assistant_message_id,
+                    status=MessageStatus.DONE,
+                    updated_at=str(assistant_message.updated_at)
+                    if assistant_message.updated_at
+                    else None,
+                )
+
+                done_payload = {
+                    "content_length": len(assistant_payload.content),
+                    "reasoning_length": len(assistant_payload.reasoning),
+                    "tool_calls_length": len(assistant_payload.tool_calls),
+                    "component_tool_calls_length": len(
+                        assistant_payload.component_tool_calls
+                    ),
+                    **pick_fields(
+                        assistant_payload.model_dump(mode="json"),
+                        [
+                            "tool_calls_duration",
+                            "component_tool_calls_duration",
+                            "reasoning_duration",
+                            "content_duration",
+                            "total_duration",
+                            "token_stats",
+                        ],
+                    ),
+                    **pick_fields(
+                        assistant_message.model_dump(mode="json"), ["updated_at"]
+                    ),
+                }
+                logger.info(
+                    "Sending done message",
+                    conversation_id=conversation_id,
+                    **done_payload,
+                )
+                yield format_sse_message("done", done_payload)
+                logger.info(
+                    "Stream response generation completed successfully",
+                    conversation_id=conversation_id,
+                )
+        except Exception as e:
+            logger.error(
+                "Error during stream response generation",
+                conversation_id=conversation_id,
+                error=e,
+                error_type=type(e).__name__,
+            )
+            yield format_sse_message(
+                "error",
+                {"content": str(e), "conversation_id": conversation_id},
+            )
 
     def get_collected_response(self) -> CollectedResponse:
         """获取已收集的助手消息内容"""

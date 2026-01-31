@@ -1,19 +1,13 @@
 """Health check endpoints"""
 
-from typing import cast
+from fastapi import APIRouter, Depends
 
-from fastapi import APIRouter, Depends, Request
-
+from app.api.deps import get_mcp_manager
 from app.mcp.mcp_client import MCPClientManager
 from app.schemas.mcp import MCPConfigForFeDict
 from app.schemas.response import ApiResponse
 
 router = APIRouter()
-
-
-def get_mcp_manager(request: Request) -> MCPClientManager:
-    """获取 MCP Manager 依赖注入函数"""
-    return cast(MCPClientManager, request.app.state.mcp_manager)
 
 
 @router.get("")

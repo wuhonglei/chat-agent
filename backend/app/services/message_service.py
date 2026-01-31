@@ -50,6 +50,22 @@ class MessageService(BaseService):
             raise HTTPException(status_code=404, detail="对话不存在")
         return conversation
 
+    def get_conversation_and_messages(
+        self,
+        conversation_id: str,
+        user_message_id: str,
+        assistant_message_id: str,
+    ) -> tuple[ConversationDb, MessageDb, MessageDb]:
+        """获取对话及用户消息、助手消息，用于流式响应"""
+        conversation = self.get_conversation(conversation_id)
+        user_message = self._ensure_db().get(MessageDb, user_message_id)
+        assistant_message = self._ensure_db().get(MessageDb, assistant_message_id)
+        if user_message is None or assistant_message is None:
+            raise ValueError(
+                f"Message not found: user={user_message_id}, assistant={assistant_message_id}"
+            )
+        return (conversation, user_message, assistant_message)
+
     def remove_messages(self, message_ids: list[str]) -> None:
         """删除消息"""
         if not message_ids:
