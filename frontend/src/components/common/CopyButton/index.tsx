@@ -9,14 +9,7 @@ interface CopyButtonProps extends ButtonProps {
 }
 
 const CopyButton = (props: CopyButtonProps) => {
-  const {
-    text,
-    children = "复制",
-    icon = <CopyIcon />,
-    type = "text",
-    size = "small",
-    ...rest
-  } = props;
+  const { text, children = "复制", icon = <CopyIcon />, type = "text", size = "small", ...rest } = props;
   const { copied, onClick: onCopyClick } = useCopyClick({
     copyConfig: { text },
   });

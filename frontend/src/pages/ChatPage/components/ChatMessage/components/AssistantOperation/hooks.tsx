@@ -1,7 +1,4 @@
-import {
-  TOKEN_STATS_AGENT_NAMES_SORTED,
-  TOKEN_STATS_TITLE_BY_AGENT_NAME,
-} from "@/constants";
+import { TOKEN_STATS_AGENT_NAMES_SORTED, TOKEN_STATS_TITLE_BY_AGENT_NAME } from "@/constants";
 import { TokenStats, TotalTokenStats } from "@/interfaces/token";
 import { useMemo } from "react";
 

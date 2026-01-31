@@ -11,10 +11,7 @@ type Props = {
 
 export default function SiteTitle({ level = 5, style }: Props) {
   return (
-    <Title
-      level={level}
-      style={{ marginBottom: 0, letterSpacing: 1, ...style }}
-    >
+    <Title level={level} style={{ marginBottom: 0, letterSpacing: 1, ...style }}>
       {WEB_TITLE}
     </Title>
   );

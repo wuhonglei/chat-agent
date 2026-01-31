@@ -28,13 +28,8 @@ export default function TopHeader({ conversationInfo }: Props) {
   });
 
   return (
-    <Header
-      style={{ height: 60, backgroundColor: "white" }}
-      className="flex justify-center items-center"
-    >
-      {conversationInfo && (
-        <HoverButton title={conversationInfo.title} onConfirm={handleEdit} />
-      )}
+    <Header style={{ height: 60, backgroundColor: "white" }} className="flex justify-center items-center">
+      {conversationInfo && <HoverButton title={conversationInfo.title} onConfirm={handleEdit} />}
     </Header>
   );
 }

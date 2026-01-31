@@ -8,12 +8,7 @@ type Props = {
 
 export default function SiteLogo({ size = 36, bgColor = "#D0E3FD" }: Props) {
   return (
-    <Avatar
-      size={size}
-      src={WEB_LOGO}
-      className="shadow-2xs"
-      style={{ backgroundColor: bgColor, border: "none" }}
-    >
+    <Avatar size={size} src={WEB_LOGO} className="shadow-2xs" style={{ backgroundColor: bgColor, border: "none" }}>
       LOGO
     </Avatar>
   );

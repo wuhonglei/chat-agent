@@ -79,18 +79,12 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
             reasoningDuration={message.reasoningDuration}
           />
           {/* 渲染模型返回的内容 */}
-          <MarkdownContainer className="text-base w-full">
-            {displayContent}
-          </MarkdownContainer>
+          <MarkdownContainer className="text-base w-full">{displayContent}</MarkdownContainer>
         </div>
       )}
       footer={
         isStreaming ? null : (
-          <AssistantOperation
-            message={message}
-            onReSend={onReSend}
-            tokenStats={message.tokenStats}
-          />
+          <AssistantOperation message={message} onReSend={onReSend} tokenStats={message.tokenStats} />
         )
       }
     />

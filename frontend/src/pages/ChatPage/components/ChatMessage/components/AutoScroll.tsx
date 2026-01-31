@@ -9,11 +9,7 @@ type Props = {
   containerRef: React.RefObject<HTMLElement | null>;
 };
 
-export default function AutoScroll({
-  messages,
-  isStreaming,
-  containerRef,
-}: Props) {
+export default function AutoScroll({ messages, isStreaming, containerRef }: Props) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const _isScrollByUser = useIsScrollByUser(containerRef); // 滚动是否由用户触发
   const isScrollByUserRef = useRef(isStreaming && _isScrollByUser);
@@ -41,9 +37,7 @@ export default function AutoScroll({
         userScrollUpRef.current = true;
       } else if (scrollDelta >= 0) {
         // 滚动条向下滚动(用户看到下面的内容)
-        const isAtBottom =
-          container.scrollTop + container.clientHeight >=
-          container.scrollHeight - 10;
+        const isAtBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 10;
         // 当用户滚动到最底部时，恢复自动滚动
         userScrollUpRef.current = !isAtBottom;
       }

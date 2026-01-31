@@ -12,10 +12,7 @@ export function isDaytime(time: string): boolean {
 /**
  * 根据天气图标代码获取对应的背景渐变类名
  */
-export function getWeatherBackgroundClass(
-  icon: string,
-  styles: Record<string, string>
-): string {
+export function getWeatherBackgroundClass(icon: string, styles: Record<string, string>): string {
   const iconNum = parseInt(icon, 10);
 
   // 晴天 (100, 150)
@@ -34,20 +31,12 @@ export function getWeatherBackgroundClass(
   }
 
   // 雨天 (300-399, 350-351)
-  if (
-    (iconNum >= 300 && iconNum <= 399) ||
-    iconNum === 350 ||
-    iconNum === 351
-  ) {
+  if ((iconNum >= 300 && iconNum <= 399) || iconNum === 350 || iconNum === 351) {
     return styles.bgRainy;
   }
 
   // 雪天 (400-499, 456-457)
-  if (
-    (iconNum >= 400 && iconNum <= 499) ||
-    iconNum === 456 ||
-    iconNum === 457
-  ) {
+  if ((iconNum >= 400 && iconNum <= 499) || iconNum === 456 || iconNum === 457) {
     return styles.bgSnowy;
   }
 
@@ -93,10 +82,7 @@ export function extractTemperature(str: string): {
   let unit = match[2] || null;
 
   // 标准化单位表示
-  if (
-    unit &&
-    (unit.toLowerCase() === "celsius" || unit.toLowerCase() === "centigrade")
-  ) {
+  if (unit && (unit.toLowerCase() === "celsius" || unit.toLowerCase() === "centigrade")) {
     unit = "°C";
   }
 

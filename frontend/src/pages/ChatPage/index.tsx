@@ -1,9 +1,6 @@
 import { useChatMessage, useChatState } from "@/hooks";
 import { useCachedRequest, useConversationInfo } from "@/hooks/chat";
-import {
-  ChatInputFormValues,
-  ChatMessage as ChatMessageType,
-} from "@/interfaces";
+import { ChatInputFormValues, ChatMessage as ChatMessageType } from "@/interfaces";
 import { useMemoizedFn } from "ahooks";
 import { Form } from "antd";
 import classNames from "classnames";
@@ -25,13 +22,8 @@ const ChatPage: React.FC = () => {
   const { sendMessage, reSendMessage, abortMessage } = useChatMessage({
     conversationId,
   });
-  const {
-    isStreaming,
-    isLoading,
-    isReasoning,
-    isCallingMcpTools,
-    isCallingComponentTools,
-  } = useChatState(conversationId);
+  const { isStreaming, isLoading, isReasoning, isCallingMcpTools, isCallingComponentTools } =
+    useChatState(conversationId);
   const [form] = Form.useForm<ChatInputFormValues>();
 
   useCachedRequest(conversationId, conversationInfo);
@@ -40,11 +32,9 @@ const ChatPage: React.FC = () => {
     sendMessage({ ...form.getFieldsValue(), content }, { index });
   });
 
-  const handleReSend = useMemoizedFn(
-    (index: number, message: ChatMessageType) => {
-      reSendMessage(index, message, form.getFieldsValue());
-    }
-  );
+  const handleReSend = useMemoizedFn((index: number, message: ChatMessageType) => {
+    reSendMessage(index, message, form.getFieldsValue());
+  });
 
   const handleAbortMessage = useMemoizedFn(() => {
     abortMessage(conversationId);
@@ -55,12 +45,7 @@ const ChatPage: React.FC = () => {
       <TopHeader conversationInfo={conversationInfo} />
       <main className="flex-1 flex">
         {/* Chat area */}
-        <div
-          className={classNames(
-            "flex-1 flex flex-col h-full bg-white",
-            styles.container
-          )}
-        >
+        <div className={classNames("flex-1 flex flex-col h-full bg-white", styles.container)}>
           {/* 渲染消息列表 */}
           <ChatMessageList
             isLoading={isLoading}
@@ -81,9 +66,7 @@ const ChatPage: React.FC = () => {
             onStop={handleAbortMessage}
             className={styles["input-container"]}
           />
-          <div className="mx-auto py-1 md:py-1.5 text-black-quaternary text-xs">
-            内容由 AI 生成，请仔细甄别
-          </div>
+          <div className="mx-auto py-1 md:py-1.5 text-black-quaternary text-xs">内容由 AI 生成，请仔细甄别</div>
         </div>
       </main>
     </section>

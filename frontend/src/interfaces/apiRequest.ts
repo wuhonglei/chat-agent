@@ -67,7 +67,5 @@ export type StreamMessage =
     };
 
 export type StreamMessageHandlerMap = {
-  [type in StreamMessage["type"]]: (
-    data: Extract<StreamMessage, { type: type }>["data"]
-  ) => void;
+  [type in StreamMessage["type"]]: (data: Extract<StreamMessage, { type: type }>["data"]) => void;
 };

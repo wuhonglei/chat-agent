@@ -4,10 +4,7 @@ import { TitleCreatedBy } from "@/constants";
 import { useIsSmallScreen, useWebTitle } from "@/hooks";
 import { EditConversationInfo } from "@/interfaces";
 import { useAppDispatch } from "@/store/hooks";
-import {
-  deleteConversation,
-  updateConversationInfo,
-} from "@/store/slices/conversationSlice";
+import { deleteConversation, updateConversationInfo } from "@/store/slices/conversationSlice";
 import { Conversations, XProvider } from "@ant-design/x";
 import { useClickAway, useMemoizedFn } from "ahooks";
 import { App, Button, Layout, theme } from "antd";
@@ -19,12 +16,7 @@ import SimpleBar from "simplebar-react";
 import SiteLogo from "../common/SiteLogo";
 import SiteTitle from "../common/SiteTitle";
 import styles from "./css/mainLayout.module.css";
-import {
-  useConversionInfo,
-  useConversionsProps,
-  useHideSidebar,
-  useSidebarStyles,
-} from "./hooks";
+import { useConversionInfo, useConversionsProps, useHideSidebar, useSidebarStyles } from "./hooks";
 import RenameModal from "./modals/RenameModal";
 import UserAccount from "./UserAccount";
 const { useToken } = theme;
@@ -41,8 +33,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { token } = useToken();
-  const [editConversionInfo, setEditConversionInfo] =
-    useState<EditConversationInfo | null>(null);
+  const [editConversionInfo, setEditConversionInfo] = useState<EditConversationInfo | null>(null);
   const isSmallScreen = useIsSmallScreen();
   const [collapsed, setCollapsed] = useState(isSmallScreen);
   const conversationInfo = useConversionInfo();
@@ -72,10 +63,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     });
   });
 
-  const { items, menu, groupable } = useConversionsProps(
-    onDeleteConversation,
-    setEditConversionInfo
-  );
+  const { items, menu, groupable } = useConversionsProps(onDeleteConversation, setEditConversionInfo);
 
   /**
    * 小屏模式下，点击内容区域时，折叠菜单
@@ -112,18 +100,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     }
   };
 
-  const handleEditConversationTitle = useMemoizedFn(
-    async (info: EditConversationInfo) => {
-      await dispatch(
-        updateConversationInfo({
-          ...info,
-          createdBy: TitleCreatedBy.User,
-        })
-      ).unwrap();
-      message.success("重命名成功");
-      setEditConversionInfo(null);
-    }
-  );
+  const handleEditConversationTitle = useMemoizedFn(async (info: EditConversationInfo) => {
+    await dispatch(
+      updateConversationInfo({
+        ...info,
+        createdBy: TitleCreatedBy.User,
+      })
+    ).unwrap();
+    message.success("重命名成功");
+    setEditConversionInfo(null);
+  });
 
   return (
     <XProvider>
@@ -199,12 +185,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           {/* fixed 定位，不影响布局 */}
           {collapsed && (
             <div className="fixed left-2 md:left-12.5 top-2.5 h-10 flex items-center gap-1 rounded-full border border-gray-200 p-1 shadow bg-white">
-              <Button
-                type="text"
-                shape="circle"
-                onClick={handleCollapse}
-                icon={<CollapseIcon className="w-4 h-4" />}
-              />
+              <Button type="text" shape="circle" onClick={handleCollapse} icon={<CollapseIcon className="w-4 h-4" />} />
               <Button
                 type="text"
                 shape="circle"

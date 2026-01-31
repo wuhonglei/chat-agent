@@ -10,10 +10,7 @@ import { get } from "lodash-es";
  * @param name 事件名称
  * @param params 事件参数（会被序列化为JSON）
  */
-export function reportEvent(
-  name: string,
-  params?: Record<string, unknown>
-): void {
+export function reportEvent(name: string, params?: Record<string, unknown>): void {
   try {
     if (typeof aegis !== "undefined" && aegis) {
       aegis.reportEvent({
@@ -33,11 +30,7 @@ export function reportEvent(
  * @param duration 耗时（毫秒）
  * @param params 额外参数
  */
-export function reportSpeed(
-  name: string,
-  duration: number,
-  params?: Record<string, unknown>
-): void {
+export function reportSpeed(name: string, duration: number, params?: Record<string, unknown>): void {
   try {
     if (typeof aegis !== "undefined" && aegis) {
       aegis.reportTime({
@@ -56,10 +49,7 @@ export function reportSpeed(
  * @param error 错误对象或错误消息
  * @param params 额外参数
  */
-export function reportError(
-  error: string,
-  params?: Record<string, unknown>
-): void {
+export function reportError(error: string, params?: Record<string, unknown>): void {
   try {
     if (typeof aegis !== "undefined" && aegis) {
       const stack = get(params, "error.stack");
@@ -76,10 +66,7 @@ export function reportError(
  * @param pageName 页面名称
  * @param params 额外参数
  */
-export function reportPageView(
-  pageName: string,
-  params?: Record<string, unknown>
-): void {
+export function reportPageView(pageName: string, params?: Record<string, unknown>): void {
   try {
     if (typeof aegis !== "undefined" && aegis) {
       aegis.reportEvent({

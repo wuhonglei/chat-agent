@@ -16,26 +16,9 @@ export type CustomButtonProps = {
 };
 
 const CustomButton = forwardRef<HTMLDivElement, CustomButtonProps>(
-  (
-    {
-      active = false,
-      bordered = true,
-      size = "middle",
-      icon = null,
-      children,
-      onClick,
-      className,
-      tooltip,
-    },
-    ref
-  ) => {
+  ({ active = false, bordered = true, size = "middle", icon = null, children, onClick, className, tooltip }, ref) => {
     return (
-      <Tooltip
-        title={tooltip}
-        getTooltipContainer={(trigger: HTMLElement) =>
-          trigger.parentElement ?? document.body
-        }
-      >
+      <Tooltip title={tooltip} getTooltipContainer={(trigger: HTMLElement) => trigger.parentElement ?? document.body}>
         <div
           ref={ref}
           onClick={() => onClick?.(!active)}
@@ -43,9 +26,7 @@ const CustomButton = forwardRef<HTMLDivElement, CustomButtonProps>(
             "inline-flex items-center justify-center",
             bordered && styles.bordered,
             size && styles[size],
-            active
-              ? "text-primary bg-blue-50"
-              : "border-gray-500 hover:bg-gray-100",
+            active ? "text-primary bg-blue-50" : "border-gray-500 hover:bg-gray-100",
             styles.button,
             className
           )}

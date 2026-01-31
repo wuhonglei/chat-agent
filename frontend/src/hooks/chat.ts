@@ -51,10 +51,7 @@ import { componentToolsForBackend } from "@/componentTools/helper";
 import { MessageStatus, TitleCreatedBy } from "@/constants";
 import { emitter, EventType } from "@/events";
 import { db } from "@/indexDB";
-import {
-  ComponentToolsTokenStats,
-  MCPToolsTokenStats,
-} from "@/interfaces/token";
+import type { ToolCallMessage } from "@/interfaces/tooCall";
 import {
   getHistoryMessageIds,
   getRemovedMessageIds,
@@ -63,6 +60,7 @@ import {
   reportError,
   reportEvent,
 } from "@/utils";
+import type { UnknownAction } from "@reduxjs/toolkit";
 import { useMemoizedFn, useRequest } from "ahooks";
 import { App } from "antd";
 import dayjs from "dayjs";
@@ -82,21 +80,47 @@ export interface UseChatMessageOptions {
  */
 export interface UseChatMessageReturn {
   abortMessage: (conversationId: string) => void;
-  reSendMessage: (
-    index: number,
-    message: ChatMessage,
-    formData: ChatInputConfig
-  ) => Promise<void>;
-  sendMessage: (
-    values: ChatInputFormValues,
-    options?: SendMessageOptions
-  ) => Promise<void>;
+  reSendMessage: (index: number, message: ChatMessage, formData: ChatInputConfig) => Promise<void>;
+  sendMessage: (values: ChatInputFormValues, options?: SendMessageOptions) => Promise<void>;
+}
+
+/** 工具调用（mcp / component）通用处理器工厂，消除重复逻辑 */
+function createToolCallHandler<TTokenStats>(
+  dispatch: ReturnType<typeof useAppDispatch>,
+  conversationId: string,
+  config: {
+    setCalling: (payload: { conversationId: string; data: boolean }) => UnknownAction;
+    appendToLast: (payload: { conversationId: string; data: ToolCallMessage }) => UnknownAction;
+    setDuration: (payload: { conversationId: string; data: number }) => UnknownAction;
+    setTokenStats: (payload: { conversationId: string; data: TTokenStats }) => UnknownAction;
+    doneEvent: EventType;
+  }
+): (data: ToolCallMessage) => void {
+  return (data: ToolCallMessage) => {
+    const { role } = data;
+    dispatch(config.setCalling({ conversationId, data: true }));
+    if (!role && data?.status === "done") {
+      emitter.emit(config.doneEvent);
+      dispatch(config.setCalling({ conversationId, data: false }));
+      if (data.duration) {
+        dispatch(config.setDuration({ conversationId, data: data.duration }));
+      }
+      if (data?.tokenStats) {
+        dispatch(
+          config.setTokenStats({
+            conversationId,
+            data: data.tokenStats as TTokenStats,
+          })
+        );
+      }
+    } else {
+      dispatch(config.appendToLast({ conversationId, data }));
+    }
+  };
 }
 
 export const useChatState = (conversationId: string) => {
-  return useAppSelector(
-    state => state.chat[conversationId] || DEFAULT_CHAT_STATE
-  );
+  return useAppSelector(state => state.chat[conversationId] || DEFAULT_CHAT_STATE);
 };
 
 export const useChatMessage = (options: UseChatMessageOptions) => {
@@ -125,10 +149,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
   });
 
   const sendMessage = useMemoizedFn(
-    async (
-      values: ChatInputFormValues,
-      options?: SendMessageOptions
-    ): Promise<void> => {
+    async (values: ChatInputFormValues, options?: SendMessageOptions): Promise<void> => {
       const { index, createdBy } = options || {};
 
       // 如果正在流式传输，先中止当前请求
@@ -143,8 +164,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
         abortControllerRef.current = new AbortController();
         const historyIds = getHistoryMessageIds(historyLimit, messages, index);
         const removedMessageIds = getRemovedMessageIds(messages, index);
-        const regenerateTitle =
-          isEmpty(historyIds) && !isTitleCreatedByUser(createdBy);
+        const regenerateTitle = isEmpty(historyIds) && !isTitleCreatedByUser(createdBy);
 
         // 对于在指定位置修改 message 或 重发 message 的场景，需要删除该位置之后的所有 message
         if (!isEmpty(removedMessageIds)) {
@@ -196,118 +216,53 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
           },
 
           // Mcp 工具调用
-          mcp_tool_call: data => {
-            const { role } = data;
-            dispatch(setCallingMcpTools({ conversationId, data: true }));
-            if (!role && data?.status === "done") {
-              emitter.emit(EventType.McpToolCallDone);
-              dispatch(setCallingMcpTools({ conversationId, data: false }));
-              if (data.duration) {
-                dispatch(
-                  setMcpToolCallsDuration({
-                    conversationId,
-                    data: data.duration,
-                  })
-                );
-              }
-              if (data?.tokenStats) {
-                dispatch(
-                  setMcpToolsTokenStats({
-                    conversationId,
-                    data: data.tokenStats as MCPToolsTokenStats,
-                  })
-                );
-              }
-            } else {
-              dispatch(
-                appendMcpToolCallToLastMessage({
-                  conversationId,
-                  data,
-                })
-              );
-            }
-          },
+          mcp_tool_call: createToolCallHandler(dispatch, conversationId, {
+            setCalling: setCallingMcpTools,
+            appendToLast: appendMcpToolCallToLastMessage,
+            setDuration: setMcpToolCallsDuration,
+            setTokenStats: setMcpToolsTokenStats,
+            doneEvent: EventType.McpToolCallDone,
+          }),
 
           // 组件工具调用
-          component_tool_call: data => {
-            const { role } = data;
-            dispatch(setCallingComponentTools({ conversationId, data: true }));
-            if (!role && data?.status === "done") {
-              emitter.emit(EventType.ComponentToolCallDone);
-              dispatch(
-                setCallingComponentTools({ conversationId, data: false })
-              );
-              if (data.duration) {
-                dispatch(
-                  setComponentToolCallsDuration({
-                    conversationId,
-                    data: data.duration,
-                  })
-                );
-              }
-              if (data?.tokenStats) {
-                dispatch(
-                  setComponentToolsTokenStats({
-                    conversationId,
-                    data: data.tokenStats as ComponentToolsTokenStats,
-                  })
-                );
-              }
-            } else {
-              dispatch(
-                appendComponentToolCallToLastMessage({
-                  conversationId,
-                  data,
-                })
-              );
-            }
-          },
+          component_tool_call: createToolCallHandler(dispatch, conversationId, {
+            setCalling: setCallingComponentTools,
+            appendToLast: appendComponentToolCallToLastMessage,
+            setDuration: setComponentToolCallsDuration,
+            setTokenStats: setComponentToolsTokenStats,
+            doneEvent: EventType.ComponentToolCallDone,
+          }),
 
           // 更新消息思考内容
-          reasoning: data => {
-            const { status, content, duration } = data || {};
-            if (status === "start") {
-              dispatch(setReasoning({ conversationId, data: true }));
-            } else if (status === "done") {
+          reasoning: (data = {}) => {
+            const { status, content, duration } = data;
+            if (status === "start") dispatch(setReasoning({ conversationId, data: true }));
+            else if (status === "done") {
               emitter.emit(EventType.ReasoningDone);
               dispatch(setReasoning({ conversationId, data: false }));
-              if (duration) {
-                dispatch(
-                  setReasoningDuration({
-                    conversationId,
-                    data: duration,
-                  })
-                );
-              }
+              if (duration) dispatch(setReasoningDuration({ conversationId, data: duration }));
             }
             dispatch(
               appendReasoningToLastMessage({
                 conversationId,
-                data: content || "",
+                data: content ?? "",
               })
             );
           },
 
           // 更新消息内容
-          content: data => {
-            const { content } = data || {};
+          content: ({ content } = {}) =>
             dispatch(
               appendContentToLastMessage({
                 conversationId,
-                data: content || "",
+                data: content ?? "",
               })
-            );
-          },
+            ),
 
           // 本次消息流式传输结束
           done: data => {
-            const { lastMessageUpdatedAt } = data;
-            dispatch(
-              updateMessageStatus({
-                conversationId,
-                data: MessageStatus.Done,
-              })
-            );
+            const { lastMessageUpdatedAt, tokenStats } = data;
+            dispatch(updateMessageStatus({ conversationId, data: MessageStatus.Done }));
             dispatch(
               updateMessageModifiedTime({
                 conversationId,
@@ -320,12 +275,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
                 lastMessageUpdatedAt,
               })
             );
-            dispatch(
-              updateMessageTokenStats({
-                conversationId,
-                data: data.tokenStats,
-              })
-            );
+            dispatch(updateMessageTokenStats({ conversationId, data: tokenStats }));
             resetState(conversationId);
             reportEvent("message_stream_done", data);
           },
@@ -395,20 +345,13 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
   );
 
   const reSendMessage = useMemoizedFn(
-    async (
-      index: number,
-      message: ChatMessage,
-      formData: ChatInputConfig
-    ): Promise<void> => {
+    async (index: number, message: ChatMessage, formData: ChatInputConfig): Promise<void> => {
       if (isUserRole(message.role)) {
         sendMessage({ ...formData, content: message.content }, { index });
       } else {
         // 如果是助手消息，则重新发送上一个用户消息
         const newIndex = index - 1;
-        sendMessage(
-          { ...formData, content: messages[newIndex].content },
-          { index: newIndex }
-        );
+        sendMessage({ ...formData, content: messages[newIndex].content }, { index: newIndex });
       }
     }
   );
@@ -478,9 +421,7 @@ export function useNewConversation() {
 }
 
 export const useConversationInfo = (conversationId: string) => {
-  const conversationInfo = useAppSelector(
-    state => state.conversation.conversationInfo
-  );
+  const conversationInfo = useAppSelector(state => state.conversation.conversationInfo);
   const dispatch = useAppDispatch();
   // 页面刷新时，conversationInfo 为空，则获取 conversationInfo
   const empty = isEmpty(conversationInfo);
@@ -492,10 +433,7 @@ export const useConversationInfo = (conversationId: string) => {
   return conversationInfo;
 };
 
-export const useCachedRequest = (
-  conversationId: string,
-  conversationInfo: ConversationInfo | null
-) => {
+export const useCachedRequest = (conversationId: string, conversationInfo: ConversationInfo | null) => {
   // 页面刷新后清除 isNewConversation 状态
   const { cacheData: conversationState, clearCacheData } = useNewConversation();
   const isNewConversation = conversationState.isNewConversation;
@@ -560,10 +498,7 @@ export const useCachedRequest = (
             );
             console.info("use temp messages from indexDB", conversationId);
           } else {
-            console.info(
-              "conversationInfo not loaded yet, will load messages later",
-              conversationId
-            );
+            console.info("conversationInfo not loaded yet, will load messages later", conversationId);
           }
           return;
         }
@@ -575,11 +510,8 @@ export const useCachedRequest = (
         }
 
         // indexDB 中的数据比较旧，则加载消息
-        const { lastMessageUpdateAt: cacheLastMessageUpdateAt, messages } =
-          data.data;
-        if (
-          dayjs(cacheLastMessageUpdateAt).isBefore(dayjs(lastMessageUpdateAt))
-        ) {
+        const { lastMessageUpdateAt: cacheLastMessageUpdateAt, messages } = data.data;
+        if (dayjs(cacheLastMessageUpdateAt).isBefore(dayjs(lastMessageUpdateAt))) {
           loadMessages(conversationId);
           return;
         }
@@ -592,12 +524,5 @@ export const useCachedRequest = (
         console.info("error getting messages from indexedDB", error);
         loadMessages(conversationId);
       });
-  }, [
-    isNewConversation,
-    conversationId,
-    messageLoaded,
-    lastMessageUpdateAt,
-    dispatch,
-    loadMessages,
-  ]);
+  }, [isNewConversation, conversationId, messageLoaded, lastMessageUpdateAt, dispatch, loadMessages]);
 };

@@ -54,11 +54,7 @@ const MarkdownPage = () => {
         onChange={key => setActiveKey(key)}
         style={{ paddingLeft: "32px" }}
       />
-      <MarkdownContainer
-        className={classNames(styles.container, "flex-1 text-base")}
-      >
-        {code}
-      </MarkdownContainer>
+      <MarkdownContainer className={classNames(styles.container, "flex-1 text-base")}>{code}</MarkdownContainer>
     </div>
   );
 };

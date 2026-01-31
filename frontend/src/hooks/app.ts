@@ -5,9 +5,7 @@ import { isEmpty } from "lodash-es";
 import { WEB_TITLE } from "@/constants";
 import { isTitleCreatedByDefault } from "@/utils";
 
-export function useWebTitle(
-  conversationInfo: ConversationInfo | undefined | null
-): void {
+export function useWebTitle(conversationInfo: ConversationInfo | undefined | null): void {
   const title = useMemo(() => {
     if (isEmpty(conversationInfo)) {
       return WEB_TITLE;

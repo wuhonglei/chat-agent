@@ -1,7 +1,4 @@
-import {
-  ComponentToolsTokenStats,
-  MCPToolsTokenStats,
-} from "@/interfaces/token";
+import { ComponentToolsTokenStats, MCPToolsTokenStats } from "@/interfaces/token";
 import { PieChartOutlined } from "@ant-design/icons";
 import { Tooltip } from "antd";
 import { isEmpty } from "lodash-es";
@@ -18,12 +15,7 @@ type Props = {
   tokenStats?: MCPToolsTokenStats | ComponentToolsTokenStats;
 };
 
-const TitleWithDuration: React.FC<Props> = ({
-  titles,
-  isDoing,
-  duration,
-  tokenStats,
-}) => {
+const TitleWithDuration: React.FC<Props> = ({ titles, isDoing, duration, tokenStats }) => {
   if (isDoing) {
     return <>{titles.doing}</>;
   }

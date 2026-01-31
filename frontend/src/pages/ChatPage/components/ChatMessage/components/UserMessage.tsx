@@ -14,10 +14,7 @@ interface UserMessageProps {
   onEditMessage: (content: string) => void;
 }
 
-const UserMessage: React.FC<UserMessageProps> = ({
-  message,
-  onEditMessage,
-}) => {
+const UserMessage: React.FC<UserMessageProps> = ({ message, onEditMessage }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [messageContent, setMessageContent] = useState(message.content);
   function handleConfirm() {
@@ -36,9 +33,7 @@ const UserMessage: React.FC<UserMessageProps> = ({
   }
 
   return (
-    <section
-      className={classNames("mt-3 w-full flex justify-end", styles.container)}
-    >
+    <section className={classNames("mt-3 w-full flex justify-end", styles.container)}>
       <Bubble
         placement="end"
         content={message.content}
@@ -57,19 +52,10 @@ const UserMessage: React.FC<UserMessageProps> = ({
               onChange={value => setMessageContent(trim(value))}
               footer={
                 <div className="flex justify-end gap-2">
-                  <Button
-                    shape="round"
-                    type="default"
-                    onClick={() => setIsEditing(false)}
-                  >
+                  <Button shape="round" type="default" onClick={() => setIsEditing(false)}>
                     取消
                   </Button>
-                  <Button
-                    shape="round"
-                    type="primary"
-                    onClick={handleConfirm}
-                    disabled={!messageContent}
-                  >
+                  <Button shape="round" type="primary" onClick={handleConfirm} disabled={!messageContent}>
                     发送
                   </Button>
                 </div>
@@ -82,12 +68,7 @@ const UserMessage: React.FC<UserMessageProps> = ({
         footer={
           isEditing ? null : (
             <div className={classNames("flex gap-2", styles.operation)}>
-              <Button
-                size="small"
-                type="text"
-                icon={<EditOutlined />}
-                onClick={() => setIsEditing(true)}
-              />
+              <Button size="small" type="text" icon={<EditOutlined />} onClick={() => setIsEditing(true)} />
               <CopyButton text={message.content} children={null} />
             </div>
           )

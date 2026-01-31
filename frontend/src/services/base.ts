@@ -29,9 +29,7 @@ const apiClient = axios.create({
   },
 });
 
-export function addRequestHeaders<T extends Record<string, string>>(
-  headers: T
-): T {
+export function addRequestHeaders<T extends Record<string, string>>(headers: T): T {
   const newHeaders = {
     ...headers,
     Authorization: authHeader.getAuthorizationHeader(),
@@ -51,9 +49,7 @@ export function addRequestHeaders<T extends Record<string, string>>(
  * 从 headers 中提取 X-Request-ID 和 X-Client-ID
  * 兼容 AxiosHeaders 和普通对象
  */
-function extractRequestHeaders(
-  headers: unknown
-): Record<string, string> | undefined {
+function extractRequestHeaders(headers: unknown): Record<string, string> | undefined {
   return pick(headers, ["X-Request-ID", "X-Client-ID", "X-Anonymous-User-ID"]);
 }
 

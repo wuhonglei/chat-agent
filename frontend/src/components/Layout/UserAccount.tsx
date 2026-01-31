@@ -2,16 +2,8 @@ import { authHeader } from "@/constants";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { logout } from "@/store/slices/userSlice";
 import { toLoginPage } from "@/utils/location";
-import {
-  LogoutOutlined,
-  SettingOutlined,
-  UserOutlined,
-} from "@ant-design/icons";
-import {
-  ConversationItemType,
-  Conversations,
-  ConversationsProps,
-} from "@ant-design/x";
+import { LogoutOutlined, SettingOutlined, UserOutlined } from "@ant-design/icons";
+import { ConversationItemType, Conversations, ConversationsProps } from "@ant-design/x";
 import { useMemoizedFn } from "ahooks";
 import { App, Avatar, type MenuProps } from "antd";
 import React, { useMemo, useState } from "react";
@@ -31,11 +23,7 @@ export default function UserAccount() {
         key: `/user`,
         label: (
           <div className="flex items-center gap-2">
-            <Avatar
-              size="small"
-              src={userDetail?.avatar}
-              icon={<UserOutlined />}
-            />
+            <Avatar size="small" src={userDetail?.avatar} icon={<UserOutlined />} />
             <span className="text-black-secondary">{userDetail?.name}</span>
           </div>
         ),
@@ -59,13 +47,10 @@ export default function UserAccount() {
           icon: <LogoutOutlined />,
         },
       ],
-      trigger: (
-        _conversation: ConversationItemType,
-        info: { originNode: React.ReactNode }
-      ) => <MenuTrigger>{info.originNode}</MenuTrigger>,
-      onClick: async (
-        menuInfo: Parameters<NonNullable<MenuProps["onClick"]>>[0]
-      ) => {
+      trigger: (_conversation: ConversationItemType, info: { originNode: React.ReactNode }) => (
+        <MenuTrigger>{info.originNode}</MenuTrigger>
+      ),
+      onClick: async (menuInfo: Parameters<NonNullable<MenuProps["onClick"]>>[0]) => {
         menuInfo.domEvent.stopPropagation();
         if (menuInfo.key === "setting") {
           setOpen(true);
@@ -91,13 +76,7 @@ export default function UserAccount() {
           item: "relative",
         }}
       />
-      {open && (
-        <SettingModal
-          open={open}
-          data={userDetail}
-          onCancel={() => setOpen(false)}
-        />
-      )}
+      {open && <SettingModal open={open} data={userDetail} onCancel={() => setOpen(false)} />}
     </>
   );
 }

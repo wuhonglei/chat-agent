@@ -3,11 +3,7 @@ import { TimelineMessage } from "@/interfaces";
 import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
 import CodeHighlighter from "@/pages/ChatPage/components/MarkdownContainer/components/CodeHighlighter";
 import React, { useMemo } from "react";
-import {
-  getContentTokenCountDesc,
-  stringifyArgs,
-  stringifyContentWithLanguage,
-} from "./utils";
+import { getContentTokenCountDesc, stringifyArgs, stringifyContentWithLanguage } from "./utils";
 
 type Props = {
   message: TimelineMessage;
@@ -15,10 +11,7 @@ type Props = {
 
 const ToolCallItemContent: React.FC<Props> = ({ message }) => {
   const { status, reasoningContent, content } = message;
-  const [contentStr, language] = useMemo(
-    () => stringifyContentWithLanguage(content),
-    [content]
-  );
+  const [contentStr, language] = useMemo(() => stringifyContentWithLanguage(content), [content]);
 
   return (
     <div className="w-full flex flex-col gap-2 py-1">
@@ -39,9 +32,7 @@ const ToolCallItemContent: React.FC<Props> = ({ message }) => {
       {status === ToolCallStatus.ToolResultSuccess && (
         <CodeHighlighter
           lang={language}
-          header={["result is:", getContentTokenCountDesc(message)].filter(
-            Boolean
-          )}
+          header={["result is:", getContentTokenCountDesc(message)].filter(Boolean)}
           styles={{ code: { maxHeight: 300, width: "100%", overflow: "auto" } }}
         >
           {contentStr}

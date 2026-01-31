@@ -75,10 +75,7 @@ export function objectSchema(
 /**
  * 创建数组类型的 schema
  */
-export function arraySchema(
-  items: JSONSchema7,
-  description?: string
-): JSONSchema7 {
+export function arraySchema(items: JSONSchema7, description?: string): JSONSchema7 {
   return {
     type: "array",
     items,

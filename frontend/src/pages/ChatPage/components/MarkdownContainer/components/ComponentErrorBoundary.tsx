@@ -26,11 +26,7 @@ function ComponentFallback({
   return (
     <div style={{ padding: "12px", color: "#ff4d4f", fontSize: "14px" }}>
       组件渲染出错，请检查数据格式
-      {error.message && (
-        <div style={{ marginTop: "8px", fontSize: "12px", opacity: 0.7 }}>
-          {error.message}
-        </div>
-      )}
+      {error.message && <div style={{ marginTop: "8px", fontSize: "12px", opacity: 0.7 }}>{error.message}</div>}
     </div>
   );
 }
@@ -42,9 +38,7 @@ function ComponentFallback({
 function ComponentErrorBoundary({ children, fallback, onError }: Props) {
   return (
     <ErrorBoundary
-      fallbackRender={({ error }) => (
-        <ComponentFallback error={error} fallback={fallback} />
-      )}
+      fallbackRender={({ error }) => <ComponentFallback error={error} fallback={fallback} />}
       onError={(error, errorInfo) => {
         // 记录错误信息
         console.warn("组件渲染错误:", error, errorInfo);

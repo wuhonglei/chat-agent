@@ -19,8 +19,7 @@ const ToolsSetting: React.FC<ToolsSettingProps> = ({ values }) => {
   const sourceConfig = values.sourceConfig;
   const mcpConfig = useMCPConfig();
   const icons = useMemo(
-    () =>
-      mcpConfig.filter(item => sourceConfig?.[item.id]).map(item => item.icon),
+    () => mcpConfig.filter(item => sourceConfig?.[item.id]).map(item => item.icon),
     [sourceConfig, mcpConfig]
   );
 
@@ -60,9 +59,7 @@ const ToolsSetting: React.FC<ToolsSettingProps> = ({ values }) => {
                 label={
                   <div className="flex items-center gap-2">
                     <img src={item.icon} alt={item.id} className="w-4 h-4" />
-                    <span className={mcpAutoMode ? "text-black-tertiary" : ""}>
-                      {item.name}
-                    </span>
+                    <span className={mcpAutoMode ? "text-black-tertiary" : ""}>{item.name}</span>
                   </div>
                 }
                 labelAlign="left"
@@ -79,13 +76,7 @@ const ToolsSetting: React.FC<ToolsSettingProps> = ({ values }) => {
         </>
       }
     >
-      <CustomButton
-        bordered
-        ref={buttonRef}
-        size="middle"
-        className="gap-px"
-        active={mcpAutoMode}
-      >
+      <CustomButton bordered ref={buttonRef} size="middle" className="gap-px" active={mcpAutoMode}>
         <SettingIcon className="text-base" />
         {mcpAutoMode ? (
           <>智能选择</>

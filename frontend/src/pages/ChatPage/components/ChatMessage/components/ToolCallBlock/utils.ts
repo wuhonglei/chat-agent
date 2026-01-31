@@ -14,9 +14,9 @@ export function stringifyArgs(args: string): string {
   }
 }
 
-export function stringifyContentWithLanguage<
-  T extends string | Record<string, unknown>,
->(content: T | undefined): [string, string] {
+export function stringifyContentWithLanguage<T extends string | Record<string, unknown>>(
+  content: T | undefined
+): [string, string] {
   if (!content) {
     return ["", ""];
   }
@@ -33,9 +33,7 @@ export function stringifyContentWithLanguage<
   }
 }
 
-export function getContentTokenCountDesc(
-  message: ToolResultSuccessTimelineMessage
-): string {
+export function getContentTokenCountDesc(message: ToolResultSuccessTimelineMessage): string {
   const { contentTokenCount, originalTokenCount, relevanceApplied } = message;
   if (relevanceApplied && originalTokenCount && contentTokenCount) {
     return ` (${prettyCount(originalTokenCount)} tokens) -> (${prettyCount(contentTokenCount)} tokens)`;

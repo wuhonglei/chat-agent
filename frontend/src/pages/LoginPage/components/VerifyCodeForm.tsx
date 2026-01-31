@@ -4,7 +4,7 @@ import { getRedirectUrl, jumpToLocation } from "@/utils";
 import { MobileOutlined, SafetyOutlined } from "@ant-design/icons";
 import { useCountDown, useRequest } from "ahooks";
 import { App, Button, Form, Input, Space } from "antd";
-import { isEmpty } from 'lodash-es';
+import { isEmpty } from "lodash-es";
 import React, { useState } from "react";
 import { isVerificationCode, validatePhone, validateVerificationCode } from "../utils";
 
@@ -36,8 +36,9 @@ const VerifyCodeForm: React.FC<VerifyCodeFormProps> = () => {
     },
   });
 
-  const { run: loginWithVerificationCode, loading: verifySmsCodeLoading } =
-    useRequest(userAPI.loginWithVerificationCode, {
+  const { run: loginWithVerificationCode, loading: verifySmsCodeLoading } = useRequest(
+    userAPI.loginWithVerificationCode,
+    {
       manual: true,
       onSuccess: () => {
         message.success("登录成功");
@@ -45,7 +46,8 @@ const VerifyCodeForm: React.FC<VerifyCodeFormProps> = () => {
           jumpToLocation(getRedirectUrl() || "/chat", true);
         }, 200);
       },
-    });
+    }
+  );
 
   const handleSendCode = async () => {
     const values = await form.validateFields(["phoneNumber"]);
@@ -67,25 +69,12 @@ const VerifyCodeForm: React.FC<VerifyCodeFormProps> = () => {
   };
 
   return (
-    <Form
-      form={form}
-      className="mt-6"
-      layout="vertical"
-      onFinish={handleSubmit}
-    >
-      <Form.Item
-        name="phoneNumber"
-        validateTrigger={false}
-        rules={[{ validator: (_, value) => validatePhone(value) }]}
-      >
+    <Form form={form} className="mt-6" layout="vertical" onFinish={handleSubmit}>
+      <Form.Item name="phoneNumber" validateTrigger={false} rules={[{ validator: (_, value) => validatePhone(value) }]}>
         <Space.Compact className="w-full">
           <Space.Addon className="w-16">+86</Space.Addon>
           <Input
-            prefix={
-              <MobileOutlined
-                style={{ color: "var(--color-black-quaternary)" }}
-              />
-            }
+            prefix={<MobileOutlined style={{ color: "var(--color-black-quaternary)" }} />}
             className="flex-1"
             placeholder="请输入手机号"
             size="large"
@@ -102,11 +91,7 @@ const VerifyCodeForm: React.FC<VerifyCodeFormProps> = () => {
             size="large"
             className="flex-1"
             placeholder="请输入验证码"
-            prefix={
-              <SafetyOutlined
-                style={{ color: "var(--color-black-quaternary)" }}
-              />
-            }
+            prefix={<SafetyOutlined style={{ color: "var(--color-black-quaternary)" }} />}
           />
           <Button
             size="large"

@@ -80,10 +80,7 @@ export interface WxLoginOptions {
  * @param data 微信登录初始化数据
  * @param options 其他可选配置
  */
-export function initWxQrCode(
-  containerId: string,
-  data: WeChatLoginInitResponse
-): void {
+export function initWxQrCode(containerId: string, data: WeChatLoginInitResponse): void {
   if (!window.WxLogin) {
     throw new Error("微信登录SDK未加载，请先调用 loadWxLoginSDK()");
   }

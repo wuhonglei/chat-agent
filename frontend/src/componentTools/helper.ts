@@ -7,15 +7,12 @@ type ComponentType =
   | React.ComponentType<Record<string, unknown>>
   | React.LazyExoticComponent<React.ComponentType<Record<string, unknown>>>;
 
-export const componentToolsForBackend = componentTools.map(
-  (tool: ComponentToolItem) => pick(tool, ["name", "whenCondition", "when"])
+export const componentToolsForBackend = componentTools.map((tool: ComponentToolItem) =>
+  pick(tool, ["name", "whenCondition", "when"])
 );
 
 export const componentMap = new Map<string, ComponentType>(
-  componentTools.map((tool: ComponentToolItem) => [
-    tool.name,
-    tool.component as ComponentType,
-  ])
+  componentTools.map((tool: ComponentToolItem) => [tool.name, tool.component as ComponentType])
 );
 
 /**

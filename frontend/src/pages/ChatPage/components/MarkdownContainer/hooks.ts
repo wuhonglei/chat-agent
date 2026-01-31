@@ -3,11 +3,7 @@ import hljs from "highlight.js";
 import React, { useMemo } from "react";
 
 const defaultLanguage = "plaintext";
-export function useLanguage(
-  className: string | undefined,
-  code: string,
-  inline: boolean | undefined
-) {
+export function useLanguage(className: string | undefined, code: string, inline: boolean | undefined) {
   return useMemo(() => {
     const match = /language-(\w+)/.exec(className || "");
     if (match) {

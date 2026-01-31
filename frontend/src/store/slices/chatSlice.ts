@@ -1,14 +1,6 @@
 import { MessageStatus } from "@/constants";
-import {
-  ChatConversationState,
-  ChatMessage,
-  ToolCallMessage,
-} from "@/interfaces";
-import {
-  ComponentToolsTokenStats,
-  MCPToolsTokenStats,
-  TotalTokenStats,
-} from "@/interfaces/token";
+import { ChatConversationState, ChatMessage, ToolCallMessage } from "@/interfaces";
+import { ComponentToolsTokenStats, MCPToolsTokenStats, TotalTokenStats } from "@/interfaces/token";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { isEmpty, set } from "lodash-es";
 
@@ -36,10 +28,7 @@ export const getDefaultChatState = (): ChatConversationState => ({
 // 稳定的默认状态，避免每次创建新对象
 export const DEFAULT_CHAT_STATE: ChatConversationState = getDefaultChatState();
 
-const conversationIdCheck = (
-  state: ChatStateMap,
-  conversionId: string
-): ChatConversationState => {
+const conversationIdCheck = (state: ChatStateMap, conversionId: string): ChatConversationState => {
   if (!state[conversionId]) {
     state[conversionId] = getDefaultChatState();
   }
@@ -53,9 +42,7 @@ const initialState: ChatStateMap = {};
  * @param messages
  * @returns
  */
-export function lastMessageCheck(
-  messages: ChatMessage[]
-): ChatMessage | undefined {
+export function lastMessageCheck(messages: ChatMessage[]): ChatMessage | undefined {
   if (isEmpty(messages)) {
     return undefined;
   }
@@ -70,10 +57,7 @@ const chatSlice = createSlice({
   name: "chat",
   initialState,
   reducers: {
-    setMessages: (
-      state,
-      action: PayloadAction<ConversationActionPayload<ChatMessage[]>>
-    ) => {
+    setMessages: (state, action: PayloadAction<ConversationActionPayload<ChatMessage[]>>) => {
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
       chatState.messages = data;
@@ -82,51 +66,34 @@ const chatSlice = createSlice({
       // 数据库操作已移至 dbMiddleware 中处理，保持 reducer 的纯净性
     },
     // 首次刷新场景，此时 conversationInfo 还未获取，如果 indexDB 有数据，则设置临时消息
-    setTempMessages: (
-      state,
-      action: PayloadAction<ConversationActionPayload<ChatMessage[]>>
-    ) => {
+    setTempMessages: (state, action: PayloadAction<ConversationActionPayload<ChatMessage[]>>) => {
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
       chatState.messages = data;
     },
-    addMessage: (
-      state,
-      action: PayloadAction<ConversationActionPayload<ChatMessage>>
-    ) => {
+    addMessage: (state, action: PayloadAction<ConversationActionPayload<ChatMessage>>) => {
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
       chatState.messages.push(data);
       // lastMessageUpdateAt 的更新已移至 updateLastMessageTimeMiddleware 中自动处理
     },
-    clearMessagesAfterIndex: (
-      state,
-      action: PayloadAction<ConversationActionPayload<number>>
-    ) => {
+    clearMessagesAfterIndex: (state, action: PayloadAction<ConversationActionPayload<number>>) => {
       const { conversationId, data: index } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
       // 清除该位置之后的所有消息
       chatState.messages.length = index + 1;
       // lastMessageUpdateAt 的更新已移至 updateLastMessageTimeMiddleware 中自动处理
     },
-    removeMessageById: (
-      state,
-      action: PayloadAction<ConversationActionPayload<string>>
-    ) => {
+    removeMessageById: (state, action: PayloadAction<ConversationActionPayload<string>>) => {
       const { conversationId, data: messageId } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
-      const index = chatState.messages.findIndex(
-        message => message.id === messageId
-      );
+      const index = chatState.messages.findIndex(message => message.id === messageId);
       if (index !== -1) {
         chatState.messages.splice(index, 1);
         // lastMessageUpdateAt 的更新已移至 updateLastMessageTimeMiddleware 中自动处理
       }
     },
-    clearLastMessage: (
-      state,
-      action: PayloadAction<ConversationActionPayload>
-    ) => {
+    clearLastMessage: (state, action: PayloadAction<ConversationActionPayload>) => {
       const { conversationId } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
       const lastMessage = lastMessageCheck(chatState.messages);
@@ -135,34 +102,22 @@ const chatSlice = createSlice({
         // lastMessageUpdateAt 的更新已移至 updateLastMessageTimeMiddleware 中自动处理
       }
     },
-    setStreaming: (
-      state,
-      action: PayloadAction<ConversationActionPayload<boolean>>
-    ) => {
+    setStreaming: (state, action: PayloadAction<ConversationActionPayload<boolean>>) => {
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
       chatState.isStreaming = data;
     },
-    setLoading: (
-      state,
-      action: PayloadAction<ConversationActionPayload<boolean>>
-    ) => {
+    setLoading: (state, action: PayloadAction<ConversationActionPayload<boolean>>) => {
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
       chatState.isLoading = data;
     },
-    setReasoning: (
-      state,
-      action: PayloadAction<ConversationActionPayload<boolean>>
-    ) => {
+    setReasoning: (state, action: PayloadAction<ConversationActionPayload<boolean>>) => {
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
       chatState.isReasoning = data;
     },
-    setCallingMcpTools: (
-      state,
-      action: PayloadAction<ConversationActionPayload<boolean>>
-    ) => {
+    setCallingMcpTools: (state, action: PayloadAction<ConversationActionPayload<boolean>>) => {
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
       const lastMessage = lastMessageCheck(chatState.messages);
@@ -170,10 +125,7 @@ const chatSlice = createSlice({
         chatState.isCallingMcpTools = data;
       }
     },
-    setCallingComponentTools: (
-      state,
-      action: PayloadAction<ConversationActionPayload<boolean>>
-    ) => {
+    setCallingComponentTools: (state, action: PayloadAction<ConversationActionPayload<boolean>>) => {
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
       const lastMessage = lastMessageCheck(chatState.messages);
@@ -181,10 +133,7 @@ const chatSlice = createSlice({
         chatState.isCallingComponentTools = data;
       }
     },
-    setReasoningDuration: (
-      state,
-      action: PayloadAction<ConversationActionPayload<number>>
-    ) => {
+    setReasoningDuration: (state, action: PayloadAction<ConversationActionPayload<number>>) => {
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
       const lastMessage = lastMessageCheck(chatState.messages);
@@ -192,10 +141,7 @@ const chatSlice = createSlice({
         lastMessage.reasoningDuration = data;
       }
     },
-    setMcpToolCallsDuration: (
-      state,
-      action: PayloadAction<ConversationActionPayload<number>>
-    ) => {
+    setMcpToolCallsDuration: (state, action: PayloadAction<ConversationActionPayload<number>>) => {
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
       const lastMessage = lastMessageCheck(chatState.messages);
@@ -203,10 +149,7 @@ const chatSlice = createSlice({
         lastMessage.toolCallsDuration = data;
       }
     },
-    setComponentToolCallsDuration: (
-      state,
-      action: PayloadAction<ConversationActionPayload<number>>
-    ) => {
+    setComponentToolCallsDuration: (state, action: PayloadAction<ConversationActionPayload<number>>) => {
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
       const lastMessage = lastMessageCheck(chatState.messages);
@@ -214,10 +157,7 @@ const chatSlice = createSlice({
         lastMessage.componentToolCallsDuration = data;
       }
     },
-    setMcpToolsTokenStats: (
-      state,
-      action: PayloadAction<ConversationActionPayload<MCPToolsTokenStats>>
-    ) => {
+    setMcpToolsTokenStats: (state, action: PayloadAction<ConversationActionPayload<MCPToolsTokenStats>>) => {
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
       const lastMessage = lastMessageCheck(chatState.messages);
@@ -247,10 +187,7 @@ const chatSlice = createSlice({
         lastMessage.componentToolCalls.push(data);
       }
     },
-    prependContentToLastMessage: (
-      state,
-      action: PayloadAction<ConversationActionPayload<string>>
-    ) => {
+    prependContentToLastMessage: (state, action: PayloadAction<ConversationActionPayload<string>>) => {
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
       const lastMessage = lastMessageCheck(chatState.messages);
@@ -258,10 +195,7 @@ const chatSlice = createSlice({
         lastMessage.content = data + lastMessage.content;
       }
     },
-    appendContentToLastMessage: (
-      state,
-      action: PayloadAction<ConversationActionPayload<string>>
-    ) => {
+    appendContentToLastMessage: (state, action: PayloadAction<ConversationActionPayload<string>>) => {
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
       const lastMessage = lastMessageCheck(chatState.messages);
@@ -269,10 +203,7 @@ const chatSlice = createSlice({
         lastMessage.content += data;
       }
     },
-    appendReasoningToLastMessage: (
-      state,
-      action: PayloadAction<ConversationActionPayload<string>>
-    ) => {
+    appendReasoningToLastMessage: (state, action: PayloadAction<ConversationActionPayload<string>>) => {
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
       const lastMessage = lastMessageCheck(chatState.messages);
@@ -280,10 +211,7 @@ const chatSlice = createSlice({
         lastMessage.reasoning += data;
       }
     },
-    appendMcpToolCallToLastMessage: (
-      state,
-      action: PayloadAction<ConversationActionPayload<ToolCallMessage>>
-    ) => {
+    appendMcpToolCallToLastMessage: (state, action: PayloadAction<ConversationActionPayload<ToolCallMessage>>) => {
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
       const lastMessage = lastMessageCheck(chatState.messages);
@@ -291,10 +219,7 @@ const chatSlice = createSlice({
         lastMessage.toolCalls.push(data);
       }
     },
-    updateMessageStatus: (
-      state,
-      action: PayloadAction<ConversationActionPayload<MessageStatus>>
-    ) => {
+    updateMessageStatus: (state, action: PayloadAction<ConversationActionPayload<MessageStatus>>) => {
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
       const lastMessage = lastMessageCheck(chatState.messages);
@@ -302,18 +227,12 @@ const chatSlice = createSlice({
         lastMessage.status = data;
       }
     },
-    updateMessageModifiedTime: (
-      state,
-      action: PayloadAction<ConversationActionPayload<string>>
-    ) => {
+    updateMessageModifiedTime: (state, action: PayloadAction<ConversationActionPayload<string>>) => {
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
       chatState.lastMessageUpdateAt = data;
     },
-    updateMessageTokenStats: (
-      state,
-      action: PayloadAction<ConversationActionPayload<TotalTokenStats>>
-    ) => {
+    updateMessageTokenStats: (state, action: PayloadAction<ConversationActionPayload<TotalTokenStats>>) => {
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
       const lastMessage = lastMessageCheck(chatState.messages);
@@ -322,10 +241,7 @@ const chatSlice = createSlice({
       }
     },
     // 会话中 message finish 时调用
-    resetChatState: (
-      state,
-      action: PayloadAction<ConversationActionPayload>
-    ) => {
+    resetChatState: (state, action: PayloadAction<ConversationActionPayload>) => {
       const { conversationId } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
       chatState.isLoading = false;
@@ -334,10 +250,7 @@ const chatSlice = createSlice({
       chatState.isCallingMcpTools = false;
     },
     // 删除会话时调用
-    clearChatState: (
-      state,
-      action: PayloadAction<ConversationActionPayload>
-    ) => {
+    clearChatState: (state, action: PayloadAction<ConversationActionPayload>) => {
       const { conversationId } = action.payload;
       delete state[conversationId];
     },

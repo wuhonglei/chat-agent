@@ -10,17 +10,13 @@ type Props = {
   containerRef: React.RefObject<HTMLElement | null>;
 };
 
-export default function FloatButtonBottom({
-  containerRef,
-  visibilityHeight,
-}: Props) {
+export default function FloatButtonBottom({ containerRef, visibilityHeight }: Props) {
   const [visible, setVisible] = useState<boolean>(false);
 
   const onScrollHandler = useMemoizedFn(() => {
     const container = containerRef.current;
     if (!container) return;
-    const distanceToBottom =
-      container.scrollHeight - container.scrollTop - container.clientHeight;
+    const distanceToBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
     setVisible(distanceToBottom >= visibilityHeight);
   });
   const { run: onScrollThrottled } = useThrottleFn(onScrollHandler, {

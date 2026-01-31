@@ -8,9 +8,7 @@ import {
 } from "@/interfaces";
 import { useMemo } from "react";
 
-export function useTimelineMessages(
-  toolCalls: ToolCallMessage[] | undefined
-): TimelineMessage[] {
+export function useTimelineMessages(toolCalls: ToolCallMessage[] | undefined): TimelineMessage[] {
   return useMemo(() => {
     const messages: TimelineMessage[] = [];
     const toolCallStartIndex: Record<string, number> = {};
@@ -37,15 +35,8 @@ export function useTimelineMessages(
       }
 
       if (role === "tool") {
-        const {
-          toolCallId,
-          duration,
-          content,
-          isError,
-          relevanceApplied,
-          contentTokenCount,
-          originalTokenCount,
-        } = message as ToolCallEndItemMessage;
+        const { toolCallId, duration, content, isError, relevanceApplied, contentTokenCount, originalTokenCount } =
+          message as ToolCallEndItemMessage;
         const startIndex = toolCallStartIndex[toolCallId];
         if (startIndex !== undefined) {
           messages[startIndex] = {
@@ -54,9 +45,7 @@ export function useTimelineMessages(
             duration,
             toolCallId,
             toolCall: messages[startIndex].toolCall,
-            status: isError
-              ? ToolCallStatus.ToolResultError
-              : ToolCallStatus.ToolResultSuccess,
+            status: isError ? ToolCallStatus.ToolResultError : ToolCallStatus.ToolResultSuccess,
             reasoningContent: messages[startIndex].reasoningContent,
           };
 

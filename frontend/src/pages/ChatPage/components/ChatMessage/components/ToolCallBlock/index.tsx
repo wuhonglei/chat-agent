@@ -1,9 +1,6 @@
 import { EventType, useEmitterWithCondition } from "@/events";
 import { ToolCallMessage } from "@/interfaces";
-import {
-  ComponentToolsTokenStats,
-  MCPToolsTokenStats,
-} from "@/interfaces/token";
+import { ComponentToolsTokenStats, MCPToolsTokenStats } from "@/interfaces/token";
 import { isCallingTool } from "@/utils";
 import { Think, ThoughtChain } from "@ant-design/x";
 import { useMemoizedFn } from "ahooks";
@@ -41,9 +38,7 @@ const ToolCallBlock = ({
 }: Props) => {
   const timelineMessages = useTimelineMessages(toolCalls);
   const [expanded, setExpanded] = useState<boolean>(isStreaming ? true : false);
-  const [expandedToolCallKeys, setExpandedToolCallKeys] = useState<string[]>(
-    []
-  );
+  const [expandedToolCallKeys, setExpandedToolCallKeys] = useState<string[]>([]);
 
   const handleExpandChange = useMemoizedFn((expand: boolean) => {
     setExpanded(expand);

@@ -6,9 +6,7 @@ import { useRequest } from "ahooks";
 import { fileAPI } from "@/services/file";
 import { App } from "antd";
 
-type CustomRequestOptions = Parameters<
-  GetProp<UploadProps, "customRequest">
->[0];
+type CustomRequestOptions = Parameters<GetProp<UploadProps, "customRequest">>[0];
 
 type Props = {
   value?: string;

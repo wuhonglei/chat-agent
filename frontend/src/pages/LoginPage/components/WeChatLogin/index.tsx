@@ -13,9 +13,7 @@ const QR_CODE_CONTAINER_ID = "wx-login-qrcode-container";
 
 const WeChatLoginForm: React.FC = () => {
   const { message } = App.useApp();
-  const [loginData, setLoginData] = useState<WeChatLoginInitResponse | null>(
-    null
-  );
+  const [loginData, setLoginData] = useState<WeChatLoginInitResponse | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // 初始化微信登录，获取二维码
@@ -53,26 +51,19 @@ const WeChatLoginForm: React.FC = () => {
           <div
             ref={containerRef}
             id={QR_CODE_CONTAINER_ID}
-            className={classNames(
-              "flex items-center justify-center",
-              styles["wx-container"]
-            )}
+            className={classNames("flex items-center justify-center", styles["wx-container"])}
           />
           {initLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-90 rounded-lg">
               <div className="flex flex-col items-center">
                 <Spin size="large" />
-                <Text className="mt-4 text-black-tertiary text-sm">
-                  正在加载二维码...
-                </Text>
+                <Text className="mt-4 text-black-tertiary text-sm">正在加载二维码...</Text>
               </div>
             </div>
           )}
           {!loginData && !initLoading && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <Text className="text-black-tertiary text-center px-4">
-                二维码加载失败，请重试
-              </Text>
+              <Text className="text-black-tertiary text-center px-4">二维码加载失败，请重试</Text>
             </div>
           )}
         </div>

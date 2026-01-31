@@ -25,10 +25,7 @@ export const emitter: Emitter<Events> = mitt<Events>();
  * @param callback - 事件触发时执行的回调
  * @returns void（该 hook 内部通过 useEffect 处理注册与清理）
  */
-export function useEmitter<T extends EventType>(
-  eventType: T,
-  callback: (value: Events[T]) => void
-) {
+export function useEmitter<T extends EventType>(eventType: T, callback: (value: Events[T]) => void) {
   const callbackMemoized = useMemoizedFn(callback);
 
   useEffect(() => {

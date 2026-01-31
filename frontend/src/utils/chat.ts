@@ -1,9 +1,4 @@
-import {
-  MessageStatus,
-  RoleType,
-  SearchSourceType,
-  ToolCallStatus,
-} from "@/constants";
+import { MessageStatus, RoleType, SearchSourceType, ToolCallStatus } from "@/constants";
 import { ChatMessage, SearchSource } from "@/interfaces";
 import { capitalize, isEmpty, isNil } from "lodash-es";
 
@@ -13,11 +8,7 @@ import { capitalize, isEmpty, isNil } from "lodash-es";
  * @returns 脚注定义
  */
 export function buildFootnoteDefinition(sources: SearchSource[]): string {
-  return sources
-    .map(
-      (source, index) => `[^CITE:${index + 1}]: ${source.title || index + 1}`
-    )
-    .join("\n");
+  return sources.map((source, index) => `[^CITE:${index + 1}]: ${source.title || index + 1}`).join("\n");
 }
 
 /**
@@ -32,25 +23,18 @@ export function getWebIconUrl(url: string | undefined, size: number = 32) {
   if (!url) return "";
   try {
     const urlObj = new URL(url);
-    const hostname =
-      hostnameToPublic[urlObj.hostname as PrivateDomains] || urlObj.hostname;
+    const hostname = hostnameToPublic[urlObj.hostname as PrivateDomains] || urlObj.hostname;
     return `https://www.google.com/s2/favicons?domain=${hostname}&sz=${size}`;
   } catch {
     return "";
   }
 }
 
-export function getSortedIconUrl(
-  url: string | undefined,
-  favicon: string | undefined
-) {
+export function getSortedIconUrl(url: string | undefined, favicon: string | undefined) {
   return favicon || getWebIconUrl(url);
 }
 
-export function getWebMainDomain(
-  url: string | undefined,
-  capitalizeFirstLetter: boolean = false
-) {
+export function getWebMainDomain(url: string | undefined, capitalizeFirstLetter: boolean = false) {
   if (!url) return "";
   const urlObj = new URL(url);
   const hostname = urlObj.hostname;
@@ -105,14 +89,8 @@ export function isSystemRole(role: RoleType) {
  * 获取历史消息
  * 注意: 函数体中的 messages 使用的是旧的消息列表，不是最新的消息列表
  */
-export function getHistoryMessageIds<T extends ChatMessage>(
-  limit: number,
-  messages: T[],
-  index?: number
-): string[] {
-  const histories = isNil(index)
-    ? messages.slice(-limit)
-    : messages.slice(Math.max(0, index - limit), index);
+export function getHistoryMessageIds<T extends ChatMessage>(limit: number, messages: T[], index?: number): string[] {
+  const histories = isNil(index) ? messages.slice(-limit) : messages.slice(Math.max(0, index - limit), index);
   const validHistoryIds: string[] = [];
   for (let i = 0; i < histories.length - 1; i) {
     const message = histories[i];
@@ -138,10 +116,7 @@ export function getHistoryMessageIds<T extends ChatMessage>(
  * @param index
  * @returns
  */
-export function getRemovedMessageIds(
-  messages: ChatMessage[],
-  index?: number
-): string[] {
+export function getRemovedMessageIds(messages: ChatMessage[], index?: number): string[] {
   if (isNil(index)) {
     return [];
   }

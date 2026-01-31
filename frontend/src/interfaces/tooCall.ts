@@ -70,10 +70,7 @@ export interface ToolResultSuccessTimelineMessage {
   status: ToolCallStatus.ToolResultSuccess;
 }
 
-export type ToolCallMessage =
-  | ToolCallProcessMessage
-  | ToolCallStartItemMessage
-  | ToolCallEndItemMessage;
+export type ToolCallMessage = ToolCallProcessMessage | ToolCallStartItemMessage | ToolCallEndItemMessage;
 
 export type TimelineMessage =
   | ToolCallingTimelineMessage

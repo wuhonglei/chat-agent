@@ -12,9 +12,7 @@ export function useIsSmallScreen() {
  * @param containerRef
  * @returns boolean
  */
-export function useIsScrollByUser(
-  containerRef: React.RefObject<HTMLElement | null>
-) {
+export function useIsScrollByUser(containerRef: React.RefObject<HTMLElement | null>) {
   const [scrollByUser, setScrollByUser] = useState(false);
 
   // 桌面端：滚动停止后延迟重置（等待惯性滚动结束）
@@ -74,18 +72,9 @@ export function useIsScrollByUser(
     } as AddEventListenerOptions);
 
     return () => {
-      container.removeEventListener(
-        "wheel",
-        onWheel as unknown as EventListener
-      );
-      container.removeEventListener(
-        "touchstart",
-        onTouchStart as unknown as EventListener
-      );
-      container.removeEventListener(
-        "touchend",
-        onTouchEnd as unknown as EventListener
-      );
+      container.removeEventListener("wheel", onWheel as unknown as EventListener);
+      container.removeEventListener("touchstart", onTouchStart as unknown as EventListener);
+      container.removeEventListener("touchend", onTouchEnd as unknown as EventListener);
       cancelWheelEnd(); // 清理时取消延迟重置
     };
   }, [onWheel, onTouchStart, onTouchEnd, cancelWheelEnd, containerRef]);

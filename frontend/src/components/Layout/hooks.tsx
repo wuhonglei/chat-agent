@@ -1,14 +1,7 @@
 import { EditConversationInfo } from "@/interfaces";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import {
-  clearCurrentConversion,
-  setConversationInfoById,
-} from "@/store/slices/conversationSlice";
-import {
-  CommentOutlined,
-  DeleteOutlined,
-  EditOutlined,
-} from "@ant-design/icons";
+import { clearCurrentConversion, setConversationInfoById } from "@/store/slices/conversationSlice";
+import { CommentOutlined, DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { ConversationItemType, ConversationsProps } from "@ant-design/x";
 import { useMemoizedFn } from "ahooks";
 import type { MenuProps } from "antd";
@@ -19,46 +12,38 @@ import { dateGroups } from "./constant";
 
 const getConversationGroup = (lastMessageCreatedAt: string) => {
   const lastMessageDayjs = dayjs(lastMessageCreatedAt);
-  return (
-    dateGroups.find(group => lastMessageDayjs.isSameOrAfter(group.value))
-      ?.label ?? "更早"
-  );
+  return dateGroups.find(group => lastMessageDayjs.isSameOrAfter(group.value))?.label ?? "更早";
 };
 
-export function useConversionsProps(
-  onDelete: (id: string) => void,
-  onRename: (info: EditConversationInfo) => void
-) {
+export function useConversionsProps(onDelete: (id: string) => void, onRename: (info: EditConversationInfo) => void) {
   const { conversations } = useAppSelector(state => state.conversation);
 
-  const menu: ConversationsProps["menu"] = useMemoizedFn(
-    (conversation: ConversationItemType) => ({
-      items: [
-        {
-          label: "重命名",
-          key: "rename",
-          icon: <EditOutlined />,
-        },
-        {
-          label: "删除",
-          key: "delete",
-          danger: true,
-          icon: <DeleteOutlined />,
-        },
-      ],
-      onClick: (menuInfo: Parameters<NonNullable<MenuProps["onClick"]>>[0]) => {
-        menuInfo.domEvent.stopPropagation();
-        if (menuInfo.key === "rename") {
-          onRename({
-            id: conversation.id as string,
-            title: conversation.label as string,
-          });
-        } else if (menuInfo.key === "delete") {
-          onDelete(conversation.id!);
-        }
+  const menu: ConversationsProps["menu"] = useMemoizedFn((conversation: ConversationItemType) => ({
+    items: [
+      {
+        label: "重命名",
+        key: "rename",
+        icon: <EditOutlined />,
       },
-    })
-  );
+      {
+        label: "删除",
+        key: "delete",
+        danger: true,
+        icon: <DeleteOutlined />,
+      },
+    ],
+    onClick: (menuInfo: Parameters<NonNullable<MenuProps["onClick"]>>[0]) => {
+      menuInfo.domEvent.stopPropagation();
+      if (menuInfo.key === "rename") {
+        onRename({
+          id: conversation.id as string,
+          title: conversation.label as string,
+        });
+      } else if (menuInfo.key === "delete") {
+        onDelete(conversation.id!);
+      }
+    },
+  }));
 
   const items = useMemo(() => {
     const items: ConversationItemType[] = conversations.map(conversation => ({
@@ -98,12 +83,8 @@ export function useConversionsProps(
 export function useConversionInfo() {
   const dispatch = useAppDispatch();
   const location = useLocation();
-  const conversationsLoaded = useAppSelector(
-    state => state.conversation.conversationsLoaded
-  );
-  const conversationInfo = useAppSelector(
-    state => state.conversation.conversationInfo
-  );
+  const conversationsLoaded = useAppSelector(state => state.conversation.conversationsLoaded);
+  const conversationInfo = useAppSelector(state => state.conversation.conversationInfo);
 
   // 监听路由
   useEffect(() => {
@@ -127,10 +108,7 @@ export function useConversionInfo() {
  * 小屏模式下，使用 fixed 布局, 这样展开菜单时，不会挤压右侧内容区域
  * @param collapsed
  */
-export function useSidebarStyles(
-  collapsed: boolean,
-  isSmallScreen: boolean
-): CSSProperties {
+export function useSidebarStyles(collapsed: boolean, isSmallScreen: boolean): CSSProperties {
   return useMemo(() => {
     if (!isSmallScreen) return {};
 
@@ -147,8 +125,5 @@ export function useSidebarStyles(
 
 export function useHideSidebar() {
   const location = useLocation();
-  return useMemo(
-    () => /^\/(login|register)/.test(location.pathname),
-    [location.pathname]
-  );
+  return useMemo(() => /^\/(login|register)/.test(location.pathname), [location.pathname]);
 }

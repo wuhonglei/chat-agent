@@ -1,7 +1,4 @@
-import {
-  CodeHighlighterProps,
-  CodeHighlighter as XCodeHighlighter,
-} from "@ant-design/x";
+import { CodeHighlighterProps, CodeHighlighter as XCodeHighlighter } from "@ant-design/x";
 import React from "react";
 import CustomHeader from "./CustomHeader";
 

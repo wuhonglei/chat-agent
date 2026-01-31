@@ -10,11 +10,7 @@ type Props = {
   onConfirm: (newTitle: string) => void;
 };
 
-export default function HoverButton({
-  title,
-  onConfirm,
-  className: outerClassName,
-}: Props) {
+export default function HoverButton({ title, onConfirm, className: outerClassName }: Props) {
   const [isEdit, setIsEdit] = useState(false);
   const { message } = App.useApp();
   const [newTitle, setNewTitle] = useState(title);

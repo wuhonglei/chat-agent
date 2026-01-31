@@ -61,10 +61,7 @@ export const dbMiddleware: Middleware = store => next => action => {
         // 对于 clearChatState，需要从数据库删除
         if (actionType === "chat/clearChatState") {
           db.conversationMessages.delete(conversationId).catch(error => {
-            console.error(
-              "Failed to delete conversation from IndexedDB:",
-              error
-            );
+            console.error("Failed to delete conversation from IndexedDB:", error);
           });
         } else {
           // 其他 actions：异步保存到数据库，不阻塞 reducer 执行

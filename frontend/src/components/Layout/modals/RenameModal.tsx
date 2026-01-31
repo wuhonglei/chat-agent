@@ -17,14 +17,7 @@ export default function RenameModal({ title, open, onCancel, onOk }: Props) {
   };
 
   return (
-    <Modal
-      centered
-      width={448}
-      open={open}
-      title="编辑对话名称"
-      onCancel={onCancel}
-      onOk={handleConfirm}
-    >
+    <Modal centered width={448} open={open} title="编辑对话名称" onCancel={onCancel} onOk={handleConfirm}>
       <Form form={form} onFinish={handleConfirm}>
         <Form.Item
           name="title"

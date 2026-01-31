@@ -2,12 +2,7 @@ import { useEffect } from "react";
 import { FormInstance } from "antd/es/form";
 import { ButtonState, names } from "./constant";
 import { trim, omit, isEqual, get, isNil, isBoolean } from "lodash-es";
-import {
-  ChatInputFormValues,
-  ChatInputConfig,
-  MCPConfigItem,
-  RetrieverSource,
-} from "@/interfaces";
+import { ChatInputFormValues, ChatInputConfig, MCPConfigItem, RetrieverSource } from "@/interfaces";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { useAppSelector } from "@/store/hooks";
 import { createSelector } from "@reduxjs/toolkit";
@@ -19,10 +14,7 @@ import { RootState } from "@/store";
  * @param isStreaming 是否流式传输
  * @returns 按钮状态
  */
-export function useButtonState(
-  content: string,
-  isStreaming?: boolean
-): ButtonState {
+export function useButtonState(content: string, isStreaming?: boolean): ButtonState {
   if (isStreaming) {
     return ButtonState.Streaming;
   }
@@ -42,21 +34,15 @@ const defaultFormValue: ChatInputConfig = {
 
 // 创建 memoized selector 来避免不必要的重新渲染
 const selectMCPConfig = createSelector(
-  [
-    (state: RootState) => state.mcp.mcpConfig,
-    (state: RootState) => state.mcp.mcpConfigLoaded,
-  ],
+  [(state: RootState) => state.mcp.mcpConfig, (state: RootState) => state.mcp.mcpConfigLoaded],
   (mcpConfig, mcpConfigLoaded) => ({ mcpConfig, mcpConfigLoaded })
 );
 export const chatInputFormValuesStorageKey = "chat-input-form-values-v1";
 
 export function useFormValuesChange(form: FormInstance<ChatInputFormValues>) {
-  const [formValues, setFormValues] = useLocalStorageState<ChatInputConfig>(
-    chatInputFormValuesStorageKey,
-    {
-      defaultValue: defaultFormValue,
-    }
-  );
+  const [formValues, setFormValues] = useLocalStorageState<ChatInputConfig>(chatInputFormValuesStorageKey, {
+    defaultValue: defaultFormValue,
+  });
   const { mcpConfig, mcpConfigLoaded } = useAppSelector(selectMCPConfig);
 
   useEffect(() => {
@@ -82,10 +68,7 @@ export function useFormValuesChange(form: FormInstance<ChatInputFormValues>) {
   }, [mcpConfigLoaded, mcpConfig, setFormValues]);
 
   const onValuesChange = useMemoizedFn(
-    (
-      _changedFields: Partial<ChatInputFormValues>,
-      allFields: ChatInputFormValues
-    ) => {
+    (_changedFields: Partial<ChatInputFormValues>, allFields: ChatInputFormValues) => {
       const changedKeys = Object.keys(_changedFields);
       if (isEqual(changedKeys, names.content)) {
         return;
@@ -112,9 +95,7 @@ const defaultCachedMcpConfig: MCPConfigItem[] = [];
 
 export function useMCPConfig() {
   const { mcpConfig, mcpConfigLoaded } = useAppSelector(selectMCPConfig);
-  const [cachedMcpConfig, setCachedMcpConfig] = useLocalStorageState<
-    MCPConfigItem[]
-  >(cachedMcpConfigStorageKey, {
+  const [cachedMcpConfig, setCachedMcpConfig] = useLocalStorageState<MCPConfigItem[]>(cachedMcpConfigStorageKey, {
     defaultValue: defaultCachedMcpConfig,
   });
 

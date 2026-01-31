@@ -24,14 +24,7 @@ interface ChatInputProps {
   form: FormInstance<ChatInputFormValues>;
 }
 
-const ChatInput: React.FC<ChatInputProps> = ({
-  onSend,
-  onStop,
-  isStreaming,
-  className,
-  style,
-  form,
-}) => {
+const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, className, style, form }) => {
   const content = Form.useWatch(names.content, form);
   const buttonState = useButtonState(content, isStreaming);
   const { values, onValuesChange } = useFormValuesChange(form);
@@ -48,15 +41,13 @@ const ChatInput: React.FC<ChatInputProps> = ({
     }
   });
 
-  const handlePressEnter = useMemoizedFn(
-    (event: React.KeyboardEvent<Element>) => {
-      if (!isInputEnter(event)) {
-        return;
-      }
-      event.preventDefault(); // 阻止默认行为, 避免产生新行
-      handleSend();
+  const handlePressEnter = useMemoizedFn((event: React.KeyboardEvent<Element>) => {
+    if (!isInputEnter(event)) {
+      return;
     }
-  );
+    event.preventDefault(); // 阻止默认行为, 避免产生新行
+    handleSend();
+  });
 
   const handleBtnClick = useMemoizedFn(() => {
     // 停止流式传输
@@ -90,17 +81,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
                 <div className="flex items-center gap-2 justify-between">
                   {/* 左侧 */}
                   <div className="flex items-center gap-2">
-                    <Form.Item
-                      trigger="onClick"
-                      initialValue={false}
-                      valuePropName="active"
-                      name={names.thinkMode}
-                    >
-                      <CustomButton
-                        size="middle"
-                        icon={<ThinkModeIcon />}
-                        tooltip="先思考后回答, 解决推理问题"
-                      >
+                    <Form.Item trigger="onClick" initialValue={false} valuePropName="active" name={names.thinkMode}>
+                      <CustomButton size="middle" icon={<ThinkModeIcon />} tooltip="先思考后回答, 解决推理问题">
                         深度思考
                       </CustomButton>
                     </Form.Item>
@@ -118,13 +100,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
                       size="middle"
                       shape="round"
                       type="primary"
-                      icon={
-                        isStreamingState(buttonState) ? (
-                          <SquareIcon />
-                        ) : (
-                          <ArrowUpOutlined />
-                        )
-                      }
+                      icon={isStreamingState(buttonState) ? <SquareIcon /> : <ArrowUpOutlined />}
                       onClick={handleBtnClick}
                       disabled={isButtonDisabled(buttonState)}
                     />

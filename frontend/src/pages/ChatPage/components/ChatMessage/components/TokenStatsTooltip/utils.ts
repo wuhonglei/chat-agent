@@ -5,13 +5,10 @@ import { DescriptionsProps } from "antd";
 import { isEmpty } from "lodash-es";
 
 export const getDescriptionItems = (tokenStats: TokenStats) => {
-  const isTitleGeneration =
-    tokenStats.agentName === TokenStatsAgentName.TitleGeneration;
+  const isTitleGeneration = tokenStats.agentName === TokenStatsAgentName.TitleGeneration;
   const isMCP = tokenStats.agentName === TokenStatsAgentName.McpTools;
-  const isComponentTools =
-    tokenStats.agentName === TokenStatsAgentName.ComponentTools;
-  const isResponseGeneration =
-    tokenStats.agentName === TokenStatsAgentName.ResponseGeneration;
+  const isComponentTools = tokenStats.agentName === TokenStatsAgentName.ComponentTools;
+  const isResponseGeneration = tokenStats.agentName === TokenStatsAgentName.ResponseGeneration;
 
   const items: DescriptionsProps["items"] = [
     {

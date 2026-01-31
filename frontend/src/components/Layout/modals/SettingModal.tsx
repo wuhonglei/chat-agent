@@ -47,20 +47,8 @@ export default function SettingModal({ open, onCancel, data }: Props) {
   };
 
   return (
-    <Modal
-      centered
-      open={open}
-      title="用户设置"
-      onCancel={onCancel}
-      onOk={handleConfirm}
-      okButtonProps={{ loading }}
-    >
-      <Form
-        form={form}
-        layout="horizontal"
-        labelCol={{ span: 4 }}
-        wrapperCol={{ span: 8 }}
-      >
+    <Modal centered open={open} title="用户设置" onCancel={onCancel} onOk={handleConfirm} okButtonProps={{ loading }}>
+      <Form form={form} layout="horizontal" labelCol={{ span: 4 }} wrapperCol={{ span: 8 }}>
         <Form.Item
           label="用户名"
           name="name"

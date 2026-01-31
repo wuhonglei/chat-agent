@@ -2,12 +2,7 @@ import { fetchEventSource } from "@microsoft/fetch-event-source";
 import { AxiosResponse } from "axios";
 
 import { authHeader } from "@/constants";
-import {
-  ChatMessage,
-  ChatRequest,
-  MCPConfigItem,
-  StreamMessage,
-} from "@/interfaces";
+import { ChatMessage, ChatRequest, MCPConfigItem, StreamMessage } from "@/interfaces";
 import { isUnAuthorized, reportError, toLoginPage } from "@/utils";
 import camelcaseKeys from "camelcase-keys";
 import snakecaseKeys from "snakecase-keys";
@@ -16,9 +11,7 @@ import { addRequestHeaders, apiClient } from "./base";
 // Chat API
 export const chatAPI = {
   // 获取对话消息列表
-  getConversationMessages: async (
-    conversationId: string
-  ): Promise<ChatMessage[]> => {
+  getConversationMessages: async (conversationId: string): Promise<ChatMessage[]> => {
     const res = await apiClient.get(`/conversation/${conversationId}/messages`);
     // @ts-expect-error - TODO: fix this
     return res.messages;
@@ -65,10 +58,7 @@ export const chatAPI = {
       onmessage(event) {
         if (event.data) {
           try {
-            const parsed: StreamMessage = camelcaseKeys(
-              JSON.parse(event.data),
-              { deep: true }
-            );
+            const parsed: StreamMessage = camelcaseKeys(JSON.parse(event.data), { deep: true });
             onMessage(parsed);
           } catch (e) {
             // 上报消息解析错误

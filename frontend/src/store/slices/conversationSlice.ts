@@ -1,8 +1,4 @@
-import {
-  ConversationInfo,
-  CreateConversationRequest,
-  UpdateConversationRequest,
-} from "@/interfaces";
+import { ConversationInfo, CreateConversationRequest, UpdateConversationRequest } from "@/interfaces";
 import { conversationAPI } from "@/services";
 import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
 
@@ -77,18 +73,12 @@ export const updateConversationInfo = createAsyncThunk(
 );
 // ==================== Slice ====================
 
-const findConversationIndexInListHelper = (
-  state: ConversationState,
-  conversationId: string
-): number => {
+const findConversationIndexInListHelper = (state: ConversationState, conversationId: string): number => {
   return state.conversations.findIndex(conv => conv.id === conversationId);
 };
 
 // 辅助函数：更新列表中的对话信息
-const updateConversationInListHelper = (
-  state: ConversationState,
-  conversation: ConversationInfo
-): number => {
+const updateConversationInListHelper = (state: ConversationState, conversation: ConversationInfo): number => {
   const index = findConversationIndexInListHelper(state, conversation.id);
   if (index !== -1) {
     state.conversations[index] = conversation;
@@ -97,10 +87,7 @@ const updateConversationInListHelper = (
   return index;
 };
 
-const removeConversationFromListHelper = (
-  state: ConversationState,
-  conversationId: string
-): number => {
+const removeConversationFromListHelper = (state: ConversationState, conversationId: string): number => {
   const index = findConversationIndexInListHelper(state, conversationId);
   if (index !== -1) {
     state.conversations.splice(index, 1);
@@ -112,10 +99,7 @@ const removeConversationFromListHelper = (
 /**
  * 添加对话到列表最前面
  */
-const prependConversationToListHelper = (
-  state: ConversationState,
-  conversation: ConversationInfo
-): number => {
+const prependConversationToListHelper = (state: ConversationState, conversation: ConversationInfo): number => {
   state.conversations.unshift(conversation);
   return 0;
 };
@@ -123,10 +107,7 @@ const prependConversationToListHelper = (
 /**
  * 设置当前对话信息
  */
-const setCurrentConversationHelper = (
-  state: ConversationState,
-  conversation: ConversationInfo | null
-): void => {
+const setCurrentConversationHelper = (state: ConversationState, conversation: ConversationInfo | null): void => {
   state.conversationInfo = conversation;
 };
 
@@ -135,10 +116,7 @@ const conversationSlice = createSlice({
   initialState,
   reducers: {
     // 设置对话信息
-    setConversationInfo: (
-      state,
-      action: PayloadAction<ConversationInfo | null>
-    ) => {
+    setConversationInfo: (state, action: PayloadAction<ConversationInfo | null>) => {
       setCurrentConversationHelper(state, action.payload);
     },
 
@@ -157,10 +135,7 @@ const conversationSlice = createSlice({
       prependConversationToListHelper(state, action.payload);
     },
 
-    updateConversationInList: (
-      state,
-      action: PayloadAction<ConversationInfo>
-    ) => {
+    updateConversationInList: (state, action: PayloadAction<ConversationInfo>) => {
       updateConversationInListHelper(state, action.payload);
     },
 
@@ -182,10 +157,7 @@ const conversationSlice = createSlice({
     },
 
     // 当该会话中有新的聊天消息时，更新列表中的对话信息
-    refreshConversionInList: (
-      state,
-      action: PayloadAction<ConversationInfo>
-    ) => {
+    refreshConversionInList: (state, action: PayloadAction<ConversationInfo>) => {
       const newConversation = action.payload;
       removeConversationFromListHelper(state, newConversation.id); // 先移除旧的会话
       prependConversationToListHelper(state, newConversation); // 再添加新的会话到最前面

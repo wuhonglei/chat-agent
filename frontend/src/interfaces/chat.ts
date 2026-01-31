@@ -1,10 +1,5 @@
 // Chat types
-import {
-  MessageStatus,
-  RoleType,
-  SearchSourceType,
-  TitleCreatedBy,
-} from "@/constants";
+import { MessageStatus, RoleType, SearchSourceType, TitleCreatedBy } from "@/constants";
 import { ComponentToolRequestItem } from "./componentTools";
 import { TotalTokenStats } from "./token";
 import { ToolCallMessage } from "./tooCall";
@@ -85,10 +80,7 @@ export interface ChatRequest extends ChatInputFormValues {
   historyIds: string[];
   regenerateTitle: boolean;
   removedMessageIds: string[];
-  componentToolsForBackend: Pick<
-    ComponentToolRequestItem,
-    "name" | "whenCondition" | "when"
-  >[];
+  componentToolsForBackend: Pick<ComponentToolRequestItem, "name" | "whenCondition" | "when">[];
 }
 
 export interface SourceData {

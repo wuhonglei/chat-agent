@@ -22,10 +22,10 @@ class ComponentSchemaValidator {
     addFormats(this.ajv);
 
     // 使用 Vite 的 import.meta.glob 动态导入所有 schema 文件
-    const schemaModules = import.meta.glob<JSONSchema7>(
-      "./component-schemas/*.json",
-      { eager: true, import: "default" }
-    );
+    const schemaModules = import.meta.glob<JSONSchema7>("./component-schemas/*.json", {
+      eager: true,
+      import: "default",
+    });
 
     // 创建组件名称到 schema 的映射
     // 从 glob 返回的 key 中提取组件名称（文件名）

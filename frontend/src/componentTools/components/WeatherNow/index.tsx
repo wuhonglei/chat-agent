@@ -3,11 +3,7 @@ import styles from "./index.module.css";
 import daytimeStyles from "./theme/daytime.module.css";
 import nighttimeStyles from "./theme/night.module.css";
 import type { WeatherNowProps } from "./type";
-import {
-  extractTemperature,
-  getWeatherBackgroundClass,
-  isDaytime,
-} from "./utils";
+import { extractTemperature, getWeatherBackgroundClass, isDaytime } from "./utils";
 
 export default function WeatherNow({ data, location }: WeatherNowProps) {
   const { temp, icon, text, obsTime } = data;
@@ -35,11 +31,7 @@ export default function WeatherNow({ data, location }: WeatherNowProps) {
         </div>
         <div className={styles.description}>
           {text || "-"}
-          <img
-            alt={text}
-            src={`/weatherIcon/weather-icon-S2/64/${icon}.png`}
-            onError={handleIconError}
-          />
+          <img alt={text} src={`/weatherIcon/weather-icon-S2/64/${icon}.png`} onError={handleIconError} />
         </div>
       </div>
 

@@ -12,12 +12,7 @@ type Props = {
   reasoning: string | undefined;
 };
 
-const ReasoningBlock = ({
-  isReasoning,
-  reasoning,
-  isStreaming,
-  reasoningDuration,
-}: Props) => {
+const ReasoningBlock = ({ isReasoning, reasoning, isStreaming, reasoningDuration }: Props) => {
   const displayReasoning = useThrottle(reasoning, {
     wait: 100,
   });

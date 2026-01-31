@@ -8,10 +8,7 @@ type TokenStatsTooltipProps = {
   tokenStats?: TokenStats;
 };
 
-const TokenStatsTooltip: React.FC<TokenStatsTooltipProps> = ({
-  title = "Token 统计信息",
-  tokenStats,
-}) => {
+const TokenStatsTooltip: React.FC<TokenStatsTooltipProps> = ({ title = "Token 统计信息", tokenStats }) => {
   if (!tokenStats) {
     return null;
   }

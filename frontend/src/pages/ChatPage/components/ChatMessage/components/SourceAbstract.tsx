@@ -1,7 +1,5 @@
 import SearchIcon from "@/assets/svg/SearchIcon.svg?react";
-import CustomButton, {
-  CustomButtonProps,
-} from "@/components/common/CustomButton";
+import CustomButton, { CustomButtonProps } from "@/components/common/CustomButton";
 import { useWebIconUrls } from "@/hooks";
 import { SearchSource } from "@/interfaces";
 import { RightOutlined } from "@ant-design/icons";
@@ -23,17 +21,10 @@ const UrlIconGroup = memo(({ urlIcons }: { urlIcons: string[] }) => {
   }
 
   return (
-    <ConfigProvider
-      theme={{ components: { Avatar: { groupBorderColor: "transparent" } } }}
-    >
+    <ConfigProvider theme={{ components: { Avatar: { groupBorderColor: "transparent" } } }}>
       <Avatar.Group size={16} max={{ count: maxIcons }} className="ml-1">
         {urlIcons.map((url: string, index: number) => (
-          <Avatar
-            style={{ backgroundColor: "#fff" }}
-            key={index}
-            src={url}
-            className="bg-white"
-          />
+          <Avatar style={{ backgroundColor: "#fff" }} key={index} src={url} className="bg-white" />
         ))}
       </Avatar.Group>
     </ConfigProvider>
@@ -65,11 +56,7 @@ const SourceAbstract = ({ sources, mode, ...props }: Props) => {
     );
 
   return (
-    <CustomButton
-      size="middle"
-      {...props}
-      className={classNames("text-black-tertiary", props.className)}
-    >
+    <CustomButton size="middle" {...props} className={classNames("text-black-tertiary", props.className)}>
       {children}
       <RightOutlined className="ml-1" />
     </CustomButton>

@@ -51,16 +51,10 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
           isStreaming={isStreaming && index === messages.length - 1}
           isReasoning={isReasoning && index === messages.length - 1}
           isCallingMcpTools={isCallingMcpTools && index === messages.length - 1}
-          isCallingComponentTools={
-            isCallingComponentTools && index === messages.length - 1
-          }
+          isCallingComponentTools={isCallingComponentTools && index === messages.length - 1}
         />
       ))}
-      <AutoScroll
-        messages={messages}
-        isStreaming={isStreaming}
-        containerRef={containerRef}
-      />
+      <AutoScroll messages={messages} isStreaming={isStreaming} containerRef={containerRef} />
       <FloatButtonBottom visibilityHeight={200} containerRef={containerRef} />
     </SimpleBar>
   );
