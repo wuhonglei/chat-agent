@@ -86,7 +86,11 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
       )}
       footer={
         isStreaming ? null : (
-          <AssistantOperation message={message} onReSend={onReSend} />
+          <AssistantOperation
+            message={message}
+            onReSend={onReSend}
+            tokenStats={message.tokenStats}
+          />
         )
       }
     />

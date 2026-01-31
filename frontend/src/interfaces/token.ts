@@ -1,5 +1,7 @@
 // Token 统计相关的类型定义
 
+import { TokenStatsAgentName } from "@/constants";
+
 /**
  * Token 使用量统计
  */
@@ -13,7 +15,7 @@ export interface TokenUsage {
  * Token 统计基类
  */
 export interface BaseTokenStats {
-  agentName: string; // Agent 名称
+  agentName: TokenStatsAgentName; // Agent 名称
   modelName: string; // 使用的模型名称
   thinkMode: boolean; // 是否使用思考模式
   modelLimit: number; // 模型限制的 token 数量
@@ -24,7 +26,7 @@ export interface BaseTokenStats {
  * MCP 工具调用的 Token 统计
  */
 export interface MCPToolsTokenStats extends BaseTokenStats {
-  agentName: "mcp_tools";
+  agentName: TokenStatsAgentName.McpTools;
   toolCallCount: number; // 被调用的工具数量
   toolCallNames: string[]; // 被调用的工具名称列表
   toolDefinitionTokens: number; // 工具定义 token 数量
@@ -34,7 +36,7 @@ export interface MCPToolsTokenStats extends BaseTokenStats {
  * 组件工具调用的 Token 统计
  */
 export interface ComponentToolsTokenStats extends BaseTokenStats {
-  agentName: "component_tools";
+  agentName: TokenStatsAgentName.ComponentTools;
   toolCallCount: number; // 被调用的组件工具数量
   toolCallNames: string[]; // 被调用的组件工具名称列表
   toolDefinitionTokens: number; // 组件工具定义 token 数量
@@ -44,7 +46,7 @@ export interface ComponentToolsTokenStats extends BaseTokenStats {
  * 响应生成的 Token 统计
  */
 export interface ResponseGenerationTokenStats extends BaseTokenStats {
-  agentName: "response-generation";
+  agentName: TokenStatsAgentName.ResponseGeneration;
   reasoningTokens?: number; // 推理内容 token 数量
   contentTokens?: number; // 回答内容 token 数量
 }
@@ -53,7 +55,7 @@ export interface ResponseGenerationTokenStats extends BaseTokenStats {
  * 标题生成的 Token 统计
  */
 export interface TitleGenerationTokenStats extends BaseTokenStats {
-  agentName: "title-generation";
+  agentName: TokenStatsAgentName.TitleGeneration;
   title?: string; // 生成的标题
 }
 
@@ -72,7 +74,6 @@ export interface TotalTokenStats {
  * 可能是 TotalTokenStats 或单个阶段的统计
  */
 export type TokenStats =
-  | TotalTokenStats
   | MCPToolsTokenStats
   | ComponentToolsTokenStats
   | ResponseGenerationTokenStats

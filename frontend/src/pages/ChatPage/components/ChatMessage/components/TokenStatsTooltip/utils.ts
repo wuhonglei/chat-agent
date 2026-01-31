@@ -1,16 +1,17 @@
-import {
-  ComponentToolsTokenStats,
-  MCPToolsTokenStats,
-} from "@/interfaces/token";
+import { TokenStatsAgentName } from "@/constants";
+import { TokenStats } from "@/interfaces/token";
 import { prettyCount } from "@/utils";
 import { DescriptionsProps } from "antd";
 import { isEmpty } from "lodash-es";
 
-export const getDescriptionItems = (
-  tokenStats: MCPToolsTokenStats | ComponentToolsTokenStats
-) => {
-  const isMCP = tokenStats.agentName === "mcp_tools";
-  const isComponentTools = tokenStats.agentName === "component_tools";
+export const getDescriptionItems = (tokenStats: TokenStats) => {
+  const isMCP = tokenStats.agentName === TokenStatsAgentName.McpTools;
+  const isComponentTools =
+    tokenStats.agentName === TokenStatsAgentName.ComponentTools;
+  const isResponseGeneration =
+    tokenStats.agentName === TokenStatsAgentName.ResponseGeneration;
+  const isTitleGeneration =
+    tokenStats.agentName === TokenStatsAgentName.TitleGeneration;
 
   const items: DescriptionsProps["items"] = [
     {
@@ -44,6 +45,14 @@ export const getDescriptionItems = (
       children: prettyCount(tokenStats.tokenUsage.totalTokens),
     },
   ];
+
+  if (isTitleGeneration) {
+    items.push({
+      key: "titleGenerationTokens",
+      label: "标题生成 tokens",
+      children: tokenStats.title || "",
+    });
+  }
 
   if (isMCP) {
     items.push(
@@ -89,6 +98,14 @@ export const getDescriptionItems = (
         children: tokenStats.toolCallNames.join("\n"),
       });
     }
+  }
+
+  if (isResponseGeneration) {
+    items.push({
+      key: "responseGenerationTokens",
+      label: "响应生成 tokens",
+      children: prettyCount(tokenStats.reasoningTokens || 0),
+    });
   }
 
   return items;
