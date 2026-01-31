@@ -221,7 +221,6 @@ class ChatService:
                         )
                     )
 
-                start_time = get_current_time()
                 history_messages = message_service.get_history_messages_by_ids(
                     chat_request.history_ids
                 )

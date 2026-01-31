@@ -128,10 +128,10 @@
 
 ### SkillsMP 分类入口（便于你后续自行扩展）
 
-- **Development**（前端/全栈）: https://skillsmp.com/categories/development  
-- **Tools**（CLI、自动化、效率）: https://skillsmp.com/categories/tools  
-- **Testing & Security**: https://skillsmp.com/categories/testing-security  
-- **Documentation**: https://skillsmp.com/categories/documentation  
+- **Development**（前端/全栈）: https://skillsmp.com/categories/development
+- **Tools**（CLI、自动化、效率）: https://skillsmp.com/categories/tools
+- **Testing & Security**: https://skillsmp.com/categories/testing-security
+- **Documentation**: https://skillsmp.com/categories/documentation
 
 ---
 
@@ -215,11 +215,11 @@ openskills sync                        # 若项目有 AGENTS.md
 
 ## 六、参考链接
 
-- **SkillsMP 首页**: https://skillsmp.com  
-- **SkillsMP 技能列表**: https://skillsmp.com/skills  
-- **SkillsMP 分类**: https://skillsmp.com/categories  
-- **Cursor - Agent Skills 文档**: https://cursor.com/docs/context/skills  
-- **Anthropic - Building skills for Claude Code**: https://www.claude.com/blog/building-skills-for-claude-code  
+- **SkillsMP 首页**: https://skillsmp.com
+- **SkillsMP 技能列表**: https://skillsmp.com/skills
+- **SkillsMP 分类**: https://skillsmp.com/categories
+- **Cursor - Agent Skills 文档**: https://cursor.com/docs/context/skills
+- **Anthropic - Building skills for Claude Code**: https://www.claude.com/blog/building-skills-for-claude-code
 
 ---
 
