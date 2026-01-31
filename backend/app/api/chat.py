@@ -1,5 +1,6 @@
 """Chat endpoints for Q&A"""
 
+import asyncio
 from collections.abc import AsyncGenerator
 from typing import cast
 
@@ -103,14 +104,15 @@ async def chat_stream(
                     think_mode=chat_request.think_mode,
                 )
 
-                # 如果需要重新生成标题
+                # 如需重新生成标题则异步执行，不阻塞正文流
+                title_task: asyncio.Task[str] | None = None
                 if chat_request.regenerate_title:
-                    title_message = await chat_service.generate_title(
-                        chat_request.content,
-                        conversation_id=chat_request.conversation_id,
+                    title_task = asyncio.create_task(
+                        chat_service.generate_title(
+                            chat_request.content,
+                            conversation_id=chat_request.conversation_id,
+                        )
                     )
-                    if title_message:
-                        yield title_message
 
                 # 流式生成响应
                 start_time = get_current_time()
@@ -130,8 +132,28 @@ async def chat_stream(
                     history_messages=history_messages,
                     client_ip=None,
                 ):
+                    # 若标题已生成则先下发，再下发正文 chunk
+                    if title_task is not None and title_task.done():
+                        try:
+                            if title_message := title_task.result():
+                                yield title_message
+                        except Exception:
+                            pass
+                        title_task = None
                     chunk_count += 1
                     yield chunk
+
+                # 若标题任务尚未完成，等待后下发
+                if title_task is not None:
+                    try:
+                        if title_message := await title_task:
+                            yield title_message
+                    except Exception as e:
+                        logger.warning(
+                            "Title generation failed, stream continues",
+                            conversation_id=chat_request.conversation_id,
+                            error=e,
+                        )
 
                 logger.info(
                     "Stream message generation completed",
