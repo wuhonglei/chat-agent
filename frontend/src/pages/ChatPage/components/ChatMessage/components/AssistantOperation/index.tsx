@@ -18,7 +18,6 @@ export default function AssistantOperation(props: Props) {
     <div className={classNames("w-full flex items-center gap-2 transition duration-300")}>
       <CopyButton size="middle" text={message.content} children={null} />
       <Button type="text" icon={<RedoOutlined />} onClick={onReSend} />
-      <span className="text-sm text-gray-500">{contentDuration || "-"}s</span>
       {tokenStats.responseGeneration && (
         <Tooltip
           trigger={["click", "hover"]}
@@ -32,6 +31,7 @@ export default function AssistantOperation(props: Props) {
           <PieChartOutlined className="ml-1 cursor-pointer" />
         </Tooltip>
       )}
+      <span className="text-sm text-gray-500">{contentDuration || "-"}s</span>
     </div>
   );
 }

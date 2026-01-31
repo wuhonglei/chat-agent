@@ -26,7 +26,6 @@ const TitleWithDuration: React.FC<Props> = ({ titles, isDoing, duration, tokenSt
   return (
     <>
       {titles.done}
-      <span className="ml-1 text-black-tertiary">{duration}s</span>
       {!isEmpty(tokenStats) && (
         <span
           onClick={e => {
@@ -47,6 +46,7 @@ const TitleWithDuration: React.FC<Props> = ({ titles, isDoing, duration, tokenSt
           </Tooltip>
         </span>
       )}
+      <span className="ml-1 text-black-tertiary">{duration}s</span>
     </>
   );
 };
