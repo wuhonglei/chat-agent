@@ -10,7 +10,11 @@ from app.agents import (
 )
 from app.core.config import settings
 from app.mcp.mcp_client import MCPClientManager
-from app.schemas.chat import ChatMessageItem, ChatRequest, CollectedResponse
+from app.schemas.chat import (
+    ChatMessageItem,
+    ChatRequest,
+    CollectedResponse,
+)
 from app.schemas.token_stats import TotalTokenStats
 from app.services.component_schema_service import ComponentSchemaService
 from app.utils.logger import logger
@@ -148,9 +152,35 @@ class ChatService:
             )
             return
 
-    async def generate_title(self, user_message: str) -> str:
-        """Generate title for the chat"""
-        return await self.title_generation_agent.execute(user_message)
+    async def generate_title(
+        self, user_message: str, conversation_id: str | None = None
+    ) -> str:
+        """生成对话标题，包含 token 统计"""
+        logger.info(
+            "Regenerating conversation title",
+            conversation_id=conversation_id,
+        )
+        title = await self.title_generation_agent.execute(user_message)
+        token_stats = (
+            self.title_generation_agent.token_stats.model_dump(mode="json")
+            if self.title_generation_agent.token_stats
+            else None
+        )
+        logger.info(
+            "Title generated",
+            conversation_id=conversation_id,
+            title=title,
+            title_length=len(title) if title else 0,
+        )
+
+        return format_sse_message(
+            "title",
+            {
+                "id": conversation_id,
+                "title": title,
+                "token_stats": token_stats,
+            },
+        )
 
     def get_collected_response(self) -> CollectedResponse:
         """获取已收集的助手消息内容"""

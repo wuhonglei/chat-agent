@@ -4,6 +4,10 @@ export function isTitleCreatedByDefault(createdBy: TitleCreatedBy | undefined) {
   return createdBy === TitleCreatedBy.Default;
 }
 
+export function isTitleCreatedByUser(createdBy: TitleCreatedBy | undefined) {
+  return createdBy === TitleCreatedBy.User;
+}
+
 export function isConversationNotFound(
   code: number,
   api: string | undefined

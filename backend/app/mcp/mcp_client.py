@@ -20,12 +20,6 @@ from fastmcp.client.transports import (
 
 from app.core.config import settings
 from app.mcp.mcp_servers.code_exec_mcp.server import mcp as code_exec_mcp  # noqa: E402
-from app.mcp.mcp_servers.confluence_mcp.server import (
-    check_availability as confluence_check_availability,  # noqa: E402
-)
-from app.mcp.mcp_servers.confluence_mcp.server import (
-    mcp as mcp_confluence,  # noqa: E402
-)
 from app.mcp.mcp_servers.ip_locator_mcp.server import (
     mcp as ip_locator_mcp,  # noqa: E402
 )
@@ -42,10 +36,6 @@ mcp_config = {
         "context7-mcp": settings.mcp.context7_mcp.model_dump(
             mode="json", exclude={"cache_config"}
         ),
-        "confluence-mcp": {
-            "server": mcp_confluence,
-            "availability_checker": confluence_check_availability,
-        },
         "weather-mcp": weather_mcp,
         "tavily-mcp": tavily_mcp,
         "code-exec-mcp": code_exec_mcp,
@@ -58,13 +48,6 @@ mcp_config_for_fe: list[MCPConfigForFeDict] = [
         "name": "Context7",
         "icon": "https://context7.com/favicon.ico",
         "description": "为 LLM 和 AI 代码编辑器提供最新文档",
-        "online": False,
-    },
-    {
-        "id": "confluence-mcp",
-        "name": "Confluence",
-        "icon": "https://www.atlassian.com/favicon.ico",
-        "description": "Shopee 内部公司知识库查询",
         "online": False,
     },
     {
@@ -120,43 +103,7 @@ class MCPClientManager:
         # 使用 list() 创建副本，以便在迭代时安全地修改字典
         for server_name, server_config in list(self.servers.items()):
             # 检查是否需要可用性检测
-            # 如果配置是字典且包含 availability_checker，则进行检测
-            availability_checker = None
             server_instance = server_config
-
-            if (
-                isinstance(server_config, dict)
-                and "availability_checker" in server_config
-            ):
-                availability_checker = server_config.get("availability_checker")
-                server_instance = server_config.get("server", server_config)
-                # 更新 self.servers 中的值，使用实际的 server 实例
-                self.servers[server_name] = server_instance
-
-            # 如果有可用性检测函数，先进行检测
-            if availability_checker and callable(availability_checker):
-                logger.info("Checking server availability", server_name=server_name)
-                try:
-                    is_available = await availability_checker()
-                    if not is_available:
-                        logger.warning(
-                            "Server unavailable, skipping",
-                            server_name=server_name,
-                        )
-                        # 从 servers 中移除，避免后续处理
-                        del self.servers[server_name]
-                        continue
-                    logger.info(
-                        "Server availability check passed", server_name=server_name
-                    )
-                except Exception as e:
-                    logger.warning(
-                        "Server availability check failed",
-                        server_name=server_name,
-                        error=str(e),
-                    )
-                    del self.servers[server_name]
-                    continue
 
             try:
                 # 根据服务器类型选择不同的传输方式

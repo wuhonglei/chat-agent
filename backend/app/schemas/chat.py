@@ -165,6 +165,16 @@ class ChatResponse(BaseModel):
     )
 
 
+class TitleGenerationResult(BaseModel):
+    """标题生成结果"""
+
+    title: str = Field(..., description="生成的标题")
+    token_stats: dict[str, Any] | None = Field(
+        None,
+        description="Token 使用统计",
+    )
+
+
 class CollectedResponse(BaseModel):
     """Collected response model"""
 

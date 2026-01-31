@@ -105,31 +105,12 @@ async def chat_stream(
 
                 # 如果需要重新生成标题
                 if chat_request.regenerate_title:
-                    logger.info(
-                        "Regenerating conversation title",
+                    title_message = await chat_service.generate_title(
+                        chat_request.content,
                         conversation_id=chat_request.conversation_id,
                     )
-                    title = await chat_service.generate_title(chat_request.content)
-                    logger.info(
-                        "Title generated",
-                        conversation_id=chat_request.conversation_id,
-                        title=title,
-                        title_length=len(title) if title else 0,
-                    )
-                    yield format_sse_message(
-                        "title",
-                        {
-                            "id": chat_request.conversation_id,
-                            "title": title,
-                            "token_stats": (
-                                chat_service.title_generation_agent.token_stats.model_dump(
-                                    mode="json"
-                                )
-                                if chat_service.title_generation_agent.token_stats
-                                else None
-                            ),
-                        },
-                    )
+                    if title_message:
+                        yield title_message
 
                 # 流式生成响应
                 start_time = get_current_time()
