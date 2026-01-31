@@ -3,15 +3,10 @@ import {
   MCPToolsTokenStats,
 } from "@/interfaces/token";
 import { prettyCount } from "@/utils";
-import { ConfigProvider, Descriptions, DescriptionsProps } from "antd";
+import { DescriptionsProps } from "antd";
 import { isEmpty } from "lodash-es";
-import React from "react";
 
-type TokenStatsTooltipProps = {
-  tokenStats: MCPToolsTokenStats | ComponentToolsTokenStats;
-};
-
-const getDescriptionItems = (
+export const getDescriptionItems = (
   tokenStats: MCPToolsTokenStats | ComponentToolsTokenStats
 ) => {
   const isMCP = tokenStats.agentName === "mcp_tools";
@@ -98,45 +93,3 @@ const getDescriptionItems = (
 
   return items;
 };
-
-const TokenStatsTooltip: React.FC<TokenStatsTooltipProps> = ({
-  tokenStats,
-}) => {
-  const items = getDescriptionItems(tokenStats);
-
-  return (
-    <div
-      onClick={e => {
-        e.stopPropagation();
-        e.preventDefault();
-      }}
-    >
-      <ConfigProvider
-        theme={{
-          token: {
-            colorSplit: "rgba(255, 255, 255, 0.45)",
-            colorText: "white",
-            colorTextHeading: "white",
-            colorTextSecondary: "white",
-            colorTextTertiary: "white",
-            colorTextQuaternary: "white",
-          },
-        }}
-      >
-        <Descriptions
-          bordered
-          column={1}
-          size="small"
-          items={items}
-          title="Token 统计信息"
-          styles={{
-            header: { marginBottom: 8 },
-            label: { fontWeight: "bold" },
-          }}
-        />
-      </ConfigProvider>
-    </div>
-  );
-};
-
-export default React.memo(TokenStatsTooltip);
