@@ -1,10 +1,10 @@
-import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import {
   ConversationInfo,
   CreateConversationRequest,
   UpdateConversationRequest,
 } from "@/interfaces";
 import { conversationAPI } from "@/services";
+import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 interface ConversationState {
   // 对话列表

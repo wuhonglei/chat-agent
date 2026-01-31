@@ -74,7 +74,7 @@ export interface TotalTokenStats {
  * 可能是 TotalTokenStats 或单个阶段的统计
  */
 export type TokenStats =
+  | TitleGenerationTokenStats
   | MCPToolsTokenStats
   | ComponentToolsTokenStats
-  | ResponseGenerationTokenStats
-  | TitleGenerationTokenStats;
+  | ResponseGenerationTokenStats;

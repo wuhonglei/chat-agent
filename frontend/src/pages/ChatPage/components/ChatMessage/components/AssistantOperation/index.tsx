@@ -4,7 +4,6 @@ import { PieChartOutlined, RedoOutlined } from "@ant-design/icons";
 import { Button, Tooltip } from "antd";
 import classNames from "classnames";
 import TokenStatsTooltip from "../TokenStatsTooltip";
-import { useTokenStatsDisplay } from "./hooks";
 
 type Props = {
   message: ChatMessageType;
@@ -14,8 +13,8 @@ type Props = {
 
 export default function AssistantOperation(props: Props) {
   const { message, onReSend, tokenStats } = props;
-  const { titles, tokenStats: tokenStatsList } =
-    useTokenStatsDisplay(tokenStats);
+
+  console.info(tokenStats);
 
   return (
     <div
@@ -25,25 +24,24 @@ export default function AssistantOperation(props: Props) {
     >
       <CopyButton size="middle" text={message.content} children={null} />
       <Button type="text" icon={<RedoOutlined />} onClick={onReSend} />
-      <Tooltip
-        trigger={["click", "hover"]}
-        styles={{
-          container: {
-            minWidth: 300,
-          },
-        }}
-        title={
-          tokenStatsList.length > 0 ? (
+      {tokenStats.responseGeneration && (
+        <Tooltip
+          trigger={["click", "hover"]}
+          styles={{
+            container: {
+              minWidth: 300,
+            },
+          }}
+          title={
             <TokenStatsTooltip
-              titles={titles}
-              tokenStats={tokenStatsList}
-              startIndex={tokenStatsList.length - 1}
+              title="响应内容 Token 统计信息"
+              tokenStats={tokenStats.responseGeneration}
             />
-          ) : null
-        }
-      >
-        <PieChartOutlined className="ml-1 cursor-pointer" />
-      </Tooltip>
+          }
+        >
+          <PieChartOutlined className="ml-1 cursor-pointer" />
+        </Tooltip>
+      )}
     </div>
   );
 }

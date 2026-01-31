@@ -5,13 +5,13 @@ import { DescriptionsProps } from "antd";
 import { isEmpty } from "lodash-es";
 
 export const getDescriptionItems = (tokenStats: TokenStats) => {
+  const isTitleGeneration =
+    tokenStats.agentName === TokenStatsAgentName.TitleGeneration;
   const isMCP = tokenStats.agentName === TokenStatsAgentName.McpTools;
   const isComponentTools =
     tokenStats.agentName === TokenStatsAgentName.ComponentTools;
   const isResponseGeneration =
     tokenStats.agentName === TokenStatsAgentName.ResponseGeneration;
-  const isTitleGeneration =
-    tokenStats.agentName === TokenStatsAgentName.TitleGeneration;
 
   const items: DescriptionsProps["items"] = [
     {
@@ -101,11 +101,18 @@ export const getDescriptionItems = (tokenStats: TokenStats) => {
   }
 
   if (isResponseGeneration) {
-    items.push({
-      key: "responseGenerationTokens",
-      label: "响应生成 tokens",
-      children: prettyCount(tokenStats.reasoningTokens || 0),
-    });
+    items.push(
+      {
+        key: "responseGenerationReasoningTokens",
+        label: "推理 tokens",
+        children: prettyCount(tokenStats.reasoningTokens || 0),
+      },
+      {
+        key: "responseGenerationContentTokens",
+        label: "内容 tokens",
+        children: prettyCount(tokenStats.contentTokens || 0),
+      }
+    );
   }
 
   return items;

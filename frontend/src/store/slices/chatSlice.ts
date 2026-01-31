@@ -7,6 +7,7 @@ import {
 import {
   ComponentToolsTokenStats,
   MCPToolsTokenStats,
+  TotalTokenStats,
 } from "@/interfaces/token";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { isEmpty, set } from "lodash-es";
@@ -309,6 +310,17 @@ const chatSlice = createSlice({
       const chatState = conversationIdCheck(state, conversationId);
       chatState.lastMessageUpdateAt = data;
     },
+    updateMessageTokenStats: (
+      state,
+      action: PayloadAction<ConversationActionPayload<TotalTokenStats>>
+    ) => {
+      const { conversationId, data } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      const lastMessage = lastMessageCheck(chatState.messages);
+      if (lastMessage) {
+        lastMessage.tokenStats = data;
+      }
+    },
     // 会话中 message finish 时调用
     resetChatState: (
       state,
@@ -355,6 +367,7 @@ export const {
   setReasoning,
   updateMessageStatus,
   updateMessageModifiedTime,
+  updateMessageTokenStats,
   clearLastMessage,
   resetChatState,
   clearChatState,

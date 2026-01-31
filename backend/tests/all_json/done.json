@@ -1,0 +1,64 @@
+{
+  "request_id": "5b16d502-0d23-4178-baa2-ea9db0cf9c40",
+  "user_id": "0ee5d2ce-df88-41f9-8c09-82fdfec24044",
+  "client_id": "6b004773-6195-4dec-ae05-78dbbb67e608",
+  "client_ip": "14.154.22.216",
+  "conversation_id": "7b8527ef-1e0d-405c-8d65-7252b190cfe5",
+  "content_length": 1355,
+  "reasoning_length": 552,
+  "tool_calls_length": 8,
+  "component_tool_calls_length": 0,
+  "tool_calls_duration": 90.66,
+  "component_tool_calls_duration": "None",
+  "reasoning_duration": 9.32,
+  "content_duration": 22.14,
+  "total_duration": 33.23,
+  "token_stats": {
+    "mcp_tools": {
+      "agent_name": "mcp_tools",
+      "model_name": "qwen-plus",
+      "think_mode": "True",
+      "model_limit": 131072,
+      "token_usage": {
+        "prompt_tokens": 7940,
+        "completion_tokens": 6719,
+        "total_tokens": 14659
+      },
+      "tool_call_count": 4,
+      "tool_call_names": [
+        "web_search",
+        "web_search",
+        "web_search",
+        "web_search"
+      ],
+      "tool_definition_tokens": 7444
+    },
+    "component_tools": "None",
+    "response_generation": {
+      "agent_name": "response_generation",
+      "model_name": "deepseek-reasoner",
+      "think_mode": "True",
+      "model_limit": 131072,
+      "token_usage": {
+        "prompt_tokens": 4037,
+        "completion_tokens": 1741,
+        "total_tokens": 5778
+      },
+      "reasoning_tokens": 508,
+      "content_tokens": 1233
+    },
+    "title_generation": {
+      "agent_name": "title_generation",
+      "model_name": "qwen-flash",
+      "think_mode": "False",
+      "model_limit": 131072,
+      "token_usage": {
+        "prompt_tokens": 121,
+        "completion_tokens": 7,
+        "total_tokens": 128
+      },
+      "title": "今日AI最新动态"
+    }
+  },
+  "updated_at": "2026-01-31T15:43:28.485261+08:00"
+}

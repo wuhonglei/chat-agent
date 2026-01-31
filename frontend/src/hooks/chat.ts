@@ -36,6 +36,7 @@ import {
   setTempMessages,
   updateMessageModifiedTime,
   updateMessageStatus,
+  updateMessageTokenStats,
 } from "@/store/slices/chatSlice";
 import {
   getConversationDetail,
@@ -317,6 +318,12 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
               updateConversationModifiedTime({
                 conversationId,
                 lastMessageUpdatedAt,
+              })
+            );
+            dispatch(
+              updateMessageTokenStats({
+                conversationId,
+                data: data.tokenStats,
               })
             );
             resetState(conversationId);
