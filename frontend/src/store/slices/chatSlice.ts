@@ -240,6 +240,14 @@ const chatSlice = createSlice({
         lastMessage.tokenStats = data;
       }
     },
+    updateContentDuration: (state, action: PayloadAction<ConversationActionPayload<number>>) => {
+      const { conversationId, data } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      const lastMessage = lastMessageCheck(chatState.messages);
+      if (lastMessage) {
+        lastMessage.contentDuration = data;
+      }
+    },
     // 会话中 message finish 时调用
     resetChatState: (state, action: PayloadAction<ConversationActionPayload>) => {
       const { conversationId } = action.payload;
@@ -281,6 +289,7 @@ export const {
   updateMessageStatus,
   updateMessageModifiedTime,
   updateMessageTokenStats,
+  updateContentDuration,
   clearLastMessage,
   resetChatState,
   clearChatState,

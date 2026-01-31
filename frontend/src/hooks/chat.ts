@@ -34,6 +34,7 @@ import {
   setReasoningDuration,
   setStreaming,
   setTempMessages,
+  updateContentDuration,
   updateMessageModifiedTime,
   updateMessageStatus,
   updateMessageTokenStats,
@@ -276,6 +277,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
               })
             );
             dispatch(updateMessageTokenStats({ conversationId, data: tokenStats }));
+            dispatch(updateContentDuration({ conversationId, data: data.contentDuration }));
             resetState(conversationId);
             reportEvent("message_stream_done", data);
           },

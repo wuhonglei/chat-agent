@@ -1,5 +1,5 @@
 import CopyButton from "@/components/common/CopyButton";
-import { ChatMessage as ChatMessageType, TotalTokenStats } from "@/interfaces";
+import { ChatMessage as ChatMessageType } from "@/interfaces";
 import { PieChartOutlined, RedoOutlined } from "@ant-design/icons";
 import { Button, Tooltip } from "antd";
 import classNames from "classnames";
@@ -8,18 +8,17 @@ import TokenStatsTooltip from "../TokenStatsTooltip";
 type Props = {
   message: ChatMessageType;
   onReSend: () => void;
-  tokenStats: TotalTokenStats;
 };
 
 export default function AssistantOperation(props: Props) {
-  const { message, onReSend, tokenStats } = props;
-
-  console.info(tokenStats);
+  const { message, onReSend } = props;
+  const { tokenStats, contentDuration } = message;
 
   return (
     <div className={classNames("w-full flex items-center gap-2 transition duration-300")}>
       <CopyButton size="middle" text={message.content} children={null} />
       <Button type="text" icon={<RedoOutlined />} onClick={onReSend} />
+      <span className="text-sm text-gray-500">{contentDuration || "-"}s</span>
       {tokenStats.responseGeneration && (
         <Tooltip
           trigger={["click", "hover"]}
