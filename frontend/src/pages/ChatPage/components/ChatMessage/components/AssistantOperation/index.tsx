@@ -31,7 +31,7 @@ export default function AssistantOperation(props: Props) {
           <PieChartOutlined className="ml-1 cursor-pointer" />
         </Tooltip>
       )}
-      <span className="text-sm text-gray-500">{contentDuration || "-"}s</span>
+      {contentDuration && <span className="text-sm text-gray-500">{contentDuration}s</span>}
     </div>
   );
 }
