@@ -32,4 +32,4 @@ export interface UpdateConversationRequest {
   createdBy: TitleCreatedBy;
 }
 
-export interface ConversationDetailResponse extends ConversationInfo {}
+export type ConversationDetailResponse = ConversationInfo;

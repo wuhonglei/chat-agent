@@ -17,8 +17,12 @@ export default function AutoScroll({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const _isScrollByUser = useIsScrollByUser(containerRef); // 滚动是否由用户触发
   const isScrollByUserRef = useRef(isStreaming && _isScrollByUser);
-  isScrollByUserRef.current = isStreaming && _isScrollByUser;
   const userScrollUpRef = useRef(false); // 用户是否向上滚动
+
+  useEffect(() => {
+    isScrollByUserRef.current = isStreaming && _isScrollByUser;
+  }, [isStreaming, _isScrollByUser]);
+
   const lastScrollTopRef = useRef(0);
 
   const { run: onScroll } = useThrottleFn(

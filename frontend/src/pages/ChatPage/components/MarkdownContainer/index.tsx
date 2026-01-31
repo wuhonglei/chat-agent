@@ -88,7 +88,7 @@ const CustomCodeBlock = memo(
             </Suspense>
           </ComponentErrorBoundary>
         );
-      } catch (error) {
+      } catch {
         return fallbackCodeBlock;
       }
     }

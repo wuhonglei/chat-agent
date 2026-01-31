@@ -31,7 +31,7 @@ import type Aegis from "aegis-web-sdk";
 
 declare global {
   // 声明全局变量 aegis，类型为 Aegis 实例
-  // eslint-disable-next-line no-var
+
   var aegis: Aegis | undefined;
 
   // 微信 JS-SDK 类型定义
@@ -59,6 +59,5 @@ declare global {
     }): void;
   }
 
-  // eslint-disable-next-line no-var
   var wx: Wx | undefined;
 }

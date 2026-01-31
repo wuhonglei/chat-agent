@@ -4,7 +4,7 @@ export function isDaytime(time: string): boolean {
   try {
     const hour = dayjs(time).hour();
     return hour >= 6 && hour < 18;
-  } catch (error) {
+  } catch {
     return true;
   }
 }

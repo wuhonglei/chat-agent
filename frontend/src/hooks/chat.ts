@@ -353,7 +353,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
             // 执行对应的消息处理器
             const handler = messageHandlers[type];
             if (handler) {
-              handler(messageData as any);
+              (handler as (data: unknown) => void)(messageData);
             } else {
               console.warn(`Unknown message type: ${type}`);
               reportError("streamMessage onMessage Unknown Message Type", {
@@ -441,7 +441,7 @@ export function useNewConversation() {
         }
 
         return cacheData;
-      } catch (error) {
+      } catch {
         return defaultData;
       } finally {
         // console.info("conversationId", conversationId);

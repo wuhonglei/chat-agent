@@ -43,7 +43,7 @@ const WeChatLoginForm: React.FC = () => {
   // 组件挂载时初始化
   useEffect(() => {
     initLogin();
-  }, []);
+  }, [initLogin]);
 
   return (
     <div className="mt-4 flex flex-col items-center">

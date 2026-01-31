@@ -35,7 +35,7 @@ export function getWebIconUrl(url: string | undefined, size: number = 32) {
     const hostname =
       hostnameToPublic[urlObj.hostname as PrivateDomains] || urlObj.hostname;
     return `https://www.google.com/s2/favicons?domain=${hostname}&sz=${size}`;
-  } catch (error) {
+  } catch {
     return "";
   }
 }
