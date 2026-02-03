@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 
-def run_command(cmd, description):
+def run_command(cmd: list[str], description: str) -> bool:
     """Run command and handle output"""
     print(f"Running: {description}")
     print(f"Command: {' '.join(cmd)}")
@@ -40,7 +40,7 @@ def run_command(cmd, description):
         return False
 
 
-def check_tools():
+def check_tools() -> bool:
     """Check if required tools are installed"""
     tools = ["ruff"]
     missing_tools = []
@@ -62,7 +62,7 @@ def check_tools():
     return True
 
 
-def format_code(target_path="."):
+def format_code(target_path: Path | str = ".") -> bool:
     """Format code using ruff"""
     target_path = Path(target_path).resolve()
 
@@ -92,7 +92,7 @@ def format_code(target_path="."):
         os.chdir(original_cwd)
 
 
-def main():
+def main() -> None:
     """Main function"""
     print("Python Code Formatting Script")
     print("=" * 40)

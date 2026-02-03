@@ -236,6 +236,9 @@ class CompressionConfig(BaseModel):
     tool_result_tolerance_tokens: int = Field(
         default=6000, description="单个工具结果容忍的tokens数"
     )
+    tool_result_summary_max_tokens: int = Field(
+        default=2000, description="单个工具结果摘要最大tokens数"
+    )
 
 
 class WechatConfig(BaseModel):
