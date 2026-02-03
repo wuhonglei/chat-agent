@@ -10,7 +10,7 @@ from app.agents.utils.response_generation import (
 )
 from app.prompts import get_system_prompt_for_response_generation
 from app.prompts.prompt_utils import get_user_message_for_response_generation
-from app.schemas.chat import ChatMessageItem
+from app.schemas.chat import ChatMessageItemWithToolCalls
 from app.schemas.config import LLMConfig
 from app.schemas.llm import ToolCallMessage
 from app.schemas.token_stats import ResponseGenerationTokenStats
@@ -50,7 +50,7 @@ class ResponseGenerationAgent(BaseAgent):
 
     async def stream_execute(  # type: ignore[override]
         self,
-        history_messages: list[ChatMessageItem],
+        history_messages: list[ChatMessageItemWithToolCalls],
         user_message: str,
         mcp_tool_call_messages: list[ToolCallMessage],
         component_tool_call_messages: list[ToolCallMessage],

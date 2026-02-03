@@ -5,7 +5,7 @@ from typing import Any
 
 from toolz import dissoc, get
 
-from app.schemas.chat import ChatMessageItem
+from app.schemas.chat import ChatMessageItemWithToolCalls
 from app.schemas.llm import (
     AssistantToolCallMessage,
     ToolCallMessage,
@@ -180,19 +180,23 @@ def get_tool_call_result_messages(
 
 
 def format_chat_message_for_llm(
-    message: ChatMessageItem | dict[str, Any],
-    keep_reasoning: bool = False,
+    message: ChatMessageItemWithToolCalls,
+    clear_reasoning_content: bool = True,
 ) -> dict[str, Any]:
     """
     格式化聊天消息为 LLM API 所需的格式（仅用户/助手消息）
     """
+    if isinstance(message, ToolCallMessage):
+        return format_tool_call_message_for_llm(message)
+
     message_dict = normalize_to_dict(message)
     role = get("role", message_dict)
     content = get("content", message_dict, "")
-    payload: dict[str, Any] = {"role": role, "content": content}
     reasoning = get("reasoning", message_dict, None)
-    if keep_reasoning and role == "assistant" and reasoning:
-        payload["reasoning"] = reasoning
+    payload: dict[str, Any] = {"role": role, "content": content, "reasoning": reasoning}
+    if clear_reasoning_content:
+        del payload["reasoning"]
+
     return payload
 
 

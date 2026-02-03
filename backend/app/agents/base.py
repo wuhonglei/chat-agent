@@ -15,7 +15,7 @@ from openai._streaming import AsyncStream
 from openai.types.chat import ChatCompletion
 from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
 
-from app.schemas.chat import ChatMessageItem
+from app.schemas.chat import ChatMessageItemWithToolCalls
 from app.schemas.config import LLMConfig
 from app.schemas.llm import (
     ToolCallMessage,
@@ -267,7 +267,7 @@ class BaseAgent(ABC):
     def _compose_messages(
         self,
         system_prompt: str,
-        history_messages: list[ChatMessageItem],
+        history_messages: list[ChatMessageItemWithToolCalls],
         user_message: str,
         tool_call_messages: list[ToolCallMessage] | None = None,
     ) -> list[dict[str, Any]]:
@@ -288,7 +288,7 @@ class BaseAgent(ABC):
 
         history = history_messages or []
         for msg in history:
-            msg_dict = format_chat_message_for_llm(msg, keep_reasoning=False)
+            msg_dict = format_chat_message_for_llm(msg, clear_reasoning_content=True)
             messages.append(msg_dict)
 
         messages.append({"role": "user", "content": user_message})

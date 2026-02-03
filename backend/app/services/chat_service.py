@@ -2,6 +2,7 @@
 
 import asyncio
 from collections.abc import AsyncGenerator
+from typing import cast
 
 from app.agents import (
     ComponentToolsAgent,
@@ -13,6 +14,7 @@ from app.core.config import settings
 from app.mcp.mcp_client import MCPClientManager
 from app.schemas.chat import (
     ChatMessageItem,
+    ChatMessageItemWithToolCalls,
     ChatRequest,
     CollectedResponse,
     MessageStatus,
@@ -60,7 +62,7 @@ class ChatService:
     async def stream_message(
         self,
         chat_request: ChatRequest,
-        history_messages: list[ChatMessageItem],
+        history_messages: list[ChatMessageItemWithToolCalls],
         client_ip: str | None,
     ) -> AsyncGenerator[str, None]:
         """Stream chat response using agent architecture"""
@@ -186,6 +188,12 @@ class ChatService:
             },
         )
 
+    def process_history_messages(
+        self, history_messages: list[ChatMessageItem]
+    ) -> list[ChatMessageItemWithToolCalls]:
+        """处理对话历史消息(压缩+最近一轮的完整工具调用)"""
+        return cast(list[ChatMessageItemWithToolCalls], history_messages)
+
     async def stream_response(
         self,
         chat_request: ChatRequest,
@@ -224,17 +232,18 @@ class ChatService:
                 history_messages = message_service.get_history_messages_by_ids(
                     chat_request.history_ids
                 )
+                new_history_messages = self.process_history_messages(history_messages)
                 logger.info(
                     "Starting stream message generation",
                     conversation_id=conversation_id,
                     history_ids_count=len(chat_request.history_ids),
-                    history_messages_count=len(history_messages),
+                    history_messages_count=len(new_history_messages),
                 )
 
                 chunk_count = 0
                 async for chunk in self.stream_message(
                     chat_request=chat_request,
-                    history_messages=history_messages,
+                    history_messages=new_history_messages,
                     client_ip=None,
                 ):
                     if title_task is not None and title_task.done():

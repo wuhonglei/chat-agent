@@ -22,7 +22,11 @@ from app.prompts import (
     get_prompt_with_mcp_servers,
     get_tool_call_sufficient_info_message,
 )
-from app.schemas.chat import ChatMessageItem, ChatRequest, SourceConfig
+from app.schemas.chat import (
+    ChatMessageItemWithToolCalls,
+    ChatRequest,
+    SourceConfig,
+)
 from app.schemas.config import LLMConfig
 from app.schemas.llm import (
     AssistantToolCallMessage,
@@ -96,7 +100,7 @@ class MCPToolsAgent(BaseAgent):
     async def stream_execute(  # type: ignore[override]
         self,
         chat_request: ChatRequest,
-        history_messages: list[ChatMessageItem],
+        history_messages: list[ChatMessageItemWithToolCalls],
         client_ip: str | None,
     ) -> AsyncGenerator[str, None]:
         """

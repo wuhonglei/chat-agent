@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Literal
+from typing import Any, Literal, TypeAlias
 
 from openai.types.chat import ChatCompletionMessageFunctionToolCall
 from pydantic import BaseModel, ConfigDict, Field
@@ -112,6 +112,10 @@ class ChatMessageItem(BaseModel):
     )
 
     model_config = ConfigDict(extra="allow")
+
+
+# ChatMessageItem 和 ToolCallMessage 的混合类型
+ChatMessageItemWithToolCalls: TypeAlias = ChatMessageItem | ToolCallMessage
 
 
 class ChatRequest(BaseModel):
