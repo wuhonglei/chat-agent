@@ -19,13 +19,23 @@ from app.schemas.chat import (
     CollectedResponse,
     MessageStatus,
 )
+from app.schemas.llm import (
+    AssistantToolCallMessage,
+    ToolCallMessage,
+    ToolCallResultMessage,
+)
 from app.schemas.token_stats import TotalTokenStats
 from app.services.component_schema_service import ComponentSchemaService
 from app.services.message_service import MessageService
 from app.utils.common import pick_fields
+from app.utils.history_truncate import (
+    truncate_history_by_rounds_and_tokens,
+    truncate_text_to_tokens,
+)
 from app.utils.logger import logger
 from app.utils.model import format_sse_message
 from app.utils.time import get_current_time, get_time_duration
+from app.utils.token import TokenCalculator
 
 
 class ChatService:
@@ -33,6 +43,7 @@ class ChatService:
 
     def __init__(self, think_mode: bool, mcp_manager: MCPClientManager):
         self.debug = settings.app.debug
+        self.compression = settings.compression
         self.schema_service = ComponentSchemaService(
             debug=self.debug
         )  # 复用 ComponentSchemaService 实例
@@ -191,8 +202,69 @@ class ChatService:
     def process_history_messages(
         self, history_messages: list[ChatMessageItem]
     ) -> list[ChatMessageItemWithToolCalls]:
-        """处理对话历史消息(压缩+最近一轮的完整工具调用)"""
-        return cast(list[ChatMessageItemWithToolCalls], history_messages)
+        """
+        处理对话历史：最后 2 条视为最后一轮（完整 tool 消息），其他轮用 summary/content/截断参与组装。
+        返回扁平列表，供 _compose_messages 按条 format_chat_message_for_llm。
+        """
+        if not history_messages:
+            return []
+
+        threshold_tokens = self.compression.tool_message_summary_threshold_tokens
+        token_calculator = TokenCalculator(settings.response_model.model_name)
+
+        # 最后一轮简单视为 history_messages 的最后 2 条
+        last_round_start = max(0, len(history_messages) - 2)
+
+        flat: list[ChatMessageItemWithToolCalls] = []
+
+        for idx, msg in enumerate(history_messages):
+            if msg.role == "user":
+                flat.append(msg)
+                continue
+            if msg.role != "assistant":
+                flat.append(msg)
+                continue
+            if not msg.tool_calls:
+                flat.append(msg)
+                continue
+
+            # 拆成 assistant 部分 + tool 结果列表（DB 里顺序为 [assistant, tool, tool, ...]）
+            tool_calls_list: list[ToolCallMessage] = list(msg.tool_calls)
+            assistant_tool: AssistantToolCallMessage | None = None
+            tool_results: list[ToolCallResultMessage] = []
+            for m in tool_calls_list:
+                if getattr(m, "role", None) == "assistant":
+                    assistant_tool = cast(AssistantToolCallMessage, m)
+                elif getattr(m, "role", None) == "tool":
+                    tool_results.append(cast(ToolCallResultMessage, m))
+            if assistant_tool is None:
+                flat.append(msg)
+                continue
+
+            is_latest_tool_round = idx >= last_round_start
+
+            flat.append(assistant_tool)
+            for tr in tool_results:
+                if is_latest_tool_round:
+                    flat.append(tr)
+                    continue
+                # 其他轮：用 summary，无则 content≤threshold 用 content，否则截断
+                effective_content: str
+                if tr.summary and tr.summary.strip():
+                    effective_content = tr.summary
+                else:
+                    content_tokens = token_calculator.count_tokens(tr.content or "")
+                    if content_tokens <= threshold_tokens:
+                        effective_content = tr.content or ""
+                    else:
+                        effective_content = "[内容已截断] " + truncate_text_to_tokens(
+                            tr.content or "",
+                            threshold_tokens,
+                            token_calculator,
+                        )
+                flat.append(tr.model_copy(update={"content": effective_content}))
+
+        return flat
 
     async def stream_response(
         self,
@@ -229,8 +301,15 @@ class ChatService:
                         )
                     )
 
-                history_messages = message_service.get_history_messages_by_ids(
+                raw_history = message_service.get_history_messages_by_ids(
                     chat_request.history_ids
+                )
+                token_calculator = TokenCalculator(settings.response_model.model_name)
+                history_messages, _truncated = truncate_history_by_rounds_and_tokens(
+                    raw_history,
+                    self.compression.max_history_rounds,
+                    self.compression.max_history_tokens,
+                    token_calculator,
                 )
                 new_history_messages = self.process_history_messages(history_messages)
                 logger.info(

@@ -239,6 +239,19 @@ class CompressionConfig(BaseModel):
     tool_result_summary_max_tokens: int = Field(
         default=2000, description="单个工具结果摘要最大tokens数"
     )
+    # 历史截断与窗口内工具摘要
+    max_history_tokens: int = Field(
+        default=32000,
+        description="历史消息 token 预算，超出部分从更早消息起截断",
+    )
+    max_history_rounds: int = Field(
+        default=5,
+        description="历史最多保留轮数（一轮 = 一条 user + 对应 assistant 及其中 tool）",
+    )
+    tool_message_summary_threshold_tokens: int = Field(
+        default=2000,
+        description="单条工具结果超过该 token 数时用 summary/截断参与组装",
+    )
 
 
 class WechatConfig(BaseModel):
