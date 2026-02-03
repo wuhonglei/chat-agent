@@ -1,5 +1,6 @@
 import math
 import re
+from copy import deepcopy
 
 from .models import (
     TavilyCrawlResponse,
@@ -65,7 +66,7 @@ def clean_invisible_chars(
     return cleaned_str
 
 
-def format_query_search_results(response: TavilySearchResponse) -> str:
+def format_query_search_results(response: TavilySearchResponse) -> tuple[str, str]:
     """
     将 Tavily Search API 响应格式化为人类可读的文本
 
@@ -76,6 +77,7 @@ def format_query_search_results(response: TavilySearchResponse) -> str:
         格式化后的字符串
     """
     output = []
+    summary = []
     query = response.query
     is_chunked = response.is_chunked
     filtered_results = response.filtered_results
@@ -84,9 +86,11 @@ def format_query_search_results(response: TavilySearchResponse) -> str:
     # Format detailed search results
     results_high = filtered_results or []
     if results_high:
-        output.append(
+        description = (
             f"执行的搜索查询: {query}\n{len(results_high)} 个高相关性搜索结果如下:"
         )
+        output.append(description)
+        summary.append(description)
     # 先输出高相关性结果
     for index, result in enumerate(results_high, start=1):
         item_lines: list[str] = [f"\n第 {index} 个搜索结果的详细信息如下:"]
@@ -94,6 +98,7 @@ def format_query_search_results(response: TavilySearchResponse) -> str:
         item_lines.append(f"URL: {result.url}")
         if result.score is not None:
             item_lines.append(f"相关性分数: {result.score:.2f}")
+        summary.append("\n".join(item_lines))
         content_s = result.content or ""
         content = clean_invisible_chars(content_s)
         if content:
@@ -108,9 +113,9 @@ def format_query_search_results(response: TavilySearchResponse) -> str:
     # 再输出低分结果
     results_low = ignored_results or []
     if results_low:
-        output.append(
-            f"执行的搜索查询: {query}\n{len(results_low)} 个结果因相关性分数低于阈值 {response.threshold} 而被忽略（可作为补充信息）:"
-        )
+        description = f"执行的搜索查询: {query}\n{len(results_low)} 个结果因相关性分数低于阈值 {response.threshold} 而被忽略（可作为补充信息）:"
+        output.append(description)
+        summary.append(description)
         for index, result in enumerate(results_low, start=1):
             low_item_lines: list[str] = [
                 f"\n第 {index} 个被忽略的搜索结果的详细信息如下:"
@@ -119,22 +124,28 @@ def format_query_search_results(response: TavilySearchResponse) -> str:
             low_item_lines.append(f"URL: {result.url}")
             if result.score is not None:
                 low_item_lines.append(f"相关性分数: {result.score:.2f}")
+            summary.append("\n".join(low_item_lines))
             output.append("\n".join(low_item_lines))
 
-    return "\n".join(output)
+    return "\n".join(output), "\n".join(summary)
 
 
-def format_multiple_query_search_results(responses: list[TavilySearchResponse]) -> str:
+def format_multiple_query_search_results(
+    responses: list[TavilySearchResponse],
+) -> tuple[str, str]:
     """
     将多个Tavily Search API 响应格式化为人类可读的文本
     """
     output = []
+    summary = []
     for response in responses:
-        output.append(format_query_search_results(response))
-    return "\n\n----\n\n".join(output)
+        output_content, summary_content = format_query_search_results(response)
+        output.append(output_content)
+        summary.append(summary_content)
+    return "\n\n----\n\n".join(output), "\n\n----\n\n".join(summary)
 
 
-def format_extract_results(response: TavilyExtractResponse) -> str:
+def format_extract_results(response: TavilyExtractResponse) -> tuple[str, str]:
     """
     将 Tavily Extract API 响应格式化为人类可读的文本
 
@@ -145,14 +156,18 @@ def format_extract_results(response: TavilyExtractResponse) -> str:
         格式化后的字符串
     """
     output = []
+    summary = []
     is_chunked = response.is_chunked
 
     # Format successful extraction results
-    output.append(f"{len(response.results)} 个网页提取结果如下:")
+    description = f"{len(response.results)} 个网页提取结果如下:"
+    output.append(description)
+    summary.append(description)
     for index, result in enumerate(response.results, start=1):
         item_lines: list[str] = [f"\n第 {index} 个提取结果的详细信息如下:"]
         item_lines.append(f"标题: {clean_invisible_chars(result.title or '')}")
         item_lines.append(f"URL: {result.url}")
+        summary.append("\n".join(item_lines))
         raw_content = clean_invisible_chars(result.raw_content or "")
         if raw_content:
             if is_chunked:
@@ -164,17 +179,20 @@ def format_extract_results(response: TavilyExtractResponse) -> str:
         output.append("\n".join(item_lines))
 
     if response.failed_results:
-        output.append(f"\n{len(response.failed_results)} 个网页提取失败的URL:")
+        description = f"\n{len(response.failed_results)} 个网页提取失败的URL:"
+        output.append(description)
+        summary.append(description)
         for index, failed in enumerate(response.failed_results, start=1):
             failed_lines: list[str] = [f"\n第 {index} 个提取失败的URL的详细信息如下:"]
             failed_lines.append(f"URL: {failed.url}")
             failed_lines.append(f"错误: {failed.error or ''}")
+            summary.append("\n".join(failed_lines))
             output.append("\n".join(failed_lines))
 
-    return "\n".join(output)
+    return "\n".join(output), "\n".join(summary)
 
 
-def format_crawl_results(response: TavilyCrawlResponse) -> str:
+def format_crawl_results(response: TavilyCrawlResponse) -> tuple[str, str]:
     """
     将 Tavily Crawl API 响应格式化为人类可读的文本
 
@@ -184,15 +202,17 @@ def format_crawl_results(response: TavilyCrawlResponse) -> str:
     Returns:
         格式化后的字符串
     """
-    output = []
+    output: list[str] = []
     is_chunked = response.is_chunked
 
     output.append(f"{len(response.results)} 个网页爬取结果如下:")
     output.append(f"爬取的基础URL: {response.base_url}")
+    summary = deepcopy(output)
 
     for index, page in enumerate(response.results, start=1):
         item_lines: list[str] = [f"\n第 {index} 个爬取结果的详细信息如下:"]
         item_lines.append(f"爬取的URL: {page.url}")
+        summary.append("\n".join(item_lines))
         raw_content = clean_invisible_chars(page.raw_content or "")
         if raw_content:
             if is_chunked:
@@ -203,7 +223,7 @@ def format_crawl_results(response: TavilyCrawlResponse) -> str:
                 item_lines.append(f"爬取内容: {raw_content}")
         output.append("\n".join(item_lines))
 
-    return "\n".join(output)
+    return "\n".join(output), "\n".join(summary)
 
 
 def filter_search_results_by_score(
@@ -258,7 +278,7 @@ def filter_search_results_by_score(
     )
 
 
-def format_map_results(response: TavilyMapResponse) -> str:
+def format_map_results(response: TavilyMapResponse) -> tuple[str, str]:
     """
     将 Tavily Map API 响应格式化为人类可读的文本
 
@@ -269,7 +289,6 @@ def format_map_results(response: TavilyMapResponse) -> str:
         格式化后的字符串
     """
     output = []
-
     output.append(f"{len(response.results)} 个Site Map Results:")
     output.append(f"Base URL: {response.base_url}")
 
@@ -277,4 +296,4 @@ def format_map_results(response: TavilyMapResponse) -> str:
     for index, page in enumerate(response.results, start=1):
         output.append(f"\n第 {index} 个Mapped Page: {page}")
 
-    return "\n".join(output)
+    return "\n".join(output), "\n".join(output)

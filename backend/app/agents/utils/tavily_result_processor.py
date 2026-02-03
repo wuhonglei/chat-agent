@@ -41,8 +41,9 @@ class TavilyResultProcessor:
                 self.tolerance_tokens_count,
                 self.threshold_tokens_count,
             )
-            formatted = tavily_utils.format_multiple_query_search_results(data)
-            compaction_result.content = formatted
+            content, summary = tavily_utils.format_multiple_query_search_results(data)
+            compaction_result.content = content
+            compaction_result.summary = summary
             return compaction_result
 
         if tool_name == self.WEB_PAGES_EXTRACT:
@@ -52,8 +53,9 @@ class TavilyResultProcessor:
                 self.tolerance_tokens_count,
                 self.threshold_tokens_count,
             )
-            formatted = tavily_utils.format_extract_results(extract_payload)
-            compaction_result.content = formatted
+            content, summary = tavily_utils.format_extract_results(extract_payload)
+            compaction_result.content = content
+            compaction_result.summary = summary
             return compaction_result
 
         if tool_name == self.WEB_SITE_CRAWL:
@@ -63,20 +65,22 @@ class TavilyResultProcessor:
                 self.tolerance_tokens_count,
                 self.threshold_tokens_count,
             )
-            formatted = tavily_utils.format_crawl_results(crawl_payload)
-            compaction_result.content = formatted
+            content, summary = tavily_utils.format_crawl_results(crawl_payload)
+            compaction_result.content = content
+            compaction_result.summary = summary
             return compaction_result
 
         # Fallback for unknown tools - try to get content from structured_content
-        content = structured_content.get("content")
-        if content:
+        raw_content = structured_content.get("content")
+        if isinstance(raw_content, str):
             return await self._compact_content(
-                content, self.tolerance_tokens_count, self.threshold_tokens_count
+                raw_content, self.tolerance_tokens_count, self.threshold_tokens_count
             )
         else:
             # If no content key, return empty compaction result
             return CompactionResult(
                 content=str(structured_content),
+                summary=str(structured_content),
                 relevance_applied=False,
                 content_token_count=0,
                 original_token_count=0,
@@ -92,6 +96,7 @@ class TavilyResultProcessor:
     ) -> tuple[list[TavilySearchResponse], CompactionResult]:
         compaction_result = CompactionResult(
             content="",
+            summary=None,
             relevance_applied=False,
             content_token_count=0,
             original_token_count=0,
