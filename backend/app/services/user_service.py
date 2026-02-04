@@ -42,6 +42,35 @@ class UserService(BaseService):
         user = db.exec(select(UserDb).where(UserDb.sub == sub)).first()
         return user
 
+    def get_user_by_phone(self, phone: str) -> UserDb | None:
+        """通过手机号获取用户"""
+        db = self._ensure_db()
+        user = db.exec(select(UserDb).where(UserDb.phone == phone)).first()
+        return user
+
+    def get_or_create_user_by_phone(self, phone: str) -> UserDb:
+        """根据手机号查找或创建用户（短信登录用，sub 使用 sms:{phone}）"""
+        db = self._ensure_db()
+        user = self.get_user_by_phone(phone)
+        sub = f"sms:{phone}"
+        if not user:
+            user = UserDb(
+                sub=sub,
+                phone=phone,
+                name=phone[:3] + "****" + phone[-4:] if len(phone) >= 7 else phone,
+                last_login_at=get_datetime_now(),
+                last_login_type="sms",
+                status="active",
+            )
+            db.add(user)
+            logger.info("创建短信用户", phone=phone, user_id=user.id)
+        else:
+            user.last_login_at = get_datetime_now()
+            user.last_login_type = "sms"
+            db.add(user)
+            logger.info("更新短信用户登录信息", phone=phone, user_id=user.id)
+        return user
+
     def create_user_from_cloudbase(
         self, token_info: SigninResponse, phone_number: str
     ) -> UserDb:

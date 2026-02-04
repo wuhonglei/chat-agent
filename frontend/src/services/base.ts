@@ -135,9 +135,10 @@ apiClient.interceptors.response.use(
           deep: true,
         });
 
-        if (isString(error.response.data.detail)) {
+        const msg = error.response.data.msg;
+        if (msg && isString(msg)) {
           const message = getMessageInstance();
-          message.error(error.response.data.detail);
+          message.error(msg);
         }
       }
       console.error("API Error:", error.response.data);

@@ -1,12 +1,13 @@
 import { SendSmsResponse } from "@/interfaces";
 import { userAPI } from "@/services/user";
 import { getRedirectUrl, jumpToLocation } from "@/utils";
-import { MobileOutlined, SafetyOutlined } from "@ant-design/icons";
-import { useCountDown, useRequest } from "ahooks";
+import { SafetyOutlined } from "@ant-design/icons";
+import { useCountDown, useLocalStorageState, useRequest } from "ahooks";
 import { App, Button, Form, Input, Space } from "antd";
 import { isEmpty } from "lodash-es";
 import React, { useState } from "react";
-import { isVerificationCode, validatePhone, validateVerificationCode } from "../utils";
+import PhoneInput from "./PhoneInput";
+import { isVerificationCode, validatePhone, validateVerificationCode } from "./utils";
 
 export interface VerificationCodeFormValues {
   phoneNumber: string;
@@ -17,8 +18,12 @@ interface VerifyCodeFormProps {
   onFinish?: (values: VerificationCodeFormValues) => void | Promise<void>;
 }
 
+const LAST_LOGIN_PHONE_KEY = "lastLoginPhone";
+
 const VerifyCodeForm: React.FC<VerifyCodeFormProps> = () => {
   const [form] = Form.useForm<VerificationCodeFormValues>();
+  const [lastPhone, setLastPhone] = useLocalStorageState<string>(LAST_LOGIN_PHONE_KEY);
+  console.info("lastPhone", lastPhone);
   const [targetDate, setTargetDate] = useState<number>();
   const [countdown] = useCountDown({ targetDate });
   const { message } = App.useApp();
@@ -41,6 +46,8 @@ const VerifyCodeForm: React.FC<VerifyCodeFormProps> = () => {
     {
       manual: true,
       onSuccess: () => {
+        const phone = form.getFieldValue("phoneNumber");
+        if (phone) setLastPhone(phone);
         message.success("登录成功");
         setTimeout(() => {
           jumpToLocation(getRedirectUrl() || "/chat", true);
@@ -70,16 +77,13 @@ const VerifyCodeForm: React.FC<VerifyCodeFormProps> = () => {
 
   return (
     <Form form={form} className="mt-6" layout="vertical" onFinish={handleSubmit}>
-      <Form.Item name="phoneNumber" validateTrigger={false} rules={[{ validator: (_, value) => validatePhone(value) }]}>
-        <Space.Compact className="w-full">
-          <Space.Addon className="w-16">+86</Space.Addon>
-          <Input
-            prefix={<MobileOutlined style={{ color: "var(--color-black-quaternary)" }} />}
-            className="flex-1"
-            placeholder="请输入手机号"
-            size="large"
-          />
-        </Space.Compact>
+      <Form.Item
+        name="phoneNumber"
+        initialValue={lastPhone}
+        validateTrigger={false}
+        rules={[{ validator: (_, value) => validatePhone(value) }]}
+      >
+        <PhoneInput />
       </Form.Item>
       <Form.Item
         name="verificationCode"
@@ -105,7 +109,7 @@ const VerifyCodeForm: React.FC<VerifyCodeFormProps> = () => {
       </Form.Item>
       <div className="text-black-tertiary mb-3">
         <span>未注册的手机号将自动注册.</span>
-        <span className="ml-1">短信模板的主体为【腾讯云】</span>
+        <span className="ml-1">短信模板的主体为【开心锦然电商】</span>
       </div>
       <Form.Item>
         <Button

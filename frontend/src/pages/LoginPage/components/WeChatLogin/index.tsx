@@ -4,8 +4,8 @@ import { useRequest } from "ahooks";
 import { App, Spin, Typography } from "antd";
 import classNames from "classnames";
 import React, { useEffect, useRef, useState } from "react";
-import { initWxQrCode } from "../../utils";
 import styles from "./index.module.css";
+import { initWxQrCode } from "./utils";
 
 const { Text } = Typography;
 

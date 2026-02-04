@@ -220,7 +220,9 @@ class SmsConfig(BaseModel):
 
     tencentcloud_secret_id: str = Field(..., description="腾讯云 Secret ID")
     tencentcloud_secret_key: str = Field(..., description="腾讯云 Secret Key")
-    endpoint: str = Field(..., description="腾讯云 Endpoint")
+    region: str = Field(
+        "ap-guangzhou", description="腾讯云短信地域 ID，如 ap-guangzhou"
+    )
     sms_sdk_app_id: str = Field(..., description="短信 SDK App ID")
     template_id: str = Field(..., description="短信模板 ID")
     sign_name: str = Field(..., description="短信签名")

@@ -17,6 +17,7 @@ from app.schemas.config import (
     LLMConfig,
     MCPConfig,
     SecurityConfig,
+    SmsConfig,
     StorageConfig,
     SummarizerModelConfig,
     WechatConfig,
@@ -35,6 +36,7 @@ class Settings(BaseSettings):
     storage: StorageConfig = Field(description="S3 存储配置")
     security: SecurityConfig = Field(description="JWT 安全配置")
     cloudbase: CloudbaseConfig = Field(description="Cloudbase 配置")
+    sms: SmsConfig = Field(description="腾讯云短信配置")
     database: DatabaseConfig = Field(description="PostgreSQL 数据库配置")
     compression: CompressionConfig = Field(
         default_factory=CompressionConfig, description="上下文压缩配置"

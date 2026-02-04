@@ -6,13 +6,13 @@ from fastapi import APIRouter, Depends
 from sqlmodel import Session
 
 from app.core.db import get_db
+from app.schemas.auth import AuthTokenPayload
 from app.schemas.conversation import (
     ConversationInfo,
     RegisterConversationRequest,
     UpdateConversationRequest,
 )
 from app.schemas.response import ApiResponse
-from app.schemas.token import SecretTokenInfo
 from app.services.conversation_service import ConversationService
 from app.utils.auth_deps import get_auth_token_info, require_auth
 
@@ -23,7 +23,7 @@ router = APIRouter()
 async def register_conversation(
     request: RegisterConversationRequest,
     db: Session = Depends(get_db),
-    token_info: SecretTokenInfo = Depends(get_auth_token_info),
+    token_info: AuthTokenPayload = Depends(get_auth_token_info),
 ) -> ApiResponse[ConversationInfo]:
     """Register a new conversation"""
     service = ConversationService(db)
@@ -36,7 +36,7 @@ async def register_conversation(
 @router.get("/list")
 async def get_conversations(
     db: Session = Depends(get_db),
-    token_info: SecretTokenInfo = Depends(get_auth_token_info),
+    token_info: AuthTokenPayload = Depends(get_auth_token_info),
 ) -> ApiResponse[dict[str, Any]]:
     """Get all conversations"""
     service = ConversationService(db)

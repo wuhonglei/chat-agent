@@ -12,9 +12,6 @@ from app.models import UserDb
 from app.schemas.auth import (
     SendSmsRequest,
     SendSmsResponseForFrontend,
-    SigninRequest,
-    SignoutRequest,
-    SignupRequest,
     SmsLoginRequestFromFrontend,
     WeChatInitResponse,
     WeChatLoginRequest,
@@ -33,9 +30,10 @@ router = APIRouter()
 @router.post("/sms/send")
 async def send_sms(
     send_sms_request: SendSmsRequest,
+    db: Session = Depends(get_db),
 ) -> ApiResponse[SendSmsResponseForFrontend]:
-    """发送短信验证码"""
-    data = await SmsService.send_sms(send_sms_request)
+    """发送短信验证码（腾讯云短信 + 自建验证码缓存）"""
+    data = await SmsService.send_sms(send_sms_request, db)
     new_data = SendSmsResponseForFrontend(
         **data.model_dump(exclude_none=True), phone_number=send_sms_request.phone_number
     )
@@ -49,46 +47,21 @@ async def sms_login(
     db: Session = Depends(get_db),
     jwt_manager: JWTManager = Depends(get_jwt_manager),
 ) -> ApiResponse[UserDb]:
-    """短信登录"""
-    data = await SmsService.sms_login(sms_login_request)
-    verification_token = data.verification_token
-    user_service = UserService(db)
-
-    # 如果是新用户，则先注册，否则直接登录
-    if sms_login_request.is_user:
-        # 如果是老用户，则直接登录
-        token_info = await SmsService.signin(
-            SigninRequest(verification_token=verification_token)
+    """短信登录（自建验证 + 本系统用户，直接签发 JWT）"""
+    data = await SmsService.sms_login(sms_login_request, db)
+    if data.user is not None:
+        user = data.user
+        secret_token_info = jwt_manager.get_payload_with_expiration(
+            {
+                "user_id": user.id,
+                "sub": user.sub or f"sms:{user.phone or ''}",
+                "last_login_type": "sms",
+            }
         )
-    else:
-        phone_number = sms_login_request.phone_number
-        token_info = await SmsService.signup(
-            SignupRequest(
-                verification_token=verification_token, phone_number=phone_number
-            )
-        )
-
-    user = user_service.get_user_by_sub(token_info.sub)
-    if not user:
-        user = user_service.create_user_from_cloudbase(
-            token_info, sms_login_request.phone_number
-        )
-    else:
-        user = user_service.update_user_last_login(user, "sms")
-
-    # 设置自定义响应头
-    secret_token_info = jwt_manager.get_payload_with_expiration(
-        {
-            **token_info.model_dump(exclude_none=True),
-            "user_id": user.id,
-            "sub": token_info.sub,
-            "last_login_type": "sms",
-        }
-    )
-    secret_token_info_str = jwt_manager.create_token(secret_token_info)
-    response.headers["x-secret-token-info"] = secret_token_info_str
-
-    return ApiResponse.success(data=user)
+        secret_token_info_str = jwt_manager.create_token(secret_token_info)
+        response.headers["x-secret-token-info"] = secret_token_info_str
+        return ApiResponse.success(data=user)
+    raise HTTPException(status_code=500, detail="短信登录未返回用户")
 
 
 @router.post("/logout")
@@ -96,13 +69,8 @@ async def logout(
     request: Request,
     jwt_manager: JWTManager = Depends(get_jwt_manager),
 ) -> ApiResponse[None]:
-    """登出"""
+    """登出（短信用户已无 Cloudbase access_token，不再调用 SmsService.signout）"""
     token_info = await get_auth_token_info(request, jwt_manager)
-    last_login_type = token_info.last_login_type
-
-    if last_login_type == "sms":
-        await SmsService.signout(SignoutRequest(access_token=token_info.access_token))
-
     with UserService() as user_service:
         user_service.update_user_last_logout(token_info.user_id)
     return ApiResponse.success(data=None)

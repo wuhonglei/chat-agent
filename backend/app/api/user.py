@@ -7,8 +7,8 @@ from sqlmodel import Session
 
 from app.core.db import get_db
 from app.models import UserDb
+from app.schemas.auth import AuthTokenPayload
 from app.schemas.response import ApiResponse
-from app.schemas.token import SecretTokenInfo
 from app.schemas.user import UpdateUserInfo
 from app.services.user_service import UserService
 from app.utils.auth_deps import get_auth_token_info
@@ -19,7 +19,7 @@ router = APIRouter()
 @router.get("/detail")
 async def get_user_detail(
     db: Session = Depends(get_db),
-    token_info: SecretTokenInfo = Depends(get_auth_token_info),
+    token_info: AuthTokenPayload = Depends(get_auth_token_info),
 ) -> ApiResponse[UserDb]:
     """获取用户信息"""
     user_service = UserService(db)
@@ -33,7 +33,7 @@ async def get_user_detail(
 async def update_user_info(
     update_info: UpdateUserInfo,
     db: Session = Depends(get_db),
-    token_info: SecretTokenInfo = Depends(get_auth_token_info),
+    token_info: AuthTokenPayload = Depends(get_auth_token_info),
 ) -> ApiResponse[UserDb]:
     """更新用户信息"""
     user_service = UserService(db)

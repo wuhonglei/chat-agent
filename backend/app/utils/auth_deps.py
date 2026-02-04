@@ -7,7 +7,7 @@ from fastapi import Depends, HTTPException, Request
 from pydantic import ValidationError
 
 from app.core.jwt import JWTManager, get_jwt_manager
-from app.schemas.token import SecretTokenInfo
+from app.schemas.auth import AuthTokenPayload
 from app.utils.logger import logger
 
 
@@ -51,7 +51,7 @@ def get_user_id_from_token(
 async def get_auth_token_info(
     request: Request,
     jwt_manager: JWTManager = Depends(get_jwt_manager),
-) -> SecretTokenInfo:
+) -> AuthTokenPayload:
     """
     从请求头中解析并验证 JWT token
 
@@ -84,7 +84,7 @@ async def get_auth_token_info(
         if not payload.get("user_id"):
             raise HTTPException(status_code=401, detail="Token 中缺少 user_id")
 
-        return SecretTokenInfo(**payload)
+        return AuthTokenPayload(**payload)
 
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token 已过期，请重新登录")

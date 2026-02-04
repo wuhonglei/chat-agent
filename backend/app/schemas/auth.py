@@ -1,6 +1,24 @@
-from typing import Any
+from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from typing import Any, Literal
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.models import UserDb
+
+
+class AuthTokenPayload(BaseModel):
+    """JWT 解析后的认证载荷，与 create_token 时写入的 payload 结构一致"""
+
+    model_config = ConfigDict(extra="ignore")
+
+    user_id: str = Field(..., description="User ID")
+    iat: int = Field(..., description="Issued at")
+    exp: int = Field(..., description="Expires at")
+    sub: str | None = Field(default=None, description="Subject")
+    last_login_type: Literal["sms", "wechat"] | None = Field(
+        default=None, description="Last login type"
+    )
 
 
 class SendSmsRequest(BaseModel):
@@ -43,6 +61,12 @@ class SmsLoginResponse(BaseModel):
 
     verification_token: str = Field(..., description="Verification token")
     expires_in: int = Field(..., description="Expires in")
+    user: UserDb | None = Field(
+        None,
+        description="自建短信登录时返回的用户，非空时不再调用 Cloudbase signin/signup",
+    )
+
+    model_config = {"arbitrary_types_allowed": True}
 
 
 class SigninRequest(BaseModel):
@@ -70,31 +94,6 @@ class SignupRequest(BaseModel):
 
 class SignupResponse(SigninResponse):
     """Signup response"""
-
-    pass
-
-
-class SignoutRequest(BaseModel):
-    """Sign out request"""
-
-    access_token: str = Field(..., description="Access token")
-
-
-class SignoutResponse(BaseModel):
-    """Sign out response"""
-
-    redirect_uri: str | None = Field(None, description="Redirect URI")
-
-
-class RefreshTokenRequest(BaseModel):
-    """Refresh token request"""
-
-    refresh_token: str = Field(..., description="Refresh token")
-    grant_type: str = Field("refresh_token", description="Grant type")
-
-
-class RefreshTokenResponse(SigninResponse):
-    """Refresh token response"""
 
     pass
 
@@ -180,3 +179,11 @@ class WeChatUserInfoResponse(BaseModel):
     unionid: str | None = Field(
         None, description="只有在用户将公众号绑定到微信开放平台帐号后，才会出现该字段"
     )
+
+
+class SmsVerificationEntry(BaseModel):
+    """Sms verification entry"""
+
+    code: str = Field(..., description="Verification code")
+    phone: str = Field(..., description="Phone number")
+    expires_at: float = Field(..., description="Expires at")
