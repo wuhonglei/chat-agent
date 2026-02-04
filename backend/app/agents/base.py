@@ -23,7 +23,7 @@ from app.schemas.llm import (
 from app.schemas.token_stats import BaseTokenStats, TokenUsage
 from app.utils.common import normalize_to_dict
 from app.utils.logger import logger
-from app.utils.message import filter_tool_call_messages, format_chat_message_for_llm
+from app.utils.message import format_chat_message_for_llm
 from app.utils.model import format_sse_message, get_model_extra_body
 from app.utils.token import TokenCalculator
 
@@ -296,8 +296,7 @@ class BaseAgent(ABC):
         if not tool_call_messages:
             return messages
 
-        filtered_tool_call_messages = filter_tool_call_messages(tool_call_messages)
-        for message in filtered_tool_call_messages:
+        for message in tool_call_messages:
             message_dict = normalize_to_dict(message)
             messages.append(message_dict)
 

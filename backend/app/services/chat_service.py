@@ -33,6 +33,7 @@ from app.utils.history_truncate import (
     truncate_text_to_tokens,
 )
 from app.utils.logger import logger
+from app.utils.message import filter_tool_call_messages
 from app.utils.model import format_sse_message
 from app.utils.time import get_current_time, get_time_duration
 from app.utils.token import TokenCalculator
@@ -103,6 +104,9 @@ class ChatService:
                 duration=mcp_duration,
                 tool_calls_count=len(self.mcp_tools_agent.output_messages),
             )
+            filtered_mcp_tool_call_messages = filter_tool_call_messages(
+                self.mcp_tools_agent.output_messages
+            )
 
             # 阶段2: 组件工具调用
             component_tools_for_backend = chat_request.component_tools_for_backend
@@ -114,7 +118,7 @@ class ChatService:
                 component_start_time = get_current_time()
                 async for message in self.component_tools_agent.stream_execute(
                     user_message,
-                    self.mcp_tools_agent.output_messages,
+                    filtered_mcp_tool_call_messages,
                     component_tools_for_backend,
                 ):
                     yield message
@@ -126,6 +130,9 @@ class ChatService:
                 )
             else:
                 logger.debug("Skipping component tools agent (no component tools)")
+            filtered_component_tool_call_messages = filter_tool_call_messages(
+                self.component_tools_agent.output_messages
+            )
 
             # 阶段3: 最终响应生成
             logger.debug("Starting response generation agent execution")
@@ -133,8 +140,8 @@ class ChatService:
             async for chunk in self.response_generation_agent.stream_execute(
                 history_messages,
                 user_message,
-                self.mcp_tools_agent.output_messages,
-                self.component_tools_agent.output_messages,
+                filtered_mcp_tool_call_messages,
+                filtered_component_tool_call_messages,
             ):
                 yield chunk
             response_duration = get_time_duration(response_start_time)
@@ -147,10 +154,8 @@ class ChatService:
             logger.info(
                 "Chat message stream completed",
                 total_duration=total_duration,
-                mcp_tool_calls_count=len(self.mcp_tools_agent.output_messages),
-                component_tool_calls_count=len(
-                    self.component_tools_agent.output_messages
-                ),
+                mcp_tool_calls_count=len(filtered_mcp_tool_call_messages),
+                component_tool_calls_count=len(filtered_component_tool_call_messages),
             )
             return
 
@@ -229,15 +234,10 @@ class ChatService:
                 continue
 
             # 按 DB 顺序 [assistant1, tool1, assistant2, tool2, ...] 逐条处理，assistant 为多条
-            tool_calls_list: list[ToolCallMessage] = list(msg.tool_calls)
-            assistant_tools: list[AssistantToolCallMessage] = []
-            tool_results: list[ToolCallResultMessage] = []
-            for m in tool_calls_list:
-                if getattr(m, "role", None) == "assistant":
-                    assistant_tools.append(cast(AssistantToolCallMessage, m))
-                elif getattr(m, "role", None) == "tool":
-                    tool_results.append(cast(ToolCallResultMessage, m))
-            if not assistant_tools:
+            tool_calls_list: list[ToolCallMessage] = filter_tool_call_messages(
+                msg.tool_calls
+            )
+            if not tool_calls_list:
                 flat.append(msg)
                 continue
 
@@ -270,6 +270,9 @@ class ChatService:
                                 )
                             )
                     flat.append(tr.model_copy(update={"content": effective_content}))
+
+            # 工具调用结束后的模型回复（父级 assistant 消息）加入 flat
+            flat.append(msg)
 
         return flat
 

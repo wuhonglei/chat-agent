@@ -9,7 +9,6 @@ from app.schemas.llm import (
     ToolCallResultMessage,
 )
 from app.utils.message import (
-    filter_tool_call_messages,
     get_assistant_tool_call_messages,
     get_tool_call_result_messages,
 )
@@ -64,17 +63,14 @@ def get_mcp_tool_items(
     mcp_tool_call_messages: list[ToolCallMessage],
 ) -> list[dict[str, str]]:
     """将 MCP 工具调用结果格式化为可拼接到用户消息的纯文本。
-
-    复用 filter_tool_call_messages 做过滤，只保留成功的、成对的 assistant+tool 调用，
     转为「工具名 + 参数 + 返回结果」的纯文本，便于拼接到 final_user_message，
     避免向模型传入 assistant/tool 消息结构，减少模型模仿 DSML/function_calls 格式输出。
     """
     if not mcp_tool_call_messages:
         return []
 
-    filtered = filter_tool_call_messages(mcp_tool_call_messages)
-    assistant_msgs = get_assistant_tool_call_messages(filtered)
-    result_msgs = get_tool_call_result_messages(filtered)
+    assistant_msgs = get_assistant_tool_call_messages(mcp_tool_call_messages)
+    result_msgs = get_tool_call_result_messages(mcp_tool_call_messages)
     id_to_fn: dict[str, tuple[str, str]] = {}
     for message in assistant_msgs:
         for tool_call in message.tool_calls or []:

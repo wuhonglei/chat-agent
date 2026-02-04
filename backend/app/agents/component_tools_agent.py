@@ -25,7 +25,9 @@ from app.services.component_schema_service import ComponentSchemaService
 from app.utils.component_tools import convert_schema_to_tool_definition
 from app.utils.logger import logger
 from app.utils.mcp import count_tool_calls, extract_tool_call_names
-from app.utils.message import format_tool_call_messages_for_llm
+from app.utils.message import (
+    format_tool_call_messages_for_llm,
+)
 from app.utils.time import get_current_time, get_time_duration
 
 

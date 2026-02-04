@@ -123,6 +123,9 @@ def filter_tool_call_messages(
     Returns:
         过滤后的消息列表，保证 assistant 与 tool 成对且无错误
     """
+    if not tool_call_messages:
+        return []
+
     # 第一步：收集所有有效的 tool_call_id（从成功的 ToolCallResultMessage）
     valid_tool_call_ids = set()
     for message in tool_call_messages:
