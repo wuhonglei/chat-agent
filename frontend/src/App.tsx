@@ -4,7 +4,6 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import MainLayout from "./components/Layout/MainLayout";
 import { routes } from "./routes";
 import { useAppDispatch } from "./store/hooks";
-import { loadConversations } from "./store/slices/conversationSlice";
 import { getMCPConfig } from "./store/slices/mcpSlice";
 import { getUserDetail } from "./store/slices/userSlice";
 import { setMessageInstance } from "./utils/message";
@@ -23,7 +22,6 @@ const App: React.FC = () => {
       try {
         dispatch(getMCPConfig());
         await dispatch(getUserDetail()).unwrap();
-        dispatch(loadConversations());
       } catch (error) {
         console.error("初始化失败", error);
       }

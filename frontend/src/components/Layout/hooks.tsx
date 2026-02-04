@@ -1,13 +1,22 @@
+import { TitleCreatedBy } from "@/constants";
+import { useIsSmallScreen } from "@/hooks";
 import { EditConversationInfo } from "@/interfaces";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { clearCurrentConversion, setConversationInfoById } from "@/store/slices/conversationSlice";
+import {
+  clearCurrentConversion,
+  deleteConversation,
+  loadConversations,
+  setConversationInfoById,
+  updateConversationInfo,
+} from "@/store/slices/conversationSlice";
 import { CommentOutlined, DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { ConversationItemType, ConversationsProps } from "@ant-design/x";
-import { useMemoizedFn } from "ahooks";
+import { useClickAway, useMemoizedFn } from "ahooks";
 import type { MenuProps } from "antd";
+import { App } from "antd";
 import dayjs from "dayjs";
-import { CSSProperties, useEffect, useMemo } from "react";
-import { useLocation } from "react-router-dom";
+import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { dateGroups } from "./constant";
 
 const getConversationGroup = (lastMessageCreatedAt: string) => {
@@ -126,4 +135,86 @@ export function useSidebarStyles(collapsed: boolean, isSmallScreen: boolean): CS
 export function useHideSidebar() {
   const location = useLocation();
   return useMemo(() => /^\/(login|register)/.test(location.pathname), [location.pathname]);
+}
+
+/** 挂载时加载对话列表 */
+export function useLoadConversations() {
+  const dispatch = useAppDispatch();
+  useEffect(() => {
+    dispatch(loadConversations());
+  }, [dispatch]);
+}
+
+/** 侧边栏状态与操作：折叠、对话列表、删除/重命名、点击外部关闭等 */
+export function useMainLayoutSidebar() {
+  const { message, modal } = App.useApp();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const dispatch = useAppDispatch();
+  const isSmallScreen = useIsSmallScreen();
+
+  const [editConversionInfo, setEditConversionInfo] = useState<EditConversationInfo | null>(null);
+  const [collapsed, setCollapsed] = useState(isSmallScreen);
+  const siderBarRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const onDeleteConversation = useMemoizedFn(async (id: string) => {
+    modal.confirm({
+      centered: true,
+      title: "确定要删除吗？",
+      content: "删除后，该对话将不可恢复。确认删除吗？",
+      okButtonProps: { color: "danger", variant: "solid" },
+      onOk: async () => {
+        await dispatch(deleteConversation(id)).unwrap();
+        message.success("删除成功");
+        if (location.pathname.includes(id)) navigate("/chat");
+      },
+    });
+  });
+
+  const { items, menu, groupable } = useConversionsProps(onDeleteConversation, setEditConversionInfo);
+
+  useClickAway(event => {
+    const isContentClick = contentRef.current?.contains(event.target as Node);
+    if (isSmallScreen && isContentClick && !collapsed) setCollapsed(true);
+  }, siderBarRef);
+
+  const handleMenuClick = useMemoizedFn((pathname: string) => {
+    if (location.pathname === pathname) return;
+    if (isSmallScreen) setTimeout(() => setCollapsed(true), 300);
+    navigate(pathname);
+  });
+
+  const handleCollapse = useMemoizedFn(() => setCollapsed(prev => !prev));
+
+  const handleNewConversion = useMemoizedFn(() => {
+    navigate("/chat");
+    if (isSmallScreen) setCollapsed(true);
+  });
+
+  const handleEditConversationTitle = useMemoizedFn(async (info: EditConversationInfo) => {
+    await dispatch(updateConversationInfo({ ...info, createdBy: TitleCreatedBy.User })).unwrap();
+    message.success("重命名成功");
+    setEditConversionInfo(null);
+  });
+
+  const sidebarStyles = useSidebarStyles(collapsed, isSmallScreen);
+  const hideSidebar = useHideSidebar();
+
+  return {
+    siderBarRef,
+    contentRef,
+    collapsed,
+    editConversionInfo,
+    setEditConversionInfo,
+    items,
+    menu,
+    groupable,
+    sidebarStyles,
+    hideSidebar,
+    handleCollapse,
+    handleNewConversion,
+    handleMenuClick,
+    handleEditConversationTitle,
+  };
 }

@@ -7,8 +7,8 @@ import { ConversationItemType, Conversations, ConversationsProps } from "@ant-de
 import { useMemoizedFn } from "ahooks";
 import { App, Avatar, type MenuProps } from "antd";
 import React, { useMemo, useState } from "react";
+import SettingModal from "../modals/SettingModal";
 import MenuTrigger from "./MenuTrigger";
-import SettingModal from "./modals/SettingModal";
 
 export default function UserAccount() {
   const userDetail = useAppSelector(state => state.user.userDetail);
