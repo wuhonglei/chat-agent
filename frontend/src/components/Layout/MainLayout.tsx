@@ -2,15 +2,15 @@ import CollapseIcon from "@/assets/svg/CollapseIcon.svg?react";
 import NewConversionIcon from "@/assets/svg/NewConversionIcon.svg?react";
 import { useWebTitle } from "@/hooks";
 import { Conversations, XProvider } from "@ant-design/x";
-import { Button, Layout } from "antd";
+import { Button, Layout, Spin } from "antd";
 import classNames from "classnames";
-import React, { ReactNode } from "react";
+import React, { ReactNode, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import SimpleBar from "simplebar-react";
 import SidebarHeader from "./components/SidebarHeader";
 import UserAccount from "./components/UserAccount";
 import styles from "./css/mainLayout.module.css";
-import { useConversionInfo, useLoadConversations, useMainLayoutSidebar } from "./hooks";
+import { useConversationInfiniteScroll, useConversionInfo, useMainLayoutSidebar } from "./hooks";
 import RenameModal from "./modals/RenameModal";
 
 const { Sider, Content } = Layout;
@@ -22,7 +22,8 @@ interface MainLayoutProps {
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const location = useLocation();
-  useLoadConversations();
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const { loadingMore } = useConversationInfiniteScroll(scrollContainerRef);
   const conversationInfo = useConversionInfo();
   useWebTitle(conversationInfo);
 
@@ -70,15 +71,22 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           breakpoint="md"
         >
           <SidebarHeader onCollapse={handleCollapse} onNewConversation={handleNewConversion} />
-          <SimpleBar className="flex-1 h-0">
-            <Conversations
-              items={items}
-              menu={menu}
-              groupable={groupable}
-              activeKey={location.pathname}
-              onActiveChange={handleMenuClick}
-            />
-          </SimpleBar>
+          <div ref={scrollContainerRef} className="flex-1 min-h-0 flex flex-col">
+            <SimpleBar className="flex-1 h-0">
+              <Conversations
+                items={items}
+                menu={menu}
+                groupable={groupable}
+                activeKey={location.pathname}
+                onActiveChange={handleMenuClick}
+              />
+              {loadingMore && (
+                <div className="flex justify-center py-3">
+                  <Spin size="small" />
+                </div>
+              )}
+            </SimpleBar>
+          </div>
           <UserAccount />
           {editConversionInfo && (
             <RenameModal

@@ -11,11 +11,11 @@ import {
 } from "@/store/slices/conversationSlice";
 import { CommentOutlined, DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { ConversationItemType, ConversationsProps } from "@ant-design/x";
-import { useClickAway, useMemoizedFn } from "ahooks";
+import { useClickAway, useInfiniteScroll, useMemoizedFn } from "ahooks";
 import type { MenuProps } from "antd";
 import { App } from "antd";
 import dayjs from "dayjs";
-import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import { CSSProperties, RefObject, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { dateGroups } from "./constant";
 
@@ -137,12 +137,32 @@ export function useHideSidebar() {
   return useMemo(() => /^\/(login|register)/.test(location.pathname), [location.pathname]);
 }
 
-/** 挂载时加载对话列表 */
-export function useLoadConversations() {
+const CONVERSATION_PAGE_LIMIT = 20;
+
+/** 对话列表无限滚动：使用 offset/limit 分页，初始 offset=0，limit=20 */
+export function useConversationInfiniteScroll(scrollContainerRef: RefObject<HTMLDivElement | null>) {
   const dispatch = useAppDispatch();
-  useEffect(() => {
-    dispatch(loadConversations());
-  }, [dispatch]);
+
+  const { loadingMore } = useInfiniteScroll(
+    async (lastData?) => {
+      const offset = lastData ? lastData.offset + lastData.limit : 0;
+      const res = await dispatch(loadConversations({ offset, limit: CONVERSATION_PAGE_LIMIT })).unwrap();
+      return {
+        list: res.conversations,
+        total: res.total,
+        offset: res.offset,
+        limit: res.limit,
+      };
+    },
+    {
+      target: () => scrollContainerRef.current?.querySelector(".simplebar-content-wrapper") ?? undefined,
+      isNoMore: data => !data || data.list.length >= data.total,
+      threshold: 100,
+      reloadDeps: [],
+    }
+  );
+
+  return { loadingMore };
 }
 
 /** 侧边栏状态与操作：折叠、对话列表、删除/重命名、点击外部关闭等 */

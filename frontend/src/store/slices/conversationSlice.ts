@@ -184,13 +184,18 @@ const conversationSlice = createSlice({
       setCurrentConversationHelper(state, action.payload);
     });
 
-    // loadConversations
+    // loadConversations：offset=0 时替换列表，offset>0 时追加（用于滚动加载更多）
     builder.addCase(loadConversations.fulfilled, (state, action) => {
-      state.conversations = action.payload.conversations;
-      state.total = action.payload.total;
-      state.offset = action.payload.offset;
-      state.limit = action.payload.limit;
-      state.conversationsLoaded = true;
+      const { conversations, total, offset, limit } = action.payload;
+      if (offset === 0) {
+        state.conversations = conversations;
+        state.conversationsLoaded = true;
+      } else {
+        state.conversations.push(...conversations);
+      }
+      state.total = total;
+      state.offset = offset;
+      state.limit = limit;
     });
 
     // updateConversationInfo
