@@ -209,12 +209,6 @@ class SecurityConfig(BaseModel):
     )
 
 
-class CloudbaseConfig(BaseModel):
-    """Cloudbase 配置"""
-
-    env_id: str = Field(..., description="The environment ID of the Cloudbase")
-
-
 class SmsConfig(BaseModel):
     """短信配置"""
 

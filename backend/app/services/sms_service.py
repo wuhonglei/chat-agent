@@ -15,10 +15,6 @@ from app.core.config import settings
 from app.schemas.auth import (
     SendSmsRequest,
     SendSmsResponse,
-    SigninRequest,
-    SigninResponse,
-    SignupRequest,
-    SignupResponse,
     SmsLoginRequest,
     SmsLoginResponse,
     SmsVerificationEntry,
@@ -34,9 +30,6 @@ VERIFICATION_TTL = 300  # 秒
 
 class SmsService:
     """短信服务类（腾讯云短信 + 自建验证）"""
-
-    VERIFY_SSL = not settings.app.debug  # 保留供 signin/signup 使用
-    BASE_URL = f"https://{settings.cloudbase.env_id}.api.tcloudbasegateway.com"
 
     @staticmethod
     async def send_sms(
@@ -122,71 +115,3 @@ class SmsService:
             verification_token="",
             expires_in=0,
         )
-
-    @staticmethod
-    async def signin(signin_request: SigninRequest) -> SigninResponse:
-        """使用验证码登录（Cloudbase，短信登录流程已改为自建，此方法保留兼容）"""
-        import httpx
-
-        url = f"{SmsService.BASE_URL}/auth/v1/signin"
-        payload = signin_request.model_dump(exclude_none=True)
-        async with httpx.AsyncClient(verify=SmsService.VERIFY_SSL) as client:
-            try:
-                response = await client.post(
-                    url,
-                    json=payload,
-                    headers={
-                        "Content-Type": "application/json",
-                        "Accept": "application/json",
-                    },
-                    timeout=10.0,
-                )
-                if response.status_code == 200:
-                    data = response.json()
-                    return SigninResponse(**data)
-                logger.error(
-                    "Cloudbase 登录失败",
-                    status_code=response.status_code,
-                    detail=response.text,
-                )
-                raise HTTPException(
-                    status_code=response.status_code,
-                    detail=f"登录失败: {response.text}",
-                )
-            except httpx.RequestError as e:
-                logger.error("Cloudbase 登录请求失败", error=e)
-                raise HTTPException(status_code=500, detail="认证服务暂时不可用")
-
-    @staticmethod
-    async def signup(signup_request: SignupRequest) -> SignupResponse:
-        """注册新用户（Cloudbase，短信登录流程已改为自建，此方法保留兼容）"""
-        import httpx
-
-        url = f"{SmsService.BASE_URL}/auth/v1/signup"
-        payload = signup_request.model_dump(exclude_none=True)
-        async with httpx.AsyncClient(verify=SmsService.VERIFY_SSL) as client:
-            try:
-                response = await client.post(
-                    url,
-                    json=payload,
-                    headers={
-                        "Content-Type": "application/json",
-                        "Accept": "application/json",
-                    },
-                    timeout=10.0,
-                )
-                if response.status_code == 200:
-                    data = response.json()
-                    return SignupResponse(**data)
-                logger.error(
-                    "Cloudbase 注册失败",
-                    status_code=response.status_code,
-                    detail=response.text,
-                )
-                raise HTTPException(
-                    status_code=response.status_code,
-                    detail=f"注册失败: {response.text}",
-                )
-            except httpx.RequestError as e:
-                logger.error("Cloudbase 注册请求失败", error=e)
-                raise HTTPException(status_code=500, detail="认证服务暂时不可用")

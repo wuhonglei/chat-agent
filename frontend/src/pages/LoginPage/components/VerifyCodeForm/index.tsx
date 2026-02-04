@@ -23,7 +23,6 @@ const LAST_LOGIN_PHONE_KEY = "lastLoginPhone";
 const VerifyCodeForm: React.FC<VerifyCodeFormProps> = () => {
   const [form] = Form.useForm<VerificationCodeFormValues>();
   const [lastPhone, setLastPhone] = useLocalStorageState<string>(LAST_LOGIN_PHONE_KEY);
-  console.info("lastPhone", lastPhone);
   const [targetDate, setTargetDate] = useState<number>();
   const [countdown] = useCountDown({ targetDate });
   const { message } = App.useApp();
