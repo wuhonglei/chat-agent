@@ -34,6 +34,13 @@ class RegisterConversationRequest(BaseModel):
     title: str | None = Field(None, description="Conversation title")
 
 
+class ConversationListRequest(BaseModel):
+    """对话列表查询请求（分页）"""
+
+    offset: int = Field(0, ge=0, description="偏移量")
+    limit: int = Field(20, ge=1, le=100, description="每页数量")
+
+
 class ConversationListResponse(BaseModel):
     """Conversation list response model"""
 

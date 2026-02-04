@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.models import ConversationDb, MessageDb
@@ -70,6 +71,47 @@ class ConversationService(BaseService):
             for conv in conversations
         ]
         return conversation_list
+
+    def get_conversations_paginated(
+        self, user_id: str, offset: int = 0, limit: int = 20
+    ) -> tuple[int, list[ConversationInfo]]:
+        """分页获取用户的对话列表。
+
+        Args:
+            user_id: 用户 ID
+            offset: 偏移量，默认 0
+            limit: 每页数量，默认 20
+
+        Returns:
+            (总数, 当前页对话列表)
+        """
+        db = self._ensure_db()
+        count_stmt = (
+            select(func.count())
+            .select_from(ConversationDb)
+            .where(ConversationDb.user_id == user_id)
+        )
+        total = db.exec(count_stmt).one()
+        data_stmt = (
+            select(ConversationDb)
+            .where(ConversationDb.user_id == user_id)
+            .order_by(ConversationDb.last_message_created_at.desc())  # type: ignore[attr-defined]
+            .offset(offset)
+            .limit(limit)
+        )
+        conversations = db.exec(data_stmt).all()
+        conversation_list = [
+            ConversationInfo.model_validate(self.conversation_to_dict(conv))
+            for conv in conversations
+        ]
+        logger.debug(
+            "Found conversations (paginated)",
+            total=total,
+            offset=offset,
+            limit=limit,
+            returned=len(conversation_list),
+        )
+        return total, conversation_list
 
     def get_conversation(self, conversation_id: str) -> ConversationDb | None:
         """获取对话"""

@@ -9,6 +9,7 @@ from app.core.db import get_db
 from app.schemas.auth import AuthTokenPayload
 from app.schemas.conversation import (
     ConversationInfo,
+    ConversationListRequest,
     RegisterConversationRequest,
     UpdateConversationRequest,
 )
@@ -35,16 +36,19 @@ async def register_conversation(
 
 @router.get("/list")
 async def get_conversations(
+    request: ConversationListRequest = Depends(),
     db: Session = Depends(get_db),
     token_info: AuthTokenPayload = Depends(get_auth_token_info),
 ) -> ApiResponse[dict[str, Any]]:
-    """Get all conversations"""
+    """分页获取对话列表。"""
     service = ConversationService(db)
-    conversations = service.get_conversations(token_info.user_id)
+    total, conversations = service.get_conversations_paginated(
+        token_info.user_id, offset=request.offset, limit=request.limit
+    )
     data = {
-        "total": len(conversations),
-        "offset": 0,
-        "limit": len(conversations),
+        "total": total,
+        "offset": request.offset,
+        "limit": request.limit,
         "conversations": conversations,
     }
     return ApiResponse.success(data=data, msg="获取对话列表成功")
