@@ -15,13 +15,13 @@ repos:
         files: \.py$
         exclude: ^(tests/|app/mcp/)
 
-  # mypy 类型检查，使用本地 mypy.ini（与 make check 一致；tests/app.mcp 等由 mypy.ini 的 ignore_errors 统一控制）
+  # mypy 类型检查，仅对暂存的 .py 变更文件检查（路径相对于 git 根 ai-doc，需去掉 backend/ 再在 backend 下执行）
   - repo: local
     hooks:
       - id: mypy
         name: mypy
-        entry: uv
+        entry: bash -c 'cd backend && FILES=(); for f in "$@"; do FILES+=("${f#backend/}"); done; uv run mypy "${FILES[@]}"' sh
         language: system
         types: [python]
         files: \.py$
-        args: [run, mypy]
+        pass_filenames: true
