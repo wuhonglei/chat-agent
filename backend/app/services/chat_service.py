@@ -228,41 +228,48 @@ class ChatService:
                 flat.append(msg)
                 continue
 
-            # 拆成 assistant 部分 + tool 结果列表（DB 里顺序为 [assistant, tool, tool, ...]）
+            # 按 DB 顺序 [assistant1, tool1, assistant2, tool2, ...] 逐条处理，assistant 为多条
             tool_calls_list: list[ToolCallMessage] = list(msg.tool_calls)
-            assistant_tool: AssistantToolCallMessage | None = None
+            assistant_tools: list[AssistantToolCallMessage] = []
             tool_results: list[ToolCallResultMessage] = []
             for m in tool_calls_list:
                 if getattr(m, "role", None) == "assistant":
-                    assistant_tool = cast(AssistantToolCallMessage, m)
+                    assistant_tools.append(cast(AssistantToolCallMessage, m))
                 elif getattr(m, "role", None) == "tool":
                     tool_results.append(cast(ToolCallResultMessage, m))
-            if assistant_tool is None:
+            if not assistant_tools:
                 flat.append(msg)
                 continue
 
             is_latest_tool_round = idx >= last_round_start
 
-            flat.append(assistant_tool)
-            for tr in tool_results:
-                if is_latest_tool_round:
-                    flat.append(tr)
-                    continue
-                # 其他轮：用 summary，无则 content≤threshold 用 content，否则截断
-                effective_content: str
-                if tr.summary and tr.summary.strip():
-                    effective_content = tr.summary
-                else:
-                    content_tokens = token_calculator.count_tokens(tr.content or "")
-                    if content_tokens <= threshold_tokens:
-                        effective_content = tr.content or ""
+            # 按原始顺序输出：assistant1, tool1, assistant2, tool2, ...
+            for m in tool_calls_list:
+                if getattr(m, "role", None) == "assistant":
+                    flat.append(cast(AssistantToolCallMessage, m))
+                elif getattr(m, "role", None) == "tool":
+                    tr = cast(ToolCallResultMessage, m)
+                    if is_latest_tool_round:
+                        flat.append(tr)
+                        continue
+                    # 其他轮：用 summary，无则 content≤threshold 用 content，否则截断
+                    effective_content: str
+                    if tr.summary and tr.summary.strip():
+                        effective_content = tr.summary
                     else:
-                        effective_content = "[内容已截断] " + truncate_text_to_tokens(
-                            tr.content or "",
-                            threshold_tokens,
-                            token_calculator,
-                        )
-                flat.append(tr.model_copy(update={"content": effective_content}))
+                        content_tokens = token_calculator.count_tokens(tr.content or "")
+                        if content_tokens <= threshold_tokens:
+                            effective_content = tr.content or ""
+                        else:
+                            effective_content = (
+                                "[内容已截断] "
+                                + truncate_text_to_tokens(
+                                    tr.content or "",
+                                    threshold_tokens,
+                                    token_calculator,
+                                )
+                            )
+                    flat.append(tr.model_copy(update={"content": effective_content}))
 
         return flat
 
