@@ -14,7 +14,7 @@ from app.schemas.chat import ChatMessageItemWithToolCalls
 from app.schemas.config import LLMConfig
 from app.schemas.llm import ToolCallMessage
 from app.schemas.token_stats import ResponseGenerationTokenStats
-from app.services.component_schema_service import ComponentSchemaService
+from app.services.component import ComponentSchemaService
 from app.utils.logger import logger
 from app.utils.time import get_current_time, get_time_duration
 
@@ -54,6 +54,8 @@ class ResponseGenerationAgent(BaseAgent):
         user_message: str,
         mcp_tool_call_messages: list[ToolCallMessage],
         component_tool_call_messages: list[ToolCallMessage],
+        user_id: str | None = None,
+        conversation_id: str | None = None,
     ) -> AsyncGenerator[str, None]:
         """
         流式生成最终响应
@@ -63,6 +65,8 @@ class ResponseGenerationAgent(BaseAgent):
             user_message: 原始用户消息
             mcp_tool_call_messages: MCP工具调用消息
             component_tool_call_messages: 组件工具调用消息
+            user_id: 用户 ID，用于注入 user_profile / user_context
+            conversation_id: 对话 ID，用于注入 user_context 窗口外摘要
 
         Yields:
             str: SSE格式的响应消息
@@ -78,7 +82,9 @@ class ResponseGenerationAgent(BaseAgent):
         )
 
         system_prompt = get_system_prompt_for_response_generation(
-            has_tool_calls=bool(mcp_tool_call_messages)
+            has_tool_calls=bool(mcp_tool_call_messages),
+            user_id=user_id,
+            conversation_id=conversation_id,
         )
         logger.debug("System prompt", system_prompt=system_prompt)
         # MCP 结果已拼接到 final_user_message，不再传入 tool_call_messages

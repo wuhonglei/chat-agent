@@ -27,15 +27,56 @@ def get_default_system_prompt() -> str:
     return default_system_prompt_template.render()
 
 
-def get_system_prompt_for_response_generation(has_tool_calls: bool = False) -> str:
+def _build_user_context_system_fragment(
+    user_id: str | None,
+    conversation_id: str | None,
+) -> str:
+    """按 user_id 查 user_profile、按 (user_id, conversation_id) 查 user_context，拼成 system 片段。"""
+    if not user_id:
+        return ""
+    from app.services.user import UserProfileService
+
+    parts: list[str] = []
+    with UserProfileService() as svc:
+        profile = svc.get_user_profile(user_id)
+        if profile and (profile.facts or profile.preferences):
+            if profile.facts:
+                parts.append(
+                    "已知用户事实：\n" + "\n".join(f"- {f}" for f in profile.facts)
+                )
+            if profile.preferences:
+                parts.append(
+                    "用户偏好：\n" + "\n".join(f"- {p}" for p in profile.preferences)
+                )
+        if conversation_id:
+            ctx = svc.get_user_context(user_id, conversation_id)
+            if ctx and (ctx.summary_before_window or ctx.recent_summary):
+                summary = ctx.recent_summary or ctx.summary_before_window or ""
+                if summary.strip():
+                    parts.append(
+                        "以下是本对话中较早轮次的摘要，供参考：\n" + summary.strip()
+                    )
+    if not parts:
+        return ""
+    return "\n\n" + "\n\n".join(parts)
+
+
+def get_system_prompt_for_response_generation(
+    has_tool_calls: bool = False,
+    user_id: str | None = None,
+    conversation_id: str | None = None,
+) -> str:
     """Get system prompt for final response generation.
 
     When has_tool_calls=True: 增加禁止 DSML、负向示例与兜底规则，避免模型延续 tool_calls 样式。
     When has_tool_calls=False: 仅保留基础规则，不注入 DSML 相关提示。
+    当提供 user_id/conversation_id 时，注入 user_profile 事实/偏好与 user_context 窗口外摘要。
     """
-    return system_prompt_for_response_generation_template.render(
+    base = system_prompt_for_response_generation_template.render(
         has_tool_calls=has_tool_calls
     )
+    fragment = _build_user_context_system_fragment(user_id, conversation_id)
+    return base + fragment
 
 
 def get_system_prompt_for_tool_calls() -> str:

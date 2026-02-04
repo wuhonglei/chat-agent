@@ -13,7 +13,7 @@ from app.schemas.conversation import (
     UpdateConversationRequest,
 )
 from app.schemas.response import ApiResponse
-from app.services.conversation_service import ConversationService
+from app.services.conversation import ConversationService
 from app.utils.auth_deps import get_auth_token_info, require_auth
 
 router = APIRouter()

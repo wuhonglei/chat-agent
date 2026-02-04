@@ -21,7 +21,7 @@ from app.schemas.llm import (
     ToolCallResultMessage,
 )
 from app.schemas.token_stats import ComponentToolsTokenStats
-from app.services.component_schema_service import ComponentSchemaService
+from app.services.component import ComponentSchemaService
 from app.utils.component_tools import convert_schema_to_tool_definition
 from app.utils.logger import logger
 from app.utils.mcp import count_tool_calls, extract_tool_call_names

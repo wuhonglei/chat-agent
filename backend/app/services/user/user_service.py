@@ -108,7 +108,7 @@ class UserService(BaseService):
             user.status = "inactive"
             db.add(user)
             # updated_at 通过 onupdate 在 Python 层面自动更新，不需要 refresh()
-            # 事务由 get_db() 或 BaseService.__exit__ 自动提交
+            # 事务由 get_db() 自动提交
 
     def update_user_info(self, user_id: str, update_info: UpdateUserInfo) -> UserDb:
         """更新用户信息"""

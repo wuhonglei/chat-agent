@@ -19,7 +19,7 @@ from app.schemas.auth import (
     SmsLoginResponse,
     SmsVerificationEntry,
 )
-from app.services.user_service import UserService
+from app.services.user import UserService
 from app.utils.logger import logger
 from app.utils.sms import format_phone_e164, send_sms_sync
 

@@ -25,8 +25,8 @@ from app.schemas.llm import (
     ToolCallResultMessage,
 )
 from app.schemas.token_stats import TotalTokenStats
-from app.services.component_schema_service import ComponentSchemaService
-from app.services.message_service import MessageService
+from app.services.component import ComponentSchemaService
+from app.services.message import MessageService
 from app.utils.common import pick_fields
 from app.utils.history_truncate import (
     truncate_history_by_rounds_and_tokens,
@@ -37,6 +37,54 @@ from app.utils.message import filter_tool_call_messages
 from app.utils.model import format_sse_message
 from app.utils.time import get_current_time, get_time_duration
 from app.utils.token import TokenCalculator
+
+
+async def _run_window_out_and_profile_tasks(
+    user_id: str,
+    conversation_id: str,
+    truncated_messages: list[ChatMessageItem],
+    user_message_content: str,
+    assistant_content: str,
+    summary_max_tokens: int,
+) -> None:
+    """窗口外摘要写入 user_context；可选归纳用户事实/偏好写入 user_profile。异步执行，不阻塞主流程。"""
+    from app.services.user import ContextSummaryService, UserProfileService
+
+    summary_svc = ContextSummaryService()
+    try:
+        # 1. 窗口外摘要 -> user_context.recent_summary
+        summary = await summary_svc.summarize_truncated_messages(
+            truncated_messages, max_tokens=summary_max_tokens
+        )
+        if summary:
+            with UserProfileService() as profile_svc:
+                profile_svc.upsert_user_context(
+                    user_id,
+                    conversation_id,
+                    recent_summary=summary,
+                )
+        # 2. 可选：本轮用户消息 + 助手回复 -> 归纳事实/偏好 -> user_profile
+        text = f"[用户]: {user_message_content}\n\n[助手]: {assistant_content}"
+        if summary:
+            text += f"\n\n[较早摘要]: {summary}"
+        with UserProfileService() as profile_svc:
+            existing = profile_svc.get_user_profile(user_id)
+            facts, preferences = await summary_svc.extract_user_facts_preferences(
+                text,
+                existing_facts=existing.facts if existing else None,
+                existing_preferences=existing.preferences if existing else None,
+            )
+            if facts or preferences:
+                profile_svc.upsert_user_profile(
+                    user_id, facts=facts or [], preferences=preferences or []
+                )
+    except Exception as e:
+        logger.warning(
+            "Window-out summary / user profile task failed",
+            user_id=user_id,
+            conversation_id=conversation_id,
+            error=e,
+        )
 
 
 class ChatService:
@@ -76,8 +124,9 @@ class ChatService:
         chat_request: ChatRequest,
         history_messages: list[ChatMessageItemWithToolCalls],
         client_ip: str | None,
+        user_id: str | None = None,
     ) -> AsyncGenerator[str, None]:
-        """Stream chat response using agent architecture"""
+        """Stream chat response using agent architecture. user_id 用于注入 user_profile/user_context。"""
         start_time = get_current_time()
         try:
             user_message = chat_request.content
@@ -142,6 +191,8 @@ class ChatService:
                 user_message,
                 filtered_mcp_tool_call_messages,
                 filtered_component_tool_call_messages,
+                user_id=user_id,
+                conversation_id=chat_request.conversation_id,
             ):
                 yield chunk
             response_duration = get_time_duration(response_start_time)
@@ -281,8 +332,9 @@ class ChatService:
         chat_request: ChatRequest,
         user_message_id: str,
         assistant_message_id: str,
+        user_id: str | None = None,
     ) -> AsyncGenerator[str, None]:
-        """生成完整流式响应：ack、正文流、标题（可选）、done/error"""
+        """生成完整流式响应：ack、正文流、标题（可选）、done/error。user_id 用于窗口外摘要与用户画像异步任务。"""
         conversation_id = chat_request.conversation_id
         try:
             with MessageService() as message_service:
@@ -315,11 +367,13 @@ class ChatService:
                     chat_request.history_ids
                 )
                 token_calculator = TokenCalculator(settings.response_model.model_name)
-                history_messages, _truncated = truncate_history_by_rounds_and_tokens(
-                    raw_history,
-                    self.compression.max_history_rounds,
-                    self.compression.max_history_tokens,
-                    token_calculator,
+                history_messages, truncated_messages = (
+                    truncate_history_by_rounds_and_tokens(
+                        raw_history,
+                        self.compression.max_history_rounds,
+                        self.compression.max_history_tokens,
+                        token_calculator,
+                    )
                 )
                 new_history_messages = self.process_history_messages(history_messages)
                 logger.info(
@@ -334,6 +388,7 @@ class ChatService:
                     chat_request=chat_request,
                     history_messages=new_history_messages,
                     client_ip=None,
+                    user_id=user_id,
                 ):
                     if title_task is not None and title_task.done():
                         try:
@@ -412,6 +467,32 @@ class ChatService:
                     "Stream response generation completed successfully",
                     conversation_id=conversation_id,
                 )
+
+                # 窗口外摘要与用户画像：异步执行，不阻塞响应
+                if (
+                    user_id
+                    and truncated_messages
+                    and getattr(
+                        self.compression,
+                        "window_out_summary_enabled",
+                        True,
+                    )
+                ):
+                    asyncio.create_task(
+                        _run_window_out_and_profile_tasks(
+                            user_id=user_id,
+                            conversation_id=conversation_id,
+                            truncated_messages=truncated_messages,
+                            user_message_content=chat_request.content,
+                            assistant_content=assistant_payload.content or "",
+                            summary_max_tokens=getattr(
+                                self.compression,
+                                "summary_max_tokens",
+                                500,
+                            ),
+                        ),
+                        name="context_summary",
+                    )
         except Exception as e:
             logger.error(
                 "Error during stream response generation",

@@ -10,7 +10,7 @@ from app.models import UserDb
 from app.schemas.auth import AuthTokenPayload
 from app.schemas.response import ApiResponse
 from app.schemas.user import UpdateUserInfo
-from app.services.user_service import UserService
+from app.services.user import UserService
 from app.utils.auth_deps import get_auth_token_info
 
 router = APIRouter()

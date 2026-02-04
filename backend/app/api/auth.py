@@ -16,9 +16,8 @@ from app.schemas.auth import (
     WeChatLoginRequest,
 )
 from app.schemas.response import ApiResponse
-from app.services.sms_service import SmsService
-from app.services.user_service import UserService
-from app.services.wechat_service import WeChatService
+from app.services.auth import SmsService, WeChatService
+from app.services.user import UserService
 from app.utils.auth_deps import get_auth_token_info
 from app.utils.common import gen_uuid
 from app.utils.logger import logger

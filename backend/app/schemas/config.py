@@ -259,6 +259,15 @@ class CompressionConfig(BaseModel):
         default=2000,
         description="单条工具结果超过该 token 数时用 summary/截断参与组装",
     )
+    # 窗口外摘要管道
+    window_out_summary_enabled: bool = Field(
+        default=True,
+        description="是否开启窗口外消息摘要管道（截断→摘要→user_context→system 注入）",
+    )
+    summary_max_tokens: int = Field(
+        default=1000,
+        description="窗口外摘要最大 token 数，写入与注入时共用",
+    )
 
 
 class WechatConfig(BaseModel):
