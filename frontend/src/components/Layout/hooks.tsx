@@ -165,18 +165,14 @@ export function useConversationInfiniteScroll(scrollContainerRef: RefObject<HTML
   return { loadingMore };
 }
 
-/** 侧边栏状态与操作：折叠、对话列表、删除/重命名、点击外部关闭等 */
-export function useMainLayoutSidebar() {
+/** 侧边栏内容：对话列表、重命名等状态与操作，供 SidebarContent 内部使用 */
+export function useSidebarContent() {
   const { message, modal } = App.useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useAppDispatch();
-  const isSmallScreen = useIsSmallScreen();
 
   const [editConversionInfo, setEditConversionInfo] = useState<EditConversationInfo | null>(null);
-  const [collapsed, setCollapsed] = useState(isSmallScreen);
-  const siderBarRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
 
   const onDeleteConversation = useMemoizedFn(async (id: string) => {
     modal.confirm({
@@ -194,28 +190,48 @@ export function useMainLayoutSidebar() {
 
   const { items, menu, groupable } = useConversionsProps(onDeleteConversation, setEditConversionInfo);
 
-  useClickAway(event => {
-    const isContentClick = contentRef.current?.contains(event.target as Node);
-    if (isSmallScreen && isContentClick && !collapsed) setCollapsed(true);
-  }, siderBarRef);
-
   const handleMenuClick = useMemoizedFn((pathname: string) => {
     if (location.pathname === pathname) return;
-    if (isSmallScreen) setTimeout(() => setCollapsed(true), 300);
     navigate(pathname);
-  });
-
-  const handleCollapse = useMemoizedFn(() => setCollapsed(prev => !prev));
-
-  const handleNewConversion = useMemoizedFn(() => {
-    navigate("/chat");
-    if (isSmallScreen) setCollapsed(true);
   });
 
   const handleEditConversationTitle = useMemoizedFn(async (info: EditConversationInfo) => {
     await dispatch(updateConversationInfo({ ...info, createdBy: TitleCreatedBy.User })).unwrap();
     message.success("重命名成功");
     setEditConversionInfo(null);
+  });
+
+  return {
+    items,
+    menu,
+    groupable,
+    activeKey: location.pathname,
+    editConversionInfo,
+    setEditConversionInfo,
+    handleMenuClick,
+    handleEditConversationTitle,
+  };
+}
+
+/** 侧边栏布局：折叠、ref、样式等，供 MainLayout 使用 */
+export function useMainLayoutSidebar() {
+  const navigate = useNavigate();
+  const isSmallScreen = useIsSmallScreen();
+
+  const [collapsed, setCollapsed] = useState(isSmallScreen);
+  const siderBarRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  useClickAway(event => {
+    const isContentClick = contentRef.current?.contains(event.target as Node);
+    if (isSmallScreen && isContentClick && !collapsed) setCollapsed(true);
+  }, siderBarRef);
+
+  const handleCollapse = useMemoizedFn(() => setCollapsed(prev => !prev));
+
+  const handleNewConversion = useMemoizedFn(() => {
+    navigate("/chat");
+    if (isSmallScreen) setCollapsed(true);
   });
 
   const sidebarStyles = useSidebarStyles(collapsed, isSmallScreen);
@@ -225,16 +241,11 @@ export function useMainLayoutSidebar() {
     siderBarRef,
     contentRef,
     collapsed,
-    editConversionInfo,
-    setEditConversionInfo,
-    items,
-    menu,
-    groupable,
     sidebarStyles,
     hideSidebar,
     handleCollapse,
     handleNewConversion,
-    handleMenuClick,
-    handleEditConversationTitle,
+    isSmallScreen,
+    setCollapsed,
   };
 }
