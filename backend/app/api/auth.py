@@ -20,7 +20,7 @@ from app.schemas.auth import (
     WeChatLoginRequest,
 )
 from app.schemas.response import ApiResponse
-from app.services.cloudbase_service import CloudbaseService
+from app.services.sms_service import SmsService
 from app.services.user_service import UserService
 from app.services.wechat_service import WeChatService
 from app.utils.auth_deps import get_auth_token_info
@@ -35,7 +35,7 @@ async def send_sms(
     send_sms_request: SendSmsRequest,
 ) -> ApiResponse[SendSmsResponseForFrontend]:
     """发送短信验证码"""
-    data = await CloudbaseService.send_sms(send_sms_request)
+    data = await SmsService.send_sms(send_sms_request)
     new_data = SendSmsResponseForFrontend(
         **data.model_dump(exclude_none=True), phone_number=send_sms_request.phone_number
     )
@@ -50,19 +50,19 @@ async def sms_login(
     jwt_manager: JWTManager = Depends(get_jwt_manager),
 ) -> ApiResponse[UserDb]:
     """短信登录"""
-    data = await CloudbaseService.sms_login(sms_login_request)
+    data = await SmsService.sms_login(sms_login_request)
     verification_token = data.verification_token
     user_service = UserService(db)
 
     # 如果是新用户，则先注册，否则直接登录
     if sms_login_request.is_user:
         # 如果是老用户，则直接登录
-        token_info = await CloudbaseService.signin(
+        token_info = await SmsService.signin(
             SigninRequest(verification_token=verification_token)
         )
     else:
         phone_number = sms_login_request.phone_number
-        token_info = await CloudbaseService.signup(
+        token_info = await SmsService.signup(
             SignupRequest(
                 verification_token=verification_token, phone_number=phone_number
             )
@@ -101,9 +101,7 @@ async def logout(
     last_login_type = token_info.last_login_type
 
     if last_login_type == "sms":
-        await CloudbaseService.signout(
-            SignoutRequest(access_token=token_info.access_token)
-        )
+        await SmsService.signout(SignoutRequest(access_token=token_info.access_token))
 
     with UserService() as user_service:
         user_service.update_user_last_logout(token_info.user_id)

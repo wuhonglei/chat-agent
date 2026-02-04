@@ -215,6 +215,17 @@ class CloudbaseConfig(BaseModel):
     env_id: str = Field(..., description="The environment ID of the Cloudbase")
 
 
+class SmsConfig(BaseModel):
+    """短信配置"""
+
+    tencentcloud_secret_id: str = Field(..., description="腾讯云 Secret ID")
+    tencentcloud_secret_key: str = Field(..., description="腾讯云 Secret Key")
+    endpoint: str = Field(..., description="腾讯云 Endpoint")
+    sms_sdk_app_id: str = Field(..., description="短信 SDK App ID")
+    template_id: str = Field(..., description="短信模板 ID")
+    sign_name: str = Field(..., description="短信签名")
+
+
 class DatabaseConfig(BaseModel):
     """PostgreSQL 数据库配置"""
 

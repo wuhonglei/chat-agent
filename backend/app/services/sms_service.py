@@ -24,8 +24,8 @@ from app.schemas.auth import (
 from app.utils.logger import logger
 
 
-class CloudbaseService:
-    """Cloudbase 服务类"""
+class SmsService:
+    """短信服务类"""
 
     VERIFY_SSL = not settings.app.debug  # 如果DEBUG为True，则不验证SSL证书
     BASE_URL = f"https://{settings.cloudbase.env_id}.api.tcloudbasegateway.com"
@@ -43,11 +43,11 @@ class CloudbaseService:
         Raises:
             HTTPException: 当请求失败时
         """
-        url = f"{CloudbaseService.BASE_URL}/auth/v1/verification"
+        url = f"{SmsService.BASE_URL}/auth/v1/verification"
 
         payload = send_sms_request.model_dump(exclude_none=True)
 
-        async with httpx.AsyncClient(verify=CloudbaseService.VERIFY_SSL) as client:
+        async with httpx.AsyncClient(verify=SmsService.VERIFY_SSL) as client:
             try:
                 response = await client.post(
                     url,
@@ -87,11 +87,11 @@ class CloudbaseService:
         Raises:
             HTTPException: 当验证失败时
         """
-        url = f"{CloudbaseService.BASE_URL}/auth/v1/verification/verify"
+        url = f"{SmsService.BASE_URL}/auth/v1/verification/verify"
 
         payload = sms_login_request.model_dump(exclude_none=True)
 
-        async with httpx.AsyncClient(verify=CloudbaseService.VERIFY_SSL) as client:
+        async with httpx.AsyncClient(verify=SmsService.VERIFY_SSL) as client:
             try:
                 response = await client.post(
                     url,
@@ -132,11 +132,11 @@ class CloudbaseService:
         Raises:
             HTTPException: 当登录失败时
         """
-        url = f"{CloudbaseService.BASE_URL}/auth/v1/signin"
+        url = f"{SmsService.BASE_URL}/auth/v1/signin"
 
         payload = signin_request.model_dump(exclude_none=True)
 
-        async with httpx.AsyncClient(verify=CloudbaseService.VERIFY_SSL) as client:
+        async with httpx.AsyncClient(verify=SmsService.VERIFY_SSL) as client:
             try:
                 response = await client.post(
                     url,
@@ -178,11 +178,11 @@ class CloudbaseService:
         Raises:
             HTTPException: 当注册失败时
         """
-        url = f"{CloudbaseService.BASE_URL}/auth/v1/signup"
+        url = f"{SmsService.BASE_URL}/auth/v1/signup"
 
         payload = signup_request.model_dump(exclude_none=True)
 
-        async with httpx.AsyncClient(verify=CloudbaseService.VERIFY_SSL) as client:
+        async with httpx.AsyncClient(verify=SmsService.VERIFY_SSL) as client:
             try:
                 response = await client.post(
                     url,
@@ -221,9 +221,9 @@ class CloudbaseService:
         Returns:
             Cloudbase 返回的 token 信息
         """
-        url = f"{CloudbaseService.BASE_URL}/auth/v1/user/signout"
+        url = f"{SmsService.BASE_URL}/auth/v1/user/signout"
 
-        async with httpx.AsyncClient(verify=CloudbaseService.VERIFY_SSL) as client:
+        async with httpx.AsyncClient(verify=SmsService.VERIFY_SSL) as client:
             try:
                 response = await client.post(
                     url,
@@ -266,11 +266,11 @@ class CloudbaseService:
         Raises:
             HTTPException: 当刷新失败时
         """
-        url = f"{CloudbaseService.BASE_URL}/auth/v1/token"
+        url = f"{SmsService.BASE_URL}/auth/v1/token"
 
         payload = refresh_token_request.model_dump(exclude_none=True)
 
-        async with httpx.AsyncClient(verify=CloudbaseService.VERIFY_SSL) as client:
+        async with httpx.AsyncClient(verify=SmsService.VERIFY_SSL) as client:
             try:
                 response = await client.post(
                     url,
