@@ -180,10 +180,9 @@ class BaseAgent(ABC):
         if parallel_tool_calls is not None:
             api_params["parallel_tool_calls"] = parallel_tool_calls
 
+        # 仅在有 tools 时设置 tools；API 要求使用 tool_choice 时必须同时提供 tools，故无 tools 时不传 tool_choice
         if tools is not None:
             api_params["tools"] = tools
-        else:
-            api_params["tool_choice"] = "none"
 
         if extra_body is not None:
             api_params["extra_body"] = extra_body
