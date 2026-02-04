@@ -1,6 +1,8 @@
 """Nacos 配置相关"""
 
 import json
+import os
+from pathlib import Path
 from typing import Any
 
 import yaml
@@ -164,8 +166,51 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
             )
             raise
 
+    def _get_snapshot_path(self) -> Path | None:
+        """根据连接配置构造本地快照文件路径。若无法获取连接配置则返回 None。"""
+        try:
+            if self._connection_config is None:
+                self._connection_config = NacosConnectionConfig()  # type: ignore[call-arg]
+        except Exception:
+            return None
+        base = os.environ.get("NACOS_SNAPSHOT_DIR", "nacos-data/snapshot")
+        namespace = self._connection_config.namespace or "public"
+        name = f"{self._connection_config.data_id}+{self._connection_config.group}+{namespace}"
+        return Path(base) / name
+
+    def _load_config_from_snapshot(self) -> dict[str, Any]:
+        """从本地快照文件加载配置。Nacos 客户端不可用时使用。"""
+        path = self._get_snapshot_path()
+        if path is None or not path.is_file():
+            return {}
+        try:
+            raw = path.read_text(encoding="utf-8")
+        except OSError as e:
+            logger.warning("无法读取 Nacos 快照文件", path=str(path), error=e)
+            return {}
+        try:
+            if self._connection_config is None:
+                # 无法确定类型时按 yaml 尝试
+                config = yaml.safe_load(raw) or {}
+            elif self._connection_config.config_type == "yaml":
+                config = yaml.safe_load(raw) or {}
+            elif self._connection_config.config_type == "json":
+                config = json.loads(raw)
+            else:
+                config = yaml.safe_load(raw) or {}
+            if config:
+                logger.info(
+                    "已从本地快照加载 Nacos 配置",
+                    path=str(path),
+                    config_keys_count=len(config),
+                )
+            return config
+        except Exception as e:
+            logger.warning("解析 Nacos 快照文件失败", path=str(path), error=e)
+            return {}
+
     def _get_nacos_config(self) -> dict[str, Any]:
-        """从 Nacos 获取配置"""
+        """从 Nacos 获取配置；失败时尝试使用本地快照。"""
         # 如果已经缓存且客户端已初始化，直接返回缓存
         if self._config_cache is not None and self._nacos_client is not None:
             return self._config_cache
@@ -205,11 +250,15 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
             return parsed_config
 
         except Exception as e:
-            # 如果 Nacos 配置获取失败，记录错误但不中断程序
             logger.error(
                 "Failed to load config from Nacos",
                 error=e,
             )
+            # Nacos 失败时尝试使用本地快照
+            snapshot_config = self._load_config_from_snapshot()
+            if snapshot_config:
+                self._config_cache = snapshot_config
+                return snapshot_config
             self._config_cache = {}
             return {}
 

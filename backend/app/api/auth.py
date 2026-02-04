@@ -5,7 +5,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlmodel import Session
 
-from app.core.config import settings
 from app.core.db import get_db
 from app.core.jwt import JWTManager, get_jwt_manager
 from app.models import UserDb
@@ -79,6 +78,7 @@ async def logout(
 @router.post("/wechat/init")
 async def wechat_init() -> ApiResponse[WeChatInitResponse]:
     """微信扫码登录初始化（网站应用 OAuth2.0）"""
+    from app.core.config import settings
 
     # 生成唯一的 state 参数（用于防止 CSRF 攻击）
     state = gen_uuid()
