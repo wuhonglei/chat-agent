@@ -13,7 +13,7 @@ export interface SidebarContentProps {
 
 const SidebarContent: React.FC<SidebarContentProps> = ({ onAfterActiveChange }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const { loadingMore } = useConversationInfiniteScroll(scrollContainerRef);
+  const { loadingMore, noMore } = useConversationInfiniteScroll(scrollContainerRef);
 
   const {
     items,
@@ -50,6 +50,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ onAfterActiveChange }) 
               <Spin size="small" />
             </div>
           )}
+          {noMore && <div className="text-black-tertiary text-center text-sm">暂无更多数据</div>}
         </SimpleBar>
       </div>
       <UserAccount />

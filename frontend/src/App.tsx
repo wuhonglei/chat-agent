@@ -1,33 +1,12 @@
-import { App as AntdApp } from "antd";
-import React, { useEffect } from "react";
+import React from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import MainLayout from "./components/Layout/MainLayout";
+import { useAppInit, useMessageInstance } from "./hooks/app";
 import { routes } from "./routes";
-import { useAppDispatch } from "./store/hooks";
-import { getMCPConfig } from "./store/slices/mcpSlice";
-import { getUserDetail } from "./store/slices/userSlice";
-import { setMessageInstance } from "./utils/message";
 
 const App: React.FC = () => {
-  const dispatch = useAppDispatch();
-  const { message } = AntdApp.useApp();
-
-  useEffect(() => {
-    // 初始化 message 实例
-    setMessageInstance(message);
-  }, [message]);
-
-  useEffect(() => {
-    const init = async () => {
-      try {
-        dispatch(getMCPConfig());
-        await dispatch(getUserDetail()).unwrap();
-      } catch (error) {
-        console.error("初始化失败", error);
-      }
-    };
-    init();
-  }, [dispatch]);
+  useAppInit();
+  useMessageInstance();
 
   return (
     <BrowserRouter>

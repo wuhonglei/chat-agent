@@ -143,7 +143,7 @@ const CONVERSATION_PAGE_LIMIT = 20;
 export function useConversationInfiniteScroll(scrollContainerRef: RefObject<HTMLDivElement | null>) {
   const dispatch = useAppDispatch();
 
-  const { loadingMore } = useInfiniteScroll(
+  const { loadingMore, noMore, data } = useInfiniteScroll(
     async (lastData?) => {
       const offset = lastData ? lastData.offset + lastData.limit : 0;
       const res = await dispatch(loadConversations({ offset, limit: CONVERSATION_PAGE_LIMIT })).unwrap();
@@ -162,7 +162,7 @@ export function useConversationInfiniteScroll(scrollContainerRef: RefObject<HTML
     }
   );
 
-  return { loadingMore };
+  return { loadingMore, noMore: !loadingMore && noMore && data?.total > 0 };
 }
 
 /** 侧边栏内容：对话列表、重命名等状态与操作，供 SidebarContent 内部使用 */
