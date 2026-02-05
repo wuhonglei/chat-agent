@@ -3,7 +3,7 @@
 from jinja2 import Template
 
 # ============= 工具调用用户消息提示词 =============
-user_message_for_tool_call_template = Template(
+user_message_for_tool_call_template: Template = Template(
     """
 {{ user_message }}
 
@@ -24,7 +24,7 @@ user_message_for_tool_call_template = Template(
 """.strip()
 )
 
-user_message_for_title_template = Template(
+user_message_for_title_template: Template = Template(
     """
 用户消息：{{ user_message }}
 """.strip()
@@ -32,7 +32,7 @@ user_message_for_title_template = Template(
 
 # MCP 工具调用结果渲染（供 format_mcp_tool_results_for_user_message 使用）
 # mcp_tool_items: [{"name": str, "args": str, "content": str}, ...]
-mcp_block_template = Template(
+mcp_block_template: Template = Template(
     """【以下为 MCP 工具调用返回的结果，请基于这些结果回答用户】
 
 {% for item in mcp_tool_items %}
@@ -50,7 +50,7 @@ mcp_block_template = Template(
 )
 
 # 仅组件数据块（供 get_component_block 拼接用）
-component_data_block_template = Template(
+component_data_block_template: Template = Template(
     """请在文本中合适位置返回 markdown 格式的 json 组件数据:
 {% for component in component_data %}
 {{ loop.index }}. 组件名称：{{ component.component_name }}
@@ -63,20 +63,20 @@ component_data_block_template = Template(
 )
 
 
-disabled_tools_message_template = Template(
+disabled_tools_message_template: Template = Template(
     """
 以下工具已达到5次调用上限，当前不可再调用: {{ ', '.join(disabled_tools) }}.
 """.strip()
 )
 
-gentle_tips_in_web_search_template = Template(
+gentle_tips_in_web_search_template: Template = Template(
     """
 目前已经调用了 web search 工具，工具返回内容中已经包含了和用户查询相关的片段。
 - 除非你需要完整的网页内容，否则不要再调用 web_pages_extract 工具
 """.strip()
 )
 
-tool_call_sufficient_info_template = Template(
+tool_call_sufficient_info_template: Template = Template(
     """
 ⚠️ 重要提示：根据历史工具调用结果，你可能已经获得了足够的信息来回答用户问题。
 
@@ -92,7 +92,7 @@ tool_call_sufficient_info_template = Template(
 )
 
 # ============= 上下文摘要相关提示词 =============
-WINDOW_OUT_SUMMARY_PROMPT = Template(
+WINDOW_OUT_SUMMARY_PROMPT: Template = Template(
     """请根据以下被截断的较早对话内容，生成一段简短摘要。
 
 要求：
@@ -107,7 +107,7 @@ WINDOW_OUT_SUMMARY_PROMPT = Template(
 """.strip()
 )
 
-USER_FACTS_PREFERENCES_PROMPT = Template(
+USER_FACTS_PREFERENCES_PROMPT: Template = Template(
     """根据以下对话内容，提炼用户的**可验证事实**与**明确偏好**。
 
 要求：

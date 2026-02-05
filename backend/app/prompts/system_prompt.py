@@ -3,14 +3,14 @@
 from jinja2 import Template
 
 # ============= 默认系统提示词 =============
-default_system_prompt_template = Template(
+default_system_prompt_template: Template = Template(
     """
 你是一个有帮助的智能助手。
 """.strip()
 )
 
 # ============= 生成标题系统提示词模板 =============
-system_prompt_for_title_template = Template(
+system_prompt_for_title_template: Template = Template(
     """
 你是一个智能问答助手。你的任务是根据用户消息生成一个标题。
 
@@ -22,7 +22,7 @@ system_prompt_for_title_template = Template(
 )
 
 # ============= MCP 工具调用系统提示词 =============
-system_prompt_for_tool_calls_template = Template(
+system_prompt_for_tool_calls_template: Template = Template(
     """
 你是一个专门负责工具调用的智能助手。你的任务是根据用户的请求调用合适的工具。
 
@@ -36,7 +36,7 @@ system_prompt_for_tool_calls_template = Template(
 )
 
 # ============= 组件渲染系统提示词 =============
-system_prompt_for_component_render_template = Template(
+system_prompt_for_component_render_template: Template = Template(
     """
 你是一个专门负责组件渲染的智能助手。你的任务是根据用户的请求和工具调用结果来渲染组件。
 
@@ -46,7 +46,7 @@ system_prompt_for_component_render_template = Template(
 )
 
 # ============= 最终回复生成系统提示词 =============
-system_prompt_for_response_generation_template = Template(
+system_prompt_for_response_generation_template: Template = Template(
     """
 你是一个有帮助的智能助手。你的任务是根据对话历史、用户消息{% if has_tool_calls %}以及已有的工具调用结果{% endif %}，用自然语言直接回答用户。
 """.strip()
