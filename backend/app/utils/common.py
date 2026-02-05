@@ -1,7 +1,27 @@
 import uuid
 from typing import Any, cast
 
+import json_repair
 from fastapi.encoders import jsonable_encoder
+
+
+def parse_json_from_text(raw: str) -> Any:
+    """
+    从可能被 markdown 代码块包裹的字符串中解析 JSON，使用 json_repair 修复 LLM 常见错误。
+
+    Args:
+        raw: 原始字符串（可能含 ```json ... ``` 或纯 JSON）
+
+    Returns:
+        解析后的 Python 对象（dict/list 等）
+    """
+    raw = raw.strip()
+    if "```" in raw:
+        raw = raw.split("```")[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+        raw = raw.strip()
+    return json_repair.loads(raw)
 
 
 def remove_leading_whitespace(text: str) -> str:

@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import json
-
 from openai import AsyncOpenAI
 
 from app.core.config import settings
 from app.prompts.prompt_utils import get_window_out_summary_prompt
 from app.prompts.user_prompt import USER_FACTS_PREFERENCES_PROMPT
 from app.schemas.chat import ChatMessageItem
+from app.utils.common import parse_json_from_text
 from app.utils.logger import logger
 from app.utils.token import TokenCalculator
 
@@ -92,17 +91,15 @@ class ContextSummaryService:
                 max_tokens=800,
             )
             raw = (resp.choices[0].message.content or "").strip()
-            # 简单解析 JSON（可能被 markdown 包裹）
-            if "```" in raw:
-                raw = raw.split("```")[1]
-                if raw.startswith("json"):
-                    raw = raw[4:]
-            data = json.loads(raw)
-            facts = list(data.get("facts") or [])
-            preferences = list(data.get("preferences") or [])
-            # 与已有合并去重
-            all_facts = list(dict.fromkeys(existing_facts + facts))
-            all_prefs = list(dict.fromkeys(existing_preferences + preferences))
+            data = parse_json_from_text(raw)
+            all_facts = list(
+                dict.fromkeys(existing_facts + list(data.get("facts") or []))
+            )
+            all_prefs = list(
+                dict.fromkeys(
+                    existing_preferences + list(data.get("preferences") or [])
+                )
+            )
             return (all_facts, all_prefs)
         except Exception as e:
             logger.warning(

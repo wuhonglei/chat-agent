@@ -27,6 +27,7 @@ from app.schemas.llm import (
 from app.schemas.token_stats import TotalTokenStats
 from app.services.component import ComponentSchemaService
 from app.services.message import MessageService
+from app.services.user import ContextSummaryService, UserProfileService
 from app.utils.common import pick_fields
 from app.utils.history_truncate import truncate_history_by_rounds_and_tokens
 from app.utils.logger import logger
@@ -44,26 +45,32 @@ async def _run_window_out_and_profile_tasks(
     assistant_content: str,
     summary_max_tokens: int,
 ) -> None:
-    """窗口外摘要写入 user_context；可选归纳用户事实/偏好写入 user_profile。异步执行，不阻塞主流程。"""
-    from app.services.user import ContextSummaryService, UserProfileService
+    """窗口外摘要写入 user_context；归纳用户事实/偏好写入 user_profile。异步执行，不阻塞主流程。"""
 
     summary_svc = ContextSummaryService()
     try:
-        # 1. 窗口外摘要 -> user_context.recent_summary
-        summary = await summary_svc.summarize_truncated_messages(
-            truncated_messages, max_tokens=summary_max_tokens
-        )
+        # 1. 仅当存在截断消息时：窗口外摘要 -> user_context.recent_summary
+        summary: str | None = None
+        if truncated_messages:
+            summary = await summary_svc.summarize_truncated_messages(
+                truncated_messages, max_tokens=summary_max_tokens
+            )
+            if summary:
+                with UserProfileService() as profile_svc:
+                    profile_svc.upsert_user_context(
+                        user_id,
+                        conversation_id,
+                        recent_summary=summary,
+                    )
+
+        # 2. 每轮都执行：本轮用户消息 + 助手回复（+ 较早摘要若有）-> 归纳事实/偏好 -> user_profile
+        parts = [
+            f"[用户]: {user_message_content}",
+            f"[助手]: {assistant_content}",
+        ]
         if summary:
-            with UserProfileService() as profile_svc:
-                profile_svc.upsert_user_context(
-                    user_id,
-                    conversation_id,
-                    recent_summary=summary,
-                )
-        # 2. 可选：本轮用户消息 + 助手回复 -> 归纳事实/偏好 -> user_profile
-        text = f"[用户]: {user_message_content}\n\n[助手]: {assistant_content}"
-        if summary:
-            text += f"\n\n[较早摘要]: {summary}"
+            parts.append(f"[较早轮次摘要]: {summary}")
+        text = "\n\n".join(parts)
         with UserProfileService() as profile_svc:
             existing = profile_svc.get_user_profile(user_id)
             facts, preferences = await summary_svc.extract_user_facts_preferences(
@@ -464,16 +471,9 @@ class ChatService:
                     conversation_id=conversation_id,
                 )
 
-                # 窗口外摘要与用户画像：异步执行，不阻塞响应
-                if (
-                    user_id
-                    and truncated_messages
-                    and getattr(
-                        self.compression,
-                        "window_out_summary_enabled",
-                        True,
-                    )
-                ):
+                # 窗口外摘要与用户画像：异步执行，不阻塞响应。
+                # 有 user_id 即执行任务；摘要仅在存在截断消息时写入，事实/偏好每轮都提取，避免遗漏。
+                if user_id and self.compression.window_out_summary_enabled:
                     asyncio.create_task(
                         _run_window_out_and_profile_tasks(
                             user_id=user_id,
