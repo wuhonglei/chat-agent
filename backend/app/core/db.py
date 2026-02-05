@@ -1,8 +1,6 @@
 import json
 from collections.abc import Generator
 
-from sqlalchemy.engine import Dialect
-from sqlalchemy.sql import sqltypes
 from sqlmodel import Session, SQLModel, create_engine
 
 from app.core.config import settings
@@ -11,14 +9,6 @@ from app.core.config import settings
 def json_dumps_utf8(obj: object) -> str:
     """序列化 JSON 时保留中文等非 ASCII，不转成 \\uXXXX。"""
     return json.dumps(obj, ensure_ascii=False)
-
-
-class JSONUTF8(sqltypes.JSON):
-    """JSON 列序列化时保留中文等非 ASCII（本类仅覆盖 bind 序列化）。"""
-
-    def bind_processor(self, dialect: Dialect):
-        string_process = self._str_impl.bind_processor(dialect)
-        return self._make_bind_processor(string_process, json_dumps_utf8)
 
 
 # 数据库连接字符串

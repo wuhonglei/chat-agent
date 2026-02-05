@@ -2,10 +2,10 @@
 
 from datetime import datetime
 
+from sqlalchemy import JSON as SQLJSON
 from sqlalchemy import DateTime
 from sqlmodel import Field, SQLModel
 
-from app.core.db import JSONUTF8
 from app.utils.date import get_datetime_now
 
 
@@ -22,12 +22,12 @@ class UserProfileDb(SQLModel, table=True):
     )
     facts: list[str] | None = Field(
         default=None,
-        sa_type=JSONUTF8(),
+        sa_type=SQLJSON,
         description="从多轮对话提炼的可信事实，如「在北京工作」「用 Python 3.10」",
     )
     preferences: list[str] | None = Field(
         default=None,
-        sa_type=JSONUTF8(),
+        sa_type=SQLJSON,
         description="用户偏好，如「偏好简短回答」「不要用代码块」",
     )
     updated_at: datetime = Field(
