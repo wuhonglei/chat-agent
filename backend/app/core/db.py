@@ -1,19 +1,38 @@
+import json
 from collections.abc import Generator
 
+from sqlalchemy.engine import Dialect
+from sqlalchemy.sql import sqltypes
 from sqlmodel import Session, SQLModel, create_engine
 
 from app.core.config import settings
+
+
+def json_dumps_utf8(obj: object) -> str:
+    """序列化 JSON 时保留中文等非 ASCII，不转成 \\uXXXX。"""
+    return json.dumps(obj, ensure_ascii=False)
+
+
+class JSONUTF8(sqltypes.JSON):
+    """JSON 列序列化时保留中文等非 ASCII（本类仅覆盖 bind 序列化）。"""
+
+    def bind_processor(self, dialect: Dialect):
+        string_process = self._str_impl.bind_processor(dialect)
+        return self._make_bind_processor(string_process, json_dumps_utf8)
+
 
 # 数据库连接字符串
 # 格式：postgresql://用户名:密码@主机:端口/数据库名
 SQLALCHEMY_DATABASE_URL = f"postgresql://{settings.database.username}:{settings.database.password}@{settings.database.host}:{settings.database.port}/{settings.database.db}"
 
 # 创建引擎（SQLModel 兼容 SQLAlchemy 引擎）
+# json_serializer：PostgreSQL JSON 列写入时保留中文等非 ASCII，不转成 \uXXXX
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
     pool_size=20,  # 连接池大小
     max_overflow=30,  # 最大溢出连接数
     pool_pre_ping=True,  # 连接前检查连接是否有效
+    json_serializer=json_dumps_utf8,
 )
 
 

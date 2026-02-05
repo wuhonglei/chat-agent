@@ -46,6 +46,15 @@ async def _run_window_out_and_profile_tasks(
     summary_max_tokens: int,
 ) -> None:
     """窗口外摘要写入 user_context；归纳用户事实/偏好写入 user_profile。异步执行，不阻塞主流程。"""
+    logger.info(
+        "Running window-out summary / user profile tasks",
+        user_id=user_id,
+        conversation_id=conversation_id,
+        truncated_messages_count=len(truncated_messages),
+        user_message_content_length=len(user_message_content),
+        assistant_content_length=len(assistant_content),
+        summary_max_tokens=summary_max_tokens,
+    )
 
     summary_svc = ContextSummaryService()
     try:
