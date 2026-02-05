@@ -303,6 +303,7 @@ class ChatService:
                     if is_latest_tool_round:
                         flat.append(tr)
                         continue
+
                     # 其他轮：用 summary，无则 content≤threshold 用 content，否则截断
                     effective_content: str
                     if tr.summary and tr.summary.strip():

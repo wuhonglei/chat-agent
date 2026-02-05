@@ -90,7 +90,7 @@ def truncate_text_to_tokens(
     """将文本截断到不超过 max_tokens（按 token 从前往后保留）。"""
     if not text or max_tokens <= 0:
         return ""
-    tokens = calculator.encoding.encode(text)
-    if len(tokens) <= max_tokens:
+    token_ids = calculator.encoding.encode(text)
+    if len(token_ids) <= max_tokens:
         return text
-    return calculator.encoding.decode(tokens[:max_tokens])
+    return calculator.encoding.decode(token_ids[:max_tokens])
