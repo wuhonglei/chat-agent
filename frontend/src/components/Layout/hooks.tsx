@@ -1,6 +1,6 @@
 import { TitleCreatedBy } from "@/constants";
 import { useIsSmallScreen } from "@/hooks";
-import { EditConversationInfo } from "@/interfaces";
+import { ConversationInfo, ConversationListResponse, EditConversationInfo } from "@/interfaces";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   clearCurrentConversion,
@@ -142,8 +142,11 @@ const CONVERSATION_PAGE_LIMIT = 20;
 /** 对话列表无限滚动：使用 offset/limit 分页，初始 offset=0，limit=20 */
 export function useConversationInfiniteScroll(containerRef: RefObject<HTMLDivElement | null>) {
   const dispatch = useAppDispatch();
+  const conversations = useAppSelector(state => state.conversation.conversations);
 
-  const { loadingMore, noMore, data } = useInfiniteScroll(
+  const { loadingMore, noMore, data } = useInfiniteScroll<
+    Omit<ConversationListResponse, "conversations"> & { list: ConversationInfo[] }
+  >(
     async (lastData?) => {
       const offset = lastData ? lastData.offset + lastData.limit : 0;
       const res = await dispatch(loadConversations({ offset, limit: CONVERSATION_PAGE_LIMIT })).unwrap();
@@ -156,13 +159,15 @@ export function useConversationInfiniteScroll(containerRef: RefObject<HTMLDivEle
     },
     {
       target: () => containerRef.current ?? undefined,
-      isNoMore: data => !data || data.list.length >= data.total,
+      isNoMore: data => {
+        return !data || conversations.length >= data.total;
+      },
       threshold: 50,
       reloadDeps: [],
     }
   );
 
-  return { loadingMore, noMore: !loadingMore && noMore && data?.total > 0 };
+  return { loadingMore, noMore: !loadingMore && noMore && data && data.total > 0 };
 }
 
 /** 侧边栏内容：对话列表、重命名等状态与操作，供 SidebarContent 内部使用 */

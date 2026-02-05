@@ -1,6 +1,7 @@
 import { ConversationInfo, CreateConversationRequest, UpdateConversationRequest } from "@/interfaces";
 import { conversationAPI } from "@/services";
 import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { uniqBy } from "lodash-es";
 
 interface ConversationState {
   // 对话列表
@@ -191,7 +192,8 @@ const conversationSlice = createSlice({
         state.conversations = conversations;
         state.conversationsLoaded = true;
       } else {
-        state.conversations.push(...conversations);
+        // 追加新对话，并去重（因为新创建的对话会直接添加到列表最前面，导致后续请求的分页和首次有偏差，出现重复内容）
+        state.conversations = uniqBy([...state.conversations, ...conversations], "id");
       }
       state.total = total;
       state.offset = offset;
