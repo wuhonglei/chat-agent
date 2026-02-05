@@ -78,7 +78,7 @@ gentle_tips_in_web_search_template: Template = Template(
 
 tool_call_sufficient_info_template: Template = Template(
     """
-⚠️ 重要提示：根据历史工具调用结果，你可能已经获得了足够的信息来回答用户问题。
+⚠️ 重要提示: 根据历史工具调用结果，你可能已经获得了足够的信息来回答用户问题。
 
 请仔细检查：
 1. 已调用的工具及其返回结果
