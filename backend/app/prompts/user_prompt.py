@@ -91,6 +91,14 @@ tool_call_sufficient_info_template: Template = Template(
 """.strip()
 )
 
+final_response_message_template: Template = Template(
+    """
+{% if tool_result %}{{ tool_result }}{% endif %}
+{% if component_data %}{{ component_data }}{% endif %}
+请基于以上信息，用自然语言回答用户问题: {{ user_message }}
+""".strip()
+)
+
 # ============= 上下文摘要相关提示词 =============
 WINDOW_OUT_SUMMARY_PROMPT: Template = Template(
     """请根据以下被截断的较早对话内容，生成一段简短摘要。

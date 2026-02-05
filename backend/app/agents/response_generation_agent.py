@@ -92,7 +92,6 @@ class ResponseGenerationAgent(BaseAgent):
             system_prompt,
             history_messages,
             new_user_message,
-            [],  # 不再传入 mcp_tool_call_messages，避免模型模仿 DSML/function_calls
         )
 
         async for chunk in self._stream_final_response(

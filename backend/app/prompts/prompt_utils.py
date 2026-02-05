@@ -13,6 +13,7 @@ from app.prompts.system_prompt import (
 from app.prompts.user_prompt import (
     component_data_block_template,
     disabled_tools_message_template,
+    final_response_message_template,
     gentle_tips_in_web_search_template,
     mcp_block_template,
     tool_call_sufficient_info_template,
@@ -168,13 +169,10 @@ def get_user_message_for_response_generation(
     mcp_tool_items: list[dict[str, str]],
 ) -> str:
     """Get user message for response generation"""
-    parts = [
-        user_message,
-    ]
-    if mcp_tool_items:
-        parts.append(mcp_block_template.render(mcp_tool_items=mcp_tool_items))
-    if component_data:
-        parts.append(
-            component_data_block_template.render(component_data=component_data)
-        )
-    return "\n\n".join(parts)
+    return final_response_message_template.render(
+        tool_result=mcp_block_template.render(mcp_tool_items=mcp_tool_items),
+        component_data=component_data_block_template.render(
+            component_data=component_data
+        ),
+        user_message=user_message,
+    )
