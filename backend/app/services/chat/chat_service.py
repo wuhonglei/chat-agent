@@ -412,17 +412,6 @@ class ChatService:
                     chunk_count += 1
                     yield chunk
 
-                if title_task is not None:
-                    try:
-                        if title_message := await title_task:
-                            yield title_message
-                    except Exception as e:
-                        logger.warning(
-                            "Title generation failed, stream continues",
-                            conversation_id=conversation_id,
-                            error=e,
-                        )
-
                 logger.info(
                     "Stream message generation completed",
                     conversation_id=conversation_id,
