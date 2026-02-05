@@ -140,7 +140,7 @@ export function useHideSidebar() {
 const CONVERSATION_PAGE_LIMIT = 20;
 
 /** 对话列表无限滚动：使用 offset/limit 分页，初始 offset=0，limit=20 */
-export function useConversationInfiniteScroll(scrollContainerRef: RefObject<HTMLDivElement | null>) {
+export function useConversationInfiniteScroll(containerRef: RefObject<HTMLDivElement | null>) {
   const dispatch = useAppDispatch();
 
   const { loadingMore, noMore, data } = useInfiniteScroll(
@@ -155,9 +155,9 @@ export function useConversationInfiniteScroll(scrollContainerRef: RefObject<HTML
       };
     },
     {
-      target: () => scrollContainerRef.current?.querySelector(".simplebar-content-wrapper") ?? undefined,
+      target: () => containerRef.current ?? undefined,
       isNoMore: data => !data || data.list.length >= data.total,
-      threshold: 100,
+      threshold: 50,
       reloadDeps: [],
     }
   );

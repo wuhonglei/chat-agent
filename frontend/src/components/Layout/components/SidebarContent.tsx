@@ -12,8 +12,8 @@ export interface SidebarContentProps {
 }
 
 const SidebarContent: React.FC<SidebarContentProps> = ({ onAfterActiveChange }) => {
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const { loadingMore, noMore } = useConversationInfiniteScroll(scrollContainerRef);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { loadingMore, noMore } = useConversationInfiniteScroll(containerRef);
 
   const {
     items,
@@ -36,23 +36,27 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ onAfterActiveChange }) 
 
   return (
     <>
-      <div ref={scrollContainerRef} className="flex-1 min-h-0 flex flex-col">
-        <SimpleBar className="flex-1 h-0">
-          <Conversations
-            items={items}
-            menu={menu}
-            groupable={groupable}
-            activeKey={activeKey}
-            onActiveChange={onActiveChange}
-          />
-          {loadingMore && (
-            <div className="flex justify-center py-3">
-              <Spin size="small" />
-            </div>
-          )}
-          {noMore && <div className="text-black-tertiary text-center text-sm">暂无更多数据</div>}
-        </SimpleBar>
-      </div>
+      <SimpleBar
+        className="flex-1 h-0"
+        scrollableNodeProps={{
+          ref: containerRef,
+          className: "outline-none",
+        }}
+      >
+        <Conversations
+          items={items}
+          menu={menu}
+          groupable={groupable}
+          activeKey={activeKey}
+          onActiveChange={onActiveChange}
+        />
+        {loadingMore && (
+          <div className="flex justify-center py-3">
+            <Spin size="small" />
+          </div>
+        )}
+        {noMore && <div className="text-black-tertiary text-center text-sm">暂无更多数据</div>}
+      </SimpleBar>
       <UserAccount />
       {editConversionInfo && (
         <RenameModal
