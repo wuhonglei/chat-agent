@@ -7,12 +7,11 @@ import json
 from openai import AsyncOpenAI
 
 from app.core.config import settings
-from app.prompts.user_prompt import (
-    USER_FACTS_PREFERENCES_PROMPT,
-    WINDOW_OUT_SUMMARY_PROMPT,
-)
+from app.prompts.prompt_utils import get_window_out_summary_prompt
+from app.prompts.user_prompt import USER_FACTS_PREFERENCES_PROMPT
 from app.schemas.chat import ChatMessageItem
 from app.utils.logger import logger
+from app.utils.token import TokenCalculator
 
 
 class ContextSummaryService:
@@ -25,6 +24,7 @@ class ContextSummaryService:
             base_url=cfg.api_base,
         )
         self._model = cfg.model_name
+        self._token_calculator = TokenCalculator(cfg.model_name)
 
     def _messages_to_text(self, messages: list[ChatMessageItem]) -> str:
         """将消息列表拼接为一段文本供 LLM 阅读"""
@@ -47,9 +47,11 @@ class ContextSummaryService:
         text = self._messages_to_text(truncated_messages)
         if not text.strip():
             return ""
-        prompt = WINDOW_OUT_SUMMARY_PROMPT.render(
-            max_tokens_hint=max(50, max_tokens // 2),  # 粗略按字计
-            text=text[:8000],  # 限制输入长度
+        truncated_text = self._token_calculator.truncate_text_to_tokens(
+            text, max_tokens=8000
+        )
+        prompt = get_window_out_summary_prompt(
+            text=truncated_text, max_tokens=max_tokens
         )
         try:
             resp = await self._client.chat.completions.create(

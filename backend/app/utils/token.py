@@ -331,3 +331,12 @@ class TokenCalculator:
             total_tokens += self.count_message_tokens(message)
 
         return total_tokens
+
+    def truncate_text_to_tokens(self, text: str, max_tokens: int) -> str:
+        """将文本截断到不超过 max_tokens（按 token 从前往后保留）。"""
+        if not text or max_tokens <= 0:
+            return ""
+        token_ids = self.encoding.encode(text)
+        if len(token_ids) <= max_tokens:
+            return text
+        return self.encoding.decode(token_ids[:max_tokens])

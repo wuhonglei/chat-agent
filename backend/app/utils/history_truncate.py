@@ -82,15 +82,3 @@ def truncate_history_by_rounds_and_tokens(
     truncated = [m for m in after_rounds if m.id not in kept_ids]
 
     return (kept, truncated)
-
-
-def truncate_text_to_tokens(
-    text: str, max_tokens: int, calculator: TokenCalculator
-) -> str:
-    """将文本截断到不超过 max_tokens（按 token 从前往后保留）。"""
-    if not text or max_tokens <= 0:
-        return ""
-    token_ids = calculator.encoding.encode(text)
-    if len(token_ids) <= max_tokens:
-        return text
-    return calculator.encoding.decode(token_ids[:max_tokens])

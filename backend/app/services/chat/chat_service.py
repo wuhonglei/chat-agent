@@ -28,10 +28,7 @@ from app.schemas.token_stats import TotalTokenStats
 from app.services.component import ComponentSchemaService
 from app.services.message import MessageService
 from app.utils.common import pick_fields
-from app.utils.history_truncate import (
-    truncate_history_by_rounds_and_tokens,
-    truncate_text_to_tokens,
-)
+from app.utils.history_truncate import truncate_history_by_rounds_and_tokens
 from app.utils.logger import logger
 from app.utils.message import filter_tool_call_messages
 from app.utils.model import format_sse_message
@@ -315,10 +312,8 @@ class ChatService:
                         else:
                             effective_content = (
                                 "[内容已截断] "
-                                + truncate_text_to_tokens(
-                                    tr.content or "",
-                                    threshold_tokens,
-                                    token_calculator,
+                                + token_calculator.truncate_text_to_tokens(
+                                    tr.content or "", threshold_tokens
                                 )
                             )
                     flat.append(tr.model_copy(update={"content": effective_content}))
@@ -486,11 +481,7 @@ class ChatService:
                             truncated_messages=truncated_messages,
                             user_message_content=chat_request.content,
                             assistant_content=assistant_payload.content or "",
-                            summary_max_tokens=getattr(
-                                self.compression,
-                                "summary_max_tokens",
-                                500,
-                            ),
+                            summary_max_tokens=self.compression.summary_max_tokens,
                         ),
                         name="context_summary",
                     )

@@ -11,6 +11,7 @@ from app.prompts.system_prompt import (
     system_prompt_for_tool_calls_template,
 )
 from app.prompts.user_prompt import (
+    WINDOW_OUT_SUMMARY_PROMPT,
     component_data_block_template,
     disabled_tools_message_template,
     final_response_message_template,
@@ -117,6 +118,17 @@ def get_user_message_for_tool_calls(
 def get_user_message_for_title(user_message: str) -> str:
     """Get user message prompt for title generation"""
     return user_message_for_title_template.render(user_message=user_message)
+
+
+def get_window_out_summary_prompt(
+    text: str,
+    max_tokens: int,
+) -> str:
+    """渲染窗口外摘要的 prompt（用于对截断的旧消息生成简短摘要）。"""
+    return WINDOW_OUT_SUMMARY_PROMPT.render(
+        max_tokens_hint=max_tokens,
+        text=text,
+    )
 
 
 def get_prompt_with_mcp_servers(
