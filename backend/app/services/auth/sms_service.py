@@ -56,6 +56,7 @@ class SmsService:
             phone=phone,
             expires_at=now + VERIFICATION_TTL,
         )
+        logger.debug("code", code=code)
         phone_e164 = format_phone_e164(phone)
         try:
             await asyncio.to_thread(send_sms_sync, phone_e164, code, settings.sms)
@@ -80,6 +81,7 @@ class SmsService:
             verification_id=verification_id,
             expires_in=VERIFICATION_TTL,
             is_user=is_user,
+            phone_number=phone,
         )
 
     @staticmethod
@@ -104,12 +106,8 @@ class SmsService:
             raise HTTPException(status_code=400, detail="验证码已过期")
         if entry.code != sms_login_request.verification_code:
             raise HTTPException(status_code=400, detail="验证码错误")
-        phone = entry.phone
-        request_phone = getattr(sms_login_request, "phone_number", None)
-        if request_phone is not None and request_phone.strip() != phone:
-            raise HTTPException(status_code=400, detail="手机号与验证码不匹配")
         del _verification_cache[vid]
-        user = UserService(db).get_or_create_user_by_phone(phone)
+        user = UserService(db).get_or_create_user_by_phone(entry.phone)
         return SmsLoginResponse(
             user=user,
             verification_token="",

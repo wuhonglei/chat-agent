@@ -10,7 +10,7 @@ from app.core.jwt import JWTManager, get_jwt_manager
 from app.models import UserDb
 from app.schemas.auth import (
     SendSmsRequest,
-    SendSmsResponseForFrontend,
+    SendSmsResponse,
     SmsLoginRequestFromFrontend,
     WeChatInitResponse,
     WeChatLoginRequest,
@@ -29,13 +29,10 @@ router = APIRouter()
 async def send_sms(
     send_sms_request: SendSmsRequest,
     db: Session = Depends(get_db),
-) -> ApiResponse[SendSmsResponseForFrontend]:
+) -> ApiResponse[SendSmsResponse]:
     """发送短信验证码（腾讯云短信 + 自建验证码缓存）"""
     data = await SmsService.send_sms(send_sms_request, db)
-    new_data = SendSmsResponseForFrontend(
-        **data.model_dump(exclude_none=True), phone_number=send_sms_request.phone_number
-    )
-    return ApiResponse.success(data=new_data)
+    return ApiResponse.success(data=data)
 
 
 @router.post("/sms/login")

@@ -33,13 +33,8 @@ class SendSmsResponse(BaseModel):
 
     verification_id: str = Field(..., description="Verification ID")
     expires_in: int = Field(..., description="Expires in")
-    is_user: bool = Field(False, description="Is user registered in the cloudbase")
-
-
-class SendSmsResponseForFrontend(SendSmsResponse):
-    """Send SMS response for frontend"""
-
     phone_number: str = Field(..., description="Phone number")
+    is_user: bool = Field(False, description="Is user registered in the cloudbase")
 
 
 class SmsLoginRequest(BaseModel):
