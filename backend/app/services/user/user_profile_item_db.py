@@ -20,67 +20,66 @@ TYPE_PREFERENCE = 2
 MAX_TEXT_LENGTH = 2048
 
 
-def _normalized_hash(text: str) -> str:
-    return hashlib.sha256((text or "").strip().lower().encode()).hexdigest()[:64]
-
-
-def _normalize_text(text: str) -> str:
-    t = (text or "").strip()
-    if len(t) > MAX_TEXT_LENGTH:
-        t = t[:MAX_TEXT_LENGTH]
-    return t
-
-
-def _normalize_list(texts: list[str]) -> list[str]:
-    """归一化并过滤空串，返回非空列表。"""
-    return [nt for t in texts if (nt := _normalize_text(t))]
-
-
-def _upsert_one_item(
-    db: Session,
-    user_id: str,
-    text: str,
-    item_type: int,
-    embedding_model: str,
-    embedding_vector: list[float],
-) -> UserProfileItemDb:
-    """单条插入或更新画像条目（由调用方持有 db 并负责 commit）。"""
-    normalized = _normalize_text(text)
-    if not normalized:
-        raise ValueError("text 为空或仅空白")
-    text_hash = _normalized_hash(normalized)
-    stmt = select(UserProfileItemDb).where(
-        UserProfileItemDb.user_id == user_id,
-        UserProfileItemDb.text_normalized_hash == text_hash,
-        UserProfileItemDb.type == item_type,
-    )
-    row = db.exec(stmt).first()
-    if row:
-        row.text = normalized
-        row.embedding_vector = embedding_vector
-        row.embedding_model = embedding_model
-        row.deleted_at = None
-        db.add(row)
-    else:
-        row = UserProfileItemDb(
-            user_id=user_id,
-            text=normalized,
-            type=item_type,
-            embedding_vector=embedding_vector,
-            embedding_model=embedding_model,
-            text_normalized_hash=text_hash,
-        )
-        db.add(row)
-    db.commit()
-    db.refresh(row)
-    return row
-
-
 class UserProfileItemDbService(BaseService):
     """用户画像条目 DB：按条存储 + pgvector 语义检索"""
 
     def _current_embedding_model_name(self) -> str:
         return settings.embedding_model.model_name
+
+    @staticmethod
+    def _normalized_hash(text: str) -> str:
+        return hashlib.sha256((text or "").strip().lower().encode()).hexdigest()[:64]
+
+    @staticmethod
+    def _normalize_text(text: str) -> str:
+        t = (text or "").strip()
+        if len(t) > MAX_TEXT_LENGTH:
+            t = t[:MAX_TEXT_LENGTH]
+        return t
+
+    def _normalize_list(self, texts: list[str]) -> list[str]:
+        """归一化并过滤空串，返回非空列表。"""
+        return [nt for t in texts if (nt := self._normalize_text(t))]
+
+    def _upsert_one_item(
+        self,
+        db: Session,
+        user_id: str,
+        text: str,
+        item_type: int,
+        embedding_model: str,
+        embedding_vector: list[float],
+    ) -> UserProfileItemDb:
+        """单条插入或更新画像条目（由调用方持有 db 并负责 commit）。"""
+        normalized = self._normalize_text(text)
+        if not normalized:
+            raise ValueError("text 为空或仅空白")
+        text_hash = self._normalized_hash(normalized)
+        stmt = select(UserProfileItemDb).where(
+            UserProfileItemDb.user_id == user_id,
+            UserProfileItemDb.text_normalized_hash == text_hash,
+            UserProfileItemDb.type == item_type,
+        )
+        row = db.exec(stmt).first()
+        if row:
+            row.text = normalized
+            row.embedding_vector = embedding_vector
+            row.embedding_model = embedding_model
+            row.deleted_at = None
+            db.add(row)
+        else:
+            row = UserProfileItemDb(
+                user_id=user_id,
+                text=normalized,
+                type=item_type,
+                embedding_vector=embedding_vector,
+                embedding_model=embedding_model,
+                text_normalized_hash=text_hash,
+            )
+            db.add(row)
+        db.commit()
+        db.refresh(row)
+        return row
 
     async def add_item(
         self,
@@ -92,7 +91,7 @@ class UserProfileItemDbService(BaseService):
     ) -> UserProfileItemDb:
         """插入或更新一条画像条目；归一化 text、长度检查、计算 embedding，ON CONFLICT DO UPDATE。"""
         db = self._ensure_db()
-        return _upsert_one_item(
+        return self._upsert_one_item(
             db, user_id, text, item_type, embedding_model, embedding_vector
         )
 
@@ -103,8 +102,8 @@ class UserProfileItemDbService(BaseService):
         preferences: list[str],
     ) -> None:
         """归纳后批量写入：仅对 DB 中尚不存在的条目计算 embedding 并写入，已存在条目跳过避免重复计算向量。"""
-        normalized_facts = _normalize_list(facts)
-        normalized_preferences = _normalize_list(preferences)
+        normalized_facts = self._normalize_list(facts)
+        normalized_preferences = self._normalize_list(preferences)
         if not normalized_facts and not normalized_preferences:
             return
 
@@ -112,12 +111,12 @@ class UserProfileItemDbService(BaseService):
         new_facts = [
             nt
             for nt in normalized_facts
-            if _normalized_hash(nt) not in existing_fact_hashes
+            if self._normalized_hash(nt) not in existing_fact_hashes
         ]
         new_preferences = [
             nt
             for nt in normalized_preferences
-            if _normalized_hash(nt) not in existing_pref_hashes
+            if self._normalized_hash(nt) not in existing_pref_hashes
         ]
         if not new_facts and not new_preferences:
             return
@@ -142,7 +141,7 @@ class UserProfileItemDbService(BaseService):
         ]
         for text, vec, item_type, label in to_upsert:
             try:
-                _upsert_one_item(db, user_id, text, item_type, model_name, vec)
+                self._upsert_one_item(db, user_id, text, item_type, model_name, vec)
             except Exception as e:
                 logger.warning(
                     f"UserProfileItemDbService.batch_upsert_items {label} failed",
