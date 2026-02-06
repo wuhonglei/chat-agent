@@ -1,4 +1,4 @@
-"""上下文摘要服务：窗口外消息摘要与用户事实/偏好归纳"""
+"""上下文摘要服务：窗口外消息摘要"""
 
 from __future__ import annotations
 
@@ -6,15 +6,13 @@ from openai import AsyncOpenAI
 
 from app.core.config import settings
 from app.prompts.prompt_utils import get_window_out_summary_prompt
-from app.prompts.user_prompt import USER_FACTS_PREFERENCES_PROMPT
 from app.schemas.chat import ChatMessageItem
-from app.utils.common import parse_json_from_text
 from app.utils.logger import logger
 from app.utils.token import TokenCalculator
 
 
 class ContextSummaryService:
-    """窗口外摘要与用户事实/偏好归纳（调用 LLM）"""
+    """窗口外消息摘要（调用 LLM）"""
 
     def __init__(self) -> None:
         cfg = settings.summarizer_model
@@ -67,43 +65,3 @@ class ContextSummaryService:
                 message_count=len(truncated_messages),
             )
             return ""
-
-    async def extract_user_facts_preferences(
-        self,
-        text: str,
-        existing_facts: list[str] | None = None,
-        existing_preferences: list[str] | None = None,
-    ) -> tuple[list[str], list[str]]:
-        """从对话文本中归纳用户事实与偏好，可与已有记录合并"""
-        if not text or not text.strip():
-            return (existing_facts or []), (existing_preferences or [])
-        existing_facts = existing_facts or []
-        existing_preferences = existing_preferences or []
-        prompt = USER_FACTS_PREFERENCES_PROMPT.render(
-            existing_facts=existing_facts,
-            existing_preferences=existing_preferences,
-            text=text[:6000],
-        )
-        try:
-            resp = await self._client.chat.completions.create(
-                model=self._model,
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=800,
-            )
-            raw = (resp.choices[0].message.content or "").strip()
-            data = parse_json_from_text(raw)
-            all_facts = list(
-                dict.fromkeys(existing_facts + list(data.get("facts") or []))
-            )
-            all_prefs = list(
-                dict.fromkeys(
-                    existing_preferences + list(data.get("preferences") or [])
-                )
-            )
-            return (all_facts, all_prefs)
-        except Exception as e:
-            logger.warning(
-                "Extract user facts/preferences LLM call failed",
-                error=e,
-            )
-            return (existing_facts, existing_preferences)

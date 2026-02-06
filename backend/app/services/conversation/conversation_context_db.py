@@ -62,3 +62,17 @@ class ConversationContextDbService(BaseService):
             conversation_id=conversation_id,
         )
         return row
+
+    def get_conversation_context_summary(
+        self,
+        user_id: str,
+        conversation_id: str,
+    ) -> str | None:
+        """获取会话级上下文摘要"""
+        context = self.get_conversation_context(user_id, conversation_id)
+        if context and (context.summary_before_window or context.recent_summary):
+            raw = context.recent_summary or context.summary_before_window or ""
+            if raw.strip():
+                return raw.strip()
+
+        return None

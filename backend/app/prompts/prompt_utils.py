@@ -9,6 +9,7 @@ from app.prompts.system_prompt import (
     system_prompt_for_response_generation_template,
     system_prompt_for_title_template,
     system_prompt_for_tool_calls_template,
+    user_context_system_fragment_template,
 )
 from app.prompts.user_prompt import (
     WINDOW_OUT_SUMMARY_PROMPT,
@@ -29,36 +30,7 @@ def get_default_system_prompt() -> str:
     return default_system_prompt_template.render()
 
 
-def _build_user_context_system_fragment(
-    user_id: str | None,
-    user_profile_facts: list[str] | None = None,
-    user_profile_preferences: list[str] | None = None,
-    window_out_summary: str | None = None,
-) -> str:
-    """根据传入的事实/偏好/窗口外摘要拼成 user context 片段。"""
-    if not user_id:
-        return ""
-    parts: list[str] = []
-    if user_profile_facts:
-        parts.append(
-            "已知用户事实: \n" + "\n".join(f"- {f}" for f in user_profile_facts)
-        )
-    if user_profile_preferences:
-        parts.append(
-            "用户偏好: \n" + "\n".join(f"- {p}" for p in user_profile_preferences)
-        )
-    if window_out_summary and window_out_summary.strip():
-        parts.append(
-            "以下是本对话中较早轮次的摘要，供参考：\n" + window_out_summary.strip()
-        )
-    if not parts:
-        return ""
-    return "\n\n" + "\n\n".join(parts)
-
-
 def get_system_prompt_for_response_generation(
-    has_tool_calls: bool = False,
-    user_id: str | None = None,
     user_profile_facts: list[str] | None = None,
     user_profile_preferences: list[str] | None = None,
     window_out_summary: str | None = None,
@@ -66,16 +38,16 @@ def get_system_prompt_for_response_generation(
     """Get system prompt for final response generation.
     当传入 user_profile_facts / user_profile_preferences / window_out_summary 时注入对应片段。
     """
-    base = system_prompt_for_response_generation_template.render(
-        has_tool_calls=has_tool_calls
-    )
-    fragment = _build_user_context_system_fragment(
-        user_id,
-        user_profile_facts=user_profile_facts,
-        user_profile_preferences=user_profile_preferences,
+    base = system_prompt_for_response_generation_template.render()
+    fragment = user_context_system_fragment_template.render(
+        user_profile_facts=user_profile_facts or [],
+        user_profile_preferences=user_profile_preferences or [],
         window_out_summary=window_out_summary,
     )
-    return base + fragment
+    if not fragment.strip():
+        return base
+
+    return "\n\n".join([base, fragment])
 
 
 def get_system_prompt_for_tool_calls() -> str:

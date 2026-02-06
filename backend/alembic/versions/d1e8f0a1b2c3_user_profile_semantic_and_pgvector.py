@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from pgvector.sqlalchemy import Vector
+from sqlalchemy.exc import NotSupportedError, OperationalError
 
 from alembic import op
 
@@ -23,7 +24,17 @@ EMBEDDING_DIMENSION = 1536
 
 
 def upgrade() -> None:
-    op.execute("CREATE EXTENSION IF NOT EXISTS vector")
+    try:
+        op.execute("CREATE EXTENSION IF NOT EXISTS vector")
+    except (OperationalError, NotSupportedError) as e:
+        err_msg = str(getattr(e, "orig", e))
+        if "vector" in err_msg or "is not available" in err_msg:
+            raise RuntimeError(
+                "PostgreSQL 未安装 pgvector 扩展，迁移无法继续。"
+                "macOS (Homebrew): brew install pgvector；"
+                "详见 https://github.com/pgvector/pgvector"
+            ) from e
+        raise
 
     op.add_column(
         "messages",

@@ -33,6 +33,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.PrimaryKeyConstraint("user_id", name=op.f("user_profiles_pkey")),
+        if_not_exists=True,
     )
 
     op.create_table(
@@ -50,6 +51,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint(
             "user_id", "conversation_id", name=op.f("user_contexts_pkey")
         ),
+        if_not_exists=True,
     )
 
 

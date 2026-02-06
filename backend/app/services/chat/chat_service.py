@@ -30,6 +30,7 @@ from app.services.conversation import ConversationContextDbService
 from app.services.message import MessageDbService
 from app.services.user import (
     ContextSummaryService,
+    UserProfileExtractionService,
     UserProfileItemDbService,
 )
 from app.utils.common import pick_fields
@@ -61,6 +62,7 @@ async def _run_window_out_and_profile_tasks(
     )
 
     summary_svc = ContextSummaryService()
+    extraction_svc = UserProfileExtractionService()
     try:
         # 1. 仅当存在截断消息时：窗口外摘要 -> user_context.recent_summary
         summary: str | None = None
@@ -86,7 +88,7 @@ async def _run_window_out_and_profile_tasks(
         text = "\n\n".join(parts)
         with UserProfileItemDbService() as item_svc:
             existing_facts, existing_prefs = item_svc.get_existing_texts(user_id)
-            facts, preferences = await summary_svc.extract_user_facts_preferences(
+            facts, preferences = await extraction_svc.extract_user_facts_preferences(
                 text,
                 existing_facts=existing_facts or None,
                 existing_preferences=existing_prefs or None,

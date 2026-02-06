@@ -90,34 +90,27 @@ class ResponseGenerationAgent(BaseAgent):
         facts: list[str] = []
         prefs: list[str] = []
         if user_id and query_embedding and len(query_embedding) > 0:
-            top_k_facts = settings.compression.user_profile_top_k_facts
-            top_k_prefs = settings.compression.user_profile_top_k_preferences
-            threshold = settings.compression.user_profile_relevance_threshold
             with UserProfileItemDbService() as item_svc:
                 facts, prefs = await item_svc.get_relevant_items(
                     user_id,
                     query_embedding=query_embedding,
-                    top_k_facts=top_k_facts,
-                    top_k_preferences=top_k_prefs,
-                    relevance_threshold=threshold,
+                    top_k_facts=settings.compression.user_profile_top_k_facts,
+                    top_k_preferences=settings.compression.user_profile_top_k_preferences,
+                    relevance_threshold=settings.compression.user_profile_relevance_threshold,
                 )
 
         # 获取窗口外会话摘要，用于注入 system prompt
         window_out_summary = ""
         if user_id and conversation_id:
             with ConversationContextDbService() as ctx_svc:
-                ctx = ctx_svc.get_conversation_context(user_id, conversation_id)
-                if ctx and (ctx.summary_before_window or ctx.recent_summary):
-                    raw = ctx.recent_summary or ctx.summary_before_window or ""
-                    if raw.strip():
-                        window_out_summary = raw.strip()
+                window_out_summary = ctx_svc.get_conversation_context_summary(
+                    user_id, conversation_id
+                )
 
         system_prompt = get_system_prompt_for_response_generation(
-            has_tool_calls=bool(mcp_tool_call_messages),
-            user_id=user_id,
             user_profile_facts=facts,
             user_profile_preferences=prefs,
-            window_out_summary=window_out_summary or None,
+            window_out_summary=window_out_summary,
         )
         logger.debug("System prompt", system_prompt=system_prompt)
         # MCP 结果已拼接到 final_user_message，不再传入 tool_call_messages

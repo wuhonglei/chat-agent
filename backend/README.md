@@ -47,8 +47,14 @@ backend/
 ### 环境要求
 
 - Python 3.10+
+- PostgreSQL（需安装 **pgvector** 扩展，用于用户画像语义检索等；未安装时 `make migrate` 会报错并提示）
 - Redis (可选，用于缓存)
 - ChromaDB (自动安装)
+
+**安装 pgvector（仅在使用数据库迁移时需要）**
+
+- macOS (Homebrew)：`brew install pgvector`（若 PostgreSQL 也是用 Homebrew 安装的，扩展会自动可用）
+- 其他系统或安装方式见：[pgvector 官方文档](https://github.com/pgvector/pgvector)
 
 ### 安装步骤
 

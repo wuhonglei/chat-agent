@@ -48,6 +48,30 @@ system_prompt_for_component_render_template: Template = Template(
 # ============= 最终回复生成系统提示词 =============
 system_prompt_for_response_generation_template: Template = Template(
     """
-你是一个有帮助的智能助手。你的任务是根据对话历史、用户消息{% if has_tool_calls %}以及已有的工具调用结果{% endif %}，用自然语言直接回答用户。
+你是一个有帮助的智能助手。你的任务是根据对话历史、用户消息，用自然语言直接回答用户。
+""".strip()
+)
+
+# ============= 用户上下文 system 片段模板（事实 / 偏好 / 窗口外摘要） =============
+user_context_system_fragment_template: Template = Template(
+    """
+{% if user_profile_facts %}
+已知用户事实:
+{% for f in user_profile_facts %}
+- {{ f }}
+{% endfor %}
+{% endif %}
+
+{% if user_profile_preferences %}
+用户偏好:
+{% for p in user_profile_preferences %}
+- {{ p }}
+{% endfor %}
+{% endif %}
+
+{% if window_out_summary and window_out_summary.strip() %}
+以下是本对话中较早轮次的摘要，供参考:
+{{ window_out_summary.strip() }}
+{% endif %}
 """.strip()
 )

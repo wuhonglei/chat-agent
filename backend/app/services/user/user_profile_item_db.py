@@ -129,6 +129,7 @@ class UserProfileItemDbService(BaseService):
         self,
         user_id: str,
         query_embedding: list[float],
+        embedding_model: str,
         top_k_facts: int = 5,
         top_k_preferences: int = 5,
         relevance_threshold: float = 0.7,
@@ -136,8 +137,7 @@ class UserProfileItemDbService(BaseService):
         """按 query_embedding 语义检索 top-k 事实与偏好；仅使用 embedding_model 一致且 deleted_at IS NULL 的条目；相似度低于阈值不注入。"""
         if not query_embedding:
             return ([], [])
-        embedding_svc = EmbeddingService()
-        model_name = embedding_svc.model_name
+
         db = self._ensure_db()
         # 余弦距离 <=> ；相似度 = 1 - 距离；阈值 0.7 即 距离 <= 0.3
         max_distance = 1.0 - relevance_threshold
@@ -154,7 +154,7 @@ class UserProfileItemDbService(BaseService):
             .where(
                 UserProfileItemDb.user_id == user_id,
                 col(UserProfileItemDb.deleted_at).is_(None),
-                UserProfileItemDb.embedding_model == model_name,
+                UserProfileItemDb.embedding_model == embedding_model,
                 col(UserProfileItemDb.embedding).isnot(None),
             )
             .order_by(UserProfileItemDb.embedding.cosine_distance(query_embedding))
