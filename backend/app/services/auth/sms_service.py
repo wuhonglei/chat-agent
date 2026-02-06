@@ -56,7 +56,6 @@ class SmsService:
             phone=phone,
             expires_at=now + VERIFICATION_TTL,
         )
-        logger.debug("code", code=code)
         phone_e164 = format_phone_e164(phone)
         try:
             await asyncio.to_thread(send_sms_sync, phone_e164, code, settings.sms)

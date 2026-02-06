@@ -69,9 +69,6 @@ def get_system_prompt_for_response_generation(
     conversation_id: str | None = None,
 ) -> str:
     """Get system prompt for final response generation.
-
-    When has_tool_calls=True: 增加禁止 DSML、负向示例与兜底规则，避免模型延续 tool_calls 样式。
-    When has_tool_calls=False: 仅保留基础规则，不注入 DSML 相关提示。
     当提供 user_id/conversation_id 时，注入 user_profile 事实/偏好与 user_context 窗口外摘要。
     """
     base = system_prompt_for_response_generation_template.render(
