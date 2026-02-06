@@ -268,6 +268,19 @@ class CompressionConfig(BaseModel):
         default=1000,
         description="窗口外摘要最大 token 数，写入与注入时共用",
     )
+    # 用户画像语义检索
+    user_profile_top_k_facts: int = Field(
+        default=5,
+        description="用户事实语义检索 top-k",
+    )
+    user_profile_top_k_preferences: int = Field(
+        default=5,
+        description="用户偏好语义检索 top-k",
+    )
+    user_profile_relevance_threshold: float = Field(
+        default=0.7,
+        description="用户画像相似度阈值，低于此值不注入",
+    )
 
 
 class WechatConfig(BaseModel):

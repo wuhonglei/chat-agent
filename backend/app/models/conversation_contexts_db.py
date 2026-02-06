@@ -8,10 +8,10 @@ from sqlmodel import Field, SQLModel
 from app.utils.date import get_datetime_now
 
 
-class UserContextDb(SQLModel, table=True):
+class ConversationContextDb(SQLModel, table=True):
     """会话级上下文：仅本会话的窗口外摘要"""
 
-    __tablename__ = "user_contexts"
+    __tablename__ = "conversation_contexts"
 
     user_id: str = Field(
         primary_key=True,

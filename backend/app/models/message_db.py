@@ -1,12 +1,16 @@
 from datetime import datetime
 from typing import Any
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import JSON as SQLJSON
 from sqlalchemy import Column, DateTime, Float, ForeignKey, String
 from sqlmodel import Field, SQLModel
 
 from app.utils.common import gen_uuid
 from app.utils.date import get_datetime_now
+
+# 与 Embedding 模型输出一致（如 DashScope text-embedding-v2 为 1536）
+EMBEDDING_DIMENSION = 1536
 
 
 class MessageDb(SQLModel, table=True):
@@ -70,4 +74,14 @@ class MessageDb(SQLModel, table=True):
         default=None,
         sa_type=SQLJSON,
         description="Token 使用统计信息，包含各个阶段（MCP 工具调用、组件工具调用、响应生成、标题生成）的 token 使用量",
+    )
+    query_embedding: list[float] | None = Field(
+        default=None,
+        sa_type=Vector(EMBEDDING_DIMENSION),
+        description="用户消息的 query embedding，用于用户画像语义检索",
+    )
+    embedding_model: str | None = Field(
+        default=None,
+        max_length=64,
+        description="生成 query_embedding 的模型名",
     )

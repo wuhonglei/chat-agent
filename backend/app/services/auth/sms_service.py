@@ -19,7 +19,7 @@ from app.schemas.auth import (
     SmsLoginRequest,
     SmsVerificationEntry,
 )
-from app.services.user import UserService
+from app.services.user import UserDbService
 from app.utils.logger import logger
 from app.utils.sms import format_phone_e164, send_sms_sync
 
@@ -104,5 +104,5 @@ class SmsService:
         if entry.phone != sms_login_request.phone_number:
             raise HTTPException(status_code=400, detail="手机号不匹配")
         del _verification_cache[vid]
-        user = UserService(db).get_or_create_user_by_phone(entry.phone)
+        user = UserDbService(db).get_or_create_user_by_phone(entry.phone)
         return user

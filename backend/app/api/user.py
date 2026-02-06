@@ -10,7 +10,7 @@ from app.models import UserDb
 from app.schemas.auth import AuthTokenPayload
 from app.schemas.response import ApiResponse
 from app.schemas.user import UpdateUserInfo
-from app.services.user import UserService
+from app.services.user import UserDbService
 from app.utils.auth_deps import get_auth_token_info
 
 router = APIRouter()
@@ -22,7 +22,7 @@ async def get_user_detail(
     token_info: AuthTokenPayload = Depends(get_auth_token_info),
 ) -> ApiResponse[UserDb]:
     """获取用户信息"""
-    user_service = UserService(db)
+    user_service = UserDbService(db)
     user = user_service.get_user(token_info.user_id)
     if not user:
         raise HTTPException(status_code=401, detail="用户不存在")
@@ -36,6 +36,6 @@ async def update_user_info(
     token_info: AuthTokenPayload = Depends(get_auth_token_info),
 ) -> ApiResponse[UserDb]:
     """更新用户信息"""
-    user_service = UserService(db)
+    user_service = UserDbService(db)
     user = user_service.update_user_info(token_info.user_id, update_info)
     return ApiResponse.success(data=user)

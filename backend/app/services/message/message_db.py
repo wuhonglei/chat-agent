@@ -15,6 +15,7 @@ from app.schemas.chat import (
     MessageStatus,
 )
 from app.services.base_service import BaseService
+from app.services.infrastructure import EmbeddingService
 from app.utils.common import gen_uuid, normalize_to_dict
 from app.utils.date import get_datetime_now
 from app.utils.logger import logger
@@ -30,12 +31,12 @@ class ChatMessagesResult(BaseModel):
     conversation: ConversationDb = Field(..., description="对话")
 
 
-class MessageService(BaseService):
-    """处理会话消息的入库与状态更新"""
+class MessageDbService(BaseService):
+    """消息 DB 服务：会话消息的入库与状态更新"""
 
     def __init__(self, db: Session | None = None):
         """
-        初始化消息服务
+        初始化消息 DB 服务
 
         Args:
             db: 数据库会话。如果为 None，则必须通过上下文管理器使用
@@ -140,8 +141,6 @@ class MessageService(BaseService):
             return message
         except SQLAlchemyError as exc:
             db.rollback()
-            from app.utils.logger import logger
-
             logger.error(
                 "Failed to persist message",
                 error=exc,
@@ -290,3 +289,44 @@ class MessageService(BaseService):
             merged_metadata.update(extra_metadata)
             assistant_message.message_metadata = merged_metadata
         return self._persist_message(assistant_message, conversation)
+
+    def update_user_message_embedding(
+        self,
+        user_message_id: str,
+        query_embedding: list[float],
+        embedding_model: str,
+    ) -> MessageDb | None:
+        """更新用户消息的 query_embedding 与 embedding_model（用于用户画像语义检索）。"""
+        db = self._ensure_db()
+        message = db.get(MessageDb, user_message_id)
+        if not message or message.role != "user":
+            return None
+        message.query_embedding = query_embedding
+        message.embedding_model = embedding_model
+        conversation = db.get(ConversationDb, message.conversation_id)
+        if not conversation:
+            return None
+        return self._persist_message(message, conversation)
+
+    async def persist_user_message_embedding(
+        self,
+        user_message: str,
+        user_message_id: str,
+    ) -> list[float] | None:
+        """计算用户消息的 query_embedding 并落库，用于用户画像语义检索。失败时仅打日志，不抛异常。"""
+        try:
+            embedding_svc = EmbeddingService()
+            query_embedding = await embedding_svc.embed_query(user_message.strip())
+            if query_embedding and user_message_id:
+                self.update_user_message_embedding(
+                    user_message_id,
+                    query_embedding,
+                    embedding_svc.model_name,
+                )
+            return query_embedding
+        except Exception as e:
+            logger.warning(
+                "Failed to compute or persist query_embedding",
+                user_message_id=user_message_id,
+                error=e,
+            )

@@ -21,11 +21,11 @@ class BaseService:
         # 方式1：通过依赖注入
         @router.get("/users/{user_id}")
         async def get_user(user_id: str, db: Session = Depends(get_db)):
-            service = UserService(db)
+            service = UserDbService(db)
             return service.get_user(user_id)
 
         # 方式2：通过上下文管理器
-        with UserService() as service:
+        with UserDbService() as service:
             user = service.get_user(user_id)
     """
 

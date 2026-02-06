@@ -1,4 +1,4 @@
-"""对话服务"""
+"""对话 DB 服务"""
 
 from __future__ import annotations
 
@@ -19,12 +19,12 @@ from app.utils.date import get_datetime_now
 from app.utils.logger import logger
 
 
-class ConversationService(BaseService):
-    """对话服务"""
+class ConversationDbService(BaseService):
+    """对话 DB 服务"""
 
     def __init__(self, db: Session | None = None):
         """
-        初始化对话服务
+        初始化对话 DB 服务
 
         Args:
             db: 数据库会话。如果为 None，则必须通过上下文管理器使用

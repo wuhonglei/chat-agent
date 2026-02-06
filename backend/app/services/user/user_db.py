@@ -10,12 +10,12 @@ from app.utils.date import get_datetime_now
 from app.utils.logger import logger
 
 
-class UserService(BaseService):
-    """用户服务"""
+class UserDbService(BaseService):
+    """用户 DB 服务"""
 
     def __init__(self, db: Session | None = None):
         """
-        初始化用户服务
+        初始化用户 DB 服务
 
         Args:
             db: 数据库会话。如果为 None，则必须通过上下文管理器使用

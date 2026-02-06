@@ -1,8 +1,14 @@
+import asyncio
 import uuid
-from typing import Any, cast
+from collections.abc import Awaitable, Callable
+from functools import wraps
+from typing import Any, ParamSpec, TypeVar, cast
 
 import json_repair
 from fastapi.encoders import jsonable_encoder
+
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
 def parse_json_from_text(raw: str) -> Any:
@@ -95,3 +101,23 @@ def normalize_url(url: str) -> str:
     if "#" in url:
         url = url.split("#")[0]
     return url.strip()
+
+
+def async_task_decorator(func: Callable[P, R]) -> Callable[P, Awaitable[R]]:
+    """装饰器：将同步函数包装为异步任务，在线程池中执行以不阻塞事件循环。"""
+
+    @wraps(func)
+    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        # 在这里可以添加任务调度、日志、错误处理等逻辑
+        print(f"开始异步任务: {func.__name__}")
+        try:
+            # 在默认线程池执行器中运行同步函数，避免阻塞事件循环
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(None, func, *args, **kwargs)
+            print(f"异步任务完成: {func.__name__}")
+            return result
+        except Exception as e:
+            print(f"异步任务出错: {func.__name__}, 错误: {e}")
+            raise
+
+    return wrapper

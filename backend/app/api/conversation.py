@@ -14,7 +14,7 @@ from app.schemas.conversation import (
     UpdateConversationRequest,
 )
 from app.schemas.response import ApiResponse
-from app.services.conversation import ConversationService
+from app.services.conversation import ConversationDbService
 from app.utils.auth_deps import get_auth_token_info, require_auth
 
 router = APIRouter()
@@ -27,7 +27,7 @@ async def register_conversation(
     token_info: AuthTokenPayload = Depends(get_auth_token_info),
 ) -> ApiResponse[ConversationInfo]:
     """Register a new conversation"""
-    service = ConversationService(db)
+    service = ConversationDbService(db)
     conversation_info = service.register_conversation(
         title=request.title, user_id=token_info.user_id
     )
@@ -41,7 +41,7 @@ async def get_conversations(
     token_info: AuthTokenPayload = Depends(get_auth_token_info),
 ) -> ApiResponse[dict[str, Any]]:
     """分页获取对话列表。"""
-    service = ConversationService(db)
+    service = ConversationDbService(db)
     total, conversations = service.get_conversations_paginated(
         token_info.user_id, offset=request.offset, limit=request.limit
     )
@@ -61,7 +61,7 @@ async def get_messages(
     _auth: None = Depends(require_auth),
 ) -> ApiResponse[dict[str, Any]]:
     """Get messages by conversation ID"""
-    service = ConversationService(db)
+    service = ConversationDbService(db)
     if not service.get_conversation(conversation_id):
         return ApiResponse.error(code=404, msg="会话不存在")
 
@@ -82,7 +82,7 @@ async def get_conversation(
     _auth: None = Depends(require_auth),
 ) -> ApiResponse[ConversationInfo]:
     """Get a conversation by ID"""
-    service = ConversationService(db)
+    service = ConversationDbService(db)
     conversation_info = service.get_conversation_info(conversation_id)
     if not conversation_info:
         return ApiResponse.error(code=404, msg="会话不存在")
@@ -98,7 +98,7 @@ async def update_conversation(
     _auth: None = Depends(require_auth),
 ) -> ApiResponse[ConversationInfo]:
     """Update a conversation by ID"""
-    service = ConversationService(db)
+    service = ConversationDbService(db)
     conversation = service.get_conversation(conversation_id)
     if not conversation:
         return ApiResponse.error(code=404, msg="会话不存在")
@@ -113,7 +113,7 @@ async def delete_conversation(
     _auth: None = Depends(require_auth),
 ) -> ApiResponse[str]:
     """Delete a conversation by ID"""
-    service = ConversationService(db)
+    service = ConversationDbService(db)
     conversation = service.get_conversation(conversation_id)
     if not conversation:
         return ApiResponse.error(code=404, msg="会话不存在")

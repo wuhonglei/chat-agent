@@ -8,6 +8,7 @@ from app.agents.utils.response_generation import (
     get_component_data,
     get_mcp_tool_items,
 )
+from app.core.config import settings
 from app.prompts import get_system_prompt_for_response_generation
 from app.prompts.prompt_utils import get_user_message_for_response_generation
 from app.schemas.chat import ChatMessageItemWithToolCalls
@@ -15,6 +16,8 @@ from app.schemas.config import LLMConfig
 from app.schemas.llm import ToolCallMessage
 from app.schemas.token_stats import ResponseGenerationTokenStats
 from app.services.component import ComponentSchemaService
+from app.services.conversation import ConversationContextDbService
+from app.services.user import UserProfileItemDbService
 from app.utils.logger import logger
 from app.utils.time import get_current_time, get_time_duration
 
@@ -50,12 +53,14 @@ class ResponseGenerationAgent(BaseAgent):
 
     async def stream_execute(  # type: ignore[override]
         self,
+        *,
         history_messages: list[ChatMessageItemWithToolCalls],
         user_message: str,
         mcp_tool_call_messages: list[ToolCallMessage],
         component_tool_call_messages: list[ToolCallMessage],
         user_id: str | None = None,
         conversation_id: str | None = None,
+        query_embedding: list[float] | None = None,
     ) -> AsyncGenerator[str, None]:
         """
         流式生成最终响应
@@ -81,10 +86,38 @@ class ResponseGenerationAgent(BaseAgent):
             mcp_tool_items,
         )
 
+        # 按 query_embedding 语义检索用户画像事实/偏好，用于注入 system prompt
+        facts: list[str] = []
+        prefs: list[str] = []
+        if user_id and query_embedding and len(query_embedding) > 0:
+            top_k_facts = settings.compression.user_profile_top_k_facts
+            top_k_prefs = settings.compression.user_profile_top_k_preferences
+            threshold = settings.compression.user_profile_relevance_threshold
+            with UserProfileItemDbService() as item_svc:
+                facts, prefs = await item_svc.get_relevant_items(
+                    user_id,
+                    query_embedding=query_embedding,
+                    top_k_facts=top_k_facts,
+                    top_k_preferences=top_k_prefs,
+                    relevance_threshold=threshold,
+                )
+
+        # 获取窗口外会话摘要，用于注入 system prompt
+        window_out_summary = ""
+        if user_id and conversation_id:
+            with ConversationContextDbService() as ctx_svc:
+                ctx = ctx_svc.get_conversation_context(user_id, conversation_id)
+                if ctx and (ctx.summary_before_window or ctx.recent_summary):
+                    raw = ctx.recent_summary or ctx.summary_before_window or ""
+                    if raw.strip():
+                        window_out_summary = raw.strip()
+
         system_prompt = get_system_prompt_for_response_generation(
             has_tool_calls=bool(mcp_tool_call_messages),
             user_id=user_id,
-            conversation_id=conversation_id,
+            user_profile_facts=facts,
+            user_profile_preferences=prefs,
+            window_out_summary=window_out_summary or None,
         )
         logger.debug("System prompt", system_prompt=system_prompt)
         # MCP 结果已拼接到 final_user_message，不再传入 tool_call_messages

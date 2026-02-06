@@ -17,7 +17,7 @@ from app.schemas.auth import (
 )
 from app.schemas.response import ApiResponse
 from app.services.auth import SmsService, WeChatService
-from app.services.user import UserService
+from app.services.user import UserDbService
 from app.utils.auth_deps import get_auth_token_info
 from app.utils.common import gen_uuid
 from app.utils.logger import logger
@@ -65,7 +65,7 @@ async def logout(
 ) -> ApiResponse[None]:
     """登出（短信用户已无 Cloudbase access_token，不再调用 SmsService.signout）"""
     token_info = await get_auth_token_info(request, jwt_manager)
-    with UserService() as user_service:
+    with UserDbService() as user_service:
         user_service.update_user_last_logout(token_info.user_id)
     return ApiResponse.success(data=None)
 
@@ -111,7 +111,7 @@ async def wechat_callback(
     )
 
     # 创建或更新用户
-    user_service = UserService(db)
+    user_service = UserDbService(db)
     user = user_service.get_or_create_user_by_openid(
         token_data.openid, wechat_user_info
     )

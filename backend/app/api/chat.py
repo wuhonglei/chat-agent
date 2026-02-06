@@ -8,7 +8,7 @@ from app.mcp.mcp_client import MCPClientManager
 from app.schemas.auth import AuthTokenPayload
 from app.schemas.chat import ChatRequest
 from app.services.chat import ChatService
-from app.services.message import MessageService
+from app.services.message import MessageDbService
 from app.utils.auth_deps import get_auth_token_info
 from app.utils.logger import logger
 
@@ -28,7 +28,7 @@ async def chat_stream(
     )
 
     user_metadata = chat_request.model_dump(exclude_none=True, exclude={"content"})
-    with MessageService() as message_service:
+    with MessageDbService() as message_service:
         messages_result = message_service.create_chat_messages(
             conversation_id=chat_request.conversation_id,
             content=chat_request.content,

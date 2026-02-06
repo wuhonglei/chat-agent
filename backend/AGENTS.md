@@ -71,8 +71,8 @@ backend/
 │   │   └── ...
 │   ├── services/         # 业务逻辑服务
 │   │   ├── chat_service.py       # 对话服务（核心）
-│   │   ├── message_service.py    # 消息服务
-│   │   ├── conversation_service.py
+│   │   ├── message_db.py    # 消息 DB 服务
+│   │   ├── conversation_db.py
 │   │   └── infrastructure/       # 基础设施服务
 │   ├── utils/            # 工具函数
 │   │   ├── logger.py     # 日志工具（loguru）

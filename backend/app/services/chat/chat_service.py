@@ -26,8 +26,12 @@ from app.schemas.llm import (
 )
 from app.schemas.token_stats import TotalTokenStats
 from app.services.component import ComponentSchemaService
-from app.services.message import MessageService
-from app.services.user import ContextSummaryService, UserProfileService
+from app.services.conversation import ConversationContextDbService
+from app.services.message import MessageDbService
+from app.services.user import (
+    ContextSummaryService,
+    UserProfileItemDbService,
+)
 from app.utils.common import pick_fields
 from app.utils.history_truncate import truncate_history_by_rounds_and_tokens
 from app.utils.logger import logger
@@ -65,14 +69,14 @@ async def _run_window_out_and_profile_tasks(
                 truncated_messages, max_tokens=summary_max_tokens
             )
             if summary:
-                with UserProfileService() as profile_svc:
-                    profile_svc.upsert_user_context(
+                with ConversationContextDbService() as ctx_svc:
+                    ctx_svc.upsert_conversation_context(
                         user_id,
                         conversation_id,
                         recent_summary=summary,
                     )
 
-        # 2. 每轮都执行：本轮用户消息 + 助手回复（+ 较早摘要若有）-> 归纳事实/偏好 -> user_profile
+        # 2. 每轮都执行：本轮用户消息 + 助手回复（+ 较早摘要若有）-> 归纳事实/偏好 -> user_profile_items
         parts = [
             f"[用户]: {user_message_content}",
             f"[助手]: {assistant_content}",
@@ -80,15 +84,15 @@ async def _run_window_out_and_profile_tasks(
         if summary:
             parts.append(f"[较早轮次摘要]: {summary}")
         text = "\n\n".join(parts)
-        with UserProfileService() as profile_svc:
-            existing = profile_svc.get_user_profile(user_id)
+        with UserProfileItemDbService() as item_svc:
+            existing_facts, existing_prefs = item_svc.get_existing_texts(user_id)
             facts, preferences = await summary_svc.extract_user_facts_preferences(
                 text,
-                existing_facts=existing.facts if existing else None,
-                existing_preferences=existing.preferences if existing else None,
+                existing_facts=existing_facts or None,
+                existing_preferences=existing_prefs or None,
             )
             if facts or preferences:
-                profile_svc.upsert_user_profile(
+                await item_svc.batch_upsert_items(
                     user_id, facts=facts or [], preferences=preferences or []
                 )
     except Exception as e:
@@ -109,6 +113,8 @@ class ChatService:
         self.schema_service = ComponentSchemaService(
             debug=self.debug
         )  # 复用 ComponentSchemaService 实例
+
+        self.token_calculator = TokenCalculator(settings.response_model.model_name)
 
         # 初始化各个Agent
         self.title_generation_agent = TitleGenerationAgent(
@@ -138,8 +144,9 @@ class ChatService:
         history_messages: list[ChatMessageItemWithToolCalls],
         client_ip: str | None,
         user_id: str | None = None,
+        user_message_id: str | None = None,
     ) -> AsyncGenerator[str, None]:
-        """Stream chat response using agent architecture. user_id 用于注入 user_profile/user_context。"""
+        """Stream chat response using agent architecture. user_id 用于注入 user_profile/user_context；user_message_id 用于落库 query_embedding。"""
         start_time = get_current_time()
         try:
             user_message = chat_request.content
@@ -150,6 +157,11 @@ class ChatService:
                 client_ip=client_ip,
                 has_component_tools=bool(chat_request.component_tools_for_backend),
             )
+
+            with MessageDbService() as message_service:
+                query_embedding = await message_service.persist_user_message_embedding(
+                    user_message, user_message_id
+                )
 
             # 阶段1: MCP工具调用
             logger.debug("Starting MCP tools agent execution")
@@ -200,12 +212,13 @@ class ChatService:
             logger.debug("Starting response generation agent execution")
             response_start_time = get_current_time()
             async for chunk in self.response_generation_agent.stream_execute(
-                history_messages,
-                user_message,
-                filtered_mcp_tool_call_messages,
-                filtered_component_tool_call_messages,
+                history_messages=history_messages,
+                user_message=user_message,
+                mcp_tool_call_messages=filtered_mcp_tool_call_messages,
+                component_tool_call_messages=filtered_component_tool_call_messages,
                 user_id=user_id,
                 conversation_id=chat_request.conversation_id,
+                query_embedding=query_embedding,
             ):
                 yield chunk
             response_duration = get_time_duration(response_start_time)
@@ -279,7 +292,6 @@ class ChatService:
             return []
 
         threshold_tokens = self.compression.tool_message_summary_threshold_tokens
-        token_calculator = TokenCalculator(settings.response_model.model_name)
 
         # 最后一轮简单视为 history_messages 的最后 2 条
         last_round_start = max(0, len(history_messages) - 2)
@@ -322,13 +334,15 @@ class ChatService:
                     if tr.summary and tr.summary.strip():
                         effective_content = tr.summary
                     else:
-                        content_tokens = token_calculator.count_tokens(tr.content or "")
+                        content_tokens = self.token_calculator.count_tokens(
+                            tr.content or ""
+                        )
                         if content_tokens <= threshold_tokens:
                             effective_content = tr.content or ""
                         else:
                             effective_content = (
                                 "[内容已截断] "
-                                + token_calculator.truncate_text_to_tokens(
+                                + self.token_calculator.truncate_text_to_tokens(
                                     tr.content or "", threshold_tokens
                                 )
                             )
@@ -349,7 +363,7 @@ class ChatService:
         """生成完整流式响应：ack、正文流、标题（可选）、done/error。user_id 用于窗口外摘要与用户画像异步任务。"""
         conversation_id = chat_request.conversation_id
         try:
-            with MessageService() as message_service:
+            with MessageDbService() as message_service:
                 conversation, user_message, assistant_message = (
                     message_service.get_conversation_and_messages(
                         conversation_id, user_message_id, assistant_message_id
@@ -378,13 +392,12 @@ class ChatService:
                 raw_history = message_service.get_history_messages_by_ids(
                     chat_request.history_ids
                 )
-                token_calculator = TokenCalculator(settings.response_model.model_name)
                 history_messages, truncated_messages = (
                     truncate_history_by_rounds_and_tokens(
                         raw_history,
                         self.compression.max_history_rounds,
                         self.compression.max_history_tokens,
-                        token_calculator,
+                        self.token_calculator,
                     )
                 )
                 new_history_messages = self.process_history_messages(history_messages)
@@ -401,6 +414,7 @@ class ChatService:
                     history_messages=new_history_messages,
                     client_ip=None,
                     user_id=user_id,
+                    user_message_id=user_message_id,
                 ):
                     if title_task is not None and title_task.done():
                         try:
