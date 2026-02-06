@@ -14,8 +14,6 @@ class ConversationContextDb(SQLModel, table=True):
     __tablename__ = "conversation_contexts"
 
     conversation_id: str = Field(
-        primary_key=True,
-        max_length=36,
         sa_column=Column(
             String(36),
             ForeignKey("conversations.id", ondelete="CASCADE"),
