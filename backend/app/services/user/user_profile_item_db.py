@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 
-from sqlmodel import col, select
+from sqlmodel import Session, col, select
 
 from app.core.config import settings
 from app.models import UserProfileItemDb
@@ -31,6 +31,51 @@ def _normalize_text(text: str) -> str:
     return t
 
 
+def _normalize_list(texts: list[str]) -> list[str]:
+    """归一化并过滤空串，返回非空列表。"""
+    return [nt for t in texts if (nt := _normalize_text(t))]
+
+
+def _upsert_one_item(
+    db: Session,
+    user_id: str,
+    text: str,
+    item_type: int,
+    embedding_model: str,
+    embedding_vector: list[float],
+) -> UserProfileItemDb:
+    """单条插入或更新画像条目（由调用方持有 db 并负责 commit）。"""
+    normalized = _normalize_text(text)
+    if not normalized:
+        raise ValueError("text 为空或仅空白")
+    text_hash = _normalized_hash(normalized)
+    stmt = select(UserProfileItemDb).where(
+        UserProfileItemDb.user_id == user_id,
+        UserProfileItemDb.text_normalized_hash == text_hash,
+        UserProfileItemDb.type == item_type,
+    )
+    row = db.exec(stmt).first()
+    if row:
+        row.text = normalized
+        row.embedding_vector = embedding_vector
+        row.embedding_model = embedding_model
+        row.deleted_at = None
+        db.add(row)
+    else:
+        row = UserProfileItemDb(
+            user_id=user_id,
+            text=normalized,
+            type=item_type,
+            embedding_vector=embedding_vector,
+            embedding_model=embedding_model,
+            text_normalized_hash=text_hash,
+        )
+        db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
 class UserProfileItemDbService(BaseService):
     """用户画像条目 DB：按条存储 + pgvector 语义检索"""
 
@@ -46,36 +91,10 @@ class UserProfileItemDbService(BaseService):
         embedding_vector: list[float],
     ) -> UserProfileItemDb:
         """插入或更新一条画像条目；归一化 text、长度检查、计算 embedding，ON CONFLICT DO UPDATE。"""
-        normalized = _normalize_text(text)
-        if not normalized:
-            raise ValueError("text 为空或仅空白")
-        text_hash = _normalized_hash(normalized)
         db = self._ensure_db()
-        stmt = select(UserProfileItemDb).where(
-            UserProfileItemDb.user_id == user_id,
-            UserProfileItemDb.text_normalized_hash == text_hash,
-            UserProfileItemDb.type == item_type,
+        return _upsert_one_item(
+            db, user_id, text, item_type, embedding_model, embedding_vector
         )
-        row = db.exec(stmt).first()
-        if row:
-            row.text = normalized
-            row.embedding_vector = embedding_vector
-            row.embedding_model = embedding_model
-            row.deleted_at = None
-            db.add(row)
-        else:
-            row = UserProfileItemDb(
-                user_id=user_id,
-                text=normalized,
-                type=item_type,
-                embedding_vector=embedding_vector,
-                embedding_model=embedding_model,
-                text_normalized_hash=text_hash,
-            )
-            db.add(row)
-        db.commit()
-        db.refresh(row)
-        return row
 
     async def batch_upsert_items(
         self,
@@ -83,50 +102,50 @@ class UserProfileItemDbService(BaseService):
         facts: list[str],
         preferences: list[str],
     ) -> None:
-        """归纳后批量写入：先批量计算 facts/preferences 向量，再逐条 add_item，减少网络调用。"""
-        normalized_facts = []
-        for t in facts:
-            if nt := _normalize_text(t):
-                normalized_facts.append(nt)
-
-        normalized_preferences = []
-        for t in preferences:
-            if nt := _normalize_text(t):
-                normalized_preferences.append(nt)
-
+        """归纳后批量写入：仅对 DB 中尚不存在的条目计算 embedding 并写入，已存在条目跳过避免重复计算向量。"""
+        normalized_facts = _normalize_list(facts)
+        normalized_preferences = _normalize_list(preferences)
         if not normalized_facts and not normalized_preferences:
+            return
+
+        existing_fact_hashes, existing_pref_hashes = self._get_existing_hashes(user_id)
+        new_facts = [
+            nt
+            for nt in normalized_facts
+            if _normalized_hash(nt) not in existing_fact_hashes
+        ]
+        new_preferences = [
+            nt
+            for nt in normalized_preferences
+            if _normalized_hash(nt) not in existing_pref_hashes
+        ]
+        if not new_facts and not new_preferences:
             return
 
         embedding_svc = EmbeddingService()
         model_name = self._current_embedding_model_name()
-
-        all_texts = normalized_facts + normalized_preferences
+        all_texts = new_facts + new_preferences
         all_vectors = await embedding_svc.embed_documents(all_texts)
-        n_facts = len(normalized_facts)
+        n_facts = len(new_facts)
         vectors_facts = all_vectors[:n_facts]
         vectors_prefs = all_vectors[n_facts:]
 
-        for text, vec in zip(normalized_facts, vectors_facts):
-            if not vec:
-                continue
+        db = self._ensure_db()
+        to_upsert: list[tuple[str, list[float], int, str]] = [
+            (text, vec, TYPE_FACT, "fact")
+            for text, vec in zip(new_facts, vectors_facts)
+            if vec
+        ] + [
+            (text, vec, TYPE_PREFERENCE, "preference")
+            for text, vec in zip(new_preferences, vectors_prefs)
+            if vec
+        ]
+        for text, vec, item_type, label in to_upsert:
             try:
-                await self.add_item(user_id, text, TYPE_FACT, model_name, vec)
+                _upsert_one_item(db, user_id, text, item_type, model_name, vec)
             except Exception as e:
                 logger.warning(
-                    "UserProfileItemDbService.add_item fact failed",
-                    user_id=user_id,
-                    text_preview=text[:100],
-                    error=e,
-                )
-
-        for text, vec in zip(normalized_preferences, vectors_prefs):
-            if not vec:
-                continue
-            try:
-                await self.add_item(user_id, text, TYPE_PREFERENCE, model_name, vec)
-            except Exception as e:
-                logger.warning(
-                    "UserProfileItemDbService.add_item preference failed",
+                    f"UserProfileItemDbService.batch_upsert_items {label} failed",
                     user_id=user_id,
                     text_preview=text[:100],
                     error=e,
@@ -146,6 +165,24 @@ class UserProfileItemDbService(BaseService):
         facts = [r[0] for r in rows if r[1] == TYPE_FACT]
         prefs = [r[0] for r in rows if r[1] == TYPE_PREFERENCE]
         return (facts, prefs)
+
+    def _get_existing_hashes(
+        self,
+        user_id: str,
+    ) -> tuple[set[str], set[str]]:
+        """返回该用户当前未删除的事实与偏好的 text_normalized_hash 集合，用于跳过已存在条目的 embedding 计算。"""
+        db = self._ensure_db()
+        stmt = select(
+            UserProfileItemDb.text_normalized_hash,
+            UserProfileItemDb.type,
+        ).where(
+            UserProfileItemDb.user_id == user_id,
+            col(UserProfileItemDb.deleted_at).is_(None),
+        )
+        rows = db.exec(stmt).all()
+        fact_hashes = {r[0] for r in rows if r[1] == TYPE_FACT}
+        pref_hashes = {r[0] for r in rows if r[1] == TYPE_PREFERENCE}
+        return (fact_hashes, pref_hashes)
 
     async def get_relevant_items(
         self,
