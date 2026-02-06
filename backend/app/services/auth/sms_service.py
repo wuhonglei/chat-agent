@@ -12,11 +12,11 @@ from fastapi import HTTPException
 from sqlmodel import Session
 
 from app.core.config import settings
+from app.models import UserDb
 from app.schemas.auth import (
     SendSmsRequest,
     SendSmsResponse,
     SmsLoginRequest,
-    SmsLoginResponse,
     SmsVerificationEntry,
 )
 from app.services.user import UserService
@@ -76,18 +76,14 @@ class SmsService:
                 status_code=500,
                 detail="发送短信验证码失败",
             ) from e
-        is_user = UserService(db).get_user_by_phone(phone) is not None
         return SendSmsResponse(
             verification_id=verification_id,
             expires_in=VERIFICATION_TTL,
-            is_user=is_user,
             phone_number=phone,
         )
 
     @staticmethod
-    async def sms_login(
-        sms_login_request: SmsLoginRequest, db: Session
-    ) -> SmsLoginResponse:
+    async def sms_login(sms_login_request: SmsLoginRequest, db: Session) -> UserDb:
         """短信登录（自建验证 + 本系统用户，不再调用 Cloudbase verify/signin/signup）
 
         Args:
@@ -95,7 +91,7 @@ class SmsService:
             db: 数据库会话
 
         Returns:
-            SmsLoginResponse(user=user, ...) 供 auth 直接写 JWT
+            UserDb 供 auth 直接写 JWT
         """
         vid = sms_login_request.verification_id
         if vid not in _verification_cache:
@@ -106,10 +102,8 @@ class SmsService:
             raise HTTPException(status_code=400, detail="验证码已过期")
         if entry.code != sms_login_request.verification_code:
             raise HTTPException(status_code=400, detail="验证码错误")
+        if entry.phone != sms_login_request.phone_number:
+            raise HTTPException(status_code=400, detail="手机号不匹配")
         del _verification_cache[vid]
         user = UserService(db).get_or_create_user_by_phone(entry.phone)
-        return SmsLoginResponse(
-            user=user,
-            verification_token="",
-            expires_in=0,
-        )
+        return user

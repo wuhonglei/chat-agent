@@ -4,8 +4,6 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models import UserDb
-
 
 class AuthTokenPayload(BaseModel):
     """JWT 解析后的认证载荷，与 create_token 时写入的 payload 结构一致"""
@@ -34,7 +32,6 @@ class SendSmsResponse(BaseModel):
     verification_id: str = Field(..., description="Verification ID")
     expires_in: int = Field(..., description="Expires in")
     phone_number: str = Field(..., description="Phone number")
-    is_user: bool = Field(False, description="Is user registered in the cloudbase")
 
 
 class SmsLoginRequest(BaseModel):
@@ -42,26 +39,7 @@ class SmsLoginRequest(BaseModel):
 
     verification_id: str = Field(..., description="Verification ID")
     verification_code: str = Field(..., description="Verification code")
-
-
-class SmsLoginRequestFromFrontend(SmsLoginRequest):
-    """Sms login request from frontend"""
-
     phone_number: str = Field(..., description="Phone number")
-    is_user: bool = Field(False, description="Is user registered in the cloudbase")
-
-
-class SmsLoginResponse(BaseModel):
-    """Sms login response"""
-
-    verification_token: str = Field(..., description="Verification token")
-    expires_in: int = Field(..., description="Expires in")
-    user: UserDb | None = Field(
-        None,
-        description="自建短信登录时返回的用户，非空时不再调用 Cloudbase signin/signup",
-    )
-
-    model_config = {"arbitrary_types_allowed": True}
 
 
 class SigninRequest(BaseModel):

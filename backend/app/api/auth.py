@@ -11,7 +11,7 @@ from app.models import UserDb
 from app.schemas.auth import (
     SendSmsRequest,
     SendSmsResponse,
-    SmsLoginRequestFromFrontend,
+    SmsLoginRequest,
     WeChatInitResponse,
     WeChatLoginRequest,
 )
@@ -37,15 +37,14 @@ async def send_sms(
 
 @router.post("/sms/login")
 async def sms_login(
-    sms_login_request: SmsLoginRequestFromFrontend,
+    sms_login_request: SmsLoginRequest,
     response: Response,
     db: Session = Depends(get_db),
     jwt_manager: JWTManager = Depends(get_jwt_manager),
 ) -> ApiResponse[UserDb]:
     """短信登录（自建验证 + 本系统用户，直接签发 JWT）"""
-    data = await SmsService.sms_login(sms_login_request, db)
-    if data.user is not None:
-        user = data.user
+    user = await SmsService.sms_login(sms_login_request, db)
+    if user is not None:
         secret_token_info = jwt_manager.get_payload_with_expiration(
             {
                 "user_id": user.id,
