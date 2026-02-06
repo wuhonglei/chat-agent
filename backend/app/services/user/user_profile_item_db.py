@@ -9,6 +9,7 @@ from sqlmodel import col, select
 from app.core.config import settings
 from app.models import UserProfileItemDb
 from app.services.base_service import BaseService
+from app.services.infrastructure.embedding_service import EmbeddingService
 from app.utils.logger import logger
 
 # 1=事实, 2=偏好
@@ -82,30 +83,52 @@ class UserProfileItemDbService(BaseService):
         facts: list[str],
         preferences: list[str],
     ) -> None:
-        """归纳后批量写入；逐条 add_item，同一用户串行执行。"""
+        """归纳后批量写入：先批量计算 facts/preferences 向量，再逐条 add_item，减少网络调用。"""
+        normalized_facts = []
         for t in facts:
-            if not _normalize_text(t):
+            if nt := _normalize_text(t):
+                normalized_facts.append(nt)
+
+        normalized_preferences = []
+        for t in preferences:
+            if nt := _normalize_text(t):
+                normalized_preferences.append(nt)
+
+        if not normalized_facts and not normalized_preferences:
+            return
+
+        embedding_svc = EmbeddingService()
+        model_name = self._current_embedding_model_name()
+
+        all_texts = normalized_facts + normalized_preferences
+        all_vectors = await embedding_svc.embed_documents(all_texts)
+        n_facts = len(normalized_facts)
+        vectors_facts = all_vectors[:n_facts]
+        vectors_prefs = all_vectors[n_facts:]
+
+        for text, vec in zip(normalized_facts, vectors_facts):
+            if not vec:
                 continue
             try:
-                await self.add_item(user_id, t, TYPE_FACT)
+                await self.add_item(user_id, text, TYPE_FACT, model_name, vec)
             except Exception as e:
                 logger.warning(
                     "UserProfileItemDbService.add_item fact failed",
                     user_id=user_id,
-                    text_preview=t[:100],
+                    text_preview=text[:100],
                     error=e,
                 )
 
-        for t in preferences:
-            if not _normalize_text(t):
+        for text, vec in zip(normalized_preferences, vectors_prefs):
+            if not vec:
                 continue
             try:
-                await self.add_item(user_id, t, TYPE_PREFERENCE)
+                await self.add_item(user_id, text, TYPE_PREFERENCE, model_name, vec)
             except Exception as e:
                 logger.warning(
                     "UserProfileItemDbService.add_item preference failed",
                     user_id=user_id,
-                    text_preview=t[:100],
+                    text_preview=text[:100],
                     error=e,
                 )
 
