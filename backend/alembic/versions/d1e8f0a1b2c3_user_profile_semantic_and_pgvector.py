@@ -51,7 +51,7 @@ def upgrade() -> None:
         sa.Column("user_id", sa.VARCHAR(36), nullable=False),
         sa.Column("text", sa.Text(), nullable=False),
         sa.Column("type", sa.SmallInteger(), nullable=False),
-        sa.Column("embedding", Vector(EMBEDDING_DIMENSION), nullable=True),
+        sa.Column("embedding_vector", Vector(EMBEDDING_DIMENSION), nullable=True),
         sa.Column("embedding_model", sa.VARCHAR(50), nullable=True),
         sa.Column("text_normalized_hash", sa.VARCHAR(64), nullable=False),
         sa.Column(

@@ -9,7 +9,6 @@ from sqlmodel import col, select
 from app.core.config import settings
 from app.models import UserProfileItemDb
 from app.services.base_service import BaseService
-from app.services.infrastructure.embedding_service import EmbeddingService
 from app.utils.logger import logger
 
 # 1=事实, 2=偏好
@@ -42,15 +41,14 @@ class UserProfileItemDbService(BaseService):
         user_id: str,
         text: str,
         item_type: int,
+        embedding_model: str,
+        embedding_vector: list[float],
     ) -> UserProfileItemDb:
         """插入或更新一条画像条目；归一化 text、长度检查、计算 embedding，ON CONFLICT DO UPDATE。"""
         normalized = _normalize_text(text)
         if not normalized:
             raise ValueError("text 为空或仅空白")
         text_hash = _normalized_hash(normalized)
-        embedding_svc = EmbeddingService()
-        model_name = embedding_svc.model_name
-        vec = await embedding_svc.embed_query(normalized)
         db = self._ensure_db()
         stmt = select(UserProfileItemDb).where(
             UserProfileItemDb.user_id == user_id,
@@ -60,8 +58,8 @@ class UserProfileItemDbService(BaseService):
         row = db.exec(stmt).first()
         if row:
             row.text = normalized
-            row.embedding = vec
-            row.embedding_model = model_name
+            row.embedding_vector = embedding_vector
+            row.embedding_model = embedding_model
             row.deleted_at = None
             db.add(row)
         else:
@@ -69,8 +67,8 @@ class UserProfileItemDbService(BaseService):
                 user_id=user_id,
                 text=normalized,
                 type=item_type,
-                embedding=vec,
-                embedding_model=model_name,
+                embedding_vector=embedding_vector,
+                embedding_model=embedding_model,
                 text_normalized_hash=text_hash,
             )
             db.add(row)
@@ -97,6 +95,7 @@ class UserProfileItemDbService(BaseService):
                     text_preview=t[:100],
                     error=e,
                 )
+
         for t in preferences:
             if not _normalize_text(t):
                 continue
@@ -147,17 +146,19 @@ class UserProfileItemDbService(BaseService):
             select(
                 UserProfileItemDb.text,
                 UserProfileItemDb.type,
-                UserProfileItemDb.embedding.cosine_distance(query_embedding).label(
-                    "dist"
-                ),
+                UserProfileItemDb.embedding_vector.cosine_distance(
+                    query_embedding
+                ).label("dist"),
             )
             .where(
                 UserProfileItemDb.user_id == user_id,
                 col(UserProfileItemDb.deleted_at).is_(None),
                 UserProfileItemDb.embedding_model == embedding_model,
-                col(UserProfileItemDb.embedding).isnot(None),
+                col(UserProfileItemDb.embedding_vector).isnot(None),
             )
-            .order_by(UserProfileItemDb.embedding.cosine_distance(query_embedding))
+            .order_by(
+                UserProfileItemDb.embedding_vector.cosine_distance(query_embedding)
+            )
             .limit(limit)
         )
         rows = db.exec(stmt).all()

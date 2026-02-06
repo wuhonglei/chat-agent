@@ -26,10 +26,12 @@ from app.schemas.llm import (
 )
 from app.schemas.token_stats import TotalTokenStats
 from app.services.component import ComponentSchemaService
-from app.services.conversation import ConversationContextDbService
+from app.services.conversation import (
+    ContextSummaryService,
+    ConversationContextDbService,
+)
 from app.services.message import MessageDbService
 from app.services.user import (
-    ContextSummaryService,
     UserProfileExtractionService,
     UserProfileItemDbService,
 )

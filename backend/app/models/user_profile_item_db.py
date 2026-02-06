@@ -1,4 +1,4 @@
-"""用户画像条目：单条事实/偏好 + pgvector embedding"""
+"""用户画像条目：单条事实/偏好 + pgvector embedding_vector"""
 
 from datetime import datetime
 
@@ -41,7 +41,7 @@ class UserProfileItemDb(SQLModel, table=True):
         sa_type=SmallInteger,
         description="1=事实(fact)，2=偏好(preference)",
     )
-    embedding: list[float] | None = Field(
+    embedding_vector: list[float] | None = Field(
         default=None,
         sa_type=Vector(EMBEDDING_DIMENSION),
         description="语义向量",
