@@ -1,4 +1,4 @@
-.PHONY: format lint check install dev clean help
+.PHONY: format lint check install dev clean help migrate
 
 # Default target
 help:
@@ -9,6 +9,7 @@ help:
 	@echo "  install    - Install dependencies"
 	@echo "  dev        - Start the application"
 	@echo "  start      - Start the application"
+	@echo "  migrate    - Run database migrations (alembic upgrade head)"
 	@echo "  clean      - Clean temporary files"
 	@echo "  test       - Run tests"
 
@@ -23,6 +24,10 @@ dev:
 # Start the application
 start:
 	uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4 --log-level info --proxy-headers
+
+# Run database migrations
+migrate:
+	uv run alembic upgrade head
 
 # Format code
 format:
