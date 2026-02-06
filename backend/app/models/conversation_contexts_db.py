@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import DateTime
+from sqlalchemy import Column, DateTime, ForeignKey, String
 from sqlmodel import Field, SQLModel
 
 from app.utils.date import get_datetime_now
@@ -13,14 +13,14 @@ class ConversationContextDb(SQLModel, table=True):
 
     __tablename__ = "conversation_contexts"
 
-    user_id: str = Field(
-        primary_key=True,
-        max_length=36,
-        description="用户 ID",
-    )
     conversation_id: str = Field(
         primary_key=True,
         max_length=36,
+        sa_column=Column(
+            String(36),
+            ForeignKey("conversations.id", ondelete="CASCADE"),
+            primary_key=True,
+        ),
         description="对话 ID",
     )
     summary_before_window: str | None = Field(

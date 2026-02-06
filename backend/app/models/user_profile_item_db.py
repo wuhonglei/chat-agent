@@ -34,6 +34,7 @@ class UserProfileItemDb(SQLModel, table=True):
     user_id: str = Field(
         index=True,
         max_length=36,
+        foreign_key="users.id",
         description="用户 ID",
     )
     text: str = Field(sa_type=Text, description="单条事实或偏好内容")

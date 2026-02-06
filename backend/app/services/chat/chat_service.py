@@ -75,7 +75,6 @@ async def _run_window_out_and_profile_tasks(
             if summary:
                 with ConversationContextDbService() as ctx_svc:
                     ctx_svc.upsert_conversation_context(
-                        user_id,
                         conversation_id,
                         recent_summary=summary,
                     )

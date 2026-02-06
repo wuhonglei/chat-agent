@@ -51,6 +51,24 @@ class ResponseGenerationAgent(BaseAgent):
                 self.reasoning += data.get("content") or ""
         return super().format_sse_message(msg_type, data)
 
+    async def _get_user_facts_and_preferences(
+        self,
+        user_id: str,
+        query_embedding: list[float],
+        top_k_facts: int = 5,
+        top_k_preferences: int = 5,
+        relevance_threshold: float = 0.7,
+    ) -> tuple[list[str], list[str]]:
+        """获取用户事实和偏好"""
+        with UserProfileItemDbService() as item_svc:
+            return await item_svc.get_relevant_items(
+                user_id,
+                query_embedding,
+                top_k_facts,
+                top_k_preferences,
+                relevance_threshold,
+            )
+
     async def stream_execute(  # type: ignore[override]
         self,
         *,
@@ -87,24 +105,20 @@ class ResponseGenerationAgent(BaseAgent):
         )
 
         # 按 query_embedding 语义检索用户画像事实/偏好，用于注入 system prompt
-        facts: list[str] = []
-        prefs: list[str] = []
-        if user_id and query_embedding and len(query_embedding) > 0:
-            with UserProfileItemDbService() as item_svc:
-                facts, prefs = await item_svc.get_relevant_items(
-                    user_id,
-                    query_embedding=query_embedding,
-                    top_k_facts=settings.compression.user_profile_top_k_facts,
-                    top_k_preferences=settings.compression.user_profile_top_k_preferences,
-                    relevance_threshold=settings.compression.user_profile_relevance_threshold,
-                )
+        facts, prefs = await self._get_user_facts_and_preferences(
+            user_id,
+            query_embedding,
+            top_k_facts=settings.compression.user_profile_top_k_facts,
+            top_k_preferences=settings.compression.user_profile_top_k_preferences,
+            relevance_threshold=settings.compression.user_profile_relevance_threshold,
+        )
 
         # 获取窗口外会话摘要，用于注入 system prompt
         window_out_summary = ""
-        if user_id and conversation_id:
+        if conversation_id:
             with ConversationContextDbService() as ctx_svc:
                 window_out_summary = ctx_svc.get_conversation_context_summary(
-                    user_id, conversation_id
+                    conversation_id
                 )
 
         system_prompt = get_system_prompt_for_response_generation(

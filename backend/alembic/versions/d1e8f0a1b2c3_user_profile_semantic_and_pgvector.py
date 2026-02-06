@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from pgvector.sqlalchemy import Vector
-from sqlalchemy.exc import NotSupportedError, OperationalError
+from sqlalchemy.exc import NotSupportedError, OperationalError, ProgrammingError
 
 from alembic import op
 
@@ -26,15 +26,19 @@ EMBEDDING_DIMENSION = 1536
 def upgrade() -> None:
     try:
         op.execute("CREATE EXTENSION IF NOT EXISTS vector")
-    except (OperationalError, NotSupportedError) as e:
+    except (OperationalError, NotSupportedError, ProgrammingError) as e:
         err_msg = str(getattr(e, "orig", e))
-        if "vector" in err_msg or "is not available" in err_msg:
+        # 无权限创建扩展时跳过，需由 DBA 用 superuser 执行: CREATE EXTENSION IF NOT EXISTS vector;
+        if "permission denied" in err_msg.lower() and "extension" in err_msg.lower():
+            pass  # 假定扩展已由 superuser 创建，后续若未安装会报 type vector 不存在
+        elif "vector" in err_msg or "is not available" in err_msg:
             raise RuntimeError(
                 "PostgreSQL 未安装 pgvector 扩展，迁移无法继续。"
                 "macOS (Homebrew): brew install pgvector；"
                 "详见 https://github.com/pgvector/pgvector"
             ) from e
-        raise
+        else:
+            raise
 
     op.add_column(
         "messages",

@@ -13,20 +13,18 @@ class ConversationContextDbService(BaseService):
     """会话级上下文（conversation_contexts）DB 读写"""
 
     def get_conversation_context(
-        self, user_id: str, conversation_id: str
+        self, conversation_id: str
     ) -> ConversationContextDb | None:
-        """按 user_id + conversation_id 查询会话级上下文（窗口外摘要）"""
+        """按 conversation_id 查询会话级上下文（窗口外摘要）"""
         db = self._ensure_db()
         return db.exec(
             select(ConversationContextDb).where(
-                ConversationContextDb.user_id == user_id,
                 ConversationContextDb.conversation_id == conversation_id,
             )
         ).first()
 
     def upsert_conversation_context(
         self,
-        user_id: str,
         conversation_id: str,
         *,
         summary_before_window: str | None = None,
@@ -36,7 +34,6 @@ class ConversationContextDbService(BaseService):
         db = self._ensure_db()
         row = db.exec(
             select(ConversationContextDb).where(
-                ConversationContextDb.user_id == user_id,
                 ConversationContextDb.conversation_id == conversation_id,
             )
         ).first()
@@ -48,7 +45,6 @@ class ConversationContextDbService(BaseService):
             db.add(row)
         else:
             row = ConversationContextDb(
-                user_id=user_id,
                 conversation_id=conversation_id,
                 summary_before_window=summary_before_window,
                 recent_summary=recent_summary,
@@ -58,18 +54,16 @@ class ConversationContextDbService(BaseService):
         db.refresh(row)
         logger.debug(
             "Upserted conversation_context",
-            user_id=user_id,
             conversation_id=conversation_id,
         )
         return row
 
     def get_conversation_context_summary(
         self,
-        user_id: str,
         conversation_id: str,
     ) -> str | None:
         """获取会话级上下文摘要"""
-        context = self.get_conversation_context(user_id, conversation_id)
+        context = self.get_conversation_context(conversation_id)
         if context and (context.summary_before_window or context.recent_summary):
             raw = context.recent_summary or context.summary_before_window or ""
             if raw.strip():
