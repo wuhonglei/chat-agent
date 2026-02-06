@@ -27,8 +27,9 @@ def upgrade() -> None:
             "DROP CONSTRAINT IF EXISTS conversation_contexts_user_id_fkey"
         )
     )
+    # 注意：表重命名时约束名不变，原名是 user_contexts_pkey
     op.drop_constraint(
-        "conversation_contexts_pkey",
+        "user_contexts_pkey",
         "conversation_contexts",
         type_="primary",
     )
