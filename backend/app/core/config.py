@@ -10,7 +10,7 @@ from pydantic_settings import (
 from app.core.nacos.config import NacosConfigSettingsSource
 from app.schemas.config import (
     AppConfig,
-    CompressionConfig,
+    ChatContextConfig,
     DatabaseConfig,
     EmbeddingModelConfig,
     LLMConfig,
@@ -36,8 +36,8 @@ class Settings(BaseSettings):
     security: SecurityConfig = Field(description="JWT 安全配置")
     sms: SmsConfig = Field(description="腾讯云短信配置")
     database: DatabaseConfig = Field(description="PostgreSQL 数据库配置")
-    compression: CompressionConfig = Field(
-        default_factory=CompressionConfig, description="上下文压缩配置"
+    chat_context: ChatContextConfig = Field(
+        default_factory=ChatContextConfig, description="对话上下文配置"
     )
     wechat: WechatConfig = Field(description="微信配置")
     component_schema_api_url: str = Field(description="组件 Schema API URL")

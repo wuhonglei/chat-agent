@@ -232,80 +232,116 @@ class DatabaseConfig(BaseModel):
     password: str = Field(description="PostgreSQL 数据库密码")
 
 
-class CompressionConfig(BaseModel):
-    """上下文压缩配置"""
+# ---- 上下文压缩子配置 ----
+class ToolResultCompressionConfig(BaseModel):
+    """工具结果压缩与摘要配置"""
 
-    enabled: bool = Field(default=True, description="是否启用上下文压缩")
-    relevance_enabled: bool = Field(default=True, description="是否启用相关性过滤")
-    tool_result_threshold_tokens: int = Field(
-        default=5000, description="单个工具结果阈值tokens数"
+    threshold_tokens: int = Field(
+        default=5000, description="单个工具结果阈值 tokens 数"
     )
-    tool_result_tolerance_tokens: int = Field(
-        default=6000, description="单个工具结果容忍的tokens数"
+    tolerance_tokens: int = Field(
+        default=6000, description="单个工具结果容忍的 tokens 数"
     )
-    tool_result_summary_max_tokens: int = Field(
-        default=2000, description="单个工具结果摘要最大tokens数"
+    summary_max_tokens: int = Field(
+        default=2000, description="单个工具结果摘要最大 tokens 数"
     )
-    # 历史截断与窗口内工具摘要
-    max_history_tokens: int = Field(
+    message_summary_threshold_tokens: int = Field(
+        default=2000,
+        description="窗口内单条工具消息超过该 token 数时用 summary/截断参与组装",
+    )
+    markdown_chunk_size: int = Field(
+        default=1000,
+        description="Markdown 分块大小（字符），用于相关性过滤",
+    )
+    markdown_chunk_overlap: int = Field(
+        default=200,
+        description="Markdown 分块重叠（字符）",
+    )
+
+
+class HistoryWindowConfig(BaseModel):
+    """历史消息窗口配置"""
+
+    max_tokens: int = Field(
         default=32000,
         description="历史消息 token 预算，超出部分从更早消息起截断",
     )
-    max_history_rounds: int = Field(
+    max_rounds: int = Field(
         default=5,
         description="历史最多保留轮数（一轮 = 一条 user + 对应 assistant 及其中 tool）",
     )
-    tool_message_summary_threshold_tokens: int = Field(
-        default=2000,
-        description="单条工具结果超过该 token 数时用 summary/截断参与组装",
-    )
-    # 窗口外摘要管道
-    window_out_summary_enabled: bool = Field(
+
+
+class WindowOutSummaryConfig(BaseModel):
+    """窗口外摘要管道配置（截断→摘要→user_context→system 注入）"""
+
+    enabled: bool = Field(
         default=True,
-        description="是否开启窗口外消息摘要管道（截断→摘要→user_context→system 注入）",
+        description="是否开启窗口外消息摘要管道",
     )
     summary_max_tokens: int = Field(
         default=1000,
         description="窗口外摘要最大 token 数，写入与注入时共用",
     )
-    # 用户画像语义检索
-    user_profile_top_k_facts: int = Field(
-        default=5,
-        description="用户事实语义检索 top-k",
-    )
-    user_profile_top_k_preferences: int = Field(
-        default=5,
-        description="用户偏好语义检索 top-k",
-    )
-    user_profile_relevance_threshold: float = Field(
+
+
+class UserProfileRetrievalConfig(BaseModel):
+    """用户画像语义检索配置"""
+
+    top_k_facts: int = Field(default=5, description="用户事实语义检索 top-k")
+    top_k_preferences: int = Field(default=5, description="用户偏好语义检索 top-k")
+    relevance_threshold: float = Field(
         default=0.5,
-        description="用户画像相似度阈值，低于此值不注入",
+        description="相似度阈值，低于此值不注入",
     )
-    # 用户画像归纳
-    user_profile_extraction_max_tokens: int = Field(
+
+
+class UserProfileExtractionConfig(BaseModel):
+    """用户画像归纳提取配置（LLM 调用）"""
+
+    max_tokens: int = Field(
         default=800,
         description="用户事实/偏好归纳 LLM 调用 max_tokens",
     )
-    user_profile_prompt_user_content_max_chars: int = Field(
+    prompt_user_content_max_chars: int = Field(
         default=1000,
         description="归纳 prompt 中 user_message_content 最大字符数",
     )
-    user_profile_prompt_assistant_content_max_chars: int = Field(
+    prompt_assistant_content_max_chars: int = Field(
         default=6000,
         description="归纳 prompt 中 assistant_content 最大字符数",
     )
-    user_profile_prompt_summary_max_chars: int = Field(
+    prompt_summary_max_chars: int = Field(
         default=6000,
         description="归纳 prompt 中 summary 最大字符数",
     )
-    # Markdown 分块（工具结果相关性过滤）
-    markdown_chunk_size: int = Field(
-        default=1000,
-        description="工具结果 Markdown 分块大小（字符），用于相关性过滤",
+
+
+class ChatContextConfig(BaseModel):
+    """对话上下文配置（层级结构）"""
+
+    enabled: bool = Field(default=True, description="是否启用上下文压缩")
+    relevance_enabled: bool = Field(default=True, description="是否启用相关性过滤")
+
+    tool_result: ToolResultCompressionConfig = Field(
+        default_factory=ToolResultCompressionConfig,
+        description="工具结果压缩与摘要",
     )
-    markdown_chunk_overlap: int = Field(
-        default=200,
-        description="工具结果 Markdown 分块重叠（字符）",
+    history_window: HistoryWindowConfig = Field(
+        default_factory=HistoryWindowConfig,
+        description="历史消息窗口",
+    )
+    window_out_summary: WindowOutSummaryConfig = Field(
+        default_factory=WindowOutSummaryConfig,
+        description="窗口外摘要管道",
+    )
+    user_profile_extraction: UserProfileExtractionConfig = Field(
+        default_factory=UserProfileExtractionConfig,
+        description="用户画像归纳提取",
+    )
+    user_profile_retrieval: UserProfileRetrievalConfig = Field(
+        default_factory=UserProfileRetrievalConfig,
+        description="用户画像语义检索",
     )
 
 

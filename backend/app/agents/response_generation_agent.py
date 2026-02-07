@@ -111,9 +111,9 @@ class ResponseGenerationAgent(BaseAgent):
             facts, prefs = await self._get_user_facts_and_preferences(
                 user_id,
                 query_embedding,
-                top_k_facts=settings.compression.user_profile_top_k_facts,
-                top_k_preferences=settings.compression.user_profile_top_k_preferences,
-                relevance_threshold=settings.compression.user_profile_relevance_threshold,
+                top_k_facts=settings.chat_context.user_profile_retrieval.top_k_facts,
+                top_k_preferences=settings.chat_context.user_profile_retrieval.top_k_preferences,
+                relevance_threshold=settings.chat_context.user_profile_retrieval.relevance_threshold,
             )
         else:
             facts, prefs = ([], [])

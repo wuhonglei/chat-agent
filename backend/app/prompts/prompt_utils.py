@@ -24,7 +24,7 @@ from app.prompts.user_prompt import (
     user_message_for_title_template,
     user_message_for_tool_call_template,
 )
-from app.schemas.config import CompressionConfig
+from app.schemas.config import ChatContextConfig
 from app.utils.date import get_current_datetime_str
 
 
@@ -122,22 +122,19 @@ def get_user_facts_preferences_prompt(
     existing_facts: list[str],
     existing_preferences: list[str],
     summary: str | None,
-    compression_config: CompressionConfig,
+    compression_config: ChatContextConfig,
 ) -> str:
     """渲染用户事实与偏好归纳的 prompt，各部分截断以控制总长度。"""
     existing_facts = existing_facts or []
     existing_preferences = existing_preferences or []
     summary_str = (summary or "").strip()
+    ext = compression_config.user_profile_extraction
     return USER_FACTS_PREFERENCES_PROMPT.render(
         existing_facts=existing_facts,
         existing_preferences=existing_preferences,
-        user_message_content=user_message_content[
-            : compression_config.user_profile_prompt_user_content_max_chars
-        ],
-        assistant_content=assistant_content[
-            : compression_config.user_profile_prompt_assistant_content_max_chars
-        ],
-        summary=summary_str[: compression_config.user_profile_prompt_summary_max_chars],
+        user_message_content=user_message_content[: ext.prompt_user_content_max_chars],
+        assistant_content=assistant_content[: ext.prompt_assistant_content_max_chars],
+        summary=summary_str[: ext.prompt_summary_max_chars],
     ).strip()
 
 

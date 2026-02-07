@@ -74,10 +74,10 @@ class MCPToolsAgent(BaseAgent):
         self.tool_call_args_by_name: dict[str, list[dict[str, Any]]] = defaultdict(list)
         self.duration: float | None = None
         self.token_stats: MCPToolsTokenStats | None = None
-        self.compression_config = settings.compression
+        self.chat_context_config = settings.chat_context
         self.compactor = ContextCompactor(
             embedding_model=settings.embedding_model,
-            compression_config=settings.compression,
+            compression_config=settings.chat_context,
         )
         self.current_user_message: str = ""
         self.token_threshold: int = self.token_calculator.get_compression_threshold(0.5)
@@ -575,8 +575,8 @@ class MCPToolsAgent(BaseAgent):
         processor = TavilyResultProcessor(
             compactor=self.compactor,
             user_query=self.current_user_message,
-            tolerance_tokens_count=self.compression_config.tool_result_tolerance_tokens,
-            threshold_tokens_count=self.compression_config.tool_result_threshold_tokens,
+            tolerance_tokens_count=self.chat_context_config.tool_result.tolerance_tokens,
+            threshold_tokens_count=self.chat_context_config.tool_result.threshold_tokens,
         )
         compaction = await processor.format_result(tool_name, structured_content)
         return tool_call_result_message.model_copy(
@@ -593,8 +593,8 @@ class MCPToolsAgent(BaseAgent):
         compaction = await self.compactor.compact_markdown_tool_result(
             query=self.current_user_message,
             content=content,
-            tolerance_tokens_count=self.compression_config.tool_result_tolerance_tokens,
-            threshold_tokens_count=self.compression_config.tool_result_threshold_tokens,
+            tolerance_tokens_count=self.chat_context_config.tool_result.tolerance_tokens,
+            threshold_tokens_count=self.chat_context_config.tool_result.threshold_tokens,
         )
 
         return tool_message.model_copy(update=compaction.model_dump(mode="json"))

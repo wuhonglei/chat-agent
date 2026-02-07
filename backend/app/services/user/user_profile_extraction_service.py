@@ -40,13 +40,14 @@ class UserProfileExtractionService(LLMService):
             existing_facts=existing_facts,
             existing_preferences=existing_preferences,
             summary=summary,
+            compression_config=settings.chat_context,
         )
         try:
             resp = await self.call_llm_api(
                 model=self.model_name,
                 messages=[{"role": "user", "content": prompt}],
                 stream=False,
-                max_tokens=settings.compression.user_profile_extraction_max_tokens,
+                max_tokens=settings.chat_context.user_profile_extraction.max_tokens,
             )
             raw = (resp.choices[0].message.content or "").strip()
             data = parse_json_from_text(raw)

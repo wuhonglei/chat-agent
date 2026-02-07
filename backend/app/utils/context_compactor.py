@@ -8,7 +8,7 @@ from langchain_core.documents import Document
 from langchain_text_splitters import MarkdownTextSplitter
 from pydantic import BaseModel
 
-from app.schemas.config import CompressionConfig, EmbeddingModelConfig
+from app.schemas.config import ChatContextConfig, EmbeddingModelConfig
 from app.utils.token import TokenCalculator
 
 
@@ -28,7 +28,7 @@ class ContextCompactor:
     def __init__(
         self,
         embedding_model: EmbeddingModelConfig,
-        compression_config: CompressionConfig,
+        compression_config: ChatContextConfig,
     ) -> None:
         self.embedding_model = embedding_model
         self.compression_config = compression_config
@@ -39,7 +39,7 @@ class ContextCompactor:
         self.token_calculator = TokenCalculator(embedding_model.model_name)
 
     def _split_markdown(self, content: str) -> list[str]:
-        cfg = self.compression_config
+        cfg = self.compression_config.tool_result
         splitter = MarkdownTextSplitter(
             chunk_size=cfg.markdown_chunk_size,
             chunk_overlap=cfg.markdown_chunk_overlap,
