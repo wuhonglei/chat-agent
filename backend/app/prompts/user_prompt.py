@@ -95,7 +95,7 @@ final_response_message_template: Template = Template(
     """
 {% if tool_result %}{{ tool_result }}{% endif %}
 {% if component_data %}{{ component_data }}{% endif %}
-请基于以上信息，用自然语言回答用户问题: {{ user_message }}
+请基于以上信息回答：{{ user_message }}
 """.strip()
 )
 
