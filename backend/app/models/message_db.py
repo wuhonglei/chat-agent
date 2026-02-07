@@ -75,7 +75,7 @@ class MessageDb(SQLModel, table=True):
         sa_type=SQLJSON,
         description="Token 使用统计信息，包含各个阶段（MCP 工具调用、组件工具调用、响应生成、标题生成）的 token 使用量",
     )
-    query_embedding: list[float] | None = Field(
+    embedding_vector: list[float] | None = Field(
         default=None,
         sa_type=Vector(EMBEDDING_DIMENSION),
         description="用户消息的 query embedding，用于用户画像语义检索",
@@ -83,5 +83,5 @@ class MessageDb(SQLModel, table=True):
     embedding_model: str | None = Field(
         default=None,
         max_length=64,
-        description="生成 query_embedding 的模型名",
+        description="生成 embedding_vector 的模型名",
     )

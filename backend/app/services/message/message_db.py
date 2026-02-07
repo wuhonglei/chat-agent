@@ -296,12 +296,12 @@ class MessageDbService(BaseService):
         query_embedding: list[float],
         embedding_model: str,
     ) -> MessageDb | None:
-        """更新用户消息的 query_embedding 与 embedding_model（用于用户画像语义检索）。"""
+        """更新用户消息的 embedding_vector 与 embedding_model（用于用户画像语义检索）。"""
         db = self._ensure_db()
         message = db.get(MessageDb, user_message_id)
         if not message or message.role != "user":
             return None
-        message.query_embedding = query_embedding
+        message.embedding_vector = query_embedding
         message.embedding_model = embedding_model
         conversation = db.get(ConversationDb, message.conversation_id)
         if not conversation:
@@ -313,7 +313,7 @@ class MessageDbService(BaseService):
         user_message: str,
         user_message_id: str,
     ) -> list[float] | None:
-        """计算用户消息的 query_embedding 并落库，用于用户画像语义检索。失败时仅打日志，不抛异常。"""
+        """计算用户消息的 embedding_vector 并落库，用于用户画像语义检索。失败时仅打日志，不抛异常。"""
         try:
             embedding_svc = EmbeddingService()
             query_embedding = await embedding_svc.embed_query(user_message.strip())
@@ -326,7 +326,7 @@ class MessageDbService(BaseService):
             return query_embedding
         except Exception as e:
             logger.warning(
-                "Failed to compute or persist query_embedding",
+                "Failed to compute or persist embedding_vector",
                 user_message_id=user_message_id,
                 error=e,
             )
