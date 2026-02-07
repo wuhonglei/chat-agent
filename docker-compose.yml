@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:18-alpine
+    image: pgvector/pgvector:pg18-alpine
     container_name: ai-doc-postgres
     # 暴露端口到宿主机，可通过宿主机 IP:5432 访问
     ports:
