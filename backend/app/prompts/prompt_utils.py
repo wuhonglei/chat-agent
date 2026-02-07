@@ -54,12 +54,12 @@ def get_system_prompt_for_response_generation(
 
 def get_system_prompt_for_tool_calls() -> str:
     """Get system prompt for tool calls"""
-    return system_prompt_for_tool_calls_template.render()
+    return system_prompt_for_tool_calls_template.render().strip()
 
 
 def get_system_prompt_for_title() -> str:
     """Get system prompt for title generation"""
-    return system_prompt_for_title_template.render()
+    return system_prompt_for_title_template.render().strip()
 
 
 def get_user_message_for_tool_calls(
@@ -83,7 +83,7 @@ def get_user_message_for_tool_calls(
         mcp_configs=mcp_configs,
         current_datetime=get_current_datetime_str(),
         client_ip=client_ip,
-    )
+    ).strip()
 
 
 def get_user_message_for_title(user_message: str) -> str:
@@ -99,7 +99,7 @@ def get_window_out_summary_prompt(
     return WINDOW_OUT_SUMMARY_PROMPT.render(
         max_tokens_hint=max_tokens,
         text=text,
-    )
+    ).strip()
 
 
 def get_window_out_summary_merge_prompt(
@@ -112,7 +112,7 @@ def get_window_out_summary_merge_prompt(
         prior_summary=prior_summary,
         new_messages_text=new_messages_text,
         max_tokens_hint=max_tokens,
-    )
+    ).strip()
 
 
 def get_user_facts_preferences_prompt(
@@ -132,7 +132,7 @@ def get_user_facts_preferences_prompt(
         user_message_content=user_message_content[:1000],
         assistant_content=assistant_content[:6000],
         summary=summary_str[:6000],
-    )
+    ).strip()
 
 
 def get_prompt_with_mcp_servers(
@@ -142,7 +142,7 @@ def get_prompt_with_mcp_servers(
     client_ip: str | None,
 ) -> tuple[str, str]:
     """Get combined system prompt and user message for tool calls with MCP servers"""
-    system_prompt = get_system_prompt_for_tool_calls()
+    system_prompt = get_system_prompt_for_tool_calls().strip()
     user_message_prompt = get_user_message_for_tool_calls(
         user_message, mcp_auto_mode, server_names, client_ip
     )
@@ -151,7 +151,7 @@ def get_prompt_with_mcp_servers(
 
 def get_prompt_for_title(user_message: str) -> tuple[str, str]:
     """Get combined system prompt and user message for title generation"""
-    system_prompt = get_system_prompt_for_title()
+    system_prompt = get_system_prompt_for_title().strip()
     user_message_prompt = get_user_message_for_title(user_message)
     return system_prompt, user_message_prompt
 
@@ -160,23 +160,23 @@ def get_prompt_for_component_render_data(
     user_message: str,
 ) -> tuple[str, str]:
     """Get combined system prompt and user message for component render"""
-    system_prompt = system_prompt_for_component_render_template.render()
+    system_prompt = system_prompt_for_component_render_template.render().strip()
     return system_prompt, user_message
 
 
 def get_disabled_tools_message(disabled_tools: list[str]) -> str:
     """Get disabled tools message"""
-    return disabled_tools_message_template.render(disabled_tools=disabled_tools)
+    return disabled_tools_message_template.render(disabled_tools=disabled_tools).strip()
 
 
 def get_gentle_tips_in_web_search() -> str:
     """Get gentle tips in web search"""
-    return gentle_tips_in_web_search_template.render()
+    return gentle_tips_in_web_search_template.render().strip()
 
 
 def get_tool_call_sufficient_info_message() -> str:
     """Get message when sufficient info may have been obtained"""
-    return tool_call_sufficient_info_template.render()
+    return tool_call_sufficient_info_template.render().strip()
 
 
 def get_user_message_for_response_generation(
@@ -191,4 +191,4 @@ def get_user_message_for_response_generation(
             component_data=component_data
         ),
         user_message=user_message,
-    )
+    ).strip()
