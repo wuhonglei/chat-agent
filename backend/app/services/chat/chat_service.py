@@ -186,9 +186,9 @@ class ChatService:
         self,
         chat_request: ChatRequest,
         history_messages: list[ChatMessageItemWithToolCalls],
+        user_id: str,
+        user_message_id: str,
         client_ip: str | None,
-        user_id: str | None = None,
-        user_message_id: str | None = None,
     ) -> AsyncGenerator[str, None]:
         """Stream chat response using agent architecture. user_id 用于注入 user_profile/user_context；user_message_id 用于落库 query_embedding。"""
         start_time = get_current_time()
@@ -457,7 +457,7 @@ class ChatService:
         chat_request: ChatRequest,
         user_message_id: str,
         assistant_message_id: str,
-        user_id: str | None = None,
+        user_id: str,
     ) -> AsyncGenerator[str, None]:
         """生成完整流式响应：ack、正文流、标题（可选）、done/error。user_id 用于窗口外摘要与用户画像异步任务。"""
         conversation_id = chat_request.conversation_id

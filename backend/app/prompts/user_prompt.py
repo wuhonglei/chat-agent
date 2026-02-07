@@ -35,6 +35,7 @@ user_message_for_title_template: Template = Template(
 mcp_block_template: Template = Template(
     """【以下为 MCP 工具调用返回的结果，请基于这些结果回答用户】
 
+{% if mcp_tool_items is defined and mcp_tool_items %}
 {% for item in mcp_tool_items %}
 ### {{ item.name }}
 参数：{{ item.args }}
@@ -46,12 +47,14 @@ mcp_block_template: Template = Template(
 ---
 
 {% endif %}
-{% endfor %}""".strip()
+{% endfor %}
+{% endif %}""".strip()
 )
 
 # 仅组件数据块（供 get_component_block 拼接用）
 component_data_block_template: Template = Template(
     """请在文本中合适位置返回 markdown 格式的 json 组件数据:
+{% if component_data is defined and component_data %}
 {% for component in component_data %}
 {{ loop.index }}. 组件名称：{{ component.component_name }}
 组件描述：{{ component.component_description }}
@@ -59,7 +62,8 @@ component_data_block_template: Template = Template(
 {{ component.component_json_str }}
 ```
 
-{% endfor %}""".strip()
+{% endfor %}
+{% endif %}""".strip()
 )
 
 
@@ -95,7 +99,9 @@ final_response_message_template: Template = Template(
     """
 {% if tool_result %}{{ tool_result }}{% endif %}
 {% if component_data %}{{ component_data }}{% endif %}
-请基于以上信息回答：{{ user_message }}
+{% if tool_result or component_data %}请基于以上信息回答以下用户问题：
+
+{% endif %}用户问题：{{ user_message }}
 """.strip()
 )
 

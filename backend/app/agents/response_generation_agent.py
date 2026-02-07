@@ -118,6 +118,8 @@ class ResponseGenerationAgent(BaseAgent):
         else:
             facts, prefs = ([], [])
 
+        logger.info("User facts and preferences", facts=facts, prefs=prefs)
+
         # 获取窗口外会话摘要，用于注入 system prompt
         window_out_summary = ""
         with ConversationContextDbService() as ctx_svc:
