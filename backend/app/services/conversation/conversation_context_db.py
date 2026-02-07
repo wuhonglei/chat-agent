@@ -5,7 +5,7 @@ from __future__ import annotations
 from sqlmodel import select
 
 from app.models import ConversationContextDb
-from app.services.db_service import DbService
+from app.services.base_service.db_service import DbService
 from app.utils.logger import logger
 
 

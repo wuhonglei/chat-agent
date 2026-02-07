@@ -14,7 +14,7 @@ from app.schemas.conversation import (
     CreatedBy,
     UpdateConversationRequest,
 )
-from app.services.db_service import DbService
+from app.services.base_service.db_service import DbService
 from app.utils.date import get_datetime_now
 from app.utils.logger import logger
 
