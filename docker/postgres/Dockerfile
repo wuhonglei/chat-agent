@@ -8,7 +8,7 @@ ARG PGVECTOR_VERSION=0.8.1
 
 RUN apt-get update \
     && apt-mark hold locales \
-    && apt-get install -y --no-install-recommends build-essential git postgresql-server-dev-${PG_MAJOR} \
+    && apt-get install -y --no-install-recommends ca-certificates build-essential git postgresql-server-dev-${PG_MAJOR} \
     && git clone --branch v${PGVECTOR_VERSION} --depth 1 https://github.com/pgvector/pgvector.git /tmp/pgvector \
     && cd /tmp/pgvector \
     && make clean \
