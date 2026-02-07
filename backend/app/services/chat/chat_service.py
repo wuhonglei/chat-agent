@@ -57,7 +57,7 @@ async def _run_window_out_summary_only(
     new_summary: str | None = None,
     truncated_set_ids: list[str] | None = None,
 ) -> None:
-    """仅做窗口外摘要并写入 recent_summary 与 last_summarized_message_ids；全量或增量由参数区分。
+    """仅做窗口外摘要并写入 summary_before_window 与 last_summarized_message_ids；全量或增量由参数区分。
     - 全量：传入 truncated_messages，内部调用 summarize_truncated_messages，再 upsert。
     - 增量：传入 new_summary + truncated_set_ids，仅 upsert。
     """
@@ -70,7 +70,7 @@ async def _run_window_out_summary_only(
             with ConversationContextDbService() as ctx_svc:
                 ctx_svc.upsert_conversation_context(
                     conversation_id,
-                    recent_summary=new_summary,
+                    summary_before_window=new_summary,
                     last_summarized_message_ids=truncated_set_ids,
                 )
         except Exception as e:
@@ -97,7 +97,7 @@ async def _run_window_out_summary_only(
             with ConversationContextDbService() as ctx_svc:
                 ctx_svc.upsert_conversation_context(
                     conversation_id,
-                    recent_summary=summary,
+                    summary_before_window=summary,
                     last_summarized_message_ids=truncated_set_ids,
                 )
     except Exception as e:
@@ -426,12 +426,12 @@ class ChatService:
                 set[str](last_ids) <= set(current_ids)
                 and delta_ids
                 and ctx
-                and (ctx.recent_summary or "").strip()
+                and (ctx.summary_before_window or "").strip()
             ):
                 delta_messages = [m for m in truncated_messages if m.id in delta_ids]
                 summary_svc = ContextSummaryService()
                 new_summary = await summary_svc.summarize_merge(
-                    ctx.recent_summary or "",
+                    ctx.summary_before_window or "",
                     delta_messages,
                     max_tokens=self.compression.summary_max_tokens,
                 )

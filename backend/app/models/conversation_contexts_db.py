@@ -26,10 +26,6 @@ class ConversationContextDb(SQLModel, table=True):
         default=None,
         description="窗口外更早消息的摘要",
     )
-    recent_summary: str | None = Field(
-        default=None,
-        description="最近一次截断产生的摘要",
-    )
     last_summarized_message_ids: list[str] | None = Field(
         default=None,
         sa_type=SQLJSON,

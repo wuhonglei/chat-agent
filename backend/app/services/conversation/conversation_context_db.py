@@ -28,7 +28,6 @@ class ConversationContextDbService(DbService):
         conversation_id: str,
         *,
         summary_before_window: str | None = None,
-        recent_summary: str | None = None,
         last_summarized_message_ids: list[str] | None = None,
     ) -> ConversationContextDb:
         """插入或更新会话级上下文；仅更新传入的非 None 字段"""
@@ -41,8 +40,6 @@ class ConversationContextDbService(DbService):
         if row:
             if summary_before_window is not None:
                 row.summary_before_window = summary_before_window
-            if recent_summary is not None:
-                row.recent_summary = recent_summary
             if last_summarized_message_ids is not None:
                 row.last_summarized_message_ids = last_summarized_message_ids
             db.add(row)
@@ -50,7 +47,6 @@ class ConversationContextDbService(DbService):
             row = ConversationContextDb(
                 conversation_id=conversation_id,
                 summary_before_window=summary_before_window,
-                recent_summary=recent_summary,
                 last_summarized_message_ids=last_summarized_message_ids,
             )
             db.add(row)
@@ -68,9 +64,9 @@ class ConversationContextDbService(DbService):
     ) -> str | None:
         """获取会话级上下文摘要"""
         context = self.get_conversation_context(conversation_id)
-        if context and (context.summary_before_window or context.recent_summary):
-            raw = context.recent_summary or context.summary_before_window or ""
-            if raw.strip():
-                return raw.strip()
+        if context and context.summary_before_window:
+            raw = context.summary_before_window.strip()
+            if raw:
+                return raw
 
         return None
