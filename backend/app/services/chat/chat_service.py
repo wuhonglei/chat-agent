@@ -364,6 +364,29 @@ class ChatService:
 
         return flat
 
+    async def prepare_history_messages(
+        self,
+        raw_history: list[ChatMessageItem],
+        conversation_id: str,
+    ) -> list[ChatMessageItemWithToolCalls]:
+        """
+        处理对话历史：截断轮次与 token、可选窗口外摘要、再扁平化为带 tool_calls 的消息列表。
+        供 stream_response 等调用方在获取 raw_history 后使用。
+        """
+        history_messages, truncated_messages = truncate_history_by_rounds_and_tokens(
+            raw_history,
+            self.compression.max_history_rounds,
+            self.compression.max_history_tokens,
+            self.token_calculator,
+        )
+        if self.compression.window_out_summary_enabled and truncated_messages:
+            await _run_window_out_summary_only(
+                conversation_id=conversation_id,
+                truncated_messages=truncated_messages,
+                summary_max_tokens=self.compression.summary_max_tokens,
+            )
+        return self.process_history_messages(history_messages)
+
     async def stream_response(
         self,
         chat_request: ChatRequest,
@@ -403,22 +426,9 @@ class ChatService:
                 raw_history = message_service.get_history_messages_by_ids(
                     chat_request.history_ids
                 )
-                history_messages, truncated_messages = (
-                    truncate_history_by_rounds_and_tokens(
-                        raw_history,
-                        self.compression.max_history_rounds,
-                        self.compression.max_history_tokens,
-                        self.token_calculator,
-                    )
+                new_history_messages = await self.prepare_history_messages(
+                    raw_history, conversation_id
                 )
-                # 窗口外摘要：问答开始前执行并 await，使本轮回复能使用刚生成的摘要
-                if self.compression.window_out_summary_enabled and truncated_messages:
-                    await _run_window_out_summary_only(
-                        conversation_id=conversation_id,
-                        truncated_messages=truncated_messages,
-                        summary_max_tokens=self.compression.summary_max_tokens,
-                    )
-                new_history_messages = self.process_history_messages(history_messages)
                 logger.info(
                     "Starting stream message generation",
                     conversation_id=conversation_id,
