@@ -9,7 +9,7 @@ from sqlmodel import Session, col, select
 from app.core.config import settings
 from app.models import UserProfileItemDb
 from app.services.db_service import DbService
-from app.services.infrastructure.embedding_service import EmbeddingService
+from app.services.base_service.embedding_service import EmbeddingService
 from app.utils.logger import logger
 
 # 1=事实, 2=偏好

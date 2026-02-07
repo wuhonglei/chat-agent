@@ -5,7 +5,7 @@ from pathlib import Path
 from fastapi import UploadFile
 
 from app.core.config import settings
-from app.services.infrastructure.object_storage_service import ObjectStorageService
+from app.services.base_service.object_storage_service import ObjectStorageService
 from app.utils.file import TempFileManager, get_file_extension, write_file_async
 from app.utils.logger import logger
 

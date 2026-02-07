@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, File, UploadFile
 
 from app.schemas.response import ApiResponse
-from app.services.infrastructure.file_service import FileService
+from app.services.base_service.file_service import FileService
 from app.utils.auth_deps import require_auth
 
 router = APIRouter()

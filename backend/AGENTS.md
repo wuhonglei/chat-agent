@@ -73,7 +73,7 @@ backend/
 │   │   ├── chat_service.py       # 对话服务（核心）
 │   │   ├── message_db.py    # 消息 DB 服务
 │   │   ├── conversation_db.py
-│   │   └── infrastructure/       # 基础设施服务
+│   │   └── base_service/         # 基础设施服务
 │   ├── utils/            # 工具函数
 │   │   ├── logger.py     # 日志工具（loguru）
 │   │   ├── auth_deps.py  # 认证依赖
