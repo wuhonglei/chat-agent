@@ -189,9 +189,9 @@ class UserProfileItemDbService(DbService):
         user_id: str,
         query_embedding: list[float],
         embedding_model: str,
-        top_k_facts: int = 5,
-        top_k_preferences: int = 5,
-        relevance_threshold: float = 0.5,
+        top_k_facts: int,
+        top_k_preferences: int,
+        relevance_threshold: float,
     ) -> tuple[list[str], list[str]]:
         """按 query_embedding 语义检索 top-k 事实与偏好；仅使用 embedding_model 一致且 deleted_at IS NULL 的条目；相似度低于阈值不注入。"""
         if not query_embedding:

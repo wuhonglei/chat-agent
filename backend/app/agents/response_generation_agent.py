@@ -55,9 +55,9 @@ class ResponseGenerationAgent(BaseAgent):
         self,
         user_id: str,
         query_embedding: list[float],
-        top_k_facts: int = 5,
-        top_k_preferences: int = 5,
-        relevance_threshold: float = 0.7,
+        top_k_facts: int,
+        top_k_preferences: int,
+        relevance_threshold: float,
     ) -> tuple[list[str], list[str]]:
         """获取用户事实和偏好"""
         model_name = settings.embedding_model.model_name
