@@ -2,9 +2,9 @@ services:
   postgres:
     image: postgres:18-alpine
     container_name: ai-doc-postgres
-    # 不暴露端口到宿主机，只通过内部网络访问
-    expose:
-      - "5432"
+    # 暴露端口到宿主机，可通过宿主机 IP:5432 访问
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_DB: ${PG_DB}
       POSTGRES_USER: ${PG_USER_NAME}
