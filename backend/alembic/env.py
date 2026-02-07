@@ -20,6 +20,8 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Import application settings and metadata
+# 必须导入所有模型，否则 SQLModel.metadata 为空，autogenerate 会误判并生成「删表」迁移
+import app.models  # noqa: F401, E402
 from app.core.db import SQLALCHEMY_DATABASE_URL, engine  # noqa: E402
 
 target_metadata = SQLModel.metadata
