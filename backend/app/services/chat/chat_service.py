@@ -79,7 +79,7 @@ async def _run_window_out_and_profile_tasks(
                         recent_summary=summary,
                     )
 
-        # 2. 每轮都执行：本轮用户消息 + 助手回复（+ 较早摘要若有）-> 归纳事实/偏好 -> user_profile_items
+        # 2. 每轮都执行: 本轮用户消息 + 助手回复（+ 较早摘要若有）-> 归纳事实/偏好 -> user_profile_items
         with UserProfileItemDbService() as item_svc:
             existing_facts, existing_prefs = item_svc.get_existing_texts(user_id)
             facts, preferences = await extraction_svc.extract_user_facts_preferences(
@@ -480,7 +480,7 @@ class ChatService:
                     conversation_id=conversation_id,
                 )
 
-                # 窗口外摘要与用户画像：异步执行，不阻塞响应。
+                # 窗口外摘要与用户画像: 异步执行，不阻塞响应。
                 # 有 user_id 即执行任务；摘要仅在存在截断消息时写入，事实/偏好每轮都提取，避免遗漏。
                 if self.compression.window_out_summary_enabled:
                     asyncio.create_task(

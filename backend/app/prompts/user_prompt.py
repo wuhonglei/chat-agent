@@ -123,8 +123,8 @@ USER_FACTS_PREFERENCES_PROMPT: Template = Template(
 2. 事实示例：在北京工作、用 Python 3.10、项目名为 XX。
 3. 偏好示例：偏好简短回答、不要用代码块、希望用中文。
 4. 已有记录（可在此基础上合并或去重）：
-   - 已有事实：{{ existing_facts }}
-   - 已有偏好：{{ existing_preferences }}
+   - 已有事实: {{ existing_facts }}
+   - 已有偏好: {{ existing_preferences }}
 5. 输出格式（JSON，不要其他说明）：
 {"facts": ["事实1", "事实2"], "preferences": ["偏好1", "偏好2"]}
 
