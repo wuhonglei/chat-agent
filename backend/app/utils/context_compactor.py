@@ -39,7 +39,11 @@ class ContextCompactor:
         self.token_calculator = TokenCalculator(embedding_model.model_name)
 
     def _split_markdown(self, content: str) -> list[str]:
-        splitter = MarkdownTextSplitter(chunk_size=1000, chunk_overlap=200)
+        cfg = self.compression_config
+        splitter = MarkdownTextSplitter(
+            chunk_size=cfg.markdown_chunk_size,
+            chunk_overlap=cfg.markdown_chunk_overlap,
+        )
         return [
             chunk.strip() for chunk in splitter.split_text(content) if chunk.strip()
         ]

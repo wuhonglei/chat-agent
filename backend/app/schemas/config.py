@@ -281,6 +281,32 @@ class CompressionConfig(BaseModel):
         default=0.5,
         description="用户画像相似度阈值，低于此值不注入",
     )
+    # 用户画像归纳
+    user_profile_extraction_max_tokens: int = Field(
+        default=800,
+        description="用户事实/偏好归纳 LLM 调用 max_tokens",
+    )
+    user_profile_prompt_user_content_max_chars: int = Field(
+        default=1000,
+        description="归纳 prompt 中 user_message_content 最大字符数",
+    )
+    user_profile_prompt_assistant_content_max_chars: int = Field(
+        default=6000,
+        description="归纳 prompt 中 assistant_content 最大字符数",
+    )
+    user_profile_prompt_summary_max_chars: int = Field(
+        default=6000,
+        description="归纳 prompt 中 summary 最大字符数",
+    )
+    # Markdown 分块（工具结果相关性过滤）
+    markdown_chunk_size: int = Field(
+        default=1000,
+        description="工具结果 Markdown 分块大小（字符），用于相关性过滤",
+    )
+    markdown_chunk_overlap: int = Field(
+        default=200,
+        description="工具结果 Markdown 分块重叠（字符）",
+    )
 
 
 class WechatConfig(BaseModel):

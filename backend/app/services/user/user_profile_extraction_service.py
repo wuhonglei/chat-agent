@@ -46,7 +46,7 @@ class UserProfileExtractionService(LLMService):
                 model=self.model_name,
                 messages=[{"role": "user", "content": prompt}],
                 stream=False,
-                max_tokens=800,
+                max_tokens=settings.compression.user_profile_extraction_max_tokens,
             )
             raw = (resp.choices[0].message.content or "").strip()
             data = parse_json_from_text(raw)
