@@ -278,7 +278,7 @@ class CompressionConfig(BaseModel):
         description="用户偏好语义检索 top-k",
     )
     user_profile_relevance_threshold: float = Field(
-        default=0.7,
+        default=0.5,
         description="用户画像相似度阈值，低于此值不注入",
     )
 
