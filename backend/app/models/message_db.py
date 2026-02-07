@@ -1,7 +1,8 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 from pgvector.sqlalchemy import Vector
+from pydantic import field_serializer
 from sqlalchemy import JSON as SQLJSON
 from sqlalchemy import Column, DateTime, Float, ForeignKey, String
 from sqlmodel import Field, SQLModel
@@ -83,3 +84,14 @@ class MessageDb(SQLModel, table=True):
         max_length=64,
         description="生成 embedding_vector 的模型名",
     )
+
+    @field_serializer("embedding_vector", when_used="always")
+    def serialize_embedding_vector(
+        self, value: list[float] | Any
+    ) -> list[float] | None:
+        """pgvector 从 DB 读出可能为 numpy.ndarray，序列化时转为 list。"""
+        if value is None:
+            return None
+        if hasattr(value, "tolist"):
+            return cast(list[float], value.tolist())
+        return cast(list[float], value)
