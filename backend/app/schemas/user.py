@@ -22,7 +22,7 @@ class User(BaseModel):
 
 
 class UpdateUserInfo(BaseModel):
-    name: str = Field(..., description="User name")
+    name: str | None = Field(None, description="User name")
     avatar: str | None = Field(None, description="User avatar")
 
 

@@ -76,7 +76,7 @@ export default function UserAccount() {
           item: "relative",
         }}
       />
-      {open && <SettingModal open={open} data={userDetail} onCancel={() => setOpen(false)} />}
+      {open && <SettingModal open={open} onCancel={() => setOpen(false)} />}
     </>
   );
 }

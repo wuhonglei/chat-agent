@@ -1,90 +1,91 @@
 import AvatarUploader from "@/components/common/AvatarUploader";
-import { UserInfo } from "@/interfaces";
 import { userAPI } from "@/services";
-import { useAppDispatch } from "@/store/hooks";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { setUserInfo } from "@/store/slices/userSlice";
 import { useRequest } from "ahooks";
-import { App, Form, Input } from "antd";
-import { isEqual, pick } from "lodash-es";
-import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { App, Input, Space, Typography } from "antd";
+import { useCallback } from "react";
 
-export type AccountManageRef = {
-  submit: () => Promise<void>;
-};
-
-type Props = {
-  data: UserInfo | null;
-  onSuccess?: (data: UserInfo) => void;
-  onLoadingChange?: (loading: boolean) => void;
-};
-
-const AccountManage = forwardRef<AccountManageRef, Props>(function AccountManage(
-  { data, onSuccess, onLoadingChange },
-  ref
-) {
-  const [form] = Form.useForm<UserInfo>();
+export default function AccountManage() {
+  const data = useAppSelector(state => state.user.userDetail);
   const { message } = App.useApp();
   const dispatch = useAppDispatch();
-  const { run: updateUserInfo, loading } = useRequest(userAPI.updateUserInfo, {
-    manual: true,
-    onSuccess: res => {
-      message.success("更新成功");
-      dispatch(setUserInfo(res));
-      onSuccess?.(res);
-    },
-  });
-
-  const dataRef = useRef(data);
-  useEffect(() => {
-    dataRef.current = data;
-  }, [data]);
-
-  useEffect(() => {
-    if (data) {
-      form.setFieldsValue(data);
+  const { run: updateUserInfo, loading: nameLoading } = useRequest(
+    (payload: { avatar?: string; name?: string }) => userAPI.updateUserInfo(payload),
+    {
+      manual: true,
+      onSuccess: res => {
+        message.success("更新成功");
+        dispatch(setUserInfo(res));
+      },
     }
-  }, [data, form]);
+  );
 
-  useEffect(() => {
-    onLoadingChange?.(loading);
-  }, [loading, onLoadingChange]);
-
-  const handleConfirm = async () => {
-    const values = await form.validateFields();
-    const currentKeys = Object.keys(values);
-    const initialData = pick(dataRef.current, currentKeys);
-    if (isEqual(initialData, values)) {
-      message.warning("没有修改");
+  const handleNameChange = (value: string) => {
+    const name = value?.trim() ?? "";
+    if (!name) {
+      message.error("请输入用户名");
       return;
     }
-    updateUserInfo(values);
+    if (name.length < 3) {
+      message.error("用户名至少3位");
+      return;
+    }
+    if (name.length > 16) {
+      message.error("用户名最多16位");
+      return;
+    }
+    // 是否变化
+    if (name === data?.name) {
+      return;
+    }
+    updateUserInfo({ name });
   };
 
-  useImperativeHandle(ref, () => ({
-    submit: handleConfirm,
-  }));
-
   return (
-    <Form form={form} layout="horizontal" labelCol={{ span: 4 }} wrapperCol={{ span: 8 }}>
-      <Form.Item
-        label="用户名"
-        name="name"
-        rules={[
-          { required: true, message: "请输入用户名" },
-          { min: 3, message: "用户名至少3位" },
-          { max: 16, message: "用户名最多16位" },
-        ]}
-      >
-        <Input placeholder="请输入用户名" />
-      </Form.Item>
-      <Form.Item label="手机号" name="phone">
-        <Input placeholder="请输入手机号" disabled />
-      </Form.Item>
-      <Form.Item label="头像" name="avatar">
-        <AvatarUploader />
-      </Form.Item>
-    </Form>
+    <Space orientation="vertical" size={16} style={{ width: "100%", maxWidth: 520 }}>
+      <Space orientation="horizontal" size={4} style={{ width: "100%", justifyContent: "space-between" }}>
+        <Typography.Text type="secondary">用户名</Typography.Text>
+        <Typography.Paragraph
+          editable={
+            !nameLoading
+              ? {
+                  onChange: handleNameChange,
+                }
+              : false
+          }
+          style={{ marginBottom: 0 }}
+        >
+          {data?.name || "请输入用户名"}
+        </Typography.Paragraph>
+      </Space>
+      <Space orientation="horizontal" size={4} style={{ width: "100%", justifyContent: "space-between" }}>
+        <Typography.Text type="secondary">手机号</Typography.Text>
+        <Input placeholder="请输入手机号" value={data?.phone} disabled style={{ width: "100%" }} />
+      </Space>
+      <Space orientation="horizontal" size={4} style={{ width: "100%", justifyContent: "space-between" }}>
+        <Typography.Text type="secondary">头像</Typography.Text>
+        <AvatarUploaderWithAutoSave value={data?.avatar} onUploadComplete={url => updateUserInfo({ avatar: url })} />
+      </Space>
+    </Space>
   );
-});
+}
 
-export default AccountManage;
+function AvatarUploaderWithAutoSave({
+  value,
+  onChange,
+  onUploadComplete,
+}: {
+  value?: string;
+  onChange?: (v: string) => void;
+  onUploadComplete: (url: string) => void;
+}) {
+  const handleChange = useCallback(
+    (url: string) => {
+      onChange?.(url);
+      onUploadComplete(url);
+    },
+    [onChange, onUploadComplete]
+  );
+  return <AvatarUploader value={value} onChange={handleChange} />;
+}

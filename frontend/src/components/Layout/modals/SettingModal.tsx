@@ -1,40 +1,54 @@
-import { UserInfo } from "@/interfaces";
-import { Modal } from "antd";
-import { useRef, useState } from "react";
-import AccountManage, { AccountManageRef } from "../components/AccountManage";
+import AccountManage from "@/components/Layout/components/AccountManage";
+import DataManage from "@/components/Layout/components/DataManage";
+import { DatabaseOutlined, UserOutlined } from "@ant-design/icons";
+import { Modal, Tabs } from "antd";
 
 type Props = {
   open: boolean;
   onCancel: () => void;
-  data: UserInfo | null;
 };
 
-export default function SettingModal({ open, onCancel, data }: Props) {
-  const accountManageRef = useRef<AccountManageRef>(null);
-  const [loading, setLoading] = useState(false);
-  const okButtonLoading = open && loading;
+const TAB_ITEMS = [
+  {
+    key: "account",
+    label: (
+      <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <UserOutlined />
+        账号管理
+      </span>
+    ),
+    children: <AccountManage />,
+  },
+  {
+    key: "data",
+    label: (
+      <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <DatabaseOutlined />
+        数据管理
+      </span>
+    ),
+    children: <DataManage />,
+  },
+];
 
-  const handleOk = () => {
-    accountManageRef.current?.submit();
-  };
-
+export default function SettingModal({ open, onCancel }: Props) {
   return (
     <Modal
       centered
       open={open}
-      title="用户设置"
-      onOk={handleOk}
+      title="系统设置"
+      width={640}
       onCancel={onCancel}
-      okButtonProps={{ loading: okButtonLoading }}
+      styles={{
+        header: { paddingLeft: 24 },
+        container: { paddingLeft: 0 },
+        body: {
+          paddingTop: 16,
+          paddingRight: 16,
+        },
+      }}
     >
-      <AccountManage
-        ref={accountManageRef}
-        data={data}
-        onSuccess={() => {
-          setTimeout(onCancel, 300);
-        }}
-        onLoadingChange={setLoading}
-      />
+      <Tabs tabPlacement="start" size="small" tabBarGutter={8} items={TAB_ITEMS} style={{ minHeight: 320 }} />
     </Modal>
   );
 }

@@ -116,11 +116,11 @@ class UserDbService(DbService):
         user = self.get_user(user_id)
         if not user:
             raise ValueError(f"用户不存在: {user_id}")
-        user.name = update_info.name
-        user.avatar = update_info.avatar
+        if update_info.name is not None:
+            user.name = update_info.name
+        if update_info.avatar is not None:
+            user.avatar = update_info.avatar
         db.add(user)
-        # updated_at 通过 onupdate 在 Python 层面自动更新，不需要 refresh()
-        # 事务由 get_db() 或 DbService.__exit__ 自动提交
         return user
 
     def get_or_create_user_by_openid(
