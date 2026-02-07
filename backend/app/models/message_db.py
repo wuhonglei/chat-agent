@@ -6,11 +6,9 @@ from sqlalchemy import JSON as SQLJSON
 from sqlalchemy import Column, DateTime, Float, ForeignKey, String
 from sqlmodel import Field, SQLModel
 
+from app.core.config import settings
 from app.utils.common import gen_uuid
 from app.utils.date import get_datetime_now
-
-# 与 Embedding 模型输出一致（如 DashScope text-embedding-v2 为 1536）
-EMBEDDING_DIMENSION = 1536
 
 
 class MessageDb(SQLModel, table=True):
@@ -77,7 +75,7 @@ class MessageDb(SQLModel, table=True):
     )
     embedding_vector: list[float] | None = Field(
         default=None,
-        sa_type=Vector(EMBEDDING_DIMENSION),
+        sa_type=Vector(settings.embedding_model.embedding_dimension),
         description="用户消息的 query embedding，用于用户画像语义检索",
     )
     embedding_model: str | None = Field(

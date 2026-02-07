@@ -6,7 +6,7 @@ from pgvector.sqlalchemy import Vector
 from sqlalchemy import DateTime, Index, SmallInteger, Text, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
-from app.models.message_db import EMBEDDING_DIMENSION
+from app.core.config import settings
 from app.utils.common import gen_uuid
 from app.utils.date import get_datetime_now
 
@@ -44,7 +44,7 @@ class UserProfileItemDb(SQLModel, table=True):
     )
     embedding_vector: list[float] | None = Field(
         default=None,
-        sa_type=Vector(EMBEDDING_DIMENSION),
+        sa_type=Vector(settings.embedding_model.embedding_dimension),
         description="语义向量",
     )
     embedding_model: str | None = Field(

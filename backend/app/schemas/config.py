@@ -24,7 +24,7 @@ class BaseLLMModelConfig(BaseModel):
 class EmbeddingModelConfig(BaseLLMModelConfig):
     """Embedding 模型 API 配置"""
 
-    pass
+    embedding_dimension: int = Field(default=1024, description="Embedding 维度")
 
 
 class SummarizerModelConfig(BaseLLMModelConfig):
