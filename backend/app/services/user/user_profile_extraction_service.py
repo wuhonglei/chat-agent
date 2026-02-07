@@ -49,6 +49,9 @@ class UserProfileExtractionService:
             data = parse_json_from_text(raw)
             new_facts_raw = list(data.get("facts") or [])
             new_prefs_raw = list(data.get("preferences") or [])
+            if not new_facts_raw and not new_prefs_raw:
+                return ([], [])
+
             new_facts = [
                 f for f in dict.fromkeys(new_facts_raw) if f not in existing_facts
             ]
