@@ -5,12 +5,16 @@ export interface UserInfo {
   phone: string;
 }
 
+export enum UserProfileItemType {
+  Fact = 1, // 事实
+  Preference = 2, // 偏好
+}
+
 /** 用户画像单条：事实或偏好 */
 export interface UserProfileItem {
   id: string;
   text: string;
-  /** fact | preference */
-  type: string;
+  type: UserProfileItemType;
   createdAt: string;
 }
 
