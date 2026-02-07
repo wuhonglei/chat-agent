@@ -60,7 +60,7 @@ class TitleGenerationAgent(BaseAgent):
         system_prompt, new_user_message = get_prompt_for_title(user_message)
         messages = self._compose_messages(system_prompt, [], new_user_message)
 
-        title_response = await self._call_llm_api(
+        title_response = await self.call_llm_api(
             model=self.model_name,
             messages=messages,
             stream=False,

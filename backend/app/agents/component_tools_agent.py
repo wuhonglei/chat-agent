@@ -376,7 +376,7 @@ class ComponentToolsAgent(BaseAgent):
                 self.output_messages,
                 clear_reasoning_content=False,
             )
-            response = await self._call_llm_api(
+            response = await self.call_llm_api(
                 model=model,
                 messages=messages + formatted_collected_messages,
                 tools=component_tools,

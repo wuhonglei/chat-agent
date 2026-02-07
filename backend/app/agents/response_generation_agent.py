@@ -181,7 +181,7 @@ class ResponseGenerationAgent(BaseAgent):
         2. 先有 reasoning_content，结束后才会有 content
         """
         start_time = get_current_time()
-        response = await self._call_llm_api(
+        response = await self.call_llm_api(
             model=model,
             messages=messages,
             stream=True,
