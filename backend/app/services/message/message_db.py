@@ -14,8 +14,8 @@ from app.schemas.chat import (
     CollectedResponse,
     MessageStatus,
 )
-from app.services.db_service import DbService
 from app.services.base_service import EmbeddingService
+from app.services.db_service import DbService
 from app.utils.common import gen_uuid, normalize_to_dict
 from app.utils.date import get_datetime_now
 from app.utils.logger import logger
