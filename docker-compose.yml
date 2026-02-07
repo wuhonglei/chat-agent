@@ -1,12 +1,8 @@
 services:
   postgres:
-    # 自建镜像：基于 postgres:16-alpine + 源码安装 pgvector，避免直连 Docker Hub 拉取第三方镜像超时/denied
-    build:
-      context: ./docker/postgres
-      dockerfile: Dockerfile
-    image: ai-doc-postgres:local
+    # 使用 pgvector 官方预构建镜像
+    image: pgvector/pgvector:pg18
     container_name: ai-doc-postgres
-    # 暴露端口到宿主机，可通过宿主机 IP:5432 访问
     ports:
       - "5432:5432"
     environment:
@@ -21,7 +17,7 @@ services:
       - ai-doc-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${PG_USER_NAME} -d ${PG_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U $${PG_USER_NAME} -d $${PG_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -36,7 +32,6 @@ services:
       COMPONENT_SCHEMA_API_URL: http://frontend:3000/component-schemas/
     env_file:
       - .env
-    # 暴露端口到宿主机，可通过宿主机 IP:8000 访问
     ports:
       - "8000:8000"
     volumes:
