@@ -13,6 +13,7 @@ from app.prompts.system_prompt import (
 )
 from app.prompts.user_prompt import (
     USER_FACTS_PREFERENCES_PROMPT,
+    WINDOW_OUT_SUMMARY_MERGE_PROMPT,
     WINDOW_OUT_SUMMARY_PROMPT,
     component_data_block_template,
     disabled_tools_message_template,
@@ -98,6 +99,19 @@ def get_window_out_summary_prompt(
     return WINDOW_OUT_SUMMARY_PROMPT.render(
         max_tokens_hint=max_tokens,
         text=text,
+    )
+
+
+def get_window_out_summary_merge_prompt(
+    prior_summary: str,
+    new_messages_text: str,
+    max_tokens: int,
+) -> str:
+    """渲染窗口外合并摘要的 prompt（已有摘要 + 新增消息内容 → 合并摘要）。"""
+    return WINDOW_OUT_SUMMARY_MERGE_PROMPT.render(
+        prior_summary=prior_summary,
+        new_messages_text=new_messages_text,
+        max_tokens_hint=max_tokens,
     )
 
 

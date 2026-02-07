@@ -5,7 +5,10 @@ from __future__ import annotations
 from openai import AsyncOpenAI
 
 from app.core.config import settings
-from app.prompts.prompt_utils import get_window_out_summary_prompt
+from app.prompts.prompt_utils import (
+    get_window_out_summary_merge_prompt,
+    get_window_out_summary_prompt,
+)
 from app.schemas.chat import ChatMessageItem
 from app.utils.logger import logger
 from app.utils.token import TokenCalculator
@@ -65,3 +68,44 @@ class ContextSummaryService:
                 message_count=len(truncated_messages),
             )
             return ""
+
+    async def summarize_merge(
+        self,
+        prior_summary: str,
+        new_messages: list[ChatMessageItem],
+        max_tokens: int,
+    ) -> str:
+        """将已有摘要与新增消息内容合并为一段简短摘要（增量摘要）。"""
+        if not prior_summary.strip():
+            return await self.summarize_truncated_messages(
+                new_messages, max_tokens=max_tokens
+            )
+        new_text = self._messages_to_text(new_messages)
+        if not new_text.strip():
+            return prior_summary.strip()[: max_tokens * 2]
+        prior_truncated = self._token_calculator.truncate_text_to_tokens(
+            prior_summary, max_tokens=4000
+        )
+        new_truncated = self._token_calculator.truncate_text_to_tokens(
+            new_text, max_tokens=4000
+        )
+        prompt = get_window_out_summary_merge_prompt(
+            prior_summary=prior_truncated,
+            new_messages_text=new_truncated,
+            max_tokens=max_tokens,
+        )
+        try:
+            resp = await self._client.chat.completions.create(
+                model=self._model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=max_tokens,
+            )
+            content = (resp.choices[0].message.content or "").strip()
+            return content[: max_tokens * 2]
+        except Exception as e:
+            logger.warning(
+                "Window-out merge summary LLM call failed",
+                error=e,
+                new_message_count=len(new_messages),
+            )
+            return prior_summary.strip()[: max_tokens * 2]

@@ -44,14 +44,46 @@ from app.utils.time import get_current_time, get_time_duration
 from app.utils.token import TokenCalculator
 
 
+def _truncated_set_ids(truncated_messages: list[ChatMessageItem]) -> list[str]:
+    """当前截断消息的 id 列表（稳定排序），用于写入 last_summarized_message_ids。"""
+    return sorted(m.id for m in truncated_messages)
+
+
 async def _run_window_out_summary_only(
     conversation_id: str,
-    truncated_messages: list[ChatMessageItem],
+    truncated_messages: list[ChatMessageItem] | None,
     summary_max_tokens: int,
+    *,
+    new_summary: str | None = None,
+    truncated_set_ids: list[str] | None = None,
 ) -> None:
-    """仅做窗口外摘要并写入 user_context.recent_summary，供本轮回复生成时注入 system prompt。在问答开始前 await 调用。"""
+    """仅做窗口外摘要并写入 recent_summary 与 last_summarized_message_ids；全量或增量由参数区分。
+    - 全量：传入 truncated_messages，内部调用 summarize_truncated_messages，再 upsert。
+    - 增量：传入 new_summary + truncated_set_ids，仅 upsert。
+    """
+    if new_summary is not None and truncated_set_ids is not None:
+        logger.info(
+            "Running window-out summary upsert (incremental)",
+            conversation_id=conversation_id,
+        )
+        try:
+            with ConversationContextDbService() as ctx_svc:
+                ctx_svc.upsert_conversation_context(
+                    conversation_id,
+                    recent_summary=new_summary,
+                    last_summarized_message_ids=truncated_set_ids,
+                )
+        except Exception as e:
+            logger.warning(
+                "Window-out summary upsert failed",
+                conversation_id=conversation_id,
+                error=e,
+            )
+        return
+    if not truncated_messages:
+        return
     logger.info(
-        "Running window-out summary (before response)",
+        "Running window-out summary (full)",
         conversation_id=conversation_id,
         truncated_messages_count=len(truncated_messages),
         summary_max_tokens=summary_max_tokens,
@@ -66,6 +98,7 @@ async def _run_window_out_summary_only(
                 ctx_svc.upsert_conversation_context(
                     conversation_id,
                     recent_summary=summary,
+                    last_summarized_message_ids=truncated_set_ids,
                 )
     except Exception as e:
         logger.warning(
@@ -380,11 +413,43 @@ class ChatService:
             self.token_calculator,
         )
         if self.compression.window_out_summary_enabled and truncated_messages:
-            await _run_window_out_summary_only(
-                conversation_id=conversation_id,
-                truncated_messages=truncated_messages,
-                summary_max_tokens=self.compression.summary_max_tokens,
+            current_ids = _truncated_set_ids(truncated_messages)
+            with ConversationContextDbService() as ctx_svc:
+                ctx = ctx_svc.get_conversation_context(conversation_id)
+            last_ids: list[str] = (
+                list(ctx.last_summarized_message_ids or []) if ctx else []
             )
+            if sorted(current_ids) == sorted(last_ids):
+                return self.process_history_messages(history_messages)
+            delta_ids = set(current_ids) - set(last_ids)
+            if (
+                set[str](last_ids) <= set(current_ids)
+                and delta_ids
+                and ctx
+                and (ctx.recent_summary or "").strip()
+            ):
+                delta_messages = [m for m in truncated_messages if m.id in delta_ids]
+                summary_svc = ContextSummaryService()
+                new_summary = await summary_svc.summarize_merge(
+                    ctx.recent_summary or "",
+                    delta_messages,
+                    max_tokens=self.compression.summary_max_tokens,
+                )
+                if new_summary:
+                    await _run_window_out_summary_only(
+                        conversation_id=conversation_id,
+                        truncated_messages=None,
+                        summary_max_tokens=self.compression.summary_max_tokens,
+                        new_summary=new_summary,
+                        truncated_set_ids=current_ids,
+                    )
+            else:
+                await _run_window_out_summary_only(
+                    conversation_id=conversation_id,
+                    truncated_messages=truncated_messages,
+                    summary_max_tokens=self.compression.summary_max_tokens,
+                    truncated_set_ids=current_ids,
+                )
         return self.process_history_messages(history_messages)
 
     async def stream_response(

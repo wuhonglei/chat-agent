@@ -115,6 +115,26 @@ WINDOW_OUT_SUMMARY_PROMPT: Template = Template(
 """.strip()
 )
 
+WINDOW_OUT_SUMMARY_MERGE_PROMPT: Template = Template(
+    """请将「已有摘要」与「新增对话内容」合并为一段简短摘要。
+
+要求：
+1. 保留已有摘要的关键信息，并融入新增对话的要点，不要编造。
+2. 用自然语言、控制在 {{ max_tokens_hint }} 字以内。
+3. 若新增内容为空或无关紧要，可主要保留已有摘要并略作精简。
+
+已有摘要：
+---
+{{ prior_summary }}
+---
+
+新增对话内容：
+---
+{{ new_messages_text }}
+---
+""".strip()
+)
+
 USER_FACTS_PREFERENCES_PROMPT: Template = Template(
     """根据以下对话内容，提炼用户的**可验证事实**与**明确偏好**。
 

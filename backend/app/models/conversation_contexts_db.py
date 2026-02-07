@@ -2,6 +2,7 @@
 
 from datetime import datetime
 
+from sqlalchemy import JSON as SQLJSON
 from sqlalchemy import Column, DateTime, ForeignKey, String
 from sqlmodel import Field, SQLModel
 
@@ -28,6 +29,11 @@ class ConversationContextDb(SQLModel, table=True):
     recent_summary: str | None = Field(
         default=None,
         description="最近一次截断产生的摘要",
+    )
+    last_summarized_message_ids: list[str] | None = Field(
+        default=None,
+        sa_type=SQLJSON,
+        description="上次已摘要的消息 id 列表（JSON 数组）",
     )
     updated_at: datetime = Field(
         default_factory=lambda: get_datetime_now(),

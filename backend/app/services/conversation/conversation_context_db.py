@@ -29,6 +29,7 @@ class ConversationContextDbService(BaseService):
         *,
         summary_before_window: str | None = None,
         recent_summary: str | None = None,
+        last_summarized_message_ids: list[str] | None = None,
     ) -> ConversationContextDb:
         """插入或更新会话级上下文；仅更新传入的非 None 字段"""
         db = self._ensure_db()
@@ -42,12 +43,15 @@ class ConversationContextDbService(BaseService):
                 row.summary_before_window = summary_before_window
             if recent_summary is not None:
                 row.recent_summary = recent_summary
+            if last_summarized_message_ids is not None:
+                row.last_summarized_message_ids = last_summarized_message_ids
             db.add(row)
         else:
             row = ConversationContextDb(
                 conversation_id=conversation_id,
                 summary_before_window=summary_before_window,
                 recent_summary=recent_summary,
+                last_summarized_message_ids=last_summarized_message_ids,
             )
             db.add(row)
         db.commit()
