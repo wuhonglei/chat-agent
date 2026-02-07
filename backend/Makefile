@@ -31,10 +31,6 @@ migrate:
 
 # Format code
 format:
-	uv run format.py
-
-# Quick format using ruff
-format-ruff:
 	uv run ruff check --fix app/
 	uv run ruff format app/
 
