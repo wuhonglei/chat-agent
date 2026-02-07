@@ -1,8 +1,7 @@
 services:
   postgres:
-    # 国内/腾讯云：使用 DaoCloud 镜像加速，避免直连 Docker Hub 超时
-    # 若在腾讯云内网且已配置 mirror.ccs.tencentyun.com，可改为 pgvector/pgvector:pg18-alpine
-    image: docker.m.daocloud.io/pgvector/pgvector:pg18-alpine
+    # 需在部署机器上配置 Docker 镜像加速（如腾讯云：mirror.ccs.tencentyun.com）
+    image: pgvector/pgvector:pg18-alpine
     container_name: ai-doc-postgres
     # 暴露端口到宿主机，可通过宿主机 IP:5432 访问
     ports:
