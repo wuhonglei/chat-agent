@@ -57,8 +57,13 @@ class LLMService:
 
     @property
     def think_mode(self) -> bool:
-        """是否处于思考模式（只读）。"""
+        """是否处于思考模式。"""
         return self._think_mode
+
+    @think_mode.setter
+    def think_mode(self, value: bool) -> None:
+        """按请求设置思考模式（供 Agent 每请求覆盖）。"""
+        object.__setattr__(self, "_think_mode", value)
 
     @property
     def token_calculator(self) -> TokenCalculator:
@@ -94,6 +99,7 @@ class LLMService:
         tools: list[dict[str, Any]] | None = None,
         parallel_tool_calls: bool | None = None,
         extra_body: dict[str, Any] | None = None,
+        max_tokens: int | None = None,
     ) -> ChatCompletion: ...
 
     @overload
@@ -106,6 +112,7 @@ class LLMService:
         tools: list[dict[str, Any]] | None = None,
         parallel_tool_calls: bool | None = None,
         extra_body: dict[str, Any] | None = None,
+        max_tokens: int | None = None,
     ) -> AsyncStream[ChatCompletionChunk]: ...
 
     @overload
@@ -118,6 +125,7 @@ class LLMService:
         tools: list[dict[str, Any]] | None = None,
         parallel_tool_calls: bool | None = None,
         extra_body: dict[str, Any] | None = None,
+        max_tokens: int | None = None,
     ) -> ChatCompletion | AsyncStream[ChatCompletionChunk]: ...
 
     async def call_llm_api(
@@ -129,6 +137,7 @@ class LLMService:
         tools: list[dict[str, Any]] | None = None,
         parallel_tool_calls: bool | None = None,
         extra_body: dict[str, Any] | None = None,
+        max_tokens: int | None = None,
     ) -> ChatCompletion | AsyncStream[ChatCompletionChunk]:
         """
         调用 LLM API 的统一方法，包含错误处理。
@@ -165,6 +174,9 @@ class LLMService:
 
         if extra_body is not None:
             api_params["extra_body"] = extra_body
+
+        if max_tokens is not None:
+            api_params["max_tokens"] = max_tokens
 
         log_context: dict[str, Any] = {
             "model": model,

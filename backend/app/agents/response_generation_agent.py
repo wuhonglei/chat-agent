@@ -107,21 +107,23 @@ class ResponseGenerationAgent(BaseAgent):
         )
 
         # 按 query_embedding 语义检索用户画像事实/偏好，用于注入 system prompt
-        facts, prefs = await self._get_user_facts_and_preferences(
-            user_id,
-            query_embedding,
-            top_k_facts=settings.compression.user_profile_top_k_facts,
-            top_k_preferences=settings.compression.user_profile_top_k_preferences,
-            relevance_threshold=settings.compression.user_profile_relevance_threshold,
-        )
+        if user_id is not None and query_embedding is not None:
+            facts, prefs = await self._get_user_facts_and_preferences(
+                user_id,
+                query_embedding,
+                top_k_facts=settings.compression.user_profile_top_k_facts,
+                top_k_preferences=settings.compression.user_profile_top_k_preferences,
+                relevance_threshold=settings.compression.user_profile_relevance_threshold,
+            )
+        else:
+            facts, prefs = ([], [])
 
         # 获取窗口外会话摘要，用于注入 system prompt
         window_out_summary = ""
         if conversation_id:
             with ConversationContextDbService() as ctx_svc:
-                window_out_summary = ctx_svc.get_conversation_context_summary(
-                    conversation_id
-                )
+                summary = ctx_svc.get_conversation_context_summary(conversation_id)
+                window_out_summary = summary or ""
 
         system_prompt = get_system_prompt_for_response_generation(
             user_profile_facts=facts,

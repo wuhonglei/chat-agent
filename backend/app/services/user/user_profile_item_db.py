@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+from typing import Any, cast
 
 from sqlmodel import Session, col, select
 
@@ -201,13 +202,13 @@ class UserProfileItemDbService(DbService):
         max_distance = 1.0 - relevance_threshold
         # 取候选数略多以便按 type 分别取 top_k 后过滤阈值
         limit = (top_k_facts + top_k_preferences) * 2
+        # 模型声明为 list[float]|None，实际列为 pgvector Vector，有 cosine_distance
+        embedding_col = cast(Any, UserProfileItemDb.embedding_vector)
         stmt = (
             select(
                 UserProfileItemDb.text,
                 UserProfileItemDb.type,
-                UserProfileItemDb.embedding_vector.cosine_distance(
-                    query_embedding
-                ).label("dist"),
+                embedding_col.cosine_distance(query_embedding).label("dist"),
             )
             .where(
                 UserProfileItemDb.user_id == user_id,
@@ -215,9 +216,7 @@ class UserProfileItemDbService(DbService):
                 UserProfileItemDb.embedding_model == embedding_model,
                 col(UserProfileItemDb.embedding_vector).isnot(None),
             )
-            .order_by(
-                UserProfileItemDb.embedding_vector.cosine_distance(query_embedding)
-            )
+            .order_by(embedding_col.cosine_distance(query_embedding))
             .limit(limit)
         )
         rows = db.exec(stmt).all()
