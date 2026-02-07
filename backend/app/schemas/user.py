@@ -24,3 +24,21 @@ class User(BaseModel):
 class UpdateUserInfo(BaseModel):
     name: str = Field(..., description="User name")
     avatar: str | None = Field(None, description="User avatar")
+
+
+class UserProfileItem(BaseModel):
+    """用户画像单条：事实或偏好"""
+
+    id: str = Field(..., description="条目 ID")
+    text: str = Field(..., description="内容")
+    type: str = Field(..., description="fact | preference")
+    created_at: datetime = Field(..., description="创建时间")
+
+
+class UserProfileList(BaseModel):
+    """用户画像列表：facts 与 preferences"""
+
+    facts: list[UserProfileItem] = Field(default_factory=list, description="事实列表")
+    preferences: list[UserProfileItem] = Field(
+        default_factory=list, description="偏好列表"
+    )

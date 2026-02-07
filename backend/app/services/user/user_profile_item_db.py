@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+from datetime import datetime
 from typing import Any, cast
 
 from sqlmodel import Session, col, select
@@ -11,6 +12,7 @@ from app.core.config import settings
 from app.models import UserProfileItemDb
 from app.services.base_service.db_service import DbService
 from app.services.base_service.embedding_service import EmbeddingService
+from app.utils.date import get_datetime_now
 from app.utils.logger import logger
 
 # 1=事实, 2=偏好
@@ -232,3 +234,50 @@ class UserProfileItemDbService(DbService):
             if len(facts) >= top_k_facts and len(prefs) >= top_k_preferences:
                 break
         return (facts, prefs)
+
+    def list_profile_items(
+        self,
+        user_id: str,
+    ) -> tuple[
+        list[tuple[str, str, int, datetime]], list[tuple[str, str, int, datetime]]
+    ]:
+        """返回该用户未删除的事实与偏好列表，每项为 (id, text, type, created_at)。"""
+        db = self._ensure_db()
+        stmt = (
+            select(
+                UserProfileItemDb.id,
+                UserProfileItemDb.text,
+                UserProfileItemDb.type,
+                UserProfileItemDb.created_at,
+            )
+            .where(
+                UserProfileItemDb.user_id == user_id,
+                col(UserProfileItemDb.deleted_at).is_(None),
+            )
+            .order_by(UserProfileItemDb.created_at.desc())  # type: ignore[attr-defined]
+        )
+        rows = db.exec(stmt).all()
+        facts = [(r[0], r[1], r[2], r[3]) for r in rows if r[2] == TYPE_FACT]
+        prefs = [(r[0], r[1], r[2], r[3]) for r in rows if r[2] == TYPE_PREFERENCE]
+        return (facts, prefs)
+
+    def soft_delete_item(
+        self,
+        user_id: str,
+        item_id: str,
+    ) -> bool:
+        """软删除单条画像条目；仅当 user_id 匹配且未删除时生效，返回是否成功。"""
+
+        db = self._ensure_db()
+        stmt = select(UserProfileItemDb).where(
+            UserProfileItemDb.id == item_id,
+            UserProfileItemDb.user_id == user_id,
+            col(UserProfileItemDb.deleted_at).is_(None),
+        )
+        row = db.exec(stmt).first()
+        if not row:
+            return False
+        row.deleted_at = get_datetime_now()
+        db.add(row)
+        db.commit()
+        return True
