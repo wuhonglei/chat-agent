@@ -1,4 +1,7 @@
 {
+  "files.associations": {
+    "*.env": "dotenv"
+  },
   "flake8.enabled": false,
   "python.defaultInterpreterPath": ".venv/bin/python",
   "mypy-type-checker.importStrategy": "fromEnvironment",

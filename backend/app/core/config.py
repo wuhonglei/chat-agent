@@ -44,6 +44,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(
         extra="allow",
+        env_file=".env",
         env_nested_delimiter="__",  # 支持使用 __ 访问嵌套字段，如 DATABASE__HOST
     )
 
@@ -61,12 +62,14 @@ class Settings(BaseSettings):
         优先级（从高到低）：
         1. 初始化参数（init_settings）- Settings 类构造函数初始化参数
         2. 环境变量（env_settings）- 可覆盖 Nacos 配置，用于 Docker 等场景
-        3. Nacos 配置中心（从 .env 文件读取连接信息）
+        3. .env 文件（dotenv_settings）- 本地开发覆盖 Nacos 配置，如 DATABASE__HOST
+        4. Nacos 配置中心（从 .env 文件读取连接信息）
         """
         nacos_settings = NacosConfigSettingsSource(settings_cls)
         return (
             init_settings,  # 初始化参数（最高优先级）
             env_settings,  # 环境变量（可覆盖 Nacos 配置）
+            dotenv_settings,  # .env 文件（本地覆盖，如 DATABASE__HOST）
             nacos_settings,  # Nacos 配置中心
         )
 
