@@ -60,10 +60,12 @@ class ResponseGenerationAgent(BaseAgent):
         relevance_threshold: float = 0.7,
     ) -> tuple[list[str], list[str]]:
         """获取用户事实和偏好"""
+        model_name = settings.embedding_model.model_name
         with UserProfileItemDbService() as item_svc:
             return await item_svc.get_relevant_items(
                 user_id,
                 query_embedding,
+                model_name,
                 top_k_facts,
                 top_k_preferences,
                 relevance_threshold,
