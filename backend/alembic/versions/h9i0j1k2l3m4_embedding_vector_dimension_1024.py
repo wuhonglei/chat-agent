@@ -22,21 +22,13 @@ def upgrade() -> None:
     op.execute("UPDATE messages SET embedding_vector = NULL")
 
     op.execute(
-        "ALTER TABLE user_profile_items "
-        "ALTER COLUMN embedding_vector TYPE vector(1024)"
+        "ALTER TABLE user_profile_items ALTER COLUMN embedding_vector TYPE vector(1024)"
     )
-    op.execute(
-        "ALTER TABLE messages "
-        "ALTER COLUMN embedding_vector TYPE vector(1024)"
-    )
+    op.execute("ALTER TABLE messages ALTER COLUMN embedding_vector TYPE vector(1024)")
 
 
 def downgrade() -> None:
     op.execute(
-        "ALTER TABLE user_profile_items "
-        "ALTER COLUMN embedding_vector TYPE vector(1536)"
+        "ALTER TABLE user_profile_items ALTER COLUMN embedding_vector TYPE vector(1536)"
     )
-    op.execute(
-        "ALTER TABLE messages "
-        "ALTER COLUMN embedding_vector TYPE vector(1536)"
-    )
+    op.execute("ALTER TABLE messages ALTER COLUMN embedding_vector TYPE vector(1536)")
