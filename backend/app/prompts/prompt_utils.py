@@ -48,7 +48,7 @@ def get_system_prompt_for_response_generation(
     if not fragment.strip():
         return base
 
-    return "\n\n".join([base, fragment])
+    return "\n\n".join([base, fragment.strip()])
 
 
 def get_system_prompt_for_tool_calls() -> str:

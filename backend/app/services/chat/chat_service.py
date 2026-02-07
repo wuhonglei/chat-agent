@@ -482,7 +482,7 @@ class ChatService:
 
                 # 窗口外摘要与用户画像：异步执行，不阻塞响应。
                 # 有 user_id 即执行任务；摘要仅在存在截断消息时写入，事实/偏好每轮都提取，避免遗漏。
-                if user_id and self.compression.window_out_summary_enabled:
+                if self.compression.window_out_summary_enabled:
                     asyncio.create_task(
                         _run_window_out_and_profile_tasks(
                             user_id=user_id,
