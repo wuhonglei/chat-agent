@@ -75,6 +75,7 @@ function ProfileTable({
         dataSource={dataSource}
         columns={columns}
         pagination={false}
+        scroll={{ x: "max-content" }}
         locale={{ emptyText: "暂无数据" }}
       />
     </div>

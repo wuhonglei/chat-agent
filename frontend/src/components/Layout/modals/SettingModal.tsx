@@ -1,5 +1,6 @@
 import AccountManage from "@/components/Layout/components/AccountManage";
 import DataManage from "@/components/Layout/components/DataManage";
+import { useIsSmallScreen } from "@/hooks";
 import { DatabaseOutlined, UserOutlined } from "@ant-design/icons";
 import { Modal, Tabs } from "antd";
 
@@ -32,23 +33,39 @@ const TAB_ITEMS = [
 ];
 
 export default function SettingModal({ open, onCancel }: Props) {
-  return (
-    <Modal
-      centered
-      open={open}
-      title="系统设置"
-      width={640}
-      onCancel={onCancel}
-      styles={{
+  const isSmallScreen = useIsSmallScreen();
+  console.info("isSmallScreen", isSmallScreen);
+  const tabPlacement = isSmallScreen ? "top" : "start";
+  const styles = isSmallScreen
+    ? {
+        header: { paddingLeft: 24 },
+        container: { paddingLeft: 0 },
+        body: {
+          paddingTop: 0,
+          paddingRight: 0,
+          paddingLeft: 24,
+        },
+      }
+    : {
         header: { paddingLeft: 24 },
         container: { paddingLeft: 0 },
         body: {
           paddingTop: 16,
           paddingRight: 16,
         },
-      }}
+      };
+
+  return (
+    <Modal
+      centered
+      open={open}
+      title="系统设置"
+      width="min(640px, calc(100vw - 32px))"
+      onCancel={onCancel}
+      footer={null}
+      styles={styles}
     >
-      <Tabs tabPlacement="start" size="small" tabBarGutter={8} items={TAB_ITEMS} style={{ minHeight: 320 }} />
+      <Tabs tabPlacement={tabPlacement} size="small" tabBarGutter={16} items={TAB_ITEMS} style={{ minHeight: 320 }} />
     </Modal>
   );
 }
