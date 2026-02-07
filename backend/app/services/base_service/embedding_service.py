@@ -5,7 +5,6 @@ from typing import TypeVar
 from langchain_community.embeddings import DashScopeEmbeddings
 
 from app.core.config import settings
-from app.utils.common import async_task_decorator
 from app.utils.logger import logger
 
 T = TypeVar("T")
@@ -27,8 +26,7 @@ class EmbeddingService:
         """当前使用的 Embedding 模型名称。"""
         return self._model_name
 
-    @async_task_decorator
-    def embed_query(self, text: str) -> list[float]:
+    async def aembed_query(self, text: str) -> list[float]:
         """
         对单条文本进行向量化（异步，在线程池中执行）。
 
@@ -43,13 +41,12 @@ class EmbeddingService:
             logger.debug("Embedding skipped: empty text")
             return []
         try:
-            return self._embeddings.embed_query(text)
+            return await self._embeddings.aembed_query(text)
         except Exception as e:
             logger.warning("Embedding failed", text_length=len(text), error=e)
             return []
 
-    @async_task_decorator
-    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+    async def aembed_documents(self, texts: list[str]) -> list[list[float]]:
         """
         对多条文本进行向量化（异步，在线程池中执行）。
 
@@ -64,7 +61,7 @@ class EmbeddingService:
             logger.debug("Embedding skipped: empty texts")
             return []
         try:
-            return self._embeddings.embed_documents(texts)
+            return await self._embeddings.aembed_documents(texts)
         except Exception as e:
             logger.warning("Embedding failed", texts_count=len(texts), error=e)
             return []

@@ -125,7 +125,7 @@ class UserProfileItemDbService(DbService):
         embedding_svc = EmbeddingService()
         model_name = self._current_embedding_model_name()
         all_texts = new_facts + new_preferences
-        all_vectors = await embedding_svc.embed_documents(all_texts)
+        all_vectors = await embedding_svc.aembed_documents(all_texts)
         n_facts = len(new_facts)
         vectors_facts = all_vectors[:n_facts]
         vectors_prefs = all_vectors[n_facts:]
