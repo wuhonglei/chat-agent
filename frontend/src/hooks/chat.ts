@@ -49,9 +49,9 @@ import {
 import { useEffect, useMemo, useRef } from "react";
 
 import { componentToolsForBackend } from "@/componentTools/helper";
-import { MessageStatus, TitleCreatedBy } from "@/constants";
 import { emitter, EventType } from "@/events";
 import { db } from "@/indexDB";
+import { MessageStatus, TitleCreatedBy } from "@/interfaces";
 import type { ToolCallMessage } from "@/interfaces/tooCall";
 import {
   getHistoryMessageIds,

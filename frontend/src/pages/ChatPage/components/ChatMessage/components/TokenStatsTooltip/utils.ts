@@ -1,4 +1,4 @@
-import { TokenStatsAgentName } from "@/constants";
+import { TokenStatsAgentName } from "@/interfaces";
 import { TokenStats } from "@/interfaces/token";
 import { prettyCount } from "@/utils";
 import { DescriptionsProps } from "antd";

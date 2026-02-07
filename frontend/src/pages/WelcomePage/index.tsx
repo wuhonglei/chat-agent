@@ -3,8 +3,8 @@ import ChatInput from "@/pages/ChatPage/components/ChatInput";
 import { registerConversation } from "@/store/slices/conversationSlice";
 import { Form } from "antd";
 
-import { TitleCreatedBy } from "@/constants";
 import { useNewConversation } from "@/hooks";
+import { TitleCreatedBy } from "@/interfaces";
 import { useAppDispatch } from "@/store/hooks";
 import { useMemoizedFn } from "ahooks";
 import Title from "antd/es/typography/Title";

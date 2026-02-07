@@ -1,9 +1,9 @@
-import { ToolCallStatus } from "@/constants";
 import {
   TimelineMessage,
   ToolCallEndItemMessage,
   ToolCallMessage,
   ToolCallStartItemMessage,
+  ToolCallStatus,
   ToolResultSuccessTimelineMessage,
 } from "@/interfaces";
 import { useMemo } from "react";

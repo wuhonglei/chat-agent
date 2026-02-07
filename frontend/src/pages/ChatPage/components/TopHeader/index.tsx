@@ -1,5 +1,4 @@
-import { TitleCreatedBy } from "@/constants";
-import { ConversationInfo } from "@/interfaces";
+import { ConversationInfo, TitleCreatedBy } from "@/interfaces";
 import { useAppDispatch } from "@/store/hooks";
 import { updateConversationInfo } from "@/store/slices/conversationSlice";
 import { useMemoizedFn } from "ahooks";

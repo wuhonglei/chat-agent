@@ -1,6 +1,10 @@
-import { TitleCreatedBy } from "@/constants";
-
 // Conversation types
+export enum TitleCreatedBy {
+  Default = "default",
+  User = "user",
+  LLM = "llm",
+}
+
 export interface ConversationInfo {
   id: string;
   title: string;

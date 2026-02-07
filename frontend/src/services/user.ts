@@ -1,4 +1,4 @@
-import { SendSmsResponse, UserInfo, VerifySmsRequest, WeChatLoginInitResponse } from "@/interfaces";
+import { SendSmsResponse, UserInfo, UserProfileList, VerifySmsRequest, WeChatLoginInitResponse } from "@/interfaces";
 import { apiClient } from "./base";
 
 export const userAPI = {
@@ -22,5 +22,16 @@ export const userAPI = {
   },
   weChatLoginCallback: async (data: { code: string; state: string }): Promise<UserInfo> => {
     return await apiClient.post("/auth/wechat/login", data);
+  },
+};
+
+export const profileAPI = {
+  /** 查询用户画像列表（事实 + 偏好） */
+  getProfileList: async (): Promise<UserProfileList> => {
+    return await apiClient.get("/user/profile_list");
+  },
+  /** 删除用户画像单条 */
+  deleteProfileItem: async (itemId: string): Promise<void> => {
+    return await apiClient.delete(`/user/profile_item/${itemId}`);
   },
 };

@@ -1,10 +1,4 @@
-export enum ToolCallStatus {
-  Start = "start",
-  CallingTool = "loading",
-  ToolResultSuccess = "success",
-  ToolResultError = "error",
-  AllFinished = "allFinished",
-}
+import { ToolCallStatus } from "@/interfaces";
 
 export const timelineColorByStatus = {
   [ToolCallStatus.Start]: "gray", // 未完成/初始状态

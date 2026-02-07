@@ -1,9 +1,4 @@
-export enum TokenStatsAgentName {
-  TitleGeneration = "title_generation",
-  McpTools = "mcp_tools",
-  ComponentTools = "component_tools",
-  ResponseGeneration = "response_generation",
-}
+import { TokenStatsAgentName } from "@/interfaces";
 
 export const TOKEN_STATS_TITLE_BY_AGENT_NAME = {
   [TokenStatsAgentName.TitleGeneration]: "标题生成",

@@ -1,8 +1,22 @@
 // Chat types
-import { MessageStatus, RoleType, SearchSourceType, TitleCreatedBy } from "@/constants";
 import { ComponentToolRequestItem } from "./componentTools";
+import { TitleCreatedBy } from "./conversation";
 import { TotalTokenStats } from "./token";
 import { ToolCallMessage } from "./tooCall";
+
+export enum SearchSourceType {
+  WebSearch = "web_search",
+  Confluence = "confluence",
+}
+
+export type RoleType = "user" | "assistant" | "system";
+
+export enum MessageStatus {
+  Pending = "pending",
+  Stopped = "stopped",
+  Done = "done",
+  Failed = "failed",
+}
 
 export interface SearchSourceMetaData {
   lastModifiedTime?: string; // "2025-09-26T15:48:43.000+08:00";

@@ -1,6 +1,5 @@
-import { TitleCreatedBy } from "@/constants";
 import { useIsSmallScreen } from "@/hooks";
-import { ConversationInfo, ConversationListResponse, EditConversationInfo } from "@/interfaces";
+import { ConversationInfo, ConversationListResponse, EditConversationInfo, TitleCreatedBy } from "@/interfaces";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   clearCurrentConversion,

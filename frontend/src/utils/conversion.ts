@@ -1,4 +1,4 @@
-import { TitleCreatedBy } from "@/constants";
+import { TitleCreatedBy } from "@/interfaces";
 
 export function isTitleCreatedByDefault(createdBy: TitleCreatedBy | undefined) {
   return createdBy === TitleCreatedBy.Default;

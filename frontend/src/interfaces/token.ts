@@ -1,6 +1,11 @@
 // Token 统计相关的类型定义
 
-import { TokenStatsAgentName } from "@/constants";
+export enum TokenStatsAgentName {
+  TitleGeneration = "title_generation",
+  McpTools = "mcp_tools",
+  ComponentTools = "component_tools",
+  ResponseGeneration = "response_generation",
+}
 
 /**
  * Token 使用量统计

@@ -1,5 +1,12 @@
-import { ToolCallStatus } from "@/constants";
 import { ComponentToolsTokenStats, MCPToolsTokenStats } from "./token";
+
+export enum ToolCallStatus {
+  Start = "start",
+  CallingTool = "loading",
+  ToolResultSuccess = "success",
+  ToolResultError = "error",
+  AllFinished = "allFinished",
+}
 
 export interface ToolCall {
   id: string;

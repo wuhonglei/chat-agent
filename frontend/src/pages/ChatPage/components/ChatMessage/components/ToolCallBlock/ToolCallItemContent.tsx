@@ -1,5 +1,4 @@
-import { ToolCallStatus } from "@/constants";
-import { TimelineMessage } from "@/interfaces";
+import { TimelineMessage, ToolCallStatus } from "@/interfaces";
 import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
 import CodeHighlighter from "@/pages/ChatPage/components/MarkdownContainer/components/CodeHighlighter";
 import React, { useMemo } from "react";
