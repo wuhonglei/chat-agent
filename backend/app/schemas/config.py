@@ -321,7 +321,6 @@ class ChatContextConfig(BaseModel):
     """对话上下文配置（层级结构）"""
 
     enabled: bool = Field(default=True, description="是否启用上下文压缩")
-    relevance_enabled: bool = Field(default=True, description="是否启用相关性过滤")
 
     tool_result: ToolResultCompressionConfig = Field(
         default_factory=ToolResultCompressionConfig,

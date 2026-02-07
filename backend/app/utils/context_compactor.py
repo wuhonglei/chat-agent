@@ -99,7 +99,6 @@ class ContextCompactor:
         if (
             not self.compression_config.enabled
             or original_tokens_count <= tolerance_tokens_count
-            or not self.compression_config.relevance_enabled
         ):
             return CompactionResult(
                 content=content,
