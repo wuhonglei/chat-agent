@@ -139,6 +139,8 @@ class ResponseGenerationAgent(BaseAgent):
             new_user_message,
         )
 
+        logger.debug("New messages", new_messages=new_messages)
+
         async for chunk in self._stream_final_response(
             new_messages, self.model_name, self.extra_body
         ):
