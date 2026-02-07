@@ -311,7 +311,7 @@ class MessageDbService(BaseService):
     async def persist_user_message_embedding(
         self,
         user_message: str,
-        user_message_id: str,
+        user_message_id: str | None,
     ) -> list[float] | None:
         """计算用户消息的 embedding_vector 并落库，用于用户画像语义检索。失败时仅打日志，不抛异常。"""
         try:
@@ -330,3 +330,4 @@ class MessageDbService(BaseService):
                 user_message_id=user_message_id,
                 error=e,
             )
+            return None
