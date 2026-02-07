@@ -188,6 +188,7 @@ class ChatService:
             think_mode=think_mode,
             llm_config=settings.response_model,
             schema_service=self.schema_service,
+            user_profile_retrieval_config=chat_context_config.user_profile_retrieval,
         )
 
     async def stream_message(

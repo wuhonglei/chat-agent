@@ -12,7 +12,7 @@ from app.core.config import settings
 from app.prompts import get_system_prompt_for_response_generation
 from app.prompts.prompt_utils import get_user_message_for_response_generation
 from app.schemas.chat import ChatMessageItemWithToolCalls
-from app.schemas.config import LLMConfig
+from app.schemas.config import LLMConfig, UserProfileRetrievalConfig
 from app.schemas.llm import ToolCallMessage
 from app.schemas.token_stats import ResponseGenerationTokenStats
 from app.services.component import ComponentSchemaService
@@ -30,6 +30,7 @@ class ResponseGenerationAgent(BaseAgent):
         think_mode: bool,
         llm_config: LLMConfig,
         schema_service: ComponentSchemaService,
+        user_profile_retrieval_config: UserProfileRetrievalConfig,
     ):
         super().__init__(think_mode, llm_config)
         self.content = ""
@@ -39,6 +40,7 @@ class ResponseGenerationAgent(BaseAgent):
         self.content_duration: float | None = None
         self.total_duration: float | None = None
         self.token_stats: ResponseGenerationTokenStats | None = None
+        self.user_profile_retrieval_config = user_profile_retrieval_config
 
     def format_sse_message(  # type: ignore[override]
         self, msg_type: str, data: dict[str, Any] | None = None
@@ -111,9 +113,9 @@ class ResponseGenerationAgent(BaseAgent):
             facts, prefs = await self._get_user_facts_and_preferences(
                 user_id,
                 query_embedding,
-                top_k_facts=settings.chat_context.user_profile_retrieval.top_k_facts,
-                top_k_preferences=settings.chat_context.user_profile_retrieval.top_k_preferences,
-                relevance_threshold=settings.chat_context.user_profile_retrieval.relevance_threshold,
+                top_k_facts=self.user_profile_retrieval_config.top_k_facts,
+                top_k_preferences=self.user_profile_retrieval_config.top_k_preferences,
+                relevance_threshold=self.user_profile_retrieval_config.relevance_threshold,
             )
         else:
             facts, prefs = ([], [])
