@@ -1,19 +1,24 @@
 # Postgres + pgvector 自建镜像（避免直连 Docker Hub 拉取 pgvector/pgvector 超时/denied）
-# 基础镜像使用 postgres:18-alpine，多数镜像加速会缓存 library 镜像
+# 使用 Debian 基础镜像：Alpine 仓库暂无 postgresql18-dev，bookworm 有 postgresql-server-dev-18
 ARG PG_MAJOR=18
-FROM postgres:${PG_MAJOR}-alpine
+FROM postgres:${PG_MAJOR}-bookworm
 
+ARG PG_MAJOR
 ARG PGVECTOR_VERSION=0.8.1
 
-RUN apk add --no-cache \
-    build-base \
-    git \
-    postgresql18-dev \
+RUN apt-get update \
+    && apt-mark hold locales \
+    && apt-get install -y --no-install-recommends build-essential git postgresql-server-dev-${PG_MAJOR} \
     && git clone --branch v${PGVECTOR_VERSION} --depth 1 https://github.com/pgvector/pgvector.git /tmp/pgvector \
     && cd /tmp/pgvector \
     && make clean \
-    && make \
+    && make OPTFLAGS="" \
     && make install \
+    && mkdir -p /usr/share/doc/pgvector \
+    && cp LICENSE README.md /usr/share/doc/pgvector \
     && cd / \
     && rm -rf /tmp/pgvector \
-    && apk del build-base git postgresql18-dev
+    && apt-get remove -y build-essential git postgresql-server-dev-${PG_MAJOR} \
+    && apt-get autoremove -y \
+    && apt-mark unhold locales \
+    && rm -rf /var/lib/apt/lists/*
