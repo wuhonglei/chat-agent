@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
 from app.api.deps import get_mcp_manager
+from app.core.config import settings
 from app.mcp.mcp_client import MCPClientManager
 from app.schemas.auth import AuthTokenPayload
 from app.schemas.chat import ChatRequest
@@ -43,7 +44,9 @@ async def chat_stream(
     )
 
     chat_service = ChatService(
-        think_mode=chat_request.think_mode, mcp_manager=mcp_manager
+        think_mode=chat_request.think_mode,
+        mcp_manager=mcp_manager,
+        chat_context_config=settings.chat_context,
     )
     return StreamingResponse(
         chat_service.stream_response(

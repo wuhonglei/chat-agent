@@ -316,7 +316,7 @@ class MessageDbService(DbService):
         """计算用户消息的 embedding_vector 并落库，用于用户画像语义检索。失败时仅打日志，不抛异常。"""
         try:
             embedding_svc = EmbeddingService()
-            query_embedding = await embedding_svc.embed_query(user_message.strip())
+            query_embedding = await embedding_svc.aembed_query(user_message.strip())
             if query_embedding and user_message_id:
                 self.update_user_message_embedding(
                     user_message_id,
