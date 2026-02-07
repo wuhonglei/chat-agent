@@ -8,7 +8,7 @@ from langchain_core.documents import Document
 from langchain_text_splitters import MarkdownTextSplitter
 from pydantic import BaseModel
 
-from app.schemas.config import ChatContextConfig, EmbeddingModelConfig
+from app.schemas.config import EmbeddingModelConfig, ToolResultCompressionConfig
 from app.utils.token import TokenCalculator
 
 
@@ -28,10 +28,10 @@ class ContextCompactor:
     def __init__(
         self,
         embedding_model: EmbeddingModelConfig,
-        compression_config: ChatContextConfig,
+        tool_result_compression_config: ToolResultCompressionConfig,
     ) -> None:
         self.embedding_model = embedding_model
-        self.compression_config = compression_config
+        self.tool_result_compression_config = tool_result_compression_config
         self.embeddings = DashScopeEmbeddings(
             model=embedding_model.model_name,
             dashscope_api_key=embedding_model.api_key,
@@ -39,7 +39,7 @@ class ContextCompactor:
         self.token_calculator = TokenCalculator(embedding_model.model_name)
 
     def _split_markdown(self, content: str) -> list[str]:
-        cfg = self.compression_config.tool_result
+        cfg = self.tool_result_compression_config
         splitter = MarkdownTextSplitter(
             chunk_size=cfg.markdown_chunk_size,
             chunk_overlap=cfg.markdown_chunk_overlap,
@@ -97,7 +97,7 @@ class ContextCompactor:
         original_tokens_count = self.token_calculator.count_tokens(content)
 
         if (
-            not self.compression_config.enabled
+            not self.tool_result_compression_config.enabled
             or original_tokens_count <= tolerance_tokens_count
         ):
             return CompactionResult(

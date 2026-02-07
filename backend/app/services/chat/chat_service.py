@@ -19,6 +19,7 @@ from app.schemas.chat import (
     CollectedResponse,
     MessageStatus,
 )
+from app.schemas.config import ChatContextConfig
 from app.schemas.llm import (
     AssistantToolCallMessage,
     ToolCallMessage,
@@ -151,9 +152,16 @@ async def _run_profile_extraction_only(
 class ChatService:
     """Handle chat interactions with RAG"""
 
-    def __init__(self, think_mode: bool, mcp_manager: MCPClientManager):
+    def __init__(
+        self,
+        think_mode: bool,
+        mcp_manager: MCPClientManager,
+        chat_context_config: ChatContextConfig,
+    ):
         self.debug = settings.app.debug
-        self.chat_context = settings.chat_context
+        self.chat_context_config = chat_context_config
+        self.history_window_config = self.chat_context_config.history_window
+        self.window_out_summary_config = self.chat_context_config.window_out_summary
         self.schema_service = ComponentSchemaService(
             debug=self.debug
         )  # 复用 ComponentSchemaService 实例
@@ -335,9 +343,7 @@ class ChatService:
         if not history_messages:
             return []
 
-        threshold_tokens = (
-            self.chat_context.tool_result.message_summary_threshold_tokens
-        )
+        threshold_tokens = self.chat_context_config.tool_result_compression.message_summary_threshold_tokens
 
         # 最后一轮简单视为 history_messages 的最后 2 条
         last_round_start = max(0, len(history_messages) - 2)
@@ -410,11 +416,11 @@ class ChatService:
         """
         history_messages, truncated_messages = truncate_history_by_rounds_and_tokens(
             raw_history,
-            self.chat_context.history_window.max_rounds,
-            self.chat_context.history_window.max_tokens,
+            self.history_window_config.max_rounds,
+            self.history_window_config.max_tokens,
             self.token_calculator,
         )
-        if self.chat_context.window_out_summary.enabled and truncated_messages:
+        if self.window_out_summary_config.enabled and truncated_messages:
             current_ids = _truncated_set_ids(truncated_messages)
             with ConversationContextDbService() as ctx_svc:
                 ctx = ctx_svc.get_conversation_context(conversation_id)
@@ -424,6 +430,7 @@ class ChatService:
             if sorted(current_ids) == sorted(last_ids):
                 return self.process_history_messages(history_messages)
             delta_ids = set(current_ids) - set(last_ids)
+            summary_max_tokens = self.window_out_summary_config.summary_max_tokens
             if (
                 set[str](last_ids) <= set(current_ids)
                 and delta_ids
@@ -435,13 +442,13 @@ class ChatService:
                 new_summary = await summary_svc.summarize_merge(
                     ctx.summary_before_window or "",
                     delta_messages,
-                    max_tokens=self.chat_context.window_out_summary.summary_max_tokens,
+                    max_tokens=summary_max_tokens,
                 )
                 if new_summary:
                     await _run_window_out_summary_only(
                         conversation_id=conversation_id,
                         truncated_messages=None,
-                        summary_max_tokens=self.chat_context.window_out_summary.summary_max_tokens,
+                        summary_max_tokens=summary_max_tokens,
                         new_summary=new_summary,
                         truncated_set_ids=current_ids,
                     )
@@ -449,7 +456,7 @@ class ChatService:
                 await _run_window_out_summary_only(
                     conversation_id=conversation_id,
                     truncated_messages=truncated_messages,
-                    summary_max_tokens=self.chat_context.window_out_summary.summary_max_tokens,
+                    summary_max_tokens=summary_max_tokens,
                     truncated_set_ids=current_ids,
                 )
         return self.process_history_messages(history_messages)
@@ -579,7 +586,7 @@ class ChatService:
                 )
 
                 # 用户画像：问答结束后异步执行，不阻塞响应；需助手回复内容，事实/偏好每轮都提取。
-                if self.chat_context.window_out_summary.enabled and user_id:
+                if self.window_out_summary_config.enabled and user_id:
                     asyncio.create_task(
                         _run_profile_extraction_only(
                             user_id=user_id,

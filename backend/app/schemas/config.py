@@ -236,6 +236,7 @@ class DatabaseConfig(BaseModel):
 class ToolResultCompressionConfig(BaseModel):
     """工具结果压缩与摘要配置"""
 
+    enabled: bool = Field(default=True, description="是否启用工具结果压缩与摘要")
     threshold_tokens: int = Field(
         default=5000, description="单个工具结果阈值 tokens 数"
     )
@@ -322,7 +323,7 @@ class ChatContextConfig(BaseModel):
 
     enabled: bool = Field(default=True, description="是否启用上下文压缩")
 
-    tool_result: ToolResultCompressionConfig = Field(
+    tool_result_compression: ToolResultCompressionConfig = Field(
         default_factory=ToolResultCompressionConfig,
         description="工具结果压缩与摘要",
     )
