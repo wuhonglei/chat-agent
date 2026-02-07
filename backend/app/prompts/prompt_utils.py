@@ -12,6 +12,7 @@ from app.prompts.system_prompt import (
     user_context_system_fragment_template,
 )
 from app.prompts.user_prompt import (
+    USER_FACTS_PREFERENCES_PROMPT,
     WINDOW_OUT_SUMMARY_PROMPT,
     component_data_block_template,
     disabled_tools_message_template,
@@ -97,6 +98,26 @@ def get_window_out_summary_prompt(
     return WINDOW_OUT_SUMMARY_PROMPT.render(
         max_tokens_hint=max_tokens,
         text=text,
+    )
+
+
+def get_user_facts_preferences_prompt(
+    user_message_content: str,
+    assistant_content: str,
+    existing_facts: list[str],
+    existing_preferences: list[str],
+    summary: str | None = None,
+) -> str:
+    """渲染用户事实与偏好归纳的 prompt，各部分截断以控制总长度。"""
+    existing_facts = existing_facts or []
+    existing_preferences = existing_preferences or []
+    summary_str = (summary or "").strip()
+    return USER_FACTS_PREFERENCES_PROMPT.render(
+        existing_facts=existing_facts,
+        existing_preferences=existing_preferences,
+        user_message_content=user_message_content[:1000],
+        assistant_content=assistant_content[:6000],
+        summary=summary_str[:6000],
     )
 
 

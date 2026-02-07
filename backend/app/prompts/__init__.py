@@ -8,11 +8,13 @@ from app.prompts.prompt_utils import (
     get_prompt_with_mcp_servers,
     get_system_prompt_for_response_generation,
     get_tool_call_sufficient_info_message,
+    get_user_facts_preferences_prompt,
 )
 
 __all__ = [
     "get_default_system_prompt",
     "get_prompt_for_title",
+    "get_user_facts_preferences_prompt",
     "get_prompt_with_mcp_servers",
     "get_system_prompt_for_response_generation",
     "get_disabled_tools_message",

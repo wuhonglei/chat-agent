@@ -80,24 +80,18 @@ async def _run_window_out_and_profile_tasks(
                     )
 
         # 2. 每轮都执行：本轮用户消息 + 助手回复（+ 较早摘要若有）-> 归纳事实/偏好 -> user_profile_items
-        parts = [
-            f"[用户]: {user_message_content}",
-            f"[助手]: {assistant_content}",
-        ]
-        if summary:
-            parts.append(f"[较早轮次摘要]: {summary}")
-        text = "\n\n".join(parts)
         with UserProfileItemDbService() as item_svc:
             existing_facts, existing_prefs = item_svc.get_existing_texts(user_id)
             facts, preferences = await extraction_svc.extract_user_facts_preferences(
-                text,
-                existing_facts=existing_facts or None,
-                existing_preferences=existing_prefs or None,
+                user_message=user_message,
+                assistant_content=assistant_content,
+                summary=summary,
+                existing_facts=existing_facts,
+                existing_preferences=existing_prefs,
             )
-            if facts or preferences:
-                await item_svc.batch_upsert_items(
-                    user_id, facts=facts or [], preferences=preferences or []
-                )
+            await item_svc.batch_upsert_items(
+                user_id, facts=facts, preferences=preferences
+            )
     except Exception as e:
         logger.warning(
             "Window-out summary / user profile task failed",

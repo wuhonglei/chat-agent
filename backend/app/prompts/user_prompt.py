@@ -130,7 +130,12 @@ USER_FACTS_PREFERENCES_PROMPT: Template = Template(
 
 对话内容：
 ---
-{{ text }}
+[用户]: {{ user_message_content }}
+
+[助手]: {{ assistant_content }}
+{% if summary %}
+
+[较早轮次摘要]: {{ summary }}{% endif %}
 ---
 """.strip()
 )

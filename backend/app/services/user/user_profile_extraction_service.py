@@ -5,7 +5,7 @@ from __future__ import annotations
 from openai import AsyncOpenAI
 
 from app.core.config import settings
-from app.prompts.user_prompt import USER_FACTS_PREFERENCES_PROMPT
+from app.prompts import get_user_facts_preferences_prompt
 from app.utils.common import parse_json_from_text
 from app.utils.logger import logger
 
@@ -23,19 +23,21 @@ class UserProfileExtractionService:
 
     async def extract_user_facts_preferences(
         self,
-        text: str,
+        user_message: str,
+        assistant_content: str,
+        summary: str | None = None,
         existing_facts: list[str] | None = None,
         existing_preferences: list[str] | None = None,
     ) -> tuple[list[str], list[str]]:
         """从对话文本中归纳用户事实与偏好，可与已有记录合并。"""
-        if not text or not text.strip():
-            return (existing_facts or []), (existing_preferences or [])
         existing_facts = existing_facts or []
         existing_preferences = existing_preferences or []
-        prompt = USER_FACTS_PREFERENCES_PROMPT.render(
+        prompt = get_user_facts_preferences_prompt(
+            user_message_content=user_message,
+            assistant_content=assistant_content,
             existing_facts=existing_facts,
             existing_preferences=existing_preferences,
-            text=text[:6000],
+            summary=summary,
         )
         try:
             resp = await self._client.chat.completions.create(
@@ -45,18 +47,18 @@ class UserProfileExtractionService:
             )
             raw = (resp.choices[0].message.content or "").strip()
             data = parse_json_from_text(raw)
-            all_facts = list(
-                dict.fromkeys(existing_facts + list(data.get("facts") or []))
-            )
-            all_prefs = list(
-                dict.fromkeys(
-                    existing_preferences + list(data.get("preferences") or [])
-                )
-            )
-            return (all_facts, all_prefs)
+            new_facts_raw = list(data.get("facts") or [])
+            new_prefs_raw = list(data.get("preferences") or [])
+            new_facts = [
+                f for f in dict.fromkeys(new_facts_raw) if f not in existing_facts
+            ]
+            new_prefs = [
+                p for p in dict.fromkeys(new_prefs_raw) if p not in existing_preferences
+            ]
+            return (new_facts, new_prefs)
         except Exception as e:
             logger.warning(
                 "Extract user facts/preferences LLM call failed",
                 error=e,
             )
-            return (existing_facts, existing_preferences)
+            return ([], [])
