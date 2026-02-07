@@ -78,8 +78,8 @@ class ResponseGenerationAgent(BaseAgent):
         user_message: str,
         mcp_tool_call_messages: list[ToolCallMessage],
         component_tool_call_messages: list[ToolCallMessage],
-        user_id: str | None = None,
-        conversation_id: str | None = None,
+        user_id: str,
+        conversation_id: str,
         query_embedding: list[float] | None = None,
     ) -> AsyncGenerator[str, None]:
         """
@@ -120,10 +120,9 @@ class ResponseGenerationAgent(BaseAgent):
 
         # 获取窗口外会话摘要，用于注入 system prompt
         window_out_summary = ""
-        if conversation_id:
-            with ConversationContextDbService() as ctx_svc:
-                summary = ctx_svc.get_conversation_context_summary(conversation_id)
-                window_out_summary = summary or ""
+        with ConversationContextDbService() as ctx_svc:
+            summary = ctx_svc.get_conversation_context_summary(conversation_id)
+            window_out_summary = summary or ""
 
         system_prompt = get_system_prompt_for_response_generation(
             user_profile_facts=facts,
