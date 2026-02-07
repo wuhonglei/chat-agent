@@ -5,12 +5,12 @@ from sqlmodel import Session, select
 from app.models import UserDb
 from app.schemas.auth import SigninResponse, WeChatUserInfoResponse
 from app.schemas.user import UpdateUserInfo
-from app.services.base_service import BaseService
+from app.services.db_service import DbService
 from app.utils.date import get_datetime_now
 from app.utils.logger import logger
 
 
-class UserDbService(BaseService):
+class UserDbService(DbService):
     """用户 DB 服务"""
 
     def __init__(self, db: Session | None = None):
@@ -33,7 +33,7 @@ class UserDbService(BaseService):
         db = self._ensure_db()
         db.add(user)
         # 所有字段都有 default_factory 或手动设置，不需要 refresh()
-        # 事务由 get_db() 或 BaseService.__exit__ 自动提交
+        # 事务由 get_db() 或 DbService.__exit__ 自动提交
         return user
 
     def get_user_by_sub(self, sub: str) -> UserDb | None:
@@ -86,7 +86,7 @@ class UserDbService(BaseService):
         )
         db.add(user)
         # 所有字段都有 default_factory 或手动设置，不需要 refresh()
-        # 事务由 get_db() 或 BaseService.__exit__ 自动提交
+        # 事务由 get_db() 或 DbService.__exit__ 自动提交
         return user
 
     def update_user_last_login(self, user: UserDb, last_login_type: str) -> UserDb:
@@ -96,7 +96,7 @@ class UserDbService(BaseService):
         user.last_login_type = last_login_type
         db.add(user)
         # updated_at 通过 onupdate 在 Python 层面自动更新，不需要 refresh()
-        # 事务由 get_db() 或 BaseService.__exit__ 自动提交
+        # 事务由 get_db() 或 DbService.__exit__ 自动提交
         return user
 
     def update_user_last_logout(self, user_id: str) -> None:
@@ -120,7 +120,7 @@ class UserDbService(BaseService):
         user.avatar = update_info.avatar
         db.add(user)
         # updated_at 通过 onupdate 在 Python 层面自动更新，不需要 refresh()
-        # 事务由 get_db() 或 BaseService.__exit__ 自动提交
+        # 事务由 get_db() 或 DbService.__exit__ 自动提交
         return user
 
     def get_or_create_user_by_openid(
@@ -166,5 +166,5 @@ class UserDbService(BaseService):
             logger.info("更新微信用户登录信息", openid=openid, user_id=user.id)
 
         # 所有字段都有 default_factory 或手动设置，不需要 refresh()
-        # 事务由 get_db() 或 BaseService.__exit__ 自动提交
+        # 事务由 get_db() 或 DbService.__exit__ 自动提交
         return user

@@ -8,7 +8,7 @@ from sqlmodel import Session, col, select
 
 from app.core.config import settings
 from app.models import UserProfileItemDb
-from app.services.base_service import BaseService
+from app.services.db_service import DbService
 from app.services.infrastructure.embedding_service import EmbeddingService
 from app.utils.logger import logger
 
@@ -20,7 +20,7 @@ TYPE_PREFERENCE = 2
 MAX_TEXT_LENGTH = 2048
 
 
-class UserProfileItemDbService(BaseService):
+class UserProfileItemDbService(DbService):
     """用户画像条目 DB：按条存储 + pgvector 语义检索"""
 
     def _current_embedding_model_name(self) -> str:

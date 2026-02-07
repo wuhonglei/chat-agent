@@ -14,12 +14,12 @@ from app.schemas.conversation import (
     CreatedBy,
     UpdateConversationRequest,
 )
-from app.services.base_service import BaseService
+from app.services.db_service import DbService
 from app.utils.date import get_datetime_now
 from app.utils.logger import logger
 
 
-class ConversationDbService(BaseService):
+class ConversationDbService(DbService):
     """对话 DB 服务"""
 
     def __init__(self, db: Session | None = None):

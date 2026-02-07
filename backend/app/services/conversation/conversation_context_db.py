@@ -5,11 +5,11 @@ from __future__ import annotations
 from sqlmodel import select
 
 from app.models import ConversationContextDb
-from app.services.base_service import BaseService
+from app.services.db_service import DbService
 from app.utils.logger import logger
 
 
-class ConversationContextDbService(BaseService):
+class ConversationContextDbService(DbService):
     """会话级上下文（conversation_contexts）DB 读写"""
 
     def get_conversation_context(

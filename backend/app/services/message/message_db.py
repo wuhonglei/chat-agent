@@ -14,7 +14,7 @@ from app.schemas.chat import (
     CollectedResponse,
     MessageStatus,
 )
-from app.services.base_service import BaseService
+from app.services.db_service import DbService
 from app.services.infrastructure import EmbeddingService
 from app.utils.common import gen_uuid, normalize_to_dict
 from app.utils.date import get_datetime_now
@@ -31,7 +31,7 @@ class ChatMessagesResult(BaseModel):
     conversation: ConversationDb = Field(..., description="对话")
 
 
-class MessageDbService(BaseService):
+class MessageDbService(DbService):
     """消息 DB 服务：会话消息的入库与状态更新"""
 
     def __init__(self, db: Session | None = None):
@@ -73,7 +73,7 @@ class MessageDbService(BaseService):
             return
         db = self._ensure_db()
         db.exec(delete(MessageDb).where(MessageDb.id.in_(message_ids)))  # type: ignore[attr-defined]
-        # 事务由 get_db() 或 BaseService.__exit__ 自动提交
+        # 事务由 get_db() 或 DbService.__exit__ 自动提交
 
     def get_history_messages_by_ids(
         self, message_ids: list[str]

@@ -10,7 +10,7 @@ from app.core.db import engine
 from app.utils.logger import logger
 
 
-class BaseService:
+class DbService:
     """服务基类，提供统一的数据库会话管理
 
     支持两种使用方式：
