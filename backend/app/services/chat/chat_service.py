@@ -44,42 +44,56 @@ from app.utils.time import get_current_time, get_time_duration
 from app.utils.token import TokenCalculator
 
 
-async def _run_window_out_and_profile_tasks(
-    user_id: str,
+async def _run_window_out_summary_only(
     conversation_id: str,
     truncated_messages: list[ChatMessageItem],
-    user_message_content: str,
-    assistant_content: str,
     summary_max_tokens: int,
 ) -> None:
-    """窗口外摘要写入 user_context；归纳用户事实/偏好写入 user_profile。异步执行，不阻塞主流程。"""
+    """仅做窗口外摘要并写入 user_context.recent_summary，供本轮回复生成时注入 system prompt。在问答开始前 await 调用。"""
     logger.info(
-        "Running window-out summary / user profile tasks",
-        user_id=user_id,
+        "Running window-out summary (before response)",
         conversation_id=conversation_id,
         truncated_messages_count=len(truncated_messages),
-        user_message_content_length=len(user_message_content),
-        assistant_content_length=len(assistant_content),
         summary_max_tokens=summary_max_tokens,
     )
-
-    summary_svc = ContextSummaryService()
-    extraction_svc = UserProfileExtractionService()
     try:
-        # 1. 仅当存在截断消息时：窗口外摘要 -> user_context.recent_summary
-        summary: str | None = None
-        if truncated_messages:
-            summary = await summary_svc.summarize_truncated_messages(
-                truncated_messages, max_tokens=summary_max_tokens
-            )
-            if summary:
-                with ConversationContextDbService() as ctx_svc:
-                    ctx_svc.upsert_conversation_context(
-                        conversation_id,
-                        recent_summary=summary,
-                    )
+        summary_svc = ContextSummaryService()
+        summary = await summary_svc.summarize_truncated_messages(
+            truncated_messages, max_tokens=summary_max_tokens
+        )
+        if summary:
+            with ConversationContextDbService() as ctx_svc:
+                ctx_svc.upsert_conversation_context(
+                    conversation_id,
+                    recent_summary=summary,
+                )
+    except Exception as e:
+        logger.warning(
+            "Window-out summary task failed",
+            conversation_id=conversation_id,
+            error=e,
+        )
 
-        # 2. 每轮都执行: 本轮用户消息 + 助手回复（+ 较早摘要若有）-> 归纳事实/偏好 -> user_profile_items
+
+async def _run_profile_extraction_only(
+    user_id: str,
+    conversation_id: str,
+    user_message_content: str,
+    assistant_content: str,
+) -> None:
+    """仅做用户事实/偏好归纳并写入 user_profile_items。需助手回复内容，在问答结束后异步执行。"""
+    logger.info(
+        "Running user profile extraction (after response)",
+        user_id=user_id,
+        conversation_id=conversation_id,
+        user_message_content_length=len(user_message_content),
+        assistant_content_length=len(assistant_content),
+    )
+    try:
+        summary: str | None = None
+        with ConversationContextDbService() as ctx_svc:
+            summary = ctx_svc.get_conversation_context_summary(conversation_id)
+        extraction_svc = UserProfileExtractionService()
         with UserProfileItemDbService() as item_svc:
             existing_facts, existing_prefs = item_svc.get_existing_texts(user_id)
             facts, preferences = await extraction_svc.extract_user_facts_preferences(
@@ -94,7 +108,7 @@ async def _run_window_out_and_profile_tasks(
             )
     except Exception as e:
         logger.warning(
-            "Window-out summary / user profile task failed",
+            "User profile extraction task failed",
             user_id=user_id,
             conversation_id=conversation_id,
             error=e,
@@ -397,6 +411,13 @@ class ChatService:
                         self.token_calculator,
                     )
                 )
+                # 窗口外摘要：问答开始前执行并 await，使本轮回复能使用刚生成的摘要
+                if self.compression.window_out_summary_enabled and truncated_messages:
+                    await _run_window_out_summary_only(
+                        conversation_id=conversation_id,
+                        truncated_messages=truncated_messages,
+                        summary_max_tokens=self.compression.summary_max_tokens,
+                    )
                 new_history_messages = self.process_history_messages(history_messages)
                 logger.info(
                     "Starting stream message generation",
@@ -480,19 +501,16 @@ class ChatService:
                     conversation_id=conversation_id,
                 )
 
-                # 窗口外摘要与用户画像: 异步执行，不阻塞响应。
-                # 有 user_id 即执行任务；摘要仅在存在截断消息时写入，事实/偏好每轮都提取，避免遗漏。
-                if self.compression.window_out_summary_enabled:
+                # 用户画像：问答结束后异步执行，不阻塞响应；需助手回复内容，事实/偏好每轮都提取。
+                if self.compression.window_out_summary_enabled and user_id:
                     asyncio.create_task(
-                        _run_window_out_and_profile_tasks(
+                        _run_profile_extraction_only(
                             user_id=user_id,
                             conversation_id=conversation_id,
-                            truncated_messages=truncated_messages,
                             user_message_content=chat_request.content,
                             assistant_content=assistant_payload.content or "",
-                            summary_max_tokens=self.compression.summary_max_tokens,
                         ),
-                        name="context_summary",
+                        name="user_profile_extraction",
                     )
         except Exception as e:
             logger.error(
