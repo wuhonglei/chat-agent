@@ -1,10 +1,9 @@
-import { EditOutlined, UserOutlined } from "@ant-design/icons";
-import { Avatar, Button, Upload, type GetProp, type UploadProps } from "antd";
-import ImgCrop from "antd-img-crop";
-import { isValidAvatarImage } from "@/utils/image";
-import { useRequest } from "ahooks";
 import { fileAPI } from "@/services/file";
-import { App } from "antd";
+import { isValidAvatarImage } from "@/utils/image";
+import { EditOutlined, UserOutlined } from "@ant-design/icons";
+import { useRequest } from "ahooks";
+import { App, Avatar, Button, Upload, type GetProp, type UploadProps } from "antd";
+import ImgCrop from "antd-img-crop";
 
 type CustomRequestOptions = Parameters<GetProp<UploadProps, "customRequest">>[0];
 
