@@ -83,7 +83,7 @@ async def _run_window_out_and_profile_tasks(
         with UserProfileItemDbService() as item_svc:
             existing_facts, existing_prefs = item_svc.get_existing_texts(user_id)
             facts, preferences = await extraction_svc.extract_user_facts_preferences(
-                user_message=user_message,
+                user_message_content=user_message_content,
                 assistant_content=assistant_content,
                 summary=summary,
                 existing_facts=existing_facts,

@@ -23,7 +23,7 @@ class UserProfileExtractionService:
 
     async def extract_user_facts_preferences(
         self,
-        user_message: str,
+        user_message_content: str,
         assistant_content: str,
         summary: str | None = None,
         existing_facts: list[str] | None = None,
@@ -33,7 +33,7 @@ class UserProfileExtractionService:
         existing_facts = existing_facts or []
         existing_preferences = existing_preferences or []
         prompt = get_user_facts_preferences_prompt(
-            user_message_content=user_message,
+            user_message_content=user_message_content,
             assistant_content=assistant_content,
             existing_facts=existing_facts,
             existing_preferences=existing_preferences,
