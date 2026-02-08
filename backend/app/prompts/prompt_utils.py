@@ -121,13 +121,13 @@ def get_user_facts_preferences_prompt(
     assistant_content: str,
     existing_facts: list[str],
     existing_preferences: list[str],
-    summary: str | None,
+    window_out_summary: str,
     compression_config: ChatContextConfig,
 ) -> str:
     """渲染用户事实与偏好归纳的 prompt，各部分截断以控制总长度。"""
     existing_facts = existing_facts or []
     existing_preferences = existing_preferences or []
-    summary_str = (summary or "").strip()
+    summary_str = (window_out_summary or "").strip()
     ext = compression_config.user_profile_extraction
     return USER_FACTS_PREFERENCES_PROMPT.render(
         existing_facts=existing_facts,

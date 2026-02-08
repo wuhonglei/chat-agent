@@ -120,7 +120,7 @@ async def _run_window_out_summary_only(
 
 async def _run_profile_extraction_only(
     user_id: str,
-    conversation_id: str,
+    window_out_summary: str,
     user_message_content: str,
     assistant_content: str,
 ) -> None:
@@ -128,21 +128,17 @@ async def _run_profile_extraction_only(
     logger.info(
         "Running user profile extraction (after response)",
         user_id=user_id,
-        conversation_id=conversation_id,
         user_message_content_length=len(user_message_content),
         assistant_content_length=len(assistant_content),
     )
     try:
-        summary: str | None = None
-        with ConversationContextDbService() as ctx_svc:
-            summary = ctx_svc.get_conversation_context_summary(conversation_id)
         extraction_svc = UserProfileExtractionService()
         with UserProfileItemDbService() as item_svc:
             existing_facts, existing_prefs = item_svc.get_existing_texts(user_id)
             facts, preferences = await extraction_svc.extract_user_facts_preferences(
                 user_message_content=user_message_content,
                 assistant_content=assistant_content,
-                summary=summary,
+                window_out_summary=window_out_summary,
                 existing_facts=existing_facts,
                 existing_preferences=existing_prefs,
             )
@@ -153,7 +149,6 @@ async def _run_profile_extraction_only(
         logger.warning(
             "User profile extraction task failed",
             user_id=user_id,
-            conversation_id=conversation_id,
             error=e,
         )
 
@@ -618,16 +613,15 @@ class ChatService:
                 )
 
                 # 用户画像：问答结束后异步执行，不阻塞响应；需助手回复内容，事实/偏好每轮都提取。
-                if self.window_out_summary_config.enabled and user_id:
-                    asyncio.create_task(
-                        _run_profile_extraction_only(
-                            user_id=user_id,
-                            conversation_id=conversation_id,
-                            user_message_content=chat_request.content,
-                            assistant_content=assistant_payload.content or "",
-                        ),
-                        name="user_profile_extraction",
-                    )
+                asyncio.create_task(
+                    _run_profile_extraction_only(
+                        user_id=user_id,
+                        window_out_summary=window_out_summary or "",
+                        user_message_content=chat_request.content,
+                        assistant_content=assistant_payload.content or "",
+                    ),
+                    name="user_profile_extraction",
+                )
         except Exception as e:
             logger.error(
                 "Error during stream response generation",

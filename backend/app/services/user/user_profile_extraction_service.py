@@ -27,7 +27,7 @@ class UserProfileExtractionService(LLMService):
         self,
         user_message_content: str,
         assistant_content: str,
-        summary: str | None = None,
+        window_out_summary: str,
         existing_facts: list[str] | None = None,
         existing_preferences: list[str] | None = None,
     ) -> tuple[list[str], list[str]]:
@@ -39,7 +39,7 @@ class UserProfileExtractionService(LLMService):
             assistant_content=assistant_content,
             existing_facts=existing_facts,
             existing_preferences=existing_preferences,
-            summary=summary,
+            window_out_summary=window_out_summary,
             compression_config=settings.chat_context,
         )
         try:
