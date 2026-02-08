@@ -25,9 +25,10 @@ def truncate_history_by_rounds_and_tokens(
     token_calculator: TokenCalculator,
 ) -> tuple[list[ChatMessageItem], list[ChatMessageItem]]:
     """
-    先按轮数保留最近 N 轮，再在 token 预算内从新到旧保留消息。
+    先按轮数保留最近 N 轮，再在 token 预算内从新到旧按「整轮」保留消息。
 
     - 轮定义：一条 user + 一条 assistant（含其中 tool_calls）为一轮。
+    - token 截断时按整轮取舍，不拆开单轮，保证保留的 history 中 user/assistant 成对。
     - 假定 messages 按时间顺序 [旧, ..., 新]。
     - 返回 (本次保留的 history_messages, 被截掉的更早消息)。
 
@@ -54,30 +55,31 @@ def truncate_history_by_rounds_and_tokens(
         ):
             rounds.append([messages[i], messages[i + 1]])
             i += 2
-        else:
-            # 单条或不成对，单独成一轮
-            rounds.append([messages[i]])
-            i += 1
 
-    # 只保留最近 max_rounds 轮，再压平成消息列表
+    # 只保留最近 max_rounds 轮
     rounds = rounds[-max_rounds:] if len(rounds) > max_rounds else rounds
+
+    if not rounds:
+        return ([], messages)
+
+    # 在 token 预算内按「整轮」从新到旧累加，保证 user/assistant 成对
+    tokens_used = 0
+    kept_rounds: list[list[ChatMessageItem]] = []
+    for r in reversed(rounds):
+        round_tokens = sum(count_chat_message_tokens(m, token_calculator) for m in r)
+        tokens_used += round_tokens
+        kept_rounds.append(r)
+        if tokens_used >= max_tokens:
+            break
+
+    kept_rounds.reverse()
+    kept: list[ChatMessageItem] = []
+    for r in kept_rounds:
+        kept.extend(r)
+
     after_rounds: list[ChatMessageItem] = []
     for r in rounds:
         after_rounds.extend(r)
-
-    if not after_rounds:
-        return ([], messages)
-
-    # 在 token 预算内从新到旧累加
-    tokens_used = 0
-    kept: list[ChatMessageItem] = []
-    for msg in reversed(after_rounds):
-        tokens_used += count_chat_message_tokens(msg, token_calculator)
-        if tokens_used > max_tokens:
-            break
-        kept.append(msg)
-    kept.reverse()
-
     kept_ids = {m.id for m in kept}
     truncated = [m for m in after_rounds if m.id not in kept_ids]
 

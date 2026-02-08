@@ -419,12 +419,15 @@ class ChatService:
             tool_items = format_tool_call_messages_for_llm(
                 tool_calls, clear_reasoning_content=True
             )
-            msg.content = get_user_message_combine_tool_calls(
-                msg.content,
-                tool_items,
-                [],  # 历史消息不拼接组件数据
-            )
-            # 工具调用结束后的模型回复（父级 assistant 消息）加入 flat
+
+            last_message = flat[-1] if flat else None
+            if last_message and last_message.role == "user":
+                # 工具调用结束后的模型回复（父级 assistant 消息）加入 flat
+                last_message.content = get_user_message_combine_tool_calls(
+                    last_message.content or "",
+                    tool_items,
+                    [],  # 历史消息不拼接组件数据
+                )
             flat.append(msg)
 
         return flat
