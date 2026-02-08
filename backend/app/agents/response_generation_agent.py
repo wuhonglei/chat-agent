@@ -13,7 +13,7 @@ from app.prompts import (
     get_system_prompt_for_response_generation,
     get_user_message_combine_tool_calls,
 )
-from app.schemas.chat import ChatMessageItemWithToolCalls
+from app.schemas.chat import ChatMessageItem
 from app.schemas.config import LLMConfig, UserProfileRetrievalConfig
 from app.schemas.llm import ToolCallMessage
 from app.schemas.token_stats import ResponseGenerationTokenStats
@@ -78,7 +78,7 @@ class ResponseGenerationAgent(BaseAgent):
         self,
         *,
         window_out_summary: str | None,
-        history_messages: list[ChatMessageItemWithToolCalls],
+        history_messages: list[ChatMessageItem],
         user_message: str,
         mcp_tool_call_messages: list[ToolCallMessage],
         component_tool_call_messages: list[ToolCallMessage],

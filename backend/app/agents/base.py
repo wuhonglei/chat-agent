@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from app.schemas.chat import ChatMessageItemWithToolCalls
+from app.schemas.chat import ChatMessageItem
 from app.schemas.config import LLMConfig
 from app.schemas.llm import ToolCallMessage
 from app.schemas.token_stats import BaseTokenStats, TokenUsage
@@ -86,7 +86,7 @@ class BaseAgent(ABC, LLMService):
     def _compose_messages(
         self,
         system_prompt: str,
-        history_messages: list[ChatMessageItemWithToolCalls],
+        history_messages: list[ChatMessageItem],
         user_message: str,
         tool_call_messages: list[ToolCallMessage] | None = None,
     ) -> list[dict[str, Any]]:

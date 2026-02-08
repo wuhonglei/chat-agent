@@ -15,7 +15,6 @@ from app.mcp.mcp_client import MCPClientManager
 from app.prompts import get_user_message_combine_tool_calls
 from app.schemas.chat import (
     ChatMessageItem,
-    ChatMessageItemWithToolCalls,
     ChatRequest,
     CollectedResponse,
     MessageStatus,
@@ -205,7 +204,7 @@ class ChatService:
         self,
         chat_request: ChatRequest,
         window_out_summary: str | None,
-        history_messages: list[ChatMessageItemWithToolCalls],
+        history_messages: list[ChatMessageItem],
         user_id: str,
         user_message_id: str,
         client_ip: str | None,
@@ -348,7 +347,7 @@ class ChatService:
 
     def process_history_messages(
         self, history_messages: list[ChatMessageItem]
-    ) -> list[ChatMessageItemWithToolCalls]:
+    ) -> list[ChatMessageItem]:
         """
         处理对话历史：最后 2 条视为最后一轮（完整 tool 消息），其他轮用 summary/content/截断参与组装。
         返回扁平列表，供 _compose_messages 按条 format_chat_message_for_llm。
@@ -361,7 +360,7 @@ class ChatService:
         # 最后一轮简单视为 history_messages 的最后 2 条
         last_round_start = max(0, len(history_messages) - 2)
 
-        flat: list[ChatMessageItemWithToolCalls] = []
+        flat: list[ChatMessageItem] = []
 
         for idx, msg in enumerate(history_messages):
             if msg.role == "user":
@@ -436,7 +435,7 @@ class ChatService:
         self,
         raw_history: list[ChatMessageItem],
         conversation_id: str,
-    ) -> tuple[str | None, list[ChatMessageItemWithToolCalls]]:
+    ) -> tuple[str | None, list[ChatMessageItem]]:
         """
         处理对话历史：截断轮次与 token、可选窗口外摘要、再扁平化为带 tool_calls 的消息列表。
         供 stream_response 等调用方在获取 raw_history 后使用。

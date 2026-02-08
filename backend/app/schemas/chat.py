@@ -111,7 +111,7 @@ class ChatMessageItem(BaseModel):
         description="Token 使用统计信息，包含各个阶段（MCP 工具调用、组件工具调用、响应生成、标题生成）的 token 使用量",
     )
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="ignore")
 
 
 # ChatMessageItem 和 ToolCallMessage 的混合类型
