@@ -21,12 +21,10 @@ function useProfileList() {
 function ProfileTable({
   title,
   dataSource,
-  loading,
   onDelete,
 }: {
   title: string;
   dataSource: UserProfileItem[];
-  loading: boolean;
   onDelete: (item: UserProfileItem) => void;
 }) {
   const { modal } = App.useApp();
@@ -71,12 +69,11 @@ function ProfileTable({
       <Table
         size="small"
         rowKey="id"
-        loading={loading}
         dataSource={dataSource}
         columns={columns}
         pagination={false}
-        scroll={{ x: "max-content" }}
         locale={{ emptyText: "暂无数据" }}
+        scroll={{ x: "max-content" }}
       />
     </div>
   );
@@ -101,8 +98,8 @@ export default function DataManage() {
 
   return (
     <Spin spinning={loading && !data}>
-      <ProfileTable title="用户事实" dataSource={facts} loading={loading} onDelete={handleDelete} />
-      <ProfileTable title="用户偏好" dataSource={preferences} loading={loading} onDelete={handleDelete} />
+      <ProfileTable title="用户事实" dataSource={facts} onDelete={handleDelete} />
+      <ProfileTable title="用户偏好" dataSource={preferences} onDelete={handleDelete} />
     </Spin>
   );
 }

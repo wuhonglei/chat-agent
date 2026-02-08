@@ -51,7 +51,7 @@ export default function SettingModal({ open, onCancel }: Props) {
         container: { paddingLeft: 0 },
         body: {
           paddingTop: 16,
-          paddingRight: 16,
+          paddingRight: 0,
         },
       };
 
@@ -60,12 +60,24 @@ export default function SettingModal({ open, onCancel }: Props) {
       centered
       open={open}
       title="系统设置"
-      width="min(640px, calc(100vw - 32px))"
-      onCancel={onCancel}
       footer={null}
       styles={styles}
+      onCancel={onCancel}
+      width="min(640px, calc(100vw - 32px))"
     >
-      <Tabs tabPlacement={tabPlacement} size="small" tabBarGutter={16} items={TAB_ITEMS} style={{ minHeight: 320 }} />
+      <Tabs
+        tabPlacement={tabPlacement}
+        size="small"
+        tabBarGutter={16}
+        items={TAB_ITEMS}
+        style={{ height: 320 }}
+        styles={{
+          content: {
+            height: 320,
+            overflow: "auto",
+          },
+        }}
+      />
     </Modal>
   );
 }
