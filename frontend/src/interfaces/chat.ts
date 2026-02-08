@@ -53,7 +53,7 @@ export interface ChatMessage {
   status: MessageStatus;
   messageMetadata: Omit<ChatInputFormValues, "message">;
   replyTo: string; // role为assistant时，回复到哪个user消息
-  tokenStats: TotalTokenStats;
+  tokenStats?: TotalTokenStats;
 }
 
 export interface ChatHistory {

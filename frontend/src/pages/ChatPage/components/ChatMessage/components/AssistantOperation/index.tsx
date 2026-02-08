@@ -18,7 +18,7 @@ export default function AssistantOperation(props: Props) {
     <div className={classNames("w-full flex items-center gap-2 transition duration-300")}>
       <CopyButton size="middle" text={message.content} children={null} />
       <Button type="text" icon={<RedoOutlined />} onClick={onReSend} />
-      {tokenStats.responseGeneration && (
+      {tokenStats?.responseGeneration && (
         <Tooltip
           trigger={["click", "hover"]}
           styles={{

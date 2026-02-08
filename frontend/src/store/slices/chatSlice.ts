@@ -161,7 +161,7 @@ const chatSlice = createSlice({
       const chatState = conversationIdCheck(state, conversationId);
       const lastMessage = lastMessageCheck(chatState.messages);
       if (lastMessage) {
-        set(lastMessage.tokenStats, "mcpTools", data);
+        set(lastMessage, "tokenStats.mcpTools", data);
       }
     },
     setComponentToolsTokenStats: (
@@ -172,7 +172,7 @@ const chatSlice = createSlice({
       const chatState = conversationIdCheck(state, conversationId);
       const lastMessage = lastMessageCheck(chatState.messages);
       if (lastMessage) {
-        set(lastMessage.tokenStats, "componentTools", data);
+        set(lastMessage, "tokenStats.componentTools", data);
       }
     },
     appendComponentToolCallToLastMessage: (

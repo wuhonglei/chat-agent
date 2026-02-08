@@ -13,6 +13,7 @@ export interface ComponentToolRequestItem {
 }
 
 export interface ComponentToolItem extends ComponentToolRequestItem {
+  /** 组件接收的 props 在运行时由 schema 校验，类型上使用宽松的 Record 以支持不同组件的 props 定义 */
   component:
     | React.ComponentType<Record<string, unknown>>
     | React.LazyExoticComponent<React.ComponentType<Record<string, unknown>>>;
