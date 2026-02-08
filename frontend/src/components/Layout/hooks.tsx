@@ -148,6 +148,10 @@ export function useConversationInfiniteScroll(containerRef: RefObject<HTMLDivEle
   >(
     async (lastData?) => {
       const offset = lastData ? lastData.offset + lastData.limit : 0;
+      // 防止快速滚动时多次触发导致 offset 超过 total
+      if (lastData && offset >= lastData.total) {
+        return lastData;
+      }
       const res = await dispatch(loadConversations({ offset, limit: CONVERSATION_PAGE_LIMIT })).unwrap();
       return {
         list: res.conversations,
