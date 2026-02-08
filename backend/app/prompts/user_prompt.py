@@ -35,7 +35,7 @@ user_message_for_title_template: Template = Template(
 mcp_block_template: Template = Template(
     """
 {% if mcp_tool_items %}
-【以下为 MCP 工具调用返回的结果，请基于这些结果回答用户】
+【以下为 MCP 工具调用返回的结果】
 
 {% for item in mcp_tool_items %}
 ### {{ item.name }}

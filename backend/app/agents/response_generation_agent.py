@@ -9,14 +9,15 @@ from app.agents.utils.response_generation import (
     get_mcp_tool_items,
 )
 from app.core.config import settings
-from app.prompts import get_system_prompt_for_response_generation
-from app.prompts.prompt_utils import get_user_message_for_response_generation
+from app.prompts import (
+    get_system_prompt_for_response_generation,
+    get_user_message_combine_tool_calls,
+)
 from app.schemas.chat import ChatMessageItemWithToolCalls
 from app.schemas.config import LLMConfig, UserProfileRetrievalConfig
 from app.schemas.llm import ToolCallMessage
 from app.schemas.token_stats import ResponseGenerationTokenStats
 from app.services.component import ComponentSchemaService
-from app.services.conversation import ConversationContextDbService
 from app.services.user import UserProfileItemDbService
 from app.utils.logger import logger
 from app.utils.time import get_current_time, get_time_duration
@@ -76,6 +77,7 @@ class ResponseGenerationAgent(BaseAgent):
     async def stream_execute(  # type: ignore[override]
         self,
         *,
+        window_out_summary: str | None,
         history_messages: list[ChatMessageItemWithToolCalls],
         user_message: str,
         mcp_tool_call_messages: list[ToolCallMessage],
@@ -102,10 +104,10 @@ class ResponseGenerationAgent(BaseAgent):
             component_tool_call_messages, self.schema_service.get_schema_cache()
         )
         mcp_tool_items = get_mcp_tool_items(mcp_tool_call_messages)
-        new_user_message = get_user_message_for_response_generation(
+        new_user_message = get_user_message_combine_tool_calls(
             user_message,
-            component_data,
             mcp_tool_items,
+            component_data,
         )
 
         # 按 query_embedding 语义检索用户画像事实/偏好，用于注入 system prompt
@@ -121,12 +123,6 @@ class ResponseGenerationAgent(BaseAgent):
             facts, prefs = ([], [])
 
         logger.info("User facts and preferences", facts=facts, prefs=prefs)
-
-        # 获取窗口外会话摘要，用于注入 system prompt
-        window_out_summary = ""
-        with ConversationContextDbService() as ctx_svc:
-            summary = ctx_svc.get_conversation_context_summary(conversation_id)
-            window_out_summary = summary or ""
 
         system_prompt = get_system_prompt_for_response_generation(
             user_profile_facts=facts,

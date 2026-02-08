@@ -12,6 +12,7 @@ from app.agents import (
 )
 from app.core.config import settings
 from app.mcp.mcp_client import MCPClientManager
+from app.prompts import get_user_message_combine_tool_calls
 from app.schemas.chat import (
     ChatMessageItem,
     ChatMessageItemWithToolCalls,
@@ -39,7 +40,10 @@ from app.services.user import (
 from app.utils.common import pick_fields
 from app.utils.history_truncate import truncate_history_by_rounds_and_tokens
 from app.utils.logger import logger
-from app.utils.message import filter_tool_call_messages
+from app.utils.message import (
+    filter_tool_call_messages,
+    format_tool_call_messages_for_llm,
+)
 from app.utils.model import format_sse_message
 from app.utils.time import get_current_time, get_time_duration
 from app.utils.token import TokenCalculator
@@ -57,7 +61,7 @@ async def _run_window_out_summary_only(
     *,
     new_summary: str | None = None,
     truncated_set_ids: list[str] | None = None,
-) -> None:
+) -> str | None:
     """仅做窗口外摘要并写入 summary_before_window 与 last_summarized_message_ids；全量或增量由参数区分。
     - 全量：传入 truncated_messages，内部调用 summarize_truncated_messages，再 upsert。
     - 增量：传入 new_summary + truncated_set_ids，仅 upsert。
@@ -69,20 +73,23 @@ async def _run_window_out_summary_only(
         )
         try:
             with ConversationContextDbService() as ctx_svc:
-                ctx_svc.upsert_conversation_context(
+                context = ctx_svc.upsert_conversation_context(
                     conversation_id,
                     summary_before_window=new_summary,
                     last_summarized_message_ids=truncated_set_ids,
                 )
+                return context.summary_before_window
         except Exception as e:
             logger.warning(
                 "Window-out summary upsert failed",
                 conversation_id=conversation_id,
                 error=e,
             )
-        return
+        return None
+
     if not truncated_messages:
-        return
+        return None
+
     logger.info(
         "Running window-out summary (full)",
         conversation_id=conversation_id,
@@ -96,17 +103,20 @@ async def _run_window_out_summary_only(
         )
         if summary:
             with ConversationContextDbService() as ctx_svc:
-                ctx_svc.upsert_conversation_context(
+                context = ctx_svc.upsert_conversation_context(
                     conversation_id,
                     summary_before_window=summary,
                     last_summarized_message_ids=truncated_set_ids,
                 )
+                return context.summary_before_window
+        return None
     except Exception as e:
         logger.warning(
             "Window-out summary task failed",
             conversation_id=conversation_id,
             error=e,
         )
+        return None
 
 
 async def _run_profile_extraction_only(
@@ -194,6 +204,7 @@ class ChatService:
     async def stream_message(
         self,
         chat_request: ChatRequest,
+        window_out_summary: str | None,
         history_messages: list[ChatMessageItemWithToolCalls],
         user_id: str,
         user_message_id: str,
@@ -265,6 +276,7 @@ class ChatService:
             logger.debug("Starting response generation agent execution")
             response_start_time = get_current_time()
             async for chunk in self.response_generation_agent.stream_execute(
+                window_out_summary=window_out_summary,
                 history_messages=history_messages,
                 user_message=user_message,
                 mcp_tool_call_messages=filtered_mcp_tool_call_messages,
@@ -373,13 +385,14 @@ class ChatService:
             is_latest_tool_round = idx >= last_round_start
 
             # 按原始顺序输出：assistant1, tool1, assistant2, tool2, ...
+            tool_calls: list[ToolCallMessage] = []
             for m in tool_calls_list:
                 if getattr(m, "role", None) == "assistant":
-                    flat.append(cast(AssistantToolCallMessage, m))
+                    tool_calls.append(cast(AssistantToolCallMessage, m))
                 elif getattr(m, "role", None) == "tool":
                     tr = cast(ToolCallResultMessage, m)
                     if is_latest_tool_round:
-                        flat.append(tr)
+                        tool_calls.append(tr)
                         continue
 
                     # 其他轮：用 summary，无则 content≤threshold 用 content，否则截断
@@ -399,8 +412,18 @@ class ChatService:
                                     tr.content or "", threshold_tokens
                                 )
                             )
-                    flat.append(tr.model_copy(update={"content": effective_content}))
+                    tool_calls.append(
+                        tr.model_copy(update={"content": effective_content})
+                    )
 
+            tool_items = format_tool_call_messages_for_llm(
+                tool_calls, clear_reasoning_content=True
+            )
+            msg.content = get_user_message_combine_tool_calls(
+                msg.content,
+                tool_items,
+                [],  # 历史消息不拼接组件数据
+            )
             # 工具调用结束后的模型回复（父级 assistant 消息）加入 flat
             flat.append(msg)
 
@@ -410,7 +433,7 @@ class ChatService:
         self,
         raw_history: list[ChatMessageItem],
         conversation_id: str,
-    ) -> list[ChatMessageItemWithToolCalls]:
+    ) -> tuple[str | None, list[ChatMessageItemWithToolCalls]]:
         """
         处理对话历史：截断轮次与 token、可选窗口外摘要、再扁平化为带 tool_calls 的消息列表。
         供 stream_response 等调用方在获取 raw_history 后使用。
@@ -421,15 +444,19 @@ class ChatService:
             self.history_window_config.max_tokens,
             self.token_calculator,
         )
+        window_out_summary = None
         if self.window_out_summary_config.enabled and truncated_messages:
             current_ids = _truncated_set_ids(truncated_messages)
             with ConversationContextDbService() as ctx_svc:
                 ctx = ctx_svc.get_conversation_context(conversation_id)
+                window_out_summary = ctx.summary_before_window if ctx else None
             last_ids: list[str] = (
                 list(ctx.last_summarized_message_ids or []) if ctx else []
             )
             if sorted(current_ids) == sorted(last_ids):
-                return self.process_history_messages(history_messages)
+                return window_out_summary, self.process_history_messages(
+                    history_messages
+                )
             delta_ids = set(current_ids) - set(last_ids)
             summary_max_tokens = self.window_out_summary_config.summary_max_tokens
             if (
@@ -446,7 +473,7 @@ class ChatService:
                     max_tokens=summary_max_tokens,
                 )
                 if new_summary:
-                    await _run_window_out_summary_only(
+                    window_out_summary = await _run_window_out_summary_only(
                         conversation_id=conversation_id,
                         truncated_messages=None,
                         summary_max_tokens=summary_max_tokens,
@@ -454,13 +481,13 @@ class ChatService:
                         truncated_set_ids=current_ids,
                     )
             else:
-                await _run_window_out_summary_only(
+                window_out_summary = await _run_window_out_summary_only(
                     conversation_id=conversation_id,
                     truncated_messages=truncated_messages,
                     summary_max_tokens=summary_max_tokens,
                     truncated_set_ids=current_ids,
                 )
-        return self.process_history_messages(history_messages)
+        return window_out_summary, self.process_history_messages(history_messages)
 
     async def stream_response(
         self,
@@ -501,9 +528,10 @@ class ChatService:
                 raw_history = message_service.get_history_messages_by_ids(
                     chat_request.history_ids
                 )
-                new_history_messages = await self.prepare_history_messages(
-                    raw_history, conversation_id
-                )
+                (
+                    window_out_summary,
+                    new_history_messages,
+                ) = await self.prepare_history_messages(raw_history, conversation_id)
                 logger.info(
                     "Starting stream message generation",
                     conversation_id=conversation_id,
@@ -514,6 +542,7 @@ class ChatService:
                 chunk_count = 0
                 async for chunk in self.stream_message(
                     chat_request=chat_request,
+                    window_out_summary=window_out_summary,
                     history_messages=new_history_messages,
                     client_ip=None,
                     user_id=user_id,

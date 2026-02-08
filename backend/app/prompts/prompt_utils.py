@@ -182,10 +182,10 @@ def get_tool_call_sufficient_info_message() -> str:
     return tool_call_sufficient_info_template.render().strip()
 
 
-def get_user_message_for_response_generation(
+def get_user_message_combine_tool_calls(
     user_message: str,
-    component_data: list[dict[str, Any]],
     mcp_tool_items: list[dict[str, str]],
+    component_data: list[dict[str, Any]],
 ) -> str:
     """Get user message for response generation"""
     return final_response_message_template.render(
