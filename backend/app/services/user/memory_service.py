@@ -32,6 +32,7 @@ class MemoryService:
         self,
         messages: list[dict[str, str]],
         user_id: str,
+        run_id: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> None:
         """写入记忆：POST /memories，传入 messages + user_id。"""
@@ -40,6 +41,8 @@ class MemoryService:
             "messages": messages,
             "user_id": user_id,
         }
+        if run_id is not None:
+            body["run_id"] = run_id
         if metadata is not None:
             body["metadata"] = metadata
         try:
