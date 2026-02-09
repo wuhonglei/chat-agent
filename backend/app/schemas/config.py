@@ -286,35 +286,13 @@ class WindowOutSummaryConfig(BaseModel):
     )
 
 
-class UserProfileRetrievalConfig(BaseModel):
-    """用户画像语义检索配置"""
+class MemoryConfig(BaseModel):
+    """Mem0 记忆服务配置（ChatContextConfig 下）。启用时 base_url 与 api_key 均需配置。"""
 
-    top_k_facts: int = Field(default=5, description="用户事实语义检索 top-k")
-    top_k_preferences: int = Field(default=5, description="用户偏好语义检索 top-k")
-    relevance_threshold: float = Field(
-        default=0.5,
-        description="相似度阈值，低于此值不注入",
-    )
-
-
-class UserProfileExtractionConfig(BaseModel):
-    """用户画像归纳提取配置（LLM 调用）"""
-
-    max_tokens: int = Field(
-        default=800,
-        description="用户事实/偏好归纳 LLM 调用 max_tokens",
-    )
-    prompt_user_content_max_chars: int = Field(
-        default=1000,
-        description="归纳 prompt 中 user_message_content 最大字符数",
-    )
-    prompt_assistant_content_max_chars: int = Field(
-        default=6000,
-        description="归纳 prompt 中 assistant_content 最大字符数",
-    )
-    prompt_summary_max_chars: int = Field(
-        default=6000,
-        description="归纳 prompt 中 summary 最大字符数",
+    base_url: str = Field(..., description="Mem0 API 根地址")
+    search_limit: int = Field(
+        default=10,
+        description="搜索记忆条数上限",
     )
 
 
@@ -335,13 +313,9 @@ class ChatContextConfig(BaseModel):
         default_factory=WindowOutSummaryConfig,
         description="窗口外摘要管道",
     )
-    user_profile_extraction: UserProfileExtractionConfig = Field(
-        default_factory=UserProfileExtractionConfig,
-        description="用户画像归纳提取",
-    )
-    user_profile_retrieval: UserProfileRetrievalConfig = Field(
-        default_factory=UserProfileRetrievalConfig,
-        description="用户画像语义检索",
+    memory_config: MemoryConfig = Field(
+        default_factory=MemoryConfig,  # type: ignore[arg-type]
+        description="Mem0 记忆服务配置；有值时启用记忆写入与检索",
     )
 
 

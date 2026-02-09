@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -26,19 +27,18 @@ class UpdateUserInfo(BaseModel):
     avatar: str | None = Field(None, description="User avatar")
 
 
-class UserProfileItem(BaseModel):
-    """用户画像单条：事实或偏好"""
+class MemoryListItem(BaseModel):
+    """Mem0 记忆单条（与 Mem0 GET /memories 对齐）"""
 
-    id: str = Field(..., description="条目 ID")
-    text: str = Field(..., description="内容")
-    type: str = Field(..., description="fact | preference")
-    created_at: datetime = Field(..., description="创建时间")
+    id: str = Field(..., description="记忆 ID")
+    memory: str = Field("", description="记忆内容")
+    hash: str | None = Field(None, description="hash")
+    created_at: str | None = Field(None, description="创建时间")
+    metadata: dict[str, Any] | None = Field(None, description="元数据")
+    score: float | None = Field(None, description="相关性分数（搜索时）")
 
 
-class UserProfileList(BaseModel):
-    """用户画像列表：facts 与 preferences"""
+class MemoryListResponse(BaseModel):
+    """用户记忆列表响应（Mem0 GET /memories 映射）"""
 
-    facts: list[UserProfileItem] = Field(default_factory=list, description="事实列表")
-    preferences: list[UserProfileItem] = Field(
-        default_factory=list, description="偏好列表"
-    )
+    memories: list[MemoryListItem] = Field(default_factory=list, description="记忆列表")

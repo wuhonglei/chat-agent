@@ -52,20 +52,13 @@ system_prompt_for_response_generation_template: Template = Template(
 """.strip()
 )
 
-# ============= 用户上下文 system 片段模板（事实 / 偏好 / 窗口外摘要） =============
+# ============= 用户上下文 system 片段模板（用户记忆 + 窗口外摘要） =============
 user_context_system_fragment_template: Template = Template(
     """
-{% if user_profile_facts %}
-已知用户事实:
-{% for f in user_profile_facts %}
-- {{ f }}
-{% endfor %}
-{% endif %}
-
-{% if user_profile_preferences %}
-用户偏好:
-{% for p in user_profile_preferences %}
-- {{ p }}
+{% if user_memories %}
+已知用户记忆:
+{% for m in user_memories %}
+- {{ m }}
 {% endfor %}
 {% endif %}
 

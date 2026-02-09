@@ -1,4 +1,4 @@
-import { UserProfileItem } from "@/interfaces";
+import { UserMemoryItem } from "@/interfaces";
 import { profileAPI } from "@/services";
 import { DeleteOutlined } from "@ant-design/icons";
 import { useRequest } from "ahooks";
@@ -8,8 +8,8 @@ import { useEffect } from "react";
 
 const DATE_FORMAT = "YYYY-MM-DD HH:mm";
 
-function useProfileList() {
-  const { data, loading, run } = useRequest(profileAPI.getProfileList, {
+function useMemoryList() {
+  const { data, loading, run } = useRequest(profileAPI.getMemories, {
     manual: true,
   });
   useEffect(() => {
@@ -24,15 +24,15 @@ function ProfileTable({
   onDelete,
 }: {
   title: string;
-  dataSource: UserProfileItem[];
-  onDelete: (item: UserProfileItem) => void;
+  dataSource: UserMemoryItem[];
+  onDelete: (item: UserMemoryItem) => void;
 }) {
   const { modal } = App.useApp();
 
-  const handleDelete = (item: UserProfileItem) => {
+  const handleDelete = (item: UserMemoryItem) => {
     modal.confirm({
       title: "确认删除",
-      content: `确定要删除「${item.text}」吗？`,
+      content: `确定要删除「${item.memory}」吗？`,
       okText: "删除",
       okType: "danger",
       cancelText: "取消",
@@ -43,8 +43,8 @@ function ProfileTable({
   const columns = [
     {
       title,
-      dataIndex: "text" as const,
-      key: "text",
+      dataIndex: "memory" as const,
+      key: "memory",
       ellipsis: true,
     },
     {
@@ -58,7 +58,7 @@ function ProfileTable({
       title: "操作",
       key: "action",
       width: 60,
-      render: (_: unknown, record: UserProfileItem) => (
+      render: (_: unknown, record: UserMemoryItem) => (
         <Button type="link" danger size="small" onClick={() => handleDelete(record)} icon={<DeleteOutlined />}></Button>
       ),
     },
@@ -81,11 +81,11 @@ function ProfileTable({
 
 export default function DataManage() {
   const { message } = App.useApp();
-  const { data, loading, refresh } = useProfileList();
+  const { data, loading, refresh } = useMemoryList();
 
-  const handleDelete = async (item: UserProfileItem) => {
+  const handleDelete = async (item: UserMemoryItem) => {
     try {
-      await profileAPI.deleteProfileItem(item.id);
+      await profileAPI.deleteMemory(item.id);
       message.success("已删除");
       refresh();
     } catch {
@@ -93,13 +93,9 @@ export default function DataManage() {
     }
   };
 
-  const facts = data?.facts ?? [];
-  const preferences = data?.preferences ?? [];
-
   return (
     <Spin spinning={loading && !data}>
-      <ProfileTable title="用户事实" dataSource={facts} onDelete={handleDelete} />
-      <ProfileTable title="用户偏好" dataSource={preferences} onDelete={handleDelete} />
+      <ProfileTable title="用户记忆" dataSource={data?.memories ?? []} onDelete={handleDelete} />
     </Spin>
   );
 }

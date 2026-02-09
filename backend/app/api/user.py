@@ -2,17 +2,19 @@
 用户信息
 """
 
-from datetime import datetime
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 
+from app.core.config import settings
 from app.core.db import get_db
 from app.models import UserDb
 from app.schemas.auth import AuthTokenPayload
 from app.schemas.response import ApiResponse
-from app.schemas.user import UpdateUserInfo, UserProfileItem, UserProfileList
-from app.services.user import UserDbService, UserProfileItemDbService
+from app.schemas.user import (
+    MemoryListResponse,
+    UpdateUserInfo,
+)
+from app.services.user import MemoryService, UserDbService
 from app.utils.auth_deps import get_auth_token_info
 
 router = APIRouter()
@@ -43,39 +45,24 @@ async def update_user_info(
     return ApiResponse.success(data=user)
 
 
-@router.get("/profile_list")
-async def get_user_profile_list(
-    db: Session = Depends(get_db),
+@router.get("/memories")
+async def get_memories(
     token_info: AuthTokenPayload = Depends(get_auth_token_info),
-) -> ApiResponse[UserProfileList]:
-    """查询用户画像列表（facts、preferences）"""
-    item_service = UserProfileItemDbService(db)
-    facts_tuples, prefs_tuples = item_service.list_profile_items(token_info.user_id)
-
-    def to_item(t: tuple[str, str, int, datetime]) -> UserProfileItem:
-        return UserProfileItem(
-            id=t[0],
-            text=t[1],
-            type="fact" if t[2] == 1 else "preference",
-            created_at=t[3],
-        )
-
-    facts = [to_item(t) for t in facts_tuples]
-    preferences = [to_item(t) for t in prefs_tuples]
-    return ApiResponse.success(
-        data=UserProfileList(facts=facts, preferences=preferences)
-    )
+) -> ApiResponse[MemoryListResponse]:
+    """查询用户记忆列表（Mem0 GET /memories 映射为新结构）"""
+    memory_service = MemoryService(settings.chat_context.memory_config)
+    raw_list = await memory_service.get_memories(token_info.user_id)
+    return ApiResponse.success(data=MemoryListResponse(memories=raw_list))
 
 
-@router.delete("/profile_item/{item_id}")
-async def delete_user_profile_item(
-    item_id: str,
-    db: Session = Depends(get_db),
-    token_info: AuthTokenPayload = Depends(get_auth_token_info),
+@router.delete("/memories/{memory_id}")
+async def delete_memory(
+    memory_id: str,
 ) -> ApiResponse[None]:
-    """删除单个用户画像条目（软删除）"""
-    item_service = UserProfileItemDbService(db)
-    ok = item_service.soft_delete_item(token_info.user_id, item_id)
-    if not ok:
-        raise HTTPException(status_code=404, detail="画像条目不存在或已删除")
+    """删除单条用户记忆（Mem0 DELETE /memories/{memory_id}）"""
+    memory_service = MemoryService(settings.chat_context.memory_config)
+    try:
+        await memory_service.delete_memory(memory_id)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"删除记忆失败: {e}") from e
     return ApiResponse.success()

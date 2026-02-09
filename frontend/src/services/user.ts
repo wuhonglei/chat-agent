@@ -27,11 +27,11 @@ export const userAPI = {
 
 export const profileAPI = {
   /** 查询用户画像列表（事实 + 偏好） */
-  getProfileList: async (): Promise<UserProfileList> => {
-    return await apiClient.get("/user/profile_list");
+  getMemories: async (): Promise<UserProfileList> => {
+    return await apiClient.get("/user/memories");
   },
   /** 删除用户画像单条 */
-  deleteProfileItem: async (itemId: string): Promise<void> => {
-    return await apiClient.delete(`/user/profile_item/${itemId}`);
+  deleteMemory: async (itemId: string): Promise<void> => {
+    return await apiClient.delete(`/user/memories/${itemId}`);
   },
 };

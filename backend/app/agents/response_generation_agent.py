@@ -8,17 +8,16 @@ from app.agents.utils.response_generation import (
     get_component_data,
     get_mcp_tool_items,
 )
-from app.core.config import settings
 from app.prompts import (
     get_system_prompt_for_response_generation,
     get_user_message_combine_tool_calls,
 )
 from app.schemas.chat import ChatMessageItem
-from app.schemas.config import LLMConfig, UserProfileRetrievalConfig
+from app.schemas.config import LLMConfig
 from app.schemas.llm import ToolCallMessage
 from app.schemas.token_stats import ResponseGenerationTokenStats
+from app.schemas.user import MemoryListItem
 from app.services.component import ComponentSchemaService
-from app.services.user import UserProfileItemDbService
 from app.utils.logger import logger
 from app.utils.time import get_current_time, get_time_duration
 
@@ -31,7 +30,6 @@ class ResponseGenerationAgent(BaseAgent):
         think_mode: bool,
         llm_config: LLMConfig,
         schema_service: ComponentSchemaService,
-        user_profile_retrieval_config: UserProfileRetrievalConfig,
     ):
         super().__init__(think_mode, llm_config)
         self.content = ""
@@ -41,7 +39,6 @@ class ResponseGenerationAgent(BaseAgent):
         self.content_duration: float | None = None
         self.total_duration: float | None = None
         self.token_stats: ResponseGenerationTokenStats | None = None
-        self.user_profile_retrieval_config = user_profile_retrieval_config
 
     def format_sse_message(  # type: ignore[override]
         self, msg_type: str, data: dict[str, Any] | None = None
@@ -54,26 +51,6 @@ class ResponseGenerationAgent(BaseAgent):
                 self.reasoning += data.get("content") or ""
         return super().format_sse_message(msg_type, data)
 
-    async def _get_user_facts_and_preferences(
-        self,
-        user_id: str,
-        query_embedding: list[float],
-        top_k_facts: int,
-        top_k_preferences: int,
-        relevance_threshold: float,
-    ) -> tuple[list[str], list[str]]:
-        """获取用户事实和偏好"""
-        model_name = settings.embedding_model.model_name
-        with UserProfileItemDbService() as item_svc:
-            return await item_svc.get_relevant_items(
-                user_id,
-                query_embedding,
-                model_name,
-                top_k_facts,
-                top_k_preferences,
-                relevance_threshold,
-            )
-
     async def stream_execute(  # type: ignore[override]
         self,
         *,
@@ -84,18 +61,19 @@ class ResponseGenerationAgent(BaseAgent):
         component_tool_call_messages: list[ToolCallMessage],
         user_id: str,
         conversation_id: str,
-        query_embedding: list[float] | None = None,
+        user_memories: list[MemoryListItem],
     ) -> AsyncGenerator[str, None]:
         """
-        流式生成最终响应
+        流式生成最终响应。记忆仅使用传入的 user_memories，不在此处做检索。
 
         Args:
             history_messages: 对话历史消息列表
             user_message: 原始用户消息
             mcp_tool_call_messages: MCP工具调用消息
             component_tool_call_messages: 组件工具调用消息
-            user_id: 用户 ID，用于注入 user_profile / user_context
-            conversation_id: 对话 ID，用于注入 user_context 窗口外摘要
+            user_id: 用户 ID
+            conversation_id: 对话 ID
+            user_memories: 用户记忆文本列表（由上层 Mem0 搜索得到）
 
         Yields:
             str: SSE格式的响应消息
@@ -110,23 +88,11 @@ class ResponseGenerationAgent(BaseAgent):
             component_data,
         )
 
-        # 按 query_embedding 语义检索用户画像事实/偏好，用于注入 system prompt
-        if user_id is not None and query_embedding is not None:
-            facts, prefs = await self._get_user_facts_and_preferences(
-                user_id,
-                query_embedding,
-                top_k_facts=self.user_profile_retrieval_config.top_k_facts,
-                top_k_preferences=self.user_profile_retrieval_config.top_k_preferences,
-                relevance_threshold=self.user_profile_retrieval_config.relevance_threshold,
-            )
-        else:
-            facts, prefs = ([], [])
-
-        logger.info("User facts and preferences", facts=facts, prefs=prefs)
+        memories = [memory.memory for memory in user_memories]
+        logger.info("User memories", count=len(memories), memories=memories)
 
         system_prompt = get_system_prompt_for_response_generation(
-            user_profile_facts=facts,
-            user_profile_preferences=prefs,
+            user_memories=memories,
             window_out_summary=window_out_summary,
         )
         logger.debug("System prompt", system_prompt=system_prompt)
@@ -136,8 +102,6 @@ class ResponseGenerationAgent(BaseAgent):
             history_messages,
             new_user_message,
         )
-
-        logger.debug("New messages", new_messages=new_messages)
 
         async for chunk in self._stream_final_response(
             new_messages, self.model_name, self.extra_body

@@ -11,15 +11,14 @@ export enum UserProfileItemType {
 }
 
 /** 用户画像单条：事实或偏好 */
-export interface UserProfileItem {
+export interface UserMemoryItem {
   id: string;
-  text: string;
+  memory: string;
   type: UserProfileItemType;
   createdAt: string;
 }
 
-/** 用户画像列表：facts 与 preferences */
+/** 用户画像列表 */
 export interface UserProfileList {
-  facts: UserProfileItem[];
-  preferences: UserProfileItem[];
+  memories: UserMemoryItem[];
 }

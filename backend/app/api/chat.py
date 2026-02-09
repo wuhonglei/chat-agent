@@ -22,7 +22,7 @@ async def chat_stream(
     mcp_manager: MCPClientManager = Depends(get_mcp_manager),
     auth_info: AuthTokenPayload = Depends(get_auth_token_info),
 ) -> StreamingResponse:
-    """Stream chat response, 按需保存用户与助手消息。user_id 用于 user_profile/user_context 注入与异步摘要。"""
+    """Stream chat response, 按需保存用户与助手消息。user_id 用于 Mem0 记忆与 user_context 注入。"""
     logger.info(
         "Chat stream request received",
         chat_request=chat_request.model_dump(exclude_none=True),

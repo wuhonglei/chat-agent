@@ -26,16 +26,14 @@ from app.schemas.llm import (
     ToolCallResultMessage,
 )
 from app.schemas.token_stats import TotalTokenStats
+from app.schemas.user import MemoryListItem
 from app.services.component import ComponentSchemaService
 from app.services.conversation import (
     ContextSummaryService,
     ConversationContextDbService,
 )
 from app.services.message import MessageDbService
-from app.services.user import (
-    UserProfileExtractionService,
-    UserProfileItemDbService,
-)
+from app.services.user.memory_service import MemoryService
 from app.utils.common import pick_fields
 from app.utils.history_truncate import truncate_history_by_rounds_and_tokens
 from app.utils.logger import logger
@@ -118,41 +116,6 @@ async def _run_window_out_summary_only(
         return None
 
 
-async def _run_profile_extraction_only(
-    user_id: str,
-    window_out_summary: str,
-    user_message_content: str,
-    assistant_content: str,
-) -> None:
-    """仅做用户事实/偏好归纳并写入 user_profile_items。需助手回复内容，在问答结束后异步执行。"""
-    logger.info(
-        "Running user profile extraction (after response)",
-        user_id=user_id,
-        user_message_content_length=len(user_message_content),
-        assistant_content_length=len(assistant_content),
-    )
-    try:
-        extraction_svc = UserProfileExtractionService()
-        with UserProfileItemDbService() as item_svc:
-            existing_facts, existing_prefs = item_svc.get_existing_texts(user_id)
-            facts, preferences = await extraction_svc.extract_user_facts_preferences(
-                user_message_content=user_message_content,
-                assistant_content=assistant_content,
-                window_out_summary=window_out_summary,
-                existing_facts=existing_facts,
-                existing_preferences=existing_prefs,
-            )
-            await item_svc.batch_upsert_items(
-                user_id, facts=facts, preferences=preferences
-            )
-    except Exception as e:
-        logger.warning(
-            "User profile extraction task failed",
-            user_id=user_id,
-            error=e,
-        )
-
-
 class ChatService:
     """Handle chat interactions with RAG"""
 
@@ -166,9 +129,8 @@ class ChatService:
         self.chat_context_config = chat_context_config
         self.history_window_config = self.chat_context_config.history_window
         self.window_out_summary_config = self.chat_context_config.window_out_summary
-        self.schema_service = ComponentSchemaService(
-            debug=self.debug
-        )  # 复用 ComponentSchemaService 实例
+        self.memory_service = MemoryService(self.chat_context_config.memory_config)
+        self.schema_service = ComponentSchemaService(debug=self.debug)
 
         self.token_calculator = TokenCalculator(settings.response_model.model_name)
 
@@ -192,7 +154,6 @@ class ChatService:
             think_mode=think_mode,
             llm_config=settings.response_model,
             schema_service=self.schema_service,
-            user_profile_retrieval_config=chat_context_config.user_profile_retrieval,
         )
 
     async def stream_message(
@@ -201,10 +162,10 @@ class ChatService:
         window_out_summary: str | None,
         history_messages: list[ChatMessageItem],
         user_id: str,
-        user_message_id: str,
         client_ip: str | None,
+        user_memories: list[MemoryListItem] | None = None,
     ) -> AsyncGenerator[str, None]:
-        """Stream chat response using agent architecture. user_id 用于注入 user_profile/user_context；user_message_id 用于落库 query_embedding。"""
+        """Stream chat response using agent architecture. user_memories 由上层 Mem0 搜索得到后传入。"""
         start_time = get_current_time()
         try:
             user_message = chat_request.content
@@ -215,11 +176,6 @@ class ChatService:
                 client_ip=client_ip,
                 has_component_tools=bool(chat_request.component_tools_for_backend),
             )
-
-            with MessageDbService() as message_service:
-                query_embedding = await message_service.persist_user_message_embedding(
-                    user_message, user_message_id
-                )
 
             # 阶段1: MCP工具调用
             logger.debug("Starting MCP tools agent execution")
@@ -277,7 +233,7 @@ class ChatService:
                 component_tool_call_messages=filtered_component_tool_call_messages,
                 user_id=user_id,
                 conversation_id=chat_request.conversation_id,
-                query_embedding=query_embedding,
+                user_memories=user_memories or [],
             ):
                 yield chunk
             response_duration = get_time_duration(response_start_time)
@@ -536,6 +492,11 @@ class ChatService:
                     history_messages_count=len(new_history_messages),
                 )
 
+                user_memory_texts = await self.memory_service.search(
+                    query=chat_request.content,
+                    user_id=user_id,
+                )
+
                 chunk_count = 0
                 async for chunk in self.stream_message(
                     chat_request=chat_request,
@@ -543,7 +504,7 @@ class ChatService:
                     history_messages=new_history_messages,
                     client_ip=None,
                     user_id=user_id,
-                    user_message_id=user_message_id,
+                    user_memories=user_memory_texts,
                 ):
                     if title_task is not None and title_task.done():
                         try:
@@ -612,15 +573,19 @@ class ChatService:
                     conversation_id=conversation_id,
                 )
 
-                # 用户画像：问答结束后异步执行，不阻塞响应；需助手回复内容，事实/偏好每轮都提取。
+                # Mem0 记忆：问答结束后异步写入，不阻塞响应
                 asyncio.create_task(
-                    _run_profile_extraction_only(
+                    self.memory_service.add_memories(
+                        messages=[
+                            {"role": "user", "content": chat_request.content},
+                            {
+                                "role": "assistant",
+                                "content": assistant_payload.content or "",
+                            },
+                        ],
                         user_id=user_id,
-                        window_out_summary=window_out_summary or "",
-                        user_message_content=chat_request.content,
-                        assistant_content=assistant_payload.content or "",
                     ),
-                    name="user_profile_extraction",
+                    name="mem0_add_memories",
                 )
         except Exception as e:
             logger.error(

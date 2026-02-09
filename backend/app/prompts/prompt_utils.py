@@ -12,7 +12,6 @@ from app.prompts.system_prompt import (
     user_context_system_fragment_template,
 )
 from app.prompts.user_prompt import (
-    USER_FACTS_PREFERENCES_PROMPT,
     WINDOW_OUT_SUMMARY_MERGE_PROMPT,
     WINDOW_OUT_SUMMARY_PROMPT,
     component_data_block_template,
@@ -24,7 +23,6 @@ from app.prompts.user_prompt import (
     user_message_for_title_template,
     user_message_for_tool_call_template,
 )
-from app.schemas.config import ChatContextConfig
 from app.utils.date import get_current_datetime_str
 
 
@@ -34,17 +32,15 @@ def get_default_system_prompt() -> str:
 
 
 def get_system_prompt_for_response_generation(
-    user_profile_facts: list[str] | None = None,
-    user_profile_preferences: list[str] | None = None,
+    user_memories: list[str] | None = None,
     window_out_summary: str | None = None,
 ) -> str:
     """Get system prompt for final response generation.
-    当传入 user_profile_facts / user_profile_preferences / window_out_summary 时注入对应片段。
+    当传入 user_memories / window_out_summary 时注入对应片段。
     """
     base = system_prompt_for_response_generation_template.render()
     fragment = user_context_system_fragment_template.render(
-        user_profile_facts=user_profile_facts or [],
-        user_profile_preferences=user_profile_preferences or [],
+        user_memories=user_memories or [],
         window_out_summary=window_out_summary,
     )
     if not fragment.strip():
@@ -113,28 +109,6 @@ def get_window_out_summary_merge_prompt(
         prior_summary=prior_summary,
         new_messages_text=new_messages_text,
         max_tokens_hint=max_tokens,
-    ).strip()
-
-
-def get_user_facts_preferences_prompt(
-    user_message_content: str,
-    assistant_content: str,
-    existing_facts: list[str],
-    existing_preferences: list[str],
-    window_out_summary: str,
-    compression_config: ChatContextConfig,
-) -> str:
-    """渲染用户事实与偏好归纳的 prompt，各部分截断以控制总长度。"""
-    existing_facts = existing_facts or []
-    existing_preferences = existing_preferences or []
-    summary_str = (window_out_summary or "").strip()
-    ext = compression_config.user_profile_extraction
-    return USER_FACTS_PREFERENCES_PROMPT.render(
-        existing_facts=existing_facts,
-        existing_preferences=existing_preferences,
-        user_message_content=user_message_content[: ext.prompt_user_content_max_chars],
-        assistant_content=assistant_content[: ext.prompt_assistant_content_max_chars],
-        summary=summary_str[: ext.prompt_summary_max_chars],
     ).strip()
 
 
