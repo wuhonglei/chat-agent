@@ -60,15 +60,19 @@ class MemoryService:
         self,
         query: str,
         user_id: str,
+        threshold: float | None = None,
         limit: int | None = None,
     ) -> list[MemoryListItem]:
         """搜索记忆：POST /search，返回记忆文本列表。"""
         url = f"{self._base_url()}/search"
         limit = limit if limit is not None else self.config.search_limit
-        body = {
+        body: dict[str, Any] = {
             "query": query,
             "user_id": user_id,
+            "limit": limit,
         }
+        if threshold is not None:
+            body["threshold"] = threshold
         try:
             async with httpx.AsyncClient(timeout=self._timeout) as client:
                 resp = await client.post(url, json=body, headers=self._headers())
@@ -86,6 +90,7 @@ class MemoryService:
         if not isinstance(results, list):
             return []
         r: list[MemoryListItem] = [MemoryListItem(**item) for item in results]
+        r.sort(key=lambda x: x.score, reverse=True)
         return r[:limit]
 
     async def get_memories(self, user_id: str) -> list[MemoryListItem]:

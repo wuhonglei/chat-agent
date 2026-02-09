@@ -35,7 +35,7 @@ class MemoryListItem(BaseModel):
     hash: str | None = Field(None, description="hash")
     created_at: str | None = Field(None, description="创建时间")
     metadata: dict[str, Any] | None = Field(None, description="元数据")
-    score: float | None = Field(None, description="相关性分数（搜索时）")
+    score: float = Field(..., description="相关性分数（搜索时）")
 
 
 class MemoryListResponse(BaseModel):

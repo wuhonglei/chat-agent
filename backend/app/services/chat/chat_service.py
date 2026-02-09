@@ -129,7 +129,8 @@ class ChatService:
         self.chat_context_config = chat_context_config
         self.history_window_config = self.chat_context_config.history_window
         self.window_out_summary_config = self.chat_context_config.window_out_summary
-        self.memory_service = MemoryService(self.chat_context_config.memory_config)
+        self.memory_config = self.chat_context_config.memory_config
+        self.memory_service = MemoryService(self.memory_config)
         self.schema_service = ComponentSchemaService(debug=self.debug)
 
         self.token_calculator = TokenCalculator(settings.response_model.model_name)
@@ -166,6 +167,8 @@ class ChatService:
         user_memories: list[MemoryListItem] | None = None,
     ) -> AsyncGenerator[str, None]:
         """Stream chat response using agent architecture. user_memories 由上层 Mem0 搜索得到后传入。"""
+        logger.debug("user_memories", user_memories=user_memories)
+
         start_time = get_current_time()
         try:
             user_message = chat_request.content
@@ -495,6 +498,7 @@ class ChatService:
                 user_memory_texts = await self.memory_service.search(
                     query=chat_request.content,
                     user_id=user_id,
+                    threshold=self.memory_config.search_threshold,
                 )
 
                 chunk_count = 0

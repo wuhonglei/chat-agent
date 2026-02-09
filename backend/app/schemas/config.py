@@ -294,6 +294,10 @@ class MemoryConfig(BaseModel):
         default=10,
         description="搜索记忆条数上限",
     )
+    search_threshold: float = Field(
+        default=0.5,
+        description="搜索记忆阈值",
+    )
 
 
 class ChatContextConfig(BaseModel):
