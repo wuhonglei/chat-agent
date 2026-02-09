@@ -44,8 +44,11 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, clas
   });
 
   const handlePressEnter = useMemoizedFn((event: React.KeyboardEvent<Element>) => {
-    if (!isInputEnter(event) || isSmallScreen) {
+    if (!isInputEnter(event)) {
       return;
+    }
+    if (isSmallScreen) {
+      return false;
     }
     event.preventDefault();
     handleSend();
