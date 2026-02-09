@@ -1,7 +1,9 @@
 import { XProvider } from "@ant-design/x";
 import { App as AntdApp } from "antd";
 import dayjs from "dayjs";
+import "dayjs/locale/zh-cn";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
+import relativeTime from "dayjs/plugin/relativeTime";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
 import ReactDOM from "react-dom/client";
@@ -13,6 +15,8 @@ import "./styles/index.css";
 dayjs.extend(utc);
 dayjs.extend(timezone);
 dayjs.extend(isSameOrAfter);
+dayjs.extend(relativeTime);
+dayjs.locale("zh-cn");
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <Provider store={store}>

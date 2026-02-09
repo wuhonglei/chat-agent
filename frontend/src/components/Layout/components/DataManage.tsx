@@ -6,8 +6,6 @@ import { App, Button, Table } from "antd";
 import dayjs from "dayjs";
 import { useEffect } from "react";
 
-const DATE_FORMAT = "YYYY-MM-DD HH:mm";
-
 function useMemoryList() {
   const { data, loading, run } = useRequest(profileAPI.getMemories, {
     manual: true,
@@ -51,16 +49,16 @@ export default function DataManage({ height }: { height: number }) {
       key: "memory",
     },
     {
-      width: 140,
+      width: 100,
       title: "创建时间",
       key: "createdAt",
       dataIndex: "createdAt" as const,
-      render: (v: string) => <span className="text-black-secondary text-sm">{dayjs(v).format(DATE_FORMAT)}</span>,
+      render: (v: string) => <span className="text-black-secondary text-sm">{dayjs(v).fromNow()}</span>,
     },
     {
       title: "操作",
       key: "action",
-      width: 60,
+      width: 50,
       render: (_: unknown, record: UserMemoryItem) => (
         <Button type="link" danger size="small" onClick={() => handleDelete(record)} icon={<DeleteOutlined />}></Button>
       ),
