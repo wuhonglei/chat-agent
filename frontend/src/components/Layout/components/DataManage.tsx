@@ -2,7 +2,7 @@ import { UserMemoryItem } from "@/interfaces";
 import { profileAPI } from "@/services";
 import { DeleteOutlined } from "@ant-design/icons";
 import { useRequest } from "ahooks";
-import { App, Button, Spin, Table } from "antd";
+import { App, Button, Table } from "antd";
 import dayjs from "dayjs";
 import { useEffect } from "react";
 
@@ -18,16 +18,20 @@ function useMemoryList() {
   return { data, loading, refresh: run };
 }
 
-function ProfileTable({
-  title,
-  dataSource,
-  onDelete,
-}: {
-  title: string;
-  dataSource: UserMemoryItem[];
-  onDelete: (item: UserMemoryItem) => void;
-}) {
+export default function DataManage({ height }: { height: number }) {
+  const { message } = App.useApp();
   const { modal } = App.useApp();
+  const { data, loading, refresh } = useMemoryList();
+
+  const _handleDelete = async (item: UserMemoryItem) => {
+    try {
+      await profileAPI.deleteMemory(item.id);
+      message.success("已删除");
+      refresh();
+    } catch {
+      message.error("删除失败");
+    }
+  };
 
   const handleDelete = (item: UserMemoryItem) => {
     modal.confirm({
@@ -36,22 +40,21 @@ function ProfileTable({
       okText: "删除",
       okType: "danger",
       cancelText: "取消",
-      onOk: () => onDelete(item),
+      onOk: () => _handleDelete(item),
     });
   };
 
   const columns = [
     {
-      title,
+      title: "记忆",
       dataIndex: "memory" as const,
       key: "memory",
-      ellipsis: true,
     },
     {
-      title: "创建时间",
-      dataIndex: "createdAt" as const,
-      key: "createdAt",
       width: 140,
+      title: "创建时间",
+      key: "createdAt",
+      dataIndex: "createdAt" as const,
       render: (v: string) => <span className="text-black-secondary text-sm">{dayjs(v).format(DATE_FORMAT)}</span>,
     },
     {
@@ -65,37 +68,15 @@ function ProfileTable({
   ];
 
   return (
-    <div style={{ marginBottom: 24 }}>
-      <Table
-        size="small"
-        rowKey="id"
-        dataSource={dataSource}
-        columns={columns}
-        pagination={false}
-        locale={{ emptyText: "暂无数据" }}
-        scroll={{ x: "max-content" }}
-      />
-    </div>
-  );
-}
-
-export default function DataManage() {
-  const { message } = App.useApp();
-  const { data, loading, refresh } = useMemoryList();
-
-  const handleDelete = async (item: UserMemoryItem) => {
-    try {
-      await profileAPI.deleteMemory(item.id);
-      message.success("已删除");
-      refresh();
-    } catch {
-      message.error("删除失败");
-    }
-  };
-
-  return (
-    <Spin spinning={loading && !data}>
-      <ProfileTable title="用户记忆" dataSource={data?.memories ?? []} onDelete={handleDelete} />
-    </Spin>
+    <Table
+      size="small"
+      rowKey="id"
+      loading={loading}
+      columns={columns}
+      pagination={false}
+      dataSource={data?.memories ?? []}
+      locale={{ emptyText: "暂无数据" }}
+      scroll={{ x: "min-content", y: height - 39 }} // 39 是表格头部高度
+    />
   );
 }

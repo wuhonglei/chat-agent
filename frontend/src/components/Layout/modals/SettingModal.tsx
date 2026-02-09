@@ -9,33 +9,12 @@ type Props = {
   onCancel: () => void;
 };
 
-const TAB_ITEMS = [
-  {
-    key: "account",
-    label: (
-      <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <UserOutlined />
-        账号管理
-      </span>
-    ),
-    children: <AccountManage />,
-  },
-  {
-    key: "data",
-    label: (
-      <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <DatabaseOutlined />
-        数据管理
-      </span>
-    ),
-    children: <DataManage />,
-  },
-];
-
 export default function SettingModal({ open, onCancel }: Props) {
   const isSmallScreen = useIsSmallScreen();
   console.info("isSmallScreen", isSmallScreen);
   const tabPlacement = isSmallScreen ? "top" : "start";
+  const tabHeight = 320;
+  const contentHeight = isSmallScreen ? tabHeight - 54 : tabHeight;
   const styles = isSmallScreen
     ? {
         header: { paddingLeft: 24 },
@@ -55,6 +34,29 @@ export default function SettingModal({ open, onCancel }: Props) {
         },
       };
 
+  const TAB_ITEMS = [
+    {
+      key: "account",
+      label: (
+        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <UserOutlined />
+          账号管理
+        </span>
+      ),
+      children: <AccountManage />,
+    },
+    {
+      key: "data",
+      label: (
+        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <DatabaseOutlined />
+          数据管理
+        </span>
+      ),
+      children: <DataManage height={contentHeight} />,
+    },
+  ];
+
   return (
     <Modal
       centered
@@ -66,17 +68,18 @@ export default function SettingModal({ open, onCancel }: Props) {
       width="min(640px, calc(100vw - 32px))"
     >
       <Tabs
-        tabPlacement={tabPlacement}
         size="small"
         tabBarGutter={16}
         items={TAB_ITEMS}
-        style={{ height: 320 }}
         styles={{
+          root: {
+            height: tabHeight,
+          },
           content: {
-            height: 320,
-            overflow: "auto",
+            height: contentHeight,
           },
         }}
+        tabPlacement={tabPlacement}
       />
     </Modal>
   );
