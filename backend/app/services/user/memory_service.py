@@ -111,12 +111,14 @@ class MemoryService:
             )
             return []
 
+        res: list[MemoryListItem] = []
         if isinstance(data, list):
-            return [MemoryListItem(**item) for item in data]
+            res = [MemoryListItem(**item) for item in data]
         if isinstance(data, dict) and "results" in data:
             r = data["results"]
-            return [MemoryListItem(**item) for item in r] if isinstance(r, list) else []
-        return []
+            res = [MemoryListItem(**item) for item in r] if isinstance(r, list) else []
+        res.sort(key=lambda x: x.created_at, reverse=True)
+        return res
 
     async def delete_memory(self, memory_id: str) -> None:
         """删除单条记忆：DELETE /memories/{memory_id}。"""
