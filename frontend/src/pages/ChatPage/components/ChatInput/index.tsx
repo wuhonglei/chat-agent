@@ -1,6 +1,7 @@
 import SquareIcon from "@/assets/svg/SquareIcon.svg?react";
 import ThinkModeIcon from "@/assets/svg/ThinkModeIcon.svg?react";
 import CustomButton from "@/components/common/CustomButton";
+import { useIsSmallScreen } from "@/hooks";
 import { ChatInputFormValues } from "@/interfaces";
 import { isInputEnter } from "@/utils";
 import { ArrowUpOutlined } from "@ant-design/icons";
@@ -27,6 +28,7 @@ interface ChatInputProps {
 const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, className, style, form }) => {
   const content = Form.useWatch(names.content, form);
   const buttonState = useButtonState(content, isStreaming);
+  const isSmallScreen = useIsSmallScreen();
   const { values, onValuesChange } = useFormValuesChange(form);
 
   const handleSend = useMemoizedFn(() => {
@@ -42,10 +44,10 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, clas
   });
 
   const handlePressEnter = useMemoizedFn((event: React.KeyboardEvent<Element>) => {
-    if (!isInputEnter(event)) {
+    if (!isInputEnter(event) || isSmallScreen) {
       return;
     }
-    event.preventDefault(); // 阻止默认行为, 避免产生新行
+    event.preventDefault();
     handleSend();
   });
 
