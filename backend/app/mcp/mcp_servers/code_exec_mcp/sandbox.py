@@ -90,7 +90,30 @@ class SandboxExecutor:
 import resource
 import os
 import traceback
+import warnings
+warnings.filterwarnings("ignore", message=".*Prints, but never reads.*printed.*", category=SyntaxWarning)
 from RestrictedPython import compile_restricted, safe_globals
+
+# 提供 _print_：RestrictedPython 将 print() 编译为使用 _print_() 返回的 handler，否则会 NameError
+class _StdoutPrintCollector:
+    def __init__(self, _getattr_=None):
+        self._getattr_ = _getattr_
+        self._parts = []
+    def write(self, text):
+        sys.stdout.write(text)
+        self._parts.append(text)
+    def __call__(self):
+        return "".join(self._parts)
+    def _call_print(self, *objects, **kwargs):
+        if kwargs.get("file", None) is None:
+            kwargs["file"] = self
+        else:
+            self._getattr_(kwargs["file"], "write")
+        print(*objects, **kwargs)
+
+_exec_globals = safe_globals.copy()
+_exec_globals["_print_"] = _StdoutPrintCollector
+_exec_globals["_getattr_"] = getattr
 
 # 设置资源限制
 try:
@@ -181,7 +204,7 @@ try:
             raise SyntaxError("\\n".join(errors))
     else:
         byte_code = compiled
-    exec(byte_code, safe_globals.copy(), {{}})
+    exec(byte_code, _exec_globals, {{}})
 except Exception as e:
     print(f"执行错误: {{e}}", file=sys.stderr)
     traceback.print_exc(file=sys.stderr)
