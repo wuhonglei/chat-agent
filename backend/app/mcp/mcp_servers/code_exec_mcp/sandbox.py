@@ -146,6 +146,9 @@ _network_blocked = {{"socket"}}
 def restricted_import(name, globals=None, locals=None, fromlist=(), level=0):
     if not _allow_network_access and (name in _network_blocked or name.startswith("socket.")):
         raise ImportError("网络访问被禁止")
+    # level >= 1 为相对导入（如 json 包内 from . import decoder），由 Python 解析为包内子模块，直接放行
+    if level >= 1:
+        return _original_import(name, globals, locals, fromlist, level)
     if not any(name == allowed or name.startswith(allowed + ".") for allowed in _allowed_modules):
         raise ImportError(f"导入 '{{name}}' 被禁止。允许的模块: {{', '.join(_allowed_modules)}}")
     return _original_import(name, globals, locals, fromlist, level)

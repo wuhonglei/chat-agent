@@ -40,7 +40,8 @@ class _Settings(BaseSettings):
 
     # 允许的导入模块白名单（标准库 + 白名单内第三方，不含文件/网络等危险能力）
     ALLOWED_IMPORTS: list[str] = [
-        # 标准库内部依赖（供 datetime 等使用）
+        # 标准库内部/特殊模块（供 datetime、jwt 等使用）
+        "__future__",
         "_io",
         "time",
         "_datetime",
@@ -57,6 +58,8 @@ class _Settings(BaseSettings):
         "datetime",
         "calendar",
         # 数据结构与算法
+        "abc",
+        "copyreg",
         "collections",
         "itertools",
         "functools",
@@ -73,6 +76,8 @@ class _Settings(BaseSettings):
         "pprint",
         "reprlib",
         # 编码与格式
+        "codecs",
+        "struct",
         "json",
         "base64",
         "unicodedata",
