@@ -538,6 +538,8 @@ class ChatService:
                         assistant_payload=assistant_payload,
                         status=MessageStatus.DONE,
                     )
+                    # 在 session 内读取，避免退出 with 后 DetachedInstanceError
+                    assistant_updated_at = assistant_message.updated_at
 
                 logger.info(
                     "Assistant message updated",
@@ -564,7 +566,7 @@ class ChatService:
                             "token_stats",
                         ],
                     ),
-                    "updated_at": updated_at_serialized,
+                    "updated_at": str(assistant_updated_at),
                 }
                 logger.info(
                     "Sending done message",
