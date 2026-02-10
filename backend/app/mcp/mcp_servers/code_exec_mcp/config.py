@@ -38,23 +38,56 @@ class _Settings(BaseSettings):
         description="工具调用结果缓存配置",
     )
 
-    # 允许的导入模块白名单
+    # 允许的导入模块白名单（仅标准库，不含文件/网络等危险能力）
     ALLOWED_IMPORTS: list[str] = [
+        # 标准库内部依赖（供 datetime 等使用）
+        "_io",
+        "time",
+        "_datetime",
+        "_pydatetime",
+        # 数学与数值
         "math",
+        "cmath",
         "random",
+        "decimal",
+        "fractions",
+        "statistics",
+        "numbers",
+        # 日期时间
         "datetime",
-        "json",
+        "calendar",
+        # 数据结构与算法
         "collections",
         "itertools",
         "functools",
         "operator",
+        "heapq",
+        "bisect",
+        "array",
+        "copy",
+        # 文本与正则
         "string",
         "re",
-        "decimal",
-        "fractions",
-        "statistics",
-        "unicodedata",
+        "textwrap",
+        "difflib",
+        "pprint",
+        "reprlib",
+        # 编码与格式
+        "json",
         "base64",
+        "unicodedata",
+        # 哈希与随机
+        "hashlib",
+        "secrets",
+        "uuid",
+        # 类型与结构
+        "dataclasses",
+        "enum",
+        "types",
+        "typing",
+        # 内存 IO 与解析
+        "io",
+        "csv",
     ]
 
     model_config = SettingsConfigDict(

@@ -175,8 +175,10 @@ def restricted_open(file, *args, **kwargs):
 
 builtins.open = restricted_open
 
-# RestrictedPython 编译的代码从 exec globals 查找 __import__，必须注入受控的导入函数
+# RestrictedPython 的 safe_globals 中 __builtins__ 为 dict 且不含 __import__，执行 import 时会在此查找
 _exec_globals["__import__"] = restricted_import
+if isinstance(_exec_globals.get("__builtins__"), dict):
+    _exec_globals["__builtins__"]["__import__"] = restricted_import
 
 class _LimitedWriter:
     def __init__(self, stream, max_len):
