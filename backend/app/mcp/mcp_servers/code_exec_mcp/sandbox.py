@@ -93,8 +93,9 @@ import traceback
 import warnings
 warnings.filterwarnings("ignore", message=".*Prints, but never reads.*printed.*", category=SyntaxWarning)
 from RestrictedPython import compile_restricted, safe_globals
+from RestrictedPython.Guards import guarded_iter_unpack_sequence
 
-# 提供 _print_：RestrictedPython 将 print() 编译为使用 _print_() 返回的 handler，否则会 NameError
+# 提供 RestrictedPython 所需的 guard：print、属性/下标访问、迭代
 class _StdoutPrintCollector:
     def __init__(self, _getattr_=None):
         self._getattr_ = _getattr_
@@ -114,6 +115,9 @@ class _StdoutPrintCollector:
 _exec_globals = safe_globals.copy()
 _exec_globals["_print_"] = _StdoutPrintCollector
 _exec_globals["_getattr_"] = getattr
+_exec_globals["_getitem_"] = lambda obj, key: obj[key]
+_exec_globals["_getiter_"] = iter
+_exec_globals["_iter_unpack_sequence_"] = guarded_iter_unpack_sequence
 
 # 设置资源限制
 try:
@@ -204,7 +208,7 @@ try:
             raise SyntaxError("\\n".join(errors))
     else:
         byte_code = compiled
-    exec(byte_code, _exec_globals, {{}})
+    exec(byte_code, _exec_globals, _exec_globals)
 except Exception as e:
     print(f"执行错误: {{e}}", file=sys.stderr)
     traceback.print_exc(file=sys.stderr)
