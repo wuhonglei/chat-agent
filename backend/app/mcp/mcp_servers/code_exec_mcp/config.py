@@ -38,7 +38,7 @@ class _Settings(BaseSettings):
         description="工具调用结果缓存配置",
     )
 
-    # 允许的导入模块白名单（仅标准库，不含文件/网络等危险能力）
+    # 允许的导入模块白名单（标准库 + 白名单内第三方，不含文件/网络等危险能力）
     ALLOWED_IMPORTS: list[str] = [
         # 标准库内部依赖（供 datetime 等使用）
         "_io",
@@ -80,6 +80,8 @@ class _Settings(BaseSettings):
         "hashlib",
         "secrets",
         "uuid",
+        # 第三方（需项目已安装）
+        "jwt",
         # 类型与结构
         "dataclasses",
         "enum",
