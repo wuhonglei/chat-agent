@@ -175,6 +175,9 @@ def restricted_open(file, *args, **kwargs):
 
 builtins.open = restricted_open
 
+# RestrictedPython 编译的代码从 exec globals 查找 __import__，必须注入受控的导入函数
+_exec_globals["__import__"] = restricted_import
+
 class _LimitedWriter:
     def __init__(self, stream, max_len):
         self.stream = stream
