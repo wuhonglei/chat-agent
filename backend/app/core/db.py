@@ -22,6 +22,7 @@ engine = create_engine(
     pool_size=20,  # 连接池大小
     max_overflow=30,  # 最大溢出连接数
     pool_pre_ping=True,  # 连接前检查连接是否有效
+    pool_recycle=300,  # 连接回收时间（秒），避免长时间空闲被服务端关闭
     json_serializer=json_dumps_utf8,
 )
 

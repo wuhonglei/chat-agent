@@ -527,12 +527,17 @@ class ChatService:
                 )
 
                 assistant_payload = self.get_collected_response()
-                assistant_message = message_service.update_assistant_message(
-                    conversation,
-                    assistant_message,
-                    assistant_payload=assistant_payload,
-                    status=MessageStatus.DONE,
-                )
+                # 流式生成期间连接可能被服务端关闭，使用新会话执行更新
+                with MessageDbService() as update_service:
+                    conv, _, asst_msg = update_service.get_conversation_and_messages(
+                        conversation_id, user_message_id, assistant_message_id
+                    )
+                    assistant_message = update_service.update_assistant_message(
+                        conv,
+                        asst_msg,
+                        assistant_payload=assistant_payload,
+                        status=MessageStatus.DONE,
+                    )
 
                 logger.info(
                     "Assistant message updated",
