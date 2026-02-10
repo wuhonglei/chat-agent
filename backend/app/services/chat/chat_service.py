@@ -544,9 +544,6 @@ class ChatService:
                     conversation_id=conversation_id,
                     assistant_message_id=assistant_message_id,
                     status=MessageStatus.DONE,
-                    updated_at=str(assistant_message.updated_at)
-                    if assistant_message.updated_at
-                    else None,
                 )
 
                 done_payload = {
@@ -567,9 +564,7 @@ class ChatService:
                             "token_stats",
                         ],
                     ),
-                    **pick_fields(
-                        assistant_message.model_dump(mode="json"), ["updated_at"]
-                    ),
+                    "updated_at": updated_at_serialized,
                 }
                 logger.info(
                     "Sending done message",
