@@ -27,11 +27,12 @@ SupportedLanguage = Literal["python", "javascript", "typescript"]
 
 @mcp.tool(name="execute_code")
 async def execute_code(
-    language: SupportedLanguage = Field(
-        description="执行代码的编程语言，支持：python、javascript、typescript",
-    ),
     code: str = Field(
         description="要执行的代码内容",
+    ),
+    language: SupportedLanguage = Field(
+        default="python",
+        description="执行代码的编程语言，支持：python、javascript、typescript",
     ),
     stdin: str = Field(
         default="",

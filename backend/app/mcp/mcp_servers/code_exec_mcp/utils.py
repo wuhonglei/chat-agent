@@ -15,16 +15,14 @@ def format_results(response: CodeExecResponse) -> str:
             parts.append(f"编译退出码: {response.compile.code}")
 
     parts.append("\n--- 运行阶段 ---")
-    if response.run.stdout:
-        parts.append(f"标准输出:\n{response.run.stdout}")
-    if response.run.stderr:
-        parts.append(f"标准错误:\n{response.run.stderr}")
     if response.run.code is not None:
         parts.append(f"退出码: {response.run.code}")
     if response.run.signal:
         parts.append(f"终止信号: {response.run.signal}")
 
-    if not response.run.stdout and not response.run.stderr:
+    if response.run.output:
+        parts.append(f"输出:\n{response.run.output}")
+    else:
         parts.append("（无输出）")
 
     return "\n".join(parts)
