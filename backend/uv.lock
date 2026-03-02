@@ -14,6 +14,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },
+    { name = "aiopyston" },
     { name = "alembic" },
     { name = "atlassian-python-api" },
     { name = "beautifulsoup4" },
@@ -78,6 +79,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "aiofiles", specifier = ">=23.2.0" },
+    { name = "aiopyston", specifier = ">=1.2.1" },
     { name = "alembic", specifier = ">=1.13.1" },
     { name = "atlassian-python-api", specifier = ">=3.41.0" },
     { name = "beautifulsoup4", specifier = ">=4.12.0" },
@@ -272,6 +274,15 @@ wheels = [
     { url = "https://mirrors.aliyun.com/pypi/packages/7e/83/1a5a1856574588b1cad63609ea9ad75b32a8353ac995d830bf5da9357364/aiohttp-3.13.2-cp314-cp314t-win32.whl", hash = "sha256:d23b5fe492b0805a50d3371e8a728a9134d8de5447dce4c885f5587294750734" },
     { url = "https://mirrors.aliyun.com/pypi/packages/9f/4d/d22668674122c08f4d56972297c51a624e64b3ed1efaa40187607a7cb66e/aiohttp-3.13.2-cp314-cp314t-win_amd64.whl", hash = "sha256:ff0a7b0a82a7ab905cbda74006318d1b12e37c797eb1b0d4eb3e316cf47f658f" },
 ]
+
+[[package]]
+name = "aiopyston"
+version = "1.2.1"
+source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }
+dependencies = [
+    { name = "aiohttp" },
+]
+sdist = { url = "https://mirrors.aliyun.com/pypi/packages/bb/93/60bc6265447dbf68c4b70e5522a34dcac73e2c5c0390ef24be75d7736820/aiopyston-1.2.1.tar.gz", hash = "sha256:3d8816a052ee5cc871cc3545a6c871d1517fcc049a2084804c01707bd20b7852" }
 
 [[package]]
 name = "aiosignal"

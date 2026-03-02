@@ -143,6 +143,10 @@ class CodeExecMCPConfig(BaseModel):
         default_factory=MCPCacheConfig,
         description="工具调用结果缓存配置",
     )
+    PISTON_BASE_URL: str = Field(
+        default="http://1.12.53.9:2000/api/v2/",
+        description="Piston API 基础地址",
+    )  # 与环境变量名一致
 
 
 class MCPConfig(BaseModel):

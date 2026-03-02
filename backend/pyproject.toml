@@ -55,6 +55,7 @@ dependencies = [
     "faiss-cpu>=1.13.2",
     "dashscope>=1.25.8",
     "pgvector>=0.3.0",
+    "aiopyston>=1.2.1",
 ]
 
 [project.optional-dependencies]

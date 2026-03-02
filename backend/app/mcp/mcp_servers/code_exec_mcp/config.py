@@ -1,5 +1,4 @@
-"""Code Execution MCP Server Configuration"""
-
+import sys
 from pathlib import Path
 
 from pydantic import Field
@@ -9,93 +8,14 @@ from app.schemas.config import MCPCacheConfig
 
 
 class _Settings(BaseSettings):
-    """代码执行沙箱配置"""
-
-    # 执行超时时间（秒）
-    EXECUTION_TIMEOUT: int = 10
-
-    # CPU 时间限制（秒）
-    CPU_TIME_LIMIT: int = 5
-
-    # 内存限制（MB）
-    MEMORY_LIMIT_MB: int = 128
-
-    # 最大输出长度（字符）
-    MAX_OUTPUT_LENGTH: int = 10000
-
-    # 是否允许文件系统访问
-    ALLOW_FILE_ACCESS: bool = False
-
-    # 允许的文件系统路径（仅在 ALLOW_FILE_ACCESS=True 时生效）
-    ALLOWED_PATHS: list[str] = []
-
-    # 是否允许网络访问
-    ALLOW_NETWORK_ACCESS: bool = False
-
-    # 工具调用结果缓存配置
     cache_config: MCPCacheConfig = Field(
         default_factory=MCPCacheConfig,
         description="工具调用结果缓存配置",
     )
-
-    # 允许的导入模块白名单（标准库 + 白名单内第三方，不含文件/网络等危险能力）
-    ALLOWED_IMPORTS: list[str] = [
-        # 标准库内部/特殊模块（供 datetime、jwt 等使用）
-        "__future__",
-        "_io",
-        "time",
-        "_datetime",
-        "_pydatetime",
-        # 数学与数值
-        "math",
-        "cmath",
-        "random",
-        "decimal",
-        "fractions",
-        "statistics",
-        "numbers",
-        # 日期时间
-        "datetime",
-        "calendar",
-        # 数据结构与算法
-        "abc",
-        "copyreg",
-        "collections",
-        "itertools",
-        "functools",
-        "operator",
-        "heapq",
-        "bisect",
-        "array",
-        "copy",
-        # 文本与正则
-        "string",
-        "re",
-        "textwrap",
-        "difflib",
-        "pprint",
-        "reprlib",
-        # 编码与格式
-        "codecs",
-        "struct",
-        "json",
-        "base64",
-        "unicodedata",
-        # 哈希与随机
-        "hashlib",
-        "secrets",
-        "uuid",
-        # 第三方（需项目已安装）
-        "jwt",
-        # 类型与结构
-        "dataclasses",
-        "enum",
-        "types",
-        "typing",
-        # 内存 IO 与解析
-        "io",
-        "csv",
-    ]
+    PISTON_BASE_URL: str = Field(
+        default="http://localhost:2000/api/v2/",
+        description="Piston API 基础地址",
+    )
 
     model_config = SettingsConfigDict(
         env_file=Path(__file__).parent / ".env",
@@ -106,4 +26,11 @@ class _Settings(BaseSettings):
     )
 
 
-config = _Settings()
+# 主应用内直接使用 settings.mcp.code_exec_mcp（含 Nacos 下发的 cache_config）；
+# 独立运行时使用本文件 Settings（.env）
+if "app.core.config" in sys.modules:
+    from app.core.config import settings
+
+    config = settings.mcp.code_exec_mcp
+else:
+    config = _Settings()  # type: ignore[assignment]

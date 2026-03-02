@@ -1,79 +1,108 @@
 """
-Code Execution MCP Server
-提供安全的 Python 代码执行服务，使用沙箱隔离确保安全性
+Code Exec MCP Server
+基于 Piston 提供安全的代码执行服务
+支持 Python、Node.js、TypeScript 等语言
+Piston 文档: https://github.com/engineer-man/piston
 """
 
+from typing import Literal
+
 from fastmcp import FastMCP
+from fastmcp.tools.tool import ToolResult
 from pydantic import Field
+from pyston import File, PystonClient
+
+from app.mcp.cache import add_response_caching_if_enabled
 
 from .config import config
-from .sandbox import CodeExecutionError, SandboxExecutor, TimeoutError
+from .models import CodeExecResponse, CodeExecStage
+from .utils import format_results
 
-mcp = FastMCP(
-    name="Code Execution MCP Service",
-)
+mcp = FastMCP(name="Code Exec MCP Service")
 
-# 创建沙箱执行器实例
-executor = SandboxExecutor(
-    timeout=config.EXECUTION_TIMEOUT,
-    cpu_time_limit=config.CPU_TIME_LIMIT,
-    memory_limit_mb=config.MEMORY_LIMIT_MB,
-    max_output_length=config.MAX_OUTPUT_LENGTH,
-    allowed_imports=config.ALLOWED_IMPORTS,
-    allow_file_access=config.ALLOW_FILE_ACCESS,
-    allowed_paths=config.ALLOWED_PATHS,
-    allow_network_access=config.ALLOW_NETWORK_ACCESS,
-)
+add_response_caching_if_enabled(mcp, config.cache_config)
+
+SupportedLanguage = Literal["python", "javascript", "typescript"]
 
 
-@mcp.tool(name="python_code_exec")
-def python_code_exec(
-    code: str = Field(
-        ...,
-        description="要执行的 Python 代码",
-        examples=[
-            "print(1.1 + 2.2)",  # 加法
-            "print(10 - 3)",  # 减法
-            "print(5 * 4)",  # 乘法
-            "print(15 / 3)",  # 除法
-            "print(2 ** 3)",  # 幂运算
-            "print(17 % 5)",  # 取模
-            "print((10 + 5) * 2)",  # 混合运算
-        ],
+@mcp.tool(name="execute_code")
+async def execute_code(
+    language: SupportedLanguage = Field(
+        description="执行代码的编程语言，支持：python、javascript、typescript",
     ),
-) -> str:
+    code: str = Field(
+        description="要执行的代码内容",
+    ),
+    stdin: str = Field(
+        default="",
+        description="程序的标准输入（可选）",
+    ),
+    version: str = Field(
+        default="*",
+        description="语言版本，默认使用最新版本（*）",
+    ),
+) -> ToolResult:
     """
-    安全执行 Python 代码，并返回代码输出结果（stdout）结果
-    注意：此工具仅用于执行简单的计算和数据处理任务，不支持文件系统操作、网络访问和图形绘制。
+    在安全沙箱中执行代码。
+    支持 Python、JavaScript、TypeScript，每次执行相互隔离。
+    返回标准输出、标准错误和退出码。
     """
+    client = PystonClient(base_url=config.PISTON_BASE_URL)
     try:
-        result = executor.execute(code)
-        return result
-    except TimeoutError as e:
-        raise TimeoutError(f"代码执行超时: {str(e)}")
-    except CodeExecutionError as e:
-        raise CodeExecutionError(f"代码执行失败: {str(e)}")
-    except Exception as e:
-        raise Exception(f"未知错误: {str(e)}")
+        output = await client.execute(
+            language=language,
+            files=[File(code)],
+            version=version,
+            stdin=stdin,
+        )
+    finally:
+        await client.close_session()
 
-
-if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Code Execution MCP Server")
-    parser.add_argument(
-        "--transport",
-        choices=["http", "stdio"],
-        default="http",
-        help="传输方式：http 或 stdio",
+    run_stage = CodeExecStage(
+        stdout=output.run_stage.stdout or "",
+        stderr=output.run_stage.stdrr or "",
+        output=output.run_stage.output or "",
+        code=output.run_stage.code,
+        signal=output.run_stage.signal,
     )
-    parser.add_argument("--port", type=int, default=8004, help="HTTP 模式下的端口号")
 
-    args = parser.parse_args()
+    compile_stage: CodeExecStage | None = None
+    if output.compile_stage:
+        compile_stage = CodeExecStage(
+            stdout=output.compile_stage.stdout or "",
+            stderr=output.compile_stage.stdrr or "",
+            output=output.compile_stage.output or "",
+            code=output.compile_stage.code,
+            signal=output.compile_stage.signal,
+        )
 
-    if args.transport == "stdio":
-        # Stdio 模式：通过标准输入输出与客户端通信
-        mcp.run(transport="stdio")
-    else:
-        # HTTP 模式：启动 HTTP 服务器
-        mcp.run(transport="http", port=args.port)
+    result = CodeExecResponse(
+        language=output.langauge or language,
+        version=output.version or version,
+        run=run_stage,
+        compile=compile_stage,
+    )
+
+    return ToolResult(
+        structured_content=result,
+        content=format_results(result),
+    )
+
+
+@mcp.tool(name="list_runtimes")
+async def list_runtimes() -> ToolResult:
+    """
+    列出 Piston 服务器上所有已安装的代码运行时及其版本信息。
+    """
+    client = PystonClient(base_url=config.PISTON_BASE_URL)
+    try:
+        runtimes = await client.runtimes()
+    finally:
+        await client.close_session()
+
+    lines = ["已安装的运行时："]
+    for rt in runtimes:
+        aliases = f"（别名: {', '.join(rt.aliases)}）" if rt.aliases else ""
+        lines.append(f"  - {rt.language} {rt.version}{aliases}")
+
+    return ToolResult(content="\n".join(lines))
