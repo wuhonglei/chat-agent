@@ -28,7 +28,7 @@ from .utils import (
 mcp = FastMCP(
     name="Tavily Search MCP Service",
 )
-client = AsyncTavilyClient(api_key=config.TAVILY_API_KEY)
+client = AsyncTavilyClient(api_key=config.tavily_api_key)
 
 add_response_caching_if_enabled(mcp, config.cache_config)
 

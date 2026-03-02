@@ -88,10 +88,10 @@ alert_template = Template(
 
 async def make_request(endpoint: str, params: dict[str, Any]) -> dict[str, Any]:
     """发送 HTTP 请求到和风天气 API"""
-    url = f"{config.QWEATHER_BASE_URL}{endpoint}"
-    params["key"] = config.QWEATHER_API_KEY
+    url = f"{config.qweather_base_url}{endpoint}"
+    params["key"] = config.qweather_api_key
 
-    async with httpx.AsyncClient(timeout=config.QWEATHER_TIMEOUT) as client:
+    async with httpx.AsyncClient(timeout=config.qweather_timeout) as client:
         try:
             response = await client.get(url, params=params)
             response.raise_for_status()

@@ -78,12 +78,9 @@ class Context7MCPConfig(BaseModel):
 class ConfluenceMCPConfig(BaseModel):
     """Confluence MCP 配置"""
 
-    CONFLUENCE_URL: str = Field(description="Confluence URL")  # 与环境变量名一致
-    CONFLUENCE_PERSONAL_TOKEN: str = Field(
-        description="Confluence Personal Token"
-    )  # 与环境变量名一致
-    # 认证类型：pat, basic, oauth，与环境变量名一致
-    CONFLUENCE_AUTH_TYPE: str = Field(
+    confluence_url: str = Field(description="Confluence URL")
+    confluence_personal_token: str = Field(description="Confluence Personal Token")
+    confluence_auth_type: str = Field(
         description="Confluence 认证类型：pat, basic, oauth"
     )
     cache_config: MCPCacheConfig = Field(
@@ -95,13 +92,9 @@ class ConfluenceMCPConfig(BaseModel):
 class WeatherMCPConfig(BaseModel):
     """Weather MCP 配置"""
 
-    QWEATHER_API_KEY: str = Field(description="和风天气 API 密钥")  # 与环境变量名一致
-    QWEATHER_BASE_URL: str = Field(
-        description="和风天气 API 基础地址"
-    )  # 与环境变量名一致
-    QWEATHER_TIMEOUT: int = Field(
-        description="和风天气 API 超时时间"
-    )  # 与环境变量名一致
+    qweather_api_key: str = Field(description="和风天气 API 密钥")
+    qweather_base_url: str = Field(description="和风天气 API 基础地址")
+    qweather_timeout: int = Field(description="和风天气 API 超时时间")
     cache_config: MCPCacheConfig = Field(
         default_factory=MCPCacheConfig,
         description="工具调用结果缓存配置",
@@ -111,7 +104,7 @@ class WeatherMCPConfig(BaseModel):
 class TavilyMCPConfig(BaseModel):
     """Tavily MCP 配置"""
 
-    TAVILY_API_KEY: str = Field(description="Tavily API 密钥")  # 与环境变量名一致
+    tavily_api_key: str = Field(description="Tavily API 密钥")
     cache_config: MCPCacheConfig = Field(
         default_factory=MCPCacheConfig,
         description="工具调用结果缓存配置",
@@ -143,10 +136,10 @@ class CodeExecMCPConfig(BaseModel):
         default_factory=MCPCacheConfig,
         description="工具调用结果缓存配置",
     )
-    PISTON_BASE_URL: str = Field(
+    piston_base_url: str = Field(
         default="http://1.12.53.9:2000/api/v2/",
         description="Piston API 基础地址",
-    )  # 与环境变量名一致
+    )
 
 
 class MCPConfig(BaseModel):

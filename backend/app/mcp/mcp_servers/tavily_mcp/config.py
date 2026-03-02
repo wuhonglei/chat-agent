@@ -8,7 +8,7 @@ from app.schemas.config import MCPCacheConfig
 
 
 class _Settings(BaseSettings):
-    TAVILY_API_KEY: str
+    tavily_api_key: str
     cache_config: MCPCacheConfig = Field(default_factory=MCPCacheConfig)
 
     model_config = SettingsConfigDict(

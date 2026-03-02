@@ -48,7 +48,7 @@ async def execute_code(
     支持 Python、JavaScript、TypeScript，每次执行相互隔离。
     返回标准输出、标准错误和退出码。
     """
-    client = PystonClient(base_url=config.PISTON_BASE_URL)
+    client = PystonClient(base_url=config.piston_base_url)
     try:
         output = await client.execute(
             language=language,
@@ -95,7 +95,7 @@ async def list_runtimes() -> ToolResult:
     """
     列出 Piston 服务器上所有已安装的代码运行时及其版本信息。
     """
-    client = PystonClient(base_url=config.PISTON_BASE_URL)
+    client = PystonClient(base_url=config.piston_base_url)
     try:
         runtimes = await client.runtimes()
     finally:

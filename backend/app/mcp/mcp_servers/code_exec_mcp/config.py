@@ -12,7 +12,7 @@ class _Settings(BaseSettings):
         default_factory=MCPCacheConfig,
         description="工具调用结果缓存配置",
     )
-    PISTON_BASE_URL: str = Field(
+    piston_base_url: str = Field(
         default="http://localhost:2000/api/v2/",
         description="Piston API 基础地址",
     )

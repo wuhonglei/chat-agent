@@ -8,9 +8,9 @@ from app.schemas.config import MCPCacheConfig
 
 
 class _Settings(BaseSettings):
-    QWEATHER_API_KEY: str
-    QWEATHER_BASE_URL: str
-    QWEATHER_TIMEOUT: int = 10
+    qweather_api_key: str
+    qweather_base_url: str
+    qweather_timeout: int = 10
     cache_config: MCPCacheConfig = Field(default_factory=MCPCacheConfig)
 
     model_config = SettingsConfigDict(
