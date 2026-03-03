@@ -36,40 +36,13 @@
       "name": "Debug LLM Integration Demo",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/tests/agent_skills_demo/llm_integration.py",
+      "program": "${workspaceFolder}/tests/agent_skills_demo/main.py",
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "justMyCode": false,
       "env": {
         "PYTHONPATH": "${workspaceFolder}"
       }
-    },
-    {
-      "name": "Debug Time MCP 测试 (pytest)",
-      "type": "debugpy",
-      "request": "launch",
-      "module": "pytest",
-      "args": [
-        "app/mcp/mcp_servers/time_mcp/test_server.py",
-        "-v",
-        "-s",
-        "-k",
-        "${input:timeMcpTestName}"
-      ],
-      "console": "integratedTerminal",
-      "cwd": "${workspaceFolder}",
-      "justMyCode": false,
-      "env": {
-        "PYTHONPATH": "${workspaceFolder}"
-      }
-    }
-  ],
-  "inputs": [
-    {
-      "id": "timeMcpTestName",
-      "type": "promptString",
-      "description": "测试名，留空=全部（如 test_get_current_time_with_valid_timezone）",
-      "default": ""
     }
   ]
 }

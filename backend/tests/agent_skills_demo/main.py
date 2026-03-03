@@ -57,14 +57,18 @@ def load_skills(skills_dir: Path = SKILLS_DIR) -> list[dict[str, str]]:
 def build_system_prompt(skills: list[dict[str, str]]) -> str:
     """构建 system prompt，仅包含 name、description、skill.md 路径"""
     lines = [
-        "你是智能助手，可使用以下技能。每个 skill 的详细说明在 SKILL.md 中。",
-        "需要时请使用 view_text_file、execute_shell_command 或 execute_python_code 读取或执行。",
+        "You are a helpful assistant with access to agent skills. You can use the skills to help you answer questions and perform tasks.",
+        "# Agent Skills",
+        "The agent skills are a collection of folds of instructions, scripts, and resources that you can load dynamically to improve performance on specialized tasks. Each agent skill has a `SKILL.md` file in its folder that describes how to use the skill. If you want to use a skill, you MUST read its `SKILL.md` file carefully.",
         "",
-        "## 可用技能",
     ]
     for s in skills:
         lines.append(
-            f"- {s['name']}: {s['description']} | SKILL.md: {s['skill_md_path']}"
+            (
+                f"## {s['name']}\n"
+                f"{s['description']}\n"
+                f'Check "{s["skill_md_path"]}" for how to use this skill'
+            ),
         )
     return "\n".join(lines)
 
@@ -128,7 +132,7 @@ async def main() -> None:
         base_url=os.environ.get("OPENAI_API_BASE", "https://api.deepseek.com/v1"),
     )
 
-    user_message = "请计算 2 + 3 * 4 的结果"
+    user_message = "查询今日新闻"
     print(f"\n用户: {user_message}\n")
     result = await chat_with_agent(client, system_prompt, user_message)
     print(f"助手: {result}\n")
