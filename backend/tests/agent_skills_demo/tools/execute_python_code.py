@@ -1,7 +1,10 @@
 """安全执行 Python 代码工具，使用 RestrictedPython"""
 
+import datetime
 import json
 import math
+import time
+import urllib.request
 from typing import Any
 
 from RestrictedPython.compile import compile_restricted_exec
@@ -22,9 +25,16 @@ class _CapturingPrintCollector(PrintCollector):  # type: ignore[misc]
 
 
 def _safe_import(name: str, *args: Any, **kwargs: Any) -> Any:
-    """仅允许导入 math、json"""
-    if name in ("math", "json"):
-        return {"math": math, "json": json}[name]
+    """仅允许导入 math、json、urllib.request、datetime、time"""
+    allowed = {
+        "math": math,
+        "json": json,
+        "urllib.request": urllib.request,
+        "datetime": datetime,
+        "time": time,
+    }
+    if name in allowed:
+        return allowed[name]
     raise ImportError(f"不允许导入模块: {name}")
 
 
@@ -38,6 +48,8 @@ def execute_python_code(code: str) -> str:
         "_print_": _CapturingPrintCollector,
         "math": math,
         "json": json,
+        "datetime": datetime,
+        "time": time,
     }
     try:
         result = compile_restricted_exec(code, filename="<inline>")
@@ -62,7 +74,7 @@ TOOL_DEF: dict[str, Any] = {
     "type": "function",
     "function": {
         "name": "execute_python_code",
-        "description": "安全执行 Python 代码。支持 math、json 模块，使用 print() 输出结果。",
+        "description": "安全执行 Python 代码。支持 math、json、urllib.request、datetime、time 模块，使用 print() 输出结果。",
         "parameters": {
             "type": "object",
             "properties": {
