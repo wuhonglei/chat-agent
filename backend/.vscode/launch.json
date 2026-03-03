@@ -33,6 +33,18 @@
       }
     },
     {
+      "name": "Debug LLM Integration Demo",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/tests/agent_skills_demo/llm_integration.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      }
+    },
+    {
       "name": "Debug Time MCP 测试 (pytest)",
       "type": "debugpy",
       "request": "launch",
