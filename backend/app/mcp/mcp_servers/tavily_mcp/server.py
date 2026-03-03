@@ -250,7 +250,7 @@ async def web_site_crawl(
         raise
 
 
-@mcp.tool(name="web_site_map", enabled=False)
+@mcp.tool(name="web_site_map")
 async def web_site_map(
     url: str = Field(..., description="开始映射的根 URL"),
     instructions: str | None = Field(
@@ -319,6 +319,9 @@ async def web_site_map(
     except Exception:
         # 直接重新抛出原始异常，保持异常类型和堆栈跟踪
         raise
+
+
+mcp.disable(names={"web_site_map"}, components={"tool"})
 
 
 if __name__ == "__main__":

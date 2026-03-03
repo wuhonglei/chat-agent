@@ -1,10 +1,10 @@
-"""MCP 工具调用结果缓存：基于 ResponseCachingMiddleware 与 DiskStore 的工厂。"""
+"""MCP 工具调用结果缓存：基于 ResponseCachingMiddleware 与 FileTreeStore 的工厂。"""
 
 from pathlib import Path
 
 from fastmcp import FastMCP
 from fastmcp.server.middleware.caching import ResponseCachingMiddleware
-from key_value.aio.stores.disk import DiskStore
+from key_value.aio.stores.filetree import FileTreeStore
 
 from app.schemas.config import MCPCacheConfig
 
@@ -35,12 +35,12 @@ def create_response_caching_middleware(
     """
     创建 MCP 工具调用结果缓存的 ResponseCachingMiddleware。
 
-    - 使用 DiskStore 持久化到 cache_dir；创建前会 mkdir(parents=True, exist_ok=True)。
+    - 使用 FileTreeStore 持久化到 cache_dir（基于 JSON 文件，规避 diskcache CVE 风险）；创建前会 mkdir(parents=True, exist_ok=True)。
     - 仅缓存 tools/call，list_tools / list_resources / list_prompts / read_resource / get_prompt 默认不缓存。
     - call_tool 的 excluded_tools 默认为 ["python_code_exec"]，避免缓存代码执行结果。
 
     Args:
-        cache_dir: DiskStore 存储目录。
+        cache_dir: FileTreeStore 存储目录。
         call_tool_ttl: 工具调用缓存 TTL（秒）。
         call_tool_excluded: 不缓存的工具名列表；为 None 时使用 ["python_code_exec"]。
         list_tools_enabled: 是否缓存 list_tools / list_resources / list_prompts / read_resource / get_prompt。
@@ -55,7 +55,7 @@ def create_response_caching_middleware(
     )
 
     return ResponseCachingMiddleware(
-        cache_storage=DiskStore(directory=cache_dir),
+        cache_storage=FileTreeStore(data_directory=cache_dir),
         call_tool_settings={
             "enabled": True,
             "ttl": call_tool_ttl,

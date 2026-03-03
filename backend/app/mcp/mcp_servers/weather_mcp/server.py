@@ -184,7 +184,7 @@ async def get_weather_daily_forecast(
         raise
 
 
-@mcp.tool(name="get_weather_alerts", enabled=False)
+@mcp.tool(name="get_weather_alerts")
 async def get_weather_alerts(
     location: str = Field(..., description="位置信息，可以是 LocationID 或经纬度坐标"),
     lang: str = Field(default="zh", description="多语言设置"),
@@ -206,6 +206,9 @@ async def get_weather_alerts(
         )
     except Exception:
         raise
+
+
+mcp.disable(names={"get_weather_alerts"}, components={"tool"})
 
 
 async def main() -> None:
