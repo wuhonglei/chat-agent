@@ -104,11 +104,11 @@ class SkillLoader:
     def load_from_directory(skill_dir: Path) -> tuple[SkillMetadata, type[BaseSkill]]:
         """
         从目录加载 Skill。
-        目录需包含 SKILL.md 和 impl.py（其中 impl.py 导出实现类）。
+        目录需包含 SKILL.md 和 scripts/impl.py（符合 Cursor 官方目录规范）。
         返回 (SkillMetadata, impl_class)
         """
         skill_md = skill_dir / "SKILL.md"
-        impl_file = skill_dir / "impl.py"
+        impl_file = skill_dir / "scripts" / "impl.py"
 
         if not skill_md.exists():
             raise FileNotFoundError(f"SKILL.md not found in {skill_dir}")
@@ -125,20 +125,39 @@ class SkillLoader:
             except json.JSONDecodeError:
                 params = {}
 
+        # 支持 skill.config.json 覆盖框架元数据（Cursor 标准下 SKILL.md 仅保留 name/description）
+        config_file = skill_dir / "skill.config.json"
+        config: dict[str, Any] = {}
+        if config_file.exists():
+            try:
+                config = json.loads(config_file.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                pass
+
+        def _get(key: str, default: Any = None) -> Any:
+            return config[key] if key in config else _fm_get(fm, key, default)
+
+        params = _get("parameters", params)
+        if isinstance(params, str):
+            try:
+                params = json.loads(params)
+            except json.JSONDecodeError:
+                params = params if isinstance(params, dict) else {}
+
         metadata = SkillMetadata(
             name=_fm_get(fm, "name", skill_dir.name),
             description=_fm_get(fm, "description", ""),
-            version=_fm_get(fm, "version", "1.0.0"),
-            author=_fm_get(fm, "author", "Unknown"),
-            tags=_fm_get(fm, "tags", []),
-            permissions=_fm_get(fm, "permissions", []),
-            warnings=_fm_get(fm, "warnings", []),
+            version=_get("version", "1.0.0"),
+            author=_get("author", "Unknown"),
+            tags=_get("tags", []),
+            permissions=_get("permissions", []),
+            warnings=_get("warnings", []),
             parameters=params,
-            timeout=_fm_get(fm, "timeout"),
+            timeout=_get("timeout"),
         )
 
         if not impl_file.exists():
-            raise FileNotFoundError(f"impl.py not found in {skill_dir}")
+            raise FileNotFoundError(f"scripts/impl.py not found in {skill_dir}")
 
         # 动态导入 impl（通过包路径，确保 ..base 等相对导入可用）
         import importlib
@@ -151,7 +170,7 @@ class SkillLoader:
             sys.path.insert(0, str(skills_parent))
 
         pkg_name = skill_dir.parent.name
-        mod_name = f"{pkg_name}.{skill_dir.name}.impl"
+        mod_name = f"{pkg_name}.{skill_dir.name}.scripts.impl"
         try:
             mod = importlib.import_module(mod_name)
         except ModuleNotFoundError:
@@ -162,7 +181,7 @@ class SkillLoader:
                 raise ImportError(f"Cannot load impl from {impl_file}")
             mod = importlib.util.module_from_spec(spec)
             # 设置 __package__ 以便相对导入
-            mod.__package__ = f"{pkg_name}.{skill_dir.name}"
+            mod.__package__ = f"{pkg_name}.{skill_dir.name}.scripts"
             spec.loader.exec_module(mod)
 
         impl_class = getattr(mod, "SkillImpl", None)
@@ -183,7 +202,7 @@ class SkillLoader:
                     break
         if impl_class is None:
             raise ValueError(
-                "impl.py must export SkillImpl, skill_impl, or a class inheriting BaseSkill"
+                "scripts/impl.py must export SkillImpl, skill_impl, or a class inheriting BaseSkill"
             )
 
         return metadata, impl_class

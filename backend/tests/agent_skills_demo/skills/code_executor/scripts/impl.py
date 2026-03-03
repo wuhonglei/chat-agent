@@ -4,7 +4,7 @@ import io
 import sys
 from typing import Any
 
-from ..base import BaseSkill, SkillContext, SkillResult
+from ...base import BaseSkill, SkillContext, SkillResult
 
 try:
     from restrictedpython import compile_restricted_exec

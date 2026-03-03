@@ -2,7 +2,7 @@
 
 import pytest
 
-from .impl import SkillImpl
+from .scripts.impl import SkillImpl
 
 
 @pytest.fixture

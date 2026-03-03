@@ -4,7 +4,7 @@ import ast
 import operator
 from typing import Any
 
-from ..base import BaseSkill, SkillContext, SkillResult
+from ...base import BaseSkill, SkillContext, SkillResult
 
 # 允许的数学运算（安全子集）
 _SAFE_OPS = {

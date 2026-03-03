@@ -4,7 +4,7 @@ import random
 from pathlib import Path
 from typing import Any
 
-from ..base import BaseSkill, SkillContext, SkillResult
+from ...base import BaseSkill, SkillContext, SkillResult
 
 # 模拟天气状况
 _CONDITIONS = ["晴", "多云", "阴", "小雨", "雷阵雨", "雾", "霾"]
@@ -26,6 +26,8 @@ class SkillImpl(BaseSkill):
         seed = hash(city.strip()) % (2**32)
         rng = random.Random(seed)
 
+        # schemas 在 skill 根目录，impl 在 scripts/ 下，需向上一级
+        schema_path = Path(__file__).parent.parent / "schemas" / "response.json"
         data = {
             "city": city.strip(),
             "temperature": round(rng.uniform(-5, 35), 1),
@@ -34,7 +36,6 @@ class SkillImpl(BaseSkill):
             "wind_speed": round(rng.uniform(0, 30), 1),
         }
 
-        schema_path = Path(__file__).parent / "schemas" / "response.json"
         return SkillResult(
             success=True,
             data=data,
