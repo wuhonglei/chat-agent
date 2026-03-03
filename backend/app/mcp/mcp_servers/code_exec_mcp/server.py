@@ -44,7 +44,7 @@ async def execute_code(
     ),
 ) -> ToolResult:
     """
-    Piston 安全沙箱代码执行服务
+    Piston 安全沙箱代码执行服务(必须使用 print 输出结果, 否则无法获取结果)
     """
     client = PystonClient(base_url=config.piston_base_url)
     try:
@@ -105,3 +105,6 @@ async def list_runtimes() -> ToolResult:
         lines.append(f"  - {rt.language} {rt.version}{aliases}")
 
     return ToolResult(content="\n".join(lines))
+
+
+mcp.disable(names={"list_runtimes"}, components={"tool"})
