@@ -137,7 +137,7 @@ class CodeExecMCPConfig(BaseModel):
         description="工具调用结果缓存配置",
     )
     piston_base_url: str = Field(
-        default="http://1.12.53.9:2000/api/v2/",
+        ...,
         description="Piston API 基础地址",
     )
 
@@ -166,7 +166,7 @@ class MCPConfig(BaseModel):
         description="Time MCP 配置",
     )
     code_exec_mcp: CodeExecMCPConfig = Field(
-        default_factory=CodeExecMCPConfig,
+        default_factory=CodeExecMCPConfig,  # type: ignore[arg-type]
         description="Code Exec MCP 配置",
     )
 

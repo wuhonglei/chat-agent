@@ -13,7 +13,7 @@ class _Settings(BaseSettings):
         description="工具调用结果缓存配置",
     )
     piston_base_url: str = Field(
-        default="http://localhost:2000/api/v2/",
+        ...,
         description="Piston API 基础地址",
     )
 
@@ -33,4 +33,4 @@ if "app.core.config" in sys.modules:
 
     config = settings.mcp.code_exec_mcp
 else:
-    config = _Settings()  # type: ignore[assignment]
+    config = _Settings()  # type: ignore[call-arg,assignment]
