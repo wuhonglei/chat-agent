@@ -12,19 +12,16 @@ skills/
 ├── loader.py         # 从 SKILL.md 解析并加载 Skill
 ├── registry.py       # DocumentedSkillRegistry 注册中心
 ├── calculator/       # 计算器 Skill
-│   ├── SKILL.md      # Cursor 标准：name、description + Markdown 正文
-│   ├── skill.config.json   # 框架元数据（version、parameters 等）
+│   ├── SKILL.md      # name、description、version、parameters 等 frontmatter + Markdown 正文
 │   ├── scripts/
 │   │   └── impl.py   # 实现类
 │   └── test_skill.py
 ├── weather/          # 天气查询 Skill（模拟）
 │   ├── SKILL.md
-│   ├── skill.config.json
 │   ├── scripts/impl.py
 │   └── schemas/response.json
 └── code_executor/    # 代码执行 Skill（RestrictedPython 沙箱）
     ├── SKILL.md
-    ├── skill.config.json
     └── scripts/impl.py
 ```
 
@@ -63,7 +60,6 @@ uv run pytest tests/agent_skills_demo/skills/calculator/test_skill.py -v
 ## 新增 Skill
 
 1. 在 `skills/` 下创建子目录，如 `my_skill/`
-2. 添加 `SKILL.md`（Cursor 标准：frontmatter 仅需 name、description，正文为 Instructions/Examples）
-3. 添加 `skill.config.json`（version、author、tags、parameters、timeout 等框架元数据）
-4. 添加 `scripts/impl.py`，导出 `SkillImpl(BaseSkill)` 类
-5. 运行 `registry.discover()` 自动发现并加载
+2. 添加 `SKILL.md`（frontmatter 含 name、description、version、author、tags、parameters、timeout 等，正文为 Instructions/Examples）
+3. 添加 `scripts/impl.py`，导出 `SkillImpl(BaseSkill)` 类
+4. 运行 `registry.discover()` 自动发现并加载

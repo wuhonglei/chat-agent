@@ -46,7 +46,6 @@ class DocumentedSkill:
         params: dict[str, Any],
         context: Any = None,
     ) -> SkillResult:
-
         instance = self.impl()
         return await instance.execute(params, context)
 
@@ -125,35 +124,16 @@ class SkillLoader:
             except json.JSONDecodeError:
                 params = {}
 
-        # 支持 skill.config.json 覆盖框架元数据（Cursor 标准下 SKILL.md 仅保留 name/description）
-        config_file = skill_dir / "skill.config.json"
-        config: dict[str, Any] = {}
-        if config_file.exists():
-            try:
-                config = json.loads(config_file.read_text(encoding="utf-8"))
-            except json.JSONDecodeError:
-                pass
-
-        def _get(key: str, default: Any = None) -> Any:
-            return config[key] if key in config else _fm_get(fm, key, default)
-
-        params = _get("parameters", params)
-        if isinstance(params, str):
-            try:
-                params = json.loads(params)
-            except json.JSONDecodeError:
-                params = params if isinstance(params, dict) else {}
-
         metadata = SkillMetadata(
             name=_fm_get(fm, "name", skill_dir.name),
             description=_fm_get(fm, "description", ""),
-            version=_get("version", "1.0.0"),
-            author=_get("author", "Unknown"),
-            tags=_get("tags", []),
-            permissions=_get("permissions", []),
-            warnings=_get("warnings", []),
+            version=_fm_get(fm, "version", "1.0.0"),
+            author=_fm_get(fm, "author", "Unknown"),
+            tags=_fm_get(fm, "tags", []),
+            permissions=_fm_get(fm, "permissions", []),
+            warnings=_fm_get(fm, "warnings", []),
             parameters=params,
-            timeout=_get("timeout"),
+            timeout=_fm_get(fm, "timeout"),
         )
 
         if not impl_file.exists():

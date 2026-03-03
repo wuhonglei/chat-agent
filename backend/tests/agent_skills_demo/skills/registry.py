@@ -14,6 +14,7 @@ class DocumentedSkillRegistry:
         self.skills_dir = skills_dir or Path(__file__).parent
         self._skills: dict[str, DocumentedSkill] = {}
         self._metadata_cache: dict[str, SkillMetadata] = {}
+        self._skill_dirs: dict[str, Path] = {}  # skill_name -> skill_dir
 
     def discover(self, skip_errors: bool = True) -> list[str]:
         """发现并加载所有 Skill"""
@@ -33,6 +34,7 @@ class DocumentedSkillRegistry:
 
                 self._skills[metadata.name] = skill
                 self._metadata_cache[metadata.name] = metadata
+                self._skill_dirs[metadata.name] = item
                 loaded.append(metadata.name)
 
                 print(
@@ -71,6 +73,29 @@ class DocumentedSkillRegistry:
                 }
             )
         return skills
+
+    def get_raw_skill_md(self, skill_name: str) -> str | None:
+        """按需读取技能的完整 SKILL.md 原始内容"""
+        skill_dir = self._skill_dirs.get(skill_name)
+        if not skill_dir:
+            return None
+        skill_md = skill_dir / "SKILL.md"
+        if not skill_md.exists():
+            return None
+        return skill_md.read_text(encoding="utf-8")
+
+    def get_skill_full_documentation(self, skill_name: str) -> str | None:
+        """返回技能完整文档：SKILL.md 原始内容 + 参数 Schema（供 LLM 按需阅读后决定调用）"""
+        raw_md = self.get_raw_skill_md(skill_name)
+        if not raw_md:
+            return None
+
+        meta = self._metadata_cache.get(skill_name)
+        if meta and meta.parameters:
+            raw_md += "\n\n## 参数 Schema\n\n```json\n"
+            raw_md += json.dumps(meta.parameters, indent=2, ensure_ascii=False)
+            raw_md += "\n```\n"
+        return raw_md
 
     def generate_documentation_page(self, skill_name: str) -> str:
         """为 Skill 生成文档页面（Markdown）"""

@@ -1,6 +1,12 @@
 ---
 name: calculator
 description: 执行数学计算，支持四则运算和常用数学函数
+version: "1.0.0"
+author: "AI Doc Team"
+tags: [math, calculation, utility]
+permissions: []
+parameters: '{"expression": {"type": "string", "description": "数学表达式，如 1+2*3、sqrt(16)"}}'
+timeout: 5
 ---
 
 # Calculator Skill
