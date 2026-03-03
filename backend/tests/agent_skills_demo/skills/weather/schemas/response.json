@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "city": { "type": "string", "description": "城市名称" },
+    "temperature": { "type": "number", "description": "温度（摄氏度）" },
+    "condition": { "type": "string", "description": "天气状况" },
+    "humidity": { "type": "number", "description": "湿度（%）" },
+    "wind_speed": { "type": "number", "description": "风速（km/h）" }
+  },
+  "required": ["city", "temperature", "condition"]
+}
