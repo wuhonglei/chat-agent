@@ -44,7 +44,7 @@ async def execute_code(
     ),
 ) -> ToolResult:
     """
-    在安全沙箱中执行代码。
+    Piston 安全沙箱代码执行服务
     """
     client = PystonClient(base_url=config.piston_base_url)
     try:
