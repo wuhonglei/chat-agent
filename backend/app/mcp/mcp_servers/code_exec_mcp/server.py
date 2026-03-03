@@ -45,8 +45,6 @@ async def execute_code(
 ) -> ToolResult:
     """
     在安全沙箱中执行代码。
-    支持 Python、JavaScript、TypeScript，每次执行相互隔离。
-    返回标准输出、标准错误和退出码。
     """
     client = PystonClient(base_url=config.piston_base_url)
     try:
