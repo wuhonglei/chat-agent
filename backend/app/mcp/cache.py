@@ -3,8 +3,14 @@
 from pathlib import Path
 
 from fastmcp import FastMCP
-from fastmcp.server.middleware.caching import ResponseCachingMiddleware
-from key_value.aio.stores.filetree import FileTreeStore
+from fastmcp.server.middleware.caching import (
+    CallToolSettings,
+    ResponseCachingMiddleware,
+)
+from key_value.aio.stores.filetree import (
+    FileTreeStore,
+    FileTreeV1KeySanitizationStrategy,
+)
 
 from app.schemas.config import MCPCacheConfig
 
@@ -49,18 +55,25 @@ def create_response_caching_middleware(
     Returns:
         ResponseCachingMiddleware 实例。
     """
-    Path(cache_dir).mkdir(parents=True, exist_ok=True)
-    excluded = (
+    cache_path = Path(cache_dir).resolve()
+    cache_path.mkdir(parents=True, exist_ok=True)
+
+    excluded_tools: list[str] = (
         call_tool_excluded if call_tool_excluded is not None else ["python_code_exec"]
     )
-
+    call_tool_settings: CallToolSettings = {
+        "enabled": True,
+        "ttl": call_tool_ttl,
+        "excluded_tools": excluded_tools,
+    }
     return ResponseCachingMiddleware(
-        cache_storage=FileTreeStore(data_directory=cache_dir),
-        call_tool_settings={
-            "enabled": True,
-            "ttl": call_tool_ttl,
-            "excluded_tools": excluded,
-        },
+        cache_storage=FileTreeStore(
+            data_directory=cache_path,
+            key_sanitization_strategy=FileTreeV1KeySanitizationStrategy(
+                directory=cache_path
+            ),
+        ),
+        call_tool_settings=call_tool_settings,
         list_tools_settings={"enabled": list_tools_enabled},
         list_resources_settings={"enabled": list_tools_enabled},
         list_prompts_settings={"enabled": list_tools_enabled},
