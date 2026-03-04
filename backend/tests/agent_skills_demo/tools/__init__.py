@@ -36,7 +36,10 @@ def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "view_text_file":
         return view_text_file(arguments.get("file_path", ""))
     if name == "execute_shell_command":
-        return execute_shell_command(arguments.get("command", ""))
+        return execute_shell_command(
+            arguments.get("command", ""),
+            timeout=arguments.get("timeout", 300),
+        )
     if name == "execute_python_code":
         return execute_python_code(arguments.get("code", ""))
     return f"Error: 未知工具 {name}"

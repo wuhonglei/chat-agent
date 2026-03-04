@@ -1,80 +1,63 @@
-"""安全执行 Python 代码工具，使用 RestrictedPython"""
+"""执行 Python 代码工具，通过 subprocess 在临时文件中执行"""
 
-import datetime
-import json
-import math
-import time
-import urllib.request
-from typing import Any
-
-from RestrictedPython.compile import compile_restricted_exec
-from RestrictedPython.Guards import safe_builtins
-from RestrictedPython.PrintCollector import PrintCollector
+import os
+import subprocess
+import sys
+import tempfile
+import uuid
 
 
-class _CapturingPrintCollector(PrintCollector):  # type: ignore[misc]
-    """收集 print 输出到 output_parts"""
+def execute_python_code(code: str, timeout: float = 300) -> str:
+    """在临时文件中执行 Python 代码，捕获标准输出、标准错误和返回码。
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        self.output_parts: list[str] = []
+    使用 print() 输出结果。执行完成后临时文件会自动删除。
 
-    def write(self, text: str) -> None:
-        self.output_parts.append(text)
-        super().write(text)
+    Args:
+        code: 要执行的 Python 代码
+        timeout: 最大执行时间（秒），默认 300
 
+    Returns:
+        包含 returncode、stdout、stderr 的响应字符串
+    """
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_file = os.path.join(temp_dir, f"tmp_{uuid.uuid4().hex}.py")
+        with open(temp_file, "w", encoding="utf-8") as f:
+            f.write(code)
 
-def _safe_import(name: str, *args: Any, **kwargs: Any) -> Any:
-    """仅允许导入 math、json、urllib.request、datetime、time"""
-    allowed = {
-        "math": math,
-        "json": json,
-        "urllib.request": urllib.request,
-        "datetime": datetime,
-        "time": time,
-    }
-    if name in allowed:
-        return allowed[name]
-    raise ImportError(f"不允许导入模块: {name}")
+        env = os.environ.copy()
+        env["PYTHONUTF8"] = "1"
+        env["PYTHONIOENCODING"] = "utf-8"
 
+        try:
+            result = subprocess.run(
+                [sys.executable, "-u", temp_file],
+                capture_output=True,
+                timeout=timeout,
+                env=env,
+                encoding="utf-8",
+                errors="replace",
+            )
+            returncode = result.returncode
+            stdout_str = result.stdout or ""
+            stderr_str = result.stderr or ""
 
-def execute_python_code(code: str) -> str:
-    """使用 RestrictedPython 安全执行 Python 代码"""
-    safe = dict(safe_builtins)
-    safe["__import__"] = _safe_import
-    restricted_globals: dict[str, Any] = {
-        "__builtins__": safe,
-        "__name__": "__main__",
-        "_print_": _CapturingPrintCollector,
-        "math": math,
-        "json": json,
-        "datetime": datetime,
-        "time": time,
-    }
-    try:
-        result = compile_restricted_exec(code, filename="<inline>")
-        if result.errors:
-            return f"Error: 编译错误 - {result.errors}"
-        if result.code is None:
-            return "Error: 编译失败"
-        exec(result.code, restricted_globals)
-        if "result" in restricted_globals:
-            return str(restricted_globals["result"])
-        if "printed" in restricted_globals:
-            return str(restricted_globals["printed"]).strip()
-        for v in restricted_globals.values():
-            if isinstance(v, _CapturingPrintCollector) and v.output_parts:
-                return "".join(v.output_parts).strip()
-        return "(代码已执行，无输出。请使用 print() 输出结果)"
-    except Exception as e:
-        return f"Error: 执行失败 - {e}"
+        except subprocess.TimeoutExpired:
+            returncode = -1
+            stdout_str = ""
+            stderr_str = f"TimeoutError: 代码执行超过超时限制 {timeout} 秒。"
+
+    return (
+        f"<returncode>{returncode}</returncode>"
+        f"<stdout>{stdout_str}</stdout>"
+        f"<stderr>{stderr_str}</stderr>"
+    )
 
 
-TOOL_DEF: dict[str, Any] = {
+TOOL_DEF: dict[str, object] = {
     "type": "function",
     "function": {
         "name": "execute_python_code",
-        "description": "安全执行 Python 代码。支持 math、json、urllib.request、datetime、time 模块，使用 print() 输出结果。",
+        "description": "执行 Python 代码。将代码写入临时文件并通过 subprocess 执行，使用 print() 输出结果。支持 timeout 参数限制执行时间。",
         "parameters": {
             "type": "object",
             "properties": {
