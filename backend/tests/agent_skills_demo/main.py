@@ -81,7 +81,7 @@ async def chat_with_agent(
     system_prompt: str,
     user_message: str,
     model: str = "deepseek-chat",
-    max_iterations: int = 10,
+    max_iterations: int = 20,
 ) -> str:
     """Agent 循环：调用 LLM，处理 tool_calls"""
     messages: list[dict[str, Any]] = [
@@ -137,7 +137,7 @@ async def main() -> None:
         base_url=os.environ.get("OPENAI_API_BASE", "https://api.deepseek.com/v1"),
     )
 
-    user_message = "查询今日新闻"
+    user_message = "帮我总结该 pdf 文件内容: ./data/documents.pdf, 并输出总结内容为 document.docx"
     print(f"\n用户: {user_message}\n")
     result = await chat_with_agent(client, system_prompt, user_message)
     print(f"助手: {result}\n")

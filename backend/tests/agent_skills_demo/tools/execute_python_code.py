@@ -6,6 +6,8 @@ import sys
 import tempfile
 import uuid
 
+from ._common import DEMO_ROOT
+
 
 def execute_python_code(code: str, timeout: float = 300) -> str:
     """在临时文件中执行 Python 代码，捕获标准输出、标准错误和返回码。
@@ -36,6 +38,7 @@ def execute_python_code(code: str, timeout: float = 300) -> str:
                 env=env,
                 encoding="utf-8",
                 errors="replace",
+                cwd=DEMO_ROOT,
             )
             returncode = result.returncode
             stdout_str = result.stdout or ""
