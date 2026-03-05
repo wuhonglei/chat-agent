@@ -38,6 +38,7 @@ def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "execute_shell_command":
         return execute_shell_command(
             arguments.get("command", ""),
+            cwd=arguments.get("cwd"),
             timeout=arguments.get("timeout", 300),
         )
     if name == "execute_python_code":

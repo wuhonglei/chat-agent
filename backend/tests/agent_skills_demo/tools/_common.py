@@ -2,9 +2,9 @@
 
 from pathlib import Path
 
-_DEMO_ROOT = Path(__file__).resolve().parent.parent  # agent_skills_demo/
-SKILLS_DIR = _DEMO_ROOT / "skills"
-BACKEND_ROOT = _DEMO_ROOT.parent.parent  # backend/
+DEMO_ROOT = Path(__file__).resolve().parent.parent  # agent_skills_demo/
+SKILLS_DIR = DEMO_ROOT / "skills"
+BACKEND_ROOT = DEMO_ROOT.parent.parent  # backend/
 
 
 def is_path_allowed(path: str) -> bool:

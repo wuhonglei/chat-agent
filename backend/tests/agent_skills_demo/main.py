@@ -43,12 +43,15 @@ def load_skills(skills_dir: Path = SKILLS_DIR) -> list[dict[str, str]]:
             continue
         name = meta.get("name") or meta.get("title") or skill_md.parent.name
         desc = meta.get("description") or ""
-        rel_path = skill_md.relative_to(skills_dir)
+        base = skills_dir.parent  # agent_skills_demo 根目录
+        skill_md_path = str(skill_md.relative_to(base))
+        skill_cwd = str(skill_md.parent.relative_to(base))
         skills.append(
             {
                 "name": str(name),
                 "description": str(desc),
-                "skill_md_path": str(rel_path),
+                "skill_md_path": skill_md_path,
+                "skill_cwd": skill_cwd,
             }
         )
     return skills
@@ -67,7 +70,7 @@ def build_system_prompt(skills: list[dict[str, str]]) -> str:
             (
                 f"## {s['name']}\n"
                 f"{s['description']}\n"
-                f'Check "{s["skill_md_path"]}" for how to use this skill'
+                f'Check "{s["skill_md_path"]}" for how to use this skill.'
             ),
         )
     return "\n".join(lines)
@@ -106,6 +109,7 @@ async def chat_with_agent(
                 args = json.loads(tc.function.arguments)
             except Exception:
                 args = {}
+            print(f"[工具调用] name={name} args={args}")
             result = execute_tool(name, args)
             messages.append(
                 {
@@ -126,6 +130,7 @@ async def main() -> None:
         print(f"  - {s['name']}: {s['skill_md_path']}")
 
     system_prompt = build_system_prompt(skills)
+    print(f"system_prompt: {system_prompt}")
 
     client = AsyncOpenAI(
         api_key=os.environ.get("OPENAI_API_KEY", "sk-placeholder"),
