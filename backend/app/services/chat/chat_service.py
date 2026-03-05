@@ -21,9 +21,9 @@ from app.schemas.chat import (
 )
 from app.schemas.config import ChatContextConfig
 from app.schemas.llm import (
-    AssistantToolCallMessage,
     ToolCallMessage,
-    ToolCallResultMessage,
+    ToolResultMessage,
+    ToolUseMessage,
 )
 from app.schemas.token_stats import TotalTokenStats
 from app.schemas.user import MemoryListItem
@@ -341,9 +341,9 @@ class ChatService:
             tool_calls: list[ToolCallMessage] = []
             for m in tool_calls_list:
                 if getattr(m, "role", None) == "assistant":
-                    tool_calls.append(cast(AssistantToolCallMessage, m))
+                    tool_calls.append(cast(ToolUseMessage, m))
                 elif getattr(m, "role", None) == "tool":
-                    tr = cast(ToolCallResultMessage, m)
+                    tr = cast(ToolResultMessage, m)
                     if is_latest_tool_round:
                         tool_calls.append(tr)
                         continue

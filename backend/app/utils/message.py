@@ -7,9 +7,9 @@ from toolz import dissoc, get
 
 from app.schemas.chat import ChatMessageItemWithToolCalls
 from app.schemas.llm import (
-    AssistantToolCallMessage,
     ToolCallMessage,
-    ToolCallResultMessage,
+    ToolResultMessage,
+    ToolUseMessage,
 )
 from app.utils.common import normalize_to_dict
 
@@ -30,16 +30,16 @@ def clear_reasoning_content_from_history(
 
 
 def format_assistant_tool_call_message(
-    message: AssistantToolCallMessage | dict[str, Any],
+    message: ToolUseMessage | dict[str, Any],
     clear_reasoning_content: bool = True,
 ) -> dict[str, Any]:
     """
-    格式化 AssistantToolCallMessage 为 LLM API 所需的格式
+    格式化 ToolUseMessage 为 LLM API 所需的格式
     只保留 API 需要的字段：role, tool_calls
     过滤掉额外的字段：reasoning_content
 
     Args:
-        message: AssistantToolCallMessage 对象
+        message: ToolUseMessage 对象
         clear_reasoning_content: 如果为 True，则清除 reasoning_content 字段；如果为 False，则保留
     """
     message = normalize_to_dict(message)
@@ -55,15 +55,15 @@ def format_assistant_tool_call_message(
 
 
 def format_tool_call_result_message(
-    message: ToolCallResultMessage | dict[str, Any],
+    message: ToolResultMessage | dict[str, Any],
 ) -> dict[str, Any]:
     """
-    格式化 ToolCallResultMessage 为 LLM API 所需的格式
+    格式化 ToolResultMessage 为 LLM API 所需的格式
     只保留 API 需要的字段：role, tool_call_id, content
     过滤掉额外的字段：token_count, duration, is_error
 
     Args:
-        message: ToolCallResultMessage 对象
+        message: ToolResultMessage 对象
 
     Returns:
         格式化后的消息字典，只包含 API 需要的字段
@@ -112,10 +112,10 @@ def filter_tool_call_messages(
 ) -> list[ToolCallMessage]:
     """过滤工具调用消息，只保留成功的、成对的 assistant+tool 调用。
 
-    第一步：收集所有有效的 tool_call_id（从成功的 ToolCallResultMessage）
+    第一步：收集所有有效的 tool_call_id（从成功的 ToolResultMessage）
     第二步：收集 assistant 消息中存在的、且有成功结果的 tool_call_id
-    第三步：只保留 is_error=False 且有对应 assistant 的 ToolCallResultMessage，
-           以及 tool_calls 中 id 在 assistant_tool_call_ids 内的 AssistantToolCallMessage
+    第三步：只保留 is_error=False 且有对应 assistant 的 ToolResultMessage，
+           以及 tool_calls 中 id 在 assistant_tool_call_ids 内的 ToolUseMessage
 
     Args:
         tool_call_messages: 原始工具调用相关消息（assistant + tool 交替）
@@ -126,24 +126,24 @@ def filter_tool_call_messages(
     if not tool_call_messages:
         return []
 
-    # 第一步：收集所有有效的 tool_call_id（从成功的 ToolCallResultMessage）
+    # 第一步：收集所有有效的 tool_call_id（从成功的 ToolResultMessage）
     valid_tool_call_ids = set()
     for message in tool_call_messages:
-        if isinstance(message, ToolCallResultMessage) and not message.is_error:
+        if isinstance(message, ToolResultMessage) and not message.is_error:
             valid_tool_call_ids.add(message.tool_call_id)
 
     # 第二步：收集 assistant 消息中实际存在的 tool_call_id（只保留那些有成功结果的）
     assistant_tool_call_ids = set()
     for message in tool_call_messages:
-        if isinstance(message, AssistantToolCallMessage):
+        if isinstance(message, ToolUseMessage):
             for tool_call in message.tool_calls or []:
                 if tool_call.id in valid_tool_call_ids:
                     assistant_tool_call_ids.add(tool_call.id)
 
-    # 第三步：只保留正确的工具调用（ToolCallResultMessage is_error=False 且有对应的 assistant 消息）
+    # 第三步：只保留正确的工具调用（ToolResultMessage is_error=False 且有对应的 assistant 消息）
     filtered: list[ToolCallMessage] = []
     for message in tool_call_messages:
-        if isinstance(message, AssistantToolCallMessage):
+        if isinstance(message, ToolUseMessage):
             filtered_tool_calls = [
                 tc
                 for tc in (message.tool_calls or [])
@@ -153,7 +153,7 @@ def filter_tool_call_messages(
                 filtered.append(
                     message.model_copy(update={"tool_calls": filtered_tool_calls})
                 )
-        elif isinstance(message, ToolCallResultMessage):
+        elif isinstance(message, ToolResultMessage):
             if not message.is_error and message.tool_call_id in assistant_tool_call_ids:
                 filtered.append(message)
 
@@ -162,23 +162,21 @@ def filter_tool_call_messages(
 
 def get_assistant_tool_call_messages(
     tool_call_messages: list[ToolCallMessage],
-) -> list[AssistantToolCallMessage]:
+) -> list[ToolUseMessage]:
     """获取 assistant 工具调用消息"""
     return [
-        message
-        for message in tool_call_messages
-        if isinstance(message, AssistantToolCallMessage)
+        message for message in tool_call_messages if isinstance(message, ToolUseMessage)
     ]
 
 
 def get_tool_call_result_messages(
     tool_call_messages: list[ToolCallMessage],
-) -> list[ToolCallResultMessage]:
+) -> list[ToolResultMessage]:
     """获取 tool 工具调用消息"""
     return [
         message
         for message in tool_call_messages
-        if isinstance(message, ToolCallResultMessage)
+        if isinstance(message, ToolResultMessage)
     ]
 
 

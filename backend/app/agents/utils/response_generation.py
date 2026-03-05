@@ -4,9 +4,9 @@ from typing import Any
 from openai.types.chat import ChatCompletionMessageFunctionToolCall
 
 from app.schemas.llm import (
-    AssistantToolCallMessage,
     ToolCallMessage,
-    ToolCallResultMessage,
+    ToolResultMessage,
+    ToolUseMessage,
 )
 from app.utils.message import (
     get_assistant_tool_call_messages,
@@ -25,11 +25,11 @@ def get_component_data(
     component_data: list[dict[str, Any]] = []
     tool_call_by_id: dict[str, ChatCompletionMessageFunctionToolCall] = {}
     for msg in component_tool_call_messages:
-        if isinstance(msg, AssistantToolCallMessage) and msg.tool_calls:
+        if isinstance(msg, ToolUseMessage) and msg.tool_calls:
             for tc in msg.tool_calls:
                 tool_call_by_id[tc.id] = tc
     for msg in component_tool_call_messages:
-        if isinstance(msg, ToolCallResultMessage) and not msg.is_error:
+        if isinstance(msg, ToolResultMessage) and not msg.is_error:
             tool_call = tool_call_by_id.get(msg.tool_call_id)
             if tool_call:
                 component_name = tool_call.function.name.replace(

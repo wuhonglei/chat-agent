@@ -4,9 +4,9 @@ import httpx
 from mcp.shared._httpx_utils import McpHttpClientFactory
 
 from app.schemas.llm import (
-    AssistantToolCallMessage,
     ToolCallMessage,
-    ToolCallResultMessage,
+    ToolResultMessage,
+    ToolUseMessage,
 )
 
 
@@ -57,7 +57,7 @@ def extract_tool_call_names(output_messages: list[ToolCallMessage]) -> list[str]
     """
     tool_names = []
     for message in output_messages:
-        if isinstance(message, AssistantToolCallMessage) and message.tool_calls:
+        if isinstance(message, ToolUseMessage) and message.tool_calls:
             for tool_call in message.tool_calls:
                 tool_names.append(tool_call.function.name)
     return tool_names
@@ -73,7 +73,7 @@ def count_tool_calls(output_messages: list[ToolCallMessage]) -> int:
     Returns:
         int: 工具调用结果消息的数量
     """
-    return len([m for m in output_messages if isinstance(m, ToolCallResultMessage)])
+    return len([m for m in output_messages if isinstance(m, ToolResultMessage)])
 
 
 def has_tool_been_called(

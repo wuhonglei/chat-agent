@@ -29,9 +29,9 @@ from app.schemas.chat import (
 )
 from app.schemas.config import LLMConfig
 from app.schemas.llm import (
-    AssistantToolCallMessage,
     ToolCallMessage,
-    ToolCallResultMessage,
+    ToolResultMessage,
+    ToolUseMessage,
 )
 from app.schemas.token_stats import MCPToolsTokenStats
 from app.utils.common import normalize_url
@@ -407,7 +407,7 @@ class MCPToolsAgent(BaseAgent):
         tool_call: ChatCompletionMessageFunctionToolCall,
         current_iteration: int,
         iterations_by_tool: dict[str, int],
-    ) -> ToolCallResultMessage:
+    ) -> ToolResultMessage:
         """Execute a single tool call and return the result message"""
         tool_name = tool_call.function.name
         start_time = get_current_time()
@@ -430,7 +430,7 @@ class MCPToolsAgent(BaseAgent):
                 iteration=current_iteration + 1,
             )
             # Note: Tool should have been filtered out before LLM call, this is defensive check
-            return ToolCallResultMessage(
+            return ToolResultMessage(
                 role="tool",
                 is_error=True,
                 tool_call_id=tool_call.id,
@@ -459,7 +459,7 @@ class MCPToolsAgent(BaseAgent):
                         urls=urls,
                         iteration=current_iteration + 1,
                     )
-                    return ToolCallResultMessage(
+                    return ToolResultMessage(
                         role="tool",
                         is_error=False,
                         tool_call_id=tool_call.id,
@@ -497,7 +497,7 @@ class MCPToolsAgent(BaseAgent):
 
             content = self.mcp_manager.format_mcp_result(result)
             # Add tool result to messages
-            tool_call_result_message = ToolCallResultMessage(
+            tool_call_result_message = ToolResultMessage(
                 role="tool",
                 content=content,
                 is_error=len(content or "") == 0,
@@ -548,7 +548,7 @@ class MCPToolsAgent(BaseAgent):
             )
             return tool_call_result_message
         except Exception as e:
-            tool_call_result_message = ToolCallResultMessage(
+            tool_call_result_message = ToolResultMessage(
                 role="tool",
                 is_error=True,
                 content=str(e),
@@ -570,8 +570,8 @@ class MCPToolsAgent(BaseAgent):
         self,
         tool_name: str,
         structured_content: dict[str, Any],
-        tool_call_result_message: ToolCallResultMessage,
-    ) -> ToolCallResultMessage:
+        tool_call_result_message: ToolResultMessage,
+    ) -> ToolResultMessage:
         processor = TavilyResultProcessor(
             compactor=self.compactor,
             user_query=self.current_user_message,
@@ -584,8 +584,8 @@ class MCPToolsAgent(BaseAgent):
         )
 
     async def _compact_tool_result_if_needed(
-        self, tool_message: ToolCallResultMessage
-    ) -> ToolCallResultMessage:
+        self, tool_message: ToolResultMessage
+    ) -> ToolResultMessage:
         content = tool_message.content or ""
         if not content:
             return tool_message
@@ -604,7 +604,7 @@ class MCPToolsAgent(BaseAgent):
         tool_calls: list[ChatCompletionMessageFunctionToolCall],
         current_iteration: int,
         iterations_by_tool: dict[str, int],
-    ) -> list[ToolCallResultMessage]:
+    ) -> list[ToolResultMessage]:
         """Execute multiple tool calls in parallel and return the results
 
         Args:
@@ -726,7 +726,7 @@ class MCPToolsAgent(BaseAgent):
             # Handle tool calls
             content = openai_message.content or ""
             reasoning_content = getattr(openai_message, "reasoning_content", "")
-            assistant_message = AssistantToolCallMessage(
+            assistant_message = ToolUseMessage(
                 role="assistant",
                 content=content,
                 tool_calls=cast(

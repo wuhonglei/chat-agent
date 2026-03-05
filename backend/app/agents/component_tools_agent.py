@@ -16,9 +16,9 @@ from app.prompts.prompt_utils import get_prompt_for_component_render_data
 from app.schemas.chat import ComponentToolConfig
 from app.schemas.config import LLMConfig
 from app.schemas.llm import (
-    AssistantToolCallMessage,
     ToolCallMessage,
-    ToolCallResultMessage,
+    ToolResultMessage,
+    ToolUseMessage,
 )
 from app.schemas.token_stats import ComponentToolsTokenStats
 from app.services.component import ComponentSchemaService
@@ -271,12 +271,12 @@ class ComponentToolsAgent(BaseAgent):
         tool_call_contents: list[str] = []
 
         for message in mcp_tool_call_messages:
-            if isinstance(message, AssistantToolCallMessage) and message.tool_calls:
+            if isinstance(message, ToolUseMessage) and message.tool_calls:
                 # 从 assistant 消息中提取工具名称
                 for tool_call in message.tool_calls:
                     tool_name = tool_call.function.name
                     tool_call_names.append(tool_name)
-            elif isinstance(message, ToolCallResultMessage) and not message.is_error:
+            elif isinstance(message, ToolResultMessage) and not message.is_error:
                 # 从 tool 消息中提取响应内容
                 tool_call_contents.append(message.content)
 
@@ -402,7 +402,7 @@ class ComponentToolsAgent(BaseAgent):
             tool_calls = cast(
                 list[ChatCompletionMessageFunctionToolCall], raw_tool_calls
             )
-            assistant_message = AssistantToolCallMessage(
+            assistant_message = ToolUseMessage(
                 role="assistant",
                 content=openai_message.content,
                 tool_calls=tool_calls,
@@ -431,7 +431,7 @@ class ComponentToolsAgent(BaseAgent):
                         component_tool_name=component_tool_name,
                         tool_call_id=tool_call.id,
                     )
-                    tool_call_result_message = ToolCallResultMessage(
+                    tool_call_result_message = ToolResultMessage(
                         role="tool",
                         is_error=True,
                         content=f"Component schema not found for tool {tool_name}, skipping",
@@ -454,7 +454,7 @@ class ComponentToolsAgent(BaseAgent):
                         tool_call_id=tool_call.id,
                     )
                     # 创建工具调用结果消息
-                    tool_call_result_message = ToolCallResultMessage(
+                    tool_call_result_message = ToolResultMessage(
                         role="tool",
                         is_error=False,
                         content="Component data generated successfully",
@@ -485,7 +485,7 @@ class ComponentToolsAgent(BaseAgent):
                         validation_error=error_msg,
                         arguments=arguments,
                     )
-                    tool_call_result_message = ToolCallResultMessage(
+                    tool_call_result_message = ToolResultMessage(
                         role="tool",
                         is_error=True,
                         content=error_msg,

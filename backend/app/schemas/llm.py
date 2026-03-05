@@ -4,14 +4,14 @@ from openai.types.chat import ChatCompletionMessageFunctionToolCall
 from pydantic import BaseModel, Field
 
 
-class AssistantToolCallMessage(BaseModel):
+class ToolUseMessage(BaseModel):
     role: Literal["assistant"]
     content: str | None
     reasoning_content: str | None
     tool_calls: list[ChatCompletionMessageFunctionToolCall] | None
 
 
-class ToolCallResultMessage(BaseModel):
+class ToolResultMessage(BaseModel):
     role: Literal["tool"]
     tool_call_id: str
     is_error: bool
@@ -35,4 +35,4 @@ class ToolCallResultMessage(BaseModel):
     )
 
 
-ToolCallMessage: TypeAlias = AssistantToolCallMessage | ToolCallResultMessage
+ToolCallMessage: TypeAlias = ToolUseMessage | ToolResultMessage
