@@ -4,7 +4,7 @@ from typing import Any
 from openai.types.chat import ChatCompletionMessageFunctionToolCall
 
 from app.schemas.llm import (
-    ToolCallMessage,
+    ToolMessage,
     ToolResultMessage,
     ToolUseMessage,
 )
@@ -15,7 +15,7 @@ from app.utils.message import (
 
 
 def get_component_data(
-    component_tool_call_messages: list[ToolCallMessage],
+    component_tool_call_messages: list[ToolMessage],
     component_schema: dict[str, dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """获取组件数据"""
@@ -60,7 +60,7 @@ def get_component_data(
 
 
 def get_mcp_tool_items(
-    mcp_tool_call_messages: list[ToolCallMessage],
+    mcp_tool_call_messages: list[ToolMessage],
 ) -> list[dict[str, str]]:
     """将 MCP 工具调用结果格式化为可拼接到用户消息的纯文本。
     转为「工具名 + 参数 + 返回结果」的纯文本，便于拼接到 final_user_message，

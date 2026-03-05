@@ -21,7 +21,7 @@ from app.schemas.chat import (
 )
 from app.schemas.config import ChatContextConfig
 from app.schemas.llm import (
-    ToolCallMessage,
+    ToolMessage,
     ToolResultMessage,
     ToolUseMessage,
 )
@@ -328,7 +328,7 @@ class ChatService:
                 continue
 
             # 按 DB 顺序 [assistant1, tool1, assistant2, tool2, ...] 逐条处理，assistant 为多条
-            tool_calls_list: list[ToolCallMessage] = filter_tool_call_messages(
+            tool_calls_list: list[ToolMessage] = filter_tool_call_messages(
                 msg.tool_calls
             )
             if not tool_calls_list:
@@ -338,7 +338,7 @@ class ChatService:
             is_latest_tool_round = idx >= last_round_start
 
             # 按原始顺序输出：assistant1, tool1, assistant2, tool2, ...
-            tool_calls: list[ToolCallMessage] = []
+            tool_calls: list[ToolMessage] = []
             for m in tool_calls_list:
                 if getattr(m, "role", None) == "assistant":
                     tool_calls.append(cast(ToolUseMessage, m))

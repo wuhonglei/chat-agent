@@ -4,7 +4,7 @@ import httpx
 from mcp.shared._httpx_utils import McpHttpClientFactory
 
 from app.schemas.llm import (
-    ToolCallMessage,
+    ToolMessage,
     ToolResultMessage,
     ToolUseMessage,
 )
@@ -45,7 +45,7 @@ def create_mcp_http_client_with_ssl_config(
     return factory
 
 
-def extract_tool_call_names(output_messages: list[ToolCallMessage]) -> list[str]:
+def extract_tool_call_names(output_messages: list[ToolMessage]) -> list[str]:
     """
     从收集的工具调用消息中提取工具名称列表
 
@@ -63,7 +63,7 @@ def extract_tool_call_names(output_messages: list[ToolCallMessage]) -> list[str]
     return tool_names
 
 
-def count_tool_calls(output_messages: list[ToolCallMessage]) -> int:
+def count_tool_calls(output_messages: list[ToolMessage]) -> int:
     """
     统计工具调用结果消息的数量
 
@@ -77,7 +77,7 @@ def count_tool_calls(output_messages: list[ToolCallMessage]) -> int:
 
 
 def has_tool_been_called(
-    names: list[str], tool_call_messages: list[ToolCallMessage]
+    names: list[str], tool_call_messages: list[ToolMessage]
 ) -> bool:
     """
     Check if any tool in the list has been called.

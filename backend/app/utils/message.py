@@ -7,7 +7,7 @@ from toolz import dissoc, get
 
 from app.schemas.chat import ChatMessageItemWithToolCalls
 from app.schemas.llm import (
-    ToolCallMessage,
+    ToolMessage,
     ToolResultMessage,
     ToolUseMessage,
 )
@@ -78,7 +78,7 @@ def format_tool_call_result_message(
 
 
 def format_tool_call_message_for_llm(
-    message: ToolCallMessage | dict[str, Any],
+    message: ToolMessage | dict[str, Any],
     clear_reasoning_content: bool = False,
 ) -> dict[str, Any]:
     """
@@ -93,7 +93,7 @@ def format_tool_call_message_for_llm(
 
 
 def format_tool_call_messages_for_llm(
-    messages: Sequence[ToolCallMessage | dict[str, Any]],
+    messages: Sequence[ToolMessage | dict[str, Any]],
     clear_reasoning_content: bool = False,
 ) -> list[dict[str, Any]]:
     """
@@ -108,8 +108,8 @@ def format_tool_call_messages_for_llm(
 
 
 def filter_tool_call_messages(
-    tool_call_messages: list[ToolCallMessage],
-) -> list[ToolCallMessage]:
+    tool_call_messages: list[ToolMessage],
+) -> list[ToolMessage]:
     """过滤工具调用消息，只保留成功的、成对的 assistant+tool 调用。
 
     第一步：收集所有有效的 tool_call_id（从成功的 ToolResultMessage）
@@ -141,7 +141,7 @@ def filter_tool_call_messages(
                     assistant_tool_call_ids.add(tool_call.id)
 
     # 第三步：只保留正确的工具调用（ToolResultMessage is_error=False 且有对应的 assistant 消息）
-    filtered: list[ToolCallMessage] = []
+    filtered: list[ToolMessage] = []
     for message in tool_call_messages:
         if isinstance(message, ToolUseMessage):
             filtered_tool_calls = [
@@ -161,7 +161,7 @@ def filter_tool_call_messages(
 
 
 def get_assistant_tool_call_messages(
-    tool_call_messages: list[ToolCallMessage],
+    tool_call_messages: list[ToolMessage],
 ) -> list[ToolUseMessage]:
     """获取 assistant 工具调用消息"""
     return [
@@ -170,7 +170,7 @@ def get_assistant_tool_call_messages(
 
 
 def get_tool_call_result_messages(
-    tool_call_messages: list[ToolCallMessage],
+    tool_call_messages: list[ToolMessage],
 ) -> list[ToolResultMessage]:
     """获取 tool 工具调用消息"""
     return [
@@ -187,7 +187,7 @@ def format_chat_message_for_llm(
     """
     格式化聊天消息为 LLM API 所需的格式（仅用户/助手消息）
     """
-    if isinstance(message, ToolCallMessage):
+    if isinstance(message, ToolMessage):
         return format_tool_call_message_for_llm(message)
 
     message_dict = normalize_to_dict(message)

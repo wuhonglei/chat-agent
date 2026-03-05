@@ -35,4 +35,4 @@ class ToolResultMessage(BaseModel):
     )
 
 
-ToolCallMessage: TypeAlias = ToolUseMessage | ToolResultMessage
+ToolMessage: TypeAlias = ToolUseMessage | ToolResultMessage

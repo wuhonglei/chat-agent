@@ -14,7 +14,7 @@ from app.prompts import (
 )
 from app.schemas.chat import ChatMessageItem
 from app.schemas.config import LLMConfig
-from app.schemas.llm import ToolCallMessage
+from app.schemas.llm import ToolMessage
 from app.schemas.token_stats import ResponseGenerationTokenStats
 from app.schemas.user import MemoryListItem
 from app.services.component import ComponentSchemaService
@@ -57,8 +57,8 @@ class ResponseGenerationAgent(BaseAgent):
         window_out_summary: str | None,
         history_messages: list[ChatMessageItem],
         user_message: str,
-        mcp_tool_call_messages: list[ToolCallMessage],
-        component_tool_call_messages: list[ToolCallMessage],
+        mcp_tool_call_messages: list[ToolMessage],
+        component_tool_call_messages: list[ToolMessage],
         user_id: str,
         conversation_id: str,
         user_memories: list[MemoryListItem],

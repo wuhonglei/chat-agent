@@ -29,7 +29,7 @@ from app.schemas.chat import (
 )
 from app.schemas.config import LLMConfig
 from app.schemas.llm import (
-    ToolCallMessage,
+    ToolMessage,
     ToolResultMessage,
     ToolUseMessage,
 )
@@ -70,7 +70,7 @@ class MCPToolsAgent(BaseAgent):
     ):
         super().__init__(think_mode, llm_config)
         self.mcp_manager = mcp_manager
-        self.output_messages: list[ToolCallMessage] = []
+        self.output_messages: list[ToolMessage] = []
         self.tool_call_args_by_name: dict[str, list[dict[str, Any]]] = defaultdict(list)
         self.duration: float | None = None
         self.token_stats: MCPToolsTokenStats | None = None
@@ -632,7 +632,7 @@ class MCPToolsAgent(BaseAgent):
         extra_body: dict[str, Any],
         tools: list[dict[str, Any]],
         tool_call_user_message: str,
-    ) -> AsyncGenerator[ToolCallMessage, None]:
+    ) -> AsyncGenerator[ToolMessage, None]:
         """Call LLM with MCP tools and handle tool calls, streaming results
 
         Args:
@@ -642,7 +642,7 @@ class MCPToolsAgent(BaseAgent):
             tools: 工具列表
             tool_call_user_message: 工具调用用户消息
         Yields:
-            ToolCallMessage: Tool call related messages
+            ToolMessage: Tool call related messages
         """
         logger.info(
             "MCP tool calls",
@@ -776,7 +776,7 @@ class MCPToolsAgent(BaseAgent):
         self,
         input_messages: list[dict[str, Any]],
         tools: list[dict[str, Any]],
-        output_messages: list[ToolCallMessage],
+        output_messages: list[ToolMessage],
     ) -> MCPToolsTokenStats:
         """创建 MCP 工具调用的 token 统计对象
 

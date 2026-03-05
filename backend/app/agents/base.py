@@ -6,7 +6,7 @@ from typing import Any
 
 from app.schemas.chat import ChatMessageItem
 from app.schemas.config import LLMConfig
-from app.schemas.llm import ToolCallMessage
+from app.schemas.llm import ToolMessage
 from app.schemas.token_stats import BaseTokenStats, TokenUsage
 from app.services.base_service.llm_service import LLMService
 from app.utils.common import normalize_to_dict
@@ -88,7 +88,7 @@ class BaseAgent(ABC, LLMService):
         system_prompt: str,
         history_messages: list[ChatMessageItem],
         user_message: str,
-        tool_call_messages: list[ToolCallMessage] | None = None,
+        tool_call_messages: list[ToolMessage] | None = None,
     ) -> list[dict[str, Any]]:
         """Build prompt for LLM
 

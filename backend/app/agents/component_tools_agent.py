@@ -16,7 +16,7 @@ from app.prompts.prompt_utils import get_prompt_for_component_render_data
 from app.schemas.chat import ComponentToolConfig
 from app.schemas.config import LLMConfig
 from app.schemas.llm import (
-    ToolCallMessage,
+    ToolMessage,
     ToolResultMessage,
     ToolUseMessage,
 )
@@ -42,14 +42,14 @@ class ComponentToolsAgent(BaseAgent):
     ):
         super().__init__(think_mode, llm_config)
         self.schema_service = schema_service
-        self.output_messages: list[ToolCallMessage] = []
+        self.output_messages: list[ToolMessage] = []
         self.token_stats: ComponentToolsTokenStats | None = None
         self.duration: float | None = None
 
     async def stream_execute(  # type: ignore[override]
         self,
         user_message: str,
-        mcp_tool_call_messages: list[ToolCallMessage],
+        mcp_tool_call_messages: list[ToolMessage],
         component_tools_for_backend: list[ComponentToolConfig],
     ) -> AsyncGenerator[str, None]:
         """
@@ -124,7 +124,7 @@ class ComponentToolsAgent(BaseAgent):
     def _filter_component_tools(
         self,
         component_tools_for_backend: list[ComponentToolConfig],
-        mcp_tool_call_messages: list[ToolCallMessage],
+        mcp_tool_call_messages: list[ToolMessage],
         user_message: str,
     ) -> list[str]:
         """根据条件过滤组件工具
@@ -257,7 +257,7 @@ class ComponentToolsAgent(BaseAgent):
 
     def _extract_mcp_tool_info(
         self,
-        mcp_tool_call_messages: list[ToolCallMessage],
+        mcp_tool_call_messages: list[ToolMessage],
     ) -> tuple[list[str], list[str]]:
         """从 MCP 工具调用消息中提取工具名称和响应内容
 
@@ -348,7 +348,7 @@ class ComponentToolsAgent(BaseAgent):
         extra_body: dict[str, Any],
         component_tools: list[dict[str, Any]],
         schemas: dict[str, Any],
-    ) -> AsyncGenerator[ToolCallMessage, None]:
+    ) -> AsyncGenerator[ToolMessage, None]:
         """Call LLM with component tools and collect component data
 
         Args:
@@ -359,7 +359,7 @@ class ComponentToolsAgent(BaseAgent):
             schemas: 组件工具 schemas 字典
 
         Yields:
-            ToolCallMessage: 工具调用相关的消息
+            ToolMessage: 工具调用相关的消息
         """
         # 调用 LLM API，让 LLM 决定是否调用组件工具
         max_iterations = len(component_tools)  # 组件工具调用最多迭代次数
@@ -506,7 +506,7 @@ class ComponentToolsAgent(BaseAgent):
         self,
         input_messages: list[dict[str, Any]],
         tools: list[dict[str, Any]],
-        output_messages: list[ToolCallMessage],
+        output_messages: list[ToolMessage],
     ) -> ComponentToolsTokenStats:
         """创建组件工具调用的 token 统计对象
 

@@ -256,7 +256,7 @@ component_tool_names = chat_request.component_tool_names  # 例如: ['weather']
     - 将组件工具添加到 tools 列表
     - 调用 LLM API，让 LLM 决定是否调用组件工具
     - 收集组件工具调用的结果，存储到 `self.collected_component_data` 中
-  - **返回**：异步生成器，yield 工具调用相关的消息（`ToolCallMessage`）
+  - **返回**：异步生成器，yield 工具调用相关的消息（`ToolMessage`）
 
 #### 4.2 工具调用
 - LLM 根据上下文和用户需求，决定是否调用组件工具
