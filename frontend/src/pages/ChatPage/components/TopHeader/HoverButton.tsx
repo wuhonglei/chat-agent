@@ -1,5 +1,5 @@
 import { validateTitle } from "@/utils/header";
-import { useClickAway } from "ahooks";
+import { useClickAway, useMemoizedFn } from "ahooks";
 import { App, Input } from "antd";
 import classNames from "classnames";
 import { useEffect, useRef, useState } from "react";
@@ -16,15 +16,15 @@ export default function HoverButton({ title, onConfirm, className: outerClassNam
   const [newTitle, setNewTitle] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // 当 title prop 变化时，同步更新 newTitle
-  useEffect(() => {
+  const resetNewTitle = useMemoizedFn(() => {
     // 异常处理，避免 title 返回过长，导致 input 宽度计算异常
     setNewTitle(title.split("\n")[0].slice(0, 100));
-  }, [title]);
+  });
 
-  function resetNewTitle() {
-    setNewTitle(title);
-  }
+  // 当 title prop 变化时，同步更新 newTitle
+  useEffect(() => {
+    resetNewTitle();
+  }, [resetNewTitle, title]);
 
   function validateAndConfirm() {
     if (!isEdit) {
