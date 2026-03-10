@@ -1,8 +1,8 @@
-import classNames from "classnames";
-import { useState, useEffect, useRef } from "react";
-import { App, Input } from "antd";
-import { useClickAway } from "ahooks";
 import { validateTitle } from "@/utils/header";
+import { useClickAway } from "ahooks";
+import { App, Input } from "antd";
+import classNames from "classnames";
+import { useEffect, useRef, useState } from "react";
 
 type Props = {
   title: string;
@@ -13,12 +13,13 @@ type Props = {
 export default function HoverButton({ title, onConfirm, className: outerClassName }: Props) {
   const [isEdit, setIsEdit] = useState(false);
   const { message } = App.useApp();
-  const [newTitle, setNewTitle] = useState(title);
+  const [newTitle, setNewTitle] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
 
   // 当 title prop 变化时，同步更新 newTitle
   useEffect(() => {
-    setNewTitle(title);
+    // 异常处理，避免 title 返回过长，导致 input 宽度计算异常
+    setNewTitle(title.split("\n")[0].slice(0, 100));
   }, [title]);
 
   function resetNewTitle() {
