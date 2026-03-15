@@ -42,6 +42,7 @@ export default defineConfig(({ mode }) => {
     },
     resolve: {
       alias: {
+        "@rc-component/util/lib": "@rc-component/util/es",
         "@": path.resolve(__dirname, "./src"),
       },
     },

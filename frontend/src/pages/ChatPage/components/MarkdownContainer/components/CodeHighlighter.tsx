@@ -9,6 +9,7 @@ type Props = CodeHighlighterProps & {
 const CodeHighlighter = ({ header, ...restProps }: Props) => {
   const props: Omit<CodeHighlighterProps, "children"> = {
     highlightProps: {},
+    prismLightMode: false,
   };
   if (header) {
     props.header = <CustomHeader>{header}</CustomHeader>;
