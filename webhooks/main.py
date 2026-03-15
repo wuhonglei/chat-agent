@@ -273,6 +273,7 @@ def async_deploy(commit_sha=None, commit_message=None, log_file_path=None, befor
         except Exception as e:
             logger.warning(f"无法创建日志文件 {log_file_path}: {e}")
 
+    deploy_frontend, deploy_backend = False, False
     try:
         # 确保在 main 分支上
         if not run_command("git checkout main", REPO_PATH):
@@ -314,14 +315,16 @@ def async_deploy(commit_sha=None, commit_message=None, log_file_path=None, befor
         logger.info(f"部署总时长: {duration_formatted}")
         logger.info("=== 部署任务结束 ===")
 
-        # 发送成功通知邮件（附带日志文件）
+        # 发送成功通知邮件（附带日志文件与部署服务列表）
         email_notifier.send_deploy_success_notification(
             repo_path=REPO_PATH,
             deploy_script=DEPLOY_SCRIPT,
             commit_sha=commit_sha,
             commit_message=commit_message,
             deploy_duration=duration_formatted,
-            log_file_path=log_file_path
+            log_file_path=log_file_path,
+            deploy_frontend=deploy_frontend,
+            deploy_backend=deploy_backend,
         )
 
     except Exception as e:
@@ -335,7 +338,7 @@ def async_deploy(commit_sha=None, commit_message=None, log_file_path=None, befor
         logger.error(f"部署总时长: {duration_formatted}")
         logger.error("=== 部署任务异常结束 ===")
 
-        # 发送失败通知邮件（附带日志文件）
+        # 发送失败通知邮件（附带日志文件与部署服务列表）
         email_notifier.send_deploy_failed_notification(
             repo_path=REPO_PATH,
             deploy_script=DEPLOY_SCRIPT,
@@ -343,7 +346,9 @@ def async_deploy(commit_sha=None, commit_message=None, log_file_path=None, befor
             commit_message=commit_message,
             error_message=str(e),
             deploy_duration=duration_formatted,
-            log_file_path=log_file_path
+            log_file_path=log_file_path,
+            deploy_frontend=deploy_frontend,
+            deploy_backend=deploy_backend,
         )
     finally:
         # 移除本次部署的日志文件 sink
