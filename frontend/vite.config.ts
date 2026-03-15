@@ -47,18 +47,31 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       sourcemap: false,
-      rollupOptions: {
+      rolldownOptions: {
         output: {
-          manualChunks: {
-            // 进一步拆分大块依赖，避免单 chunk 内存占用过高
-            vendor: ["react", "react-dom"],
-            utils: ["axios", "lodash-es", "dayjs", "uuid", "mitt"],
-            ui: ["simplebar-react"],
-            components: [
-              "@ant-design/x",
-              "@ant-design/x-markdown",
-              "@ant-design/icons",
-              "antd",
+          // 使用 Rolldown codeSplitting 替代已移除的 manualChunks，拆分大块依赖
+          codeSplitting: {
+            groups: [
+              {
+                name: "vendor",
+                test: /node_modules[\\/](react|react-dom)/,
+                priority: 40,
+              },
+              {
+                name: "utils",
+                test: /node_modules[\\/](axios|lodash-es|dayjs|uuid|mitt)/,
+                priority: 30,
+              },
+              {
+                name: "ui",
+                test: /node_modules[\\/]simplebar-react/,
+                priority: 20,
+              },
+              {
+                name: "components",
+                test: /node_modules[\\/](@ant-design[\\/]x|@ant-design[\\/]x-markdown|@ant-design[\\/]icons|antd)/,
+                priority: 10,
+              },
             ],
           },
         },
