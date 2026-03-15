@@ -99,6 +99,10 @@ if [ ! -f .env ]; then
     fi
 fi
 
+# 差异部署范围（由 webhook 通过环境变量传入；未设置时默认为 1，兼容直接执行本脚本）
+DEPLOY_FRONTEND=${DEPLOY_FRONTEND:-1}
+DEPLOY_BACKEND=${DEPLOY_BACKEND:-1}
+
 # 零停机部署函数
 # 策略：先构建镜像（旧容器继续运行），然后快速切换容器
 zero_downtime_deploy() {
@@ -408,42 +412,36 @@ if [ "$IS_FIRST_DEPLOY" = true ]; then
     echo "🔨 构建并启动所有服务..."
     $DOCKER_COMPOSE_CMD up -d --build
 else
-    # 更新部署：零停机更新
-    echo "🔄 开始零停机部署更新..."
+    # 更新部署：按 DEPLOY_BACKEND / DEPLOY_FRONTEND 差异更新（postgres 仅首次部署时启动，此处不更新）
+    echo "🔄 开始零停机部署更新（范围: backend=$DEPLOY_BACKEND, frontend=$DEPLOY_FRONTEND）..."
     
-    # 按依赖顺序更新服务：postgres -> backend -> frontend
-    # 注意：数据库通常不需要频繁更新，但为了完整性包含在内
-    
-    # 更新 postgres
-    # 数据库不支持零停机更新（避免同数据卷并发写入）
-    echo "🔄 更新 postgres（短暂停机，避免数据风险）..."
-    $DOCKER_COMPOSE_CMD stop postgres 2>/dev/null || true
-    if ! $DOCKER_COMPOSE_CMD up -d --no-deps postgres; then
-        echo "❌ 数据库更新失败，部署中止"
-        exit 1
-    fi
-    
-    # 更新 backend
     BACKEND_DEPLOY_SUCCESS=true
-    if ! zero_downtime_deploy "backend" 120; then
-        echo "❌ 后端服务更新失败"
-        BACKEND_DEPLOY_SUCCESS=false
-    fi
-    
-    # 更新 frontend
     FRONTEND_DEPLOY_SUCCESS=true
-    if ! zero_downtime_deploy "frontend" 90; then
-        echo "❌ 前端服务更新失败"
-        FRONTEND_DEPLOY_SUCCESS=false
+    
+    if [ "$DEPLOY_BACKEND" = "1" ]; then
+        if ! zero_downtime_deploy "backend" 120; then
+            echo "❌ 后端服务更新失败"
+            BACKEND_DEPLOY_SUCCESS=false
+        fi
+    else
+        echo "⏭️  跳过 backend 更新（无相关变更）"
     fi
     
-    # 如果所有服务都失败，则退出
+    if [ "$DEPLOY_FRONTEND" = "1" ]; then
+        if ! zero_downtime_deploy "frontend" 90; then
+            echo "❌ 前端服务更新失败"
+            FRONTEND_DEPLOY_SUCCESS=false
+        fi
+    else
+        echo "⏭️  跳过 frontend 更新（无相关变更）"
+    fi
+    
+    # 如果本次需要更新的服务全部失败，则退出
     if [ "$BACKEND_DEPLOY_SUCCESS" = false ] && [ "$FRONTEND_DEPLOY_SUCCESS" = false ]; then
-        echo "❌ 所有服务部署失败，部署中止"
+        echo "❌ 所有待更新服务部署失败，部署中止"
         exit 1
     fi
     
-    # 如果有部分服务失败，继续执行但不退出，让用户知道状态
     if [ "$BACKEND_DEPLOY_SUCCESS" = false ] || [ "$FRONTEND_DEPLOY_SUCCESS" = false ]; then
         echo ""
         echo "⚠️  部分服务部署失败，但继续检查整体状态..."

@@ -30,6 +30,26 @@ REPO_PATH = os.getenv('REPO_PATH', '/home/ubuntu/ai-doc')
 DEPLOY_SCRIPT = os.getenv('DEPLOY_SCRIPT', '/home/ubuntu/ai-doc/deploy.sh')
 LOG_DIR = os.getenv('LOG_DIR', './logs')  # 日志文件存储目录
 
+# 变更文件路径与部署范围：仅当 diff 命中下列路径时才触发对应服务构建
+FRONTEND_DEPLOY_PATHS = [
+    'frontend/src',
+    'frontend/public',
+    'frontend/vite-plugins',
+    'frontend/index.html',
+    'frontend/package-lock.json',
+    'frontend/package.json',
+    'frontend/vite.config.ts',
+    'frontend/Dockerfile',
+]
+BACKEND_DEPLOY_PATHS = [
+    'backend/app',
+    'backend/alembic',
+    'backend/start.sh',
+    'backend/Dockerfile',
+    'backend/pyproject.toml',
+    'backend/uv.lock',
+]
+
 # 确保日志目录存在
 os.makedirs(LOG_DIR, exist_ok=True)
 
@@ -41,6 +61,63 @@ current_deploy_info = {
     'log_file_path': None
 }
 deploy_lock = multiprocessing.Lock()
+
+
+def _path_matches_rule(file_path, rule):
+    """判断变更文件是否命中规则：精确匹配或目录前缀。"""
+    return file_path == rule or file_path.startswith(rule + '/')
+
+
+def get_deploy_scope(before, after, repo_path):
+    """根据 git diff 变更文件计算需要部署的服务范围。
+
+    Args:
+        before: push 前的 commit SHA（GitHub payload 的 before）
+        after: push 后的 commit SHA（GitHub payload 的 after）
+        repo_path: 仓库目录
+
+    Returns:
+        (deploy_frontend: bool, deploy_backend: bool)
+        若 diff 失败或 before/after 无效，则返回 (True, True) 以全量部署。
+    """
+    deploy_frontend = False
+    deploy_backend = False
+    try:
+        if not before or not after or before == '0' * 40:
+            logger.warning("before/after 无效，按全量部署")
+            return True, True
+        result = subprocess.run(
+            ['git', 'diff', '--name-only', before, after],
+            cwd=repo_path,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode != 0:
+            logger.warning(f"git diff 失败 (code={result.returncode})，按全量部署")
+            return True, True
+        changed_files = [
+            line.strip() for line in result.stdout.strip().splitlines() if line.strip()]
+        logger.info(f"本次 push 变更文件数: {len(changed_files)}")
+        for f in changed_files:
+            for p in FRONTEND_DEPLOY_PATHS:
+                if _path_matches_rule(f, p):
+                    deploy_frontend = True
+                    break
+            for p in BACKEND_DEPLOY_PATHS:
+                if _path_matches_rule(f, p):
+                    deploy_backend = True
+                    break
+            if deploy_frontend and deploy_backend:
+                break
+        if not deploy_frontend and not deploy_backend and changed_files:
+            logger.info("变更未命中前后端路径，仅执行状态与健康检查")
+        logger.info(
+            f"部署范围: frontend={deploy_frontend}, backend={deploy_backend}")
+    except Exception as e:
+        logger.warning(f"计算部署范围异常: {e}，按全量部署")
+        return True, True
+    return deploy_frontend, deploy_backend
 
 
 def run_command(cmd, cwd):
@@ -147,13 +224,15 @@ def terminate_previous_deploy():
             current_deploy_info['log_file_path'] = None
 
 
-def async_deploy(commit_sha=None, commit_message=None, log_file_path=None):
+def async_deploy(commit_sha=None, commit_message=None, log_file_path=None, before=None, after=None):
     """异步执行部署任务
 
     Args:
         commit_sha: commit SHA
         commit_message: commit 消息
         log_file_path: 日志文件路径
+        before: push 前 commit SHA（用于 git diff）
+        after: push 后 commit SHA（用于 git diff）
     """
     # 获取当前进程
     current_process = multiprocessing.current_process()
@@ -210,7 +289,15 @@ def async_deploy(commit_sha=None, commit_message=None, log_file_path=None):
             logger.error("异步部署失败：git log 出错")
             raise Exception("异步部署失败：git log 出错")
 
-        # 执行 deploy.sh
+        # 根据 git diff 计算部署范围并设置环境变量
+        deploy_frontend, deploy_backend = get_deploy_scope(
+            before, after, REPO_PATH)
+        os.environ['DEPLOY_FRONTEND'] = '1' if deploy_frontend else '0'
+        os.environ['DEPLOY_BACKEND'] = '1' if deploy_backend else '0'
+        logger.info(
+            f"设置 DEPLOY_FRONTEND={os.environ['DEPLOY_FRONTEND']}, DEPLOY_BACKEND={os.environ['DEPLOY_BACKEND']}")
+
+        # 执行 deploy.sh（会继承当前进程的 DEPLOY_* 环境变量）
         if not run_command(f"bash {DEPLOY_SCRIPT}", REPO_PATH):
             error_msg = (
                 f"异步部署失败：deploy.sh 执行出错 ({DEPLOY_SCRIPT})"
@@ -285,12 +372,16 @@ def on_push(payload):
 
     logger.info("收到 main 分支推送，启动异步部署...")
 
-    # 提取 commit 信息（可选）
+    # 提取 commit 信息与 diff 范围（before/after）
     commit_sha = None
     commit_message = None
+    before = payload.get('before') or ''
+    after = payload.get('after') or ''
     if 'head_commit' in payload:
         commit_sha = payload['head_commit'].get('id', 'unknown')
         commit_message = payload['head_commit'].get('message', 'unknown')
+        if not after and commit_sha:
+            after = commit_sha
 
     # 为本次部署创建唯一的日志文件名
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -309,7 +400,7 @@ def on_push(payload):
     # 启动异步部署任务
     deploy_process = multiprocessing.Process(
         target=async_deploy,
-        args=(commit_sha, commit_message, log_file_path)
+        args=(commit_sha, commit_message, log_file_path, before, after)
     )
     deploy_process.start()
 
