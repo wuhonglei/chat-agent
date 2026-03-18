@@ -16,7 +16,7 @@ system_prompt_for_title_template: Template = Template(
 
 规则：
 1. 仔细分析用户消息，确保标题准确、简洁、有吸引力
-2. 标题必须简洁明了，不要超过15个字
+2. 标题必须简洁明了，不要超过 15 个字
 3. 标题必须准确反映用户消息的内容
 """.strip()
 )
