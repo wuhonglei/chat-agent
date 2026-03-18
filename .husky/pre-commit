@@ -3,7 +3,12 @@ set -e
 
 cd "$(dirname "$0")/.."
 
-npm run lint-staged --prefix frontend
+cd frontend
+if [ -f "$HOME/.vite-plus/env" ]; then
+  . "$HOME/.vite-plus/env"
+fi
+vp staged
+cd ..
 
 
 # Backend: ruff + mypy（.pre-commit-config.yaml，仅对暂存的 .py 做类型检查）

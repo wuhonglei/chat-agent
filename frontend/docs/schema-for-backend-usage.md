@@ -67,6 +67,7 @@ jsonschema.validate(instance=generated_props, schema=component_schema)
 **解决方案**：
 
 **方案 A：使用支持 $ref 的库**（推荐）
+
 - Python: `jsonschema` 库原生支持 `$ref`
 - JavaScript: `ajv` 库支持 `$ref`
 - 这些库会自动解析 `definitions` 中的引用
@@ -76,7 +77,7 @@ jsonschema.validate(instance=generated_props, schema=component_schema)
 
 ```typescript
 // 前端：解析 $ref 引用
-import { dereference } from 'json-schema-deref-sync';
+import { dereference } from "json-schema-deref-sync";
 
 const resolvedSchema = dereference(componentSchema);
 // 发送 resolvedSchema 给后端
@@ -88,6 +89,7 @@ const resolvedSchema = dereference(componentSchema);
 #### 问题 2：Schema 格式兼容性
 
 **检查项**：
+
 - ✅ 使用标准的 JSON Schema Draft 7 格式
 - ✅ 包含 `$schema` 字段：`"$schema": "http://json-schema.org/draft-07/schema#"`
 - ✅ 所有类型都是 JSON Schema 支持的类型
@@ -99,6 +101,7 @@ const resolvedSchema = dereference(componentSchema);
 #### 建议 1：保持 $ref 引用（推荐）
 
 **优点**：
+
 - Schema 文件更小
 - 类型定义可复用
 - 符合 JSON Schema 标准
@@ -115,7 +118,7 @@ const resolvedSchema = dereference(componentSchema);
 
 ```typescript
 // 前端工具函数
-import { dereference } from 'json-schema-deref-sync';
+import { dereference } from "json-schema-deref-sync";
 
 export function getComponentToolsRequestData(): ComponentToolRequestItem[] {
   return componentTools.map(({ name, schema, when }) => ({
@@ -179,8 +182,8 @@ for tool in component_tools:
 #### JavaScript/TypeScript 示例
 
 ```typescript
-import Ajv from 'ajv';
-import addFormats from 'ajv-formats';
+import Ajv from "ajv";
+import addFormats from "ajv-formats";
 
 const ajv = new Ajv({ allErrors: true });
 addFormats(ajv);

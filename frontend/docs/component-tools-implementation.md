@@ -21,6 +21,7 @@
 ### 组件注册机制
 
 在 `src/componentTools/index.ts` 中注册所有组件工具，每个组件包含：
+
 - `name`: 组件唯一标识
 - `component`: React 组件
 - `typeSourceFile`: 组件 Props 类型定义文件的路径（用于生成 JSON Schema）
@@ -64,6 +65,7 @@ export interface ComponentToolItem extends ComponentToolRequestItem {
 ```
 
 **说明**：
+
 - `ComponentToolItem` 继承了 `ComponentToolRequestItem`，添加了 `component` 和 `typeSourceFile` 字段
 - `typeSourceFile` 用于指定组件 Props 类型定义文件的路径，可以通过构建工具或脚本读取该文件来生成 JSON Schema
 
@@ -120,7 +122,7 @@ await chatAPI.streamMessage(
     removedMessageIds,
     conversationId,
     componentTools: getComponentToolsRequestData(), // 新增：只传递 name 和 when
-  },
+  }
   // ... 其他参数
 );
 ```
@@ -183,6 +185,7 @@ Schema 需要通过 Vite 插件在构建时自动生成。
 创建一个 Vite 插件，在构建时自动从 `componentTools/index.ts` 中读取 `typeSourceFile` 字段，并生成对应的 JSON Schema。
 
 插件需要实现以下功能：
+
 1. 读取 `src/componentTools/index.ts` 模块
 2. 遍历 `componentTools` 数组，提取每个组件的 `name` 和 `typeSourceFile`
 3. 从 `typeSourceFile` 指定的文件中解析类型定义（如 `WeatherNowProps`）
@@ -220,10 +223,12 @@ export default defineConfig(({ mode }) => {
 #### 6.3 Schema 文件位置
 
 生成的 JSON Schema 文件将存放在：
+
 - `public/component-schemas/weather_now.json`
 - `public/component-schemas/{component_name}.json`
 
 构建后，这些文件可以通过以下 URL 访问：
+
 - `/component-schemas/weather_now.json`
 - `/component-schemas/{component_name}.json`
 
@@ -253,6 +258,7 @@ export default componentTools;
 ```
 
 **说明**：
+
 - 使用 `require.resolve()` 来获取类型定义文件的绝对路径
 - `typeSourceFile` 指向包含组件 Props 类型定义的文件（例如：`type.ts`）
 - Schema 生成工具可以读取此文件路径，解析其中的类型定义（如 `WeatherNowProps`），并生成对应的 JSON Schema
@@ -282,16 +288,19 @@ export default componentTools;
 后端收到请求后，需要根据组件名称获取对应的 JSON Schema：
 
 **获取方式**：通过 HTTP 请求获取
+
 - URL 格式：`{前端域名}/component-schemas/{component_name}.json`
 - 示例：`https://example.com/component-schemas/weather_now.json`
 
 **示例请求**：
+
 ```http
 GET /component-schemas/weather_now.json HTTP/1.1
 Host: example.com
 ```
 
 **响应示例**：
+
 ```json
 {
   "type": "object",
@@ -366,11 +375,13 @@ Host: example.com
 假设要添加一个 `Chart` 组件：
 
 1. **创建组件文件**：
+
    ```
    src/componentTools/components/Chart/index.tsx
    ```
 
 2. **定义类型**：
+
    ```typescript
    // src/componentTools/components/Chart/type.ts
    export interface ChartProps {
@@ -381,6 +392,7 @@ Host: example.com
    ```
 
 3. **注册组件**：
+
    ```typescript
    // src/componentTools/index.ts
    import { createRequire } from "module";
@@ -402,16 +414,19 @@ Host: example.com
    ```
 
 4. **生成 Schema**：
+
    ```bash
    npm run build
    ```
+
    构建完成后，Vite 插件会自动在 `public/component-schemas/chart.json` 生成 JSON Schema。
 
-6. **后端获取 Schema**：
+5. **后端获取 Schema**：
    后端可以通过 `GET /component-schemas/chart.json` 获取该组件的 JSON Schema。
 
-7. **后端返回**：
-   ```markdown
+6. **后端返回**：
+
+   ````markdown
    ```component_chart
    {
      "type": "line",
@@ -419,4 +434,8 @@ Host: example.com
      "labels": ["Jan", "Feb", "Mar", "Apr", "May"]
    }
    ```
+   ````
+
+   ```
+
    ```

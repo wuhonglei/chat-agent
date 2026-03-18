@@ -7,6 +7,7 @@
 ## 需求描述
 
 ### 基本路由功能
+
 1. **默认 URL**: `/` 根路径，前端显示一个新的聊天对话窗口
 2. **新对话 URL**: `/chat`，前端显示一个新的聊天对话窗口
 3. **历史对话 URL**: `/chat/xxxx`，前端显示一个已经存在的对话历史
@@ -17,27 +18,30 @@
 
 ### 1. 路由设计
 
-| URL 路径 | 功能描述 | 状态管理 | 数据持久化 |
-|---------|---------|----------|-----------|
-| `/` | 根路径，显示新的聊天对话窗口 | 创建临时会话ID | 本地存储 |
-| `/chat` | 新的聊天对话窗口 | 创建临时会话ID | 本地存储 |
-| `/chat/{conversation_id}` | 显示已存在的对话历史 | 加载指定对话数据 | 数据库加载 |
-| `/chat/local_{local_id}` | 新注册的对话窗口 | 本地ID转为正式ID | 持久化到数据库 |
+| URL 路径                  | 功能描述                     | 状态管理         | 数据持久化     |
+| ------------------------- | ---------------------------- | ---------------- | -------------- |
+| `/`                       | 根路径，显示新的聊天对话窗口 | 创建临时会话ID   | 本地存储       |
+| `/chat`                   | 新的聊天对话窗口             | 创建临时会话ID   | 本地存储       |
+| `/chat/{conversation_id}` | 显示已存在的对话历史         | 加载指定对话数据 | 数据库加载     |
+| `/chat/local_{local_id}`  | 新注册的对话窗口             | 本地ID转为正式ID | 持久化到数据库 |
 
 ### 2. 会话管理策略
 
 #### 2.1 临时会话创建
+
 - 用户访问 `/` 或 `/chat` 时，前端生成临时会话ID（UUID格式）
 - 临时会话ID格式：`local_{timestamp}_{random}`
 - 临时状态保存在前端本地存储中
 
 #### 2.2 会话注册机制
+
 - 当用户发送第一条消息时，触发会话注册
 - 前端调用 `POST /conversations` 创建正式对话记录
 - 将本地临时会话ID映射到数据库中的正式conversation_id
 - 更新URL为 `/chat/{conversation_id}`
 
 #### 2.3 历史对话加载
+
 - 访问 `/chat/{conversation_id}` 时，先查询数据库验证对话存在性
 - 加载对话消息历史和相关元数据
 - 初始化前端状态并显示历史消息
@@ -45,6 +49,7 @@
 ### 3. 核心数据模型
 
 #### 3.1 对话模型 (Conversation)
+
 ```python
 class Conversation(SQLModel, table=True):
     id: str = Field(primary_key=True, index=True)
@@ -57,6 +62,7 @@ class Conversation(SQLModel, table=True):
 ```
 
 #### 3.2 消息模型 (Message)
+
 ```python
 class Message(SQLModel, table=True):
     id: str = Field(primary_key=True, index=True)
@@ -136,6 +142,7 @@ data: {
 ### 5. 前端状���管理
 
 #### 5.1 Redux状态结构
+
 ```typescript
 interface ChatState {
   // 基础状态
@@ -147,20 +154,21 @@ interface ChatState {
   error: string | null;
 
   // 会话管理状态
-  conversationId: string | null;     // 正式对话ID
-  localSessionId: string | null;     // 临时会话ID
+  conversationId: string | null; // 正式对话ID
+  localSessionId: string | null; // 临时会话ID
   conversationInfo: {
     id: string;
     title: string;
     created_at: string;
     message_count: number;
   } | null;
-  isNewSession: boolean;             // 是否为新会话
-  sessionRegistered: boolean;        // 会话是否已注册
+  isNewSession: boolean; // 是否为新会话
+  sessionRegistered: boolean; // 会话是否已注册
 }
 ```
 
 #### 5.2 会话管理Action
+
 ```typescript
 // 创建临时会话
 createLocalSession()
@@ -296,6 +304,7 @@ sequenceDiagram
 ## 关键技术实现要点
 
 ### 1. 前端路由实现
+
 ```typescript
 // 路由配置更新
 export const routes: RouteConfig[] = [
@@ -324,6 +333,7 @@ export const routes: RouteConfig[] = [
 ```
 
 ### 2. 会话ID管理策略
+
 ```typescript
 class SessionManager {
   private localSessionId: string | null = null;
@@ -332,28 +342,24 @@ class SessionManager {
   // 创建本地会话
   createLocalSession(): string {
     this.localSessionId = `local_${Date.now()}_${this.generateRandomId()}`;
-    localStorage.setItem('localSessionId', this.localSessionId);
+    localStorage.setItem("localSessionId", this.localSessionId);
     return this.localSessionId;
   }
 
   // 注册正式会话
   async registerConversation(title?: string): Promise<string> {
     if (!this.localSessionId) {
-      throw new Error('No local session found');
+      throw new Error("No local session found");
     }
 
-    const response = await api.post('/conversations', { title });
+    const response = await api.post("/conversations", { title });
     this.conversationId = response.data.conversation_id;
 
     // 更新URL
-    window.history.replaceState(
-      {},
-      '',
-      `/chat/${this.conversationId}`
-    );
+    window.history.replaceState({}, "", `/chat/${this.conversationId}`);
 
     // 清除本地会话ID
-    localStorage.removeItem('localSessionId');
+    localStorage.removeItem("localSessionId");
     this.localSessionId = null;
 
     return this.conversationId;
@@ -362,6 +368,7 @@ class SessionManager {
 ```
 
 ### 3. 后端中间件增强
+
 ```python
 # 添加会话验证中间件
 async def validate_conversation(request: Request, conversation_id: str):
@@ -381,6 +388,7 @@ async def validate_conversation(request: Request, conversation_id: str):
 ## 项目技术栈
 
 ### 后端技术栈
+
 - **FastAPI**: Python Web 框架
 - **SQLModel**: ORM，基于 SQLAlchemy
 - **PostgreSQL**: 主数据库
@@ -390,6 +398,7 @@ async def validate_conversation(request: Request, conversation_id: str):
 - **MCP**: 工具调用协议
 
 ### 前端技术栈
+
 - **React 18**: UI 框架
 - **TypeScript**: 类型安全
 - **Ant Design**: UI 组件库
@@ -401,18 +410,21 @@ async def validate_conversation(request: Request, conversation_id: str):
 ## 实现优先级
 
 ### 高优先级
+
 1. ✅ 数据库模型设计（已完成）
 2. ✅ 基础聊天流式接口（已完成）
 3. 🔄 会话管理API实现
 4. 🔄 前端路由和状态管理重构
 
 ### 中优先级
+
 1. 对话列表和搜索功能
 2. 对话标题编辑功能
 3. 错误处理和用户提示优化
 4. 性能优化（消息分页、懒加载）
 
 ### 低优先级
+
 1. 对话导出功能
 2. 对话分享功能
 3. 多用户权限管理
@@ -420,5 +432,5 @@ async def validate_conversation(request: Request, conversation_id: str):
 
 ---
 
-*文档版本: 1.0*
-*最后更新: 2025-11-02*
+_文档版本: 1.0_
+_最后更新: 2025-11-02_

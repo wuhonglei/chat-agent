@@ -74,7 +74,7 @@ apiClient.interceptors.request.use(
 
 // Response interceptor - Convert all response data to camelCase
 apiClient.interceptors.response.use(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // oxlint-disable-next-line @typescript-eslint/no-explicit-any
   (response: AxiosResponse<{ data: any; code: number; msg: string }>) => {
     const { code, msg, data: responseData } = response.data;
     // 如果响应头部中有 x-secret-token-info 则更新

@@ -16,17 +16,17 @@
 }
 ```
 
-
 ### ChatPage 缓存策略
 
 1. 首先，页面加载时，会拉取最新的 conversion_info 数据，并缓存到 indexedDB 中
 2. 然后，用户切换至某个对话时，
-  2.1 如果 messageLoaded 为 true，则直接使用缓存中的数据
-  2.2 否则，判断 indexDb 中是否存在 conversationId 对应的 conversation_info 数据
-    2.2.1 如果存在，并且 conversation_info.last_message_updated_at <= lastMessageUpdateAt，则直接使用缓存中的数据,并设置 messageLoaded 为 true
-    2.2.2 否则，拉取最新的 conversation_info 数据，并缓存到 indexedDB 中，并设置 messageLoaded 为 true
+   2.1 如果 messageLoaded 为 true，则直接使用缓存中的数据
+   2.2 否则，判断 indexDb 中是否存在 conversationId 对应的 conversation_info 数据
+   2.2.1 如果存在，并且 conversation_info.last_message_updated_at <= lastMessageUpdateAt，则直接使用缓存中的数据,并设置 messageLoaded 为 true
+   2.2.2 否则，拉取最新的 conversation_info 数据，并缓存到 indexedDB 中，并设置 messageLoaded 为 true
 
 对话 last_message_updated_at 时间戳更新时机如下:
+
 - 最后一条消息的 updated_at 时间戳
 
 ### 流程图
@@ -56,8 +56,8 @@ flowchart TD
     style H fill:#f8d7da
 ```
 
-
 ### 需要使用缓存的场景
+
 **场景一**: 从 A 会话切换至 B 会话时，如果 B 会话已经从服务端拉取过消息，则直接使用缓存中的数据
 **场景二**: 在 B 会话中进行了新的聊天，从 A 会话切换回 B 会话时，直接使用缓存中的数据
 **场景三**: 从 A 会话切换至 C 会话，C 会话在 indexDb 中有缓存，并且缓存有效时，直接使用缓存中的数据

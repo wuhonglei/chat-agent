@@ -4,11 +4,11 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
-    "format": "prettier ./src --write",
-    "preview": "vite preview",
+    "dev": "vp dev",
+    "build": "vp build",
+    "lint": "vp lint .",
+    "format": "vp fmt ./src",
+    "preview": "vp preview",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
@@ -44,9 +44,6 @@
     "uuid": "^13.0.0"
   },
   "devDependencies": {
-    "@eslint/compat": "^2.0.2",
-    "@eslint/eslintrc": "^3.3.3",
-    "@eslint/js": "^9.39.2",
     "@tailwindcss/postcss": "^4.1.18",
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.1.18",
@@ -56,34 +53,26 @@
     "@types/react": "^19.2.13",
     "@types/react-dom": "^19.2.3",
     "@types/react-syntax-highlighter": "^15.5.13",
-    "@typescript-eslint/eslint-plugin": "^8.54.0",
-    "@typescript-eslint/parser": "^8.54.0",
     "@vitejs/plugin-react": "^6.0.0",
     "baseline-browser-mapping": "^2.9.19",
     "debug": "^4.4.3",
-    "eslint": "^9.39.2",
-    "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "eslint-plugin-react-refresh": "^0.5.0",
     "globals": "^17.3.0",
-    "husky": "^9.1.7",
-    "lint-staged": "^16.2.7",
     "postcss": "^8.5.6",
-    "prettier": "^3.8.1",
     "tailwindcss": "^4.1.18",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "typescript-json-schema": "^0.67.1",
-    "vite": "^8.0.0",
-    "vite-plugin-svgr": "^4.5.0"
+    "vite": "npm:@voidzero-dev/vite-plus-core@latest",
+    "vite-plugin-svgr": "^4.5.0",
+    "vite-plus": "latest",
+    "vitest": "npm:@voidzero-dev/vite-plus-test@latest"
   },
   "overrides": {
     "@tailwindcss/vite": {
       "vite": "^8.0.0"
-    }
+    },
+    "vite": "npm:@voidzero-dev/vite-plus-core@latest",
+    "vitest": "npm:@voidzero-dev/vite-plus-test@latest"
   },
-  "lint-staged": {
-    "*.{ts,tsx,js,jsx,json,css,md}": "prettier --write",
-    "*.{ts,tsx}": "eslint --max-warnings=0"
-  }
+  "packageManager": "npm@11.11.1"
 }
