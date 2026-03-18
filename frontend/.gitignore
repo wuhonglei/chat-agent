@@ -7,8 +7,10 @@ lerna-debug.log*
 dist/
 dist-ssr/
 *.local
+*.tsbuildinfo
 
 /test/
 sftp.json
 
 component-schemas/
+/dist-types-node
