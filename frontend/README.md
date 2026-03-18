@@ -4,8 +4,8 @@
 
 ## 技术栈
 
-- **框架**: React 18 + TypeScript
-- **构建工具**: Vite 5
+- **框架**: React + TypeScript
+- **构建工具**: Vite+（通过 `vp` 统一管理开发/构建/检查/测试）
 - **UI 组件库**: Ant Design 5
 - **状态管理**: Redux Toolkit
 - **路由**: React Router v6
@@ -54,7 +54,7 @@ frontend/
 ### 前置要求
 
 - Node.js >= 18
-- npm >= 9 或 yarn >= 1.22
+- 已安装并可用的 Vite+ CLI：`vp`
 
 ### 环境变量
 
@@ -71,13 +71,13 @@ cp .env.example .env
 ### 安装依赖
 
 ```bash
-npm install
+vp install
 ```
 
 ### 启动开发服务器
 
 ```bash
-npm run dev
+vp dev
 ```
 
 应用将在 http://localhost:5173 启动
@@ -86,16 +86,19 @@ npm run dev
 
 ```bash
 # 类型检查
-npm run type-check
+vp type-check
 
 # 代码检查
-npm run lint
+vp lint .
+
+# 代码格式化
+vp fmt ./src
 
 # 构建生产版本
-npm run build
+vp build
 
 # 预览生产构建
-npm run preview
+vp preview
 ```
 
 ## 生产部署
@@ -118,7 +121,7 @@ docker run -d \
 1. 构建生产版本：
 
 ```bash
-npm run build
+vp build
 ```
 
 2. 将 `dist` 目录部署到 Web 服务器（如 Nginx）
