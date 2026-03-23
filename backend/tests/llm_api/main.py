@@ -12,6 +12,21 @@ response = client.chat.completions.create(
     model="deepseek-reasoner",
     messages=[
         {"role": "system", "content": "You are a helpful assistant"},
+        # 用户消息包含图片和文本描述示例（content 为 content part 列表）:
+        # {
+        #     "role": "user",
+        #     "content": [
+        #         {"type": "text", "text": "请描述这张图片中的内容"},
+        #         {
+        #             "type": "image_url",
+        #             "image_url": {
+        #                 "url": "https://example.com/image.jpg",
+        #                 # 或 base64: "data:image/jpeg;base64,/9j/4AAQSkZJRg..."
+        #                 "detail": "auto",  # "low" | "high" | "auto"
+        #             },
+        #         },
+        #     ],
+        # },
         {"role": "user", "content": "please help search the weather in the shanghai"},
         # 如果 messages 列表中，存在工具调用时，model 会回退为 deepseek-chat
         {

@@ -22,5 +22,6 @@
       "source.fixAll.ruff": "explicit"
     },
     "editor.defaultFormatter": "charliermarsh.ruff"
-  }
+  },
+  "cursorpyright.analysis.typeCheckingMode": "off"
 }
