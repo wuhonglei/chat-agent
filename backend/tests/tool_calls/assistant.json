@@ -1,0 +1,87 @@
+{
+  "id": "msg-assistant-001",
+  "conversation_id": "conv-001",
+  "role": "assistant",
+  "content_parts": [
+    {
+      "type": "text",
+      "text": "Redis 缓存和内存缓存的主要区别如下：\n\n1. **存储位置**：内存缓存数据在应用进程本地，Redis 为分布式缓存...\n\n2. **数据持久化**：..."
+    }
+  ],
+  "created_at": "2025-03-23T10:00:00Z",
+  "updated_at": "2025-03-23T10:00:15Z",
+  "reasoning": "用户想了解 Redis 缓存和内存缓存的区别...",
+  "tool_call_steps": [
+    {
+      "step_type": "mcp",
+      "tool_calls": [
+        {
+          "role": "assistant",
+          "content": "",
+          "reasoning_content": "用户想了解 Redis 缓存和内存缓存的区别...",
+          "tool_calls": [
+            {
+              "id": "call_00_zqm0iLbQLCWYumvVWhdRBFSw",
+              "function": {
+                "arguments": "{\"query\": \"Redis缓存 内存缓存 区别\", \"search_depth\": \"advanced\", \"max_results\": 10}",
+                "name": "tavily_search"
+              },
+              "type": "function",
+              "index": 0
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "call_00_zqm0iLbQLCWYumvVWhdRBFSw",
+          "is_error": false,
+          "content": "Detailed Results:\n\nTitle: 文件缓存和redis缓存...",
+          "summary": null,
+          "duration": 4.86
+        }
+      ],
+      "duration": 4.86
+    },
+    {
+      "step_type": "component",
+      "tool_calls": [
+        {
+          "role": "assistant",
+          "content": "",
+          "reasoning_content": null,
+          "tool_calls": [
+            {
+              "id": "call_comp_xxx",
+              "function": {
+                "arguments": "{\"location\": \"上海\", \"unit\": \"celsius\"}",
+                "name": "weather"
+              },
+              "type": "function",
+              "index": 0
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "call_comp_xxx",
+          "is_error": false,
+          "content": "{\"temperature\": 22, \"condition\": \"多云\"}",
+          "summary": null,
+          "duration": 0.5
+        }
+      ],
+      "duration": 0.8
+    }
+  ],
+  "message_metadata": {},
+  "status": "done",
+  "reply_to": "msg-user-001",
+  "reasoning_duration": 1.2,
+  "content_duration": 2.5,
+  "total_duration": 15.3,
+  "token_stats": {
+    "mcp_tool_call": {"prompt_tokens": 1200, "completion_tokens": 500},
+    "component_tool_call": {"prompt_tokens": 300, "completion_tokens": 100},
+    "response_generation": {"prompt_tokens": 2500, "completion_tokens": 800}
+  }
+}

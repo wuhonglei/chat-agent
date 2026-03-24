@@ -14,7 +14,6 @@ from app.schemas.chat import (
     CollectedResponse,
     MessageStatus,
 )
-from app.services.base_service import EmbeddingService
 from app.services.base_service.db_service import DbService
 from app.utils.common import gen_uuid, normalize_to_dict
 from app.utils.date import get_datetime_now
@@ -289,45 +288,3 @@ class MessageDbService(DbService):
             merged_metadata.update(extra_metadata)
             assistant_message.message_metadata = merged_metadata
         return self._persist_message(assistant_message, conversation)
-
-    def update_user_message_embedding(
-        self,
-        user_message_id: str,
-        query_embedding: list[float],
-        embedding_model: str,
-    ) -> MessageDb | None:
-        """更新用户消息的 embedding_vector 与 embedding_model（用于用户画像语义检索）。"""
-        db = self._ensure_db()
-        message = db.get(MessageDb, user_message_id)
-        if not message or message.role != "user":
-            return None
-        message.embedding_vector = query_embedding
-        message.embedding_model = embedding_model
-        conversation = db.get(ConversationDb, message.conversation_id)
-        if not conversation:
-            return None
-        return self._persist_message(message, conversation)
-
-    async def persist_user_message_embedding(
-        self,
-        user_message: str,
-        user_message_id: str | None,
-    ) -> list[float] | None:
-        """计算用户消息的 embedding_vector 并落库，用于用户画像语义检索。失败时仅打日志，不抛异常。"""
-        try:
-            embedding_svc = EmbeddingService()
-            query_embedding = await embedding_svc.aembed_query(user_message.strip())
-            if query_embedding and user_message_id:
-                self.update_user_message_embedding(
-                    user_message_id,
-                    query_embedding,
-                    embedding_svc.model_name,
-                )
-            return query_embedding
-        except Exception as e:
-            logger.warning(
-                "Failed to compute or persist embedding_vector",
-                user_message_id=user_message_id,
-                error=e,
-            )
-            return None
