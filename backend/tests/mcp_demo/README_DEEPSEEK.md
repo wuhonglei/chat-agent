@@ -149,7 +149,7 @@ if __name__ == "__main__":
 ### 运行示例
 
 ```bash
-cd /Users/honglei.wu/Desktop/项目源码/ai-doc/backend
+cd /Users/honglei.wu/Desktop/code/ai-doc/backend
 python -m tests.mcp_demo.mcp_client
 ```
 

@@ -2,12 +2,7 @@
   "id": "msg-assistant-001",
   "conversation_id": "conv-001",
   "role": "assistant",
-  "content_parts": [
-    {
-      "type": "text",
-      "text": "Redis 缓存和内存缓存的主要区别如下：\n\n1. **存储位置**：内存缓存数据在应用进程本地，Redis 为分布式缓存...\n\n2. **数据持久化**：..."
-    }
-  ],
+  "content": "Redis 缓存和内存缓存的主要区别如下：\n\n1. **存储位置**：内存缓存数据在应用进程本地，Redis 为分布式缓存...\n\n2. **数据持久化**：...",
   "created_at": "2025-03-23T10:00:00Z",
   "updated_at": "2025-03-23T10:00:15Z",
   "reasoning": "用户想了解 Redis 缓存和内存缓存的区别...",
@@ -80,8 +75,17 @@
   "content_duration": 2.5,
   "total_duration": 15.3,
   "token_stats": {
-    "mcp_tool_call": {"prompt_tokens": 1200, "completion_tokens": 500},
-    "component_tool_call": {"prompt_tokens": 300, "completion_tokens": 100},
-    "response_generation": {"prompt_tokens": 2500, "completion_tokens": 800}
+    "mcp_tool_call": {
+      "prompt_tokens": 1200,
+      "completion_tokens": 500
+    },
+    "component_tool_call": {
+      "prompt_tokens": 300,
+      "completion_tokens": 100
+    },
+    "response_generation": {
+      "prompt_tokens": 2500,
+      "completion_tokens": 800
+    }
   }
 }

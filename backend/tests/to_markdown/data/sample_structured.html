@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>MarkItDown 能力概览</title>
+  </head>
+  <body>
+    <h1>MarkItDown 能力概览</h1>
+    <p>
+      MarkItDown 是微软开源的 Python 工具，支持将 15+ 种常见文档 / 媒体 /
+      网页格式 解析并转为
+      Markdown，核心覆盖办公文档、多媒体、网页、结构化数据、电子书、压缩包等。
+    </p>
+
+    <h2>一、办公文档（核心支持）</h2>
+    <ul>
+      <li>
+        <strong>PDF（.pdf）</strong>：提取文本、表格、结构；支持扫描件 OCR（需
+        Azure Document Intelligence 等插件）
+      </li>
+      <li>
+        <strong>Word（.docx）</strong>：完整保留标题、列表、表格、样式层级
+      </li>
+      <li>
+        <strong>PowerPoint（.pptx）</strong>：按幻灯片提取标题、正文、图片描述
+      </li>
+      <li>
+        <strong>Excel（.xlsx/.xls）</strong>：表格转 Markdown 表格，保留行列结构
+      </li>
+      <li>
+        <strong>Outlook 邮件（.msg）</strong>：需安装
+        <code>[outlook]</code> 依赖
+      </li>
+    </ul>
+
+    <h2>二、多媒体内容</h2>
+    <ul>
+      <li>
+        <strong>图片（JPG/PNG/GIF 等）</strong>：提取 EXIF 元数据；支持 OCR
+        文字识别
+      </li>
+      <li>
+        <strong>音频（MP3/WAV 等）</strong>：提取元数据；语音转文字（需
+        <code>[audio-transcription]</code>）
+      </li>
+      <li><strong>YouTube 视频</strong>：自动提取字幕并转为文本</li>
+    </ul>
+
+    <h2>三、网页与结构化数据</h2>
+    <ul>
+      <li><strong>HTML</strong>：网页内容清理与结构化转换</li>
+      <li><strong>CSV/JSON/XML</strong>：结构化数据转 Markdown 格式</li>
+      <li><strong>ZIP 压缩包</strong>：递归遍历并转换内部所有支持的文件</li>
+    </ul>
+  </body>
+</html>
