@@ -31,3 +31,5 @@ htmlcov/
 .cache/
 
 test/temp/
+
+node_modules/

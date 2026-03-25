@@ -1,7 +1,10 @@
 #!/usr/bin/env sh
+# Git 由 husky 接管：core.hooksPath=.husky/_（见仓库根 package.json 的 prepare）。
+# 克隆后请在仓库根目录执行一次 npm install，否则会缺少 .husky/_/ 且 hook 不生效。
 set -e
 
-cd "$(dirname "$0")/.."
+ROOT="$(git -C "$(dirname "$0")" rev-parse --show-toplevel 2>/dev/null)" || ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
 
 cd frontend
 if [ -f "$HOME/.vite-plus/env" ]; then
@@ -12,4 +15,5 @@ cd ..
 
 
 # Backend: ruff + mypy（.pre-commit-config.yaml，仅对暂存的 .py 做类型检查）
-(cd backend && uv run pre-commit run)
+# pre-commit / mypy 在 pyproject 的 dev 可选依赖与 dev 组中，需 --extra dev --group dev，否则会报 pre-commit not found
+(cd backend && uv run --extra dev --group dev pre-commit run)

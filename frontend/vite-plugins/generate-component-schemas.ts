@@ -50,16 +50,14 @@ function extractExportedInterfaceName(filePath: string): string | null {
     const content = readFileSync(filePath, "utf-8");
 
     // 查找所有导出的接口
-    const allInterfaces = Array.from(
-      content.matchAll(/export\s+(interface|type)\s+(\w+)/g),
-    );
+    const allInterfaces = Array.from(content.matchAll(/export\s+(interface|type)\s+(\w+)/g));
 
     if (allInterfaces.length === 0) {
       return null;
     }
 
     // 优先查找以 Props 结尾的接口（组件 Props 类型）
-    const propsInterface = allInterfaces.find((m) => m[2].endsWith("Props"));
+    const propsInterface = allInterfaces.find(m => m[2].endsWith("Props"));
     if (propsInterface) {
       return propsInterface[2];
     }
@@ -80,14 +78,8 @@ function getTypeScriptConfig(projectRoot: string): ts.CompilerOptions {
 
   if (existsSync(tsconfigPath)) {
     try {
-      const configFile = ts.readConfigFile(tsconfigPath, (path) =>
-        readFileSync(path, "utf-8"),
-      );
-      const parsedConfig = ts.parseJsonConfigFileContent(
-        configFile.config,
-        ts.sys,
-        projectRoot,
-      );
+      const configFile = ts.readConfigFile(tsconfigPath, path => readFileSync(path, "utf-8"));
+      const parsedConfig = ts.parseJsonConfigFileContent(configFile.config, ts.sys, projectRoot);
 
       // 确保 baseUrl 和 paths 正确设置
       // typescript-json-schema 需要 Node 解析模式，而不是 Bundler
@@ -129,7 +121,7 @@ function generateSchema(
   componentName: string,
   typeSourceFile: string,
   outputDir: string,
-  projectRoot: string,
+  projectRoot: string
 ): boolean {
   try {
     const absoluteTypeFile = resolve(projectRoot, typeSourceFile);
@@ -152,11 +144,7 @@ function generateSchema(
     const compilerOptions = getTypeScriptConfig(projectRoot);
 
     // 创建 TypeScript 编译器程序
-    const program = TJS.getProgramFromFiles(
-      [absoluteTypeFile],
-      compilerOptions,
-      projectRoot,
-    );
+    const program = TJS.getProgramFromFiles([absoluteTypeFile], compilerOptions, projectRoot);
 
     // 生成 JSON Schema
     const schema = TJS.generateSchema(program, interfaceName, {
@@ -190,10 +178,7 @@ function generateSchema(
 /**
  * 从 componentTools/index.ts 中提取组件信息
  */
-function extractComponentTools(
-  projectRoot: string,
-  inputPath: string,
-): ComponentToolMeta[] {
+function extractComponentTools(projectRoot: string, inputPath: string): ComponentToolMeta[] {
   const indexPath = resolve(projectRoot, inputPath);
 
   if (!existsSync(indexPath)) {
@@ -213,7 +198,7 @@ function extractComponentTools(
      * 支持直接字符串路径: typeSourceFile: "./components/WeatherNow/type.ts"
      */
     const componentMatches = content.matchAll(
-      /\{\s*name:\s*["']([^"']+)["'],[\s\S]*?component:\s*[^,]+,[\s\S]*?typeSourceFile:\s*["']([^"']+)["']/g,
+      /\{\s*name:\s*["']([^"']+)["'],[\s\S]*?component:\s*[^,]+,[\s\S]*?typeSourceFile:\s*["']([^"']+)["']/g
     );
 
     const components: ComponentToolMeta[] = [];
@@ -241,7 +226,7 @@ function extractComponentTools(
 function generateAllComponentSchemas(
   projectRoot: string,
   inputPath: string,
-  outputDirs: string[],
+  outputDirs: string[]
 ): ComponentToolMeta[] {
   log("开始生成组件 JSON Schema...");
 
@@ -260,14 +245,7 @@ function generateAllComponentSchemas(
     // 为每个输出目录生成 Schema
     for (const outputDir of outputDirs) {
       const absoluteOutputDir = resolve(projectRoot, outputDir);
-      if (
-        generateSchema(
-          component.name,
-          component.typeSourceFile,
-          absoluteOutputDir,
-          projectRoot,
-        )
-      ) {
+      if (generateSchema(component.name, component.typeSourceFile, absoluteOutputDir, projectRoot)) {
         componentSuccess = true;
       }
     }
@@ -284,7 +262,7 @@ function generateAllComponentSchemas(
 function createWatchTargets(
   componentIndexPath: string,
   projectRoot: string,
-  components: ComponentToolMeta[],
+  components: ComponentToolMeta[]
 ): Set<string> {
   const targets = new Set<string>();
   targets.add(normalizeFilePath(componentIndexPath));
@@ -297,10 +275,7 @@ function createWatchTargets(
   return targets;
 }
 
-function debounce<T extends (...args: unknown[]) => void>(
-  fn: T,
-  delay = 200,
-): (...args: Parameters<T>) => void {
+function debounce<T extends (...args: unknown[]) => void>(fn: T, delay = 200): (...args: Parameters<T>) => void {
   let timer: ReturnType<typeof setTimeout> | null = null;
 
   return (...args: Parameters<T>) => {
@@ -318,9 +293,7 @@ function debounce<T extends (...args: unknown[]) => void>(
 /**
  * Vite 插件：生成组件 JSON Schema
  */
-export function generateComponentSchemas(
-  options: Partial<GenerateComponentSchemasOptions> = {},
-): Plugin {
+export function generateComponentSchemas(options: Partial<GenerateComponentSchemasOptions> = {}): Plugin {
   const projectRoot = resolve(__dirname, "..");
 
   // 使用配置或默认值
@@ -333,19 +306,11 @@ export function generateComponentSchemas(
   let watchTargets = new Set<string>();
 
   const updateWatchTargets = (components: ComponentToolMeta[]) => {
-    watchTargets = createWatchTargets(
-      componentIndexPath,
-      projectRoot,
-      components,
-    );
+    watchTargets = createWatchTargets(componentIndexPath, projectRoot, components);
   };
 
   const runGeneration = () => {
-    lastComponents = generateAllComponentSchemas(
-      projectRoot,
-      inputPath,
-      outputDirs,
-    );
+    lastComponents = generateAllComponentSchemas(projectRoot, inputPath, outputDirs);
     updateWatchTargets(lastComponents);
   };
 

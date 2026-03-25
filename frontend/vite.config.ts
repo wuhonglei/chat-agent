@@ -1,5 +1,6 @@
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import svgr from "vite-plugin-svgr";
@@ -8,6 +9,8 @@ import { generateComponentSchemas } from "./vite-plugins/generate-component-sche
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const oxfmtrc = JSON.parse(readFileSync(path.join(__dirname, ".oxfmtrc.json"), "utf8")) as { ignorePatterns: string[] };
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -67,31 +70,7 @@ export default defineConfig({
     jsxSingleQuote: false,
     proseWrap: "preserve",
     sortPackageJson: false,
-    ignorePatterns: [
-      "node_modules/",
-      "dist/",
-      "build/",
-      "*.min.js",
-      "*.min.css",
-      "*.bundle.js",
-      "package-lock.json",
-      "yarn.lock",
-      ".agents/**",
-      ".env",
-      ".env.local",
-      ".env.*.local",
-      ".vscode/",
-      ".idea/",
-      ".DS_Store",
-      "Thumbs.db",
-      "*.log",
-      "npm-debug.log*",
-      "yarn-debug.log*",
-      "yarn-error.log*",
-      "coverage/",
-      "*.tmp",
-      "*.temp",
-    ],
+    ignorePatterns: oxfmtrc.ignorePatterns,
   },
   staged: {
     "*.{ts,tsx,js,jsx}": "vp check --fix",
@@ -107,10 +86,7 @@ export default defineConfig({
     }),
     generateComponentSchemas({
       inputPath: "src/componentTools/index.ts",
-      outputDirs: [
-        "src/componentTools/component-schemas",
-        "public/component-schemas",
-      ],
+      outputDirs: ["src/componentTools/component-schemas", "public/component-schemas"],
     }), // 在构建时自动生成组件 JSON Schema
   ],
   server: {
