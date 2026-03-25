@@ -35,6 +35,7 @@ from app.schemas.llm import (
 )
 from app.schemas.token_stats import MCPToolsTokenStats
 from app.utils.common import normalize_url
+from app.utils.content import extract_text_from_content
 from app.utils.context_compactor import ContextCompactor
 from app.utils.logger import logger
 from app.utils.mcp import (
@@ -117,7 +118,7 @@ class MCPToolsAgent(BaseAgent):
         mcp_auto_mode = chat_request.mcp_auto_mode
         source_config = chat_request.source_config
         self.think_mode = chat_request.think_mode
-        user_message = chat_request.content
+        user_message = extract_text_from_content(chat_request.content)
         self.current_user_message = user_message
 
         # 重置跟踪属性

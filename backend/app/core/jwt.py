@@ -101,13 +101,16 @@ class JWTManager:
         payload = jwt.decode(
             jwt=token, key=self.public_key, algorithms=[self.algorithm]
         )
-        return cast(dict[str, Any], payload)
+        if not isinstance(payload, dict):
+            raise ValueError("Invalid JWT payload")
+        return payload
 
     def decode_token_without_verification(self, token: str) -> dict[str, Any]:
         """解码 token 但不验证签名（仅用于调试）"""
-        return cast(
-            dict[str, Any], jwt.decode(token, options={"verify_signature": False})
-        )
+        payload = jwt.decode(token, options={"verify_signature": False})
+        if not isinstance(payload, dict):
+            raise ValueError("Invalid JWT payload")
+        return payload
 
 
 # 全局单例实例

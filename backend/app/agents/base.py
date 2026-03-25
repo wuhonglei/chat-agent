@@ -6,10 +6,12 @@ from typing import Any
 
 from app.schemas.chat import ChatMessageItem
 from app.schemas.config import LLMConfig
+from app.schemas.content import ContentPart
 from app.schemas.llm import ToolMessage
 from app.schemas.token_stats import BaseTokenStats, TokenUsage
 from app.services.base_service.llm_service import LLMService
 from app.utils.common import normalize_to_dict
+from app.utils.content import content_parts_to_openai_content
 from app.utils.message import format_chat_message_for_llm
 from app.utils.model import format_sse_message
 
@@ -87,7 +89,7 @@ class BaseAgent(ABC, LLMService):
         self,
         system_prompt: str,
         history_messages: list[ChatMessageItem],
-        user_message: str,
+        user_message: str | list[ContentPart],
         tool_call_messages: list[ToolMessage] | None = None,
     ) -> list[dict[str, Any]]:
         """Build prompt for LLM
@@ -101,7 +103,7 @@ class BaseAgent(ABC, LLMService):
         Returns:
             Message list with correct order: system_prompt -> history -> user_message -> tool_call_messages
         """
-        messages = []
+        messages: list[dict[str, Any]] = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
 
@@ -110,7 +112,9 @@ class BaseAgent(ABC, LLMService):
             msg_dict = format_chat_message_for_llm(msg, clear_reasoning_content=True)
             messages.append(msg_dict)
 
-        messages.append({"role": "user", "content": user_message})
+        messages.append(
+            {"role": "user", "content": content_parts_to_openai_content(user_message)}
+        )
 
         # 如果有 tool_call_messages，过滤后转换为字典格式并追加
         if not tool_call_messages:

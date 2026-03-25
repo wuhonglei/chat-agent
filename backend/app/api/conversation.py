@@ -2,11 +2,13 @@
 
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from sqlmodel import Session
 
 from app.core.db import get_db
 from app.schemas.auth import AuthTokenPayload
+from app.schemas.content import FileObject
 from app.schemas.conversation import (
     ConversationInfo,
     ConversationListRequest,
@@ -15,6 +17,10 @@ from app.schemas.conversation import (
 )
 from app.schemas.response import ApiResponse
 from app.services.conversation import ConversationDbService
+from app.services.conversation.conversation_file_service import (
+    ConversationFileService,
+    ConversationNotFoundError,
+)
 from app.utils.auth_deps import get_auth_token_info, require_auth
 
 router = APIRouter()
@@ -119,3 +125,43 @@ async def delete_conversation(
         return ApiResponse.error(code=404, msg="会话不存在")
     service.delete_conversation(conversation)
     return ApiResponse.success(data=conversation.id, msg="删除对话成功")
+
+
+@router.post("/{conversation_id}/uploads")
+async def upload_conversation_file(
+    conversation_id: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _auth: None = Depends(require_auth),
+) -> ApiResponse[FileObject]:
+    """上传对话相关文件/图片（按 conversation_id 隔离），并在需要时转 Markdown。"""
+    file_service = ConversationFileService(db)
+    try:
+        fo = await file_service.upload_conversation_file(conversation_id, file)
+    except ConversationNotFoundError:
+        return ApiResponse.error(code=404, msg="会话不存在")
+    return ApiResponse.success(data=fo, msg="文件上传成功")
+
+
+@router.get("/{conversation_id}/artifacts/{artifact_path:path}")
+async def get_conversation_artifact(
+    conversation_id: str,
+    artifact_path: str,
+    db: Session = Depends(get_db),
+    _auth: None = Depends(require_auth),
+) -> FileResponse:
+    """访问对话上传产物（仅允许 /mnt/user-data/uploads 下的文件）。"""
+    file_service = ConversationFileService(db)
+    try:
+        artifact = file_service.get_conversation_artifact_file(
+            conversation_id=conversation_id,
+            artifact_path=artifact_path,
+        )
+    except ConversationNotFoundError:
+        raise HTTPException(status_code=404, detail="会话不存在") from None
+
+    return FileResponse(
+        path=str(artifact.path),
+        media_type=artifact.media_type,
+        filename=artifact.filename,
+    )

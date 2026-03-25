@@ -57,6 +57,7 @@ class ResponseGenerationAgent(BaseAgent):
         window_out_summary: str | None,
         history_messages: list[ChatMessageItem],
         user_message: str,
+        user_image_blocks: list[dict[str, Any]] | None = None,
         mcp_tool_call_messages: list[ToolMessage],
         component_tool_call_messages: list[ToolMessage],
         user_id: str,
@@ -97,10 +98,13 @@ class ResponseGenerationAgent(BaseAgent):
         )
         logger.debug("System prompt", system_prompt=system_prompt)
         # MCP 结果已拼接到 final_user_message，不再传入 tool_call_messages
+        llm_user_content: Any = new_user_message
+        if user_image_blocks:
+            llm_user_content = [{"type": "text", "text": new_user_message}] + list(
+                user_image_blocks
+            )
         new_messages = self._compose_messages(
-            system_prompt,
-            history_messages,
-            new_user_message,
+            system_prompt, history_messages, llm_user_content
         )
 
         async for chunk in self._stream_final_response(

@@ -5,9 +5,11 @@ from enum import Enum
 from typing import Any, Literal, TypeAlias
 
 from openai.types.chat import ChatCompletionMessageFunctionToolCall
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.schemas.content import ContentPart
 from app.schemas.llm import ToolMessage
+from app.utils.content import parse_content_parts
 from app.utils.date import get_datetime_now
 
 
@@ -70,7 +72,7 @@ class ChatMessageItem(BaseModel):
     id: str = Field(..., description="Message ID")
     conversation_id: str = Field(..., description="Conversation ID")
     role: str = Field(..., description="Message role (user/assistant)")
-    content: str = Field(default="", description="Message content")
+    content: str | list[ContentPart] = Field(default="", description="Message content")
     created_at: datetime = Field(
         default_factory=get_datetime_now, description="Message timestamp"
     )
@@ -109,6 +111,16 @@ class ChatMessageItem(BaseModel):
         description="Token 使用统计信息，包含各个阶段（MCP 工具调用、组件工具调用、响应生成、标题生成）的 token 使用量",
     )
 
+    @field_validator("content", mode="before")
+    @classmethod
+    def _coerce_content(cls, v: Any) -> Any:
+        if v is None:
+            return ""
+        if isinstance(v, str):
+            parts = parse_content_parts(v)
+            return parts if parts is not None else v
+        return v
+
     model_config = ConfigDict(extra="ignore")
 
 
@@ -119,7 +131,7 @@ ChatMessageItemWithToolCalls: TypeAlias = ChatMessageItem | ToolMessage
 class ChatRequest(BaseModel):
     """Chat request model"""
 
-    content: str = Field(..., description="User message")
+    content: str | list[ContentPart] = Field(..., description="User message")
     conversation_id: str = Field(..., description="Conversation ID")
     history_ids: list[str] = Field(default_factory=list, description="Chat history IDs")
     removed_message_ids: list[str] | None = Field(

@@ -90,7 +90,7 @@ class MemoryService:
         if not isinstance(results, list):
             return []
         r: list[MemoryListItem] = [MemoryListItem(**item) for item in results]
-        r.sort(key=lambda x: x.score, reverse=True)
+        r.sort(key=lambda x: x.score or 0.0, reverse=True)
         return r[:limit]
 
     async def get_memories(self, user_id: str) -> list[MemoryListItem]:

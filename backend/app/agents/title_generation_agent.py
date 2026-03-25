@@ -3,8 +3,9 @@
 from typing import Any
 
 from app.agents.base import BaseAgent
-from app.prompts import get_prompt_for_title
+from app.prompts.prompt_utils import get_system_prompt_for_title
 from app.schemas.config import LLMConfig
+from app.schemas.content import ContentPart
 from app.schemas.token_stats import TitleGenerationTokenStats
 from app.utils.logger import logger
 from app.utils.time import get_current_time, get_time_duration
@@ -17,6 +18,33 @@ class TitleGenerationAgent(BaseAgent):
         super().__init__(think_mode, llm_config)
         self.duration: float | None = None
         self.token_stats: TitleGenerationTokenStats | None = None
+
+    def _normalize_title(self, title: str) -> str:
+        max_title_length = 50
+
+        if len(title) > max_title_length:
+            original_title = title
+            truncated_title = title[:max_title_length]
+            logger.warning(
+                "Title truncated due to excessive length",
+                original_length=len(original_title),
+                max_length=max_title_length,
+                original_title=original_title,
+                truncated_title=truncated_title,
+            )
+            title = truncated_title
+
+        if "\n" in title:
+            original_title = title
+            truncated_title = title.split("\n")[0]
+            logger.warning(
+                "Title truncated due to newline",
+                original_title=original_title,
+                truncated_title=truncated_title,
+            )
+            title = truncated_title
+
+        return title
 
     def create_token_stats(  # type: ignore[override]
         self,
@@ -47,7 +75,7 @@ class TitleGenerationAgent(BaseAgent):
             title=title,
         )
 
-    async def execute(self, user_message: str) -> str:
+    async def execute(self, user_message: str | list[ContentPart]) -> str:
         """
         生成对话标题
 
@@ -58,8 +86,8 @@ class TitleGenerationAgent(BaseAgent):
             str: 生成的标题
         """
         start_time = get_current_time()
-        system_prompt, new_user_message = get_prompt_for_title(user_message)
-        messages = self._compose_messages(system_prompt, [], new_user_message)
+        system_prompt = get_system_prompt_for_title()
+        messages = self._compose_messages(system_prompt, [], user_message)
 
         title_response = await self.call_llm_api(
             model=self.model_name,
@@ -69,27 +97,7 @@ class TitleGenerationAgent(BaseAgent):
 
         self.duration = get_time_duration(start_time)
         title = title_response.choices[0].message.content or ""
-        # 防御性代码
-        max_title_length = 50
-        if len(title) > max_title_length:
-            truncated_title = title[:max_title_length]
-            logger.warning(
-                "Title truncated due to excessive length",
-                original_length=len(title),
-                max_length=max_title_length,
-                original_title=title,
-                truncated_title=truncated_title,
-            )
-            title = truncated_title
-
-        # 如果存在换行符，则只取第一行
-        if "\n" in title:
-            title = title.split("\n")[0]
-            logger.warning(
-                "Title truncated due to newline",
-                original_title=title,
-                truncated_title=title,
-            )
+        title = self._normalize_title(title)
 
         # 创建 token 统计对象（内部进行所有 token 计算）
         self.token_stats = self.create_token_stats(messages=messages, title=title)

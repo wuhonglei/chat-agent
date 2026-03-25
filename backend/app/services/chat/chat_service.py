@@ -20,6 +20,7 @@ from app.schemas.chat import (
     MessageStatus,
 )
 from app.schemas.config import ChatContextConfig
+from app.schemas.content import ContentPart
 from app.schemas.llm import (
     ToolMessage,
     ToolResultMessage,
@@ -35,6 +36,10 @@ from app.services.conversation import (
 from app.services.message import MessageDbService
 from app.services.user.memory_service import MemoryService
 from app.utils.common import pick_fields
+from app.utils.content import (
+    extract_image_blocks_from_content,
+    extract_text_from_content,
+)
 from app.utils.history_truncate import truncate_history_by_rounds_and_tokens
 from app.utils.logger import logger
 from app.utils.message import (
@@ -171,10 +176,10 @@ class ChatService:
 
         start_time = get_current_time()
         try:
-            user_message = chat_request.content
+            user_message_text = extract_text_from_content(chat_request.content)
             logger.info(
                 "Starting chat message stream",
-                user_message_length=len(user_message),
+                user_message_length=len(user_message_text),
                 history_messages_count=len(history_messages),
                 client_ip=client_ip,
                 has_component_tools=bool(chat_request.component_tools_for_backend),
@@ -208,7 +213,7 @@ class ChatService:
                 )
                 component_start_time = get_current_time()
                 async for message in self.component_tools_agent.stream_execute(
-                    user_message,
+                    user_message_text,
                     filtered_mcp_tool_call_messages,
                     component_tools_for_backend,
                 ):
@@ -231,7 +236,10 @@ class ChatService:
             async for chunk in self.response_generation_agent.stream_execute(
                 window_out_summary=window_out_summary,
                 history_messages=history_messages,
-                user_message=user_message,
+                user_message=chat_request.content,
+                user_image_blocks=extract_image_blocks_from_content(
+                    chat_request.content
+                ),
                 mcp_tool_call_messages=filtered_mcp_tool_call_messages,
                 component_tool_call_messages=filtered_component_tool_call_messages,
                 user_id=user_id,
@@ -270,7 +278,7 @@ class ChatService:
             return
 
     async def generate_title(
-        self, user_message: str, conversation_id: str | None = None
+        self, user_message: str | list[ContentPart], conversation_id: str | None = None
     ) -> str:
         """生成对话标题，包含 token 统计"""
         logger.info(
@@ -376,8 +384,9 @@ class ChatService:
             last_message = flat[-1] if flat else None
             if last_message and last_message.role == "user":
                 # 工具调用结束后的模型回复（父级 assistant 消息）加入 flat
+                base_user_text = extract_text_from_content(last_message.content)
                 last_message.content = get_user_message_combine_tool_calls(
-                    last_message.content or "",
+                    base_user_text,
                     tool_items,
                     [],  # 历史消息不拼接组件数据
                 )
@@ -476,11 +485,12 @@ class ChatService:
                 if chat_request.regenerate_title:
                     title_task = asyncio.create_task(
                         self.generate_title(
-                            chat_request.content,
+                            user_message=chat_request.content,
                             conversation_id=conversation_id,
                         )
                     )
 
+                # TODO: 历史消息如何处理 content 中的 list[ContentPart]？
                 raw_history = message_service.get_history_messages_by_ids(
                     chat_request.history_ids
                 )
@@ -495,8 +505,9 @@ class ChatService:
                     history_messages_count=len(new_history_messages),
                 )
 
+                user_message_text = extract_text_from_content(chat_request.content)
                 user_memory_texts = await self.memory_service.search(
-                    query=chat_request.content,
+                    query=user_message_text,
                     user_id=user_id,
                     threshold=self.memory_config.search_threshold,
                 )
@@ -583,7 +594,7 @@ class ChatService:
                 asyncio.create_task(
                     self.memory_service.add_memories(
                         messages=[
-                            {"role": "user", "content": chat_request.content},
+                            {"role": "user", "content": user_message_text},
                             {
                                 "role": "assistant",
                                 "content": assistant_payload.content or "",

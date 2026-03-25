@@ -6,12 +6,19 @@ from typing import Any
 from toolz import dissoc, get
 
 from app.schemas.chat import ChatMessageItemWithToolCalls
+from app.schemas.content import (
+    ContentPart,
+    FileContentPart,
+    ImageContentPart,
+    TextContentPart,
+)
 from app.schemas.llm import (
     ToolMessage,
     ToolResultMessage,
     ToolUseMessage,
 )
 from app.utils.common import normalize_to_dict
+from app.utils.content import content_parts_to_openai_content, parse_content_parts
 
 
 def clear_reasoning_content_from_history(
@@ -192,7 +199,31 @@ def format_chat_message_for_llm(
 
     message_dict = normalize_to_dict(message)
     role = get("role", message_dict)
-    content = get("content", message_dict, "")
+    content: Any = get("content", message_dict, "")
+    if isinstance(content, str):
+        if (parts := parse_content_parts(content)) is not None:
+            content = content_parts_to_openai_content(parts)
+    elif isinstance(content, list):
+        parts: list[ContentPart] = []
+        for item in content:
+            if isinstance(item, TextContentPart | ImageContentPart | FileContentPart):
+                parts.append(item)
+                continue
+            if not isinstance(item, dict) or "type" not in item:
+                parts = []
+                break
+            t = item.get("type")
+            if t == "text":
+                parts.append(TextContentPart.model_validate(item))
+            elif t == "image":
+                parts.append(ImageContentPart.model_validate(item))
+            elif t == "file":
+                parts.append(FileContentPart.model_validate(item))
+            else:
+                parts = []
+                break
+        if parts:
+            content = content_parts_to_openai_content(parts)
     reasoning = get("reasoning", message_dict, None)
     payload: dict[str, Any] = {"role": role, "content": content, "reasoning": reasoning}
     if clear_reasoning_content:

@@ -14,8 +14,10 @@ from app.schemas.chat import (
     CollectedResponse,
     MessageStatus,
 )
+from app.schemas.content import ContentPart
 from app.services.base_service.db_service import DbService
 from app.utils.common import gen_uuid, normalize_to_dict
+from app.utils.content import serialize_message_content
 from app.utils.date import get_datetime_now
 from app.utils.logger import logger
 
@@ -152,13 +154,14 @@ class MessageDbService(DbService):
         self,
         conversation: ConversationDb,
         message_id: str,
-        content: str,
+        content: str | list[ContentPart],
         metadata: dict[str, Any] | None = None,
     ) -> MessageDb:
+        stored_content = serialize_message_content(content)
         message = MessageDb(
             id=message_id,
             role="user",
-            content=content,
+            content=stored_content,
             conversation_id=conversation.id,
             message_metadata=metadata or {},
             status=MessageStatus.DONE,
@@ -190,7 +193,7 @@ class MessageDbService(DbService):
     def create_chat_messages(
         self,
         conversation_id: str,
-        content: str,
+        content: str | list[ContentPart],
         user_metadata: dict[str, Any],
         removed_message_ids: list[str] | None = None,
     ) -> ChatMessagesResult:

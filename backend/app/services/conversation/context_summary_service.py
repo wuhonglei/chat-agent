@@ -44,6 +44,7 @@ class ContextSummaryService(LLMService):
         """对截断的旧消息生成简短摘要"""
         if not truncated_messages:
             return ""
+        # TODO: content 内容可能是 list[ContentPart]，需要处理
         text = self._messages_to_text(truncated_messages)
         if not text.strip():
             return ""

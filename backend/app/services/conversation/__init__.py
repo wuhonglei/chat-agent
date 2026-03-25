@@ -7,9 +7,13 @@ from app.services.conversation.conversation_context_db import (
     ConversationContextDbService,
 )
 from app.services.conversation.conversation_db import ConversationDbService
+from app.services.conversation.conversation_file_service import (
+    ConversationFileService,
+)
 
 __all__ = [
     "ContextSummaryService",
     "ConversationContextDbService",
     "ConversationDbService",
+    "ConversationFileService",
 ]
