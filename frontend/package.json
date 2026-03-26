@@ -9,7 +9,8 @@
     "lint": "vp lint .",
     "format": "vp fmt ./src",
     "preview": "vp preview",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "x-skill": "x-skill"
   },
   "dependencies": {
     "@ant-design/icons": "^6.1.0",
@@ -44,6 +45,7 @@
     "uuid": "^13.0.0"
   },
   "devDependencies": {
+    "@ant-design/x-skill": "^2.4.0",
     "@tailwindcss/postcss": "^4.1.18",
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.1.18",
