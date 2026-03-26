@@ -67,6 +67,7 @@ class ConversationFileService:
             stored_filename=stored_filename,
         )
         await write_file_async(str(stored_path), file)
+        file_size = stored_path.stat().st_size
 
         mime_type = (
             file.content_type
@@ -101,6 +102,7 @@ class ConversationFileService:
                 )
 
         return FileObject(
+            size=file_size,
             conversation_id=conversation_id,
             filename=filename,
             stored_filename=stored_filename,
