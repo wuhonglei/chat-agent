@@ -200,7 +200,7 @@ class MessageService:
 每个请求都会自动生成 `request_id`，并在响应头中返回：
 
 ```bash
-curl -i http://api.example.com/api/chat/stream
+curl -i http://localhost:8000/api/chat/stream
 # 响应头中包含：
 # X-Request-ID: abc-123-def-456
 ```
