@@ -2,12 +2,12 @@
 
 ## 项目概述
 
-AI Doc Backend 是一个企业级知识库问答系统后端服务，基于 RAG (Retrieval-Augmented Generation) 技术，提供智能文档问答功能。
+AI Doc Backend 是一个知识库问答系统后端服务，基于 RAG (Retrieval-Augmented Generation) 技术，提供智能文档问答功能。
 
 ### 核心功能
 
 - **智能问答**：基于 RAG 技术的精准问答，支持流式响应
-- **MCP 工具集成**：通过 Model Context Protocol 集成多种外部工具（天气、搜索、Confluence、代码执行等）
+- **MCP 工具集成**：通过 Model Context Protocol 集成多种外部工具（天气、搜索、代码执行、时间、IP 定位、Context7 等）
 - **Agent 架构**：使用多 Agent 协作处理用户请求（MCP Tools Agent、Component Tools Agent、Response Generation Agent、Title Generation Agent）
 - **对话管理**：支持多轮对话、对话历史管理、消息持久化
 - **用户认证**：基于 JWT 的用户认证体系
@@ -19,9 +19,9 @@ AI Doc Backend 是一个企业级知识库问答系统后端服务，基于 RAG 
 - **数据库**：PostgreSQL + SQLModel + Alembic（迁移）
 - **LLM**：DeepSeek API / OpenAI 兼容 API
 - **MCP**：fastmcp（Model Context Protocol 实现）
-- **向量数据库**：FAISS / ChromaDB
+- **向量检索能力**：PostgreSQL（pgvector）/ FAISS（按具体模块使用）
 - **对象存储**：腾讯云 COS
-- **配置中心**：Nacos（可选）
+- **配置中心**：Nacos
 
 ## 项目结构
 
@@ -51,7 +51,6 @@ backend/
 │   │   ├── mcp_client.py # MCP Client 管理器
 │   │   ├── cache.py      # MCP 结果缓存
 │   │   └── mcp_servers/  # 各 MCP Server 实现
-│   │       ├── confluence_mcp/   # Confluence 知识库
 │   │       ├── tavily_mcp/       # 联网搜索
 │   │       ├── weather_mcp/      # 天气查询
 │   │       ├── code_exec_mcp/    # 代码执行沙箱
@@ -63,16 +62,20 @@ backend/
 │   │   └── exception_handler.py  # 全局异常处理
 │   ├── models/           # 数据库模型（SQLModel）
 │   │   ├── user.py
-│   │   ├── conversation.py
-│   │   └── message.py
+│   │   ├── conversation_db.py
+│   │   ├── message_db.py
+│   │   └── conversation_contexts_db.py
 │   ├── schemas/          # Pydantic 模型
 │   │   ├── chat.py       # 对话相关模型
 │   │   ├── config.py     # 配置模型
 │   │   └── ...
-│   ├── services/         # 业务逻辑服务
-│   │   ├── chat_service.py       # 对话服务（核心）
-│   │   ├── message_db.py    # 消息 DB 服务
-│   │   ├── conversation_db.py
+│   ├── services/         # 业务逻辑服务（按领域分包）
+│   │   ├── chat/                 # 对话核心服务
+│   │   ├── conversation/         # 会话服务
+│   │   ├── message/              # 消息服务
+│   │   ├── user/                 # 用户与记忆服务
+│   │   ├── auth/                 # 认证服务
+│   │   ├── component/            # 组件工具服务
 │   │   └── base_service/         # 基础设施服务
 │   ├── utils/            # 工具函数
 │   │   ├── logger.py     # 日志工具（loguru）
@@ -201,7 +204,6 @@ make check
 
 以下模块在 `mypy.ini` 中被忽略类型检查错误：
 - `tests.*`
-- `app.mcp.mcp_servers.confluence_mcp.*`
 - `app.mcp.mcp_servers.*.test_server`
 
 ## 测试

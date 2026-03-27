@@ -1,4 +1,6 @@
-# AI聊天助手对话管理功能需求文档
+# AI 聊天助手对话管理需求文档（按当前实现修订）
+
+> 状态：现网实现 + 规划项混合文档。接口路径以当前 `backend/app/api/conversation.py` 与 `chat.py` 为准。
 
 ## 1. 项目概述
 
@@ -100,9 +102,9 @@
 - **样式**: 使用Tailwind CSS
 
 ### 3.2 后端技术要求
-- **框架**: 基于FastAPI实现
-- **数据存储**: 使用数据库持久化会话与消息（SQLModel + SQLite/PostgreSQL，可通过配置调整）
-- **API设计**: RESTful API + SSE 流式接口组合
+- **框架**: 基于 FastAPI 实现
+- **数据存储**: 使用 SQLModel + PostgreSQL 持久化会话与消息
+- **API 设计**: RESTful API + SSE 流式接口组合
 - **数据格式**: JSON 数据交换，统一使用 `ApiResponse` 包裹
 
 ### 3.3 数据模型设计
@@ -364,6 +366,12 @@ Request Body:
   - `done`：结束标记
 - 客户端需要解析 SSE 数据并刷新消息与标题
 
+## 5.5 已确认不在当前实现范围
+
+- `POST /api/chat`（非流式）接口：当前未提供，统一使用 `POST /api/chat/stream`
+- 独立 `/api/retrieval/*` 检索接口：当前未在主应用注册
+- `/conversations` 风格路径：当前实现统一为 `/api/conversation/*`
+
 ## 6. 实现计划
 
 ### 阶段一：基础对话管理（核心功能）
@@ -427,7 +435,7 @@ Request Body:
 - 实现数据清理和归档策略
 
 
-**文档版本**: v1.1
+**文档版本**: v1.2
 **创建日期**: 2024-10-31
 **最后更新**: 2025-11-08
 **创建人**: AI Assistant

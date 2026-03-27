@@ -310,7 +310,7 @@ System(SystemAA, "Internet Banking System", "Allows customers to view informatio
 
 Person(customerD, "Banking Customer D", "A customer of the bank, <br/> with personal bank accounts.")
 
-Enterprise_Boundary(b1, "BankBoundary") {
+System_Boundary(b1, "BankBoundary") {
 
   SystemDb_Ext(SystemE, "Mainframe Banking System", "Stores all of the core banking information about customers, accounts, transactions, etc.")
 
@@ -345,7 +345,7 @@ System(SystemAA, "Internet Banking System", "Allows customers to view informatio
 
 Person(customerD, "Banking Customer D", "A customer of the bank, <br/> with personal bank accounts.")
 
-Enterprise_Boundary(b1, "BankBoundary") {
+System_Boundary(b1, "BankBoundary") {
 
   SystemDb_Ext(SystemE, "Mainframe Banking System", "Stores all of the core banking information about customers, accounts, transactions, etc.")
 

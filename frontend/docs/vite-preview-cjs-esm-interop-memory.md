@@ -2,16 +2,16 @@
 
 ## 背景
 
-在 `npm run preview`（生产构建预览）场景下，页面加载后控制台报错：
+在 `vp preview`（生产构建预览）场景下，页面加载后控制台报错：
 
 - `Uncaught TypeError: (0 , _F.default) is not a function`
 - `Uncaught TypeError: (0 , Tue.default) is not a function`
 
-开发模式（`npm run dev`）不一定复现，问题主要出现在生产产物的模块互操作阶段。
+开发模式（`vp dev`）不一定复现，问题主要出现在生产产物的模块互操作阶段。
 
 ## 根因模式
 
-`@ant-design/x` 的部分 ESM 文件会从 `@rc-component/util/lib/*` 引用工具函数。`lib` 是 CJS 产物，在 Vite/Rolldown 生产打包后，某些 default interop 场景会出现运行时不兼容，最终触发 `xxx.default is not a function`。
+`@ant-design/x` 的部分 ESM 文件会从 `@rc-component/util/lib/*` 引用工具函数。`lib` 是 CJS 产物，在生产打包后，某些 default interop 场景会出现运行时不兼容，最终触发 `xxx.default is not a function`。
 
 典型触发点（通过 sourcemap 反查得到）：
 
@@ -34,12 +34,12 @@ resolve: {
 ## 定位与验证流程（可复用）
 
 1. 先构建带 sourcemap 的生产包：
-   - `npm run build -- --sourcemap`
+   - `vp build -- --sourcemap`
 2. 用 `@jridgewell/trace-mapping` 将 `components-*.js:line:column` 反查到源码文件。
 3. 查看映射源码是否命中 `@rc-component/util/lib/*` 一类 CJS 路径。
 4. 添加 alias 后重新构建并验证：
    - 产物 sourcemap 中不再出现 `@rc-component/util/lib/*`
-   - `preview` 页面可正常运行
+   - `vp preview` 页面可正常运行
 
 ## 适用条件与边界
 

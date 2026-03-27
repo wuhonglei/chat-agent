@@ -133,7 +133,8 @@ async def chat_with_deepseek(
         )
 
         assistant_message = response.choices[0].message
-        assistant_message_dict = assistant_message.model_dump(exclude_none=True)
+        assistant_message_dict = assistant_message.model_dump(
+            exclude_none=True)
 
         # 将助手消息添加到历史
         messages.append(assistant_message_dict)
@@ -148,7 +149,8 @@ async def chat_with_deepseek(
                 tool_args = json.loads(tool_call.function.arguments)
 
                 print(f"\n调用工具: {tool_name}")
-                print(f"参数: {json.dumps(tool_args, ensure_ascii=False, indent=2)}")
+                print(
+                    f"参数: {json.dumps(tool_args, ensure_ascii=False, indent=2)}")
 
                 # 执行 MCP 工具
                 tool_result = await execute_mcp_tool(client, tool_name, tool_args)
@@ -217,7 +219,8 @@ async def main():
 
     # 2. 初始化 DeepSeek 客户端
     deepseek_client = OpenAI(
-        api_key=os.getenv("DEEPSEEK_API_KEY", "sk-00e90cb4d67e4c51b0d1cef72e604800"),
+        # 不提供可用默认值，避免测试代码中的密钥样例被误提交。
+        api_key=os.getenv("DEEPSEEK_API_KEY", "YOUR_DEEPSEEK_API_KEY"),
         base_url="https://api.deepseek.com/v1",
     )
 

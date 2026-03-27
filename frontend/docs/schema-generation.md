@@ -42,7 +42,7 @@ const componentTools: ComponentToolItem[] = [
 运行构建命令即可自动生成 Schema：
 
 ```bash
-npm run build
+vp build
 ```
 
 生成的 Schema 文件将位于 `public/component-schemas/{component_name}.json`。
