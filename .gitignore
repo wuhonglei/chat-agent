@@ -9,6 +9,9 @@
 .env
 .env.local
 .env.*.local
+.env.*
+!.env.example
+!.env.*.example
 
 # Data
 *.db
@@ -29,5 +32,19 @@ htmlcov/
 *.bak
 *.tmp
 .cache/
+
+# Secrets / keys
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.jks
+*.keystore
+id_rsa
+id_ed25519
+credentials.json
+service-account*.json
 
 test/temp/
