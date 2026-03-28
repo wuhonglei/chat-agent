@@ -228,7 +228,7 @@ zero_downtime_deploy() {
             fi
             # 根据服务类型进行健康检查
             if [ "$service" = "backend" ]; then
-                if docker exec "$new_container_id" curl -f http://localhost:8000/ > /dev/null 2>&1; then
+                if docker exec "$new_container_id" curl -f http://127.0.0.1:8000/ > /dev/null 2>&1; then
                     is_healthy=true
                     break
                 fi
@@ -428,7 +428,12 @@ if [ "$IS_FIRST_DEPLOY" = true ]; then
     else
         echo "🔨 首次部署：构建并启动服务（范围: backend=$DEPLOY_BACKEND, frontend=$DEPLOY_FRONTEND）..."
         echo "   服务列表: ${first_compose_services[*]}"
-        $DOCKER_COMPOSE_CMD up -d --build "${first_compose_services[@]}"
+        # --wait + --wait-timeout：depends_on service_healthy 时默认约 60s 会放弃；后端冷启动常超过该时间
+        if $DOCKER_COMPOSE_CMD up --help 2>&1 | grep -qF 'wait-timeout'; then
+            $DOCKER_COMPOSE_CMD up -d --build --wait --wait-timeout 300 "${first_compose_services[@]}"
+        else
+            $DOCKER_COMPOSE_CMD up -d --build "${first_compose_services[@]}"
+        fi
     fi
 else
     # 更新部署：按 DEPLOY_BACKEND / DEPLOY_FRONTEND 差异更新（postgres 仅首次部署时启动，此处不更新）
@@ -498,7 +503,7 @@ if [ "$need_postgres_check" = true ]; then
 fi
 
 if [ "$need_backend_check" = true ]; then
-    if $DOCKER_COMPOSE_CMD exec -T backend curl -f http://localhost:8000/ > /dev/null 2>&1; then
+    if $DOCKER_COMPOSE_CMD exec -T backend curl -f http://127.0.0.1:8000/ > /dev/null 2>&1; then
         echo "✅ 后端服务运行正常"
     else
         echo "❌ 后端服务健康检查失败"
