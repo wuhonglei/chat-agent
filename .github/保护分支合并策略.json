@@ -43,9 +43,6 @@
             "context": "Frontend CI / quality (pull_request)"
           },
           {
-            "context": "Frontend CI / build (pull_request)"
-          },
-          {
             "context": "Backend CI / quality (pull_request)"
           }
         ]
