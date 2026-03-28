@@ -70,7 +70,7 @@ const VerifyCodeForm: React.FC<VerifyCodeFormProps> = () => {
 
     loginWithVerificationCode({
       ...(smsResponse as SendSmsResponse),
-      verificationCode: values.verificationCode,
+      verificationCode: (values.verificationCode ?? "").trim(),
     });
   };
 
@@ -84,18 +84,21 @@ const VerifyCodeForm: React.FC<VerifyCodeFormProps> = () => {
       >
         <PhoneInput />
       </Form.Item>
-      <Form.Item
-        name="verificationCode"
-        validateTrigger={false}
-        rules={[{ validator: (_, value) => validateVerificationCode(value) }]}
-      >
+      <Form.Item>
         <Space.Compact className="w-full">
-          <Input
-            size="large"
-            className="flex-1"
-            placeholder="请输入验证码"
-            prefix={<SafetyOutlined style={{ color: "var(--color-black-quaternary)" }} />}
-          />
+          <Form.Item
+            noStyle
+            name="verificationCode"
+            validateTrigger={false}
+            rules={[{ validator: (_, value) => validateVerificationCode(value) }]}
+          >
+            <Input
+              size="large"
+              className="flex-1"
+              placeholder="请输入验证码"
+              prefix={<SafetyOutlined style={{ color: "var(--color-black-quaternary)" }} />}
+            />
+          </Form.Item>
           <Button
             size="large"
             onClick={handleSendCode}
