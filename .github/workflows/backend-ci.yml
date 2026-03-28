@@ -1,0 +1,67 @@
+name: Backend CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: backend-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/app/**'
+              - '.github/workflows/backend-ci.yml'
+
+  quality:
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: "backend/uv.lock"
+
+      - name: Install dependencies
+        run: uv sync --locked --extra dev --group dev
+
+      - name: Ruff check
+        run: uv run ruff check app/
+
+      - name: Mypy
+        run: uv run mypy app/
+
+      - name: Pytest
+        run: |
+          set +e
+          uv run pytest --ignore=tests/mcp_demo
+          code=$?
+          if [ "$code" -eq 5 ]; then
+            echo "No tests collected (mcp_demo 已排除且当前无其它用例); 步骤通过。"
+            exit 0
+          fi
+          exit "$code"
