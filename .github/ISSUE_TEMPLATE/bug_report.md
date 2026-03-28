@@ -1,38 +1,52 @@
 ---
-name: Bug report
-about: Create a report to help us improve
+name: 缺陷报告
+description: 报告可复现的问题，便于我们定位与修复
 title: ''
 labels: ''
 assignees: ''
 
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+## 问题范围（必选一项）
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+- [ ] 前端（`frontend/`，React + Vite+）
+- [ ] 后端（`backend/`，FastAPI）
+- [ ] MCP / 工具调用（含健康检查 `/api/health/mcp*`）
+- [ ] Webhooks（`webhooks/`）
+- [ ] 部署 / Docker Compose
+- [ ] 文档（`docs/`）
+- [ ] 其他（请在下文说明）
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+## 现象描述
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+简明说明实际发生了什么（与预期不符之处）。
 
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
+## 复现步骤
 
-**Smartphone (please complete the following information):**
- - Device: [e.g. iPhone6]
- - OS: [e.g. iOS8.1]
- - Browser [e.g. stock browser, safari]
- - Version [e.g. 22]
+1.
+2.
+3.
 
-**Additional context**
-Add any other context about the problem here.
+（若与接口相关，请写明请求路径与方法，例如 `POST /api/chat/stream`。）
+
+## 预期行为
+
+你期望的正确行为是什么？
+
+## 环境信息
+
+- 运行方式：[ ] 本地开发 [ ] Docker Compose [ ] 其他：______
+- 操作系统与版本（如 macOS 15、Ubuntu 22.04）：
+- 若涉及前端界面：
+  - 浏览器与版本：
+- 若涉及后端：相关服务版本或分支/commit（如知晓请填写）：
+
+## 日志与截图
+
+- 浏览器控制台 / 网络面板（前端相关时）
+- 后端日志片段或响应体（请勿粘贴完整密钥、Token）
+- 界面截图（如有）
+
+## 补充说明
+
+其他有助于排查的信息（例如是否使用 Nacos、是否仅某模型/某 MCP 工具下出现等）。

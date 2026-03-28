@@ -1,20 +1,44 @@
 ---
-name: Feature request
-about: Suggest an idea for this project
+name: 功能建议
+description: 提出新能力或改进想法，便于评估与排期
 title: ''
 labels: ''
 assignees: ''
 
 ---
 
-**Is your feature request related to a problem? Please describe.**
-A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
+## 建议范围（必选一项）
 
-**Describe the solution you'd like**
-A clear and concise description of what you want to happen.
+- [ ] 对话 / 流式体验（含 SSE）
+- [ ] 会话与消息（创建、历史、删除等）
+- [ ] 认证与用户（短信/微信/JWT）
+- [ ] MCP 或内置工具（Context7、搜索、代码执行等）
+- [ ] 前端交互与 UI（Ant Design）
+- [ ] 后端 API 或数据模型
+- [ ] Webhooks（`webhooks/`）
+- [ ] 部署 / 运维 / 可观测性
+- [ ] 文档
+- [ ] 其他：______
 
-**Describe alternatives you've considered**
-A clear and concise description of any alternative solutions or features you've considered.
+## 背景与痛点
 
-**Additional context**
-Add any other context or screenshots about the feature request here.
+当前遇到了什么问题，或为什么需要这项能力？（可附用户/业务场景。）
+
+## 期望方案
+
+你希望产品如何表现？可包含：
+
+- 主要用户流程（谁、在什么场景下、完成什么）
+- 若涉及接口，可写明期望的路径或行为（不必定稿为 OpenAPI）
+
+## 已考虑的替代方案
+
+是否已有变通做法或其他实现思路？若没有可写「无」。
+
+## 验收要点（可选）
+
+列出你认为「做完算完成」的几条可检查项，便于实现与评审对齐。
+
+## 补充
+
+示意图、竞品参考、优先级判断依据等。
