@@ -62,9 +62,3 @@ jobs:
 
       - name: Build
         run: npm run build
-
-      - name: Upload dist artifact
-        uses: actions/upload-artifact@v6
-        with:
-          name: frontend-dist
-          path: frontend/dist
