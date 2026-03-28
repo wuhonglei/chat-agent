@@ -79,12 +79,18 @@ activate_venv() {
 install_deps() {
     print_message "检查并安装依赖..."
 
-    # 检查是否使用 uv
-    if command -v uv &> /dev/null; then
-        print_message "使用 uv 管理依赖"
+    # 检查是否使用 uv（优先使用虚拟环境中的 uv）
+    if [ -f ".venv/bin/uv" ]; then
+        print_message "使用虚拟环境中的 uv 管理依赖"
+        .venv/bin/uv sync
+    elif command -v uv &> /dev/null; then
+        print_message "使用系统 uv 管理依赖"
         uv sync
+    elif [ -f ".venv/bin/pip" ]; then
+        print_message "使用虚拟环境中的 pip 安装依赖"
+        .venv/bin/pip install -e .
     else
-        print_warning "未找到 uv，使用 pip"
+        print_warning "未找到 uv 或虚拟环境 pip，使用系统 pip"
         pip install -e .
     fi
 }
@@ -130,9 +136,9 @@ Flask 应用启动脚本
 
 环境变量:
     WEBHOOK_SECRET           Webhook 密钥（必需）
+    REPO_PATH               仓库路径，默认: /home/ubuntu/ai-doc
+    DEPLOY_SCRIPT           部署脚本路径，默认: /home/ubuntu/ai-doc/deploy.sh
     DEBUG                   调试模式，默认: False
-
-    仓库根与 deploy.sh 由 webhooks 目录布局推断，无需环境变量。
 
 示例:
     # 启动服务器
