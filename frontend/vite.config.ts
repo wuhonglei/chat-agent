@@ -3,11 +3,15 @@ import react from "@vitejs/plugin-react";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import svgr from "vite-plugin-svgr";
-import { defineConfig } from "vite-plus";
+import { defineConfig, loadEnv } from "vite-plus";
 import { generateComponentSchemas } from "./vite-plugins/generate-component-schemas.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// .env 不会自动进入 process.env；代理目标需 loadEnv。使用与 NODE_ENV 对应的 mode（.env 在任意 mode 下都会加载）
+const env = loadEnv(process.env.NODE_ENV === "production" ? "production" : "development", __dirname, "VITE_");
+const apiProxyTarget = env.VITE_PROXY_TARGET || "http://localhost:8000";
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -117,7 +121,7 @@ export default defineConfig({
     port: 3000,
     proxy: {
       "/api": {
-        target: process.env.VITE_PROXY_TARGET || "http://localhost:8000",
+        target: apiProxyTarget,
         changeOrigin: true,
         headers: {
           "X-Real-IP": "14.154.22.216", // 模拟真实环境访问时，会自动带上这个头，表示用户 IP
