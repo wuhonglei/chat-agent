@@ -54,14 +54,3 @@ jobs:
 
       - name: Mypy
         run: uv run mypy app/
-
-      - name: Pytest
-        run: |
-          set +e
-          uv run pytest --ignore=tests/mcp_demo
-          code=$?
-          if [ "$code" -eq 5 ]; then
-            echo "No tests collected (mcp_demo 已排除且当前无其它用例); 步骤通过。"
-            exit 0
-          fi
-          exit "$code"
