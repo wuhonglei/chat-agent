@@ -10,6 +10,20 @@
 - MCP 工具：Context7、天气、联网搜索、代码执行、时间、IP 定位
 - 组件工具：后端可按条件组装组件数据，前端动态渲染
 
+## 界面预览
+
+### 登录
+
+支持验证码登录与微信扫码登录。
+
+![登录页](docs/imgs/login.png)
+
+### 对话与组件渲染
+
+侧边栏会话管理、工具调用过程与对话内自定义组件（如天气卡片）示例。
+
+![对话与交互组件](docs/imgs/ui_interact.png)
+
 ## 技术栈
 
 - 后端：FastAPI + SQLModel + Alembic + PostgreSQL（pgvector）+ fastmcp
