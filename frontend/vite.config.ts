@@ -96,7 +96,8 @@ export default defineConfig({
   },
   staged: {
     "*.{ts,tsx,js,jsx}": "vp check --fix",
-    "*.{json,css,md}": "vp fmt",
+    // 经脚本过滤后再 fmt，避免仅暂存 .cursor/skills 下文件时 vp fmt 无目标而失败
+    "*.{json,css,md}": "bash ./scripts/vp-fmt-staged.sh",
   },
   plugins: [
     react(),
