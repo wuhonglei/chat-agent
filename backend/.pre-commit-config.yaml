@@ -15,7 +15,7 @@ repos:
         files: \.py$
         exclude: ^(tests/|app/mcp/)
 
-  # mypy 类型检查，仅对暂存的 .py 变更文件检查（路径相对于 git 根 ai-doc，需去掉 backend/ 再在 backend 下执行）
+  # mypy 类型检查，仅对暂存的 .py 变更文件检查（路径相对于 git 根 chat-agent，需去掉 backend/ 再在 backend 下执行）
   # 排除 tests 目录
   - repo: local
     hooks:

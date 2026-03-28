@@ -2,7 +2,7 @@ services:
   postgres:
     # 使用 pgvector 官方预构建镜像
     image: pgvector/pgvector:pg18
-    container_name: ai-doc-postgres
+    container_name: chat-agent-postgres
     ports:
       - "5432:5432"
     environment:
@@ -14,7 +14,7 @@ services:
       - postgres_data:/var/lib/postgresql
       - ./backend/init-db:/docker-entrypoint-initdb.d
     networks:
-      - ai-doc-network
+      - chat-agent-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${PG_USER_NAME} -d $${PG_DB}"]
@@ -26,7 +26,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: ai-doc-backend
+    container_name: chat-agent-backend
     environment:
       DATABASE__HOST: postgres
       COMPONENT_SCHEMA_API_URL: http://frontend:3000/component-schemas/
@@ -38,7 +38,7 @@ services:
       - ./backend/data:/app/data
       - ./backend/logs:/app/logs
     networks:
-      - ai-doc-network
+      - chat-agent-network
     depends_on:
       postgres:
         condition: service_healthy
@@ -54,18 +54,18 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: ai-doc-frontend
+    container_name: chat-agent-frontend
     ports:
       - "3000:3000"
     depends_on:
       backend:
         condition: service_healthy
     networks:
-      - ai-doc-network
+      - chat-agent-network
     restart: unless-stopped
 
 networks:
-  ai-doc-network:
+  chat-agent-network:
     driver: bridge
 
 volumes:

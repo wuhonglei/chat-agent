@@ -129,14 +129,14 @@ zero_downtime_deploy() {
         echo "⚠️  服务 $service 未运行，准备启动..."
         
         # 检查是否存在已停止的旧容器（可能导致名称冲突）
-        local stopped_container=$(docker ps -aq -f name="ai-doc-$service" 2>/dev/null)
+        local stopped_container=$(docker ps -aq -f name="chat-agent-$service" 2>/dev/null)
         if [ -n "$stopped_container" ]; then
             echo "   发现已停止的旧容器，先清理..."
             docker rm -f "$stopped_container" 2>/dev/null || true
         fi
         
         # 检查是否存在备份容器
-        local backup_containers=$(docker ps -aq --filter "name=ai-doc-$service-backup" 2>/dev/null)
+        local backup_containers=$(docker ps -aq --filter "name=chat-agent-$service-backup" 2>/dev/null)
         if [ -n "$backup_containers" ]; then
             echo "   清理旧的备份容器..."
             echo "$backup_containers" | xargs docker rm -f 2>/dev/null || true
@@ -166,7 +166,7 @@ zero_downtime_deploy() {
     # 2. 记录旧容器信息和镜像标签（用于回滚）
     local old_container_id=$($DOCKER_COMPOSE_CMD ps -q "$service" 2>/dev/null)
     if [ -z "$old_container_id" ]; then
-        old_container_id=$(docker ps -q -f name="^/ai-doc-$service$")
+        old_container_id=$(docker ps -q -f name="^/chat-agent-$service$")
     fi
     local old_image_tag=""
     local old_image_id=""
@@ -190,10 +190,10 @@ zero_downtime_deploy() {
     echo "🚀 启动 $service 新容器（将会有短暂切换时间，通常 1-3 秒）..."
     
     # 先重命名并停止旧容器（释放端口，保留用于回滚）
-    local backup_container_name="ai-doc-$service-backup-$(date +%s)"
+    local backup_container_name="chat-agent-$service-backup-$(date +%s)"
     if [ -n "$old_container_id" ]; then
         echo "   备份旧容器为: $backup_container_name"
-        docker rename "ai-doc-$service" "$backup_container_name" 2>/dev/null || true
+        docker rename "chat-agent-$service" "$backup_container_name" 2>/dev/null || true
         # 移除 compose 标签，避免 compose 误操作备份容器
         docker container update \
             --label-rm com.docker.compose.project \
@@ -219,7 +219,7 @@ zero_downtime_deploy() {
         # 检查容器是否在运行
         new_container_id=$($DOCKER_COMPOSE_CMD ps -q "$service" 2>/dev/null)
         if [ -z "$new_container_id" ]; then
-            new_container_id=$(docker ps -q -f name="^/ai-doc-$service$")
+            new_container_id=$(docker ps -q -f name="^/chat-agent-$service$")
         fi
         if [ -n "$new_container_id" ]; then
             if [ "$logged_new_container" = false ]; then
@@ -259,7 +259,7 @@ zero_downtime_deploy() {
     if [ "$is_healthy" = true ]; then
         echo "✅ $service 更新成功并已就绪"
         # 清理备份的旧容器
-        local backup_containers=$(docker ps -aq --filter "name=ai-doc-$service-backup")
+        local backup_containers=$(docker ps -aq --filter "name=chat-agent-$service-backup")
         if [ -n "$backup_containers" ]; then
             echo "   清理备份容器..."
             echo "$backup_containers" | xargs docker rm -f 2>/dev/null || true
@@ -281,32 +281,32 @@ zero_downtime_deploy() {
         local rollback_success=false
         
         # 方法1: 查找备份的旧容器（通过名称模式匹配）
-        local backup_container=$(docker ps -aq --filter "name=ai-doc-$service-backup" | head -1)
+        local backup_container=$(docker ps -aq --filter "name=chat-agent-$service-backup" | head -1)
         if [ -z "$backup_container" ]; then
             # 如果没找到，尝试查找所有已停止的容器
-            backup_container=$(docker ps -aq --filter "name=ai-doc-$service-backup" --filter "status=exited" | head -1)
+            backup_container=$(docker ps -aq --filter "name=chat-agent-$service-backup" --filter "status=exited" | head -1)
         fi
         
         if [ -n "$backup_container" ]; then
             echo "   发现备份的旧容器，尝试恢复..."
             # 重命名回原来的名称
-            docker rename "$backup_container" "ai-doc-$service" 2>/dev/null || true
+            docker rename "$backup_container" "chat-agent-$service" 2>/dev/null || true
             # 恢复 compose 标签，确保后续 compose 可识别
             if [ -n "$compose_project" ]; then
-                docker container update --label-add "com.docker.compose.project=$compose_project" "ai-doc-$service" > /dev/null 2>&1 || true
+                docker container update --label-add "com.docker.compose.project=$compose_project" "chat-agent-$service" > /dev/null 2>&1 || true
             fi
             if [ -n "$compose_service_label" ]; then
-                docker container update --label-add "com.docker.compose.service=$compose_service_label" "ai-doc-$service" > /dev/null 2>&1 || true
+                docker container update --label-add "com.docker.compose.service=$compose_service_label" "chat-agent-$service" > /dev/null 2>&1 || true
             fi
             if [ -n "$compose_container_number" ]; then
-                docker container update --label-add "com.docker.compose.container-number=$compose_container_number" "ai-doc-$service" > /dev/null 2>&1 || true
+                docker container update --label-add "com.docker.compose.container-number=$compose_container_number" "chat-agent-$service" > /dev/null 2>&1 || true
             fi
             if [ -n "$compose_config_hash" ]; then
-                docker container update --label-add "com.docker.compose.config-hash=$compose_config_hash" "ai-doc-$service" > /dev/null 2>&1 || true
+                docker container update --label-add "com.docker.compose.config-hash=$compose_config_hash" "chat-agent-$service" > /dev/null 2>&1 || true
             fi
             # 启动容器
-            docker start "ai-doc-$service" 2>/dev/null && sleep 3
-            local rollback_container=$(docker ps -q -f name="^/ai-doc-$service$")
+            docker start "chat-agent-$service" 2>/dev/null && sleep 3
+            local rollback_container=$(docker ps -q -f name="^/chat-agent-$service$")
             if [ -n "$rollback_container" ]; then
                 echo "✅ 已成功回滚到旧容器"
                 rollback_success=true
@@ -317,8 +317,8 @@ zero_downtime_deploy() {
         if [ "$rollback_success" = false ] && [ -n "$old_image_id" ] && [ "$old_image_id" != "" ]; then
             echo "   尝试使用旧镜像启动容器..."
             # 获取服务配置信息
-            local container_name="ai-doc-$service"
-            local network_name="ai-doc-network"
+            local container_name="chat-agent-$service"
+            local network_name="chat-agent-network"
             
             # 根据服务类型构建启动命令
             if [ "$service" = "backend" ]; then
@@ -344,7 +344,7 @@ zero_downtime_deploy() {
             
             if [ "$rollback_success" = true ]; then
                 sleep 5
-                local rollback_container=$(docker ps -q -f name="^/ai-doc-$service$")
+                local rollback_container=$(docker ps -q -f name="^/chat-agent-$service$")
                 if [ -n "$rollback_container" ]; then
                     echo "✅ 已使用旧镜像启动容器"
                 else
@@ -358,7 +358,7 @@ zero_downtime_deploy() {
             echo "   尝试使用 docker compose 重新启动..."
             $DOCKER_COMPOSE_CMD up -d --no-deps --no-build "$service" 2>/dev/null || true
             sleep 5
-            local rollback_container=$(docker ps -q -f name="^/ai-doc-$service$")
+            local rollback_container=$(docker ps -q -f name="^/chat-agent-$service$")
             if [ -n "$rollback_container" ]; then
                 echo "⚠️  容器已启动，但可能使用的是新镜像，请验证服务是否正常"
                 rollback_success=true
@@ -395,14 +395,14 @@ if [ "$IS_FIRST_DEPLOY" = true ]; then
     
     # 清理所有项目相关的已停止容器
     for service in postgres backend frontend; do
-        stopped_container=$(docker ps -aq -f name="ai-doc-$service" 2>/dev/null)
+        stopped_container=$(docker ps -aq -f name="chat-agent-$service" 2>/dev/null)
         if [ -n "$stopped_container" ]; then
             echo "   清理已停止的 $service 容器..."
             docker rm -f "$stopped_container" 2>/dev/null || true
         fi
         
         # 清理备份容器
-        backup_containers=$(docker ps -aq --filter "name=ai-doc-$service-backup" 2>/dev/null)
+        backup_containers=$(docker ps -aq --filter "name=chat-agent-$service-backup" 2>/dev/null)
         if [ -n "$backup_containers" ]; then
             echo "   清理 $service 的备份容器..."
             echo "$backup_containers" | xargs docker rm -f 2>/dev/null || true
@@ -518,7 +518,7 @@ if [ "$CLEANUP_IMAGES" = "true" ] || ([ "$CLEANUP_IMAGES" = "auto" ] && [ "$ALL_
     used_image_ids=""
     for service in backend frontend; do
         # 运行中的容器
-        container_id=$(docker ps -q -f name="^/ai-doc-$service$" 2>/dev/null)
+        container_id=$(docker ps -q -f name="^/chat-agent-$service$" 2>/dev/null)
         if [ -n "$container_id" ]; then
             image_id=$(docker inspect "$container_id" --format='{{.Image}}' 2>/dev/null || echo "")
             if [ -n "$image_id" ]; then
@@ -526,7 +526,7 @@ if [ "$CLEANUP_IMAGES" = "true" ] || ([ "$CLEANUP_IMAGES" = "auto" ] && [ "$ALL_
             fi
         fi
         # 备份容器（可能用于回滚）
-        backup_containers=$(docker ps -aq --filter "name=ai-doc-$service-backup" 2>/dev/null)
+        backup_containers=$(docker ps -aq --filter "name=chat-agent-$service-backup" 2>/dev/null)
         if [ -n "$backup_containers" ]; then
             for backup_id in $backup_containers; do
                 image_id=$(docker inspect "$backup_id" --format='{{.Image}}' 2>/dev/null || echo "")

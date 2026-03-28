@@ -130,8 +130,8 @@ Flask 应用启动脚本
 
 环境变量:
     WEBHOOK_SECRET           Webhook 密钥（必需）
-    REPO_PATH               仓库路径，默认: /home/ubuntu/ai-doc
-    DEPLOY_SCRIPT           部署脚本路径，默认: /home/ubuntu/ai-doc/deploy.sh
+    REPO_PATH               仓库路径，默认: /home/ubuntu/chat-agent
+    DEPLOY_SCRIPT           部署脚本路径，默认: /home/ubuntu/chat-agent/deploy.sh
     DEBUG                   调试模式，默认: False
 
 示例:

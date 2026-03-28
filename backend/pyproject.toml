@@ -1,5 +1,5 @@
 [project]
-name = "ai-doc-backend"
+name = "chat-agent-backend"
 version = "0.1.0"
 description = "Enterprise Knowledge Base Q&A System Backend"
 requires-python = ">=3.10"

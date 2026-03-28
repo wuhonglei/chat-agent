@@ -1,8 +1,8 @@
-# AI Doc Backend - Agent Guide
+# Chat Agent Backend - Agent Guide
 
 ## 项目概述
 
-AI Doc Backend 是一个知识库问答系统后端服务，基于 RAG (Retrieval-Augmented Generation) 技术，提供智能文档问答功能。
+Chat Agent 后端是 AI 对话平台的服务端，基于 FastAPI，提供流式对话、多轮会话、MCP 工具与用户认证等能力；并支持基于 RAG 的检索与问答。
 
 ### 核心功能
 
@@ -340,15 +340,15 @@ logger.exception("Unhandled exception", error=e)
 
 ```bash
 # 构建镜像
-docker build -t ai-doc-backend .
+docker build -t chat-agent-backend .
 
 # 运行容器
 docker run -d \
-  --name ai-doc-backend \
+  --name chat-agent-backend \
   -p 8000:8000 \
   -v $(pwd)/data:/app/data \
   --env-file .env \
-  ai-doc-backend
+  chat-agent-backend
 ```
 
 **启动流程**：

@@ -17,8 +17,8 @@ cp .env.example .env
 编辑 `.env` 文件，设置以下环境变量：
 
 - `WEBHOOK_SECRET`: GitHub Webhook 的 Secret（**必需**，与 GitHub 配置一致，未设置时启动脚本会报错并退出）
-- `REPO_PATH`: 仓库路径（可选，默认：/home/ubuntu/ai-doc）
-- `DEPLOY_SCRIPT`: 部署脚本路径（可选，默认：/home/ubuntu/ai-doc/deploy.sh）
+- `REPO_PATH`: 仓库路径（可选，默认：/home/ubuntu/chat-agent）
+- `DEPLOY_SCRIPT`: 部署脚本路径（可选，默认：/home/ubuntu/chat-agent/deploy.sh）
 - `DEBUG`: 调试模式（可选，默认：False）
 
 启动脚本会从当前目录的 `.env` 文件自动加载环境变量。

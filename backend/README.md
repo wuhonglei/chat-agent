@@ -1,4 +1,4 @@
-# AI Doc Backend
+# Chat Agent Backend
 
 后端服务基于 FastAPI，负责认证、会话管理、流式聊天、MCP 工具编排与数据持久化。
 

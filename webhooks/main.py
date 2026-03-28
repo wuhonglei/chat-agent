@@ -26,8 +26,8 @@ if not WEBHOOK_SECRET:
 webhook = Webhook(app, endpoint="/webhook", secret=WEBHOOK_SECRET)
 
 # 配置项（从环境变量读取）
-REPO_PATH = os.getenv('REPO_PATH', '/home/ubuntu/ai-doc')
-DEPLOY_SCRIPT = os.getenv('DEPLOY_SCRIPT', '/home/ubuntu/ai-doc/deploy.sh')
+REPO_PATH = os.getenv('REPO_PATH', '/home/ubuntu/chat-agent')
+DEPLOY_SCRIPT = os.getenv('DEPLOY_SCRIPT', '/home/ubuntu/chat-agent/deploy.sh')
 LOG_DIR = os.getenv('LOG_DIR', './logs')  # 日志文件存储目录
 
 # 变更文件路径与部署范围：仅当 diff 命中下列路径时才触发对应服务构建
