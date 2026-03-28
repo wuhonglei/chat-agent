@@ -79,12 +79,18 @@ activate_venv() {
 install_deps() {
     print_message "检查并安装依赖..."
 
-    # 检查是否使用 uv
-    if command -v uv &> /dev/null; then
-        print_message "使用 uv 管理依赖"
+    # 检查是否使用 uv（优先使用虚拟环境中的 uv）
+    if [ -f ".venv/bin/uv" ]; then
+        print_message "使用虚拟环境中的 uv 管理依赖"
+        .venv/bin/uv sync
+    elif command -v uv &> /dev/null; then
+        print_message "使用系统 uv 管理依赖"
         uv sync
+    elif [ -f ".venv/bin/pip" ]; then
+        print_message "使用虚拟环境中的 pip 安装依赖"
+        .venv/bin/pip install -e .
     else
-        print_warning "未找到 uv，使用 pip"
+        print_warning "未找到 uv 或虚拟环境 pip，使用系统 pip"
         pip install -e .
     fi
 }

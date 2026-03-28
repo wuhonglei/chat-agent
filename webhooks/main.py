@@ -3,6 +3,7 @@ from flask import Flask
 import subprocess
 import os
 import multiprocessing
+from pathlib import Path
 import time
 import signal
 from datetime import datetime
@@ -25,9 +26,10 @@ if not WEBHOOK_SECRET:
 
 webhook = Webhook(app, endpoint="/webhook", secret=WEBHOOK_SECRET)
 
-# 配置项（从环境变量读取）
-REPO_PATH = os.getenv('REPO_PATH', '/home/ubuntu/ai-doc')
-DEPLOY_SCRIPT = os.getenv('DEPLOY_SCRIPT', '/home/ubuntu/ai-doc/deploy.sh')
+# 部署目标：仓库根为 webhooks 目录的上一级，脚本为仓库根下的 deploy.sh（由目录布局决定，不读环境变量）
+_webhooks_dir = Path(__file__).resolve().parent
+REPO_PATH = str((_webhooks_dir / "..").resolve())
+DEPLOY_SCRIPT = str(Path(REPO_PATH) / "deploy.sh")
 LOG_DIR = os.getenv('LOG_DIR', './logs')  # 日志文件存储目录
 
 # 变更文件路径与部署范围：仅当 diff 命中下列路径时才触发对应服务构建

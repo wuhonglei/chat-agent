@@ -1,4 +1,4 @@
-# AI Doc - Agent Guide
+# Chat Agent - Agent Guide
 
 ## Cursor Cloud specific instructions
 
@@ -6,16 +6,16 @@
 
 | Service | Port | Start command | Notes |
 |---------|------|---------------|-------|
-| **PostgreSQL** (pgvector) | 5432 | `sudo docker start ai-doc-postgres` | Docker container `ai-doc-postgres`; must be running before backend |
+| **PostgreSQL** (pgvector) | 5432 | `sudo docker start chat-agent-postgres` | Docker container `chat-agent-postgres`; must be running before backend |
 | **Backend** (FastAPI) | 8000 | `cd backend && make dev` | Requires `backend/.env` with all config (see below) |
 | **Frontend** (React/Vite+) | 3000 | `cd frontend && vp dev` | Requires `vp` CLI (`source ~/.vite-plus/env`) |
 
 ### PostgreSQL
 
-- Runs as a Docker container named `ai-doc-postgres` using `pgvector/pgvector:pg18`.
+- Runs as a Docker container named `chat-agent-postgres` using `pgvector/pgvector:pg18`.
 - Credentials: `postgres:postgres`, database `ai_assistant_db`.
-- Start Docker daemon first: `sudo dockerd &>/tmp/dockerd.log &` then `sudo docker start ai-doc-postgres`.
-- The `vector` extension must be enabled: `sudo docker exec ai-doc-postgres psql -U postgres -d ai_assistant_db -c "CREATE EXTENSION IF NOT EXISTS vector;"`.
+- Start Docker daemon first: `sudo dockerd &>/tmp/dockerd.log &` then `sudo docker start chat-agent-postgres`.
+- The `vector` extension must be enabled: `sudo docker exec chat-agent-postgres psql -U postgres -d ai_assistant_db -c "CREATE EXTENSION IF NOT EXISTS vector;"`.
 
 ### Backend configuration gotchas
 

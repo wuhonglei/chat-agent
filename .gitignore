@@ -47,4 +47,7 @@ id_ed25519
 credentials.json
 service-account*.json
 
-test/temp/
+# 本地/实验目录：不跟踪名为 test 或 tests 的目录
+/test/
+backend/tests/
+webhooks/test/

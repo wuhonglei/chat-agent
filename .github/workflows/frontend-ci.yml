@@ -7,6 +7,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: frontend-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -21,7 +24,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |
@@ -76,3 +79,28 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  pr-gate:
+    needs: [changes, quality, build]
+    if: github.event_name == 'pull_request' && always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Frontend PR gate
+        env:
+          FRONTEND: ${{ needs.changes.outputs.frontend }}
+          Q: ${{ needs.quality.result }}
+          B: ${{ needs.build.result }}
+        run: |
+          if [ "$FRONTEND" != "true" ]; then
+            echo "No frontend paths in this PR; gate passes."
+            exit 0
+          fi
+          if [ "$Q" != "success" ]; then
+            echo "Frontend changed but quality did not succeed (result=$Q)."
+            exit 1
+          fi
+          if [ "$B" != "success" ]; then
+            echo "Frontend quality passed but build did not succeed (result=$B)."
+            exit 1
+          fi
+          exit 0

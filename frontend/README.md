@@ -1,4 +1,4 @@
-# AI Doc Frontend
+# Chat Agent Frontend
 
 基于 React 19 + TypeScript + Vite+ 的前端应用，负责会话交互、登录流程、流式消息渲染和组件工具展示。
 
@@ -100,8 +100,8 @@ vp preview
 ### Docker
 
 ```bash
-docker build -t ai-doc-frontend .
-docker run -d -p 3000:3000 --name ai-doc-frontend ai-doc-frontend
+docker build -t chat-agent-frontend .
+docker run -d -p 3000:3000 --name chat-agent-frontend chat-agent-frontend
 ```
 
 ### 手动部署
