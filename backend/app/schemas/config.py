@@ -284,9 +284,11 @@ class WindowOutSummaryConfig(BaseModel):
 
 
 class MemoryConfig(BaseModel):
-    """Mem0 记忆服务配置（ChatContextConfig 下）。启用时 base_url 与 api_key 均需配置。"""
+    """Mem0 记忆服务配置（ChatContextConfig 下）。base_url 留空表示不调用 Mem0。"""
 
-    base_url: str = Field(..., description="Mem0 API 根地址")
+    base_url: str = Field(
+        default="", description="Mem0 API 根地址；留空则禁用记忆 HTTP 调用"
+    )
     search_limit: int = Field(
         default=10,
         description="搜索记忆条数上限",
@@ -315,8 +317,8 @@ class ChatContextConfig(BaseModel):
         description="窗口外摘要管道",
     )
     memory_config: MemoryConfig = Field(
-        default_factory=MemoryConfig,  # type: ignore[arg-type]
-        description="Mem0 记忆服务配置；有值时启用记忆写入与检索",
+        default_factory=MemoryConfig,
+        description="Mem0 记忆服务配置；base_url 非空时启用记忆写入与检索",
     )
 
 

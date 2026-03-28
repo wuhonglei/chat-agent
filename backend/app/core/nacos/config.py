@@ -1,20 +1,53 @@
-"""Nacos 配置相关"""
+"""Nacos 配置相关（nacos-sdk-python v3 / v2.nacos 异步客户端）"""
 
+from __future__ import annotations
+
+import asyncio
 import json
 import os
+import threading
+from collections.abc import Coroutine
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import yaml
-from nacos import NacosClient
 from pydantic import Field
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
     SettingsConfigDict,
 )
+from v2.nacos import (
+    ClientConfig,
+    ClientConfigBuilder,
+    ConfigParam,
+    GRPCConfig,
+    NacosConfigService,
+)
 
 from app.utils.logger import logger
+
+_BACKEND_ROOT = Path(__file__).resolve().parents[3]
+
+
+def _resolve_under_backend(path_str: str) -> Path:
+    p = Path(path_str)
+    return p if p.is_absolute() else (_BACKEND_ROOT / p).resolve()
+
+
+def _nacos_source_skipped() -> bool:
+    v = os.environ.get("NACOS_SKIP_LOAD", "").strip().lower()
+    return v in ("1", "true", "yes")
+
+
+def _nacos_grpc_config() -> GRPCConfig:
+    timeout_ms = 5000
+    if v := os.environ.get("NACOS_GRPC_TIMEOUT_MS", "").strip():
+        timeout_ms = int(v, 10)
+    port_offset = 1000
+    if v := os.environ.get("NACOS_GRPC_PORT_OFFSET", "").strip():
+        port_offset = int(v, 10)
+    return GRPCConfig(grpc_timeout=timeout_ms, port_offset=port_offset)
 
 
 class NacosConnectionConfig(BaseSettings):
@@ -36,168 +69,248 @@ class NacosConnectionConfig(BaseSettings):
     )
 
 
+class _NacosAsyncBridge:
+    _instance: _NacosAsyncBridge | None = None
+    _lock = threading.Lock()
+
+    def __init__(self) -> None:
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._thread: threading.Thread | None = None
+        self._ready = threading.Event()
+
+    @classmethod
+    def get(cls) -> _NacosAsyncBridge:
+        with cls._lock:
+            if cls._instance is None:
+                inst = cls()
+                inst._start_thread()
+                cls._instance = inst
+            return cls._instance
+
+    def _start_thread(self) -> None:
+        def runner() -> None:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            self._loop = loop
+            self._ready.set()
+            loop.run_forever()
+
+        self._thread = threading.Thread(
+            target=runner,
+            name="nacos-sdk-v3-async",
+            daemon=True,
+        )
+        self._thread.start()
+        if not self._ready.wait(timeout=30):
+            raise RuntimeError("Nacos 异步桥接线程启动超时")
+
+    def run(self, coro: Coroutine[Any, Any, Any], timeout: float = 60) -> Any:
+        if self._loop is None:
+            raise RuntimeError("Nacos event loop 未初始化")
+        fut = asyncio.run_coroutine_threadsafe(coro, self._loop)
+        return fut.result(timeout=timeout)
+
+
 class NacosConfigSettingsSource(PydanticBaseSettingsSource):
-    """从 Nacos 配置中心加载 YAML 配置的自定义设置源"""
+    """从 Nacos 配置中心加载 YAML/JSON 配置"""
 
     def __init__(self, settings_cls: type[BaseSettings]):
         super().__init__(settings_cls)
         self._config_cache: dict[str, Any] | None = None
-        self._nacos_client: NacosClient | None = None
+        self._nacos_client: NacosConfigService | None = None
         self._connection_config: NacosConnectionConfig | None = None
-        self._watcher_started: bool = False
+        self._config_listener: Any | None = None
+        self._cache_lock = threading.Lock()
+        self._client_init_lock = threading.Lock()
 
-    def _config_change_listener(self, config_content: str | dict[str, Any]) -> None:
-        """配置变化回调函数
-
-        当 Nacos 配置发生变化时，此函数会被自动调用来更新缓存
-        """
-        if not config_content:
-            logger.warning("收到空的配置内容，跳过更新")
-            return
-
+    def _resolve_connection_config(
+        self, *, optional: bool
+    ) -> NacosConnectionConfig | None:
+        if self._connection_config is not None:
+            return self._connection_config
         try:
-            # 处理不同格式的配置内容
-            actual_content = None
-            if isinstance(config_content, dict):
-                # 如果是字典格式，提取实际的配置内容
-                actual_content = config_content.get("content") or config_content.get(
-                    "raw_content"
-                )
-            else:
-                # 字符串格式：直接使用
-                actual_content = config_content
-
-            if not actual_content:
-                logger.warning("未找到有效的配置内容")
-                return
-
-            # 根据配置类型解析新的配置内容
-            if (
-                self._connection_config
-                and self._connection_config.config_type == "yaml"
-            ):
-                new_config = yaml.safe_load(actual_content) or {}
-            elif (
-                self._connection_config
-                and self._connection_config.config_type == "json"
-            ):
-                new_config = json.loads(actual_content)
-            else:
-                logger.warning(
-                    f"不支持的配置类型: {self._connection_config.config_type if self._connection_config else 'unknown'}"
-                )
-                return
-
-            # 更新缓存
-            old_config_keys = (
-                set(self._config_cache.keys()) if self._config_cache else set()
-            )
-            self._config_cache = new_config
-            new_config_keys = set(new_config.keys())
-
-            # 计算配置变化
-            added_keys = new_config_keys - old_config_keys
-            removed_keys = old_config_keys - new_config_keys
-
-            logger.info(
-                "Nacos 配置已更新",
-                data_id=self._connection_config.data_id
-                if self._connection_config
-                else "unknown",
-                group=self._connection_config.group
-                if self._connection_config
-                else "unknown",
-                config_keys_count=len(new_config),
-                added_keys=list(added_keys) if added_keys else None,
-                removed_keys=list(removed_keys) if removed_keys else None,
-                config_size=len(actual_content)
-                if isinstance(actual_content, str)
-                else "unknown",
-            )
-
-        except Exception as e:
-            logger.error(
-                "处理配置更新时发生错误",
-                error=e,
-                config_type=type(config_content).__name__,
-                has_content=bool(config_content),
-            )
-
-    def _ensure_nacos_client(self) -> None:
-        """确保 Nacos 客户端已初始化并启动监听器"""
-        if self._nacos_client is not None:
-            return
-
-        # 初始化连接配置（从环境变量 NACOS_* 加载）
-        if self._connection_config is None:
             self._connection_config = NacosConnectionConfig()  # type: ignore[call-arg]
-
-        try:
-            # 初始化 Nacos 客户端
-            client_kwargs = {
-                "server_addresses": self._connection_config.server_addresses,
-            }
-            if self._connection_config.namespace:
-                client_kwargs["namespace"] = self._connection_config.namespace
-            if self._connection_config.username and self._connection_config.password:
-                client_kwargs["username"] = self._connection_config.username
-                client_kwargs["password"] = self._connection_config.password
-
-            self._nacos_client = NacosClient(**client_kwargs)
-
-            # 启动配置监听器（只启动一次）
-            if not self._watcher_started:
-                self._nacos_client.add_config_watcher(
-                    data_id=self._connection_config.data_id,
-                    group=self._connection_config.group,
-                    cb=self._config_change_listener,
-                )
-                self._watcher_started = True
-                logger.info(
-                    "Nacos 配置监听器已启动",
-                    data_id=self._connection_config.data_id,
-                    group=self._connection_config.group,
-                )
-
-        except Exception as e:
-            logger.error(
-                "Failed to initialize Nacos client",
-                error=e,
-            )
+            return self._connection_config
+        except Exception:
+            if optional:
+                return None
             raise
 
-    def _get_snapshot_path(self) -> Path | None:
-        """根据连接配置构造本地快照文件路径。若无法获取连接配置则返回 None。"""
-        try:
-            if self._connection_config is None:
-                self._connection_config = NacosConnectionConfig()  # type: ignore[call-arg]
-        except Exception:
-            return None
-        base = os.environ.get("NACOS_SNAPSHOT_DIR", "nacos-data/snapshot")
-        namespace = self._connection_config.namespace or "public"
-        name = f"{self._connection_config.data_id}+{self._connection_config.group}+{namespace}"
-        return Path(base) / name
+    def _namespace_id_for_sdk(self) -> str:
+        assert self._connection_config is not None
+        ns = (self._connection_config.namespace or "").strip()
+        if ns.lower() == "public":
+            return ""
+        return ns
+
+    def _build_client_config(self) -> ClientConfig:
+        assert self._connection_config is not None
+        cc = self._connection_config
+        cache_dir = _resolve_under_backend(
+            os.environ.get("NACOS_CACHE_DIR", "nacos-data")
+        )
+        return (
+            ClientConfigBuilder()
+            .server_address(cc.server_addresses)
+            .namespace_id(self._namespace_id_for_sdk())
+            .username(cc.username)
+            .password(cc.password)
+            .cache_dir(str(cache_dir))
+            .grpc_config(_nacos_grpc_config())
+            .log_level("INFO")
+            .build()
+        )
+
+    def _parse_config_content(self, raw: str) -> dict[str, Any]:
+        assert self._connection_config is not None
+        if not raw or not raw.strip():
+            return {}
+        ct = self._connection_config.config_type
+        if ct == "yaml":
+            loaded = yaml.safe_load(raw)
+            return cast(dict[str, Any], loaded) if isinstance(loaded, dict) else {}
+        if ct == "json":
+            loaded = json.loads(raw)
+            return cast(dict[str, Any], loaded) if isinstance(loaded, dict) else {}
+        logger.warning("不支持的配置类型", config_type=ct)
+        return {}
+
+    def _apply_parsed_config(
+        self,
+        new_config: dict[str, Any],
+        *,
+        actual_content: str | None = None,
+    ) -> None:
+        with self._cache_lock:
+            old_keys = set(self._config_cache.keys()) if self._config_cache else set()
+            self._config_cache = new_config
+            new_keys = set(new_config.keys())
+        assert self._connection_config is not None
+        added = new_keys - old_keys
+        removed = old_keys - new_keys
+        logger.info(
+            "Nacos 配置已更新",
+            data_id=self._connection_config.data_id,
+            group=self._connection_config.group,
+            config_keys_count=len(new_config),
+            added_keys=list(added) if added else None,
+            removed_keys=list(removed) if removed else None,
+            config_size=len(actual_content)
+            if isinstance(actual_content, str)
+            else "unknown",
+        )
+
+    def _make_config_listener(self) -> Any:
+        async def config_listener(
+            tenant: str,
+            group: str,
+            data_id: str,
+            content: str,
+        ) -> None:
+            try:
+                if not content:
+                    logger.warning("收到空的配置内容，跳过更新")
+                    return
+                new_config = self._parse_config_content(content)
+                self._apply_parsed_config(new_config, actual_content=content)
+            except Exception as e:
+                logger.error(
+                    "处理配置更新时发生错误",
+                    error=e,
+                    tenant=tenant,
+                    group=group,
+                    data_id=data_id,
+                )
+
+        return config_listener
+
+    def _ensure_nacos_client(self) -> None:
+        with self._client_init_lock:
+            if self._nacos_client is not None:
+                return
+            self._resolve_connection_config(optional=False)
+            bridge = _NacosAsyncBridge.get()
+            conn = self._connection_config
+            assert conn is not None
+            listener = self._make_config_listener()
+            self._config_listener = listener
+
+            async def setup() -> NacosConfigService:
+                client = await NacosConfigService.create_config_service(
+                    self._build_client_config()
+                )
+                try:
+                    await client.add_listener(conn.data_id, conn.group, listener)
+                    logger.info(
+                        "Nacos 配置监听器已启动 (v3)",
+                        data_id=conn.data_id,
+                        group=conn.group,
+                    )
+                except Exception as le:
+                    logger.warning(
+                        "Nacos add_listener 失败，将仅使用拉取配置（无热更新）",
+                        error=le,
+                        exc_info=True,
+                    )
+                return client
+
+            try:
+                self._nacos_client = bridge.run(setup(), timeout=90)
+            except Exception as e:
+                logger.error(
+                    "Failed to initialize Nacos client",
+                    error=e,
+                    server_addresses=conn.server_addresses,
+                    data_id=conn.data_id,
+                    group=conn.group,
+                    exc_info=True,
+                )
+                self._config_listener = None
+                raise
+
+    def _iter_snapshot_paths(self) -> list[Path]:
+        if self._resolve_connection_config(optional=True) is None:
+            return []
+        conn = self._connection_config
+        assert conn is not None
+        cache_root = _resolve_under_backend(
+            os.environ.get("NACOS_CACHE_DIR", "nacos-data")
+        )
+        snap_root = _resolve_under_backend(
+            os.environ.get("NACOS_SNAPSHOT_DIR", "nacos-data/snapshot")
+        )
+        data_id, group = conn.data_id, conn.group
+        raw_ns = (conn.namespace or "").strip() or "public"
+        tenants = list(
+            dict.fromkeys(
+                (self._namespace_id_for_sdk(), raw_ns, "public", ""),
+            )
+        )
+        paths: list[Path] = []
+        for tenant in tenants:
+            paths.append(cache_root / "config" / f"{data_id}@@{group}@@{tenant}")
+        for ns in dict.fromkeys((raw_ns, "public", "")):
+            paths.append(snap_root / f"{data_id}+{group}+{ns}")
+        return paths
 
     def _load_config_from_snapshot(self) -> dict[str, Any]:
-        """从本地快照文件加载配置。Nacos 客户端不可用时使用。"""
-        path = self._get_snapshot_path()
-        if path is None or not path.is_file():
+        candidates = self._iter_snapshot_paths()
+        existing = [p for p in candidates if p.is_file()]
+        if not existing:
+            logger.warning(
+                "未找到本地 Nacos 快照/v3 缓存文件",
+                backend_root=str(_BACKEND_ROOT),
+                tried=[str(p) for p in candidates],
+            )
             return {}
+        path = existing[0]
         try:
             raw = path.read_text(encoding="utf-8")
         except OSError as e:
             logger.warning("无法读取 Nacos 快照文件", path=str(path), error=e)
             return {}
         try:
-            if self._connection_config is None:
-                # 无法确定类型时按 yaml 尝试
-                config = yaml.safe_load(raw) or {}
-            elif self._connection_config.config_type == "yaml":
-                config = yaml.safe_load(raw) or {}
-            elif self._connection_config.config_type == "json":
-                config = json.loads(raw)
-            else:
-                config = yaml.safe_load(raw) or {}
+            config = self._parse_config_content(raw)
             if config:
                 logger.info(
                     "已从本地快照加载 Nacos 配置",
@@ -210,98 +323,108 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
             return {}
 
     def _get_nacos_config(self) -> dict[str, Any]:
-        """从 Nacos 获取配置；失败时尝试使用本地快照。"""
-        # 如果已经缓存且客户端已初始化，直接返回缓存
-        if self._config_cache is not None and self._nacos_client is not None:
-            return self._config_cache
+        if _nacos_source_skipped():
+            return {}
+
+        with self._cache_lock:
+            if self._config_cache is not None and self._nacos_client is not None:
+                return dict(self._config_cache)
 
         try:
-            # 确保客户端已初始化
             self._ensure_nacos_client()
             assert self._nacos_client is not None
-            assert self._connection_config is not None
+            conn = self._connection_config
+            assert conn is not None
+            bridge = _NacosAsyncBridge.get()
+            client = self._nacos_client
 
-            # 获取配置内容
-            config_content = self._nacos_client.get_config(
-                data_id=self._connection_config.data_id,
-                group=self._connection_config.group,
-                timeout=5,
-            )
+            async def fetch() -> str:
+                content = await client.get_config(
+                    ConfigParam(data_id=conn.data_id, group=conn.group)
+                )
+                return str(content) if content is not None else ""
 
+            config_content = bridge.run(fetch(), timeout=30)
             if not config_content:
                 raise ValueError(
                     f"Failed to get config from Nacos: "
-                    f"data_id={self._connection_config.data_id}, "
-                    f"group={self._connection_config.group}"
+                    f"data_id={conn.data_id}, group={conn.group}"
                 )
-
-            # 根据配置类型解析
-            if self._connection_config.config_type == "yaml":
-                parsed_config = yaml.safe_load(config_content) or {}
-            elif self._connection_config.config_type == "json":
-                parsed_config = json.loads(config_content)
-            else:
-                logger.warning(
-                    f"Warning: Unsupported config type: {self._connection_config.config_type}"
-                )
-                parsed_config = {}
-
-            self._config_cache = parsed_config
-            return parsed_config
+            parsed = self._parse_config_content(config_content)
+            with self._cache_lock:
+                self._config_cache = parsed
+            return parsed
 
         except Exception as e:
-            logger.error(
-                "Failed to load config from Nacos",
-                error=e,
-            )
-            # Nacos 失败时尝试使用本地快照
             snapshot_config = self._load_config_from_snapshot()
             if snapshot_config:
-                self._config_cache = snapshot_config
+                with self._cache_lock:
+                    self._config_cache = snapshot_config
                 return snapshot_config
-            self._config_cache = {}
-            return {}
+            logger.exception(
+                "Nacos 配置拉取失败且未找到本地快照/v3 缓存（完整堆栈见上）",
+            )
+            c = self._resolve_connection_config(optional=True)
+            conn_hint = (
+                f"data_id={c.data_id} group={c.group} "
+                f"server_addresses={c.server_addresses}"
+                if c
+                else "无法读取 NACOS_* 连接信息（请检查 .env）"
+            )
+            raise RuntimeError(
+                "无法加载应用配置：连接 Nacos 失败，且本地无可用快照或 v3 缓存文件。\n"
+                "说明：nacos-sdk-python v3 依赖 Nacos 3.x（gRPC）；若服务端为 2.x 将无法连接。\n"
+                "可选处理：\n"
+                "  1) 修复网络/认证并确保 Nacos 3.x 可访问；\n"
+                f"  2) 将配置 YAML 放到 backend 目录下（根路径：{_BACKEND_ROOT}），例如：\n"
+                "       nacos-data/snapshot/{DATA_ID}+{GROUP}+{NAMESPACE}\n"
+                "       或 nacos-data/config/{DATA_ID}@@{GROUP}@@{tenant}\n"
+                "  3) 在 .env 中用嵌套键补全所有必填项；\n"
+                "  4) 若完全不用 Nacos，设置 NACOS_SKIP_LOAD=1（需 .env 已包含全部必填配置）。\n"
+                f"当前：{conn_hint}"
+            ) from e
 
     def get_field_value(self, field: Any, field_name: str) -> tuple[Any, str, bool]:
-        """获取字段值（从 Nacos 配置中）
-
-        返回 (value, key, value_is_complex)，与 PydanticBaseSettingsSource 约定一致。
-        当无值时返回 (None, '', False)。
-        """
         yaml_data = self._get_nacos_config()
         if not yaml_data:
             return None, "", False
-
-        try:
-            # 递归查找字段值
-            keys = field_name.split("__")
-            value = yaml_data
-            for key in keys:
-                if isinstance(value, dict) and key in value:
-                    value = value[key]
-                else:
-                    return None, "", False
-
-            return value, field_name, False
-        except Exception:
-            return None, "", False
+        keys = field_name.split("__")
+        value: Any = yaml_data
+        for key in keys:
+            if isinstance(value, dict) and key in value:
+                value = value[key]
+            else:
+                return None, "", False
+        return value, field_name, False
 
     def __call__(self) -> dict[str, Any]:
-        """加载并返回配置字典"""
         return self._get_nacos_config()
 
     def close(self) -> None:
-        """关闭 Nacos 客户端连接"""
-        if self._nacos_client:
+        if not self._nacos_client:
+            return
+        client = self._nacos_client
+        listener = self._config_listener
+        conn = self._connection_config
+        self._nacos_client = None
+        self._config_listener = None
+
+        async def shutdown() -> None:
+            if conn is not None and listener is not None:
+                try:
+                    await client.remove_listener(conn.data_id, conn.group, listener)
+                except Exception as e:
+                    logger.warning("移除 Nacos 监听器时出错", error=e)
             try:
-                self._nacos_client.close()
-                logger.info("Nacos 客户端连接已关闭")
+                await client.shutdown()
             except Exception as e:
-                logger.error("关闭 Nacos 客户端连接时发生错误", error=e)
-            finally:
-                self._nacos_client = None
-                self._watcher_started = False
+                logger.error("关闭 Nacos 客户端时出错", error=e)
+
+        try:
+            _NacosAsyncBridge.get().run(shutdown(), timeout=30)
+            logger.info("Nacos 客户端连接已关闭")
+        except Exception as e:
+            logger.error("关闭 Nacos 客户端连接时发生错误", error=e)
 
     def __del__(self) -> None:
-        """析构函数，确保资源被正确清理"""
         self.close()
