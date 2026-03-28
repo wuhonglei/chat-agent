@@ -52,7 +52,7 @@ def main():
 
     print("GitHub Webhook 测试签名生成器")
     print("=" * 40)
-    print(f"Secret: {secret}")
+    print("Secret: [REDACTED]")
     print(f"Signature: {signature}")
     print()
     print("Postman Headers:")
