@@ -12,4 +12,5 @@ cd ..
 
 
 # Backend: ruff + mypy（.pre-commit-config.yaml，仅对暂存的 .py 做类型检查）
-(cd backend && uv run pre-commit run)
+# pre-commit 在 optional-dependencies dev 中，需 --extra dev 才能找到可执行文件
+(cd backend && uv run --extra dev pre-commit run)
