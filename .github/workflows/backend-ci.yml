@@ -54,3 +54,25 @@ jobs:
 
       - name: Mypy
         run: uv run mypy app/
+
+  # 始终在 PR 上执行并上报检查，避免「quality」被 paths 跳过时保护规则一直等不到状态，
+  # 或与 Rulesets 中仅按 context 匹配的检查无法对齐。
+  pr-gate:
+    needs: [changes, quality]
+    if: github.event_name == 'pull_request' && always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Backend PR gate
+        env:
+          BACKEND: ${{ needs.changes.outputs.backend }}
+          Q: ${{ needs.quality.result }}
+        run: |
+          if [ "$BACKEND" != "true" ]; then
+            echo "No backend paths in this PR; gate passes."
+            exit 0
+          fi
+          if [ "$Q" = "success" ]; then
+            exit 0
+          fi
+          echo "Backend changed but quality did not succeed (result=$Q)."
+          exit 1

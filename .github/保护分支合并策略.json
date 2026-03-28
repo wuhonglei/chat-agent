@@ -40,10 +40,10 @@
         "strict_required_status_checks_policy": false,
         "required_status_checks": [
           {
-            "context": "Frontend CI / quality (pull_request)"
+            "context": "Frontend CI / pr-gate (pull_request)"
           },
           {
-            "context": "Backend CI / quality (pull_request)"
+            "context": "Backend CI / pr-gate (pull_request)"
           }
         ]
       }
