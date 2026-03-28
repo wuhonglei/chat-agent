@@ -34,15 +34,11 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
     sleep 1
 done
 
-# 执行数据库迁移
+# pgvector + 空库建表 + Alembic（首条迁移仅 alter，空库需 stamp head）
 echo ""
-echo "Running database migrations..."
-if uv run alembic upgrade head; then
-    echo "✓ Database migrations completed successfully"
-else
-    echo "WARNING: Database migration encountered issues, but continuing..."
-    echo "You may need to manually check and fix migration issues."
-fi
+echo "Running database setup and migrations..."
+uv run python -c "from app.core.migrate_on_deploy import run_deploy_migrations; run_deploy_migrations()"
+echo "✓ Database migrations completed successfully"
 
 # 显示当前迁移版本
 echo ""

@@ -1,6 +1,7 @@
 import json
 from collections.abc import Generator
 
+from sqlalchemy import text
 from sqlmodel import Session, SQLModel, create_engine
 
 from app.core.config import settings
@@ -48,6 +49,12 @@ def get_db() -> Generator[Session, None, None]:
         session.close()
 
 
+def ensure_pgvector_extension() -> None:
+    """确保启用 pgvector 扩展；messages.embedding_vector 等列依赖该类型。"""
+    with engine.begin() as conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+
+
 def create_db_and_tables() -> None:
     """
     创建数据库表
@@ -58,6 +65,7 @@ def create_db_and_tables() -> None:
     如果遇到权限问题，表可能已经存在或需要数据库管理员手动创建。
     """
     try:
+        ensure_pgvector_extension()
         SQLModel.metadata.create_all(engine, checkfirst=True)
 
         # 然后创建/更新表结构
