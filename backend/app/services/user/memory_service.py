@@ -21,6 +21,9 @@ class MemoryService:
     def _base_url(self) -> str:
         return self.config.base_url.rstrip("/")
 
+    def _mem0_enabled(self) -> bool:
+        return bool(self.config.base_url.strip())
+
     def _headers(self) -> dict[str, str]:
         headers: dict[str, str] = {
             "Content-Type": "application/json",
@@ -36,6 +39,8 @@ class MemoryService:
         metadata: dict[str, Any] | None = None,
     ) -> None:
         """写入记忆：POST /memories，传入 messages + user_id。"""
+        if not self._mem0_enabled():
+            return
         url = f"{self._base_url()}/memories"
         body: dict[str, Any] = {
             "messages": messages,
@@ -64,6 +69,8 @@ class MemoryService:
         limit: int | None = None,
     ) -> list[MemoryListItem]:
         """搜索记忆：POST /search，返回记忆文本列表。"""
+        if not self._mem0_enabled():
+            return []
         url = f"{self._base_url()}/search"
         limit = limit if limit is not None else self.config.search_limit
         body: dict[str, Any] = {
@@ -98,6 +105,8 @@ class MemoryService:
 
     async def get_memories(self, user_id: str) -> list[MemoryListItem]:
         """获取用户记忆列表：GET /memories?user_id=。"""
+        if not self._mem0_enabled():
+            return []
         url = f"{self._base_url()}/memories"
         try:
             async with httpx.AsyncClient(timeout=self._timeout) as client:
@@ -125,6 +134,8 @@ class MemoryService:
 
     async def delete_memory(self, memory_id: str) -> None:
         """删除单条记忆：DELETE /memories/{memory_id}。"""
+        if not self._mem0_enabled():
+            return
         url = f"{self._base_url()}/memories/{memory_id}"
         try:
             async with httpx.AsyncClient(timeout=self._timeout) as client:
@@ -140,6 +151,8 @@ class MemoryService:
 
     async def delete_all_memories(self, user_id: str) -> None:
         """按 user_id 删除全部记忆：DELETE /memories?user_id=。"""
+        if not self._mem0_enabled():
+            return
         url = f"{self._base_url()}/memories"
         try:
             async with httpx.AsyncClient(timeout=self._timeout) as client:

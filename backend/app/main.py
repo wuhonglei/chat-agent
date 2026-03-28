@@ -22,7 +22,9 @@ from app.middleware.exception_handler import (
 from app.utils.logger import logger, setup_logger
 
 # 忽略 nacos 库中的 SSL DeprecationWarning
-warnings.filterwarnings("ignore", category=DeprecationWarning, module="nacos.*")
+warnings.filterwarnings(
+    "ignore", category=DeprecationWarning, module=r"(nacos|v2\.nacos).*"
+)
 
 
 # 配置日志系统
