@@ -1,3 +1,6 @@
+# 跳过 Cursor 技能等第三方/生成内容（路径相对 git 仓库根目录）
+exclude: '\.cursor/skills/'
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0

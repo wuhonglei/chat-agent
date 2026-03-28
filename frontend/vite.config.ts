@@ -24,7 +24,7 @@ export default defineConfig({
     globals: {
       aegis: "readonly",
     },
-    ignorePatterns: [".agents/**"],
+    ignorePatterns: [".agents/**", ".cursor/skills/**"],
     overrides: [
       {
         files: ["**/*.ts", "**/*.tsx"],
@@ -77,6 +77,7 @@ export default defineConfig({
       "package-lock.json",
       "yarn.lock",
       ".agents/**",
+      ".cursor/skills/**",
       ".env",
       ".env.local",
       ".env.*.local",
@@ -107,10 +108,7 @@ export default defineConfig({
     }),
     generateComponentSchemas({
       inputPath: "src/componentTools/index.ts",
-      outputDirs: [
-        "src/componentTools/component-schemas",
-        "public/component-schemas",
-      ],
+      outputDirs: ["src/componentTools/component-schemas", "public/component-schemas"],
     }), // 在构建时自动生成组件 JSON Schema
   ],
   server: {
