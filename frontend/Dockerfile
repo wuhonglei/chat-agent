@@ -1,4 +1,6 @@
-FROM node:22-alpine AS builder
+# bookworm-slim (glibc)：vite-plus 在 alpine/musl 上依赖可选原生包 @voidzero-dev/vite-plus-linux-x64-musl，
+# npm ci 常漏装导致 vp build 报错；glibc 镜像使用 linux-x64-gnu 绑定，更稳定。
+FROM node:22-bookworm-slim AS builder
 
 # Set working directory
 WORKDIR /app
