@@ -44,11 +44,13 @@ services:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
-      interval: 30s
+      # 使用 127.0.0.1：避免容器内 localhost 优先解析到 ::1，而服务仅监听 IPv4(0.0.0.0) 时 curl 连接失败
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/"]
+      interval: 15s
       timeout: 10s
-      retries: 5
-      start_period: 40s
+      retries: 8
+      # start.sh 最多等库 60s + 迁移 + 多 worker 冷启动（lifespan/MCP），需大于 compose 默认等待窗口
+      start_period: 120s
 
   frontend:
     build:

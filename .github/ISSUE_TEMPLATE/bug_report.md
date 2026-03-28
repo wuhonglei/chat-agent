@@ -1,6 +1,6 @@
 ---
 name: 缺陷报告
-description: 报告可复现的问题，便于我们定位与修复
+about: 报告可复现的问题，便于我们定位与修复
 title: ''
 labels: ''
 assignees: ''
