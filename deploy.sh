@@ -5,7 +5,7 @@
 
 set -e
 
-echo "🚀 开始部署 AI-Doc 项目..."
+echo "🚀 开始部署 chat-agent 项目..."
 
 # 检查 Docker 是否安装
 if ! command -v docker &> /dev/null; then

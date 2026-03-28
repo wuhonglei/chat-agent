@@ -205,4 +205,4 @@ For detailed API documentation, visit:
 
 ## License
 
-This MCP server is built for the AI-Doc project.
+This MCP server is built for the chat-agent project.
