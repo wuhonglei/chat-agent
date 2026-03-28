@@ -202,7 +202,7 @@ async def main():
                 ],
                 "env": {
                     "QWEATHER_API_KEY": os.getenv(
-                        "QWEATHER_API_KEY", "32de48c2fba5456cb0239c6b4f7d29ac"
+                        "QWEATHER_API_KEY", ""
                     ),
                     "QWEATHER_BASE_URL": os.getenv(
                         "QWEATHER_BASE_URL", "https://pb6hewdvet.re.qweatherapi.com"
