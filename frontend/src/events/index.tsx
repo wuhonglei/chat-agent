@@ -3,7 +3,6 @@ import mitt, { Emitter } from "mitt";
 import { useEffect } from "react";
 export enum EventType {
   McpToolCallDone = "mcpToolCallDone",
-  ComponentToolCallDone = "componentToolCallDone",
   ReasoningDone = "reasoningDone",
   ChangeConversion = "changeConversion", // 切换对话
   BlockCollapse = "blockCollapse", // 块折叠 或展开
@@ -11,7 +10,6 @@ export enum EventType {
 
 type Events = {
   [EventType.McpToolCallDone]: void;
-  [EventType.ComponentToolCallDone]: void;
   [EventType.ReasoningDone]: void;
   [EventType.ChangeConversion]: void;
   [EventType.BlockCollapse]: boolean;

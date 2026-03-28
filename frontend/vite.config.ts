@@ -4,7 +4,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import svgr from "vite-plugin-svgr";
 import { defineConfig, loadEnv } from "vite-plus";
-import { generateComponentSchemas } from "./vite-plugins/generate-component-schemas.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -111,10 +110,6 @@ export default defineConfig({
         icon: true, // 让 SVG 自适应 (width/height = 1em)
       },
     }),
-    generateComponentSchemas({
-      inputPath: "src/componentTools/index.ts",
-      outputDirs: ["src/componentTools/component-schemas", "public/component-schemas"],
-    }), // 在构建时自动生成组件 JSON Schema
   ],
   server: {
     host: true,

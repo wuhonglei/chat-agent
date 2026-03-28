@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Literal, TypeAlias
+from typing import Any, TypeAlias
 
 from openai.types.chat import ChatCompletionMessageFunctionToolCall
 from pydantic import BaseModel, ConfigDict, Field
@@ -24,33 +24,6 @@ class SourceConfig(BaseModel):
     """Source configuration model"""
 
     model_config = ConfigDict(extra="allow")
-
-
-class ComponentToolWhen(BaseModel):
-    """Component tool when condition model"""
-
-    mcp_tool_names: list[str] | None = Field(
-        None, description="当 mcp 工具名称匹配时，后端才会组装对应的组件"
-    )
-    mcp_tool_call_content: list[str] | None = Field(
-        None, description="当 mcp 工具调用内容匹配时，后端才会组装对应的组件"
-    )
-    user_message: str | None = Field(
-        None, description="当用户消息内容匹配时，后端才会组装对应的组件"
-    )
-
-
-class ComponentToolConfig(BaseModel):
-    """Component tool configuration model"""
-
-    name: str = Field(..., description="Component tool name, e.g. 'weather'")
-    when_condition: Literal["and", "or"] = Field(
-        "and", description="Condition logic: 'and' or 'or'"
-    )
-    when: ComponentToolWhen = Field(
-        default_factory=ComponentToolWhen,  # type: ignore[arg-type]
-        description="When condition configuration",
-    )
 
 
 class ChatMessageItemReq(BaseModel):
@@ -79,9 +52,6 @@ class ChatMessageItem(BaseModel):
     )
     reasoning: str | None = Field(default=None, description="Reasoning content")
     tool_calls: list[ToolMessage] | None = Field(default=None, description="Tool calls")
-    component_tool_calls: list[ToolMessage] | None = Field(
-        default=None, description="Component tool calls"
-    )
     message_metadata: dict[str, Any] = Field(
         default_factory=dict, description="Message metadata"
     )
@@ -96,9 +66,6 @@ class ChatMessageItem(BaseModel):
     tool_calls_duration: float | None = Field(
         default=None, description="工具调用耗时（秒）"
     )
-    component_tool_calls_duration: float | None = Field(
-        default=None, description="组件工具调用耗时（秒）"
-    )
     reasoning_duration: float | None = Field(default=None, description="推理耗时（秒）")
     content_duration: float | None = Field(
         default=None, description="内容生成耗时（秒）"
@@ -106,7 +73,7 @@ class ChatMessageItem(BaseModel):
     total_duration: float | None = Field(default=None, description="总耗时（秒）")
     token_stats: dict[str, Any] | None = Field(
         default=None,
-        description="Token 使用统计信息，包含各个阶段（MCP 工具调用、组件工具调用、响应生成、标题生成）的 token 使用量",
+        description="Token 使用统计信息（MCP 工具调用、响应生成、标题生成等）",
     )
 
     model_config = ConfigDict(extra="ignore")
@@ -133,9 +100,6 @@ class ChatRequest(BaseModel):
     )
     mcp_auto_mode: bool = Field(True, description="Whether to use mcp auto mode")
     think_mode: bool = Field(False, description="Whether to use think mode")
-    component_tools_for_backend: list[ComponentToolConfig] = Field(
-        default_factory=list, description="Component tools for backend"
-    )
 
 
 class ChatSource(BaseModel):
@@ -176,14 +140,8 @@ class CollectedResponse(BaseModel):
     tool_calls: list[ToolMessage] = Field(
         default_factory=list, description="Collected tool calls"
     )
-    component_tool_calls: list[ToolMessage] = Field(
-        default_factory=list, description="Collected component tool calls"
-    )
     tool_calls_duration: float | None = Field(
         default=None, description="MCP 工具调用耗时（秒）"
-    )
-    component_tool_calls_duration: float | None = Field(
-        default=None, description="组件工具调用耗时（秒），不包含 MCP 工具调用耗时"
     )
     reasoning_duration: float | None = Field(default=None, description="推理耗时（秒）")
     content_duration: float | None = Field(
@@ -192,5 +150,5 @@ class CollectedResponse(BaseModel):
     total_duration: float | None = Field(default=None, description="总耗时（秒）")
     token_stats: dict[str, Any] | None = Field(
         default=None,
-        description="Token 使用统计信息，包含各个阶段（MCP 工具调用、组件工具调用、响应生成、标题生成）的 token 使用量",
+        description="Token 使用统计信息（MCP 工具调用、响应生成、标题生成等）",
     )

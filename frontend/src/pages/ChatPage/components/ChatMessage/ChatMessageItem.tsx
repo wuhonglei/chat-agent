@@ -11,7 +11,6 @@ interface ChatMessageItemProps {
   isLoading: boolean;
   isReasoning: boolean;
   isCallingMcpTools: boolean;
-  isCallingComponentTools: boolean;
   onEditMessage: (index: number, content: string) => void;
   onReSend: (index: number, message: ChatMessageType) => void;
 }
@@ -23,7 +22,6 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   isLoading,
   isReasoning,
   isCallingMcpTools,
-  isCallingComponentTools,
   onEditMessage,
   onReSend,
 }) => {
@@ -45,7 +43,6 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
       isReasoning={isReasoning}
       onReSend={handleReSend}
       isCallingMcpTools={isCallingMcpTools}
-      isCallingComponentTools={isCallingComponentTools}
     />
   );
 };

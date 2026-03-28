@@ -5,7 +5,6 @@ from collections.abc import AsyncGenerator
 from typing import cast
 
 from app.agents import (
-    ComponentToolsAgent,
     MCPToolsAgent,
     ResponseGenerationAgent,
     TitleGenerationAgent,
@@ -27,7 +26,6 @@ from app.schemas.llm import (
 )
 from app.schemas.token_stats import TotalTokenStats
 from app.schemas.user import MemoryListItem
-from app.services.component import ComponentSchemaService
 from app.services.conversation import (
     ContextSummaryService,
     ConversationContextDbService,
@@ -131,7 +129,6 @@ class ChatService:
         self.window_out_summary_config = self.chat_context_config.window_out_summary
         self.memory_config = self.chat_context_config.memory_config
         self.memory_service = MemoryService(self.memory_config)
-        self.schema_service = ComponentSchemaService(debug=self.debug)
 
         self.token_calculator = TokenCalculator(settings.response_model.model_name)
 
@@ -139,22 +136,14 @@ class ChatService:
         self.title_generation_agent = TitleGenerationAgent(
             think_mode=False, llm_config=settings.tool_call_model
         )
-        # MCP工具和组件工具使用tool配置
         self.mcp_tools_agent = MCPToolsAgent(
             think_mode=think_mode,
             llm_config=settings.tool_call_model,
             mcp_manager=mcp_manager,
         )
-        self.component_tools_agent = ComponentToolsAgent(
-            think_mode=think_mode,
-            llm_config=settings.tool_call_model,
-            schema_service=self.schema_service,
-        )
-        # 响应生成和标题生成使用llm配置
         self.response_generation_agent = ResponseGenerationAgent(
             think_mode=think_mode,
             llm_config=settings.response_model,
-            schema_service=self.schema_service,
         )
 
     async def stream_message(
@@ -177,7 +166,6 @@ class ChatService:
                 user_message_length=len(user_message),
                 history_messages_count=len(history_messages),
                 client_ip=client_ip,
-                has_component_tools=bool(chat_request.component_tools_for_backend),
             )
 
             # 阶段1: MCP工具调用
@@ -199,33 +187,7 @@ class ChatService:
                 self.mcp_tools_agent.output_messages
             )
 
-            # 阶段2: 组件工具调用
-            component_tools_for_backend = chat_request.component_tools_for_backend
-            if component_tools_for_backend:
-                logger.debug(
-                    "Starting component tools agent execution",
-                    component_tools_count=len(component_tools_for_backend),
-                )
-                component_start_time = get_current_time()
-                async for message in self.component_tools_agent.stream_execute(
-                    user_message,
-                    filtered_mcp_tool_call_messages,
-                    component_tools_for_backend,
-                ):
-                    yield message
-                component_duration = get_time_duration(component_start_time)
-                logger.debug(
-                    "Component tools agent execution completed",
-                    duration=component_duration,
-                    tool_calls_count=len(self.component_tools_agent.output_messages),
-                )
-            else:
-                logger.debug("Skipping component tools agent (no component tools)")
-            filtered_component_tool_call_messages = filter_tool_call_messages(
-                self.component_tools_agent.output_messages
-            )
-
-            # 阶段3: 最终响应生成
+            # 阶段2: 最终响应生成
             logger.debug("Starting response generation agent execution")
             response_start_time = get_current_time()
             async for chunk in self.response_generation_agent.stream_execute(
@@ -233,7 +195,6 @@ class ChatService:
                 history_messages=history_messages,
                 user_message=user_message,
                 mcp_tool_call_messages=filtered_mcp_tool_call_messages,
-                component_tool_call_messages=filtered_component_tool_call_messages,
                 user_id=user_id,
                 conversation_id=chat_request.conversation_id,
                 user_memories=user_memories or [],
@@ -250,7 +211,6 @@ class ChatService:
                 "Chat message stream completed",
                 total_duration=total_duration,
                 mcp_tool_calls_count=len(filtered_mcp_tool_call_messages),
-                component_tool_calls_count=len(filtered_component_tool_call_messages),
             )
             return
 
@@ -379,7 +339,6 @@ class ChatService:
                 last_message.content = get_user_message_combine_tool_calls(
                     last_message.content or "",
                     tool_items,
-                    [],  # 历史消息不拼接组件数据
                 )
             flat.append(msg)
 
@@ -552,14 +511,10 @@ class ChatService:
                     "content_length": len(assistant_payload.content),
                     "reasoning_length": len(assistant_payload.reasoning),
                     "tool_calls_length": len(assistant_payload.tool_calls),
-                    "component_tool_calls_length": len(
-                        assistant_payload.component_tool_calls
-                    ),
                     **pick_fields(
                         assistant_payload.model_dump(mode="json"),
                         [
                             "tool_calls_duration",
-                            "component_tool_calls_duration",
                             "reasoning_duration",
                             "content_duration",
                             "total_duration",
@@ -611,7 +566,6 @@ class ChatService:
         # 收集所有 token 统计信息
         total_token_stats = TotalTokenStats(
             mcp_tools=self.mcp_tools_agent.token_stats,
-            component_tools=self.component_tools_agent.token_stats,
             response_generation=self.response_generation_agent.token_stats,
             title_generation=self.title_generation_agent.token_stats,
         )
@@ -620,9 +574,7 @@ class ChatService:
             content=self.response_generation_agent.content,
             reasoning=self.response_generation_agent.reasoning,
             tool_calls=self.mcp_tools_agent.output_messages,
-            component_tool_calls=self.component_tools_agent.output_messages,
             tool_calls_duration=self.mcp_tools_agent.duration,
-            component_tool_calls_duration=self.component_tools_agent.duration,
             reasoning_duration=self.response_generation_agent.reasoning_duration,
             content_duration=self.response_generation_agent.content_duration,
             total_duration=self.response_generation_agent.total_duration,
@@ -630,7 +582,6 @@ class ChatService:
             if any(
                 [
                     self.mcp_tools_agent.token_stats,
-                    self.component_tools_agent.token_stats,
                     self.response_generation_agent.token_stats,
                     self.title_generation_agent.token_stats,
                 ]

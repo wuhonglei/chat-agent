@@ -1,62 +1,8 @@
-import json
-from typing import Any
-
-from openai.types.chat import ChatCompletionMessageFunctionToolCall
-
-from app.schemas.llm import (
-    ToolMessage,
-    ToolResultMessage,
-    ToolUseMessage,
-)
+from app.schemas.llm import ToolMessage
 from app.utils.message import (
     get_assistant_tool_call_messages,
     get_tool_call_result_messages,
 )
-
-
-def get_component_data(
-    component_tool_call_messages: list[ToolMessage],
-    component_schema: dict[str, dict[str, Any]],
-) -> list[dict[str, Any]]:
-    """获取组件数据"""
-    if not component_tool_call_messages:
-        return []
-
-    component_data: list[dict[str, Any]] = []
-    tool_call_by_id: dict[str, ChatCompletionMessageFunctionToolCall] = {}
-    for msg in component_tool_call_messages:
-        if isinstance(msg, ToolUseMessage) and msg.tool_calls:
-            for tc in msg.tool_calls:
-                tool_call_by_id[tc.id] = tc
-    for msg in component_tool_call_messages:
-        if isinstance(msg, ToolResultMessage) and not msg.is_error:
-            tool_call = tool_call_by_id.get(msg.tool_call_id)
-            if tool_call:
-                component_name = tool_call.function.name.replace(
-                    "generate_component_", ""
-                )
-                component_description = (
-                    component_schema.get(component_name, {}).get("description") or ""
-                )
-                props = json.loads(tool_call.function.arguments)
-                component_json_data = {
-                    "component_name": component_name,
-                    "props": props,
-                }
-                component_json_str = json.dumps(
-                    component_json_data, indent=2, ensure_ascii=False
-                )
-                component_dict = {
-                    "component_name": component_name,
-                    "component_description": component_description,
-                    "component_json_str": component_json_str,
-                }
-                component_data.append(component_dict)
-
-    if not component_data:
-        return []
-
-    return component_data
 
 
 def get_mcp_tool_items(

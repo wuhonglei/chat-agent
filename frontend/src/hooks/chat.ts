@@ -12,7 +12,6 @@ import { chatAPI } from "@/services";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   addMessage,
-  appendComponentToolCallToLastMessage,
   appendContentToLastMessage,
   appendMcpToolCallToLastMessage,
   appendReasoningToLastMessage,
@@ -22,10 +21,7 @@ import {
   lastMessageCheck,
   removeMessageById,
   resetChatState,
-  setCallingComponentTools,
   setCallingMcpTools,
-  setComponentToolCallsDuration,
-  setComponentToolsTokenStats,
   setLoading,
   setMcpToolCallsDuration,
   setMcpToolsTokenStats,
@@ -48,7 +44,6 @@ import {
 } from "@/store/slices/conversationSlice";
 import { useEffect, useMemo, useRef } from "react";
 
-import { componentToolsForBackend } from "@/componentTools/helper";
 import { emitter, EventType } from "@/events";
 import { db } from "@/indexDB";
 import { MessageStatus, TitleCreatedBy } from "@/interfaces";
@@ -85,7 +80,7 @@ export interface UseChatMessageReturn {
   sendMessage: (values: ChatInputFormValues, options?: SendMessageOptions) => Promise<void>;
 }
 
-/** 工具调用（mcp / component）通用处理器工厂，消除重复逻辑 */
+/** MCP 工具调用通用处理器工厂 */
 function createToolCallHandler<TTokenStats>(
   dispatch: ReturnType<typeof useAppDispatch>,
   conversationId: string,
@@ -225,15 +220,6 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
             doneEvent: EventType.McpToolCallDone,
           }),
 
-          // 组件工具调用
-          component_tool_call: createToolCallHandler(dispatch, conversationId, {
-            setCalling: setCallingComponentTools,
-            appendToLast: appendComponentToolCallToLastMessage,
-            setDuration: setComponentToolCallsDuration,
-            setTokenStats: setComponentToolsTokenStats,
-            doneEvent: EventType.ComponentToolCallDone,
-          }),
-
           // 更新消息思考内容
           reasoning: (data = {}) => {
             const { status, content, duration } = data;
@@ -299,7 +285,6 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
             regenerateTitle,
             removedMessageIds,
             conversationId,
-            componentToolsForBackend,
           },
           (data: StreamMessage) => {
             const { type, data: messageData } = data;

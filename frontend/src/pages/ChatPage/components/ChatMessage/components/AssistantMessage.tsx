@@ -1,4 +1,3 @@
-import ReactIcon from "@/assets/svg/ReactIcon.svg?react";
 import { EventType } from "@/events";
 import { ChatMessage as ChatMessageType } from "@/interfaces";
 import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
@@ -16,7 +15,6 @@ interface AssistantMessageProps {
   isLoading: boolean;
   isReasoning: boolean;
   isCallingMcpTools: boolean;
-  isCallingComponentTools: boolean;
   onReSend: () => void;
 }
 
@@ -26,7 +24,6 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
   isStreaming,
   isLoading,
   isCallingMcpTools,
-  isCallingComponentTools,
   onReSend,
 }) => {
   const displayContent = useThrottle(message.content, {
@@ -43,7 +40,6 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
       content={displayContent}
       contentRender={displayContent => (
         <div className="flex flex-col gap-2">
-          {/* 渲染 Mcp 工具调用 */}
           <ToolCallBlock
             titles={{
               doing: "工具调用中",
@@ -57,28 +53,12 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
             toolCallsDuration={message.toolCallsDuration}
             tokenStats={message.tokenStats?.mcpTools}
           />
-          {/* 渲染组件工具调用 */}
-          <ToolCallBlock
-            titles={{
-              doing: "组件构造中",
-              done: "已完成组件构造",
-            }}
-            icon={<ReactIcon width={16} height={16} fill="currentColor" />}
-            isStreaming={isStreaming}
-            toolCalls={message.componentToolCalls}
-            isCallingTools={isCallingComponentTools}
-            eventType={EventType.ComponentToolCallDone}
-            tokenStats={message.tokenStats?.componentTools}
-            toolCallsDuration={message.componentToolCallsDuration}
-          />
-          {/* 渲染思考内容 */}
           <ReasoningBlock
             isReasoning={isReasoning}
             reasoning={message.reasoning}
             isStreaming={isStreaming}
             reasoningDuration={message.reasoningDuration}
           />
-          {/* 渲染模型返回的内容 */}
           <MarkdownContainer className="text-base w-full">{displayContent}</MarkdownContainer>
         </div>
       )}

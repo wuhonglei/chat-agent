@@ -8,9 +8,9 @@ from app.utils.token import TokenCalculator
 
 
 def _message_dict_for_token_count(msg: ChatMessageItem) -> dict[str, Any]:
-    """将 ChatMessageItem 转为 count_message_tokens 所需的 dict（不含 reasoning_content、tool_calls、component_tool_calls）。"""
+    """将 ChatMessageItem 转为 count_message_tokens 所需的 dict（不含 reasoning_content、tool_calls）。"""
     d = msg.model_dump(mode="json")
-    return omit_fields(d, ["reasoning_content", "tool_calls", "component_tool_calls"])
+    return omit_fields(d, ["reasoning_content", "tool_calls"])
 
 
 def count_chat_message_tokens(msg: ChatMessageItem, calculator: TokenCalculator) -> int:

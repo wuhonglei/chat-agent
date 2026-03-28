@@ -35,16 +35,6 @@ system_prompt_for_tool_calls_template: Template = Template(
 """.strip()
 )
 
-# ============= 组件渲染系统提示词 =============
-system_prompt_for_component_render_template: Template = Template(
-    """
-你是一个专门负责组件渲染的智能助手。你的任务是根据用户的请求和工具调用结果来渲染组件。
-
-重要规则：
-1. 你必须根据用户的请求和工具调用结果来渲染组件
-""".strip()
-)
-
 # ============= 最终回复生成系统提示词 =============
 system_prompt_for_response_generation_template: Template = Template(
     """

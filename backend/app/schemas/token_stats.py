@@ -29,14 +29,6 @@ class MCPToolsTokenStats(BaseTokenStats):
     tool_definition_tokens: int = Field(..., description="工具定义 token 数量")
 
 
-class ComponentToolsTokenStats(BaseTokenStats):
-    """组件工具调用的 Token 统计"""
-
-    tool_call_count: int = Field(..., description="被调用的组件工具数量")
-    tool_call_names: list[str] = Field(..., description="被调用的组件工具名称列表")
-    tool_definition_tokens: int = Field(..., description="组件工具定义 token 数量")
-
-
 class ResponseGenerationTokenStats(BaseTokenStats):
     """响应生成的 Token 统计"""
 
@@ -63,9 +55,6 @@ class TotalTokenStats(BaseModel):
     """总 Token 统计（汇总所有阶段）"""
 
     mcp_tools: MCPToolsTokenStats | None = Field(None, description="MCP 工具调用统计")
-    component_tools: ComponentToolsTokenStats | None = Field(
-        None, description="组件工具调用统计"
-    )
     response_generation: ResponseGenerationTokenStats | None = Field(
         None, description="响应生成统计"
     )
@@ -79,8 +68,6 @@ class TotalTokenStats(BaseModel):
         total = 0
         if self.mcp_tools:
             total += self.mcp_tools.token_usage.prompt_tokens
-        if self.component_tools:
-            total += self.component_tools.token_usage.prompt_tokens
         if self.response_generation:
             total += self.response_generation.token_usage.prompt_tokens
         if self.title_generation:
@@ -93,8 +80,6 @@ class TotalTokenStats(BaseModel):
         total = 0
         if self.mcp_tools:
             total += self.mcp_tools.token_usage.completion_tokens
-        if self.component_tools:
-            total += self.component_tools.token_usage.completion_tokens
         if self.response_generation:
             total += self.response_generation.token_usage.completion_tokens
         if self.title_generation:

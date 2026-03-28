@@ -1,5 +1,4 @@
 // Chat types
-import { ComponentToolRequestItem } from "./componentTools";
 import { TitleCreatedBy } from "./conversation";
 import { TotalTokenStats } from "./token";
 import { ToolCallMessage } from "./tooCall";
@@ -44,12 +43,10 @@ export interface ChatMessage {
   createdAt: string;
   updatedAt: string;
   toolCallsDuration: number;
-  componentToolCallsDuration: number;
   reasoningDuration: number;
   contentDuration: number;
   totalDuration: number;
   toolCalls: ToolCallMessage[];
-  componentToolCalls: ToolCallMessage[];
   status: MessageStatus;
   messageMetadata: Omit<ChatInputFormValues, "message">;
   replyTo: string; // role为assistant时，回复到哪个user消息
@@ -94,7 +91,6 @@ export interface ChatRequest extends ChatInputFormValues {
   historyIds: string[];
   regenerateTitle: boolean;
   removedMessageIds: string[];
-  componentToolsForBackend: Pick<ComponentToolRequestItem, "name" | "whenCondition" | "when">[];
 }
 
 export interface SourceData {
@@ -115,5 +111,4 @@ export interface ChatConversationState {
   isStreaming: boolean;
   isReasoning: boolean;
   isCallingMcpTools: boolean;
-  isCallingComponentTools: boolean;
 }

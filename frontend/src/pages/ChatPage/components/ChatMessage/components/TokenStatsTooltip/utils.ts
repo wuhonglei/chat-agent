@@ -7,7 +7,6 @@ import { isEmpty } from "lodash-es";
 export const getDescriptionItems = (tokenStats: TokenStats) => {
   const isTitleGeneration = tokenStats.agentName === TokenStatsAgentName.TitleGeneration;
   const isMCP = tokenStats.agentName === TokenStatsAgentName.McpTools;
-  const isComponentTools = tokenStats.agentName === TokenStatsAgentName.ComponentTools;
   const isResponseGeneration = tokenStats.agentName === TokenStatsAgentName.ResponseGeneration;
 
   const items: DescriptionsProps["items"] = [
@@ -60,29 +59,6 @@ export const getDescriptionItems = (tokenStats: TokenStats) => {
       },
       {
         key: "toolDefinitionTokens",
-        label: "工具定义 tokens",
-        children: prettyCount(tokenStats.toolDefinitionTokens),
-      }
-    );
-
-    if (!isEmpty(tokenStats.toolCallNames)) {
-      items.push({
-        key: "toolCallNames",
-        label: "工具名称",
-        children: tokenStats.toolCallNames.join("\n"),
-      });
-    }
-  }
-
-  if (isComponentTools) {
-    items.push(
-      {
-        key: "componentToolCallCount",
-        label: "工具调用次数",
-        children: tokenStats.toolCallCount,
-      },
-      {
-        key: "componentToolDefinitionTokens",
         label: "工具定义 tokens",
         children: prettyCount(tokenStats.toolDefinitionTokens),
       }

@@ -4,10 +4,7 @@ from collections.abc import AsyncGenerator, AsyncIterator
 from typing import Any
 
 from app.agents.base import BaseAgent
-from app.agents.utils.response_generation import (
-    get_component_data,
-    get_mcp_tool_items,
-)
+from app.agents.utils.response_generation import get_mcp_tool_items
 from app.prompts import (
     get_system_prompt_for_response_generation,
     get_user_message_combine_tool_calls,
@@ -17,7 +14,6 @@ from app.schemas.config import LLMConfig
 from app.schemas.llm import ToolMessage
 from app.schemas.token_stats import ResponseGenerationTokenStats
 from app.schemas.user import MemoryListItem
-from app.services.component import ComponentSchemaService
 from app.utils.logger import logger
 from app.utils.time import get_current_time, get_time_duration
 
@@ -29,12 +25,10 @@ class ResponseGenerationAgent(BaseAgent):
         self,
         think_mode: bool,
         llm_config: LLMConfig,
-        schema_service: ComponentSchemaService,
     ):
         super().__init__(think_mode, llm_config)
         self.content = ""
         self.reasoning = ""
-        self.schema_service = schema_service
         self.reasoning_duration: float | None = None
         self.content_duration: float | None = None
         self.total_duration: float | None = None
@@ -58,7 +52,6 @@ class ResponseGenerationAgent(BaseAgent):
         history_messages: list[ChatMessageItem],
         user_message: str,
         mcp_tool_call_messages: list[ToolMessage],
-        component_tool_call_messages: list[ToolMessage],
         user_id: str,
         conversation_id: str,
         user_memories: list[MemoryListItem],
@@ -70,7 +63,6 @@ class ResponseGenerationAgent(BaseAgent):
             history_messages: 对话历史消息列表
             user_message: 原始用户消息
             mcp_tool_call_messages: MCP工具调用消息
-            component_tool_call_messages: 组件工具调用消息
             user_id: 用户 ID
             conversation_id: 对话 ID
             user_memories: 用户记忆文本列表（由上层 Mem0 搜索得到）
@@ -78,14 +70,10 @@ class ResponseGenerationAgent(BaseAgent):
         Yields:
             str: SSE格式的响应消息
         """
-        component_data = get_component_data(
-            component_tool_call_messages, self.schema_service.get_schema_cache()
-        )
         mcp_tool_items = get_mcp_tool_items(mcp_tool_call_messages)
         new_user_message = get_user_message_combine_tool_calls(
             user_message,
             mcp_tool_items,
-            component_data,
         )
 
         memories = [memory.memory for memory in user_memories]
