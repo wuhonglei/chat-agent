@@ -1,6 +1,6 @@
 ---
 name: 功能建议
-description: 提出新能力或改进想法，便于评估与排期
+about: 提出新能力或改进想法，便于评估与排期
 title: ''
 labels: ''
 assignees: ''
