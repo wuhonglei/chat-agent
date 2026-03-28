@@ -1,5 +1,5 @@
 import { ChatConversationState, ChatMessage, MessageStatus, ToolCallMessage } from "@/interfaces";
-import { ComponentToolsTokenStats, MCPToolsTokenStats, TotalTokenStats } from "@/interfaces/token";
+import { MCPToolsTokenStats, TotalTokenStats } from "@/interfaces/token";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { isEmpty, set } from "lodash-es";
 
@@ -21,7 +21,6 @@ export const getDefaultChatState = (): ChatConversationState => ({
   isStreaming: false,
   isReasoning: false,
   isCallingMcpTools: false,
-  isCallingComponentTools: false,
 });
 
 // 稳定的默认状态，避免每次创建新对象
@@ -124,14 +123,6 @@ const chatSlice = createSlice({
         chatState.isCallingMcpTools = data;
       }
     },
-    setCallingComponentTools: (state, action: PayloadAction<ConversationActionPayload<boolean>>) => {
-      const { conversationId, data } = action.payload;
-      const chatState = conversationIdCheck(state, conversationId);
-      const lastMessage = lastMessageCheck(chatState.messages);
-      if (lastMessage) {
-        chatState.isCallingComponentTools = data;
-      }
-    },
     setReasoningDuration: (state, action: PayloadAction<ConversationActionPayload<number>>) => {
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
@@ -148,42 +139,12 @@ const chatSlice = createSlice({
         lastMessage.toolCallsDuration = data;
       }
     },
-    setComponentToolCallsDuration: (state, action: PayloadAction<ConversationActionPayload<number>>) => {
-      const { conversationId, data } = action.payload;
-      const chatState = conversationIdCheck(state, conversationId);
-      const lastMessage = lastMessageCheck(chatState.messages);
-      if (lastMessage) {
-        lastMessage.componentToolCallsDuration = data;
-      }
-    },
     setMcpToolsTokenStats: (state, action: PayloadAction<ConversationActionPayload<MCPToolsTokenStats>>) => {
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
       const lastMessage = lastMessageCheck(chatState.messages);
       if (lastMessage) {
         set(lastMessage, "tokenStats.mcpTools", data);
-      }
-    },
-    setComponentToolsTokenStats: (
-      state,
-      action: PayloadAction<ConversationActionPayload<ComponentToolsTokenStats>>
-    ) => {
-      const { conversationId, data } = action.payload;
-      const chatState = conversationIdCheck(state, conversationId);
-      const lastMessage = lastMessageCheck(chatState.messages);
-      if (lastMessage) {
-        set(lastMessage, "tokenStats.componentTools", data);
-      }
-    },
-    appendComponentToolCallToLastMessage: (
-      state,
-      action: PayloadAction<ConversationActionPayload<ToolCallMessage>>
-    ) => {
-      const { conversationId, data } = action.payload;
-      const chatState = conversationIdCheck(state, conversationId);
-      const lastMessage = lastMessageCheck(chatState.messages);
-      if (lastMessage) {
-        lastMessage.componentToolCalls.push(data);
       }
     },
     prependContentToLastMessage: (state, action: PayloadAction<ConversationActionPayload<string>>) => {
@@ -273,17 +234,13 @@ export const {
   setStreaming,
   setLoading,
   setCallingMcpTools,
-  setCallingComponentTools,
   setReasoningDuration,
   setMcpToolCallsDuration,
-  setComponentToolCallsDuration,
   setMcpToolsTokenStats,
-  setComponentToolsTokenStats,
   prependContentToLastMessage,
   appendContentToLastMessage,
   appendReasoningToLastMessage,
   appendMcpToolCallToLastMessage,
-  appendComponentToolCallToLastMessage,
   setReasoning,
   updateMessageStatus,
   updateMessageModifiedTime,

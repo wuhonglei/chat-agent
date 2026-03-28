@@ -32,10 +32,6 @@ export type StreamMessage =
       data: ToolCallMessage;
     }
   | {
-      type: "component_tool_call";
-      data: ToolCallMessage;
-    }
-  | {
       type: "title";
       data: {
         id: string;

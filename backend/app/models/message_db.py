@@ -42,9 +42,6 @@ class MessageDb(SQLModel, table=True):
     tool_calls: list[dict[str, Any]] | None = Field(
         default=None, sa_type=SQLJSON, description="Tool calls"
     )
-    component_tool_calls: list[dict[str, Any]] | None = Field(
-        default=None, sa_type=SQLJSON, description="Component tool calls"
-    )
     message_metadata: dict[str, Any] = Field(
         default_factory=dict, sa_type=SQLJSON
     )  # 元数据（模型调用、配置）
@@ -56,9 +53,6 @@ class MessageDb(SQLModel, table=True):
     )
     tool_calls_duration: float | None = Field(
         default=None, sa_type=Float, description="工具调用耗时（秒）"
-    )
-    component_tool_calls_duration: float | None = Field(
-        default=None, sa_type=Float, description="组件工具调用耗时（秒）"
     )
     reasoning_duration: float | None = Field(
         default=None, sa_type=Float, description="推理耗时（秒）"
@@ -72,7 +66,7 @@ class MessageDb(SQLModel, table=True):
     token_stats: dict[str, Any] | None = Field(
         default=None,
         sa_type=SQLJSON,
-        description="Token 使用统计信息，包含各个阶段（MCP 工具调用、组件工具调用、响应生成、标题生成）的 token 使用量",
+        description="Token 使用统计信息（MCP 工具调用、响应生成、标题生成等）",
     )
     embedding_vector: list[float] | None = Field(
         default=None,

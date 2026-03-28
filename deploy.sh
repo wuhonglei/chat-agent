@@ -109,10 +109,10 @@ zero_downtime_deploy() {
     local service=$1
     local max_wait=${2:-120}  # 默认等待 120 秒
     local check_interval=${3:-5}  # 默认每 5 秒检查一次
-    
+
     echo ""
     echo "🔄 开始更新服务: $service"
-    
+
     # 检查服务是否需要构建（通过检查 docker-compose.yml 是否有 build 配置）
     local needs_build=false
     if [ -f docker-compose.yml ]; then
@@ -123,25 +123,25 @@ zero_downtime_deploy() {
             needs_build=true
         fi
     fi
-    
+
     # 检查服务是否正在运行
     if ! $DOCKER_COMPOSE_CMD ps | grep -q "$service.*Up"; then
         echo "⚠️  服务 $service 未运行，准备启动..."
-        
+
         # 检查是否存在已停止的旧容器（可能导致名称冲突）
         local stopped_container=$(docker ps -aq -f name="chat-agent-$service" 2>/dev/null)
         if [ -n "$stopped_container" ]; then
             echo "   发现已停止的旧容器，先清理..."
             docker rm -f "$stopped_container" 2>/dev/null || true
         fi
-        
+
         # 检查是否存在备份容器
         local backup_containers=$(docker ps -aq --filter "name=chat-agent-$service-backup" 2>/dev/null)
         if [ -n "$backup_containers" ]; then
             echo "   清理旧的备份容器..."
             echo "$backup_containers" | xargs docker rm -f 2>/dev/null || true
         fi
-        
+
         # 根据是否需要构建来决定命令
         if [ "$needs_build" = true ]; then
             echo "   构建并启动 $service 服务..."
@@ -152,7 +152,7 @@ zero_downtime_deploy() {
         fi
         return 0
     fi
-    
+
     # 1. 先构建新镜像（不停止旧容器，这是关键！）
     # 只有需要构建的服务才构建镜像
     if [ "$needs_build" = true ]; then
@@ -162,7 +162,7 @@ zero_downtime_deploy() {
             return 1
         fi
     fi
-    
+
     # 2. 记录旧容器信息和镜像标签（用于回滚）
     local old_container_id=$($DOCKER_COMPOSE_CMD ps -q "$service" 2>/dev/null)
     if [ -z "$old_container_id" ]; then
@@ -184,11 +184,11 @@ zero_downtime_deploy() {
         compose_config_hash=$(docker inspect "$old_container_id" --format='{{ index .Config.Labels "com.docker.compose.config-hash" }}' 2>/dev/null || echo "")
         echo "   旧容器 ID: $old_container_id"
     fi
-    
+
     # 3. 启动新容器（先重命名旧容器，以便回滚）
     # 虽然会有短暂停机（通常 1-3 秒），但构建期间服务一直可用
     echo "🚀 启动 $service 新容器（将会有短暂切换时间，通常 1-3 秒）..."
-    
+
     # 先重命名并停止旧容器（释放端口，保留用于回滚）
     local backup_container_name="chat-agent-$service-backup-$(date +%s)"
     if [ -n "$old_container_id" ]; then
@@ -204,17 +204,17 @@ zero_downtime_deploy() {
             "$backup_container_name" > /dev/null 2>&1 || true
         docker stop "$backup_container_name" 2>/dev/null || true
     fi
-    
+
     # 启动新容器
     $DOCKER_COMPOSE_CMD up -d --no-deps --no-build --force-recreate "$service"
-    
+
     # 4. 等待新容器健康检查通过
     echo "⏳ 等待 $service 健康检查通过（最多等待 ${max_wait} 秒）..."
     local waited=0
     local is_healthy=false
     local new_container_id=""
     local logged_new_container=false
-    
+
     while [ $waited -lt $max_wait ]; do
         # 检查容器是否在运行
         new_container_id=$($DOCKER_COMPOSE_CMD ps -q "$service" 2>/dev/null)
@@ -250,12 +250,12 @@ zero_downtime_deploy() {
                 break
             fi
         fi
-        
+
         sleep $check_interval
         waited=$((waited + check_interval))
         echo "   等待中... (${waited}/${max_wait} 秒)"
     done
-    
+
     if [ "$is_healthy" = true ]; then
         echo "✅ $service 更新成功并已就绪"
         # 清理备份的旧容器
@@ -268,25 +268,25 @@ zero_downtime_deploy() {
     else
         echo "❌ $service 健康检查失败，尝试回滚到旧版本..."
         echo "⚠️  新容器可能存在问题，请检查日志: $DOCKER_COMPOSE_CMD logs $service"
-        
+
         # 回滚策略：停止新容器，恢复旧容器
         if [ -n "$new_container_id" ]; then
             echo "🔄 停止新容器..."
             docker stop "$new_container_id" 2>/dev/null || true
             docker rm -f "$new_container_id" 2>/dev/null || true
         fi
-        
+
         # 尝试回滚：查找并恢复备份的旧容器
         echo "🔄 尝试回滚到旧版本..."
         local rollback_success=false
-        
+
         # 方法1: 查找备份的旧容器（通过名称模式匹配）
         local backup_container=$(docker ps -aq --filter "name=chat-agent-$service-backup" | head -1)
         if [ -z "$backup_container" ]; then
             # 如果没找到，尝试查找所有已停止的容器
             backup_container=$(docker ps -aq --filter "name=chat-agent-$service-backup" --filter "status=exited" | head -1)
         fi
-        
+
         if [ -n "$backup_container" ]; then
             echo "   发现备份的旧容器，尝试恢复..."
             # 重命名回原来的名称
@@ -312,14 +312,14 @@ zero_downtime_deploy() {
                 rollback_success=true
             fi
         fi
-        
+
         # 方法2: 如果旧容器不存在，尝试使用旧镜像直接启动
         if [ "$rollback_success" = false ] && [ -n "$old_image_id" ] && [ "$old_image_id" != "" ]; then
             echo "   尝试使用旧镜像启动容器..."
             # 获取服务配置信息
             local container_name="chat-agent-$service"
             local network_name="chat-agent-network"
-            
+
             # 根据服务类型构建启动命令
             if [ "$service" = "backend" ]; then
                 docker run -d \
@@ -330,7 +330,6 @@ zero_downtime_deploy() {
                     -v "$(pwd)/backend/logs:/app/logs" \
                     --env-file .env \
                     -e DATABASE__HOST=postgres \
-                    -e COMPONENT_SCHEMA_API_URL=http://frontend:3000/component-schemas/ \
                     --restart unless-stopped \
                     "$old_image_id" 2>/dev/null && rollback_success=true
             elif [ "$service" = "frontend" ]; then
@@ -341,7 +340,7 @@ zero_downtime_deploy() {
                     --restart unless-stopped \
                     "$old_image_id" 2>/dev/null && rollback_success=true
             fi
-            
+
             if [ "$rollback_success" = true ]; then
                 sleep 5
                 local rollback_container=$(docker ps -q -f name="^/chat-agent-$service$")
@@ -352,7 +351,7 @@ zero_downtime_deploy() {
                 fi
             fi
         fi
-        
+
         # 方法3: 如果以上都失败，尝试使用 docker compose 重新启动（可能使用缓存的旧镜像）
         if [ "$rollback_success" = false ]; then
             echo "   尝试使用 docker compose 重新启动..."
@@ -364,7 +363,7 @@ zero_downtime_deploy() {
                 rollback_success=true
             fi
         fi
-        
+
         if [ "$rollback_success" = true ]; then
             echo "⚠️  回滚完成，但服务可能不稳定"
             echo "💡 建议立即检查并修复问题："
@@ -392,7 +391,7 @@ fi
 if [ "$IS_FIRST_DEPLOY" = true ]; then
     # 首次部署：清理已停止的旧容器，然后按 DEPLOY_BACKEND / DEPLOY_FRONTEND 构建并启动（与 webhook 增量逻辑一致）
     echo "🧹 清理已停止的旧容器..."
-    
+
     # 清理所有项目相关的已停止容器
     for service in postgres backend frontend; do
         stopped_container=$(docker ps -aq -f name="chat-agent-$service" 2>/dev/null)
@@ -400,7 +399,7 @@ if [ "$IS_FIRST_DEPLOY" = true ]; then
             echo "   清理已停止的 $service 容器..."
             docker rm -f "$stopped_container" 2>/dev/null || true
         fi
-        
+
         # 清理备份容器
         backup_containers=$(docker ps -aq --filter "name=chat-agent-$service-backup" 2>/dev/null)
         if [ -n "$backup_containers" ]; then
@@ -408,7 +407,7 @@ if [ "$IS_FIRST_DEPLOY" = true ]; then
             echo "$backup_containers" | xargs docker rm -f 2>/dev/null || true
         fi
     done
-    
+
     first_compose_services=()
     if [ "$DEPLOY_BACKEND" = "1" ] || [ "$DEPLOY_FRONTEND" = "1" ]; then
         first_compose_services+=(postgres)
@@ -438,10 +437,10 @@ if [ "$IS_FIRST_DEPLOY" = true ]; then
 else
     # 更新部署：按 DEPLOY_BACKEND / DEPLOY_FRONTEND 差异更新（postgres 仅首次部署时启动，此处不更新）
     echo "🔄 开始零停机部署更新（范围: backend=$DEPLOY_BACKEND, frontend=$DEPLOY_FRONTEND）..."
-    
+
     BACKEND_DEPLOY_SUCCESS=true
     FRONTEND_DEPLOY_SUCCESS=true
-    
+
     if [ "$DEPLOY_BACKEND" = "1" ]; then
         if ! zero_downtime_deploy "backend" 120; then
             echo "❌ 后端服务更新失败"
@@ -450,7 +449,7 @@ else
     else
         echo "⏭️  跳过 backend 更新（无相关变更）"
     fi
-    
+
     if [ "$DEPLOY_FRONTEND" = "1" ]; then
         if ! zero_downtime_deploy "frontend" 90; then
             echo "❌ 前端服务更新失败"
@@ -459,13 +458,13 @@ else
     else
         echo "⏭️  跳过 frontend 更新（无相关变更）"
     fi
-    
+
     # 如果本次需要更新的服务全部失败，则退出
     if [ "$BACKEND_DEPLOY_SUCCESS" = false ] && [ "$FRONTEND_DEPLOY_SUCCESS" = false ]; then
         echo "❌ 所有待更新服务部署失败，部署中止"
         exit 1
     fi
-    
+
     if [ "$BACKEND_DEPLOY_SUCCESS" = false ] || [ "$FRONTEND_DEPLOY_SUCCESS" = false ]; then
         echo ""
         echo "⚠️  部分服务部署失败，但继续检查整体状态..."
@@ -535,7 +534,7 @@ CLEANUP_IMAGES=${CLEANUP_IMAGES:-"auto"}
 if [ "$CLEANUP_IMAGES" = "true" ] || ([ "$CLEANUP_IMAGES" = "auto" ] && [ "$ALL_HEALTHY" = true ]); then
     echo ""
     echo "🧹 开始清理未使用的 Docker 镜像..."
-    
+
     # 1. 清理 dangling 镜像（构建过程中产生的未标记镜像）
     echo "   清理 dangling 镜像..."
     dangling_before=$(docker images -f "dangling=true" -q 2>/dev/null | wc -l | tr -d ' ')
@@ -545,12 +544,12 @@ if [ "$CLEANUP_IMAGES" = "true" ] || ([ "$CLEANUP_IMAGES" = "auto" ] && [ "$ALL_
     else
         echo "   ℹ️  没有 dangling 镜像需要清理"
     fi
-    
+
     # 2. 清理未使用的镜像（使用 Docker 内置命令，安全可靠）
     # 注意：docker image prune -a 会删除所有未使用的镜像，包括其他项目的
     # 为了安全，我们只清理明确未使用的镜像，不强制删除
     echo "   检查未使用的镜像..."
-    
+
     # 获取当前使用的镜像 ID（包括运行中的容器和备份容器）
     used_image_ids=""
     for service in backend frontend; do
@@ -573,19 +572,19 @@ if [ "$CLEANUP_IMAGES" = "true" ] || ([ "$CLEANUP_IMAGES" = "auto" ] && [ "$ALL_
             done
         fi
     done
-    
+
     # 清理未使用的镜像（但保留最近 24 小时内的，用于回滚）
     # 使用 --filter "until=24h" 只清理 24 小时前未使用的镜像
     echo "   清理 24 小时前未使用的镜像（保留最近版本用于回滚）..."
     prune_output=$(docker image prune -a -f --filter "until=24h" 2>&1 || echo "")
-    
+
     if echo "$prune_output" | grep -q "Total reclaimed space"; then
         space_reclaimed=$(echo "$prune_output" | grep -oP "Total reclaimed space: \K[0-9.]+[A-Z]+" || echo "")
         echo "   ✅ 已清理未使用的镜像，释放空间: $space_reclaimed"
     else
         echo "   ℹ️  没有需要清理的旧镜像（所有镜像都在使用中或最近 24 小时内）"
     fi
-    
+
     echo "✅ 镜像清理完成"
     echo ""
     echo "💡 提示：可以通过设置环境变量来控制清理行为："

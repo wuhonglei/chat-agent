@@ -3,7 +3,6 @@
 export enum TokenStatsAgentName {
   TitleGeneration = "title_generation",
   McpTools = "mcp_tools",
-  ComponentTools = "component_tools",
   ResponseGeneration = "response_generation",
 }
 
@@ -38,16 +37,6 @@ export interface MCPToolsTokenStats extends BaseTokenStats {
 }
 
 /**
- * 组件工具调用的 Token 统计
- */
-export interface ComponentToolsTokenStats extends BaseTokenStats {
-  agentName: TokenStatsAgentName.ComponentTools;
-  toolCallCount: number; // 被调用的组件工具数量
-  toolCallNames: string[]; // 被调用的组件工具名称列表
-  toolDefinitionTokens: number; // 组件工具定义 token 数量
-}
-
-/**
  * 响应生成的 Token 统计
  */
 export interface ResponseGenerationTokenStats extends BaseTokenStats {
@@ -69,7 +58,6 @@ export interface TitleGenerationTokenStats extends BaseTokenStats {
  */
 export interface TotalTokenStats {
   mcpTools?: MCPToolsTokenStats; // MCP 工具调用统计
-  componentTools?: ComponentToolsTokenStats; // 组件工具调用统计
   responseGeneration?: ResponseGenerationTokenStats; // 响应生成统计
   titleGeneration?: TitleGenerationTokenStats; // 标题生成统计
 }
@@ -78,8 +66,4 @@ export interface TotalTokenStats {
  * Token 统计类型（用于 ChatMessage 中的 tokenStats 字段）
  * 可能是 TotalTokenStats 或单个阶段的统计
  */
-export type TokenStats =
-  | TitleGenerationTokenStats
-  | MCPToolsTokenStats
-  | ComponentToolsTokenStats
-  | ResponseGenerationTokenStats;
+export type TokenStats = TitleGenerationTokenStats | MCPToolsTokenStats | ResponseGenerationTokenStats;

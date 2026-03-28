@@ -1,6 +1,6 @@
 import { EventType, useEmitterWithCondition } from "@/events";
 import { ToolCallMessage } from "@/interfaces";
-import { ComponentToolsTokenStats, MCPToolsTokenStats } from "@/interfaces/token";
+import { MCPToolsTokenStats } from "@/interfaces/token";
 import { isCallingTool } from "@/utils";
 import { Think, ThoughtChain } from "@ant-design/x";
 import { useMemoizedFn } from "ahooks";
@@ -22,7 +22,7 @@ type Props = {
     done: string;
   };
   icon: React.ReactNode;
-  tokenStats?: MCPToolsTokenStats | ComponentToolsTokenStats;
+  tokenStats?: MCPToolsTokenStats;
   toolCalls: ToolCallMessage[] | undefined;
 };
 

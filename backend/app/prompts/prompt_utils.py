@@ -1,11 +1,8 @@
 """提示词工具函数模块"""
 
-from typing import Any
-
 from app.mcp.mcp_client import mcp_config_for_fe
 from app.prompts.system_prompt import (
     default_system_prompt_template,
-    system_prompt_for_component_render_template,
     system_prompt_for_response_generation_template,
     system_prompt_for_title_template,
     system_prompt_for_tool_calls_template,
@@ -14,7 +11,6 @@ from app.prompts.system_prompt import (
 from app.prompts.user_prompt import (
     WINDOW_OUT_SUMMARY_MERGE_PROMPT,
     WINDOW_OUT_SUMMARY_PROMPT,
-    component_data_block_template,
     disabled_tools_message_template,
     final_response_message_template,
     gentle_tips_in_web_search_template,
@@ -133,14 +129,6 @@ def get_prompt_for_title(user_message: str) -> tuple[str, str]:
     return system_prompt, user_message_prompt
 
 
-def get_prompt_for_component_render_data(
-    user_message: str,
-) -> tuple[str, str]:
-    """Get combined system prompt and user message for component render"""
-    system_prompt = system_prompt_for_component_render_template.render().strip()
-    return system_prompt, user_message
-
-
 def get_disabled_tools_message(disabled_tools: list[str]) -> str:
     """Get disabled tools message"""
     return disabled_tools_message_template.render(disabled_tools=disabled_tools).strip()
@@ -159,13 +147,9 @@ def get_tool_call_sufficient_info_message() -> str:
 def get_user_message_combine_tool_calls(
     user_message: str,
     mcp_tool_items: list[dict[str, str]],
-    component_data: list[dict[str, Any]],
 ) -> str:
     """Get user message for response generation"""
     return final_response_message_template.render(
         tool_result=mcp_block_template.render(mcp_tool_items=mcp_tool_items),
-        component_data=component_data_block_template.render(
-            component_data=component_data
-        ),
         user_message=user_message,
     ).strip()

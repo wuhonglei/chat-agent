@@ -178,7 +178,6 @@ class MessageDbService(DbService):
             content="",
             reasoning="",
             tool_calls=[],
-            component_tool_calls=[],
             conversation_id=conversation.id,
             message_metadata=metadata or {},
             status=MessageStatus.PENDING,
@@ -266,14 +265,6 @@ class MessageDbService(DbService):
         if assistant_payload.tool_calls_duration:
             assistant_message.tool_calls_duration = (
                 assistant_payload.tool_calls_duration
-            )
-        if assistant_payload.component_tool_calls:
-            assistant_message.component_tool_calls = [
-                normalize_to_dict(m) for m in assistant_payload.component_tool_calls
-            ]
-        if assistant_payload.component_tool_calls_duration:
-            assistant_message.component_tool_calls_duration = (
-                assistant_payload.component_tool_calls_duration
             )
         if assistant_payload.reasoning_duration:
             assistant_message.reasoning_duration = assistant_payload.reasoning_duration

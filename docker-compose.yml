@@ -29,7 +29,6 @@ services:
     container_name: chat-agent-backend
     environment:
       DATABASE__HOST: postgres
-      COMPONENT_SCHEMA_API_URL: http://frontend:3000/component-schemas/
     env_file:
       - .env
     ports:

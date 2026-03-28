@@ -52,23 +52,6 @@ mcp_block_template: Template = Template(
 {% endif %}""".strip()
 )
 
-# 仅组件数据块（供 get_component_block 拼接用）
-component_data_block_template: Template = Template(
-    """
-{% if component_data %}
-请在文本中合适位置返回 markdown 格式的 json 组件数据:
-{% for component in component_data %}
-{{ loop.index }}. 组件名称：{{ component.component_name }}
-组件描述：{{ component.component_description }}
-```json
-{{ component.component_json_str }}
-```
-
-{% endfor %}
-{% endif %}""".strip()
-)
-
-
 disabled_tools_message_template: Template = Template(
     """
 以下工具已达到5次调用上限，当前不可再调用: {{ ', '.join(disabled_tools) }}.
@@ -100,8 +83,7 @@ tool_call_sufficient_info_template: Template = Template(
 final_response_message_template: Template = Template(
     """
 {% if tool_result %}{{ tool_result }}{% endif %}
-{% if component_data %}{{ component_data }}{% endif %}
-{% if tool_result or component_data %}请基于以上信息回答以下用户问题：
+{% if tool_result %}请基于以上信息回答以下用户问题：
 
 {% endif %}用户问题：{{ user_message }}
 """.strip()

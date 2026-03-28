@@ -40,7 +40,6 @@ class Settings(BaseSettings):
         default_factory=ChatContextConfig, description="对话上下文配置"
     )
     wechat: WechatConfig = Field(description="微信配置")
-    component_schema_api_url: str = Field(description="组件 Schema API URL")
 
     model_config = SettingsConfigDict(
         extra="allow",
