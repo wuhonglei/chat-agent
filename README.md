@@ -16,13 +16,13 @@
 
 支持验证码登录与微信扫码登录。
 
-![登录页](docs/imgs/login.png)
+![登录页](docs/imgs/login.webp)
 
 ### 对话与组件渲染
 
 侧边栏会话管理、工具调用过程与对话内自定义组件（如天气卡片）示例。
 
-![对话与交互组件](docs/imgs/ui_interact.png)
+![对话与交互组件](docs/imgs/ui_interact.webp)
 
 ## 技术栈
 

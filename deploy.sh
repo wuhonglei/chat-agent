@@ -390,7 +390,7 @@ if ! $DOCKER_COMPOSE_CMD ps | grep -q "Up"; then
 fi
 
 if [ "$IS_FIRST_DEPLOY" = true ]; then
-    # 首次部署：清理已停止的旧容器，然后构建并启动所有服务
+    # 首次部署：清理已停止的旧容器，然后按 DEPLOY_BACKEND / DEPLOY_FRONTEND 构建并启动（与 webhook 增量逻辑一致）
     echo "🧹 清理已停止的旧容器..."
     
     # 清理所有项目相关的已停止容器
@@ -409,8 +409,27 @@ if [ "$IS_FIRST_DEPLOY" = true ]; then
         fi
     done
     
-    echo "🔨 构建并启动所有服务..."
-    $DOCKER_COMPOSE_CMD up -d --build
+    first_compose_services=()
+    if [ "$DEPLOY_BACKEND" = "1" ] || [ "$DEPLOY_FRONTEND" = "1" ]; then
+        first_compose_services+=(postgres)
+    fi
+    if [ "$DEPLOY_BACKEND" = "1" ]; then
+        first_compose_services+=(backend)
+    elif [ "$DEPLOY_FRONTEND" = "1" ]; then
+        # compose 中 frontend depends_on backend，仅部署前端时仍需拉起 backend
+        first_compose_services+=(backend)
+    fi
+    if [ "$DEPLOY_FRONTEND" = "1" ]; then
+        first_compose_services+=(frontend)
+    fi
+
+    if [ ${#first_compose_services[@]} -eq 0 ]; then
+        echo "⚠️  DEPLOY_BACKEND 与 DEPLOY_FRONTEND 均为 0，跳过 postgres / backend / frontend 启动"
+    else
+        echo "🔨 首次部署：构建并启动服务（范围: backend=$DEPLOY_BACKEND, frontend=$DEPLOY_FRONTEND）..."
+        echo "   服务列表: ${first_compose_services[*]}"
+        $DOCKER_COMPOSE_CMD up -d --build "${first_compose_services[@]}"
+    fi
 else
     # 更新部署：按 DEPLOY_BACKEND / DEPLOY_FRONTEND 差异更新（postgres 仅首次部署时启动，此处不更新）
     echo "🔄 开始零停机部署更新（范围: backend=$DEPLOY_BACKEND, frontend=$DEPLOY_FRONTEND）..."
@@ -457,30 +476,43 @@ sleep 5
 echo "📊 检查服务状态..."
 $DOCKER_COMPOSE_CMD ps
 
-# 最终健康检查
+# 最终健康检查（与本次部署范围一致，避免仅更后端却因未起前端而误判失败）
 echo ""
 echo "🏥 执行最终健康检查..."
 ALL_HEALTHY=true
 
-if $DOCKER_COMPOSE_CMD exec -T backend curl -f http://localhost:8000/ > /dev/null 2>&1; then
-    echo "✅ 后端服务运行正常"
-else
-    echo "❌ 后端服务健康检查失败"
-    ALL_HEALTHY=false
+need_backend_check=false
+need_postgres_check=false
+if [ "$DEPLOY_BACKEND" = "1" ] || [ "$DEPLOY_FRONTEND" = "1" ]; then
+    need_backend_check=true
+    need_postgres_check=true
 fi
 
-if curl -f http://localhost:3000/ > /dev/null 2>&1; then
-    echo "✅ 前端服务运行正常"
-else
-    echo "❌ 前端服务健康检查失败"
-    ALL_HEALTHY=false
+if [ "$need_postgres_check" = true ]; then
+    if $DOCKER_COMPOSE_CMD exec -T postgres pg_isready -U ${PG_USER_NAME:-postgres} > /dev/null 2>&1; then
+        echo "✅ 数据库服务运行正常"
+    else
+        echo "❌ 数据库服务健康检查失败"
+        ALL_HEALTHY=false
+    fi
 fi
 
-if $DOCKER_COMPOSE_CMD exec -T postgres pg_isready -U ${PG_USER_NAME:-postgres} > /dev/null 2>&1; then
-    echo "✅ 数据库服务运行正常"
-else
-    echo "❌ 数据库服务健康检查失败"
-    ALL_HEALTHY=false
+if [ "$need_backend_check" = true ]; then
+    if $DOCKER_COMPOSE_CMD exec -T backend curl -f http://localhost:8000/ > /dev/null 2>&1; then
+        echo "✅ 后端服务运行正常"
+    else
+        echo "❌ 后端服务健康检查失败"
+        ALL_HEALTHY=false
+    fi
+fi
+
+if [ "$DEPLOY_FRONTEND" = "1" ]; then
+    if curl -f http://localhost:3000/ > /dev/null 2>&1; then
+        echo "✅ 前端服务运行正常"
+    else
+        echo "❌ 前端服务健康检查失败"
+        ALL_HEALTHY=false
+    fi
 fi
 
 echo ""
