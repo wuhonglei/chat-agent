@@ -7,11 +7,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from alembic.config import Config
 from sqlalchemy import inspect, text
 
 import app.models  # noqa: F401 - 注册 SQLModel.metadata
 from alembic import command
-from alembic.config import Config
 from app.core.db import create_db_and_tables, engine, ensure_pgvector_extension
 
 
