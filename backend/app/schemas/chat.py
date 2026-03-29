@@ -63,18 +63,6 @@ class ChatMessageItem(BaseModel):
         default=None,
         description="ID of the user message this assistant message replies to",
     )
-    tool_calls_duration: float | None = Field(
-        default=None, description="工具调用耗时（秒）"
-    )
-    reasoning_duration: float | None = Field(default=None, description="推理耗时（秒）")
-    content_duration: float | None = Field(
-        default=None, description="内容生成耗时（秒）"
-    )
-    total_duration: float | None = Field(default=None, description="总耗时（秒）")
-    token_stats: dict[str, Any] | None = Field(
-        default=None,
-        description="Token 使用统计信息（MCP 工具调用、响应生成、标题生成等）",
-    )
 
     model_config = ConfigDict(extra="ignore")
 
@@ -139,16 +127,4 @@ class CollectedResponse(BaseModel):
     reasoning: str = Field(default="", description="Collected reasoning")
     tool_calls: list[ToolMessage] = Field(
         default_factory=list, description="Collected tool calls"
-    )
-    tool_calls_duration: float | None = Field(
-        default=None, description="MCP 工具调用耗时（秒）"
-    )
-    reasoning_duration: float | None = Field(default=None, description="推理耗时（秒）")
-    content_duration: float | None = Field(
-        default=None, description="内容生成耗时（秒）"
-    )
-    total_duration: float | None = Field(default=None, description="总耗时（秒）")
-    token_stats: dict[str, Any] | None = Field(
-        default=None,
-        description="Token 使用统计信息（MCP 工具调用、响应生成、标题生成等）",
     )

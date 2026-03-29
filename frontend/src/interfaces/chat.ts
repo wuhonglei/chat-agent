@@ -1,6 +1,5 @@
 // Chat types
 import { TitleCreatedBy } from "./conversation";
-import { TotalTokenStats } from "./token";
 import { ToolCallMessage } from "./tooCall";
 
 export enum SearchSourceType {
@@ -42,15 +41,10 @@ export interface ChatMessage {
   reasoning: string;
   createdAt: string;
   updatedAt: string;
-  toolCallsDuration: number;
-  reasoningDuration: number;
-  contentDuration: number;
-  totalDuration: number;
   toolCalls: ToolCallMessage[];
   status: MessageStatus;
   messageMetadata: Omit<ChatInputFormValues, "message">;
   replyTo: string; // role为assistant时，回复到哪个user消息
-  tokenStats?: TotalTokenStats;
 }
 
 export interface ChatHistory {

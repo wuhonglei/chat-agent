@@ -33,13 +33,11 @@ from app.schemas.llm import (
     ToolResultMessage,
     ToolUseMessage,
 )
-from app.schemas.token_stats import MCPToolsTokenStats
 from app.utils.common import normalize_url
 from app.utils.context_compactor import ContextCompactor
 from app.utils.logger import logger
 from app.utils.mcp import (
     count_tool_calls,
-    extract_tool_call_names,
     has_tool_been_called,
 )
 from app.utils.message import (
@@ -72,8 +70,6 @@ class MCPToolsAgent(BaseAgent):
         self.mcp_manager = mcp_manager
         self.output_messages: list[ToolMessage] = []
         self.tool_call_args_by_name: dict[str, list[dict[str, Any]]] = defaultdict(list)
-        self.duration: float | None = None
-        self.token_stats: MCPToolsTokenStats | None = None
         self.tool_result_compression = settings.chat_context.tool_result_compression
         self.compactor = ContextCompactor(
             embedding_model=settings.embedding_model,
@@ -152,21 +148,9 @@ class MCPToolsAgent(BaseAgent):
                 yield self.format_sse_message("mcp_tool_call", message.model_dump())
 
         if self.output_messages:
-            self.duration = get_time_duration(start_time)
-            # 创建 token 统计对象（内部进行所有 token 计算）
-            self.token_stats = self.create_token_stats(
-                input_messages=input_messages,
-                tools=tools,
-                output_messages=self.output_messages,
-            )
-
             yield self.format_sse_message(
                 "mcp_tool_call",
-                {
-                    "status": "done",
-                    "duration": self.duration,
-                    "token_stats": self.token_stats.model_dump(mode="json"),
-                },
+                {"status": "done"},
             )
 
     def _get_tools_state(
@@ -434,7 +418,6 @@ class MCPToolsAgent(BaseAgent):
                 role="tool",
                 is_error=True,
                 tool_call_id=tool_call.id,
-                duration=get_time_duration(start_time),
                 content=f"Tool {tool_name} has hit max iterations, skipping",
             )
 
@@ -463,7 +446,6 @@ class MCPToolsAgent(BaseAgent):
                         role="tool",
                         is_error=False,
                         tool_call_id=tool_call.id,
-                        duration=get_time_duration(start_time),
                         content="⚠️ 提示：这些 URL 已经在之前的调用中提取过了。请检查历史工具调用结果，如果已获得足够信息，请回复 'finish'。",
                     )
                 # 更新已提取的 URL 集合
@@ -502,7 +484,6 @@ class MCPToolsAgent(BaseAgent):
                 content=content,
                 is_error=len(content or "") == 0,
                 tool_call_id=tool_call.id,
-                duration=get_time_duration(start_time),
             )
 
             server_name = self.mcp_manager.get_server_for_tool(tool_name)
@@ -540,7 +521,7 @@ class MCPToolsAgent(BaseAgent):
                 "MCP tool result received",
                 tool_name=tool_name,
                 tool_call_id=tool_call.id,
-                duration=tool_call_result_message.duration,
+                duration=get_time_duration(start_time),
                 content_length=len(content) if content else 0,
                 content=content[:200] + "..." + content[-200:]
                 if len(content) > 400
@@ -553,7 +534,6 @@ class MCPToolsAgent(BaseAgent):
                 is_error=True,
                 content=str(e),
                 tool_call_id=tool_call.id,
-                duration=get_time_duration(start_time),
             )
             logger.error(
                 "Failed to call tool",
@@ -674,7 +654,7 @@ class MCPToolsAgent(BaseAgent):
             )
 
             # Call LLM with tools
-            # 格式化 collected_messages，过滤掉额外的字段（如 token_count, duration, is_error）
+            # 格式化 collected_messages，过滤掉额外的字段（如 token_count, is_error）
             formatted_collected_messages = format_tool_call_messages_for_llm(
                 self.output_messages,
                 clear_reasoning_content=False,
@@ -771,45 +751,3 @@ class MCPToolsAgent(BaseAgent):
             max_iterations=self.MAX_TOTAL_ITERATIONS,
         )
         return
-
-    def create_token_stats(  # type: ignore[override]
-        self,
-        input_messages: list[dict[str, Any]],
-        tools: list[dict[str, Any]],
-        output_messages: list[ToolMessage],
-    ) -> MCPToolsTokenStats:
-        """创建 MCP 工具调用的 token 统计对象
-
-        Args:
-            messages: 消息列表（用于计算 prompt_tokens）
-            tools: 工具定义列表（用于计算 tools_tokens）
-            output_messages: 收集的工具调用消息列表（用于计算 completion_tokens）
-
-        Returns:
-            MCPToolsTokenStats: token 统计对象
-        """
-        # 计算输入 token（包括消息和工具定义）
-        prompt_tokens = self.token_calculator.count_messages_tokens(
-            input_messages
-        )  # 系统提示词、历史消息、用户消息
-        tool_definition_tokens = self.token_calculator.count_tokens(json.dumps(tools))
-        total_prompt_tokens = prompt_tokens + tool_definition_tokens
-
-        # 计算输出 token（助手消息 + 工具调用结果）
-        completion_tokens = self.token_calculator.count_messages_tokens(output_messages)
-
-        tool_call_names = extract_tool_call_names(output_messages)
-        tool_call_count = count_tool_calls(output_messages)
-
-        return MCPToolsTokenStats(
-            agent_name="mcp_tools",
-            model_name=self.model_name,
-            think_mode=self.think_mode,
-            model_limit=self.model_limit,
-            token_usage=self._create_token_usage(
-                total_prompt_tokens, completion_tokens
-            ),
-            tool_call_count=tool_call_count,
-            tool_definition_tokens=tool_definition_tokens,
-            tool_call_names=tool_call_names,
-        )

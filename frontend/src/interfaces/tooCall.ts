@@ -1,5 +1,3 @@
-import { MCPToolsTokenStats } from "./token";
-
 export enum ToolCallStatus {
   Start = "start",
   CallingTool = "loading",
@@ -22,8 +20,6 @@ export interface ToolCallProcessMessage {
   role: undefined;
   status: "done";
   content: string;
-  duration?: number;
-  tokenStats?: MCPToolsTokenStats;
 }
 
 // 工具调用结果消息
@@ -40,7 +36,6 @@ export interface ToolCallEndItemMessage {
   isError: boolean;
   content: string;
   toolCallId: string;
-  duration: number;
   relevanceApplied?: boolean;
   contentTokenCount?: number;
   originalTokenCount?: number;
@@ -68,7 +63,6 @@ export interface ToolResultSuccessTimelineMessage {
   key: string;
   toolCallId: string;
   toolCall: ToolCall;
-  duration: number;
   reasoningContent: string;
   content: string | Record<string, unknown>;
   relevanceApplied?: boolean;

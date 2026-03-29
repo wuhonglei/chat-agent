@@ -165,7 +165,7 @@ export function useConversationInfiniteScroll(containerRef: RefObject<HTMLDivEle
       isNoMore: data => {
         return !data || conversations.length >= data.total;
       },
-      threshold: 50,
+      threshold: 10,
       reloadDeps: [],
     }
   );

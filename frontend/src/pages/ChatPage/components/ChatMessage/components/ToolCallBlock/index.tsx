@@ -1,6 +1,5 @@
 import { EventType, useEmitterWithCondition } from "@/events";
 import { ToolCallMessage } from "@/interfaces";
-import { MCPToolsTokenStats } from "@/interfaces/token";
 import { isCallingTool } from "@/utils";
 import { Think, ThoughtChain } from "@ant-design/x";
 import { useMemoizedFn } from "ahooks";
@@ -15,27 +14,16 @@ import ToolCallItemTitle from "./ToolCallItemTitle";
 type Props = {
   isCallingTools: boolean;
   isStreaming: boolean;
-  toolCallsDuration?: number;
   eventType: EventType;
   titles: {
     doing: string;
     done: string;
   };
   icon: React.ReactNode;
-  tokenStats?: MCPToolsTokenStats;
   toolCalls: ToolCallMessage[] | undefined;
 };
 
-const ToolCallBlock = ({
-  isCallingTools,
-  isStreaming,
-  toolCallsDuration,
-  eventType,
-  titles,
-  icon,
-  tokenStats,
-  toolCalls,
-}: Props) => {
+const ToolCallBlock = ({ isCallingTools, isStreaming, eventType, titles, icon, toolCalls }: Props) => {
   const timelineMessages = useTimelineMessages(toolCalls);
   const [expanded, setExpanded] = useState<boolean>(isStreaming ? true : false);
   const [expandedToolCallKeys, setExpandedToolCallKeys] = useState<string[]>([]);
@@ -72,14 +60,7 @@ const ToolCallBlock = ({
           borderColor: "transparent",
         },
       }}
-      title={
-        <TitleWithDuration
-          titles={titles}
-          isDoing={isCallingTools}
-          duration={toolCallsDuration}
-          tokenStats={tokenStats}
-        />
-      }
+      title={<TitleWithDuration titles={titles} isDoing={isCallingTools} />}
     >
       <ThoughtChain
         classNames={{

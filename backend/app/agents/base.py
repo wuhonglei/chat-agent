@@ -1,20 +1,18 @@
 """Base Agent class for all agents"""
 
-from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
 from typing import Any
 
 from app.schemas.chat import ChatMessageItem
 from app.schemas.config import LLMConfig
 from app.schemas.llm import ToolMessage
-from app.schemas.token_stats import BaseTokenStats, TokenUsage
 from app.services.base_service.llm_service import LLMService
 from app.utils.common import normalize_to_dict
 from app.utils.message import format_chat_message_for_llm
 from app.utils.model import format_sse_message
 
 
-class BaseAgent(ABC, LLMService):
+class BaseAgent(LLMService):
     """Agent基类，定义所有agent的通用接口和共享功能；继承 LLMService 获得 LLM 调用能力"""
 
     def __init__(self, think_mode: bool, llm_config: LLMConfig):
@@ -46,42 +44,6 @@ class BaseAgent(ABC, LLMService):
     @staticmethod
     def format_sse_message(msg_type: str, data: Any = None) -> str:
         return format_sse_message(msg_type, data)
-
-    def _create_token_usage(
-        self,
-        prompt_tokens: int,
-        completion_tokens: int,
-    ) -> TokenUsage:
-        """
-        创建 TokenUsage 对象（辅助方法）
-
-        Args:
-            prompt_tokens: 输入 token 数量
-            completion_tokens: 输出 token 数量
-
-        Returns:
-            TokenUsage 对象
-        """
-        return TokenUsage(
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            total_tokens=prompt_tokens + completion_tokens,
-        )
-
-    @abstractmethod
-    def create_token_stats(
-        self, *args: Any, **kwargs: dict[str, Any]
-    ) -> BaseTokenStats:
-        """
-        创建 token 统计对象（抽象方法，子类必须实现）
-
-        Args:
-            kwargs: 子类特定的额外参数
-
-        Returns:
-            BaseTokenStats 对象
-        """
-        pass
 
     def _compose_messages(
         self,

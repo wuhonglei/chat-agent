@@ -8,11 +8,10 @@ import TitleWithDuration from "./TitleWithDuration";
 type Props = {
   isReasoning: boolean;
   isStreaming: boolean;
-  reasoningDuration?: number;
   reasoning: string | undefined;
 };
 
-const ReasoningBlock = ({ isReasoning, reasoning, isStreaming, reasoningDuration }: Props) => {
+const ReasoningBlock = ({ isReasoning, reasoning, isStreaming }: Props) => {
   const displayReasoning = useThrottle(reasoning, {
     wait: 100,
   });
@@ -52,7 +51,6 @@ const ReasoningBlock = ({ isReasoning, reasoning, isStreaming, reasoningDuration
             done: "已完成深度思考",
           }}
           isDoing={isReasoning}
-          duration={reasoningDuration}
         />
       }
     >

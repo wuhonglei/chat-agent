@@ -23,17 +23,12 @@ import {
   resetChatState,
   setCallingMcpTools,
   setLoading,
-  setMcpToolCallsDuration,
-  setMcpToolsTokenStats,
   setMessages,
   setReasoning,
-  setReasoningDuration,
   setStreaming,
   setTempMessages,
-  updateContentDuration,
   updateMessageModifiedTime,
   updateMessageStatus,
-  updateMessageTokenStats,
 } from "@/store/slices/chatSlice";
 import {
   getConversationDetail,
@@ -81,14 +76,12 @@ export interface UseChatMessageReturn {
 }
 
 /** MCP 工具调用通用处理器工厂 */
-function createToolCallHandler<TTokenStats>(
+function createToolCallHandler(
   dispatch: ReturnType<typeof useAppDispatch>,
   conversationId: string,
   config: {
     setCalling: (payload: { conversationId: string; data: boolean }) => UnknownAction;
     appendToLast: (payload: { conversationId: string; data: ToolCallMessage }) => UnknownAction;
-    setDuration: (payload: { conversationId: string; data: number }) => UnknownAction;
-    setTokenStats: (payload: { conversationId: string; data: TTokenStats }) => UnknownAction;
     doneEvent: EventType;
   }
 ): (data: ToolCallMessage) => void {
@@ -98,17 +91,6 @@ function createToolCallHandler<TTokenStats>(
     if (!role && data?.status === "done") {
       emitter.emit(config.doneEvent);
       dispatch(config.setCalling({ conversationId, data: false }));
-      if (data.duration) {
-        dispatch(config.setDuration({ conversationId, data: data.duration }));
-      }
-      if (data?.tokenStats) {
-        dispatch(
-          config.setTokenStats({
-            conversationId,
-            data: data.tokenStats as TTokenStats,
-          })
-        );
-      }
     } else {
       dispatch(config.appendToLast({ conversationId, data }));
     }
@@ -215,19 +197,16 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
           mcp_tool_call: createToolCallHandler(dispatch, conversationId, {
             setCalling: setCallingMcpTools,
             appendToLast: appendMcpToolCallToLastMessage,
-            setDuration: setMcpToolCallsDuration,
-            setTokenStats: setMcpToolsTokenStats,
             doneEvent: EventType.McpToolCallDone,
           }),
 
           // 更新消息思考内容
           reasoning: (data = {}) => {
-            const { status, content, duration } = data;
+            const { status, content } = data;
             if (status === "start") dispatch(setReasoning({ conversationId, data: true }));
             else if (status === "done") {
               emitter.emit(EventType.ReasoningDone);
               dispatch(setReasoning({ conversationId, data: false }));
-              if (duration) dispatch(setReasoningDuration({ conversationId, data: duration }));
             }
             dispatch(
               appendReasoningToLastMessage({
@@ -248,7 +227,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
 
           // 本次消息流式传输结束
           done: data => {
-            const { lastMessageUpdatedAt, tokenStats } = data;
+            const { lastMessageUpdatedAt } = data;
             dispatch(updateMessageStatus({ conversationId, data: MessageStatus.Done }));
             dispatch(
               updateMessageModifiedTime({
@@ -262,8 +241,6 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
                 lastMessageUpdatedAt,
               })
             );
-            dispatch(updateMessageTokenStats({ conversationId, data: tokenStats }));
-            dispatch(updateContentDuration({ conversationId, data: data.contentDuration }));
             resetState(conversationId);
             reportEvent("message_stream_done", data);
           },
