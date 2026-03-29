@@ -57,11 +57,6 @@ class MessageDb(SQLModel, table=True):
     reply_to: str | None = Field(
         default=None, description="关联的用户消息 ID", max_length=36
     )
-    token_stats: dict[str, Any] | None = Field(
-        default=None,
-        sa_type=SQLJSON,
-        description="Token 使用统计信息（MCP 工具调用、响应生成、标题生成等）",
-    )
     embedding_vector: list[float] | None = Field(
         default=None,
         sa_type=Vector(settings.embedding_model.embedding_dimension),

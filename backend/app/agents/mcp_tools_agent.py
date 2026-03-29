@@ -33,13 +33,11 @@ from app.schemas.llm import (
     ToolResultMessage,
     ToolUseMessage,
 )
-from app.schemas.token_stats import MCPToolsTokenStats
 from app.utils.common import normalize_url
 from app.utils.context_compactor import ContextCompactor
 from app.utils.logger import logger
 from app.utils.mcp import (
     count_tool_calls,
-    extract_tool_call_names,
     has_tool_been_called,
 )
 from app.utils.message import (
@@ -72,7 +70,6 @@ class MCPToolsAgent(BaseAgent):
         self.mcp_manager = mcp_manager
         self.output_messages: list[ToolMessage] = []
         self.tool_call_args_by_name: dict[str, list[dict[str, Any]]] = defaultdict(list)
-        self.token_stats: MCPToolsTokenStats | None = None
         self.tool_result_compression = settings.chat_context.tool_result_compression
         self.compactor = ContextCompactor(
             embedding_model=settings.embedding_model,
@@ -151,19 +148,9 @@ class MCPToolsAgent(BaseAgent):
                 yield self.format_sse_message("mcp_tool_call", message.model_dump())
 
         if self.output_messages:
-            # 创建 token 统计对象（内部进行所有 token 计算）
-            self.token_stats = self.create_token_stats(
-                input_messages=input_messages,
-                tools=tools,
-                output_messages=self.output_messages,
-            )
-
             yield self.format_sse_message(
                 "mcp_tool_call",
-                {
-                    "status": "done",
-                    "token_stats": self.token_stats.model_dump(mode="json"),
-                },
+                {"status": "done"},
             )
 
     def _get_tools_state(
@@ -764,45 +751,3 @@ class MCPToolsAgent(BaseAgent):
             max_iterations=self.MAX_TOTAL_ITERATIONS,
         )
         return
-
-    def create_token_stats(  # type: ignore[override]
-        self,
-        input_messages: list[dict[str, Any]],
-        tools: list[dict[str, Any]],
-        output_messages: list[ToolMessage],
-    ) -> MCPToolsTokenStats:
-        """创建 MCP 工具调用的 token 统计对象
-
-        Args:
-            messages: 消息列表（用于计算 prompt_tokens）
-            tools: 工具定义列表（用于计算 tools_tokens）
-            output_messages: 收集的工具调用消息列表（用于计算 completion_tokens）
-
-        Returns:
-            MCPToolsTokenStats: token 统计对象
-        """
-        # 计算输入 token（包括消息和工具定义）
-        prompt_tokens = self.token_calculator.count_messages_tokens(
-            input_messages
-        )  # 系统提示词、历史消息、用户消息
-        tool_definition_tokens = self.token_calculator.count_tokens(json.dumps(tools))
-        total_prompt_tokens = prompt_tokens + tool_definition_tokens
-
-        # 计算输出 token（助手消息 + 工具调用结果）
-        completion_tokens = self.token_calculator.count_messages_tokens(output_messages)
-
-        tool_call_names = extract_tool_call_names(output_messages)
-        tool_call_count = count_tool_calls(output_messages)
-
-        return MCPToolsTokenStats(
-            agent_name="mcp_tools",
-            model_name=self.model_name,
-            think_mode=self.think_mode,
-            model_limit=self.model_limit,
-            token_usage=self._create_token_usage(
-                total_prompt_tokens, completion_tokens
-            ),
-            tool_call_count=tool_call_count,
-            tool_definition_tokens=tool_definition_tokens,
-            tool_call_names=tool_call_names,
-        )

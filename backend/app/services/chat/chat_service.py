@@ -24,7 +24,6 @@ from app.schemas.llm import (
     ToolResultMessage,
     ToolUseMessage,
 )
-from app.schemas.token_stats import TotalTokenStats
 from app.schemas.user import MemoryListItem
 from app.services.conversation import (
     ContextSummaryService,
@@ -32,7 +31,6 @@ from app.services.conversation import (
 )
 from app.services.message import MessageDbService
 from app.services.user.memory_service import MemoryService
-from app.utils.common import pick_fields
 from app.utils.history_truncate import truncate_history_by_rounds_and_tokens
 from app.utils.logger import logger
 from app.utils.message import (
@@ -232,17 +230,12 @@ class ChatService:
     async def generate_title(
         self, user_message: str, conversation_id: str | None = None
     ) -> str:
-        """生成对话标题，包含 token 统计"""
+        """生成对话标题"""
         logger.info(
             "Regenerating conversation title",
             conversation_id=conversation_id,
         )
         title = await self.title_generation_agent.execute(user_message)
-        token_stats = (
-            self.title_generation_agent.token_stats.model_dump(mode="json")
-            if self.title_generation_agent.token_stats
-            else None
-        )
         logger.info(
             "Title generated",
             conversation_id=conversation_id,
@@ -255,7 +248,6 @@ class ChatService:
             {
                 "id": conversation_id,
                 "title": title,
-                "token_stats": token_stats,
             },
         )
 
@@ -511,10 +503,6 @@ class ChatService:
                     "content_length": len(assistant_payload.content),
                     "reasoning_length": len(assistant_payload.reasoning),
                     "tool_calls_length": len(assistant_payload.tool_calls),
-                    **pick_fields(
-                        assistant_payload.model_dump(mode="json"),
-                        ["token_stats"],
-                    ),
                     "updated_at": str(assistant_updated_at),
                 }
                 logger.info(
@@ -557,24 +545,8 @@ class ChatService:
 
     def get_collected_response(self) -> CollectedResponse:
         """获取已收集的助手消息内容"""
-        # 收集所有 token 统计信息
-        total_token_stats = TotalTokenStats(
-            mcp_tools=self.mcp_tools_agent.token_stats,
-            response_generation=self.response_generation_agent.token_stats,
-            title_generation=self.title_generation_agent.token_stats,
-        )
-
         return CollectedResponse(
             content=self.response_generation_agent.content,
             reasoning=self.response_generation_agent.reasoning,
             tool_calls=self.mcp_tools_agent.output_messages,
-            token_stats=total_token_stats.model_dump(mode="json")
-            if any(
-                [
-                    self.mcp_tools_agent.token_stats,
-                    self.response_generation_agent.token_stats,
-                    self.title_generation_agent.token_stats,
-                ]
-            )
-            else None,
         )

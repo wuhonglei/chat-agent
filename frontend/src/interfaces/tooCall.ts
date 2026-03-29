@@ -1,5 +1,3 @@
-import { MCPToolsTokenStats } from "./token";
-
 export enum ToolCallStatus {
   Start = "start",
   CallingTool = "loading",
@@ -22,7 +20,6 @@ export interface ToolCallProcessMessage {
   role: undefined;
   status: "done";
   content: string;
-  tokenStats?: MCPToolsTokenStats;
 }
 
 // 工具调用结果消息

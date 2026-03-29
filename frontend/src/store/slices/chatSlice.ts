@@ -1,7 +1,6 @@
 import { ChatConversationState, ChatMessage, MessageStatus, ToolCallMessage } from "@/interfaces";
-import { MCPToolsTokenStats, TotalTokenStats } from "@/interfaces/token";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { isEmpty, set } from "lodash-es";
+import { isEmpty } from "lodash-es";
 
 interface ChatStateMap {
   [conversionId: string]: ChatConversationState;
@@ -123,14 +122,6 @@ const chatSlice = createSlice({
         chatState.isCallingMcpTools = data;
       }
     },
-    setMcpToolsTokenStats: (state, action: PayloadAction<ConversationActionPayload<MCPToolsTokenStats>>) => {
-      const { conversationId, data } = action.payload;
-      const chatState = conversationIdCheck(state, conversationId);
-      const lastMessage = lastMessageCheck(chatState.messages);
-      if (lastMessage) {
-        set(lastMessage, "tokenStats.mcpTools", data);
-      }
-    },
     prependContentToLastMessage: (state, action: PayloadAction<ConversationActionPayload<string>>) => {
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
@@ -176,14 +167,6 @@ const chatSlice = createSlice({
       const chatState = conversationIdCheck(state, conversationId);
       chatState.lastMessageUpdateAt = data;
     },
-    updateMessageTokenStats: (state, action: PayloadAction<ConversationActionPayload<TotalTokenStats>>) => {
-      const { conversationId, data } = action.payload;
-      const chatState = conversationIdCheck(state, conversationId);
-      const lastMessage = lastMessageCheck(chatState.messages);
-      if (lastMessage) {
-        lastMessage.tokenStats = data;
-      }
-    },
     // 会话中 message finish 时调用
     resetChatState: (state, action: PayloadAction<ConversationActionPayload>) => {
       const { conversationId } = action.payload;
@@ -210,7 +193,6 @@ export const {
   setStreaming,
   setLoading,
   setCallingMcpTools,
-  setMcpToolsTokenStats,
   prependContentToLastMessage,
   appendContentToLastMessage,
   appendReasoningToLastMessage,
@@ -218,7 +200,6 @@ export const {
   setReasoning,
   updateMessageStatus,
   updateMessageModifiedTime,
-  updateMessageTokenStats,
   clearLastMessage,
   resetChatState,
   clearChatState,

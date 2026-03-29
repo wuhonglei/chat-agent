@@ -181,7 +181,6 @@ class MessageDbService(DbService):
             conversation_id=conversation.id,
             message_metadata=metadata or {},
             status=MessageStatus.PENDING,
-            token_stats={},
             reply_to=reply_to,
         )
         return self._persist_message(message, conversation)
@@ -262,8 +261,6 @@ class MessageDbService(DbService):
             assistant_message.tool_calls = [
                 normalize_to_dict(m) for m in assistant_payload.tool_calls
             ]
-        if assistant_payload.token_stats:
-            assistant_message.token_stats = assistant_payload.token_stats
         if extra_metadata:
             merged_metadata = dict(assistant_message.message_metadata or {})
             merged_metadata.update(extra_metadata)

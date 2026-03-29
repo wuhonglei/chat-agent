@@ -50,7 +50,6 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
             toolCalls={message.toolCalls}
             isCallingTools={isCallingMcpTools}
             eventType={EventType.McpToolCallDone}
-            tokenStats={message.tokenStats?.mcpTools}
           />
           <ReasoningBlock isReasoning={isReasoning} reasoning={message.reasoning} isStreaming={isStreaming} />
           <MarkdownContainer className="text-base w-full">{displayContent}</MarkdownContainer>
