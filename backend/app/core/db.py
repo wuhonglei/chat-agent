@@ -50,7 +50,7 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def ensure_pgvector_extension() -> None:
-    """确保启用 pgvector 扩展；messages.embedding_vector 等列依赖该类型。"""
+    """确保启用 pgvector 扩展（迁移或曾使用 vector 列的库可能仍需要）。"""
     with engine.begin() as conn:
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
 

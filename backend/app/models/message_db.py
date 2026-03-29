@@ -1,13 +1,10 @@
 from datetime import datetime
-from typing import Any, cast
+from typing import Any
 
-from pgvector.sqlalchemy import Vector
-from pydantic import field_serializer
 from sqlalchemy import JSON as SQLJSON
 from sqlalchemy import Column, DateTime, ForeignKey, String
 from sqlmodel import Field, SQLModel
 
-from app.core.config import settings
 from app.utils.common import gen_uuid
 from app.utils.date import get_datetime_now
 
@@ -57,24 +54,3 @@ class MessageDb(SQLModel, table=True):
     reply_to: str | None = Field(
         default=None, description="关联的用户消息 ID", max_length=36
     )
-    embedding_vector: list[float] | None = Field(
-        default=None,
-        sa_type=Vector(settings.embedding_model.embedding_dimension),
-        description="用户消息的 query embedding，用于用户画像语义检索",
-    )
-    embedding_model: str | None = Field(
-        default=None,
-        max_length=64,
-        description="生成 embedding_vector 的模型名",
-    )
-
-    @field_serializer("embedding_vector", when_used="always")
-    def serialize_embedding_vector(
-        self, value: list[float] | Any
-    ) -> list[float] | None:
-        """pgvector 从 DB 读出可能为 numpy.ndarray，序列化时转为 list。"""
-        if value is None:
-            return None
-        if hasattr(value, "tolist"):
-            return cast(list[float], value.tolist())
-        return cast(list[float], value)
