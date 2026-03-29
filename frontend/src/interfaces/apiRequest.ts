@@ -1,6 +1,5 @@
 import { ChatMessage } from "./chat";
 import { ConversationInfo } from "./conversation";
-import { TotalTokenStats } from "./token";
 import { ToolCallMessage } from "./tooCall";
 
 // Stream types
@@ -47,7 +46,6 @@ export type StreamMessage =
         contentLength: number;
         reasoningLength: number;
         toolCallsLength: number;
-        tokenStats?: TotalTokenStats; // 后端 token_stats 转小驼峰
       };
     }
   | {

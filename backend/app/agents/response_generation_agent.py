@@ -12,7 +12,6 @@ from app.prompts import (
 from app.schemas.chat import ChatMessageItem
 from app.schemas.config import LLMConfig
 from app.schemas.llm import ToolMessage
-from app.schemas.token_stats import ResponseGenerationTokenStats
 from app.schemas.user import MemoryListItem
 from app.utils.logger import logger
 from app.utils.time import get_current_time, get_time_duration
@@ -29,7 +28,6 @@ class ResponseGenerationAgent(BaseAgent):
         super().__init__(think_mode, llm_config)
         self.content = ""
         self.reasoning = ""
-        self.token_stats: ResponseGenerationTokenStats | None = None
 
     def format_sse_message(  # type: ignore[override]
         self, msg_type: str, data: dict[str, Any] | None = None
@@ -92,11 +90,6 @@ class ResponseGenerationAgent(BaseAgent):
             new_messages, self.model_name, self.extra_body
         ):
             yield chunk
-
-        # 创建 token 统计对象（内部进行所有 token 计算）
-        self.token_stats = self.create_token_stats(
-            input_messages=new_messages, reasoning=self.reasoning, content=self.content
-        )
 
     def _finish_streaming_type(
         self,
@@ -220,38 +213,4 @@ class ResponseGenerationAgent(BaseAgent):
         logger.info(
             "Stream final response completed",
             duration=get_time_duration(start_time),
-        )
-
-    def create_token_stats(  # type: ignore[override]
-        self,
-        input_messages: list[dict[str, Any]],
-        reasoning: str,
-        content: str,
-    ) -> ResponseGenerationTokenStats:
-        """创建响应生成的 token 统计对象
-
-        Args:
-            messages: 消息列表（用于计算 prompt_tokens）
-            reasoning: 推理内容（用于计算 reasoning_tokens）
-            content: 回答内容（用于计算 content_tokens）
-
-        Returns:
-            ResponseGenerationTokenStats: token 统计对象
-        """
-        # 计算输入 token
-        prompt_tokens = self.token_calculator.count_messages_tokens(input_messages)
-
-        # 计算输出 token
-        reasoning_tokens = self.token_calculator.count_tokens(reasoning)
-        content_tokens = self.token_calculator.count_tokens(content)
-        completion_tokens = reasoning_tokens + content_tokens
-
-        return ResponseGenerationTokenStats(
-            agent_name="response_generation",
-            model_name=self.model_name,
-            think_mode=self.think_mode,
-            model_limit=self.token_calculator.get_max_context_tokens(),
-            token_usage=self._create_token_usage(prompt_tokens, completion_tokens),
-            reasoning_tokens=reasoning_tokens,
-            content_tokens=content_tokens,
         )

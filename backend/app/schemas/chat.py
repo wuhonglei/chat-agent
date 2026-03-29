@@ -63,10 +63,6 @@ class ChatMessageItem(BaseModel):
         default=None,
         description="ID of the user message this assistant message replies to",
     )
-    token_stats: dict[str, Any] | None = Field(
-        default=None,
-        description="Token 使用统计信息（MCP 工具调用、响应生成、标题生成等）",
-    )
 
     model_config = ConfigDict(extra="ignore")
 
@@ -131,8 +127,4 @@ class CollectedResponse(BaseModel):
     reasoning: str = Field(default="", description="Collected reasoning")
     tool_calls: list[ToolMessage] = Field(
         default_factory=list, description="Collected tool calls"
-    )
-    token_stats: dict[str, Any] | None = Field(
-        default=None,
-        description="Token 使用统计信息（MCP 工具调用、响应生成、标题生成等）",
     )
