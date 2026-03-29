@@ -60,7 +60,7 @@ def format_tool_call_result_message(
     """
     格式化 ToolResultMessage 为 LLM API 所需的格式
     只保留 API 需要的字段：role, tool_call_id, content
-    过滤掉额外的字段：token_count, duration, is_error
+    过滤掉额外的字段：token_count, is_error（及历史 JSON 中的 duration 等业务字段）
 
     Args:
         message: ToolResultMessage 对象

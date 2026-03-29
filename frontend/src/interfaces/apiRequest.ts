@@ -18,7 +18,6 @@ export type StreamMessage =
       data: {
         status?: "start" | "done";
         content?: string;
-        duration?: number;
       };
     }
   | {
@@ -48,11 +47,7 @@ export type StreamMessage =
         contentLength: number;
         reasoningLength: number;
         toolCallsLength: number;
-        toolCallsDuration: number;
-        reasoningDuration: number;
-        contentDuration: number;
-        totalDuration: number;
-        tokenStats: TotalTokenStats; // 后端 token_stats 转小驼峰
+        tokenStats?: TotalTokenStats; // 后端 token_stats 转小驼峰
       };
     }
   | {

@@ -35,14 +35,13 @@ export function useTimelineMessages(toolCalls: ToolCallMessage[] | undefined): T
       }
 
       if (role === "tool") {
-        const { toolCallId, duration, content, isError, relevanceApplied, contentTokenCount, originalTokenCount } =
+        const { toolCallId, content, isError, relevanceApplied, contentTokenCount, originalTokenCount } =
           message as ToolCallEndItemMessage;
         const startIndex = toolCallStartIndex[toolCallId];
         if (startIndex !== undefined) {
           messages[startIndex] = {
             key: toolCallId,
             content: content || "",
-            duration,
             toolCallId,
             toolCall: messages[startIndex].toolCall,
             status: isError ? ToolCallStatus.ToolResultError : ToolCallStatus.ToolResultSuccess,

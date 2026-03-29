@@ -11,16 +11,12 @@ type Props = {
     done: string;
   };
   isDoing: boolean;
-  duration?: number;
   tokenStats?: MCPToolsTokenStats;
 };
 
-const TitleWithDuration: React.FC<Props> = ({ titles, isDoing, duration, tokenStats }) => {
+const TitleWithDuration: React.FC<Props> = ({ titles, isDoing, tokenStats }) => {
   if (isDoing) {
     return <>{titles.doing}</>;
-  }
-  if (!duration) {
-    return <>{titles.done}</>;
   }
 
   return (
@@ -46,7 +42,6 @@ const TitleWithDuration: React.FC<Props> = ({ titles, isDoing, duration, tokenSt
           </Tooltip>
         </span>
       )}
-      <span className="ml-1 text-black-tertiary">{duration}s</span>
     </>
   );
 };

@@ -14,9 +14,6 @@ const ToolCallItemTitle: React.FC<Props> = ({ index, message }) => {
       <Tag color="processing" variant="filled" style={{ marginRight: 0 }}>
         {message.toolCall.function.name}
       </Tag>
-      {"duration" in message && message.duration > 0 && (
-        <span className="text-black-tertiary">{message.duration}s</span>
-      )}
     </div>
   );
 };

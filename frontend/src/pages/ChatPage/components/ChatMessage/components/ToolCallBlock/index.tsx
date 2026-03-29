@@ -15,7 +15,6 @@ import ToolCallItemTitle from "./ToolCallItemTitle";
 type Props = {
   isCallingTools: boolean;
   isStreaming: boolean;
-  toolCallsDuration?: number;
   eventType: EventType;
   titles: {
     doing: string;
@@ -26,16 +25,7 @@ type Props = {
   toolCalls: ToolCallMessage[] | undefined;
 };
 
-const ToolCallBlock = ({
-  isCallingTools,
-  isStreaming,
-  toolCallsDuration,
-  eventType,
-  titles,
-  icon,
-  tokenStats,
-  toolCalls,
-}: Props) => {
+const ToolCallBlock = ({ isCallingTools, isStreaming, eventType, titles, icon, tokenStats, toolCalls }: Props) => {
   const timelineMessages = useTimelineMessages(toolCalls);
   const [expanded, setExpanded] = useState<boolean>(isStreaming ? true : false);
   const [expandedToolCallKeys, setExpandedToolCallKeys] = useState<string[]>([]);
@@ -72,14 +62,7 @@ const ToolCallBlock = ({
           borderColor: "transparent",
         },
       }}
-      title={
-        <TitleWithDuration
-          titles={titles}
-          isDoing={isCallingTools}
-          duration={toolCallsDuration}
-          tokenStats={tokenStats}
-        />
-      }
+      title={<TitleWithDuration titles={titles} isDoing={isCallingTools} tokenStats={tokenStats} />}
     >
       <ThoughtChain
         classNames={{
