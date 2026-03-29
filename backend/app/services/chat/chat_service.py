@@ -513,13 +513,7 @@ class ChatService:
                     "tool_calls_length": len(assistant_payload.tool_calls),
                     **pick_fields(
                         assistant_payload.model_dump(mode="json"),
-                        [
-                            "tool_calls_duration",
-                            "reasoning_duration",
-                            "content_duration",
-                            "total_duration",
-                            "token_stats",
-                        ],
+                        ["token_stats"],
                     ),
                     "updated_at": str(assistant_updated_at),
                 }
@@ -574,10 +568,6 @@ class ChatService:
             content=self.response_generation_agent.content,
             reasoning=self.response_generation_agent.reasoning,
             tool_calls=self.mcp_tools_agent.output_messages,
-            tool_calls_duration=self.mcp_tools_agent.duration,
-            reasoning_duration=self.response_generation_agent.reasoning_duration,
-            content_duration=self.response_generation_agent.content_duration,
-            total_duration=self.response_generation_agent.total_duration,
             token_stats=total_token_stats.model_dump(mode="json")
             if any(
                 [

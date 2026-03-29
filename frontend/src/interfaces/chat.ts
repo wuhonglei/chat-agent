@@ -42,10 +42,6 @@ export interface ChatMessage {
   reasoning: string;
   createdAt: string;
   updatedAt: string;
-  toolCallsDuration: number;
-  reasoningDuration: number;
-  contentDuration: number;
-  totalDuration: number;
   toolCalls: ToolCallMessage[];
   status: MessageStatus;
   messageMetadata: Omit<ChatInputFormValues, "message">;

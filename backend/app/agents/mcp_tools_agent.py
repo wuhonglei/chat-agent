@@ -72,7 +72,6 @@ class MCPToolsAgent(BaseAgent):
         self.mcp_manager = mcp_manager
         self.output_messages: list[ToolMessage] = []
         self.tool_call_args_by_name: dict[str, list[dict[str, Any]]] = defaultdict(list)
-        self.duration: float | None = None
         self.token_stats: MCPToolsTokenStats | None = None
         self.tool_result_compression = settings.chat_context.tool_result_compression
         self.compactor = ContextCompactor(
@@ -152,7 +151,6 @@ class MCPToolsAgent(BaseAgent):
                 yield self.format_sse_message("mcp_tool_call", message.model_dump())
 
         if self.output_messages:
-            self.duration = get_time_duration(start_time)
             # 创建 token 统计对象（内部进行所有 token 计算）
             self.token_stats = self.create_token_stats(
                 input_messages=input_messages,
@@ -164,7 +162,6 @@ class MCPToolsAgent(BaseAgent):
                 "mcp_tool_call",
                 {
                     "status": "done",
-                    "duration": self.duration,
                     "token_stats": self.token_stats.model_dump(mode="json"),
                 },
             )
@@ -434,7 +431,6 @@ class MCPToolsAgent(BaseAgent):
                 role="tool",
                 is_error=True,
                 tool_call_id=tool_call.id,
-                duration=get_time_duration(start_time),
                 content=f"Tool {tool_name} has hit max iterations, skipping",
             )
 
@@ -463,7 +459,6 @@ class MCPToolsAgent(BaseAgent):
                         role="tool",
                         is_error=False,
                         tool_call_id=tool_call.id,
-                        duration=get_time_duration(start_time),
                         content="⚠️ 提示：这些 URL 已经在之前的调用中提取过了。请检查历史工具调用结果，如果已获得足够信息，请回复 'finish'。",
                     )
                 # 更新已提取的 URL 集合
@@ -502,7 +497,6 @@ class MCPToolsAgent(BaseAgent):
                 content=content,
                 is_error=len(content or "") == 0,
                 tool_call_id=tool_call.id,
-                duration=get_time_duration(start_time),
             )
 
             server_name = self.mcp_manager.get_server_for_tool(tool_name)
@@ -540,7 +534,7 @@ class MCPToolsAgent(BaseAgent):
                 "MCP tool result received",
                 tool_name=tool_name,
                 tool_call_id=tool_call.id,
-                duration=tool_call_result_message.duration,
+                duration=get_time_duration(start_time),
                 content_length=len(content) if content else 0,
                 content=content[:200] + "..." + content[-200:]
                 if len(content) > 400
@@ -553,7 +547,6 @@ class MCPToolsAgent(BaseAgent):
                 is_error=True,
                 content=str(e),
                 tool_call_id=tool_call.id,
-                duration=get_time_duration(start_time),
             )
             logger.error(
                 "Failed to call tool",
@@ -674,7 +667,7 @@ class MCPToolsAgent(BaseAgent):
             )
 
             # Call LLM with tools
-            # 格式化 collected_messages，过滤掉额外的字段（如 token_count, duration, is_error）
+            # 格式化 collected_messages，过滤掉额外的字段（如 token_count, is_error）
             formatted_collected_messages = format_tool_call_messages_for_llm(
                 self.output_messages,
                 clear_reasoning_content=False,

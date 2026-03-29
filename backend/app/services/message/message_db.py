@@ -262,16 +262,6 @@ class MessageDbService(DbService):
             assistant_message.tool_calls = [
                 normalize_to_dict(m) for m in assistant_payload.tool_calls
             ]
-        if assistant_payload.tool_calls_duration:
-            assistant_message.tool_calls_duration = (
-                assistant_payload.tool_calls_duration
-            )
-        if assistant_payload.reasoning_duration:
-            assistant_message.reasoning_duration = assistant_payload.reasoning_duration
-        if assistant_payload.content_duration:
-            assistant_message.content_duration = assistant_payload.content_duration
-        if assistant_payload.total_duration:
-            assistant_message.total_duration = assistant_payload.total_duration
         if assistant_payload.token_stats:
             assistant_message.token_stats = assistant_payload.token_stats
         if extra_metadata:

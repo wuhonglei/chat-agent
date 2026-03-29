@@ -123,22 +123,6 @@ const chatSlice = createSlice({
         chatState.isCallingMcpTools = data;
       }
     },
-    setReasoningDuration: (state, action: PayloadAction<ConversationActionPayload<number>>) => {
-      const { conversationId, data } = action.payload;
-      const chatState = conversationIdCheck(state, conversationId);
-      const lastMessage = lastMessageCheck(chatState.messages);
-      if (lastMessage) {
-        lastMessage.reasoningDuration = data;
-      }
-    },
-    setMcpToolCallsDuration: (state, action: PayloadAction<ConversationActionPayload<number>>) => {
-      const { conversationId, data } = action.payload;
-      const chatState = conversationIdCheck(state, conversationId);
-      const lastMessage = lastMessageCheck(chatState.messages);
-      if (lastMessage) {
-        lastMessage.toolCallsDuration = data;
-      }
-    },
     setMcpToolsTokenStats: (state, action: PayloadAction<ConversationActionPayload<MCPToolsTokenStats>>) => {
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
@@ -200,14 +184,6 @@ const chatSlice = createSlice({
         lastMessage.tokenStats = data;
       }
     },
-    updateContentDuration: (state, action: PayloadAction<ConversationActionPayload<number>>) => {
-      const { conversationId, data } = action.payload;
-      const chatState = conversationIdCheck(state, conversationId);
-      const lastMessage = lastMessageCheck(chatState.messages);
-      if (lastMessage) {
-        lastMessage.contentDuration = data;
-      }
-    },
     // 会话中 message finish 时调用
     resetChatState: (state, action: PayloadAction<ConversationActionPayload>) => {
       const { conversationId } = action.payload;
@@ -234,8 +210,6 @@ export const {
   setStreaming,
   setLoading,
   setCallingMcpTools,
-  setReasoningDuration,
-  setMcpToolCallsDuration,
   setMcpToolsTokenStats,
   prependContentToLastMessage,
   appendContentToLastMessage,
@@ -245,7 +219,6 @@ export const {
   updateMessageStatus,
   updateMessageModifiedTime,
   updateMessageTokenStats,
-  updateContentDuration,
   clearLastMessage,
   resetChatState,
   clearChatState,

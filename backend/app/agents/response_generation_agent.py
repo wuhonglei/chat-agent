@@ -29,9 +29,6 @@ class ResponseGenerationAgent(BaseAgent):
         super().__init__(think_mode, llm_config)
         self.content = ""
         self.reasoning = ""
-        self.reasoning_duration: float | None = None
-        self.content_duration: float | None = None
-        self.total_duration: float | None = None
         self.token_stats: ResponseGenerationTokenStats | None = None
 
     def format_sse_message(  # type: ignore[override]
@@ -104,22 +101,14 @@ class ResponseGenerationAgent(BaseAgent):
     def _finish_streaming_type(
         self,
         msg_type: str,
-        start_time: float,
         fallback_content: str = "",
     ) -> str:
         """结束某个类型的流式输出并返回 done 消息"""
-        duration = get_time_duration(start_time)
-        if msg_type == "reasoning":
-            self.reasoning_duration = duration
-        elif msg_type == "content":
-            self.content_duration = duration
-
         return self.format_sse_message(
             msg_type,
             {
                 "status": "done",
                 "content": fallback_content,
-                "duration": duration,
             },
         )
 
@@ -183,7 +172,7 @@ class ResponseGenerationAgent(BaseAgent):
                 if current_phase == "reasoning":
                     # 从推理阶段切换到内容阶段：先结束推理
                     assert phase_start_time is not None
-                    yield self._finish_streaming_type("reasoning", phase_start_time)
+                    yield self._finish_streaming_type("reasoning")
                     current_phase = "content"
                     phase_start_time = get_current_time()
                     yield self.format_sse_message(
@@ -218,18 +207,20 @@ class ResponseGenerationAgent(BaseAgent):
         if current_phase == "reasoning":
             # 情况2：只有推理，没有内容
             assert phase_start_time is not None
-            yield self._finish_streaming_type("reasoning", phase_start_time)
+            yield self._finish_streaming_type("reasoning")
             # 发送占位消息，确保前端感知到内容结束
             yield self._finish_streaming_type(
-                "content", get_current_time(), "[模型已完成深入推理，详见思考过程]"
+                "content", "[模型已完成深入推理，详见思考过程]"
             )
         elif current_phase == "content":
             # 情况1或情况2：有内容（可能之前有推理，可能没有）
             assert phase_start_time is not None
-            yield self._finish_streaming_type("content", phase_start_time)
+            yield self._finish_streaming_type("content")
 
-        self.total_duration = get_time_duration(start_time)
-        logger.info("Stream final response completed", duration=self.total_duration)
+        logger.info(
+            "Stream final response completed",
+            duration=get_time_duration(start_time),
+        )
 
     def create_token_stats(  # type: ignore[override]
         self,

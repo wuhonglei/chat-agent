@@ -23,14 +23,11 @@ import {
   resetChatState,
   setCallingMcpTools,
   setLoading,
-  setMcpToolCallsDuration,
   setMcpToolsTokenStats,
   setMessages,
   setReasoning,
-  setReasoningDuration,
   setStreaming,
   setTempMessages,
-  updateContentDuration,
   updateMessageModifiedTime,
   updateMessageStatus,
   updateMessageTokenStats,
@@ -87,7 +84,6 @@ function createToolCallHandler<TTokenStats>(
   config: {
     setCalling: (payload: { conversationId: string; data: boolean }) => UnknownAction;
     appendToLast: (payload: { conversationId: string; data: ToolCallMessage }) => UnknownAction;
-    setDuration: (payload: { conversationId: string; data: number }) => UnknownAction;
     setTokenStats: (payload: { conversationId: string; data: TTokenStats }) => UnknownAction;
     doneEvent: EventType;
   }
@@ -98,9 +94,6 @@ function createToolCallHandler<TTokenStats>(
     if (!role && data?.status === "done") {
       emitter.emit(config.doneEvent);
       dispatch(config.setCalling({ conversationId, data: false }));
-      if (data.duration) {
-        dispatch(config.setDuration({ conversationId, data: data.duration }));
-      }
       if (data?.tokenStats) {
         dispatch(
           config.setTokenStats({
@@ -215,19 +208,17 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
           mcp_tool_call: createToolCallHandler(dispatch, conversationId, {
             setCalling: setCallingMcpTools,
             appendToLast: appendMcpToolCallToLastMessage,
-            setDuration: setMcpToolCallsDuration,
             setTokenStats: setMcpToolsTokenStats,
             doneEvent: EventType.McpToolCallDone,
           }),
 
           // 更新消息思考内容
           reasoning: (data = {}) => {
-            const { status, content, duration } = data;
+            const { status, content } = data;
             if (status === "start") dispatch(setReasoning({ conversationId, data: true }));
             else if (status === "done") {
               emitter.emit(EventType.ReasoningDone);
               dispatch(setReasoning({ conversationId, data: false }));
-              if (duration) dispatch(setReasoningDuration({ conversationId, data: duration }));
             }
             dispatch(
               appendReasoningToLastMessage({
@@ -262,8 +253,9 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
                 lastMessageUpdatedAt,
               })
             );
-            dispatch(updateMessageTokenStats({ conversationId, data: tokenStats }));
-            dispatch(updateContentDuration({ conversationId, data: data.contentDuration }));
+            if (tokenStats) {
+              dispatch(updateMessageTokenStats({ conversationId, data: tokenStats }));
+            }
             resetState(conversationId);
             reportEvent("message_stream_done", data);
           },
