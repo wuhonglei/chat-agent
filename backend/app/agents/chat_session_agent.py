@@ -239,8 +239,7 @@ class ChatSessionAgent(BaseAgent):
                     )
 
         merged_tool_calls = tool_call_acc_to_openai_list(tool_acc)
-        has_tool_calls = bool(
-            merged_tool_calls) or finish_reason == "tool_calls"
+        has_tool_calls = bool(merged_tool_calls) or finish_reason == "tool_calls"
 
         if finish_reason == "tool_calls" and not merged_tool_calls:
             logger.warning(

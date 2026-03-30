@@ -3,9 +3,8 @@
 from app.mcp.mcp_client import mcp_config_for_fe
 from app.prompts.system_prompt import (
     default_system_prompt_template,
-    system_prompt_for_response_generation_template,
+    system_prompt_for_chat_session_template,
     system_prompt_for_title_template,
-    system_prompt_for_tool_calls_template,
     user_context_system_fragment_template,
 )
 from app.prompts.user_prompt import (
@@ -27,14 +26,16 @@ def get_default_system_prompt() -> str:
     return default_system_prompt_template.render()
 
 
-def get_system_prompt_for_response_generation(
+def get_merged_system_prompt_for_chat_session(
     user_memories: list[str] | None = None,
     window_out_summary: str | None = None,
 ) -> str:
     """Get system prompt for final response generation.
     当传入 user_memories / window_out_summary 时注入对应片段。
     """
-    base = system_prompt_for_response_generation_template.render()
+    # 统一单会话 Agent 的 system：最终回答优先 + 工具调用准则（balanced）。
+    # 保留原函数签名与 fragment 注入行为，避免影响上层调用点。
+    base = system_prompt_for_chat_session_template.render()
     fragment = user_context_system_fragment_template.render(
         user_memories=user_memories or [],
         window_out_summary=window_out_summary,
@@ -43,24 +44,6 @@ def get_system_prompt_for_response_generation(
         return base
 
     return "\n\n".join([base, fragment.strip()])
-
-
-def get_merged_system_prompt_for_chat_session(
-    user_memories: list[str] | None = None,
-    window_out_summary: str | None = None,
-) -> str:
-    """合并 MCP 工具规则与最终应答风格（单会话 Agent 使用同一条 system）。"""
-    tool_block = get_system_prompt_for_tool_calls().strip()
-    response_block = get_system_prompt_for_response_generation(
-        user_memories=user_memories,
-        window_out_summary=window_out_summary,
-    ).strip()
-    return "\n\n---\n\n".join([tool_block, response_block])
-
-
-def get_system_prompt_for_tool_calls() -> str:
-    """Get system prompt for tool calls"""
-    return system_prompt_for_tool_calls_template.render().strip()
 
 
 def get_system_prompt_for_title() -> str:
@@ -119,20 +102,6 @@ def get_window_out_summary_merge_prompt(
         new_messages_text=new_messages_text,
         max_tokens_hint=max_tokens,
     ).strip()
-
-
-def get_prompt_with_mcp_servers(
-    user_message: str,
-    mcp_auto_mode: bool,
-    server_names: list[str],
-    client_ip: str | None,
-) -> tuple[str, str]:
-    """Get combined system prompt and user message for tool calls with MCP servers"""
-    system_prompt = get_system_prompt_for_tool_calls().strip()
-    user_message_prompt = get_user_message_for_tool_calls(
-        user_message, mcp_auto_mode, server_names, client_ip
-    )
-    return system_prompt, user_message_prompt
 
 
 def get_prompt_for_title(user_message: str) -> tuple[str, str]:

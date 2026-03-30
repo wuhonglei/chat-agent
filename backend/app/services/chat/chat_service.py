@@ -124,8 +124,7 @@ class ChatService:
         self.memory_config = self.chat_context_config.memory_config
         self.memory_service = MemoryService(self.memory_config)
 
-        self.token_calculator = TokenCalculator(
-            settings.response_model.model_name)
+        self.token_calculator = TokenCalculator(settings.response_model.model_name)
 
         # 初始化各个Agent
         self.title_generation_agent = TitleGenerationAgent(
@@ -183,8 +182,7 @@ class ChatService:
                 "Chat message stream completed",
                 total_duration=total_duration,
                 mcp_tool_calls_count=len(
-                    filter_tool_call_messages(
-                        self.chat_session_agent.output_messages)
+                    filter_tool_call_messages(self.chat_session_agent.output_messages)
                 ),
             )
             return
@@ -349,8 +347,7 @@ class ChatService:
                 and ctx
                 and (ctx.summary_before_window or "").strip()
             ):
-                delta_messages = [
-                    m for m in truncated_messages if m.id in delta_ids]
+                delta_messages = [m for m in truncated_messages if m.id in delta_ids]
                 summary_svc = ContextSummaryService()
                 new_summary = await summary_svc.summarize_merge(
                     ctx.summary_before_window or "",
