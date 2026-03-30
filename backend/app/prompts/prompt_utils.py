@@ -15,7 +15,9 @@ from app.prompts.user_prompt import (
     gentle_tips_in_web_search_template,
     mcp_block_template,
     tool_call_sufficient_info_template,
-    user_message_for_title_template,
+    user_message_for_default_template,
+    user_message_for_no_tool_call_template,
+    user_message_for_reach_tool_call_limit_template,
     user_message_for_tool_call_template,
 )
 from app.utils.date import get_current_datetime_str
@@ -78,7 +80,7 @@ def get_user_message_for_tool_calls(
 
 def get_user_message_for_title(user_message: str) -> str:
     """Get user message prompt for title generation"""
-    return user_message_for_title_template.render(user_message=user_message)
+    return user_message_for_default_template.render(user_message=user_message)
 
 
 def get_window_out_summary_prompt(
@@ -135,4 +137,18 @@ def get_user_message_combine_tool_calls(
     return final_response_message_template.render(
         tool_result=mcp_block_template.render(mcp_tool_items=mcp_tool_items),
         user_message=user_message,
+    ).strip()
+
+
+def get_user_message_for_reach_tool_call_limit(user_message: str) -> str:
+    """Get user message for reach tool call limit"""
+    return user_message_for_reach_tool_call_limit_template.render(
+        user_message=user_message
+    ).strip()
+
+
+def get_user_message_for_no_tool_call(user_message: str) -> str:
+    """Get user message for no tool call"""
+    return user_message_for_no_tool_call_template.render(
+        user_message=user_message
     ).strip()

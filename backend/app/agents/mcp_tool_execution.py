@@ -22,7 +22,7 @@ from app.utils.common import normalize_url
 from app.utils.context_compactor import ContextCompactor
 from app.utils.logger import logger
 from app.utils.mcp import count_tool_calls, has_tool_been_called
-from app.utils.message import find_last_user_message
+from app.utils.message import update_last_user_message
 from app.utils.time import get_current_time, get_time_duration
 from app.utils.token import TokenCalculator
 from app.utils.vocab import VocabProcessor
@@ -115,16 +115,11 @@ class MCPToolSession:
             if iteration >= 1:
                 suffix_user_message.append(get_tool_call_sufficient_info_message())
         if suffix_user_message:
-            last_user_message = find_last_user_message(messages)
-            if last_user_message:
-                hints_text = "\n".join(suffix_user_message)
-                last_user_message["content"] = (
-                    f"{tool_call_user_message}\n\n注意:\n{hints_text}"
-                )
-                logger.debug(
-                    "Updated last user message",
-                    last_user_message=last_user_message,
-                )
+            hints_text = "\n".join(suffix_user_message)
+            update_last_user_message(
+                messages,
+                new_content=f"{tool_call_user_message}\n\n注意:\n{hints_text}",
+            )
 
     def _extract_tool_call_arguments(
         self, tool_calls: list[ChatCompletionMessageFunctionToolCall]

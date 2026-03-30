@@ -19,6 +19,8 @@ from app.agents.utils.tool_call_stream import (
 from app.mcp.mcp_client import MCPClientManager
 from app.prompts import (
     get_merged_system_prompt_for_chat_session,
+    get_user_message_for_no_tool_call,
+    get_user_message_for_reach_tool_call_limit,
     get_user_message_for_tool_calls,
 )
 from app.schemas.chat import ChatMessageItem, ChatRequest
@@ -26,7 +28,10 @@ from app.schemas.config import LLMConfig
 from app.schemas.llm import ToolMessage
 from app.schemas.user import MemoryListItem
 from app.utils.logger import logger
-from app.utils.message import format_tool_call_messages_for_llm
+from app.utils.message import (
+    format_tool_call_messages_for_llm,
+    update_last_user_message,
+)
 from app.utils.time import get_current_time, get_time_duration
 
 
@@ -153,12 +158,20 @@ class ChatSessionAgent(BaseAgent):
 
         if self.output_messages:
             # 工具迭代次数达到上限，需要合并工具调用结果并发送给 LLM
+            update_last_user_message(
+                messages,
+                new_content=get_user_message_for_reach_tool_call_limit(user_message),
+            )
             formatted_collected = format_tool_call_messages_for_llm(
                 self.output_messages,
                 clear_reasoning_content=False,
             )
             llm_messages = messages + formatted_collected
         else:
+            update_last_user_message(
+                messages,
+                new_content=get_user_message_for_no_tool_call(user_message),
+            )
             llm_messages = messages
 
         async for chunk in stream_final_response_sse(

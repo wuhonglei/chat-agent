@@ -2,6 +2,14 @@
 
 from jinja2 import Template
 
+user_message_for_default_template: Template = Template(
+    """
+<user_message>
+  <query>{{ user_message|e }}</query>
+</user_message>
+""".strip()
+)
+
 # ============= 工具调用用户消息提示词 =============
 user_message_for_tool_call_template: Template = Template(
     """
@@ -29,19 +37,36 @@ user_message_for_tool_call_template: Template = Template(
 """.strip()
 )
 
-user_message_for_title_template: Template = Template(
+user_message_for_reach_tool_call_limit_template: Template = Template(
     """
 <user_message>
   <query>{{ user_message|e }}</query>
 </user_message>
+
+<tool_call_limit_notice>
+  【系统说明】工具调用已达上限，请仅根据已有对话与工具结果直接作答；信息不足时请说明并给出力所能及的建议，勿再提议调用工具。
+</tool_call_limit_notice>
 """.strip()
 )
+
+user_message_for_no_tool_call_template: Template = Template(
+    """
+<user_message>
+  <query>{{ user_message|e }}</query>
+</user_message>
+
+<no_tool_call_notice>
+  【系统说明】没有可用的工具，请直接给出最终回答。
+</no_tool_call_notice>
+""".strip()
+)
+
 
 # MCP 工具调用结果渲染（供 format_mcp_tool_results_for_user_message 使用）
 # mcp_tool_items: [{"name": str, "args": str, "content": str}, ...]
 mcp_block_template: Template = Template(
     """
-{% if mcp_tool_items %}
+{%- if mcp_tool_items %}
 【以下为 MCP 工具调用返回的结果】
 
 {% for item in mcp_tool_items %}
@@ -56,7 +81,7 @@ mcp_block_template: Template = Template(
 
 {% endif %}
 {% endfor %}
-{% endif %}""".strip()
+{%- endif %}""".strip()
 )
 
 disabled_tools_message_template: Template = Template(

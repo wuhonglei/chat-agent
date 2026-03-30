@@ -151,8 +151,7 @@ def filter_tool_call_messages(
             ]
             if filtered_tool_calls:
                 filtered.append(
-                    message.model_copy(
-                        update={"tool_calls": filtered_tool_calls})
+                    message.model_copy(update={"tool_calls": filtered_tool_calls})
                 )
         elif isinstance(message, ToolResultMessage):
             if not message.is_error and message.tool_call_id in assistant_tool_call_ids:
@@ -195,8 +194,7 @@ def format_chat_message_for_llm(
     role = get("role", message_dict)
     content = get("content", message_dict, "")
     reasoning = get("reasoning", message_dict, None)
-    payload: dict[str, Any] = {"role": role,
-                               "content": content, "reasoning": reasoning}
+    payload: dict[str, Any] = {"role": role, "content": content, "reasoning": reasoning}
     if clear_reasoning_content:
         del payload["reasoning"]
 
@@ -211,3 +209,12 @@ def find_last_user_message(messages: list[dict[str, Any]]) -> dict[str, Any] | N
         if message.get("role") == "user":
             return message
     return None
+
+
+def update_last_user_message(messages: list[dict[str, Any]], new_content: str) -> None:
+    """
+    更新最后一个用户消息
+    """
+    last_user_message = find_last_user_message(messages)
+    if last_user_message:
+        last_user_message["content"] = new_content
