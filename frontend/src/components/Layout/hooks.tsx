@@ -144,7 +144,9 @@ export function useConversationInfiniteScroll(containerRef: RefObject<HTMLDivEle
   const conversations = useAppSelector(state => state.conversation.conversations);
 
   const { loadingMore, noMore, data } = useInfiniteScroll<
-    Omit<ConversationListResponse, "conversations"> & { list: ConversationInfo[] }
+    Omit<ConversationListResponse, "conversations"> & {
+      list: ConversationInfo[];
+    }
   >(
     async (lastData?) => {
       const offset = lastData ? lastData.offset + lastData.limit : 0;
@@ -165,12 +167,15 @@ export function useConversationInfiniteScroll(containerRef: RefObject<HTMLDivEle
       isNoMore: data => {
         return !data || conversations.length >= data.total;
       },
-      threshold: 10,
+      threshold: 0,
       reloadDeps: [],
     }
   );
 
-  return { loadingMore, noMore: !loadingMore && noMore && data && data.total > 0 };
+  return {
+    loadingMore,
+    noMore: !loadingMore && noMore && data && data.total > 0,
+  };
 }
 
 /** 侧边栏内容：对话列表、重命名等状态与操作，供 SidebarContent 内部使用 */
