@@ -45,6 +45,19 @@ def get_system_prompt_for_response_generation(
     return "\n\n".join([base, fragment.strip()])
 
 
+def get_merged_system_prompt_for_chat_session(
+    user_memories: list[str] | None = None,
+    window_out_summary: str | None = None,
+) -> str:
+    """合并 MCP 工具规则与最终应答风格（单会话 Agent 使用同一条 system）。"""
+    tool_block = get_system_prompt_for_tool_calls().strip()
+    response_block = get_system_prompt_for_response_generation(
+        user_memories=user_memories,
+        window_out_summary=window_out_summary,
+    ).strip()
+    return "\n\n---\n\n".join([tool_block, response_block])
+
+
 def get_system_prompt_for_tool_calls() -> str:
     """Get system prompt for tool calls"""
     return system_prompt_for_tool_calls_template.render().strip()

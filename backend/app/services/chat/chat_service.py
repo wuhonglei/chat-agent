@@ -4,11 +4,7 @@ import asyncio
 from collections.abc import AsyncGenerator
 from typing import cast
 
-from app.agents import (
-    MCPToolsAgent,
-    ResponseGenerationAgent,
-    TitleGenerationAgent,
-)
+from app.agents import ChatSessionAgent, TitleGenerationAgent
 from app.core.config import settings
 from app.mcp.mcp_client import MCPClientManager
 from app.prompts import get_user_message_combine_tool_calls
@@ -128,20 +124,17 @@ class ChatService:
         self.memory_config = self.chat_context_config.memory_config
         self.memory_service = MemoryService(self.memory_config)
 
-        self.token_calculator = TokenCalculator(settings.response_model.model_name)
+        self.token_calculator = TokenCalculator(
+            settings.response_model.model_name)
 
         # 初始化各个Agent
         self.title_generation_agent = TitleGenerationAgent(
             think_mode=False, llm_config=settings.tool_call_model
         )
-        self.mcp_tools_agent = MCPToolsAgent(
-            think_mode=think_mode,
-            llm_config=settings.tool_call_model,
-            mcp_manager=mcp_manager,
-        )
-        self.response_generation_agent = ResponseGenerationAgent(
+        self.chat_session_agent = ChatSessionAgent(
             think_mode=think_mode,
             llm_config=settings.response_model,
+            mcp_manager=mcp_manager,
         )
 
     async def stream_message(
@@ -166,49 +159,33 @@ class ChatService:
                 client_ip=client_ip,
             )
 
-            # 阶段1: MCP工具调用
-            logger.debug("Starting MCP tools agent execution")
-            mcp_start_time = get_current_time()
-            async for message in self.mcp_tools_agent.stream_execute(
-                chat_request,
-                history_messages,
-                client_ip,
-            ):
-                yield message
-            mcp_duration = get_time_duration(mcp_start_time)
-            logger.debug(
-                "MCP tools agent execution completed",
-                duration=mcp_duration,
-                tool_calls_count=len(self.mcp_tools_agent.output_messages),
-            )
-            filtered_mcp_tool_call_messages = filter_tool_call_messages(
-                self.mcp_tools_agent.output_messages
-            )
-
-            # 阶段2: 最终响应生成
-            logger.debug("Starting response generation agent execution")
-            response_start_time = get_current_time()
-            async for chunk in self.response_generation_agent.stream_execute(
-                window_out_summary=window_out_summary,
+            logger.debug("Starting chat session agent execution")
+            session_start_time = get_current_time()
+            async for message in self.chat_session_agent.stream_execute(
+                chat_request=chat_request,
                 history_messages=history_messages,
-                user_message=user_message,
-                mcp_tool_call_messages=filtered_mcp_tool_call_messages,
+                client_ip=client_ip,
+                window_out_summary=window_out_summary,
                 user_id=user_id,
                 conversation_id=chat_request.conversation_id,
                 user_memories=user_memories or [],
             ):
-                yield chunk
-            response_duration = get_time_duration(response_start_time)
+                yield message
+            session_duration = get_time_duration(session_start_time)
             logger.debug(
-                "Response generation agent execution completed",
-                duration=response_duration,
+                "Chat session agent execution completed",
+                duration=session_duration,
+                tool_calls_count=len(self.chat_session_agent.output_messages),
             )
 
             total_duration = get_time_duration(start_time)
             logger.info(
                 "Chat message stream completed",
                 total_duration=total_duration,
-                mcp_tool_calls_count=len(filtered_mcp_tool_call_messages),
+                mcp_tool_calls_count=len(
+                    filter_tool_call_messages(
+                        self.chat_session_agent.output_messages)
+                ),
             )
             return
 
@@ -372,7 +349,8 @@ class ChatService:
                 and ctx
                 and (ctx.summary_before_window or "").strip()
             ):
-                delta_messages = [m for m in truncated_messages if m.id in delta_ids]
+                delta_messages = [
+                    m for m in truncated_messages if m.id in delta_ids]
                 summary_svc = ContextSummaryService()
                 new_summary = await summary_svc.summarize_merge(
                     ctx.summary_before_window or "",
@@ -546,7 +524,7 @@ class ChatService:
     def get_collected_response(self) -> CollectedResponse:
         """获取已收集的助手消息内容"""
         return CollectedResponse(
-            content=self.response_generation_agent.content,
-            reasoning=self.response_generation_agent.reasoning,
-            tool_calls=self.mcp_tools_agent.output_messages,
+            content=self.chat_session_agent.content,
+            reasoning=self.chat_session_agent.reasoning,
+            tool_calls=self.chat_session_agent.output_messages,
         )

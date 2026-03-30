@@ -22,11 +22,19 @@ export interface ToolCallProcessMessage {
   content: string;
 }
 
+/** 工具决策轮流式思考片段（后端 mcp_tool_call reasoning_delta） */
+export interface ToolCallReasoningDeltaMessage {
+  role: undefined;
+  status: "reasoning_delta";
+  content: string;
+}
+
 // 工具调用结果消息
 export interface ToolCallStartItemMessage {
   role: "assistant";
   content: string;
-  status: undefined;
+  /** 流式更新时可为 streaming */
+  status: undefined | "streaming";
   reasoningContent: string;
   toolCalls: ToolCall[];
 }
@@ -71,7 +79,11 @@ export interface ToolResultSuccessTimelineMessage {
   status: ToolCallStatus.ToolResultSuccess;
 }
 
-export type ToolCallMessage = ToolCallProcessMessage | ToolCallStartItemMessage | ToolCallEndItemMessage;
+export type ToolCallMessage =
+  | ToolCallProcessMessage
+  | ToolCallReasoningDeltaMessage
+  | ToolCallStartItemMessage
+  | ToolCallEndItemMessage;
 
 export type TimelineMessage =
   | ToolCallingTimelineMessage

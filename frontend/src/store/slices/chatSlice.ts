@@ -1,4 +1,10 @@
-import { ChatConversationState, ChatMessage, MessageStatus, ToolCallMessage } from "@/interfaces";
+import {
+  ChatConversationState,
+  ChatMessage,
+  MessageStatus,
+  ToolCallMessage,
+  ToolCallStartItemMessage,
+} from "@/interfaces";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { isEmpty } from "lodash-es";
 
@@ -150,9 +156,63 @@ const chatSlice = createSlice({
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
       const lastMessage = lastMessageCheck(chatState.messages);
-      if (lastMessage) {
-        lastMessage.toolCalls.push(data);
+      if (!lastMessage) {
+        return;
       }
+      const tc = lastMessage.toolCalls;
+
+      if (data.status === "reasoning_delta") {
+        const delta = data.content;
+        const last = tc[tc.length - 1];
+        if (last && "role" in last && last.role === "assistant") {
+          const a = last as ToolCallStartItemMessage;
+          a.reasoningContent = (a.reasoningContent || "") + delta;
+          return;
+        }
+        tc.push({
+          role: "assistant",
+          content: "",
+          status: undefined,
+          reasoningContent: delta,
+          toolCalls: [],
+        });
+        return;
+      }
+
+      if (data.role === "assistant" && data.status === "streaming" && tc.length > 0) {
+        const last = tc[tc.length - 1];
+        if (
+          last &&
+          "role" in last &&
+          last.role === "assistant" &&
+          (last as ToolCallStartItemMessage).status === "streaming"
+        ) {
+          const a = last as ToolCallStartItemMessage;
+          a.content = data.content ?? "";
+          a.reasoningContent = data.reasoningContent ?? a.reasoningContent;
+          a.toolCalls = data.toolCalls ?? [];
+          return;
+        }
+      }
+
+      if (data.role === "assistant" && data.status !== "streaming" && tc.length > 0) {
+        const last = tc[tc.length - 1];
+        if (
+          last &&
+          "role" in last &&
+          last.role === "assistant" &&
+          (last as ToolCallStartItemMessage).status === "streaming"
+        ) {
+          const a = last as ToolCallStartItemMessage;
+          a.content = data.content ?? "";
+          a.reasoningContent = data.reasoningContent ?? "";
+          a.toolCalls = data.toolCalls ?? [];
+          a.status = undefined;
+          return;
+        }
+      }
+
+      lastMessage.toolCalls.push(data);
     },
     updateMessageStatus: (state, action: PayloadAction<ConversationActionPayload<MessageStatus>>) => {
       const { conversationId, data } = action.payload;

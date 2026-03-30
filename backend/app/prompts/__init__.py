@@ -4,11 +4,13 @@ from app.prompts.prompt_utils import (
     get_default_system_prompt,
     get_disabled_tools_message,
     get_gentle_tips_in_web_search,
+    get_merged_system_prompt_for_chat_session,
     get_prompt_for_title,
     get_prompt_with_mcp_servers,
     get_system_prompt_for_response_generation,
     get_tool_call_sufficient_info_message,
     get_user_message_combine_tool_calls,
+    get_user_message_for_tool_calls,
 )
 
 __all__ = [
@@ -16,8 +18,10 @@ __all__ = [
     "get_prompt_for_title",
     "get_prompt_with_mcp_servers",
     "get_system_prompt_for_response_generation",
+    "get_merged_system_prompt_for_chat_session",
     "get_disabled_tools_message",
     "get_gentle_tips_in_web_search",
     "get_tool_call_sufficient_info_message",
     "get_user_message_combine_tool_calls",
+    "get_user_message_for_tool_calls",
 ]

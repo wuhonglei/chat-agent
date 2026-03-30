@@ -79,7 +79,8 @@ class ConfluenceMCPConfig(BaseModel):
     """Confluence MCP 配置"""
 
     confluence_url: str = Field(description="Confluence URL")
-    confluence_personal_token: str = Field(description="Confluence Personal Token")
+    confluence_personal_token: str = Field(
+        description="Confluence Personal Token")
     confluence_auth_type: str = Field(
         description="Confluence 认证类型：pat, basic, oauth"
     )
@@ -176,8 +177,10 @@ class TencentCOSConfig(BaseModel):
 
     secret_id: str = Field(..., description="The secret ID of the storage")
     secret_key: str = Field(..., description="The secret key of the storage")
-    region: str = Field("ap-guangzhou", description="The region of the storage")
-    bucket: str = Field("ai-chat-1258352625", description="The bucket of the storage")
+    region: str = Field(
+        "ap-guangzhou", description="The region of the storage")
+    bucket: str = Field("ai-chat-1258352625",
+                        description="The bucket of the storage")
 
 
 class StorageConfig(BaseModel):

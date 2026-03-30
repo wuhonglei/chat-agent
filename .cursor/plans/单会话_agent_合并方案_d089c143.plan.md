@@ -4,22 +4,22 @@ overview: 新建 ChatSessionAgent（chat_session_agent.py）合并原 MCPToolsAg
 todos:
   - id: config-model
     content: 单会话统一使用 settings.response_model；验证该模型在供应商侧支持 tools + 流式 + reasoning_content，并移除对 tool_call_model 的会话内依赖
-    status: pending
+    status: completed
   - id: prompt-merge
     content: 合并 MCP 与应答 system 提示，并保留迭代提示/hints 的等价注入方式
-    status: pending
+    status: completed
   - id: stream-tool-round
     content: 在 ChatSessionAgent（chat_session_agent.py）中实现 stream=True 的 tool 轮与最终轮；共享流式逻辑可放 streaming_llm 等模块
-    status: pending
+    status: completed
   - id: sse-reasoning-tool
     content: 工具轮 reasoning 通过 mcp_tool_call 增量或约定事件下发；扩展 chatSlice 合并逻辑
-    status: pending
+    status: completed
   - id: wire-chat-service
     content: ChatService 仅使用 ChatSessionAgent；get_collected_response 改读该实例；删除或清空 mcp_tools_agent/response_generation_agent 并修正 __init__ 导出
-    status: pending
+    status: completed
   - id: tests
     content: 补充流式 tool 聚合单测与 think_mode 集成冒烟路径
-    status: pending
+    status: completed
 isProject: false
 ---
 
