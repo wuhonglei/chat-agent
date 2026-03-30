@@ -61,7 +61,7 @@ mcp_block_template: Template = Template(
 
 disabled_tools_message_template: Template = Template(
     """
-以下工具已达到5次调用上限，当前不可再调用: {{ ', '.join(disabled_tools) }}.
+以下工具已达到最大调用次数上限，当前不可再调用: {{ ', '.join(disabled_tools) }}.
 """.strip()
 )
 
@@ -89,10 +89,12 @@ tool_call_sufficient_info_template: Template = Template(
 
 final_response_message_template: Template = Template(
     """
-{% if tool_result %}{{ tool_result }}{% endif %}
-{% if tool_result %}请基于以上信息回答以下用户问题：
-
-{% endif %}用户问题：{{ user_message }}
+{%- if tool_result %}
+{{ tool_result }}
+{%- endif %}
+{%- if tool_result %}
+请基于以上信息回答以下用户问题：
+{%- endif %}用户问题：{{ user_message }}
 """.strip()
 )
 

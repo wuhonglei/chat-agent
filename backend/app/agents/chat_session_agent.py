@@ -108,57 +108,68 @@ class ChatSessionAgent(BaseAgent):
         )
         tool_ctx.reset_for_request(user_message)
 
-        if not tools:
-            async for chunk in stream_final_response_sse(
-                call_llm_api=self.call_llm_api,
-                model=self.model_name,
-                messages=messages,
-                extra_body=self.extra_body,
-                format_sse_message=self.format_sse_message,
-            ):
-                yield chunk
-            return
+        if tools:
+            tools_list = list(tools)
+            iterations_by_tool: dict[str, int] = {
+                t["function"]["name"]: tool_ctx.MAX_ITERATIONS_BY_TOOL
+                for t in tools_list
+            }
 
-        tools_list = list(tools)
-        iterations_by_tool: dict[str, int] = {
-            t["function"]["name"]: tool_ctx.MAX_ITERATIONS_BY_TOOL for t in tools_list
-        }
+            for iteration in range(tool_ctx.MAX_TOTAL_ITERATIONS):
+                tool_ctx._update_user_message_with_tool_hints(
+                    messages=messages,
+                    tools=tools_list,
+                    iterations_by_tool=iterations_by_tool,
+                    tool_call_user_message=tool_call_user_message,
+                    iteration=iteration,
+                )
+                available_tools, _ = tool_ctx._get_tools_state(
+                    tools_list, iterations_by_tool
+                )
+                formatted_collected = format_tool_call_messages_for_llm(
+                    self.output_messages,
+                    clear_reasoning_content=False,
+                )
+                llm_messages = messages + formatted_collected
+                state = _RoundState()
 
-        for iteration in range(tool_ctx.MAX_TOTAL_ITERATIONS):
-            tool_ctx._update_user_message_with_tool_hints(
-                messages=messages,
-                tools=tools_list,
-                iterations_by_tool=iterations_by_tool,
-                tool_call_user_message=tool_call_user_message,
-                iteration=iteration,
+                async for sse in self._stream_one_round_with_tools(
+                    llm_messages,
+                    available_tools,
+                    tool_ctx,
+                    iteration,
+                    iterations_by_tool,
+                    state,
+                ):
+                    yield sse
+
+                if state.final_answer_done:
+                    return
+
+            logger.info(
+                "Chat session max tool iterations reached",
+                max_iterations=tool_ctx.MAX_TOTAL_ITERATIONS,
             )
-            available_tools, _ = tool_ctx._get_tools_state(
-                tools_list, iterations_by_tool
-            )
+
+        if self.output_messages:
+            # 工具迭代次数达到上限，需要合并工具调用结果并发送给 LLM
             formatted_collected = format_tool_call_messages_for_llm(
                 self.output_messages,
                 clear_reasoning_content=False,
             )
             llm_messages = messages + formatted_collected
-            state = _RoundState()
+        else:
+            llm_messages = messages
 
-            async for sse in self._stream_one_round_with_tools(
-                llm_messages,
-                available_tools,
-                tool_ctx,
-                iteration,
-                iterations_by_tool,
-                state,
-            ):
-                yield sse
-
-            if state.final_answer_done:
-                return
-
-        logger.info(
-            "Chat session max tool iterations reached",
-            max_iterations=tool_ctx.MAX_TOTAL_ITERATIONS,
-        )
+        async for chunk in stream_final_response_sse(
+            call_llm_api=self.call_llm_api,
+            model=self.model_name,
+            messages=llm_messages,
+            extra_body=self.extra_body,
+            format_sse_message=self.format_sse_message,
+        ):
+            yield chunk
+        return
 
     async def _flush_pre_tool_reasoning_to_mcp(
         self, text: str
