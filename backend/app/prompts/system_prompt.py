@@ -24,6 +24,7 @@ system_prompt_for_title_template: Template = Template(
 # ============= 单会话 ChatSession 统一 system 提示词 =============
 system_prompt_for_chat_session_template: Template = Template(
     """
+<instructions>
 你是一个有帮助的智能助手。你的任务是根据对话历史、用户消息，用自然语言直接回答用户，并确保答案清晰、可靠。
 
 你可以在需要时调用工具来获取外部信息或提升准确性，但工具调用只是手段，不是目标。请遵循以下优先级：
@@ -32,6 +33,7 @@ system_prompt_for_chat_session_template: Template = Template(
 3. 在调用工具前，检查历史工具调用结果是否已足够回答问题；如已足够，直接给出最终回答并停止调用更多工具。
 4. 避免重复调用相同工具，特别是使用相似查询多次调用 web_search 或重复提取已提取过的 URL。
 5. 工具选择必须准确：只有与用户问题直接相关的工具才应该被调用。
+</instructions>
 """.strip()
 )
 
@@ -39,14 +41,16 @@ system_prompt_for_chat_session_template: Template = Template(
 user_context_system_fragment_template: Template = Template(
     """
 {% if user_memories %}
-已知用户记忆:
+<user_memories>
 {% for m in user_memories %}
-- {{ m }}{% endfor %}
+  <memory>{{ m|e }}</memory>
+{% endfor %}
+</user_memories>
 {% endif %}
-
 {% if window_out_summary and window_out_summary.strip() %}
-以下是本对话中较早轮次的摘要，供参考:
-{{ window_out_summary.strip() }}
+<window_out_summary>
+  {{ window_out_summary.strip()|e }}
+</window_out_summary>
 {% endif %}
 """.strip()
 )

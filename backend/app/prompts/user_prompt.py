@@ -5,23 +5,32 @@ from jinja2 import Template
 # ============= 工具调用用户消息提示词 =============
 user_message_for_tool_call_template: Template = Template(
     """
-{{ user_message }}
-
-{% if not mcp_auto_mode %}用户为此请求手动选择了以下工具：
-    {% for server in mcp_configs %}
-    - {{ server.id }}: {{ server.description }}{% endfor %}
+<tool_call_user_message>
+  <user_query>{{ user_message|e }}</user_query>
+{% if not mcp_auto_mode %}
+  <selected_mcp_servers>
+{% for server in mcp_configs %}
+    <server id="{{ server.id|e }}">{{ server.description|e }}</server>
+{% endfor %}
+  </selected_mcp_servers>
 {% endif %}
-重要规则:
-- 避免重复调用: 不要使用相似查询多次调用 web_search，不要重复提取已提取过的 URL
-- 检查历史工具调用结果: 在调用工具前，仔细检查历史工具调用结果是否已足够回答问题。如果已获得足够信息，请直接给出最终回答并停止调用更多工具。
-- 当前时间: {{ current_datetime }}
-{% if client_ip %}客户端IP: {{ client_ip }}{% endif %}
+  <rules>
+    <rule>避免重复调用: 不要使用相似查询多次调用 web_search，不要重复提取已提取过的 URL</rule>
+    <rule>检查历史工具调用结果: 在调用工具前，仔细检查历史工具调用结果是否已足够回答问题。如果已获得足够信息，请直接给出最终回答并停止调用更多工具。</rule>
+  </rules>
+  <context>
+    <current_datetime>{{ current_datetime|e }}</current_datetime>{% if client_ip %}
+    <client_ip>{{ client_ip|e }}</client_ip>{% endif %}
+  </context>
+</tool_call_user_message>
 """.strip()
 )
 
 user_message_for_title_template: Template = Template(
     """
-用户消息：{{ user_message }}
+<user_message>
+  <query>{{ user_message|e }}</query>
+</user_message>
 """.strip()
 )
 
@@ -116,31 +125,6 @@ WINDOW_OUT_SUMMARY_MERGE_PROMPT: Template = Template(
 新增对话内容：
 ---
 {{ new_messages_text }}
----
-""".strip()
-)
-
-USER_FACTS_PREFERENCES_PROMPT: Template = Template(
-    """根据以下对话内容，提炼用户的**可验证事实**与**明确偏好**。
-
-要求：
-1. 仅输出可验证事实与明确偏好，不要编造。
-2. 事实示例：在北京工作、用 Python 3.10、项目名为 XX。
-3. 偏好示例：偏好简短回答、不要用代码块、希望用中文。
-4. 已有记录（可在此基础上合并或去重）：
-   - 已有事实: {{ existing_facts }}
-   - 已有偏好: {{ existing_preferences }}
-5. 输出格式（JSON，不要其他说明）：
-{"facts": ["事实1", "事实2"], "preferences": ["偏好1", "偏好2"]}
-
-对话内容：
----
-[用户]: {{ user_message_content }}
-
-[助手]: {{ assistant_content }}
-{% if summary %}
-
-[较早轮次摘要]: {{ summary }}{% endif %}
 ---
 """.strip()
 )

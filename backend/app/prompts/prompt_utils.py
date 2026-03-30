@@ -35,15 +35,16 @@ def get_merged_system_prompt_for_chat_session(
     """
     # 统一单会话 Agent 的 system：最终回答优先 + 工具调用准则（balanced）。
     # 保留原函数签名与 fragment 注入行为，避免影响上层调用点。
-    base = system_prompt_for_chat_session_template.render()
+    parts: list[str] = [system_prompt_for_chat_session_template.render()]
+
     fragment = user_context_system_fragment_template.render(
         user_memories=user_memories or [],
         window_out_summary=window_out_summary,
-    )
-    if not fragment.strip():
-        return base
+    ).strip()
+    if fragment:
+        parts.append(fragment)
 
-    return "\n\n".join([base, fragment.strip()])
+    return "\n\n".join(parts)
 
 
 def get_system_prompt_for_title() -> str:
