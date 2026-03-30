@@ -5,13 +5,16 @@ from jinja2 import Template
 # ============= 工具调用用户消息提示词 =============
 user_message_for_tool_call_template: Template = Template(
     """
-<tool_call_user_message>
-  <user_query>{{ user_message|e }}</user_query>
+<user_message>
+  <query>{{ user_message|e }}</query>
+</user_message>
+
+<tool_call_context>
 {% if not mcp_auto_mode %}
   <selected_mcp_servers>
-{% for server in mcp_configs %}
+{%- for server in mcp_configs %}
     <server id="{{ server.id|e }}">{{ server.description|e }}</server>
-{% endfor %}
+{%- endfor %}
   </selected_mcp_servers>
 {% endif %}
   <rules>
@@ -22,7 +25,7 @@ user_message_for_tool_call_template: Template = Template(
     <current_datetime>{{ current_datetime|e }}</current_datetime>{% if client_ip %}
     <client_ip>{{ client_ip|e }}</client_ip>{% endif %}
   </context>
-</tool_call_user_message>
+</tool_call_context>
 """.strip()
 )
 

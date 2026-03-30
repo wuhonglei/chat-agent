@@ -42,9 +42,9 @@ user_context_system_fragment_template: Template = Template(
     """
 {% if user_memories %}
 <user_memories>
-{% for m in user_memories %}
+{%- for m in user_memories %}
   <memory>{{ m|e }}</memory>
-{% endfor %}
+{%- endfor %}
 </user_memories>
 {% endif %}
 {% if window_out_summary and window_out_summary.strip() %}
