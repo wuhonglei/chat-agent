@@ -41,8 +41,7 @@ user_context_system_fragment_template: Template = Template(
 {% if user_memories %}
 已知用户记忆:
 {% for m in user_memories %}
-- {{ m }}
-{% endfor %}
+- {{ m }}{% endfor %}
 {% endif %}
 
 {% if window_out_summary and window_out_summary.strip() %}

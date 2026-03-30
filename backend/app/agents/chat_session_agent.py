@@ -8,8 +8,11 @@ from openai.types.chat import ChatCompletionMessageFunctionToolCall
 
 from app.agents.base import BaseAgent
 from app.agents.mcp_tool_execution import MCPToolSession, get_mcp_server_names
-from app.agents.streaming_llm import finish_streaming_type, stream_final_response_sse
-from app.agents.tool_call_stream import (
+from app.agents.utils.streaming_llm import (
+    finish_streaming_type,
+    stream_final_response_sse,
+)
+from app.agents.utils.tool_call_stream import (
     merge_tool_call_deltas,
     tool_call_acc_to_openai_list,
 )

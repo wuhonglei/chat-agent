@@ -7,20 +7,15 @@ user_message_for_tool_call_template: Template = Template(
     """
 {{ user_message }}
 
-{% if not mcp_auto_mode %}
-用户为此请求手动选择了以下工具：
+{% if not mcp_auto_mode %}用户为此请求手动选择了以下工具：
     {% for server in mcp_configs %}
-    - {{ server.id }}: {{ server.description }}
-    {% endfor %}
+    - {{ server.id }}: {{ server.description }}{% endfor %}
 {% endif %}
-重要规则：
-- 如果没有合适的工具，请直接给出最终回答（可简要说明当前可用工具不足以完成请求，并给出建议）。
-- 在需要信息时调用工具；当你已获得足够信息时，请直接给出最终回答并停止调用更多工具。
-- 工具选择必须与用户问题高度相关。如果用户问题与可用工具不相关，请直接给出最终回答并简要说明原因。
-- 避免重复调用：不要使用相似查询多次调用 web_search，不要重复提取已提取过的 URL
-- 在调用工具前，仔细检查历史工具调用结果是否已足够回答问题。如果已获得足够信息，请直接给出最终回答并停止调用更多工具。
-- 当前时间：{{ current_datetime }}.
-{% if client_ip %}- 客户端IP：{{ client_ip }}.{% endif %}
+重要规则:
+- 避免重复调用: 不要使用相似查询多次调用 web_search，不要重复提取已提取过的 URL
+- 检查历史工具调用结果: 在调用工具前，仔细检查历史工具调用结果是否已足够回答问题。如果已获得足够信息，请直接给出最终回答并停止调用更多工具。
+- 当前时间: {{ current_datetime }}
+{% if client_ip %}客户端IP: {{ client_ip }}{% endif %}
 """.strip()
 )
 

@@ -231,16 +231,14 @@ class MCPClientManager:
                 tools = await client.list_tools()
             return tools
 
-        tasks = [list_tools_for_server(server_name)
-                 for server_name in server_names]
+        tasks = [list_tools_for_server(server_name) for server_name in server_names]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         for server_name, tools in zip(server_names, results):
             if isinstance(tools, BaseException):
                 logger.error(
                     "Failed to get tools list",
                     error=(
-                        tools if isinstance(
-                            tools, Exception) else Exception(str(tools))
+                        tools if isinstance(tools, Exception) else Exception(str(tools))
                     ),
                     server_name=server_name,
                 )

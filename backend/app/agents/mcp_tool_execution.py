@@ -55,17 +55,14 @@ class MCPToolSession:
         self.mcp_manager = mcp_manager
         self.current_user_message = user_message
         self.output_messages = output_messages
-        self.tool_call_args_by_name: dict[str,
-                                          list[dict[str, Any]]] = defaultdict(list)
+        self.tool_call_args_by_name: dict[str, list[dict[str, Any]]] = defaultdict(list)
         self.tool_result_compression = settings.chat_context.tool_result_compression
         self.compactor = ContextCompactor(
             embedding_model=settings.embedding_model,
             tool_result_compression_config=self.tool_result_compression,
         )
-        self.token_calculator = TokenCalculator(
-            settings.response_model.model_name)
-        self.token_threshold: int = self.token_calculator.get_compression_threshold(
-            0.5)
+        self.token_calculator = TokenCalculator(settings.response_model.model_name)
+        self.token_threshold: int = self.token_calculator.get_compression_threshold(0.5)
         self.extracted_urls: set[str] = set()
         self.vocab_processor = VocabProcessor()
 
@@ -95,9 +92,7 @@ class MCPToolSession:
         tool_call_user_message: str,
         iteration: int,
     ) -> None:
-        _, disabled_tools = self._get_tools_state(
-            tools, iterations_by_tool
-        )
+        _, disabled_tools = self._get_tools_state(tools, iterations_by_tool)
         suffix_user_message: list[str] = []
         if disabled_tools:
             logger.info(
@@ -105,8 +100,7 @@ class MCPToolSession:
                 disabled_tools=disabled_tools,
                 iteration=iteration + 1,
             )
-            suffix_user_message.append(
-                get_disabled_tools_message(disabled_tools))
+            suffix_user_message.append(get_disabled_tools_message(disabled_tools))
         if has_tool_been_called([self.WEB_SEARCH], self.output_messages):
             suffix_user_message.append(get_gentle_tips_in_web_search())
         if has_tool_been_called([self.WEB_PAGES_EXTRACT], self.output_messages):
@@ -114,14 +108,12 @@ class MCPToolSession:
                 suffix_user_message.append(
                     f"⚠️ 已提取了 {len(self.extracted_urls)} 个 URL 的内容。如果这些内容已足够回答问题，请停止继续调用工具，并直接给出最终回答。"
                 )
-        should_continue, continue_message = self._should_continue_tool_calls(
-            None)
+        should_continue, continue_message = self._should_continue_tool_calls(None)
         if not should_continue:
             if continue_message:
                 suffix_user_message.append(continue_message)
             if iteration >= 1:
-                suffix_user_message.append(
-                    get_tool_call_sufficient_info_message())
+                suffix_user_message.append(get_tool_call_sufficient_info_message())
         if suffix_user_message:
             last_user_message = find_last_user_message(messages)
             if last_user_message:
@@ -197,8 +189,7 @@ class MCPToolSession:
             for call_info in get_in([self.WEB_SEARCH], tool_arguments, []):
                 query = get_in(["arguments", "query"], call_info)
                 if query:
-                    is_similar, similarity = self._check_query_similarity(
-                        query)
+                    is_similar, similarity = self._check_query_similarity(query)
                     if is_similar and web_search_count >= 1:
                         return (
                             False,
@@ -207,8 +198,7 @@ class MCPToolSession:
             for call_info in get_in([self.WEB_PAGES_EXTRACT], tool_arguments, []):
                 urls = get_in(["arguments", "urls"], call_info)
                 if urls:
-                    overlap_ratio, extracted_count = self._check_url_overlap(
-                        urls)
+                    overlap_ratio, extracted_count = self._check_url_overlap(urls)
                     if overlap_ratio > 0.7 and web_pages_extract_count >= 1:
                         return (
                             False,
@@ -407,8 +397,7 @@ class MCPToolSession:
         iterations_by_tool: dict[str, int],
     ) -> list[ToolResultMessage]:
         tasks = [
-            self._execute_single_tool(
-                tool_call, current_iteration, iterations_by_tool)
+            self._execute_single_tool(tool_call, current_iteration, iterations_by_tool)
             for tool_call in tool_calls
             if tool_call is not None
         ]
