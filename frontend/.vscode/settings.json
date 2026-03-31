@@ -2,4 +2,5 @@
   "editor.codeActionsOnSave": {
     "source.organizeImports": "explicit"
   },
+  "editor.defaultFormatter": "oxc.oxc-vscode"
 }
