@@ -138,10 +138,11 @@ class ConversationDbService(DbService):
             .where(MessageDb.conversation_id == conversation_id)
             .order_by(MessageDb.created_at.asc())  # type: ignore[attr-defined]
         ).all()
-        chat_messages = [
-            ChatMessageItem.model_validate(message.model_dump(mode="json"))
-            for message in messages
-        ]
+        chat_messages: list[ChatMessageItem] = []
+        for message in messages:
+            payload = message.model_dump(mode="json")
+            payload["content_blocks"] = payload.get("content_blocks") or []
+            chat_messages.append(ChatMessageItem.model_validate(payload))
         return chat_messages
 
     def update_conversation(

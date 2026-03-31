@@ -13,6 +13,8 @@ from app.schemas.chat import (
     ChatRequest,
     CollectedResponse,
     MessageStatus,
+    extract_user_text,
+    tool_messages_from_content_blocks,
 )
 from app.schemas.config import ChatContextConfig
 from app.schemas.llm import (
@@ -150,7 +152,7 @@ class ChatService:
 
         start_time = get_current_time()
         try:
-            user_message = chat_request.content
+            user_message = extract_user_text(chat_request.content_blocks)
             logger.info(
                 "Starting chat message stream",
                 user_message_length=len(user_message),
@@ -250,13 +252,16 @@ class ChatService:
             if msg.role != "assistant":
                 flat.append(msg)
                 continue
-            if not msg.tool_calls:
+            tool_messages = msg.tool_calls or tool_messages_from_content_blocks(
+                msg.content_blocks
+            )
+            if not tool_messages:
                 flat.append(msg)
                 continue
 
             # 按 DB 顺序 [assistant1, tool1, assistant2, tool2, ...] 逐条处理，assistant 为多条
             tool_calls_list: list[ToolMessage] = filter_tool_call_messages(
-                msg.tool_calls
+                tool_messages
             )
             if not tool_calls_list:
                 flat.append(msg)
@@ -402,7 +407,7 @@ class ChatService:
                 if chat_request.regenerate_title:
                     title_task = asyncio.create_task(
                         self.generate_title(
-                            chat_request.content,
+                            extract_user_text(chat_request.content_blocks),
                             conversation_id=conversation_id,
                         )
                     )
@@ -422,7 +427,7 @@ class ChatService:
                 )
 
                 user_memory_texts = await self.memory_service.search(
-                    query=chat_request.content,
+                    query=extract_user_text(chat_request.content_blocks),
                     user_id=user_id,
                     threshold=self.memory_config.search_threshold,
                 )
@@ -495,7 +500,12 @@ class ChatService:
                 asyncio.create_task(
                     self.memory_service.add_memories(
                         messages=[
-                            {"role": "user", "content": chat_request.content},
+                            {
+                                "role": "user",
+                                "content": extract_user_text(
+                                    chat_request.content_blocks
+                                ),
+                            },
                             {
                                 "role": "assistant",
                                 "content": assistant_payload.content or "",
@@ -523,5 +533,6 @@ class ChatService:
         return CollectedResponse(
             content=self.chat_session_agent.content,
             reasoning=self.chat_session_agent.reasoning,
+            content_blocks=self.chat_session_agent.content_blocks,
             tool_calls=self.chat_session_agent.output_messages,
         )

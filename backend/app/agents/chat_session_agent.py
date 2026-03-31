@@ -1,4 +1,4 @@
-"""单会话 Agent：同一 messages 线程上 MCP 工具多轮 + 最终流式应答（统一 response_model）。"""
+"""单会话 Agent：同一 messages 线程上 MCP 工具多轮 + content_blocks 流式应答。"""
 
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
@@ -8,10 +8,7 @@ from openai.types.chat import ChatCompletionMessageFunctionToolCall
 
 from app.agents.base import BaseAgent
 from app.agents.mcp_tool_execution import MCPToolSession, get_mcp_server_names
-from app.agents.utils.streaming_llm import (
-    finish_streaming_type,
-    stream_final_response_sse,
-)
+from app.agents.utils.content_blocks import ContentBlocksAggregator
 from app.agents.utils.tool_call_stream import (
     merge_tool_call_deltas,
     tool_call_acc_to_openai_list,
@@ -22,7 +19,12 @@ from app.prompts import (
     get_user_message_for_no_tool_call,
     get_user_message_for_tool_calls,
 )
-from app.schemas.chat import ChatMessageItem, ChatRequest
+from app.schemas.chat import (
+    ChatMessageItem,
+    ChatRequest,
+    ContentBlock,
+    extract_user_text,
+)
 from app.schemas.config import LLMConfig
 from app.schemas.llm import ToolMessage
 from app.schemas.user import MemoryListItem
@@ -51,17 +53,14 @@ class ChatSessionAgent(BaseAgent):
         super().__init__(think_mode, llm_config)
         self.mcp_manager = mcp_manager
         self.output_messages: list[ToolMessage] = []
+        self.content_blocks: list[ContentBlock] = []
         self.content = ""
         self.reasoning = ""
+        self.blocks_aggregator = ContentBlocksAggregator()
 
     def format_sse_message(  # type: ignore[override]
         self, msg_type: str, data: dict[str, Any] | None = None
     ) -> str:
-        if data:
-            if msg_type == "content":
-                self.content += data.get("content") or ""
-            elif msg_type == "reasoning":
-                self.reasoning += data.get("content") or ""
         return super().format_sse_message(msg_type, data)
 
     async def stream_execute(  # type: ignore[override]
@@ -79,10 +78,12 @@ class ChatSessionAgent(BaseAgent):
         _ = conversation_id
         self.think_mode = chat_request.think_mode
         self.output_messages = []
+        self.content_blocks = []
         self.content = ""
         self.reasoning = ""
+        self.blocks_aggregator = ContentBlocksAggregator()
 
-        user_message = chat_request.content
+        user_message = extract_user_text(chat_request.content_blocks)
         memories = [m.memory for m in user_memories]
         logger.info("User memories", count=len(memories), memories=memories)
 
@@ -120,14 +121,19 @@ class ChatSessionAgent(BaseAgent):
                 messages,
                 new_content=get_user_message_for_no_tool_call(user_message),
             )
-            async for chunk in stream_final_response_sse(
-                call_llm_api=self.call_llm_api,
-                model=self.model_name,
-                messages=messages,
-                extra_body=self.extra_body,
-                format_sse_message=self.format_sse_message,
+            state = _RoundState()
+            async for sse in self._stream_one_round_with_tools(
+                messages,
+                [],
+                tool_ctx,
+                iteration=0,
+                iterations_by_tool={},
+                state=state,
             ):
-                yield chunk
+                yield sse
+            self._sync_collected_content()
+            yield self.format_sse_message("content_block", {"op": "done"})
+            return
 
         tools_list = list(tools)
         iterations_by_tool: dict[str, int] = {
@@ -164,6 +170,8 @@ class ChatSessionAgent(BaseAgent):
                 yield sse
 
             if state.final_answer_done:
+                self._sync_collected_content()
+                yield self.format_sse_message("content_block", {"op": "done"})
                 return
 
         logger.info(
@@ -173,15 +181,10 @@ class ChatSessionAgent(BaseAgent):
 
         return
 
-    async def _flush_pre_tool_reasoning_to_mcp(
-        self, text: str
-    ) -> AsyncGenerator[str, None]:
-        if not text:
-            return
-        yield self.format_sse_message(
-            "mcp_tool_call",
-            {"status": "reasoning_delta", "content": text},
-        )
+    def _sync_collected_content(self) -> None:
+        self.content_blocks = list(self.blocks_aggregator.blocks)
+        self.content = self.blocks_aggregator.get_content()
+        self.reasoning = self.blocks_aggregator.get_reasoning()
 
     async def _stream_one_round_with_tools(
         self,
@@ -205,8 +208,6 @@ class ChatSessionAgent(BaseAgent):
         tool_acc: dict[int, dict[str, Any]] = {}
         full_reasoning = ""
         full_content = ""
-        acc_tool_stream_content = ""
-        seen_tool_delta = False
         finish_reason: str | None = None
 
         async for chunk in response:
@@ -221,42 +222,26 @@ class ChatSessionAgent(BaseAgent):
 
             d_tool_calls = getattr(delta, "tool_calls", None)
             if d_tool_calls:
-                if full_reasoning and not seen_tool_delta:
-                    async for s in self._flush_pre_tool_reasoning_to_mcp(
-                        full_reasoning
-                    ):
-                        yield s
-                seen_tool_delta = True
                 merge_tool_call_deltas(tool_acc, d_tool_calls)
+                for event in self.blocks_aggregator.process_tool_call_deltas(
+                    d_tool_calls
+                ):
+                    yield self.format_sse_message("content_block", event)
 
             rc = getattr(delta, "reasoning_content", None)
             if rc:
                 full_reasoning += rc
-                if seen_tool_delta:
-                    yield self.format_sse_message(
-                        "mcp_tool_call",
-                        {"status": "reasoning_delta", "content": rc},
-                    )
+                for event in self.blocks_aggregator.append_thinking_delta(rc):
+                    yield self.format_sse_message("content_block", event)
 
             ct = getattr(delta, "content", None)
             if ct:
                 full_content += ct
-                if seen_tool_delta:
-                    acc_tool_stream_content += ct
-                    yield self.format_sse_message(
-                        "mcp_tool_call",
-                        {
-                            "role": "assistant",
-                            "status": "streaming",
-                            "content": acc_tool_stream_content,
-                            "reasoningContent": "",
-                            "toolCalls": [],
-                        },
-                    )
+                for event in self.blocks_aggregator.append_text_delta(ct):
+                    yield self.format_sse_message("content_block", event)
 
         merged_tool_calls = tool_call_acc_to_openai_list(tool_acc)
-        has_tool_calls = bool(
-            merged_tool_calls) or finish_reason == "tool_calls"
+        has_tool_calls = bool(merged_tool_calls) or finish_reason == "tool_calls"
 
         if finish_reason == "tool_calls" and not merged_tool_calls:
             logger.warning(
@@ -267,19 +252,7 @@ class ChatSessionAgent(BaseAgent):
             has_tool_calls = False
 
         if not has_tool_calls:
-            async for s in self._flush_pre_tool_reasoning_to_mcp(
-                full_reasoning
-            ):
-                yield s
-            if self.output_messages:
-                yield self.format_sse_message(
-                    "mcp_tool_call",
-                    {"status": "done"},
-                )
-            async for s in self._flush_buffered_as_final_sse(
-                full_reasoning, full_content
-            ):
-                yield s
+            self._sync_collected_content()
             state.final_answer_done = True
             logger.info(
                 "Stream tool round: final answer (no tool_calls)",
@@ -287,14 +260,11 @@ class ChatSessionAgent(BaseAgent):
             )
             return
 
-        if full_reasoning and not seen_tool_delta:
-            async for s in self._flush_pre_tool_reasoning_to_mcp(
-                full_reasoning
-            ):
-                yield s
-
         tool_calls_fc: list[ChatCompletionMessageFunctionToolCall] = (
             merged_tool_calls
+        )
+        yield self.format_sse_message(
+            "content_block", self.blocks_aggregator.finalize_round()
         )
         tool_ctx._should_continue_tool_calls(tool_calls_fc)
 
@@ -304,10 +274,6 @@ class ChatSessionAgent(BaseAgent):
             full_reasoning or None,
         )
         self.output_messages.append(assistant_message)
-        yield self.format_sse_message(
-            "mcp_tool_call",
-            assistant_message.model_dump(),
-        )
 
         tool_results = await tool_ctx._execute_tool_calls_parallel(
             tool_calls_fc,
@@ -317,29 +283,7 @@ class ChatSessionAgent(BaseAgent):
         for tool_result_message in tool_results:
             self.output_messages.append(tool_result_message)
             yield self.format_sse_message(
-                "mcp_tool_call", tool_result_message.model_dump()
+                "content_block",
+                self.blocks_aggregator.append_tool_result(tool_result_message),
             )
-
-    async def _flush_buffered_as_final_sse(
-        self,
-        buffer_reasoning: str,
-        buffer_content: str,
-    ) -> AsyncGenerator[str, None]:
-        if buffer_reasoning:
-            yield self.format_sse_message(
-                "reasoning",
-                {"status": "start", "content": buffer_reasoning},
-            )
-            yield finish_streaming_type(self.format_sse_message, "reasoning")
-        if buffer_content:
-            yield self.format_sse_message(
-                "content",
-                {"status": "start", "content": buffer_content},
-            )
-            yield finish_streaming_type(self.format_sse_message, "content")
-        elif not buffer_reasoning:
-            yield self.format_sse_message(
-                "content",
-                {"status": "start", "content": ""},
-            )
-            yield finish_streaming_type(self.format_sse_message, "content")
+        self._sync_collected_content()

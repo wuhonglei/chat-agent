@@ -1,6 +1,6 @@
 import { ChatMessage } from "./chat";
+import { ContentBlockEvent } from "./contentBlock";
 import { ConversationInfo } from "./conversation";
-import { ToolCallMessage } from "./tooCall";
 
 // Stream types
 export type StreamMessage =
@@ -13,28 +13,15 @@ export type StreamMessage =
       data: ConversationInfo;
     }
   | {
-      type: "reasoning";
-      data: {
-        status?: "start" | "done";
-        content?: string;
-      };
-    }
-  | {
-      type: "content";
-      data: {
-        content?: string;
-      };
-    }
-  | {
-      type: "mcp_tool_call";
-      data: ToolCallMessage;
-    }
-  | {
       type: "title";
       data: {
         id: string;
         title: string;
       };
+    }
+  | {
+      type: "content_block";
+      data: ContentBlockEvent;
     }
   | {
       type: "done";

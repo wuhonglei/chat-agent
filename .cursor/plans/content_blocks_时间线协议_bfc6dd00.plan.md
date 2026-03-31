@@ -4,19 +4,19 @@ overview: 把一次 run 的“思考/文本/工具调用/工具结果”统一�
 todos:
   - id: define-block-schemas
     content: 新增后端/前端统一的 ContentBlock 类型与 ChatMessageItem.content_blocks 字段
-    status: pending
+    status: completed
   - id: streaming-aggregator
     content: 后端实现 ContentBlocksAggregator：text/thinking delta、tool_calls 分片聚合、tool_result 关联并产出 SSE
-    status: pending
+    status: completed
   - id: db-migration
     content: messages 表新增 content_blocks JSON 列，并在 update_assistant_message 落库
-    status: pending
+    status: completed
   - id: frontend-render
     content: 前端改为消费 content_block SSE 并以 contentBlocks 渲染（替换 mcp_tool_call/toolCalls timeline）
-    status: pending
+    status: completed
   - id: validation
     content: 用并行工具调用与乱序结果场景验证 time-line 与 tool_call_id 关联正确
-    status: pending
+    status: completed
 isProject: false
 ---
 

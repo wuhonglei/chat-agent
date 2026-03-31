@@ -12,7 +12,11 @@ from app.models import ConversationDb, MessageDb
 from app.schemas.chat import (
     ChatMessageItem,
     CollectedResponse,
+    ContentBlock,
     MessageStatus,
+    collect_content_from_blocks,
+    collect_reasoning_from_blocks,
+    tool_messages_from_content_blocks,
 )
 from app.services.base_service.db_service import DbService
 from app.utils.common import gen_uuid, normalize_to_dict
@@ -97,9 +101,15 @@ class MessageDbService(DbService):
                 logger.warning("Message ID not found, skipping", message_id=message_id)
                 continue
 
-            message = ChatMessageItem.model_validate(
-                messages_dict[message_id].model_dump(mode="json")
-            )
+            payload = messages_dict[message_id].model_dump(mode="json")
+            payload["content_blocks"] = payload.get("content_blocks") or []
+            message = ChatMessageItem.model_validate(payload)
+            if not message.content_blocks:
+                message.content_blocks = []
+            if not message.tool_calls:
+                message.tool_calls = tool_messages_from_content_blocks(
+                    message.content_blocks
+                )
             chat_messages.append(message)
 
         return chat_messages
@@ -152,13 +162,15 @@ class MessageDbService(DbService):
         self,
         conversation: ConversationDb,
         message_id: str,
-        content: str,
+        content_blocks: list[ContentBlock],
         metadata: dict[str, Any] | None = None,
     ) -> MessageDb:
+        content = collect_content_from_blocks(content_blocks)
         message = MessageDb(
             id=message_id,
             role="user",
             content=content,
+            content_blocks=[block.model_dump(mode="json") for block in content_blocks],
             conversation_id=conversation.id,
             message_metadata=metadata or {},
             status=MessageStatus.DONE,
@@ -178,6 +190,7 @@ class MessageDbService(DbService):
             content="",
             reasoning="",
             tool_calls=[],
+            content_blocks=[],
             conversation_id=conversation.id,
             message_metadata=metadata or {},
             status=MessageStatus.PENDING,
@@ -188,7 +201,7 @@ class MessageDbService(DbService):
     def create_chat_messages(
         self,
         conversation_id: str,
-        content: str,
+        content_blocks: list[ContentBlock],
         user_metadata: dict[str, Any],
         removed_message_ids: list[str] | None = None,
     ) -> ChatMessagesResult:
@@ -196,7 +209,7 @@ class MessageDbService(DbService):
 
         Args:
             conversation_id: 对话ID
-            content: 用户消息内容
+            content_blocks: 用户消息内容块
             user_metadata: 用户消息元数据
             removed_message_ids: 需要删除的消息ID列表
 
@@ -222,7 +235,7 @@ class MessageDbService(DbService):
         user_message = self.create_user_message(
             conversation=conversation,
             message_id=user_message_id,
-            content=content,
+            content_blocks=content_blocks,
             metadata=user_metadata_with_reply,
         )
 
@@ -253,10 +266,15 @@ class MessageDbService(DbService):
     ) -> MessageDb:
         assistant_message.status = status
         assistant_message.updated_at = get_datetime_now()
-        if assistant_payload.content:
-            assistant_message.content = assistant_payload.content
-        if assistant_payload.reasoning:
-            assistant_message.reasoning = assistant_payload.reasoning
+        assistant_message.content = collect_content_from_blocks(
+            assistant_payload.content_blocks
+        )
+        assistant_message.reasoning = collect_reasoning_from_blocks(
+            assistant_payload.content_blocks
+        )
+        assistant_message.content_blocks = [
+            block.model_dump(mode="json") for block in assistant_payload.content_blocks
+        ]
         if assistant_payload.tool_calls:
             assistant_message.tool_calls = [
                 normalize_to_dict(m) for m in assistant_payload.tool_calls

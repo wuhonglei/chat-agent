@@ -25,6 +25,9 @@ class MessageDb(SQLModel, table=True):
     )
     role: str  # "user" | "assistant"
     content: str = Field(default="", description="Message content")
+    content_blocks: list[dict[str, Any]] | None = Field(
+        default=None, sa_type=SQLJSON, description="Message content blocks"
+    )
     created_at: datetime = Field(
         default_factory=lambda: get_datetime_now(),
         sa_column=Column(

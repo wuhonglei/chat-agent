@@ -28,11 +28,13 @@ async def chat_stream(
         chat_request=chat_request.model_dump(exclude_none=True),
     )
 
-    user_metadata = chat_request.model_dump(exclude_none=True, exclude={"content"})
+    user_metadata = chat_request.model_dump(
+        exclude_none=True, exclude={"content_blocks"}
+    )
     with MessageDbService() as message_service:
         messages_result = message_service.create_chat_messages(
             conversation_id=chat_request.conversation_id,
-            content=chat_request.content,
+            content_blocks=chat_request.content_blocks,
             user_metadata=user_metadata,
             removed_message_ids=chat_request.removed_message_ids,
         )

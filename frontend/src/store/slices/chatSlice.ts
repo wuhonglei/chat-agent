@@ -1,10 +1,4 @@
-import {
-  ChatConversationState,
-  ChatMessage,
-  MessageStatus,
-  ToolCallMessage,
-  ToolCallStartItemMessage,
-} from "@/interfaces";
+import { ChatConversationState, ChatMessage, ContentBlock, ContentBlockEvent, MessageStatus } from "@/interfaces";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { isEmpty } from "lodash-es";
 
@@ -40,6 +34,13 @@ const conversationIdCheck = (state: ChatStateMap, conversionId: string): ChatCon
 
 const initialState: ChatStateMap = {};
 
+function normalizeMessage(message: ChatMessage): ChatMessage {
+  return {
+    ...message,
+    contentBlocks: message.contentBlocks || [],
+  };
+}
+
 /**
  * 检查消息列表中最后一个消息是否为助手消息
  * @param messages
@@ -63,7 +64,7 @@ const chatSlice = createSlice({
     setMessages: (state, action: PayloadAction<ConversationActionPayload<ChatMessage[]>>) => {
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
-      chatState.messages = data;
+      chatState.messages = data.map(normalizeMessage);
       chatState.messageLoaded = true;
       // lastMessageUpdateAt 的更新已移至 updateLastMessageTimeMiddleware 中自动处理
       // 数据库操作已移至 dbMiddleware 中处理，保持 reducer 的纯净性
@@ -72,12 +73,12 @@ const chatSlice = createSlice({
     setTempMessages: (state, action: PayloadAction<ConversationActionPayload<ChatMessage[]>>) => {
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
-      chatState.messages = data;
+      chatState.messages = data.map(normalizeMessage);
     },
     addMessage: (state, action: PayloadAction<ConversationActionPayload<ChatMessage>>) => {
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
-      chatState.messages.push(data);
+      chatState.messages.push(normalizeMessage(data));
       // lastMessageUpdateAt 的更新已移至 updateLastMessageTimeMiddleware 中自动处理
     },
     clearMessagesAfterIndex: (state, action: PayloadAction<ConversationActionPayload<number>>) => {
@@ -133,7 +134,16 @@ const chatSlice = createSlice({
       const chatState = conversationIdCheck(state, conversationId);
       const lastMessage = lastMessageCheck(chatState.messages);
       if (lastMessage) {
-        lastMessage.content = data + lastMessage.content;
+        const firstTextBlock = lastMessage.contentBlocks.find(block => block.type === "text");
+        if (firstTextBlock && firstTextBlock.type === "text") {
+          firstTextBlock.text = data + firstTextBlock.text;
+        } else {
+          lastMessage.contentBlocks.unshift({
+            id: `legacy_text_${Date.now()}`,
+            type: "text",
+            text: data,
+          });
+        }
       }
     },
     appendContentToLastMessage: (state, action: PayloadAction<ConversationActionPayload<string>>) => {
@@ -141,7 +151,17 @@ const chatSlice = createSlice({
       const chatState = conversationIdCheck(state, conversationId);
       const lastMessage = lastMessageCheck(chatState.messages);
       if (lastMessage) {
-        lastMessage.content += data;
+        const textBlocks = lastMessage.contentBlocks.filter(block => block.type === "text");
+        const lastTextBlock = textBlocks.at(-1);
+        if (lastTextBlock && lastTextBlock.type === "text") {
+          lastTextBlock.text += data;
+        } else {
+          lastMessage.contentBlocks.push({
+            id: `legacy_text_${Date.now()}`,
+            type: "text",
+            text: data,
+          });
+        }
       }
     },
     appendReasoningToLastMessage: (state, action: PayloadAction<ConversationActionPayload<string>>) => {
@@ -149,70 +169,59 @@ const chatSlice = createSlice({
       const chatState = conversationIdCheck(state, conversationId);
       const lastMessage = lastMessageCheck(chatState.messages);
       if (lastMessage) {
-        lastMessage.reasoning += data;
+        const block: ContentBlock = {
+          id: `legacy_reasoning_${Date.now()}`,
+          type: "thinking",
+          text: data,
+        };
+        lastMessage.contentBlocks.push(block);
       }
     },
-    appendMcpToolCallToLastMessage: (state, action: PayloadAction<ConversationActionPayload<ToolCallMessage>>) => {
+    appendContentBlockToLastMessage: (state, action: PayloadAction<ConversationActionPayload<ContentBlockEvent>>) => {
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
       const lastMessage = lastMessageCheck(chatState.messages);
       if (!lastMessage) {
         return;
       }
-      const tc = lastMessage.toolCalls;
-
-      if (data.status === "reasoning_delta") {
-        const delta = data.content;
-        const last = tc[tc.length - 1];
-        if (last && "role" in last && last.role === "assistant") {
-          const a = last as ToolCallStartItemMessage;
-          a.reasoningContent = (a.reasoningContent || "") + delta;
-          return;
-        }
-        tc.push({
-          role: "assistant",
-          content: "",
-          status: undefined,
-          reasoningContent: delta,
-          toolCalls: [],
-        });
+      if (data.op === "append") {
+        lastMessage.contentBlocks.push(data.block);
         return;
       }
-
-      if (data.role === "assistant" && data.status === "streaming" && tc.length > 0) {
-        const last = tc[tc.length - 1];
-        if (
-          last &&
-          "role" in last &&
-          last.role === "assistant" &&
-          (last as ToolCallStartItemMessage).status === "streaming"
-        ) {
-          const a = last as ToolCallStartItemMessage;
-          a.content = data.content ?? "";
-          a.reasoningContent = data.reasoningContent ?? a.reasoningContent;
-          a.toolCalls = data.toolCalls ?? [];
-          return;
+      if (data.op === "delta") {
+        const target = lastMessage.contentBlocks.find(block => block.id === data.blockId);
+        if (target && (target.type === "text" || target.type === "thinking")) {
+          target.text += data.delta;
+        }
+        return;
+      }
+      if (data.op === "tool_delta") {
+        const target = lastMessage.contentBlocks.find(block => block.id === data.blockId);
+        if (target && target.type === "tool_use") {
+          target.argumentsText += data.argumentsDelta || "";
+          if (data.name) {
+            target.name = data.name;
+          }
+          if (data.toolCallId) {
+            target.toolCallId = data.toolCallId;
+          }
+        }
+        return;
+      }
+      if (data.op === "finalize_round") {
+        for (const block of lastMessage.contentBlocks) {
+          if (block.type !== "tool_use") {
+            continue;
+          }
+          try {
+            block.argumentsJson = block.argumentsText
+              ? (JSON.parse(block.argumentsText) as Record<string, unknown>)
+              : {};
+          } catch {
+            block.argumentsJson = undefined;
+          }
         }
       }
-
-      if (data.role === "assistant" && data.status !== "streaming" && tc.length > 0) {
-        const last = tc[tc.length - 1];
-        if (
-          last &&
-          "role" in last &&
-          last.role === "assistant" &&
-          (last as ToolCallStartItemMessage).status === "streaming"
-        ) {
-          const a = last as ToolCallStartItemMessage;
-          a.content = data.content ?? "";
-          a.reasoningContent = data.reasoningContent ?? "";
-          a.toolCalls = data.toolCalls ?? [];
-          a.status = undefined;
-          return;
-        }
-      }
-
-      lastMessage.toolCalls.push(data);
     },
     updateMessageStatus: (state, action: PayloadAction<ConversationActionPayload<MessageStatus>>) => {
       const { conversationId, data } = action.payload;
@@ -256,7 +265,7 @@ export const {
   prependContentToLastMessage,
   appendContentToLastMessage,
   appendReasoningToLastMessage,
-  appendMcpToolCallToLastMessage,
+  appendContentBlockToLastMessage,
   setReasoning,
   updateMessageStatus,
   updateMessageModifiedTime,

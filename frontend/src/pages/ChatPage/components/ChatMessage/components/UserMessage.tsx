@@ -1,5 +1,6 @@
 import CopyButton from "@/components/common/CopyButton";
 import { ChatMessage as ChatMessageType } from "@/interfaces";
+import { getMessageTextFromBlocks } from "@/interfaces/contentBlock";
 import { isInputEnter } from "@/utils";
 import { EditOutlined } from "@ant-design/icons";
 import { Bubble, Sender } from "@ant-design/x";
@@ -16,7 +17,8 @@ interface UserMessageProps {
 
 const UserMessage: React.FC<UserMessageProps> = ({ message, onEditMessage }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [messageContent, setMessageContent] = useState(message.content);
+  const textContent = getMessageTextFromBlocks(message.contentBlocks);
+  const [messageContent, setMessageContent] = useState(textContent);
   function handleConfirm() {
     if (!messageContent) {
       return;
@@ -36,7 +38,7 @@ const UserMessage: React.FC<UserMessageProps> = ({ message, onEditMessage }) => 
     <section className={classNames("mt-3 w-full flex justify-end", styles.container)}>
       <Bubble
         placement="end"
-        content={message.content}
+        content={textContent}
         variant={isEditing ? "borderless" : "filled"}
         className={isEditing ? "min-w-[80%]" : "max-w-[70%]"}
         classNames={{
@@ -69,7 +71,7 @@ const UserMessage: React.FC<UserMessageProps> = ({ message, onEditMessage }) => 
           isEditing ? null : (
             <div className={classNames("flex gap-2", styles.operation)}>
               <Button size="small" type="text" icon={<EditOutlined />} onClick={() => setIsEditing(true)} />
-              <CopyButton text={message.content} children={null} />
+              <CopyButton text={textContent} children={null} />
             </div>
           )
         }

@@ -1,4 +1,5 @@
 import { ChatMessage, MessageStatus, RoleType, SearchSource, SearchSourceType, ToolCallStatus } from "@/interfaces";
+import { getMessageTextFromBlocks } from "@/interfaces/contentBlock";
 import { capitalize, isEmpty, isNil } from "lodash-es";
 
 /**
@@ -97,7 +98,7 @@ export function getHistoryMessageIds<T extends ChatMessage>(limit: number, messa
     if (
       isUserRole(message.role) &&
       isAssistantRole(nextMessage.role) &&
-      !isEmpty(nextMessage.content) &&
+      !isEmpty(getMessageTextFromBlocks(nextMessage.contentBlocks)) &&
       nextMessage.status === MessageStatus.Done
     ) {
       validHistoryIds.push(message.id, nextMessage.id);

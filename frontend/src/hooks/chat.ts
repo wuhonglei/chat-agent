@@ -12,9 +12,7 @@ import { chatAPI } from "@/services";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   addMessage,
-  appendContentToLastMessage,
-  appendMcpToolCallToLastMessage,
-  appendReasoningToLastMessage,
+  appendContentBlockToLastMessage,
   clearLastMessage,
   clearMessagesAfterIndex,
   DEFAULT_CHAT_STATE,
@@ -24,7 +22,6 @@ import {
   setCallingMcpTools,
   setLoading,
   setMessages,
-  setReasoning,
   setStreaming,
   setTempMessages,
   updateMessageModifiedTime,
@@ -39,10 +36,9 @@ import {
 } from "@/store/slices/conversationSlice";
 import { useEffect, useMemo, useRef } from "react";
 
-import { emitter, EventType } from "@/events";
 import { db } from "@/indexDB";
 import { MessageStatus, TitleCreatedBy } from "@/interfaces";
-import type { ToolCallMessage } from "@/interfaces/tooCall";
+import { ContentBlock, getMessageTextFromBlocks } from "@/interfaces/contentBlock";
 import {
   getHistoryMessageIds,
   getRemovedMessageIds,
@@ -51,7 +47,6 @@ import {
   reportError,
   reportEvent,
 } from "@/utils";
-import type { UnknownAction } from "@reduxjs/toolkit";
 import { useMemoizedFn, useRequest } from "ahooks";
 import { App } from "antd";
 import dayjs from "dayjs";
@@ -73,28 +68,6 @@ export interface UseChatMessageReturn {
   abortMessage: (conversationId: string) => void;
   reSendMessage: (index: number, message: ChatMessage, formData: ChatInputConfig) => Promise<void>;
   sendMessage: (values: ChatInputFormValues, options?: SendMessageOptions) => Promise<void>;
-}
-
-/** MCP 工具调用通用处理器工厂 */
-function createToolCallHandler(
-  dispatch: ReturnType<typeof useAppDispatch>,
-  conversationId: string,
-  config: {
-    setCalling: (payload: { conversationId: string; data: boolean }) => UnknownAction;
-    appendToLast: (payload: { conversationId: string; data: ToolCallMessage }) => UnknownAction;
-    doneEvent: EventType;
-  }
-): (data: ToolCallMessage) => void {
-  return (data: ToolCallMessage) => {
-    const { role } = data;
-    dispatch(config.setCalling({ conversationId, data: true }));
-    if (!role && data?.status === "done") {
-      emitter.emit(config.doneEvent);
-      dispatch(config.setCalling({ conversationId, data: false }));
-    } else {
-      dispatch(config.appendToLast({ conversationId, data }));
-    }
-  };
 }
 
 export const useChatState = (conversationId: string) => {
@@ -193,37 +166,19 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
             );
           },
 
-          // Mcp 工具调用
-          mcp_tool_call: createToolCallHandler(dispatch, conversationId, {
-            setCalling: setCallingMcpTools,
-            appendToLast: appendMcpToolCallToLastMessage,
-            doneEvent: EventType.McpToolCallDone,
-          }),
-
-          // 更新消息思考内容
-          reasoning: (data = {}) => {
-            const { status, content } = data;
-            if (status === "start") dispatch(setReasoning({ conversationId, data: true }));
-            else if (status === "done") {
-              emitter.emit(EventType.ReasoningDone);
-              dispatch(setReasoning({ conversationId, data: false }));
-            }
+          content_block: data => {
             dispatch(
-              appendReasoningToLastMessage({
+              appendContentBlockToLastMessage({
                 conversationId,
-                data: content ?? "",
+                data,
               })
             );
+            if (data.op === "done") {
+              dispatch(setCallingMcpTools({ conversationId, data: false }));
+            } else if (data.op === "tool_delta" || (data.op === "append" && data.block.type.startsWith("tool_"))) {
+              dispatch(setCallingMcpTools({ conversationId, data: true }));
+            }
           },
-
-          // 更新消息内容
-          content: ({ content } = {}) =>
-            dispatch(
-              appendContentToLastMessage({
-                conversationId,
-                data: content ?? "",
-              })
-            ),
 
           // 本次消息流式传输结束
           done: data => {
@@ -255,9 +210,17 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
         };
 
         // 开始流式传输
+        const { content, ...requestConfig } = values;
         await chatAPI.streamMessage(
           {
-            ...values,
+            ...requestConfig,
+            contentBlocks: [
+              {
+                id: `cb_user_${Date.now()}`,
+                type: "text",
+                text: content,
+              } as ContentBlock,
+            ],
             historyIds, // 发送最后几条消息作为上下文
             regenerateTitle,
             removedMessageIds,
@@ -311,11 +274,17 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
   const reSendMessage = useMemoizedFn(
     async (index: number, message: ChatMessage, formData: ChatInputConfig): Promise<void> => {
       if (isUserRole(message.role)) {
-        sendMessage({ ...formData, content: message.content }, { index });
+        sendMessage({ ...formData, content: getMessageTextFromBlocks(message.contentBlocks) }, { index });
       } else {
         // 如果是助手消息，则重新发送上一个用户消息
         const newIndex = index - 1;
-        sendMessage({ ...formData, content: messages[newIndex].content }, { index: newIndex });
+        sendMessage(
+          {
+            ...formData,
+            content: getMessageTextFromBlocks(messages[newIndex].contentBlocks),
+          },
+          { index: newIndex }
+        );
       }
     }
   );
