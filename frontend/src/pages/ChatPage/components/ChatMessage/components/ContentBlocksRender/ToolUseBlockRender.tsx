@@ -1,6 +1,7 @@
 import { ContentBlockRenderStatus, ToolResultBlock, ToolUseBlock } from "@/interfaces/contentBlock";
 import CodeHighlighter from "@/pages/ChatPage/components/MarkdownContainer/components/CodeHighlighter";
 import { Think } from "@ant-design/x";
+import { ToolOutlined } from "@ant-design/icons";
 import { useMemoizedFn } from "ahooks";
 import React, { useEffect, useMemo, useState } from "react";
 
@@ -73,6 +74,7 @@ export const ToolUseBlockRender: React.FC<Props> = ({ contentBlock, result, stat
 
   return (
     <Think
+      icon={<ToolOutlined />}
       expanded={expanded}
       blink={isActiveStatus(status)}
       onExpand={handleExpandChange}
@@ -95,7 +97,7 @@ export const ToolUseBlockRender: React.FC<Props> = ({ contentBlock, result, stat
           ) : (
             <CodeHighlighter
               lang={resultLanguage}
-              header={["result", result.summary].filter(Boolean)}
+              header={"Result is"}
               styles={{ code: { maxHeight: 300, width: "100%", overflow: "auto" } }}
             >
               {stringifyJsonLike(result.content || "")}

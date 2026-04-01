@@ -22,9 +22,12 @@ const ContentBlocksRender: React.FC<Props> = ({ contentBlocks, isStreaming }) =>
         if (item.type === "text") {
           return <TextBlockRender key={item.key} contentBlock={item.block} status={item.status} />;
         }
-        return (
-          <ToolUseBlockRender key={item.key} contentBlock={item.block} status={item.status} result={item.result} />
-        );
+        if (item.type === "tool_use") {
+          return (
+            <ToolUseBlockRender key={item.key} contentBlock={item.block} status={item.status} result={item.result} />
+          );
+        }
+        return null;
       })}
     </div>
   );
