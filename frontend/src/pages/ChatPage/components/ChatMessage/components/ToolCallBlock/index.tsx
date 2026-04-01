@@ -5,7 +5,7 @@ import { Think, ThoughtChain } from "@ant-design/x";
 import { useMemoizedFn } from "ahooks";
 import { isEmpty } from "lodash-es";
 import React, { useState } from "react";
-import TitleWithDuration from "../TitleWithDuration";
+import TitleWithDuration from "../components/TitleWithDuration";
 import { useTimelineMessages } from "./hooks";
 import styles from "./index.module.css";
 import ToolCallItemContent from "./ToolCallItemContent";
@@ -23,7 +23,7 @@ type Props = {
   toolCalls: ToolCallMessage[] | undefined;
 };
 
-const ToolCallBlock = ({ isCallingTools, isStreaming, eventType, titles, icon, toolCalls }: Props) => {
+export const ToolCallBlockRender = ({ isCallingTools, isStreaming, eventType, titles, icon, toolCalls }: Props) => {
   const timelineMessages = useTimelineMessages(toolCalls);
   const [expanded, setExpanded] = useState<boolean>(isStreaming ? true : false);
   const [expandedToolCallKeys, setExpandedToolCallKeys] = useState<string[]>([]);
@@ -81,5 +81,3 @@ const ToolCallBlock = ({ isCallingTools, isStreaming, eventType, titles, icon, t
     </Think>
   );
 };
-
-export default React.memo(ToolCallBlock);

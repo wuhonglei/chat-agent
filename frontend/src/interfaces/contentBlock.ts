@@ -29,6 +29,16 @@ export interface ToolResultBlock {
   summary?: string;
 }
 
+export enum ContentBlockRenderStatus {
+  Start = 1,
+  Streaming = 2,
+  StreamFinished = 3,
+  Running = 4,
+  Success = 5,
+  Error = 6,
+  Done = 100,
+}
+
 export type ContentBlock = TextBlock | ThinkingBlock | ToolUseBlock | ToolResultBlock;
 
 export type ContentBlockEvent =

@@ -1,0 +1,33 @@
+import { ContentBlock } from "@/interfaces/contentBlock";
+import React from "react";
+import { ReasoningBlockRender } from "./ReasoningBlockRender";
+import { TextBlockRender } from "./TextBlockRender";
+import ToolUseBlockRender from "./ToolUseBlockRender";
+import { deriveRenderableBlocks } from "./viewModel";
+
+type Props = {
+  contentBlocks: ContentBlock[];
+  isStreaming: boolean;
+};
+
+const ContentBlocksRender: React.FC<Props> = ({ contentBlocks, isStreaming }) => {
+  const renderableBlocks = deriveRenderableBlocks(contentBlocks, isStreaming);
+
+  return (
+    <div className="flex flex-col gap-2">
+      {renderableBlocks.map(item => {
+        if (item.type === "thinking") {
+          return <ReasoningBlockRender key={item.key} contentBlock={item.block} status={item.status} />;
+        }
+        if (item.type === "text") {
+          return <TextBlockRender key={item.key} contentBlock={item.block} status={item.status} />;
+        }
+        return (
+          <ToolUseBlockRender key={item.key} contentBlock={item.block} status={item.status} result={item.result} />
+        );
+      })}
+    </div>
+  );
+};
+
+export default React.memo(ContentBlocksRender);

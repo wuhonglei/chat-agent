@@ -2,7 +2,7 @@ import { ChatMessage as ChatMessageType } from "@/interfaces";
 import { Bubble } from "@ant-design/x";
 import React from "react";
 import AssistantOperation from "./AssistantOperation";
-import ContentBlocksRenderer from "./ContentBlocksRenderer";
+import ContentBlocksRender from "./ContentBlocksRender";
 
 interface AssistantMessageProps {
   message: ChatMessageType;
@@ -20,7 +20,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, isStreamin
       className="w-full mt-4"
       classNames={{ body: "w-full", content: "w-full" }}
       content=""
-      contentRender={() => <ContentBlocksRenderer contentBlocks={message.contentBlocks} />}
+      contentRender={() => <ContentBlocksRender contentBlocks={message.contentBlocks} isStreaming={isStreaming} />}
       footer={isStreaming ? null : <AssistantOperation message={message} onReSend={onReSend} />}
     />
   );

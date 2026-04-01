@@ -1,5 +1,4 @@
 import { TimelineMessage, ToolCallStatus } from "@/interfaces";
-import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
 import CodeHighlighter from "@/pages/ChatPage/components/MarkdownContainer/components/CodeHighlighter";
 import React, { useMemo } from "react";
 import { getContentTokenCountDesc, stringifyArgs, stringifyContentWithLanguage } from "./utils";
@@ -9,12 +8,11 @@ type Props = {
 };
 
 const ToolCallItemContent: React.FC<Props> = ({ message }) => {
-  const { status, reasoningContent, content } = message;
+  const { status, content } = message;
   const [contentStr, language] = useMemo(() => stringifyContentWithLanguage(content), [content]);
 
   return (
     <div className="w-full flex flex-col gap-2 py-1">
-      <MarkdownContainer gray>{reasoningContent}</MarkdownContainer>
       <CodeHighlighter
         lang="json"
         header="parameters is:"

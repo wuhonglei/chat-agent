@@ -137,8 +137,7 @@ class ChatSessionAgent(BaseAgent):
 
         tools_list = list(tools)
         iterations_by_tool: dict[str, int] = {
-            t["function"]["name"]: tool_ctx.MAX_ITERATIONS_BY_TOOL
-            for t in tools_list
+            t["function"]["name"]: tool_ctx.MAX_ITERATIONS_BY_TOOL for t in tools_list
         }
 
         for iteration in range(tool_ctx.MAX_TOTAL_ITERATIONS):
@@ -260,9 +259,7 @@ class ChatSessionAgent(BaseAgent):
             )
             return
 
-        tool_calls_fc: list[ChatCompletionMessageFunctionToolCall] = (
-            merged_tool_calls
-        )
+        tool_calls_fc: list[ChatCompletionMessageFunctionToolCall] = merged_tool_calls
         yield self.format_sse_message(
             "content_block", self.blocks_aggregator.finalize_round()
         )
