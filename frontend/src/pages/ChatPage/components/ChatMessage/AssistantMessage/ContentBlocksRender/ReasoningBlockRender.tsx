@@ -3,7 +3,7 @@ import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
 import { Think } from "@ant-design/x";
 import { useMemoizedFn, useThrottle } from "ahooks";
 import { useEffect, useState } from "react";
-import TitleWithDuration from "./components/TitleWithDuration";
+import StatusTitle from "../../components/StatusTitle";
 
 type Props = {
   contentBlock: ThinkingBlock;
@@ -47,7 +47,7 @@ export const ReasoningBlockRender = ({ contentBlock, status }: Props) => {
       blink={isDoing}
       onExpand={handleExpandChange}
       title={
-        <TitleWithDuration
+        <StatusTitle
           titles={{
             doing: "深度思考中",
             done: "已完成深度思考",

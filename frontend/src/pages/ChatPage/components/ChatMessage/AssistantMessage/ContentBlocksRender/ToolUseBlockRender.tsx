@@ -1,7 +1,7 @@
 import { ContentBlockRenderStatus, ToolResultBlock, ToolUseBlock } from "@/interfaces/contentBlock";
 import CodeHighlighter from "@/pages/ChatPage/components/MarkdownContainer/components/CodeHighlighter";
-import { Think } from "@ant-design/x";
 import { ToolOutlined } from "@ant-design/icons";
+import { Think } from "@ant-design/x";
 import { useMemoizedFn } from "ahooks";
 import React, { useEffect, useMemo, useState } from "react";
 

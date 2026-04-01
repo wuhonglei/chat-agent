@@ -8,7 +8,7 @@ import { Button } from "antd";
 import classNames from "classnames";
 import { trim } from "lodash-es";
 import React, { useState } from "react";
-import styles from "./css/UserMessage.module.css";
+import styles from "./UserMessage.module.css";
 
 interface UserMessageProps {
   message: ChatMessageType;
@@ -19,6 +19,7 @@ const UserMessage: React.FC<UserMessageProps> = ({ message, onEditMessage }) => 
   const [isEditing, setIsEditing] = useState(false);
   const textContent = getMessageTextFromBlocks(message.contentBlocks);
   const [messageContent, setMessageContent] = useState(textContent);
+
   function handleConfirm() {
     if (!messageContent) {
       return;

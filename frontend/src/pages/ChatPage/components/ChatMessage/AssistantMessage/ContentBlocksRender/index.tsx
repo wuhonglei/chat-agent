@@ -1,9 +1,9 @@
 import { ContentBlock } from "@/interfaces/contentBlock";
 import React from "react";
-import { ReasoningBlockRender } from "./ReasoningBlockRender";
-import { TextBlockRender } from "./TextBlockRender";
-import ToolUseBlockRender from "./ToolUseBlockRender";
-import { deriveRenderableBlocks } from "./viewModel";
+import { ReasoningBlockRender } from "./ReasoningBlockRender.tsx";
+import { TextBlockRender } from "./TextBlockRender.tsx";
+import { ToolUseBlockRender } from "./ToolUseBlockRender.tsx";
+import { deriveRenderableBlocks } from "./viewModel.ts";
 
 type Props = {
   contentBlocks: ContentBlock[];

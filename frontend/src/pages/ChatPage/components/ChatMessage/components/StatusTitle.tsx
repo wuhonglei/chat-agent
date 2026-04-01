@@ -8,7 +8,7 @@ type Props = {
   isDoing: boolean;
 };
 
-const TitleWithDuration: React.FC<Props> = ({ titles, isDoing }) => {
+const StatusTitle: React.FC<Props> = ({ titles, isDoing }) => {
   if (isDoing) {
     return <>{titles.doing}</>;
   }
@@ -16,4 +16,4 @@ const TitleWithDuration: React.FC<Props> = ({ titles, isDoing }) => {
   return <>{titles.done}</>;
 };
 
-export default React.memo(TitleWithDuration);
+export default React.memo(StatusTitle);
