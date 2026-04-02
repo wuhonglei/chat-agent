@@ -15,7 +15,7 @@ type Props = {
   status: ContentBlockRenderStatus;
 };
 
-export const ToolUseBlockRender: React.FC<Props> = ({ toolUseBlock, toolResultBlock, status }) => {
+export const ToolBlockRender: React.FC<Props> = ({ toolUseBlock, toolResultBlock, status }) => {
   const [expanded, setExpanded] = useState<boolean>(isActiveStatus(status));
   const handleExpandChange = useMemoizedFn((nextExpanded: boolean) => {
     setExpanded(nextExpanded);
@@ -70,4 +70,4 @@ export const ToolUseBlockRender: React.FC<Props> = ({ toolUseBlock, toolResultBl
   );
 };
 
-export default React.memo(ToolUseBlockRender);
+export default React.memo(ToolBlockRender);
