@@ -26,8 +26,8 @@ const ContentBlocksRender: React.FC<Props> = ({ contentBlocks, isStreaming }) =>
           return (
             <ToolBlockRender
               key={item.key}
-              toolUseBlock={item.block}
               status={item.status}
+              toolUseBlock={item.block}
               toolResultBlock={item.result}
             />
           );
