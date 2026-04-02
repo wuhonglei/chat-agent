@@ -1,12 +1,12 @@
 import { ContentBlockRenderStatus, ToolResultBlock, ToolUseBlock } from "@/interfaces/contentBlock";
 import CodeHighlighter from "@/pages/ChatPage/components/MarkdownContainer/components/CodeHighlighter";
-import { ToolOutlined } from "@ant-design/icons";
 import { Think } from "@ant-design/x";
 import { useMemoizedFn } from "ahooks";
 import React, { useEffect, useMemo, useState } from "react";
 
 import { STATUS_TITLE_MAP } from "./constants";
 import { useParsedArguments } from "./hooks";
+import { getToolIcon } from "./toolIcons";
 import { formatToolName, getResultLanguage, isActiveStatus, stringifyJsonLike } from "./utils";
 
 type Props = {
@@ -35,7 +35,7 @@ export const ToolBlockRender: React.FC<Props> = ({ toolUseBlock, toolResultBlock
 
   return (
     <Think
-      icon={<ToolOutlined />}
+      icon={getToolIcon(toolUseBlock.name)}
       expanded={expanded}
       blink={isActiveStatus(status)}
       onExpand={handleExpandChange}
