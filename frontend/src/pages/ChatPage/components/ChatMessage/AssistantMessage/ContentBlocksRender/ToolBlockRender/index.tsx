@@ -38,6 +38,7 @@ export const ToolBlockRender: React.FC<Props> = ({ toolUseBlock, toolResultBlock
       expanded={expanded}
       blink={isActiveStatus(status)}
       onExpand={handleExpandChange}
+      classNames={{ status: "cursor-pointer" }}
       title={<ToolBlockTitle rawToolName={toolUseBlock.name} status={status} />}
     >
       <div className="w-full flex flex-col gap-2 py-1">
