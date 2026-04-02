@@ -5,51 +5,15 @@ import { Think } from "@ant-design/x";
 import { useMemoizedFn } from "ahooks";
 import React, { useEffect, useMemo, useState } from "react";
 
+import { STATUS_TITLE_MAP } from "./constants";
+import { useParsedArguments } from "./hooks";
+import { getResultLanguage, isActiveStatus, stringifyJsonLike } from "./utils";
+
 type Props = {
   contentBlock: ToolUseBlock;
   result?: ToolResultBlock;
   status: ContentBlockRenderStatus;
 };
-
-const STATUS_TITLE_MAP: Record<ContentBlockRenderStatus, string> = {
-  [ContentBlockRenderStatus.Start]: "工具准备中",
-  [ContentBlockRenderStatus.Streaming]: "工具参数组装中",
-  [ContentBlockRenderStatus.StreamFinished]: "工具参数已完成",
-  [ContentBlockRenderStatus.Running]: "工具调用中",
-  [ContentBlockRenderStatus.Success]: "工具调用成功",
-  [ContentBlockRenderStatus.Error]: "工具调用失败",
-  [ContentBlockRenderStatus.Done]: "工具调用结束",
-};
-
-const ACTIVE_STATUS_SET = new Set<ContentBlockRenderStatus>([
-  ContentBlockRenderStatus.Start,
-  ContentBlockRenderStatus.Streaming,
-  ContentBlockRenderStatus.Running,
-]);
-
-function isActiveStatus(status: ContentBlockRenderStatus): boolean {
-  return ACTIVE_STATUS_SET.has(status);
-}
-
-function stringifyJsonLike(input: string): string {
-  if (!input) {
-    return "";
-  }
-  try {
-    return JSON.stringify(JSON.parse(input), null, 2);
-  } catch {
-    return input;
-  }
-}
-
-function getResultLanguage(content: string): "json" | "markdown" {
-  try {
-    JSON.parse(content);
-    return "json";
-  } catch {
-    return "markdown";
-  }
-}
 
 export const ToolUseBlockRender: React.FC<Props> = ({ contentBlock, result, status }) => {
   const [expanded, setExpanded] = useState<boolean>(isActiveStatus(status));
@@ -66,10 +30,7 @@ export const ToolUseBlockRender: React.FC<Props> = ({ contentBlock, result, stat
   }, [status]);
 
   const displayToolName = contentBlock.name || "未知工具";
-  const parsedArguments = useMemo(
-    () => stringifyJsonLike(contentBlock.argumentsText || ""),
-    [contentBlock.argumentsText]
-  );
+  const { parsedArguments, argumentsLanguage } = useParsedArguments(contentBlock);
   const resultLanguage = useMemo(() => getResultLanguage(result?.content || ""), [result?.content]);
 
   return (
@@ -82,8 +43,8 @@ export const ToolUseBlockRender: React.FC<Props> = ({ contentBlock, result, stat
     >
       <div className="w-full flex flex-col gap-2 py-1">
         <CodeHighlighter
-          lang="json"
           header="parameters"
+          lang={argumentsLanguage}
           styles={{ code: { maxHeight: 500, width: "100%", overflow: "auto" } }}
         >
           {parsedArguments || "{}"}

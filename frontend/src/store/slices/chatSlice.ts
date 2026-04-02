@@ -1,6 +1,6 @@
 import { ChatConversationState, ChatMessage, ContentBlock, ContentBlockEvent, MessageStatus } from "@/interfaces";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { isEmpty } from "lodash-es";
+import { isEmpty, isPlainObject } from "lodash-es";
 
 interface ChatStateMap {
   [conversionId: string]: ChatConversationState;
@@ -211,6 +211,9 @@ const chatSlice = createSlice({
       if (data.op === "finalize_round") {
         for (const block of lastMessage.contentBlocks) {
           if (block.type !== "tool_use") {
+            continue;
+          }
+          if (isPlainObject(block.argumentsJson)) {
             continue;
           }
           try {
