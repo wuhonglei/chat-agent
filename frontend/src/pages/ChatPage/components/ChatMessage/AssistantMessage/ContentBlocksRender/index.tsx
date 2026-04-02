@@ -2,7 +2,7 @@ import { ContentBlock } from "@/interfaces/contentBlock";
 import React from "react";
 import { ReasoningBlockRender } from "./ReasoningBlockRender.tsx";
 import { TextBlockRender } from "./TextBlockRender.tsx";
-import { ToolUseBlockRender } from "./ToolUseBlockRender.tsx";
+import { ToolUseBlockRender } from "./ToolUseBlockRender";
 import { deriveRenderableBlocks } from "./viewModel.ts";
 
 type Props = {
@@ -24,7 +24,12 @@ const ContentBlocksRender: React.FC<Props> = ({ contentBlocks, isStreaming }) =>
         }
         if (item.type === "tool_use") {
           return (
-            <ToolUseBlockRender key={item.key} contentBlock={item.block} status={item.status} result={item.result} />
+            <ToolUseBlockRender
+              key={item.key}
+              toolUseBlock={item.block}
+              status={item.status}
+              toolResultBlock={item.result}
+            />
           );
         }
         return null;

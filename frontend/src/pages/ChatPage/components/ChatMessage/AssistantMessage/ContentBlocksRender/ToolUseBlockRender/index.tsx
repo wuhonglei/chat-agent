@@ -7,15 +7,15 @@ import React, { useEffect, useMemo, useState } from "react";
 
 import { STATUS_TITLE_MAP } from "./constants";
 import { useParsedArguments } from "./hooks";
-import { getResultLanguage, isActiveStatus, stringifyJsonLike } from "./utils";
+import { formatToolName, getResultLanguage, isActiveStatus, stringifyJsonLike } from "./utils";
 
 type Props = {
-  contentBlock: ToolUseBlock;
-  result?: ToolResultBlock;
+  toolUseBlock: ToolUseBlock;
+  toolResultBlock?: ToolResultBlock;
   status: ContentBlockRenderStatus;
 };
 
-export const ToolUseBlockRender: React.FC<Props> = ({ contentBlock, result, status }) => {
+export const ToolUseBlockRender: React.FC<Props> = ({ toolUseBlock, toolResultBlock, status }) => {
   const [expanded, setExpanded] = useState<boolean>(isActiveStatus(status));
   const handleExpandChange = useMemoizedFn((nextExpanded: boolean) => {
     setExpanded(nextExpanded);
@@ -29,9 +29,9 @@ export const ToolUseBlockRender: React.FC<Props> = ({ contentBlock, result, stat
     setExpanded(false);
   }, [status]);
 
-  const displayToolName = contentBlock.name || "未知工具";
-  const { parsedArguments, argumentsLanguage } = useParsedArguments(contentBlock);
-  const resultLanguage = useMemo(() => getResultLanguage(result?.content || ""), [result?.content]);
+  const displayToolName = formatToolName(toolUseBlock.name);
+  const { parsedArguments, argumentsLanguage } = useParsedArguments(toolUseBlock);
+  const resultLanguage = useMemo(() => getResultLanguage(toolResultBlock?.content || ""), [toolResultBlock?.content]);
 
   return (
     <Think
@@ -49,11 +49,11 @@ export const ToolUseBlockRender: React.FC<Props> = ({ contentBlock, result, stat
         >
           {parsedArguments || "{}"}
         </CodeHighlighter>
-        {result ? (
-          result.isError ? (
+        {toolResultBlock ? (
+          toolResultBlock.isError ? (
             <div className="w-full flex items-start gap-2">
               <div className="whitespace-nowrap">tool call error.</div>
-              {result.content ? <div>{result.content}</div> : null}
+              {toolResultBlock.content ? <div>{toolResultBlock.content}</div> : null}
             </div>
           ) : (
             <CodeHighlighter
@@ -61,7 +61,7 @@ export const ToolUseBlockRender: React.FC<Props> = ({ contentBlock, result, stat
               header={"Result is"}
               styles={{ code: { maxHeight: 300, width: "100%", overflow: "auto" } }}
             >
-              {stringifyJsonLike(result.content || "")}
+              {stringifyJsonLike(toolResultBlock.content || "")}
             </CodeHighlighter>
           )
         ) : null}
