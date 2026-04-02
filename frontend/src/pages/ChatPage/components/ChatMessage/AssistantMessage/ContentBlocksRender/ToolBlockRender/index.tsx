@@ -4,10 +4,10 @@ import { Think } from "@ant-design/x";
 import { useMemoizedFn } from "ahooks";
 import React, { useEffect, useMemo, useState } from "react";
 
-import { STATUS_TITLE_MAP } from "./constants";
 import { useParsedArguments } from "./hooks";
+import ToolBlockTitle from "./ToolBlockTitle";
 import { getToolIcon } from "./toolIcons";
-import { formatToolName, getResultLanguage, isActiveStatus, stringifyJsonLike } from "./utils";
+import { getResultLanguage, isActiveStatus, stringifyJsonLike } from "./utils";
 
 type Props = {
   toolUseBlock: ToolUseBlock;
@@ -29,7 +29,6 @@ export const ToolBlockRender: React.FC<Props> = ({ toolUseBlock, toolResultBlock
     setExpanded(false);
   }, [status]);
 
-  const displayToolName = formatToolName(toolUseBlock.name);
   const { parsedArguments, argumentsLanguage } = useParsedArguments(toolUseBlock);
   const resultLanguage = useMemo(() => getResultLanguage(toolResultBlock?.content || ""), [toolResultBlock?.content]);
 
@@ -39,7 +38,7 @@ export const ToolBlockRender: React.FC<Props> = ({ toolUseBlock, toolResultBlock
       expanded={expanded}
       blink={isActiveStatus(status)}
       onExpand={handleExpandChange}
-      title={`${displayToolName} · ${STATUS_TITLE_MAP[status] || "处理中"}`}
+      title={<ToolBlockTitle rawToolName={toolUseBlock.name} status={status} />}
     >
       <div className="w-full flex flex-col gap-2 py-1">
         <CodeHighlighter
