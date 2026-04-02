@@ -110,6 +110,7 @@ async def web_search(
                 time_range=time_range,
                 start_date=start_date,
                 end_date=end_date,
+                include_favicon=True,
                 include_domains=include_domains,
                 exclude_domains=exclude_domains,
                 country=country,
@@ -158,6 +159,7 @@ async def web_pages_extract(
             urls=urls,
             extract_depth=extract_depth,
             query=query,
+            include_favicon=True,
         )
         try:
             data = TavilyExtractResponse.model_validate(response)
@@ -238,6 +240,7 @@ async def web_site_crawl(
             exclude_domains=exclude_domains,
             allow_external=allow_external,
             extract_depth=extract_depth,
+            include_favicon=True,
         )
         try:
             data = TavilyCrawlResponse.model_validate(response)
@@ -310,6 +313,7 @@ async def web_site_map(
             exclude_paths=exclude_paths if exclude_paths else None,
             exclude_domains=exclude_domains if exclude_domains else None,
             allow_external=allow_external,
+            include_favicon=True,
         )
         try:
             data = TavilyMapResponse.model_validate(response)
