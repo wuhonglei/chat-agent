@@ -125,7 +125,7 @@ export function deriveRenderableBlocks(
       status = result.isError ? ContentBlockRenderStatus.Error : ContentBlockRenderStatus.Success;
     } else if (hasNextRenderable || !isStreaming) {
       status = ContentBlockRenderStatus.Done;
-    } else if (block.argumentsJson !== undefined) {
+    } else if (block.argumentsJson !== null) {
       status = ContentBlockRenderStatus.Running;
     } else if (!block.argumentsText) {
       status = ContentBlockRenderStatus.Start;

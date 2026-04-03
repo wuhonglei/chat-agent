@@ -67,7 +67,9 @@ export const ToolBlockRender: React.FC<Props> = ({ toolUseBlock, toolResultBlock
             <CodeHighlighter
               lang={resultLanguage}
               header={"Result is"}
-              styles={{ code: { maxHeight: 300, width: "100%", overflow: "auto" } }}
+              styles={{
+                code: { maxHeight: 300, width: "100%", overflow: "auto" },
+              }}
             >
               {stringifyJsonLike(toolResultBlock.content || "")}
             </CodeHighlighter>

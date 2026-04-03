@@ -274,7 +274,13 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
   const reSendMessage = useMemoizedFn(
     async (index: number, message: ChatMessage, formData: ChatInputConfig): Promise<void> => {
       if (isUserRole(message.role)) {
-        sendMessage({ ...formData, content: getMessageTextFromBlocks(message.contentBlocks) }, { index });
+        sendMessage(
+          {
+            ...formData,
+            content: getMessageTextFromBlocks(message.contentBlocks),
+          },
+          { index }
+        );
       } else {
         // 如果是助手消息，则重新发送上一个用户消息
         const newIndex = index - 1;

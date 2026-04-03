@@ -183,9 +183,6 @@ class ChatService:
             logger.info(
                 "Chat message stream completed",
                 total_duration=total_duration,
-                mcp_tool_calls_count=len(
-                    filter_tool_call_messages(self.chat_session_agent.output_messages)
-                ),
             )
             return
 

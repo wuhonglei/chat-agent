@@ -213,7 +213,7 @@ const chatSlice = createSlice({
           if (block.type !== "tool_use") {
             continue;
           }
-          if (isPlainObject(block.argumentsJson)) {
+          if (block.argumentsJson !== null) {
             continue;
           }
           try {
