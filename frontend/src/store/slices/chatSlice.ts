@@ -1,6 +1,6 @@
 import { ChatConversationState, ChatMessage, ContentBlock, ContentBlockEvent, MessageStatus } from "@/interfaces";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { isEmpty, isPlainObject } from "lodash-es";
+import { isEmpty } from "lodash-es";
 
 interface ChatStateMap {
   [conversionId: string]: ChatConversationState;
@@ -18,8 +18,6 @@ export const getDefaultChatState = (): ChatConversationState => ({
   lastMessageUpdateAt: "",
   isLoading: false,
   isStreaming: false,
-  isReasoning: false,
-  isCallingMcpTools: false,
 });
 
 // 稳定的默认状态，避免每次创建新对象
@@ -115,19 +113,6 @@ const chatSlice = createSlice({
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
       chatState.isLoading = data;
-    },
-    setReasoning: (state, action: PayloadAction<ConversationActionPayload<boolean>>) => {
-      const { conversationId, data } = action.payload;
-      const chatState = conversationIdCheck(state, conversationId);
-      chatState.isReasoning = data;
-    },
-    setCallingMcpTools: (state, action: PayloadAction<ConversationActionPayload<boolean>>) => {
-      const { conversationId, data } = action.payload;
-      const chatState = conversationIdCheck(state, conversationId);
-      const lastMessage = lastMessageCheck(chatState.messages);
-      if (lastMessage) {
-        chatState.isCallingMcpTools = data;
-      }
     },
     prependContentToLastMessage: (state, action: PayloadAction<ConversationActionPayload<string>>) => {
       const { conversationId, data } = action.payload;
@@ -245,8 +230,6 @@ const chatSlice = createSlice({
       const chatState = conversationIdCheck(state, conversationId);
       chatState.isLoading = false;
       chatState.isStreaming = false;
-      chatState.isReasoning = false;
-      chatState.isCallingMcpTools = false;
     },
     // 删除会话时调用
     clearChatState: (state, action: PayloadAction<ConversationActionPayload>) => {
@@ -264,12 +247,10 @@ export const {
   removeMessageById,
   setStreaming,
   setLoading,
-  setCallingMcpTools,
   prependContentToLastMessage,
   appendContentToLastMessage,
   appendReasoningToLastMessage,
   appendContentBlockToLastMessage,
-  setReasoning,
   updateMessageStatus,
   updateMessageModifiedTime,
   clearLastMessage,

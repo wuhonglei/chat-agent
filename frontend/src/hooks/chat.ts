@@ -19,7 +19,6 @@ import {
   lastMessageCheck,
   removeMessageById,
   resetChatState,
-  setCallingMcpTools,
   setLoading,
   setMessages,
   setStreaming,
@@ -173,11 +172,6 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
                 data,
               })
             );
-            if (data.op === "done") {
-              dispatch(setCallingMcpTools({ conversationId, data: false }));
-            } else if (data.op === "tool_delta" || (data.op === "append" && data.block.type.startsWith("tool_"))) {
-              dispatch(setCallingMcpTools({ conversationId, data: true }));
-            }
           },
 
           // 本次消息流式传输结束

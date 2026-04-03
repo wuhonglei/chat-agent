@@ -102,6 +102,4 @@ export interface ChatConversationState {
   lastMessageUpdateAt: string; // 等价于 messages.at(-1).createdAt
   isLoading: boolean;
   isStreaming: boolean;
-  isReasoning: boolean;
-  isCallingMcpTools: boolean;
 }

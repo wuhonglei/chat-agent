@@ -12,9 +12,16 @@ class IndexDB extends Dexie {
 
   constructor(dbName: string) {
     super(dbName);
-    this.version(DB_VERSION).stores({
+    this.version(1).stores({
       conversationMessages: "id, data",
     });
+    this.version(DB_VERSION)
+      .stores({
+        conversationMessages: "id, data",
+      })
+      .upgrade(async tx => {
+        await tx.table("conversationMessages").clear();
+      });
   }
 }
 
