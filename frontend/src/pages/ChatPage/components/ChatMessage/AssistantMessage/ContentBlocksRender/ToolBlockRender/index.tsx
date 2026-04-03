@@ -1,10 +1,10 @@
 import { ContentBlockRenderStatus, ToolResultBlock, ToolUseBlock } from "@/interfaces/contentBlock";
 import CodeHighlighter from "@/pages/ChatPage/components/MarkdownContainer/components/CodeHighlighter";
 import { Think } from "@ant-design/x";
-import { Typography } from "antd";
 import { useMemoizedFn } from "ahooks";
 import React, { useEffect, useMemo, useState } from "react";
 
+import ToolArguments from "./ToolArguments";
 import ToolBlockTitle from "./ToolBlockTitle";
 import { getToolIcon } from "./toolIcons";
 import { getResultLanguage, isActiveStatus, stringifyJsonLike } from "./utils";
@@ -15,12 +15,8 @@ type Props = {
   status: ContentBlockRenderStatus;
 };
 
-const { Paragraph } = Typography;
-const rows = 10;
-
 export const ToolBlockRender: React.FC<Props> = ({ toolUseBlock, toolResultBlock, status }) => {
   const [expanded, setExpanded] = useState<boolean>(isActiveStatus(status));
-  const [paragraphExpanded, setParagraphExpanded] = useState<boolean>(false);
   const handleExpandChange = useMemoizedFn((nextExpanded: boolean) => {
     setExpanded(nextExpanded);
   });
@@ -45,18 +41,7 @@ export const ToolBlockRender: React.FC<Props> = ({ toolUseBlock, toolResultBlock
       title={<ToolBlockTitle rawToolName={toolUseBlock.name} status={status} />}
     >
       <div className="w-full flex flex-col gap-2 py-1">
-        <Paragraph
-          type="secondary"
-          ellipsis={{
-            rows,
-            expandable: "collapsible",
-            expanded: paragraphExpanded,
-            symbol: isExpanded => (isExpanded ? "收起" : "展开"),
-            onExpand: (_event, info) => setParagraphExpanded(info.expanded),
-          }}
-        >
-          {toolUseBlock.argumentsText}
-        </Paragraph>
+        <ToolArguments argumentsText={toolUseBlock.argumentsText} />
         {toolResultBlock ? (
           toolResultBlock.isError ? (
             <div className="w-full flex items-start gap-2">
