@@ -39,7 +39,11 @@ export const ToolBlockRender: React.FC<Props> = ({ toolUseBlock, toolResultBlock
       title={<ToolBlockTitle rawToolName={toolUseBlock.name} status={status} />}
     >
       <div className="w-full flex flex-col gap-2 py-1">
-        <ToolArguments argumentsText={toolUseBlock.argumentsText} argumentsJson={toolUseBlock.argumentsJson} />
+        <ToolArguments
+          toolName={toolUseBlock.name}
+          argumentsText={toolUseBlock.argumentsText}
+          argumentsJson={toolUseBlock.argumentsJson}
+        />
         <ToolResult toolResultBlock={toolResultBlock} />
       </div>
     </Think>
