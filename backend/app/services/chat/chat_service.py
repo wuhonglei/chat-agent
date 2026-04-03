@@ -1,117 +1,22 @@
-"""Chat service for RAG-based Q&A"""
+"""Chat service facade for the streaming chat pipeline."""
 
-import asyncio
 from collections.abc import AsyncGenerator
-from typing import cast
 
 from app.agents import ChatSessionAgent, TitleGenerationAgent
 from app.core.config import settings
 from app.mcp.mcp_client import MCPClientManager
-from app.prompts import get_user_message_combine_tool_calls
-from app.schemas.chat import (
-    ChatMessageItem,
-    ChatRequest,
-    CollectedResponse,
-    MessageStatus,
-    extract_user_text,
-    tool_messages_from_content_blocks,
-)
+from app.schemas.chat import ChatRequest
 from app.schemas.config import ChatContextConfig
-from app.schemas.llm import (
-    ToolMessage,
-    ToolResultMessage,
-    ToolUseMessage,
-)
 from app.schemas.user import MemoryListItem
-from app.services.conversation import (
-    ContextSummaryService,
-    ConversationContextDbService,
-)
-from app.services.message import MessageDbService
+from app.services.chat.chat_orchestrator import ChatOrchestrator
+from app.services.chat.history_context_service import HistoryContextService
+from app.services.chat.post_process_service import PostProcessService
 from app.services.user.memory_service import MemoryService
-from app.utils.history_truncate import truncate_history_by_rounds_and_tokens
-from app.utils.logger import logger
-from app.utils.message import (
-    filter_tool_call_messages,
-    format_tool_call_messages_for_llm,
-)
-from app.utils.model import format_sse_message
-from app.utils.time import get_current_time, get_time_duration
 from app.utils.token import TokenCalculator
 
 
-def _truncated_set_ids(truncated_messages: list[ChatMessageItem]) -> list[str]:
-    """当前截断消息的 id 列表（稳定排序），用于写入 last_summarized_message_ids。"""
-    return sorted(m.id for m in truncated_messages)
-
-
-async def _run_window_out_summary_only(
-    conversation_id: str,
-    truncated_messages: list[ChatMessageItem] | None,
-    summary_max_tokens: int,
-    *,
-    new_summary: str | None = None,
-    truncated_set_ids: list[str] | None = None,
-) -> str | None:
-    """仅做窗口外摘要并写入 summary_before_window 与 last_summarized_message_ids；全量或增量由参数区分。
-    - 全量：传入 truncated_messages，内部调用 summarize_truncated_messages，再 upsert。
-    - 增量：传入 new_summary + truncated_set_ids，仅 upsert。
-    """
-    if new_summary is not None and truncated_set_ids is not None:
-        logger.info(
-            "Running window-out summary upsert (incremental)",
-            conversation_id=conversation_id,
-        )
-        try:
-            with ConversationContextDbService() as ctx_svc:
-                context = ctx_svc.upsert_conversation_context(
-                    conversation_id,
-                    summary_before_window=new_summary,
-                    last_summarized_message_ids=truncated_set_ids,
-                )
-                return context.summary_before_window
-        except Exception as e:
-            logger.warning(
-                "Window-out summary upsert failed",
-                conversation_id=conversation_id,
-                error=e,
-            )
-        return None
-
-    if not truncated_messages:
-        return None
-
-    logger.info(
-        "Running window-out summary (full)",
-        conversation_id=conversation_id,
-        truncated_messages_count=len(truncated_messages),
-        summary_max_tokens=summary_max_tokens,
-    )
-    try:
-        summary_svc = ContextSummaryService()
-        summary = await summary_svc.summarize_truncated_messages(
-            truncated_messages, max_tokens=summary_max_tokens
-        )
-        if summary:
-            with ConversationContextDbService() as ctx_svc:
-                context = ctx_svc.upsert_conversation_context(
-                    conversation_id,
-                    summary_before_window=summary,
-                    last_summarized_message_ids=truncated_set_ids,
-                )
-                return context.summary_before_window
-        return None
-    except Exception as e:
-        logger.warning(
-            "Window-out summary task failed",
-            conversation_id=conversation_id,
-            error=e,
-        )
-        return None
-
-
 class ChatService:
-    """Handle chat interactions with RAG"""
+    """Assemble collaborators for the chat streaming entrypoint."""
 
     def __init__(
         self,
@@ -119,259 +24,41 @@ class ChatService:
         mcp_manager: MCPClientManager,
         chat_context_config: ChatContextConfig,
     ):
-        self.debug = settings.app.debug
         self.chat_context_config = chat_context_config
-        self.history_window_config = self.chat_context_config.history_window
-        self.window_out_summary_config = self.chat_context_config.window_out_summary
         self.memory_config = self.chat_context_config.memory_config
         self.memory_service = MemoryService(self.memory_config)
+        token_calculator = TokenCalculator(settings.response_model.model_name)
 
-        self.token_calculator = TokenCalculator(settings.response_model.model_name)
-
-        # 初始化各个Agent
-        self.title_generation_agent = TitleGenerationAgent(
-            think_mode=False, llm_config=settings.tool_call_model
-        )
         self.chat_session_agent = ChatSessionAgent(
             think_mode=think_mode,
             llm_config=settings.response_model,
             mcp_manager=mcp_manager,
         )
-
-    async def stream_message(
-        self,
-        chat_request: ChatRequest,
-        window_out_summary: str | None,
-        history_messages: list[ChatMessageItem],
-        user_id: str,
-        client_ip: str | None,
-        user_memories: list[MemoryListItem] | None = None,
-    ) -> AsyncGenerator[str, None]:
-        """Stream chat response using agent architecture. user_memories 由上层 Mem0 搜索得到后传入。"""
-        logger.debug("user_memories", user_memories=user_memories)
-
-        start_time = get_current_time()
-        try:
-            user_message = extract_user_text(chat_request.content_blocks)
-            logger.info(
-                "Starting chat message stream",
-                user_message_length=len(user_message),
-                history_messages_count=len(history_messages),
-                client_ip=client_ip,
-            )
-
-            logger.debug("Starting chat session agent execution")
-            session_start_time = get_current_time()
-            async for message in self.chat_session_agent.stream_execute(
-                chat_request=chat_request,
-                history_messages=history_messages,
-                client_ip=client_ip,
-                window_out_summary=window_out_summary,
-                user_id=user_id,
-                conversation_id=chat_request.conversation_id,
-                user_memories=user_memories or [],
-            ):
-                yield message
-            session_duration = get_time_duration(session_start_time)
-            logger.debug(
-                "Chat session agent execution completed",
-                duration=session_duration,
-                tool_calls_count=len(self.chat_session_agent.output_messages),
-            )
-
-            total_duration = get_time_duration(start_time)
-            logger.info(
-                "Chat message stream completed",
-                total_duration=total_duration,
-            )
-            return
-
-        except Exception as e:
-            total_duration = get_time_duration(start_time)
-            logger.error(
-                "Failed to stream message",
-                error=e,
-                duration=total_duration,
-            )
-            yield format_sse_message(
-                "error",
-                {
-                    "content": str(e),
-                },
-            )
-            return
-
-    async def generate_title(
-        self, user_message: str, conversation_id: str | None = None
-    ) -> str:
-        """生成对话标题"""
-        logger.info(
-            "Regenerating conversation title",
-            conversation_id=conversation_id,
+        self.title_generation_agent = TitleGenerationAgent(
+            think_mode=False, llm_config=settings.tool_call_model
         )
-        title = await self.title_generation_agent.execute(user_message)
-        logger.info(
-            "Title generated",
-            conversation_id=conversation_id,
-            title=title,
-            title_length=len(title) if title else 0,
+        self.history_context_service = HistoryContextService(
+            chat_context_config=chat_context_config,
+            token_calculator=token_calculator,
+        )
+        self.post_process_service = PostProcessService(self.memory_service)
+        self.orchestrator = ChatOrchestrator(
+            chat_session_agent=self.chat_session_agent,
+            title_generation_agent=self.title_generation_agent,
+            history_context_service=self.history_context_service,
+            post_process_service=self.post_process_service,
         )
 
-        return format_sse_message(
-            "title",
-            {
-                "id": conversation_id,
-                "title": title,
-            },
-        )
-
-    def process_history_messages(
-        self, history_messages: list[ChatMessageItem]
-    ) -> list[ChatMessageItem]:
-        """
-        处理对话历史：最后 2 条视为最后一轮（完整 tool 消息），其他轮用 summary/content/截断参与组装。
-        返回扁平列表，供 _compose_messages 按条 format_chat_message_for_llm。
-        """
-        if not history_messages:
+    async def _search_memories(
+        self, *, query: str, user_id: str
+    ) -> list[MemoryListItem]:
+        if not query:
             return []
-
-        threshold_tokens = self.chat_context_config.tool_result_compression.message_summary_threshold_tokens
-
-        # 最后一轮简单视为 history_messages 的最后 2 条
-        last_round_start = max(0, len(history_messages) - 2)
-
-        flat: list[ChatMessageItem] = []
-
-        for idx, msg in enumerate(history_messages):
-            if msg.role == "user":
-                flat.append(msg)
-                continue
-            if msg.role != "assistant":
-                flat.append(msg)
-                continue
-            tool_messages = msg.tool_calls or tool_messages_from_content_blocks(
-                msg.content_blocks
-            )
-            if not tool_messages:
-                flat.append(msg)
-                continue
-
-            # 按 DB 顺序 [assistant1, tool1, assistant2, tool2, ...] 逐条处理，assistant 为多条
-            tool_calls_list: list[ToolMessage] = filter_tool_call_messages(
-                tool_messages
-            )
-            if not tool_calls_list:
-                flat.append(msg)
-                continue
-
-            is_latest_tool_round = idx >= last_round_start
-
-            # 按原始顺序输出：assistant1, tool1, assistant2, tool2, ...
-            tool_calls: list[ToolMessage] = []
-            for m in tool_calls_list:
-                if getattr(m, "role", None) == "assistant":
-                    tool_calls.append(cast(ToolUseMessage, m))
-                elif getattr(m, "role", None) == "tool":
-                    tr = cast(ToolResultMessage, m)
-                    if is_latest_tool_round:
-                        tool_calls.append(tr)
-                        continue
-
-                    # 其他轮：用 summary，无则 content≤threshold 用 content，否则截断
-                    effective_content: str
-                    if tr.summary and tr.summary.strip():
-                        effective_content = tr.summary
-                    else:
-                        content_tokens = self.token_calculator.count_tokens(
-                            tr.content or ""
-                        )
-                        if content_tokens <= threshold_tokens:
-                            effective_content = tr.content or ""
-                        else:
-                            effective_content = (
-                                "[内容已截断] "
-                                + self.token_calculator.truncate_text_to_tokens(
-                                    tr.content or "", threshold_tokens
-                                )
-                            )
-                    tool_calls.append(
-                        tr.model_copy(update={"content": effective_content})
-                    )
-
-            tool_items = format_tool_call_messages_for_llm(
-                tool_calls, clear_reasoning_content=True
-            )
-
-            last_message = flat[-1] if flat else None
-            if last_message and last_message.role == "user":
-                # 工具调用结束后的模型回复（父级 assistant 消息）加入 flat
-                last_message.content = get_user_message_combine_tool_calls(
-                    last_message.content or "",
-                    tool_items,
-                )
-            flat.append(msg)
-
-        return flat
-
-    async def prepare_history_messages(
-        self,
-        raw_history: list[ChatMessageItem],
-        conversation_id: str,
-    ) -> tuple[str | None, list[ChatMessageItem]]:
-        """
-        处理对话历史：截断轮次与 token、可选窗口外摘要、再扁平化为带 tool_calls 的消息列表。
-        供 stream_response 等调用方在获取 raw_history 后使用。
-        """
-        history_messages, truncated_messages = truncate_history_by_rounds_and_tokens(
-            raw_history,
-            self.history_window_config.max_rounds,
-            self.history_window_config.max_tokens,
-            self.token_calculator,
+        return await self.memory_service.search(
+            query=query,
+            user_id=user_id,
+            threshold=self.memory_config.search_threshold,
         )
-        window_out_summary = None
-        if self.window_out_summary_config.enabled and truncated_messages:
-            current_ids = _truncated_set_ids(truncated_messages)
-            with ConversationContextDbService() as ctx_svc:
-                ctx = ctx_svc.get_conversation_context(conversation_id)
-                window_out_summary = ctx.summary_before_window if ctx else None
-            last_ids: list[str] = (
-                list(ctx.last_summarized_message_ids or []) if ctx else []
-            )
-            if sorted(current_ids) == sorted(last_ids):
-                return window_out_summary, self.process_history_messages(
-                    history_messages
-                )
-            delta_ids = set(current_ids) - set(last_ids)
-            summary_max_tokens = self.window_out_summary_config.summary_max_tokens
-            if (
-                set[str](last_ids) <= set(current_ids)
-                and delta_ids
-                and ctx
-                and (ctx.summary_before_window or "").strip()
-            ):
-                delta_messages = [m for m in truncated_messages if m.id in delta_ids]
-                summary_svc = ContextSummaryService()
-                new_summary = await summary_svc.summarize_merge(
-                    ctx.summary_before_window or "",
-                    delta_messages,
-                    max_tokens=summary_max_tokens,
-                )
-                if new_summary:
-                    window_out_summary = await _run_window_out_summary_only(
-                        conversation_id=conversation_id,
-                        truncated_messages=None,
-                        summary_max_tokens=summary_max_tokens,
-                        new_summary=new_summary,
-                        truncated_set_ids=current_ids,
-                    )
-            else:
-                window_out_summary = await _run_window_out_summary_only(
-                    conversation_id=conversation_id,
-                    truncated_messages=truncated_messages,
-                    summary_max_tokens=summary_max_tokens,
-                    truncated_set_ids=current_ids,
-                )
-        return window_out_summary, self.process_history_messages(history_messages)
 
     async def stream_response(
         self,
@@ -380,156 +67,11 @@ class ChatService:
         assistant_message_id: str,
         user_id: str,
     ) -> AsyncGenerator[str, None]:
-        """生成完整流式响应：ack、正文流、标题（可选）、done/error。user_id 用于窗口外摘要与用户画像异步任务。"""
-        conversation_id = chat_request.conversation_id
-        try:
-            with MessageDbService() as message_service:
-                conversation, user_message, assistant_message = (
-                    message_service.get_conversation_and_messages(
-                        conversation_id, user_message_id, assistant_message_id
-                    )
-                )
-                logger.debug(
-                    "Retrieved conversation and messages",
-                    conversation_id=conversation_id,
-                    user_message_role=user_message.role,
-                    assistant_message_status=assistant_message.status,
-                )
-
-                yield format_sse_message("ack", user_message)
-                yield format_sse_message("ack", assistant_message)
-                yield format_sse_message("refresh_conversation", conversation)
-
-                title_task: asyncio.Task[str] | None = None
-                if chat_request.regenerate_title:
-                    title_task = asyncio.create_task(
-                        self.generate_title(
-                            extract_user_text(chat_request.content_blocks),
-                            conversation_id=conversation_id,
-                        )
-                    )
-
-                raw_history = message_service.get_history_messages_by_ids(
-                    chat_request.history_ids
-                )
-                (
-                    window_out_summary,
-                    new_history_messages,
-                ) = await self.prepare_history_messages(raw_history, conversation_id)
-                logger.info(
-                    "Starting stream message generation",
-                    conversation_id=conversation_id,
-                    history_ids_count=len(chat_request.history_ids),
-                    history_messages_count=len(new_history_messages),
-                )
-
-                user_memory_texts = await self.memory_service.search(
-                    query=extract_user_text(chat_request.content_blocks),
-                    user_id=user_id,
-                    threshold=self.memory_config.search_threshold,
-                )
-
-                chunk_count = 0
-                async for chunk in self.stream_message(
-                    chat_request=chat_request,
-                    window_out_summary=window_out_summary,
-                    history_messages=new_history_messages,
-                    client_ip=None,
-                    user_id=user_id,
-                    user_memories=user_memory_texts,
-                ):
-                    if title_task is not None and title_task.done():
-                        try:
-                            if title_message := title_task.result():
-                                yield title_message
-                        except Exception:
-                            pass
-                        title_task = None
-                    chunk_count += 1
-                    yield chunk
-
-                logger.info(
-                    "Stream message generation completed",
-                    conversation_id=conversation_id,
-                    total_chunks=chunk_count,
-                )
-
-                assistant_payload = self.get_collected_response()
-                # 流式生成期间连接可能被服务端关闭，使用新会话执行更新
-                with MessageDbService() as update_service:
-                    conv, _, asst_msg = update_service.get_conversation_and_messages(
-                        conversation_id, user_message_id, assistant_message_id
-                    )
-                    assistant_message = update_service.update_assistant_message(
-                        conv,
-                        asst_msg,
-                        assistant_payload=assistant_payload,
-                        status=MessageStatus.DONE,
-                    )
-                    # 在 session 内读取，避免退出 with 后 DetachedInstanceError
-                    assistant_updated_at = assistant_message.updated_at
-
-                logger.info(
-                    "Assistant message updated",
-                    conversation_id=conversation_id,
-                    assistant_message_id=assistant_message_id,
-                    status=MessageStatus.DONE,
-                )
-
-                done_payload = {
-                    "content_length": len(assistant_payload.content),
-                    "reasoning_length": len(assistant_payload.reasoning),
-                    "tool_calls_length": len(assistant_payload.tool_calls),
-                    "updated_at": str(assistant_updated_at),
-                }
-                logger.info(
-                    "Sending done message",
-                    conversation_id=conversation_id,
-                    **done_payload,
-                )
-                yield format_sse_message("done", done_payload)
-                logger.info(
-                    "Stream response generation completed successfully",
-                    conversation_id=conversation_id,
-                )
-
-                # Mem0 记忆：问答结束后异步写入，不阻塞响应
-                asyncio.create_task(
-                    self.memory_service.add_memories(
-                        messages=[
-                            {
-                                "role": "user",
-                                "content": extract_user_text(
-                                    chat_request.content_blocks
-                                ),
-                            },
-                            {
-                                "role": "assistant",
-                                "content": assistant_payload.content or "",
-                            },
-                        ],
-                        user_id=user_id,
-                        run_id=conversation_id,
-                    ),
-                    name="mem0_add_memories",
-                )
-        except Exception as e:
-            logger.error(
-                "Error during stream response generation",
-                conversation_id=conversation_id,
-                error=e,
-                error_type=type(e).__name__,
-            )
-            yield format_sse_message(
-                "error",
-                {"content": str(e), "conversation_id": conversation_id},
-            )
-
-    def get_collected_response(self) -> CollectedResponse:
-        """获取已收集的助手消息内容"""
-        return CollectedResponse(
-            content=self.chat_session_agent.content,
-            reasoning=self.chat_session_agent.reasoning,
-            content_blocks=self.chat_session_agent.content_blocks,
-            tool_calls=self.chat_session_agent.output_messages,
-        )
+        async for chunk in self.orchestrator.stream_response(
+            chat_request=chat_request,
+            user_message_id=user_message_id,
+            assistant_message_id=assistant_message_id,
+            user_id=user_id,
+            memory_search=self._search_memories,
+        ):
+            yield chunk

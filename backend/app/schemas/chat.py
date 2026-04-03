@@ -193,7 +193,9 @@ def collect_reasoning_from_blocks(content_blocks: list[ContentBlock]) -> str:
     )
 
 
-def tool_messages_from_content_blocks(content_blocks: list[ContentBlock]) -> list[ToolMessage]:
+def tool_messages_from_content_blocks(
+    content_blocks: list[ContentBlock],
+) -> list[ToolMessage]:
     tool_use_by_call_id: dict[str, ToolUseBlock] = {}
     tool_messages: list[ToolMessage] = []
 

@@ -1,12 +1,16 @@
 """单会话 Agent：同一 messages 线程上 MCP 工具多轮 + content_blocks 流式应答。"""
 
 from collections.abc import AsyncGenerator
-from dataclasses import dataclass
 from typing import Any
 
 from openai.types.chat import ChatCompletionMessageFunctionToolCall
 
 from app.agents.base import BaseAgent
+from app.agents.chat_session_state import (
+    ChatRoundStateMachine,
+    RoundExecution,
+    SessionAggregate,
+)
 from app.agents.mcp_tool_execution import MCPToolSession, get_mcp_server_names
 from app.agents.utils.content_blocks import ContentBlocksAggregator
 from app.agents.utils.tool_call_stream import (
@@ -19,6 +23,11 @@ from app.prompts import (
     get_user_message_for_no_tool_call,
     get_user_message_for_tool_calls,
 )
+from app.protocols.chat_messages import (
+    build_content_block_done_event,
+    build_content_block_event,
+    format_tool_call_messages_for_llm,
+)
 from app.schemas.chat import (
     ChatMessageItem,
     ChatRequest,
@@ -29,16 +38,8 @@ from app.schemas.config import LLMConfig
 from app.schemas.llm import ToolMessage
 from app.schemas.user import MemoryListItem
 from app.utils.logger import logger
-from app.utils.message import (
-    format_tool_call_messages_for_llm,
-    update_last_user_message,
-)
+from app.utils.message import update_last_user_message
 from app.utils.time import get_current_time, get_time_duration
-
-
-@dataclass
-class _RoundState:
-    final_answer_done: bool = False
 
 
 class ChatSessionAgent(BaseAgent):
@@ -52,11 +53,25 @@ class ChatSessionAgent(BaseAgent):
     ):
         super().__init__(think_mode, llm_config)
         self.mcp_manager = mcp_manager
-        self.output_messages: list[ToolMessage] = []
-        self.content_blocks: list[ContentBlock] = []
-        self.content = ""
-        self.reasoning = ""
+        self.aggregate = SessionAggregate()
         self.blocks_aggregator = ContentBlocksAggregator()
+        self.state_machine = ChatRoundStateMachine()
+
+    @property
+    def output_messages(self) -> list[ToolMessage]:
+        return self.aggregate.output_messages
+
+    @property
+    def content_blocks(self) -> list[ContentBlock]:
+        return self.aggregate.content_blocks
+
+    @property
+    def content(self) -> str:
+        return self.aggregate.content
+
+    @property
+    def reasoning(self) -> str:
+        return self.aggregate.reasoning
 
     def format_sse_message(  # type: ignore[override]
         self, msg_type: str, data: dict[str, Any] | None = None
@@ -77,10 +92,7 @@ class ChatSessionAgent(BaseAgent):
         _ = user_id
         _ = conversation_id
         self.think_mode = chat_request.think_mode
-        self.output_messages = []
-        self.content_blocks = []
-        self.content = ""
-        self.reasoning = ""
+        self.aggregate.reset()
         self.blocks_aggregator = ContentBlocksAggregator()
 
         user_message = extract_user_text(chat_request.content_blocks)
@@ -121,18 +133,18 @@ class ChatSessionAgent(BaseAgent):
                 messages,
                 new_content=get_user_message_for_no_tool_call(user_message),
             )
-            state = _RoundState()
+            round_state = self.state_machine.start_round()
             async for sse in self._stream_one_round_with_tools(
                 messages,
                 [],
                 tool_ctx,
                 iteration=0,
                 iterations_by_tool={},
-                state=state,
+                round_state=round_state,
             ):
                 yield sse
             self._sync_collected_content()
-            yield self.format_sse_message("content_block", {"op": "done"})
+            yield build_content_block_done_event()
             return
 
         tools_list = list(tools)
@@ -141,22 +153,22 @@ class ChatSessionAgent(BaseAgent):
         }
 
         for iteration in range(tool_ctx.MAX_TOTAL_ITERATIONS):
-            tool_ctx._update_user_message_with_tool_hints(
+            tool_ctx.apply_iteration_hints(
                 messages=messages,
                 tools=tools_list,
                 iterations_by_tool=iterations_by_tool,
                 tool_call_user_message=tool_call_user_message,
                 iteration=iteration,
             )
-            available_tools, _ = tool_ctx._get_tools_state(
+            available_tools, _ = tool_ctx.get_tools_state(
                 tools_list, iterations_by_tool
             )
             formatted_collected = format_tool_call_messages_for_llm(
-                self.output_messages,
+                self.aggregate.output_messages,
                 clear_reasoning_content=False,
             )
             llm_messages = messages + formatted_collected
-            state = _RoundState()
+            round_state = self.state_machine.start_round()
 
             async for sse in self._stream_one_round_with_tools(
                 llm_messages,
@@ -164,13 +176,13 @@ class ChatSessionAgent(BaseAgent):
                 tool_ctx,
                 iteration,
                 iterations_by_tool,
-                state,
+                round_state,
             ):
                 yield sse
 
-            if state.final_answer_done:
+            if round_state.final_answer_done:
                 self._sync_collected_content()
-                yield self.format_sse_message("content_block", {"op": "done"})
+                yield build_content_block_done_event()
                 return
 
         logger.info(
@@ -181,9 +193,9 @@ class ChatSessionAgent(BaseAgent):
         return
 
     def _sync_collected_content(self) -> None:
-        self.content_blocks = list(self.blocks_aggregator.blocks)
-        self.content = self.blocks_aggregator.get_content()
-        self.reasoning = self.blocks_aggregator.get_reasoning()
+        self.aggregate.content_blocks = list(self.blocks_aggregator.blocks)
+        self.aggregate.content = self.blocks_aggregator.get_content()
+        self.aggregate.reasoning = self.blocks_aggregator.get_reasoning()
 
     async def _stream_one_round_with_tools(
         self,
@@ -192,7 +204,7 @@ class ChatSessionAgent(BaseAgent):
         tool_ctx: MCPToolSession,
         iteration: int,
         iterations_by_tool: dict[str, int],
-        state: _RoundState,
+        round_state: RoundExecution,
     ) -> AsyncGenerator[str, None]:
         start_time = get_current_time()
         response = await self.call_llm_api(
@@ -225,19 +237,19 @@ class ChatSessionAgent(BaseAgent):
                 for event in self.blocks_aggregator.process_tool_call_deltas(
                     d_tool_calls
                 ):
-                    yield self.format_sse_message("content_block", event)
+                    yield build_content_block_event(event)
 
             rc = getattr(delta, "reasoning_content", None)
             if rc:
                 full_reasoning += rc
                 for event in self.blocks_aggregator.append_thinking_delta(rc):
-                    yield self.format_sse_message("content_block", event)
+                    yield build_content_block_event(event)
 
             ct = getattr(delta, "content", None)
             if ct:
                 full_content += ct
                 for event in self.blocks_aggregator.append_text_delta(ct):
-                    yield self.format_sse_message("content_block", event)
+                    yield build_content_block_event(event)
 
         merged_tool_calls = tool_call_acc_to_openai_list(tool_acc)
         has_tool_calls = bool(merged_tool_calls) or finish_reason == "tool_calls"
@@ -251,8 +263,9 @@ class ChatSessionAgent(BaseAgent):
             has_tool_calls = False
 
         if not has_tool_calls:
+            self.state_machine.mark_done()
             self._sync_collected_content()
-            state.final_answer_done = True
+            round_state.final_answer_done = True
             logger.info(
                 "Stream tool round: final answer (no tool_calls)",
                 duration=get_time_duration(start_time),
@@ -260,27 +273,26 @@ class ChatSessionAgent(BaseAgent):
             return
 
         tool_calls_fc: list[ChatCompletionMessageFunctionToolCall] = merged_tool_calls
-        yield self.format_sse_message(
-            "content_block", self.blocks_aggregator.finalize_round()
-        )
-        tool_ctx._should_continue_tool_calls(tool_calls_fc)
+        self.state_machine.begin_tool_calling()
+        yield build_content_block_event(self.blocks_aggregator.finalize_round())
+        tool_ctx.should_continue_tool_calls(tool_calls_fc)
 
         assistant_message = tool_ctx.build_tool_use_message(
             tool_calls_fc,
             full_content,
             full_reasoning or None,
         )
-        self.output_messages.append(assistant_message)
+        self.aggregate.output_messages.append(assistant_message)
 
-        tool_results = await tool_ctx._execute_tool_calls_parallel(
+        tool_results = await tool_ctx.execute_tool_calls_parallel(
             tool_calls_fc,
             iteration,
             iterations_by_tool,
         )
+        self.state_machine.begin_finalizing()
         for tool_result_message in tool_results:
-            self.output_messages.append(tool_result_message)
-            yield self.format_sse_message(
-                "content_block",
-                self.blocks_aggregator.append_tool_result(tool_result_message),
+            self.aggregate.output_messages.append(tool_result_message)
+            yield build_content_block_event(
+                self.blocks_aggregator.append_tool_result(tool_result_message)
             )
         self._sync_collected_content()

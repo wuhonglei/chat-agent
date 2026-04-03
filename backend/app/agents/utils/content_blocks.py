@@ -67,10 +67,14 @@ class ContentBlocksAggregator:
         existing_block = self._find_block(self._current_text_block_id)
         if isinstance(existing_block, TextBlock):
             existing_block.text += delta
-            events.append({"op": "delta", "block_id": existing_block.id, "delta": delta})
+            events.append(
+                {"op": "delta", "block_id": existing_block.id, "delta": delta}
+            )
         return events
 
-    def process_tool_call_deltas(self, delta_tool_calls: list[Any] | None) -> list[dict[str, Any]]:
+    def process_tool_call_deltas(
+        self, delta_tool_calls: list[Any] | None
+    ) -> list[dict[str, Any]]:
         events: list[dict[str, Any]] = []
         if not delta_tool_calls:
             return events
@@ -86,7 +90,9 @@ class ContentBlocksAggregator:
                 self.blocks.append(new_block)
                 self._tool_index_to_use_block_id[idx] = new_block.id
                 use_block_id = new_block.id
-                events.append({"op": "append", "block": new_block.model_dump(mode="json")})
+                events.append(
+                    {"op": "append", "block": new_block.model_dump(mode="json")}
+                )
             existing_block = self._find_block(use_block_id)
             if not isinstance(existing_block, ToolUseBlock):
                 continue
