@@ -1,65 +1,28 @@
-# 组件工具实现说明（当前实现）
+# 组件工具实现说明（历史归档）
 
-> 状态：现网实现。
-> 本文档基于 `src/componentTools/*`、`src/interfaces/*`、`src/services/chat.ts` 当前代码整理。
+> 状态：历史文档（非现网）  
+> 更新日期：2026-04-04
 
-## 1. 目标
+## 1. 为什么归档
 
-前端支持将 AI 回复中的特定代码块渲染为业务组件，并把组件触发规则随聊天请求发送给后端，由后端决定是否返回组件数据。
+仓库当前代码已不再包含本文档最初对应的组件工具链路（例如 `src/componentTools/*` 的运行时代码、`ChatRequest.componentToolsForBackend` 字段）。
 
-## 2. 前端注册结构
+因此本文档不再作为现网实现说明，仅保留为历史背景。
 
-组件在 `src/componentTools/index.ts` 中注册，每项包含：
+## 2. 当前现网应参考的文档
 
-- `name`：组件工具名（示例：`weather`）
-- `component`：React 组件
-- `typeSourceFile`：用于生成 schema 的类型文件路径
-- `whenCondition`：`and | or`
-- `when`：
-  - `mcp_tool_names`
-  - `mcp_tool_call_content`
-  - `user_message`
+- 会话与 SSE 协议：`frontend/docs/conversation.md`
+- 前端请求体字段：`frontend/docs/schema-for-backend-usage.md`
 
-对应类型定义在 `src/interfaces/componentTools.ts`：
+## 3. 与旧实现的关键差异
 
-- `ComponentToolItem`
-- `ComponentToolRequestItem`
+- 当前 `ChatRequest` 不包含 `componentToolsForBackend`。
+- 当前后端 `ChatRequest` 不包含 `component_tools_for_backend`。
+- 旧文档中“前端传组件规则、后端按字段拉取 schema”的描述不适用于现网。
 
-## 3. 请求协议（前端 -> 后端）
+## 4. 维护建议
 
-聊天请求类型在 `src/interfaces/chat.ts`：
+若未来重新引入组件工具能力，请：
 
-- `ChatRequest.componentToolsForBackend: Pick<ComponentToolRequestItem, "name" | "whenCondition" | "when">[]`
-
-这意味着前端传递的是“组件名称 + 触发条件”，而不是完整 schema 内容。
-
-## 4. 接口调用
-
-前端流式聊天接口：
-
-- `POST /api/chat/stream`
-
-调用位置：
-
-- `src/services/chat.ts`（`chatAPI.streamMessage`）
-
-请求体经 snake_case 转换后发送到后端，后端字段对应 `component_tools_for_backend`。
-
-## 5. 渲染约定
-
-前端按代码块语言标识识别组件渲染（例如 `component_<name>` 模式），匹配到已注册组件后进行 JSON 解析与渲染；解析失败则降级为普通代码块展示。
-
-## 6. Schema 生成与产物
-
-当前文档口径：schema 由前端构建流程自动生成并放在静态目录，后端按组件名拉取与缓存。
-更详细说明见：
-
-- `frontend/docs/schema-generation.md`
-- `backend/docs/COMPONENT_TOOLS_PRD.md`
-
-## 7. 维护注意事项
-
-- 新增组件时，必须同步更新 `src/componentTools/index.ts`；
-- `name` 需要与后端可识别的组件工具名保持一致；
-- `when` 触发条件字段应与后端 `ComponentToolWhen` 语义一致；
-- 文档中不再使用旧字段名 `component_tools` / `component_tool_names` 作为现网口径。
+1. 先在代码中恢复并落地完整链路（前端类型、后端 schema、服务逻辑、回归测试）。
+2. 再把本文档从“历史归档”改回“现网实现”，并补充最小可运行示例。
