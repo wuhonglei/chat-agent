@@ -36,7 +36,7 @@ class ChatService:
             tool_context_limit_ratio=chat_context_config.tool_round_context_limit_ratio,
         )
         self.title_generation_agent = TitleGenerationAgent(
-            think_mode=False, llm_config=settings.tool_call_model
+            think_mode=False, llm_config=settings.response_model
         )
         self.history_context_service = HistoryContextService(
             chat_context_config=chat_context_config,
