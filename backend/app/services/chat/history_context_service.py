@@ -105,6 +105,7 @@ class HistoryContextService:
                         update={
                             "content": effective_content,
                             "summary": None,
+                            "structured_content_for_display": None,
                         }
                     )
                 )
@@ -128,14 +129,16 @@ class HistoryContextService:
             raw_history,
             self.history_window_config.max_rounds,
         )
-        compressed_in_window = self.process_history_messages(in_window_messages)
+        compressed_in_window = self.process_history_messages(
+            in_window_messages)
         final_in_window = truncate_in_window_by_round_tokens(
             compressed_in_window,
             self.history_window_config.max_tokens,
             self.token_calculator,
         )
         final_kept_ids = {m.id for m in final_in_window}
-        out_of_window_messages = [m for m in raw_history if m.id not in final_kept_ids]
+        out_of_window_messages = [
+            m for m in raw_history if m.id not in final_kept_ids]
 
         window_out_summary = None
         before_window_summary = None

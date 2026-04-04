@@ -43,8 +43,7 @@ class ContentBlocksAggregator:
             self.blocks.append(new_block)
             self._current_thinking_block_id = new_block.id
             self._current_text_block_id = None
-            events.append(
-                {"op": "append", "block": new_block.model_dump(mode="json")})
+            events.append({"op": "append", "block": new_block.model_dump(mode="json")})
             return events
         existing_block = self._find_block(self._current_thinking_block_id)
         if isinstance(existing_block, ThinkingBlock):
@@ -63,8 +62,7 @@ class ContentBlocksAggregator:
             self.blocks.append(new_block)
             self._current_text_block_id = new_block.id
             self._current_thinking_block_id = None
-            events.append(
-                {"op": "append", "block": new_block.model_dump(mode="json")})
+            events.append({"op": "append", "block": new_block.model_dump(mode="json")})
             return events
         existing_block = self._find_block(self._current_text_block_id)
         if isinstance(existing_block, TextBlock):
@@ -93,8 +91,7 @@ class ContentBlocksAggregator:
                 self._tool_index_to_use_block_id[idx] = new_block.id
                 use_block_id = new_block.id
                 events.append(
-                    {"op": "append", "block": new_block.model_dump(
-                        mode="json")}
+                    {"op": "append", "block": new_block.model_dump(mode="json")}
                 )
             existing_block = self._find_block(use_block_id)
             if not isinstance(existing_block, ToolUseBlock):
@@ -138,8 +135,7 @@ class ContentBlocksAggregator:
         return {"op": "finalize_round"}
 
     def append_tool_result(self, tool_result: ToolResultMessage) -> dict[str, Any]:
-        tool_use_id = self._tool_call_to_use_block_id.get(
-            tool_result.tool_call_id)
+        tool_use_id = self._tool_call_to_use_block_id.get(tool_result.tool_call_id)
         if not tool_use_id:
             orphan_block = ToolUseBlock(
                 id=self._next_id(),
@@ -153,10 +149,16 @@ class ContentBlocksAggregator:
             tool_use_id=tool_use_id,
             is_error=tool_result.is_error,
             content=tool_result.content or "",
+            structured_content_for_display=tool_result.structured_content_for_display,
             summary=tool_result.summary,
         )
         self.blocks.append(block)
-        return {"op": "append", "block": block.model_dump(mode="json")}
+        block_payload = block.model_dump(mode="json")
+        if block.summary:
+            block_payload.pop("summary", None)
+        if block.structured_content_for_display is not None:
+            block_payload.pop("content", None)
+        return {"op": "append", "block": block_payload}
 
     def get_content(self) -> str:
         return collect_text_from_blocks(self.blocks)

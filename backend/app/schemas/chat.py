@@ -164,6 +164,9 @@ class ToolResultBlock(BaseModel):
     tool_use_id: str = Field(..., description="Referenced tool_use block ID")
     is_error: bool = Field(default=False, description="Tool result error status")
     content: str = Field(default="", description="Tool result content")
+    structured_content_for_display: list[dict[str, Any]] | None = Field(
+        default=None, description="供前端展示的轻量结构化工具结果"
+    )
     summary: str | None = Field(default=None, description="Tool result summary")
 
 
@@ -225,6 +228,24 @@ def collect_reasoning_from_block_payloads(
     )
 
 
+def dump_content_block_payloads(
+    content_blocks: list[ContentBlock] | list[dict[str, Any]] | None,
+    omit_tool_result_content_and_summary_when_structured: bool = False,
+) -> list[dict[str, Any]]:
+    payloads: list[dict[str, Any]] = []
+    for block in normalize_content_blocks(content_blocks):
+        payload = block.model_dump(mode="json")
+        if (
+            omit_tool_result_content_and_summary_when_structured
+            and isinstance(block, ToolResultBlock)
+            and block.structured_content_for_display is not None
+        ):
+            payload.pop("content", None)
+            payload.pop("summary", None)
+        payloads.append(payload)
+    return payloads
+
+
 def replace_text_content_blocks(
     content_blocks: list[ContentBlock] | list[dict[str, Any]] | None,
     text: str,
@@ -278,6 +299,7 @@ def tool_messages_from_content_blocks(
                     tool_call_id=block.tool_call_id,
                     is_error=block.is_error,
                     content=block.content,
+                    structured_content_for_display=block.structured_content_for_display,
                     summary=block.summary,
                 )
             )

@@ -8,7 +8,7 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.models import ConversationDb, MessageDb
-from app.schemas.chat import ChatMessageItem
+from app.schemas.chat import ChatMessageItem, dump_content_block_payloads
 from app.schemas.conversation import (
     ConversationInfo,
     CreatedBy,
@@ -51,8 +51,7 @@ class ConversationDbService(DbService):
         db.add(conversation)
         # 所有字段（id, created_at, updated_at 等）都通过 default_factory 在对象创建时生成
         # 不需要 refresh()，事务由 get_db() 自动提交
-        logger.debug("Conversation registered",
-                     conversation_id=conversation.id)
+        logger.debug("Conversation registered", conversation_id=conversation.id)
         conversation_info = ConversationInfo.model_validate(
             self.conversation_to_dict(conversation)
         )
@@ -62,7 +61,8 @@ class ConversationDbService(DbService):
         """获取用户的所有对话"""
         db = self._ensure_db()
         last_message_created_at_column = cast(
-            Any, ConversationDb.last_message_created_at)
+            Any, ConversationDb.last_message_created_at
+        )
         conversations = db.exec(
             select(ConversationDb)
             .where(ConversationDb.user_id == user_id)
@@ -90,7 +90,8 @@ class ConversationDbService(DbService):
         """
         db = self._ensure_db()
         last_message_created_at_column = cast(
-            Any, ConversationDb.last_message_created_at)
+            Any, ConversationDb.last_message_created_at
+        )
         count_stmt = (
             select(func.count())
             .select_from(ConversationDb)
@@ -135,7 +136,11 @@ class ConversationDbService(DbService):
         )
         return conversation_info
 
-    def get_messages(self, conversation_id: str) -> list[ChatMessageItem]:
+    def get_messages(
+        self,
+        conversation_id: str,
+        omit_tool_result_content_and_summary_when_structured: bool = False,
+    ) -> list[dict[str, Any]]:
         """获取对话的消息列表"""
         db = self._ensure_db()
         created_at_column = cast(Any, MessageDb.created_at)
@@ -144,10 +149,16 @@ class ConversationDbService(DbService):
             .where(MessageDb.conversation_id == conversation_id)
             .order_by(created_at_column.asc())
         ).all()
-        chat_messages: list[ChatMessageItem] = []
+        chat_messages: list[dict[str, Any]] = []
         for message in messages:
             payload = message.model_dump(mode="json")
-            chat_messages.append(ChatMessageItem.model_validate(payload))
+            chat_message = ChatMessageItem.model_validate(payload)
+            chat_message_payload = chat_message.model_dump(mode="json")
+            chat_message_payload["content_blocks"] = dump_content_block_payloads(
+                chat_message.content_blocks,
+                omit_tool_result_content_and_summary_when_structured=omit_tool_result_content_and_summary_when_structured,
+            )
+            chat_messages.append(chat_message_payload)
         return chat_messages
 
     def update_conversation(

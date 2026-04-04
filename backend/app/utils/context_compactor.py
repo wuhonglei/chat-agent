@@ -15,6 +15,7 @@ from app.utils.token import TokenCalculator
 class CompactionResult(BaseModel):
     content: str
     summary: str | None = None
+    structured_content_for_display: list[dict[str, object]] | None = None
     content_token_count: int
     relevance_applied: bool
     threshold_token_count: int

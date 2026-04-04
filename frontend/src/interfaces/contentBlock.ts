@@ -25,8 +25,21 @@ export interface ToolResultBlock {
   toolCallId: string;
   toolUseId: string;
   isError: boolean;
-  content: string;
+  content?: string;
+  structuredContentForDisplay?: WebSearchDisplayItem[];
   summary?: string;
+}
+
+export interface WebSearchResultItem {
+  title?: string;
+  url?: string;
+  score?: number;
+  favicon?: string;
+}
+
+export interface WebSearchDisplayItem {
+  query?: string;
+  results: WebSearchResultItem[];
 }
 
 export enum ContentBlockRenderStatus {

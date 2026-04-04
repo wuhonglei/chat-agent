@@ -65,7 +65,10 @@ async def get_messages(
     if not service.get_conversation(conversation_id):
         return ApiResponse.error(code=404, msg="会话不存在")
 
-    chat_messages = service.get_messages(conversation_id)
+    chat_messages = service.get_messages(
+        conversation_id,
+        omit_tool_result_content_and_summary_when_structured=True,
+    )
     data = {
         "total": len(chat_messages),
         "offset": 0,

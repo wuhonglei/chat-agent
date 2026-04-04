@@ -44,7 +44,7 @@ export const ToolBlockRender: React.FC<Props> = ({ toolUseBlock, toolResultBlock
           argumentsText={toolUseBlock.argumentsText}
           argumentsJson={toolUseBlock.argumentsJson}
         />
-        <ToolResult toolResultBlock={toolResultBlock} />
+        <ToolResult toolName={toolUseBlock.name} toolResultBlock={toolResultBlock} />
       </div>
     </Think>
   );

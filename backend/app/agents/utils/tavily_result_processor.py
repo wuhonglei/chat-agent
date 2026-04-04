@@ -8,6 +8,7 @@ from app.mcp.mcp_servers.tavily_mcp.models import (
     TavilyCrawlResponse,
     TavilyExtractResponse,
     TavilySearchResponse,
+    TavilySearchResultItem,
 )
 from app.utils.context_compactor import CompactionResult, ContextCompactor
 
@@ -41,25 +42,32 @@ class TavilyResultProcessor:
                 self.tolerance_tokens_count,
                 self.threshold_tokens_count,
             )
-            content, summary = tavily_utils.format_multiple_query_search_results(data)
+            content, summary = tavily_utils.format_multiple_query_search_results(
+                data)
             compaction_result.content = content
             compaction_result.summary = summary
+            compaction_result.structured_content_for_display = (
+                self._build_search_display_items(data)
+            )
             return compaction_result
 
         if tool_name == self.WEB_PAGES_EXTRACT:
-            extract_payload = TavilyExtractResponse.model_validate(structured_content)
+            extract_payload = TavilyExtractResponse.model_validate(
+                structured_content)
             extract_payload, compaction_result = await self._compact_extract_response(
                 extract_payload,
                 self.tolerance_tokens_count,
                 self.threshold_tokens_count,
             )
-            content, summary = tavily_utils.format_extract_results(extract_payload)
+            content, summary = tavily_utils.format_extract_results(
+                extract_payload)
             compaction_result.content = content
             compaction_result.summary = summary
             return compaction_result
 
         if tool_name == self.WEB_SITE_CRAWL:
-            crawl_payload = TavilyCrawlResponse.model_validate(structured_content)
+            crawl_payload = TavilyCrawlResponse.model_validate(
+                structured_content)
             crawl_payload, compaction_result = await self._compact_crawl_response(
                 crawl_payload,
                 self.tolerance_tokens_count,
@@ -195,3 +203,32 @@ class TavilyResultProcessor:
             tolerance_tokens_count=tolerance_tokens_count,
             threshold_tokens_count=threshold_tokens_count,
         )
+
+    def _build_search_display_items(
+        self, responses: list[TavilySearchResponse]
+    ) -> list[dict[str, Any]]:
+        items: list[dict[str, Any]] = []
+        for response in responses:
+            items.append(
+                {
+                    "query": response.query,
+                    "results": self._build_search_result_items(
+                        response.filtered_results or [],
+                    ),
+                }
+            )
+        return items
+
+    def _build_search_result_items(
+        self,
+        results: list[TavilySearchResultItem],
+    ) -> list[dict[str, Any]]:
+        return [
+            {
+                "title": result.title,
+                "url": result.url,
+                "score": result.score,
+                "favicon": result.favicon,
+            }
+            for result in results
+        ]

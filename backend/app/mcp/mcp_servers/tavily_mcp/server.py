@@ -17,7 +17,6 @@ from .config import config
 from .models import (
     TavilyCrawlResponse,
     TavilyExtractResponse,
-    TavilyMapResponse,
     TavilySearchResponse,
 )
 from .utils import (
@@ -251,81 +250,6 @@ async def web_site_crawl(
     except Exception:
         # 直接重新抛出原始异常，保持异常类型和堆栈跟踪
         raise
-
-
-@mcp.tool(name="web_site_map")
-async def web_site_map(
-    url: str = Field(..., description="开始映射的根 URL"),
-    instructions: str | None = Field(
-        default=None,
-        description="映射器自然语言指令。提供后费用从每 10 页 1 额度提高到 2 额度",
-    ),
-    max_depth: int = Field(
-        default=1,
-        ge=1,
-        description="最大映射深度，定义从根 URL 可探索多远",
-    ),
-    max_breadth: int = Field(
-        default=20,
-        ge=1,
-        description="每层（每页）最多跟随的链接数",
-    ),
-    limit: int = Field(
-        default=50,
-        ge=1,
-        description="映射器处理的链接总数上限",
-    ),
-    select_paths: list[str] = Field(
-        default_factory=list,
-        description="仅选择匹配路径的正则（如 /docs/.*, /api/v1.*）",
-    ),
-    select_domains: list[str] = Field(
-        default_factory=list,
-        description="仅选择特定域名或子域名的正则（如 ^docs\\.example\\.com$）",
-    ),
-    exclude_paths: list[str] = Field(
-        default_factory=list,
-        description="用于排除路径的正则（如 /private/.*, /admin/.*）",
-    ),
-    exclude_domains: list[str] = Field(
-        default_factory=list,
-        description="用于排除域名或子域名的正则（如 ^private\\.example\\.com$）",
-    ),
-    allow_external: bool = Field(
-        default=True,
-        description="是否在结果列表中包含外部域名链接",
-    ),
-) -> TavilyMapResponse:
-    """
-    强大的网页映射工具，创建网站 URL 的结构化映射，
-    允许您发现和分析网站结构、内容组织和导航路径。
-    适用于网站审计、内容发现和理解网站架构。
-    """
-    try:
-        response = await client.map(
-            url=url,
-            instructions=instructions,
-            max_depth=max_depth,
-            max_breadth=max_breadth,
-            limit=limit,
-            select_paths=select_paths if select_paths else None,
-            select_domains=select_domains if select_domains else None,
-            exclude_paths=exclude_paths if exclude_paths else None,
-            exclude_domains=exclude_domains if exclude_domains else None,
-            allow_external=allow_external,
-            include_favicon=True,
-        )
-        try:
-            data = TavilyMapResponse.model_validate(response)
-            return data
-        except Exception as e:
-            raise ValueError(f"映射响应验证失败: {str(e)}")
-    except Exception:
-        # 直接重新抛出原始异常，保持异常类型和堆栈跟踪
-        raise
-
-
-mcp.disable(names={"web_site_map"}, components={"tool"})
 
 
 if __name__ == "__main__":
