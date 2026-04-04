@@ -89,8 +89,7 @@ class TokenCalculator:
             logger.warning(
                 f"无法自动映射模型 {model} 到 tokenizer，使用默认 encoding: {self.DEFAULT_ENCODING_NAME}"
             )
-            encoding = self._get_encoding_with_fallback(
-                self.DEFAULT_ENCODING_NAME)
+            encoding = self._get_encoding_with_fallback(self.DEFAULT_ENCODING_NAME)
             # 将默认 encoding 也缓存到模型名下
             self._set_cached_encoding(model, encoding)
             return encoding
@@ -99,8 +98,7 @@ class TokenCalculator:
             logger.warning(
                 f"加载模型 {model} 的 encoding 时发生网络错误: {e}，尝试从本地加载"
             )
-            encoding = self._get_encoding_with_fallback(
-                self.DEFAULT_ENCODING_NAME)
+            encoding = self._get_encoding_with_fallback(self.DEFAULT_ENCODING_NAME)
             # 将本地加载的 encoding 也缓存到模型名下
             self._set_cached_encoding(model, encoding)
             return encoding
@@ -121,8 +119,7 @@ class TokenCalculator:
                 logger.warning(
                     f"加载模型 {model} 的 encoding 时发生网络错误: {e}，尝试从本地加载"
                 )
-                encoding = self._get_encoding_with_fallback(
-                    self.DEFAULT_ENCODING_NAME)
+                encoding = self._get_encoding_with_fallback(self.DEFAULT_ENCODING_NAME)
                 # 将本地加载的 encoding 也缓存到模型名下
                 self._set_cached_encoding(model, encoding)
                 return encoding
@@ -133,8 +130,7 @@ class TokenCalculator:
             logger.warning(
                 f"加载模型 {model} 的 encoding 时发生未知错误: {e}，尝试从本地加载"
             )
-            encoding = self._get_encoding_with_fallback(
-                self.DEFAULT_ENCODING_NAME)
+            encoding = self._get_encoding_with_fallback(self.DEFAULT_ENCODING_NAME)
             # 将本地加载的 encoding 也缓存到模型名下
             self._set_cached_encoding(model, encoding)
             return encoding
@@ -157,8 +153,7 @@ class TokenCalculator:
 
         # 检查本地 token 目录是否存在
         if self.LOCAL_TOKEN_DIR.exists() and self.LOCAL_TOKEN_DIR.is_dir():
-            local_token_file = self.LOCAL_TOKEN_DIR / \
-                f"{encoding_name}.tiktoken"
+            local_token_file = self.LOCAL_TOKEN_DIR / f"{encoding_name}.tiktoken"
             if local_token_file.exists():
                 try:
                     # 直接从本地文件加载 encoding，避免网络请求
@@ -315,8 +310,7 @@ class TokenCalculator:
             total_tokens += self.count_tokens(message.get("content", ""))
             total_tokens += self.count_tokens(message.get("reasoning", ""))
         total_tokens += self.count_tokens(message.get("reasoning_content", ""))
-        total_tokens += self.count_tokens(
-            json.dumps(message.get("tool_calls", [])))
+        total_tokens += self.count_tokens(json.dumps(message.get("tool_calls", [])))
         return total_tokens
 
     def count_messages_tokens(

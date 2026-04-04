@@ -12,7 +12,7 @@ type ToolBlockTitleProps = {
 const ToolBlockTitle: React.FC<ToolBlockTitleProps> = ({ rawToolName, status }) => {
   const displayToolName = formatToolName(rawToolName || "");
   return (
-    <div className="text-sm text-gray-500 flex items-center gap-1">
+    <div className="flex items-center gap-1">
       <div>{displayToolName}</div>
       <div>{STATUS_TITLE_MAP[status] || "处理中"}</div>
     </div>
