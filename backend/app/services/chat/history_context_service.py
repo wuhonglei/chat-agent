@@ -8,7 +8,10 @@ from app.services.conversation import (
     ContextSummaryService,
     ConversationContextDbService,
 )
-from app.utils.history_truncate import split_history_by_rounds_and_tokens
+from app.utils.history_truncate import (
+    split_history_by_rounds,
+    truncate_in_window_by_round_tokens,
+)
 from app.utils.logger import logger
 from app.utils.token import TokenCalculator
 
@@ -63,9 +66,7 @@ class HistoryContextService:
         if not history_messages:
             return []
 
-        threshold_tokens = (
-            self.chat_context_config.tool_result_compression.message_summary_threshold_tokens
-        )
+        threshold_tokens = self.chat_context_config.tool_result_compression.message_summary_threshold_tokens
         last_round_start = max(0, len(history_messages) - 2)
         processed_messages: list[ChatMessageItem] = []
 
@@ -123,12 +124,18 @@ class HistoryContextService:
         raw_history: list[ChatMessageItem],
         conversation_id: str,
     ) -> tuple[str | None, list[ChatMessageItem]]:
-        out_of_window_messages, in_window_messages = split_history_by_rounds_and_tokens(
+        _, in_window_messages = split_history_by_rounds(
             raw_history,
             self.history_window_config.max_rounds,
+        )
+        compressed_in_window = self.process_history_messages(in_window_messages)
+        final_in_window = truncate_in_window_by_round_tokens(
+            compressed_in_window,
             self.history_window_config.max_tokens,
             self.token_calculator,
         )
+        final_kept_ids = {m.id for m in final_in_window}
+        out_of_window_messages = [m for m in raw_history if m.id not in final_kept_ids]
 
         window_out_summary = None
         before_window_summary = None
@@ -143,9 +150,7 @@ class HistoryContextService:
             )
             last_id_set = set(last_ids)
             if current_id_set == last_id_set:
-                return before_window_summary, self.process_history_messages(
-                    in_window_messages
-                )
+                return before_window_summary, final_in_window
 
             delta_ids = current_id_set - last_id_set
             summary_max_tokens = self.window_out_summary_config.summary_max_tokens
@@ -182,4 +187,4 @@ class HistoryContextService:
                     message_ids=current_ids,
                 )
 
-        return window_out_summary, self.process_history_messages(in_window_messages)
+        return window_out_summary, final_in_window

@@ -154,8 +154,7 @@ class ChatOrchestrator:
                 yield build_refresh_conversation_event(conversation)
 
                 title_task: asyncio.Task[str] | None = None
-                user_message_text = extract_user_text(
-                    chat_request.content_blocks)
+                user_message_text = extract_user_text(chat_request.content_blocks)
                 if chat_request.regenerate_title:
                     title_task = asyncio.create_task(
                         self.generate_title(
