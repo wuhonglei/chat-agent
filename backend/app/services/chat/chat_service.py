@@ -33,6 +33,7 @@ class ChatService:
             think_mode=think_mode,
             llm_config=settings.response_model,
             mcp_manager=mcp_manager,
+            tool_context_limit_ratio=chat_context_config.tool_round_context_limit_ratio,
         )
         self.title_generation_agent = TitleGenerationAgent(
             think_mode=False, llm_config=settings.tool_call_model

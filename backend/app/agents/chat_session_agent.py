@@ -20,7 +20,6 @@ from app.agents.utils.tool_call_stream import (
 from app.mcp.mcp_client import MCPClientManager
 from app.prompts import (
     get_merged_system_prompt_for_chat_session,
-    get_user_message_for_no_tool_call,
     get_user_message_for_tool_calls,
 )
 from app.protocols.chat_messages import (
@@ -50,12 +49,14 @@ class ChatSessionAgent(BaseAgent):
         think_mode: bool,
         llm_config: LLMConfig,
         mcp_manager: MCPClientManager,
+        tool_context_limit_ratio: float = 0.8,
     ):
         super().__init__(think_mode, llm_config)
         self.mcp_manager = mcp_manager
         self.aggregate = SessionAggregate()
         self.blocks_aggregator = ContentBlocksAggregator()
         self.state_machine = ChatRoundStateMachine()
+        self.tool_context_limit_ratio = tool_context_limit_ratio
 
     @property
     def output_messages(self) -> list[ToolMessage]:
@@ -129,22 +130,13 @@ class ChatSessionAgent(BaseAgent):
         tool_ctx.reset_for_request(user_message)
 
         if not tools:
-            update_last_user_message(
-                messages,
-                new_content=get_user_message_for_no_tool_call(user_message),
-            )
-            round_state = self.state_machine.start_round()
-            async for sse in self._stream_one_round_with_tools(
-                messages,
-                [],
-                tool_ctx,
+            async for sse in self._stream_final_answer_round(
+                messages=messages,
+                tool_ctx=tool_ctx,
                 iteration=0,
                 iterations_by_tool={},
-                round_state=round_state,
             ):
                 yield sse
-            self._sync_collected_content()
-            yield build_content_block_done_event()
             return
 
         tools_list = list(tools)
@@ -163,11 +155,7 @@ class ChatSessionAgent(BaseAgent):
             available_tools, _ = tool_ctx.get_tools_state(
                 tools_list, iterations_by_tool
             )
-            formatted_collected = format_tool_call_messages_for_llm(
-                self.aggregate.output_messages,
-                clear_reasoning_content=False,
-            )
-            llm_messages = messages + formatted_collected
+            llm_messages = self._build_round_messages(messages)
             round_state = self.state_machine.start_round()
 
             async for sse in self._stream_one_round_with_tools(
@@ -185,17 +173,88 @@ class ChatSessionAgent(BaseAgent):
                 yield build_content_block_done_event()
                 return
 
+            if self._check_tool_context_budget(self._build_round_messages(messages))[0]:
+                logger.info(
+                    "Tool context limit reached, switching to final answer round",
+                    iteration=iteration + 1,
+                )
+                async for sse in self._stream_final_answer_round(
+                    messages=messages,
+                    tool_ctx=tool_ctx,
+                    iteration=iteration,
+                    iterations_by_tool=iterations_by_tool,
+                ):
+                    yield sse
+                return
+
         logger.info(
-            "Chat session max tool iterations reached",
+            "Chat session max tool iterations reached, forcing final answer",
             max_iterations=tool_ctx.MAX_TOTAL_ITERATIONS,
         )
-
+        async for sse in self._stream_final_answer_round(
+            messages=messages,
+            tool_ctx=tool_ctx,
+            iteration=tool_ctx.MAX_TOTAL_ITERATIONS,
+            iterations_by_tool=iterations_by_tool,
+        ):
+            yield sse
         return
+
+    def _build_round_messages(
+        self, base_messages: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        formatted_collected = format_tool_call_messages_for_llm(
+            self.aggregate.output_messages,
+            clear_reasoning_content=False,
+        )
+        return base_messages + formatted_collected
+
+    def _check_tool_context_budget(
+        self, next_round_messages: list[dict[str, Any]]
+    ) -> tuple[bool, int, int]:
+        current_tokens = self.token_calculator.count_messages_tokens(
+            next_round_messages
+        )
+        threshold_tokens = int(self.model_limit * self.tool_context_limit_ratio)
+        is_over_threshold = current_tokens > threshold_tokens
+        if is_over_threshold:
+            logger.warning(
+                "Tool round context budget exceeded",
+                current_tokens=current_tokens,
+                threshold_tokens=threshold_tokens,
+                model_limit=self.model_limit,
+                threshold_ratio=self.tool_context_limit_ratio,
+            )
+        return is_over_threshold, current_tokens, threshold_tokens
 
     def _sync_collected_content(self) -> None:
         self.aggregate.content_blocks = list(self.blocks_aggregator.blocks)
         self.aggregate.content = self.blocks_aggregator.get_content()
         self.aggregate.reasoning = self.blocks_aggregator.get_reasoning()
+
+    async def _stream_final_answer_round(
+        self,
+        *,
+        messages: list[dict[str, Any]],
+        tool_ctx: MCPToolSession,
+        iteration: int,
+        iterations_by_tool: dict[str, int],
+        final_user_message: str | None = None,
+    ) -> AsyncGenerator[str, None]:
+        if final_user_message is not None:
+            update_last_user_message(messages, new_content=final_user_message)
+        round_state = self.state_machine.start_round()
+        async for sse in self._stream_one_round_with_tools(
+            self._build_round_messages(messages),
+            [],
+            tool_ctx,
+            iteration,
+            iterations_by_tool,
+            round_state,
+        ):
+            yield sse
+        self._sync_collected_content()
+        yield build_content_block_done_event()
 
     async def _stream_one_round_with_tools(
         self,
