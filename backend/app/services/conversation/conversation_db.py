@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import func
 from sqlmodel import Session, select
@@ -51,7 +51,8 @@ class ConversationDbService(DbService):
         db.add(conversation)
         # 所有字段（id, created_at, updated_at 等）都通过 default_factory 在对象创建时生成
         # 不需要 refresh()，事务由 get_db() 自动提交
-        logger.debug("Conversation registered", conversation_id=conversation.id)
+        logger.debug("Conversation registered",
+                     conversation_id=conversation.id)
         conversation_info = ConversationInfo.model_validate(
             self.conversation_to_dict(conversation)
         )
@@ -60,10 +61,12 @@ class ConversationDbService(DbService):
     def get_conversations(self, user_id: str) -> list[ConversationInfo]:
         """获取用户的所有对话"""
         db = self._ensure_db()
+        last_message_created_at_column = cast(
+            Any, ConversationDb.last_message_created_at)
         conversations = db.exec(
             select(ConversationDb)
             .where(ConversationDb.user_id == user_id)
-            .order_by(ConversationDb.last_message_created_at.desc())  # type: ignore[attr-defined]
+            .order_by(last_message_created_at_column.desc())
         ).all()
         logger.debug("Found conversations", count=len(conversations))
         conversation_list = [
@@ -86,6 +89,8 @@ class ConversationDbService(DbService):
             (总数, 当前页对话列表)
         """
         db = self._ensure_db()
+        last_message_created_at_column = cast(
+            Any, ConversationDb.last_message_created_at)
         count_stmt = (
             select(func.count())
             .select_from(ConversationDb)
@@ -95,7 +100,7 @@ class ConversationDbService(DbService):
         data_stmt = (
             select(ConversationDb)
             .where(ConversationDb.user_id == user_id)
-            .order_by(ConversationDb.last_message_created_at.desc())  # type: ignore[attr-defined]
+            .order_by(last_message_created_at_column.desc())
             .offset(offset)
             .limit(limit)
         )
@@ -133,15 +138,15 @@ class ConversationDbService(DbService):
     def get_messages(self, conversation_id: str) -> list[ChatMessageItem]:
         """获取对话的消息列表"""
         db = self._ensure_db()
+        created_at_column = cast(Any, MessageDb.created_at)
         messages = db.exec(
             select(MessageDb)
             .where(MessageDb.conversation_id == conversation_id)
-            .order_by(MessageDb.created_at.asc())  # type: ignore[attr-defined]
+            .order_by(created_at_column.asc())
         ).all()
         chat_messages: list[ChatMessageItem] = []
         for message in messages:
             payload = message.model_dump(mode="json")
-            payload["content_blocks"] = payload.get("content_blocks") or []
             chat_messages.append(ChatMessageItem.model_validate(payload))
         return chat_messages
 

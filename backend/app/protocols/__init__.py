@@ -14,11 +14,11 @@ from app.protocols.chat_messages import (
     build_error_event,
     build_refresh_conversation_event,
     build_title_event,
-    format_assistant_tool_call_message,
     format_chat_message_for_llm,
     format_tool_call_message_for_llm,
     format_tool_call_messages_for_llm,
-    format_tool_call_result_message,
+    format_tool_result_message,
+    format_tool_use_message,
 )
 
 __all__ = [
@@ -35,9 +35,9 @@ __all__ = [
     "build_error_event",
     "build_refresh_conversation_event",
     "build_title_event",
-    "format_assistant_tool_call_message",
+    "format_tool_use_message",
     "format_chat_message_for_llm",
     "format_tool_call_message_for_llm",
     "format_tool_call_messages_for_llm",
-    "format_tool_call_result_message",
+    "format_tool_result_message",
 ]

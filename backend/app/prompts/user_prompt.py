@@ -61,29 +61,6 @@ user_message_for_no_tool_call_template: Template = Template(
 """.strip()
 )
 
-
-# MCP 工具调用结果渲染（供 format_mcp_tool_results_for_user_message 使用）
-# mcp_tool_items: [{"name": str, "args": str, "content": str}, ...]
-mcp_block_template: Template = Template(
-    """
-{%- if mcp_tool_items %}
-【以下为 MCP 工具调用返回的结果】
-
-{% for item in mcp_tool_items %}
-### {{ item.name }}
-参数：{{ item.args }}
-
-返回：
-{{ item.content }}
-{% if not loop.last %}
-
----
-
-{% endif %}
-{% endfor %}
-{%- endif %}""".strip()
-)
-
 disabled_tools_message_template: Template = Template(
     """
 以下工具已达到最大调用次数上限，当前不可再调用: {{ ', '.join(disabled_tools) }}.
@@ -112,49 +89,35 @@ tool_call_sufficient_info_template: Template = Template(
 """.strip()
 )
 
-final_response_message_template: Template = Template(
-    """
-{%- if tool_result %}
-{{ tool_result }}
-{%- endif %}
-{%- if tool_result %}
-请基于以上信息回答以下用户问题：
-{%- endif %}用户问题：{{ user_message }}
-""".strip()
-)
-
 # ============= 上下文摘要相关提示词 =============
-WINDOW_OUT_SUMMARY_PROMPT: Template = Template(
-    """请根据以下被截断的较早对话内容，生成一段简短摘要。
-
-要求：
-1. 只归纳「用户问了什么、助手答了什么」的关键信息，不要编造。
-2. 用自然语言、控制在 {{ max_tokens_hint }} 字以内。
-3. 若内容为空或无关紧要，可回复「无」。
-
-被截断的对话内容：
----
-{{ text }}
----
-""".strip()
-)
-
 WINDOW_OUT_SUMMARY_MERGE_PROMPT: Template = Template(
-    """请将「已有摘要」与「新增对话内容」合并为一段简短摘要。
+    """
+<task>
+{%- if prior_summary %}
+请将已有摘要与新增对话内容合并为一段简短摘要。
+{%- else %}
+请根据新增对话内容生成一段简短摘要。
+{%- endif %}
+</task>
 
-要求：
-1. 保留已有摘要的关键信息，并融入新增对话的要点，不要编造。
-2. 用自然语言、控制在 {{ max_tokens_hint }} 字以内。
-3. 若新增内容为空或无关紧要，可主要保留已有摘要并略作精简。
+<requirements>
+{%- if prior_summary %}
+<requirement>保留已有摘要的关键信息，并融入新增对话的要点，不要编造。</requirement>
+{%- else %}
+<requirement>只归纳新增对话中的关键信息，不要编造。</requirement>
+{%- endif %}
+<requirement>用自然语言、控制在 {{ max_tokens_hint }} 字以内。</requirement>
+<requirement>若内容为空或无关紧要，可回复「无」。</requirement>
+</requirements>
 
-已有摘要：
----
+{%- if prior_summary %}
+<prior_summary>
 {{ prior_summary }}
----
+</prior_summary>
+{%- endif %}
 
-新增对话内容：
----
+<new_messages>
 {{ new_messages_text }}
----
+</new_messages>
 """.strip()
 )

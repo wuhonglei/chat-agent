@@ -25,8 +25,9 @@ class TokenCalculator:
     MODEL_LIMITS = {
         "deepseek-chat": 131072,
         "deepseek-reasoner": 131072,
-        "qwen-plus": 131072,
-        "qwen-flash": 131072,
+        "qwen-plus": 1000000,
+        "qwen-flash": 1000000,
+        "qwen-turbo": 128000,  # 纯文本模型
     }
 
     DEFAULT_LIMIT = 131072  # deepseek 的默认限制
@@ -88,7 +89,8 @@ class TokenCalculator:
             logger.warning(
                 f"无法自动映射模型 {model} 到 tokenizer，使用默认 encoding: {self.DEFAULT_ENCODING_NAME}"
             )
-            encoding = self._get_encoding_with_fallback(self.DEFAULT_ENCODING_NAME)
+            encoding = self._get_encoding_with_fallback(
+                self.DEFAULT_ENCODING_NAME)
             # 将默认 encoding 也缓存到模型名下
             self._set_cached_encoding(model, encoding)
             return encoding
@@ -97,7 +99,8 @@ class TokenCalculator:
             logger.warning(
                 f"加载模型 {model} 的 encoding 时发生网络错误: {e}，尝试从本地加载"
             )
-            encoding = self._get_encoding_with_fallback(self.DEFAULT_ENCODING_NAME)
+            encoding = self._get_encoding_with_fallback(
+                self.DEFAULT_ENCODING_NAME)
             # 将本地加载的 encoding 也缓存到模型名下
             self._set_cached_encoding(model, encoding)
             return encoding
@@ -118,7 +121,8 @@ class TokenCalculator:
                 logger.warning(
                     f"加载模型 {model} 的 encoding 时发生网络错误: {e}，尝试从本地加载"
                 )
-                encoding = self._get_encoding_with_fallback(self.DEFAULT_ENCODING_NAME)
+                encoding = self._get_encoding_with_fallback(
+                    self.DEFAULT_ENCODING_NAME)
                 # 将本地加载的 encoding 也缓存到模型名下
                 self._set_cached_encoding(model, encoding)
                 return encoding
@@ -129,7 +133,8 @@ class TokenCalculator:
             logger.warning(
                 f"加载模型 {model} 的 encoding 时发生未知错误: {e}，尝试从本地加载"
             )
-            encoding = self._get_encoding_with_fallback(self.DEFAULT_ENCODING_NAME)
+            encoding = self._get_encoding_with_fallback(
+                self.DEFAULT_ENCODING_NAME)
             # 将本地加载的 encoding 也缓存到模型名下
             self._set_cached_encoding(model, encoding)
             return encoding
@@ -152,7 +157,8 @@ class TokenCalculator:
 
         # 检查本地 token 目录是否存在
         if self.LOCAL_TOKEN_DIR.exists() and self.LOCAL_TOKEN_DIR.is_dir():
-            local_token_file = self.LOCAL_TOKEN_DIR / f"{encoding_name}.tiktoken"
+            local_token_file = self.LOCAL_TOKEN_DIR / \
+                f"{encoding_name}.tiktoken"
             if local_token_file.exists():
                 try:
                     # 直接从本地文件加载 encoding，避免网络请求
@@ -302,9 +308,15 @@ class TokenCalculator:
     def count_message_tokens(self, message: dict[str, Any] | BaseModel) -> int:
         total_tokens = 0
         message = normalize_to_dict(message)
-        total_tokens += self.count_tokens(message.get("content", ""))
+        content_blocks = message.get("content_blocks")
+        if content_blocks is not None:
+            total_tokens += self.count_tokens(json.dumps(content_blocks))
+        else:
+            total_tokens += self.count_tokens(message.get("content", ""))
+            total_tokens += self.count_tokens(message.get("reasoning", ""))
         total_tokens += self.count_tokens(message.get("reasoning_content", ""))
-        total_tokens += self.count_tokens(json.dumps(message.get("tool_calls", [])))
+        total_tokens += self.count_tokens(
+            json.dumps(message.get("tool_calls", [])))
         return total_tokens
 
     def count_messages_tokens(

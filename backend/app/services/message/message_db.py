@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 from fastapi import HTTPException
 from pydantic import BaseModel, Field
@@ -14,12 +14,9 @@ from app.schemas.chat import (
     CollectedResponse,
     ContentBlock,
     MessageStatus,
-    collect_content_from_blocks,
-    collect_reasoning_from_blocks,
-    tool_messages_from_content_blocks,
 )
 from app.services.base_service.db_service import DbService
-from app.utils.common import gen_uuid, normalize_to_dict
+from app.utils.common import gen_uuid
 from app.utils.date import get_datetime_now
 from app.utils.logger import logger
 
@@ -75,7 +72,8 @@ class MessageDbService(DbService):
         if not message_ids:
             return
         db = self._ensure_db()
-        db.exec(delete(MessageDb).where(MessageDb.id.in_(message_ids)))  # type: ignore[attr-defined]
+        message_id_column = cast(Any, MessageDb.id)
+        db.exec(delete(MessageDb).where(message_id_column.in_(message_ids)))
         # 事务由 get_db() 或 DbService.__exit__ 自动提交
 
     def get_history_messages_by_ids(
@@ -86,31 +84,29 @@ class MessageDbService(DbService):
             return []
 
         db = self._ensure_db()
-        messages = db.exec(select(MessageDb).where(MessageDb.id.in_(message_ids))).all()  # type: ignore[attr-defined]
+        message_id_column = cast(Any, MessageDb.id)
+        messages = db.exec(
+            select(MessageDb).where(message_id_column.in_(message_ids))
+        ).all()
         if not messages:
             logger.error("Messages not found", message_ids=message_ids)
             return []
 
-        # 创建字典映射，key 为 message_id，value 为消息对象
-        messages_dict = {msg.id: msg for msg in messages}
+        messages_by_id = {message.id: message for message in messages}
 
         chat_messages: list[ChatMessageItem] = []
-        # 按照 message_ids 的顺序遍历，保证返回顺序一致
         for message_id in message_ids:
-            if message_id not in messages_dict:
-                logger.warning("Message ID not found, skipping", message_id=message_id)
+            db_message = messages_by_id.get(message_id)
+            if db_message is None:
+                logger.warning(
+                    "Message ID not found, skipping", message_id=message_id
+                )
                 continue
 
-            payload = messages_dict[message_id].model_dump(mode="json")
-            payload["content_blocks"] = payload.get("content_blocks") or []
-            message = ChatMessageItem.model_validate(payload)
-            if not message.content_blocks:
-                message.content_blocks = []
-            if not message.tool_calls:
-                message.tool_calls = tool_messages_from_content_blocks(
-                    message.content_blocks
-                )
-            chat_messages.append(message)
+            chat_messages.append(
+                ChatMessageItem.model_validate(
+                    db_message.model_dump(mode="json"))
+            )
 
         return chat_messages
 
@@ -165,12 +161,11 @@ class MessageDbService(DbService):
         content_blocks: list[ContentBlock],
         metadata: dict[str, Any] | None = None,
     ) -> MessageDb:
-        content = collect_content_from_blocks(content_blocks)
         message = MessageDb(
             id=message_id,
             role="user",
-            content=content,
-            content_blocks=[block.model_dump(mode="json") for block in content_blocks],
+            content_blocks=[block.model_dump(mode="json")
+                            for block in content_blocks],
             conversation_id=conversation.id,
             message_metadata=metadata or {},
             status=MessageStatus.DONE,
@@ -187,9 +182,6 @@ class MessageDbService(DbService):
         message = MessageDb(
             id=message_id,
             role="assistant",
-            content="",
-            reasoning="",
-            tool_calls=[],
             content_blocks=[],
             conversation_id=conversation.id,
             message_metadata=metadata or {},
@@ -266,19 +258,9 @@ class MessageDbService(DbService):
     ) -> MessageDb:
         assistant_message.status = status
         assistant_message.updated_at = get_datetime_now()
-        assistant_message.content = collect_content_from_blocks(
-            assistant_payload.content_blocks
-        )
-        assistant_message.reasoning = collect_reasoning_from_blocks(
-            assistant_payload.content_blocks
-        )
         assistant_message.content_blocks = [
             block.model_dump(mode="json") for block in assistant_payload.content_blocks
         ]
-        if assistant_payload.tool_calls:
-            assistant_message.tool_calls = [
-                normalize_to_dict(m) for m in assistant_payload.tool_calls
-            ]
         if extra_metadata:
             merged_metadata = dict(assistant_message.message_metadata or {})
             merged_metadata.update(extra_metadata)

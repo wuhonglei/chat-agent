@@ -29,6 +29,7 @@ class TitleGenerationAgent(BaseAgent):
             model=self.model_name,
             messages=messages,
             stream=False,
+            max_tokens=30
         )
 
         title = title_response.choices[0].message.content or ""

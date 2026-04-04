@@ -9,11 +9,8 @@ from app.prompts.system_prompt import (
 )
 from app.prompts.user_prompt import (
     WINDOW_OUT_SUMMARY_MERGE_PROMPT,
-    WINDOW_OUT_SUMMARY_PROMPT,
     disabled_tools_message_template,
-    final_response_message_template,
     gentle_tips_in_web_search_template,
-    mcp_block_template,
     tool_call_sufficient_info_template,
     user_message_for_default_template,
     user_message_for_no_tool_call_template,
@@ -83,17 +80,6 @@ def get_user_message_for_title(user_message: str) -> str:
     return user_message_for_default_template.render(user_message=user_message)
 
 
-def get_window_out_summary_prompt(
-    text: str,
-    max_tokens: int,
-) -> str:
-    """渲染窗口外摘要的 prompt（用于对截断的旧消息生成简短摘要）。"""
-    return WINDOW_OUT_SUMMARY_PROMPT.render(
-        max_tokens_hint=max_tokens,
-        text=text,
-    ).strip()
-
-
 def get_window_out_summary_merge_prompt(
     prior_summary: str,
     new_messages_text: str,
@@ -127,17 +113,6 @@ def get_gentle_tips_in_web_search() -> str:
 def get_tool_call_sufficient_info_message() -> str:
     """Get message when sufficient info may have been obtained"""
     return tool_call_sufficient_info_template.render().strip()
-
-
-def get_user_message_combine_tool_calls(
-    user_message: str,
-    mcp_tool_items: list[dict[str, str]],
-) -> str:
-    """Get user message for response generation"""
-    return final_response_message_template.render(
-        tool_result=mcp_block_template.render(mcp_tool_items=mcp_tool_items),
-        user_message=user_message,
-    ).strip()
 
 
 def get_user_message_for_reach_tool_call_limit(user_message: str) -> str:

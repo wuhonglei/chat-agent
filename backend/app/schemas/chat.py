@@ -3,12 +3,13 @@
 import json
 from datetime import datetime
 from enum import Enum
-from typing import Any, Literal, TypeAlias
+from typing import Any, Literal, TypeAlias, cast
 
 from openai.types.chat import ChatCompletionMessageFunctionToolCall
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
 from app.schemas.llm import ToolMessage, ToolResultMessage, ToolUseMessage
+from app.utils.common import gen_uuid
 from app.utils.date import get_datetime_now
 
 
@@ -44,7 +45,6 @@ class ChatMessageItem(BaseModel):
     id: str = Field(..., description="Message ID")
     conversation_id: str = Field(..., description="Conversation ID")
     role: str = Field(..., description="Message role (user/assistant)")
-    content: str = Field(default="", description="Message content")
     content_blocks: list["ContentBlock"] = Field(
         default_factory=list, description="Message content blocks"
     )
@@ -54,8 +54,6 @@ class ChatMessageItem(BaseModel):
     updated_at: datetime = Field(
         default_factory=get_datetime_now, description="Message updated at"
     )
-    reasoning: str | None = Field(default=None, description="Reasoning content")
-    tool_calls: list[ToolMessage] | None = Field(default=None, description="Tool calls")
     message_metadata: dict[str, Any] = Field(
         default_factory=dict, description="Message metadata"
     )
@@ -82,7 +80,8 @@ class ChatRequest(BaseModel):
         ..., description="User message content blocks"
     )
     conversation_id: str = Field(..., description="Conversation ID")
-    history_ids: list[str] = Field(default_factory=list, description="Chat history IDs")
+    history_ids: list[str] = Field(
+        default_factory=list, description="Chat history IDs")
     removed_message_ids: list[str] | None = Field(
         None, description="Message IDs to be removed"
     )
@@ -92,7 +91,8 @@ class ChatRequest(BaseModel):
     regenerate_title: bool | None = Field(
         False, description="Whether to regenerate title"
     )
-    mcp_auto_mode: bool = Field(True, description="Whether to use mcp auto mode")
+    mcp_auto_mode: bool = Field(
+        True, description="Whether to use mcp auto mode")
     think_mode: bool = Field(False, description="Whether to use think mode")
 
 
@@ -134,9 +134,6 @@ class CollectedResponse(BaseModel):
     content_blocks: list["ContentBlock"] = Field(
         default_factory=list, description="Collected content blocks"
     )
-    tool_calls: list[ToolMessage] = Field(
-        default_factory=list, description="Collected tool calls"
-    )
 
 
 class TextBlock(BaseModel):
@@ -167,12 +164,23 @@ class ToolResultBlock(BaseModel):
     type: Literal["tool_result"] = "tool_result"
     tool_call_id: str = Field(..., description="Tool call ID")
     tool_use_id: str = Field(..., description="Referenced tool_use block ID")
-    is_error: bool = Field(default=False, description="Tool result error status")
+    is_error: bool = Field(
+        default=False, description="Tool result error status")
     content: str = Field(default="", description="Tool result content")
-    summary: str | None = Field(default=None, description="Tool result summary")
+    summary: str | None = Field(
+        default=None, description="Tool result summary")
 
 
 ContentBlock: TypeAlias = TextBlock | ThinkingBlock | ToolUseBlock | ToolResultBlock
+_CONTENT_BLOCKS_ADAPTER = TypeAdapter(list[ContentBlock])
+
+
+def normalize_content_blocks(
+    content_blocks: list[ContentBlock] | list[dict[str, Any]] | None,
+) -> list[ContentBlock]:
+    if not content_blocks:
+        return []
+    return _CONTENT_BLOCKS_ADAPTER.validate_python(content_blocks)
 
 
 def extract_user_text(content_blocks: list[ContentBlock]) -> str:
@@ -181,22 +189,62 @@ def extract_user_text(content_blocks: list[ContentBlock]) -> str:
     ).strip()
 
 
-def collect_content_from_blocks(content_blocks: list[ContentBlock]) -> str:
-    return "".join(
+def collect_text_from_blocks(
+    content_blocks: list[ContentBlock], only_last: bool = False
+) -> str:
+    text_blocks = [
         block.text for block in content_blocks if isinstance(block, TextBlock)
-    )
+    ]
+    if only_last:
+        return text_blocks[-1] if text_blocks else ""
+    return "".join(text_blocks)
 
 
-def collect_reasoning_from_blocks(content_blocks: list[ContentBlock]) -> str:
-    return "".join(
+def collect_reasoning_from_blocks(
+    content_blocks: list[ContentBlock], only_last: bool = False
+) -> str:
+    thinking_blocks = [
         block.text for block in content_blocks if isinstance(block, ThinkingBlock)
+    ]
+    if only_last:
+        return thinking_blocks[-1] if thinking_blocks else ""
+    return "".join(thinking_blocks)
+
+
+def collect_content_from_block_payloads(
+    content_blocks: list[ContentBlock] | list[dict[str, Any]] | None,
+    only_last: bool = False,
+) -> str:
+    return collect_text_from_blocks(
+        normalize_content_blocks(content_blocks), only_last=only_last
     )
+
+
+def collect_reasoning_from_block_payloads(
+    content_blocks: list[ContentBlock] | list[dict[str, Any]] | None,
+    only_last: bool = False,
+) -> str:
+    return collect_reasoning_from_blocks(
+        normalize_content_blocks(content_blocks), only_last=only_last
+    )
+
+
+def replace_text_content_blocks(
+    content_blocks: list[ContentBlock] | list[dict[str, Any]] | None,
+    text: str,
+) -> list[ContentBlock]:
+    normalized_blocks = normalize_content_blocks(content_blocks)
+    non_text_blocks = [
+        block for block in normalized_blocks if not isinstance(block, TextBlock)
+    ]
+    if not text:
+        return cast(list[ContentBlock], non_text_blocks)
+    return [TextBlock(id=gen_uuid(), text=text), *non_text_blocks]
 
 
 def tool_messages_from_content_blocks(
     content_blocks: list[ContentBlock],
 ) -> list[ToolMessage]:
-    tool_use_by_call_id: dict[str, ToolUseBlock] = {}
     tool_messages: list[ToolMessage] = []
 
     for block in content_blocks:
@@ -225,7 +273,6 @@ def tool_messages_from_content_blocks(
                 tool_calls=[tool_call],
             )
             tool_messages.append(tool_message)
-            tool_use_by_call_id[block.tool_call_id] = block
             continue
 
         if isinstance(block, ToolResultBlock):
@@ -239,6 +286,10 @@ def tool_messages_from_content_blocks(
                 )
             )
     return tool_messages
+
+
+def count_tool_use_blocks(content_blocks: list[ContentBlock]) -> int:
+    return sum(1 for block in content_blocks if isinstance(block, ToolUseBlock))
 
 
 ChatMessageItem.model_rebuild()

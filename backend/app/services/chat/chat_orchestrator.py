@@ -18,6 +18,7 @@ from app.schemas.chat import (
     ChatMessageItem,
     ChatRequest,
     CollectedResponse,
+    count_tool_use_blocks,
     extract_user_text,
 )
 from app.schemas.user import MemoryListItem
@@ -153,10 +154,12 @@ class ChatOrchestrator:
                 yield build_refresh_conversation_event(conversation)
 
                 title_task: asyncio.Task[str] | None = None
+                user_message_text = extract_user_text(
+                    chat_request.content_blocks)
                 if chat_request.regenerate_title:
                     title_task = asyncio.create_task(
                         self.generate_title(
-                            extract_user_text(chat_request.content_blocks),
+                            user_message_text,
                             conversation_id=conversation_id,
                         )
                     )
@@ -178,7 +181,7 @@ class ChatOrchestrator:
                 )
 
                 user_memory_texts = await memory_search(
-                    query=extract_user_text(chat_request.content_blocks),
+                    query=user_message_text,
                     user_id=user_id,
                 )
 
@@ -225,7 +228,9 @@ class ChatOrchestrator:
                 done_payload = {
                     "content_length": len(assistant_payload.content),
                     "reasoning_length": len(assistant_payload.reasoning),
-                    "tool_calls_length": len(assistant_payload.tool_calls),
+                    "tool_calls_length": count_tool_use_blocks(
+                        assistant_payload.content_blocks
+                    ),
                     "updated_at": str(assistant_updated_at),
                 }
                 logger.info(
@@ -256,5 +261,4 @@ class ChatOrchestrator:
             content=self.chat_session_agent.content,
             reasoning=self.chat_session_agent.reasoning,
             content_blocks=self.chat_session_agent.content_blocks,
-            tool_calls=self.chat_session_agent.output_messages,
         )

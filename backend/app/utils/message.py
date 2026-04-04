@@ -15,20 +15,20 @@ def clear_reasoning_content_from_history(
     return [dissoc(d, "reasoning_content") for d in history]
 
 
-def format_assistant_tool_call_message(
+def format_tool_use_message(
     message: ToolUseMessage | dict[str, Any],
     clear_reasoning_content: bool = True,
 ) -> dict[str, Any]:
-    return chat_protocol.format_assistant_tool_call_message(
+    return chat_protocol.format_tool_use_message(
         message,
         clear_reasoning_content=clear_reasoning_content,
     )
 
 
-def format_tool_call_result_message(
+def format_tool_result_message(
     message: ToolResultMessage | dict[str, Any],
 ) -> dict[str, Any]:
-    return chat_protocol.format_tool_call_result_message(message)
+    return chat_protocol.format_tool_result_message(message)
 
 
 def format_tool_call_message_for_llm(
@@ -59,43 +59,6 @@ def format_chat_message_for_llm(
         message,
         clear_reasoning_content=clear_reasoning_content,
     )
-
-
-def filter_tool_call_messages(
-    tool_call_messages: list[ToolMessage],
-) -> list[ToolMessage]:
-    """过滤工具调用消息，只保留成功的、成对的 assistant+tool 调用。"""
-    if not tool_call_messages:
-        return []
-
-    valid_tool_call_ids = set()
-    for message in tool_call_messages:
-        if isinstance(message, ToolResultMessage) and not message.is_error:
-            valid_tool_call_ids.add(message.tool_call_id)
-
-    assistant_tool_call_ids = set()
-    for message in tool_call_messages:
-        if isinstance(message, ToolUseMessage):
-            for tool_call in message.tool_calls or []:
-                if tool_call.id in valid_tool_call_ids:
-                    assistant_tool_call_ids.add(tool_call.id)
-
-    filtered: list[ToolMessage] = []
-    for message in tool_call_messages:
-        if isinstance(message, ToolUseMessage):
-            filtered_tool_calls = [
-                tc
-                for tc in (message.tool_calls or [])
-                if tc.id in assistant_tool_call_ids
-            ]
-            if filtered_tool_calls:
-                filtered.append(
-                    message.model_copy(update={"tool_calls": filtered_tool_calls})
-                )
-        elif isinstance(message, ToolResultMessage):
-            if not message.is_error and message.tool_call_id in assistant_tool_call_ids:
-                filtered.append(message)
-    return filtered
 
 
 def get_assistant_tool_call_messages(

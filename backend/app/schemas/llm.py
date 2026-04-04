@@ -22,7 +22,8 @@ class ToolResultMessage(BaseModel):
     relevance_applied: bool | None = Field(
         default=None, description="是否应用相关性过滤"
     )
-    content_token_count: int | None = Field(default=None, description="内容tokens数")
+    content_token_count: int | None = Field(
+        default=None, description="内容tokens数")
     original_token_count: int | None = Field(
         default=None, description="原始内容tokens数"
     )
