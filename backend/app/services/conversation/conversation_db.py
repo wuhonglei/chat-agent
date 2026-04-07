@@ -8,7 +8,7 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.models import ConversationDb, MessageDb
-from app.schemas.chat import ChatMessageItem, dump_content_block_payloads
+from app.schemas.chat import ChatMessage, dump_content_block_payloads
 from app.schemas.conversation import (
     ConversationInfo,
     CreatedBy,
@@ -152,7 +152,7 @@ class ConversationDbService(DbService):
         chat_messages: list[dict[str, Any]] = []
         for message in messages:
             payload = message.model_dump(mode="json")
-            chat_message = ChatMessageItem.model_validate(payload)
+            chat_message = ChatMessage.model_validate(payload)
             chat_message_payload = chat_message.model_dump(mode="json")
             chat_message_payload["content_blocks"] = dump_content_block_payloads(
                 chat_message.content_blocks,

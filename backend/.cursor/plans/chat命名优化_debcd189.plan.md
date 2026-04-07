@@ -4,19 +4,19 @@ overview: 梳理 AI 回复主链路中的函数名和变量名，先统一主链
 todos:
   - id: rename-main-flow
     content: 重命名 API、ChatService、ChatOrchestrator 的主链路函数，明确 stream/run/collect 分层语义
-    status: pending
+    status: completed
   - id: rename-orchestrator-vars
     content: 统一 ChatService 与 ChatOrchestrator 的高频变量名，消除 response/message/payload/chunk 混用
-    status: pending
+    status: completed
   - id: rename-agent-flow
     content: 收敛 ChatSessionAgent 与状态机命名，统一 round/session/event/prompt 术语
-    status: pending
+    status: completed
   - id: rename-tool-policy
     content: 统一 MCP 工具会话与策略层命名，减少 ctx/args/state 等泛化名称
-    status: pending
+    status: completed
   - id: evaluate-schema-names
     content: 评估是否推进 schema 层高影响面重命名，并与内部命名优化拆分实施
-    status: pending
+    status: completed
 isProject: false
 ---
 

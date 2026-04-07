@@ -6,8 +6,8 @@ import asyncio
 from datetime import datetime
 
 from app.schemas.chat import (
+    AssistantResponse,
     ChatRequest,
-    CollectedResponse,
     MessageStatus,
     extract_user_text,
 )
@@ -21,31 +21,33 @@ class PostProcessService:
     def __init__(self, memory_service: MemoryService) -> None:
         self.memory_service = memory_service
 
-    def persist_assistant_response(
+    def persist_final_assistant_message(
         self,
         *,
         conversation_id: str,
         user_message_id: str,
         assistant_message_id: str,
-        assistant_payload: CollectedResponse,
+        assistant_response: AssistantResponse,
     ) -> datetime:
-        with MessageDbService() as update_service:
-            conv, _, asst_msg = update_service.get_conversation_and_messages(
-                conversation_id, user_message_id, assistant_message_id
+        with MessageDbService() as message_service:
+            conversation, _, assistant_message = (
+                message_service.get_conversation_and_messages(
+                    conversation_id, user_message_id, assistant_message_id
+                )
             )
-            assistant_message = update_service.update_assistant_message(
-                conv,
-                asst_msg,
-                assistant_payload=assistant_payload,
+            assistant_message = message_service.update_assistant_message(
+                conversation,
+                assistant_message,
+                assistant_response=assistant_response,
                 status=MessageStatus.DONE,
             )
             return assistant_message.updated_at
 
-    def schedule_memory_persist(
+    def schedule_memory_write(
         self,
         *,
         chat_request: ChatRequest,
-        assistant_payload: CollectedResponse,
+        assistant_response: AssistantResponse,
         user_id: str,
     ) -> None:
         asyncio.create_task(
@@ -57,7 +59,7 @@ class PostProcessService:
                     },
                     {
                         "role": "assistant",
-                        "content": assistant_payload.content or "",
+                        "content": assistant_response.content or "",
                     },
                 ],
                 user_id=user_id,

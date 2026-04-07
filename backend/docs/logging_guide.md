@@ -144,10 +144,11 @@ logger.info(
 ### 示例：聊天接口
 
 ```python
+from app.schemas.chat import extract_user_text
 from app.utils.logger import logger
 
 @router.post("/stream")
-async def chat_stream(
+async def stream_chat(
     request: Request,
     chat_request: ChatRequest,
     _auth: None = Depends(require_auth),
@@ -156,7 +157,7 @@ async def chat_stream(
     logger.info(
         "Chat stream request received",
         conversation_id=chat_request.conversation_id,
-        message_length=len(chat_request.content) if chat_request.content else 0,
+        message_length=len(extract_user_text(chat_request.content_blocks)),
     )
 
     try:
@@ -216,7 +217,7 @@ curl -i http://localhost:8000/api/chat/stream
 
 示例：
 ```
-2025-01-20 10:30:15.123 | INFO     | app.api.chat:chat_stream:30 | Chat stream request received | request_id=abc-123 | user_id=user-456 | conversation_id=conv-789 | message_length=42
+2025-01-20 10:30:15.123 | INFO     | app.api.chat:stream_chat:30 | Chat stream request received | request_id=abc-123 | user_id=user-456 | conversation_id=conv-789 | message_length=42
 ```
 
 ## 配置

@@ -29,15 +29,17 @@ class ToolCallPolicy:
     WEB_PAGES_EXTRACT = "web_pages_extract"
     QUERY_SIMILARITY_THRESHOLD = 0.7
 
-    def __init__(self, output_messages: list[ToolMessage]) -> None:
-        self.output_messages = output_messages
-        self.tool_call_args_by_name: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    def __init__(self, tool_round_messages: list[ToolMessage]) -> None:
+        self.tool_round_messages = tool_round_messages
+        self.tool_arguments_history_by_name: dict[str, list[dict[str, Any]]] = (
+            defaultdict(list)
+        )
         self.extracted_urls: set[str] = set()
         self.vocab_processor = VocabProcessor()
 
     def reset_for_request(self) -> None:
         self.extracted_urls = set()
-        self.tool_call_args_by_name.clear()
+        self.tool_arguments_history_by_name.clear()
 
     def get_available_tools(
         self, tools: list[dict[str, Any]], iterations_by_tool: dict[str, int]
@@ -58,43 +60,43 @@ class ToolCallPolicy:
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]],
         iterations_by_tool: dict[str, int],
-        tool_call_user_message: str,
+        tool_guided_user_message: str,
         iteration: int,
     ) -> None:
         _, disabled_tools = self.get_available_tools(tools, iterations_by_tool)
-        suffix_user_message: list[str] = []
+        hint_messages: list[str] = []
         if disabled_tools:
             logger.info(
                 "Pre-filtered tools that reached max iterations",
                 disabled_tools=disabled_tools,
                 iteration=iteration + 1,
             )
-            suffix_user_message.append(get_disabled_tools_message(disabled_tools))
-        if has_tool_been_called([self.WEB_SEARCH], self.output_messages):
-            suffix_user_message.append(get_gentle_tips_in_web_search())
-        if has_tool_been_called([self.WEB_PAGES_EXTRACT], self.output_messages) and (
-            len(self.extracted_urls) >= 3
-        ):
-            suffix_user_message.append(
+            hint_messages.append(get_disabled_tools_message(disabled_tools))
+        if has_tool_been_called([self.WEB_SEARCH], self.tool_round_messages):
+            hint_messages.append(get_gentle_tips_in_web_search())
+        if has_tool_been_called(
+            [self.WEB_PAGES_EXTRACT], self.tool_round_messages
+        ) and (len(self.extracted_urls) >= 3):
+            hint_messages.append(
                 f"⚠️ 已提取了 {len(self.extracted_urls)} 个 URL 的内容。如果这些内容已足够回答问题，请停止继续调用工具，并直接给出最终回答。"
             )
-        should_continue, continue_message = self.should_continue(None)
+        should_continue, stop_reason_message = self.should_continue(None)
         if not should_continue:
-            if continue_message:
-                suffix_user_message.append(continue_message)
+            if stop_reason_message:
+                hint_messages.append(stop_reason_message)
             if iteration >= 1:
-                suffix_user_message.append(get_tool_call_sufficient_info_message())
-        if suffix_user_message:
-            hints_text = "\n".join(suffix_user_message)
+                hint_messages.append(get_tool_call_sufficient_info_message())
+        if hint_messages:
+            hints_text = "\n".join(hint_messages)
             update_last_user_message(
                 messages,
-                new_content=f"{tool_call_user_message}\n\n注意:\n{hints_text}",
+                new_content=f"{tool_guided_user_message}\n\n注意:\n{hints_text}",
             )
 
     def record_tool_arguments(
         self, tool_name: str, arguments: dict[str, Any], tool_call_id: str
     ) -> None:
-        self.tool_call_args_by_name[tool_name].append(
+        self.tool_arguments_history_by_name[tool_name].append(
             {
                 "arguments": arguments,
                 "tool_call_id": tool_call_id,
@@ -106,7 +108,7 @@ class ToolCallPolicy:
 
     def _get_web_search_queries(self) -> list[str]:
         queries = []
-        for call_info in self.tool_call_args_by_name.get(self.WEB_SEARCH, []):
+        for call_info in self.tool_arguments_history_by_name.get(self.WEB_SEARCH, []):
             if query := get_in(["arguments", "query"], call_info):
                 queries.append(query)
         return queries
@@ -134,37 +136,37 @@ class ToolCallPolicy:
         )
         return overlap_ratio, extracted_count
 
-    def _extract_tool_call_arguments(
+    def _group_tool_call_arguments_by_name(
         self, tool_calls: list[ChatCompletionMessageFunctionToolCall]
     ) -> dict[str, list[dict[str, Any]]]:
-        tool_arguments: dict[str, list[dict[str, Any]]] = {}
+        tool_arguments_by_name: dict[str, list[dict[str, Any]]] = {}
         for tool_call in tool_calls:
             tool_name = tool_call.function.name
             try:
                 arguments = json.loads(tool_call.function.arguments)
             except (json.JSONDecodeError, Exception):
                 continue
-            if tool_name not in tool_arguments:
-                tool_arguments[tool_name] = []
-            tool_arguments[tool_name].append(
+            if tool_name not in tool_arguments_by_name:
+                tool_arguments_by_name[tool_name] = []
+            tool_arguments_by_name[tool_name].append(
                 {
                     "arguments": arguments,
                     "tool_call_id": tool_call.id,
                 }
             )
-        return tool_arguments
+        return tool_arguments_by_name
 
     def should_continue(
         self, tool_calls: list[ChatCompletionMessageFunctionToolCall] | None
     ) -> tuple[bool, str | None]:
         web_search_count = len(self._get_web_search_queries())
         web_pages_extract_count = len(
-            self.tool_call_args_by_name.get(self.WEB_PAGES_EXTRACT, [])
+            self.tool_arguments_history_by_name.get(self.WEB_PAGES_EXTRACT, [])
         )
-        total_tool_calls = count_tool_calls(self.output_messages)
+        total_tool_calls = count_tool_calls(self.tool_round_messages)
         if tool_calls:
-            tool_arguments = self._extract_tool_call_arguments(tool_calls)
-            for call_info in get_in([self.WEB_SEARCH], tool_arguments, []):
+            tool_arguments_by_name = self._group_tool_call_arguments_by_name(tool_calls)
+            for call_info in get_in([self.WEB_SEARCH], tool_arguments_by_name, []):
                 query = get_in(["arguments", "query"], call_info)
                 if query:
                     is_similar, similarity = self._check_query_similarity(query)
@@ -173,7 +175,9 @@ class ToolCallPolicy:
                             False,
                             f"⚠️ 当前查询与历史查询相似度很高（{similarity:.1%}）。如果之前的搜索结果已足够回答问题，请停止继续调用工具，并直接给出最终回答。",
                         )
-            for call_info in get_in([self.WEB_PAGES_EXTRACT], tool_arguments, []):
+            for call_info in get_in(
+                [self.WEB_PAGES_EXTRACT], tool_arguments_by_name, []
+            ):
                 urls = get_in(["arguments", "urls"], call_info)
                 if urls:
                     overlap_ratio, extracted_count = self._check_url_overlap(urls)

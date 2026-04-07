@@ -7,7 +7,7 @@ from app.prompts.prompt_utils import (
     get_window_out_summary_merge_prompt,
 )
 from app.schemas.chat import (
-    ChatMessageItem,
+    ChatMessage,
     collect_text_from_blocks,
 )
 from app.schemas.config import LLMConfig
@@ -30,14 +30,13 @@ class ContextSummaryService(LLMService):
 
     def format_conversation_for_summary(
         self,
-        messages: list[ChatMessageItem],
+        messages: list[ChatMessage],
     ) -> str:
         """将消息列表拼接为一段文本供 LLM 阅读"""
         parts: list[str] = []
         for m in messages:
             role = m.role
-            text_content = collect_text_from_blocks(
-                m.content_blocks, only_last=True)
+            text_content = collect_text_from_blocks(m.content_blocks, only_last=True)
             if text_content.strip():
                 parts.append(f"[{role}]: {text_content.strip()}")
         return "\n\n".join(parts)
@@ -45,16 +44,14 @@ class ContextSummaryService(LLMService):
     async def summarize_merge(
         self,
         prior_summary: str | None,
-        new_messages: list[ChatMessageItem],
+        new_messages: list[ChatMessage],
         max_tokens: int,
     ) -> str:
         """生成或增量合并窗口外摘要。"""
         normalized_prior_summary = prior_summary.strip() if prior_summary else ""
         if not new_messages:
             return normalized_prior_summary[: max_tokens * 2]
-        new_text = self.format_conversation_for_summary(
-            new_messages
-        )
+        new_text = self.format_conversation_for_summary(new_messages)
         if not new_text.strip():
             return normalized_prior_summary[: max_tokens * 2]
 

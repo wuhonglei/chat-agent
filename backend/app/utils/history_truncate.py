@@ -1,19 +1,19 @@
 """历史消息按轮数与 token 截断"""
 
-from app.schemas.chat import ChatMessageItem
+from app.schemas.chat import ChatMessage
 from app.utils.token import TokenCalculator
 
 
-def count_chat_message_tokens(msg: ChatMessageItem, calculator: TokenCalculator) -> int:
-    """单条 ChatMessageItem 的 token 数（基于 content_blocks 与 tool_calls）。"""
+def count_chat_message_tokens(msg: ChatMessage, calculator: TokenCalculator) -> int:
+    """单条 ChatMessage 的 token 数（基于 content_blocks 与 tool_calls）。"""
     return calculator.count_message_tokens(msg.model_dump(mode="json"))
 
 
 def group_history_into_user_assistant_rounds(
-    messages: list[ChatMessageItem],
-) -> list[list[ChatMessageItem]]:
+    messages: list[ChatMessage],
+) -> list[list[ChatMessage]]:
     """将消息按「一条 user + 一条 assistant」划为轮次（时间正序）。"""
-    rounds: list[list[ChatMessageItem]] = []
+    rounds: list[list[ChatMessage]] = []
     i = 0
     while i < len(messages):
         if (
@@ -29,9 +29,9 @@ def group_history_into_user_assistant_rounds(
 
 
 def split_history_by_rounds(
-    messages: list[ChatMessageItem],
+    messages: list[ChatMessage],
     max_rounds: int,
-) -> tuple[list[ChatMessageItem], list[ChatMessageItem]]:
+) -> tuple[list[ChatMessage], list[ChatMessage]]:
     """
     仅按轮数保留最近 N 轮，划分窗口内外消息。
 
@@ -69,10 +69,10 @@ def split_history_by_rounds(
 
 
 def truncate_in_window_by_round_tokens(
-    messages: list[ChatMessageItem],
+    messages: list[ChatMessage],
     max_tokens: int,
     token_calculator: TokenCalculator,
-) -> list[ChatMessageItem]:
+) -> list[ChatMessage]:
     """
     在已对工具结果等做过压缩后的窗口内消息上，按整轮、从新到旧在 token 预算内截断。
 
@@ -90,7 +90,7 @@ def truncate_in_window_by_round_tokens(
         return list(messages)
 
     tokens_used = 0
-    kept_rounds: list[list[ChatMessageItem]] = []
+    kept_rounds: list[list[ChatMessage]] = []
     for round_messages in reversed(rounds):
         round_tokens = sum(
             count_chat_message_tokens(message, token_calculator)

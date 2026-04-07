@@ -7,7 +7,7 @@ from openai.types.chat import ChatCompletionMessageFunctionToolCall
 
 from app.protocols import format_tool_result_message, format_tool_use_message
 from app.schemas.chat import (
-    ChatMessageItem,
+    ChatMessage,
     ThinkingBlock,
     ToolResultBlock,
     ToolUseBlock,
@@ -40,16 +40,14 @@ class BaseAgent(LLMService):
         Yields:
             str: SSE格式的消息
         """
-        raise NotImplementedError(
-            "This agent does not support non-streaming execution")
+        raise NotImplementedError("This agent does not support non-streaming execution")
 
     async def execute(self, *args: Any, **kwargs: Any) -> Any:
         """非流式执行agent的核心逻辑，子类可选实现
 
         默认实现抛出 NotImplementedError，子类如果需要非流式执行可以重写此方法
         """
-        raise NotImplementedError(
-            "This agent does not support non-streaming execution")
+        raise NotImplementedError("This agent does not support non-streaming execution")
 
     @staticmethod
     def format_sse_message(msg_type: str, data: Any = None) -> str:
@@ -57,7 +55,7 @@ class BaseAgent(LLMService):
 
     def _compose_history_messages(
         self,
-        history_messages: list[ChatMessageItem],
+        history_messages: list[ChatMessage],
     ) -> list[dict[str, Any]]:
         messages: list[dict[str, Any]] = []
         for msg in history_messages or []:
@@ -65,13 +63,15 @@ class BaseAgent(LLMService):
         return messages
 
     def _format_history_message_for_llm(
-        self, message: ChatMessageItem
+        self, message: ChatMessage
     ) -> list[dict[str, Any]]:
         if message.role != "assistant":
             return [format_chat_message_for_llm(message, clear_reasoning_content=True)]
 
         blocks = message.content_blocks or []
-        if not any(isinstance(block, (ToolUseBlock, ToolResultBlock)) for block in blocks):
+        if not any(
+            isinstance(block, (ToolUseBlock, ToolResultBlock)) for block in blocks
+        ):
             return [format_chat_message_for_llm(message, clear_reasoning_content=True)]
 
         formatted: list[dict[str, Any]] = []
@@ -110,26 +110,30 @@ class BaseAgent(LLMService):
                     if tool_use_block.tool_call_id:
                         arguments_text = tool_use_block.arguments_text or "{}"
                         try:
-                            tool_call = ChatCompletionMessageFunctionToolCall.model_validate(
-                                {
-                                    "id": tool_use_block.tool_call_id,
-                                    "type": "function",
-                                    "function": {
-                                        "name": tool_use_block.name or "",
-                                        "arguments": arguments_text,
-                                    },
-                                }
+                            tool_call = (
+                                ChatCompletionMessageFunctionToolCall.model_validate(
+                                    {
+                                        "id": tool_use_block.tool_call_id,
+                                        "type": "function",
+                                        "function": {
+                                            "name": tool_use_block.name or "",
+                                            "arguments": arguments_text,
+                                        },
+                                    }
+                                )
                             )
                         except Exception:
-                            tool_call = ChatCompletionMessageFunctionToolCall.model_validate(
-                                {
-                                    "id": tool_use_block.tool_call_id,
-                                    "type": "function",
-                                    "function": {
-                                        "name": tool_use_block.name or "",
-                                        "arguments": "{}",
-                                    },
-                                }
+                            tool_call = (
+                                ChatCompletionMessageFunctionToolCall.model_validate(
+                                    {
+                                        "id": tool_use_block.tool_call_id,
+                                        "type": "function",
+                                        "function": {
+                                            "name": tool_use_block.name or "",
+                                            "arguments": "{}",
+                                        },
+                                    }
+                                )
                             )
                         tool_calls.append(tool_call)
                     idx += 1
@@ -175,7 +179,7 @@ class BaseAgent(LLMService):
     def _compose_messages(
         self,
         system_prompt: str,
-        history_messages: list[ChatMessageItem],
+        history_messages: list[ChatMessage],
         user_message: str,
         tool_call_messages: list[ToolMessage] | None = None,
     ) -> list[dict[str, Any]]:

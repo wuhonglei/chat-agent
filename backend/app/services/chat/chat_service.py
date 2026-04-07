@@ -43,14 +43,14 @@ class ChatService:
             token_calculator=token_calculator,
         )
         self.post_process_service = PostProcessService(self.memory_service)
-        self.orchestrator = ChatOrchestrator(
+        self.chat_orchestrator = ChatOrchestrator(
             chat_session_agent=self.chat_session_agent,
             title_generation_agent=self.title_generation_agent,
             history_context_service=self.history_context_service,
             post_process_service=self.post_process_service,
         )
 
-    async def _search_memories(
+    async def _search_user_memories(
         self, *, query: str, user_id: str
     ) -> list[MemoryListItem]:
         if not query:
@@ -61,18 +61,18 @@ class ChatService:
             threshold=self.memory_config.search_threshold,
         )
 
-    async def stream_response(
+    async def stream_chat_events(
         self,
         chat_request: ChatRequest,
         user_message_id: str,
         assistant_message_id: str,
         user_id: str,
     ) -> AsyncGenerator[str, None]:
-        async for chunk in self.orchestrator.stream_response(
+        async for event in self.chat_orchestrator.run_chat_turn(
             chat_request=chat_request,
             user_message_id=user_message_id,
             assistant_message_id=assistant_message_id,
             user_id=user_id,
-            memory_search=self._search_memories,
+            memory_search=self._search_user_memories,
         ):
-            yield chunk
+            yield event

@@ -15,9 +15,9 @@ from app.protocols.chat_messages import (
     build_title_event,
 )
 from app.schemas.chat import (
-    ChatMessageItem,
+    AssistantResponse,
+    ChatMessage,
     ChatRequest,
-    CollectedResponse,
     count_tool_use_blocks,
     extract_user_text,
 )
@@ -54,11 +54,11 @@ class ChatOrchestrator:
         self.history_context_service = history_context_service
         self.post_process_service = post_process_service
 
-    async def stream_message(
+    async def stream_turn_events(
         self,
         chat_request: ChatRequest,
-        window_out_summary: str | None,
-        history_messages: list[ChatMessageItem],
+        history_summary_before_window: str | None,
+        history_messages: list[ChatMessage],
         user_id: str,
         client_ip: str | None,
         user_memories: list[MemoryListItem] | None = None,
@@ -76,21 +76,21 @@ class ChatOrchestrator:
             )
 
             session_start_time = get_current_time()
-            async for message in self.chat_session_agent.stream_execute(
+            async for event in self.chat_session_agent.stream_session_events(
                 chat_request=chat_request,
                 history_messages=history_messages,
                 client_ip=client_ip,
-                window_out_summary=window_out_summary,
+                history_summary_before_window=history_summary_before_window,
                 user_id=user_id,
                 conversation_id=chat_request.conversation_id,
                 user_memories=user_memories or [],
             ):
-                yield message
+                yield event
             session_duration = get_time_duration(session_start_time)
             logger.debug(
                 "Chat session agent execution completed",
                 duration=session_duration,
-                tool_calls_count=len(self.chat_session_agent.output_messages),
+                tool_calls_count=len(self.chat_session_agent.tool_round_messages),
             )
 
             total_duration = get_time_duration(start_time)
@@ -109,7 +109,7 @@ class ChatOrchestrator:
             )
             yield build_error_event({"content": str(exc)})
 
-    async def generate_title(
+    async def generate_title_event(
         self, user_message: str, conversation_id: str | None = None
     ) -> str:
         logger.info(
@@ -125,7 +125,7 @@ class ChatOrchestrator:
         )
         return build_title_event({"id": conversation_id, "title": title})
 
-    async def stream_response(
+    async def run_chat_turn(
         self,
         *,
         chat_request: ChatRequest,
@@ -157,65 +157,65 @@ class ChatOrchestrator:
                 user_message_text = extract_user_text(chat_request.content_blocks)
                 if chat_request.regenerate_title:
                     title_task = asyncio.create_task(
-                        self.generate_title(
+                        self.generate_title_event(
                             user_message_text,
                             conversation_id=conversation_id,
                         )
                     )
 
-                raw_history = message_service.get_history_messages_by_ids(
+                history_messages_from_db = message_service.get_history_messages_by_ids(
                     chat_request.history_ids
                 )
                 (
-                    window_out_summary,
-                    new_history_messages,
+                    history_summary_before_window,
+                    prepared_history_messages,
                 ) = await self.history_context_service.prepare_history_messages(
-                    raw_history, conversation_id
+                    history_messages_from_db, conversation_id
                 )
                 logger.info(
                     "Starting stream message generation",
                     conversation_id=conversation_id,
                     history_ids_count=len(chat_request.history_ids),
-                    history_messages_count=len(new_history_messages),
+                    history_messages_count=len(prepared_history_messages),
                 )
 
-                user_memory_texts = await memory_search(
+                user_memories = await memory_search(
                     query=user_message_text,
                     user_id=user_id,
                 )
 
-                chunk_count = 0
-                async for chunk in self.stream_message(
+                event_count = 0
+                async for event in self.stream_turn_events(
                     chat_request=chat_request,
-                    window_out_summary=window_out_summary,
-                    history_messages=new_history_messages,
+                    history_summary_before_window=history_summary_before_window,
+                    history_messages=prepared_history_messages,
                     client_ip=None,
                     user_id=user_id,
-                    user_memories=user_memory_texts,
+                    user_memories=user_memories,
                 ):
                     if title_task is not None and title_task.done():
                         try:
-                            if title_message := title_task.result():
-                                yield title_message
+                            if title_event := title_task.result():
+                                yield title_event
                         except Exception:
                             pass
                         title_task = None
-                    chunk_count += 1
-                    yield chunk
+                    event_count += 1
+                    yield event
 
                 logger.info(
                     "Stream message generation completed",
                     conversation_id=conversation_id,
-                    total_chunks=chunk_count,
+                    total_events=event_count,
                 )
 
-                assistant_payload = self.get_collected_response()
+                assistant_response = self.collect_assistant_response()
                 assistant_updated_at = (
-                    self.post_process_service.persist_assistant_response(
+                    self.post_process_service.persist_final_assistant_message(
                         conversation_id=conversation_id,
                         user_message_id=user_message_id,
                         assistant_message_id=assistant_message_id,
-                        assistant_payload=assistant_payload,
+                        assistant_response=assistant_response,
                     )
                 )
                 logger.info(
@@ -224,24 +224,24 @@ class ChatOrchestrator:
                     assistant_message_id=assistant_message_id,
                 )
 
-                done_payload = {
-                    "content_length": len(assistant_payload.content),
-                    "reasoning_length": len(assistant_payload.reasoning),
+                done_event_payload = {
+                    "content_length": len(assistant_response.content),
+                    "reasoning_length": len(assistant_response.reasoning),
                     "tool_calls_length": count_tool_use_blocks(
-                        assistant_payload.content_blocks
+                        assistant_response.content_blocks
                     ),
                     "updated_at": str(assistant_updated_at),
                 }
                 logger.info(
                     "Sending done message",
                     conversation_id=conversation_id,
-                    **done_payload,
+                    **done_event_payload,
                 )
-                yield build_done_event(done_payload)
+                yield build_done_event(done_event_payload)
 
-                self.post_process_service.schedule_memory_persist(
+                self.post_process_service.schedule_memory_write(
                     chat_request=chat_request,
-                    assistant_payload=assistant_payload,
+                    assistant_response=assistant_response,
                     user_id=user_id,
                 )
         except Exception as exc:
@@ -255,8 +255,8 @@ class ChatOrchestrator:
                 {"content": str(exc), "conversation_id": conversation_id}
             )
 
-    def get_collected_response(self) -> CollectedResponse:
-        return CollectedResponse(
+    def collect_assistant_response(self) -> AssistantResponse:
+        return AssistantResponse(
             content=self.chat_session_agent.content,
             reasoning=self.chat_session_agent.reasoning,
             content_blocks=self.chat_session_agent.content_blocks,

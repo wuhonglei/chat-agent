@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.schemas.chat import ChatMessageItem, ContentBlock, ToolResultBlock
+from app.schemas.chat import ChatMessage, ContentBlock, ToolResultBlock
 from app.schemas.config import ChatContextConfig
 from app.services.conversation import (
     ContextSummaryService,
@@ -16,7 +16,7 @@ from app.utils.logger import logger
 from app.utils.token import TokenCalculator
 
 
-def _truncated_set_ids(truncated_messages: list[ChatMessageItem]) -> list[str]:
+def _truncated_set_ids(truncated_messages: list[ChatMessage]) -> list[str]:
     """当前截断消息的 id 列表（稳定排序），用于写入 last_summarized_message_ids。"""
     return sorted(m.id for m in truncated_messages)
 
@@ -60,15 +60,15 @@ class HistoryContextService:
         self.window_out_summary_config = chat_context_config.window_out_summary
         self.token_calculator = token_calculator
 
-    def process_history_messages(
-        self, history_messages: list[ChatMessageItem]
-    ) -> list[ChatMessageItem]:
+    def compress_history_messages(
+        self, history_messages: list[ChatMessage]
+    ) -> list[ChatMessage]:
         if not history_messages:
             return []
 
         threshold_tokens = self.chat_context_config.tool_result_compression.message_summary_threshold_tokens
         last_round_start = max(0, len(history_messages) - 2)
-        processed_messages: list[ChatMessageItem] = []
+        processed_messages: list[ChatMessage] = []
 
         for idx, msg in enumerate(history_messages):
             if msg.role != "assistant":
@@ -122,38 +122,38 @@ class HistoryContextService:
 
     async def prepare_history_messages(
         self,
-        raw_history: list[ChatMessageItem],
+        raw_history: list[ChatMessage],
         conversation_id: str,
-    ) -> tuple[str | None, list[ChatMessageItem]]:
+    ) -> tuple[str | None, list[ChatMessage]]:
         _, in_window_messages = split_history_by_rounds(
             raw_history,
             self.history_window_config.max_rounds,
         )
-        compressed_in_window = self.process_history_messages(
-            in_window_messages)
-        final_in_window = truncate_in_window_by_round_tokens(
-            compressed_in_window,
+        compressed_window_messages = self.compress_history_messages(in_window_messages)
+        window_messages_after_truncation = truncate_in_window_by_round_tokens(
+            compressed_window_messages,
             self.history_window_config.max_tokens,
             self.token_calculator,
         )
-        final_kept_ids = {m.id for m in final_in_window}
-        out_of_window_messages = [
-            m for m in raw_history if m.id not in final_kept_ids]
+        final_kept_ids = {m.id for m in window_messages_after_truncation}
+        out_of_window_messages = [m for m in raw_history if m.id not in final_kept_ids]
 
         window_out_summary = None
-        before_window_summary = None
+        stored_summary_before_window = None
         if self.window_out_summary_config.enabled and out_of_window_messages:
             current_ids = _truncated_set_ids(out_of_window_messages)
             current_id_set = set(current_ids)
             with ConversationContextDbService() as ctx_svc:
                 ctx = ctx_svc.get_conversation_context(conversation_id)
-                before_window_summary = ctx.summary_before_window if ctx else None
+                stored_summary_before_window = (
+                    ctx.summary_before_window if ctx else None
+                )
             last_ids: list[str] = (
                 list(ctx.last_summarized_message_ids or []) if ctx else []
             )
             last_id_set = set(last_ids)
             if current_id_set == last_id_set:
-                return before_window_summary, final_in_window
+                return stored_summary_before_window, window_messages_after_truncation
 
             delta_ids = current_id_set - last_id_set
             summary_max_tokens = self.window_out_summary_config.summary_max_tokens
@@ -163,7 +163,7 @@ class HistoryContextService:
                 last_id_set <= current_id_set
                 and bool(delta_ids)
                 and ctx is not None
-                and bool(before_window_summary)
+                and bool(stored_summary_before_window)
             )
             messages_to_summarize = out_of_window_messages
             if use_incremental_summary:
@@ -172,7 +172,7 @@ class HistoryContextService:
                 ]
             try:
                 summary_to_persist = await summary_svc.summarize_merge(
-                    before_window_summary,
+                    stored_summary_before_window,
                     messages_to_summarize,
                     max_tokens=summary_max_tokens,
                 )
@@ -190,4 +190,4 @@ class HistoryContextService:
                     message_ids=current_ids,
                 )
 
-        return window_out_summary, final_in_window
+        return window_out_summary, window_messages_after_truncation

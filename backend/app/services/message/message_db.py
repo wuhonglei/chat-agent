@@ -10,8 +10,8 @@ from sqlmodel import Session, delete, select
 
 from app.models import ConversationDb, MessageDb
 from app.schemas.chat import (
-    ChatMessageItem,
-    CollectedResponse,
+    AssistantResponse,
+    ChatMessage,
     ContentBlock,
     MessageStatus,
 )
@@ -76,9 +76,7 @@ class MessageDbService(DbService):
         db.exec(delete(MessageDb).where(message_id_column.in_(message_ids)))
         # 事务由 get_db() 或 DbService.__exit__ 自动提交
 
-    def get_history_messages_by_ids(
-        self, message_ids: list[str]
-    ) -> list[ChatMessageItem]:
+    def get_history_messages_by_ids(self, message_ids: list[str]) -> list[ChatMessage]:
         """获取消息列表，按照 message_ids 的顺序返回"""
         if not message_ids:
             return []
@@ -94,18 +92,15 @@ class MessageDbService(DbService):
 
         messages_by_id = {message.id: message for message in messages}
 
-        chat_messages: list[ChatMessageItem] = []
+        chat_messages: list[ChatMessage] = []
         for message_id in message_ids:
             db_message = messages_by_id.get(message_id)
             if db_message is None:
-                logger.warning(
-                    "Message ID not found, skipping", message_id=message_id
-                )
+                logger.warning("Message ID not found, skipping", message_id=message_id)
                 continue
 
             chat_messages.append(
-                ChatMessageItem.model_validate(
-                    db_message.model_dump(mode="json"))
+                ChatMessage.model_validate(db_message.model_dump(mode="json"))
             )
 
         return chat_messages
@@ -164,8 +159,7 @@ class MessageDbService(DbService):
         message = MessageDb(
             id=message_id,
             role="user",
-            content_blocks=[block.model_dump(mode="json")
-                            for block in content_blocks],
+            content_blocks=[block.model_dump(mode="json") for block in content_blocks],
             conversation_id=conversation.id,
             message_metadata=metadata or {},
             status=MessageStatus.DONE,
@@ -252,14 +246,14 @@ class MessageDbService(DbService):
         conversation: ConversationDb,
         assistant_message: MessageDb,
         *,
-        assistant_payload: CollectedResponse,
+        assistant_response: AssistantResponse,
         status: MessageStatus,
         extra_metadata: dict[str, Any] | None = None,
     ) -> MessageDb:
         assistant_message.status = status
         assistant_message.updated_at = get_datetime_now()
         assistant_message.content_blocks = [
-            block.model_dump(mode="json") for block in assistant_payload.content_blocks
+            block.model_dump(mode="json") for block in assistant_response.content_blocks
         ]
         if extra_metadata:
             merged_metadata = dict(assistant_message.message_metadata or {})

@@ -28,7 +28,7 @@ class SourceConfig(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
-class ChatMessageItemReq(BaseModel):
+class ChatMessageRequestItem(BaseModel):
     """Chat message model"""
 
     role: str = Field(..., description="Message role (user/assistant/tool)")
@@ -39,7 +39,7 @@ class ChatMessageItemReq(BaseModel):
     )
 
 
-class ChatMessageItem(BaseModel):
+class ChatMessage(BaseModel):
     """Chat message response model"""
 
     id: str = Field(..., description="Message ID")
@@ -69,8 +69,8 @@ class ChatMessageItem(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
 
-# ChatMessageItem 和 ToolMessage 的混合类型
-ChatMessageItemWithToolCalls: TypeAlias = ChatMessageItem | ToolMessage
+# ChatMessage 和 ToolMessage 的混合类型
+ChatMessageWithToolCalls: TypeAlias = ChatMessage | ToolMessage
 
 
 class ChatRequest(BaseModel):
@@ -124,7 +124,7 @@ class ChatResponse(BaseModel):
     )
 
 
-class CollectedResponse(BaseModel):
+class AssistantResponse(BaseModel):
     """Collected response model"""
 
     content: str = Field(default="", description="Collected content")
@@ -310,6 +310,6 @@ def count_tool_use_blocks(content_blocks: list[ContentBlock]) -> int:
     return sum(1 for block in content_blocks if isinstance(block, ToolUseBlock))
 
 
-ChatMessageItem.model_rebuild()
+ChatMessage.model_rebuild()
 ChatRequest.model_rebuild()
-CollectedResponse.model_rebuild()
+AssistantResponse.model_rebuild()

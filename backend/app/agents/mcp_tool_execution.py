@@ -11,7 +11,7 @@ from app.schemas.chat import SourceConfig
 from app.schemas.llm import ToolMessage, ToolResultMessage, ToolUseMessage
 
 
-def get_mcp_server_names(
+def resolve_enabled_mcp_servers(
     mcp_auto_mode: bool, source_config: SourceConfig
 ) -> list[str] | None:
     if mcp_auto_mode:
@@ -29,18 +29,18 @@ class MCPToolSession:
         self,
         mcp_manager: MCPClientManager,
         user_message: str,
-        output_messages: list[ToolMessage],
+        tool_round_messages: list[ToolMessage],
     ):
         self.mcp_manager = mcp_manager
-        self.output_messages = output_messages
-        self.policy = ToolCallPolicy(output_messages)
+        self.tool_round_messages = tool_round_messages
+        self.policy = ToolCallPolicy(tool_round_messages)
         self.executor = ToolExecutor(mcp_manager, user_message)
 
     def reset_for_request(self, user_message: str) -> None:
         self.policy.reset_for_request()
         self.executor.reset_for_request(user_message)
 
-    def get_tools_state(
+    def get_available_tools(
         self, tools: list[dict[str, Any]], iterations_by_tool: dict[str, int]
     ) -> tuple[list[dict[str, Any]], list[str]]:
         return self.policy.get_available_tools(tools, iterations_by_tool)
@@ -50,18 +50,18 @@ class MCPToolSession:
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]],
         iterations_by_tool: dict[str, int],
-        tool_call_user_message: str,
+        tool_guided_user_message: str,
         iteration: int,
     ) -> None:
         self.policy.apply_iteration_hints(
             messages=messages,
             tools=tools,
             iterations_by_tool=iterations_by_tool,
-            tool_call_user_message=tool_call_user_message,
+            tool_guided_user_message=tool_guided_user_message,
             iteration=iteration,
         )
 
-    def should_continue_tool_calls(
+    def should_continue_rounds(
         self, tool_calls: list[ChatCompletionMessageFunctionToolCall] | None
     ) -> tuple[bool, str | None]:
         return self.policy.should_continue(tool_calls)

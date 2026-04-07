@@ -21,45 +21,45 @@ class ChatRoundStage(str, Enum):
 
 
 @dataclass
-class SessionAggregate:
+class SessionOutput:
     """All mutable chat session output in one place."""
 
-    output_messages: list[ToolMessage] = field(default_factory=list)
+    tool_round_messages: list[ToolMessage] = field(default_factory=list)
     content_blocks: list[ContentBlock] = field(default_factory=list)
     content: str = ""
     reasoning: str = ""
 
     def reset(self) -> None:
-        self.output_messages.clear()
+        self.tool_round_messages.clear()
         self.content_blocks = []
         self.content = ""
         self.reasoning = ""
 
 
 @dataclass
-class RoundExecution:
+class RoundState:
     """Per-round execution status."""
 
     stage: ChatRoundStage = ChatRoundStage.GENERATING
-    final_answer_done: bool = False
+    is_final_answer_complete: bool = False
 
 
 class ChatRoundStateMachine:
     """Explicit state transitions for one model/tool round."""
 
     def __init__(self) -> None:
-        self.current = RoundExecution()
+        self.current_round = RoundState()
 
-    def start_round(self) -> RoundExecution:
-        self.current = RoundExecution(stage=ChatRoundStage.GENERATING)
-        return self.current
+    def start_round(self) -> RoundState:
+        self.current_round = RoundState(stage=ChatRoundStage.GENERATING)
+        return self.current_round
 
     def begin_tool_calling(self) -> None:
-        self.current.stage = ChatRoundStage.TOOL_CALLING
+        self.current_round.stage = ChatRoundStage.TOOL_CALLING
 
     def begin_finalizing(self) -> None:
-        self.current.stage = ChatRoundStage.FINALIZING
+        self.current_round.stage = ChatRoundStage.FINALIZING
 
     def mark_done(self) -> None:
-        self.current.stage = ChatRoundStage.DONE
-        self.current.final_answer_done = True
+        self.current_round.stage = ChatRoundStage.DONE
+        self.current_round.is_final_answer_complete = True
