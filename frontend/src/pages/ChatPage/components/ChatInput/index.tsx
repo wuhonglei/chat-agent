@@ -184,7 +184,11 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, clas
             placeholder="发送消息"
             className={styles.container}
             autoSize={{ minRows: 2, maxRows: 6 }}
-            style={{ borderColor: "#d9d9d9", boxShadow: "none" }}
+            style={{
+              borderColor: "#d9d9d9",
+              boxShadow: "none",
+              overflow: "hidden",
+            }}
             footer={() => {
               return (
                 <div className="flex items-center gap-2 justify-between">
