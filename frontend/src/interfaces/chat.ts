@@ -1,6 +1,6 @@
 // Chat types
+import { ContentBlock, UserContentBlock } from "./contentBlock";
 import { TitleCreatedBy } from "./conversation";
-import { ContentBlock } from "./contentBlock";
 
 export enum SearchSourceType {
   WebSearch = "web_search",
@@ -79,7 +79,7 @@ export type NewConversationCache =
     };
 
 export interface ChatRequest extends ChatInputConfig {
-  contentBlocks: ContentBlock[];
+  contentBlocks: UserContentBlock[];
   conversationId?: string;
   historyIds: string[];
   regenerateTitle: boolean;

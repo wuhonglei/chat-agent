@@ -37,7 +37,7 @@ import { useEffect, useMemo, useRef } from "react";
 
 import { db } from "@/indexDB";
 import { MessageStatus, TitleCreatedBy } from "@/interfaces";
-import { ContentBlock, getMessageTextFromBlocks } from "@/interfaces/contentBlock";
+import { getMessageTextFromBlocks, TextBlock } from "@/interfaces/contentBlock";
 import {
   getHistoryMessageIds,
   getRemovedMessageIds,
@@ -213,7 +213,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
                 id: `cb_user_${Date.now()}`,
                 type: "text",
                 text: content,
-              } as ContentBlock,
+              } as TextBlock,
             ],
             historyIds, // 发送最后几条消息作为上下文
             regenerateTitle,

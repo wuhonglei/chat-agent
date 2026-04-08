@@ -76,9 +76,9 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, clas
         <Form.Item name={names.content}>
           <Sender
             suffix={false}
+            placeholder="发送消息"
             onKeyDown={handlePressEnter}
             className={styles.container}
-            placeholder="给 DeepSeek 发送消息"
             autoSize={{ minRows: 2, maxRows: 6 }}
             style={{ borderColor: "#d9d9d9", boxShadow: "none" }}
             footer={() => {

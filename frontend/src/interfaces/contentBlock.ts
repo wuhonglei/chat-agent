@@ -53,6 +53,7 @@ export enum ContentBlockRenderStatus {
 }
 
 export type ContentBlock = TextBlock | ThinkingBlock | ToolUseBlock | ToolResultBlock;
+export type UserContentBlock = TextBlock;
 
 export type ContentBlockEvent =
   | { op: "append"; block: ContentBlock }
