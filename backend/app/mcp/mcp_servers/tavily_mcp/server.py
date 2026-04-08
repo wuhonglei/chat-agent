@@ -52,7 +52,7 @@ async def web_search(
         description="每个来源返回的相关片段上限（1-5）。仅在 search_depth 为 'advanced' 或 'fast' 时可用",
     ),
     result_per_query: int = Field(
-        default=5,
+        default=10,
         ge=1,
         le=20,
         description="每个查询返回的搜索结果数量（1-20）",
