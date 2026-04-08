@@ -13,6 +13,7 @@ from app.schemas.chat import (
 )
 from app.services.message import MessageDbService
 from app.services.user.memory_service import MemoryService
+from app.utils.logger import logger
 
 
 class PostProcessService:
@@ -50,12 +51,20 @@ class PostProcessService:
         assistant_response: AssistantResponse,
         user_id: str,
     ) -> None:
+        user_message_text = extract_user_text(chat_request.content_blocks)
+        if not user_message_text:
+            logger.warning(
+                "User message text is empty, skipping memory write",
+                conversation_id=chat_request.conversation_id,
+            )
+            return
+
         asyncio.create_task(
             self.memory_service.add_memories(
                 messages=[
                     {
                         "role": "user",
-                        "content": extract_user_text(chat_request.content_blocks),
+                        "content": user_message_text,
                     },
                     {
                         "role": "assistant",
