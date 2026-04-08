@@ -1,12 +1,45 @@
 """文件管理 API"""
 
-from fastapi import APIRouter, Depends, File, UploadFile
+from pathlib import Path
 
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse
+
+from app.schemas.auth import AuthTokenPayload
+from app.schemas.chat import ImageBlock
 from app.schemas.response import ApiResponse
+from app.services.base_service.chat_image_service import (
+    media_type_for_preview,
+    save_chat_image,
+    user_upload_file_path,
+)
 from app.services.base_service.file_service import FileService
-from app.utils.auth_deps import require_auth
+from app.utils.auth_deps import get_auth_token_info, require_auth
 
 router = APIRouter()
+
+
+@router.post("/image/upload")
+async def upload_chat_image(
+    file: UploadFile = File(...),
+    auth_info: AuthTokenPayload = Depends(get_auth_token_info),
+) -> ApiResponse[ImageBlock]:
+    """上传聊天图片（需登录）；保存至 data/user_data/{user_id}/uploads/，返回 ImageBlock。"""
+    block = await save_chat_image(user_id=auth_info.user_id, file=file)
+    return ApiResponse.success(data=block, msg="上传成功")
+
+
+@router.get("/image/preview/{user_id}/{filename}")
+async def preview_chat_image(user_id: str, filename: str) -> FileResponse:
+    """预览已上传图片（无需登录）；依赖路径不可猜测性。"""
+    path: Path = user_upload_file_path(user_id, filename)
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="文件不存在")
+    return FileResponse(
+        path=str(path),
+        media_type=media_type_for_preview(filename),
+        filename=filename,
+    )
 
 
 @router.post("/upload_avatar")

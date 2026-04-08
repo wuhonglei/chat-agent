@@ -9,17 +9,19 @@ import { createSelector } from "@reduxjs/toolkit";
 import { RootState } from "@/store";
 
 /**
- * 根据消息内容和是否流式传输，返回按钮状态
- * @param content
- * @param isStreaming 是否流式传输
- * @returns 按钮状态
+ * 根据消息内容、附件是否可发送、是否流式传输，返回按钮状态
  */
-export function useButtonState(content: string, isStreaming?: boolean): ButtonState {
+export function useButtonState(
+  content: string,
+  isStreaming: boolean | undefined,
+  opts: { hasReadyImages: boolean; hasPendingUploads: boolean }
+): ButtonState {
   if (isStreaming) {
     return ButtonState.Streaming;
   }
 
-  if (trim(content)) {
+  const canSend = (Boolean(trim(content)) || opts.hasReadyImages) && !opts.hasPendingUploads;
+  if (canSend) {
     return ButtonState.Typing;
   }
 

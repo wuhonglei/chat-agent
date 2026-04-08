@@ -30,6 +30,16 @@ export interface ToolResultBlock {
   summary?: string;
 }
 
+export interface ImageBlock {
+  id: string;
+  type: "image";
+  url: string;
+  /** 字节大小 */
+  size: number;
+  /** 如 image/jpeg */
+  mime: string;
+}
+
 export interface WebSearchResultItem {
   title?: string;
   url?: string;
@@ -52,8 +62,8 @@ export enum ContentBlockRenderStatus {
   Done = 100,
 }
 
-export type ContentBlock = TextBlock | ThinkingBlock | ToolUseBlock | ToolResultBlock;
-export type UserContentBlock = TextBlock;
+export type ContentBlock = TextBlock | ThinkingBlock | ToolUseBlock | ToolResultBlock | ImageBlock;
+export type UserContentBlock = TextBlock | ImageBlock;
 
 export type ContentBlockEvent =
   | { op: "append"; block: ContentBlock }
@@ -73,6 +83,25 @@ export function getMessageTextFromBlocks(blocks: ContentBlock[] | undefined): st
     .filter((block): block is TextBlock => block.type === "text")
     .map(block => block.text)
     .join("");
+}
+
+/** 组装发往后端的用户 content_blocks：先文本块，再按顺序追加图片块 */
+export function buildUserContentBlocks(content: string, imageBlocks: ImageBlock[] | undefined): UserContentBlock[] {
+  const blocks: UserContentBlock[] = [];
+  const text = content.trim();
+  if (text) {
+    blocks.push({
+      id: `cb_user_text_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+      type: "text",
+      text,
+    });
+  }
+  if (imageBlocks?.length) {
+    for (const img of imageBlocks) {
+      blocks.push(img);
+    }
+  }
+  return blocks;
 }
 
 export function getMessageThinkingFromBlocks(blocks: ContentBlock[] | undefined): string {

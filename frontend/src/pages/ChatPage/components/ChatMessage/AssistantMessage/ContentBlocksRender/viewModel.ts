@@ -31,7 +31,7 @@ export type RenderableContentBlock =
     };
 
 function isRenderableBlock(block: ContentBlock): block is TextBlock | ThinkingBlock | ToolUseBlock {
-  return block.type !== "tool_result";
+  return block.type !== "tool_result" && block.type !== "image";
 }
 
 function getTextLikeStatus(

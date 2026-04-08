@@ -1,6 +1,6 @@
 import CopyButton from "@/components/common/CopyButton";
 import { ChatMessage as ChatMessageType } from "@/interfaces";
-import { getMessageTextFromBlocks } from "@/interfaces/contentBlock";
+import { ContentBlock, getMessageTextFromBlocks } from "@/interfaces/contentBlock";
 import { isInputEnter } from "@/utils";
 import { EditOutlined } from "@ant-design/icons";
 import { Bubble, Sender } from "@ant-design/x";
@@ -13,6 +13,22 @@ import styles from "./UserMessage.module.css";
 interface UserMessageProps {
   message: ChatMessageType;
   onEditMessage: (content: string) => void;
+}
+
+function renderUserBlocks(blocks: ContentBlock[]) {
+  return blocks.map(block => {
+    if (block.type === "text") {
+      return (
+        <span key={block.id} className="whitespace-pre-wrap wrap-break-word">
+          {block.text}
+        </span>
+      );
+    }
+    if (block.type === "image") {
+      return <img key={block.id} src={block.url} alt="" className="max-w-full max-h-80 rounded-md object-contain" />;
+    }
+    return null;
+  });
 }
 
 const UserMessage: React.FC<UserMessageProps> = ({ message, onEditMessage }) => {
@@ -39,7 +55,7 @@ const UserMessage: React.FC<UserMessageProps> = ({ message, onEditMessage }) => 
     <section className={classNames("mt-3 w-full flex justify-end", styles.container)}>
       <Bubble
         placement="end"
-        content={textContent}
+        content={textContent || " "}
         variant={isEditing ? "borderless" : "filled"}
         className={isEditing ? "min-w-[80%]" : "max-w-[70%]"}
         classNames={{
@@ -65,7 +81,7 @@ const UserMessage: React.FC<UserMessageProps> = ({ message, onEditMessage }) => 
               }
             />
           ) : (
-            <>{content}</>
+            <div className="flex flex-col gap-2 items-end">{renderUserBlocks(message.contentBlocks)}</div>
           )
         }
         footer={

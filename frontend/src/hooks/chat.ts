@@ -37,7 +37,7 @@ import { useEffect, useMemo, useRef } from "react";
 
 import { db } from "@/indexDB";
 import { MessageStatus, TitleCreatedBy } from "@/interfaces";
-import { getMessageTextFromBlocks, TextBlock } from "@/interfaces/contentBlock";
+import { buildUserContentBlocks, getMessageTextFromBlocks, ImageBlock } from "@/interfaces/contentBlock";
 import {
   getHistoryMessageIds,
   getRemovedMessageIds,
@@ -100,7 +100,12 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
 
   const sendMessage = useMemoizedFn(
     async (values: ChatInputFormValues, options?: SendMessageOptions): Promise<void> => {
-      const { index, createdBy } = options || {};
+      const { index, createdBy, imageBlocks } = options || {};
+      const { content, ...requestConfig } = values;
+      const userBlocks = buildUserContentBlocks((content || "").trim(), imageBlocks);
+      if (userBlocks.length === 0) {
+        return;
+      }
 
       // 如果正在流式传输，先中止当前请求
       if (abortControllerRef.current && isStreaming) {
@@ -204,17 +209,10 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
         };
 
         // 开始流式传输
-        const { content, ...requestConfig } = values;
         await chatAPI.streamMessage(
           {
             ...requestConfig,
-            contentBlocks: [
-              {
-                id: `cb_user_${Date.now()}`,
-                type: "text",
-                text: content,
-              } as TextBlock,
-            ],
+            contentBlocks: userBlocks,
             historyIds, // 发送最后几条消息作为上下文
             regenerateTitle,
             removedMessageIds,
@@ -273,17 +271,24 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
             ...formData,
             content: getMessageTextFromBlocks(message.contentBlocks),
           },
-          { index }
+          {
+            index,
+            imageBlocks: message.contentBlocks.filter((b): b is ImageBlock => b.type === "image"),
+          }
         );
       } else {
         // 如果是助手消息，则重新发送上一个用户消息
         const newIndex = index - 1;
+        const userMessage = messages[newIndex];
         sendMessage(
           {
             ...formData,
-            content: getMessageTextFromBlocks(messages[newIndex].contentBlocks),
+            content: getMessageTextFromBlocks(userMessage.contentBlocks),
           },
-          { index: newIndex }
+          {
+            index: newIndex,
+            imageBlocks: userMessage.contentBlocks.filter((b): b is ImageBlock => b.type === "image"),
+          }
         );
       }
     }

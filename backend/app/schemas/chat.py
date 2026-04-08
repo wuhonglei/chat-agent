@@ -80,7 +80,8 @@ class ChatRequest(BaseModel):
         ..., description="User message content blocks"
     )
     conversation_id: str = Field(..., description="Conversation ID")
-    history_ids: list[str] = Field(default_factory=list, description="Chat history IDs")
+    history_ids: list[str] = Field(
+        default_factory=list, description="Chat history IDs")
     removed_message_ids: list[str] | None = Field(
         None, description="Message IDs to be removed"
     )
@@ -90,7 +91,8 @@ class ChatRequest(BaseModel):
     regenerate_title: bool | None = Field(
         False, description="Whether to regenerate title"
     )
-    mcp_auto_mode: bool = Field(True, description="Whether to use mcp auto mode")
+    mcp_auto_mode: bool = Field(
+        True, description="Whether to use mcp auto mode")
     think_mode: bool = Field(False, description="Whether to use think mode")
 
 
@@ -162,15 +164,29 @@ class ToolResultBlock(BaseModel):
     type: Literal["tool_result"] = "tool_result"
     tool_call_id: str = Field(..., description="Tool call ID")
     tool_use_id: str = Field(..., description="Referenced tool_use block ID")
-    is_error: bool = Field(default=False, description="Tool result error status")
+    is_error: bool = Field(
+        default=False, description="Tool result error status")
     content: str = Field(default="", description="Tool result content")
     structured_content_for_display: list[dict[str, Any]] | None = Field(
         default=None, description="供前端展示的轻量结构化工具结果"
     )
-    summary: str | None = Field(default=None, description="Tool result summary")
+    summary: str | None = Field(
+        default=None, description="Tool result summary")
 
 
-ContentBlock: TypeAlias = TextBlock | ThinkingBlock | ToolUseBlock | ToolResultBlock
+class ImageBlock(BaseModel):
+    id: str = Field(..., description="Block ID")
+    type: Literal["image"] = "image"
+    url: str = Field(
+        ..., description="Preview URL path (e.g. /api/file/image/preview/...)"
+    )
+    size: int = Field(..., ge=0, description="File size in bytes")
+    mime: str = Field(..., description="MIME type e.g. image/jpeg")
+
+
+ContentBlock: TypeAlias = (
+    TextBlock | ThinkingBlock | ToolUseBlock | ToolResultBlock | ImageBlock
+)
 _CONTENT_BLOCKS_ADAPTER = TypeAdapter(list[ContentBlock])
 
 

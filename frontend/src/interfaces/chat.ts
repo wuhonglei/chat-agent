@@ -1,5 +1,5 @@
 // Chat types
-import { ContentBlock, UserContentBlock } from "./contentBlock";
+import { ContentBlock, ImageBlock, UserContentBlock } from "./contentBlock";
 import { TitleCreatedBy } from "./conversation";
 
 export enum SearchSourceType {
@@ -94,6 +94,8 @@ export interface SourceData {
 export interface SendMessageOptions {
   index?: number;
   createdBy?: TitleCreatedBy;
+  /** 与 Attachments 派生并列：重发时从历史消息的 contentBlocks 带入 */
+  imageBlocks?: ImageBlock[];
 }
 
 export interface ChatConversationState {
