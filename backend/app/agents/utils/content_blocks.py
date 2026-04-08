@@ -24,6 +24,11 @@ class ContentBlocksAggregator:
         self._tool_index_to_use_block_id: dict[int, str] = {}
         self._tool_call_to_use_block_id: dict[str, str] = {}
 
+    def start_round(self) -> None:
+        """重置本轮工具调用关联，避免跨轮 index/tool_call_id 串写。"""
+        self._tool_index_to_use_block_id = {}
+        self._tool_call_to_use_block_id = {}
+
     def _next_id(self) -> str:
         self._seq += 1
         return f"cb_{self._seq:06d}"
@@ -122,8 +127,14 @@ class ContentBlocksAggregator:
         return events
 
     def finalize_round(self) -> dict[str, Any]:
+        current_round_block_ids = set(self._tool_index_to_use_block_id.values())
+        if not current_round_block_ids:
+            return {"op": "finalize_round"}
         for block in self.blocks:
-            if not isinstance(block, ToolUseBlock):
+            if (
+                not isinstance(block, ToolUseBlock)
+                or block.id not in current_round_block_ids
+            ):
                 continue
             if not block.arguments_text:
                 block.arguments_json = {}

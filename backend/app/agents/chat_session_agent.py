@@ -273,6 +273,7 @@ class ChatSessionAgent(BaseAgent):
         iterations_by_tool: dict[str, int],
         round_state: RoundState,
     ) -> AsyncGenerator[str, None]:
+        self.content_block_aggregator.start_round()
         start_time = get_current_time()
         response = await self.call_llm_api(
             model=self.model_name,
