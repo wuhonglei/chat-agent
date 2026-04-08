@@ -55,14 +55,11 @@ function imageBlocksFromAttachmentItems(items: GetProp<AttachmentsProps, "items"
 
 const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, className, style, form }) => {
   const content = Form.useWatch(names.content, form);
-  const [attachmentOpen, setAttachmentOpen] = React.useState(false);
   const [attachmentItems, setAttachmentItems] = React.useState<GetProp<AttachmentsProps, "items">>([]);
   const senderRef = React.useRef<GetRef<typeof Sender>>(null);
   const attachmentsRef = React.useRef<GetRef<typeof Attachments>>(null);
 
-  /** 有附件时 Header 常驻展开；否则跟随 attachmentOpen */
   const hasAttachmentItems = attachmentItems.length > 0;
-  const senderHeaderOpen = hasAttachmentItems || attachmentOpen;
 
   const hasReadyImages = imageBlocksFromAttachmentItems(attachmentItems).length > 0;
   const hasPendingUploads = Boolean(attachmentItems?.some(item => item.status === "uploading"));
@@ -85,13 +82,8 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, clas
         },
       }}
       style={{ border: "none" }}
-      open={senderHeaderOpen}
-      onOpenChange={next => {
-        if (hasAttachmentItems && !next) {
-          return;
-        }
-        setAttachmentOpen(next);
-      }}
+      open
+      closable={false}
       forceRender
     >
       <Attachments
@@ -126,7 +118,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, clas
             onError?.(e as Error);
           }
         }}
-        getDropContainer={() => senderRef.current?.nativeElement ?? null}
+        getDropContainer={() => document.body}
       />
     </Sender.Header>
   );
@@ -147,7 +139,6 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, clas
     );
     form.resetFields([names.content]);
     setAttachmentItems([]);
-    setAttachmentOpen(false);
   });
 
   const handlePressEnter = useMemoizedFn((event: React.KeyboardEvent<Element>) => {
@@ -188,7 +179,6 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, clas
               for (const file of files) {
                 attachmentsRef.current?.upload(file);
               }
-              setAttachmentOpen(true);
             }}
             onKeyDown={handlePressEnter}
             placeholder="发送消息"
@@ -205,7 +195,6 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, clas
                       icon={<PaperClipOutlined />}
                       aria-label="添加图片"
                       onClick={() => {
-                        setAttachmentOpen(true);
                         queueMicrotask(() => {
                           attachmentsRef.current?.select({
                             accept: "image/*",
