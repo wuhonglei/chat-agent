@@ -47,15 +47,15 @@ class MCPRegistry:
             {
                 "id": "tavily-mcp",
                 "name": "联网搜索",
-                "icon": "https://www.tavily.com/logos/favicon.ico",
+                "icon": "https://docs.tavily.com/mintlify-assets/_mintlify/favicons/tavilyai/SXaxSfweEU3ftIlh/_generated/favicon/apple-touch-icon.png",
                 "description": "联网搜索和内容提取",
                 "online": False,
             },
             {
                 "id": "code-exec-mcp",
                 "name": "代码执行",
-                "icon": "https://www.python.org/static/favicon.ico",
-                "description": "安全的 Python 代码执行服务，使用沙箱隔离确保安全性",
+                "icon": "https://github.com/alibaba/OpenSandbox/raw/main/docs/assets/logo.svg",
+                "description": "安全的代码执行服务，使用沙箱隔离确保安全性",
                 "online": False,
             },
         ]
