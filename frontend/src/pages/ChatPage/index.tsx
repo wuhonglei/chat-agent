@@ -22,7 +22,7 @@ const ChatPage: React.FC = () => {
   const { sendMessage, reSendMessage, abortMessage } = useChatMessage({
     conversationId,
   });
-  const { isStreaming, isLoading, isReasoning, isCallingMcpTools } = useChatState(conversationId);
+  const { isStreaming, isLoading } = useChatState(conversationId);
   const [form] = Form.useForm<ChatInputFormValues>();
 
   useCachedRequest(conversationId, conversationInfo);
@@ -50,8 +50,6 @@ const ChatPage: React.FC = () => {
             isLoading={isLoading}
             onReSend={handleReSend}
             isStreaming={isStreaming}
-            isReasoning={isReasoning}
-            isCallingMcpTools={isCallingMcpTools}
             conversationId={conversationId}
             onEditMessage={handleEditMessage}
             className={styles["markdown-container"]}

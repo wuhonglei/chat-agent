@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 from fastapi import HTTPException
 from pydantic import BaseModel, Field
@@ -10,12 +10,13 @@ from sqlmodel import Session, delete, select
 
 from app.models import ConversationDb, MessageDb
 from app.schemas.chat import (
-    ChatMessageItem,
-    CollectedResponse,
+    AssistantResponse,
+    ChatMessage,
+    ContentBlock,
     MessageStatus,
 )
 from app.services.base_service.db_service import DbService
-from app.utils.common import gen_uuid, normalize_to_dict
+from app.utils.common import gen_uuid
 from app.utils.date import get_datetime_now
 from app.utils.logger import logger
 
@@ -71,36 +72,36 @@ class MessageDbService(DbService):
         if not message_ids:
             return
         db = self._ensure_db()
-        db.exec(delete(MessageDb).where(MessageDb.id.in_(message_ids)))  # type: ignore[attr-defined]
+        message_id_column = cast(Any, MessageDb.id)
+        db.exec(delete(MessageDb).where(message_id_column.in_(message_ids)))
         # 事务由 get_db() 或 DbService.__exit__ 自动提交
 
-    def get_history_messages_by_ids(
-        self, message_ids: list[str]
-    ) -> list[ChatMessageItem]:
+    def get_history_messages_by_ids(self, message_ids: list[str]) -> list[ChatMessage]:
         """获取消息列表，按照 message_ids 的顺序返回"""
         if not message_ids:
             return []
 
         db = self._ensure_db()
-        messages = db.exec(select(MessageDb).where(MessageDb.id.in_(message_ids))).all()  # type: ignore[attr-defined]
+        message_id_column = cast(Any, MessageDb.id)
+        messages = db.exec(
+            select(MessageDb).where(message_id_column.in_(message_ids))
+        ).all()
         if not messages:
             logger.error("Messages not found", message_ids=message_ids)
             return []
 
-        # 创建字典映射，key 为 message_id，value 为消息对象
-        messages_dict = {msg.id: msg for msg in messages}
+        messages_by_id = {message.id: message for message in messages}
 
-        chat_messages: list[ChatMessageItem] = []
-        # 按照 message_ids 的顺序遍历，保证返回顺序一致
+        chat_messages: list[ChatMessage] = []
         for message_id in message_ids:
-            if message_id not in messages_dict:
+            db_message = messages_by_id.get(message_id)
+            if db_message is None:
                 logger.warning("Message ID not found, skipping", message_id=message_id)
                 continue
 
-            message = ChatMessageItem.model_validate(
-                messages_dict[message_id].model_dump(mode="json")
+            chat_messages.append(
+                ChatMessage.model_validate(db_message.model_dump(mode="json"))
             )
-            chat_messages.append(message)
 
         return chat_messages
 
@@ -152,13 +153,13 @@ class MessageDbService(DbService):
         self,
         conversation: ConversationDb,
         message_id: str,
-        content: str,
+        content_blocks: list[ContentBlock],
         metadata: dict[str, Any] | None = None,
     ) -> MessageDb:
         message = MessageDb(
             id=message_id,
             role="user",
-            content=content,
+            content_blocks=[block.model_dump(mode="json") for block in content_blocks],
             conversation_id=conversation.id,
             message_metadata=metadata or {},
             status=MessageStatus.DONE,
@@ -175,9 +176,7 @@ class MessageDbService(DbService):
         message = MessageDb(
             id=message_id,
             role="assistant",
-            content="",
-            reasoning="",
-            tool_calls=[],
+            content_blocks=[],
             conversation_id=conversation.id,
             message_metadata=metadata or {},
             status=MessageStatus.PENDING,
@@ -188,7 +187,7 @@ class MessageDbService(DbService):
     def create_chat_messages(
         self,
         conversation_id: str,
-        content: str,
+        content_blocks: list[ContentBlock],
         user_metadata: dict[str, Any],
         removed_message_ids: list[str] | None = None,
     ) -> ChatMessagesResult:
@@ -196,7 +195,7 @@ class MessageDbService(DbService):
 
         Args:
             conversation_id: 对话ID
-            content: 用户消息内容
+            content_blocks: 用户消息内容块
             user_metadata: 用户消息元数据
             removed_message_ids: 需要删除的消息ID列表
 
@@ -222,7 +221,7 @@ class MessageDbService(DbService):
         user_message = self.create_user_message(
             conversation=conversation,
             message_id=user_message_id,
-            content=content,
+            content_blocks=content_blocks,
             metadata=user_metadata_with_reply,
         )
 
@@ -247,20 +246,15 @@ class MessageDbService(DbService):
         conversation: ConversationDb,
         assistant_message: MessageDb,
         *,
-        assistant_payload: CollectedResponse,
+        assistant_response: AssistantResponse,
         status: MessageStatus,
         extra_metadata: dict[str, Any] | None = None,
     ) -> MessageDb:
         assistant_message.status = status
         assistant_message.updated_at = get_datetime_now()
-        if assistant_payload.content:
-            assistant_message.content = assistant_payload.content
-        if assistant_payload.reasoning:
-            assistant_message.reasoning = assistant_payload.reasoning
-        if assistant_payload.tool_calls:
-            assistant_message.tool_calls = [
-                normalize_to_dict(m) for m in assistant_payload.tool_calls
-            ]
+        assistant_message.content_blocks = [
+            block.model_dump(mode="json") for block in assistant_response.content_blocks
+        ]
         if extra_metadata:
             merged_metadata = dict(assistant_message.message_metadata or {})
             merged_metadata.update(extra_metadata)

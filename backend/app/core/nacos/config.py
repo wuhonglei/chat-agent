@@ -111,41 +111,59 @@ class _NacosAsyncBridge:
         return fut.result(timeout=timeout)
 
 
+class _NacosSharedRuntime:
+    """进程内单例：客户端与缓存共享，避免每次 Settings() 重复建连与重复监听。"""
+
+    __slots__ = (
+        "cache_lock",
+        "client_init_lock",
+        "config_cache",
+        "nacos_client",
+        "connection_config",
+        "config_listener",
+    )
+
+    def __init__(self) -> None:
+        self.cache_lock = threading.Lock()
+        self.client_init_lock = threading.Lock()
+        self.config_cache: dict[str, Any] | None = None
+        self.nacos_client: NacosConfigService | None = None
+        self.connection_config: NacosConnectionConfig | None = None
+        self.config_listener: Any | None = None
+
+
+_NACOS_RT = _NacosSharedRuntime()
+
+
 class NacosConfigSettingsSource(PydanticBaseSettingsSource):
     """从 Nacos 配置中心加载 YAML/JSON 配置"""
 
     def __init__(self, settings_cls: type[BaseSettings]):
         super().__init__(settings_cls)
-        self._config_cache: dict[str, Any] | None = None
-        self._nacos_client: NacosConfigService | None = None
-        self._connection_config: NacosConnectionConfig | None = None
-        self._config_listener: Any | None = None
-        self._cache_lock = threading.Lock()
-        self._client_init_lock = threading.Lock()
 
     def _resolve_connection_config(
         self, *, optional: bool
     ) -> NacosConnectionConfig | None:
-        if self._connection_config is not None:
-            return self._connection_config
+        if _NACOS_RT.connection_config is not None:
+            return _NACOS_RT.connection_config
         try:
-            self._connection_config = NacosConnectionConfig()  # type: ignore[call-arg]
-            return self._connection_config
+            _NACOS_RT.connection_config = NacosConnectionConfig()  # type: ignore[call-arg]
+            return _NACOS_RT.connection_config
         except Exception:
             if optional:
                 return None
             raise
 
     def _namespace_id_for_sdk(self) -> str:
-        assert self._connection_config is not None
-        ns = (self._connection_config.namespace or "").strip()
+        assert _NACOS_RT.connection_config is not None
+        ns = (_NACOS_RT.connection_config.namespace or "").strip()
         if ns.lower() == "public":
             return ""
         return ns
 
     def _build_client_config(self) -> ClientConfig:
-        assert self._connection_config is not None
-        cc = self._connection_config
+        assert _NACOS_RT.connection_config is not None
+        cc = _NACOS_RT.connection_config
         cache_dir = _resolve_under_backend(
             os.environ.get("NACOS_CACHE_DIR", "nacos-data")
         )
@@ -162,10 +180,10 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
         )
 
     def _parse_config_content(self, raw: str) -> dict[str, Any]:
-        assert self._connection_config is not None
+        assert _NACOS_RT.connection_config is not None
         if not raw or not raw.strip():
             return {}
-        ct = self._connection_config.config_type
+        ct = _NACOS_RT.connection_config.config_type
         if ct == "yaml":
             loaded = yaml.safe_load(raw)
             return cast(dict[str, Any], loaded) if isinstance(loaded, dict) else {}
@@ -181,17 +199,20 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
         *,
         actual_content: str | None = None,
     ) -> None:
-        with self._cache_lock:
-            old_keys = set(self._config_cache.keys()) if self._config_cache else set()
-            self._config_cache = new_config
+        with _NACOS_RT.cache_lock:
+            old_keys = (
+                set(_NACOS_RT.config_cache.keys()) if _NACOS_RT.config_cache else set()
+            )
+            _NACOS_RT.config_cache = new_config
             new_keys = set(new_config.keys())
-        assert self._connection_config is not None
+        assert _NACOS_RT.connection_config is not None
+        conn = _NACOS_RT.connection_config
         added = new_keys - old_keys
         removed = old_keys - new_keys
         logger.info(
             "Nacos 配置已更新",
-            data_id=self._connection_config.data_id,
-            group=self._connection_config.group,
+            data_id=conn.data_id,
+            group=conn.group,
             config_keys_count=len(new_config),
             added_keys=list(added) if added else None,
             removed_keys=list(removed) if removed else None,
@@ -199,6 +220,16 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
             if isinstance(actual_content, str)
             else "unknown",
         )
+        try:
+            from app.core.config import reload_settings
+
+            reload_settings()
+        except Exception as e:
+            logger.error(
+                "Nacos 热更新后重载 Settings 失败",
+                error=e,
+                exc_info=True,
+            )
 
     def _make_config_listener(self) -> Any:
         async def config_listener(
@@ -225,15 +256,15 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
         return config_listener
 
     def _ensure_nacos_client(self) -> None:
-        with self._client_init_lock:
-            if self._nacos_client is not None:
+        with _NACOS_RT.client_init_lock:
+            if _NACOS_RT.nacos_client is not None:
                 return
             self._resolve_connection_config(optional=False)
             bridge = _NacosAsyncBridge.get()
-            conn = self._connection_config
+            conn = _NACOS_RT.connection_config
             assert conn is not None
             listener = self._make_config_listener()
-            self._config_listener = listener
+            _NACOS_RT.config_listener = listener
 
             async def setup() -> NacosConfigService:
                 client = await NacosConfigService.create_config_service(
@@ -255,7 +286,7 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
                 return client
 
             try:
-                self._nacos_client = bridge.run(setup(), timeout=90)
+                _NACOS_RT.nacos_client = bridge.run(setup(), timeout=90)
             except Exception as e:
                 logger.error(
                     "Failed to initialize Nacos client",
@@ -265,13 +296,13 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
                     group=conn.group,
                     exc_info=True,
                 )
-                self._config_listener = None
+                _NACOS_RT.config_listener = None
                 raise
 
     def _iter_snapshot_paths(self) -> list[Path]:
         if self._resolve_connection_config(optional=True) is None:
             return []
-        conn = self._connection_config
+        conn = _NACOS_RT.connection_config
         assert conn is not None
         cache_root = _resolve_under_backend(
             os.environ.get("NACOS_CACHE_DIR", "nacos-data")
@@ -326,17 +357,20 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
         if _nacos_source_skipped():
             return {}
 
-        with self._cache_lock:
-            if self._config_cache is not None and self._nacos_client is not None:
-                return dict(self._config_cache)
+        with _NACOS_RT.cache_lock:
+            if (
+                _NACOS_RT.config_cache is not None
+                and _NACOS_RT.nacos_client is not None
+            ):
+                return dict(_NACOS_RT.config_cache)
 
         try:
             self._ensure_nacos_client()
-            assert self._nacos_client is not None
-            conn = self._connection_config
+            assert _NACOS_RT.nacos_client is not None
+            conn = _NACOS_RT.connection_config
             assert conn is not None
             bridge = _NacosAsyncBridge.get()
-            client = self._nacos_client
+            client = _NACOS_RT.nacos_client
 
             async def fetch() -> str:
                 content = await client.get_config(
@@ -351,15 +385,15 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
                     f"data_id={conn.data_id}, group={conn.group}"
                 )
             parsed = self._parse_config_content(config_content)
-            with self._cache_lock:
-                self._config_cache = parsed
+            with _NACOS_RT.cache_lock:
+                _NACOS_RT.config_cache = parsed
             return parsed
 
         except Exception as e:
             snapshot_config = self._load_config_from_snapshot()
             if snapshot_config:
-                with self._cache_lock:
-                    self._config_cache = snapshot_config
+                with _NACOS_RT.cache_lock:
+                    _NACOS_RT.config_cache = snapshot_config
                 return snapshot_config
             logger.exception(
                 "Nacos 配置拉取失败且未找到本地快照/v3 缓存（完整堆栈见上）",
@@ -401,13 +435,13 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
         return self._get_nacos_config()
 
     def close(self) -> None:
-        if not self._nacos_client:
+        if not _NACOS_RT.nacos_client:
             return
-        client = self._nacos_client
-        listener = self._config_listener
-        conn = self._connection_config
-        self._nacos_client = None
-        self._config_listener = None
+        client = _NACOS_RT.nacos_client
+        listener = _NACOS_RT.config_listener
+        conn = _NACOS_RT.connection_config
+        _NACOS_RT.nacos_client = None
+        _NACOS_RT.config_listener = None
 
         async def shutdown() -> None:
             if conn is not None and listener is not None:
@@ -425,6 +459,3 @@ class NacosConfigSettingsSource(PydanticBaseSettingsSource):
             logger.info("Nacos 客户端连接已关闭")
         except Exception as e:
             logger.error("关闭 Nacos 客户端连接时发生错误", error=e)
-
-    def __del__(self) -> None:
-        self.close()

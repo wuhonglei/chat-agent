@@ -25,8 +25,9 @@ class TokenCalculator:
     MODEL_LIMITS = {
         "deepseek-chat": 131072,
         "deepseek-reasoner": 131072,
-        "qwen-plus": 131072,
-        "qwen-flash": 131072,
+        "qwen-plus": 1000000,
+        "qwen-flash": 1000000,
+        "qwen-turbo": 128000,  # 纯文本模型
     }
 
     DEFAULT_LIMIT = 131072  # deepseek 的默认限制
@@ -302,7 +303,12 @@ class TokenCalculator:
     def count_message_tokens(self, message: dict[str, Any] | BaseModel) -> int:
         total_tokens = 0
         message = normalize_to_dict(message)
-        total_tokens += self.count_tokens(message.get("content", ""))
+        content_blocks = message.get("content_blocks")
+        if content_blocks is not None:
+            total_tokens += self.count_tokens(json.dumps(content_blocks))
+        else:
+            total_tokens += self.count_tokens(message.get("content", ""))
+            total_tokens += self.count_tokens(message.get("reasoning", ""))
         total_tokens += self.count_tokens(message.get("reasoning_content", ""))
         total_tokens += self.count_tokens(json.dumps(message.get("tool_calls", [])))
         return total_tokens

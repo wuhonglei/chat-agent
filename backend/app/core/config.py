@@ -1,5 +1,8 @@
 """Application configuration"""
 
+import threading
+from typing import Any, cast
+
 from pydantic import Field
 from pydantic_settings import (
     BaseSettings,
@@ -21,6 +24,7 @@ from app.schemas.config import (
     SummarizerModelConfig,
     WechatConfig,
 )
+from app.utils.logger import logger
 
 
 class Settings(BaseSettings):
@@ -28,7 +32,10 @@ class Settings(BaseSettings):
 
     app: AppConfig = Field(default_factory=AppConfig)
     response_model: LLMConfig = Field(description="响应生成模型 API 配置")
-    tool_call_model: LLMConfig = Field(description="mcp 工具调用模型 API 配置")
+    title_model: LLMConfig | None = Field(
+        default=None,
+        description="标题生成模型 API 配置（可选，默认回退 response_model）",
+    )
     summarizer_model: SummarizerModelConfig = Field(description="摘要生成模型 API 配置")
     embedding_model: EmbeddingModelConfig = Field(description="Embedding 模型 API 配置")
     mcp: MCPConfig = Field(description="MCP 工具配置")
@@ -73,5 +80,30 @@ class Settings(BaseSettings):
         )
 
 
-# Settings() 从 model_config 配置的 env/nacos 等源加载，无参调用在运行时可工作，mypy 无法推断
-settings = Settings()  # type: ignore[call-arg]
+def _build_settings() -> Settings:
+    # Settings() 从 model_config 配置的 env/nacos 等源加载，无参调用在运行时可工作，mypy 无法推断
+    return Settings()  # type: ignore[call-arg]
+
+
+_settings_reload_lock = threading.Lock()
+_current_settings: Settings = _build_settings()
+
+
+class _SettingsProxy:
+    """转发到当前 Settings 实例，保证 Nacos 热更新后 `from app.core.config import settings` 仍读到最新值。"""
+
+    __slots__ = ()
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(_current_settings, name)
+
+
+def reload_settings() -> None:
+    """用环境变量 / .env / Nacos 当前缓存重新构造 Settings 并切换全局引用（由 Nacos 监听器或测试调用）。"""
+    global _current_settings
+    with _settings_reload_lock:
+        _current_settings = _build_settings()
+    logger.info("Settings 已重新加载（Nacos 或手动 reload_settings）")
+
+
+settings = cast(Settings, _SettingsProxy())

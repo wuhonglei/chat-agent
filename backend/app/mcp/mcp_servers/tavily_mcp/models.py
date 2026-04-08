@@ -14,6 +14,7 @@ class TavilySearchResultItem(BaseModel):
     url: str | None = Field(None, description="搜索结果的URL")
     content: str | None = Field(None, description="搜索结果的内容摘要")
     score: float | None = Field(None, description="搜索结果的相关性分数")
+    favicon: str | None = Field(None, description="搜索结果的favicon")
 
 
 class TavilyImage(BaseModel):
@@ -21,6 +22,7 @@ class TavilyImage(BaseModel):
 
     url: str = Field(..., description="图片URL")
     description: str | None = Field(None, description="图片描述")
+    favicon: str | None = Field(None, description="图片的favicon")
 
 
 class TavilyAutoParameters(BaseModel):
@@ -29,6 +31,7 @@ class TavilyAutoParameters(BaseModel):
     topic: str | None = Field(None, description="搜索主题类别")
     search_depth: str | None = Field(None, description="搜索深度")
     time_range: str | None = Field(None, description="时间范围")
+    favicon: str | None = Field(None, description="自动参数的favicon")
 
 
 class TavilySearchResponse(BaseModel):
@@ -97,6 +100,7 @@ class TavilyCrawlResultItem(BaseModel):
 
     url: str = Field(..., description="爬取内容的URL")
     raw_content: str = Field(..., description="爬取的原始内容")
+    favicon: str | None = Field(None, description="爬取的favicon")
 
 
 class TavilyCrawlResponse(BaseModel):

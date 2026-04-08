@@ -1,6 +1,6 @@
 // Chat types
 import { TitleCreatedBy } from "./conversation";
-import { ToolCallMessage } from "./tooCall";
+import { ContentBlock } from "./contentBlock";
 
 export enum SearchSourceType {
   WebSearch = "web_search",
@@ -37,11 +37,9 @@ export interface SearchSource {
 export interface ChatMessage {
   id: string;
   role: RoleType;
-  content: string;
-  reasoning: string;
+  contentBlocks: ContentBlock[];
   createdAt: string;
   updatedAt: string;
-  toolCalls: ToolCallMessage[];
   status: MessageStatus;
   messageMetadata: Omit<ChatInputFormValues, "message">;
   replyTo: string; // role为assistant时，回复到哪个user消息
@@ -80,7 +78,8 @@ export type NewConversationCache =
       insertAt: number; // 时间戳 ms (Date.now() 生成)
     };
 
-export interface ChatRequest extends ChatInputFormValues {
+export interface ChatRequest extends ChatInputConfig {
+  contentBlocks: ContentBlock[];
   conversationId?: string;
   historyIds: string[];
   regenerateTitle: boolean;
@@ -103,6 +102,4 @@ export interface ChatConversationState {
   lastMessageUpdateAt: string; // 等价于 messages.at(-1).createdAt
   isLoading: boolean;
   isStreaming: boolean;
-  isReasoning: boolean;
-  isCallingMcpTools: boolean;
 }

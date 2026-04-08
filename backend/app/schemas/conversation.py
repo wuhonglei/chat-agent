@@ -4,7 +4,7 @@ from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.schemas.chat import ChatMessageItemReq
+from app.schemas.chat import ChatMessageRequestItem
 
 
 class CreatedBy(str, Enum):
@@ -55,7 +55,7 @@ class ConversationListResponse(BaseModel):
 class ConversationDetailResponse(ConversationInfo):
     """Conversation detail response model"""
 
-    messages: list[ChatMessageItemReq] = Field(
+    messages: list[ChatMessageRequestItem] = Field(
         ..., description="List of messages in the conversation"
     )
 

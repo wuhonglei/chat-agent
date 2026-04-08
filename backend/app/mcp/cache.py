@@ -1,5 +1,7 @@
 """MCP 工具调用结果缓存：基于 ResponseCachingMiddleware 与 FileTreeStore 的工厂。"""
 
+import json
+import shutil
 from pathlib import Path
 
 from fastmcp import FastMCP
@@ -13,6 +15,55 @@ from key_value.aio.stores.filetree import (
 )
 
 from app.schemas.config import MCPCacheConfig
+from app.utils.logger import logger
+
+
+def _cleanup_stale_filetree_cache(cache_path: Path) -> None:
+    """
+    FileTreeStore 会读取现有的 `{collection}-info.json` 并信任其中的 `directory` 字段。
+
+    当项目目录从 `ai-doc` 重命名到 `chat-agent` 后，旧缓存元数据里的 `directory`
+    仍可能指向旧绝对路径，导致后续 put/get 时触发：
+    `Path '.../ai-doc/.../tools/list/__global__.json' resolves outside the allowed directory ...`
+
+    为避免 mcp 加载失败，这里检测到元数据目录越界时，直接清空当前 cache_path。
+    """
+    if not cache_path.exists():
+        return
+
+    try:
+        allowed_root = cache_path.resolve(strict=False)
+    except Exception:
+        # 极端情况下 resolve 失败：直接放行（交由后续 mkdir/创建处理）
+        return
+
+    # 只需要检查 info 文件即可，因为它决定 collection 的实际目录。
+    for info_file in cache_path.rglob("*-info.json"):
+        try:
+            raw = info_file.read_text(encoding="utf-8")
+            data = json.loads(raw)
+        except Exception:
+            continue
+
+        stored_dir = data.get("directory")
+        if not stored_dir:
+            continue
+
+        try:
+            stored_resolved = Path(stored_dir).resolve(strict=False)
+        except Exception:
+            continue
+
+        if not (stored_resolved == allowed_root or stored_resolved.is_relative_to(allowed_root)):
+            logger.warning(
+                "Stale MCP cache detected; clearing cache directory",
+                cache_dir=str(cache_path),
+                info_file=str(info_file),
+                stale_directory=str(stored_dir),
+                allowed_directory=str(allowed_root),
+            )
+            shutil.rmtree(cache_path, ignore_errors=True)
+            return
 
 
 def add_response_caching_if_enabled(mcp: FastMCP, cache_config: MCPCacheConfig) -> None:
@@ -56,10 +107,12 @@ def create_response_caching_middleware(
         ResponseCachingMiddleware 实例。
     """
     cache_path = Path(cache_dir).resolve()
+    _cleanup_stale_filetree_cache(cache_path)
     cache_path.mkdir(parents=True, exist_ok=True)
 
     excluded_tools: list[str] = (
-        call_tool_excluded if call_tool_excluded is not None else ["python_code_exec"]
+        call_tool_excluded if call_tool_excluded is not None else [
+            "python_code_exec"]
     )
     call_tool_settings: CallToolSettings = {
         "enabled": True,

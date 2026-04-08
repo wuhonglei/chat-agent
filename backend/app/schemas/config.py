@@ -303,6 +303,12 @@ class ChatContextConfig(BaseModel):
     """对话上下文配置（层级结构）"""
 
     enabled: bool = Field(default=True, description="是否启用上下文压缩")
+    tool_round_context_limit_ratio: float = Field(
+        default=0.8,
+        gt=0,
+        le=1,
+        description="多轮工具调用时，累计上下文超过模型上限该比例后停止继续调工具并转最终回答",
+    )
 
     tool_result_compression: ToolResultCompressionConfig = Field(
         default_factory=ToolResultCompressionConfig,

@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.models import ConversationDb, MessageDb
-from app.schemas.chat import ChatMessageItem
+from app.schemas.chat import ChatMessage, dump_content_block_payloads
 from app.schemas.conversation import (
     ConversationInfo,
     CreatedBy,
@@ -60,10 +60,13 @@ class ConversationDbService(DbService):
     def get_conversations(self, user_id: str) -> list[ConversationInfo]:
         """获取用户的所有对话"""
         db = self._ensure_db()
+        last_message_created_at_column = cast(
+            Any, ConversationDb.last_message_created_at
+        )
         conversations = db.exec(
             select(ConversationDb)
             .where(ConversationDb.user_id == user_id)
-            .order_by(ConversationDb.last_message_created_at.desc())  # type: ignore[attr-defined]
+            .order_by(last_message_created_at_column.desc())
         ).all()
         logger.debug("Found conversations", count=len(conversations))
         conversation_list = [
@@ -86,6 +89,9 @@ class ConversationDbService(DbService):
             (总数, 当前页对话列表)
         """
         db = self._ensure_db()
+        last_message_created_at_column = cast(
+            Any, ConversationDb.last_message_created_at
+        )
         count_stmt = (
             select(func.count())
             .select_from(ConversationDb)
@@ -95,7 +101,7 @@ class ConversationDbService(DbService):
         data_stmt = (
             select(ConversationDb)
             .where(ConversationDb.user_id == user_id)
-            .order_by(ConversationDb.last_message_created_at.desc())  # type: ignore[attr-defined]
+            .order_by(last_message_created_at_column.desc())
             .offset(offset)
             .limit(limit)
         )
@@ -130,18 +136,29 @@ class ConversationDbService(DbService):
         )
         return conversation_info
 
-    def get_messages(self, conversation_id: str) -> list[ChatMessageItem]:
+    def get_messages(
+        self,
+        conversation_id: str,
+        omit_tool_result_content_and_summary_when_structured: bool = False,
+    ) -> list[dict[str, Any]]:
         """获取对话的消息列表"""
         db = self._ensure_db()
+        created_at_column = cast(Any, MessageDb.created_at)
         messages = db.exec(
             select(MessageDb)
             .where(MessageDb.conversation_id == conversation_id)
-            .order_by(MessageDb.created_at.asc())  # type: ignore[attr-defined]
+            .order_by(created_at_column.asc())
         ).all()
-        chat_messages = [
-            ChatMessageItem.model_validate(message.model_dump(mode="json"))
-            for message in messages
-        ]
+        chat_messages: list[dict[str, Any]] = []
+        for message in messages:
+            payload = message.model_dump(mode="json")
+            chat_message = ChatMessage.model_validate(payload)
+            chat_message_payload = chat_message.model_dump(mode="json")
+            chat_message_payload["content_blocks"] = dump_content_block_payloads(
+                chat_message.content_blocks,
+                omit_tool_result_content_and_summary_when_structured=omit_tool_result_content_and_summary_when_structured,
+            )
+            chat_messages.append(chat_message_payload)
         return chat_messages
 
     def update_conversation(

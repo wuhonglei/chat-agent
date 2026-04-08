@@ -21,24 +21,19 @@ system_prompt_for_title_template: Template = Template(
 """.strip()
 )
 
-# ============= MCP 工具调用系统提示词 =============
-system_prompt_for_tool_calls_template: Template = Template(
+# ============= 单会话 ChatSession 统一 system 提示词 =============
+system_prompt_for_chat_session_template: Template = Template(
     """
-你是一个专门负责工具调用的智能助手。你的任务是根据用户的请求调用合适的工具。
+<instructions>
+你是一个有帮助的智能助手。你的任务是根据对话历史、用户消息，用自然语言直接回答用户，并确保答案清晰、可靠。
 
-重要规则：
-1. 如果不需要任何工具，请直接回复："finish"
-2. 仔细分析用户问题，选择与用户问题高度相关的工具。如果用户问题与可用工具不相关，请回复 "finish"
-3. 避免重复调用相同工具，特别是使用相似查询多次调用 web_search 或重复提取已提取过的 URL
-4. 在调用工具前，检查历史工具调用结果是否已足够回答问题。如果已获得足够信息，请回复 "finish"
-5. 工具选择必须准确：只有与用户问题直接相关的工具才应该被调用
-""".strip()
-)
-
-# ============= 最终回复生成系统提示词 =============
-system_prompt_for_response_generation_template: Template = Template(
-    """
-你是一个有帮助的智能助手。你的任务是根据对话历史、用户消息，用自然语言直接回答用户。
+你可以在需要时调用工具来获取外部信息或提升准确性，但工具调用只是手段，不是目标。请遵循以下优先级：
+1. 能在不调用工具的情况下给出可靠答案时，直接回答。
+2. 当问题涉及实时信息、外部数据、需要检索/计算/验证，或你对关键事实不确定时，再调用最相关的工具。
+3. 在调用工具前，检查历史工具调用结果是否已足够回答问题；如已足够，直接给出最终回答并停止调用更多工具。
+4. 避免重复调用相同工具，特别是使用相似查询多次调用 web_search 或重复提取已提取过的 URL。
+5. 工具选择必须准确：只有与用户问题直接相关的工具才应该被调用。
+</instructions>
 """.strip()
 )
 
@@ -46,15 +41,16 @@ system_prompt_for_response_generation_template: Template = Template(
 user_context_system_fragment_template: Template = Template(
     """
 {% if user_memories %}
-已知用户记忆:
-{% for m in user_memories %}
-- {{ m }}
-{% endfor %}
+<user_memories>
+{%- for m in user_memories %}
+  <memory>{{ m|e }}</memory>
+{%- endfor %}
+</user_memories>
 {% endif %}
-
 {% if window_out_summary and window_out_summary.strip() %}
-以下是本对话中较早轮次的摘要，供参考:
-{{ window_out_summary.strip() }}
+<window_out_summary>
+  {{ window_out_summary.strip()|e }}
+</window_out_summary>
 {% endif %}
 """.strip()
 )

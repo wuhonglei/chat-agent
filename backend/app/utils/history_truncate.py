@@ -1,51 +1,19 @@
 """历史消息按轮数与 token 截断"""
 
-from typing import Any
-
-from app.schemas.chat import ChatMessageItem
-from app.utils.common import omit_fields
+from app.schemas.chat import ChatMessage
 from app.utils.token import TokenCalculator
 
 
-def _message_dict_for_token_count(msg: ChatMessageItem) -> dict[str, Any]:
-    """将 ChatMessageItem 转为 count_message_tokens 所需的 dict（不含 reasoning_content、tool_calls）。"""
-    d = msg.model_dump(mode="json")
-    return omit_fields(d, ["reasoning_content", "tool_calls"])
+def count_chat_message_tokens(msg: ChatMessage, calculator: TokenCalculator) -> int:
+    """单条 ChatMessage 的 token 数（基于 content_blocks 与 tool_calls）。"""
+    return calculator.count_message_tokens(msg.model_dump(mode="json"))
 
 
-def count_chat_message_tokens(msg: ChatMessageItem, calculator: TokenCalculator) -> int:
-    """单条 ChatMessageItem 的 token 数（含 content、reasoning、tool_calls）。"""
-    return calculator.count_message_tokens(_message_dict_for_token_count(msg))
-
-
-def truncate_history_by_rounds_and_tokens(
-    messages: list[ChatMessageItem],
-    max_rounds: int,
-    max_tokens: int,
-    token_calculator: TokenCalculator,
-) -> tuple[list[ChatMessageItem], list[ChatMessageItem]]:
-    """
-    先按轮数保留最近 N 轮，再在 token 预算内从新到旧按「整轮」保留消息。
-
-    - 轮定义：一条 user + 一条 assistant（含其中 tool_calls）为一轮。
-    - token 截断时按整轮取舍，不拆开单轮，保证保留的 history 中 user/assistant 成对。
-    - 假定 messages 按时间顺序 [旧, ..., 新]。
-    - 返回 (本次保留的 history_messages, 被截掉的更早消息)。
-
-    Args:
-        messages: 按 message_ids 顺序的历史消息（通常为从旧到新）
-        max_rounds: 最多保留轮数
-        max_tokens: 历史 token 预算
-        token_calculator: 用于计数的 TokenCalculator
-
-    Returns:
-        (kept_messages, truncated_messages) 均为按时间正序
-    """
-    if not messages:
-        return ([], [])
-
-    # 按轮分组：每轮 = 连续的一条 user + 一条 assistant
-    rounds: list[list[ChatMessageItem]] = []
+def group_history_into_user_assistant_rounds(
+    messages: list[ChatMessage],
+) -> list[list[ChatMessage]]:
+    """将消息按「一条 user + 一条 assistant」划为轮次（时间正序）。"""
+    rounds: list[list[ChatMessage]] = []
     i = 0
     while i < len(messages):
         if (
@@ -55,32 +23,83 @@ def truncate_history_by_rounds_and_tokens(
         ):
             rounds.append([messages[i], messages[i + 1]])
             i += 2
+        else:
+            i += 1
+    return rounds
 
-    # 只保留最近 max_rounds 轮
-    rounds = rounds[-max_rounds:] if len(rounds) > max_rounds else rounds
 
+def split_history_by_rounds(
+    messages: list[ChatMessage],
+    max_rounds: int,
+) -> tuple[list[ChatMessage], list[ChatMessage]]:
+    """
+    仅按轮数保留最近 N 轮，划分窗口内外消息。
+
+    - 轮定义：一条 user + 一条 assistant 为一轮。
+    - 假定 messages 按时间顺序 [旧, ..., 新]。
+    - 返回 (窗口外的更早消息, 窗口内消息)。
+
+    Args:
+        messages: 按 message_ids 顺序的历史消息（通常为从旧到新）
+        max_rounds: 最多保留轮数；<=0 时全部视为窗口外
+
+    Returns:
+        (out_of_window_messages, in_window_messages) 均为按时间正序
+    """
+    if not messages:
+        return ([], [])
+
+    if max_rounds <= 0:
+        return (messages, [])
+
+    rounds = group_history_into_user_assistant_rounds(messages)
     if not rounds:
         return ([], messages)
 
-    # 在 token 预算内按「整轮」从新到旧累加，保证 user/assistant 成对
+    rounds = rounds[-max_rounds:] if len(rounds) > max_rounds else rounds
+    kept = [message for round_messages in rounds for message in round_messages]
+    kept_ids = {message.id for message in kept}
+
+    out_of_window_messages = [
+        message for message in messages if message.id not in kept_ids
+    ]
+    in_window_messages = [message for message in messages if message.id in kept_ids]
+
+    return (out_of_window_messages, in_window_messages)
+
+
+def truncate_in_window_by_round_tokens(
+    messages: list[ChatMessage],
+    max_tokens: int,
+    token_calculator: TokenCalculator,
+) -> list[ChatMessage]:
+    """
+    在已对工具结果等做过压缩后的窗口内消息上，按整轮、从新到旧在 token 预算内截断。
+
+    - max_tokens <= 0 时返回空列表（窗口内不保留消息）。
+    - 若无法组成任何完整轮次，则不做 token 截断，原样返回（与仅按轮筛选后的形状一致）。
+    """
+    if not messages:
+        return []
+
+    if max_tokens <= 0:
+        return []
+
+    rounds = group_history_into_user_assistant_rounds(messages)
+    if not rounds:
+        return list(messages)
+
     tokens_used = 0
-    kept_rounds: list[list[ChatMessageItem]] = []
-    for r in reversed(rounds):
-        round_tokens = sum(count_chat_message_tokens(m, token_calculator) for m in r)
-        tokens_used += round_tokens
-        kept_rounds.append(r)
-        if tokens_used >= max_tokens:
+    kept_rounds: list[list[ChatMessage]] = []
+    for round_messages in reversed(rounds):
+        round_tokens = sum(
+            count_chat_message_tokens(message, token_calculator)
+            for message in round_messages
+        )
+        if kept_rounds and tokens_used + round_tokens > max_tokens:
             break
+        tokens_used += round_tokens
+        kept_rounds.append(round_messages)
 
     kept_rounds.reverse()
-    kept: list[ChatMessageItem] = []
-    for r in kept_rounds:
-        kept.extend(r)
-
-    after_rounds: list[ChatMessageItem] = []
-    for r in rounds:
-        after_rounds.extend(r)
-    kept_ids = {m.id for m in kept}
-    truncated = [m for m in after_rounds if m.id not in kept_ids]
-
-    return (kept, truncated)
+    return [message for round_messages in kept_rounds for message in round_messages]

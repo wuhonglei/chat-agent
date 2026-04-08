@@ -1,4 +1,4 @@
-from typing import Literal, TypeAlias
+from typing import Any, Literal, TypeAlias
 
 from openai.types.chat import ChatCompletionMessageFunctionToolCall
 from pydantic import BaseModel, Field
@@ -16,13 +16,18 @@ class ToolResultMessage(BaseModel):
     tool_call_id: str
     is_error: bool
     content: str
+    structured_content_for_display: list[dict[str, Any]] | None = Field(
+        default=None,
+        description="前端展示使用的轻量结构化结果；存在时 SSE 可省略 content",
+    )
     summary: str | None = Field(
         default=None, description="单个工具结果摘要, 如果为空则默认使用 content 内容值"
     )
     relevance_applied: bool | None = Field(
         default=None, description="是否应用相关性过滤"
     )
-    content_token_count: int | None = Field(default=None, description="内容tokens数")
+    content_token_count: int | None = Field(
+        default=None, description="内容tokens数")
     original_token_count: int | None = Field(
         default=None, description="原始内容tokens数"
     )

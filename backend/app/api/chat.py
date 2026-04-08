@@ -17,7 +17,7 @@ router = APIRouter()
 
 
 @router.post("/stream")
-async def chat_stream(
+async def stream_chat(
     chat_request: ChatRequest,
     mcp_manager: MCPClientManager = Depends(get_mcp_manager),
     auth_info: AuthTokenPayload = Depends(get_auth_token_info),
@@ -28,19 +28,21 @@ async def chat_stream(
         chat_request=chat_request.model_dump(exclude_none=True),
     )
 
-    user_metadata = chat_request.model_dump(exclude_none=True, exclude={"content"})
+    user_metadata = chat_request.model_dump(
+        exclude_none=True, exclude={"content_blocks"}
+    )
     with MessageDbService() as message_service:
-        messages_result = message_service.create_chat_messages(
+        created_messages = message_service.create_chat_messages(
             conversation_id=chat_request.conversation_id,
-            content=chat_request.content,
+            content_blocks=chat_request.content_blocks,
             user_metadata=user_metadata,
             removed_message_ids=chat_request.removed_message_ids,
         )
     logger.info(
         "Messages created",
         conversation_id=chat_request.conversation_id,
-        user_message_id=messages_result.user_message_id,
-        assistant_message_id=messages_result.assistant_message_id,
+        user_message_id=created_messages.user_message_id,
+        assistant_message_id=created_messages.assistant_message_id,
     )
 
     chat_service = ChatService(
@@ -49,10 +51,10 @@ async def chat_stream(
         chat_context_config=settings.chat_context,
     )
     return StreamingResponse(
-        chat_service.stream_response(
+        chat_service.stream_chat_events(
             chat_request,
-            messages_result.user_message_id,
-            messages_result.assistant_message_id,
+            created_messages.user_message_id,
+            created_messages.assistant_message_id,
             user_id=auth_info.user_id,
         ),
         media_type="text/event-stream",

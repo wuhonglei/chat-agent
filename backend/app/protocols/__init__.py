@@ -1,0 +1,43 @@
+"""Chat protocol helpers."""
+
+from app.protocols.chat_messages import (
+    EVENT_ACK,
+    EVENT_CONTENT_BLOCK,
+    EVENT_DONE,
+    EVENT_ERROR,
+    EVENT_REFRESH_CONVERSATION,
+    EVENT_TITLE,
+    build_ack_event,
+    build_content_block_done_event,
+    build_content_block_event,
+    build_done_event,
+    build_error_event,
+    build_refresh_conversation_event,
+    build_title_event,
+    format_chat_message_for_llm,
+    format_tool_call_message_for_llm,
+    format_tool_call_messages_for_llm,
+    format_tool_result_message,
+    format_tool_use_message,
+)
+
+__all__ = [
+    "EVENT_ACK",
+    "EVENT_CONTENT_BLOCK",
+    "EVENT_DONE",
+    "EVENT_ERROR",
+    "EVENT_REFRESH_CONVERSATION",
+    "EVENT_TITLE",
+    "build_ack_event",
+    "build_content_block_done_event",
+    "build_content_block_event",
+    "build_done_event",
+    "build_error_event",
+    "build_refresh_conversation_event",
+    "build_title_event",
+    "format_tool_use_message",
+    "format_chat_message_for_llm",
+    "format_tool_call_message_for_llm",
+    "format_tool_call_messages_for_llm",
+    "format_tool_result_message",
+]

@@ -3,20 +3,18 @@
 from app.mcp.mcp_client import mcp_config_for_fe
 from app.prompts.system_prompt import (
     default_system_prompt_template,
-    system_prompt_for_response_generation_template,
+    system_prompt_for_chat_session_template,
     system_prompt_for_title_template,
-    system_prompt_for_tool_calls_template,
     user_context_system_fragment_template,
 )
 from app.prompts.user_prompt import (
     WINDOW_OUT_SUMMARY_MERGE_PROMPT,
-    WINDOW_OUT_SUMMARY_PROMPT,
     disabled_tools_message_template,
-    final_response_message_template,
     gentle_tips_in_web_search_template,
-    mcp_block_template,
     tool_call_sufficient_info_template,
-    user_message_for_title_template,
+    user_message_for_default_template,
+    user_message_for_no_tool_call_template,
+    user_message_for_reach_tool_call_limit_template,
     user_message_for_tool_call_template,
 )
 from app.utils.date import get_current_datetime_str
@@ -27,27 +25,25 @@ def get_default_system_prompt() -> str:
     return default_system_prompt_template.render()
 
 
-def get_system_prompt_for_response_generation(
+def get_merged_system_prompt_for_chat_session(
     user_memories: list[str] | None = None,
     window_out_summary: str | None = None,
 ) -> str:
     """Get system prompt for final response generation.
     当传入 user_memories / window_out_summary 时注入对应片段。
     """
-    base = system_prompt_for_response_generation_template.render()
+    # 统一单会话 Agent 的 system：最终回答优先 + 工具调用准则（balanced）。
+    # 保留原函数签名与 fragment 注入行为，避免影响上层调用点。
+    parts: list[str] = [system_prompt_for_chat_session_template.render()]
+
     fragment = user_context_system_fragment_template.render(
         user_memories=user_memories or [],
         window_out_summary=window_out_summary,
-    )
-    if not fragment.strip():
-        return base
+    ).strip()
+    if fragment:
+        parts.append(fragment)
 
-    return "\n\n".join([base, fragment.strip()])
-
-
-def get_system_prompt_for_tool_calls() -> str:
-    """Get system prompt for tool calls"""
-    return system_prompt_for_tool_calls_template.render().strip()
+    return "\n\n".join(parts)
 
 
 def get_system_prompt_for_title() -> str:
@@ -81,18 +77,7 @@ def get_user_message_for_tool_calls(
 
 def get_user_message_for_title(user_message: str) -> str:
     """Get user message prompt for title generation"""
-    return user_message_for_title_template.render(user_message=user_message)
-
-
-def get_window_out_summary_prompt(
-    text: str,
-    max_tokens: int,
-) -> str:
-    """渲染窗口外摘要的 prompt（用于对截断的旧消息生成简短摘要）。"""
-    return WINDOW_OUT_SUMMARY_PROMPT.render(
-        max_tokens_hint=max_tokens,
-        text=text,
-    ).strip()
+    return user_message_for_default_template.render(user_message=user_message)
 
 
 def get_window_out_summary_merge_prompt(
@@ -106,20 +91,6 @@ def get_window_out_summary_merge_prompt(
         new_messages_text=new_messages_text,
         max_tokens_hint=max_tokens,
     ).strip()
-
-
-def get_prompt_with_mcp_servers(
-    user_message: str,
-    mcp_auto_mode: bool,
-    server_names: list[str],
-    client_ip: str | None,
-) -> tuple[str, str]:
-    """Get combined system prompt and user message for tool calls with MCP servers"""
-    system_prompt = get_system_prompt_for_tool_calls().strip()
-    user_message_prompt = get_user_message_for_tool_calls(
-        user_message, mcp_auto_mode, server_names, client_ip
-    )
-    return system_prompt, user_message_prompt
 
 
 def get_prompt_for_title(user_message: str) -> tuple[str, str]:
@@ -144,12 +115,15 @@ def get_tool_call_sufficient_info_message() -> str:
     return tool_call_sufficient_info_template.render().strip()
 
 
-def get_user_message_combine_tool_calls(
-    user_message: str,
-    mcp_tool_items: list[dict[str, str]],
-) -> str:
-    """Get user message for response generation"""
-    return final_response_message_template.render(
-        tool_result=mcp_block_template.render(mcp_tool_items=mcp_tool_items),
-        user_message=user_message,
+def get_user_message_for_reach_tool_call_limit(user_message: str) -> str:
+    """Get user message for reach tool call limit"""
+    return user_message_for_reach_tool_call_limit_template.render(
+        user_message=user_message
+    ).strip()
+
+
+def get_user_message_for_no_tool_call(user_message: str) -> str:
+    """Get user message for no tool call"""
+    return user_message_for_no_tool_call_template.render(
+        user_message=user_message
     ).strip()

@@ -1,16 +1,14 @@
 import { ChatMessage as ChatMessageType } from "@/interfaces";
 import { useMemoizedFn } from "ahooks";
 import React from "react";
-import AssistantMessage from "./components/AssistantMessage";
-import UserMessage from "./components/UserMessage";
+import AssistantMessage from "./AssistantMessage";
+import UserMessage from "./UserMessage";
 
 interface ChatMessageItemProps {
   index: number;
   message: ChatMessageType;
   isStreaming: boolean;
   isLoading: boolean;
-  isReasoning: boolean;
-  isCallingMcpTools: boolean;
   onEditMessage: (index: number, content: string) => void;
   onReSend: (index: number, message: ChatMessageType) => void;
 }
@@ -20,8 +18,6 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   message,
   isStreaming,
   isLoading,
-  isReasoning,
-  isCallingMcpTools,
   onEditMessage,
   onReSend,
 }) => {
@@ -36,14 +32,7 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   return isUser ? (
     <UserMessage message={message} onEditMessage={handleEditMessage} />
   ) : (
-    <AssistantMessage
-      message={message}
-      isLoading={isLoading}
-      isStreaming={isStreaming}
-      isReasoning={isReasoning}
-      onReSend={handleReSend}
-      isCallingMcpTools={isCallingMcpTools}
-    />
+    <AssistantMessage message={message} isLoading={isLoading} isStreaming={isStreaming} onReSend={handleReSend} />
   );
 };
 

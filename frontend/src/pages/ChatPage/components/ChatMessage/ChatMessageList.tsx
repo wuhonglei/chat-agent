@@ -11,8 +11,6 @@ interface ChatMessageListProps {
   conversationId: string;
   isLoading?: boolean;
   isStreaming?: boolean;
-  isReasoning?: boolean;
-  isCallingMcpTools?: boolean;
   className?: string;
   onEditMessage: (index: number, content: string) => void;
   onReSend: (index: number, message: ChatMessageType) => void;
@@ -22,8 +20,6 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
   conversationId,
   isLoading = false,
   isStreaming = false,
-  isReasoning = false,
-  isCallingMcpTools = false,
   className,
   onEditMessage,
   onReSend,
@@ -47,8 +43,6 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
           onEditMessage={onEditMessage}
           isLoading={isLoading && index === messages.length - 1}
           isStreaming={isStreaming && index === messages.length - 1}
-          isReasoning={isReasoning && index === messages.length - 1}
-          isCallingMcpTools={isCallingMcpTools && index === messages.length - 1}
         />
       ))}
       <AutoScroll messages={messages} isStreaming={isStreaming} containerRef={containerRef} />
