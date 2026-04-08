@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncGenerator
-from typing import Protocol
+import contextlib
+from collections.abc import AsyncGenerator, Coroutine
+from typing import Any, Protocol, cast
 
 from app.agents import ChatSessionAgent, TitleGenerationAgent
 from app.protocols.chat_messages import (
@@ -27,6 +28,85 @@ from app.services.chat.post_process_service import PostProcessService
 from app.services.message import MessageDbService
 from app.utils.logger import logger
 from app.utils.time import get_current_time, get_time_duration
+
+
+async def _merge_stream_with_title_task(
+    stream: AsyncGenerator[str, None],
+    title_task: asyncio.Task[str] | None,
+    *,
+    conversation_id: str | None,
+) -> AsyncGenerator[str, None]:
+    """Interleave stream events with the title event as soon as either completes.
+
+    Unlike polling ``title_task.done()`` after each stream chunk, this avoids delaying
+    the title event until the next chunk arrives when the title finishes first.
+    """
+    if title_task is None:
+        async for event in stream:
+            yield event
+        return
+
+    aiter = stream.__aiter__()
+    next_chunk: asyncio.Task[str] = asyncio.create_task(
+        cast(Coroutine[Any, Any, str], aiter.__anext__())
+    )
+    pending_title: asyncio.Task[str] | None = title_task
+    stream_ended = False
+
+    try:
+        while True:
+            wait_set = {next_chunk}
+            if pending_title is not None:
+                wait_set.add(pending_title)
+            done, _ = await asyncio.wait(
+                wait_set,
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+
+            if pending_title is not None and pending_title in done:
+                try:
+                    if title_event := pending_title.result():
+                        yield title_event
+                except Exception as exc:
+                    logger.warning(
+                        "Failed to emit title event during stream",
+                        conversation_id=conversation_id,
+                        error=exc,
+                        error_type=type(exc).__name__,
+                    )
+                pending_title = None
+
+            if next_chunk in done:
+                try:
+                    event = next_chunk.result()
+                except StopAsyncIteration:
+                    stream_ended = True
+                    break
+                yield event
+                next_chunk = asyncio.create_task(
+                    cast(Coroutine[Any, Any, str], aiter.__anext__())
+                )
+    finally:
+        if not next_chunk.done():
+            next_chunk.cancel()
+            with contextlib.suppress(asyncio.CancelledError, StopAsyncIteration):
+                await next_chunk
+        if not stream_ended and pending_title is not None and not pending_title.done():
+            pending_title.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await pending_title
+
+    if stream_ended and pending_title is not None:
+        try:
+            if title_event := await pending_title:
+                yield title_event
+        except Exception as exc:
+            logger.warning(
+                "Failed to emit title event after stream completed",
+                conversation_id=conversation_id,
+                error=exc,
+                error_type=type(exc).__name__,
+            )
 
 
 class MemorySearch(Protocol):
@@ -112,16 +192,28 @@ class ChatOrchestrator:
     async def generate_title_event(
         self, user_message: str, conversation_id: str | None = None
     ) -> str:
+        title_start_time = get_current_time()
         logger.info(
             "Regenerating conversation title",
             conversation_id=conversation_id,
         )
-        title = await self.title_generation_agent.execute(user_message)
+        try:
+            title = await self.title_generation_agent.execute(user_message)
+        except Exception as exc:
+            logger.error(
+                "Failed to generate title",
+                conversation_id=conversation_id,
+                error=exc,
+                error_type=type(exc).__name__,
+                duration=get_time_duration(title_start_time),
+            )
+            raise
         logger.info(
             "Title generated",
             conversation_id=conversation_id,
             title=title,
             title_length=len(title) if title else 0,
+            duration=get_time_duration(title_start_time),
         )
         return build_title_event({"id": conversation_id, "title": title})
 
@@ -163,45 +255,50 @@ class ChatOrchestrator:
                         )
                     )
 
-                history_messages_from_db = message_service.get_history_messages_by_ids(
-                    chat_request.history_ids
-                )
-                (
-                    history_summary_before_window,
-                    prepared_history_messages,
-                ) = await self.history_context_service.prepare_history_messages(
-                    history_messages_from_db, conversation_id
-                )
-                logger.info(
-                    "Starting stream message generation",
-                    conversation_id=conversation_id,
-                    history_ids_count=len(chat_request.history_ids),
-                    history_messages_count=len(prepared_history_messages),
-                )
-
-                user_memories = await memory_search(
-                    query=user_message_text,
-                    user_id=user_id,
-                )
-
                 event_count = 0
-                async for event in self.stream_turn_events(
-                    chat_request=chat_request,
-                    history_summary_before_window=history_summary_before_window,
-                    history_messages=prepared_history_messages,
-                    client_ip=None,
-                    user_id=user_id,
-                    user_memories=user_memories,
-                ):
-                    if title_task is not None and title_task.done():
-                        try:
-                            if title_event := title_task.result():
-                                yield title_event
-                        except Exception:
-                            pass
-                        title_task = None
-                    event_count += 1
-                    yield event
+                try:
+                    history_messages_from_db = (
+                        message_service.get_history_messages_by_ids(
+                            chat_request.history_ids
+                        )
+                    )
+                    (
+                        history_summary_before_window,
+                        prepared_history_messages,
+                    ) = await self.history_context_service.prepare_history_messages(
+                        history_messages_from_db, conversation_id
+                    )
+                    logger.info(
+                        "Starting stream message generation",
+                        conversation_id=conversation_id,
+                        history_ids_count=len(chat_request.history_ids),
+                        history_messages_count=len(prepared_history_messages),
+                    )
+
+                    user_memories = await memory_search(
+                        query=user_message_text,
+                        user_id=user_id,
+                    )
+
+                    async for event in _merge_stream_with_title_task(
+                        self.stream_turn_events(
+                            chat_request=chat_request,
+                            history_summary_before_window=history_summary_before_window,
+                            history_messages=prepared_history_messages,
+                            client_ip=None,
+                            user_id=user_id,
+                            user_memories=user_memories,
+                        ),
+                        title_task,
+                        conversation_id=conversation_id,
+                    ):
+                        event_count += 1
+                        yield event
+                finally:
+                    if title_task is not None and not title_task.done():
+                        title_task.cancel()
+                        with contextlib.suppress(asyncio.CancelledError):
+                            await title_task
 
                 logger.info(
                     "Stream message generation completed",

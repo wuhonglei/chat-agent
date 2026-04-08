@@ -198,7 +198,8 @@ class BaseAgent(LLMService):
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
 
-        messages.extend(self._compose_history_messages(history_messages))
+        if history_messages:
+            messages.extend(self._compose_history_messages(history_messages))
 
         messages.append({"role": "user", "content": user_message})
 

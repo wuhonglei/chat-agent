@@ -32,7 +32,10 @@ class Settings(BaseSettings):
 
     app: AppConfig = Field(default_factory=AppConfig)
     response_model: LLMConfig = Field(description="响应生成模型 API 配置")
-    tool_call_model: LLMConfig = Field(description="mcp 工具调用模型 API 配置")
+    title_model: LLMConfig | None = Field(
+        default=None,
+        description="标题生成模型 API 配置（可选，默认回退 response_model）",
+    )
     summarizer_model: SummarizerModelConfig = Field(description="摘要生成模型 API 配置")
     embedding_model: EmbeddingModelConfig = Field(description="Embedding 模型 API 配置")
     mcp: MCPConfig = Field(description="MCP 工具配置")
