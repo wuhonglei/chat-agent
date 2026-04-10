@@ -12,10 +12,6 @@ dependencies = [
     "pydantic-settings>=2.1.0",
     # DeepSeek Integration
     "openai>=1.10.0", # DeepSeek uses OpenAI-compatible API
-    # Document Processing
-    "beautifulsoup4>=4.12.0",
-    # External Document Integration
-    "atlassian-python-api>=3.41.0", # Confluence
     # Search & Retrieval Enhancement
     "tavily-python>=0.3.0", # Web search
     # Storage & Cache
@@ -23,18 +19,13 @@ dependencies = [
     # HTTP & Async
     "httpx>=0.25.0",
     # Utils
-    "python-dateutil>=2.8.0",
     "pyyaml>=6.0.0", # YAML configuration file support
     # Database Migration
     "alembic>=1.13.1",
     # Security
     "cryptography>=41.0.0",
-    "restrictedpython>=6.0.0", # 代码执行沙箱
     # Monitoring & Logging
     "loguru>=0.7.0",
-    "markdownify>=1.2.0",
-    # confluence mcp dependency
-    "keyring>=25.6.0",
     "jinja2>=3.1.6",
     "sqlalchemy>=2.0.43",
     "psycopg2-binary>=2.9.11",
@@ -47,10 +38,8 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "gunicorn>=23.0.0",
     "fastmcp>=3.1.0",
-    "jsonschema>=4.25.0", # JSON Schema validation
     "json-repair>=0.56.0", # 解析/修复 LLM 返回的畸形 JSON
     "toolz>=1.1.0",
-    "langchain>=1.2.4",
     "langchain-community>=0.4.1",
     "faiss-cpu>=1.13.2",
     "dashscope>=1.25.8",
@@ -90,6 +79,8 @@ pythonpath = ["."]
 # mypy 配置已迁移至 mypy.ini
 
 [tool.ruff]
+line-length = 88
+indent-width = 4
 exclude = [
     ".git",
     ".venv",
@@ -120,7 +111,6 @@ skip-magic-trailing-comma = false
 [dependency-groups]
 dev = [
     "types-aiofiles>=24.1.0",
-    "types-python-dateutil>=2.9.0.20260124",
     "types-requests>=2.32.4.20260107",
     "types-PyYAML>=6.0.12",
 ]
