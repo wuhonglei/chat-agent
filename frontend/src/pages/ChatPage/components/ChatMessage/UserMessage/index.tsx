@@ -1,34 +1,18 @@
-import CopyButton from "@/components/common/CopyButton";
 import { ChatMessage as ChatMessageType } from "@/interfaces";
-import { ContentBlock, getMessageTextFromBlocks } from "@/interfaces/contentBlock";
+import { getMessageTextFromBlocks } from "@/interfaces/contentBlock";
 import { isInputEnter } from "@/utils";
-import { EditOutlined } from "@ant-design/icons";
-import { Bubble, Sender } from "@ant-design/x";
-import { Button } from "antd";
+import { Bubble } from "@ant-design/x";
 import classNames from "classnames";
 import { trim } from "lodash-es";
 import React, { useState } from "react";
+import UserMessageDisplayContent from "./components/UserMessageDisplayContent";
+import UserMessageEditContent from "./components/UserMessageEditContent";
+import UserMessageFooter from "./components/UserMessageFooter";
 import styles from "./UserMessage.module.css";
 
 interface UserMessageProps {
   message: ChatMessageType;
   onEditMessage: (content: string) => void;
-}
-
-function renderUserBlocks(blocks: ContentBlock[]) {
-  return blocks.map(block => {
-    if (block.type === "text") {
-      return (
-        <span key={block.id} className="whitespace-pre-wrap wrap-break-word">
-          {block.text}
-        </span>
-      );
-    }
-    if (block.type === "image") {
-      return <img key={block.id} src={block.url} alt="" className="max-w-full max-h-80 rounded-md object-contain" />;
-    }
-    return null;
-  });
 }
 
 const UserMessage: React.FC<UserMessageProps> = ({ message, onEditMessage }) => {
@@ -64,34 +48,19 @@ const UserMessage: React.FC<UserMessageProps> = ({ message, onEditMessage }) => 
         }}
         contentRender={(content: string) =>
           isEditing ? (
-            <Sender
-              suffix={false}
+            <UserMessageEditContent
               defaultValue={content}
-              onKeyDown={handleKeyDown}
+              messageContent={messageContent}
               onChange={value => setMessageContent(trim(value))}
-              footer={
-                <div className="flex justify-end gap-2">
-                  <Button shape="round" type="default" onClick={() => setIsEditing(false)}>
-                    取消
-                  </Button>
-                  <Button shape="round" type="primary" onClick={handleConfirm} disabled={!messageContent}>
-                    发送
-                  </Button>
-                </div>
-              }
+              onKeyDown={handleKeyDown}
+              onCancel={() => setIsEditing(false)}
+              onConfirm={handleConfirm}
             />
           ) : (
-            <div className="flex flex-col gap-2 items-end">{renderUserBlocks(message.contentBlocks)}</div>
+            <UserMessageDisplayContent contentBlocks={message.contentBlocks} />
           )
         }
-        footer={
-          isEditing ? null : (
-            <div className={classNames("flex gap-2", styles.operation)}>
-              <Button size="small" type="text" icon={<EditOutlined />} onClick={() => setIsEditing(true)} />
-              <CopyButton text={textContent} children={null} />
-            </div>
-          )
-        }
+        footer={isEditing ? null : <UserMessageFooter textContent={textContent} onEdit={() => setIsEditing(true)} />}
       />
     </section>
   );
