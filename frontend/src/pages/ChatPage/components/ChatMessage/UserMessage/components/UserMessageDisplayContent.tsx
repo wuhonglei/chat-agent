@@ -1,28 +1,55 @@
-import { ContentBlock } from "@/interfaces/contentBlock";
-import React from "react";
+import { ContentBlock, ImageBlock, TextBlock } from "@/interfaces/contentBlock";
+import { FileCard, type FileCardProps } from "@ant-design/x";
+import React, { useMemo } from "react";
 
-function renderUserBlocks(blocks: ContentBlock[]) {
-  return blocks.map(block => {
-    if (block.type === "text") {
-      return (
-        <span key={block.id} className="whitespace-pre-wrap wrap-break-word">
-          {block.text}
-        </span>
-      );
-    }
+function imageItemFromBlock(block: ImageBlock): FileCardProps {
+  const ext = block.mime.split("/")[1]?.split("+")[0] || "png";
+  return {
+    key: block.id,
+    name: `image.${ext}`,
+    byte: block.size,
+    src: block.url,
+    type: "image",
+  };
+}
+
+function partitionUserBlocks(blocks: ContentBlock[]) {
+  const images: ImageBlock[] = [];
+  const texts: TextBlock[] = [];
+  for (const block of blocks) {
     if (block.type === "image") {
-      return <img key={block.id} src={block.url} alt="" className="max-w-full max-h-80 rounded-md object-contain" />;
+      images.push(block);
+    } else if (block.type === "text") {
+      texts.push(block);
     }
-    return null;
-  });
+  }
+  return { images, texts };
 }
 
 export interface UserMessageDisplayContentProps {
   contentBlocks: ContentBlock[];
 }
 
-const UserMessageDisplayContent: React.FC<UserMessageDisplayContentProps> = ({ contentBlocks }) => (
-  <div className="flex flex-col gap-2 items-end">{renderUserBlocks(contentBlocks)}</div>
-);
+const UserMessageDisplayContent: React.FC<UserMessageDisplayContentProps> = ({ contentBlocks }) => {
+  const { images, texts } = useMemo(() => partitionUserBlocks(contentBlocks), [contentBlocks]);
+  const fileCardItems = useMemo(() => images.map(imageItemFromBlock), [images]);
+
+  return (
+    <div className="flex w-full flex-col items-end gap-2">
+      {fileCardItems.length > 0 ? (
+        <div className="max-w-full">
+          <FileCard.List items={fileCardItems} overflow="wrap" style={{ padding: 0 }} />
+        </div>
+      ) : null}
+      {texts.length > 0 ? (
+        <div className="whitespace-pre-wrap wrap-break-word text-end">
+          {texts.map(block => (
+            <span key={block.id}>{block.text}</span>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+};
 
 export default React.memo(UserMessageDisplayContent);
