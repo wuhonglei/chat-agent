@@ -1,6 +1,6 @@
-import SettingIcon from "@/assets/svg/SettingIcon.svg?react";
 import CustomButton from "@/components/common/CustomButton";
 import { ChatInputConfig } from "@/interfaces";
+import { ToolOutlined } from "@ant-design/icons";
 import { useMemoizedFn } from "ahooks";
 import { Avatar, Form, Popover, Switch } from "antd";
 import classNames from "classnames";
@@ -33,7 +33,7 @@ const ToolsSetting: React.FC<ToolsSettingProps> = ({ values }) => {
       placement="topLeft"
       trigger={["click"]}
       onOpenChange={handleOpenChange}
-      getPopupContainer={() => buttonRef.current || document.body}
+      getPopupContainer={() => document.body}
       content={
         <>
           <Form.Item
@@ -76,8 +76,8 @@ const ToolsSetting: React.FC<ToolsSettingProps> = ({ values }) => {
         </>
       }
     >
-      <CustomButton bordered ref={buttonRef} size="middle" className="gap-px" active={mcpAutoMode}>
-        <SettingIcon className="text-base" />
+      <CustomButton bordered={false} ref={buttonRef} size="middle" className="gap-px" active={mcpAutoMode}>
+        <ToolOutlined className="text-base mr-1" />
         {mcpAutoMode ? (
           <>智能选择</>
         ) : (
