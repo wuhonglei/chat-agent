@@ -27,6 +27,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           fontFamily: "inherit",
           fontFamilyCode: "inherit",
           colorText: "rgba(0,0,0,0.85)",
+          colorFillContent: "rgba(0, 0, 0, 0.04)",
         },
       }}
     >
