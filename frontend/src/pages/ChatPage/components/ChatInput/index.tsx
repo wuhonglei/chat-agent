@@ -1,22 +1,17 @@
-import SquareIcon from "@/assets/svg/SquareIcon.svg?react";
-import ThinkModeIcon from "@/assets/svg/ThinkModeIcon.svg?react";
-import CustomButton from "@/components/common/CustomButton";
 import { useIsSmallScreen } from "@/hooks";
 import { ChatInputFormValues, SendMessageOptions } from "@/interfaces";
-import { ImageBlock } from "@/interfaces/contentBlock";
-import { fileAPI } from "@/services/file";
 import { isInputEnter } from "@/utils";
-import { ArrowUpOutlined, PaperClipOutlined } from "@ant-design/icons";
 import { Attachments, AttachmentsProps, Sender } from "@ant-design/x";
 import { useMemoizedFn } from "ahooks";
-import { Button, ConfigProvider, Form, FormInstance, GetProp, GetRef } from "antd";
+import { ConfigProvider, Form, FormInstance, GetProp, GetRef } from "antd";
 import classNames from "classnames";
 import React from "react";
-import ToolsSetting from "./ToolsSetting";
+import ChatInputFooter from "./components/ChatInputFooter";
+import ChatInputSenderHeader from "./components/ChatInputSenderHeader";
 import { names } from "./constant";
 import styles from "./css/index.module.css";
 import { useButtonState, useFormValuesChange } from "./hooks";
-import { isButtonDisabled, isStreamingState } from "./util";
+import { imageBlocksFromAttachmentItems, isStreamingState } from "./util";
 
 interface ChatInputProps {
   isStreaming?: boolean;
@@ -27,39 +22,11 @@ interface ChatInputProps {
   form: FormInstance<ChatInputFormValues>;
 }
 
-function imageBlocksFromAttachmentItems(items: GetProp<AttachmentsProps, "items"> | undefined): ImageBlock[] {
-  if (!items?.length) {
-    return [];
-  }
-  const out: ImageBlock[] = [];
-  for (const item of items) {
-    if (item.status !== "done" || item.response == null) {
-      continue;
-    }
-    const r = item.response as unknown;
-    if (
-      typeof r === "object" &&
-      r !== null &&
-      "type" in r &&
-      (r as ImageBlock).type === "image" &&
-      "id" in r &&
-      "url" in r &&
-      "size" in r &&
-      "mime" in r
-    ) {
-      out.push(r as ImageBlock);
-    }
-  }
-  return out;
-}
-
 const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, className, style, form }) => {
   const content = Form.useWatch(names.content, form);
   const [attachmentItems, setAttachmentItems] = React.useState<GetProp<AttachmentsProps, "items">>([]);
   const senderRef = React.useRef<GetRef<typeof Sender>>(null);
   const attachmentsRef = React.useRef<GetRef<typeof Attachments>>(null);
-
-  const hasAttachmentItems = attachmentItems.length > 0;
 
   const hasReadyImages = imageBlocksFromAttachmentItems(attachmentItems).length > 0;
   const hasPendingUploads = Boolean(attachmentItems?.some(item => item.status === "uploading"));
@@ -70,58 +37,6 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, clas
   });
   const isSmallScreen = useIsSmallScreen();
   const { values, onValuesChange } = useFormValuesChange(form);
-
-  const senderHeader = (
-    <Sender.Header
-      styles={{
-        header: {
-          display: "none",
-        },
-        content: {
-          padding: 0,
-        },
-      }}
-      style={{ border: "none" }}
-      open
-      closable={false}
-      forceRender
-    >
-      <Attachments
-        ref={attachmentsRef}
-        accept="image/*"
-        styles={{
-          placeholder: {
-            padding: 0,
-            border: "none",
-          },
-          upload: {
-            display: "none",
-          },
-          list: {
-            padding: 0,
-          },
-          root: hasAttachmentItems
-            ? {
-                padding: 12,
-              }
-            : undefined,
-        }}
-        items={attachmentItems}
-        placeholder={undefined}
-        onChange={({ fileList }) => setAttachmentItems(fileList)}
-        customRequest={async options => {
-          const { file, onError, onSuccess } = options;
-          try {
-            const block = await fileAPI.uploadChatImage(file as File);
-            onSuccess?.(block);
-          } catch (e) {
-            onError?.(e as Error);
-          }
-        }}
-        getDropContainer={() => document.body}
-      />
-    </Sender.Header>
-  );
 
   const handleSend = useMemoizedFn(() => {
     const fieldValues = form.getFieldsValue();
@@ -161,6 +76,21 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, clas
     handleSend();
   });
 
+  const openAttachmentPicker = useMemoizedFn(() => {
+    queueMicrotask(() => {
+      attachmentsRef.current?.select({
+        accept: "image/*",
+        multiple: true,
+      });
+    });
+  });
+
+  const handlePasteFile = useMemoizedFn((files: FileList) => {
+    for (const file of files) {
+      attachmentsRef.current?.upload(file);
+    }
+  });
+
   return (
     <ConfigProvider theme={{ components: { Form: { itemMarginBottom: 0 } } }}>
       <Form
@@ -173,13 +103,15 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, clas
         <Form.Item name={names.content}>
           <Sender
             ref={senderRef}
-            header={senderHeader}
+            header={
+              <ChatInputSenderHeader
+                attachmentsRef={attachmentsRef}
+                attachmentItems={attachmentItems}
+                setAttachmentItems={setAttachmentItems}
+              />
+            }
             suffix={false}
-            onPasteFile={files => {
-              for (const file of files) {
-                attachmentsRef.current?.upload(file);
-              }
-            }}
+            onPasteFile={handlePasteFile}
             onKeyDown={handlePressEnter}
             placeholder="发送消息"
             className={styles.container}
@@ -189,50 +121,14 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, clas
               boxShadow: "none",
               overflow: "hidden",
             }}
-            footer={() => {
-              return (
-                <div className="flex items-center gap-2 justify-between">
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="text"
-                      style={{ fontSize: 16 }}
-                      icon={<PaperClipOutlined />}
-                      aria-label="添加图片"
-                      onClick={() => {
-                        queueMicrotask(() => {
-                          attachmentsRef.current?.select({
-                            accept: "image/*",
-                            multiple: true,
-                          });
-                        });
-                      }}
-                    />
-                    <Form.Item trigger="onClick" initialValue={false} valuePropName="active" name={names.thinkMode}>
-                      <CustomButton size="middle" icon={<ThinkModeIcon />} tooltip="先思考后回答, 解决推理问题">
-                        深度思考
-                      </CustomButton>
-                    </Form.Item>
-                    <Form.Item hidden name={names.mcpAutoMode}>
-                      <span />
-                    </Form.Item>
-                    <Form.Item hidden name={names.sourceConfig}>
-                      <span />
-                    </Form.Item>
-                    <ToolsSetting values={values} />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="middle"
-                      shape="round"
-                      type="primary"
-                      icon={isStreamingState(buttonState) ? <SquareIcon /> : <ArrowUpOutlined />}
-                      onClick={handleBtnClick}
-                      disabled={isButtonDisabled(buttonState)}
-                    />
-                  </div>
-                </div>
-              );
-            }}
+            footer={() => (
+              <ChatInputFooter
+                values={values}
+                buttonState={buttonState}
+                onPrimaryClick={handleBtnClick}
+                onOpenAttachmentPicker={openAttachmentPicker}
+              />
+            )}
           />
         </Form.Item>
       </Form>

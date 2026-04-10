@@ -17,6 +17,15 @@
   "[jsonc]": {
     "editor.defaultFormatter": "oxc.oxc-vscode",
   },
+  "[css]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode",
+  },
+  "[less]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode",
+  },
+  "[scss]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode",
+  },
   // 配置使用 ruff 进行格式化和导入排序
   "[python]": {
     "editor.formatOnSave": true,

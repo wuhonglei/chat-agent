@@ -5,8 +5,8 @@ import { useMemoizedFn } from "ahooks";
 import { Avatar, Form, Popover, Switch } from "antd";
 import classNames from "classnames";
 import React, { useMemo, useRef, useState } from "react";
-import { names } from "./constant";
-import { useMCPConfig } from "./hooks";
+import { names } from "../constant";
+import { useMCPConfig } from "../hooks";
 
 interface ToolsSettingProps {
   values: ChatInputConfig;

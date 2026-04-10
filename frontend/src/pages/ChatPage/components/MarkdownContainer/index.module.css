@@ -3,9 +3,7 @@
   --margin-block: 8px;
 }
 
-.x-markdown:global(.x-markdown)
-  pre
-  code:not([class$="-highlightCode-code"] pre code) {
+.x-markdown:global(.x-markdown) pre code:not([class$="-highlightCode-code"] pre code) {
   display: block;
   padding: 0;
   background: inherit !important;
@@ -15,8 +13,7 @@
   margin: inherit;
 }
 
-.x-markdown:global(.x-markdown)
-  code:not([class$="-highlightCode-code"] code):not(pre code) {
+.x-markdown:global(.x-markdown) code:not([class$="-highlightCode-code"] code):not(pre code) {
   font-size: var(--code-inline-text);
   border: 1px solid var(--border-color);
 }
