@@ -1,45 +1,11 @@
-import CodeHighlighter from "@/pages/ChatPage/components/MarkdownContainer/components/CodeHighlighter";
-import { Mermaid } from "@ant-design/x";
 import XMarkdown from "@ant-design/x-markdown";
 import Latex from "@ant-design/x-markdown/plugins/Latex";
+import "@ant-design/x-markdown/themes/light.css";
 import classNames from "classnames";
 import React, { memo } from "react";
-import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
-import InlineCode from "./components/InlineCode";
-import { useLanguage, useMarkdownTheme } from "./hooks";
-import "./index.css";
+import CustomCodeBlock from "./components/CustomCodeBlock";
+import { useMarkdownTheme } from "./hooks";
 import styles from "./index.module.css";
-
-interface CustomCodeBlockProps {
-  inline?: boolean;
-  className?: string;
-  children?: React.ReactNode;
-}
-
-const CustomCodeBlock = memo(({ inline, className, children }: CustomCodeBlockProps) => {
-  const code = String(children).replace(/\n$/, "");
-  const language = useLanguage(className, code, inline);
-
-  if (inline || !language) {
-    return <InlineCode>{code}</InlineCode>;
-  }
-
-  if (language === "mermaid") {
-    return (
-      <Mermaid
-        styles={{ graph: { backgroundColor: "#f8f9fa" } }}
-        highlightProps={{
-          customStyle: {},
-          style: oneLight,
-        }}
-      >
-        {code}
-      </Mermaid>
-    );
-  }
-
-  return <CodeHighlighter lang={language}>{code}</CodeHighlighter>;
-});
 
 type Props = {
   gray?: boolean;
