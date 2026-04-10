@@ -8,11 +8,13 @@ import styles from "../UserMessage.module.css";
 export interface UserMessageFooterProps {
   textContent: string;
   onEdit: () => void;
+  /** 为 false 时不展示编辑（例如消息含图片等非文本块） */
+  canEdit?: boolean;
 }
 
-const UserMessageFooter: React.FC<UserMessageFooterProps> = ({ textContent, onEdit }) => (
+const UserMessageFooter: React.FC<UserMessageFooterProps> = ({ textContent, onEdit, canEdit = true }) => (
   <div className={classNames("flex gap-2", styles.operation)}>
-    <Button size="small" type="text" icon={<EditOutlined />} onClick={onEdit} />
+    {canEdit ? <Button size="small" type="text" icon={<EditOutlined />} onClick={onEdit} /> : null}
     <CopyButton text={textContent} children={null} />
   </div>
 );

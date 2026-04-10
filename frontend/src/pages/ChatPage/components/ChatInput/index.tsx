@@ -1,6 +1,6 @@
 import { useIsSmallScreen } from "@/hooks";
 import { ChatInputFormValues, SendMessageOptions } from "@/interfaces";
-import { isInputEnter } from "@/utils";
+import { isPlainEnter } from "@/utils";
 import { Attachments, AttachmentsProps, Sender } from "@ant-design/x";
 import { useMemoizedFn } from "ahooks";
 import { ConfigProvider, Form, FormInstance, GetProp, GetRef } from "antd";
@@ -57,7 +57,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, clas
   });
 
   const handlePressEnter = useMemoizedFn((event: React.KeyboardEvent<Element>) => {
-    if (!isInputEnter(event)) {
+    if (!isPlainEnter(event)) {
       return;
     }
     if (isSmallScreen) {

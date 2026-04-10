@@ -85,6 +85,11 @@ export function getMessageTextFromBlocks(blocks: ContentBlock[] | undefined): st
     .join("");
 }
 
+/** 用户消息仅含文本块时可编辑（含图片等非文本块时不允许编辑） */
+export function isUserMessageContentTextOnly(blocks: ContentBlock[] | undefined): boolean {
+  return (blocks ?? []).every(block => block.type === "text");
+}
+
 /** 组装发往后端的用户 content_blocks：先文本块，再按顺序追加图片块 */
 export function buildUserContentBlocks(content: string, imageBlocks: ImageBlock[] | undefined): UserContentBlock[] {
   const blocks: UserContentBlock[] = [];

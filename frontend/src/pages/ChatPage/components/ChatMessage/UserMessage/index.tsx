@@ -1,9 +1,7 @@
 import { ChatMessage as ChatMessageType } from "@/interfaces";
-import { getMessageTextFromBlocks } from "@/interfaces/contentBlock";
-import { isInputEnter } from "@/utils";
+import { getMessageTextFromBlocks, isUserMessageContentTextOnly } from "@/interfaces/contentBlock";
 import { Bubble } from "@ant-design/x";
 import classNames from "classnames";
-import { trim } from "lodash-es";
 import React, { useState } from "react";
 import UserMessageDisplayContent from "./components/UserMessageDisplayContent";
 import UserMessageEditContent from "./components/UserMessageEditContent";
@@ -18,22 +16,7 @@ interface UserMessageProps {
 const UserMessage: React.FC<UserMessageProps> = ({ message, onEditMessage }) => {
   const [isEditing, setIsEditing] = useState(false);
   const textContent = getMessageTextFromBlocks(message.contentBlocks);
-  const [messageContent, setMessageContent] = useState(textContent);
-
-  function handleConfirm() {
-    if (!messageContent) {
-      return;
-    }
-    setIsEditing(false);
-    onEditMessage(messageContent);
-  }
-
-  function handleKeyDown(event: React.KeyboardEvent<Element>) {
-    if (isInputEnter(event)) {
-      event.preventDefault();
-      handleConfirm();
-    }
-  }
+  const canEdit = isUserMessageContentTextOnly(message.contentBlocks);
 
   return (
     <section className={classNames("mt-3 w-full flex justify-end", styles.container)}>
@@ -47,20 +30,24 @@ const UserMessage: React.FC<UserMessageProps> = ({ message, onEditMessage }) => 
           content: "w-full whitespace-pre-wrap wrap-break-word",
         }}
         contentRender={(content: string) =>
-          isEditing ? (
+          isEditing && canEdit ? (
             <UserMessageEditContent
               defaultValue={content}
-              messageContent={messageContent}
-              onChange={value => setMessageContent(trim(value))}
-              onKeyDown={handleKeyDown}
               onCancel={() => setIsEditing(false)}
-              onConfirm={handleConfirm}
+              onConfirm={editedContent => {
+                setIsEditing(false);
+                onEditMessage(editedContent);
+              }}
             />
           ) : (
             <UserMessageDisplayContent contentBlocks={message.contentBlocks} />
           )
         }
-        footer={isEditing ? null : <UserMessageFooter textContent={textContent} onEdit={() => setIsEditing(true)} />}
+        footer={
+          isEditing ? null : (
+            <UserMessageFooter textContent={textContent} canEdit={canEdit} onEdit={() => setIsEditing(true)} />
+          )
+        }
       />
     </section>
   );

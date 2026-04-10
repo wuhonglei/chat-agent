@@ -51,7 +51,7 @@ export function getWebMainDomain(url: string | undefined, capitalizeFirstLetter:
  * @param event 键盘事件
  * @returns 是否是输入回车键
  */
-export function isInputEnter(event: React.KeyboardEvent<Element>) {
+export function isPlainEnter(event: React.KeyboardEvent<Element>) {
   // 只有按下回车键才发送, 组合键shift+enter不发送
   if (event.key !== "Enter" || event.shiftKey) {
     return false;
