@@ -10,10 +10,12 @@ import styles from "./UserMessage.module.css";
 
 interface UserMessageProps {
   message: ChatMessageType;
+  isLastMessage: boolean;
   onEditMessage: (content: string) => void;
+  onDeleteMessage: () => void | Promise<void>;
 }
 
-const UserMessage: React.FC<UserMessageProps> = ({ message, onEditMessage }) => {
+const UserMessage: React.FC<UserMessageProps> = ({ message, isLastMessage, onEditMessage, onDeleteMessage }) => {
   const [isEditing, setIsEditing] = useState(false);
   const textContent = getMessageTextFromBlocks(message.contentBlocks);
   const canEdit = isUserMessageContentTextOnly(message.contentBlocks);
@@ -45,7 +47,12 @@ const UserMessage: React.FC<UserMessageProps> = ({ message, onEditMessage }) => 
         }
         footer={
           isEditing ? null : (
-            <UserMessageFooter textContent={textContent} canEdit={canEdit} onEdit={() => setIsEditing(true)} />
+            <UserMessageFooter
+              textContent={textContent}
+              showDelete={isLastMessage}
+              onDelete={onDeleteMessage}
+              onEdit={() => setIsEditing(true)}
+            />
           )
         }
       />

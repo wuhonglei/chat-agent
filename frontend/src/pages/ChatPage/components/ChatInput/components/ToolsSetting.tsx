@@ -76,7 +76,7 @@ const ToolsSetting: React.FC<ToolsSettingProps> = ({ values }) => {
         </>
       }
     >
-      <CustomButton bordered={false} ref={buttonRef} size="middle" className="gap-px" active={mcpAutoMode}>
+      <CustomButton bordered={false} ref={buttonRef} size="middle" className="gap-px" active>
         <ToolOutlined className="text-base mr-1" />
         {mcpAutoMode ? (
           <>智能选择</>

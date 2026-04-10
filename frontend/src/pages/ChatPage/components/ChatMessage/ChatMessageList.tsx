@@ -13,6 +13,7 @@ interface ChatMessageListProps {
   isStreaming?: boolean;
   className?: string;
   onEditMessage: (index: number, content: string) => void;
+  onDeleteMessage: (messageId: string) => void | Promise<void>;
   onReSend: (index: number, message: ChatMessageType) => void;
 }
 
@@ -22,6 +23,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
   isStreaming = false,
   className,
   onEditMessage,
+  onDeleteMessage,
   onReSend,
 }) => {
   const { messages } = useChatState(conversationId);
@@ -41,6 +43,8 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
           message={message}
           onReSend={onReSend}
           onEditMessage={onEditMessage}
+          onDeleteMessage={onDeleteMessage}
+          isLastMessage={index === messages.length - 1}
           isLoading={isLoading && index === messages.length - 1}
           isStreaming={isStreaming && index === messages.length - 1}
         />

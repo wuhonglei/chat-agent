@@ -65,6 +65,7 @@ export interface UseChatMessageOptions {
  */
 export interface UseChatMessageReturn {
   abortMessage: (conversationId: string) => void;
+  deleteUserMessage: (messageId: string) => Promise<void>;
   reSendMessage: (index: number, message: ChatMessage, formData: ChatInputConfig) => Promise<void>;
   sendMessage: (values: ChatInputFormValues, options?: SendMessageOptions) => Promise<void>;
 }
@@ -95,6 +96,20 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
         chatAPI.deleteMessage(lastMessage.id);
       }
       resetState(conversationId);
+    }
+  });
+
+  const deleteUserMessage = useMemoizedFn(async (messageId: string): Promise<void> => {
+    if (isStreaming) {
+      return;
+    }
+    try {
+      await chatAPI.deleteMessage(messageId);
+      dispatch(removeMessageById({ conversationId, data: messageId }));
+      message.success("已删除");
+    } catch (error) {
+      reportError("deleteUserMessage", { error, conversationId, messageId });
+      message.error("删除失败");
     }
   });
 
@@ -297,6 +312,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
   return {
     sendMessage,
     abortMessage,
+    deleteUserMessage,
     reSendMessage,
   };
 };
