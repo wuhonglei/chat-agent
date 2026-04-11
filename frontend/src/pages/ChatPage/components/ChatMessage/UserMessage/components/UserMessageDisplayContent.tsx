@@ -17,6 +17,14 @@ function attachmentToFileCardItem(block: UserAttachmentBlock): FileCardProps {
         byte: block.size,
         src: block.url,
         type: "image",
+        imageProps: {
+          styles: {
+            root: {
+              display: "flex",
+              alignItems: "center",
+            },
+          },
+        },
       };
     }
   }
