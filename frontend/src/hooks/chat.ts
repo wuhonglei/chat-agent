@@ -99,7 +99,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
     }
   });
 
-  const deleteUserMessage = useMemoizedFn(async (messageId: string): Promise<void> => {
+  const deleteMessage = useMemoizedFn(async (messageId: string): Promise<void> => {
     if (isStreaming) {
       return;
     }
@@ -108,7 +108,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
       dispatch(removeMessageById({ conversationId, data: messageId }));
       message.success("已删除");
     } catch (error) {
-      reportError("deleteUserMessage", { error, conversationId, messageId });
+      reportError("deleteMessage", { error, conversationId, messageId });
       message.error("删除失败");
     }
   });
@@ -312,7 +312,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
   return {
     sendMessage,
     abortMessage,
-    deleteUserMessage,
+    deleteMessage,
     reSendMessage,
   };
 };

@@ -44,7 +44,14 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
       isLastMessage={isLastMessage}
     />
   ) : (
-    <AssistantMessage message={message} isLoading={isLoading} isStreaming={isStreaming} onReSend={handleReSend} />
+    <AssistantMessage
+      message={message}
+      isLastMessage={isLastMessage}
+      isLoading={isLoading}
+      isStreaming={isStreaming}
+      onReSend={handleReSend}
+      onDeleteMessage={handleDeleteMessage}
+    />
   );
 };
 
