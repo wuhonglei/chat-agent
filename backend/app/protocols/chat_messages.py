@@ -11,10 +11,12 @@ from app.schemas.chat import (
     ChatMessageWithToolCalls,
     collect_content_from_block_payloads,
     collect_reasoning_from_block_payloads,
+    normalize_content_blocks,
 )
 from app.schemas.llm import ToolMessage, ToolResultMessage, ToolUseMessage
 from app.utils.common import normalize_to_dict
 from app.utils.model import format_sse_message
+from app.utils.multimodal import build_user_content_for_llm, has_image_block
 
 EVENT_ACK = "ack"
 EVENT_CONTENT_BLOCK = "content_block"
@@ -80,10 +82,17 @@ def format_chat_message_for_llm(
     message_dict = normalize_to_dict(message)
     content_blocks = get("content_blocks", message_dict, None)
     if content_blocks is not None:
-        # TODO: 这里的 content 计算的是该消息 content_blocks 内的所有 TextBlock 的 text 字段拼接起来的字符串, 而不是最后一条 TextBlock 的 text 字段
-        content = collect_content_from_block_payloads(content_blocks)
+        normalized_blocks = normalize_content_blocks(content_blocks)
+        role = get("role", message_dict, "")
+        if role == "user" and has_image_block(normalized_blocks):
+            content = build_user_content_for_llm(
+                normalized_blocks,
+                include_text_blocks=True,
+            )
+        else:
+            content = collect_content_from_block_payloads(normalized_blocks)
         # TODO: 这里的 reasoning 计算的是该消息 content_blocks 内的所有 ThinkingBlock 的 text 字段拼接起来的字符串, 而不是最后一条 ThinkingBlock 的 text 字段
-        reasoning = collect_reasoning_from_block_payloads(content_blocks) or None
+        reasoning = collect_reasoning_from_block_payloads(normalized_blocks) or None
     else:
         content = get("content", message_dict, "")
         reasoning = get("reasoning", message_dict, None)

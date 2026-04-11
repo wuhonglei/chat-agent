@@ -31,7 +31,9 @@ class Settings(BaseSettings):
     """Application settings - 使用层级结构匹配 YAML 配置"""
 
     app: AppConfig = Field(default_factory=AppConfig)
-    response_model: LLMConfig = Field(description="响应生成模型 API 配置")
+    response_model: LLMConfig = Field(
+        description="响应生成模型 API 配置（需支持 OpenAI 兼容多模态视觉输入）"
+    )
     title_model: LLMConfig | None = Field(
         default=None,
         description="标题生成模型 API 配置（可选，默认回退 response_model）",

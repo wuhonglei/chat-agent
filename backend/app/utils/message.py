@@ -92,5 +92,21 @@ def find_last_user_message(messages: list[dict[str, Any]]) -> dict[str, Any] | N
 def update_last_user_message(messages: list[dict[str, Any]], new_content: str) -> None:
     """更新最后一个用户消息。"""
     last_user_message = find_last_user_message(messages)
-    if last_user_message:
-        last_user_message["content"] = new_content
+    if not last_user_message:
+        return
+
+    current_content = last_user_message.get("content")
+    if isinstance(current_content, list):
+        for part in current_content:
+            if (
+                isinstance(part, dict)
+                and part.get("type") == "text"
+                and isinstance(part.get("text"), str)
+            ):
+                part["text"] = new_content
+                return
+        # 没有 text 分段时补一个，保留已有图片分段
+        current_content.insert(0, {"type": "text", "text": new_content})
+        return
+
+    last_user_message["content"] = new_content

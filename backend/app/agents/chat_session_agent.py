@@ -34,13 +34,16 @@ from app.schemas.chat import (
     ChatMessage,
     ChatRequest,
     ContentBlock,
-    extract_user_text,
 )
 from app.schemas.config import LLMConfig
 from app.schemas.llm import ToolMessage
 from app.schemas.user import MemoryListItem
 from app.utils.logger import logger
 from app.utils.message import update_last_user_message
+from app.utils.multimodal import (
+    build_user_content_for_llm,
+    extract_user_text_with_image_placeholder,
+)
 from app.utils.time import get_current_time, get_time_duration
 
 
@@ -99,7 +102,9 @@ class ChatSessionAgent(BaseAgent):
         self.session_output.reset()
         self.content_block_aggregator = ContentBlocksAggregator()
 
-        user_message = extract_user_text(chat_request.content_blocks)
+        user_message = extract_user_text_with_image_placeholder(
+            chat_request.content_blocks
+        )
         memories = [m.memory for m in user_memories]
         logger.info("User memories", count=len(memories), memories=memories)
 
@@ -121,8 +126,13 @@ class ChatSessionAgent(BaseAgent):
             server_names or [],
             client_ip,
         )
+        user_message_content = build_user_content_for_llm(
+            chat_request.content_blocks,
+            leading_text=tool_guided_user_message,
+            include_text_blocks=False,
+        )
         base_prompt_messages = self._compose_messages(
-            system_prompt, history_messages, tool_guided_user_message, []
+            system_prompt, history_messages, user_message_content, []
         )
 
         tool_session = MCPToolSession(

@@ -2,13 +2,16 @@
 
 import base64
 import json
+import math
 import os
 from collections.abc import Sequence
+from io import BytesIO
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
 
 import tiktoken
+from PIL import Image
 from pydantic import BaseModel
 
 from app.utils.common import normalize_to_dict
@@ -32,6 +35,8 @@ class TokenCalculator:
 
     DEFAULT_LIMIT = 131072  # deepseek 的默认限制
     DEFAULT_ENCODING_NAME = "cl100k_base"
+    IMAGE_PATCH_SIZE = 28
+    IMAGE_FIXED_TOKEN_OVERHEAD = 2
     # 本地 token 文件目录路径
     LOCAL_TOKEN_DIR = Path(__file__).parent.parent.parent / "data" / "token"
 
@@ -307,11 +312,71 @@ class TokenCalculator:
         if content_blocks is not None:
             total_tokens += self.count_tokens(json.dumps(content_blocks))
         else:
-            total_tokens += self.count_tokens(message.get("content", ""))
+            content = message.get("content", "")
+            if isinstance(content, list):
+                total_tokens += self._count_multimodal_content_tokens(content)
+            elif isinstance(content, str):
+                total_tokens += self.count_tokens(content)
+            else:
+                total_tokens += self.count_tokens(
+                    json.dumps(content, ensure_ascii=False)
+                )
             total_tokens += self.count_tokens(message.get("reasoning", ""))
         total_tokens += self.count_tokens(message.get("reasoning_content", ""))
         total_tokens += self.count_tokens(json.dumps(message.get("tool_calls", [])))
         return total_tokens
+
+    def _count_multimodal_content_tokens(self, content: list[Any]) -> int:
+        total = 0
+        for part in content:
+            if not isinstance(part, dict):
+                total += self.count_tokens(json.dumps(part, ensure_ascii=False))
+                continue
+
+            part_type = part.get("type")
+            if part_type == "text":
+                total += self.count_tokens(str(part.get("text", "")))
+                continue
+            if part_type == "image_url":
+                image_url_payload = part.get("image_url", {})
+                if isinstance(image_url_payload, dict):
+                    image_url = str(image_url_payload.get("url", ""))
+                else:
+                    image_url = str(image_url_payload or "")
+                total += self._count_image_url_tokens(image_url)
+                continue
+            total += self.count_tokens(json.dumps(part, ensure_ascii=False))
+        return total
+
+    def _count_image_url_tokens(self, image_url: str) -> int:
+        width_height = self._extract_image_size_from_data_url(image_url)
+        if width_height is None:
+            return self.count_tokens(image_url)
+        width, height = width_height
+        return (
+            math.ceil(height / self.IMAGE_PATCH_SIZE)
+            * math.ceil(width / self.IMAGE_PATCH_SIZE)
+            + self.IMAGE_FIXED_TOKEN_OVERHEAD
+        )
+
+    def _extract_image_size_from_data_url(
+        self, image_url: str
+    ) -> tuple[int, int] | None:
+        if not image_url.startswith("data:image/"):
+            return None
+        marker = ";base64,"
+        if marker not in image_url:
+            return None
+        _, _, encoded = image_url.partition(marker)
+        if not encoded:
+            return None
+        try:
+            image_bytes = base64.b64decode(encoded, validate=True)
+            with Image.open(BytesIO(image_bytes)) as image:
+                return image.size
+        except Exception as exc:
+            logger.warning("Failed to parse image data URL size", error=exc)
+            return None
 
     def count_messages_tokens(
         self, messages: Sequence[dict[str, Any] | BaseModel]
