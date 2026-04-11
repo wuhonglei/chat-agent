@@ -55,7 +55,7 @@ frontend/
 - 用户：`/api/user/*`
 - 认证：`/api/auth/*`
 - 健康检查：`/api/health*`
-- 文件：`POST /api/file/upload_avatar`
+- 文件：`POST /api/file/upload_avatar`、`POST /api/file/image/upload`
 
 ## 开发指南
 

@@ -80,7 +80,7 @@ vp dev
 - 认证：`/api/auth/*`
 - 用户：`/api/user/*`
 - 消息：`DELETE /api/message/delete/{message_id}`
-- 文件：`POST /api/file/upload_avatar`
+- 文件：`POST /api/file/upload_avatar`、`POST /api/file/image/upload`
 - 健康检查：`/api/health`、`/api/health/mcp`、`/api/health/mcp_config`
 
 ## 目录结构

@@ -50,7 +50,7 @@
 
 ### 现网实现
 
-- `conversation.md`：会话路由、状态和接口说明（对齐 `/api/conversation/*`）
+- `conversation.md`：会话路由、流式 `content_blocks`、图片附件上传/预览与排障说明
 - `component-tools-implementation.md`：组件工具前端实现
 - `schema-generation.md` / `schema-for-backend-usage.md`：组件 schema 生成与后端使用
 - `conversion_cache.md`、`scroll-properties-explanation.md`、`aegis-埋点分析.md`
