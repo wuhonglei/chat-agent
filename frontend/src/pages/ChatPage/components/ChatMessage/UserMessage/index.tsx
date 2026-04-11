@@ -19,7 +19,6 @@ const UserMessage: React.FC<UserMessageProps> = ({ message, isLastMessage, onEdi
   const [isEditing, setIsEditing] = useState(false);
   const textContent = getMessageTextFromBlocks(message.contentBlocks);
   const canEdit = isUserMessageContentTextOnly(message.contentBlocks);
-
   return (
     <section className={classNames("mt-3 w-full flex justify-end", styles.container)}>
       <Bubble
@@ -32,7 +31,7 @@ const UserMessage: React.FC<UserMessageProps> = ({ message, isLastMessage, onEdi
           content: "w-full whitespace-pre-wrap wrap-break-word",
         }}
         contentRender={(content: string) =>
-          isEditing && canEdit ? (
+          isEditing ? (
             <UserMessageEditContent
               defaultValue={content}
               onCancel={() => setIsEditing(false)}
@@ -48,6 +47,7 @@ const UserMessage: React.FC<UserMessageProps> = ({ message, isLastMessage, onEdi
         footer={
           isEditing ? null : (
             <UserMessageFooter
+              canEdit={canEdit}
               textContent={textContent}
               showDelete={isLastMessage}
               onDelete={onDeleteMessage}
