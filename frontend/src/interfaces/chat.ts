@@ -1,6 +1,6 @@
 // Chat types
+import { ContentBlock, ImageBlock, UserContentBlock } from "./contentBlock";
 import { TitleCreatedBy } from "./conversation";
-import { ContentBlock } from "./contentBlock";
 
 export enum SearchSourceType {
   WebSearch = "web_search",
@@ -79,7 +79,7 @@ export type NewConversationCache =
     };
 
 export interface ChatRequest extends ChatInputConfig {
-  contentBlocks: ContentBlock[];
+  contentBlocks: UserContentBlock[];
   conversationId?: string;
   historyIds: string[];
   regenerateTitle: boolean;
@@ -94,6 +94,8 @@ export interface SourceData {
 export interface SendMessageOptions {
   index?: number;
   createdBy?: TitleCreatedBy;
+  /** 与 Attachments 派生并列：重发时从历史消息的 contentBlocks 带入（图片、PDF 等） */
+  attachmentBlocks?: ImageBlock[];
 }
 
 export interface ChatConversationState {

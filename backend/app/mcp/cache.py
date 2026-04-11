@@ -54,7 +54,10 @@ def _cleanup_stale_filetree_cache(cache_path: Path) -> None:
         except Exception:
             continue
 
-        if not (stored_resolved == allowed_root or stored_resolved.is_relative_to(allowed_root)):
+        if not (
+            stored_resolved == allowed_root
+            or stored_resolved.is_relative_to(allowed_root)
+        ):
             logger.warning(
                 "Stale MCP cache detected; clearing cache directory",
                 cache_dir=str(cache_path),
@@ -111,8 +114,7 @@ def create_response_caching_middleware(
     cache_path.mkdir(parents=True, exist_ok=True)
 
     excluded_tools: list[str] = (
-        call_tool_excluded if call_tool_excluded is not None else [
-            "python_code_exec"]
+        call_tool_excluded if call_tool_excluded is not None else ["python_code_exec"]
     )
     call_tool_settings: CallToolSettings = {
         "enabled": True,

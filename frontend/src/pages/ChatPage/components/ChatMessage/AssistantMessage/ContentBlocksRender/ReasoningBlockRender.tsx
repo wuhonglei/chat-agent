@@ -1,5 +1,4 @@
 import { ContentBlockRenderStatus, ThinkingBlock } from "@/interfaces/contentBlock";
-import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
 import { Think } from "@ant-design/x";
 import { useMemoizedFn, useThrottle } from "ahooks";
 import { useEffect, useState } from "react";
@@ -56,9 +55,7 @@ export const ReasoningBlockRender = ({ contentBlock, status }: Props) => {
         />
       }
     >
-      <MarkdownContainer gray className="flex-1">
-        {displayReasoning}
-      </MarkdownContainer>
+      {displayReasoning}
     </Think>
   );
 };

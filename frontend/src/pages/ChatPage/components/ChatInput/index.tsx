@@ -1,50 +1,57 @@
-import SquareIcon from "@/assets/svg/SquareIcon.svg?react";
-import ThinkModeIcon from "@/assets/svg/ThinkModeIcon.svg?react";
-import CustomButton from "@/components/common/CustomButton";
 import { useIsSmallScreen } from "@/hooks";
-import { ChatInputFormValues } from "@/interfaces";
-import { isInputEnter } from "@/utils";
-import { ArrowUpOutlined } from "@ant-design/icons";
-import { Sender } from "@ant-design/x";
+import { ChatInputFormValues, SendMessageOptions } from "@/interfaces";
+import { isPlainEnter } from "@/utils";
+import { Attachments, AttachmentsProps, Sender } from "@ant-design/x";
 import { useMemoizedFn } from "ahooks";
-import { Button, ConfigProvider, Form, FormInstance } from "antd";
+import { ConfigProvider, Form, FormInstance, GetProp, GetRef } from "antd";
 import classNames from "classnames";
 import React from "react";
-import ToolsSetting from "./ToolsSetting";
+import ChatInputFooter from "./components/ChatInputFooter";
+import ChatInputSenderHeader from "./components/ChatInputSenderHeader";
 import { names } from "./constant";
 import styles from "./css/index.module.css";
 import { useButtonState, useFormValuesChange } from "./hooks";
-import { isButtonDisabled, isStreamingState } from "./util";
+import { getAttachmentBlocks, isStreamingState } from "./util";
 
 interface ChatInputProps {
   isStreaming?: boolean;
   className?: string;
   style?: React.CSSProperties;
-  onSend: (values: ChatInputFormValues) => void;
+  onSend: (values: ChatInputFormValues, options?: SendMessageOptions) => void;
   onStop?: () => void;
   form: FormInstance<ChatInputFormValues>;
 }
 
 const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, className, style, form }) => {
   const content = Form.useWatch(names.content, form);
-  const buttonState = useButtonState(content, isStreaming);
+  const [attachmentItems, setAttachmentItems] = React.useState<GetProp<AttachmentsProps, "items">>([]);
+  const senderRef = React.useRef<GetRef<typeof Sender>>(null);
+  const attachmentsRef = React.useRef<GetRef<typeof Attachments>>(null);
+
+  const buttonState = useButtonState(content, isStreaming, attachmentItems);
   const isSmallScreen = useIsSmallScreen();
   const { values, onValuesChange } = useFormValuesChange(form);
 
   const handleSend = useMemoizedFn(() => {
-    const values = form.getFieldsValue();
-    const content = (values.content || "").trim();
-    if (content) {
-      onSend({
-        ...values,
-        content,
-      });
-      form.resetFields([names.content]);
+    const fieldValues = form.getFieldsValue();
+    const text = (fieldValues.content || "").trim();
+    const attachmentBlocks = getAttachmentBlocks(attachmentItems);
+    if (!text) {
+      return;
     }
+    onSend(
+      {
+        ...fieldValues,
+        content: text,
+      },
+      { attachmentBlocks }
+    );
+    form.resetFields([names.content]);
+    setAttachmentItems([]);
   });
 
   const handlePressEnter = useMemoizedFn((event: React.KeyboardEvent<Element>) => {
-    if (!isInputEnter(event)) {
+    if (!isPlainEnter(event)) {
       return;
     }
     if (isSmallScreen) {
@@ -55,13 +62,27 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, clas
   });
 
   const handleBtnClick = useMemoizedFn(() => {
-    // 停止流式传输
     if (isStreamingState(buttonState)) {
       onStop?.();
       return;
     }
 
     handleSend();
+  });
+
+  const openAttachmentPicker = useMemoizedFn(() => {
+    queueMicrotask(() => {
+      attachmentsRef.current?.select({
+        accept: "image/*",
+        multiple: true,
+      });
+    });
+  });
+
+  const handlePasteFile = useMemoizedFn((files: FileList) => {
+    for (const file of files) {
+      attachmentsRef.current?.upload(file);
+    }
   });
 
   return (
@@ -75,44 +96,33 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, clas
       >
         <Form.Item name={names.content}>
           <Sender
+            ref={senderRef}
+            header={
+              <ChatInputSenderHeader
+                attachmentsRef={attachmentsRef}
+                attachmentItems={attachmentItems}
+                setAttachmentItems={setAttachmentItems}
+              />
+            }
             suffix={false}
+            onPasteFile={handlePasteFile}
             onKeyDown={handlePressEnter}
+            placeholder="发送消息"
             className={styles.container}
-            placeholder="给 DeepSeek 发送消息"
             autoSize={{ minRows: 2, maxRows: 6 }}
-            style={{ borderColor: "#d9d9d9", boxShadow: "none" }}
-            footer={() => {
-              return (
-                <div className="flex items-center gap-2 justify-between">
-                  {/* 左侧 */}
-                  <div className="flex items-center gap-2">
-                    <Form.Item trigger="onClick" initialValue={false} valuePropName="active" name={names.thinkMode}>
-                      <CustomButton size="middle" icon={<ThinkModeIcon />} tooltip="先思考后回答, 解决推理问题">
-                        深度思考
-                      </CustomButton>
-                    </Form.Item>
-                    <Form.Item hidden name={names.mcpAutoMode}>
-                      <span />
-                    </Form.Item>
-                    <Form.Item hidden name={names.sourceConfig}>
-                      <span />
-                    </Form.Item>
-                    <ToolsSetting values={values} />
-                  </div>
-                  {/* 右侧 */}
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="middle"
-                      shape="round"
-                      type="primary"
-                      icon={isStreamingState(buttonState) ? <SquareIcon /> : <ArrowUpOutlined />}
-                      onClick={handleBtnClick}
-                      disabled={isButtonDisabled(buttonState)}
-                    />
-                  </div>
-                </div>
-              );
+            style={{
+              borderColor: "#d9d9d9",
+              boxShadow: "none",
+              overflow: "hidden",
             }}
+            footer={() => (
+              <ChatInputFooter
+                values={values}
+                buttonState={buttonState}
+                onPrimaryClick={handleBtnClick}
+                onOpenAttachmentPicker={openAttachmentPicker}
+              />
+            )}
           />
         </Form.Item>
       </Form>

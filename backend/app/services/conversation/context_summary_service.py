@@ -44,14 +44,14 @@ class ContextSummaryService(LLMService):
     async def summarize_merge(
         self,
         prior_summary: str | None,
-        new_messages: list[ChatMessage],
+        messages_to_summarize: list[ChatMessage],
         max_tokens: int,
     ) -> str:
         """生成或增量合并窗口外摘要。"""
         normalized_prior_summary = prior_summary.strip() if prior_summary else ""
-        if not new_messages:
+        if not messages_to_summarize:
             return normalized_prior_summary[: max_tokens * 2]
-        new_text = self.format_conversation_for_summary(new_messages)
+        new_text = self.format_conversation_for_summary(messages_to_summarize)
         if not new_text.strip():
             return normalized_prior_summary[: max_tokens * 2]
 
@@ -79,6 +79,6 @@ class ContextSummaryService(LLMService):
             logger.warning(
                 "Window-out merge summary LLM call failed",
                 error=e,
-                new_message_count=len(new_messages),
+                message_count=len(messages_to_summarize),
             )
             return normalized_prior_summary[: max_tokens * 2]

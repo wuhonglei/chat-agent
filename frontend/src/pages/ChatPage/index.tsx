@@ -19,7 +19,7 @@ const ChatPage: React.FC = () => {
   const conversationInfo = useConversationInfo(urlConversationId);
   const conversationId = conversationInfo?.id || urlConversationId;
 
-  const { sendMessage, reSendMessage, abortMessage } = useChatMessage({
+  const { sendMessage, reSendMessage, abortMessage, deleteMessage } = useChatMessage({
     conversationId,
   });
   const { isStreaming, isLoading } = useChatState(conversationId);
@@ -39,6 +39,10 @@ const ChatPage: React.FC = () => {
     abortMessage(conversationId);
   });
 
+  const handleDeleteMessage = useMemoizedFn((messageId: string) => {
+    return deleteMessage(messageId);
+  });
+
   return (
     <section className="h-full flex flex-col">
       <TopHeader conversationInfo={conversationInfo} />
@@ -52,6 +56,7 @@ const ChatPage: React.FC = () => {
             isStreaming={isStreaming}
             conversationId={conversationId}
             onEditMessage={handleEditMessage}
+            onDeleteMessage={handleDeleteMessage}
             className={styles["markdown-container"]}
           />
           {/* Input area */}

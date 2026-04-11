@@ -170,7 +170,19 @@ class ToolResultBlock(BaseModel):
     summary: str | None = Field(default=None, description="Tool result summary")
 
 
-ContentBlock: TypeAlias = TextBlock | ThinkingBlock | ToolUseBlock | ToolResultBlock
+class ImageBlock(BaseModel):
+    id: str = Field(..., description="Block ID")
+    type: Literal["image"] = "image"
+    url: str = Field(
+        ..., description="Preview URL path (e.g. /api/file/image/preview/...)"
+    )
+    size: int = Field(..., ge=0, description="File size in bytes")
+    mime: str = Field(..., description="MIME type e.g. image/jpeg")
+
+
+ContentBlock: TypeAlias = (
+    TextBlock | ThinkingBlock | ToolUseBlock | ToolResultBlock | ImageBlock
+)
 _CONTENT_BLOCKS_ADAPTER = TypeAdapter(list[ContentBlock])
 
 

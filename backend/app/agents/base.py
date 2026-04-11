@@ -180,7 +180,7 @@ class BaseAgent(LLMService):
         self,
         system_prompt: str,
         history_messages: list[ChatMessage],
-        user_message: str,
+        user_message: str | list[dict[str, Any]],
         tool_call_messages: list[ToolMessage] | None = None,
     ) -> list[dict[str, Any]]:
         """Build prompt for LLM
@@ -188,13 +188,13 @@ class BaseAgent(LLMService):
         Args:
             system_prompt: System prompt message
             history_messages: Conversation history messages
-            user_message: Current user message
+            user_message: Current user message (text or multimodal content parts)
             tool_call_messages: Optional tool call messages (assistant tool calls and tool results)
 
         Returns:
             Message list with correct order: system_prompt -> history -> user_message -> tool_call_messages
         """
-        messages = []
+        messages: list[dict[str, Any]] = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
 

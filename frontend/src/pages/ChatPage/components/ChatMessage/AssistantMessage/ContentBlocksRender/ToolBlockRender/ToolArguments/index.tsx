@@ -1,6 +1,8 @@
 import CodeHighlighter from "@/pages/ChatPage/components/MarkdownContainer/components/CodeHighlighter";
 import { Typography } from "antd";
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
+
+import { useExecuteCodeToolArguments, useToolArgumentsDisplayText } from "./hooks";
 
 const { Paragraph } = Typography;
 
@@ -20,48 +22,8 @@ export const ToolArguments: React.FC<ToolArgumentsProps> = ({
   ellipsisRows = DEFAULT_ELLIPSIS_ROWS,
 }) => {
   const [expanded, setExpanded] = useState(false);
-  const displayText = useMemo(() => {
-    if (argumentsText) {
-      return argumentsText;
-    }
-    if (!argumentsJson) {
-      return "";
-    }
-    return JSON.stringify(argumentsJson, null, 2);
-  }, [argumentsJson, argumentsText]);
-  const executeCodeArgs = useMemo(() => {
-    if (toolName !== "execute_code") {
-      return null;
-    }
-
-    const parsedArguments = (() => {
-      if (argumentsJson) {
-        return argumentsJson;
-      }
-      if (!argumentsText) {
-        return null;
-      }
-      try {
-        return JSON.parse(argumentsText) as Record<string, unknown>;
-      } catch {
-        return null;
-      }
-    })();
-
-    if (!parsedArguments) {
-      return null;
-    }
-
-    const code = parsedArguments.code;
-    if (typeof code !== "string" || !code) {
-      return null;
-    }
-    const language = parsedArguments.language;
-    return {
-      code,
-      language: typeof language === "string" && language ? language : "plaintext",
-    };
-  }, [argumentsJson, argumentsText, toolName]);
+  const displayText = useToolArgumentsDisplayText(argumentsText, argumentsJson);
+  const executeCodeArgs = useExecuteCodeToolArguments(toolName, argumentsText, argumentsJson);
 
   if (executeCodeArgs) {
     return (

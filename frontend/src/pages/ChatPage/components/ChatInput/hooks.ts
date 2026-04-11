@@ -1,25 +1,40 @@
-import { useEffect } from "react";
-import { FormInstance } from "antd/es/form";
-import { ButtonState, names } from "./constant";
-import { trim, omit, isEqual, get, isNil, isBoolean } from "lodash-es";
-import { ChatInputFormValues, ChatInputConfig, MCPConfigItem, RetrieverSource } from "@/interfaces";
-import { useLocalStorageState, useMemoizedFn } from "ahooks";
-import { useAppSelector } from "@/store/hooks";
-import { createSelector } from "@reduxjs/toolkit";
+import { ChatInputConfig, ChatInputFormValues, MCPConfigItem, RetrieverSource } from "@/interfaces";
 import { RootState } from "@/store";
+import { useAppSelector } from "@/store/hooks";
+import { AttachmentsProps } from "@ant-design/x";
+import { createSelector } from "@reduxjs/toolkit";
+import { useLocalStorageState, useMemoizedFn } from "ahooks";
+import { GetProp } from "antd";
+import { FormInstance } from "antd/es/form";
+import { get, isBoolean, isEmpty, isEqual, isNil, omit, trim } from "lodash-es";
+import { useEffect } from "react";
+import { ButtonState, names } from "./constant";
+import { getAttachmentBlocks } from "./util";
 
 /**
- * 根据消息内容和是否流式传输，返回按钮状态
- * @param content
- * @param isStreaming 是否流式传输
- * @returns 按钮状态
+ * 根据消息内容、附件是否可发送、是否流式传输，返回按钮状态
  */
-export function useButtonState(content: string, isStreaming?: boolean): ButtonState {
+export function useButtonState(
+  content: string,
+  isStreaming: boolean | undefined,
+  attachmentItems: GetProp<AttachmentsProps, "items">
+): ButtonState {
   if (isStreaming) {
     return ButtonState.Streaming;
   }
 
-  if (trim(content)) {
+  if (!trim(content)) {
+    return ButtonState.WaitingType;
+  }
+
+  // 附件内容为空，用户正在输入
+  if (isEmpty(attachmentItems)) {
+    return ButtonState.Typing;
+  }
+
+  // 所有附件都已上传完成
+  const hasReady = getAttachmentBlocks(attachmentItems).length === attachmentItems.length;
+  if (hasReady) {
     return ButtonState.Typing;
   }
 

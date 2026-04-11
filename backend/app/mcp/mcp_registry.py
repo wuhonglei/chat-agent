@@ -54,7 +54,7 @@ class MCPRegistry:
             {
                 "id": "code-exec-mcp",
                 "name": "代码执行",
-                "icon": "https://github.com/alibaba/OpenSandbox/raw/main/docs/assets/logo.svg",
+                "icon": "https://ai-chat-1258352625.cos.ap-guangzhou.myqcloud.com/backend/logo.svg",
                 "description": "安全的代码执行服务，使用沙箱隔离确保安全性",
                 "online": False,
             },

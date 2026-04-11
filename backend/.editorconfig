@@ -10,11 +10,7 @@ end_of_line = lf
 insert_final_newline = true
 trim_trailing_whitespace = true
 
-# Python files
-[*.py]
-indent_style = space
-indent_size = 4
-max_line_length = 88
+# Python：缩进、行长、引号、换行等由 pyproject.toml 中 [tool.ruff] / [tool.ruff.format] 约束（Ruff format）
 
 # YAML files
 [*.{yml,yaml}]

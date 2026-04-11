@@ -9,16 +9,20 @@ interface ChatMessageItemProps {
   message: ChatMessageType;
   isStreaming: boolean;
   isLoading: boolean;
+  isLastMessage: boolean;
   onEditMessage: (index: number, content: string) => void;
+  onDeleteMessage: (messageId: string) => void | Promise<void>;
   onReSend: (index: number, message: ChatMessageType) => void;
 }
 
 const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   index,
   message,
+  isLastMessage,
   isStreaming,
   isLoading,
   onEditMessage,
+  onDeleteMessage,
   onReSend,
 }) => {
   const isUser = message.role === "user";
@@ -28,11 +32,26 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   const handleReSend = useMemoizedFn(() => {
     onReSend(index, message);
   });
+  const handleDeleteMessage = useMemoizedFn(() => {
+    onDeleteMessage(message.id);
+  });
 
   return isUser ? (
-    <UserMessage message={message} onEditMessage={handleEditMessage} />
+    <UserMessage
+      message={message}
+      onEditMessage={handleEditMessage}
+      onDeleteMessage={handleDeleteMessage}
+      isLastMessage={isLastMessage}
+    />
   ) : (
-    <AssistantMessage message={message} isLoading={isLoading} isStreaming={isStreaming} onReSend={handleReSend} />
+    <AssistantMessage
+      message={message}
+      isLastMessage={isLastMessage}
+      isLoading={isLoading}
+      isStreaming={isStreaming}
+      onReSend={handleReSend}
+      onDeleteMessage={handleDeleteMessage}
+    />
   );
 };
 

@@ -23,7 +23,9 @@ export const ToolBlockRender: React.FC<Props> = ({ toolUseBlock, toolResultBlock
 
   useEffect(() => {
     if (isActiveStatus(status)) {
-      setExpanded(true);
+      setTimeout(() => {
+        setExpanded(true);
+      }, 500);
       return;
     }
     setExpanded(false);
