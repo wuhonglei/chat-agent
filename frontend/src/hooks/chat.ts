@@ -115,9 +115,9 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
 
   const sendMessage = useMemoizedFn(
     async (values: ChatInputFormValues, options?: SendMessageOptions): Promise<void> => {
-      const { index, createdBy, imageBlocks } = options || {};
+      const { index, createdBy, attachmentBlocks } = options || {};
       const { content, ...requestConfig } = values;
-      const userBlocks = buildUserContentBlocks((content || "").trim(), imageBlocks);
+      const userBlocks = buildUserContentBlocks((content || "").trim(), attachmentBlocks);
       if (userBlocks.length === 0) {
         return;
       }
@@ -288,7 +288,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
           },
           {
             index,
-            imageBlocks: message.contentBlocks.filter((b): b is ImageBlock => b.type === "image"),
+            attachmentBlocks: message.contentBlocks.filter((b): b is ImageBlock => b.type === "image"),
           }
         );
       } else {
@@ -302,7 +302,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
           },
           {
             index: newIndex,
-            imageBlocks: userMessage.contentBlocks.filter((b): b is ImageBlock => b.type === "image"),
+            attachmentBlocks: userMessage.contentBlocks.filter((b): b is ImageBlock => b.type === "image"),
           }
         );
       }

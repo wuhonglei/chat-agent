@@ -90,8 +90,11 @@ export function isUserMessageContentTextOnly(blocks: ContentBlock[] | undefined)
   return (blocks ?? []).every(block => block.type === "text");
 }
 
-/** 组装发往后端的用户 content_blocks：先文本块，再按顺序追加图片块 */
-export function buildUserContentBlocks(content: string, imageBlocks: ImageBlock[] | undefined): UserContentBlock[] {
+/** 组装发往后端的用户 content_blocks：先文本块，再按顺序追加附件块（图片、PDF 等） */
+export function buildUserContentBlocks(
+  content: string,
+  attachmentBlocks: ImageBlock[] | undefined
+): UserContentBlock[] {
   const blocks: UserContentBlock[] = [];
   const text = content.trim();
   if (text) {
@@ -101,9 +104,9 @@ export function buildUserContentBlocks(content: string, imageBlocks: ImageBlock[
       text,
     });
   }
-  if (imageBlocks?.length) {
-    for (const img of imageBlocks) {
-      blocks.push(img);
+  if (attachmentBlocks?.length) {
+    for (const block of attachmentBlocks) {
+      blocks.push(block);
     }
   }
   return blocks;

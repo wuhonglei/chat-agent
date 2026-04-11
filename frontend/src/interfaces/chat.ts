@@ -94,8 +94,8 @@ export interface SourceData {
 export interface SendMessageOptions {
   index?: number;
   createdBy?: TitleCreatedBy;
-  /** 与 Attachments 派生并列：重发时从历史消息的 contentBlocks 带入 */
-  imageBlocks?: ImageBlock[];
+  /** 与 Attachments 派生并列：重发时从历史消息的 contentBlocks 带入（图片、PDF 等） */
+  attachmentBlocks?: ImageBlock[];
 }
 
 export interface ChatConversationState {

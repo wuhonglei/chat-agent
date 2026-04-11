@@ -3,7 +3,7 @@ import { AttachmentsProps } from "@ant-design/x";
 import { GetProp } from "antd";
 import { ButtonState } from "./constant";
 
-export function imageBlocksFromAttachmentItems(items: GetProp<AttachmentsProps, "items"> | undefined): ImageBlock[] {
+export function getAttachmentBlocks(items: GetProp<AttachmentsProps, "items"> | undefined): ImageBlock[] {
   if (!items?.length) {
     return [];
   }
@@ -13,16 +13,7 @@ export function imageBlocksFromAttachmentItems(items: GetProp<AttachmentsProps, 
       continue;
     }
     const r = item.response as unknown;
-    if (
-      typeof r === "object" &&
-      r !== null &&
-      "type" in r &&
-      (r as ImageBlock).type === "image" &&
-      "id" in r &&
-      "url" in r &&
-      "size" in r &&
-      "mime" in r
-    ) {
+    if (typeof r === "object" && r !== null && "type" in r && (r as ImageBlock).type === "image") {
       out.push(r as ImageBlock);
     }
   }

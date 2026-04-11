@@ -11,7 +11,7 @@ import ChatInputSenderHeader from "./components/ChatInputSenderHeader";
 import { names } from "./constant";
 import styles from "./css/index.module.css";
 import { useButtonState, useFormValuesChange } from "./hooks";
-import { imageBlocksFromAttachmentItems, isStreamingState } from "./util";
+import { getAttachmentBlocks, isStreamingState } from "./util";
 
 interface ChatInputProps {
   isStreaming?: boolean;
@@ -28,11 +28,11 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, clas
   const senderRef = React.useRef<GetRef<typeof Sender>>(null);
   const attachmentsRef = React.useRef<GetRef<typeof Attachments>>(null);
 
-  const hasReadyImages = imageBlocksFromAttachmentItems(attachmentItems).length > 0;
+  const hasReadyAttachments = getAttachmentBlocks(attachmentItems).length > 0;
   const hasPendingUploads = Boolean(attachmentItems?.some(item => item.status === "uploading"));
 
   const buttonState = useButtonState(content, isStreaming, {
-    hasReadyImages,
+    hasReadyAttachments,
     hasPendingUploads,
   });
   const isSmallScreen = useIsSmallScreen();
@@ -41,8 +41,8 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, clas
   const handleSend = useMemoizedFn(() => {
     const fieldValues = form.getFieldsValue();
     const text = (fieldValues.content || "").trim();
-    const imageBlocks = imageBlocksFromAttachmentItems(attachmentItems);
-    if (!text && imageBlocks.length === 0) {
+    const attachmentBlocks = getAttachmentBlocks(attachmentItems);
+    if (!text && attachmentBlocks.length === 0) {
       return;
     }
     onSend(
@@ -50,7 +50,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, clas
         ...fieldValues,
         content: text,
       },
-      { imageBlocks }
+      { attachmentBlocks }
     );
     form.resetFields([names.content]);
     setAttachmentItems([]);

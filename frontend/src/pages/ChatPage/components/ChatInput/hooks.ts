@@ -14,13 +14,13 @@ import { ButtonState, names } from "./constant";
 export function useButtonState(
   content: string,
   isStreaming: boolean | undefined,
-  opts: { hasReadyImages: boolean; hasPendingUploads: boolean }
+  opts: { hasReadyAttachments: boolean; hasPendingUploads: boolean }
 ): ButtonState {
   if (isStreaming) {
     return ButtonState.Streaming;
   }
 
-  const canSend = (Boolean(trim(content)) || opts.hasReadyImages) && !opts.hasPendingUploads;
+  const canSend = (Boolean(trim(content)) || opts.hasReadyAttachments) && !opts.hasPendingUploads;
   if (canSend) {
     return ButtonState.Typing;
   }
