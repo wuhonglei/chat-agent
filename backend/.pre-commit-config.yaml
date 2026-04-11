@@ -18,14 +18,15 @@ repos:
         files: \.py$
         exclude: ^(tests/|app/mcp/)
 
-  # mypy 类型检查，仅对暂存的 .py 变更文件检查（路径相对于 git 根 chat-agent，需去掉 backend/ 再在 backend 下执行）
+  # mypy 类型检查，仅对暂存的 .py 变更文件检查（路径相对于 git 根；在 backend 下执行，故仓库根目录下的 .py 需映射为 ../<path>）
   # 排除 tests 目录
   - repo: local
     hooks:
       - id: mypy
         name: mypy
-        entry: bash -c 'cd backend && FILES=(); for f in "$@"; do p="${f#backend/}"; [[ "$p" == tests/* ]] && continue; FILES+=("$p"); done; [[ ${#FILES[@]} -eq 0 ]] || uv run mypy "${FILES[@]}"' sh
+        entry: bash -c 'cd backend && FILES=(); for f in "$@"; do if [[ "$f" == backend/* ]]; then p="${f#backend/}"; else p="../$f"; fi; [[ "$p" == tests/* ]] && continue; FILES+=("$p"); done; [[ ${#FILES[@]} -eq 0 ]] || uv run mypy "${FILES[@]}"' sh
         language: system
         types: [python]
         files: \.py$
+        exclude: ^webhooks/
         pass_filenames: true

@@ -14,11 +14,11 @@ from email_notifier import email_notifier
 # 加载 .env 文件（如果存在）
 load_dotenv()
 
-DEBUG = os.getenv('DEBUG', 'False') == 'True'
+DEBUG = os.getenv("DEBUG", "False") == "True"
 app = Flask(__name__)
 
 # 从环境变量读取配置，如果不存在则使用默认值（生产环境必须设置）
-WEBHOOK_SECRET = os.getenv('WEBHOOK_SECRET', '')
+WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "")
 if not WEBHOOK_SECRET:
     raise ValueError(
         "WEBHOOK_SECRET 环境变量未设置。请在 .env 文件中设置或通过环境变量传入。"
@@ -30,26 +30,27 @@ webhook = Webhook(app, endpoint="/webhook", secret=WEBHOOK_SECRET)
 _webhooks_dir = Path(__file__).resolve().parent
 REPO_PATH = str((_webhooks_dir / "..").resolve())
 DEPLOY_SCRIPT = str(Path(REPO_PATH) / "deploy.sh")
-LOG_DIR = os.getenv('LOG_DIR', './logs')  # 日志文件存储目录
+LOG_DIR = os.getenv("LOG_DIR", "./logs")  # 日志文件存储目录
 
 # 变更文件路径与部署范围：仅当 diff 命中下列路径时才触发对应服务构建
 FRONTEND_DEPLOY_PATHS = [
-    'frontend/src',
-    'frontend/public',
-    'frontend/vite-plugins',
-    'frontend/index.html',
-    'frontend/package-lock.json',
-    'frontend/package.json',
-    'frontend/vite.config.ts',
-    'frontend/Dockerfile',
+    "frontend/src",
+    "frontend/public",
+    "frontend/vite-plugins",
+    "frontend/index.html",
+    "frontend/package-lock.json",
+    "frontend/package.json",
+    "frontend/vite.config.ts",
+    "frontend/Dockerfile",
+    "frontend/nginx.conf",
 ]
 BACKEND_DEPLOY_PATHS = [
-    'backend/app',
-    'backend/alembic',
-    'backend/start.sh',
-    'backend/Dockerfile',
-    'backend/pyproject.toml',
-    'backend/uv.lock',
+    "backend/app",
+    "backend/alembic",
+    "backend/start.sh",
+    "backend/Dockerfile",
+    "backend/pyproject.toml",
+    "backend/uv.lock",
 ]
 
 # 确保日志目录存在
@@ -57,17 +58,17 @@ os.makedirs(LOG_DIR, exist_ok=True)
 
 # 全局变量用于跟踪当前的部署状态
 current_deploy_info = {
-    'process': None,
-    'start_time': None,
-    'commit_sha': None,
-    'log_file_path': None
+    "process": None,
+    "start_time": None,
+    "commit_sha": None,
+    "log_file_path": None,
 }
 deploy_lock = multiprocessing.Lock()
 
 
 def _path_matches_rule(file_path, rule):
     """判断变更文件是否命中规则：精确匹配或目录前缀。"""
-    return file_path == rule or file_path.startswith(rule + '/')
+    return file_path == rule or file_path.startswith(rule + "/")
 
 
 def get_deploy_scope(before, after, repo_path):
@@ -85,11 +86,11 @@ def get_deploy_scope(before, after, repo_path):
     deploy_frontend = False
     deploy_backend = False
     try:
-        if not before or not after or before == '0' * 40:
+        if not before or not after or before == "0" * 40:
             logger.warning("before/after 无效，按全量部署")
             return True, True
         result = subprocess.run(
-            ['git', 'diff', '--name-only', before, after],
+            ["git", "diff", "--name-only", before, after],
             cwd=repo_path,
             capture_output=True,
             text=True,
@@ -99,7 +100,8 @@ def get_deploy_scope(before, after, repo_path):
             logger.warning(f"git diff 失败 (code={result.returncode})，按全量部署")
             return True, True
         changed_files = [
-            line.strip() for line in result.stdout.strip().splitlines() if line.strip()]
+            line.strip() for line in result.stdout.strip().splitlines() if line.strip()
+        ]
         logger.info(f"本次 push 变更文件数: {len(changed_files)}")
         for f in changed_files:
             for p in FRONTEND_DEPLOY_PATHS:
@@ -114,8 +116,7 @@ def get_deploy_scope(before, after, repo_path):
                 break
         if not deploy_frontend and not deploy_backend and changed_files:
             logger.info("变更未命中前后端路径，仅执行状态与健康检查")
-        logger.info(
-            f"部署范围: frontend={deploy_frontend}, backend={deploy_backend}")
+        logger.info(f"部署范围: frontend={deploy_frontend}, backend={deploy_backend}")
     except Exception as e:
         logger.warning(f"计算部署范围异常: {e}，按全量部署")
         return True, True
@@ -135,13 +136,15 @@ def run_command(cmd, cwd):
 
         # 使用 Popen 实时读取输出，创建新进程组以便后续管理
         process = subprocess.Popen(
-            cmd, cwd=cwd, shell=True,
+            cmd,
+            cwd=cwd,
+            shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,  # 将 stderr 合并到 stdout
             text=True,
             bufsize=1,  # 行缓冲
             universal_newlines=True,
-            preexec_fn=os.setsid  # 创建新进程组
+            preexec_fn=os.setsid,  # 创建新进程组
         )
 
         # 实时读取并打印输出（loguru 会自动写入已配置的文件）
@@ -176,13 +179,13 @@ def terminate_previous_deploy():
     global current_deploy_info
 
     with deploy_lock:
-        if current_deploy_info['process'] and current_deploy_info['process'].is_alive():
+        if current_deploy_info["process"] and current_deploy_info["process"].is_alive():
             logger.info("检测到正在进行的部署，正在强制终止...")
 
             try:
                 # 获取进程组ID并终止整个进程组（包括子进程）
                 try:
-                    pgid = os.getpgid(current_deploy_info['process'].pid)
+                    pgid = os.getpgid(current_deploy_info["process"].pid)
                     logger.info(f"终止进程组 {pgid}（包括子进程）")
                     os.killpg(pgid, signal.SIGTERM)
                 except ProcessLookupError:
@@ -192,41 +195,42 @@ def terminate_previous_deploy():
                 except Exception as e:
                     logger.warning(f"使用进程组终止失败，尝试直接终止进程：{e}")
                     # 回退到直接终止进程
-                    current_deploy_info['process'].terminate()
+                    current_deploy_info["process"].terminate()
 
                 # 等待进程结束，最多等待5秒
-                current_deploy_info['process'].join(timeout=5)
+                current_deploy_info["process"].join(timeout=5)
 
                 # 如果进程还没结束，使用 SIGKILL 强制终止进程组
-                if current_deploy_info['process'].is_alive():
+                if current_deploy_info["process"].is_alive():
                     try:
-                        pgid = os.getpgid(current_deploy_info['process'].pid)
+                        pgid = os.getpgid(current_deploy_info["process"].pid)
                         logger.warning(f"进程组 {pgid} 未在预期时间内结束，强制杀死")
                         os.killpg(pgid, signal.SIGKILL)
-                        current_deploy_info['process'].join(timeout=2)
+                        current_deploy_info["process"].join(timeout=2)
                     except Exception as e:
                         logger.warning(f"强制杀死进程组失败：{e}")
                         # 最后的回退方案：直接杀死进程
-                        current_deploy_info['process'].kill()
-                        current_deploy_info['process'].join(timeout=2)
+                        current_deploy_info["process"].kill()
+                        current_deploy_info["process"].join(timeout=2)
 
             except Exception as e:
                 logger.warning(f"终止部署进程时出错：{e}")
 
             # 记录终止信息
-            if current_deploy_info['start_time']:
-                duration = round(
-                    time.time() - current_deploy_info['start_time'], 2)
+            if current_deploy_info["start_time"]:
+                duration = round(time.time() - current_deploy_info["start_time"], 2)
                 logger.info(f"之前的部署已被强制终止（运行时长：{duration}秒）")
 
             # 清理全局状态
-            current_deploy_info['process'] = None
-            current_deploy_info['start_time'] = None
-            current_deploy_info['commit_sha'] = None
-            current_deploy_info['log_file_path'] = None
+            current_deploy_info["process"] = None
+            current_deploy_info["start_time"] = None
+            current_deploy_info["commit_sha"] = None
+            current_deploy_info["log_file_path"] = None
 
 
-def async_deploy(commit_sha=None, commit_message=None, log_file_path=None, before=None, after=None):
+def async_deploy(
+    commit_sha=None, commit_message=None, log_file_path=None, before=None, after=None
+):
     """异步执行部署任务
 
     Args:
@@ -245,10 +249,10 @@ def async_deploy(commit_sha=None, commit_message=None, log_file_path=None, befor
     # 更新全局状态
     global current_deploy_info
     with deploy_lock:
-        current_deploy_info['process'] = current_process
-        current_deploy_info['start_time'] = deploy_start_time
-        current_deploy_info['commit_sha'] = commit_sha
-        current_deploy_info['log_file_path'] = log_file_path
+        current_deploy_info["process"] = current_process
+        current_deploy_info["start_time"] = deploy_start_time
+        current_deploy_info["commit_sha"] = commit_sha
+        current_deploy_info["log_file_path"] = log_file_path
 
     # 为本次部署添加独立的日志文件 sink
     sink_id = None
@@ -293,18 +297,16 @@ def async_deploy(commit_sha=None, commit_message=None, log_file_path=None, befor
             raise Exception("异步部署失败：git log 出错")
 
         # 根据 git diff 计算部署范围并设置环境变量
-        deploy_frontend, deploy_backend = get_deploy_scope(
-            before, after, REPO_PATH)
-        os.environ['DEPLOY_FRONTEND'] = '1' if deploy_frontend else '0'
-        os.environ['DEPLOY_BACKEND'] = '1' if deploy_backend else '0'
+        deploy_frontend, deploy_backend = get_deploy_scope(before, after, REPO_PATH)
+        os.environ["DEPLOY_FRONTEND"] = "1" if deploy_frontend else "0"
+        os.environ["DEPLOY_BACKEND"] = "1" if deploy_backend else "0"
         logger.info(
-            f"设置 DEPLOY_FRONTEND={os.environ['DEPLOY_FRONTEND']}, DEPLOY_BACKEND={os.environ['DEPLOY_BACKEND']}")
+            f"设置 DEPLOY_FRONTEND={os.environ['DEPLOY_FRONTEND']}, DEPLOY_BACKEND={os.environ['DEPLOY_BACKEND']}"
+        )
 
         # 执行 deploy.sh（会继承当前进程的 DEPLOY_* 环境变量）
         if not run_command(f"bash {DEPLOY_SCRIPT}", REPO_PATH):
-            error_msg = (
-                f"异步部署失败：deploy.sh 执行出错 ({DEPLOY_SCRIPT})"
-            )
+            error_msg = f"异步部署失败：deploy.sh 执行出错 ({DEPLOY_SCRIPT})"
             logger.error(error_msg)
             raise Exception(error_msg)
 
@@ -362,18 +364,18 @@ def async_deploy(commit_sha=None, commit_message=None, log_file_path=None, befor
 
         # 清理全局状态（如果当前进程是活跃部署进程）
         with deploy_lock:
-            if current_deploy_info['process'] == current_process:
-                current_deploy_info['process'] = None
-                current_deploy_info['start_time'] = None
-                current_deploy_info['commit_sha'] = None
-                current_deploy_info['log_file_path'] = None
+            if current_deploy_info["process"] == current_process:
+                current_deploy_info["process"] = None
+                current_deploy_info["start_time"] = None
+                current_deploy_info["commit_sha"] = None
+                current_deploy_info["log_file_path"] = None
 
 
-@webhook.hook(event_type='push')
+@webhook.hook(event_type="push")
 def on_push(payload):
     # 仅监听 main 分支的 push 事件
-    ref = payload.get('ref', '')
-    if ref != 'refs/heads/main':
+    ref = payload.get("ref", "")
+    if ref != "refs/heads/main":
         logger.info(f"非 main 分支推送，忽略：{ref}")
         return "忽略"
 
@@ -382,20 +384,20 @@ def on_push(payload):
     # 提取 commit 信息与 diff 范围（before/after）
     commit_sha = None
     commit_message = None
-    before = payload.get('before') or ''
-    after = payload.get('after') or ''
-    if 'head_commit' in payload:
-        commit_sha = payload['head_commit'].get('id', 'unknown')
-        commit_message = payload['head_commit'].get('message', 'unknown')
+    before = payload.get("before") or ""
+    after = payload.get("after") or ""
+    if "head_commit" in payload:
+        commit_sha = payload["head_commit"].get("id", "unknown")
+        commit_message = payload["head_commit"].get("message", "unknown")
         if not after and commit_sha:
             after = commit_sha
 
     # 为本次部署创建唯一的日志文件名
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    if commit_sha and commit_sha != 'unknown':
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    if commit_sha and commit_sha != "unknown":
         commit_short = commit_sha[:7]
     else:
-        commit_short = 'unknown'
+        commit_short = "unknown"
     log_filename = f"deploy_{timestamp}_{commit_short}.log"
     log_file_path = os.path.join(LOG_DIR, log_filename)
 
@@ -407,7 +409,7 @@ def on_push(payload):
     # 启动异步部署任务
     deploy_process = multiprocessing.Process(
         target=async_deploy,
-        args=(commit_sha, commit_message, log_file_path, before, after)
+        args=(commit_sha, commit_message, log_file_path, before, after),
     )
     deploy_process.start()
 
@@ -415,6 +417,6 @@ def on_push(payload):
     return "", 204
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # 仅用于开发环境，生产环境请使用 Gunicorn 或 uWSGI
-    app.run(host='0.0.0.0', port=9000, debug=DEBUG)
+    app.run(host="0.0.0.0", port=9000, debug=DEBUG)
