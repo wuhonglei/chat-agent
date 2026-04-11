@@ -1,5 +1,5 @@
 import { ChatMessage as ChatMessageType } from "@/interfaces";
-import { getMessageTextFromBlocks, isUserMessageContentTextOnly } from "@/interfaces/contentBlock";
+import { getMessageTextFromBlocks, hasAttachmentBlocks, isUserMessageContentTextOnly } from "@/interfaces/contentBlock";
 import { Bubble } from "@ant-design/x";
 import classNames from "classnames";
 import React, { useState } from "react";
@@ -18,7 +18,9 @@ interface UserMessageProps {
 const UserMessage: React.FC<UserMessageProps> = ({ message, isLastMessage, onEditMessage, onDeleteMessage }) => {
   const [isEditing, setIsEditing] = useState(false);
   const textContent = getMessageTextFromBlocks(message.contentBlocks);
+  const hasAttachments = hasAttachmentBlocks(message.contentBlocks);
   const canEdit = isUserMessageContentTextOnly(message.contentBlocks);
+
   return (
     <section className={classNames("mt-3 w-full flex justify-end", styles.container)}>
       <Bubble
@@ -29,6 +31,14 @@ const UserMessage: React.FC<UserMessageProps> = ({ message, isLastMessage, onEdi
         classNames={{
           body: "w-full",
           content: "w-full whitespace-pre-wrap wrap-break-word",
+        }}
+        styles={{
+          content: hasAttachments
+            ? {
+                backgroundColor: "transparent",
+                padding: 0,
+              }
+            : undefined,
         }}
         contentRender={(content: string) =>
           isEditing ? (

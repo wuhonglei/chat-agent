@@ -29,18 +29,20 @@ export const chatAPI = {
     onClose: () => void,
     abortController: AbortController
   ): Promise<void> => {
+    const body = JSON.stringify(
+      snakecaseKeys(data as unknown as Record<string, unknown>, {
+        deep: true,
+        // 不修改服务端返回的 mcp server id
+        exclude: Object.keys(data.sourceConfig || {}),
+      })
+    );
+    console.info("body", body);
     await fetchEventSource(`${apiClient.defaults.baseURL}/chat/stream`, {
       method: "POST",
       headers: addRequestHeaders({
         "Content-Type": "application/json",
       }),
-      body: JSON.stringify(
-        snakecaseKeys(data as unknown as Record<string, unknown>, {
-          deep: true,
-          // 不修改服务端返回的 mcp server id
-          exclude: Object.keys(data.sourceConfig || {}),
-        })
-      ),
+      body,
       signal: abortController.signal,
       onopen: async (response: Response): Promise<void> => {
         // 如果响应状态码为 401，则跳转至登录页面
