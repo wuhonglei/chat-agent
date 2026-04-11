@@ -1,5 +1,4 @@
 import { ContentBlockRenderStatus } from "@/interfaces/contentBlock";
-import { capitalize, words } from "lodash-es";
 
 import { ACTIVE_STATUS_SET } from "./constants";
 
@@ -25,13 +24,4 @@ export function getResultLanguage(content: string): "json" | "markdown" {
   } catch {
     return "markdown";
   }
-}
-
-export function formatToolName(name?: string): string {
-  if (!name) {
-    return "未知工具";
-  }
-
-  const formattedName = words(name).map(capitalize).join(" ");
-  return formattedName || "未知工具";
 }
