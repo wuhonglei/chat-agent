@@ -46,6 +46,7 @@ dependencies = [
     "pgvector>=0.3.0",
     "aiopyston>=1.2.1",
     "py-key-value-aio[filetree]>=0.4.4",
+    "pillow>=12.2.0",
 ]
 
 [project.optional-dependencies]
