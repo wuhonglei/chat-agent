@@ -402,6 +402,7 @@ export const useCachedRequest = (conversationId: string, conversationInfo: Conve
       clearCacheData();
       sendMessage(conversationState.values, {
         createdBy: conversationState.createdBy,
+        attachmentBlocks: conversationState.attachmentBlocks,
       });
     }
   }, [conversationState, sendMessage, clearCacheData]);

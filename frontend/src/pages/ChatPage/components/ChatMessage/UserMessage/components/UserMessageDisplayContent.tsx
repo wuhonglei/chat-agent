@@ -52,7 +52,7 @@ const UserMessageDisplayContent: React.FC<UserMessageDisplayContentProps> = ({ c
       ) : null}
       {texts.length > 0 ? (
         <div
-          className="whitespace-pre-wrap wrap-break-word text-end"
+          className="whitespace-pre-wrap wrap-break-word"
           style={
             fileCardItems.length > 0
               ? {

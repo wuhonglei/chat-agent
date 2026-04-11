@@ -1,5 +1,5 @@
 // Chat types
-import { ContentBlock, ImageBlock, UserContentBlock } from "./contentBlock";
+import { ContentBlock, ImageBlock, UserAttachmentBlock, UserContentBlock } from "./contentBlock";
 import { TitleCreatedBy } from "./conversation";
 
 export enum SearchSourceType {
@@ -74,6 +74,8 @@ export type NewConversationCache =
   | {
       isNewConversation: true;
       values: ChatInputFormValues;
+      /** 欢迎页等场景下与 values 一并缓存，供跳转后首条消息使用（可 JSON 序列化） */
+      attachmentBlocks?: UserAttachmentBlock[];
       createdBy: TitleCreatedBy;
       insertAt: number; // 时间戳 ms (Date.now() 生成)
     };

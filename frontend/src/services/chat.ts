@@ -36,7 +36,6 @@ export const chatAPI = {
         exclude: Object.keys(data.sourceConfig || {}),
       })
     );
-    console.info("body", body);
     await fetchEventSource(`${apiClient.defaults.baseURL}/chat/stream`, {
       method: "POST",
       headers: addRequestHeaders({
