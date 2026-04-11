@@ -28,13 +28,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, clas
   const senderRef = React.useRef<GetRef<typeof Sender>>(null);
   const attachmentsRef = React.useRef<GetRef<typeof Attachments>>(null);
 
-  const hasReadyAttachments = getAttachmentBlocks(attachmentItems).length > 0;
-  const hasPendingUploads = Boolean(attachmentItems?.some(item => item.status === "uploading"));
-
-  const buttonState = useButtonState(content, isStreaming, {
-    hasReadyAttachments,
-    hasPendingUploads,
-  });
+  const buttonState = useButtonState(content, isStreaming, attachmentItems);
   const isSmallScreen = useIsSmallScreen();
   const { values, onValuesChange } = useFormValuesChange(form);
 
@@ -42,7 +36,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, clas
     const fieldValues = form.getFieldsValue();
     const text = (fieldValues.content || "").trim();
     const attachmentBlocks = getAttachmentBlocks(attachmentItems);
-    if (!text && attachmentBlocks.length === 0) {
+    if (!text) {
       return;
     }
     onSend(

@@ -51,9 +51,9 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = ({
           size="middle"
           shape="round"
           type="primary"
-          icon={isStreamingState(buttonState) ? <SquareIcon /> : <ArrowUpOutlined />}
           onClick={onPrimaryClick}
           disabled={isButtonDisabled(buttonState)}
+          icon={isStreamingState(buttonState) ? <SquareIcon /> : <ArrowUpOutlined />}
         />
       </div>
     </div>
