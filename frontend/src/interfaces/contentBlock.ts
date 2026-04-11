@@ -103,7 +103,7 @@ export function isUserAttachmentBlock(block: ContentBlock): block is UserAttachm
 /** 组装发往后端的用户 content_blocks：先文本块，再按顺序追加附件块（图片、PDF 等） */
 export function buildUserContentBlocks(
   content: string,
-  attachmentBlocks: ImageBlock[] | undefined
+  attachmentBlocks: UserAttachmentBlock[] | undefined
 ): UserContentBlock[] {
   const blocks: UserContentBlock[] = [];
   const text = content.trim();

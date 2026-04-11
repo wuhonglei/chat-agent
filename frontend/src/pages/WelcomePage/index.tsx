@@ -1,4 +1,4 @@
-import { ChatInputFormValues } from "@/interfaces";
+import { ChatInputFormValues, SendMessageOptions } from "@/interfaces";
 import ChatInput from "@/pages/ChatPage/components/ChatInput";
 import { registerConversation } from "@/store/slices/conversationSlice";
 import { Form } from "antd";
@@ -18,12 +18,13 @@ export default function EmptyChatPage() {
   const { setCacheData } = useNewConversation();
 
   const [form] = Form.useForm<ChatInputFormValues>();
-  const handleMessageSend = useMemoizedFn(async (values: ChatInputFormValues) => {
+  const handleMessageSend = useMemoizedFn(async (values: ChatInputFormValues, options?: SendMessageOptions) => {
     // 创建会话
     const { id } = await dispatch(registerConversation()).unwrap();
     const data = {
       isNewConversation: true,
       values,
+      attachmentBlocks: options?.attachmentBlocks,
       createdBy: TitleCreatedBy.Default,
       insertAt: Date.now(),
     };
