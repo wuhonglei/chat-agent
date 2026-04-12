@@ -11,7 +11,7 @@ dependencies = [
     "pydantic>=2.5.0",
     "pydantic-settings>=2.1.0",
     # DeepSeek Integration
-    "openai>=1.10.0", # DeepSeek uses OpenAI-compatible API
+    "openai>=2.31.0", # DeepSeek uses OpenAI-compatible API
     # Search & Retrieval Enhancement
     "tavily-python>=0.3.0", # Web search
     # Storage & Cache
