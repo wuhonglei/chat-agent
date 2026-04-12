@@ -9,7 +9,7 @@ import { updateMessageModifiedTime } from "../slices/chatSlice";
  */
 
 // 修改 messages 数组的 actions
-const MESSAGES_MODIFYING_ACTIONS = ["chat/setMessages", "chat/addMessage"];
+const MESSAGES_MODIFYING_ACTIONS = ["chat/setMessages", "chat/addMessage", "chat/replaceMessageById"];
 
 /**
  * 从 action payload 中提取 conversationId

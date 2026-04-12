@@ -1,6 +1,17 @@
-import { ChatMessage, MessageStatus, RoleType, SearchSource, SearchSourceType, ToolCallStatus } from "@/interfaces";
+import {
+  ChatInputFormValues,
+  ChatMessage,
+  MessageStatus,
+  RoleType,
+  SearchSource,
+  SearchSourceType,
+  ToolCallStatus,
+} from "@/interfaces";
 import { getMessageTextFromBlocks } from "@/interfaces/contentBlock";
 import { capitalize, isEmpty, isNil } from "lodash-es";
+import { v4 as uuidv4 } from "uuid";
+
+const LOCAL_MESSAGE_ID_PREFIX = "local-";
 
 /**
  * 构建脚注定义
@@ -127,4 +138,48 @@ export function getRemovedMessageIds(messages: ChatMessage[], index?: number): s
 
 export function isCallingTool(status: ToolCallStatus) {
   return status === ToolCallStatus.CallingTool;
+}
+
+export function createLocalMessageId() {
+  return `${LOCAL_MESSAGE_ID_PREFIX}${uuidv4()}`;
+}
+
+export function buildTempUserMessage(
+  tempMessageId: string,
+  values: ChatInputFormValues,
+  contentBlocks: ChatMessage["contentBlocks"]
+): ChatMessage {
+  const now = new Date().toISOString();
+  return {
+    id: tempMessageId,
+    role: "user",
+    contentBlocks,
+    createdAt: now,
+    updatedAt: now,
+    status: MessageStatus.Pending,
+    messageMetadata: values as ChatMessage["messageMetadata"],
+    replyTo: "",
+  };
+}
+
+export function buildTempAssistantMessage(
+  tempMessageId: string,
+  replyTo: string,
+  values: ChatInputFormValues
+): ChatMessage {
+  const now = new Date().toISOString();
+  return {
+    id: tempMessageId,
+    role: "assistant",
+    contentBlocks: [],
+    createdAt: now,
+    updatedAt: now,
+    status: MessageStatus.Pending,
+    messageMetadata: values as ChatMessage["messageMetadata"],
+    replyTo,
+  };
+}
+
+export function isLocalMessageId(messageId: string | undefined): messageId is string {
+  return Boolean(messageId?.startsWith(LOCAL_MESSAGE_ID_PREFIX));
 }

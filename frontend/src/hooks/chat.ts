@@ -13,11 +13,10 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   addMessage,
   appendContentBlockToLastMessage,
-  clearLastMessage,
   clearMessagesAfterIndex,
   DEFAULT_CHAT_STATE,
-  lastMessageCheck,
   removeMessageById,
+  replaceMessageById,
   resetChatState,
   setLoading,
   setMessages,
@@ -39,8 +38,12 @@ import { db } from "@/indexDB";
 import { MessageStatus, TitleCreatedBy } from "@/interfaces";
 import { buildUserContentBlocks, getMessageTextFromBlocks, ImageBlock } from "@/interfaces/contentBlock";
 import {
+  buildTempAssistantMessage,
+  buildTempUserMessage,
+  createLocalMessageId,
   getHistoryMessageIds,
   getRemovedMessageIds,
+  isLocalMessageId,
   isTitleCreatedByUser,
   isUserRole,
   reportError,
@@ -74,6 +77,13 @@ export const useChatState = (conversationId: string) => {
   return useAppSelector(state => state.chat[conversationId] || DEFAULT_CHAT_STATE);
 };
 
+interface TempMessageState {
+  userTempId: string;
+  assistantTempId: string;
+  userServerMessageId?: string;
+  assistantServerMessageId?: string;
+}
+
 export const useChatMessage = (options: UseChatMessageOptions) => {
   const { conversationId, historyLimit = 100 } = options;
   const dispatch = useAppDispatch();
@@ -81,19 +91,53 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
   const { messages, isLoading, isStreaming } = useChatState(conversationId);
 
   const abortControllerRef = useRef<AbortController | null>(null);
+  const tempMessageRef = useRef<TempMessageState | null>(null);
 
   const resetState = useMemoizedFn(conversationId => {
     dispatch(resetChatState({ conversationId, data: undefined }));
   });
 
+  const cleanupTempMessages = useMemoizedFn((conversationId: string, shouldDeleteRemoteMessages: boolean = false) => {
+    const tempState = tempMessageRef.current;
+    if (!tempState) {
+      return;
+    }
+
+    const idsToRemove = [
+      tempState.userTempId,
+      tempState.assistantTempId,
+      tempState.userServerMessageId,
+      tempState.assistantServerMessageId,
+    ].filter(Boolean) as string[];
+
+    for (const messageId of new Set(idsToRemove)) {
+      dispatch(removeMessageById({ conversationId, data: messageId }));
+    }
+
+    if (shouldDeleteRemoteMessages) {
+      const remoteMessageIds = [tempState.userServerMessageId, tempState.assistantServerMessageId].filter(
+        (messageId): messageId is string => Boolean(messageId) && !isLocalMessageId(messageId)
+      );
+      for (const messageId of new Set(remoteMessageIds)) {
+        chatAPI.deleteMessage(messageId).catch(error => {
+          reportError("cleanupTempMessages deleteMessage", {
+            error,
+            conversationId,
+            messageId,
+          });
+        });
+      }
+    }
+
+    tempMessageRef.current = null;
+  });
+
   const abortMessage = useMemoizedFn((conversationId): void => {
     if (abortControllerRef.current && isStreaming) {
       abortControllerRef.current.abort();
-      // 服务端 llm api 还没响应，则清除最后一条消息
-      const lastMessage = lastMessageCheck(messages);
-      if (lastMessage && lastMessage.id && isLoading) {
-        dispatch(clearLastMessage({ conversationId, data: undefined }));
-        chatAPI.deleteMessage(lastMessage.id);
+      // isLoading 为 true 表示尚未收到首个内容事件，此时只应清理本轮临时消息。
+      if (isLoading) {
+        cleanupTempMessages(conversationId, true);
       }
       resetState(conversationId);
     }
@@ -117,7 +161,11 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
     async (values: ChatInputFormValues, options?: SendMessageOptions): Promise<void> => {
       const { index, createdBy, attachmentBlocks } = options || {};
       const { content, ...requestConfig } = values;
-      const userBlocks = buildUserContentBlocks((content || "").trim(), attachmentBlocks);
+      const normalizedValues: ChatInputFormValues = {
+        ...values,
+        content,
+      };
+      const userBlocks = buildUserContentBlocks(content, attachmentBlocks);
       if (userBlocks.length === 0) {
         return;
       }
@@ -141,25 +189,52 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
           dispatch(clearMessagesAfterIndex({ conversationId, data: index! }));
         }
 
+        const userTempId = createLocalMessageId();
+        const assistantTempId = createLocalMessageId();
+        tempMessageRef.current = {
+          userTempId,
+          assistantTempId,
+        };
+        dispatch(
+          addMessage({
+            conversationId,
+            data: buildTempUserMessage(userTempId, normalizedValues, userBlocks),
+          })
+        );
+        dispatch(
+          addMessage({
+            conversationId,
+            data: buildTempAssistantMessage(assistantTempId, userTempId, normalizedValues),
+          })
+        );
+
         // 流式传输消息处理器映射表
         const messageHandlers: StreamMessageHandlerMap = {
-          // 添加消息
+          // ack 后将临时消息替换为服务端消息
           ack: data => {
-            if (isUserRole(data.role) && !isEmpty(removedMessageIds)) {
-              // 收到新的用户消息，删除 store 中旧的用户消息
+            const tempState = tempMessageRef.current;
+            if (!tempState) {
+              return;
+            }
+            if (isUserRole(data.role)) {
+              tempState.userServerMessageId = data.id;
               dispatch(
-                removeMessageById({
+                replaceMessageById({
                   conversationId,
-                  data: removedMessageIds[0],
+                  messageId: tempState.userTempId,
+                  data,
+                })
+              );
+            } else {
+              tempState.assistantServerMessageId = data.id;
+              dispatch(
+                replaceMessageById({
+                  conversationId,
+                  messageId: tempState.assistantTempId,
+                  data,
                 })
               );
             }
-            dispatch(
-              addMessage({
-                conversationId,
-                data,
-              })
-            );
             dispatch(
               updateMessageModifiedTime({
                 conversationId,
@@ -218,6 +293,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
             if (content) {
               message.error(content);
             }
+            cleanupTempMessages(conversationId, true);
             // 流式输出时，返回消息类型为 error 时，上报错误
             reportError("Stream Error", { error: data, conversationId });
           },
@@ -259,10 +335,12 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
               error: error,
               conversationId,
             });
+            cleanupTempMessages(conversationId, true);
             resetState(conversationId);
           },
           () => {
             // 流结束
+            tempMessageRef.current = null;
             resetState(conversationId);
           },
           abortControllerRef.current
@@ -273,6 +351,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
           error: error,
           conversationId,
         });
+        cleanupTempMessages(conversationId, true);
         resetState(conversationId);
       }
     }

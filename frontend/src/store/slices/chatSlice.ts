@@ -12,6 +12,12 @@ interface ConversationActionPayload<T = unknown> {
   data: T;
 }
 
+interface ReplaceMessagePayload {
+  conversationId: string;
+  messageId: string;
+  data: ChatMessage;
+}
+
 export const getDefaultChatState = (): ChatConversationState => ({
   messages: [] as ChatMessage[],
   messageLoaded: false,
@@ -79,11 +85,19 @@ const chatSlice = createSlice({
       chatState.messages.push(normalizeMessage(data));
       // lastMessageUpdateAt 的更新已移至 updateLastMessageTimeMiddleware 中自动处理
     },
+    replaceMessageById: (state, action: PayloadAction<ReplaceMessagePayload>) => {
+      const { conversationId, messageId, data } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      const index = chatState.messages.findIndex(message => message.id === messageId);
+      if (index !== -1) {
+        chatState.messages[index] = normalizeMessage(data);
+      }
+    },
     clearMessagesAfterIndex: (state, action: PayloadAction<ConversationActionPayload<number>>) => {
       const { conversationId, data: index } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
       // 清除该位置之后的所有消息
-      chatState.messages.length = index + 1;
+      chatState.messages.length = index;
       // lastMessageUpdateAt 的更新已移至 updateLastMessageTimeMiddleware 中自动处理
     },
     removeMessageById: (state, action: PayloadAction<ConversationActionPayload<string>>) => {
@@ -243,6 +257,7 @@ export const {
   setMessages,
   setTempMessages,
   addMessage,
+  replaceMessageById,
   clearMessagesAfterIndex,
   removeMessageById,
   setStreaming,
