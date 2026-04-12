@@ -1,11 +1,11 @@
 import { ContentBlockRenderStatus, ToolResultBlock, ToolUseBlock } from "@/interfaces/contentBlock";
 import { Think } from "@ant-design/x";
-import { useMemoizedFn } from "ahooks";
-import React, { useEffect, useState } from "react";
+import React from "react";
 
 import ToolArguments from "./ToolArguments";
 import ToolBlockTitle from "./ToolBlockTitle";
 import ToolResult from "./ToolResult";
+import { useToolBlockExpanded } from "./hooks";
 import { getToolIcon } from "./toolIcons";
 import { isActiveStatus } from "./utils";
 
@@ -16,27 +16,14 @@ type Props = {
 };
 
 export const ToolBlockRender: React.FC<Props> = ({ toolUseBlock, toolResultBlock, status }) => {
-  const [expanded, setExpanded] = useState<boolean>(isActiveStatus(status));
-  const handleExpandChange = useMemoizedFn((nextExpanded: boolean) => {
-    setExpanded(nextExpanded);
-  });
-
-  useEffect(() => {
-    if (isActiveStatus(status)) {
-      setTimeout(() => {
-        setExpanded(true);
-      }, 500);
-      return;
-    }
-    setExpanded(false);
-  }, [status]);
+  const { expanded, onExpandChange } = useToolBlockExpanded(status);
 
   return (
     <Think
       icon={getToolIcon(toolUseBlock.name)}
       expanded={expanded}
       blink={isActiveStatus(status)}
-      onExpand={handleExpandChange}
+      onExpand={onExpandChange}
       classNames={{ status: "cursor-pointer" }}
       title={<ToolBlockTitle rawToolName={toolUseBlock.name} status={status} />}
     >
