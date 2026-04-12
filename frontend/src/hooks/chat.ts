@@ -13,8 +13,10 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   addMessage,
   appendContentBlockToLastMessage,
+  clearLastMessage,
   clearMessagesAfterIndex,
   DEFAULT_CHAT_STATE,
+  lastMessageCheck,
   removeMessageById,
   replaceMessageById,
   resetChatState,
@@ -94,51 +96,27 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
   const tempMessageRef = useRef<TempMessageState | null>(null);
 
   const resetState = useMemoizedFn(conversationId => {
-    dispatch(resetChatState({ conversationId, data: undefined }));
-  });
-
-  const cleanupTempMessages = useMemoizedFn((conversationId: string, shouldDeleteRemoteMessages: boolean = false) => {
-    const tempState = tempMessageRef.current;
-    if (!tempState) {
-      return;
-    }
-
-    const idsToRemove = [
-      tempState.userTempId,
-      tempState.assistantTempId,
-      tempState.userServerMessageId,
-      tempState.assistantServerMessageId,
-    ].filter(Boolean) as string[];
-
-    for (const messageId of new Set(idsToRemove)) {
-      dispatch(removeMessageById({ conversationId, data: messageId }));
-    }
-
-    if (shouldDeleteRemoteMessages) {
-      const remoteMessageIds = [tempState.userServerMessageId, tempState.assistantServerMessageId].filter(
-        (messageId): messageId is string => Boolean(messageId) && !isLocalMessageId(messageId)
-      );
-      for (const messageId of new Set(remoteMessageIds)) {
-        chatAPI.deleteMessage(messageId).catch(error => {
-          reportError("cleanupTempMessages deleteMessage", {
-            error,
-            conversationId,
-            messageId,
-          });
-        });
-      }
-    }
-
     tempMessageRef.current = null;
+    dispatch(resetChatState({ conversationId, data: undefined }));
   });
 
   const abortMessage = useMemoizedFn((conversationId): void => {
     if (abortControllerRef.current && isStreaming) {
       abortControllerRef.current.abort();
-      // isLoading 为 true 表示尚未收到首个内容事件，此时只应清理本轮临时消息。
-      if (isLoading) {
-        cleanupTempMessages(conversationId, true);
+      const lastMessage = lastMessageCheck(messages);
+      if (lastMessage && lastMessage.id && isLoading) {
+        dispatch(clearLastMessage({ conversationId, data: undefined }));
+        if (!isLocalMessageId(lastMessage.id)) {
+          chatAPI.deleteMessage(lastMessage.id).catch(error => {
+            reportError("abortMessage deleteMessage", {
+              error,
+              conversationId,
+              messageId: lastMessage.id,
+            });
+          });
+        }
       }
+
       resetState(conversationId);
     }
   });
@@ -337,8 +315,6 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
             resetState(conversationId);
           },
           () => {
-            // 流结束
-            tempMessageRef.current = null;
             resetState(conversationId);
           },
           abortControllerRef.current
