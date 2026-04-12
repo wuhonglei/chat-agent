@@ -72,6 +72,7 @@ class ContextSummaryService(LLMService):
                 [{"role": "user", "content": prompt}],
                 stream=False,
                 max_tokens=max_tokens,
+                extra_body=self.extra_body,
             )
             content = (resp.choices[0].message.content or "").strip()
             return content[: max_tokens * 2]

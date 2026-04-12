@@ -32,7 +32,11 @@ class TitleGenerationAgent(BaseAgent):
         messages = self._compose_messages(system_prompt, [], new_user_message)
 
         title_response = await self.call_llm_api(
-            model=self.model_name, messages=messages, stream=False, max_tokens=30
+            model=self.model_name,
+            messages=messages,
+            stream=False,
+            max_tokens=30,
+            extra_body=self.extra_body,
         )
 
         title = title_response.choices[0].message.content or ""
