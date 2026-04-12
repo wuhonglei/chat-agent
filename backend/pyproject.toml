@@ -13,7 +13,7 @@ dependencies = [
     # DeepSeek Integration
     "openai>=2.31.0", # DeepSeek uses OpenAI-compatible API
     # Search & Retrieval Enhancement
-    "tavily-python>=0.3.0", # Web search
+    "tavily-python>=0.7.23", # Web search
     # Storage & Cache
     "aiofiles>=23.2.0",
     # HTTP & Async
