@@ -148,9 +148,9 @@ class HistoryContextService:
                 stored_summary_before_window = (
                     ctx.summary_before_window if ctx else None
                 )
-            last_ids: list[str] = (
-                list(ctx.last_summarized_message_ids or []) if ctx else []
-            )
+                last_ids: list[str] = (
+                    list(ctx.last_summarized_message_ids or []) if ctx else []
+                )
             last_id_set = set(last_ids)
             if current_id_set == last_id_set:
                 return stored_summary_before_window, window_messages_after_truncation
