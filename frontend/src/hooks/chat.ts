@@ -293,7 +293,6 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
             if (content) {
               message.error(content);
             }
-            cleanupTempMessages(conversationId, true);
             // 流式输出时，返回消息类型为 error 时，上报错误
             reportError("Stream Error", { error: data, conversationId });
           },
@@ -335,7 +334,6 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
               error: error,
               conversationId,
             });
-            cleanupTempMessages(conversationId, true);
             resetState(conversationId);
           },
           () => {
@@ -351,7 +349,6 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
           error: error,
           conversationId,
         });
-        cleanupTempMessages(conversationId, true);
         resetState(conversationId);
       }
     }
