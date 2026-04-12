@@ -44,6 +44,23 @@ def extract_user_text_with_image_placeholder(
     return ""
 
 
+def build_title_user_message_for_llm(
+    content_blocks: list[ContentBlock] | list[dict[str, Any]] | None,
+) -> str | list[dict[str, Any]]:
+    """Build user message for title generation: XML-wrapped query text, plus images if any."""
+    from app.prompts.prompt_utils import get_user_message_for_title
+
+    normalized_blocks = normalize_content_blocks(content_blocks)
+    query_text = extract_user_text_with_image_placeholder(normalized_blocks)
+    wrapped = get_user_message_for_title(query_text)
+
+    return build_user_content_for_llm(
+        content_blocks,
+        leading_text=wrapped,
+        include_text_blocks=False,
+    )
+
+
 def build_user_content_for_llm(
     content_blocks: list[ContentBlock] | list[dict[str, Any]] | None,
     *,

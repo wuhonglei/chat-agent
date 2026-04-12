@@ -1,7 +1,10 @@
 """Title Generation Agent for generating conversation titles"""
 
+from typing import Any
+
 from app.agents.base import BaseAgent
 from app.prompts import get_prompt_for_title
+from app.schemas.chat import ContentBlock
 from app.schemas.config import LLMConfig
 from app.utils.logger import logger
 
@@ -12,12 +15,15 @@ class TitleGenerationAgent(BaseAgent):
     def __init__(self, think_mode: bool, llm_config: LLMConfig):
         super().__init__(think_mode, llm_config)
 
-    async def execute(self, user_message: str) -> str:
+    async def execute(
+        self,
+        user_message: str | list[ContentBlock] | list[dict[str, Any]],
+    ) -> str:
         """
         生成对话标题
 
         Args:
-            user_message: 用户消息
+            user_message: 用户消息文本，或含图片的 content_blocks
 
         Returns:
             str: 生成的标题

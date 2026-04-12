@@ -1,5 +1,7 @@
 """提示词工具函数模块"""
 
+from typing import Any
+
 from app.mcp.mcp_client import mcp_config_for_fe
 from app.prompts.system_prompt import (
     default_system_prompt_template,
@@ -17,6 +19,7 @@ from app.prompts.user_prompt import (
     user_message_for_reach_tool_call_limit_template,
     user_message_for_tool_call_template,
 )
+from app.schemas.chat import ContentBlock
 from app.utils.date import get_current_datetime_str
 
 
@@ -93,10 +96,19 @@ def get_window_out_summary_merge_prompt(
     ).strip()
 
 
-def get_prompt_for_title(user_message: str) -> tuple[str, str]:
-    """Get combined system prompt and user message for title generation"""
+def get_prompt_for_title(
+    user_input: str | list[ContentBlock] | list[dict[str, Any]],
+) -> tuple[str, str | list[dict[str, Any]]]:
+    """Get combined system prompt and user message for title generation.
+
+    Pass a string for text-only, or content blocks to include images in the user message.
+    """
+    from app.utils.multimodal import build_title_user_message_for_llm
+
     system_prompt = get_system_prompt_for_title().strip()
-    user_message_prompt = get_user_message_for_title(user_message)
+    if isinstance(user_input, str):
+        return system_prompt, get_user_message_for_title(user_input)
+    user_message_prompt = build_title_user_message_for_llm(user_input)
     return system_prompt, user_message_prompt
 
 
