@@ -1,9 +1,12 @@
-import { ToolUseBlock } from "@/interfaces/contentBlock";
-import { useMemo } from "react";
+import { ContentBlockRenderStatus, ToolUseBlock } from "@/interfaces/contentBlock";
+import { useDebounceFn, useMemoizedFn } from "ahooks";
+import { useEffect, useMemo, useState } from "react";
 
 import { isPlainObject } from "lodash-es";
 
-import { stringifyJsonLike } from "./utils";
+import { isActiveStatus, stringifyJsonLike } from "./utils";
+
+const TOOL_BLOCK_COLLAPSE_DEBOUNCE_MS = 1000;
 
 type ArgumentsLanguage = "json" | "plaintext";
 
@@ -22,6 +25,39 @@ function canParseAsJson(value: string): boolean {
   } catch {
     return false;
   }
+}
+
+export function useToolBlockExpanded(status: ContentBlockRenderStatus): {
+  expanded: boolean;
+  onExpandChange: (nextExpanded: boolean) => void;
+} {
+  const [expanded, setExpanded] = useState<boolean>(isActiveStatus(status));
+
+  const { run: delayCollapse, cancel: cancelDelayCollapse } = useDebounceFn(
+    () => {
+      setExpanded(false);
+    },
+    { wait: TOOL_BLOCK_COLLAPSE_DEBOUNCE_MS }
+  );
+
+  useEffect(() => {
+    if (isActiveStatus(status)) {
+      cancelDelayCollapse();
+      setExpanded(true);
+      return;
+    }
+    delayCollapse();
+    return () => {
+      cancelDelayCollapse();
+    };
+  }, [status, delayCollapse, cancelDelayCollapse]);
+
+  const onExpandChange = useMemoizedFn((nextExpanded: boolean) => {
+    cancelDelayCollapse();
+    setExpanded(nextExpanded);
+  });
+
+  return { expanded, onExpandChange };
 }
 
 export function useParsedArguments(contentBlock: ToolUseBlock): UseParsedArgumentsResult {
