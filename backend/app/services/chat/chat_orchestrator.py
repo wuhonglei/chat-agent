@@ -19,6 +19,7 @@ from app.schemas.chat import (
     AssistantResponse,
     ChatMessage,
     ChatRequest,
+    ContentBlock,
     count_tool_use_blocks,
     extract_user_text,
 )
@@ -191,7 +192,9 @@ class ChatOrchestrator:
             yield build_error_event({"content": str(exc)})
 
     async def generate_title_event(
-        self, user_message: str, conversation_id: str | None = None
+        self,
+        user_message: str | list[ContentBlock] | list[dict[str, Any]],
+        conversation_id: str | None = None,
     ) -> str:
         title_start_time = get_current_time()
         logger.info(
@@ -253,7 +256,7 @@ class ChatOrchestrator:
                 if chat_request.regenerate_title:
                     title_task = asyncio.create_task(
                         self.generate_title_event(
-                            user_message_text,
+                            chat_request.content_blocks,
                             conversation_id=conversation_id,
                         )
                     )
