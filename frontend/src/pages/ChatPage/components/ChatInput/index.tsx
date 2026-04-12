@@ -89,7 +89,10 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, clas
     <ConfigProvider theme={{ components: { Form: { itemMarginBottom: 0 } } }}>
       <Form
         form={form}
-        style={style}
+        style={{
+          padding: isSmallScreen ? "0 8px" : undefined,
+          ...style,
+        }}
         layout="horizontal"
         onValuesChange={onValuesChange}
         className={classNames("flex flex-col gap-3", className)}
