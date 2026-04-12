@@ -1,53 +1,56 @@
-# Schema 给后端使用说明（当前实现）
+# 前端请求体给后端使用说明（当前实现）
 
 ## 1. 结论
 
-当前实现中，前端**不直接把 schema 放进聊天请求体**。
-前端只传组件工具配置，后端根据组件名自行获取 schema：
+当前聊天请求不包含组件工具 schema，也不包含 `componentToolsForBackend`。
 
-- 请求字段：`componentToolsForBackend`
-- 后端字段：`component_tools_for_backend`
-- schema 拉取方：后端 `ComponentSchemaService`
+前端发送给 `POST /api/chat/stream` 的核心字段来自 `ChatRequest`（`src/interfaces/chat.ts`）：
 
-## 2. 前端发送内容
+- `content`
+- `conversationId`
+- `historyIds`
+- `removedMessageIds`
+- `regenerateTitle`
+- `thinkMode`
+- `mcpAutoMode`
+- `sourceConfig`
 
-`ChatRequest` 中组件字段（见 `src/interfaces/chat.ts`）：
+请求发出前会在 `src/services/chat.ts` 中通过 `snakecaseKeys` 转为后端蛇形字段，例如：
 
-- `componentToolsForBackend: Pick<ComponentToolRequestItem, "name" | "whenCondition" | "when">[]`
+- `conversationId` -> `conversation_id`
+- `historyIds` -> `history_ids`
+- `removedMessageIds` -> `removed_message_ids`
 
-即每项包含：
+## 2. 为什么这里不再记录组件 schema 传输
 
-- `name`
-- `whenCondition`
-- `when`
+仓库当前代码中：
 
-不包含 `schema` 本体。
+- 前端 `src/interfaces/chat.ts` 的 `ChatRequest` 无 `componentToolsForBackend`
+- 后端 `backend/app/schemas/chat.py` 的 `ChatRequest` 无 `component_tools_for_backend`
 
-## 3. 后端如何拿到 schema
+因此“前端随请求传组件规则/Schema，后端按该字段消费”的口径不适用于现网实现。
 
-后端收到聊天请求后，会在组件工具阶段通过 `ComponentSchemaService` 请求：
+## 3. 可直接复用的请求示例
 
-- `{component_schema_api_url}/{component_name}.json`
+```json
+{
+  "content": "帮我总结今天的 AI 新闻",
+  "conversationId": "c123",
+  "historyIds": ["m1", "m2"],
+  "removedMessageIds": [],
+  "regenerateTitle": false,
+  "thinkMode": true,
+  "mcpAutoMode": true,
+  "sourceConfig": {
+    "web_search": true
+  }
+}
+```
 
-例如：
+> 实际发送到后端时会自动转换为 snake_case。
 
-- `/component-schemas/weather.json`
+## 4. 常见坑
 
-并在服务端缓存（类级缓存）后继续用于组件工具调用与结果生成。
+- 直接按旧文档添加 `componentToolsForBackend`，后端不会消费该字段。
+- 调试抓包时看到后端字段名与前端 TS 类型不一致是正常现象（snake_case 转换导致）。
 
-## 4. 为什么采用“后端拉取 schema”
-
-相比“前端内联 schema”方案，当前实现的优点：
-
-- 请求体更小；
-- schema 版本由后端拉取时统一控制；
-- 前端无需维护 schema 传输逻辑；
-- 后端可统一做缓存与重试。
-
-## 5. 文档边界
-
-以下属于历史方案，不适用于当前代码：
-
-- `component_tools` 请求字段；
-- 前端把 `schema` 一并放入聊天请求体；
-- 后端直接从请求体读取 `schema` 的示例代码。
