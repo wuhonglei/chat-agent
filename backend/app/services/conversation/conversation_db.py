@@ -49,12 +49,14 @@ class ConversationDbService(DbService):
             user_id=user_id,
         )
         db.add(conversation)
-        # 所有字段（id, created_at, updated_at 等）都通过 default_factory 在对象创建时生成
-        # 不需要 refresh()，事务由 get_db() 自动提交
-        logger.debug("Conversation registered", conversation_id=conversation.id)
+        # 先构建返回数据，再提交事务。
+        # SQLAlchemy 在 commit 后会过期对象状态，直接 model_dump 可能拿到空对象。
         conversation_info = ConversationInfo.model_validate(
             self.conversation_to_dict(conversation)
         )
+        # 显式提交，避免“注册成功后紧接着发首条消息”时被下一请求读不到会话的竞态。
+        # 对依赖注入场景而言，即便 get_db() 在请求收尾再次 commit，也不会产生副作用。
+        db.commit()
         return conversation_info
 
     def get_conversations(self, user_id: str) -> list[ConversationInfo]:

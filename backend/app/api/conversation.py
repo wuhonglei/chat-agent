@@ -16,6 +16,7 @@ from app.schemas.conversation import (
 from app.schemas.response import ApiResponse
 from app.services.conversation import ConversationDbService
 from app.utils.auth_deps import get_auth_token_info, require_auth
+from app.utils.logger import logger
 
 router = APIRouter()
 
@@ -30,6 +31,11 @@ async def register_conversation(
     service = ConversationDbService(db)
     conversation_info = service.register_conversation(
         title=request.title, user_id=token_info.user_id
+    )
+    logger.info(
+        "Conversation registered for chat stream",
+        conversation_id=conversation_info.id,
+        user_id=token_info.user_id,
     )
     return ApiResponse.success(data=conversation_info, msg="对话创建成功")
 

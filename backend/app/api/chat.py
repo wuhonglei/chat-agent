@@ -27,6 +27,11 @@ async def stream_chat(
         "Chat stream request received",
         chat_request=chat_request.model_dump(exclude_none=True),
     )
+    logger.info(
+        "Chat stream bootstrap",
+        conversation_id=chat_request.conversation_id,
+        user_id=auth_info.user_id,
+    )
 
     user_metadata = chat_request.model_dump(
         exclude_none=True, exclude={"content_blocks"}
