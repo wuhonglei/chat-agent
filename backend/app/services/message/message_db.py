@@ -48,6 +48,10 @@ class MessageDbService(DbService):
         db = self._ensure_db()
         conversation = db.get(ConversationDb, conversation_id)
         if not conversation:
+            logger.warning(
+                "Conversation not found during message flow",
+                conversation_id=conversation_id,
+            )
             raise HTTPException(status_code=404, detail="对话不存在")
         return conversation
 
