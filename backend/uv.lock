@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 1
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -803,7 +803,7 @@ requires-dist = [
     { name = "sqlalchemy", specifier = ">=2.0.49" },
     { name = "sqlmodel", specifier = ">=0.0.27" },
     { name = "tavily-python", specifier = ">=0.7.23" },
-    { name = "tencentcloud-sdk-python-sms", specifier = ">=3.0.0" },
+    { name = "tencentcloud-sdk-python-sms", specifier = ">=3.1.56" },
     { name = "toolz", specifier = ">=1.1.0" },
     { name = "tzlocal", specifier = ">=5.3.1" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.27.0" },
@@ -4625,26 +4625,26 @@ wheels = [
 
 [[package]]
 name = "tencentcloud-sdk-python-common"
-version = "3.1.50"
+version = "3.1.76"
 source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }
 dependencies = [
     { name = "requests" },
 ]
-sdist = { url = "https://mirrors.aliyun.com/pypi/packages/33/e3/ccb35f2c6cc6ec63f078fd203eb61a5ca641db59ac31ff5e6f9a717923ec/tencentcloud_sdk_python_common-3.1.50.tar.gz", hash = "sha256:804b4d39b43253b56a1987430d6caea0a400e13c7f5643bd8c031697fddfa0d2" }
+sdist = { url = "https://mirrors.aliyun.com/pypi/packages/00/35/10cbb27521680445bd57d55f836b0ea782e99f7ca4f0bbfc4d73cc8b85b7/tencentcloud_sdk_python_common-3.1.76.tar.gz", hash = "sha256:49f3aac59c9256decc39f7b6dbc626b49bb3a6719cf54c6c4fe1add881a55950" }
 wheels = [
-    { url = "https://mirrors.aliyun.com/pypi/packages/7c/ac/0e37b46f28281462681d91dc558bac79153d9ae3fff0fb7c859625aeb3da/tencentcloud_sdk_python_common-3.1.50-py2.py3-none-any.whl", hash = "sha256:0a3e28833935d61e4b876e2761a79080f987df361585d9f652300ef4284fab76" },
+    { url = "https://mirrors.aliyun.com/pypi/packages/21/5d/587e4f14e09d93b2aaecaed5154af76729b3de470357f11d1aa4afb5749b/tencentcloud_sdk_python_common-3.1.76-py2.py3-none-any.whl", hash = "sha256:3a34b5fc2a8f9f10f532bfe474ae291ff5f6212e0f3aa01df4fd9b3ac96c6d62" },
 ]
 
 [[package]]
 name = "tencentcloud-sdk-python-sms"
-version = "3.0.1482"
+version = "3.1.56"
 source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }
 dependencies = [
     { name = "tencentcloud-sdk-python-common" },
 ]
-sdist = { url = "https://mirrors.aliyun.com/pypi/packages/d5/5b/1339abe4b4702ce685cef8c9859a330d6f151f0942e443b07555042377bf/tencentcloud_sdk_python_sms-3.0.1482.tar.gz", hash = "sha256:b3815164a4f6db71d82e725e305176bf1593eec14d5d63bd496fd631db0d216b" }
+sdist = { url = "https://mirrors.aliyun.com/pypi/packages/9a/d4/1625a439dc3477a00c149079742c523414f4a674c7e00f8a8fe0a03dc9fa/tencentcloud_sdk_python_sms-3.1.56.tar.gz", hash = "sha256:bee162c1b08800d6740feca939c224694f14b2a8cb2572db9e635d4141362841" }
 wheels = [
-    { url = "https://mirrors.aliyun.com/pypi/packages/da/88/ab34f0f3afda6ea12123212e33d4850f4a49adbbd754345ee76e1e99091f/tencentcloud_sdk_python_sms-3.0.1482-py2.py3-none-any.whl", hash = "sha256:449d894b05efe0f1f56f70765c321640ac1f9e357e96a4fff9914da885745ef5" },
+    { url = "https://mirrors.aliyun.com/pypi/packages/4e/11/51092895620a18c93a6eeb2322713feb1e622a980753893daf6fdd6cfdf0/tencentcloud_sdk_python_sms-3.1.56-py2.py3-none-any.whl", hash = "sha256:812939e9f48213131bcd37096dc670adcd60f7569fe7d5a336258dd4b4bfdc17" },
 ]
 
 [[package]]
