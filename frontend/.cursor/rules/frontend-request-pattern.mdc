@@ -1,0 +1,30 @@
+---
+description: 统一前端接口请求模式，优先使用 ahooks useRequest
+globs: frontend/src/**/*.tsx
+alwaysApply: false
+---
+
+# Frontend Request Pattern
+
+前端在组件或页面发起接口请求时，优先使用 `ahooks` 的 `useRequest`，保持请求状态管理与错误处理风格一致。
+
+## 约定
+
+- 在组件或页面中发请求，优先使用 `useRequest`（如 `manual`、`onSuccess`、`onError`）。
+- 不要在组件里直接散落 `api.xxx().then().catch()` 作为主模式。
+- 需要复用的请求逻辑，封装为自定义 Hook，并在 Hook 内使用 `useRequest`。
+- 保持 `loading`、错误提示、重试逻辑与 `useRequest` 生命周期对齐。
+
+## 示例
+
+```tsx
+// ✅ 推荐
+const { runAsync, loading } = useRequest(api.fetchData, { manual: true });
+await runAsync(params);
+```
+
+```tsx
+// ❌ 避免
+setLoading(true);
+api.fetchData(params).finally(() => setLoading(false));
+```
