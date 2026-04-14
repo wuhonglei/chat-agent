@@ -9,6 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, delete, select
 
 from app.models import ConversationDb, MessageDb
+from app.models.message_db import default_feedback_payload
 from app.schemas.chat import (
     AssistantResponse,
     ChatMessage,
@@ -167,6 +168,7 @@ class MessageDbService(DbService):
             conversation_id=conversation.id,
             message_metadata=metadata or {},
             status=MessageStatus.DONE,
+            feedback=None,
         )
         return self._persist_message(message, conversation)
 
@@ -185,6 +187,7 @@ class MessageDbService(DbService):
             message_metadata=metadata or {},
             status=MessageStatus.PENDING,
             reply_to=reply_to,
+            feedback=default_feedback_payload(),
         )
         return self._persist_message(message, conversation)
 

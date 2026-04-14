@@ -59,7 +59,7 @@ class MessageDb(SQLModel, table=True):
     reply_to: str | None = Field(
         default=None, description="关联的用户消息 ID", max_length=36
     )
-    feedback: dict[str, Any] = Field(
+    feedback: dict[str, Any] | None = Field(
         default_factory=default_feedback_payload,
         sa_type=SQLJSON,
         description="消息反馈（value、updated_at）",
