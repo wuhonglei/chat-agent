@@ -1,3 +1,4 @@
+import image404 from "@/assets/imgs/404_image.png";
 import { useIsSmallScreen } from "@/hooks";
 import {
   ContentBlock,
@@ -33,6 +34,7 @@ function attachmentToFileCardItem(
         src: block.url,
         type: "image",
         imageProps: {
+          fallback: image404,
           styles: {
             root: {
               display: "flex",

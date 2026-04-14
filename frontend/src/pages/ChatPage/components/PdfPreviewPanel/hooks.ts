@@ -1,23 +1,20 @@
 import { useDebounce, useSize } from "ahooks";
-import { RefObject, useEffect, useMemo } from "react";
+import { RefObject, useCallback, useEffect, useState } from "react";
 
 interface UsePdfPreviewAutoCloseOnSmallScreenParams {
   isSmallScreen: boolean;
-  hasPreviewingPdf: boolean;
   onClose: () => void;
 }
 
 export const usePdfPreviewAutoCloseOnSmallScreen = ({
   isSmallScreen,
-  hasPreviewingPdf,
   onClose,
 }: UsePdfPreviewAutoCloseOnSmallScreenParams) => {
   useEffect(() => {
-    if (!isSmallScreen || !hasPreviewingPdf) {
-      return;
+    if (isSmallScreen) {
+      onClose();
     }
-    onClose();
-  }, [hasPreviewingPdf, isSmallScreen, onClose]);
+  }, [isSmallScreen, onClose]);
 };
 
 export const usePdfPageWidth = (contentRef: RefObject<HTMLDivElement | null>) => {
@@ -26,8 +23,61 @@ export const usePdfPageWidth = (contentRef: RefObject<HTMLDivElement | null>) =>
     wait: 100,
   });
 
-  return useMemo(() => {
-    if (!widthDebounced) return 360;
-    return Math.max(widthDebounced - 24, 240);
-  }, [widthDebounced]);
+  if (!widthDebounced) return 360;
+  return Math.max(widthDebounced - 24, 240);
+};
+
+const PDF_LOAD_ERROR_MESSAGE = "PDF 加载失败，请重试";
+
+export const usePdfPreviewState = (pdfUrl: string) => {
+  const [numPages, setNumPages] = useState(0);
+  const [hasRenderedFirstPage, setHasRenderedFirstPage] = useState(false);
+  const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
+
+  const resetPreviewState = useCallback(() => {
+    setNumPages(0);
+    setHasRenderedFirstPage(false);
+  }, []);
+
+  const handleDocumentLoadSuccess = useCallback(({ numPages: loadedPages }: { numPages: number }) => {
+    setNumPages(loadedPages);
+    setLoadErrorMessage(null);
+    setHasRenderedFirstPage(false);
+  }, []);
+
+  const handlePdfLoadError = useCallback(
+    (error: Error) => {
+      resetPreviewState();
+      setLoadErrorMessage(error.message || PDF_LOAD_ERROR_MESSAGE);
+    },
+    [resetPreviewState]
+  );
+
+  const handleRetryPreview = useCallback(() => {
+    resetPreviewState();
+    setLoadErrorMessage(null);
+    setReloadToken(previous => previous + 1);
+  }, [resetPreviewState]);
+
+  const markFirstPageAsRendered = useCallback(() => {
+    setHasRenderedFirstPage(true);
+  }, []);
+
+  useEffect(() => {
+    resetPreviewState();
+    setLoadErrorMessage(null);
+    setReloadToken(0);
+  }, [pdfUrl, resetPreviewState]);
+
+  return {
+    numPages,
+    loadErrorMessage,
+    reloadToken,
+    isPreviewReady: numPages > 0 && hasRenderedFirstPage,
+    handleDocumentLoadSuccess,
+    handlePdfLoadError,
+    handleRetryPreview,
+    markFirstPageAsRendered,
+  };
 };
