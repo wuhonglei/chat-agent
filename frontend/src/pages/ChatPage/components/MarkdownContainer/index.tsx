@@ -10,11 +10,11 @@ import styles from "./index.module.css";
 type Props = {
   gray?: boolean;
   className?: string;
-  styles?: React.CSSProperties;
+  style?: React.CSSProperties;
   children: string | undefined;
 };
 
-const MarkdownContainer = ({ children, gray, className, styles: markdownStyles }: Props) => {
+const MarkdownContainer = ({ children, gray, className, style: markdownStyle }: Props) => {
   const [markdownClassName] = useMarkdownTheme();
 
   if (!children) {
@@ -27,7 +27,7 @@ const MarkdownContainer = ({ children, gray, className, styles: markdownStyles }
       components={{
         code: CustomCodeBlock,
       }}
-      style={markdownStyles}
+      style={markdownStyle}
       config={{ extensions: [...Latex()] }}
       className={classNames(markdownClassName, styles["x-markdown"], gray && styles["gray"], className)}
     >

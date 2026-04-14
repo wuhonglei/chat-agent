@@ -13,7 +13,7 @@ function attachmentToFileCardItem(block: UserAttachmentBlock): FileCardProps {
       const ext = block.mime.split("/")[1]?.split("+")[0] || "png";
       return {
         key: block.id,
-        name: `image.${ext}`,
+        name: block.name?.trim() || `image.${ext}`,
         byte: block.size,
         src: block.url,
         type: "image",

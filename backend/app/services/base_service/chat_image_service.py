@@ -40,6 +40,27 @@ _EXT_TO_MEDIA_TYPE: dict[str, str] = {
     ".webp": "image/webp",
 }
 
+_STEM_SAFE_RE = re.compile(r"[^\w\-. \u0080-\uFFFF]+", re.UNICODE)
+
+
+def _sanitize_image_display_name(raw: str | None, *, ext: str) -> str:
+    """用户上传文件的展示名：去路径/控制字符/保留 Windows 非法字符，限制长度。"""
+    ext_norm = ext if ext.startswith(".") else f".{ext}"
+    stem = "image"
+    if raw:
+        base = Path(str(raw)).name
+        base = base.replace("\x00", "")
+        base = "".join(c for c in base if ord(c) >= 32)
+        base = re.sub(r'[<>:"|?*\\/]', "_", base)
+        base = base.strip(" .")
+        if base:
+            stem_candidate = Path(base).stem
+            stem_candidate = _STEM_SAFE_RE.sub("_", stem_candidate)
+            stem_candidate = stem_candidate.strip(" ._-")
+            if stem_candidate:
+                stem = stem_candidate[:180]
+    return f"{stem}{ext_norm}"
+
 
 def _user_upload_dir(user_id: str) -> Path:
     if not user_id or "/" in user_id or "\\" in user_id or ".." in user_id:
@@ -178,18 +199,18 @@ async def save_chat_image(*, user_id: str, file: UploadFile) -> ImageBlock:
     dest = upload_dir / filename
 
     chunk = await file.read(MAX_CHAT_IMAGE_BYTES + 1)
-    size = len(chunk)
-    if size > MAX_CHAT_IMAGE_BYTES:
+    if len(chunk) > MAX_CHAT_IMAGE_BYTES:
         raise HTTPException(status_code=400, detail="图片大小不能超过 10MB")
     processed = _downscale_image_bytes(chunk, ext)
     dest.write_bytes(processed)
-    size = len(processed)
+    stored_size = len(processed)
+    display_name = _sanitize_image_display_name(file.filename, ext=ext)
 
     logger.info(
         "Chat image saved",
         user_id=user_id,
         filename=filename,
-        bytes=size,
+        bytes=stored_size,
     )
 
     url = f"/api/file/image/preview/{user_id}/{filename}"
@@ -200,7 +221,8 @@ async def save_chat_image(*, user_id: str, file: UploadFile) -> ImageBlock:
         id=block_id,
         type="image",
         url=url,
-        size=size,
+        name=display_name,
+        size=stored_size,
         mime=mime_normalized,
     )
 
