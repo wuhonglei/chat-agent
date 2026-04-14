@@ -29,6 +29,7 @@ const ChatPage: React.FC = () => {
   const isSmallScreen = useIsSmallScreen();
   const [form] = Form.useForm<ChatInputFormValues>();
   const [previewingPdf, setPreviewingPdf] = useState<PdfBlock | null>(null);
+  const [rightPanelSize, setRightPanelSize] = useState<number | string>(0);
 
   useCachedRequest(conversationId, conversationInfo);
 
@@ -50,6 +51,7 @@ const ChatPage: React.FC = () => {
 
   const handlePreviewPdf = useMemoizedFn((block: PdfBlock) => {
     emitter.emit(EventType.ChangeSidebarCollapse, true);
+    setRightPanelSize(prev => (prev === 0 ? "40%" : prev));
     setPreviewingPdf(block);
   });
 
@@ -58,13 +60,21 @@ const ChatPage: React.FC = () => {
       emitter.emit(EventType.ChangeSidebarCollapse, false);
     }
     setPreviewingPdf(null);
+    setRightPanelSize(0);
   });
-
-  const rightPanelSize = previewingPdf ? "40%" : 0;
+  const handleSplitterResize = useMemoizedFn((sizes: number[]) => {
+    if (!previewingPdf) {
+      return;
+    }
+    const nextRightPanelSize = sizes[1];
+    if (typeof nextRightPanelSize === "number") {
+      setRightPanelSize(nextRightPanelSize);
+    }
+  });
 
   return (
     <section className="h-full min-h-0">
-      <Splitter style={{ height: "100%", width: "100%" }}>
+      <Splitter style={{ height: "100%", width: "100%" }} onResize={handleSplitterResize}>
         <Splitter.Panel defaultSize="60%" min={previewingPdf ? "40%" : 0}>
           <section className="h-full min-h-0 flex flex-col">
             <TopHeader conversationInfo={conversationInfo} />
@@ -95,7 +105,7 @@ const ChatPage: React.FC = () => {
           </section>
         </Splitter.Panel>
         <Splitter.Panel
-          size={rightPanelSize}
+          size={previewingPdf ? rightPanelSize : 0}
           min={previewingPdf ? "20%" : 0}
           max={previewingPdf ? "60%" : 0}
           resizable={Boolean(previewingPdf)}
