@@ -20,7 +20,7 @@ const WEATHER_TOOL_NAMES = new Set([
 
 const CODE_EXEC_TOOL_NAMES = new Set(["execute_code", "list_runtimes"]);
 
-const CONTEXT7_TOOL_NAMES = new Set(["resolve-library-id", "query-docs"]);
+export const CONTEXT7_TOOL_NAMES = new Set(["resolve-library-id", "query-docs"]);
 
 function normalizeToolName(toolName?: string): string {
   return (toolName || "").trim().toLowerCase();

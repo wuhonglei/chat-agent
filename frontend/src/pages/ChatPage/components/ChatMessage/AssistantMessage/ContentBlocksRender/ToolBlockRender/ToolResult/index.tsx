@@ -2,6 +2,9 @@ import type { ToolResultBlock } from "@/interfaces/contentBlock";
 import CodeHighlighter from "@/pages/ChatPage/components/MarkdownContainer/components/CodeHighlighter";
 import React, { useMemo } from "react";
 
+import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
+import { Divider } from "antd";
+import { CONTEXT7_TOOL_NAMES } from "../toolIcons";
 import { getResultLanguage, stringifyJsonLike } from "../utils";
 import WebSearchResult from "./WebSearchResult";
 
@@ -11,6 +14,8 @@ type ToolResultProps = {
   toolName?: string;
   toolResultBlock?: ToolResultBlock;
 };
+
+const containerStyle = { maxHeight: 300, width: "100%", overflow: "auto" };
 
 const ToolResult: React.FC<ToolResultProps> = ({ toolName, toolResultBlock }) => {
   const resultLanguage = useMemo(() => getResultLanguage(toolResultBlock?.content || ""), [toolResultBlock?.content]);
@@ -33,12 +38,21 @@ const ToolResult: React.FC<ToolResultProps> = ({ toolName, toolResultBlock }) =>
     return <WebSearchResult items={searchDisplayItems} />;
   }
 
+  if (toolName && CONTEXT7_TOOL_NAMES.has(toolName)) {
+    return (
+      <>
+        <Divider orientation="horizontal" style={{ margin: 0 }}></Divider>
+        <MarkdownContainer style={containerStyle}>{toolResultBlock.content}</MarkdownContainer>
+      </>
+    );
+  }
+
   return (
     <CodeHighlighter
       lang={resultLanguage}
       header={"Result is"}
       styles={{
-        code: { maxHeight: 300, width: "100%", overflow: "auto" },
+        code: containerStyle,
       }}
     >
       {stringifyJsonLike(toolResultBlock.content || "")}
