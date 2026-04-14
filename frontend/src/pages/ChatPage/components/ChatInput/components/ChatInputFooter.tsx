@@ -1,6 +1,7 @@
 import SquareIcon from "@/assets/svg/SquareIcon.svg?react";
 import ThinkModeIcon from "@/assets/svg/ThinkModeIcon.svg?react";
 import CustomButton from "@/components/common/CustomButton";
+import { useIsSmallScreen } from "@/hooks";
 import { ChatInputConfig } from "@/interfaces";
 import { ArrowUpOutlined, PaperClipOutlined } from "@ant-design/icons";
 import { Button, Divider, Form, Tooltip } from "antd";
@@ -23,6 +24,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = ({
   buttonState,
   onPrimaryClick,
 }) => {
+  const isSmallScreen = useIsSmallScreen();
   return (
     <div className="flex items-center gap-2 justify-between">
       <div className="flex items-center gap-2">
@@ -32,7 +34,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = ({
         <Form.Item hidden name={names.sourceConfig}>
           <span />
         </Form.Item>
-        <Tooltip title={CHAT_ATTACHMENT_TOOLTIP} mouseEnterDelay={0.5} trigger={["hover"]}>
+        <Tooltip title={isSmallScreen ? undefined : CHAT_ATTACHMENT_TOOLTIP}>
           <Button
             type="text"
             aria-label="文件上传"
@@ -43,7 +45,12 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = ({
         </Tooltip>
         <Divider orientation="vertical" style={{ margin: 0 }} />
         <Form.Item trigger="onClick" initialValue={false} valuePropName="active" name={names.thinkMode}>
-          <CustomButton bordered={false} size="middle" icon={<ThinkModeIcon />} tooltip="先思考后回答, 解决推理问题">
+          <CustomButton
+            bordered={false}
+            size="middle"
+            icon={<ThinkModeIcon />}
+            tooltip={isSmallScreen ? undefined : "先思考后回答, 解决推理问题"}
+          >
             深度思考
           </CustomButton>
         </Form.Item>
