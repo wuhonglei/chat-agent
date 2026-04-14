@@ -85,27 +85,27 @@ const ChatPage: React.FC = () => {
     </div>
   );
 
-  return (
-    <section className="h-full flex flex-col">
+  const leftPanelContent = (
+    <section className="h-full min-h-0 flex flex-col">
       <TopHeader conversationInfo={conversationInfo} />
-      <main className="flex-1 min-h-0 flex">
-        {previewingPdf ? (
-          <Splitter style={{ height: "100%", width: "100%" }}>
-            <Splitter.Panel defaultSize="60%" min="40%">
-              {chatContent}
-            </Splitter.Panel>
-            <Splitter.Panel defaultSize="40%" min="20%" max="60%">
-              <PdfPreviewPanel
-                pdfUrl={previewingPdf.url}
-                isSmallScreen={isSmallScreen}
-                onClose={handleClosePreviewPdf}
-              />
-            </Splitter.Panel>
-          </Splitter>
-        ) : (
-          chatContent
-        )}
-      </main>
+      <main className="flex-1 min-h-0 flex">{chatContent}</main>
+    </section>
+  );
+
+  return (
+    <section className="h-full min-h-0">
+      {previewingPdf ? (
+        <Splitter style={{ height: "100%", width: "100%" }}>
+          <Splitter.Panel defaultSize="60%" min="40%">
+            {leftPanelContent}
+          </Splitter.Panel>
+          <Splitter.Panel defaultSize="40%" min="20%" max="60%">
+            <PdfPreviewPanel pdfUrl={previewingPdf.url} isSmallScreen={isSmallScreen} onClose={handleClosePreviewPdf} />
+          </Splitter.Panel>
+        </Splitter>
+      ) : (
+        leftPanelContent
+      )}
     </section>
   );
 };
