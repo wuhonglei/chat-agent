@@ -86,10 +86,10 @@ const ChatPage: React.FC = () => {
       <main className="flex-1 min-h-0 flex">
         {previewingPdf ? (
           <Splitter style={{ height: "100%", width: "100%" }}>
-            <Splitter.Panel defaultSize="68%" min="40%">
+            <Splitter.Panel defaultSize="60%" min="40%">
               {chatContent}
             </Splitter.Panel>
-            <Splitter.Panel defaultSize="32%" min="20%" max="60%">
+            <Splitter.Panel defaultSize="40%" min="20%" max="60%">
               <PdfPreviewPanel
                 pdfUrl={previewingPdf.url}
                 pdfName={previewingPdf.name}

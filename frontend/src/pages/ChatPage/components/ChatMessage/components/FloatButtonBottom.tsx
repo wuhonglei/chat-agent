@@ -1,6 +1,5 @@
-import { EventType, useEmitter } from "@/events";
 import { DownOutlined } from "@ant-design/icons";
-import { useDebounceFn, useMemoizedFn, useThrottleFn } from "ahooks";
+import { useMemoizedFn, useThrottleFn } from "ahooks";
 import { Button } from "antd";
 import React, { useEffect, useState } from "react";
 
@@ -22,10 +21,6 @@ export default function FloatButtonBottom({ containerRef, visibilityHeight }: Pr
   const { run: onScrollThrottled } = useThrottleFn(onScrollHandler, {
     wait: 100,
   });
-  const { run: onScrollDebounced } = useDebounceFn(onScrollHandler, {
-    wait: 500,
-  });
-  useEmitter(EventType.BlockCollapse, onScrollDebounced);
 
   useEffect(() => {
     const container = containerRef.current;

@@ -2,17 +2,11 @@ import { useMemoizedFn } from "ahooks";
 import mitt, { Emitter } from "mitt";
 import { useEffect } from "react";
 export enum EventType {
-  McpToolCallDone = "mcpToolCallDone",
-  ReasoningDone = "reasoningDone",
   ChangeConversion = "changeConversion", // 切换对话
-  BlockCollapse = "blockCollapse", // 块折叠 或展开
 }
 
 type Events = {
-  [EventType.McpToolCallDone]: void;
-  [EventType.ReasoningDone]: void;
   [EventType.ChangeConversion]: void;
-  [EventType.BlockCollapse]: boolean;
 };
 
 export const emitter: Emitter<Events> = mitt<Events>();
