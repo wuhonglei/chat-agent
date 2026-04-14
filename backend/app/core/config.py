@@ -18,6 +18,7 @@ from app.schemas.config import (
     EmbeddingModelConfig,
     LLMConfig,
     MCPConfig,
+    PdfMarkdownConfig,
     SecurityConfig,
     SmsConfig,
     StorageConfig,
@@ -45,6 +46,10 @@ class Settings(BaseSettings):
     security: SecurityConfig = Field(description="JWT 安全配置")
     sms: SmsConfig = Field(description="腾讯云短信配置")
     database: DatabaseConfig = Field(description="PostgreSQL 数据库配置")
+    pdf_markdown: PdfMarkdownConfig = Field(
+        default_factory=PdfMarkdownConfig,
+        description="PDF 转 Markdown 配置",
+    )
     chat_context: ChatContextConfig = Field(
         default_factory=ChatContextConfig, description="对话上下文配置"
     )

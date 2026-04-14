@@ -229,6 +229,40 @@ class DatabaseConfig(BaseModel):
     password: str = Field(description="PostgreSQL 数据库密码")
 
 
+class PdfMarkdownConfig(BaseModel):
+    """PDF 转 Markdown 配置"""
+
+    enabled: bool = Field(default=True, description="是否启用 PDF 自动转 Markdown")
+    scan_text_threshold: int = Field(
+        default=50,
+        ge=0,
+        description="扫描型判定阈值：前 N 页文字总长度小于该值视为扫描型",
+    )
+    detect_pages: int = Field(
+        default=3,
+        ge=1,
+        description="PDF 类型检测时读取的页数",
+    )
+    mineru_kie_base_url: str = Field(
+        default="https://mineru.net/api/kie",
+        description="MinerU KIE API 根地址",
+    )
+    mineru_kie_pipeline_id: str = Field(
+        default="",
+        description="MinerU KIE Pipeline ID",
+    )
+    poll_interval_seconds: float = Field(
+        default=3.0,
+        gt=0,
+        description="KIE 结果轮询间隔（秒）",
+    )
+    poll_timeout_seconds: float = Field(
+        default=180.0,
+        gt=0,
+        description="KIE 结果轮询超时（秒）",
+    )
+
+
 # ---- 上下文压缩子配置 ----
 class ToolResultCompressionConfig(BaseModel):
     """工具结果压缩与摘要配置"""

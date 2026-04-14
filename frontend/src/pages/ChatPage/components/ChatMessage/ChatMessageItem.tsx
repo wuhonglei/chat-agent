@@ -1,4 +1,4 @@
-import { ChatMessage as ChatMessageType } from "@/interfaces";
+import { ChatMessage as ChatMessageType, MessageFeedbackValue } from "@/interfaces";
 import { PdfBlock } from "@/interfaces/contentBlock";
 import { useMemoizedFn } from "ahooks";
 import React from "react";
@@ -13,6 +13,7 @@ interface ChatMessageItemProps {
   isLastMessage: boolean;
   onEditMessage: (index: number, content: string) => void;
   onDeleteMessage: (messageId: string) => void | Promise<void>;
+  onUpdateMessageFeedback: (messageId: string, value: MessageFeedbackValue) => Promise<void>;
   onReSend: (index: number, message: ChatMessageType) => void;
   onPreviewPdf: (block: PdfBlock) => void;
 }
@@ -25,6 +26,7 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   isLoading,
   onEditMessage,
   onDeleteMessage,
+  onUpdateMessageFeedback,
   onReSend,
   onPreviewPdf,
 }) => {
@@ -37,6 +39,9 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   });
   const handleDeleteMessage = useMemoizedFn(() => {
     onDeleteMessage(message.id);
+  });
+  const handleUpdateFeedback = useMemoizedFn((value: MessageFeedbackValue) => {
+    return onUpdateMessageFeedback(message.id, value);
   });
 
   return isUser ? (
@@ -55,6 +60,7 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
       isStreaming={isStreaming}
       onReSend={handleReSend}
       onDeleteMessage={handleDeleteMessage}
+      onUpdateMessageFeedback={handleUpdateFeedback}
     />
   );
 };

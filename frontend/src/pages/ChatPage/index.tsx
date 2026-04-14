@@ -20,7 +20,7 @@ const ChatPage: React.FC = () => {
   const conversationInfo = useConversationInfo(urlConversationId);
   const conversationId = conversationInfo?.id || urlConversationId;
 
-  const { sendMessage, reSendMessage, abortMessage, deleteMessage } = useChatMessage({
+  const { sendMessage, reSendMessage, abortMessage, deleteMessage, updateMessageFeedback } = useChatMessage({
     conversationId,
   });
   const { isStreaming, isLoading } = useChatState(conversationId);
@@ -28,14 +28,16 @@ const ChatPage: React.FC = () => {
   const [form] = Form.useForm<ChatInputFormValues>();
   const { previewingPdf, rightPanelSize, handlePreviewPdf, handleClosePreviewPdf, handleSplitterResize } =
     usePdfPreviewHandlers({ isSmallScreen });
-  const { handleEditMessage, handleReSend, handleAbortMessage, handleDeleteMessage } = useChatMessageHandlers({
-    form,
-    conversationId,
-    sendMessage,
-    reSendMessage,
-    abortMessage,
-    deleteMessage,
-  });
+  const { handleEditMessage, handleReSend, handleAbortMessage, handleDeleteMessage, handleUpdateMessageFeedback } =
+    useChatMessageHandlers({
+      form,
+      conversationId,
+      sendMessage,
+      reSendMessage,
+      abortMessage,
+      deleteMessage,
+      updateMessageFeedback,
+    });
 
   useCachedRequest(conversationId, conversationInfo);
 
@@ -57,6 +59,7 @@ const ChatPage: React.FC = () => {
                   onDeleteMessage={handleDeleteMessage}
                   onPreviewPdf={handlePreviewPdf}
                   className={styles["markdown-container"]}
+                  onUpdateMessageFeedback={handleUpdateMessageFeedback}
                 />
                 {/* Input area */}
                 <ChatInput

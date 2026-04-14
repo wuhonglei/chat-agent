@@ -22,6 +22,25 @@ class MessageStatus(str, Enum):
     FAILED = "failed"  # 失败(答案生成失败)
 
 
+class MessageFeedbackValue(str, Enum):
+    """Message feedback value"""
+
+    DEFAULT = "default"
+    LIKE = "like"
+    DISLIKE = "dislike"
+
+
+class MessageFeedback(BaseModel):
+    """Message feedback payload"""
+
+    value: MessageFeedbackValue = Field(
+        default=MessageFeedbackValue.DEFAULT, description="Feedback value"
+    )
+    updated_at: datetime | None = Field(
+        default=None, description="Feedback updated timestamp"
+    )
+
+
 class SourceConfig(BaseModel):
     """Source configuration model"""
 
@@ -64,6 +83,9 @@ class ChatMessage(BaseModel):
     reply_to: str | None = Field(
         default=None,
         description="ID of the user message this assistant message replies to",
+    )
+    feedback: MessageFeedback = Field(
+        default_factory=MessageFeedback, description="Message feedback"
     )
 
     model_config = ConfigDict(extra="ignore")

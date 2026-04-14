@@ -39,7 +39,7 @@ const UserMessage: React.FC<UserMessageProps> = ({
         placement="end"
         content={textContent || " "}
         variant={isEditing ? "borderless" : "filled"}
-        className={isEditing ? "min-w-[80%]" : "max-w-[70%]"}
+        className={isEditing ? "min-w-[80%]" : "max-w-[80%]"}
         classNames={{
           body: "w-full",
           content: "w-full whitespace-pre-wrap wrap-break-word",

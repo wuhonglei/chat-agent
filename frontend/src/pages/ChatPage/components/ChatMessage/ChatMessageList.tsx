@@ -1,5 +1,5 @@
 import { useChatState } from "@/hooks";
-import { ChatMessage as ChatMessageType } from "@/interfaces";
+import { ChatMessage as ChatMessageType, MessageFeedbackValue } from "@/interfaces";
 import { PdfBlock } from "@/interfaces/contentBlock";
 import classNames from "classnames";
 import React, { useRef } from "react";
@@ -15,6 +15,7 @@ interface ChatMessageListProps {
   className?: string;
   onEditMessage: (index: number, content: string) => void;
   onDeleteMessage: (messageId: string) => void | Promise<void>;
+  onUpdateMessageFeedback: (messageId: string, value: MessageFeedbackValue) => Promise<void>;
   onReSend: (index: number, message: ChatMessageType) => void;
   onPreviewPdf: (block: PdfBlock) => void;
 }
@@ -26,6 +27,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
   className,
   onEditMessage,
   onDeleteMessage,
+  onUpdateMessageFeedback,
   onReSend,
   onPreviewPdf,
 }) => {
@@ -45,9 +47,10 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
           key={message.id}
           message={message}
           onReSend={onReSend}
+          onPreviewPdf={onPreviewPdf}
           onEditMessage={onEditMessage}
           onDeleteMessage={onDeleteMessage}
-          onPreviewPdf={onPreviewPdf}
+          onUpdateMessageFeedback={onUpdateMessageFeedback}
           isLastMessage={index === messages.length - 1}
           isLoading={isLoading && index === messages.length - 1}
           isStreaming={isStreaming && index === messages.length - 1}
