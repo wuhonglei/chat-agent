@@ -1,9 +1,9 @@
 import CodeExecIcon from "@/assets/svg/mcp-tools/code-exec.svg?react";
 import Context7Icon from "@/assets/svg/mcp-tools/context7.svg?react";
+import WeatherIcon from "@/assets/svg/mcp-tools/weather.svg?react";
 import WebCrawlIcon from "@/assets/svg/mcp-tools/web-crawl.svg?react";
 import WebExtractIcon from "@/assets/svg/mcp-tools/web-extract.svg?react";
 import WebResearchIcon from "@/assets/svg/mcp-tools/web-research.svg?react";
-import WeatherIcon from "@/assets/svg/mcp-tools/weather.svg?react";
 import WebSearchIcon from "@/assets/svg/mcp-tools/web-search.svg?react";
 import { ToolOutlined } from "@ant-design/icons";
 import React from "react";
@@ -20,12 +20,7 @@ const WEATHER_TOOL_NAMES = new Set([
 
 const CODE_EXEC_TOOL_NAMES = new Set(["execute_code", "list_runtimes"]);
 
-const CONTEXT7_TOOL_NAMES = new Set([
-  "resolve-library-id",
-  "get-library-docs",
-  "resolve_library_id",
-  "get_library_docs",
-]);
+const CONTEXT7_TOOL_NAMES = new Set(["resolve-library-id", "query-docs"]);
 
 function normalizeToolName(toolName?: string): string {
   return (toolName || "").trim().toLowerCase();
