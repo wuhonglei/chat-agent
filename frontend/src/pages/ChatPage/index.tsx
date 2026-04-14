@@ -1,17 +1,15 @@
-import { emitter, EventType } from "@/events";
 import { useChatMessage, useChatState, useIsSmallScreen } from "@/hooks";
 import { useCachedRequest, useConversationInfo } from "@/hooks/chat";
-import { ChatInputFormValues, ChatMessage as ChatMessageType } from "@/interfaces";
-import { PdfBlock } from "@/interfaces/contentBlock";
-import { useMemoizedFn } from "ahooks";
+import { ChatInputFormValues } from "@/interfaces";
 import { Form, Splitter } from "antd";
 import classNames from "classnames";
-import React, { useState } from "react";
+import React from "react";
 import { useParams } from "react-router-dom";
 import ChatInput from "./components/ChatInput";
 import { ChatMessageList } from "./components/ChatMessage";
 import PdfPreviewPanel from "./components/PdfPreviewPanel";
 import TopHeader from "./components/TopHeader";
+import { useChatMessageHandlers, usePdfPreviewHandlers } from "./hooks";
 import styles from "./index.module.css";
 
 const ChatPage: React.FC = () => {
@@ -28,43 +26,22 @@ const ChatPage: React.FC = () => {
   const { isStreaming, isLoading } = useChatState(conversationId);
   const isSmallScreen = useIsSmallScreen();
   const [form] = Form.useForm<ChatInputFormValues>();
-  const [previewingPdf, setPreviewingPdf] = useState<PdfBlock | null>(null);
+  const { previewingPdf, rightPanelSize, handlePreviewPdf, handleClosePreviewPdf, handleSplitterResize } =
+    usePdfPreviewHandlers({ isSmallScreen });
+  const { handleEditMessage, handleReSend, handleAbortMessage, handleDeleteMessage } = useChatMessageHandlers({
+    form,
+    conversationId,
+    sendMessage,
+    reSendMessage,
+    abortMessage,
+    deleteMessage,
+  });
 
   useCachedRequest(conversationId, conversationInfo);
 
-  const handleEditMessage = useMemoizedFn((index: number, content: string) => {
-    sendMessage({ ...form.getFieldsValue(), content }, { index });
-  });
-
-  const handleReSend = useMemoizedFn((index: number, message: ChatMessageType) => {
-    reSendMessage(index, message, form.getFieldsValue());
-  });
-
-  const handleAbortMessage = useMemoizedFn(() => {
-    abortMessage(conversationId);
-  });
-
-  const handleDeleteMessage = useMemoizedFn((messageId: string) => {
-    return deleteMessage(messageId);
-  });
-
-  const handlePreviewPdf = useMemoizedFn((block: PdfBlock) => {
-    emitter.emit(EventType.ChangeSidebarCollapse, true);
-    setPreviewingPdf(block);
-  });
-
-  const handleClosePreviewPdf = useMemoizedFn(() => {
-    if (!isSmallScreen) {
-      emitter.emit(EventType.ChangeSidebarCollapse, false);
-    }
-    setPreviewingPdf(null);
-  });
-
-  const rightPanelSize = previewingPdf ? "40%" : 0;
-
   return (
     <section className="h-full min-h-0">
-      <Splitter style={{ height: "100%", width: "100%" }}>
+      <Splitter style={{ height: "100%", width: "100%" }} onResize={handleSplitterResize}>
         <Splitter.Panel defaultSize="60%" min={previewingPdf ? "40%" : 0}>
           <section className="h-full min-h-0 flex flex-col">
             <TopHeader conversationInfo={conversationInfo} />
@@ -95,13 +72,18 @@ const ChatPage: React.FC = () => {
           </section>
         </Splitter.Panel>
         <Splitter.Panel
-          size={rightPanelSize}
+          size={previewingPdf ? rightPanelSize : 0}
           min={previewingPdf ? "20%" : 0}
           max={previewingPdf ? "60%" : 0}
           resizable={Boolean(previewingPdf)}
         >
           {previewingPdf ? (
-            <PdfPreviewPanel pdfUrl={previewingPdf.url} isSmallScreen={isSmallScreen} onClose={handleClosePreviewPdf} />
+            <PdfPreviewPanel
+              pdfUrl={previewingPdf.url}
+              pdfName={previewingPdf.name}
+              isSmallScreen={isSmallScreen}
+              onClose={handleClosePreviewPdf}
+            />
           ) : null}
         </Splitter.Panel>
       </Splitter>

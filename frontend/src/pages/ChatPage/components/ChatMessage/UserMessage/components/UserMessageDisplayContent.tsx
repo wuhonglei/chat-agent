@@ -1,3 +1,4 @@
+import image404 from "@/assets/imgs/404_image.png";
 import { useIsSmallScreen } from "@/hooks";
 import {
   ContentBlock,
@@ -6,17 +7,12 @@ import {
   type TextBlock,
   type UserAttachmentBlock,
 } from "@/interfaces/contentBlock";
+import { downloadFileByUrl } from "@/utils";
 import { FileCard, type FileCardProps } from "@ant-design/x";
 import React, { useMemo } from "react";
 
 function triggerPdfDownload(block: PdfBlock) {
-  const anchor = document.createElement("a");
-  anchor.href = block.url;
-  anchor.download = block.name?.trim() || "document.pdf";
-  anchor.rel = "noopener noreferrer";
-  document.body.appendChild(anchor);
-  anchor.click();
-  document.body.removeChild(anchor);
+  downloadFileByUrl(block.url, block.name?.trim() || "document.pdf");
 }
 
 interface AttachmentToFileCardItemOptions {
@@ -38,6 +34,7 @@ function attachmentToFileCardItem(
         src: block.url,
         type: "image",
         imageProps: {
+          fallback: image404,
           styles: {
             root: {
               display: "flex",
