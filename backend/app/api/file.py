@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse
 from app.schemas.auth import AuthTokenPayload
 from app.schemas.chat import ImageBlock, PdfBlock
 from app.schemas.response import ApiResponse
-from app.services.base_service.chat_image_service import (
+from app.services.base_service.chat_attachment_service import (
     media_type_for_preview,
     save_chat_attachment,
     user_upload_file_path,

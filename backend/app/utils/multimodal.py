@@ -15,7 +15,7 @@ from app.schemas.chat import (
     extract_user_text,
     normalize_content_blocks,
 )
-from app.services.base_service.chat_image_service import user_upload_file_path
+from app.services.base_service.chat_attachment_service import user_upload_file_path
 from app.utils.logger import logger
 
 _IMAGE_PREVIEW_PATH_PATTERNS = (
