@@ -6,6 +6,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
+import PdfDocumentErrorBoundary from "./PdfDocumentErrorBoundary";
 import { usePdfPageWidth, usePdfPreviewAutoCloseOnSmallScreen } from "./hooks";
 
 pdfjs.GlobalWorkerOptions.workerPort = new PdfWorker();
@@ -21,6 +22,8 @@ const PdfPreviewPanel: React.FC<PdfPreviewPanelProps> = ({ pdfUrl, pdfName, isSm
   const [numPages, setNumPages] = useState(0);
   const [isDocumentLoaded, setIsDocumentLoaded] = useState(false);
   const [hasRenderedFirstPage, setHasRenderedFirstPage] = useState(false);
+  const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
   const contentRef = useRef<HTMLDivElement>(null);
 
   usePdfPreviewAutoCloseOnSmallScreen({
@@ -36,11 +39,33 @@ const PdfPreviewPanel: React.FC<PdfPreviewPanelProps> = ({ pdfUrl, pdfName, isSm
   const handleDownloadPdf = () => {
     downloadFileByUrl(pdfUrl, pdfName?.trim() || "document.pdf");
   };
-
-  useEffect(() => {
+  const resetPreviewState = () => {
     setNumPages(0);
     setIsDocumentLoaded(false);
     setHasRenderedFirstPage(false);
+  };
+  const handlePdfLoadError = (error: Error) => {
+    resetPreviewState();
+    setLoadErrorMessage(error.message || "PDF 加载失败，请重试");
+  };
+  const handleRetryPreview = () => {
+    resetPreviewState();
+    setLoadErrorMessage(null);
+    setReloadToken(previous => previous + 1);
+  };
+  const errorFallback = (
+    <div className="w-full py-8 text-center text-(--ant-color-error)">
+      <Typography.Paragraph className="mb-3!">{loadErrorMessage || "PDF 加载失败，请重试"}</Typography.Paragraph>
+      <Button type="default" onClick={handleRetryPreview}>
+        重新加载
+      </Button>
+    </div>
+  );
+
+  useEffect(() => {
+    resetPreviewState();
+    setLoadErrorMessage(null);
+    setReloadToken(0);
   }, [pdfUrl]);
 
   return (
@@ -53,41 +78,49 @@ const PdfPreviewPanel: React.FC<PdfPreviewPanelProps> = ({ pdfUrl, pdfName, isSm
         </div>
       </header>
       <div ref={contentRef} className="flex-1 min-h-0 overflow-auto p-3">
-        <Document
-          className="w-full"
-          file={pdfUrl}
-          onLoadSuccess={({ numPages: loadedPages }) => {
-            setNumPages(loadedPages);
-            setIsDocumentLoaded(true);
-          }}
-          onLoadError={() => {
-            setNumPages(0);
-            setIsDocumentLoaded(false);
-            setHasRenderedFirstPage(false);
-          }}
-          loading={<div className="w-full py-8 text-center text-(--ant-color-text-tertiary)">PDF 加载中...</div>}
-          noData={<div className="w-full py-8 text-center text-(--ant-color-text-tertiary)">暂无可预览 PDF</div>}
-          error={<div className="w-full py-8 text-center text-(--ant-color-error)">PDF 加载失败，请重试</div>}
-        >
-          <Spin spinning={numPages > 0 && !isPreviewReady} delay={100}>
-            <div className="space-y-3">
-              {pageNumbers.map(currentPageNumber => (
-                <Page
-                  key={currentPageNumber}
-                  pageNumber={currentPageNumber}
-                  width={pageWidth}
-                  onRenderSuccess={
-                    currentPageNumber === 1
-                      ? () => {
-                          setHasRenderedFirstPage(true);
-                        }
-                      : undefined
-                  }
-                />
-              ))}
-            </div>
-          </Spin>
-        </Document>
+        {loadErrorMessage ? (
+          errorFallback
+        ) : (
+          <PdfDocumentErrorBoundary
+            resetKey={`${pdfUrl}-${reloadToken}`}
+            onError={handlePdfLoadError}
+            fallback={errorFallback}
+          >
+            <Document
+              key={`${pdfUrl}-${reloadToken}`}
+              className="w-full"
+              file={pdfUrl}
+              onLoadSuccess={({ numPages: loadedPages }) => {
+                setNumPages(loadedPages);
+                setIsDocumentLoaded(true);
+              }}
+              onLoadError={handlePdfLoadError}
+              onSourceError={handlePdfLoadError}
+              loading={<div className="w-full py-8 text-center text-(--ant-color-text-tertiary)">PDF 加载中...</div>}
+              noData={<div className="w-full py-8 text-center text-(--ant-color-text-tertiary)">暂无可预览 PDF</div>}
+              error={errorFallback}
+            >
+              <Spin spinning={numPages > 0 && !isPreviewReady} delay={100}>
+                <div className="space-y-3">
+                  {pageNumbers.map(currentPageNumber => (
+                    <Page
+                      key={currentPageNumber}
+                      pageNumber={currentPageNumber}
+                      width={pageWidth}
+                      onRenderSuccess={
+                        currentPageNumber === 1
+                          ? () => {
+                              setHasRenderedFirstPage(true);
+                            }
+                          : undefined
+                      }
+                    />
+                  ))}
+                </div>
+              </Spin>
+            </Document>
+          </PdfDocumentErrorBoundary>
+        )}
       </div>
     </section>
   );

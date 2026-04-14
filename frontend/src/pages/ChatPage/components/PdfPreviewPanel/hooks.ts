@@ -22,12 +22,12 @@ export const usePdfPreviewAutoCloseOnSmallScreen = ({
 
 export const usePdfPageWidth = (contentRef: RefObject<HTMLDivElement | null>) => {
   const contentSize = useSize(contentRef);
-  const contentSizeDebounced = useDebounce(contentSize, {
+  const widthDebounced = useDebounce(contentSize?.width, {
     wait: 100,
   });
 
   return useMemo(() => {
-    if (!contentSizeDebounced?.width) return 360;
-    return Math.max(contentSizeDebounced.width - 24, 240);
-  }, [contentSizeDebounced?.width]);
+    if (!widthDebounced) return 360;
+    return Math.max(widthDebounced - 24, 240);
+  }, [widthDebounced]);
 };
