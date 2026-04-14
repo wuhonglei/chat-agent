@@ -1,11 +1,12 @@
 import { CloseOutlined } from "@ant-design/icons";
 import { useThrottleFn } from "ahooks";
-import { Button, Typography } from "antd";
+import { Button } from "antd";
 import React, { useRef, useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import { usePdfPageWidth, usePdfPreviewAutoCloseOnSmallScreen } from "./hooks";
+import PaginationControl from "./PaginationControl";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
 
@@ -50,7 +51,7 @@ const PdfPreviewPanel: React.FC<PdfPreviewPanelProps> = ({ pdfUrl, isSmallScreen
   return (
     <section className="h-full min-h-0 flex flex-col border-l border-(--ant-color-border-secondary) bg-(--ant-color-bg-layout)">
       <header className="flex items-center justify-between gap-2 px-3 py-2 border-b border-(--ant-color-border-secondary) bg-(--ant-color-bg-container)">
-        <Typography.Text type="secondary">{numPages > 0 ? `${pageNumber} / ${numPages}` : "- / -"}</Typography.Text>
+        <PaginationControl numPages={numPages} pageNumber={pageNumber} onPageNumberChange={setPageNumber} />
         <Button type="text" onClick={onClose} icon={<CloseOutlined />}></Button>
       </header>
       <div ref={contentRef} className="flex-1 min-h-0 overflow-auto p-3" onWheel={onWheelThrottled}>

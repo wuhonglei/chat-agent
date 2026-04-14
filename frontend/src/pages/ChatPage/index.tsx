@@ -97,7 +97,6 @@ const ChatPage: React.FC = () => {
             <Splitter.Panel defaultSize="40%" min="20%" max="60%">
               <PdfPreviewPanel
                 pdfUrl={previewingPdf.url}
-                pdfName={previewingPdf.name}
                 isSmallScreen={isSmallScreen}
                 onClose={handleClosePreviewPdf}
               />
