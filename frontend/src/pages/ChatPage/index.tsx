@@ -60,52 +60,51 @@ const ChatPage: React.FC = () => {
     setPreviewingPdf(null);
   });
 
-  const chatContent = (
-    <div className={classNames("flex-1 min-w-0 flex flex-col h-full bg-white", styles.container)}>
-      {/* 渲染消息列表 */}
-      <ChatMessageList
-        isLoading={isLoading}
-        onReSend={handleReSend}
-        isStreaming={isStreaming}
-        conversationId={conversationId}
-        onEditMessage={handleEditMessage}
-        onDeleteMessage={handleDeleteMessage}
-        onPreviewPdf={handlePreviewPdf}
-        className={styles["markdown-container"]}
-      />
-      {/* Input area */}
-      <ChatInput
-        form={form}
-        onSend={sendMessage}
-        isStreaming={isStreaming}
-        onStop={handleAbortMessage}
-        className={styles["input-container"]}
-      />
-      <div className="mx-auto py-1 md:py-1.5 text-black-quaternary text-xs">内容由 AI 生成，请仔细甄别</div>
-    </div>
-  );
-
-  const leftPanelContent = (
-    <section className="h-full min-h-0 flex flex-col">
-      <TopHeader conversationInfo={conversationInfo} />
-      <main className="flex-1 min-h-0 flex">{chatContent}</main>
-    </section>
-  );
+  const rightPanelSize = previewingPdf ? "40%" : 0;
 
   return (
     <section className="h-full min-h-0">
-      {previewingPdf ? (
-        <Splitter style={{ height: "100%", width: "100%" }}>
-          <Splitter.Panel defaultSize="60%" min="40%">
-            {leftPanelContent}
-          </Splitter.Panel>
-          <Splitter.Panel defaultSize="40%" min="20%" max="60%">
+      <Splitter style={{ height: "100%", width: "100%" }}>
+        <Splitter.Panel defaultSize="60%" min={previewingPdf ? "40%" : 0}>
+          <section className="h-full min-h-0 flex flex-col">
+            <TopHeader conversationInfo={conversationInfo} />
+            <main className="flex-1 min-h-0 flex">
+              <div className={classNames("flex-1 min-w-0 flex flex-col h-full bg-white", styles.container)}>
+                {/* 渲染消息列表 */}
+                <ChatMessageList
+                  isLoading={isLoading}
+                  onReSend={handleReSend}
+                  isStreaming={isStreaming}
+                  conversationId={conversationId}
+                  onEditMessage={handleEditMessage}
+                  onDeleteMessage={handleDeleteMessage}
+                  onPreviewPdf={handlePreviewPdf}
+                  className={styles["markdown-container"]}
+                />
+                {/* Input area */}
+                <ChatInput
+                  form={form}
+                  onSend={sendMessage}
+                  isStreaming={isStreaming}
+                  onStop={handleAbortMessage}
+                  className={styles["input-container"]}
+                />
+                <div className="mx-auto py-1 md:py-1.5 text-black-quaternary text-xs">内容由 AI 生成，请仔细甄别</div>
+              </div>
+            </main>
+          </section>
+        </Splitter.Panel>
+        <Splitter.Panel
+          size={rightPanelSize}
+          min={previewingPdf ? "20%" : 0}
+          max={previewingPdf ? "60%" : 0}
+          resizable={Boolean(previewingPdf)}
+        >
+          {previewingPdf ? (
             <PdfPreviewPanel pdfUrl={previewingPdf.url} isSmallScreen={isSmallScreen} onClose={handleClosePreviewPdf} />
-          </Splitter.Panel>
-        </Splitter>
-      ) : (
-        leftPanelContent
-      )}
+          ) : null}
+        </Splitter.Panel>
+      </Splitter>
     </section>
   );
 };
