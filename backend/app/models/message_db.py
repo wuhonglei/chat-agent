@@ -9,6 +9,13 @@ from app.utils.common import gen_uuid
 from app.utils.date import get_datetime_now
 
 
+def default_feedback_payload() -> dict[str, Any]:
+    return {
+        "value": "default",
+        "updated_at": None,
+    }
+
+
 class MessageDb(SQLModel, table=True):
     """消息模型"""
 
@@ -51,4 +58,9 @@ class MessageDb(SQLModel, table=True):
     )
     reply_to: str | None = Field(
         default=None, description="关联的用户消息 ID", max_length=36
+    )
+    feedback: dict[str, Any] = Field(
+        default_factory=default_feedback_payload,
+        sa_type=SQLJSON,
+        description="消息反馈（value、updated_at）",
     )

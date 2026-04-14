@@ -1,7 +1,9 @@
 import CopyButton from "@/components/common/CopyButton";
-import { ChatMessage as ChatMessageType } from "@/interfaces";
+import { ChatMessage as ChatMessageType, MessageFeedbackValue } from "@/interfaces";
 import { getMessageTextFromBlocks } from "@/interfaces/contentBlock";
 import { DeleteOutlined, RedoOutlined } from "@ant-design/icons";
+import { Actions } from "@ant-design/x";
+import { useMemoizedFn, useRequest } from "ahooks";
 import { Button, Popconfirm } from "antd";
 import classNames from "classnames";
 
@@ -10,15 +12,21 @@ type Props = {
   showDelete: boolean;
   onReSend: () => void;
   onDelete: () => void | Promise<void>;
+  onFeedback: (value: MessageFeedbackValue) => Promise<void>;
 };
 
 export default function AssistantOperation(props: Props) {
-  const { message, showDelete, onReSend, onDelete } = props;
+  const { message, showDelete, onReSend, onDelete, onFeedback } = props;
   const textContent = getMessageTextFromBlocks(message.contentBlocks);
+  const currentFeedback = message.feedback?.value || "default";
+  const { runAsync: runFeedbackUpdate } = useRequest(onFeedback, {
+    manual: true,
+  });
 
   return (
     <div className={classNames("w-full flex items-center gap-2 transition duration-300")}>
       <CopyButton size="middle" text={textContent} children={null} />
+      <Actions.Feedback value={currentFeedback} onChange={runFeedbackUpdate} />
       <Button type="text" icon={<RedoOutlined />} onClick={onReSend} />
       {showDelete ? (
         <Popconfirm title="确定删除这条消息？" okText="删除" cancelText="取消" onConfirm={onDelete}>

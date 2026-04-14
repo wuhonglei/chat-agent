@@ -1,5 +1,5 @@
 import { emitter, EventType } from "@/events";
-import { ChatInputFormValues, ChatMessage as ChatMessageType } from "@/interfaces";
+import { ChatInputFormValues, ChatMessage as ChatMessageType, MessageFeedbackValue } from "@/interfaces";
 import { PdfBlock } from "@/interfaces/contentBlock";
 import { useMemoizedFn } from "ahooks";
 import type { FormInstance } from "antd";
@@ -16,6 +16,7 @@ interface UseChatMessageHandlersParams {
   reSendMessage: (index: number, message: ChatMessageType, values: ChatInputFormValues) => void;
   abortMessage: (conversationId: string) => void;
   deleteMessage: (messageId: string) => void | Promise<void>;
+  updateMessageFeedback: (messageId: string, value: MessageFeedbackValue) => Promise<void>;
 }
 
 export const useChatMessageHandlers = ({
@@ -25,6 +26,7 @@ export const useChatMessageHandlers = ({
   reSendMessage,
   abortMessage,
   deleteMessage,
+  updateMessageFeedback,
 }: UseChatMessageHandlersParams) => {
   const handleEditMessage = useMemoizedFn((index: number, content: string) => {
     sendMessage({ ...form.getFieldsValue(), content }, { index });
@@ -42,11 +44,16 @@ export const useChatMessageHandlers = ({
     return deleteMessage(messageId);
   });
 
+  const handleUpdateMessageFeedback = useMemoizedFn((messageId: string, value: MessageFeedbackValue) => {
+    return updateMessageFeedback(messageId, value);
+  });
+
   return {
     handleEditMessage,
     handleReSend,
     handleAbortMessage,
     handleDeleteMessage,
+    handleUpdateMessageFeedback,
   };
 };
 

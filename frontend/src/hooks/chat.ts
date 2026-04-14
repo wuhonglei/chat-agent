@@ -37,7 +37,7 @@ import {
 import { useEffect, useMemo, useRef } from "react";
 
 import { db } from "@/indexDB";
-import { MessageStatus, TitleCreatedBy } from "@/interfaces";
+import { MessageFeedbackValue, MessageStatus, TitleCreatedBy } from "@/interfaces";
 import { buildUserContentBlocks, getMessageTextFromBlocks, isUserAttachmentBlock } from "@/interfaces/contentBlock";
 import {
   buildTempAssistantMessage,
@@ -73,6 +73,7 @@ export interface UseChatMessageReturn {
   deleteUserMessage: (messageId: string) => Promise<void>;
   reSendMessage: (index: number, message: ChatMessage, formData: ChatInputConfig) => Promise<void>;
   sendMessage: (values: ChatInputFormValues, options?: SendMessageOptions) => Promise<void>;
+  updateMessageFeedback: (messageId: string, value: MessageFeedbackValue) => Promise<void>;
 }
 
 export const useChatState = (conversationId: string) => {
@@ -132,6 +133,37 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
     } catch (error) {
       reportError("deleteMessage", { error, conversationId, messageId });
       message.error("删除失败");
+    }
+  });
+
+  const updateMessageFeedback = useMemoizedFn(async (messageId: string, value: MessageFeedbackValue): Promise<void> => {
+    if (isStreaming) {
+      return;
+    }
+    try {
+      const updatedFeedback = await chatAPI.updateMessageFeedback(messageId, value);
+      const targetMessage = messages.find(item => item.id === messageId);
+      if (!targetMessage) {
+        return;
+      }
+      dispatch(
+        replaceMessageById({
+          conversationId,
+          messageId,
+          data: {
+            ...targetMessage,
+            feedback: updatedFeedback,
+          },
+        })
+      );
+    } catch (error) {
+      reportError("updateMessageFeedback", {
+        error,
+        conversationId,
+        messageId,
+        value,
+      });
+      message.error("反馈更新失败");
     }
   });
 
@@ -366,6 +398,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
     abortMessage,
     deleteMessage,
     reSendMessage,
+    updateMessageFeedback,
   };
 };
 

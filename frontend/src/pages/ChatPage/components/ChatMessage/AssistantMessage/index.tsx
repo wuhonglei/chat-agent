@@ -1,4 +1,4 @@
-import { ChatMessage as ChatMessageType } from "@/interfaces";
+import { ChatMessage as ChatMessageType, MessageFeedbackValue } from "@/interfaces";
 import { Bubble } from "@ant-design/x";
 import React from "react";
 import AssistantOperation from "../components/AssistantOperation";
@@ -12,6 +12,7 @@ interface AssistantMessageProps {
   isLoading: boolean;
   onReSend: () => void;
   onDeleteMessage: () => void | Promise<void>;
+  onUpdateMessageFeedback: (value: MessageFeedbackValue) => Promise<void>;
 }
 
 const AssistantMessage: React.FC<AssistantMessageProps> = ({
@@ -21,6 +22,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
   isLoading,
   onReSend,
   onDeleteMessage,
+  onUpdateMessageFeedback,
 }) => {
   const canDelete = useAssistantCanDelete({
     isLastMessage,
@@ -39,7 +41,13 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
       contentRender={() => <ContentBlocksRender contentBlocks={message.contentBlocks} isStreaming={isStreaming} />}
       footer={
         isStreaming ? null : (
-          <AssistantOperation message={message} onReSend={onReSend} onDelete={onDeleteMessage} showDelete={canDelete} />
+          <AssistantOperation
+            message={message}
+            onReSend={onReSend}
+            onDelete={onDeleteMessage}
+            showDelete={canDelete}
+            onFeedback={onUpdateMessageFeedback}
+          />
         )
       }
     />

@@ -2,7 +2,14 @@ import { fetchEventSource } from "@microsoft/fetch-event-source";
 import { AxiosResponse } from "axios";
 
 import { authHeader } from "@/constants";
-import { ChatMessage, ChatRequest, MCPConfigItem, StreamMessage } from "@/interfaces";
+import {
+  ChatMessage,
+  ChatRequest,
+  MCPConfigItem,
+  MessageFeedback,
+  MessageFeedbackValue,
+  StreamMessage,
+} from "@/interfaces";
 import { isUnAuthorized, reportError, toLoginPage } from "@/utils";
 import camelcaseKeys from "camelcase-keys";
 import snakecaseKeys from "snakecase-keys";
@@ -19,6 +26,10 @@ export const chatAPI = {
 
   deleteMessage: async (messageId: string): Promise<void> => {
     await apiClient.delete(`/message/delete/${messageId}`);
+  },
+
+  updateMessageFeedback: async (messageId: string, value: MessageFeedbackValue): Promise<MessageFeedback> => {
+    return await apiClient.put(`/message/feedback/${messageId}`, { value });
   },
 
   // Stream message

@@ -16,6 +16,13 @@ export enum MessageStatus {
   Failed = "failed",
 }
 
+export type MessageFeedbackValue = "default" | "like" | "dislike";
+
+export interface MessageFeedback {
+  value: MessageFeedbackValue;
+  updatedAt: string | null;
+}
+
 export interface SearchSourceMetaData {
   lastModifiedTime?: string; // "2025-09-26T15:48:43.000+08:00";
   lastModifierName?: string; // "张三";
@@ -43,6 +50,7 @@ export interface ChatMessage {
   status: MessageStatus;
   messageMetadata: Omit<ChatInputFormValues, "message">;
   replyTo: string; // role为assistant时，回复到哪个user消息
+  feedback?: MessageFeedback;
 }
 
 export interface ChatHistory {
