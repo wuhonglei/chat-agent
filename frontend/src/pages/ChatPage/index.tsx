@@ -101,7 +101,12 @@ const ChatPage: React.FC = () => {
           resizable={Boolean(previewingPdf)}
         >
           {previewingPdf ? (
-            <PdfPreviewPanel pdfUrl={previewingPdf.url} isSmallScreen={isSmallScreen} onClose={handleClosePreviewPdf} />
+            <PdfPreviewPanel
+              pdfUrl={previewingPdf.url}
+              pdfName={previewingPdf.name}
+              isSmallScreen={isSmallScreen}
+              onClose={handleClosePreviewPdf}
+            />
           ) : null}
         </Splitter.Panel>
       </Splitter>
