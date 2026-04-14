@@ -84,8 +84,8 @@ class ChatMessage(BaseModel):
         default=None,
         description="ID of the user message this assistant message replies to",
     )
-    feedback: MessageFeedback = Field(
-        default_factory=MessageFeedback, description="Message feedback"
+    feedback: MessageFeedback | None = Field(
+        default=None, description="Message feedback"
     )
 
     model_config = ConfigDict(extra="ignore")
