@@ -176,7 +176,16 @@ class ImageBlock(BaseModel):
     url: str = Field(
         ..., description="Preview URL path (e.g. /api/file/image/preview/...)"
     )
-    size: int = Field(..., ge=0, description="File size in bytes")
+    name: str = Field(
+        default="",
+        max_length=240,
+        description="展示用文件名（已安全化）；历史数据可能为空",
+    )
+    size: int = Field(
+        ...,
+        ge=0,
+        description="落盘文件字节数（经缩放/重编码等处理后的实际大小）",
+    )
     mime: str = Field(..., description="MIME type e.g. image/jpeg")
 
 

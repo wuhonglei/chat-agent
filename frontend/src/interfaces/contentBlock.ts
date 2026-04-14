@@ -34,7 +34,9 @@ export interface ImageBlock {
   id: string;
   type: "image";
   url: string;
-  /** 字节大小 */
+  /** 展示用文件名（服务端已安全化）；历史消息可能缺省 */
+  name?: string;
+  /** 落盘文件字节数（经缩放/重编码等处理后的实际大小） */
   size: number;
   /** 如 image/jpeg */
   mime: string;
