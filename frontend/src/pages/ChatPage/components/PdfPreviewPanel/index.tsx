@@ -1,4 +1,4 @@
-import { LeftOutlined, RightOutlined } from "@ant-design/icons";
+import { CloseOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { useSize } from "ahooks";
 import { Button, Typography } from "antd";
 import React, { useMemo, useRef, useState } from "react";
@@ -43,9 +43,7 @@ const PdfPreviewPanel: React.FC<PdfPreviewPanelProps> = ({ pdfUrl, pdfName, isSm
         <Typography.Text ellipsis={{ tooltip: pdfName }} className="min-w-0">
           {pdfName?.trim() || "PDF 预览"}
         </Typography.Text>
-        <Button size="small" onClick={onClose}>
-          关闭
-        </Button>
+        <Button type="text" onClick={onClose} icon={<CloseOutlined />}></Button>
       </header>
       <div className="flex items-center justify-center gap-2 px-3 py-2 border-b border-(--ant-color-border-secondary) bg-(--ant-color-bg-container)">
         <Button

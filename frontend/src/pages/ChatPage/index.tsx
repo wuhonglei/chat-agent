@@ -1,3 +1,4 @@
+import { emitter, EventType } from "@/events";
 import { useChatMessage, useChatState, useIsSmallScreen } from "@/hooks";
 import { useCachedRequest, useConversationInfo } from "@/hooks/chat";
 import { ChatInputFormValues, ChatMessage as ChatMessageType } from "@/interfaces";
@@ -48,10 +49,14 @@ const ChatPage: React.FC = () => {
   });
 
   const handlePreviewPdf = useMemoizedFn((block: PdfBlock) => {
+    emitter.emit(EventType.ChangeSidebarCollapse, true);
     setPreviewingPdf(block);
   });
 
   const handleClosePreviewPdf = useMemoizedFn(() => {
+    if (!isSmallScreen) {
+      emitter.emit(EventType.ChangeSidebarCollapse, false);
+    }
     setPreviewingPdf(null);
   });
 

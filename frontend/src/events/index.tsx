@@ -3,10 +3,12 @@ import mitt, { Emitter } from "mitt";
 import { useEffect } from "react";
 export enum EventType {
   ChangeConversion = "changeConversion", // 切换对话
+  ChangeSidebarCollapse = "changeSidebarCollapse", // 切换侧边栏折叠状态
 }
 
 type Events = {
   [EventType.ChangeConversion]: void;
+  [EventType.ChangeSidebarCollapse]: boolean;
 };
 
 export const emitter: Emitter<Events> = mitt<Events>();
