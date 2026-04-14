@@ -11,7 +11,6 @@ from app.schemas.response import ApiResponse
 from app.services.base_service.chat_image_service import (
     media_type_for_preview,
     save_chat_attachment,
-    save_chat_image,
     user_upload_file_path,
 )
 from app.services.base_service.file_service import FileService
@@ -30,18 +29,7 @@ async def upload_chat_attachment(
     return ApiResponse.success(data=block, msg="上传成功")
 
 
-@router.post("/image/upload")
-async def upload_chat_image(
-    file: UploadFile = File(...),
-    auth_info: AuthTokenPayload = Depends(get_auth_token_info),
-) -> ApiResponse[ImageBlock]:
-    """兼容旧路径：上传聊天图片（需登录）。"""
-    block = await save_chat_image(user_id=auth_info.user_id, file=file)
-    return ApiResponse.success(data=block, msg="上传成功")
-
-
 @router.get("/preview/{user_id}/{filename}")
-@router.get("/image/preview/{user_id}/{filename}")
 async def preview_chat_attachment(user_id: str, filename: str) -> FileResponse:
     """预览已上传附件（无需登录）；依赖路径不可猜测性。"""
     path: Path = user_upload_file_path(user_id, filename)
