@@ -38,7 +38,7 @@ import { useEffect, useMemo, useRef } from "react";
 
 import { db } from "@/indexDB";
 import { MessageStatus, TitleCreatedBy } from "@/interfaces";
-import { buildUserContentBlocks, getMessageTextFromBlocks, ImageBlock } from "@/interfaces/contentBlock";
+import { buildUserContentBlocks, getMessageTextFromBlocks, isUserAttachmentBlock } from "@/interfaces/contentBlock";
 import {
   buildTempAssistantMessage,
   buildTempUserMessage,
@@ -340,7 +340,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
           },
           {
             index,
-            attachmentBlocks: message.contentBlocks.filter((b): b is ImageBlock => b.type === "image"),
+            attachmentBlocks: message.contentBlocks.filter(isUserAttachmentBlock),
           }
         );
       } else {
@@ -354,7 +354,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
           },
           {
             index: newIndex,
-            attachmentBlocks: userMessage.contentBlocks.filter((b): b is ImageBlock => b.type === "image"),
+            attachmentBlocks: userMessage.contentBlocks.filter(isUserAttachmentBlock),
           }
         );
       }

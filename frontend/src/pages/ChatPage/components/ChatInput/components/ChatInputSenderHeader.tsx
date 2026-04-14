@@ -1,21 +1,22 @@
-import { ImageBlock } from "@/interfaces/contentBlock";
+import { type UserAttachmentBlock } from "@/interfaces/contentBlock";
 import { fileAPI } from "@/services/file";
 import { Attachments, AttachmentsProps, Sender } from "@ant-design/x";
 import type { UploadFile } from "antd";
-import { GetProp, GetRef } from "antd";
+import { GetProp, GetRef, message } from "antd";
 import React from "react";
+import { CHAT_ATTACHMENT_ACCEPT, MAX_CHAT_ATTACHMENTS, getChatAttachmentValidationError } from "../util";
 
-function withServerImagePreview(file: UploadFile<ImageBlock>): UploadFile<ImageBlock> {
+function withServerAttachmentPreview(file: UploadFile<UserAttachmentBlock>): UploadFile<UserAttachmentBlock> {
   if (file.status !== "done" || file.response == null) {
     return file;
   }
-  const { url } = file.response;
+  const response = file.response;
+  const { url } = response;
   if (typeof url !== "string" || !url) {
     return file;
   }
   // @ant-design/x 列表预览优先级为 thumbUrl || url || 本地 canvas 缩略图（约 200px，模糊）。
-  // 上传完成后改为使用服务端地址，避免使用 base64 / 低分辨率预览。
-  return { ...file, url, thumbUrl: url };
+  return { ...file, url };
 }
 
 export interface ChatInputSenderHeaderProps {
@@ -48,7 +49,8 @@ const ChatInputSenderHeader: React.FC<ChatInputSenderHeaderProps> = ({
     >
       <Attachments
         ref={attachmentsRef}
-        accept="image/*"
+        accept={CHAT_ATTACHMENT_ACCEPT}
+        maxCount={MAX_CHAT_ATTACHMENTS}
         styles={{
           placeholder: {
             padding: 0,
@@ -69,13 +71,21 @@ const ChatInputSenderHeader: React.FC<ChatInputSenderHeaderProps> = ({
         }}
         items={attachmentItems}
         placeholder={undefined}
+        beforeUpload={file => {
+          const error = getChatAttachmentValidationError(file as File, attachmentItems?.length ?? 0);
+          if (error) {
+            message.warning(error);
+            return false;
+          }
+          return true;
+        }}
         onChange={({ fileList }) =>
-          setAttachmentItems(fileList.map(f => withServerImagePreview(f as UploadFile<ImageBlock>)))
+          setAttachmentItems(fileList.map(f => withServerAttachmentPreview(f as UploadFile<UserAttachmentBlock>)))
         }
         customRequest={async options => {
           const { file, onError, onSuccess } = options;
           try {
-            const block = await fileAPI.uploadChatImage(file as File);
+            const block = await fileAPI.uploadChatAttachment(file as File);
             onSuccess?.(block);
           } catch (e) {
             onError?.(e as Error);

@@ -11,14 +11,19 @@ from urllib.parse import unquote, urlparse
 from app.schemas.chat import (
     ContentBlock,
     ImageBlock,
+    PdfBlock,
     extract_user_text,
     normalize_content_blocks,
 )
 from app.services.base_service.chat_image_service import user_upload_file_path
 from app.utils.logger import logger
 
-_IMAGE_PREVIEW_PATH_RE = re.compile(r"^/api/file/image/preview/([^/]+)/([^/]+)$")
+_IMAGE_PREVIEW_PATH_PATTERNS = (
+    re.compile(r"^/api/file/preview/([^/]+)/([^/]+)$"),
+    re.compile(r"^/api/file/image/preview/([^/]+)/([^/]+)$"),
+)
 _IMAGE_ONLY_PLACEHOLDER = "[用户发送了图片]"
+_PDF_ONLY_PLACEHOLDER = "[用户发送了 PDF 文件]"
 
 
 def has_image_block(
@@ -26,6 +31,15 @@ def has_image_block(
 ) -> bool:
     return any(
         isinstance(block, ImageBlock)
+        for block in normalize_content_blocks(content_blocks)
+    )
+
+
+def has_pdf_block(
+    content_blocks: list[ContentBlock] | list[dict[str, Any]] | None,
+) -> bool:
+    return any(
+        isinstance(block, PdfBlock)
         for block in normalize_content_blocks(content_blocks)
     )
 
@@ -41,13 +55,15 @@ def extract_user_text_with_image_placeholder(
         return text
     if has_image_block(normalized_blocks):
         return placeholder
+    if has_pdf_block(normalized_blocks):
+        return _PDF_ONLY_PLACEHOLDER
     return ""
 
 
 def build_title_user_message_for_llm(
     content_blocks: list[ContentBlock] | list[dict[str, Any]] | None,
 ) -> str | list[dict[str, Any]]:
-    """Build user message for title generation: XML-wrapped query text, plus images if any."""
+    """Build title user message with wrapped text and optional images."""
     from app.prompts.prompt_utils import get_user_message_for_title
 
     normalized_blocks = normalize_content_blocks(content_blocks)
@@ -149,8 +165,12 @@ def _build_image_data_url(block: ImageBlock) -> str | None:
 def _resolve_image_path(url: str) -> Path | None:
     parsed = urlparse(url)
     raw_path = parsed.path
-    match = _IMAGE_PREVIEW_PATH_RE.match(raw_path)
-    if not match:
+    match = None
+    for pattern in _IMAGE_PREVIEW_PATH_PATTERNS:
+        match = pattern.match(raw_path)
+        if match:
+            break
+    if match is None:
         return None
 
     user_id = unquote(match.group(1))
