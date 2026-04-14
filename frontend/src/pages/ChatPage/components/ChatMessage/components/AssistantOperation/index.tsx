@@ -3,8 +3,8 @@ import { ChatMessage as ChatMessageType, MessageFeedbackValue } from "@/interfac
 import { getMessageTextFromBlocks } from "@/interfaces/contentBlock";
 import { DeleteOutlined, RedoOutlined } from "@ant-design/icons";
 import { Actions } from "@ant-design/x";
-import { useMemoizedFn, useRequest } from "ahooks";
-import { Button, Popconfirm } from "antd";
+import { useRequest } from "ahooks";
+import { Button, Popconfirm, Tooltip } from "antd";
 import classNames from "classnames";
 
 type Props = {
@@ -25,9 +25,13 @@ export default function AssistantOperation(props: Props) {
 
   return (
     <div className={classNames("w-full flex items-center gap-2 transition duration-300")}>
-      <CopyButton size="middle" text={textContent} children={null} />
+      <Tooltip title="复制">
+        <CopyButton size="middle" text={textContent} children={null} />
+      </Tooltip>
+      <Tooltip title="重新发送">
+        <Button type="text" icon={<RedoOutlined />} onClick={onReSend} />
+      </Tooltip>
       <Actions.Feedback value={currentFeedback} onChange={runFeedbackUpdate} />
-      <Button type="text" icon={<RedoOutlined />} onClick={onReSend} />
       {showDelete ? (
         <Popconfirm title="确定删除这条消息？" okText="删除" cancelText="取消" onConfirm={onDelete}>
           <Button size="small" type="text" danger icon={<DeleteOutlined />} />
