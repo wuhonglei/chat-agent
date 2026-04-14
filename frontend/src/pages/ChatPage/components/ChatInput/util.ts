@@ -6,7 +6,6 @@ import { ButtonState } from "./constant";
 export const MAX_CHAT_ATTACHMENTS = 5;
 export const MAX_CHAT_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 export const CHAT_ATTACHMENT_ACCEPT = "image/*,.pdf,application/pdf";
-export const CHAT_ATTACHMENT_TOOLTIP = "支持图片和 PDF，单文件不超过 10MB，最多 5 个附件";
 
 const IMAGE_EXT_RE = /\.(jpe?g|png|gif|webp)$/i;
 const PDF_EXT_RE = /\.pdf$/i;
@@ -48,10 +47,6 @@ export function getChatAttachmentValidationError(file: File, currentCount: numbe
     return "单个附件不能超过 10MB";
   }
   return null;
-}
-
-export function isButtonDisabled(buttonState: ButtonState) {
-  return buttonState === ButtonState.WaitingType;
 }
 
 export function isStreamingState(buttonState: ButtonState) {

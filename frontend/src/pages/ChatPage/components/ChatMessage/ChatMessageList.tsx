@@ -1,5 +1,6 @@
 import { useChatState } from "@/hooks";
 import { ChatMessage as ChatMessageType } from "@/interfaces";
+import { PdfBlock } from "@/interfaces/contentBlock";
 import classNames from "classnames";
 import React, { useRef } from "react";
 import SimpleBar from "simplebar-react";
@@ -15,6 +16,7 @@ interface ChatMessageListProps {
   onEditMessage: (index: number, content: string) => void;
   onDeleteMessage: (messageId: string) => void | Promise<void>;
   onReSend: (index: number, message: ChatMessageType) => void;
+  onPreviewPdf: (block: PdfBlock) => void;
 }
 
 const ChatMessageList: React.FC<ChatMessageListProps> = ({
@@ -25,6 +27,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
   onEditMessage,
   onDeleteMessage,
   onReSend,
+  onPreviewPdf,
 }) => {
   const { messages } = useChatState(conversationId);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -44,6 +47,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
           onReSend={onReSend}
           onEditMessage={onEditMessage}
           onDeleteMessage={onDeleteMessage}
+          onPreviewPdf={onPreviewPdf}
           isLastMessage={index === messages.length - 1}
           isLoading={isLoading && index === messages.length - 1}
           isStreaming={isStreaming && index === messages.length - 1}

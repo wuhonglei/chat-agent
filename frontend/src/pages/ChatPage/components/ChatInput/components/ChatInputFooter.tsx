@@ -6,8 +6,9 @@ import { ArrowUpOutlined, PaperClipOutlined } from "@ant-design/icons";
 import { Button, Divider, Form, Tooltip } from "antd";
 import React from "react";
 import { ButtonState, names } from "../constant";
-import { CHAT_ATTACHMENT_TOOLTIP, isButtonDisabled, isStreamingState } from "../util";
+import { isStreamingState } from "../util";
 import ToolsSetting from "./ToolsSetting";
+import { CHAT_ATTACHMENT_TOOLTIP, isButtonDisabled } from "./utils";
 
 export interface ChatInputFooterProps {
   onOpenAttachmentPicker: () => void;
@@ -31,7 +32,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = ({
         <Form.Item hidden name={names.sourceConfig}>
           <span />
         </Form.Item>
-        <Tooltip title={CHAT_ATTACHMENT_TOOLTIP} mouseEnterDelay={0.5}>
+        <Tooltip title={CHAT_ATTACHMENT_TOOLTIP} mouseEnterDelay={0.5} trigger={["hover"]}>
           <Button
             type="text"
             aria-label="文件上传"

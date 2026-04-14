@@ -1,3 +1,4 @@
+import { EventType, useEmitter } from "@/events";
 import { useIsSmallScreen } from "@/hooks";
 import { ConversationInfo, ConversationListResponse, EditConversationInfo, TitleCreatedBy } from "@/interfaces";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
@@ -239,6 +240,10 @@ export function useMainLayoutSidebar() {
     const isContentClick = contentRef.current?.contains(event.target as Node);
     if (isSmallScreen && isContentClick && !collapsed) setCollapsed(true);
   }, siderBarRef);
+
+  useEmitter(EventType.ChangeSidebarCollapse, nextCollapsed => {
+    setCollapsed(nextCollapsed);
+  });
 
   const handleCollapse = useMemoizedFn(() => setCollapsed(prev => !prev));
 

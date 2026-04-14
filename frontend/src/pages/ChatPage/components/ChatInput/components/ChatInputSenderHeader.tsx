@@ -5,19 +5,7 @@ import type { UploadFile } from "antd";
 import { GetProp, GetRef, message } from "antd";
 import React from "react";
 import { CHAT_ATTACHMENT_ACCEPT, MAX_CHAT_ATTACHMENTS, getChatAttachmentValidationError } from "../util";
-
-function withServerAttachmentPreview(file: UploadFile<UserAttachmentBlock>): UploadFile<UserAttachmentBlock> {
-  if (file.status !== "done" || file.response == null) {
-    return file;
-  }
-  const response = file.response;
-  const { url } = response;
-  if (typeof url !== "string" || !url) {
-    return file;
-  }
-  // @ant-design/x 列表预览优先级为 thumbUrl || url || 本地 canvas 缩略图（约 200px，模糊）。
-  return { ...file, url };
-}
+import { getChatInputAttachmentStyles, sortAttachmentsByImageFirst, withServerAttachmentPreview } from "./utils";
 
 export interface ChatInputSenderHeaderProps {
   attachmentsRef: React.RefObject<GetRef<typeof Attachments> | null>;
@@ -51,24 +39,7 @@ const ChatInputSenderHeader: React.FC<ChatInputSenderHeaderProps> = ({
         ref={attachmentsRef}
         accept={CHAT_ATTACHMENT_ACCEPT}
         maxCount={MAX_CHAT_ATTACHMENTS}
-        styles={{
-          placeholder: {
-            padding: 0,
-            border: "none",
-          },
-          upload: {
-            display: "none",
-          },
-          list: {
-            padding: 0,
-          },
-          root: hasAttachmentItems
-            ? {
-                padding: 12,
-                paddingBottom: 0,
-              }
-            : undefined,
-        }}
+        styles={getChatInputAttachmentStyles(hasAttachmentItems)}
         items={attachmentItems}
         placeholder={undefined}
         beforeUpload={file => {
@@ -79,9 +50,12 @@ const ChatInputSenderHeader: React.FC<ChatInputSenderHeaderProps> = ({
           }
           return true;
         }}
-        onChange={({ fileList }) =>
-          setAttachmentItems(fileList.map(f => withServerAttachmentPreview(f as UploadFile<UserAttachmentBlock>)))
-        }
+        onChange={({ fileList }) => {
+          const normalizedFileList = fileList.map(f =>
+            withServerAttachmentPreview(f as UploadFile<UserAttachmentBlock>)
+          );
+          setAttachmentItems(sortAttachmentsByImageFirst(normalizedFileList));
+        }}
         customRequest={async options => {
           const { file, onError, onSuccess } = options;
           try {

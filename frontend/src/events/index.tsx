@@ -2,17 +2,13 @@ import { useMemoizedFn } from "ahooks";
 import mitt, { Emitter } from "mitt";
 import { useEffect } from "react";
 export enum EventType {
-  McpToolCallDone = "mcpToolCallDone",
-  ReasoningDone = "reasoningDone",
   ChangeConversion = "changeConversion", // 切换对话
-  BlockCollapse = "blockCollapse", // 块折叠 或展开
+  ChangeSidebarCollapse = "changeSidebarCollapse", // 切换侧边栏折叠状态
 }
 
 type Events = {
-  [EventType.McpToolCallDone]: void;
-  [EventType.ReasoningDone]: void;
   [EventType.ChangeConversion]: void;
-  [EventType.BlockCollapse]: boolean;
+  [EventType.ChangeSidebarCollapse]: boolean;
 };
 
 export const emitter: Emitter<Events> = mitt<Events>();

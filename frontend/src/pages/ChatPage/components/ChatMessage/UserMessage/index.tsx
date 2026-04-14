@@ -1,5 +1,10 @@
 import { ChatMessage as ChatMessageType } from "@/interfaces";
-import { getMessageTextFromBlocks, hasAttachmentBlocks, isUserMessageContentTextOnly } from "@/interfaces/contentBlock";
+import {
+  PdfBlock,
+  getMessageTextFromBlocks,
+  hasAttachmentBlocks,
+  isUserMessageContentTextOnly,
+} from "@/interfaces/contentBlock";
 import { Bubble } from "@ant-design/x";
 import classNames from "classnames";
 import React, { useState } from "react";
@@ -13,9 +18,16 @@ interface UserMessageProps {
   isLastMessage: boolean;
   onEditMessage: (content: string) => void;
   onDeleteMessage: () => void | Promise<void>;
+  onPreviewPdf: (block: PdfBlock) => void;
 }
 
-const UserMessage: React.FC<UserMessageProps> = ({ message, isLastMessage, onEditMessage, onDeleteMessage }) => {
+const UserMessage: React.FC<UserMessageProps> = ({
+  message,
+  isLastMessage,
+  onEditMessage,
+  onDeleteMessage,
+  onPreviewPdf,
+}) => {
   const [isEditing, setIsEditing] = useState(false);
   const textContent = getMessageTextFromBlocks(message.contentBlocks);
   const hasAttachments = hasAttachmentBlocks(message.contentBlocks);
@@ -51,7 +63,7 @@ const UserMessage: React.FC<UserMessageProps> = ({ message, isLastMessage, onEdi
               }}
             />
           ) : (
-            <UserMessageDisplayContent contentBlocks={message.contentBlocks} />
+            <UserMessageDisplayContent contentBlocks={message.contentBlocks} onPreviewPdf={onPreviewPdf} />
           )
         }
         footer={
