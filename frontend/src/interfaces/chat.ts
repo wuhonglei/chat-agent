@@ -20,7 +20,7 @@ export type MessageFeedbackValue = "default" | "like" | "dislike";
 
 export interface MessageFeedback {
   value: MessageFeedbackValue;
-  updatedAt: string | null;
+  updatedAt: string;
 }
 
 export interface SearchSourceMetaData {

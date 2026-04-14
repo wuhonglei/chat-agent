@@ -156,6 +156,12 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
           },
         })
       );
+      dispatch(
+        updateConversationModifiedTime({
+          conversationId,
+          lastMessageUpdatedAt: updatedFeedback.updatedAt,
+        })
+      );
     } catch (error) {
       reportError("updateMessageFeedback", {
         error,
