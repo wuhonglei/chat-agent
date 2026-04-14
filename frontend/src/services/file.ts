@@ -1,4 +1,4 @@
-import { ImageBlock } from "@/interfaces/contentBlock";
+import { ImageBlock, PdfBlock } from "@/interfaces/contentBlock";
 
 import { apiClient } from "./base";
 
@@ -13,10 +13,10 @@ export const fileAPI = {
     });
   },
 
-  uploadChatImage: async (file: File): Promise<ImageBlock> => {
+  uploadChatAttachment: async (file: File): Promise<ImageBlock | PdfBlock> => {
     const formData = new FormData();
     formData.append("file", file);
-    return await apiClient.post("/file/image/upload", formData, {
+    return await apiClient.post("/file/upload", formData, {
       headers: {
         "Content-Type": "multipart/form-data",
       },

@@ -3,10 +3,10 @@ import ThinkModeIcon from "@/assets/svg/ThinkModeIcon.svg?react";
 import CustomButton from "@/components/common/CustomButton";
 import { ChatInputConfig } from "@/interfaces";
 import { ArrowUpOutlined, PaperClipOutlined } from "@ant-design/icons";
-import { Button, Divider, Form } from "antd";
+import { Button, Divider, Form, Tooltip } from "antd";
 import React from "react";
 import { ButtonState, names } from "../constant";
-import { isButtonDisabled, isStreamingState } from "../util";
+import { CHAT_ATTACHMENT_TOOLTIP, isButtonDisabled, isStreamingState } from "../util";
 import ToolsSetting from "./ToolsSetting";
 
 export interface ChatInputFooterProps {
@@ -31,13 +31,15 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = ({
         <Form.Item hidden name={names.sourceConfig}>
           <span />
         </Form.Item>
-        <Button
-          type="text"
-          aria-label="文件上传"
-          style={{ fontSize: 16 }}
-          icon={<PaperClipOutlined />}
-          onClick={onOpenAttachmentPicker}
-        />
+        <Tooltip title={CHAT_ATTACHMENT_TOOLTIP}>
+          <Button
+            type="text"
+            aria-label="文件上传"
+            style={{ fontSize: 16 }}
+            icon={<PaperClipOutlined />}
+            onClick={onOpenAttachmentPicker}
+          />
+        </Tooltip>
         <Divider orientation="vertical" style={{ margin: 0 }} />
         <Form.Item trigger="onClick" initialValue={false} valuePropName="active" name={names.thinkMode}>
           <CustomButton bordered={false} size="middle" icon={<ThinkModeIcon />} tooltip="先思考后回答, 解决推理问题">

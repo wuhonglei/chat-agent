@@ -42,6 +42,18 @@ export interface ImageBlock {
   mime: string;
 }
 
+export interface PdfBlock {
+  id: string;
+  type: "pdf";
+  url: string;
+  /** 展示用文件名（服务端已安全化）；历史消息可能缺省 */
+  name?: string;
+  /** 落盘文件字节数 */
+  size: number;
+  /** 固定为 application/pdf */
+  mime: "application/pdf";
+}
+
 export interface WebSearchResultItem {
   title?: string;
   url?: string;
@@ -64,8 +76,8 @@ export enum ContentBlockRenderStatus {
   Done = 100,
 }
 
-export type ContentBlock = TextBlock | ThinkingBlock | ToolUseBlock | ToolResultBlock | ImageBlock;
-export type UserContentBlock = TextBlock | ImageBlock;
+export type ContentBlock = TextBlock | ThinkingBlock | ToolUseBlock | ToolResultBlock | ImageBlock | PdfBlock;
+export type UserContentBlock = TextBlock | ImageBlock | PdfBlock;
 /** 用户消息中的附件块（图片、PDF 等），不含文本块 */
 export type UserAttachmentBlock = Exclude<UserContentBlock, TextBlock>;
 
@@ -99,7 +111,7 @@ export function hasAttachmentBlocks(blocks: ContentBlock[] | undefined): boolean
 }
 
 export function isUserAttachmentBlock(block: ContentBlock): block is UserAttachmentBlock {
-  return block.type === "image";
+  return block.type === "image" || block.type === "pdf";
 }
 
 /** 组装发往后端的用户 content_blocks：先文本块，再按顺序追加附件块（图片、PDF 等） */

@@ -27,6 +27,17 @@ function attachmentToFileCardItem(block: UserAttachmentBlock): FileCardProps {
         },
       };
     }
+    case "pdf":
+      return {
+        key: block.id,
+        name: block.name?.trim() || "document.pdf",
+        byte: block.size,
+        onClick: () => window.open(block.url, "_blank", "noopener,noreferrer"),
+      };
+    default: {
+      const _exhaustiveCheck: never = block;
+      return _exhaustiveCheck;
+    }
   }
 }
 

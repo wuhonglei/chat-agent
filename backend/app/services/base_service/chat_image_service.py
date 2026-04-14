@@ -1,23 +1,24 @@
-"""聊天图片上传：落盘到 data/user_data/{user_id}/uploads/"""
+"""聊天附件上传：落盘到 data/user_data/{user_id}/uploads/"""
 
 from __future__ import annotations
 
 import re
 from io import BytesIO
 from pathlib import Path
-from typing import cast
+from typing import Literal, cast
 
 from fastapi import HTTPException, UploadFile
 from PIL import Image, ImageOps, ImageSequence
 
-from app.schemas.chat import ImageBlock
+from app.schemas.chat import ImageBlock, PdfBlock
 from app.utils.common import gen_uuid
 from app.utils.logger import logger
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[3]
 
-MAX_CHAT_IMAGE_BYTES = 10 * 1024 * 1024  # 10 MiB
+MAX_CHAT_ATTACHMENT_BYTES = 10 * 1024 * 1024  # 10 MiB
 MAX_CHAT_IMAGE_EDGE = 1024  # 最长边像素上限（等比例缩放）
+CHAT_ATTACHMENT_PREVIEW_PREFIX = "/api/file/preview"
 
 _ALLOWED_CONTENT_TYPES: dict[str, str] = {
     "image/jpeg": ".jpg",
@@ -26,9 +27,13 @@ _ALLOWED_CONTENT_TYPES: dict[str, str] = {
     "image/gif": ".gif",
     "image/webp": ".webp",
 }
+PDF_CONTENT_TYPE: Literal["application/pdf"] = "application/pdf"
 
 _FILENAME_RE = re.compile(
-    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|jpeg|png|gif|webp)$",
+    (
+        r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-"
+        r"[0-9a-f]{12}\.(jpg|jpeg|png|gif|webp|pdf)$"
+    ),
     re.IGNORECASE,
 )
 
@@ -38,15 +43,18 @@ _EXT_TO_MEDIA_TYPE: dict[str, str] = {
     ".png": "image/png",
     ".gif": "image/gif",
     ".webp": "image/webp",
+    ".pdf": PDF_CONTENT_TYPE,
 }
 
 _STEM_SAFE_RE = re.compile(r"[^\w\-. \u0080-\uFFFF]+", re.UNICODE)
 
 
-def _sanitize_image_display_name(raw: str | None, *, ext: str) -> str:
+def sanitize_upload_display_name(
+    raw: str | None, *, ext: str, default_stem: str
+) -> str:
     """用户上传文件的展示名：去路径/控制字符/保留 Windows 非法字符，限制长度。"""
     ext_norm = ext if ext.startswith(".") else f".{ext}"
-    stem = "image"
+    stem = default_stem
     if raw:
         base = Path(str(raw)).name
         base = base.replace("\x00", "")
@@ -60,6 +68,10 @@ def _sanitize_image_display_name(raw: str | None, *, ext: str) -> str:
             if stem_candidate:
                 stem = stem_candidate[:180]
     return f"{stem}{ext_norm}"
+
+
+def build_attachment_preview_url(user_id: str, filename: str) -> str:
+    return f"{CHAT_ATTACHMENT_PREVIEW_PREFIX}/{user_id}/{filename}"
 
 
 def _user_upload_dir(user_id: str) -> Path:
@@ -198,13 +210,17 @@ async def save_chat_image(*, user_id: str, file: UploadFile) -> ImageBlock:
     upload_dir.mkdir(parents=True, exist_ok=True)
     dest = upload_dir / filename
 
-    chunk = await file.read(MAX_CHAT_IMAGE_BYTES + 1)
-    if len(chunk) > MAX_CHAT_IMAGE_BYTES:
+    chunk = await file.read(MAX_CHAT_ATTACHMENT_BYTES + 1)
+    if len(chunk) > MAX_CHAT_ATTACHMENT_BYTES:
         raise HTTPException(status_code=400, detail="图片大小不能超过 10MB")
     processed = _downscale_image_bytes(chunk, ext)
     dest.write_bytes(processed)
     stored_size = len(processed)
-    display_name = _sanitize_image_display_name(file.filename, ext=ext)
+    display_name = sanitize_upload_display_name(
+        file.filename,
+        ext=ext,
+        default_stem="image",
+    )
 
     logger.info(
         "Chat image saved",
@@ -213,7 +229,7 @@ async def save_chat_image(*, user_id: str, file: UploadFile) -> ImageBlock:
         bytes=stored_size,
     )
 
-    url = f"/api/file/image/preview/{user_id}/{filename}"
+    url = build_attachment_preview_url(user_id, filename)
     mime_normalized = (
         "image/jpeg" if content_type in ("image/jpeg", "image/jpg") else content_type
     )
@@ -225,6 +241,59 @@ async def save_chat_image(*, user_id: str, file: UploadFile) -> ImageBlock:
         size=stored_size,
         mime=mime_normalized,
     )
+
+
+async def save_chat_pdf(*, user_id: str, file: UploadFile) -> PdfBlock:
+    """保存上传 PDF 并返回 PdfBlock（url 为站内预览路径）。"""
+    content_type = (file.content_type or "").lower()
+    if content_type != PDF_CONTENT_TYPE:
+        raise HTTPException(status_code=400, detail="仅支持 PDF 文件")
+
+    block_id = gen_uuid()
+    filename = f"{block_id}.pdf"
+
+    upload_dir = _user_upload_dir(user_id)
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    dest = upload_dir / filename
+
+    chunk = await file.read(MAX_CHAT_ATTACHMENT_BYTES + 1)
+    if len(chunk) > MAX_CHAT_ATTACHMENT_BYTES:
+        raise HTTPException(status_code=400, detail="PDF 大小不能超过 10MB")
+    if not chunk.startswith(b"%PDF-"):
+        raise HTTPException(status_code=400, detail="PDF 文件无效或已损坏")
+
+    dest.write_bytes(chunk)
+    stored_size = len(chunk)
+    display_name = sanitize_upload_display_name(
+        file.filename,
+        ext=".pdf",
+        default_stem="document",
+    )
+
+    logger.info(
+        "Chat pdf saved",
+        user_id=user_id,
+        filename=filename,
+        bytes=stored_size,
+    )
+
+    return PdfBlock(
+        id=block_id,
+        type="pdf",
+        url=build_attachment_preview_url(user_id, filename),
+        name=display_name,
+        size=stored_size,
+        mime=PDF_CONTENT_TYPE,
+    )
+
+
+async def save_chat_attachment(
+    *, user_id: str, file: UploadFile
+) -> ImageBlock | PdfBlock:
+    content_type = (file.content_type or "").lower()
+    if content_type == PDF_CONTENT_TYPE:
+        return await save_chat_pdf(user_id=user_id, file=file)
+    return await save_chat_image(user_id=user_id, file=file)
 
 
 def media_type_for_preview(filename: str) -> str:

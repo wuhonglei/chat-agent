@@ -1,2 +1,2 @@
 export const DB_NAME = "ai-assistant";
-export const DB_VERSION = 2;
+export const DB_VERSION = 3;

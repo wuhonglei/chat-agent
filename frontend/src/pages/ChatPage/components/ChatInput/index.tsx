@@ -3,7 +3,7 @@ import { ChatInputFormValues, SendMessageOptions } from "@/interfaces";
 import { isPlainEnter } from "@/utils";
 import { Attachments, AttachmentsProps, Sender } from "@ant-design/x";
 import { useMemoizedFn } from "ahooks";
-import { ConfigProvider, Form, FormInstance, GetProp, GetRef } from "antd";
+import { ConfigProvider, Form, FormInstance, GetProp, GetRef, message } from "antd";
 import classNames from "classnames";
 import React from "react";
 import ChatInputFooter from "./components/ChatInputFooter";
@@ -11,7 +11,13 @@ import ChatInputSenderHeader from "./components/ChatInputSenderHeader";
 import { names } from "./constant";
 import styles from "./css/index.module.css";
 import { useButtonState, useFormValuesChange } from "./hooks";
-import { getAttachmentBlocks, isStreamingState } from "./util";
+import {
+  CHAT_ATTACHMENT_ACCEPT,
+  MAX_CHAT_ATTACHMENTS,
+  getAttachmentBlocks,
+  getChatAttachmentValidationError,
+  isStreamingState,
+} from "./util";
 
 interface ChatInputProps {
   isStreaming?: boolean;
@@ -73,15 +79,25 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, clas
   const openAttachmentPicker = useMemoizedFn(() => {
     queueMicrotask(() => {
       attachmentsRef.current?.select({
-        accept: "image/*",
+        accept: CHAT_ATTACHMENT_ACCEPT,
         multiple: true,
       });
     });
   });
 
   const handlePasteFile = useMemoizedFn((files: FileList) => {
+    let nextCount = attachmentItems.length;
     for (const file of files) {
+      const error = getChatAttachmentValidationError(file, nextCount);
+      if (error) {
+        message.warning(error);
+        if (nextCount >= MAX_CHAT_ATTACHMENTS) {
+          break;
+        }
+        continue;
+      }
       attachmentsRef.current?.upload(file);
+      nextCount += 1;
     }
   });
 
