@@ -1,4 +1,4 @@
-import { CloseOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
+import { CloseOutlined } from "@ant-design/icons";
 import { useSize } from "ahooks";
 import { Button, Typography } from "antd";
 import React, { useMemo, useRef, useState } from "react";
@@ -20,6 +20,7 @@ const PdfPreviewPanel: React.FC<PdfPreviewPanelProps> = ({ pdfUrl, pdfName, isSm
   const [numPages, setNumPages] = useState(0);
   const [pageNumber, setPageNumber] = useState(1);
   const contentRef = useRef<HTMLDivElement>(null);
+  const wheelLockRef = useRef(false);
   const contentSize = useSize(contentRef);
 
   usePdfPreviewAutoCloseOnSmallScreen({
@@ -33,9 +34,25 @@ const PdfPreviewPanel: React.FC<PdfPreviewPanelProps> = ({ pdfUrl, pdfName, isSm
     return Math.max(contentSize.width - 24, 240);
   }, [contentSize?.width]);
 
-  if (isSmallScreen) {
-    return null;
-  }
+  const handleWheel = (event: React.WheelEvent<HTMLDivElement>) => {
+    if (numPages <= 0 || wheelLockRef.current || event.deltaY === 0) {
+      return;
+    }
+
+    const isScrollDown = event.deltaY > 0;
+    const nextPage = isScrollDown ? Math.min(pageNumber + 1, numPages) : Math.max(pageNumber - 1, 1);
+
+    if (nextPage === pageNumber) {
+      return;
+    }
+
+    event.preventDefault();
+    wheelLockRef.current = true;
+    setPageNumber(nextPage);
+    window.setTimeout(() => {
+      wheelLockRef.current = false;
+    }, 180);
+  };
 
   return (
     <section className="h-full min-h-0 flex flex-col border-l border-(--ant-color-border-secondary) bg-(--ant-color-bg-layout)">
@@ -45,26 +62,10 @@ const PdfPreviewPanel: React.FC<PdfPreviewPanelProps> = ({ pdfUrl, pdfName, isSm
         </Typography.Text>
         <Button type="text" onClick={onClose} icon={<CloseOutlined />}></Button>
       </header>
-      <div className="flex items-center justify-center gap-2 px-3 py-2 border-b border-(--ant-color-border-secondary) bg-(--ant-color-bg-container)">
-        <Button
-          size="small"
-          icon={<LeftOutlined />}
-          disabled={pageNumber <= 1}
-          onClick={() => setPageNumber(prev => Math.max(prev - 1, 1))}
-        >
-          上一页
-        </Button>
+      <div className="flex items-center justify-center px-3 py-2 border-b border-(--ant-color-border-secondary) bg-(--ant-color-bg-container)">
         <Typography.Text type="secondary">{numPages > 0 ? `${pageNumber} / ${numPages}` : "- / -"}</Typography.Text>
-        <Button
-          size="small"
-          icon={<RightOutlined />}
-          disabled={numPages === 0 || pageNumber >= numPages}
-          onClick={() => setPageNumber(prev => (numPages ? Math.min(prev + 1, numPages) : prev))}
-        >
-          下一页
-        </Button>
       </div>
-      <div ref={contentRef} className="flex-1 min-h-0 overflow-auto p-3">
+      <div ref={contentRef} className="flex-1 min-h-0 overflow-auto p-3" onWheel={handleWheel}>
         <Document
           file={pdfUrl}
           onLoadSuccess={({ numPages: loadedPages }) => {
