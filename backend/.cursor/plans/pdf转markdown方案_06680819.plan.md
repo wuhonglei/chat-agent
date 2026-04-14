@@ -4,16 +4,16 @@ overview: 为上传 PDF 增加同名 Markdown 产物：先用 PyMuPDF 判断文�
 todos:
   - id: add-pdf-md-config
     content: 新增 PDF Markdown 配置模型并接入 Settings 读取
-    status: pending
+    status: completed
   - id: create-converter-class
     content: 实现 PdfMarkdownConverter（检测、MarkItDown、MinerU KIE SDK 轮询、写入）
-    status: pending
+    status: completed
   - id: wire-upload-flow
     content: 在 save_chat_pdf 中接入转换并处理失败策略
-    status: pending
+    status: completed
   - id: deps-and-tests
     content: 补充依赖并添加文本/扫描/失败场景测试
-    status: pending
+    status: completed
 isProject: false
 ---
 
