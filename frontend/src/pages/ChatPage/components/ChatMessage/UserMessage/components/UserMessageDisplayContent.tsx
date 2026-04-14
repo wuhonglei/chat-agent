@@ -1,5 +1,7 @@
+import { useIsSmallScreen } from "@/hooks";
 import {
   ContentBlock,
+  PdfBlock,
   isUserAttachmentBlock,
   type TextBlock,
   type UserAttachmentBlock,
@@ -7,7 +9,25 @@ import {
 import { FileCard, type FileCardProps } from "@ant-design/x";
 import React, { useMemo } from "react";
 
-function attachmentToFileCardItem(block: UserAttachmentBlock): FileCardProps {
+function triggerPdfDownload(block: PdfBlock) {
+  const anchor = document.createElement("a");
+  anchor.href = block.url;
+  anchor.download = block.name?.trim() || "document.pdf";
+  anchor.rel = "noopener noreferrer";
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+}
+
+interface AttachmentToFileCardItemOptions {
+  isSmallScreen: boolean;
+  onPreviewPdf?: (block: PdfBlock) => void;
+}
+
+function attachmentToFileCardItem(
+  block: UserAttachmentBlock,
+  { isSmallScreen, onPreviewPdf }: AttachmentToFileCardItemOptions
+): FileCardProps {
   switch (block.type) {
     case "image": {
       const ext = block.mime.split("/")[1]?.split("+")[0] || "png";
@@ -32,7 +52,17 @@ function attachmentToFileCardItem(block: UserAttachmentBlock): FileCardProps {
         key: block.id,
         name: block.name?.trim() || "document.pdf",
         byte: block.size,
-        onClick: () => window.open(block.url, "_blank", "noopener,noreferrer"),
+        onClick: () => {
+          if (isSmallScreen) {
+            triggerPdfDownload(block);
+            return;
+          }
+          if (onPreviewPdf) {
+            onPreviewPdf(block);
+            return;
+          }
+          window.open(block.url, "_blank", "noopener,noreferrer");
+        },
       };
     default: {
       const _exhaustiveCheck: never = block;
@@ -56,11 +86,22 @@ function partitionUserBlocks(blocks: ContentBlock[]) {
 
 export interface UserMessageDisplayContentProps {
   contentBlocks: ContentBlock[];
+  onPreviewPdf?: (block: PdfBlock) => void;
 }
 
-const UserMessageDisplayContent: React.FC<UserMessageDisplayContentProps> = ({ contentBlocks }) => {
+const UserMessageDisplayContent: React.FC<UserMessageDisplayContentProps> = ({ contentBlocks, onPreviewPdf }) => {
+  const isSmallScreen = useIsSmallScreen();
   const { attachments, texts } = useMemo(() => partitionUserBlocks(contentBlocks), [contentBlocks]);
-  const fileCardItems = useMemo(() => attachments.map(attachmentToFileCardItem), [attachments]);
+  const fileCardItems = useMemo(
+    () =>
+      attachments.map(block =>
+        attachmentToFileCardItem(block, {
+          isSmallScreen,
+          onPreviewPdf,
+        })
+      ),
+    [attachments, isSmallScreen, onPreviewPdf]
+  );
 
   return (
     <div className="flex w-full flex-col items-end gap-2" style={{ borderRadius: "inherit" }}>

@@ -1,4 +1,5 @@
 import { ChatMessage as ChatMessageType } from "@/interfaces";
+import { PdfBlock } from "@/interfaces/contentBlock";
 import { useMemoizedFn } from "ahooks";
 import React from "react";
 import AssistantMessage from "./AssistantMessage";
@@ -13,6 +14,7 @@ interface ChatMessageItemProps {
   onEditMessage: (index: number, content: string) => void;
   onDeleteMessage: (messageId: string) => void | Promise<void>;
   onReSend: (index: number, message: ChatMessageType) => void;
+  onPreviewPdf: (block: PdfBlock) => void;
 }
 
 const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
@@ -24,6 +26,7 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   onEditMessage,
   onDeleteMessage,
   onReSend,
+  onPreviewPdf,
 }) => {
   const isUser = message.role === "user";
   const handleEditMessage = useMemoizedFn((content: string) => {
@@ -42,6 +45,7 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
       onEditMessage={handleEditMessage}
       onDeleteMessage={handleDeleteMessage}
       isLastMessage={isLastMessage}
+      onPreviewPdf={onPreviewPdf}
     />
   ) : (
     <AssistantMessage
