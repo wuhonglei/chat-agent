@@ -1,5 +1,5 @@
-# Python 3.14 有 psycopg2-binary 等 cp314 wheel；避免使用 3.15 预发布导致无 wheel、需 pg_config 源码编译
-FROM python:3.14.3-slim
+# Python 3.12：依赖 wheel 成熟稳定，与本地/CI 常用运行时一致
+FROM python:3.12-slim
 
 # Set working directory
 WORKDIR /app
