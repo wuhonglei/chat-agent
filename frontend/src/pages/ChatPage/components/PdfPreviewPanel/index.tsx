@@ -1,4 +1,4 @@
-import { CloseOutlined } from "@ant-design/icons";
+import { CloseOutlined, DownloadOutlined } from "@ant-design/icons";
 import { Button, Typography } from "antd";
 import React, { useMemo, useRef, useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
@@ -32,7 +32,17 @@ const PdfPreviewPanel: React.FC<PdfPreviewPanelProps> = ({ pdfUrl, isSmallScreen
     <section className="h-full min-h-0 flex flex-col border-l border-(--ant-color-border-secondary) bg-(--ant-color-bg-layout)">
       <header className="flex items-center justify-between gap-2 px-3 py-2 border-b border-(--ant-color-border-secondary) bg-(--ant-color-bg-container)">
         <Typography.Text type="secondary">共 {numPages > 0 ? numPages : "-"} 页</Typography.Text>
-        <Button type="text" onClick={onClose} icon={<CloseOutlined />}></Button>
+        <div className="flex items-center gap-1">
+          <Button
+            type="text"
+            href={pdfUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            icon={<DownloadOutlined />}
+            title="下载 PDF"
+          />
+          <Button type="text" onClick={onClose} icon={<CloseOutlined />}></Button>
+        </div>
       </header>
       <div ref={contentRef} className="flex-1 min-h-0 overflow-auto p-3">
         <Document
