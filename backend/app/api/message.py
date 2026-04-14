@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from sqlmodel import Session
 
 from app.core.db import get_db
-from app.models import MessageDb
+from app.models import ConversationDb, MessageDb
 from app.schemas.chat import MessageFeedback, MessageFeedbackValue
 from app.schemas.response import ApiResponse
 from app.utils.auth_deps import require_auth
@@ -56,6 +56,11 @@ async def update_message_feedback(
     }
     message.updated_at = now
     db.add(message)
+
+    conversation = db.get(ConversationDb, message.conversation_id)
+    if conversation is not None:
+        conversation.last_message_updated_at = now
+        db.add(conversation)
 
     updated_feedback = MessageFeedback.model_validate(message.feedback)
     return ApiResponse.success(data=updated_feedback, msg="消息反馈更新成功")
