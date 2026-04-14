@@ -31,7 +31,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = ({
         <Form.Item hidden name={names.sourceConfig}>
           <span />
         </Form.Item>
-        <Tooltip title={CHAT_ATTACHMENT_TOOLTIP}>
+        <Tooltip title={CHAT_ATTACHMENT_TOOLTIP} mouseEnterDelay={0.5}>
           <Button
             type="text"
             aria-label="文件上传"
