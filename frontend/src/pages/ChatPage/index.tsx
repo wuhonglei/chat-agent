@@ -7,9 +7,9 @@ import React from "react";
 import { useParams } from "react-router-dom";
 import ChatInput from "./components/ChatInput";
 import { ChatMessageList } from "./components/ChatMessage";
-import PdfPreviewPanel from "./components/PdfPreviewPanel";
+import BlockPreviewPanel from "./components/BlockPreviewPanel";
 import TopHeader from "./components/TopHeader";
-import { useChatMessageHandlers, usePdfPreviewHandlers } from "./hooks";
+import { useBlockPreviewHandlers, useChatMessageHandlers } from "./hooks";
 import styles from "./index.module.css";
 
 const ChatPage: React.FC = () => {
@@ -26,8 +26,8 @@ const ChatPage: React.FC = () => {
   const { isStreaming, isLoading } = useChatState(conversationId);
   const isSmallScreen = useIsSmallScreen();
   const [form] = Form.useForm<ChatInputFormValues>();
-  const { previewingPdf, rightPanelSize, handlePreviewPdf, handleClosePreviewPdf, handleSplitterResize } =
-    usePdfPreviewHandlers({ isSmallScreen });
+  const { previewBlock, previewPanelSize, handleOpenBlockPreview, handleCloseBlockPreview, handleSplitterResize } =
+    useBlockPreviewHandlers({ isSmallScreen });
   const { handleEditMessage, handleReSend, handleAbortMessage, handleDeleteMessage, handleUpdateMessageFeedback } =
     useChatMessageHandlers({
       form,
@@ -44,7 +44,7 @@ const ChatPage: React.FC = () => {
   return (
     <section className="h-full min-h-0">
       <Splitter style={{ height: "100%", width: "100%" }} onResize={handleSplitterResize}>
-        <Splitter.Panel defaultSize="60%" min={previewingPdf ? "40%" : 0}>
+        <Splitter.Panel defaultSize="60%" min={previewBlock ? "40%" : 0}>
           <section className="h-full min-h-0 flex flex-col">
             <TopHeader conversationInfo={conversationInfo} />
             <main className="flex-1 min-h-0 flex">
@@ -57,7 +57,7 @@ const ChatPage: React.FC = () => {
                   conversationId={conversationId}
                   onEditMessage={handleEditMessage}
                   onDeleteMessage={handleDeleteMessage}
-                  onPreviewPdf={handlePreviewPdf}
+                  onPreviewBlock={handleOpenBlockPreview}
                   className={styles["markdown-container"]}
                   onUpdateMessageFeedback={handleUpdateMessageFeedback}
                 />
@@ -75,17 +75,17 @@ const ChatPage: React.FC = () => {
           </section>
         </Splitter.Panel>
         <Splitter.Panel
-          size={previewingPdf ? rightPanelSize : 0}
-          min={previewingPdf ? "20%" : 0}
-          max={previewingPdf ? "60%" : 0}
-          resizable={Boolean(previewingPdf)}
+          size={previewBlock ? previewPanelSize : 0}
+          min={previewBlock ? "20%" : 0}
+          max={previewBlock ? "60%" : 0}
+          resizable={Boolean(previewBlock)}
         >
-          {previewingPdf ? (
-            <PdfPreviewPanel
-              pdfUrl={previewingPdf.url}
-              pdfName={previewingPdf.name}
+          {previewBlock ? (
+            <BlockPreviewPanel
+              pdfUrl={previewBlock.url}
+              pdfName={previewBlock.name}
               isSmallScreen={isSmallScreen}
-              onClose={handleClosePreviewPdf}
+              onClose={handleCloseBlockPreview}
             />
           ) : null}
         </Splitter.Panel>

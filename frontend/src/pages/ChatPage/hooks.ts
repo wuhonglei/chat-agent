@@ -5,7 +5,7 @@ import { useMemoizedFn } from "ahooks";
 import type { FormInstance } from "antd";
 import { useState } from "react";
 
-interface UsePdfPreviewHandlersParams {
+interface UseBlockPreviewHandlersParams {
   isSmallScreen: boolean;
 }
 
@@ -57,39 +57,39 @@ export const useChatMessageHandlers = ({
   };
 };
 
-export const usePdfPreviewHandlers = ({ isSmallScreen }: UsePdfPreviewHandlersParams) => {
-  const [previewingPdf, setPreviewingPdf] = useState<PdfBlock | null>(null);
-  const [rightPanelSize, setRightPanelSize] = useState<number | string>(0);
+export const useBlockPreviewHandlers = ({ isSmallScreen }: UseBlockPreviewHandlersParams) => {
+  const [previewBlock, setPreviewBlock] = useState<PdfBlock | null>(null);
+  const [previewPanelSize, setPreviewPanelSize] = useState<number | string>(0);
 
-  const handlePreviewPdf = useMemoizedFn((block: PdfBlock) => {
+  const handleOpenBlockPreview = useMemoizedFn((block: PdfBlock) => {
     emitter.emit(EventType.ChangeSidebarCollapse, true);
-    setRightPanelSize(prev => (prev === 0 ? "40%" : prev));
-    setPreviewingPdf(block);
+    setPreviewPanelSize(prev => (prev === 0 ? "40%" : prev));
+    setPreviewBlock(block);
   });
 
-  const handleClosePreviewPdf = useMemoizedFn(() => {
+  const handleCloseBlockPreview = useMemoizedFn(() => {
     if (!isSmallScreen) {
       emitter.emit(EventType.ChangeSidebarCollapse, false);
     }
-    setPreviewingPdf(null);
-    setRightPanelSize(0);
+    setPreviewBlock(null);
+    setPreviewPanelSize(0);
   });
 
   const handleSplitterResize = useMemoizedFn((sizes: number[]) => {
-    if (!previewingPdf) {
+    if (!previewBlock) {
       return;
     }
-    const nextRightPanelSize = sizes[1];
-    if (typeof nextRightPanelSize === "number") {
-      setRightPanelSize(nextRightPanelSize);
+    const nextPreviewPanelSize = sizes[1];
+    if (typeof nextPreviewPanelSize === "number") {
+      setPreviewPanelSize(nextPreviewPanelSize);
     }
   });
 
   return {
-    previewingPdf,
-    rightPanelSize,
-    handlePreviewPdf,
-    handleClosePreviewPdf,
+    previewBlock,
+    previewPanelSize,
+    handleOpenBlockPreview,
+    handleCloseBlockPreview,
     handleSplitterResize,
   };
 };

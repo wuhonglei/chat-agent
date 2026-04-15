@@ -17,7 +17,7 @@ interface ChatMessageListProps {
   onDeleteMessage: (messageId: string) => void | Promise<void>;
   onUpdateMessageFeedback: (messageId: string, value: MessageFeedbackValue) => Promise<void>;
   onReSend: (index: number, message: ChatMessageType) => void;
-  onPreviewPdf: (block: PdfBlock) => void;
+  onPreviewBlock: (block: PdfBlock) => void;
 }
 
 const ChatMessageList: React.FC<ChatMessageListProps> = ({
@@ -29,7 +29,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
   onDeleteMessage,
   onUpdateMessageFeedback,
   onReSend,
-  onPreviewPdf,
+  onPreviewBlock,
 }) => {
   const { messages } = useChatState(conversationId);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -47,7 +47,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
           key={message.id}
           message={message}
           onReSend={onReSend}
-          onPreviewPdf={onPreviewPdf}
+          onPreviewBlock={onPreviewBlock}
           onEditMessage={onEditMessage}
           onDeleteMessage={onDeleteMessage}
           onUpdateMessageFeedback={onUpdateMessageFeedback}

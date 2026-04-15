@@ -61,12 +61,12 @@ export default function HoverButton({ title, onConfirm, className: outerClassNam
       ref={containerRef}
       onClick={() => setIsEdit(true)}
       className={classNames(
-        "relative h-10 rounded-full mx-8 px-3 cursor-pointer hover:shadow transition-all duration-300",
+        "relative h-10 rounded-full mx-8 px-3 cursor-pointer hover:shadow transition-all duration-300 max-w-full min-w-0",
         outerClassName
       )}
     >
       {/* 1. 普通模式下用于文本显示; 2. 编辑模式下用于 input 宽度计算 */}
-      <div className="leading-10 whitespace-nowrap">{newTitle || " "}</div>
+      <div className="leading-10 truncate">{newTitle || " "}</div>
       {isEdit && (
         <Input
           autoFocus
