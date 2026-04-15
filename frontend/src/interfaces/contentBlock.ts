@@ -54,6 +54,12 @@ export interface PdfBlock {
   mime: "application/pdf";
 }
 
+export interface HtmlBlock {
+  id: string;
+  type: "html";
+  content: string;
+}
+
 export interface WebSearchResultItem {
   title?: string;
   url?: string;

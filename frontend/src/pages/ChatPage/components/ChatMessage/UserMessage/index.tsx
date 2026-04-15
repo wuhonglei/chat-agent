@@ -18,7 +18,7 @@ interface UserMessageProps {
   isLastMessage: boolean;
   onEditMessage: (content: string) => void;
   onDeleteMessage: () => void | Promise<void>;
-  onPreviewPdf: (block: PdfBlock) => void;
+  onPreviewBlock: (block: PdfBlock) => void;
 }
 
 const UserMessage: React.FC<UserMessageProps> = ({
@@ -26,7 +26,7 @@ const UserMessage: React.FC<UserMessageProps> = ({
   isLastMessage,
   onEditMessage,
   onDeleteMessage,
-  onPreviewPdf,
+  onPreviewBlock,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const textContent = getMessageTextFromBlocks(message.contentBlocks);
@@ -63,7 +63,7 @@ const UserMessage: React.FC<UserMessageProps> = ({
               }}
             />
           ) : (
-            <UserMessageDisplayContent contentBlocks={message.contentBlocks} onPreviewPdf={onPreviewPdf} />
+            <UserMessageDisplayContent contentBlocks={message.contentBlocks} onPreviewBlock={onPreviewBlock} />
           )
         }
         footer={

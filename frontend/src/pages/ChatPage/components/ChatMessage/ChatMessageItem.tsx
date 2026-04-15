@@ -15,7 +15,7 @@ interface ChatMessageItemProps {
   onDeleteMessage: (messageId: string) => void | Promise<void>;
   onUpdateMessageFeedback: (messageId: string, value: MessageFeedbackValue) => Promise<void>;
   onReSend: (index: number, message: ChatMessageType) => void;
-  onPreviewPdf: (block: PdfBlock) => void;
+  onPreviewBlock: (block: PdfBlock) => void;
 }
 
 const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
@@ -28,7 +28,7 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   onDeleteMessage,
   onUpdateMessageFeedback,
   onReSend,
-  onPreviewPdf,
+  onPreviewBlock,
 }) => {
   const isUser = message.role === "user";
   const handleEditMessage = useMemoizedFn((content: string) => {
@@ -50,7 +50,7 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
       onEditMessage={handleEditMessage}
       onDeleteMessage={handleDeleteMessage}
       isLastMessage={isLastMessage}
-      onPreviewPdf={onPreviewPdf}
+      onPreviewBlock={onPreviewBlock}
     />
   ) : (
     <AssistantMessage

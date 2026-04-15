@@ -11,14 +11,14 @@ import { usePdfPageWidth, usePdfPreviewAutoCloseOnSmallScreen, usePdfPreviewStat
 
 pdfjs.GlobalWorkerOptions.workerPort = new PdfWorker();
 
-export interface PdfPreviewPanelProps {
+export interface BlockPreviewPanelProps {
   pdfUrl: string;
   pdfName?: string;
   isSmallScreen: boolean;
   onClose: () => void;
 }
 
-const PdfPreviewPanel: React.FC<PdfPreviewPanelProps> = ({ pdfUrl, pdfName, isSmallScreen, onClose }) => {
+const BlockPreviewPanel: React.FC<BlockPreviewPanelProps> = ({ pdfUrl, pdfName, isSmallScreen, onClose }) => {
   const contentRef = useRef<HTMLDivElement>(null);
 
   usePdfPreviewAutoCloseOnSmallScreen({ isSmallScreen, onClose });
@@ -103,4 +103,4 @@ const PdfPreviewPanel: React.FC<PdfPreviewPanelProps> = ({ pdfUrl, pdfName, isSm
   );
 };
 
-export default React.memo(PdfPreviewPanel);
+export default React.memo(BlockPreviewPanel);

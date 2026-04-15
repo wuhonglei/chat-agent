@@ -17,12 +17,12 @@ function triggerPdfDownload(block: PdfBlock) {
 
 interface AttachmentToFileCardItemOptions {
   isSmallScreen: boolean;
-  onPreviewPdf?: (block: PdfBlock) => void;
+  onPreviewBlock?: (block: PdfBlock) => void;
 }
 
 function attachmentToFileCardItem(
   block: UserAttachmentBlock,
-  { isSmallScreen, onPreviewPdf }: AttachmentToFileCardItemOptions
+  { isSmallScreen, onPreviewBlock }: AttachmentToFileCardItemOptions
 ): FileCardProps {
   switch (block.type) {
     case "image": {
@@ -54,8 +54,8 @@ function attachmentToFileCardItem(
             triggerPdfDownload(block);
             return;
           }
-          if (onPreviewPdf) {
-            onPreviewPdf(block);
+          if (onPreviewBlock) {
+            onPreviewBlock(block);
             return;
           }
           window.open(block.url, "_blank", "noopener,noreferrer");
@@ -83,10 +83,10 @@ function partitionUserBlocks(blocks: ContentBlock[]) {
 
 export interface UserMessageDisplayContentProps {
   contentBlocks: ContentBlock[];
-  onPreviewPdf?: (block: PdfBlock) => void;
+  onPreviewBlock?: (block: PdfBlock) => void;
 }
 
-const UserMessageDisplayContent: React.FC<UserMessageDisplayContentProps> = ({ contentBlocks, onPreviewPdf }) => {
+const UserMessageDisplayContent: React.FC<UserMessageDisplayContentProps> = ({ contentBlocks, onPreviewBlock }) => {
   const isSmallScreen = useIsSmallScreen();
   const { attachments, texts } = useMemo(() => partitionUserBlocks(contentBlocks), [contentBlocks]);
   const fileCardItems = useMemo(
@@ -94,10 +94,10 @@ const UserMessageDisplayContent: React.FC<UserMessageDisplayContentProps> = ({ c
       attachments.map(block =>
         attachmentToFileCardItem(block, {
           isSmallScreen,
-          onPreviewPdf,
+          onPreviewBlock,
         })
       ),
-    [attachments, isSmallScreen, onPreviewPdf]
+    [attachments, isSmallScreen, onPreviewBlock]
   );
 
   return (
