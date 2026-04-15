@@ -1,20 +1,16 @@
 import { useBlockPreview } from "@/pages/ChatPage/context/BlockPreviewContext";
-import { Actions, Mermaid } from "@ant-design/x";
-import { Button } from "antd";
+import { Mermaid } from "@ant-design/x";
 import React, { memo, useMemo } from "react";
 import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { useLanguage } from "../hooks";
 import CodeHighlighter from "./CodeHighlighter";
+import HtmlPreviewHeader from "./HtmlPreviewHeader";
 import InlineCode from "./InlineCode";
 
 interface CustomCodeBlockProps {
   inline?: boolean;
   className?: string;
   children?: React.ReactNode;
-}
-
-function createHtmlPreviewBlockId() {
-  return `html_preview_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
 const CustomCodeBlock = memo(({ inline, className, children }: CustomCodeBlockProps) => {
@@ -26,28 +22,7 @@ const CustomCodeBlock = memo(({ inline, className, children }: CustomCodeBlockPr
     if (language !== "html" || !blockPreview) {
       return undefined;
     }
-    return (
-      <>
-        <span className="text-(--ant-color-text-secondary)">{language}</span>
-        <div className="flex shrink-0 items-center gap-1">
-          <Button
-            type="link"
-            size="small"
-            className="px-1!"
-            onClick={() =>
-              blockPreview.openPreview({
-                id: createHtmlPreviewBlockId(),
-                type: "html",
-                content: code,
-              })
-            }
-          >
-            预览
-          </Button>
-          <Actions.Copy text={code} />
-        </div>
-      </>
-    );
+    return <HtmlPreviewHeader language={language} code={code} openPreview={blockPreview.openPreview} />;
   }, [blockPreview, code, language]);
 
   if (inline || !language) {
