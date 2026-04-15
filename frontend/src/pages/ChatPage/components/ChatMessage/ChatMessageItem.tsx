@@ -1,5 +1,5 @@
 import { ChatMessage as ChatMessageType, MessageFeedbackValue } from "@/interfaces";
-import { PdfBlock } from "@/interfaces/contentBlock";
+import type { PreviewableBlock } from "@/interfaces/contentBlock";
 import { useMemoizedFn } from "ahooks";
 import React from "react";
 import AssistantMessage from "./AssistantMessage";
@@ -15,7 +15,7 @@ interface ChatMessageItemProps {
   onDeleteMessage: (messageId: string) => void | Promise<void>;
   onUpdateMessageFeedback: (messageId: string, value: MessageFeedbackValue) => Promise<void>;
   onReSend: (index: number, message: ChatMessageType) => void;
-  onPreviewBlock: (block: PdfBlock) => void;
+  onPreviewBlock: (block: PreviewableBlock) => void;
 }
 
 const ChatMessageItem: React.FC<ChatMessageItemProps> = ({

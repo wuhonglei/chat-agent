@@ -83,6 +83,9 @@ export enum ContentBlockRenderStatus {
 }
 
 export type ContentBlock = TextBlock | ThinkingBlock | ToolUseBlock | ToolResultBlock | ImageBlock | PdfBlock;
+
+/** 侧栏可预览的内容块（当前支持 PDF 与 HTML 片段） */
+export type PreviewableBlock = PdfBlock | HtmlBlock;
 export type UserContentBlock = TextBlock | ImageBlock | PdfBlock;
 /** 用户消息中的附件块（图片、PDF 等），不含文本块 */
 export type UserAttachmentBlock = Exclude<UserContentBlock, TextBlock>;

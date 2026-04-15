@@ -1,8 +1,10 @@
+import { useBlockPreview } from "@/pages/ChatPage/context/BlockPreviewContext";
 import { Mermaid } from "@ant-design/x";
-import React, { memo } from "react";
+import React, { memo, useMemo } from "react";
 import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { useLanguage } from "../hooks";
 import CodeHighlighter from "./CodeHighlighter";
+import HtmlPreviewHeader from "./HtmlPreviewHeader";
 import InlineCode from "./InlineCode";
 
 interface CustomCodeBlockProps {
@@ -14,6 +16,14 @@ interface CustomCodeBlockProps {
 const CustomCodeBlock = memo(({ inline, className, children }: CustomCodeBlockProps) => {
   const code = String(children).replace(/\n$/, "");
   const language = useLanguage(className, code, inline);
+  const blockPreview = useBlockPreview();
+
+  const htmlHeader = useMemo(() => {
+    if (language !== "html" || !blockPreview) {
+      return undefined;
+    }
+    return <HtmlPreviewHeader language={language} code={code} openPreview={blockPreview.openPreview} />;
+  }, [blockPreview, code, language]);
 
   if (inline || !language) {
     return <InlineCode>{code}</InlineCode>;
@@ -33,7 +43,11 @@ const CustomCodeBlock = memo(({ inline, className, children }: CustomCodeBlockPr
     );
   }
 
-  return <CodeHighlighter lang={language}>{code}</CodeHighlighter>;
+  return (
+    <CodeHighlighter lang={language} header={htmlHeader}>
+      {code}
+    </CodeHighlighter>
+  );
 });
 
 export default CustomCodeBlock;

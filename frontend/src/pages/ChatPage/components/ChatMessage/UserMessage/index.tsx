@@ -1,9 +1,9 @@
 import { ChatMessage as ChatMessageType } from "@/interfaces";
 import {
-  PdfBlock,
   getMessageTextFromBlocks,
   hasAttachmentBlocks,
   isUserMessageContentTextOnly,
+  type PreviewableBlock,
 } from "@/interfaces/contentBlock";
 import { Bubble } from "@ant-design/x";
 import classNames from "classnames";
@@ -18,7 +18,7 @@ interface UserMessageProps {
   isLastMessage: boolean;
   onEditMessage: (content: string) => void;
   onDeleteMessage: () => void | Promise<void>;
-  onPreviewBlock: (block: PdfBlock) => void;
+  onPreviewBlock: (block: PreviewableBlock) => void;
 }
 
 const UserMessage: React.FC<UserMessageProps> = ({
