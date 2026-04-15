@@ -2,8 +2,9 @@ import image404 from "@/assets/imgs/404_image.png";
 import { useIsSmallScreen } from "@/hooks";
 import {
   ContentBlock,
-  PdfBlock,
   isUserAttachmentBlock,
+  type PdfBlock,
+  type PreviewableBlock,
   type TextBlock,
   type UserAttachmentBlock,
 } from "@/interfaces/contentBlock";
@@ -17,7 +18,7 @@ function triggerPdfDownload(block: PdfBlock) {
 
 interface AttachmentToFileCardItemOptions {
   isSmallScreen: boolean;
-  onPreviewBlock?: (block: PdfBlock) => void;
+  onPreviewBlock?: (block: PreviewableBlock) => void;
 }
 
 function attachmentToFileCardItem(
@@ -83,7 +84,7 @@ function partitionUserBlocks(blocks: ContentBlock[]) {
 
 export interface UserMessageDisplayContentProps {
   contentBlocks: ContentBlock[];
-  onPreviewBlock?: (block: PdfBlock) => void;
+  onPreviewBlock?: (block: PreviewableBlock) => void;
 }
 
 const UserMessageDisplayContent: React.FC<UserMessageDisplayContentProps> = ({ contentBlocks, onPreviewBlock }) => {

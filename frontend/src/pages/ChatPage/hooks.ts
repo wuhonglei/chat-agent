@@ -1,6 +1,6 @@
 import { emitter, EventType } from "@/events";
 import { ChatInputFormValues, ChatMessage as ChatMessageType, MessageFeedbackValue } from "@/interfaces";
-import { PdfBlock } from "@/interfaces/contentBlock";
+import type { PreviewableBlock } from "@/interfaces/contentBlock";
 import { useMemoizedFn } from "ahooks";
 import type { FormInstance } from "antd";
 import { useState } from "react";
@@ -58,10 +58,10 @@ export const useChatMessageHandlers = ({
 };
 
 export const useBlockPreviewHandlers = ({ isSmallScreen }: UseBlockPreviewHandlersParams) => {
-  const [previewBlock, setPreviewBlock] = useState<PdfBlock | null>(null);
+  const [previewBlock, setPreviewBlock] = useState<PreviewableBlock | null>(null);
   const [previewPanelSize, setPreviewPanelSize] = useState<number | string>(0);
 
-  const handleOpenBlockPreview = useMemoizedFn((block: PdfBlock) => {
+  const handleOpenBlockPreview = useMemoizedFn((block: PreviewableBlock) => {
     emitter.emit(EventType.ChangeSidebarCollapse, true);
     setPreviewPanelSize(prev => (prev === 0 ? "40%" : prev));
     setPreviewBlock(block);

@@ -1,6 +1,6 @@
 import { useChatState } from "@/hooks";
 import { ChatMessage as ChatMessageType, MessageFeedbackValue } from "@/interfaces";
-import { PdfBlock } from "@/interfaces/contentBlock";
+import type { PreviewableBlock } from "@/interfaces/contentBlock";
 import classNames from "classnames";
 import React, { useRef } from "react";
 import SimpleBar from "simplebar-react";
@@ -17,7 +17,7 @@ interface ChatMessageListProps {
   onDeleteMessage: (messageId: string) => void | Promise<void>;
   onUpdateMessageFeedback: (messageId: string, value: MessageFeedbackValue) => Promise<void>;
   onReSend: (index: number, message: ChatMessageType) => void;
-  onPreviewBlock: (block: PdfBlock) => void;
+  onPreviewBlock: (block: PreviewableBlock) => void;
 }
 
 const ChatMessageList: React.FC<ChatMessageListProps> = ({
