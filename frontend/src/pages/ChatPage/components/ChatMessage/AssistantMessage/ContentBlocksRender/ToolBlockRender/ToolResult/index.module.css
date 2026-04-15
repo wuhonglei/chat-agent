@@ -1,0 +1,4 @@
+.x-markdown:global(.x-markdown) {
+  --font-size: 14px;
+  --margin-block: 4px;
+}

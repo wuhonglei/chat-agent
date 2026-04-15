@@ -7,6 +7,7 @@ import { Divider } from "antd";
 import { CONTEXT7_TOOL_NAMES } from "../toolIcons";
 import { getResultLanguage, stringifyJsonLike } from "../utils";
 import WebSearchResult from "./WebSearchResult";
+import styles from "./index.module.css";
 
 const WEB_SEARCH_TOOL_NAME = "web_search";
 
@@ -42,7 +43,9 @@ const ToolResult: React.FC<ToolResultProps> = ({ toolName, toolResultBlock }) =>
     return (
       <>
         <Divider orientation="horizontal" style={{ margin: 0 }}></Divider>
-        <MarkdownContainer style={containerStyle}>{toolResultBlock.content}</MarkdownContainer>
+        <MarkdownContainer style={containerStyle} className={styles["x-markdown"]}>
+          {toolResultBlock.content}
+        </MarkdownContainer>
       </>
     );
   }
