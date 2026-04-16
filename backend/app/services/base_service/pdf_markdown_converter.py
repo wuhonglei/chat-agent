@@ -2,17 +2,13 @@
 
 from __future__ import annotations
 
+import base64
 from pathlib import Path
 from typing import Any, Literal, cast
 
 import httpx
 import pymupdf
 from markitdown import MarkItDown
-
-try:
-    from mineru_kie_sdk import MineruKIEClient
-except Exception:  # pragma: no cover - 依赖缺失时仅在运行时兜底
-    MineruKIEClient = None
 
 from app.core.config import settings
 from app.schemas.config import PdfMarkdownConfig
@@ -69,37 +65,45 @@ class PdfMarkdownConverter:
         return markdown
 
     def convert_scan_pdf(self, pdf_path: Path) -> str:
-        """扫描型 PDF 使用 MinerU KIE SDK 转换。"""
+        """扫描型 PDF 使用 PP-StructureV3 转换。"""
         cfg = self._config
-        if not cfg.mineru_kie_pipeline_id:
-            raise PdfMarkdownConversionError("未配置 MinerU KIE Pipeline ID")
-        if MineruKIEClient is None:
-            raise PdfMarkdownConversionError("mineru-kie-sdk 未安装或不可用")
+        if not cfg.pp_structure_token:
+            raise PdfMarkdownConversionError("未配置 PP-StructureV3 token")
 
         try:
-            kie_client_cls = cast(Any, MineruKIEClient)
-            client = kie_client_cls(
-                base_url=cfg.mineru_kie_base_url,
-                pipeline_id=cfg.mineru_kie_pipeline_id,
-                timeout=max(1, int(cfg.poll_timeout_seconds)),
-            )
-            file_ids = client.upload_file(str(pdf_path))
-            results = client.get_result(
-                file_ids=file_ids,
-                timeout=max(1, int(cfg.poll_timeout_seconds)),
-                poll_interval=max(1, int(cfg.poll_interval_seconds)),
-            )
-            markdown = self._extract_markdown(results)
+            pdf_data = pdf_path.read_bytes()
+            payload = {
+                "file": base64.b64encode(pdf_data).decode("ascii"),
+                "fileType": 0,
+                "useDocOrientationClassify": False,
+                "useDocUnwarping": False,
+                "useTextlineOrientation": False,
+                "useChartRecognition": False,
+            }
+            headers = {
+                "Authorization": f"token {cfg.pp_structure_token}",
+                "Content-Type": "application/json",
+            }
+            with httpx.Client(
+                timeout=max(1.0, cfg.poll_timeout_seconds),
+            ) as client:
+                response = client.post(
+                    cfg.pp_structure_api_url,
+                    json=payload,
+                    headers=headers,
+                )
+                response.raise_for_status()
+                response_json = response.json()
+            markdown = self._extract_pp_structure_markdown(response_json)
         except PdfMarkdownConversionError:
             raise
         except Exception as exc:
-            raise PdfMarkdownConversionError("MinerU KIE SDK 转换失败") from exc
+            raise PdfMarkdownConversionError("PP-StructureV3 转换失败") from exc
 
         logger.info(
-            "MinerU KIE conversion done",
+            "PP-StructureV3 conversion done",
             pdf_path=str(pdf_path),
-            mineru_file_ids=file_ids,
-            mineru_pipeline_id=cfg.mineru_kie_pipeline_id,
+            pp_structure_api_url=cfg.pp_structure_api_url,
         )
         return markdown
 
@@ -119,49 +123,32 @@ class PdfMarkdownConverter:
         """保存 markdown 到目标路径。"""
         md_path.write_text(markdown_text, encoding="utf-8")
 
-    def _extract_markdown(self, results: Any) -> str:
-        markdown = self._extract_markdown_value(results)
-        if not markdown.strip():
-            raise PdfMarkdownConversionError("MinerU KIE 未返回有效 Markdown 内容")
+    def _extract_pp_structure_markdown(self, response_json: Any) -> str:
+        if not isinstance(response_json, dict):
+            raise PdfMarkdownConversionError("PP-StructureV3 返回格式无效")
+
+        result = response_json.get("result")
+        if not isinstance(result, dict):
+            raise PdfMarkdownConversionError("PP-StructureV3 返回缺少 result 字段")
+
+        layout_results = result.get("layoutParsingResults")
+        if not isinstance(layout_results, list) or not layout_results:
+            raise PdfMarkdownConversionError(
+                "PP-StructureV3 返回缺少 layoutParsingResults 字段"
+            )
+
+        markdown_parts: list[str] = []
+        for item in layout_results:
+            if not isinstance(item, dict):
+                continue
+            markdown_obj = item.get("markdown")
+            if not isinstance(markdown_obj, dict):
+                continue
+            text = markdown_obj.get("text")
+            if isinstance(text, str) and text.strip():
+                markdown_parts.append(text.strip())
+
+        markdown = "\n\n".join(markdown_parts).strip()
+        if not markdown:
+            raise PdfMarkdownConversionError("PP-StructureV3 未返回有效 Markdown 文本")
         return markdown
-
-    def _extract_markdown_value(self, obj: Any) -> str:
-        if isinstance(obj, str):
-            return ""
-
-        if isinstance(obj, dict):
-            for key in ("markdown", "md", "md_content"):
-                value = obj.get(key)
-                if isinstance(value, str) and value.strip():
-                    return value
-
-            for key in ("markdown_url", "md_url"):
-                value = obj.get(key)
-                if isinstance(value, str) and value.strip():
-                    return self._download_markdown(value)
-
-            for value in obj.values():
-                nested = self._extract_markdown_value(value)
-                if nested.strip():
-                    return nested
-            return ""
-
-        if isinstance(obj, list):
-            for item in obj:
-                nested = self._extract_markdown_value(item)
-                if nested.strip():
-                    return nested
-            return ""
-
-        return ""
-
-    def _download_markdown(self, url: str) -> str:
-        try:
-            with httpx.Client(
-                timeout=max(1.0, self._config.poll_timeout_seconds)
-            ) as client:
-                response = client.get(url)
-                response.raise_for_status()
-                return response.text
-        except Exception as exc:
-            raise PdfMarkdownConversionError("下载 MinerU Markdown 结果失败") from exc
