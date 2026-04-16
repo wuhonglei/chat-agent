@@ -229,8 +229,34 @@ class PdfBlock(BaseModel):
     )
 
 
+class MarkdownBlock(BaseModel):
+    id: str = Field(..., description="Block ID")
+    type: Literal["markdown"] = "markdown"
+    url: str = Field(..., description="Preview URL path (e.g. /api/file/preview/...)")
+    name: str = Field(
+        default="",
+        max_length=240,
+        description="展示用文件名（已安全化）；历史数据可能为空",
+    )
+    size: int = Field(
+        ...,
+        ge=0,
+        description="落盘文件字节数",
+    )
+    mime: Literal["text/markdown"] = Field(
+        default="text/markdown",
+        description="MIME type for Markdown",
+    )
+
+
 ContentBlock: TypeAlias = (
-    TextBlock | ThinkingBlock | ToolUseBlock | ToolResultBlock | ImageBlock | PdfBlock
+    TextBlock
+    | ThinkingBlock
+    | ToolUseBlock
+    | ToolResultBlock
+    | ImageBlock
+    | PdfBlock
+    | MarkdownBlock
 )
 _CONTENT_BLOCKS_ADAPTER = TypeAdapter(list[ContentBlock])
 
