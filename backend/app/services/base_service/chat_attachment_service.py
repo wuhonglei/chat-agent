@@ -8,7 +8,7 @@ from typing import Literal
 
 from fastapi import HTTPException, UploadFile
 
-from app.schemas.chat import ImageBlock, PdfBlock
+from app.schemas.chat import ImageBlock, MarkdownBlock
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[3]
 
@@ -19,7 +19,7 @@ PDF_CONTENT_TYPE: Literal["application/pdf"] = "application/pdf"
 _FILENAME_RE = re.compile(
     (
         r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-"
-        r"[0-9a-f]{12}\.(jpg|jpeg|png|gif|webp|pdf)$"
+        r"[0-9a-f]{12}\.(jpg|jpeg|png|gif|webp|pdf|md)$"
     ),
     re.IGNORECASE,
 )
@@ -31,6 +31,7 @@ _EXT_TO_MEDIA_TYPE: dict[str, str] = {
     ".gif": "image/gif",
     ".webp": "image/webp",
     ".pdf": PDF_CONTENT_TYPE,
+    ".md": "text/markdown",
 }
 
 _STEM_SAFE_RE = re.compile(r"[^\w\-. \u0080-\uFFFF]+", re.UNICODE)
@@ -90,7 +91,7 @@ def media_type_for_preview(filename: str) -> str:
 
 async def save_chat_attachment(
     *, user_id: str, file: UploadFile
-) -> ImageBlock | PdfBlock:
+) -> ImageBlock | MarkdownBlock:
     from app.services.base_service.chat_image_service import save_chat_image
     from app.services.base_service.chat_pdf_service import save_chat_pdf
 

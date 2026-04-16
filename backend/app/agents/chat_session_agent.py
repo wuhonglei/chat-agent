@@ -42,7 +42,7 @@ from app.utils.logger import logger
 from app.utils.message import update_last_user_message
 from app.utils.multimodal import (
     build_user_content_for_llm,
-    extract_user_text_with_image_placeholder,
+    extract_user_text_with_attachment_placeholder,
 )
 from app.utils.time import get_current_time, get_time_duration
 
@@ -102,7 +102,7 @@ class ChatSessionAgent(BaseAgent):
         self.session_output.reset()
         self.content_block_aggregator = ContentBlocksAggregator()
 
-        user_message = extract_user_text_with_image_placeholder(
+        user_message = extract_user_text_with_attachment_placeholder(
             chat_request.content_blocks
         )
         memories = [m.memory for m in user_memories]

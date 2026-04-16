@@ -249,6 +249,8 @@ class MarkdownBlock(BaseModel):
     )
 
 
+AttachmentBlock: TypeAlias = ImageBlock | PdfBlock | MarkdownBlock
+
 ContentBlock: TypeAlias = (
     TextBlock
     | ThinkingBlock
