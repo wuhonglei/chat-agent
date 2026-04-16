@@ -8,7 +8,7 @@ from typing import Literal
 
 from fastapi import HTTPException, UploadFile
 
-from app.schemas.chat import ImageBlock, MarkdownBlock
+from app.schemas.chat import AttachmentBlock
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[3]
 
@@ -89,9 +89,7 @@ def media_type_for_preview(filename: str) -> str:
     return "application/octet-stream"
 
 
-async def save_chat_attachment(
-    *, user_id: str, file: UploadFile
-) -> ImageBlock | MarkdownBlock:
+async def save_chat_attachment(*, user_id: str, file: UploadFile) -> AttachmentBlock:
     from app.services.base_service.chat_image_service import save_chat_image
     from app.services.base_service.chat_pdf_service import save_chat_pdf
 

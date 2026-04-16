@@ -209,26 +209,6 @@ class ImageBlock(BaseModel):
     mime: str = Field(..., description="MIME type e.g. image/jpeg")
 
 
-class PdfBlock(BaseModel):
-    id: str = Field(..., description="Block ID")
-    type: Literal["pdf"] = "pdf"
-    url: str = Field(..., description="Preview URL path (e.g. /api/file/preview/...)")
-    name: str = Field(
-        default="",
-        max_length=240,
-        description="展示用文件名（已安全化）；历史数据可能为空",
-    )
-    size: int = Field(
-        ...,
-        ge=0,
-        description="落盘文件字节数",
-    )
-    mime: Literal["application/pdf"] = Field(
-        default="application/pdf",
-        description="MIME type for PDF",
-    )
-
-
 class MarkdownBlock(BaseModel):
     id: str = Field(..., description="Block ID")
     type: Literal["markdown"] = "markdown"
@@ -249,7 +229,30 @@ class MarkdownBlock(BaseModel):
     )
 
 
-AttachmentBlock: TypeAlias = ImageBlock | PdfBlock | MarkdownBlock
+class PdfBlock(BaseModel):
+    id: str = Field(..., description="Block ID")
+    type: Literal["pdf"] = "pdf"
+    url: str = Field(..., description="Preview URL path (e.g. /api/file/preview/...)")
+    name: str = Field(
+        default="",
+        max_length=240,
+        description="展示用文件名（已安全化）；历史数据可能为空",
+    )
+    size: int = Field(
+        ...,
+        ge=0,
+        description="落盘文件字节数",
+    )
+    mime: Literal["application/pdf"] = Field(
+        default="application/pdf",
+        description="MIME type for PDF",
+    )
+    markdownBlock: MarkdownBlock | None = Field(  # pyright: ignore[reportUndefinedVariable]
+        default=None, description="Markdown block"
+    )
+
+
+AttachmentBlock: TypeAlias = ImageBlock | MarkdownBlock | PdfBlock
 
 ContentBlock: TypeAlias = (
     TextBlock
