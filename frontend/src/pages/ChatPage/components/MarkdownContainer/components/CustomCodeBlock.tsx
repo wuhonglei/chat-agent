@@ -6,6 +6,7 @@ import { useLanguage } from "../hooks";
 import CodeHighlighter from "./CodeHighlighter";
 import HtmlPreviewHeader from "./HtmlPreviewHeader";
 import InlineCode from "./InlineCode";
+import { useIsSmallScreen } from "@/hooks";
 
 interface CustomCodeBlockProps {
   inline?: boolean;
@@ -17,13 +18,14 @@ const CustomCodeBlock = memo(({ inline, className, children }: CustomCodeBlockPr
   const code = String(children).replace(/\n$/, "");
   const language = useLanguage(className, code, inline);
   const blockPreview = useBlockPreview();
+  const isSmallScreen = useIsSmallScreen();
 
   const htmlHeader = useMemo(() => {
-    if (language !== "html" || !blockPreview) {
+    if (isSmallScreen || language !== "html" || !blockPreview) {
       return undefined;
     }
     return <HtmlPreviewHeader language={language} code={code} openPreview={blockPreview.openPreview} />;
-  }, [blockPreview, code, language]);
+  }, [blockPreview, code, language, isSmallScreen]);
 
   if (inline || !language) {
     return <InlineCode>{code}</InlineCode>;
