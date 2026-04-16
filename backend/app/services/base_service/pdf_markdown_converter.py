@@ -54,7 +54,7 @@ class PdfMarkdownConverter:
         )
         return pdf_kind
 
-    def convert_text_pdf_with_markitdown(self, pdf_path: Path) -> str:
+    def convert_text_pdf(self, pdf_path: Path) -> str:
         """文本型 PDF 使用 MarkItDown 转换。"""
         try:
             result = MarkItDown().convert(str(pdf_path))
@@ -68,7 +68,7 @@ class PdfMarkdownConverter:
             raise PdfMarkdownConversionError("MarkItDown 未返回有效 Markdown 内容")
         return markdown
 
-    def convert_scan_pdf_with_mineru_kie_sdk(self, pdf_path: Path) -> str:
+    def convert_scan_pdf(self, pdf_path: Path) -> str:
         """扫描型 PDF 使用 MinerU KIE SDK 转换。"""
         cfg = self._config
         if not cfg.mineru_kie_pipeline_id:
@@ -107,9 +107,9 @@ class PdfMarkdownConverter:
         """统一转换入口。"""
         pdf_kind = self.detect_pdf_kind(pdf_path)
         if pdf_kind == "text":
-            markdown = self.convert_text_pdf_with_markitdown(pdf_path)
+            markdown = self.convert_text_pdf(pdf_path)
         else:
-            markdown = self.convert_scan_pdf_with_mineru_kie_sdk(pdf_path)
+            markdown = self.convert_scan_pdf(pdf_path)
         logger.info(
             "PDF markdown conversion done", pdf_path=str(pdf_path), pdf_kind=pdf_kind
         )
