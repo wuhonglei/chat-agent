@@ -21,10 +21,10 @@ const HtmlBlockPreviewPanel: React.FC<HtmlBlockPreviewPanelProps> = ({ block, is
       </header>
       <div className="flex min-h-0 flex-1 flex-col p-3">
         <iframe
-          title="HTML 预览"
-          className="h-full min-h-[280px] w-full flex-1 rounded border border-(--ant-color-border-secondary) bg-white"
-          srcDoc={block.content}
           sandbox=""
+          title="HTML 预览"
+          srcDoc={block.content}
+          className="h-full min-h-[280px] w-full flex-1 rounded border border-(--ant-color-border-secondary) bg-white"
         />
       </div>
     </section>
