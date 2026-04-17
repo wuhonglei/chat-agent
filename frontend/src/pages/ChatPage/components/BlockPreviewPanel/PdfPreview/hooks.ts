@@ -1,22 +1,6 @@
 import { useDebounce, useSize } from "ahooks";
 import { RefObject, useCallback, useEffect, useState } from "react";
 
-interface UsePdfPreviewAutoCloseOnSmallScreenParams {
-  isSmallScreen: boolean;
-  onClose: () => void;
-}
-
-export const usePdfPreviewAutoCloseOnSmallScreen = ({
-  isSmallScreen,
-  onClose,
-}: UsePdfPreviewAutoCloseOnSmallScreenParams) => {
-  useEffect(() => {
-    if (isSmallScreen) {
-      onClose();
-    }
-  }, [isSmallScreen, onClose]);
-};
-
 export const usePdfPageWidth = (contentRef: RefObject<HTMLDivElement | null>) => {
   const contentSize = useSize(contentRef);
   const widthDebounced = useDebounce(contentSize?.width, {

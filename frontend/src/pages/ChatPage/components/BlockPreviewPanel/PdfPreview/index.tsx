@@ -7,22 +7,19 @@ import React, { useMemo, useRef } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
+import { usePdfPageWidth, usePdfPreviewState } from "./hooks";
 import PdfDocumentErrorBoundary from "./PdfDocumentErrorBoundary";
-import { usePdfPageWidth, usePdfPreviewAutoCloseOnSmallScreen, usePdfPreviewState } from "./hooks";
 
 pdfjs.GlobalWorkerOptions.workerPort = new PdfWorker();
 
 export interface PdfBlockPreviewPanelProps {
   block: PdfBlock;
-  isSmallScreen: boolean;
   onClose: () => void;
 }
 
-const PdfBlockPreviewPanel: React.FC<PdfBlockPreviewPanelProps> = ({ block, isSmallScreen, onClose }) => {
+const PdfBlockPreviewPanel: React.FC<PdfBlockPreviewPanelProps> = ({ block, onClose }) => {
   const { url: pdfUrl, name: pdfName } = block;
   const contentRef = useRef<HTMLDivElement>(null);
-
-  usePdfPreviewAutoCloseOnSmallScreen({ isSmallScreen, onClose });
 
   const pageWidth = usePdfPageWidth(contentRef);
   const {

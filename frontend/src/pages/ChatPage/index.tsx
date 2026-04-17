@@ -84,9 +84,7 @@ const ChatPage: React.FC = () => {
             max={previewBlock ? "70%" : 0}
             resizable={Boolean(previewBlock)}
           >
-            {previewBlock ? (
-              <BlockPreviewPanel block={previewBlock} isSmallScreen={isSmallScreen} onClose={handleCloseBlockPreview} />
-            ) : null}
+            {previewBlock ? <BlockPreviewPanel block={previewBlock} onClose={handleCloseBlockPreview} /> : null}
           </Splitter.Panel>
         </Splitter>
       </BlockPreviewProvider>
