@@ -1,12 +1,12 @@
+import { useIsSmallScreen } from "@/hooks";
 import { useBlockPreview } from "@/pages/ChatPage/context/BlockPreviewContext";
 import { Mermaid } from "@ant-design/x";
-import React, { memo, useMemo } from "react";
+import React, { memo } from "react";
 import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { useLanguage } from "../hooks";
 import CodeHighlighter from "./CodeHighlighter";
-import HtmlPreviewHeader from "./HtmlPreviewHeader";
 import InlineCode from "./InlineCode";
-import { useIsSmallScreen } from "@/hooks";
+import { useHtmlPreviewHeader } from "./hooks";
 
 interface CustomCodeBlockProps {
   inline?: boolean;
@@ -20,12 +20,7 @@ const CustomCodeBlock = memo(({ inline, className, children }: CustomCodeBlockPr
   const blockPreview = useBlockPreview();
   const isSmallScreen = useIsSmallScreen();
 
-  const htmlHeader = useMemo(() => {
-    if (isSmallScreen || language !== "html" || !blockPreview) {
-      return undefined;
-    }
-    return <HtmlPreviewHeader language={language} code={code} openPreview={blockPreview.openPreview} />;
-  }, [blockPreview, code, language, isSmallScreen]);
+  const htmlHeader = useHtmlPreviewHeader({ isSmallScreen, language, code, blockPreview });
 
   if (inline || !language) {
     return <InlineCode>{code}</InlineCode>;
