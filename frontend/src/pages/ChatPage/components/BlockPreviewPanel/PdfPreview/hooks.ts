@@ -1,21 +1,14 @@
 import { useDebounce, useSize } from "ahooks";
 import { RefObject, useCallback, useEffect, useState } from "react";
 
-interface UsePdfPreviewAutoCloseOnSmallScreenParams {
-  isSmallScreen: boolean;
-  onClose: () => void;
-}
+const MIN_PAGE_WIDTH = 240;
 
-export const usePdfPreviewAutoCloseOnSmallScreen = ({
-  isSmallScreen,
-  onClose,
-}: UsePdfPreviewAutoCloseOnSmallScreenParams) => {
-  useEffect(() => {
-    if (isSmallScreen) {
-      onClose();
-    }
-  }, [isSmallScreen, onClose]);
-};
+function getPdfPaddingX(containerWidth: number): number {
+  if (containerWidth >= 880) return 80;
+  if (containerWidth >= 640) return 48;
+  if (containerWidth >= 480) return 32;
+  return 16;
+}
 
 export const usePdfPageWidth = (contentRef: RefObject<HTMLDivElement | null>) => {
   const contentSize = useSize(contentRef);
@@ -23,8 +16,14 @@ export const usePdfPageWidth = (contentRef: RefObject<HTMLDivElement | null>) =>
     wait: 100,
   });
 
-  if (!widthDebounced) return 360;
-  return Math.max(widthDebounced - 24, 240);
+  if (!widthDebounced) {
+    return { pageWidth: 360, paddingX: 16 };
+  }
+
+  const paddingX = getPdfPaddingX(widthDebounced);
+  const pageWidth = Math.max(widthDebounced - paddingX * 2, MIN_PAGE_WIDTH);
+
+  return { pageWidth, paddingX };
 };
 
 const PDF_LOAD_ERROR_MESSAGE = "PDF 加载失败，请重试";

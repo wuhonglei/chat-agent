@@ -1,6 +1,6 @@
 import classNames from "classnames";
 import React from "react";
-import styles from "./css/CustomHeader.module.css";
+import styles from "./index.module.css";
 
 type Props = {
   children: React.ReactNode;

@@ -1,20 +1,19 @@
 import type { PreviewableBlock } from "@/interfaces/contentBlock";
 import React from "react";
-import HtmlBlockPreviewPanel from "./HtmlBlockPreviewPanel";
-import PdfBlockPreviewPanel from "./PdfBlockPreviewPanel";
+import HtmlBlockPreviewPanel from "./HtmlPreview";
+import PdfBlockPreviewPanel from "./PdfPreview";
 
 export interface BlockPreviewPanelProps {
   block: PreviewableBlock;
-  isSmallScreen: boolean;
   onClose: () => void;
 }
 
-const BlockPreviewPanel: React.FC<BlockPreviewPanelProps> = ({ block, isSmallScreen, onClose }) => {
+const BlockPreviewPanel: React.FC<BlockPreviewPanelProps> = ({ block, onClose }) => {
   switch (block.type) {
     case "pdf":
-      return <PdfBlockPreviewPanel block={block} isSmallScreen={isSmallScreen} onClose={onClose} />;
+      return <PdfBlockPreviewPanel block={block} onClose={onClose} />;
     case "html":
-      return <HtmlBlockPreviewPanel block={block} isSmallScreen={isSmallScreen} onClose={onClose} />;
+      return <HtmlBlockPreviewPanel block={block} onClose={onClose} />;
     default: {
       const _exhaustive: never = block;
       return _exhaustive;
