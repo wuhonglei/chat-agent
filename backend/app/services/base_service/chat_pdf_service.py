@@ -6,7 +6,7 @@ import asyncio
 
 from fastapi import HTTPException, UploadFile
 
-from app.schemas.chat import PdfBlock
+from app.schemas.chat import MarkdownBlock, PdfBlock
 from app.services.base_service.chat_attachment_service import (
     MAX_CHAT_ATTACHMENT_BYTES,
     PDF_CONTENT_TYPE,
@@ -23,7 +23,7 @@ from app.utils.logger import logger
 
 
 async def save_chat_pdf(*, user_id: str, file: UploadFile) -> PdfBlock:
-    """保存上传 PDF 并返回 PdfBlock（url 为站内预览路径）。"""
+    """保存上传 PDF，转换 Markdown，并返回包含 markdownBlock 的 PdfBlock。"""
     content_type = (file.content_type or "").lower()
     if content_type != PDF_CONTENT_TYPE:
         raise HTTPException(status_code=400, detail="仅支持 PDF 文件")
@@ -59,10 +59,15 @@ async def save_chat_pdf(*, user_id: str, file: UploadFile) -> PdfBlock:
             detail=f"PDF 转 Markdown 失败：{exc}",
         ) from exc
 
-    stored_size = len(chunk)
-    display_name = sanitize_upload_display_name(
+    markdown_size = md_path.stat().st_size
+    pdf_display_name = sanitize_upload_display_name(
         file.filename,
         ext=".pdf",
+        default_stem="document",
+    )
+    markdown_display_name = sanitize_upload_display_name(
+        file.filename,
+        ext=".md",
         default_stem="document",
     )
 
@@ -70,15 +75,26 @@ async def save_chat_pdf(*, user_id: str, file: UploadFile) -> PdfBlock:
         "Chat pdf saved",
         user_id=user_id,
         filename=filename,
-        bytes=stored_size,
+        bytes=len(chunk),
         markdown_filename=md_path.name,
+        markdown_bytes=markdown_size,
     )
-
+    pdf_url = build_attachment_preview_url(user_id, filename)
+    markdown_url = build_attachment_preview_url(user_id, md_path.name)
+    markdown_block = MarkdownBlock(
+        id=block_id,
+        type="markdown",
+        url=markdown_url,
+        name=markdown_display_name,
+        size=markdown_size,
+        mime="text/markdown",
+    )
     return PdfBlock(
         id=block_id,
         type="pdf",
-        url=build_attachment_preview_url(user_id, filename),
-        name=display_name,
-        size=stored_size,
+        url=pdf_url,
+        name=pdf_display_name,
+        size=len(chunk),
         mime=PDF_CONTENT_TYPE,
+        markdownBlock=markdown_block,
     )

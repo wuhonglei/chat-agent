@@ -28,7 +28,7 @@ from app.services.chat.history_context_service import HistoryContextService
 from app.services.chat.post_process_service import PostProcessService
 from app.services.message import MessageDbService
 from app.utils.logger import logger
-from app.utils.multimodal import extract_user_text_with_image_placeholder
+from app.utils.multimodal import extract_user_text_with_attachment_placeholder
 from app.utils.time import get_current_time, get_time_duration
 
 
@@ -250,7 +250,7 @@ class ChatOrchestrator:
                 yield build_refresh_conversation_event(conversation)
 
                 title_task: asyncio.Task[str] | None = None
-                user_message_text = extract_user_text_with_image_placeholder(
+                user_message_text = extract_user_text_with_attachment_placeholder(
                     chat_request.content_blocks
                 )
                 if chat_request.regenerate_title:

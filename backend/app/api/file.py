@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 from app.schemas.auth import AuthTokenPayload
-from app.schemas.chat import ImageBlock, PdfBlock
+from app.schemas.chat import AttachmentBlock
 from app.schemas.response import ApiResponse
 from app.services.base_service.chat_attachment_service import (
     media_type_for_preview,
@@ -23,7 +23,7 @@ router = APIRouter()
 async def upload_chat_attachment(
     file: UploadFile = File(...),
     auth_info: AuthTokenPayload = Depends(get_auth_token_info),
-) -> ApiResponse[ImageBlock | PdfBlock]:
+) -> ApiResponse[AttachmentBlock]:
     """上传聊天附件（需登录）；保存至 data/user_data/{user_id}/uploads/。"""
     block = await save_chat_attachment(user_id=auth_info.user_id, file=file)
     return ApiResponse.success(data=block, msg="上传成功")

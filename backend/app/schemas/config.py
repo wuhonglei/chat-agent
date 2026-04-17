@@ -243,23 +243,23 @@ class PdfMarkdownConfig(BaseModel):
         ge=1,
         description="PDF 类型检测时读取的页数",
     )
-    mineru_kie_base_url: str = Field(
-        default="https://mineru.net/api/kie",
-        description="MinerU KIE API 根地址",
+    pp_structure_api_url: str = Field(
+        default="https://b5ad76r2h7wfk3g3.aistudio-app.com/layout-parsing",
+        description="PP-StructureV3 服务地址",
     )
-    mineru_kie_pipeline_id: str = Field(
+    pp_structure_token: str = Field(
         default="",
-        description="MinerU KIE Pipeline ID",
+        description="PP-StructureV3 服务 token（从 Nacos 注入）",
     )
     poll_interval_seconds: float = Field(
         default=3.0,
         gt=0,
-        description="KIE 结果轮询间隔（秒）",
+        description="预留配置：轮询间隔（秒）",
     )
     poll_timeout_seconds: float = Field(
         default=180.0,
         gt=0,
-        description="KIE 结果轮询超时（秒）",
+        description="PP-StructureV3 请求超时（秒）",
     )
 
 

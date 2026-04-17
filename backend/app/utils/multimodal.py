@@ -11,6 +11,7 @@ from urllib.parse import unquote, urlparse
 from app.schemas.chat import (
     ContentBlock,
     ImageBlock,
+    MarkdownBlock,
     PdfBlock,
     extract_user_text,
     normalize_content_blocks,
@@ -24,6 +25,7 @@ _IMAGE_PREVIEW_PATH_PATTERNS = (
 )
 _IMAGE_ONLY_PLACEHOLDER = "[用户发送了图片]"
 _PDF_ONLY_PLACEHOLDER = "[用户发送了 PDF 文件]"
+_MARKDOWN_ONLY_PLACEHOLDER = "[用户发送了 Markdown 文件]"
 
 
 def has_image_block(
@@ -44,7 +46,16 @@ def has_pdf_block(
     )
 
 
-def extract_user_text_with_image_placeholder(
+def has_markdown_block(
+    content_blocks: list[ContentBlock] | list[dict[str, Any]] | None,
+) -> bool:
+    return any(
+        isinstance(block, MarkdownBlock)
+        for block in normalize_content_blocks(content_blocks)
+    )
+
+
+def extract_user_text_with_attachment_placeholder(
     content_blocks: list[ContentBlock] | list[dict[str, Any]] | None,
     *,
     placeholder: str = _IMAGE_ONLY_PLACEHOLDER,
@@ -57,6 +68,8 @@ def extract_user_text_with_image_placeholder(
         return placeholder
     if has_pdf_block(normalized_blocks):
         return _PDF_ONLY_PLACEHOLDER
+    if has_markdown_block(normalized_blocks):
+        return _MARKDOWN_ONLY_PLACEHOLDER
     return ""
 
 
@@ -67,7 +80,7 @@ def build_title_user_message_for_llm(
     from app.prompts.prompt_utils import get_user_message_for_title
 
     normalized_blocks = normalize_content_blocks(content_blocks)
-    query_text = extract_user_text_with_image_placeholder(normalized_blocks)
+    query_text = extract_user_text_with_attachment_placeholder(normalized_blocks)
     wrapped = get_user_message_for_title(query_text)
 
     return build_user_content_for_llm(
