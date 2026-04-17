@@ -21,7 +21,7 @@ const PdfBlockPreviewPanel: React.FC<PdfBlockPreviewPanelProps> = ({ block, onCl
   const { url: pdfUrl, name: pdfName } = block;
   const contentRef = useRef<HTMLDivElement>(null);
 
-  const pageWidth = usePdfPageWidth(contentRef);
+  const { pageWidth, paddingX } = usePdfPageWidth(contentRef);
   const {
     numPages,
     loadErrorMessage,
@@ -52,7 +52,7 @@ const PdfBlockPreviewPanel: React.FC<PdfBlockPreviewPanelProps> = ({ block, onCl
 
   return (
     <section className="h-full min-h-0 flex flex-col border-l border-(--ant-color-border-secondary) bg-(--ant-color-bg-layout)">
-      <header className="flex items-center justify-between gap-2 px-3 py-2 border-b border-(--ant-color-border-secondary) bg-(--ant-color-bg-container)">
+      <header className="flex h-[60px] shrink-0 items-center justify-between gap-2 border-b border-(--ant-color-border-secondary) bg-(--ant-color-bg-container) px-3">
         <Typography.Text type="secondary">共 {numPages > 0 ? numPages : "-"} 页</Typography.Text>
         <div className="flex items-center gap-1">
           <Tooltip title="下载 PDF">
@@ -66,7 +66,7 @@ const PdfBlockPreviewPanel: React.FC<PdfBlockPreviewPanelProps> = ({ block, onCl
           <Button type="text" onClick={onClose} icon={<CloseOutlined />} />
         </div>
       </header>
-      <div ref={contentRef} className="flex-1 min-h-0 overflow-auto p-3">
+      <div ref={contentRef} className="flex-1 min-h-0 overflow-auto">
         {loadErrorMessage ? (
           errorFallback
         ) : (
@@ -83,12 +83,12 @@ const PdfBlockPreviewPanel: React.FC<PdfBlockPreviewPanelProps> = ({ block, onCl
               error={errorFallback}
             >
               <Spin spinning={numPages > 0 && !isPreviewReady} delay={100}>
-                <div className="space-y-3">
+                <div className="p-5 space-y-4 shadow-lg" style={{ paddingLeft: paddingX, paddingRight: paddingX }}>
                   {pageNumbers.map(currentPageNumber => (
                     <Page
+                      width={pageWidth}
                       key={currentPageNumber}
                       pageNumber={currentPageNumber}
-                      width={pageWidth}
                       onRenderSuccess={currentPageNumber === 1 ? markFirstPageAsRendered : undefined}
                     />
                   ))}

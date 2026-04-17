@@ -16,7 +16,7 @@ const HtmlBlockPreviewPanel: React.FC<HtmlBlockPreviewPanelProps> = ({ block, on
 
   return (
     <section className="h-full min-h-0 flex flex-col border-l border-(--ant-color-border-secondary) bg-(--ant-color-bg-layout)">
-      <header className="flex items-center justify-between gap-2 px-3 py-2 border-b border-(--ant-color-border-secondary) bg-(--ant-color-bg-container)">
+      <header className="flex h-[60px] shrink-0 items-center justify-between gap-2 border-b border-(--ant-color-border-secondary) bg-(--ant-color-bg-container) px-3">
         <Typography.Text type="secondary">HTML 预览</Typography.Text>
         <div className="flex items-center gap-1">
           <Tooltip title="下载 HTML">
@@ -30,7 +30,7 @@ const HtmlBlockPreviewPanel: React.FC<HtmlBlockPreviewPanelProps> = ({ block, on
           <Button type="text" onClick={onClose} icon={<CloseOutlined />} />
         </div>
       </header>
-      <div className="flex min-h-0 flex-1 flex-col p-3">
+      <div className="flex min-h-0 flex-1 flex-col">
         <iframe
           sandbox=""
           title="HTML 预览"
