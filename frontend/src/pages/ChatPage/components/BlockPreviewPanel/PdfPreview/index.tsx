@@ -1,7 +1,7 @@
 import type { PdfBlock } from "@/interfaces/contentBlock";
 import { downloadFileByUrl } from "@/utils";
 import { CloseOutlined, DownloadOutlined } from "@ant-design/icons";
-import { Button, Spin, Typography } from "antd";
+import { Button, Spin, Tooltip, Typography } from "antd";
 import PdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?worker";
 import React, { useMemo, useRef } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
@@ -55,13 +55,14 @@ const PdfBlockPreviewPanel: React.FC<PdfBlockPreviewPanelProps> = ({ block, onCl
       <header className="flex items-center justify-between gap-2 px-3 py-2 border-b border-(--ant-color-border-secondary) bg-(--ant-color-bg-container)">
         <Typography.Text type="secondary">共 {numPages > 0 ? numPages : "-"} 页</Typography.Text>
         <div className="flex items-center gap-1">
-          <Button
-            type="text"
-            title="下载 PDF"
-            onClick={handleDownloadPdf}
-            icon={<DownloadOutlined />}
-            disabled={Boolean(loadErrorMessage)}
-          />
+          <Tooltip title="下载 PDF">
+            <Button
+              type="text"
+              onClick={handleDownloadPdf}
+              icon={<DownloadOutlined />}
+              disabled={Boolean(loadErrorMessage)}
+            />
+          </Tooltip>
           <Button type="text" onClick={onClose} icon={<CloseOutlined />} />
         </div>
       </header>

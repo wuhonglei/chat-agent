@@ -1,6 +1,7 @@
 import type { HtmlBlock } from "@/interfaces/contentBlock";
-import { CloseOutlined } from "@ant-design/icons";
-import { Button, Typography } from "antd";
+import { downloadHtmlContent } from "@/utils";
+import { CloseOutlined, DownloadOutlined } from "@ant-design/icons";
+import { Button, Tooltip, Typography } from "antd";
 import React from "react";
 
 export interface HtmlBlockPreviewPanelProps {
@@ -9,11 +10,25 @@ export interface HtmlBlockPreviewPanelProps {
 }
 
 const HtmlBlockPreviewPanel: React.FC<HtmlBlockPreviewPanelProps> = ({ block, onClose }) => {
+  const handleDownloadHtml = () => {
+    downloadHtmlContent(block.content);
+  };
+
   return (
     <section className="h-full min-h-0 flex flex-col border-l border-(--ant-color-border-secondary) bg-(--ant-color-bg-layout)">
       <header className="flex items-center justify-between gap-2 px-3 py-2 border-b border-(--ant-color-border-secondary) bg-(--ant-color-bg-container)">
         <Typography.Text type="secondary">HTML 预览</Typography.Text>
-        <Button type="text" onClick={onClose} icon={<CloseOutlined />} />
+        <div className="flex items-center gap-1">
+          <Tooltip title="下载 HTML">
+            <Button
+              type="text"
+              onClick={handleDownloadHtml}
+              icon={<DownloadOutlined />}
+              disabled={!block.content.trim()}
+            />
+          </Tooltip>
+          <Button type="text" onClick={onClose} icon={<CloseOutlined />} />
+        </div>
       </header>
       <div className="flex min-h-0 flex-1 flex-col p-3">
         <iframe
