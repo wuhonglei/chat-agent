@@ -1,0 +1,46 @@
+.foldRoot {
+  position: relative;
+}
+
+/**
+ * 底部叠层：与代码区重叠；flex 将按钮水平居中并贴底；点击在此层统一触发折叠切换。
+ */
+.foldBottom {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  box-sizing: border-box;
+  min-height: 48px;
+  padding-bottom: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.foldBottomFade::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 48px;
+  pointer-events: none;
+  z-index: 0;
+  background: linear-gradient(to bottom, transparent, var(--ant-color-bg-container));
+}
+
+/** 图标按钮：叠在 ::before 渐变之上；显隐由 .foldRoot:hover 控制；点击冒泡至 .foldBottom */
+.toggleWrap {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.foldRoot:hover .toggleWrap,
+.foldRoot:focus-within .toggleWrap {
+  opacity: 1;
+}

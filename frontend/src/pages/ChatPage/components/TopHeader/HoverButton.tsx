@@ -61,7 +61,7 @@ export default function HoverButton({ title, onConfirm, className: outerClassNam
       ref={containerRef}
       onClick={() => setIsEdit(true)}
       className={classNames(
-        "relative h-10 rounded-full mx-8 px-3 cursor-pointer hover:shadow transition-all duration-300 max-w-full min-w-0",
+        "relative rounded-full mx-8 px-3 cursor-pointer hover:shadow transition-all duration-300 max-w-full min-w-0",
         outerClassName
       )}
     >

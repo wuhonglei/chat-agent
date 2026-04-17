@@ -79,6 +79,7 @@ const ChatPage: React.FC = () => {
             </section>
           </Splitter.Panel>
           <Splitter.Panel
+            className="shadow-xl"
             size={previewBlock ? previewPanelSize : 0}
             min={previewBlock ? "20%" : 0}
             max={previewBlock ? "70%" : 0}
