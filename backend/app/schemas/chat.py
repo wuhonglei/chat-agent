@@ -247,7 +247,7 @@ class PdfBlock(BaseModel):
         default="application/pdf",
         description="MIME type for PDF",
     )
-    markdownBlock: MarkdownBlock | None = Field(  # pyright: ignore[reportUndefinedVariable]
+    markdown: MarkdownBlock | None = Field(  # pyright: ignore[reportUndefinedVariable]
         default=None, description="Markdown block"
     )
 

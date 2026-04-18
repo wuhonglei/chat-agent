@@ -96,5 +96,5 @@ async def save_chat_pdf(*, user_id: str, file: UploadFile) -> PdfBlock:
         name=pdf_display_name,
         size=len(chunk),
         mime=PDF_CONTENT_TYPE,
-        markdownBlock=markdown_block,
+        markdown=markdown_block,
     )
