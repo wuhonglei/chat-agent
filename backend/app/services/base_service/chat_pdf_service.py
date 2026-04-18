@@ -148,20 +148,13 @@ async def save_chat_pdf(*, user_id: str, file: UploadFile) -> PdfBlock:
             existing_pdf = await asyncio.to_thread(dest.read_bytes)
             if existing_pdf == chunk:
                 markdown_size = md_path.stat().st_size
-                await _index_pdf_markdown_or_raise(
-                    user_id=user_id,
-                    file_id=content_hash,
-                    md_path=md_path,
-                    file_name=file_name,
-                    original_size_bytes=len(existing_pdf),
-                    processed_size_bytes=markdown_size,
-                )
                 logger.info(
                     "Chat pdf deduplicated",
                     user_id=user_id,
                     filename=filename,
                     pdf_bytes=len(existing_pdf),
                     markdown_bytes=markdown_size,
+                    embedding_skipped=True,
                 )
                 return _build_pdf_block(
                     content_hash=content_hash,
