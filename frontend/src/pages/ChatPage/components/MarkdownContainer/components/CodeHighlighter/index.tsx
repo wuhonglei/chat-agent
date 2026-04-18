@@ -15,7 +15,7 @@ type Props = CodeHighlighterProps & {
 
 const CodeHighlighter = ({
   header,
-  maxHeight,
+  maxHeight = 400,
   classNames: classNamesProp,
   styles: stylesProp,
   style,
