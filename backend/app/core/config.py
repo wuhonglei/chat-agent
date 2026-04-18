@@ -16,6 +16,7 @@ from app.schemas.config import (
     ChatContextConfig,
     DatabaseConfig,
     EmbeddingModelConfig,
+    KbFileRagConfig,
     LLMConfig,
     MCPConfig,
     PdfMarkdownConfig,
@@ -52,6 +53,10 @@ class Settings(BaseSettings):
     )
     chat_context: ChatContextConfig = Field(
         default_factory=ChatContextConfig, description="对话上下文配置"
+    )
+    kb_file_rag: KbFileRagConfig = Field(
+        default_factory=KbFileRagConfig,
+        description="知识库上传文件分块与 RAG 相关配置",
     )
     wechat: WechatConfig = Field(description="微信配置")
 

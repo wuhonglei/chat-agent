@@ -4,7 +4,7 @@ from typing import TypeVar
 
 from langchain_community.embeddings import DashScopeEmbeddings
 
-from app.core.config import settings
+from app.schemas.config import EmbeddingModelConfig
 from app.utils.logger import logger
 
 T = TypeVar("T")
@@ -13,8 +13,8 @@ T = TypeVar("T")
 class EmbeddingService:
     """基于 DashScope 的 Embedding 服务，用于单条文本向量化。"""
 
-    def __init__(self) -> None:
-        cfg = settings.embedding_model
+    def __init__(self, embedding_model: EmbeddingModelConfig) -> None:
+        cfg = embedding_model
         self._embeddings = DashScopeEmbeddings(
             model=cfg.model_name,
             dashscope_api_key=cfg.api_key,

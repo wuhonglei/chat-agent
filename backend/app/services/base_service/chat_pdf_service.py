@@ -16,6 +16,10 @@ from app.services.base_service.chat_attachment_service import (
     get_user_upload_dir,
     sanitize_upload_display_name,
 )
+from app.services.base_service.kb_file_chunk_embedding_service import (
+    KbFileChunkIndexingError,
+    index_uploaded_text_chunks,
+)
 from app.services.base_service.pdf_markdown_converter import (
     PdfMarkdownConversionError,
     PdfMarkdownConverter,
@@ -68,6 +72,51 @@ def _build_pdf_block(
     )
 
 
+async def _index_pdf_markdown_or_raise(
+    *,
+    user_id: str,
+    file_id: str,
+    md_path: Path,
+    file_name: str,
+    original_size_bytes: int,
+    processed_size_bytes: int,
+) -> None:
+    try:
+        markdown_text = await asyncio.to_thread(md_path.read_text, encoding="utf-8")
+    except OSError as exc:
+        logger.error(
+            "Chat pdf markdown read failed before embedding",
+            user_id=user_id,
+            file_id=file_id,
+            md_path=str(md_path),
+            error=exc,
+        )
+        raise HTTPException(status_code=502, detail="读取 Markdown 文件失败") from exc
+
+    try:
+        await index_uploaded_text_chunks(
+            user_id=user_id,
+            file_id=file_id,
+            text=markdown_text,
+            file_name=file_name,
+            source_kind="pdf",
+            text_format="markdown",
+            original_size_bytes=original_size_bytes,
+            processed_size_bytes=processed_size_bytes,
+        )
+    except KbFileChunkIndexingError as exc:
+        logger.error(
+            "Chat pdf embedding indexing failed",
+            user_id=user_id,
+            file_id=file_id,
+            md_path=str(md_path),
+            error=exc,
+        )
+        raise HTTPException(
+            status_code=502, detail=f"PDF 分块向量入库失败：{exc}"
+        ) from exc
+
+
 async def save_chat_pdf(*, user_id: str, file: UploadFile) -> PdfBlock:
     """保存上传 PDF（按内容 SHA-256 命名）；已存在同内容则复用并返回既有结果。"""
     content_type = (file.content_type or "").lower()
@@ -83,6 +132,11 @@ async def save_chat_pdf(*, user_id: str, file: UploadFile) -> PdfBlock:
     content_hash = _pdf_sha256_hex(chunk)
     filename = f"{content_hash}.pdf"
     md_filename = f"{content_hash}.md"
+    file_name = sanitize_upload_display_name(
+        file.filename,
+        ext=".pdf",
+        default_stem="document",
+    )
 
     upload_dir = get_user_upload_dir(user_id)
     upload_dir.mkdir(parents=True, exist_ok=True)
@@ -94,6 +148,14 @@ async def save_chat_pdf(*, user_id: str, file: UploadFile) -> PdfBlock:
             existing_pdf = await asyncio.to_thread(dest.read_bytes)
             if existing_pdf == chunk:
                 markdown_size = md_path.stat().st_size
+                await _index_pdf_markdown_or_raise(
+                    user_id=user_id,
+                    file_id=content_hash,
+                    md_path=md_path,
+                    file_name=file_name,
+                    original_size_bytes=len(existing_pdf),
+                    processed_size_bytes=markdown_size,
+                )
                 logger.info(
                     "Chat pdf deduplicated",
                     user_id=user_id,
@@ -143,6 +205,14 @@ async def save_chat_pdf(*, user_id: str, file: UploadFile) -> PdfBlock:
 
     markdown_size = md_path.stat().st_size
     pdf_size = dest.stat().st_size
+    await _index_pdf_markdown_or_raise(
+        user_id=user_id,
+        file_id=content_hash,
+        md_path=md_path,
+        file_name=file_name,
+        original_size_bytes=pdf_size,
+        processed_size_bytes=markdown_size,
+    )
 
     logger.info(
         "Chat pdf saved",

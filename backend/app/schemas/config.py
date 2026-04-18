@@ -263,6 +263,21 @@ class PdfMarkdownConfig(BaseModel):
     )
 
 
+class KbFileRagConfig(BaseModel):
+    """知识库上传文件分块与 RAG 配置"""
+
+    chunk_size: int = Field(
+        default=1000,
+        ge=1,
+        description="上传文件分块大小（字符）",
+    )
+    chunk_overlap: int = Field(
+        default=200,
+        ge=0,
+        description="上传文件分块重叠（字符）",
+    )
+
+
 # ---- 上下文压缩子配置 ----
 class ToolResultCompressionConfig(BaseModel):
     """工具结果压缩与摘要配置"""

@@ -4,19 +4,19 @@ overview: 在 `save_chat_pdf` 成功落盘并生成 Markdown 之后，使用 **`
 todos:
   - id: config-kb-file-rag
     content: 在 schemas/config.py 定义 KbFileRagConfig；在 core/config.py Settings 顶层增加 kb_file_rag 字段并 import
-    status: pending
+    status: completed
   - id: model-migration
     content: 新增 KbFileChunkEmbedding SQLModel（表 kb_file_chunk_embeddings：id/user_id/file_id/chunk_idx/chunk_content/embedding_vector/created_at/metadata JSON）+ Alembic 迁移（pgvector vector(1024)、索引、唯一约束）
-    status: pending
+    status: completed
   - id: indexing-service
     content: 实现 kb_file_chunk_embedding_service：读文本、MarkdownTextSplitter（参数来自 settings.kb_file_rag）、EmbeddingService、Session 内 delete+insert
-    status: pending
+    status: completed
   - id: wire-save-chat-pdf
     content: 在 save_chat_pdf 成功路径（含去重返回）调用 indexing；无向量或入库失败则抛 HTTP 异常，上传视为失败
-    status: pending
+    status: completed
   - id: tests
     content: 补充测试或手动验证迁移与入库行数
-    status: pending
+    status: completed
 isProject: false
 ---
 
