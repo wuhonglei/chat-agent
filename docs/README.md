@@ -33,6 +33,7 @@
 - `COMPONENT_TOOLS_PRD.md`：组件工具接入说明（已对齐当前字段）
 - `MCP_CONFIG_ANALYSIS.md`：MCP 配置与加载机制说明（按当前 `mcp_client`）
 - `RETRIEVAL_SYSTEM.md`：当前检索链路说明（基于 MCP 工具与会话流）
+- `/backend/README.md`：补充聊天附件链路（上传/预览/PDF 转 Markdown）、代码执行 API、聊天 SSE 事件约定
 
 ### 规划方案
 
@@ -54,6 +55,7 @@
 - `component-tools-implementation.md`：组件工具前端实现
 - `schema-generation.md` / `schema-for-backend-usage.md`：组件 schema 生成与后端使用
 - `conversion_cache.md`、`scroll-properties-explanation.md`、`aegis-埋点分析.md`
+- `/frontend/README.md`：补充 Chat 内容块/附件约束、预览行为、SSE 事件约定
 
 ### 历史文档
 
