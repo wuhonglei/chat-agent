@@ -16,11 +16,9 @@ MAX_CHAT_ATTACHMENT_BYTES = 10 * 1024 * 1024  # 10 MiB
 CHAT_ATTACHMENT_PREVIEW_PREFIX = "/api/file/preview"
 PDF_CONTENT_TYPE: Literal["application/pdf"] = "application/pdf"
 
+# 单段 basename：首字符为字母/数字，其余可含 ._-；白名单后缀，不固定 UUID/哈希分段与位数。
 _FILENAME_RE = re.compile(
-    (
-        r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-"
-        r"[0-9a-f]{12}\.(jpg|jpeg|png|gif|webp|pdf|md)$"
-    ),
+    r"^[A-Za-z0-9][A-Za-z0-9._-]{0,237}\.(jpg|jpeg|png|gif|webp|pdf|md)$",
     re.IGNORECASE,
 )
 
