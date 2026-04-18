@@ -102,9 +102,6 @@ class ChatSessionAgent(BaseAgent):
         self.session_output.reset()
         self.content_block_aggregator = ContentBlocksAggregator()
 
-        user_message = extract_user_text_with_attachment_placeholder(
-            chat_request.content_blocks
-        )
         memories = [m.memory for m in user_memories]
         logger.info("User memories", count=len(memories), memories=memories)
 
@@ -120,8 +117,11 @@ class ChatSessionAgent(BaseAgent):
             client_ip,
         )
 
+        user_message_text = extract_user_text_with_attachment_placeholder(
+            chat_request.content_blocks
+        )
         tool_guided_user_message = get_user_message_for_tool_calls(
-            user_message,
+            user_message_text,
             chat_request.mcp_auto_mode,
             server_names or [],
             client_ip,
@@ -137,10 +137,10 @@ class ChatSessionAgent(BaseAgent):
 
         tool_session = MCPToolSession(
             self.mcp_manager,
-            user_message,
+            user_message_text,
             self.tool_round_messages,
         )
-        tool_session.reset_for_request(user_message)
+        tool_session.reset_for_request(user_message_text)
 
         if not tools:
             async for sse in self._stream_final_round_events(

@@ -55,7 +55,7 @@ def get_system_prompt_for_title() -> str:
 
 
 def get_user_message_for_tool_calls(
-    user_message: str,
+    user_message_text: str,
     mcp_auto_mode: bool,
     server_names: list[str],
     client_ip: str | None,
@@ -70,7 +70,7 @@ def get_user_message_for_tool_calls(
     ]
 
     return user_message_for_tool_call_template.render(
-        user_message=user_message,
+        user_message_text=user_message_text,
         mcp_auto_mode=mcp_auto_mode,
         mcp_configs=mcp_configs,
         current_datetime=get_current_datetime_str(),
@@ -78,9 +78,9 @@ def get_user_message_for_tool_calls(
     ).strip()
 
 
-def get_user_message_for_title(user_message: str) -> str:
+def get_user_message_for_title(user_message_text: str) -> str:
     """Get user message prompt for title generation"""
-    return user_message_for_default_template.render(user_message=user_message)
+    return user_message_for_default_template.render(user_message_text=user_message_text)
 
 
 def get_window_out_summary_merge_prompt(

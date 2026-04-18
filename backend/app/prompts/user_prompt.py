@@ -5,7 +5,7 @@ from jinja2 import Template
 user_message_for_default_template: Template = Template(
     """
 <user_message>
-  <query>{{ user_message|e }}</query>
+  <query>{{ user_message_text|e }}</query>
 </user_message>
 """.strip()
 )
@@ -14,7 +14,7 @@ user_message_for_default_template: Template = Template(
 user_message_for_tool_call_template: Template = Template(
     """
 <user_message>
-  <query>{{ user_message|e }}</query>
+  <query>{{ user_message_text|e }}</query>
 </user_message>
 
 <tool_call_context>
