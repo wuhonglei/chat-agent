@@ -110,9 +110,9 @@ const PdfBlockPreviewPanel: React.FC<PdfBlockPreviewPanelProps> = ({ block, onCl
         ) : (
           <PdfDocumentErrorBoundary resetKey={documentKey} onError={handlePdfLoadError} fallback={errorFallback}>
             <Document
+              file={pdfUrl}
               key={documentKey}
               className="w-full"
-              file={pdfUrl}
               onLoadSuccess={handleDocumentLoadSuccess}
               onLoadError={handlePdfLoadError}
               onSourceError={handlePdfLoadError}
