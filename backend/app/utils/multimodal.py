@@ -57,15 +57,13 @@ def has_markdown_block(
 
 def extract_user_text_with_attachment_placeholder(
     content_blocks: list[ContentBlock] | list[dict[str, Any]] | None,
-    *,
-    placeholder: str = _IMAGE_ONLY_PLACEHOLDER,
 ) -> str:
     normalized_blocks = normalize_content_blocks(content_blocks)
     text = extract_user_text(normalized_blocks)
     if text:
         return text
     if has_image_block(normalized_blocks):
-        return placeholder
+        return _IMAGE_ONLY_PLACEHOLDER
     if has_pdf_block(normalized_blocks):
         return _PDF_ONLY_PLACEHOLDER
     if has_markdown_block(normalized_blocks):
