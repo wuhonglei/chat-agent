@@ -1,4 +1,4 @@
-import { useDebounce, useSize } from "ahooks";
+import { useDebounce, useRequest, useSize } from "ahooks";
 import { RefObject, useCallback, useEffect, useState } from "react";
 
 const MIN_PAGE_WIDTH = 240;
@@ -80,3 +80,31 @@ export const usePdfPreviewState = (pdfUrl: string) => {
     markFirstPageAsRendered,
   };
 };
+
+const MARKDOWN_LOAD_ERROR = "Markdown 加载失败";
+
+async function fetchMarkdownAsText(url: string): Promise<string> {
+  const res = await fetch(url, { credentials: "include" });
+  if (!res.ok) {
+    throw new Error(res.status === 404 ? "文件不存在" : `加载失败 (${res.status})`);
+  }
+  return res.text();
+}
+
+export function useMarkdownPreviewContent(markdownUrl: string | undefined, enabled: boolean) {
+  const ready = Boolean(enabled && markdownUrl);
+
+  const {
+    data: text,
+    loading,
+    error,
+    refresh,
+  } = useRequest(() => fetchMarkdownAsText(markdownUrl!), {
+    ready,
+    refreshDeps: [markdownUrl, enabled],
+  });
+
+  const errorMessage = error == null ? null : error instanceof Error ? error.message : MARKDOWN_LOAD_ERROR;
+
+  return { text, loading, error: errorMessage, reload: refresh };
+}
