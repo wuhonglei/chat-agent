@@ -3,28 +3,32 @@ import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
 import { downloadFileByUrl } from "@/utils";
 import { Button, Spin, Typography } from "antd";
 import PdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?worker";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
-import { useMarkdownPreviewContent, usePdfPageWidth, usePdfPreviewState } from "./hooks";
+import { computePdfPageWidth } from "../previewLayout";
+import PreviewScrollBody from "../PreviewScrollBody";
+import { useMarkdownPreviewContent, usePdfPreviewState } from "./hooks";
 import PdfDocumentErrorBoundary from "./PdfDocumentErrorBoundary";
 import PdfPreviewHeader, { type PreviewMode } from "./PdfPreviewHeader";
 
 pdfjs.GlobalWorkerOptions.workerPort = new PdfWorker();
 
 export interface PdfBlockPreviewPanelProps {
+  /** 侧栏宽度（px），用于 padding 与 PDF 页宽 */
+  width: number;
   block: PdfBlock;
   onClose: () => void;
 }
 
-const PdfBlockPreviewPanel: React.FC<PdfBlockPreviewPanelProps> = ({ block, onClose }) => {
+const PdfBlockPreviewPanel: React.FC<PdfBlockPreviewPanelProps> = ({ width, block, onClose }) => {
   const { url: pdfUrl, name: pdfName, markdown: markdownBlock } = block;
-  const contentRef = useRef<HTMLDivElement>(null);
+  const layoutWidth = width > 0 ? width : 0;
+  const pageWidth = useMemo(() => computePdfPageWidth(layoutWidth), [layoutWidth]);
+
   const hasMarkdown = Boolean(markdownBlock?.url);
   const [previewMode, setPreviewMode] = useState<PreviewMode>("pdf");
-
-  const { pageWidth, paddingX } = usePdfPageWidth(contentRef);
   const {
     numPages,
     loadErrorMessage,
@@ -92,9 +96,9 @@ const PdfBlockPreviewPanel: React.FC<PdfBlockPreviewPanelProps> = ({ block, onCl
         onPreviewModeChange={setPreviewMode}
         downloadDisabled={downloadDisabled}
       />
-      <div ref={contentRef} className="flex-1 min-h-0 overflow-auto">
+      <div className="flex-1 min-h-0 overflow-auto">
         {isMarkdownView ? (
-          <div className="p-5">
+          <PreviewScrollBody width={layoutWidth}>
             {markdownLoading ? (
               <div className="flex w-full justify-center py-12">
                 <Spin />
@@ -104,7 +108,7 @@ const PdfBlockPreviewPanel: React.FC<PdfBlockPreviewPanelProps> = ({ block, onCl
             ) : (
               <MarkdownContainer className="w-full text-base bg-white p-4">{markdownText}</MarkdownContainer>
             )}
-          </div>
+          </PreviewScrollBody>
         ) : loadErrorMessage ? (
           errorFallback
         ) : (
@@ -121,7 +125,7 @@ const PdfBlockPreviewPanel: React.FC<PdfBlockPreviewPanelProps> = ({ block, onCl
               error={errorFallback}
             >
               <Spin spinning={numPages > 0 && !isPreviewReady} delay={100}>
-                <div className="p-5 space-y-4 shadow-lg" style={{ paddingLeft: paddingX, paddingRight: paddingX }}>
+                <PreviewScrollBody width={layoutWidth} className="space-y-4 shadow-lg">
                   {pageNumbers.map(currentPageNumber => (
                     <Page
                       width={pageWidth}
@@ -130,7 +134,7 @@ const PdfBlockPreviewPanel: React.FC<PdfBlockPreviewPanelProps> = ({ block, onCl
                       onRenderSuccess={currentPageNumber === 1 ? markFirstPageAsRendered : undefined}
                     />
                   ))}
-                </div>
+                </PreviewScrollBody>
               </Spin>
             </Document>
           </PdfDocumentErrorBoundary>

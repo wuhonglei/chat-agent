@@ -50,6 +50,7 @@ import {
   isUserRole,
   reportError,
   reportEvent,
+  withDevConversationTitlePrefix,
 } from "@/utils";
 import { useMemoizedFn, useRequest } from "ahooks";
 import { App } from "antd";
@@ -270,7 +271,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
             dispatch(
               updateConversationInfo({
                 id,
-                title,
+                title: withDevConversationTitlePrefix(title),
                 createdBy: TitleCreatedBy.LLM,
               })
             );

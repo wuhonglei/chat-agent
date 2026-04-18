@@ -57,13 +57,20 @@ export const useChatMessageHandlers = ({
   };
 };
 
+function getDefaultPreviewPanelWidthPx(): number {
+  if (typeof window === "undefined") {
+    return 400;
+  }
+  return Math.max(280, Math.round(window.innerWidth * 0.4));
+}
+
 export const useBlockPreviewHandlers = ({ isSmallScreen }: UseBlockPreviewHandlersParams) => {
   const [previewBlock, setPreviewBlock] = useState<PreviewableBlock | null>(null);
-  const [previewPanelSize, setPreviewPanelSize] = useState<number | string>(0);
+  const [previewPanelSize, setPreviewPanelSize] = useState(0);
 
   const handleOpenBlockPreview = useMemoizedFn((block: PreviewableBlock) => {
     emitter.emit(EventType.ChangeSidebarCollapse, true);
-    setPreviewPanelSize(prev => (prev === 0 ? "40%" : prev));
+    setPreviewPanelSize(prev => (prev === 0 ? getDefaultPreviewPanelWidthPx() : prev));
     setPreviewBlock(block);
   });
 

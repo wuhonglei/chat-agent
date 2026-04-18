@@ -5,11 +5,12 @@ import { Button, Tooltip, Typography } from "antd";
 import React from "react";
 
 export interface HtmlBlockPreviewPanelProps {
+  width: number;
   block: HtmlBlock;
   onClose: () => void;
 }
 
-const HtmlBlockPreviewPanel: React.FC<HtmlBlockPreviewPanelProps> = ({ block, onClose }) => {
+const HtmlBlockPreviewPanel: React.FC<HtmlBlockPreviewPanelProps> = ({ width, block, onClose }) => {
   const handleDownloadHtml = () => {
     downloadHtmlContent(block.content);
   };

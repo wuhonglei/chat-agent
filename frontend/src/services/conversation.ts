@@ -5,6 +5,7 @@ import {
   CreateConversationRequest,
   UpdateConversationRequest,
 } from "@/interfaces";
+import { withDevConversationTitlePrefix } from "@/utils/common";
 import { apiClient } from "./base";
 
 // Conversation API
@@ -16,7 +17,8 @@ export const conversationAPI = {
 
   // 创建对话
   createConversation: async (data?: CreateConversationRequest): Promise<ConversationInfo> => {
-    return await apiClient.post("/conversation/register", data || { title: "新对话" });
+    const base = data ?? { title: withDevConversationTitlePrefix("新对话") };
+    return await apiClient.post("/conversation/register", base);
   },
 
   // 获取对话列表
