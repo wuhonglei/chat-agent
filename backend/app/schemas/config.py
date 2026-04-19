@@ -276,6 +276,30 @@ class KbFileRagConfig(BaseModel):
         ge=0,
         description="上传文件分块重叠（字符）",
     )
+    retrieval_top_k: int = Field(
+        default=6,
+        ge=1,
+        description="会话 RAG 检索 Top-K",
+    )
+    relevance_score_threshold: float = Field(
+        default=0.65,
+        ge=0,
+        le=1,
+        description="会话 RAG 相关性阈值（基于 1-distance）",
+    )
+    short_doc_max_tokens: int = Field(
+        default=10000,
+        ge=1,
+        description="判定短文档的 token 阈值；短文档可注入全文",
+    )
+    force_rag_keyword_patterns: list[str] = Field(
+        default_factory=lambda: [
+            r"根据(文档|附件|材料)",
+            r"(附件|文档|材料)里",
+            r"(上传|附件).*(总结|归纳|提取|翻译|解释|回答)",
+        ],
+        description="命中后强制走 RAG（跳过分数门控）",
+    )
 
 
 # ---- 上下文压缩子配置 ----

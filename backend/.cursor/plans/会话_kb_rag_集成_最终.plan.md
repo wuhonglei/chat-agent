@@ -4,22 +4,22 @@ overview: 在不改动上传 API 的前提下，从当前轮与会话历史用�
 todos:
   - id: collect-file-ids
     content: 从 content_blocks 与历史 user 消息收集 PdfBlock/MarkdownBlock 的 file_id（含 PdfBlock.markdown.id）
-    status: pending
+    status: completed
   - id: kb-rag-service
     content: Top-K 检索、分数门控（本轮有附件则跳过阈值）、强制关键词、短/长文档组装、磁盘读全文与 pgvector 查询
-    status: pending
+    status: completed
   - id: kb-context-block
     content: 新增 KbContextBlock 并并入对外 ContentBlock（不单独维护 ContentBlockForLlm）；扩展 multimodal 渲染；API 校验剥离客户端伪造 kb_context
-    status: pending
+    status: completed
   - id: wire-agent
     content: ChatSessionAgent 内存拼接 KbContextBlock + 原 content_blocks；system_prompt 不变；确认落库不含该块
-    status: pending
+    status: completed
   - id: config
     content: 扩展 KbFileRagConfig（top_k、阈值、短文档 token、强制关键词等），不增加 system 注入项
-    status: pending
+    status: completed
   - id: tests
     content: 收集、门控（含本轮附件跳过阈值）、组装、build_user_content_for_llm 含 KB 块、持久化不含 kb_context 的单测
-    status: pending
+    status: completed
 isProject: false
 ---
 
