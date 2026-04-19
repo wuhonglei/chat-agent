@@ -9,18 +9,18 @@ from pathlib import Path
 from fastapi import HTTPException, UploadFile
 
 from app.schemas.chat import MarkdownBlock, PdfBlock
-from app.services.base_service.chat_attachment_service import (
+from app.services.chat_upload.attachment import (
     MAX_CHAT_ATTACHMENT_BYTES,
     PDF_CONTENT_TYPE,
     build_attachment_preview_url,
     get_user_upload_dir,
     sanitize_upload_display_name,
 )
-from app.services.base_service.kb_file_chunk_embedding_service import (
+from app.services.chat_upload.kb_chunk_embedding import (
     KbFileChunkIndexingError,
     index_uploaded_text_chunks,
 )
-from app.services.base_service.pdf_markdown_converter import (
+from app.services.chat_upload.pdf_markdown_converter import (
     PdfMarkdownConversionError,
     PdfMarkdownConverter,
 )

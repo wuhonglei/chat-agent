@@ -88,8 +88,8 @@ def media_type_for_preview(filename: str) -> str:
 
 
 async def save_chat_attachment(*, user_id: str, file: UploadFile) -> AttachmentBlock:
-    from app.services.base_service.chat_image_service import save_chat_image
-    from app.services.base_service.chat_pdf_service import save_chat_pdf
+    from app.services.chat_upload.image import save_chat_image
+    from app.services.chat_upload.pdf import save_chat_pdf
 
     content_type = (file.content_type or "").lower()
     if content_type == PDF_CONTENT_TYPE:
