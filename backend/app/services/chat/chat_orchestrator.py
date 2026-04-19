@@ -174,7 +174,6 @@ class ChatOrchestrator:
                 history_messages=history_messages,
                 client_ip=client_ip,
                 history_summary_before_window=history_summary_before_window,
-                user_id=user_id,
                 conversation_id=chat_request.conversation_id,
                 user_memories=user_memories or [],
                 kb_context_blocks=kb_context_blocks,

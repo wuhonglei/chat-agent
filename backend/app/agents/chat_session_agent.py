@@ -93,7 +93,6 @@ class ChatSessionAgent(BaseAgent):
         history_messages: list[ChatMessage],
         client_ip: str | None,
         history_summary_before_window: str | None,
-        user_id: str,
         conversation_id: str,
         user_memories: list[MemoryListItem],
         kb_context_blocks: list[KbContextBlock] | None = None,
