@@ -4,16 +4,17 @@ import HtmlBlockPreviewPanel from "./HtmlPreview";
 import PdfBlockPreviewPanel from "./PdfPreview";
 
 export interface BlockPreviewPanelProps {
+  width: number;
   block: PreviewableBlock;
   onClose: () => void;
 }
 
-const BlockPreviewPanel: React.FC<BlockPreviewPanelProps> = ({ block, onClose }) => {
+const BlockPreviewPanel: React.FC<BlockPreviewPanelProps> = ({ width, block, onClose }) => {
   switch (block.type) {
     case "pdf":
-      return <PdfBlockPreviewPanel block={block} onClose={onClose} />;
+      return <PdfBlockPreviewPanel width={width} block={block} onClose={onClose} />;
     case "html":
-      return <HtmlBlockPreviewPanel block={block} onClose={onClose} />;
+      return <HtmlBlockPreviewPanel width={width} block={block} onClose={onClose} />;
     default: {
       const _exhaustive: never = block;
       return _exhaustive;

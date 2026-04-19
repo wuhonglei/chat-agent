@@ -20,15 +20,21 @@ from app.schemas.chat import (
     ChatMessage,
     ChatRequest,
     ContentBlock,
+    KbContextBlock,
     count_tool_use_blocks,
     extract_user_text,
 )
-from app.schemas.user import MemoryListItem
+from app.schemas.user import MemorySearchItem
 from app.services.chat.history_context_service import HistoryContextService
+from app.services.chat.kb_rag_context_service import KbRagContextService
 from app.services.chat.post_process_service import PostProcessService
 from app.services.message import MessageDbService
 from app.utils.logger import logger
-from app.utils.multimodal import extract_user_text_with_attachment_placeholder
+from app.utils.multimodal import (
+    collect_attachment_file_ids,
+    collect_attachment_file_ids_from_history_messages,
+    extract_user_text_with_attachment_placeholder,
+)
 from app.utils.time import get_current_time, get_time_duration
 
 
@@ -117,7 +123,7 @@ class MemorySearch(Protocol):
         *,
         query: str,
         user_id: str,
-    ) -> list[MemoryListItem]: ...
+    ) -> list[MemorySearchItem]: ...
 
 
 class ChatOrchestrator:
@@ -130,20 +136,22 @@ class ChatOrchestrator:
         title_generation_agent: TitleGenerationAgent,
         history_context_service: HistoryContextService,
         post_process_service: PostProcessService,
+        kb_rag_context_service: KbRagContextService,
     ) -> None:
         self.chat_session_agent = chat_session_agent
         self.title_generation_agent = title_generation_agent
         self.history_context_service = history_context_service
         self.post_process_service = post_process_service
+        self.kb_rag_context_service = kb_rag_context_service
 
     async def stream_turn_events(
         self,
         chat_request: ChatRequest,
         history_summary_before_window: str | None,
         history_messages: list[ChatMessage],
-        user_id: str,
         client_ip: str | None,
-        user_memories: list[MemoryListItem] | None = None,
+        user_memories: list[MemorySearchItem] | None = None,
+        kb_context_blocks: list[KbContextBlock] | None = None,
     ) -> AsyncGenerator[str, None]:
         logger.debug("user_memories", user_memories=user_memories)
 
@@ -163,9 +171,9 @@ class ChatOrchestrator:
                 history_messages=history_messages,
                 client_ip=client_ip,
                 history_summary_before_window=history_summary_before_window,
-                user_id=user_id,
                 conversation_id=chat_request.conversation_id,
                 user_memories=user_memories or [],
+                kb_context_blocks=kb_context_blocks,
             ):
                 yield event
             session_duration = get_time_duration(session_start_time)
@@ -194,6 +202,7 @@ class ChatOrchestrator:
     async def generate_title_event(
         self,
         user_message: str | list[ContentBlock] | list[dict[str, Any]],
+        kb_context_blocks: list[KbContextBlock],
         conversation_id: str | None = None,
     ) -> str:
         title_start_time = get_current_time()
@@ -202,7 +211,10 @@ class ChatOrchestrator:
             conversation_id=conversation_id,
         )
         try:
-            title = await self.title_generation_agent.execute(user_message)
+            title = await self.title_generation_agent.execute(
+                user_message=user_message,
+                kb_context_blocks=kb_context_blocks,
+            )
         except Exception as exc:
             logger.error(
                 "Failed to generate title",
@@ -250,16 +262,6 @@ class ChatOrchestrator:
                 yield build_refresh_conversation_event(conversation)
 
                 title_task: asyncio.Task[str] | None = None
-                user_message_text = extract_user_text_with_attachment_placeholder(
-                    chat_request.content_blocks
-                )
-                if chat_request.regenerate_title:
-                    title_task = asyncio.create_task(
-                        self.generate_title_event(
-                            chat_request.content_blocks,
-                            conversation_id=conversation_id,
-                        )
-                    )
 
                 event_count = 0
                 try:
@@ -281,10 +283,27 @@ class ChatOrchestrator:
                         history_messages_count=len(prepared_history_messages),
                     )
 
+                    user_message_text = extract_user_text_with_attachment_placeholder(
+                        chat_request.content_blocks
+                    )
                     user_memories = await memory_search(
                         query=user_message_text,
                         user_id=user_id,
                     )
+                    kb_context_blocks = await self._build_kb_context_blocks(
+                        content_blocks=chat_request.content_blocks,
+                        history_messages=prepared_history_messages,
+                        user_id=user_id,
+                        user_message_text=user_message_text,
+                    )
+                    if chat_request.regenerate_title:
+                        title_task = asyncio.create_task(
+                            self.generate_title_event(
+                                chat_request.content_blocks,
+                                kb_context_blocks=kb_context_blocks or [],
+                                conversation_id=conversation_id,
+                            )
+                        )
 
                     async for event in _merge_stream_with_title_task(
                         self.stream_turn_events(
@@ -292,8 +311,8 @@ class ChatOrchestrator:
                             history_summary_before_window=history_summary_before_window,
                             history_messages=prepared_history_messages,
                             client_ip=None,
-                            user_id=user_id,
                             user_memories=user_memories,
+                            kb_context_blocks=kb_context_blocks,
                         ),
                         title_task,
                         conversation_id=conversation_id,
@@ -363,4 +382,25 @@ class ChatOrchestrator:
             content=self.chat_session_agent.content,
             reasoning=self.chat_session_agent.reasoning,
             content_blocks=self.chat_session_agent.content_blocks,
+        )
+
+    async def _build_kb_context_blocks(
+        self,
+        *,
+        content_blocks: list[ContentBlock],
+        history_messages: list[ChatMessage],
+        user_id: str,
+        user_message_text: str,
+    ) -> list[KbContextBlock] | None:
+        current_turn_file_ids = collect_attachment_file_ids(content_blocks)
+        history_file_ids = collect_attachment_file_ids_from_history_messages(
+            history_messages
+        )
+        candidate_file_ids = current_turn_file_ids | history_file_ids
+        current_turn_has_attachment = bool(current_turn_file_ids)
+        return await self.kb_rag_context_service.build_context_block_content(
+            user_id=user_id,
+            query_text=user_message_text,
+            candidate_file_ids=candidate_file_ids,
+            current_turn_has_attachment=current_turn_has_attachment,
         )

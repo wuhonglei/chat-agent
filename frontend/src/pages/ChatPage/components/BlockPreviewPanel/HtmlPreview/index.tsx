@@ -5,6 +5,7 @@ import { Button, Tooltip, Typography } from "antd";
 import React from "react";
 
 export interface HtmlBlockPreviewPanelProps {
+  width: number;
   block: HtmlBlock;
   onClose: () => void;
 }

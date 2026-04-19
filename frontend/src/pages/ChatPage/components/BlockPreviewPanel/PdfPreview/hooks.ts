@@ -1,30 +1,5 @@
-import { useDebounce, useSize } from "ahooks";
-import { RefObject, useCallback, useEffect, useState } from "react";
-
-const MIN_PAGE_WIDTH = 240;
-
-function getPdfPaddingX(containerWidth: number): number {
-  if (containerWidth >= 880) return 80;
-  if (containerWidth >= 640) return 48;
-  if (containerWidth >= 480) return 32;
-  return 16;
-}
-
-export const usePdfPageWidth = (contentRef: RefObject<HTMLDivElement | null>) => {
-  const contentSize = useSize(contentRef);
-  const widthDebounced = useDebounce(contentSize?.width, {
-    wait: 100,
-  });
-
-  if (!widthDebounced) {
-    return { pageWidth: 360, paddingX: 16 };
-  }
-
-  const paddingX = getPdfPaddingX(widthDebounced);
-  const pageWidth = Math.max(widthDebounced - paddingX * 2, MIN_PAGE_WIDTH);
-
-  return { pageWidth, paddingX };
-};
+import { useRequest } from "ahooks";
+import { useCallback, useEffect, useState } from "react";
 
 const PDF_LOAD_ERROR_MESSAGE = "PDF 加载失败，请重试";
 
@@ -80,3 +55,31 @@ export const usePdfPreviewState = (pdfUrl: string) => {
     markFirstPageAsRendered,
   };
 };
+
+const MARKDOWN_LOAD_ERROR = "Markdown 加载失败";
+
+async function fetchMarkdownAsText(url: string): Promise<string> {
+  const res = await fetch(url, { credentials: "include" });
+  if (!res.ok) {
+    throw new Error(res.status === 404 ? "文件不存在" : `加载失败 (${res.status})`);
+  }
+  return res.text();
+}
+
+export function useMarkdownPreviewContent(markdownUrl: string | undefined, enabled: boolean) {
+  const ready = Boolean(enabled && markdownUrl);
+
+  const {
+    data: text,
+    loading,
+    error,
+    refresh,
+  } = useRequest(() => fetchMarkdownAsText(markdownUrl!), {
+    ready,
+    refreshDeps: [markdownUrl, enabled],
+  });
+
+  const errorMessage = error == null ? null : error instanceof Error ? error.message : MARKDOWN_LOAD_ERROR;
+
+  return { text, loading, error: errorMessage, reload: refresh };
+}

@@ -9,7 +9,7 @@ from fastapi import HTTPException, UploadFile
 from PIL import Image, ImageOps, ImageSequence
 
 from app.schemas.chat import ImageBlock
-from app.services.base_service.chat_attachment_service import (
+from app.services.chat_upload.attachment import (
     MAX_CHAT_ATTACHMENT_BYTES,
     build_attachment_preview_url,
     get_user_upload_dir,

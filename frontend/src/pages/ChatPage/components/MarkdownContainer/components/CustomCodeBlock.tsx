@@ -41,7 +41,7 @@ const CustomCodeBlock = memo(({ inline, className, children }: CustomCodeBlockPr
   }
 
   return (
-    <CodeHighlighter lang={language} header={htmlHeader} maxHeight={400}>
+    <CodeHighlighter lang={language} header={htmlHeader}>
       {code}
     </CodeHighlighter>
   );

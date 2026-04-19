@@ -9,14 +9,16 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 from app.schemas.chat import (
+    ChatMessage,
     ContentBlock,
     ImageBlock,
+    KbContextBlock,
     MarkdownBlock,
     PdfBlock,
     extract_user_text,
     normalize_content_blocks,
 )
-from app.services.base_service.chat_attachment_service import user_upload_file_path
+from app.services.chat_upload.attachment import user_upload_file_path
 from app.utils.logger import logger
 
 _IMAGE_PREVIEW_PATH_PATTERNS = (
@@ -57,15 +59,13 @@ def has_markdown_block(
 
 def extract_user_text_with_attachment_placeholder(
     content_blocks: list[ContentBlock] | list[dict[str, Any]] | None,
-    *,
-    placeholder: str = _IMAGE_ONLY_PLACEHOLDER,
 ) -> str:
     normalized_blocks = normalize_content_blocks(content_blocks)
     text = extract_user_text(normalized_blocks)
     if text:
         return text
     if has_image_block(normalized_blocks):
-        return placeholder
+        return _IMAGE_ONLY_PLACEHOLDER
     if has_pdf_block(normalized_blocks):
         return _PDF_ONLY_PLACEHOLDER
     if has_markdown_block(normalized_blocks):
@@ -73,15 +73,45 @@ def extract_user_text_with_attachment_placeholder(
     return ""
 
 
+def collect_attachment_file_ids(
+    content_blocks: list[ContentBlock] | list[dict[str, Any]] | None,
+) -> set[str]:
+    file_ids: set[str] = set()
+    for block in normalize_content_blocks(content_blocks):
+        if isinstance(block, MarkdownBlock):
+            file_ids.add(block.id)
+            continue
+        if not isinstance(block, PdfBlock):
+            continue
+        file_ids.add(block.id)
+        if block.markdown is not None and block.markdown.id:
+            file_ids.add(block.markdown.id)
+    return file_ids
+
+
+def collect_attachment_file_ids_from_history_messages(
+    history_messages: list[ChatMessage] | None,
+) -> set[str]:
+    file_ids: set[str] = set()
+    for message in history_messages or []:
+        if message.role != "user":
+            continue
+        file_ids.update(collect_attachment_file_ids(message.content_blocks))
+    return file_ids
+
+
 def build_title_user_message_for_llm(
     content_blocks: list[ContentBlock] | list[dict[str, Any]] | None,
+    kb_context_blocks: list[KbContextBlock] | None = None,
 ) -> str | list[dict[str, Any]]:
     """Build title user message with wrapped text and optional images."""
     from app.prompts.prompt_utils import get_user_message_for_title
 
     normalized_blocks = normalize_content_blocks(content_blocks)
     query_text = extract_user_text_with_attachment_placeholder(normalized_blocks)
-    wrapped = get_user_message_for_title(query_text)
+    wrapped = get_user_message_for_title(
+        query_text, kb_context_blocks=kb_context_blocks
+    )
 
     return build_user_content_for_llm(
         content_blocks,

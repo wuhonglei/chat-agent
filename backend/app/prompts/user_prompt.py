@@ -2,21 +2,34 @@
 
 from jinja2 import Template
 
-user_message_for_default_template: Template = Template(
-    """
+# 共用的用户查询 XML（变量名统一为 user_message_text；可选 kb_context_blocks）
+_USER_MESSAGE_QUERY_SNIPPET = """
 <user_message>
-  <query>{{ user_message|e }}</query>
+  <query>{{ user_message_text|e }}</query>
+  {%- if kb_context_blocks %}
+  <attachment_context>
+  {%- for attachment in kb_context_blocks %}
+    <attachment index="{{ loop.index }}">
+      <id>{{ attachment.id|e }}</id>
+      <name>{{ attachment.name|e }}</name>
+      {%- if attachment.created_at %}
+      <created_at>{{ attachment.created_at|e }}</created_at>
+      {%- endif %}
+      <content>{{ attachment.content|e }}</content>
+    </attachment>
+  {%- endfor %}
+  </attachment_context>
+  {%- endif %}
 </user_message>
 """.strip()
-)
+
+user_message_for_default_template: Template = Template(_USER_MESSAGE_QUERY_SNIPPET)
 
 # ============= 工具调用用户消息提示词 =============
 user_message_for_tool_call_template: Template = Template(
-    """
-<user_message>
-  <query>{{ user_message|e }}</query>
-</user_message>
-
+    _USER_MESSAGE_QUERY_SNIPPET
+    + "\n\n"
+    + """
 <tool_call_context>
 {%- if not mcp_auto_mode %}
   <selected_mcp_servers>
@@ -29,20 +42,33 @@ user_message_for_tool_call_template: Template = Template(
     <rule>避免重复调用: 不要使用相似查询多次调用 web_search，不要重复提取已提取过的 URL</rule>
     <rule>检查历史工具调用结果: 在调用工具前，仔细检查历史工具调用结果是否已足够回答问题。如果已获得足够信息，请直接给出最终回答并停止调用更多工具。</rule>
   </rules>
+  {%- if user_memories %}
+  <user_memories>
+  {%- for memory in user_memories %}
+    <memory_item>
+      <memory>{{ memory.memory|e }}</memory>
+      {%- if memory.created_at %}
+      <created_at>{{ memory.created_at|e }}</created_at>
+      {%- endif %}
+      <relevance>{{ memory.relevance|e }}</relevance>
+    </memory_item>
+  {%- endfor %}
+  </user_memories>
+  {%- endif %}
   <context>
-    <current_datetime>{{ current_datetime|e }}</current_datetime>{% if client_ip %}
-    <client_ip>{{ client_ip|e }}</client_ip>{% endif %}
+    <current_datetime>{{ current_datetime|e }}</current_datetime>
+    {%- if client_ip %}
+    <client_ip>{{ client_ip|e }}</client_ip>
+    {%- endif %}
   </context>
 </tool_call_context>
 """.strip()
 )
 
 user_message_for_reach_tool_call_limit_template: Template = Template(
-    """
-<user_message>
-  <query>{{ user_message|e }}</query>
-</user_message>
-
+    _USER_MESSAGE_QUERY_SNIPPET
+    + "\n\n"
+    + """
 <tool_call_limit_notice>
   【系统说明】工具调用已达上限，请仅根据已有对话与工具结果直接作答；信息不足时请说明并给出力所能及的建议，勿再提议调用工具。
 </tool_call_limit_notice>
@@ -50,11 +76,9 @@ user_message_for_reach_tool_call_limit_template: Template = Template(
 )
 
 user_message_for_no_tool_call_template: Template = Template(
-    """
-<user_message>
-  <query>{{ user_message|e }}</query>
-</user_message>
-
+    _USER_MESSAGE_QUERY_SNIPPET
+    + "\n\n"
+    + """
 <no_tool_call_notice>
   【系统说明】没有可用的工具，请直接给出最终回答。
 </no_tool_call_notice>

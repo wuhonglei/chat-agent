@@ -21,7 +21,7 @@ from app.agents.utils.tool_call_stream import (
     tool_call_acc_to_openai_list,
 )
 from app.mcp.mcp_client import MCPClientManager
-from app.prompts import (
+from app.prompts.prompt_utils import (
     get_merged_system_prompt_for_chat_session,
     get_user_message_for_tool_calls,
 )
@@ -34,10 +34,11 @@ from app.schemas.chat import (
     ChatMessage,
     ChatRequest,
     ContentBlock,
+    KbContextBlock,
 )
 from app.schemas.config import LLMConfig
 from app.schemas.llm import ToolMessage
-from app.schemas.user import MemoryListItem
+from app.schemas.user import MemorySearchItem
 from app.utils.logger import logger
 from app.utils.message import update_last_user_message
 from app.utils.multimodal import (
@@ -92,24 +93,18 @@ class ChatSessionAgent(BaseAgent):
         history_messages: list[ChatMessage],
         client_ip: str | None,
         history_summary_before_window: str | None,
-        user_id: str,
         conversation_id: str,
-        user_memories: list[MemoryListItem],
+        user_memories: list[MemorySearchItem],
+        kb_context_blocks: list[KbContextBlock] | None = None,
     ) -> AsyncGenerator[str, None]:
-        _ = user_id
         _ = conversation_id
         self.think_mode = chat_request.think_mode
         self.session_output.reset()
         self.content_block_aggregator = ContentBlocksAggregator()
 
-        user_message = extract_user_text_with_attachment_placeholder(
-            chat_request.content_blocks
-        )
-        memories = [m.memory for m in user_memories]
-        logger.info("User memories", count=len(memories), memories=memories)
+        logger.info("User memories", count=len(user_memories))
 
         system_prompt = get_merged_system_prompt_for_chat_session(
-            user_memories=memories,
             window_out_summary=history_summary_before_window,
         )
         server_names = resolve_enabled_mcp_servers(
@@ -120,11 +115,16 @@ class ChatSessionAgent(BaseAgent):
             client_ip,
         )
 
+        user_message_text = extract_user_text_with_attachment_placeholder(
+            chat_request.content_blocks
+        )
         tool_guided_user_message = get_user_message_for_tool_calls(
-            user_message,
+            user_message_text,
             chat_request.mcp_auto_mode,
             server_names or [],
             client_ip,
+            kb_context_blocks=kb_context_blocks,
+            user_memories=user_memories,
         )
         user_message_content = build_user_content_for_llm(
             chat_request.content_blocks,
@@ -137,10 +137,10 @@ class ChatSessionAgent(BaseAgent):
 
         tool_session = MCPToolSession(
             self.mcp_manager,
-            user_message,
+            user_message_text,
             self.tool_round_messages,
         )
-        tool_session.reset_for_request(user_message)
+        tool_session.reset_for_request(user_message_text)
 
         if not tools:
             async for sse in self._stream_final_round_events(

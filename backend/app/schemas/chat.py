@@ -6,7 +6,7 @@ from enum import Enum
 from typing import Any, Literal, TypeAlias, cast
 
 from openai.types.chat import ChatCompletionMessageFunctionToolCall
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
 
 from app.schemas.llm import ToolMessage, ToolResultMessage, ToolUseMessage
 from app.utils.common import gen_uuid
@@ -114,6 +114,18 @@ class ChatRequest(BaseModel):
     )
     mcp_auto_mode: bool = Field(True, description="Whether to use mcp auto mode")
     think_mode: bool = Field(False, description="Whether to use think mode")
+
+    @field_validator("content_blocks", mode="before")
+    @classmethod
+    def reject_client_kb_context_blocks(cls, value: Any) -> Any:
+        if not value:
+            return value
+        for block in value:
+            if isinstance(block, dict) and block.get("type") == "kb_context":
+                raise ValueError("kb_context block is server-side only")
+            if isinstance(block, KbContextBlock):
+                raise ValueError("kb_context block is server-side only")
+        return value
 
 
 class ChatSource(BaseModel):
@@ -247,9 +259,17 @@ class PdfBlock(BaseModel):
         default="application/pdf",
         description="MIME type for PDF",
     )
-    markdownBlock: MarkdownBlock | None = Field(  # pyright: ignore[reportUndefinedVariable]
+    markdown: MarkdownBlock | None = Field(  # pyright: ignore[reportUndefinedVariable]
         default=None, description="Markdown block"
     )
+
+
+class KbContextBlock(BaseModel):
+    id: str = Field(..., description="附件 file_id")
+    type: Literal["kb_context"] = "kb_context"
+    name: str = Field(default="", description="附件文件名")
+    created_at: str | None = Field(default=None, description="附件创建相对时间")
+    content: str = Field(default="", description="Knowledge base context content")
 
 
 AttachmentBlock: TypeAlias = ImageBlock | MarkdownBlock | PdfBlock

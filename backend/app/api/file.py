@@ -8,12 +8,12 @@ from fastapi.responses import FileResponse
 from app.schemas.auth import AuthTokenPayload
 from app.schemas.chat import AttachmentBlock
 from app.schemas.response import ApiResponse
-from app.services.base_service.chat_attachment_service import (
+from app.services.base_service.file_service import FileService
+from app.services.chat_upload.attachment import (
     media_type_for_preview,
     save_chat_attachment,
     user_upload_file_path,
 )
-from app.services.base_service.file_service import FileService
 from app.utils.auth_deps import get_auth_token_info, require_auth
 
 router = APIRouter()

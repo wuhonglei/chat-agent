@@ -1,17 +1,21 @@
 """Chat service facade for the streaming chat pipeline."""
 
 from collections.abc import AsyncGenerator
+from typing import Literal
 
 from app.agents import ChatSessionAgent, TitleGenerationAgent
 from app.core.config import settings
 from app.mcp.mcp_client import MCPClientManager
 from app.schemas.chat import ChatRequest
 from app.schemas.config import ChatContextConfig
-from app.schemas.user import MemoryListItem
+from app.schemas.user import MemoryListItem, MemorySearchItem
+from app.services.base_service.embedding_service import EmbeddingService
 from app.services.chat.chat_orchestrator import ChatOrchestrator
 from app.services.chat.history_context_service import HistoryContextService
+from app.services.chat.kb_rag_context_service import KbRagContextService
 from app.services.chat.post_process_service import PostProcessService
 from app.services.user.memory_service import MemoryService
+from app.utils.date import get_relative_time_diff
 from app.utils.token import TokenCalculator
 
 
@@ -44,23 +48,49 @@ class ChatService:
             token_calculator=token_calculator,
         )
         self.post_process_service = PostProcessService(self.memory_service)
+        self.kb_rag_context_service = KbRagContextService(
+            rag_config=settings.kb_file_rag,
+            embedding_service=EmbeddingService(settings.embedding_model),
+        )
         self.chat_orchestrator = ChatOrchestrator(
             chat_session_agent=self.chat_session_agent,
             title_generation_agent=self.title_generation_agent,
             history_context_service=self.history_context_service,
             post_process_service=self.post_process_service,
+            kb_rag_context_service=self.kb_rag_context_service,
         )
+
+    @staticmethod
+    def _score_to_relevance(score: float | None) -> Literal["高", "中", "低"]:
+        if score is None:
+            return "低"
+        if score >= 0.8:
+            return "高"
+        if score >= 0.5:
+            return "中"
+        return "低"
 
     async def _search_user_memories(
         self, *, query: str, user_id: str
-    ) -> list[MemoryListItem]:
+    ) -> list[MemorySearchItem]:
         if not query:
             return []
-        return await self.memory_service.search(
+        searched_memories: list[MemoryListItem] = await self.memory_service.search(
             query=query,
             user_id=user_id,
             threshold=self.memory_config.search_threshold,
         )
+        return [
+            MemorySearchItem(
+                id=memory.id,
+                memory=memory.memory,
+                hash=memory.hash,
+                metadata=memory.metadata,
+                created_at=get_relative_time_diff(memory.created_at),
+                relevance=self._score_to_relevance(memory.score),
+            )
+            for memory in searched_memories
+        ]
 
     async def stream_chat_events(
         self,

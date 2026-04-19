@@ -34,3 +34,15 @@ export function prettyCount(num: number, locale = "en-US", digits = 1) {
     maximumFractionDigits: digits,
   }).format(num);
 }
+
+/** 本地开发环境下为会话标题加 `dev-` 前缀，避免与线上数据混淆；已带此前缀时不重复添加。 */
+export function withDevConversationTitlePrefix(title: string): string {
+  if (!import.meta.env.DEV) {
+    return title;
+  }
+  const prefix = "dev-";
+  if (title.startsWith(prefix)) {
+    return title;
+  }
+  return `${prefix}${title}`;
+}

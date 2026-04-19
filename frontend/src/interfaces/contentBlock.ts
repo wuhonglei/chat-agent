@@ -42,6 +42,19 @@ export interface ImageBlock {
   mime: string;
 }
 
+/** 与后端 MarkdownBlock 对齐；可作为独立附件块，也可嵌套在 PdfBlock.markdown */
+export interface MarkdownBlock {
+  id: string;
+  type: "markdown";
+  url: string;
+  /** 展示用文件名（服务端已安全化）；历史消息可能缺省 */
+  name?: string;
+  /** 落盘文件字节数 */
+  size: number;
+  /** 固定为 text/markdown */
+  mime: "text/markdown";
+}
+
 export interface PdfBlock {
   id: string;
   type: "pdf";
@@ -52,6 +65,8 @@ export interface PdfBlock {
   size: number;
   /** 固定为 application/pdf */
   mime: "application/pdf";
+  /** PDF 转写得到的 Markdown 预览块（无则缺省） */
+  markdown?: MarkdownBlock | null;
 }
 
 export interface HtmlBlock {
@@ -82,7 +97,14 @@ export enum ContentBlockRenderStatus {
   Done = 100,
 }
 
-export type ContentBlock = TextBlock | ThinkingBlock | ToolUseBlock | ToolResultBlock | ImageBlock | PdfBlock;
+export type ContentBlock =
+  | TextBlock
+  | ThinkingBlock
+  | ToolUseBlock
+  | ToolResultBlock
+  | ImageBlock
+  | PdfBlock
+  | MarkdownBlock;
 
 /** 侧栏可预览的内容块（当前支持 PDF 与 HTML 片段） */
 export type PreviewableBlock = PdfBlock | HtmlBlock;

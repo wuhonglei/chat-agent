@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 
+import humanize  # noqa: F401
+
 
 def get_current_datetime_str() -> str:
     """获取当前日期和时间字符串"""
@@ -22,3 +24,22 @@ def get_datetime_now(with_timezone: bool = True) -> datetime:
 def get_unix_timestamp() -> int:
     """获取当前时间戳"""
     return int(datetime.now().timestamp())
+
+
+def get_relative_time_diff(target_datetime: datetime | str | None) -> str | None:
+    """获取当前时间与指定时间的相对时间差（如：`3 minutes ago`）。"""
+    if target_datetime is None:
+        return None
+    if isinstance(target_datetime, str):
+        try:
+            target_datetime = datetime.fromisoformat(
+                target_datetime.replace("Z", "+00:00")
+            )
+        except ValueError:
+            return None
+    now = (
+        datetime.now(tz=target_datetime.tzinfo)
+        if target_datetime.tzinfo is not None
+        else datetime.now()
+    )
+    return humanize.naturaltime(target_datetime, when=now)
