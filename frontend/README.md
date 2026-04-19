@@ -55,7 +55,64 @@ frontend/
 - 用户：`/api/user/*`
 - 认证：`/api/auth/*`
 - 健康检查：`/api/health*`
-- 文件：`POST /api/file/upload_avatar`
+- 文件：`POST /api/file/upload_avatar`、`POST /api/file/upload`
+
+## Chat 内容块与附件（当前实现）
+
+### 用户消息 `contentBlocks`
+
+前端发送消息时，按 `UserContentBlock[]` 组织请求体（见 `src/interfaces/contentBlock.ts`）：
+
+- `text`：文本块
+- `image`：图片附件块
+- `pdf`：PDF 附件块
+
+发送时会先写入文本块，再按上传顺序追加附件块（`buildUserContentBlocks`）。
+
+### 附件上传约束
+
+`ChatInput` 当前约束（`src/pages/ChatPage/components/ChatInput/util.ts`）：
+
+- 支持类型：图片（JPEG/PNG/GIF/WebP）和 PDF
+- 单文件大小：不超过 `10MB`
+- 单次消息附件数量：最多 `5` 个
+- 上传接口：`POST /api/file/upload`（`src/services/file.ts`）
+- 上传超时：`180000ms`（3 分钟）
+
+### 附件预览行为
+
+- 图片：在用户消息中以 `FileCard` 图片卡片展示
+- PDF：
+  - 小屏设备点击后直接下载
+  - 非小屏优先在右侧 `BlockPreviewPanel` 打开 PDF 预览
+- HTML：在代码块头部点击“预览”后，使用侧栏 iframe 预览（`sandbox`）
+
+相关实现：
+
+- `src/pages/ChatPage/components/ChatMessage/UserMessage/components/UserMessageDisplayContent.tsx`
+- `src/pages/ChatPage/components/BlockPreviewPanel/*`
+- `src/pages/ChatPage/components/MarkdownContainer/components/HtmlPreviewHeader.tsx`
+
+## SSE 事件约定（`/api/chat/stream`）
+
+流式响应通过 `fetch-event-source` 处理，事件数据统一解析为：
+
+- `ack`
+- `refresh_conversation`
+- `title`
+- `content_block`
+- `done`
+- `error`
+
+其中 `content_block` 支持的增量操作包括：
+
+- `append`
+- `delta`
+- `tool_delta`
+- `finalize_round`
+- `done`
+
+前端事件类型定义见 `src/interfaces/apiRequest.ts`，流式处理入口见 `src/services/chat.ts` 与 `src/hooks/chat.ts`。
 
 ## 开发指南
 
