@@ -59,11 +59,11 @@ def get_user_message_for_tool_calls(
     mcp_auto_mode: bool,
     server_names: list[str],
     client_ip: str | None,
-    attachment_chunks: list[dict[str, Any]] | None = None,
+    attachments: list[dict[str, Any]] | None = None,
 ) -> str:
     """Get user message prompt for tool calls.
 
-    attachment_chunks: 可选，每项建议包含 file_id、file_name、text（与 user_prompt 模板一致）。
+    attachments: 可选，每项建议包含 file_id、file_name、text（与 user_prompt 模板一致）。
     """
     id_by_config = {config["id"]: config for config in mcp_config_for_fe}
     server_names = server_names or []
@@ -75,7 +75,7 @@ def get_user_message_for_tool_calls(
 
     return user_message_for_tool_call_template.render(
         user_message_text=user_message_text,
-        attachment_chunks=attachment_chunks or [],
+        attachments=attachments or [],
         mcp_auto_mode=mcp_auto_mode,
         mcp_configs=mcp_configs,
         current_datetime=get_current_datetime_str(),
@@ -85,16 +85,15 @@ def get_user_message_for_tool_calls(
 
 def get_user_message_for_title(
     user_message_text: str,
-    attachment_chunks: list[dict[str, Any]] | None = None,
+    attachments: list[dict[str, Any]] | None = None,
 ) -> str:
     """Get user message prompt for title generation.
 
-    仅使用至多 1 条附件分块（取列表首项，调用方宜传入已按相关性排序的 top-k）。
+    仅使用至多 1 条附件（取列表首项，调用方宜传入已按相关性排序的 top-k）。
     """
-    chunks = (attachment_chunks or [])[:1]
     return user_message_for_default_template.render(
         user_message_text=user_message_text,
-        attachment_chunks=chunks,
+        attachments=(attachments or [])[:1],
     ).strip()
 
 
@@ -144,21 +143,21 @@ def get_tool_call_sufficient_info_message() -> str:
 
 def get_user_message_for_reach_tool_call_limit(
     user_message: str,
-    attachment_chunks: list[dict[str, Any]] | None = None,
+    attachments: list[dict[str, Any]] | None = None,
 ) -> str:
     """Get user message for reach tool call limit"""
     return user_message_for_reach_tool_call_limit_template.render(
         user_message_text=user_message,
-        attachment_chunks=attachment_chunks or [],
+        attachments=attachments or [],
     ).strip()
 
 
 def get_user_message_for_no_tool_call(
     user_message: str,
-    attachment_chunks: list[dict[str, Any]] | None = None,
+    attachments: list[dict[str, Any]] | None = None,
 ) -> str:
     """Get user message for no tool call"""
     return user_message_for_no_tool_call_template.render(
         user_message_text=user_message,
-        attachment_chunks=attachment_chunks or [],
+        attachments=attachments or [],
     ).strip()

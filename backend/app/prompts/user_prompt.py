@@ -2,16 +2,16 @@
 
 from jinja2 import Template
 
-# 共用的用户查询 XML（变量名统一为 user_message_text；可选 attachment_chunks）
+# 共用的用户查询 XML（变量名统一为 user_message_text；可选 attachments）
 _USER_MESSAGE_QUERY_SNIPPET = """
 <user_message>
   <query>{{ user_message_text|e }}</query>
-  {%- if attachment_chunks %}
+  {%- if attachments %}
   <attachment_context>
-  {%- for chunk in attachment_chunks %}
-    <chunk index="{{ loop.index }}" file_id="{{ chunk.file_id|e }}" file_name="{{ chunk.file_name|e }}">
-{{ chunk.text|e }}
-    </chunk>
+  {%- for attachment in attachments %}
+    <attachment index="{{ loop.index }}" file_id="{{ attachment.file_id|e }}" file_name="{{ attachment.file_name|e }}">
+{{ attachment.text|e }}
+    </attachment>
   {%- endfor %}
   </attachment_context>
   {%- endif %}
