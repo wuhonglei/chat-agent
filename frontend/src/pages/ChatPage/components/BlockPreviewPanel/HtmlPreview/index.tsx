@@ -10,7 +10,7 @@ export interface HtmlBlockPreviewPanelProps {
   onClose: () => void;
 }
 
-const HtmlBlockPreviewPanel: React.FC<HtmlBlockPreviewPanelProps> = ({ width, block, onClose }) => {
+const HtmlBlockPreviewPanel: React.FC<HtmlBlockPreviewPanelProps> = ({ block, onClose }) => {
   const handleDownloadHtml = () => {
     downloadHtmlContent(block.content);
   };
