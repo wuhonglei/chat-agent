@@ -34,8 +34,6 @@ from app.utils.multimodal import (
     collect_attachment_file_ids,
     collect_attachment_file_ids_from_history_messages,
     extract_user_text_with_attachment_placeholder,
-    has_markdown_block,
-    has_pdf_block,
 )
 from app.utils.time import get_current_time, get_time_duration
 
@@ -401,9 +399,7 @@ class ChatOrchestrator:
             history_messages
         )
         candidate_file_ids = current_turn_file_ids | history_file_ids
-        current_turn_has_attachment = has_pdf_block(
-            content_blocks
-        ) or has_markdown_block(content_blocks)
+        current_turn_has_attachment = bool(current_turn_file_ids)
         return await self.kb_rag_context_service.build_context_block_content(
             user_id=user_id,
             query_text=user_message_text,
