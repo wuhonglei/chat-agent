@@ -2,13 +2,13 @@
 
 from jinja2 import Template
 
-# 共用的用户查询 XML（变量名统一为 user_message_text；可选 attachments）
+# 共用的用户查询 XML（变量名统一为 user_message_text；可选 kb_context_blocks）
 _USER_MESSAGE_QUERY_SNIPPET = """
 <user_message>
   <query>{{ user_message_text|e }}</query>
-  {%- if attachments %}
+  {%- if kb_context_blocks %}
   <attachment_context>
-  {%- for attachment in attachments %}
+  {%- for attachment in kb_context_blocks %}
     <attachment index="{{ loop.index }}">
       <id>{{ attachment.id|e }}</id>
       <name>{{ attachment.name|e }}</name>

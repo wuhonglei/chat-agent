@@ -126,7 +126,7 @@ class ChatSessionAgent(BaseAgent):
             chat_request.mcp_auto_mode,
             server_names or [],
             client_ip,
-            attachments=kb_context_blocks,
+            kb_context_blocks=kb_context_blocks,
         )
         user_message_content = build_user_content_for_llm(
             chat_request.content_blocks,

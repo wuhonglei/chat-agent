@@ -206,7 +206,7 @@ class ChatOrchestrator:
     async def generate_title_event(
         self,
         user_message: str | list[ContentBlock] | list[dict[str, Any]],
-        attachments: list[KbContextBlock],
+        kb_context_blocks: list[KbContextBlock],
         conversation_id: str | None = None,
     ) -> str:
         title_start_time = get_current_time()
@@ -217,7 +217,7 @@ class ChatOrchestrator:
         try:
             title = await self.title_generation_agent.execute(
                 user_message=user_message,
-                attachments=attachments,
+                kb_context_blocks=kb_context_blocks,
             )
         except Exception as exc:
             logger.error(
@@ -304,7 +304,7 @@ class ChatOrchestrator:
                         title_task = asyncio.create_task(
                             self.generate_title_event(
                                 chat_request.content_blocks,
-                                attachments=kb_context_blocks or [],
+                                kb_context_blocks=kb_context_blocks or [],
                                 conversation_id=conversation_id,
                             )
                         )

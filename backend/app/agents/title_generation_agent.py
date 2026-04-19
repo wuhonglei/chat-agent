@@ -18,20 +18,20 @@ class TitleGenerationAgent(BaseAgent):
     async def execute(
         self,
         user_message: str | list[ContentBlock] | list[dict[str, Any]],
-        attachments: list[KbContextBlock] | None = None,
+        kb_context_blocks: list[KbContextBlock] | None = None,
     ) -> str:
         """
         生成对话标题
 
         Args:
             user_message: 用户消息文本，或含图片的 content_blocks
-            attachments: 供标题生成参考的知识库上下文附件
+            kb_context_blocks: 供标题生成参考的知识库上下文附件
 
         Returns:
             str: 生成的标题
         """
         system_prompt, new_user_message = get_prompt_for_title(
-            user_message, attachments
+            user_message, kb_context_blocks
         )
         messages = self._compose_messages(system_prompt, [], new_user_message)
 

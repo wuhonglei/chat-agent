@@ -59,11 +59,11 @@ def get_user_message_for_tool_calls(
     mcp_auto_mode: bool,
     server_names: list[str],
     client_ip: str | None,
-    attachments: list[KbContextBlock] | None = None,
+    kb_context_blocks: list[KbContextBlock] | None = None,
 ) -> str:
     """Get user message prompt for tool calls.
 
-    attachments: 可选，每项建议包含 id、name、content，
+    kb_context_blocks: 可选，每项建议包含 id、name、content，
     以及可选 created_at（与 user_prompt 模板一致）。
     """
     id_by_config = {config["id"]: config for config in mcp_config_for_fe}
@@ -76,7 +76,7 @@ def get_user_message_for_tool_calls(
 
     return user_message_for_tool_call_template.render(
         user_message_text=user_message_text,
-        attachments=attachments or [],
+        kb_context_blocks=kb_context_blocks or [],
         mcp_auto_mode=mcp_auto_mode,
         mcp_configs=mcp_configs,
         current_datetime=get_current_datetime_str(),
@@ -86,7 +86,7 @@ def get_user_message_for_tool_calls(
 
 def get_user_message_for_title(
     user_message_text: str,
-    attachments: list[KbContextBlock] | None = None,
+    kb_context_blocks: list[KbContextBlock] | None = None,
 ) -> str:
     """Get user message prompt for title generation.
 
@@ -94,7 +94,7 @@ def get_user_message_for_title(
     """
     return user_message_for_default_template.render(
         user_message_text=user_message_text,
-        attachments=(attachments or [])[:1],
+        kb_context_blocks=(kb_context_blocks or [])[:1],
     ).strip()
 
 
@@ -113,7 +113,7 @@ def get_window_out_summary_merge_prompt(
 
 def get_prompt_for_title(
     user_input: str | list[ContentBlock] | list[dict[str, Any]],
-    attachments: list[KbContextBlock] | None = None,
+    kb_context_blocks: list[KbContextBlock] | None = None,
 ) -> tuple[str, str | list[dict[str, Any]]]:
     """Get combined system prompt and user message for title generation.
 
@@ -123,8 +123,10 @@ def get_prompt_for_title(
 
     system_prompt = get_system_prompt_for_title().strip()
     if isinstance(user_input, str):
-        return system_prompt, get_user_message_for_title(user_input, attachments)
-    user_message_prompt = build_title_user_message_for_llm(user_input, attachments)
+        return system_prompt, get_user_message_for_title(user_input, kb_context_blocks)
+    user_message_prompt = build_title_user_message_for_llm(
+        user_input, kb_context_blocks
+    )
     return system_prompt, user_message_prompt
 
 
@@ -145,21 +147,21 @@ def get_tool_call_sufficient_info_message() -> str:
 
 def get_user_message_for_reach_tool_call_limit(
     user_message: str,
-    attachments: list[dict[str, Any]] | None = None,
+    kb_context_blocks: list[dict[str, Any]] | None = None,
 ) -> str:
     """Get user message for reach tool call limit"""
     return user_message_for_reach_tool_call_limit_template.render(
         user_message_text=user_message,
-        attachments=attachments or [],
+        kb_context_blocks=kb_context_blocks or [],
     ).strip()
 
 
 def get_user_message_for_no_tool_call(
     user_message: str,
-    attachments: list[dict[str, Any]] | None = None,
+    kb_context_blocks: list[dict[str, Any]] | None = None,
 ) -> str:
     """Get user message for no tool call"""
     return user_message_for_no_tool_call_template.render(
         user_message_text=user_message,
-        attachments=attachments or [],
+        kb_context_blocks=kb_context_blocks or [],
     ).strip()
