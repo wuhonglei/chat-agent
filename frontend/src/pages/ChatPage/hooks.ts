@@ -61,7 +61,7 @@ function getDefaultPreviewPanelWidthPx(): number {
   if (typeof window === "undefined") {
     return 400;
   }
-  return Math.max(280, Math.round(window.innerWidth * 0.4));
+  return Math.max(280, Math.round(window.innerWidth * 0.6));
 }
 
 export const useBlockPreviewHandlers = ({ isSmallScreen }: UseBlockPreviewHandlersParams) => {
