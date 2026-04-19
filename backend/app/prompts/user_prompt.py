@@ -9,8 +9,13 @@ _USER_MESSAGE_QUERY_SNIPPET = """
   {%- if attachments %}
   <attachment_context>
   {%- for attachment in attachments %}
-    <attachment index="{{ loop.index }}" file_id="{{ attachment.file_id|e }}" file_name="{{ attachment.file_name|e }}">
-{{ attachment.text|e }}
+    <attachment index="{{ loop.index }}">
+      <file_id>{{ attachment.file_id|e }}</file_id>
+      <file_name>{{ attachment.file_name|e }}</file_name>
+      {%- if attachment.upload_time %}
+      <upload_time>{{ attachment.upload_time|e }}</upload_time>
+      {%- endif %}
+      <content>{{ attachment.text|e }}</content>
     </attachment>
   {%- endfor %}
   </attachment_context>
