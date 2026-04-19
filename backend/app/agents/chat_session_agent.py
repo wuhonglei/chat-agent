@@ -106,7 +106,6 @@ class ChatSessionAgent(BaseAgent):
         logger.info("User memories", count=len(memories), memories=memories)
 
         system_prompt = get_merged_system_prompt_for_chat_session(
-            user_memories=memories,
             window_out_summary=history_summary_before_window,
         )
         server_names = resolve_enabled_mcp_servers(
@@ -126,6 +125,7 @@ class ChatSessionAgent(BaseAgent):
             server_names or [],
             client_ip,
             kb_context_blocks=kb_context_blocks,
+            user_memories=memories,
         )
         user_message_content = build_user_content_for_llm(
             chat_request.content_blocks,

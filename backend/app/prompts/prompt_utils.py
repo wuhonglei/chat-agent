@@ -60,6 +60,7 @@ def get_user_message_for_tool_calls(
     server_names: list[str],
     client_ip: str | None,
     kb_context_blocks: list[KbContextBlock] | None = None,
+    user_memories: list[str] | None = None,
 ) -> str:
     """Get user message prompt for tool calls.
 
@@ -77,6 +78,7 @@ def get_user_message_for_tool_calls(
     return user_message_for_tool_call_template.render(
         user_message_text=user_message_text,
         kb_context_blocks=kb_context_blocks or [],
+        user_memories=user_memories or [],
         mcp_auto_mode=mcp_auto_mode,
         mcp_configs=mcp_configs,
         current_datetime=get_current_datetime_str(),

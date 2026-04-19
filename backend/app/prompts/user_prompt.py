@@ -42,6 +42,13 @@ user_message_for_tool_call_template: Template = Template(
     <rule>避免重复调用: 不要使用相似查询多次调用 web_search，不要重复提取已提取过的 URL</rule>
     <rule>检查历史工具调用结果: 在调用工具前，仔细检查历史工具调用结果是否已足够回答问题。如果已获得足够信息，请直接给出最终回答并停止调用更多工具。</rule>
   </rules>
+  {%- if user_memories %}
+  <user_memories>
+  {%- for memory in user_memories %}
+    <memory>{{ memory|e }}</memory>
+  {%- endfor %}
+  </user_memories>
+  {%- endif %}
   <context>
     <current_datetime>{{ current_datetime|e }}</current_datetime>
     {%- if client_ip %}
