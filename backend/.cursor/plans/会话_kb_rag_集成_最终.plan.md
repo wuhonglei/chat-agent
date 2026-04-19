@@ -1,12 +1,12 @@
 ---
 name: 会话 KB RAG 集成（最终）
-overview: 在不改动上传 API 的前提下，从当前轮与会话历史用户消息中收集附件 file_id，做 Top-K 向量检索、分数门控与长短文档组装；**不修改 system prompt**，在内存中构造 **KbContextBlock** 并经 build_user_content_for_llm 注入本轮 user 侧；该 block **不落库**。沿用现有 kb_file_chunk_embeddings，无需新表。
+overview: 在不改动上传 API 的前提下，从当前轮与会话历史用户消息中收集附件 file_id，做 Top-K 向量检索、分数门控与长短文档组装；**本轮用户消息中含附件时跳过相似度阈值，始终保留 Top-K**；**不修改 system prompt**，在内存中构造 **KbContextBlock** 并经 build_user_content_for_llm 注入本轮 user 侧；该 block **不落库**。沿用现有 kb_file_chunk_embeddings，无需新表。
 todos:
   - id: collect-file-ids
     content: 从 content_blocks 与历史 user 消息收集 PdfBlock/MarkdownBlock 的 file_id（含 PdfBlock.markdown.id）
     status: pending
   - id: kb-rag-service
-    content: Top-K 检索、分数门控、强制关键词、短/长文档组装、磁盘读全文与 pgvector 查询
+    content: Top-K 检索、分数门控（本轮有附件则跳过阈值）、强制关键词、短/长文档组装、磁盘读全文与 pgvector 查询
     status: pending
   - id: kb-context-block
     content: 新增 KbContextBlock（及 LLM 侧类型别名若需要）；扩展 multimodal 渲染；API 校验剥离客户端伪造 kb_context
@@ -18,7 +18,7 @@ todos:
     content: 扩展 KbFileRagConfig（top_k、阈值、短文档 token、强制关键词等），不增加 system 注入项
     status: pending
   - id: tests
-    content: 收集、门控/组装、build_user_content_for_llm 含 KB 块、持久化不含 kb_context 的单测
+    content: 收集、门控（含本轮附件跳过阈值）、组装、build_user_content_for_llm 含 KB 块、持久化不含 kb_context 的单测
     status: pending
 isProject: false
 ---
@@ -45,6 +45,7 @@ isProject: false
 |------|------|
 | 上传 API | 不改动；仍按 user_id + file_id 存向量 |
 | 会话范围 | 由 **会话内出现的 file_id 集合** 过滤检索，非 conversation_id 写库 |
+| 分数门控 | 默认：Top-1 低于 `relevance_score_threshold` 则丢弃，除非强制关键词；**当前请求 `content_blocks` 中含 PdfBlock/MarkdownBlock（本轮有上传）则无视阈值，仍保留 Top-K 组装** |
 | 上下文注入 | **`KbContextBlock` + user 渲染**，不改 system |
 | 持久化 | 用户消息入库 **仅**客户端原始 `content_blocks`，不含 `KbContextBlock` |
 
@@ -61,7 +62,7 @@ flowchart TD
   F -->|empty| skip[Skip RAG]
   F -->|non-empty| qembed[Embed user query]
   qembed --> search[Top-K vector search by user_id and file_id in set]
-  search --> gate{Top1 score or forced keyword?}
+  search --> gate{Top1 OK, or forced keyword, or current-turn attachment?}
   gate -->|no| noKb[No KbContextBlock]
   gate -->|yes| assemble[Short vs long assembly]
   assemble --> wrap[KbContextBlock in memory]
@@ -85,7 +86,9 @@ flowchart TD
   - [`EmbeddingService.aembed_query`](backend/app/services/base_service/embedding_service.py) 生成查询向量。
   - PostgreSQL + pgvector：`WHERE user_id = :uid AND file_id IN :file_ids`，按 `<=>` 排序 `LIMIT k`。
   - Top-1 转相似度（如 `1 - distance`，注释写明与 pgvector 语义一致）。
-  - 低于阈值则丢弃结果，**除非**命中强制关键词（见下）。
+  - **门控**：低于阈值则丢弃结果，**除非**满足以下任一条件则**仍保留 Top-K 结果并进入组装**：
+    - 命中强制关键词（见 §6）；或
+    - **本轮有上传**：当前请求的 `content_blocks`（`normalize_content_blocks` 后）中存在 `PdfBlock` 或 `MarkdownBlock` 即视为本轮带附件，**跳过阈值**，仍用本次检索得到的 Top-K 进入组装。
 - 配置：扩展 [`KbFileRagConfig`](backend/app/schemas/config.py)：`retrieval_top_k`、`relevance_score_threshold`（如 0.65）、`short_doc_max_tokens`、`force_rag_keyword_patterns`；**不**增加 system 侧 kb 配置。
 
 ### 3. 检索后组装（短/长）
@@ -114,7 +117,9 @@ flowchart TD
 
 ### 6. 强制关键词与 query
 
-- **强制走 RAG**：对 `extract_user_text` 匹配 `force_rag_keyword_patterns` 时 **跳过分数门控**，仍用 Top-K 组装。
+- **强制走 RAG**（跳过分数门控、仍用 Top-K 组装）：
+  - 对 `extract_user_text` 匹配 `force_rag_keyword_patterns`；或
+  - **本轮有上传**（同 §2）：避免仅附件、弱 query 时 Top-1 过低导致无 KB 上下文。
 
 ### 7. 独立 `.md` 上传（可选、正交）
 
@@ -122,7 +127,7 @@ flowchart TD
 
 ### 8. 测试
 
-- 收集（含嵌套 markdown）、空集跳过、门控与强制关键词；组装 mock，弱化真实 PG 依赖。
+- 收集（含嵌套 markdown）、空集跳过、门控（含本轮有上传跳过阈值）、强制关键词；组装 mock，弱化真实 PG 依赖。
 - `build_user_content_for_llm` 含 `KbContextBlock` 的顺序与内容；可选断言落库无 `kb_context`。
 - 集成环境可验证同用户多会话隔离。
 
@@ -141,7 +146,7 @@ flowchart TD
 
 ## 风险与注意
 
-- **首轮仅附件无文字**：query 弱可能导致门控失败；依赖强制关键词或引导用户输入具体问题。
+- **首轮仅附件无文字**：query 可能偏弱；**本轮有上传时已跳过阈值保留 Top-K**，一般仍可注入上下文；极端情况（如索引未就绪）仍依赖日志与降级路径。
 - **短文档读盘**：`{file_id}.md` 缺失时降级为 chunk 并打日志。
 - **pgvector**：参数化查询；维度与 [`EMBEDDING_DIMENSION`](backend/app/models/kb_file_chunk_embedding_db.py) 一致。
 - **客户端伪造 kb_context**：必须校验剥离。
