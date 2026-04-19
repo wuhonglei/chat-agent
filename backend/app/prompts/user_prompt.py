@@ -2,21 +2,29 @@
 
 from jinja2 import Template
 
-user_message_for_default_template: Template = Template(
-    """
+# 共用的用户查询 XML（变量名统一为 user_message_text；可选 attachment_chunks）
+_USER_MESSAGE_QUERY_SNIPPET = """
 <user_message>
   <query>{{ user_message_text|e }}</query>
+  {%- if attachment_chunks %}
+  <attachment_context>
+  {%- for chunk in attachment_chunks %}
+    <chunk index="{{ loop.index }}" file_id="{{ chunk.file_id|e }}" file_name="{{ chunk.file_name|e }}">
+{{ chunk.text|e }}
+    </chunk>
+  {%- endfor %}
+  </attachment_context>
+  {%- endif %}
 </user_message>
 """.strip()
-)
+
+user_message_for_default_template: Template = Template(_USER_MESSAGE_QUERY_SNIPPET)
 
 # ============= 工具调用用户消息提示词 =============
 user_message_for_tool_call_template: Template = Template(
-    """
-<user_message>
-  <query>{{ user_message_text|e }}</query>
-</user_message>
-
+    _USER_MESSAGE_QUERY_SNIPPET
+    + "\n\n"
+    + """
 <tool_call_context>
 {%- if not mcp_auto_mode %}
   <selected_mcp_servers>
@@ -30,19 +38,19 @@ user_message_for_tool_call_template: Template = Template(
     <rule>检查历史工具调用结果: 在调用工具前，仔细检查历史工具调用结果是否已足够回答问题。如果已获得足够信息，请直接给出最终回答并停止调用更多工具。</rule>
   </rules>
   <context>
-    <current_datetime>{{ current_datetime|e }}</current_datetime>{% if client_ip %}
-    <client_ip>{{ client_ip|e }}</client_ip>{% endif %}
+    <current_datetime>{{ current_datetime|e }}</current_datetime>
+    {%- if client_ip %}
+    <client_ip>{{ client_ip|e }}</client_ip>
+    {%- endif %}
   </context>
 </tool_call_context>
 """.strip()
 )
 
 user_message_for_reach_tool_call_limit_template: Template = Template(
-    """
-<user_message>
-  <query>{{ user_message|e }}</query>
-</user_message>
-
+    _USER_MESSAGE_QUERY_SNIPPET
+    + "\n\n"
+    + """
 <tool_call_limit_notice>
   【系统说明】工具调用已达上限，请仅根据已有对话与工具结果直接作答；信息不足时请说明并给出力所能及的建议，勿再提议调用工具。
 </tool_call_limit_notice>
@@ -50,11 +58,9 @@ user_message_for_reach_tool_call_limit_template: Template = Template(
 )
 
 user_message_for_no_tool_call_template: Template = Template(
-    """
-<user_message>
-  <query>{{ user_message|e }}</query>
-</user_message>
-
+    _USER_MESSAGE_QUERY_SNIPPET
+    + "\n\n"
+    + """
 <no_tool_call_notice>
   【系统说明】没有可用的工具，请直接给出最终回答。
 </no_tool_call_notice>
