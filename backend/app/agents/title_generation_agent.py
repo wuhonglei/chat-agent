@@ -4,7 +4,7 @@ from typing import Any
 
 from app.agents.base import BaseAgent
 from app.prompts import get_prompt_for_title
-from app.schemas.chat import ContentBlock
+from app.schemas.chat import ContentBlock, KbContextBlock
 from app.schemas.config import LLMConfig
 from app.utils.logger import logger
 
@@ -18,17 +18,21 @@ class TitleGenerationAgent(BaseAgent):
     async def execute(
         self,
         user_message: str | list[ContentBlock] | list[dict[str, Any]],
+        attachments: list[KbContextBlock] | None = None,
     ) -> str:
         """
         生成对话标题
 
         Args:
             user_message: 用户消息文本，或含图片的 content_blocks
+            attachments: 供标题生成参考的知识库上下文附件
 
         Returns:
             str: 生成的标题
         """
-        system_prompt, new_user_message = get_prompt_for_title(user_message)
+        system_prompt, new_user_message = get_prompt_for_title(
+            user_message, attachments
+        )
         messages = self._compose_messages(system_prompt, [], new_user_message)
 
         title_response = await self.call_llm_api(

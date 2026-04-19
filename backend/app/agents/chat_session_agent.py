@@ -20,7 +20,6 @@ from app.agents.utils.tool_call_stream import (
     merge_tool_call_deltas,
     tool_call_acc_to_openai_list,
 )
-from app.core.config import settings
 from app.mcp.mcp_client import MCPClientManager
 from app.prompts import (
     get_merged_system_prompt_for_chat_session,
@@ -35,21 +34,16 @@ from app.schemas.chat import (
     ChatMessage,
     ChatRequest,
     ContentBlock,
+    KbContextBlock,
 )
 from app.schemas.config import LLMConfig
 from app.schemas.llm import ToolMessage
 from app.schemas.user import MemoryListItem
-from app.services.base_service.embedding_service import EmbeddingService
-from app.services.chat.kb_rag_context_service import KbRagContextService
 from app.utils.logger import logger
 from app.utils.message import update_last_user_message
 from app.utils.multimodal import (
     build_user_content_for_llm,
-    collect_attachment_file_ids,
-    collect_attachment_file_ids_from_history_messages,
     extract_user_text_with_attachment_placeholder,
-    has_markdown_block,
-    has_pdf_block,
 )
 from app.utils.time import get_current_time, get_time_duration
 
@@ -70,10 +64,6 @@ class ChatSessionAgent(BaseAgent):
         self.content_block_aggregator = ContentBlocksAggregator()
         self.state_machine = ChatRoundStateMachine()
         self.tool_context_limit_ratio = tool_context_limit_ratio
-        self.kb_rag_context_service = KbRagContextService(
-            rag_config=settings.kb_file_rag,
-            embedding_service=EmbeddingService(settings.embedding_model),
-        )
 
     @property
     def tool_round_messages(self) -> list[ToolMessage]:
@@ -106,6 +96,7 @@ class ChatSessionAgent(BaseAgent):
         user_id: str,
         conversation_id: str,
         user_memories: list[MemoryListItem],
+        kb_context_blocks: list[KbContextBlock] | None = None,
     ) -> AsyncGenerator[str, None]:
         _ = conversation_id
         self.think_mode = chat_request.think_mode
@@ -127,25 +118,8 @@ class ChatSessionAgent(BaseAgent):
             client_ip,
         )
 
-        current_turn_file_ids = collect_attachment_file_ids(chat_request.content_blocks)
-        history_file_ids = collect_attachment_file_ids_from_history_messages(
-            history_messages
-        )
-        candidate_file_ids = current_turn_file_ids | history_file_ids
-
         user_message_text = extract_user_text_with_attachment_placeholder(
             chat_request.content_blocks
-        )
-        current_turn_has_attachment = has_pdf_block(
-            chat_request.content_blocks
-        ) or has_markdown_block(chat_request.content_blocks)
-        kb_context_blocks = (
-            await self.kb_rag_context_service.build_context_block_content(
-                user_id=user_id,
-                query_text=user_message_text,
-                candidate_file_ids=candidate_file_ids,
-                current_turn_has_attachment=current_turn_has_attachment,
-            )
         )
         tool_guided_user_message = get_user_message_for_tool_calls(
             user_message_text,

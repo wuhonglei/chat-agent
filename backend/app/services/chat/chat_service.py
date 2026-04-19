@@ -8,8 +8,10 @@ from app.mcp.mcp_client import MCPClientManager
 from app.schemas.chat import ChatRequest
 from app.schemas.config import ChatContextConfig
 from app.schemas.user import MemoryListItem
+from app.services.base_service.embedding_service import EmbeddingService
 from app.services.chat.chat_orchestrator import ChatOrchestrator
 from app.services.chat.history_context_service import HistoryContextService
+from app.services.chat.kb_rag_context_service import KbRagContextService
 from app.services.chat.post_process_service import PostProcessService
 from app.services.user.memory_service import MemoryService
 from app.utils.token import TokenCalculator
@@ -44,11 +46,16 @@ class ChatService:
             token_calculator=token_calculator,
         )
         self.post_process_service = PostProcessService(self.memory_service)
+        self.kb_rag_context_service = KbRagContextService(
+            rag_config=settings.kb_file_rag,
+            embedding_service=EmbeddingService(settings.embedding_model),
+        )
         self.chat_orchestrator = ChatOrchestrator(
             chat_session_agent=self.chat_session_agent,
             title_generation_agent=self.title_generation_agent,
             history_context_service=self.history_context_service,
             post_process_service=self.post_process_service,
+            kb_rag_context_service=self.kb_rag_context_service,
         )
 
     async def _search_user_memories(

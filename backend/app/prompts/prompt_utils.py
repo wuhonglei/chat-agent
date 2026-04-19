@@ -86,7 +86,7 @@ def get_user_message_for_tool_calls(
 
 def get_user_message_for_title(
     user_message_text: str,
-    attachments: list[dict[str, Any]] | None = None,
+    attachments: list[KbContextBlock] | None = None,
 ) -> str:
     """Get user message prompt for title generation.
 
@@ -113,6 +113,7 @@ def get_window_out_summary_merge_prompt(
 
 def get_prompt_for_title(
     user_input: str | list[ContentBlock] | list[dict[str, Any]],
+    attachments: list[KbContextBlock] | None = None,
 ) -> tuple[str, str | list[dict[str, Any]]]:
     """Get combined system prompt and user message for title generation.
 
@@ -122,8 +123,8 @@ def get_prompt_for_title(
 
     system_prompt = get_system_prompt_for_title().strip()
     if isinstance(user_input, str):
-        return system_prompt, get_user_message_for_title(user_input)
-    user_message_prompt = build_title_user_message_for_llm(user_input)
+        return system_prompt, get_user_message_for_title(user_input, attachments)
+    user_message_prompt = build_title_user_message_for_llm(user_input, attachments)
     return system_prompt, user_message_prompt
 
 

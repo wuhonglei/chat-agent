@@ -102,13 +102,14 @@ def collect_attachment_file_ids_from_history_messages(
 
 def build_title_user_message_for_llm(
     content_blocks: list[ContentBlock] | list[dict[str, Any]] | None,
+    attachments: list[KbContextBlock] | None = None,
 ) -> str | list[dict[str, Any]]:
     """Build title user message with wrapped text and optional images."""
     from app.prompts.prompt_utils import get_user_message_for_title
 
     normalized_blocks = normalize_content_blocks(content_blocks)
     query_text = extract_user_text_with_attachment_placeholder(normalized_blocks)
-    wrapped = get_user_message_for_title(query_text)
+    wrapped = get_user_message_for_title(query_text, attachments=attachments)
 
     return build_user_content_for_llm(
         content_blocks,
@@ -168,13 +169,6 @@ def _build_text_content(
     include_text_blocks: bool,
 ) -> str:
     segments: list[str] = []
-    kb_segments = [
-        block.content.strip()
-        for block in content_blocks
-        if isinstance(block, KbContextBlock) and block.content.strip()
-    ]
-    if kb_segments:
-        segments.extend(kb_segments)
     if leading_text and leading_text.strip():
         segments.append(leading_text.strip())
     if include_text_blocks:

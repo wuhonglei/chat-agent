@@ -282,7 +282,6 @@ ContentBlock: TypeAlias = (
     | ImageBlock
     | PdfBlock
     | MarkdownBlock
-    | KbContextBlock
 )
 _CONTENT_BLOCKS_ADAPTER = TypeAdapter(list[ContentBlock])
 
