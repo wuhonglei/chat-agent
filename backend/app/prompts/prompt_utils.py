@@ -1,5 +1,6 @@
 """提示词工具函数模块"""
 
+from collections.abc import Sequence
 from typing import Any
 
 from app.mcp.mcp_client import mcp_config_for_fe
@@ -20,6 +21,7 @@ from app.prompts.user_prompt import (
     user_message_for_tool_call_template,
 )
 from app.schemas.chat import ContentBlock, KbContextBlock
+from app.schemas.user import MemorySearchItem
 from app.utils.date import get_current_datetime_str
 
 
@@ -60,7 +62,7 @@ def get_user_message_for_tool_calls(
     server_names: list[str],
     client_ip: str | None,
     kb_context_blocks: list[KbContextBlock] | None = None,
-    user_memories: list[str] | None = None,
+    user_memories: Sequence[MemorySearchItem] | None = None,
 ) -> str:
     """Get user message prompt for tool calls.
 
@@ -78,7 +80,7 @@ def get_user_message_for_tool_calls(
     return user_message_for_tool_call_template.render(
         user_message_text=user_message_text,
         kb_context_blocks=kb_context_blocks or [],
-        user_memories=user_memories or [],
+        user_memories=user_memories,
         mcp_auto_mode=mcp_auto_mode,
         mcp_configs=mcp_configs,
         current_datetime=get_current_datetime_str(),

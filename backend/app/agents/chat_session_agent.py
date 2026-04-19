@@ -21,7 +21,7 @@ from app.agents.utils.tool_call_stream import (
     tool_call_acc_to_openai_list,
 )
 from app.mcp.mcp_client import MCPClientManager
-from app.prompts import (
+from app.prompts.prompt_utils import (
     get_merged_system_prompt_for_chat_session,
     get_user_message_for_tool_calls,
 )
@@ -38,7 +38,7 @@ from app.schemas.chat import (
 )
 from app.schemas.config import LLMConfig
 from app.schemas.llm import ToolMessage
-from app.schemas.user import MemoryListItem
+from app.schemas.user import MemorySearchItem
 from app.utils.logger import logger
 from app.utils.message import update_last_user_message
 from app.utils.multimodal import (
@@ -94,7 +94,7 @@ class ChatSessionAgent(BaseAgent):
         client_ip: str | None,
         history_summary_before_window: str | None,
         conversation_id: str,
-        user_memories: list[MemoryListItem],
+        user_memories: list[MemorySearchItem],
         kb_context_blocks: list[KbContextBlock] | None = None,
     ) -> AsyncGenerator[str, None]:
         _ = conversation_id
@@ -102,8 +102,7 @@ class ChatSessionAgent(BaseAgent):
         self.session_output.reset()
         self.content_block_aggregator = ContentBlocksAggregator()
 
-        memories = [m.memory for m in user_memories]
-        logger.info("User memories", count=len(memories), memories=memories)
+        logger.info("User memories", count=len(user_memories))
 
         system_prompt = get_merged_system_prompt_for_chat_session(
             window_out_summary=history_summary_before_window,
@@ -125,7 +124,7 @@ class ChatSessionAgent(BaseAgent):
             server_names or [],
             client_ip,
             kb_context_blocks=kb_context_blocks,
-            user_memories=memories,
+            user_memories=user_memories,
         )
         user_message_content = build_user_content_for_llm(
             chat_request.content_blocks,

@@ -24,7 +24,7 @@ from app.schemas.chat import (
     count_tool_use_blocks,
     extract_user_text,
 )
-from app.schemas.user import MemoryListItem
+from app.schemas.user import MemorySearchItem
 from app.services.chat.history_context_service import HistoryContextService
 from app.services.chat.kb_rag_context_service import KbRagContextService
 from app.services.chat.post_process_service import PostProcessService
@@ -123,7 +123,7 @@ class MemorySearch(Protocol):
         *,
         query: str,
         user_id: str,
-    ) -> list[MemoryListItem]: ...
+    ) -> list[MemorySearchItem]: ...
 
 
 class ChatOrchestrator:
@@ -149,9 +149,8 @@ class ChatOrchestrator:
         chat_request: ChatRequest,
         history_summary_before_window: str | None,
         history_messages: list[ChatMessage],
-        user_id: str,
         client_ip: str | None,
-        user_memories: list[MemoryListItem] | None = None,
+        user_memories: list[MemorySearchItem] | None = None,
         kb_context_blocks: list[KbContextBlock] | None = None,
     ) -> AsyncGenerator[str, None]:
         logger.debug("user_memories", user_memories=user_memories)
@@ -312,7 +311,6 @@ class ChatOrchestrator:
                             history_summary_before_window=history_summary_before_window,
                             history_messages=prepared_history_messages,
                             client_ip=None,
-                            user_id=user_id,
                             user_memories=user_memories,
                             kb_context_blocks=kb_context_blocks,
                         ),

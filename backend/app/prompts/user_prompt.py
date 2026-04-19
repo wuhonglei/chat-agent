@@ -45,7 +45,13 @@ user_message_for_tool_call_template: Template = Template(
   {%- if user_memories %}
   <user_memories>
   {%- for memory in user_memories %}
-    <memory>{{ memory|e }}</memory>
+    <memory_item>
+      <memory>{{ memory.memory|e }}</memory>
+      {%- if memory.created_at %}
+      <created_at>{{ memory.created_at|e }}</created_at>
+      {%- endif %}
+      <relevance>{{ memory.relevance|e }}</relevance>
+    </memory_item>
   {%- endfor %}
   </user_memories>
   {%- endif %}

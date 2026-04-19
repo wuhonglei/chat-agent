@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -36,6 +36,17 @@ class MemoryListItem(BaseModel):
     created_at: str = Field(..., description="创建时间(ISO 8601 字符串)")
     metadata: dict[str, Any] | None = Field(None, description="元数据")
     score: float | None = Field(None, description="相关性分数（搜索时）")
+
+
+class MemorySearchItem(BaseModel):
+    """用户记忆搜索结果（用于对话上下文注入）。"""
+
+    id: str = Field(..., description="记忆 ID")
+    memory: str = Field("", description="记忆内容")
+    hash: str | None = Field(None, description="hash")
+    created_at: str | None = Field(None, description="创建时间（相对时间）")
+    metadata: dict[str, Any] | None = Field(None, description="元数据")
+    relevance: Literal["高", "中", "低"] = Field(..., description="相关度等级")
 
 
 class MemoryListResponse(BaseModel):
