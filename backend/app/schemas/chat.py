@@ -265,8 +265,10 @@ class PdfBlock(BaseModel):
 
 
 class KbContextBlock(BaseModel):
-    id: str = Field(..., description="Block ID")
+    id: str = Field(..., description="附件 file_id")
     type: Literal["kb_context"] = "kb_context"
+    name: str = Field(default="", description="附件文件名")
+    created_at: str | None = Field(default=None, description="附件创建相对时间")
     content: str = Field(default="", description="Knowledge base context content")
 
 

@@ -10,12 +10,12 @@ _USER_MESSAGE_QUERY_SNIPPET = """
   <attachment_context>
   {%- for attachment in attachments %}
     <attachment index="{{ loop.index }}">
-      <file_id>{{ attachment.file_id|e }}</file_id>
-      <file_name>{{ attachment.file_name|e }}</file_name>
-      {%- if attachment.upload_time %}
-      <upload_time>{{ attachment.upload_time|e }}</upload_time>
+      <id>{{ attachment.id|e }}</id>
+      <name>{{ attachment.name|e }}</name>
+      {%- if attachment.created_at %}
+      <created_at>{{ attachment.created_at|e }}</created_at>
       {%- endif %}
-      <content>{{ attachment.text|e }}</content>
+      <content>{{ attachment.content|e }}</content>
     </attachment>
   {%- endfor %}
   </attachment_context>

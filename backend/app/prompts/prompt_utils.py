@@ -19,7 +19,7 @@ from app.prompts.user_prompt import (
     user_message_for_reach_tool_call_limit_template,
     user_message_for_tool_call_template,
 )
-from app.schemas.chat import ContentBlock
+from app.schemas.chat import ContentBlock, KbContextBlock
 from app.utils.date import get_current_datetime_str
 
 
@@ -59,12 +59,12 @@ def get_user_message_for_tool_calls(
     mcp_auto_mode: bool,
     server_names: list[str],
     client_ip: str | None,
-    attachments: list[dict[str, Any]] | None = None,
+    attachments: list[KbContextBlock] | None = None,
 ) -> str:
     """Get user message prompt for tool calls.
 
-    attachments: 可选，每项建议包含 file_id、file_name、text，
-    以及可选 upload_time（与 user_prompt 模板一致）。
+    attachments: 可选，每项建议包含 id、name、content，
+    以及可选 created_at（与 user_prompt 模板一致）。
     """
     id_by_config = {config["id"]: config for config in mcp_config_for_fe}
     server_names = server_names or []

@@ -34,6 +34,7 @@ dependencies = [
     "cos-python-sdk-v5>=1.9.41", # 腾讯云 COS SDK
     "tencentcloud-sdk-python-sms>=3.1.56", # 腾讯云短信 SDK
     "tzlocal>=5.3.1",
+    "humanize>=4.14.0",
     "nacos-sdk-python>=3",
     "python-dotenv>=1.0.0",
     "gunicorn>=23.0.0",

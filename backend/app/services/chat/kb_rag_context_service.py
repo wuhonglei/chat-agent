@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import re
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -12,8 +13,10 @@ from sqlalchemy import bindparam, text
 
 from app.core.db import engine
 from app.models.kb_file_chunk_embedding_db import EMBEDDING_DIMENSION
+from app.schemas.chat import KbContextBlock
 from app.schemas.config import KbFileRagConfig
 from app.services.chat_upload.attachment import get_user_upload_dir
+from app.utils.date import get_relative_time_diff
 from app.utils.logger import logger
 
 
@@ -51,7 +54,7 @@ class KbRagContextService:
         query_text: str,
         candidate_file_ids: set[str],
         current_turn_has_attachment: bool,
-    ) -> str | None:
+    ) -> list[KbContextBlock] | None:
         clean_query = query_text.strip()
         if not clean_query:
             return None
@@ -96,15 +99,15 @@ class KbRagContextService:
             )
             return None
 
-        context_text = await asyncio.to_thread(
+        context_blocks = await asyncio.to_thread(
             self._assemble_context_text,
             user_id,
             chunks,
         )
-        if not context_text:
+        if not context_blocks:
             logger.info("Skip KB RAG: assembled context is empty")
             return None
-        return context_text
+        return context_blocks
 
     def _contains_force_keyword(self, query_text: str) -> bool:
         return any(
@@ -159,7 +162,9 @@ class KbRagContextService:
             for row in rows
         ]
 
-    def _assemble_context_text(self, user_id: str, chunks: list[RetrievedChunk]) -> str:
+    def _assemble_context_text(
+        self, user_id: str, chunks: list[RetrievedChunk]
+    ) -> list[KbContextBlock]:
         grouped_chunks: dict[str, list[RetrievedChunk]] = {}
         ordered_file_ids: list[str] = []
         for chunk in chunks:
@@ -168,19 +173,28 @@ class KbRagContextService:
                 ordered_file_ids.append(chunk.file_id)
             grouped_chunks[chunk.file_id].append(chunk)
 
-        sections: list[str] = []
+        context_blocks: list[KbContextBlock] = []
         for file_id in ordered_file_ids:
             file_chunks = grouped_chunks[file_id]
             first_metadata = file_chunks[0].metadata_json
             file_name = str(first_metadata.get("file_name") or f"{file_id}.md")
             source_token_count = int(first_metadata.get("source_token_count") or 0)
+            created_at_datetime = self._extract_created_at(first_metadata)
+            created_at = get_relative_time_diff(created_at_datetime)
 
             full_text: str | None = None
             if source_token_count <= self.rag_config.short_doc_max_tokens:
                 full_text = self._read_full_markdown_text(user_id, file_id)
 
             if full_text:
-                sections.append(f"## {file_name}\n{full_text}")
+                context_blocks.append(
+                    KbContextBlock(
+                        id=file_id,
+                        name=file_name,
+                        created_at=created_at,
+                        content=full_text,
+                    )
+                )
                 continue
 
             unique_chunks: dict[int, str] = {}
@@ -191,15 +205,16 @@ class KbRagContextService:
                 text for text in unique_chunks.values() if text
             ).strip()
             if merged_chunk_text:
-                sections.append(f"## {file_name}\n{merged_chunk_text}")
+                context_blocks.append(
+                    KbContextBlock(
+                        id=file_id,
+                        name=file_name,
+                        created_at=created_at,
+                        content=merged_chunk_text,
+                    )
+                )
 
-        if not sections:
-            return ""
-        header = (
-            "以下是会话内附件检索得到的参考内容。"
-            "请优先基于这些内容回答；若信息不足请明确说明。"
-        )
-        return f"{header}\n\n" + "\n\n".join(sections)
+        return context_blocks
 
     def _read_full_markdown_text(self, user_id: str, file_id: str) -> str | None:
         try:
@@ -227,6 +242,21 @@ class KbRagContextService:
             )
             return None
         return content or None
+
+    @staticmethod
+    def _extract_created_at(metadata: dict[str, Any]) -> datetime | None:
+        raw_value = metadata.get("created_at")
+        if isinstance(raw_value, datetime):
+            return raw_value
+        if not isinstance(raw_value, str):
+            return None
+        candidate = raw_value.strip()
+        if not candidate:
+            return None
+        try:
+            return datetime.fromisoformat(candidate)
+        except ValueError:
+            return None
 
     @staticmethod
     def _format_vector_literal(vector: list[float]) -> str:

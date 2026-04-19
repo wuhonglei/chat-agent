@@ -35,14 +35,12 @@ from app.schemas.chat import (
     ChatMessage,
     ChatRequest,
     ContentBlock,
-    KbContextBlock,
 )
 from app.schemas.config import LLMConfig
 from app.schemas.llm import ToolMessage
 from app.schemas.user import MemoryListItem
 from app.services.base_service.embedding_service import EmbeddingService
 from app.services.chat.kb_rag_context_service import KbRagContextService
-from app.utils.common import gen_uuid
 from app.utils.logger import logger
 from app.utils.message import update_last_user_message
 from app.utils.multimodal import (
@@ -141,28 +139,23 @@ class ChatSessionAgent(BaseAgent):
         current_turn_has_attachment = has_pdf_block(
             chat_request.content_blocks
         ) or has_markdown_block(chat_request.content_blocks)
-        kb_context_text = await self.kb_rag_context_service.build_context_block_content(
-            user_id=user_id,
-            query_text=user_message_text,
-            candidate_file_ids=candidate_file_ids,
-            current_turn_has_attachment=current_turn_has_attachment,
+        kb_context_blocks = (
+            await self.kb_rag_context_service.build_context_block_content(
+                user_id=user_id,
+                query_text=user_message_text,
+                candidate_file_ids=candidate_file_ids,
+                current_turn_has_attachment=current_turn_has_attachment,
+            )
         )
-        blocks_for_llm: list[ContentBlock]
-        if kb_context_text:
-            blocks_for_llm = [
-                KbContextBlock(id=gen_uuid(), content=kb_context_text),
-                *chat_request.content_blocks,
-            ]
-        else:
-            blocks_for_llm = list(chat_request.content_blocks)
         tool_guided_user_message = get_user_message_for_tool_calls(
             user_message_text,
             chat_request.mcp_auto_mode,
             server_names or [],
             client_ip,
+            attachments=kb_context_blocks,
         )
         user_message_content = build_user_content_for_llm(
-            blocks_for_llm,
+            chat_request.content_blocks,
             leading_text=tool_guided_user_message,
             include_text_blocks=False,
         )
