@@ -393,11 +393,14 @@ class ChatOrchestrator:
         user_message_text: str,
     ) -> list[KbContextBlock] | None:
         current_turn_file_ids = collect_attachment_file_ids(content_blocks)
-        history_file_ids = collect_attachment_file_ids_from_history_messages(
-            history_messages
-        )
-        candidate_file_ids = current_turn_file_ids | history_file_ids
         current_turn_has_attachment = bool(current_turn_file_ids)
+        if current_turn_has_attachment:
+            # 当前轮已上传附件时，优先绑定本轮附件，避免历史附件干扰检索。
+            candidate_file_ids = current_turn_file_ids
+        else:
+            candidate_file_ids = collect_attachment_file_ids_from_history_messages(
+                history_messages
+            )
         return await self.kb_rag_context_service.build_context_block_content(
             user_id=user_id,
             query_text=user_message_text,
