@@ -9,7 +9,7 @@ todos:
     content: Top-K 检索、分数门控（本轮有附件则跳过阈值）、强制关键词、短/长文档组装、磁盘读全文与 pgvector 查询
     status: pending
   - id: kb-context-block
-    content: 新增 KbContextBlock（及 LLM 侧类型别名若需要）；扩展 multimodal 渲染；API 校验剥离客户端伪造 kb_context
+    content: 新增 KbContextBlock 并并入对外 ContentBlock（不单独维护 ContentBlockForLlm）；扩展 multimodal 渲染；API 校验剥离客户端伪造 kb_context
     status: pending
   - id: wire-agent
     content: ChatSessionAgent 内存拼接 KbContextBlock + 原 content_blocks；system_prompt 不变；确认落库不含该块
@@ -102,7 +102,7 @@ flowchart TD
 ### 4. `KbContextBlock` 与 LLM 组装
 
 - 在 [`app/schemas/chat.py`](backend/app/schemas/chat.py) 定义 `KbContextBlock`（如 `type: "kb_context"`、`content: str`）。
-- **联合类型**：将 `KbContextBlock` 并入对外 `ContentBlock`，或定义 **`ContentBlockForLlm`**（`ContentBlock | KbContextBlock`）仅 Agent 内部使用——按 mypy/校验成本二选一。
+- **联合类型**：出于兼容成本考虑，将 **`KbContextBlock` 并入对外 `ContentBlock`**（扩展 `ContentBlock` 联合类型），**不**再单独维护 `ContentBlockForLlm` 等仅 Agent 内部别名，避免两套块列表与校验分叉。
 - **API 安全**：若用户请求可反序列化出 `kb_context`，必须 **剥离或拒绝**，仅服务端构造。
 - [`extract_user_text`](backend/app/schemas/chat.py) **只统计 `TextBlock`**，不得把 `KbContextBlock` 当作 query，以免影响记忆检索与 RAG query。
 - 扩展 [`build_user_content_for_llm`](backend/app/utils/multimodal.py) / `_build_text_content`：`KbContextBlock` 排在 **前**（或与 `leading_text` 的相对顺序按产品固定），输出仍为 string 或多段 text（与 image 分支兼容）。
