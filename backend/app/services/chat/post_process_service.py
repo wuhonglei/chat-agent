@@ -72,7 +72,6 @@ class PostProcessService:
                     },
                 ],
                 user_id=user_id,
-                run_id=chat_request.conversation_id,
             ),
             name="mem0_add_memories",
         )
