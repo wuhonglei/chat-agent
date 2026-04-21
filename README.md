@@ -18,11 +18,20 @@
 
 ![登录页](docs/imgs/login.webp)
 
-### 对话与组件渲染
+### 功能点概览
 
-侧边栏会话管理、工具调用过程与对话内自定义组件（如天气卡片）示例。
+1. 丰富的 Markdown 功能渲染：支持流程图展示与 LaTeX 公式展示。
+   ![Markdown 渲染（流程图与公式）](docs/imgs/memaid_flow.png)
 
-![对话与交互组件](docs/imgs/ui_interact.webp)
+2. 多轮工具调用：支持在一次对话中连续调用多个工具完成复杂任务。
+   ![多轮工具调用](docs/imgs/multi_turn_tool_calling.png)
+
+3. 工具结果可视化：工具输出结果可直接以结构化方式展示。
+   ![工具结果可视化](docs/imgs/tool_result_display.png)
+
+4. 友好的用户交互：支持 PDF 预览、HTML 预览与代码执行。
+   ![HTML 预览](docs/imgs/html_preview.png)
+   ![代码执行](docs/imgs/run_code.png)
 
 ## 技术栈
 
