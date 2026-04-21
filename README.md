@@ -20,18 +20,33 @@
 
 ### 功能点概览
 
-1. 丰富的 Markdown 功能渲染：支持流程图展示与 LaTeX 公式展示。
-   ![Markdown 渲染（流程图与公式）](docs/imgs/memaid_flow.png)
+#### 1) 丰富的 Markdown 渲染
 
-2. 多轮工具调用：支持在一次对话中连续调用多个工具完成复杂任务。
-   ![多轮工具调用](docs/imgs/multi_turn_tool_calling.png)
+支持流程图展示与 LaTeX 公式展示，便于技术内容表达与文档阅读。
 
-3. 工具结果可视化：工具输出结果可直接以结构化方式展示。
-   ![工具结果可视化](docs/imgs/tool_result_display.png)
+![Markdown 渲染（流程图与公式）](docs/imgs/memaid_flow.png)
 
-4. 友好的用户交互：支持 PDF 预览、HTML 预览与代码执行。
-   ![HTML 预览](docs/imgs/html_preview.png)
-   ![代码执行](docs/imgs/run_code.png)
+#### 2) 多轮工具调用
+
+支持在一次对话中连续调用多个工具，逐步完成复杂任务。
+
+![多轮工具调用](docs/imgs/multi_turn_tool_calling.png)
+
+#### 3) 工具结果可视化
+
+工具输出可结构化展示，结果更直观、可读性更高。
+
+![工具结果可视化](docs/imgs/tool_result_display.png)
+
+#### 4) 友好的用户交互
+
+支持 PDF 预览、HTML 预览与代码执行，覆盖常见对话交互场景。
+
+![HTML 预览](docs/imgs/html_preview.png)
+
+![PDF 预览](docs/imgs/pdf_preview.png)
+
+![代码执行](docs/imgs/run_code.png)
 
 ## 技术栈
 
