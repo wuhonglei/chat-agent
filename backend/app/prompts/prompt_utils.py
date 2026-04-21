@@ -31,18 +31,15 @@ def get_default_system_prompt() -> str:
 
 
 def get_merged_system_prompt_for_chat_session(
-    user_memories: list[str] | None = None,
     window_out_summary: str | None = None,
 ) -> str:
     """Get system prompt for final response generation.
-    当传入 user_memories / window_out_summary 时注入对应片段。
+    当传入 window_out_summary 时注入对应片段。
     """
     # 统一单会话 Agent 的 system：最终回答优先 + 工具调用准则（balanced）。
-    # 保留原函数签名与 fragment 注入行为，避免影响上层调用点。
     parts: list[str] = [system_prompt_for_chat_session_template.render()]
 
     fragment = user_context_system_fragment_template.render(
-        user_memories=user_memories or [],
         window_out_summary=window_out_summary,
     ).strip()
     if fragment:
