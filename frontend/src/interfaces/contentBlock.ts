@@ -75,6 +75,26 @@ export interface HtmlBlock {
   content: string;
 }
 
+export interface CodeExecStage {
+  stdout: string;
+  stderr: string;
+  output: string;
+  code: number | null;
+  signal: unknown;
+}
+
+export type CodeRuntimeLanguage = "python" | "javascript" | "typescript";
+
+export interface CodeExecBlock {
+  id: string;
+  type: "code_exec";
+  language: CodeRuntimeLanguage;
+  code: string;
+  version: string;
+  run: CodeExecStage;
+  compile: CodeExecStage | null;
+}
+
 export interface WebSearchResultItem {
   title?: string;
   url?: string;
@@ -106,8 +126,8 @@ export type ContentBlock =
   | PdfBlock
   | MarkdownBlock;
 
-/** 侧栏可预览的内容块（当前支持 PDF 与 HTML 片段） */
-export type PreviewableBlock = PdfBlock | HtmlBlock;
+/** 侧栏可预览的内容块（当前支持 PDF、HTML 与代码运行结果） */
+export type PreviewableBlock = PdfBlock | HtmlBlock | CodeExecBlock;
 export type UserContentBlock = TextBlock | ImageBlock | PdfBlock;
 /** 用户消息中的附件块（图片、PDF 等），不含文本块 */
 export type UserAttachmentBlock = Exclude<UserContentBlock, TextBlock>;

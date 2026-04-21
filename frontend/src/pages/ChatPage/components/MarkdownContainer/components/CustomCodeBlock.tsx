@@ -6,7 +6,7 @@ import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { useLanguage } from "../hooks";
 import CodeHighlighter from "./CodeHighlighter";
 import InlineCode from "./InlineCode";
-import { useHtmlPreviewHeader } from "./hooks";
+import { useCodeBlockHeader } from "./hooks";
 
 interface CustomCodeBlockProps {
   inline?: boolean;
@@ -20,7 +20,7 @@ const CustomCodeBlock = memo(({ inline, className, children }: CustomCodeBlockPr
   const blockPreview = useBlockPreview();
   const isSmallScreen = useIsSmallScreen();
 
-  const htmlHeader = useHtmlPreviewHeader({ isSmallScreen, language, code, blockPreview });
+  const codeHeader = useCodeBlockHeader({ isSmallScreen, language, code, blockPreview });
 
   if (inline || !language) {
     return <InlineCode>{code}</InlineCode>;
@@ -41,7 +41,7 @@ const CustomCodeBlock = memo(({ inline, className, children }: CustomCodeBlockPr
   }
 
   return (
-    <CodeHighlighter lang={language} header={htmlHeader}>
+    <CodeHighlighter lang={language} header={codeHeader}>
       {code}
     </CodeHighlighter>
   );

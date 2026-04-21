@@ -1,5 +1,6 @@
 import type { PreviewableBlock } from "@/interfaces/contentBlock";
 import React from "react";
+import CodeExecPreviewPanel from "./CodeExecPreview";
 import HtmlBlockPreviewPanel from "./HtmlPreview";
 import PdfBlockPreviewPanel from "./PdfPreview";
 
@@ -15,6 +16,8 @@ const BlockPreviewPanel: React.FC<BlockPreviewPanelProps> = ({ width, block, onC
       return <PdfBlockPreviewPanel width={width} block={block} onClose={onClose} />;
     case "html":
       return <HtmlBlockPreviewPanel width={width} block={block} onClose={onClose} />;
+    case "code_exec":
+      return <CodeExecPreviewPanel width={width} block={block} onClose={onClose} />;
     default: {
       const _exhaustive: never = block;
       return _exhaustive;
