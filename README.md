@@ -12,17 +12,45 @@
 
 ## 界面预览
 
+预览目录：
+- [登录](#登录)
+- [核心交互能力](#核心交互能力)
+
 ### 登录
 
 支持验证码登录与微信扫码登录。
 
 ![登录页](docs/imgs/login.webp)
 
-### 对话与组件渲染
+### 核心交互能力
 
-侧边栏会话管理、工具调用过程与对话内自定义组件（如天气卡片）示例。
+#### Markdown 渲染能力
 
-![对话与交互组件](docs/imgs/ui_interact.webp)
+支持流程图展示与 LaTeX 公式展示，便于技术内容表达与文档阅读。
+
+![Markdown 渲染（流程图与公式）](docs/imgs/memaid_flow.png)
+
+#### 多轮工具调用能力
+
+支持在一次对话中连续调用多个工具，逐步完成复杂任务。
+
+![多轮工具调用](docs/imgs/multi_turn_tool_calling.png)
+
+#### 工具结果可视化能力
+
+工具输出可结构化展示，结果更直观、可读性更高。
+
+![工具结果可视化](docs/imgs/tool_result_display.png)
+
+#### 友好用户交互能力
+
+支持 PDF 预览、HTML 预览与代码执行，覆盖常见对话交互场景。
+
+![PDF 预览](docs/imgs/pdf_preview.png)
+
+![HTML 预览](docs/imgs/html_preview.png)
+
+![代码执行](docs/imgs/run_code.png)
 
 ## 技术栈
 
