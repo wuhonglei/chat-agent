@@ -30,6 +30,9 @@ class TokenCalculator:
         "deepseek-reasoner": 131072,
         "qwen-plus": 1000000,
         "qwen-flash": 1000000,
+        "qwen3.5-flash": 1000000,
+        "qwen3.6-flash": 1000000,
+        "qwen3.6-plus": 1000000,
         "qwen-turbo": 128000,  # 纯文本模型
     }
 
