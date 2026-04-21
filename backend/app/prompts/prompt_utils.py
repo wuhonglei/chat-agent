@@ -8,7 +8,6 @@ from app.prompts.system_prompt import (
     default_system_prompt_template,
     system_prompt_for_chat_session_template,
     system_prompt_for_title_template,
-    user_context_system_fragment_template,
 )
 from app.prompts.user_prompt import (
     WINDOW_OUT_SUMMARY_MERGE_PROMPT,
@@ -30,22 +29,10 @@ def get_default_system_prompt() -> str:
     return default_system_prompt_template.render()
 
 
-def get_merged_system_prompt_for_chat_session(
-    window_out_summary: str | None = None,
-) -> str:
-    """Get system prompt for final response generation.
-    当传入 window_out_summary 时注入对应片段。
-    """
+def get_system_prompt_for_chat_session() -> str:
+    """Get system prompt for final response generation."""
     # 统一单会话 Agent 的 system：最终回答优先 + 工具调用准则（balanced）。
-    parts: list[str] = [system_prompt_for_chat_session_template.render()]
-
-    fragment = user_context_system_fragment_template.render(
-        window_out_summary=window_out_summary,
-    ).strip()
-    if fragment:
-        parts.append(fragment)
-
-    return "\n\n".join(parts)
+    return system_prompt_for_chat_session_template.render()
 
 
 def get_system_prompt_for_title() -> str:
@@ -60,6 +47,7 @@ def get_user_message_for_tool_calls(
     client_ip: str | None,
     kb_context_blocks: list[KbContextBlock] | None = None,
     user_memories: Sequence[MemorySearchItem] | None = None,
+    window_out_summary: str | None = None,
 ) -> str:
     """Get user message prompt for tool calls.
 
@@ -78,6 +66,7 @@ def get_user_message_for_tool_calls(
         user_message_text=user_message_text,
         kb_context_blocks=kb_context_blocks or [],
         user_memories=user_memories,
+        window_out_summary=window_out_summary,
         mcp_auto_mode=mcp_auto_mode,
         mcp_configs=mcp_configs,
         current_datetime=get_current_datetime_str(),

@@ -22,7 +22,7 @@ from app.agents.utils.tool_call_stream import (
 )
 from app.mcp.mcp_client import MCPClientManager
 from app.prompts.prompt_utils import (
-    get_merged_system_prompt_for_chat_session,
+    get_system_prompt_for_chat_session,
     get_user_message_for_tool_calls,
 )
 from app.protocols.chat_messages import (
@@ -104,9 +104,7 @@ class ChatSessionAgent(BaseAgent):
 
         logger.info("User memories", count=len(user_memories))
 
-        system_prompt = get_merged_system_prompt_for_chat_session(
-            window_out_summary=history_summary_before_window,
-        )
+        system_prompt = get_system_prompt_for_chat_session()
         server_names = resolve_enabled_mcp_servers(
             chat_request.mcp_auto_mode, chat_request.source_config
         )
@@ -125,6 +123,7 @@ class ChatSessionAgent(BaseAgent):
             client_ip,
             kb_context_blocks=kb_context_blocks,
             user_memories=user_memories,
+            window_out_summary=history_summary_before_window,
         )
         user_message_content = build_user_content_for_llm(
             chat_request.content_blocks,

@@ -36,14 +36,3 @@ system_prompt_for_chat_session_template: Template = Template(
 </instructions>
 """.strip()
 )
-
-# ============= 用户上下文 system 片段模板（窗口外摘要） =============
-user_context_system_fragment_template: Template = Template(
-    """
-{% if window_out_summary and window_out_summary.strip() %}
-<window_out_summary>
-  {{ window_out_summary.strip()|e }}
-</window_out_summary>
-{% endif %}
-""".strip()
-)

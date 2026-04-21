@@ -31,6 +31,9 @@ user_message_for_tool_call_template: Template = Template(
     + "\n\n"
     + """
 <tool_call_context>
+{%- if window_out_summary %}
+  <window_out_summary>{{ window_out_summary|e }}</window_out_summary>
+{%- endif %}
 {%- if not mcp_auto_mode %}
   <selected_mcp_servers>
 {%- for server in mcp_configs %}
