@@ -42,9 +42,9 @@
 
 支持 PDF 预览、HTML 预览与代码执行，覆盖常见对话交互场景。
 
-![HTML 预览](docs/imgs/html_preview.png)
-
 ![PDF 预览](docs/imgs/pdf_preview.png)
+
+![HTML 预览](docs/imgs/html_preview.png)
 
 ![代码执行](docs/imgs/run_code.png)
 
