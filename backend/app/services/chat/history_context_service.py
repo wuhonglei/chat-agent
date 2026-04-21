@@ -94,10 +94,10 @@ class HistoryContextService:
                         )
                         if content_tokens > threshold_tokens:
                             effective_content = (
-                                "[内容已截断] "
-                                + self.token_calculator.truncate_text_to_tokens(
+                                self.token_calculator.truncate_text_to_tokens(
                                     effective_content, threshold_tokens
                                 )
+                                + " [内容已截断]"
                             )
 
                 new_blocks.append(
