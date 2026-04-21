@@ -4,12 +4,9 @@ import React, { useMemo } from "react";
 
 import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
 import { Divider } from "antd";
-import { CONTEXT7_TOOL_NAMES } from "../toolIcons";
 import { getResultLanguage, stringifyJsonLike } from "../utils";
 import WebSearchResult from "./WebSearchResult";
 import styles from "./index.module.css";
-
-const WEB_SEARCH_TOOL_NAME = "web_search";
 
 type ToolResultProps = {
   toolName?: string;
@@ -35,11 +32,11 @@ const ToolResult: React.FC<ToolResultProps> = ({ toolName, toolResultBlock }) =>
     );
   }
 
-  if (toolName === WEB_SEARCH_TOOL_NAME && searchDisplayItems?.length) {
+  if (toolName === "web_search" && searchDisplayItems?.length) {
     return <WebSearchResult items={searchDisplayItems} />;
   }
 
-  if (toolName && CONTEXT7_TOOL_NAMES.has(toolName)) {
+  if (toolName && ["web_pages_extract", "resolve-library-id", "query-docs"].includes(toolName)) {
     return (
       <>
         <Divider orientation="horizontal" style={{ margin: 0 }}></Divider>
