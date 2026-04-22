@@ -18,7 +18,7 @@ from app.services.chat_upload.attachment import (
 from app.utils.common import gen_uuid
 from app.utils.logger import logger
 
-MAX_CHAT_IMAGE_EDGE = 1024  # 最长边像素上限（等比例缩放）
+MAX_CHAT_IMAGE_EDGE = 2048  # 最长边像素上限（等比例缩放）
 
 _ALLOWED_CONTENT_TYPES: dict[str, str] = {
     "image/jpeg": ".jpg",
