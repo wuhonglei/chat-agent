@@ -24,7 +24,7 @@ export function useCodeBlockHeader({
   language,
 }: UseHtmlPreviewHeaderParams): React.ReactNode | undefined {
   return useMemo(() => {
-    if (isSmallScreen || blockPreview == null) {
+    if (blockPreview == null) {
       return;
     }
     const { openPreview } = blockPreview;

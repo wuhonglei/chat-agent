@@ -57,11 +57,12 @@ export const useChatMessageHandlers = ({
   };
 };
 
-function getDefaultPreviewPanelWidthPx(): number {
+function getDefaultPreviewPanelWidthPx(isSmallScreen: boolean): number {
   if (typeof window === "undefined") {
     return 400;
   }
-  return Math.max(280, Math.round(window.innerWidth * 0.6));
+  const ratio = isSmallScreen ? 1 : 0.6;
+  return Math.max(280, Math.round(window.innerWidth * ratio));
 }
 
 export const useBlockPreviewHandlers = ({ isSmallScreen }: UseBlockPreviewHandlersParams) => {
@@ -70,7 +71,7 @@ export const useBlockPreviewHandlers = ({ isSmallScreen }: UseBlockPreviewHandle
 
   const handleOpenBlockPreview = useMemoizedFn((block: PreviewableBlock) => {
     emitter.emit(EventType.ChangeSidebarCollapse, true);
-    setPreviewPanelSize(prev => (prev === 0 ? getDefaultPreviewPanelWidthPx() : prev));
+    setPreviewPanelSize(prev => (prev === 0 ? getDefaultPreviewPanelWidthPx(isSmallScreen) : prev));
     setPreviewBlock(block);
   });
 
