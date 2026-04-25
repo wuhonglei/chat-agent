@@ -48,7 +48,7 @@ const ChatPage: React.FC = () => {
     <section className="h-full min-h-0">
       <BlockPreviewProvider value={blockPreviewContextValue}>
         <Splitter style={{ height: "100%", width: "100%" }} onResize={handleSplitterResize}>
-          <Splitter.Panel min={previewBlock ? "30%" : 0}>
+          <Splitter.Panel>
             <section className="h-full min-h-0 flex flex-col">
               <TopHeader conversationInfo={conversationInfo} />
               <main className="flex-1 min-h-0 flex">
@@ -81,7 +81,7 @@ const ChatPage: React.FC = () => {
           <Splitter.Panel
             className="shadow-xl"
             min={previewBlock ? "20%" : 0}
-            max={previewBlock ? "70%" : 0}
+            max={previewBlock ? "100%" : 0}
             resizable={Boolean(previewBlock)}
             size={previewBlock ? previewPanelSize : 0}
           >

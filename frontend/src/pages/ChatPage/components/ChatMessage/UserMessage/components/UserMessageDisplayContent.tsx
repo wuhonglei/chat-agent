@@ -51,10 +51,10 @@ function attachmentToFileCardItem(
         name: block.name?.trim() || "document.pdf",
         byte: block.size,
         onClick: () => {
-          if (isSmallScreen) {
-            triggerPdfDownload(block);
-            return;
-          }
+          // if (isSmallScreen) {
+          //   triggerPdfDownload(block);
+          //   return;
+          // }
           if (onPreviewBlock) {
             onPreviewBlock(block);
             return;
