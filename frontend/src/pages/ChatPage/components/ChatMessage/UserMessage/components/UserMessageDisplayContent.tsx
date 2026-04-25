@@ -3,18 +3,12 @@ import { useIsSmallScreen } from "@/hooks";
 import {
   ContentBlock,
   isUserAttachmentBlock,
-  type PdfBlock,
   type PreviewableBlock,
   type TextBlock,
   type UserAttachmentBlock,
 } from "@/interfaces/contentBlock";
-import { downloadFileByUrl } from "@/utils";
 import { FileCard, type FileCardProps } from "@ant-design/x";
 import React, { useMemo } from "react";
-
-function triggerPdfDownload(block: PdfBlock) {
-  downloadFileByUrl(block.url, block.name?.trim() || "document.pdf");
-}
 
 interface AttachmentToFileCardItemOptions {
   isSmallScreen: boolean;
@@ -23,7 +17,7 @@ interface AttachmentToFileCardItemOptions {
 
 function attachmentToFileCardItem(
   block: UserAttachmentBlock,
-  { isSmallScreen, onPreviewBlock }: AttachmentToFileCardItemOptions
+  { onPreviewBlock }: AttachmentToFileCardItemOptions
 ): FileCardProps {
   switch (block.type) {
     case "image": {
@@ -52,8 +46,8 @@ function attachmentToFileCardItem(
         byte: block.size,
         onClick: () => {
           // if (isSmallScreen) {
-          //   triggerPdfDownload(block);
-          //   return;
+          // triggerPdfDownload(block);
+          // return;
           // }
           if (onPreviewBlock) {
             onPreviewBlock(block);
