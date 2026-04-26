@@ -111,9 +111,10 @@ make test
 - 上传附件：`POST /api/file/upload`（需要登录）
 - 预览附件：`GET /api/file/preview/{user_id}/{filename}`（无需登录）
 
-上传成功后返回 `AttachmentBlock`：
-- 图片返回 `ImageBlock`
-- PDF 返回 `PdfBlock`，并在 `markdownBlock` 中携带同源 Markdown 预览信息
+上传成功后返回 `ApiResponse[AttachmentBlock]`，其中 `data` 按类型分为：
+
+- 图片：`ImageBlock`
+- PDF：`PdfBlock`，并在 `markdown` 字段中携带同源 `MarkdownBlock`
 
 预览 URL 统一为：`/api/file/preview/{user_id}/{filename}`。
 
@@ -122,36 +123,59 @@ make test
 - 单文件大小上限：`10MB`
 - 图片：`JPEG / PNG / GIF / WebP`
 - PDF：`application/pdf`
-- 图片会在服务端按最长边 `1024px` 等比缩放（超限时），并重新编码后落盘
+- 图片会在服务端按最长边 `2048px` 等比缩放（超限时），并重新编码后落盘
 - PDF 会先校验文件头（`%PDF-`），再执行 PDF -> Markdown 转换
 
-### 3) PDF -> Markdown 转换策略
+### 3) 落盘与返回字段
 
-`PdfMarkdownConverter` 按 PDF 类型分流：
+附件保存到 `backend/data/user_data/{user_id}/uploads/`：
 
-1. 文本型 PDF：`MarkItDown` 直接转换
-2. 扫描型 PDF：调用 `PP-StructureV3` 服务转换
+- 图片文件名为 `{uuid}.{ext}`；`id` 使用同一个 UUID。
+- PDF 文件名为 `{sha256}.pdf`，Markdown 文件名为 `{sha256}.md`；`id` 使用内容 SHA-256。
+- `url` 指向站内预览路径，`name` 是清洗后的展示名，`size` 是实际落盘字节数。
+- `mime` 会按服务端识别结果归一化，例如 `image/jpg` 返回为 `image/jpeg`。
+
+### 4) PDF -> Markdown 与向量入库
+
+`save_chat_pdf` 在上传阶段同步完成转换与索引，任一环节失败会让上传请求失败：
+
+1. 按内容 SHA-256 去重；同用户相同 PDF 且 `.pdf`/`.md` 均存在时复用文件并跳过向量入库。
+2. `PdfMarkdownConverter` 读取前 `detect_pages` 页文本长度：
+   - 大于等于 `scan_text_threshold`：视为文本型 PDF，使用 `MarkItDown` 转换。
+   - 小于阈值：视为扫描型 PDF，调用 `PP-StructureV3` 转换。
+3. 转换后的 Markdown 写入同目录 `.md` 文件。
+4. Markdown 经 `MarkdownTextSplitter` 分块，调用当前 embedding 模型生成向量，写入 `kb_file_chunk_embeddings`。
 
 关键配置位于 `settings.pdf_markdown`：
+
 - `scan_text_threshold`
 - `detect_pages`
 - `pp_structure_api_url`
 - `pp_structure_token`
 - `poll_timeout_seconds`
 
-### 4) 附件安全约束
+分块与检索相关配置位于 `settings.kb_file_rag`：
 
-- 真实落盘文件名使用 UUID，避免用户可控路径
-- `preview` 仅允许匹配 `uuid + 扩展名` 的文件名（支持 jpg/jpeg/png/gif/webp/pdf/md）
-- `user_id` 与路径边界会做校验，非法请求统一返回 404
-- 展示名仅用于 UI，服务端会做安全清洗（去路径、非法字符、长度限制）
+- `chunk_size`
+- `chunk_overlap`
+- `retrieval_top_k`
+- `relevance_score_threshold`
 
-### 5) 常见排障
+### 5) 附件安全约束
 
-- `400 仅支持 ...`：文件类型不在允许列表
-- `400 ...不能超过 10MB`：超出大小限制
+- 真实落盘文件名不使用用户原始文件名：图片使用 UUID，PDF/Markdown 使用内容 SHA-256。
+- `preview` 仅允许单段文件名和白名单后缀：`jpg/jpeg/png/gif/webp/pdf/md`。
+- `user_id` 与路径边界会做校验；公开预览接口中的非法请求统一返回 `404`，避免泄露路径信息。
+- 展示名仅用于 UI，服务端会做安全清洗（去路径、控制字符、Windows 非法字符并限制长度）。
+
+### 6) 常见排障
+
+- `400 仅支持 ...`：`Content-Type` 不在允许列表，或 PDF 未使用 `application/pdf`
+- `400 ...不能超过 10MB`：单文件超过后端读取上限
+- `400 图片文件无效或已损坏`：Pillow 无法识别图片内容
 - `400 PDF 文件无效或已损坏`：文件头校验失败
-- `502 PDF 转 Markdown 失败`：检查 `PDF_MARKDOWN__PP_STRUCTURE_TOKEN`、外部服务可用性和超时配置
+- `502 PDF 转 Markdown 失败`：检查 `PDF_MARKDOWN__PP_STRUCTURE_TOKEN`、`PDF_MARKDOWN__PP_STRUCTURE_API_URL` 与外部服务超时
+- `502 PDF 分块向量入库失败`：检查 embedding 模型配置、数据库 pgvector 扩展和 `kb_file_chunk_embeddings` 表结构
 
 ---
 

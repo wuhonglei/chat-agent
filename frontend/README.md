@@ -61,13 +61,15 @@ frontend/
 
 ### 用户消息 `contentBlocks`
 
-前端发送消息时，按 `UserContentBlock[]` 组织请求体（见 `src/interfaces/contentBlock.ts`）：
+前端发送消息时，按 `UserContentBlock[]` 组织请求体（见 `src/interfaces/contentBlock.ts`）。文本、图片、PDF 都是独立内容块：
 
 - `text`：文本块
 - `image`：图片附件块
-- `pdf`：PDF 附件块
+- `pdf`：PDF 附件块，可带 `markdown` 子块
 
 发送时会先写入文本块，再按上传顺序追加附件块（`buildUserContentBlocks`）。
+
+`PdfBlock` 中的 `markdown` 字段来自后端 PDF -> Markdown 转换，前端不负责转换，只负责在预览面板中按需拉取并渲染 `markdown.url`。
 
 ### 附件上传约束
 
@@ -78,20 +80,33 @@ frontend/
 - 单次消息附件数量：最多 `5` 个
 - 上传接口：`POST /api/file/upload`（`src/services/file.ts`）
 - 上传超时：`180000ms`（3 分钟）
+- 上传成功后使用服务端返回的 `ImageBlock` / `PdfBlock` 作为用户消息内容块；前端不拼接预览 URL
 
 ### 附件预览行为
 
 - 图片：在用户消息中以 `FileCard` 图片卡片展示
 - PDF：
-  - 小屏设备点击后直接下载
-  - 非小屏优先在右侧 `BlockPreviewPanel` 打开 PDF 预览
-- HTML：在代码块头部点击“预览”后，使用侧栏 iframe 预览（`sandbox`）
+  - 点击文件卡片后在右侧 `BlockPreviewPanel` 打开预览；若没有预览处理器，则回退到新窗口打开 `block.url`
+  - 预览面板默认显示 PDF，若 `block.markdown.url` 存在，则可切换到 Markdown 视图
+  - 下载按钮会按当前视图下载 PDF 或 Markdown
+- HTML：在 Markdown 代码块头部点击“预览”后，使用侧栏 iframe 预览 `srcDoc` 内容；下载按钮导出当前 HTML
 
 相关实现：
 
+- `src/interfaces/contentBlock.ts`
 - `src/pages/ChatPage/components/ChatMessage/UserMessage/components/UserMessageDisplayContent.tsx`
 - `src/pages/ChatPage/components/BlockPreviewPanel/*`
 - `src/pages/ChatPage/components/MarkdownContainer/components/HtmlPreviewHeader.tsx`
+
+### 预览侧栏尺寸
+
+`ChatPage` 使用 Ant Design `Splitter` 承载主聊天区与预览区。打开任一可预览块时会折叠左侧导航栏，并按屏幕宽度设置初始预览宽度：
+
+- 小屏：`window.innerWidth * 1`
+- 非小屏：`window.innerWidth * 0.6`
+- 最小初始宽度：`280px`
+
+关闭预览时会清空预览块与侧栏宽度；非小屏会恢复左侧导航栏展开状态。
 
 ## SSE 事件约定（`/api/chat/stream`）
 
