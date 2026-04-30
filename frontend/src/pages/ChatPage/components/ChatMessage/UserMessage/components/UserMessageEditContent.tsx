@@ -39,7 +39,7 @@ const UserMessageEditContent: React.FC<UserMessageEditContentProps> = ({ default
       suffix={false}
       value={draft}
       onKeyDown={handleKeyDown}
-      onChange={value => setDraft(trim(value))}
+      onChange={value => setDraft(value)}
       footer={
         <div className="flex justify-end gap-2">
           <Button shape="round" type="default" onClick={onCancel}>
