@@ -113,7 +113,7 @@ make test
 
 上传成功后返回 `AttachmentBlock`：
 - 图片返回 `ImageBlock`
-- PDF 返回 `PdfBlock`，并在 `markdownBlock` 中携带同源 Markdown 预览信息
+- PDF 返回 `PdfBlock`，并在 `markdown` 字段中携带同源 Markdown 预览信息
 
 预览 URL 统一为：`/api/file/preview/{user_id}/{filename}`。
 
@@ -122,7 +122,7 @@ make test
 - 单文件大小上限：`10MB`
 - 图片：`JPEG / PNG / GIF / WebP`
 - PDF：`application/pdf`
-- 图片会在服务端按最长边 `1024px` 等比缩放（超限时），并重新编码后落盘
+- 图片会在服务端按最长边 `2048px` 等比缩放（超限时），并重新编码后落盘
 - PDF 会先校验文件头（`%PDF-`），再执行 PDF -> Markdown 转换
 
 ### 3) PDF -> Markdown 转换策略
@@ -139,10 +139,13 @@ make test
 - `pp_structure_token`
 - `poll_timeout_seconds`
 
+转换完成后会保存同名 Markdown（`{sha256}.md`）并写入 `kb_file_chunk_embedding`，用于后续按上传文件内容检索；重复上传相同 PDF 时会复用既有 PDF/Markdown 文件并跳过重复转换。
+
 ### 4) 附件安全约束
 
 - 真实落盘文件名使用 UUID，避免用户可控路径
-- `preview` 仅允许匹配 `uuid + 扩展名` 的文件名（支持 jpg/jpeg/png/gif/webp/pdf/md）
+- PDF 使用内容 SHA-256 命名，便于同内容去重；图片仍使用 UUID 命名
+- `preview` 仅允许单段安全 basename 与白名单扩展名（支持 jpg/jpeg/png/gif/webp/pdf/md），并阻断路径穿越
 - `user_id` 与路径边界会做校验，非法请求统一返回 404
 - 展示名仅用于 UI，服务端会做安全清洗（去路径、非法字符、长度限制）
 
@@ -152,6 +155,26 @@ make test
 - `400 ...不能超过 10MB`：超出大小限制
 - `400 PDF 文件无效或已损坏`：文件头校验失败
 - `502 PDF 转 Markdown 失败`：检查 `PDF_MARKDOWN__PP_STRUCTURE_TOKEN`、外部服务可用性和超时配置
+- `502 PDF 分块向量入库失败`：检查 `EMBEDDING_MODEL__*`、`KB_FILE_RAG__*` 配置和数据库向量扩展
+
+---
+
+## 模型与配置要点
+
+配置由 `app.core.config.Settings` 管理，优先级为：初始化参数 > 环境变量 > `.env` > Nacos。嵌套环境变量使用 `__`，例如：
+
+```bash
+RESPONSE_MODEL__MODEL_NAME=qwen-plus
+RESPONSE_MODEL__THINK_MODEL_NAME=qwen-plus
+TITLE_MODEL__MODEL_NAME=qwen-turbo
+DATABASE__HOST=localhost
+```
+
+- `response_model`：回复生成模型，需支持 OpenAI 兼容接口；用户消息含图片时还需支持多模态视觉输入。
+- `title_model`：标题生成模型，可省略；省略时回退到 `response_model`。
+- `summarizer_model`：长上下文摘要模型。
+- `embedding_model`：PDF Markdown 分块入库与 RAG 检索使用的 Embedding 模型。
+- `get_model_extra_body()` 会按 `think_mode` 自动设置 `enable_thinking`，兼容 Qwen/DeepSeek 的思考模式参数；新增模型时先确认服务端是否接受这些额外字段。
 
 ---
 
@@ -201,6 +224,8 @@ SSE 数据格式统一为：
 ```text
 data: {"type":"<event_type>","data":{...}}
 ```
+
+服务端不发送独立的 `event:` 字段，客户端应解析 `data` JSON 后按 `type` 分发。
 
 当前事件类型：
 

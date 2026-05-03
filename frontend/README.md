@@ -83,9 +83,10 @@ frontend/
 
 - 图片：在用户消息中以 `FileCard` 图片卡片展示
 - PDF：
-  - 小屏设备点击后直接下载
-  - 非小屏优先在右侧 `BlockPreviewPanel` 打开 PDF 预览
-- HTML：在代码块头部点击“预览”后，使用侧栏 iframe 预览（`sandbox`）
+  - 点击后在右侧 `BlockPreviewPanel` 打开预览；如果没有侧栏回调，则回退为新窗口打开预览 URL
+  - 侧栏默认展示 PDF，可切换到同源 Markdown（当后端返回 `pdf.markdown.url`）
+  - PDF/Markdown 各自支持下载；Markdown 加载失败时可在侧栏重试
+- HTML：在代码块头部点击“预览”后，使用侧栏 iframe 的 `srcDoc` 渲染，并提供 HTML 下载；当前 iframe 未设置 `sandbox`
 
 相关实现：
 

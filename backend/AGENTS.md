@@ -251,7 +251,7 @@ pythonpath = ["."]
 class Settings(BaseSettings):
     app: AppConfig                    # 应用基础配置
     response_model: LLMConfig         # 响应生成模型配置
-    tool_call_model: LLMConfig        # 工具调用模型配置
+    title_model: LLMConfig | None     # 标题生成模型配置（可选，默认回退 response_model）
     summarizer_model: SummarizerModelConfig  # 摘要模型配置
     embedding_model: EmbeddingModelConfig    # Embedding 模型配置
     mcp: MCPConfig                    # MCP 配置
@@ -277,21 +277,17 @@ class Settings(BaseSettings):
 
 ### 流式响应
 
-对话接口使用 SSE (Server-Sent Events) 格式：
+对话接口使用 SSE (Server-Sent Events) 格式。当前实现不依赖 `event:` 字段，所有事件统一放在 `data` JSON 的 `type` 字段中：
 
 ```
-event: ack
-data: {"id": "...", "role": "user", ...}
+data: {"type":"ack","data":{"id":"...","role":"user",...}}
 
-event: tool_start
-data: {"tool_name": "..."}
+data: {"type":"content_block","data":{"op":"delta","block_id":"...","delta":"..."}}
 
-event: delta
-data: {"content": "..."}
-
-event: done
-data: {"content_length": 100, ...}
+data: {"type":"done","data":{"content_length":100,...}}
 ```
+
+常用事件类型：`ack`、`refresh_conversation`、`title`、`content_block`、`done`、`error`。
 
 ### 认证
 
@@ -332,7 +328,7 @@ logger.exception("Unhandled exception", error=e)
 
 1. **API 密钥**：通过环境变量或 Nacos 配置中心管理，不硬编码
 2. **JWT 认证**：使用 RSA 密钥对，私钥签名、公钥验证
-3. **代码执行沙箱**：使用 RestrictedPython 实现安全的代码执行环境
+3. **代码执行沙箱**：通过 Piston 服务执行代码，地址来自 `settings.mcp.code_exec_mcp.piston_base_url`
 4. **SQL 注入防护**：使用 SQLModel/SQLAlchemy ORM，参数化查询
 5. **CORS**：生产环境需要配置允许的域名
 
