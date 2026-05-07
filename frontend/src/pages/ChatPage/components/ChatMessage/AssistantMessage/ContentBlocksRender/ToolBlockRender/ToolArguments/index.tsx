@@ -1,8 +1,9 @@
+import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
 import CodeHighlighter from "@/pages/ChatPage/components/MarkdownContainer/components/CodeHighlighter";
-import { Typography } from "antd";
+import { theme, Typography } from "antd";
 import React, { useState } from "react";
 
-import { useExecuteCodeToolArguments, useToolArgumentsDisplayText } from "./hooks";
+import { useExecuteCodeToolArguments, useToolArgumentsDisplay } from "./hooks";
 
 const { Paragraph } = Typography;
 
@@ -21,8 +22,10 @@ export const ToolArguments: React.FC<ToolArgumentsProps> = ({
   argumentsJson,
   ellipsisRows = DEFAULT_ELLIPSIS_ROWS,
 }) => {
+  const { token } = theme.useToken();
   const [expanded, setExpanded] = useState(false);
-  const displayText = useToolArgumentsDisplayText(argumentsText, argumentsJson);
+
+  const { markdown, plain } = useToolArgumentsDisplay(argumentsText, argumentsJson);
   const executeCodeArgs = useExecuteCodeToolArguments(toolName, argumentsText, argumentsJson);
 
   if (executeCodeArgs) {
@@ -38,6 +41,14 @@ export const ToolArguments: React.FC<ToolArgumentsProps> = ({
     );
   }
 
+  if (markdown) {
+    return (
+      <MarkdownContainer className="text-sm w-full" style={{ color: token.colorTextSecondary }}>
+        {markdown}
+      </MarkdownContainer>
+    );
+  }
+
   return (
     <Paragraph
       type="secondary"
@@ -50,7 +61,7 @@ export const ToolArguments: React.FC<ToolArgumentsProps> = ({
         onExpand: (_event, info) => setExpanded(info.expanded),
       }}
     >
-      {displayText}
+      {plain}
     </Paragraph>
   );
 };
