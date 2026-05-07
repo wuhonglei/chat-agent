@@ -96,6 +96,7 @@ interface UseAutoResumeParams {
   conversationId: string;
   streamResumeContext: StreamResumeContext | null;
   messagesLength: number;
+  isStreaming: boolean;
   abortControllerRef: RefObject<AbortController | null>;
   autoResumeAttemptedRef: RefObject<string | null>;
   handleStreamPayload: (
@@ -112,6 +113,7 @@ const useAutoResume = ({
   conversationId,
   streamResumeContext,
   messagesLength,
+  isStreaming,
   abortControllerRef,
   autoResumeAttemptedRef,
   handleStreamPayload,
@@ -130,6 +132,9 @@ const useAutoResume = ({
       return;
     }
     if (messagesLength === 0) {
+      return;
+    }
+    if (isStreaming) {
       return;
     }
     const attemptKey = `${resumeAssistantMessageId}`;
@@ -203,6 +208,7 @@ const useAutoResume = ({
     dispatch,
     handleStreamPayload,
     messagesLength,
+    isStreaming,
     resetState,
     resumeAssistantMessageId,
     resumePhase,
@@ -667,6 +673,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
     conversationId,
     streamResumeContext,
     messagesLength: messages.length,
+    isStreaming,
     abortControllerRef,
     autoResumeAttemptedRef,
     handleStreamPayload,
