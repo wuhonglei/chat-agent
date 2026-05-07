@@ -72,6 +72,10 @@ class MessageDbService(DbService):
             )
         return (conversation, user_message, assistant_message)
 
+    def get_message(self, message_id: str) -> MessageDb | None:
+        """获取消息"""
+        return self._ensure_db().get(MessageDb, message_id)
+
     def remove_messages(self, message_ids: list[str]) -> None:
         """删除消息"""
         if not message_ids:

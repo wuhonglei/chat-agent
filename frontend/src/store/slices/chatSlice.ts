@@ -1,4 +1,12 @@
-import { ChatConversationState, ChatMessage, ContentBlock, ContentBlockEvent, MessageStatus } from "@/interfaces";
+import {
+  ChatConversationState,
+  ChatMessage,
+  ContentBlock,
+  ContentBlockEvent,
+  MessageStatus,
+  StreamResumeContext,
+  StreamResumePhase,
+} from "@/interfaces";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { isEmpty } from "lodash-es";
 
@@ -18,12 +26,18 @@ interface ReplaceMessagePayload {
   data: ChatMessage;
 }
 
+interface StreamResumeContextPayload {
+  conversationId: string;
+  data: StreamResumeContext;
+}
+
 export const getDefaultChatState = (): ChatConversationState => ({
   messages: [] as ChatMessage[],
   messageLoaded: false,
   lastMessageUpdateAt: "",
   isLoading: false,
   isStreaming: false,
+  streamResumeContext: null,
 });
 
 // 稳定的默认状态，避免每次创建新对象
@@ -244,6 +258,38 @@ const chatSlice = createSlice({
       const chatState = conversationIdCheck(state, conversationId);
       chatState.isLoading = false;
       chatState.isStreaming = false;
+      chatState.streamResumeContext = null;
+    },
+    setStreamResumeContext: (state, action: PayloadAction<StreamResumeContextPayload>) => {
+      const { conversationId, data } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      chatState.streamResumeContext = data;
+    },
+    updateStreamResumeSeq: (state, action: PayloadAction<ConversationActionPayload<number>>) => {
+      const { conversationId, data } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      if (!chatState.streamResumeContext) {
+        return;
+      }
+      if (data <= chatState.streamResumeContext.lastSeq) {
+        return;
+      }
+      chatState.streamResumeContext.lastSeq = data;
+      chatState.streamResumeContext.updatedAt = new Date().toISOString();
+    },
+    updateStreamResumePhase: (state, action: PayloadAction<ConversationActionPayload<StreamResumePhase>>) => {
+      const { conversationId, data } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      if (!chatState.streamResumeContext) {
+        return;
+      }
+      chatState.streamResumeContext.phase = data;
+      chatState.streamResumeContext.updatedAt = new Date().toISOString();
+    },
+    clearStreamResumeContext: (state, action: PayloadAction<ConversationActionPayload>) => {
+      const { conversationId } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      chatState.streamResumeContext = null;
     },
     // 删除会话时调用
     clearChatState: (state, action: PayloadAction<ConversationActionPayload>) => {
@@ -270,6 +316,10 @@ export const {
   updateMessageModifiedTime,
   clearLastMessage,
   resetChatState,
+  setStreamResumeContext,
+  updateStreamResumeSeq,
+  updateStreamResumePhase,
+  clearStreamResumeContext,
   clearChatState,
 } = chatSlice.actions;
 

@@ -108,10 +108,20 @@ export interface SendMessageOptions {
   attachmentBlocks?: UserAttachmentBlock[];
 }
 
+export type StreamResumePhase = "streaming" | "closed" | "done" | "error";
+
+export interface StreamResumeContext {
+  assistantMessageId: string;
+  lastSeq: number;
+  phase: StreamResumePhase;
+  updatedAt: string;
+}
+
 export interface ChatConversationState {
   messages: ChatMessage[];
   messageLoaded: boolean;
   lastMessageUpdateAt: string; // 等价于 messages.at(-1).createdAt
   isLoading: boolean;
   isStreaming: boolean;
+  streamResumeContext: StreamResumeContext | null;
 }

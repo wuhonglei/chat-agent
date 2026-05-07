@@ -3,29 +3,26 @@ import { ContentBlockEvent } from "./contentBlock";
 import { ConversationInfo } from "./conversation";
 
 // Stream types
+type StreamEnvelope<TType extends string, TData> = {
+  type: TType;
+  data: TData;
+  seq?: number;
+};
+
 export type StreamMessage =
-  | {
-      type: "ack";
-      data: ChatMessage;
-    }
-  | {
-      type: "refresh_conversation";
-      data: ConversationInfo;
-    }
-  | {
-      type: "title";
-      data: {
+  | StreamEnvelope<"ack", ChatMessage>
+  | StreamEnvelope<"refresh_conversation", ConversationInfo>
+  | StreamEnvelope<
+      "title",
+      {
         id: string;
         title: string;
-      };
-    }
-  | {
-      type: "content_block";
-      data: ContentBlockEvent;
-    }
-  | {
-      type: "done";
-      data: {
+      }
+    >
+  | StreamEnvelope<"content_block", ContentBlockEvent>
+  | StreamEnvelope<
+      "done",
+      {
         userMessageId: string;
         conversationId: string;
         assistantMessageId: string;
@@ -33,14 +30,14 @@ export type StreamMessage =
         contentLength: number;
         reasoningLength: number;
         toolCallsLength: number;
-      };
-    }
-  | {
-      type: "error";
-      data: {
+      }
+    >
+  | StreamEnvelope<
+      "error",
+      {
         content: string; // 错误信息
-      };
-    };
+      }
+    >;
 
 export type StreamMessageHandlerMap = {
   [type in StreamMessage["type"]]: (data: Extract<StreamMessage, { type: type }>["data"]) => void;
