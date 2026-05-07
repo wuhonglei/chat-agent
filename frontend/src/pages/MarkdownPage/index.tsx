@@ -43,7 +43,6 @@ const content = {
 const MarkdownPage = () => {
   const [activeKey, setActiveKey] = useState(items[0].key);
   const code = content[activeKey];
-  console.info("code", code);
 
   return (
     <div className="flex flex-col h-full">

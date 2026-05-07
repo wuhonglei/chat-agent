@@ -154,7 +154,6 @@ const useAutoResume = ({
     let cleanedCurrentController = false;
     const controller = new AbortController();
     abortControllerRef.current = controller;
-    console.info("useChatMessage autoResume", conversationId);
     dispatch(setStreaming({ conversationId, data: true }));
     dispatch(setLoading({ conversationId, data: true }));
 
@@ -614,7 +613,6 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
               () => {},
               abortController
             );
-            console.info("await chatAPI.streamMessage");
           }
 
           if (streamDone || abortController.signal.aborted) {
@@ -776,7 +774,7 @@ export const useCachedRequest = (conversationId: string, conversationInfo: Conve
   const { cacheData: conversationState, clearCacheData } = useNewConversation();
   const isNewConversation = conversationState.isNewConversation;
   const { sendMessage } = useChatMessage({ conversationId });
-  const { messageLoaded } = useChatState(conversationId);
+  const { messageLoaded, streamResumeContext, messages } = useChatState(conversationId);
   const lastMessageUpdateAt = conversationInfo?.lastMessageUpdatedAt;
   const dispatch = useAppDispatch();
 
@@ -793,7 +791,6 @@ export const useCachedRequest = (conversationId: string, conversationInfo: Conve
 
   const { run: loadMessages } = useRequest(
     (conversationId: string) => {
-      console.info("starting to load messages", conversationId);
       return chatAPI.getConversationMessages(conversationId);
     },
     {
@@ -827,6 +824,10 @@ export const useCachedRequest = (conversationId: string, conversationInfo: Conve
     if (isNewConversation || !conversationId) {
       return;
     }
+    // 刷新后若已用 indexDB 恢复出可续传消息，避免并发拉全量覆盖流式增量（如工具参数）
+    if (streamResumeContext?.phase === "streaming" && !isEmpty(messages)) {
+      return;
+    }
 
     // 如果消息已加载到 store 中, 直接使用 store 中的数据
     if (messageLoaded) {
@@ -841,6 +842,7 @@ export const useCachedRequest = (conversationId: string, conversationInfo: Conve
         // 首次刷新时，conversationInfo 还未获取到，则不加载消息
         if (!lastMessageUpdateAt) {
           if (!isEmpty(cachedChatState?.messages)) {
+            console.info("use temp messages from indexDB", cachedChatState?.messages);
             dispatch(
               setTempMessages({
                 conversationId,
@@ -876,9 +878,9 @@ export const useCachedRequest = (conversationId: string, conversationInfo: Conve
           lastMessageUpdateAt: cacheLastMessageUpdateAt,
           streamResumeContext: cachedResumeContext,
         } = cachedChatState;
-        console.info("cacheLastMessageUpdateAt", cacheLastMessageUpdateAt);
         console.info("lastMessageUpdateAt", lastMessageUpdateAt);
         if (dayjs(cacheLastMessageUpdateAt).isBefore(dayjs(lastMessageUpdateAt))) {
+          console.info("cached data is older, will load messages later", conversationId);
           loadMessages(conversationId);
           return;
         }

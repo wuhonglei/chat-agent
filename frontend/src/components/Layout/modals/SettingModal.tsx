@@ -11,7 +11,6 @@ type Props = {
 
 export default function SettingModal({ open, onCancel }: Props) {
   const isSmallScreen = useIsSmallScreen();
-  console.info("isSmallScreen", isSmallScreen);
   const tabPlacement = isSmallScreen ? "top" : "start";
   const tabHeight = 320;
   const contentHeight = isSmallScreen ? tabHeight - 54 : tabHeight;
