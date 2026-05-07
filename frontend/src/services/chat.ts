@@ -15,6 +15,65 @@ import camelcaseKeys from "camelcase-keys";
 import snakecaseKeys from "snakecase-keys";
 import { addRequestHeaders, apiClient } from "./base";
 
+interface StreamResumeRequest {
+  assistantMessageId: string;
+  lastSeq: number;
+}
+
+const streamWithSSE = async (
+  url: string,
+  body: string,
+  onMessage: (message: StreamMessage) => void,
+  onError: (error: Error) => void,
+  onClose: () => void,
+  abortController: AbortController
+): Promise<void> => {
+  await fetchEventSource(url, {
+    method: "POST",
+    headers: addRequestHeaders({
+      "Content-Type": "application/json",
+    }),
+    body,
+    signal: abortController.signal,
+    onopen: async (response: Response): Promise<void> => {
+      // 如果响应状态码为 401，则跳转至登录页面
+      if (isUnAuthorized(response.status)) {
+        reportError("Stream Unauthorized Error", {
+          status: response.status,
+          url,
+          method: "POST",
+        });
+        authHeader.removeAuthorizationHeader();
+        toLoginPage(location.pathname);
+        return Promise.reject(new Error("Unauthorized"));
+      }
+    },
+    onmessage(event) {
+      if (event.data) {
+        try {
+          const parsed: StreamMessage = camelcaseKeys(JSON.parse(event.data), { deep: true });
+          onMessage(parsed);
+        } catch (e) {
+          // 上报消息解析错误
+          reportError("Stream Parse Error", {
+            error: e instanceof Error ? e.message : String(e),
+            data: event.data.substring(0, 200), // 只上报前200个字符，避免数据过大
+          });
+          console.error("Failed to parse message:", e);
+        }
+      }
+    },
+    onerror(err) {
+      onError(err as Error);
+      throw err;
+    },
+    onclose() {
+      onClose();
+    },
+    openWhenHidden: true,
+  });
+};
+
 // Chat API
 export const chatAPI = {
   // 获取对话消息列表
@@ -47,51 +106,37 @@ export const chatAPI = {
         exclude: Object.keys(data.sourceConfig || {}),
       })
     );
-    await fetchEventSource(`${apiClient.defaults.baseURL}/chat/stream`, {
-      method: "POST",
-      headers: addRequestHeaders({
-        "Content-Type": "application/json",
-      }),
+    await streamWithSSE(
+      `${apiClient.defaults.baseURL}/chat/stream`,
       body,
-      signal: abortController.signal,
-      onopen: async (response: Response): Promise<void> => {
-        // 如果响应状态码为 401，则跳转至登录页面
-        if (isUnAuthorized(response.status)) {
-          reportError("Stream Unauthorized Error", {
-            status: response.status,
-            url: `${apiClient.defaults.baseURL}/chat/stream`,
-            method: "POST",
-          });
-          authHeader.removeAuthorizationHeader();
-          toLoginPage(location.pathname);
-          return Promise.reject(new Error("Unauthorized"));
-        }
-      },
-      onmessage(event) {
-        if (event.data) {
-          try {
-            const parsed: StreamMessage = camelcaseKeys(JSON.parse(event.data), { deep: true });
-            onMessage(parsed);
-          } catch (e) {
-            // 上报消息解析错误
-            reportError("Stream Parse Error", {
-              error: e instanceof Error ? e.message : String(e),
-              data: event.data.substring(0, 200), // 只上报前200个字符，避免数据过大
-            });
-            console.error("Failed to parse message:", e);
-          }
-        }
-      },
-      onerror(err) {
-        onError(err as Error);
-        throw err;
-      },
-      onclose() {
-        onClose();
-      },
-      openWhenHidden: true,
-    });
+      onMessage,
+      onError,
+      onClose,
+      abortController
+    );
+    return;
+  },
 
+  streamMessageResume: async (
+    data: StreamResumeRequest,
+    onMessage: (message: StreamMessage) => void,
+    onError: (error: Error) => void,
+    onClose: () => void,
+    abortController: AbortController
+  ): Promise<void> => {
+    const body = JSON.stringify(
+      snakecaseKeys(data as unknown as Record<string, unknown>, {
+        deep: true,
+      })
+    );
+    await streamWithSSE(
+      `${apiClient.defaults.baseURL}/chat/stream/resume`,
+      body,
+      onMessage,
+      onError,
+      onClose,
+      abortController
+    );
     return;
   },
 };

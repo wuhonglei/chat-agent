@@ -1,0 +1,38 @@
+---
+description: 工具函数优先使用 lodash-es，避免重复实现
+globs: src/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Lodash-es Utility Preference
+
+在前端 `src` 下编写 TypeScript/TSX 代码时，工具函数优先复用 `lodash-es` 已有能力，减少重复造轮子与实现差异。
+
+## 约定
+
+- 处理数组、对象、字符串、集合等通用逻辑时，先判断 `lodash-es` 是否已有对应方法。
+- 若可用，优先 `import { xxx } from 'lodash-es'`，不要自行实现同类 helper。
+- 仅在业务语义强、`lodash-es` 无直接能力或封装后可明显提升可读性时，新增本地工具函数。
+- 避免为单次使用创建冗余 util；先评估内联表达式或 `lodash-es` 组合是否更清晰。
+
+## 示例
+
+```ts
+// ✅ 推荐
+import { groupBy, uniqBy } from "lodash-es";
+
+const usersByDept = groupBy(users, "department");
+const uniqueUsers = uniqBy(users, "id");
+```
+
+```ts
+// ❌ 避免：重复实现 lodash-es 已有能力
+const usersByDept = users.reduce(
+  (acc, user) => {
+    const key = user.department;
+    (acc[key] ||= []).push(user);
+    return acc;
+  },
+  {} as Record<string, typeof users>
+);
+```

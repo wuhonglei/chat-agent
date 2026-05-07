@@ -4,22 +4,22 @@ overview: 断线后不能再次调用现有 `POST /chat/stream`（会重复创�
 todos:
   - id: relay-core
     content: 新增 StreamRelay：按 assistant_message_id 注册、seq 递增、环形缓冲、iter_resume 重放+尾部、close 清理
-    status: pending
+    status: completed
   - id: wire-producer
     content: 改造 chat.py 中 _run_producer/_run_detached_sse_stream：每事件经 relay.append；首连接 drain 与 relay 统一数据源
-    status: pending
+    status: completed
   - id: resume-endpoint
     content: 新增 POST /chat/stream/resume + Pydantic schema；鉴权与助手消息归属校验；StreamingResponse
-    status: pending
+    status: completed
   - id: extend-payload
     content: 在 SSE JSON（或 SSE id 行）中暴露 seq；必要时调整 format_sse_message 或仅在 relay 包装层注入
-    status: pending
+    status: completed
   - id: frontend-resume
     content: chat.ts 增加 resume API；chat.ts hook 记录 lastSeq/assistantId，onerror 网络重试走 resume；ack/content_block 幂等
-    status: pending
+    status: completed
   - id: tests
     content: 后端异步测试：断开消费后 resume 收到剩余事件与 done
-    status: pending
+    status: completed
 isProject: false
 ---
 
