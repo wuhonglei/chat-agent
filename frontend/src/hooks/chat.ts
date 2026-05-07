@@ -109,6 +109,8 @@ interface UseAutoResumeParams {
   dispatch: ReturnType<typeof useAppDispatch>;
 }
 
+const autoResumeInFlightKeys = new Set<string>();
+
 const useAutoResume = ({
   conversationId,
   streamResumeContext,
@@ -141,9 +143,15 @@ const useAutoResume = ({
     if (autoResumeAttemptedRef.current === attemptKey) {
       return;
     }
+    const inFlightKey = `${conversationId}:${attemptKey}`;
+    if (autoResumeInFlightKeys.has(inFlightKey)) {
+      return;
+    }
+    autoResumeInFlightKeys.add(inFlightKey);
     autoResumeAttemptedRef.current = attemptKey;
 
     let cancelled = false;
+    let cleanedCurrentController = false;
     const controller = new AbortController();
     abortControllerRef.current = controller;
     console.info("useChatMessage autoResume", conversationId);
@@ -189,16 +197,22 @@ const useAutoResume = ({
           reportError("autoResume stream failed", { error, conversationId });
         }
       } finally {
-        if (!streamDone && !cancelled) {
+        const isCurrentController = abortControllerRef.current === controller;
+        if (!streamDone && (isCurrentController || cleanedCurrentController)) {
           dispatch(setStreaming({ conversationId, data: false }));
           dispatch(setLoading({ conversationId, data: false }));
         }
+        autoResumeInFlightKeys.delete(inFlightKey);
       }
     };
 
     handleResume();
     return () => {
       cancelled = true;
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+        cleanedCurrentController = true;
+      }
       controller.abort();
     };
   }, [
@@ -208,11 +222,8 @@ const useAutoResume = ({
     dispatch,
     handleStreamPayload,
     messagesLength,
-    isStreaming,
     resetState,
     resumeAssistantMessageId,
-    resumePhase,
-    resumeStartSeq,
   ]);
 };
 
