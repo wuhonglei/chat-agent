@@ -1,6 +1,7 @@
-import { Middleware } from "@reduxjs/toolkit";
-import { isEmpty } from "lodash-es";
 import { ChatConversationState } from "@/interfaces";
+import { Middleware } from "@reduxjs/toolkit";
+import dayjs from "dayjs";
+import { isEmpty } from "lodash-es";
 import { updateMessageModifiedTime } from "../slices/chatSlice";
 
 /**
@@ -63,8 +64,14 @@ export const updateLastMessageTimeMiddleware: Middleware = store => next => acti
       if (chatState) {
         const lastMessageUpdateAt = getLastMessageUpdateAt(chatState);
 
-        // 只有当 lastMessageUpdateAt 与当前值不同时才更新，避免不必要的更新
-        if (chatState.lastMessageUpdateAt !== lastMessageUpdateAt) {
+        const currentLastMessageUpdateAt = chatState.lastMessageUpdateAt;
+        const shouldUpdate =
+          !currentLastMessageUpdateAt || dayjs(currentLastMessageUpdateAt).isBefore(dayjs(lastMessageUpdateAt));
+
+        // 仅在以下场景更新：
+        // 1. 当前 lastMessageUpdateAt 为空
+        // 2. 当前时间早于最新消息时间
+        if (shouldUpdate) {
           // 使用 dispatch 来更新，保持状态更新的统一性
           store.dispatch(
             updateMessageModifiedTime({
