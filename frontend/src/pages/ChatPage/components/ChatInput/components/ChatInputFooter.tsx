@@ -3,8 +3,9 @@ import ThinkModeIcon from "@/assets/svg/ThinkModeIcon.svg?react";
 import CustomButton from "@/components/common/CustomButton";
 import { useIsSmallScreen } from "@/hooks";
 import { ChatInputConfig } from "@/interfaces";
+import { useAppSelector } from "@/store/hooks";
 import { ArrowUpOutlined, PaperClipOutlined } from "@ant-design/icons";
-import { Button, Divider, Form, Tooltip } from "antd";
+import { Button, Divider, Form, Select, Tooltip } from "antd";
 import React from "react";
 import { ButtonState, names } from "../constant";
 import { isStreamingState } from "../util";
@@ -16,6 +17,7 @@ export interface ChatInputFooterProps {
   values: ChatInputConfig;
   buttonState: ButtonState;
   onPrimaryClick: () => void;
+  hasImageAttachment: boolean;
 }
 
 const ChatInputFooter: React.FC<ChatInputFooterProps> = ({
@@ -23,8 +25,17 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = ({
   values,
   buttonState,
   onPrimaryClick,
+  hasImageAttachment,
 }) => {
   const isSmallScreen = useIsSmallScreen();
+  const { models, loaded } = useAppSelector(state => state.models);
+
+  const options = models.map(item => ({
+    value: item.modelName,
+    label: item.modelName,
+    disabled: hasImageAttachment && !item.imageSupport,
+  }));
+
   return (
     <div className="flex items-center gap-2 justify-between">
       <div className="flex items-center gap-2">
@@ -57,6 +68,15 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = ({
         <ToolsSetting values={values} />
       </div>
       <div className="flex items-center gap-2">
+        <Form.Item name={names.modelName}>
+          <Select
+            size="middle"
+            options={options}
+            loading={!loaded}
+            style={{ minWidth: 160 }}
+            disabled={!loaded || options.length === 0}
+          />
+        </Form.Item>
         <Button
           size="middle"
           shape="round"

@@ -66,6 +66,7 @@ export interface ChatInputConfig {
   thinkMode: boolean;
   mcpAutoMode: boolean;
   sourceConfig: RetrieverSource;
+  modelName: string;
 }
 
 export interface ChatInputFormValues extends ChatInputConfig {
@@ -94,6 +95,12 @@ export interface ChatRequest extends ChatInputConfig {
   historyIds: string[];
   regenerateTitle: boolean;
   removedMessageIds: string[];
+}
+
+export interface ChatModelItem {
+  id: string;
+  modelName: string;
+  imageSupport: boolean;
 }
 
 export interface SourceData {

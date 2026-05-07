@@ -77,12 +77,8 @@ class LLMService:
 
     @property
     def model_name(self) -> str:
-        """根据 think_mode 返回当前使用的模型名称。"""
-        return (
-            self._model_config.think_model_name
-            if self._think_mode
-            else self._model_config.model_name
-        )
+        """当前使用的模型名称。"""
+        return self._model_config.model_name
 
     @property
     def extra_body(self) -> dict[str, Any]:

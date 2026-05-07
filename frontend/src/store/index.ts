@@ -1,6 +1,7 @@
 import { configureStore } from "@reduxjs/toolkit";
 import chatReducer from "./slices/chatSlice";
 import mcpReducer from "./slices/mcpSlice";
+import modelsReducer from "./slices/modelsSlice";
 import conversationReducer from "./slices/conversationSlice";
 import { dbMiddleware } from "./middleware/dbMiddleware";
 import { updateLastMessageTimeMiddleware } from "./middleware/updateLastMessageTimeMiddleware";
@@ -10,6 +11,7 @@ export const store = configureStore({
   reducer: {
     chat: chatReducer,
     mcp: mcpReducer,
+    models: modelsReducer,
     conversation: conversationReducer,
     user: userReducer,
   },

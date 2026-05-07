@@ -45,12 +45,17 @@ const defaultFormValue: ChatInputConfig = {
   thinkMode: false,
   mcpAutoMode: true,
   sourceConfig: {},
+  modelName: "default",
 };
 
 // 创建 memoized selector 来避免不必要的重新渲染
 const selectMCPConfig = createSelector(
   [(state: RootState) => state.mcp.mcpConfig, (state: RootState) => state.mcp.mcpConfigLoaded],
   (mcpConfig, mcpConfigLoaded) => ({ mcpConfig, mcpConfigLoaded })
+);
+const selectModels = createSelector(
+  [(state: RootState) => state.models.models, (state: RootState) => state.models.loaded],
+  (models, modelsLoaded) => ({ models, modelsLoaded })
 );
 export const chatInputFormValuesStorageKey = "chat-input-form-values-v1";
 
@@ -59,6 +64,7 @@ export function useFormValuesChange(form: FormInstance<ChatInputFormValues>) {
     defaultValue: defaultFormValue,
   });
   const { mcpConfig, mcpConfigLoaded } = useAppSelector(selectMCPConfig);
+  const { models, modelsLoaded } = useAppSelector(selectModels);
 
   useEffect(() => {
     if (mcpConfigLoaded) {
@@ -81,6 +87,26 @@ export function useFormValuesChange(form: FormInstance<ChatInputFormValues>) {
       );
     }
   }, [mcpConfigLoaded, mcpConfig, setFormValues]);
+
+  useEffect(() => {
+    if (!modelsLoaded || isEmpty(models)) {
+      return;
+    }
+    const defaultModelName = models.some(item => item.id === "default")
+      ? (models.find(item => item.id === "default")?.modelName ?? "default")
+      : models[0].modelName;
+    setFormValues(pre => {
+      const currentModelName = pre?.modelName;
+      const isValidModelName = Boolean(currentModelName && models.some(item => item.modelName === currentModelName));
+      if (isValidModelName) {
+        return pre || defaultFormValue;
+      }
+      return {
+        ...(pre || defaultFormValue),
+        modelName: defaultModelName,
+      };
+    });
+  }, [modelsLoaded, models, setFormValues]);
 
   const onValuesChange = useMemoizedFn(
     (_changedFields: Partial<ChatInputFormValues>, allFields: ChatInputFormValues) => {
@@ -121,4 +147,10 @@ export function useMCPConfig() {
   }, [mcpConfigLoaded, mcpConfig, setCachedMcpConfig]);
 
   return cachedMcpConfig || defaultCachedMcpConfig;
+}
+
+export function useModelImageSupport(modelName: string | undefined): boolean {
+  const models = useAppSelector((state: RootState) => state.models.models);
+  const selectedModel = models.find(item => item.modelName === modelName);
+  return selectedModel?.imageSupport ?? true;
 }

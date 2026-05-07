@@ -27,7 +27,9 @@ class ToolExecutor:
     TAVILY_TOOL_NAME = "tavily-mcp"
     WEB_PAGES_EXTRACT = "web_pages_extract"
 
-    def __init__(self, mcp_manager: MCPClientManager, user_message: str) -> None:
+    def __init__(
+        self, mcp_manager: MCPClientManager, user_message: str, model_name: str
+    ) -> None:
         self.mcp_manager = mcp_manager
         self.current_user_message = user_message
         self.tool_result_compression = settings.chat_context.tool_result_compression
@@ -35,7 +37,7 @@ class ToolExecutor:
             embedding_model=settings.embedding_model,
             tool_result_compression_config=self.tool_result_compression,
         )
-        self.token_calculator = TokenCalculator(settings.response_model.model_name)
+        self.token_calculator = TokenCalculator(model_name)
         self.token_threshold: int = self.token_calculator.get_compression_threshold(0.5)
 
     def reset_for_request(self, user_message: str) -> None:

@@ -137,6 +137,7 @@ class ChatSessionAgent(BaseAgent):
         tool_session = MCPToolSession(
             self.mcp_manager,
             user_message_text,
+            self.model_config.model_name,
             self.tool_round_messages,
         )
         tool_session.reset_for_request(user_message_text)

@@ -14,6 +14,7 @@ from app.mcp.mcp_client import MCPClientManager
 from app.protocols.chat_messages import build_error_event
 from app.schemas.auth import AuthTokenPayload
 from app.schemas.chat import ChatRequest, StreamResumeRequest
+from app.schemas.config import LLMConfig
 from app.services.chat import ChatService
 from app.services.chat.stream_relay import StreamRelay
 from app.services.message import MessageDbService
@@ -102,6 +103,25 @@ async def _empty_stream() -> AsyncGenerator[str, None]:
     yield  # pragma: no cover
 
 
+def _resolve_llm_config(model_name: str) -> LLMConfig:
+    if model_name == "default":
+        return settings.model_map["default"]
+
+    llm_config = settings.model_map.get(model_name)
+    if llm_config is not None:
+        return llm_config
+
+    for config in settings.model_map.values():
+        if config.model_name == model_name:
+            return config
+
+    raise HTTPException(status_code=400, detail=f"模型不存在: {model_name}")
+
+
+def _contains_image_block(chat_request: ChatRequest) -> bool:
+    return any(block.type == "image" for block in chat_request.content_blocks)
+
+
 @router.post("/stream")
 async def stream_chat(
     chat_request: ChatRequest,
@@ -118,6 +138,9 @@ async def stream_chat(
         conversation_id=chat_request.conversation_id,
         user_id=auth_info.user_id,
     )
+    llm_config = _resolve_llm_config(chat_request.model_name)
+    if _contains_image_block(chat_request) and not llm_config.image_support:
+        raise HTTPException(status_code=400, detail="当前模型不支持图片输入")
 
     user_metadata = chat_request.model_dump(
         exclude_none=True, exclude={"content_blocks"}
@@ -138,6 +161,7 @@ async def stream_chat(
 
     chat_service = ChatService(
         think_mode=chat_request.think_mode,
+        llm_config=llm_config,
         mcp_manager=mcp_manager,
         chat_context_config=settings.chat_context,
     )

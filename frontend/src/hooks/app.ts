@@ -2,6 +2,7 @@ import { WEB_TITLE } from "@/constants";
 import { ConversationInfo } from "@/interfaces";
 import { useAppDispatch } from "@/store/hooks";
 import { getMCPConfig } from "@/store/slices/mcpSlice";
+import { fetchModels } from "@/store/slices/modelsSlice";
 import { getUserDetail } from "@/store/slices/userSlice";
 import { isTitleCreatedByDefault } from "@/utils";
 import { setMessageInstance } from "@/utils/message";
@@ -20,6 +21,7 @@ export function useAppInit(): void {
     const init = async () => {
       try {
         dispatch(getMCPConfig());
+        dispatch(fetchModels());
         await dispatch(getUserDetail()).unwrap();
       } catch (error) {
         console.error("初始化失败", error);

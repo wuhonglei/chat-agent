@@ -4,19 +4,21 @@ import { Attachments, AttachmentsProps, Sender } from "@ant-design/x";
 import type { UploadFile } from "antd";
 import { GetProp, GetRef, message } from "antd";
 import React from "react";
-import { CHAT_ATTACHMENT_ACCEPT, MAX_CHAT_ATTACHMENTS, getChatAttachmentValidationError } from "../util";
+import { CHAT_ATTACHMENT_ACCEPT, MAX_CHAT_ATTACHMENTS, getChatAttachmentValidationError, isImageFile } from "../util";
 import { getChatInputAttachmentStyles, sortAttachmentsByImageFirst, withServerAttachmentPreview } from "./utils";
 
 export interface ChatInputSenderHeaderProps {
   attachmentsRef: React.RefObject<GetRef<typeof Attachments> | null>;
   attachmentItems: GetProp<AttachmentsProps, "items">;
   setAttachmentItems: React.Dispatch<React.SetStateAction<GetProp<AttachmentsProps, "items">>>;
+  canUploadImage: boolean;
 }
 
 const ChatInputSenderHeader: React.FC<ChatInputSenderHeaderProps> = ({
   attachmentsRef,
   attachmentItems,
   setAttachmentItems,
+  canUploadImage,
 }) => {
   const hasAttachmentItems = Boolean(attachmentItems?.length);
 
@@ -43,6 +45,10 @@ const ChatInputSenderHeader: React.FC<ChatInputSenderHeaderProps> = ({
         items={attachmentItems}
         placeholder={undefined}
         beforeUpload={file => {
+          if (!canUploadImage && isImageFile(file as File)) {
+            message.warning("当前模型不支持图片，请切换支持图片的模型后再上传");
+            return false;
+          }
           const error = getChatAttachmentValidationError(file as File, attachmentItems?.length ?? 0);
           if (error) {
             message.warning(error);
