@@ -128,6 +128,13 @@ class ChatRequest(BaseModel):
         return value
 
 
+class StreamResumeRequest(BaseModel):
+    """SSE resume request model"""
+
+    assistant_message_id: str = Field(..., description="Assistant message ID")
+    last_seq: int = Field(0, ge=0, description="Last successfully consumed sequence")
+
+
 class ChatSource(BaseModel):
     """Chat source reference model"""
 
