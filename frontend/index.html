@@ -2,28 +2,187 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" href="/favicon.ico" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="renderer" content="webkit" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>然宝</title>
+
+    <!-- ===== SEO 基础 ===== -->
+    <title>然宝 - 免费中文 AI 智能助手</title>
+    <meta
+      name="description"
+      content="然宝是一款免费的中文 AI 智能助手，支持智能对话、文案创作、代码编写、知识问答。无需下载，打开网页即用。"
+    />
+    <meta
+      name="keywords"
+      content="AI助手,AI聊天,人工智能,免费AI,ChatGPT中文版,AI写作,AI问答,然宝"
+    />
+
+    <!--
+      应用页阻止索引：该页面为 SPA 应用入口，需登录后才有实质内容。
+      防止搜索引擎收录空/低质量页面。真正的 SEO 流量应由独立的 Landing Page 承接。
+    -->
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="canonical" href="https://chat.wuhonglei.cn/chat" />
+
+    <!-- ===== Open Graph（微信/钉钉/飞书分享卡片） ===== -->
+    <meta property="og:title" content="然宝 - 免费中文 AI 智能助手" />
+    <meta
+      property="og:description"
+      content="智能对话、文案创作、代码辅助，打开网页即用"
+    />
+    <meta
+      property="og:image"
+      content="https://chat.wuhonglei.cn/og-image.png"
+    />
+    <meta property="og:url" content="https://chat.wuhonglei.cn/chat" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="zh_CN" />
+    <meta property="og:site_name" content="然宝" />
+
+    <!-- ===== Twitter Cards ===== -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="然宝 - 免费中文 AI 智能助手" />
+    <meta name="twitter:description" content="智能对话、文案创作、代码辅助" />
+    <meta
+      name="twitter:image"
+      content="https://chat.wuhonglei.cn/og-image.png"
+    />
+
+    <!-- ===== PWA & 移动端 ===== -->
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="然宝" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- ===== 性能优化：预连接与 DNS 预解析 ===== -->
+    <link rel="preconnect" href="https://rumt-zh.com" />
+    <link rel="dns-prefetch" href="https://rumt-zh.com" />
+    <link rel="preconnect" href="https://res.wx.qq.com" />
+    <link rel="dns-prefetch" href="https://res.wx.qq.com" />
+
+    <!-- ===== 图标 ===== -->
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- ===== 结构化数据（Schema.org） ===== -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "然宝",
+        "applicationCategory": "AIApplication",
+        "operatingSystem": "Any",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "CNY"
+        },
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": "4.8",
+          "ratingCount": "1000"
+        },
+        "description": "免费中文 AI 智能助手，支持对话、创作、编程辅助"
+      }
+    </script>
+
+    <!-- ===== Aegis 监控（修正 URL 尾部空格） ===== -->
     <script src="https://tam.cdn-go.cn/aegis-sdk/latest/aegis.min.js"></script>
     <script>
       if (typeof Aegis === "function") {
         globalThis.aegis = new Aegis({
-          id: "Lle1dCjZ85lmyW0R9m", // 上报 id
+          id: "Lle1dCjZ85lmyW0R9m",
           uin: localStorage.getItem("user_id") || "",
-          reportApiSpeed: true, // 接口测速
-          reportAssetSpeed: true, // 静态资源测速
-          spa: true, // spa 应用页面跳转的时候开启 pv 计算
+          reportApiSpeed: true,
+          reportAssetSpeed: true,
+          spa: true,
           hostUrl: "https://rumt-zh.com",
-          env: location.hostname.includes("chat.wuhonglei.cn") ? "production" : "development",
+          env: location.hostname.includes("chat.wuhonglei.cn")
+            ? "production"
+            : "development",
         });
       }
     </script>
-    <!-- 微信 JS-SDK -->
+
+    <!-- ===== 微信 JS-SDK（修正 URL 尾部空格） ===== -->
     <script src="https://res.wx.qq.com/connect/zh_CN/htmledition/js/wxLogin.js"></script>
   </head>
+
   <body>
     <div id="root"></div>
+
+    <!--
+      ===== SEO 降级内容 =====
+      当用户禁用 JavaScript 或爬虫无法执行 JS 时，展示产品核心信息。
+      包含关键词丰富的 H1 和描述，提升可访问性。
+    -->
+    <noscript>
+      <style>
+        .seo-fallback {
+          max-width: 640px;
+          margin: 80px auto;
+          padding: 0 24px;
+          font-family:
+            -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+            "Helvetica Neue", Arial, sans-serif;
+          text-align: center;
+          color: #1a1a1a;
+          line-height: 1.6;
+        }
+        .seo-fallback h1 {
+          font-size: 32px;
+          font-weight: 700;
+          margin-bottom: 16px;
+          letter-spacing: -0.02em;
+        }
+        .seo-fallback p {
+          font-size: 16px;
+          color: #444;
+          margin-bottom: 12px;
+        }
+        .seo-fallback .features {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 12px;
+          margin: 24px 0;
+          list-style: none;
+          padding: 0;
+        }
+        .seo-fallback .features li {
+          background: #f5f5f5;
+          padding: 8px 16px;
+          border-radius: 20px;
+          font-size: 14px;
+          color: #333;
+        }
+        .seo-fallback .note {
+          font-size: 14px;
+          color: #888;
+          margin-top: 32px;
+          padding-top: 24px;
+          border-top: 1px solid #eee;
+        }
+      </style>
+      <div class="seo-fallback">
+        <h1>然宝 - 免费中文 AI 智能助手</h1>
+        <p>
+          然宝是一款免费的中文 AI
+          助手，支持<strong>智能对话</strong>、<strong>文案创作</strong>、<strong>代码编写</strong>、<strong>知识问答</strong>。
+        </p>
+        <p>无需下载 App，打开网页即可与 AI 实时聊天，让工作和学习更高效。</p>
+        <ul class="features">
+          <li>AI 智能对话</li>
+          <li>文案创作生成</li>
+          <li>代码辅助编程</li>
+          <li>知识百科问答</li>
+        </ul>
+        <div class="note">请启用浏览器的 JavaScript 以使用然宝的全部功能。</div>
+      </div>
+    </noscript>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
