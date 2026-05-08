@@ -1,7 +1,3 @@
-.markdown > ul {
-  margin-left: 0;
-}
-
 .markdown:global(.x-markdown) {
   --margin-ul-ol: 0 0 16px 0px;
 }
