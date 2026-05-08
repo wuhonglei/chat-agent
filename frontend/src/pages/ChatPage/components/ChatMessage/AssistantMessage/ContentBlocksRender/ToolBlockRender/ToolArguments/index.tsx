@@ -2,8 +2,10 @@ import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
 import CodeHighlighter from "@/pages/ChatPage/components/MarkdownContainer/components/CodeHighlighter";
 import { theme, Typography } from "antd";
 import React, { useState } from "react";
+import styles from "./index.module.css";
 
 import { useExecuteCodeToolArguments, useToolArgumentsDisplay } from "./hooks";
+import classNames from "classnames";
 
 const { Paragraph } = Typography;
 
@@ -43,7 +45,10 @@ export const ToolArguments: React.FC<ToolArgumentsProps> = ({
 
   if (markdown) {
     return (
-      <MarkdownContainer className="text-sm w-full" style={{ color: token.colorTextSecondary }}>
+      <MarkdownContainer
+        style={{ color: token.colorTextSecondary }}
+        className={classNames("text-sm w-full", styles.markdown)}
+      >
         {markdown}
       </MarkdownContainer>
     );
