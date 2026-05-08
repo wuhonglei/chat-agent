@@ -43,6 +43,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = ({
         <Tooltip title={isSmallScreen ? undefined : CHAT_ATTACHMENT_TOOLTIP}>
           <Button
             type="text"
+            size={size}
             aria-label="文件上传"
             style={{ fontSize: 16 }}
             icon={<PaperClipOutlined />}
