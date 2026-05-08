@@ -30,6 +30,9 @@ declare function gtag(
 import type Aegis from "aegis-web-sdk";
 
 declare global {
+  const __WEB_TITLE__: string;
+  const __WEB_TAB_TITLE__: string;
+
   // 声明全局变量 aegis，类型为 Aegis 实例
 
   var aegis: Aegis | undefined;

@@ -1,4 +1,4 @@
-import { WEB_TITLE } from "@/constants";
+import { WEB_TAB_TITLE } from "@/constants";
 import { ConversationInfo } from "@/interfaces";
 import { useAppDispatch } from "@/store/hooks";
 import { getMCPConfig } from "@/store/slices/mcpSlice";
@@ -45,9 +45,9 @@ export function useMessageInstance(): void {
 export function useWebTitle(conversationInfo: ConversationInfo | undefined | null): void {
   const title = useMemo(() => {
     if (isEmpty(conversationInfo)) {
-      return WEB_TITLE;
+      return WEB_TAB_TITLE;
     } else if (isTitleCreatedByDefault(conversationInfo.createdBy)) {
-      return WEB_TITLE;
+      return WEB_TAB_TITLE;
     } else {
       return conversationInfo.title;
     }

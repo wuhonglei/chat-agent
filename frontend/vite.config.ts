@@ -11,9 +11,15 @@ const __dirname = path.dirname(__filename);
 // .env 不会自动进入 process.env；代理目标需 loadEnv。使用与 NODE_ENV 对应的 mode（.env 在任意 mode 下都会加载）
 const env = loadEnv(process.env.NODE_ENV === "production" ? "production" : "development", __dirname, "VITE_");
 const apiProxyTarget = env.VITE_PROXY_TARGET || "http://localhost:8000";
+const webTitle = env.VITE_WEB_TITLE || "然宝";
+const webTabTitle = env.VITE_WEB_TAB_TITLE || "然宝 - 免费中文 AI 智能助手";
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  define: {
+    __WEB_TITLE__: JSON.stringify(webTitle),
+    __WEB_TAB_TITLE__: JSON.stringify(webTabTitle),
+  },
   lint: {
     plugins: ["oxc", "typescript", "unicorn", "react"],
     categories: {
@@ -110,6 +116,12 @@ export default defineConfig({
         icon: true, // 让 SVG 自适应 (width/height = 1em)
       },
     }),
+    {
+      name: "inject-web-tab-title",
+      transformIndexHtml(html) {
+        return html.replace(/<title>[\s\S]*?<\/title>/, `<title>${webTabTitle}</title>`);
+      },
+    },
   ],
   server: {
     host: true,
