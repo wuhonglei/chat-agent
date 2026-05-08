@@ -114,8 +114,9 @@ class ChatRequest(BaseModel):
     )
     mcp_auto_mode: bool = Field(True, description="Whether to use mcp auto mode")
     think_mode: bool = Field(False, description="Whether to use think mode")
-    model_name: str = Field(
-        default="default", description="Model name resolved from settings.model_map"
+    model_id: str = Field(
+        default="default",
+        description="model_map 配置键，或可与某条 LLM 配置的 model_name 匹配",
     )
 
     @field_validator("content_blocks", mode="before")

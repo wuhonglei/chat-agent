@@ -14,9 +14,10 @@ router = APIRouter()
 class ModelConfigForFe(BaseModel):
     """Sanitized model config for frontend display."""
 
-    id: str = Field(description="Model ID")
-    model_name: str = Field(description="Model name for display")
-    image_support: bool = Field(description="Whether this model supports image input")
+    model_id: str = Field(description="model_map 配置键")
+    title: str | None = Field(default=None, description="展示标题")
+    description: str | None = Field(default=None, description="说明文案")
+    image_support: bool = Field(description="是否支持图片输入")
 
 
 @router.get("/models")
@@ -26,8 +27,9 @@ async def list_models(
     _ = _auth
     model_list = [
         ModelConfigForFe(
-            id=model_id,
-            model_name=model_config.model_name,
+            model_id=model_id,
+            title=model_config.title,
+            description=model_config.description,
             image_support=model_config.image_support,
         )
         for model_id, model_config in settings.model_map.items()

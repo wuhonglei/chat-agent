@@ -3,12 +3,13 @@ import ThinkModeIcon from "@/assets/svg/ThinkModeIcon.svg?react";
 import CustomButton from "@/components/common/CustomButton";
 import { useIsSmallScreen } from "@/hooks";
 import { ChatInputConfig } from "@/interfaces";
-import { useAppSelector } from "@/store/hooks";
 import { ArrowUpOutlined, PaperClipOutlined } from "@ant-design/icons";
-import { Button, Divider, Form, Select, Tooltip } from "antd";
+import { Button, Divider, Form, Tooltip } from "antd";
+import { SizeType } from "antd/es/config-provider/SizeContext";
 import React from "react";
 import { ButtonState, names } from "../constant";
 import { isStreamingState } from "../util";
+import ModelSelect from "./ModelSelect";
 import ToolsSetting from "./ToolsSetting";
 import { CHAT_ATTACHMENT_TOOLTIP, isButtonDisabled } from "./utils";
 
@@ -28,13 +29,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = ({
   hasImageAttachment,
 }) => {
   const isSmallScreen = useIsSmallScreen();
-  const { models, loaded } = useAppSelector(state => state.models);
-
-  const options = models.map(item => ({
-    value: item.modelName,
-    label: item.modelName,
-    disabled: hasImageAttachment && !item.imageSupport,
-  }));
+  const size = (isSmallScreen ? "small" : "middle") as SizeType;
 
   return (
     <div className="flex items-center gap-2 justify-between">
@@ -58,27 +53,19 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = ({
         <Form.Item trigger="onClick" initialValue={false} valuePropName="active" name={names.thinkMode}>
           <CustomButton
             bordered={false}
-            size="middle"
+            size={size}
             icon={<ThinkModeIcon />}
             tooltip={isSmallScreen ? undefined : "先思考后回答, 解决推理问题"}
           >
-            深度思考
+            {isSmallScreen ? "" : "深度思考"}
           </CustomButton>
         </Form.Item>
-        <ToolsSetting values={values} />
+        <ToolsSetting values={values} size={size} />
       </div>
       <div className="flex items-center gap-2">
-        <Form.Item name={names.modelName}>
-          <Select
-            size="middle"
-            options={options}
-            loading={!loaded}
-            style={{ minWidth: 160 }}
-            disabled={!loaded || options.length === 0}
-          />
-        </Form.Item>
+        <ModelSelect size={size} hasImageAttachment={hasImageAttachment} />
         <Button
-          size="middle"
+          size={size}
           shape="round"
           type="primary"
           onClick={onPrimaryClick}

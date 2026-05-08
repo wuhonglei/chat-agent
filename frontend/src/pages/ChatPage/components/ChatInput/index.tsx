@@ -33,7 +33,7 @@ interface ChatInputProps {
 
 const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, className, style, form }) => {
   const content = Form.useWatch(names.content, form);
-  const modelName = Form.useWatch(names.modelName, form);
+  const modelId = Form.useWatch(names.modelId, form);
   const [attachmentItems, setAttachmentItems] = React.useState<GetProp<AttachmentsProps, "items">>([]);
   const senderRef = React.useRef<GetRef<typeof Sender>>(null);
   const attachmentsRef = React.useRef<GetRef<typeof Attachments>>(null);
@@ -41,7 +41,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, clas
   const buttonState = useButtonState(content, isStreaming, attachmentItems);
   const isSmallScreen = useIsSmallScreen();
   const { values, onValuesChange } = useFormValuesChange(form);
-  const canUploadImage = useModelImageSupport(modelName);
+  const canUploadImage = useModelImageSupport(modelId);
   const hasImageAttachment = attachmentItemsHasImage(attachmentItems);
 
   const handleSend = useMemoizedFn(() => {

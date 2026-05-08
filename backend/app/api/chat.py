@@ -103,19 +103,15 @@ async def _empty_stream() -> AsyncGenerator[str, None]:
     yield  # pragma: no cover
 
 
-def _resolve_llm_config(model_name: str) -> LLMConfig:
-    if model_name == "default":
+def _resolve_llm_config(model_id: str) -> LLMConfig:
+    if model_id == "default":
         return settings.model_map["default"]
 
-    llm_config = settings.model_map.get(model_name)
+    llm_config = settings.model_map.get(model_id)
     if llm_config is not None:
         return llm_config
 
-    for config in settings.model_map.values():
-        if config.model_name == model_name:
-            return config
-
-    raise HTTPException(status_code=400, detail=f"模型不存在: {model_name}")
+    return settings.model_map["default"]
 
 
 def _contains_image_block(chat_request: ChatRequest) -> bool:
@@ -138,7 +134,7 @@ async def stream_chat(
         conversation_id=chat_request.conversation_id,
         user_id=auth_info.user_id,
     )
-    llm_config = _resolve_llm_config(chat_request.model_name)
+    llm_config = _resolve_llm_config(chat_request.model_id)
     if _contains_image_block(chat_request) and not llm_config.image_support:
         raise HTTPException(status_code=400, detail="当前模型不支持图片输入")
 

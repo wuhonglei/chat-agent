@@ -45,7 +45,7 @@ const defaultFormValue: ChatInputConfig = {
   thinkMode: false,
   mcpAutoMode: true,
   sourceConfig: {},
-  modelName: "default",
+  modelID: "default",
 };
 
 // 创建 memoized selector 来避免不必要的重新渲染
@@ -92,18 +92,17 @@ export function useFormValuesChange(form: FormInstance<ChatInputFormValues>) {
     if (!modelsLoaded || isEmpty(models)) {
       return;
     }
-    const defaultModelName = models.some(item => item.id === "default")
-      ? (models.find(item => item.id === "default")?.modelName ?? "default")
-      : models[0].modelName;
+    const defaultModelID = "default";
     setFormValues(pre => {
-      const currentModelName = pre?.modelName;
-      const isValidModelName = Boolean(currentModelName && models.some(item => item.modelName === currentModelName));
-      if (isValidModelName) {
-        return pre || defaultFormValue;
+      const rawPre = pre || defaultFormValue;
+      const currentModelID = rawPre.modelID;
+      const isValidModelID = Boolean(currentModelID && models.some(item => item.modelId === currentModelID));
+      if (isValidModelID) {
+        return rawPre;
       }
       return {
-        ...(pre || defaultFormValue),
-        modelName: defaultModelName,
+        ...rawPre,
+        modelID: defaultModelID,
       };
     });
   }, [modelsLoaded, models, setFormValues]);
@@ -149,8 +148,8 @@ export function useMCPConfig() {
   return cachedMcpConfig || defaultCachedMcpConfig;
 }
 
-export function useModelImageSupport(modelName: string | undefined): boolean {
+export function useModelImageSupport(modelId: string | undefined): boolean {
   const models = useAppSelector((state: RootState) => state.models.models);
-  const selectedModel = models.find(item => item.modelName === modelName);
+  const selectedModel = models.find(item => item.modelId === modelId);
   return selectedModel?.imageSupport ?? true;
 }
