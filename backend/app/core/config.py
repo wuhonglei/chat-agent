@@ -36,9 +36,6 @@ class Settings(BaseSettings):
     model_map: dict[str, LLMConfig] = Field(
         description="模型映射配置（model_name_key -> LLM 配置，必须包含 default）"
     )
-    response_model: LLMConfig = Field(
-        description="响应生成模型 API 配置（需支持 OpenAI 兼容多模态视觉输入）"
-    )
     title_model: LLMConfig | None = Field(
         default=None,
         description='标题生成模型 API 配置（可选，默认回退 model_map["default"]）',
