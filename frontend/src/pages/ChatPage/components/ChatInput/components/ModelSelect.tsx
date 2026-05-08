@@ -43,6 +43,7 @@ const ModelSelect: React.FC<Props> = ({ size, hasImageContext }) => {
               <Typography.Paragraph
                 ellipsis={{ rows: 2 }}
                 className="leading-5"
+                title={data.description}
                 style={{ marginBottom: 0, whiteSpace: "normal", fontSize: 12, color: "var(--color-black-secondary)" }}
               >
                 {data.description}
