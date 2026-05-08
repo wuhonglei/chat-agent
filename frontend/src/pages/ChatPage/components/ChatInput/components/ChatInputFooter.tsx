@@ -18,7 +18,7 @@ export interface ChatInputFooterProps {
   values: ChatInputConfig;
   buttonState: ButtonState;
   onPrimaryClick: () => void;
-  hasImageAttachment: boolean;
+  hasImageContext: boolean;
 }
 
 const ChatInputFooter: React.FC<ChatInputFooterProps> = ({
@@ -26,7 +26,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = ({
   values,
   buttonState,
   onPrimaryClick,
-  hasImageAttachment,
+  hasImageContext,
 }) => {
   const isSmallScreen = useIsSmallScreen();
   const size = (isSmallScreen ? "small" : "middle") as SizeType;
@@ -63,7 +63,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = ({
         <ToolsSetting values={values} size={size} />
       </div>
       <div className="flex items-center gap-2">
-        <ModelSelect size={size} hasImageAttachment={hasImageAttachment} />
+        <ModelSelect size={size} hasImageContext={hasImageContext} />
         <Button
           size={size}
           shape="round"

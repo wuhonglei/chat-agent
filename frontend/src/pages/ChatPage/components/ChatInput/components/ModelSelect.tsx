@@ -8,15 +8,15 @@ import { names } from "../constant";
 
 interface Props {
   size: SizeType;
-  hasImageAttachment: boolean;
+  hasImageContext: boolean;
 }
 
-const ModelSelect: React.FC<Props> = ({ size, hasImageAttachment }) => {
+const ModelSelect: React.FC<Props> = ({ size, hasImageContext }) => {
   const { models } = useAppSelector(state => state.models);
   const options: DefaultOptionType[] = models.map(item => ({
     value: item.modelId,
     label: (item.title && item.title.trim()) || item.modelId,
-    disabled: hasImageAttachment && !item.imageSupport,
+    disabled: hasImageContext && !item.imageSupport,
   }));
 
   return (

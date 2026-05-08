@@ -24,6 +24,7 @@ import {
 
 interface ChatInputProps {
   isStreaming?: boolean;
+  hasImageMessage?: boolean;
   className?: string;
   style?: React.CSSProperties;
   onSend: (values: ChatInputFormValues, options?: SendMessageOptions) => void;
@@ -31,7 +32,15 @@ interface ChatInputProps {
   form: FormInstance<ChatInputFormValues>;
 }
 
-const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, className, style, form }) => {
+const ChatInput: React.FC<ChatInputProps> = ({
+  onSend,
+  onStop,
+  isStreaming,
+  hasImageMessage = false,
+  className,
+  style,
+  form,
+}) => {
   const content = Form.useWatch(names.content, form);
   const modelId = Form.useWatch(names.modelId, form);
   const [attachmentItems, setAttachmentItems] = React.useState<GetProp<AttachmentsProps, "items">>([]);
@@ -43,6 +52,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, clas
   const { values, onValuesChange } = useFormValuesChange(form);
   const canUploadImage = useModelImageSupport(modelId);
   const hasImageAttachment = attachmentItemsHasImage(attachmentItems);
+  const hasImageContext = hasImageAttachment || hasImageMessage;
 
   const handleSend = useMemoizedFn(() => {
     const fieldValues = form.getFieldsValue();
@@ -149,9 +159,9 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, clas
               <ChatInputFooter
                 values={values}
                 buttonState={buttonState}
+                hasImageContext={hasImageContext}
                 onPrimaryClick={handleBtnClick}
                 onOpenAttachmentPicker={openAttachmentPicker}
-                hasImageAttachment={hasImageAttachment}
               />
             )}
           />
