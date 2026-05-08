@@ -39,6 +39,8 @@ class LLMConfig(BaseModel):
     api_key: str = Field(description="LLM API 密钥")
     api_base: str = Field(description="LLM API 基础地址")
     model_name: str = Field(description="默认模型名称")
+    title: str | None = Field(default=None, description="展示标题（可选）")
+    description: str | None = Field(default=None, description="说明文案（可选）")
     image_support: bool = Field(
         default=True, description="是否支持图片输入（多模态视觉）"
     )
