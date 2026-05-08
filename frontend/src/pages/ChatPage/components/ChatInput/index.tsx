@@ -10,17 +10,21 @@ import ChatInputFooter from "./components/ChatInputFooter";
 import ChatInputSenderHeader from "./components/ChatInputSenderHeader";
 import { names } from "./constant";
 import styles from "./css/index.module.css";
-import { useButtonState, useFormValuesChange } from "./hooks";
+import { useButtonState, useFormValuesChange, useModelImageSupport } from "./hooks";
 import {
   CHAT_ATTACHMENT_ACCEPT,
+  CHAT_ATTACHMENT_ACCEPT_PDF_ONLY,
   MAX_CHAT_ATTACHMENTS,
+  attachmentItemsHasImage,
   getAttachmentBlocks,
   getChatAttachmentValidationError,
+  isImageFile,
   isStreamingState,
 } from "./util";
 
 interface ChatInputProps {
   isStreaming?: boolean;
+  hasImageMessage?: boolean;
   className?: string;
   style?: React.CSSProperties;
   onSend: (values: ChatInputFormValues, options?: SendMessageOptions) => void;
@@ -28,8 +32,17 @@ interface ChatInputProps {
   form: FormInstance<ChatInputFormValues>;
 }
 
-const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, className, style, form }) => {
+const ChatInput: React.FC<ChatInputProps> = ({
+  onSend,
+  onStop,
+  isStreaming,
+  hasImageMessage = false,
+  className,
+  style,
+  form,
+}) => {
   const content = Form.useWatch(names.content, form);
+  const modelId = Form.useWatch(names.modelId, form);
   const [attachmentItems, setAttachmentItems] = React.useState<GetProp<AttachmentsProps, "items">>([]);
   const senderRef = React.useRef<GetRef<typeof Sender>>(null);
   const attachmentsRef = React.useRef<GetRef<typeof Attachments>>(null);
@@ -37,6 +50,9 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, clas
   const buttonState = useButtonState(content, isStreaming, attachmentItems);
   const isSmallScreen = useIsSmallScreen();
   const { values, onValuesChange } = useFormValuesChange(form);
+  const canUploadImage = useModelImageSupport(modelId);
+  const hasImageAttachment = attachmentItemsHasImage(attachmentItems);
+  const hasImageContext = hasImageAttachment || hasImageMessage;
 
   const handleSend = useMemoizedFn(() => {
     const fieldValues = form.getFieldsValue();
@@ -79,7 +95,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, clas
   const openAttachmentPicker = useMemoizedFn(() => {
     queueMicrotask(() => {
       attachmentsRef.current?.select({
-        accept: CHAT_ATTACHMENT_ACCEPT,
+        accept: canUploadImage ? CHAT_ATTACHMENT_ACCEPT : CHAT_ATTACHMENT_ACCEPT_PDF_ONLY,
         multiple: true,
       });
     });
@@ -88,6 +104,10 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, clas
   const handlePasteFile = useMemoizedFn((files: FileList) => {
     let nextCount = attachmentItems.length;
     for (const file of files) {
+      if (!canUploadImage && isImageFile(file)) {
+        message.warning("当前模型不支持图片，请切换支持图片的模型后再上传");
+        continue;
+      }
       const error = getChatAttachmentValidationError(file, nextCount);
       if (error) {
         message.warning(error);
@@ -121,6 +141,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, clas
                 attachmentsRef={attachmentsRef}
                 attachmentItems={attachmentItems}
                 setAttachmentItems={setAttachmentItems}
+                canUploadImage={canUploadImage}
               />
             }
             suffix={false}
@@ -138,6 +159,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isStreaming, clas
               <ChatInputFooter
                 values={values}
                 buttonState={buttonState}
+                hasImageContext={hasImageContext}
                 onPrimaryClick={handleBtnClick}
                 onOpenAttachmentPicker={openAttachmentPicker}
               />

@@ -3,7 +3,7 @@ import { ChatInputFormValues, ChatMessage as ChatMessageType, MessageFeedbackVal
 import type { PreviewableBlock } from "@/interfaces/contentBlock";
 import { useMemoizedFn } from "ahooks";
 import type { FormInstance } from "antd";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 interface UseBlockPreviewHandlersParams {
   isSmallScreen: boolean;
@@ -100,4 +100,11 @@ export const useBlockPreviewHandlers = ({ isSmallScreen }: UseBlockPreviewHandle
     handleCloseBlockPreview,
     handleSplitterResize,
   };
+};
+
+export const useHasImageMessage = (messages: ChatMessageType[]): boolean => {
+  return useMemo(
+    () => messages.some(message => message.contentBlocks.some(block => block.type === "image")),
+    [messages]
+  );
 };

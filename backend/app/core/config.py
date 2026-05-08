@@ -3,7 +3,7 @@
 import threading
 from typing import Any, cast
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
@@ -33,12 +33,15 @@ class Settings(BaseSettings):
     """Application settings - 使用层级结构匹配 YAML 配置"""
 
     app: AppConfig = Field(default_factory=AppConfig)
+    model_map: dict[str, LLMConfig] = Field(
+        description="模型映射配置（model_name_key -> LLM 配置，必须包含 default）"
+    )
     response_model: LLMConfig = Field(
         description="响应生成模型 API 配置（需支持 OpenAI 兼容多模态视觉输入）"
     )
     title_model: LLMConfig | None = Field(
         default=None,
-        description="标题生成模型 API 配置（可选，默认回退 response_model）",
+        description='标题生成模型 API 配置（可选，默认回退 model_map["default"]）',
     )
     summarizer_model: SummarizerModelConfig = Field(description="摘要生成模型 API 配置")
     embedding_model: EmbeddingModelConfig = Field(description="Embedding 模型 API 配置")
@@ -65,6 +68,12 @@ class Settings(BaseSettings):
         env_file=".env",
         env_nested_delimiter="__",  # 支持使用 __ 访问嵌套字段，如 DATABASE__HOST
     )
+
+    @model_validator(mode="after")
+    def validate_model_map(self) -> "Settings":
+        if "default" not in self.model_map:
+            raise ValueError('model_map 必须包含 "default" 键')
+        return self
 
     @classmethod
     def settings_customise_sources(

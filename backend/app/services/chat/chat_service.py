@@ -7,7 +7,7 @@ from app.agents import ChatSessionAgent, TitleGenerationAgent
 from app.core.config import settings
 from app.mcp.mcp_client import MCPClientManager
 from app.schemas.chat import ChatRequest
-from app.schemas.config import ChatContextConfig
+from app.schemas.config import ChatContextConfig, LLMConfig
 from app.schemas.user import MemoryListItem, MemorySearchItem
 from app.services.base_service.embedding_service import EmbeddingService
 from app.services.chat.chat_orchestrator import ChatOrchestrator
@@ -25,21 +25,22 @@ class ChatService:
     def __init__(
         self,
         think_mode: bool,
+        llm_config: LLMConfig,
         mcp_manager: MCPClientManager,
         chat_context_config: ChatContextConfig,
     ):
         self.chat_context_config = chat_context_config
         self.memory_config = self.chat_context_config.memory_config
         self.memory_service = MemoryService(self.memory_config)
-        token_calculator = TokenCalculator(settings.response_model.model_name)
+        token_calculator = TokenCalculator(llm_config.model_name)
 
         self.chat_session_agent = ChatSessionAgent(
             think_mode=think_mode,
-            llm_config=settings.response_model,
+            llm_config=llm_config,
             mcp_manager=mcp_manager,
             tool_context_limit_ratio=chat_context_config.tool_round_context_limit_ratio,
         )
-        title_llm_config = settings.title_model or settings.response_model
+        title_llm_config = settings.title_model or settings.model_map["default"]
         self.title_generation_agent = TitleGenerationAgent(
             think_mode=False, llm_config=title_llm_config
         )

@@ -45,12 +45,17 @@ const defaultFormValue: ChatInputConfig = {
   thinkMode: false,
   mcpAutoMode: true,
   sourceConfig: {},
+  modelID: "default",
 };
 
 // 创建 memoized selector 来避免不必要的重新渲染
 const selectMCPConfig = createSelector(
   [(state: RootState) => state.mcp.mcpConfig, (state: RootState) => state.mcp.mcpConfigLoaded],
   (mcpConfig, mcpConfigLoaded) => ({ mcpConfig, mcpConfigLoaded })
+);
+const selectModels = createSelector(
+  [(state: RootState) => state.models.models, (state: RootState) => state.models.loaded],
+  (models, modelsLoaded) => ({ models, modelsLoaded })
 );
 export const chatInputFormValuesStorageKey = "chat-input-form-values-v1";
 
@@ -59,6 +64,7 @@ export function useFormValuesChange(form: FormInstance<ChatInputFormValues>) {
     defaultValue: defaultFormValue,
   });
   const { mcpConfig, mcpConfigLoaded } = useAppSelector(selectMCPConfig);
+  const { models, modelsLoaded } = useAppSelector(selectModels);
 
   useEffect(() => {
     if (mcpConfigLoaded) {
@@ -81,6 +87,25 @@ export function useFormValuesChange(form: FormInstance<ChatInputFormValues>) {
       );
     }
   }, [mcpConfigLoaded, mcpConfig, setFormValues]);
+
+  useEffect(() => {
+    if (!modelsLoaded || isEmpty(models)) {
+      return;
+    }
+    const defaultModelID = "default";
+    setFormValues(pre => {
+      const rawPre = pre || defaultFormValue;
+      const currentModelID = rawPre.modelID;
+      const isValidModelID = Boolean(currentModelID && models.some(item => item.modelId === currentModelID));
+      if (isValidModelID) {
+        return rawPre;
+      }
+      return {
+        ...rawPre,
+        modelID: defaultModelID,
+      };
+    });
+  }, [modelsLoaded, models, setFormValues]);
 
   const onValuesChange = useMemoizedFn(
     (_changedFields: Partial<ChatInputFormValues>, allFields: ChatInputFormValues) => {
@@ -121,4 +146,10 @@ export function useMCPConfig() {
   }, [mcpConfigLoaded, mcpConfig, setCachedMcpConfig]);
 
   return cachedMcpConfig || defaultCachedMcpConfig;
+}
+
+export function useModelImageSupport(modelId: string | undefined): boolean {
+  const models = useAppSelector((state: RootState) => state.models.models);
+  const selectedModel = models.find(item => item.modelId === modelId);
+  return selectedModel?.imageSupport ?? true;
 }

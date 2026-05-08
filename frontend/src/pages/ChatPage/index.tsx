@@ -10,7 +10,7 @@ import ChatInput from "./components/ChatInput";
 import { ChatMessageList } from "./components/ChatMessage";
 import TopHeader from "./components/TopHeader";
 import { BlockPreviewProvider } from "./context/BlockPreviewContext";
-import { useBlockPreviewHandlers, useChatMessageHandlers } from "./hooks";
+import { useBlockPreviewHandlers, useChatMessageHandlers, useHasImageMessage } from "./hooks";
 import styles from "./index.module.css";
 
 const ChatPage: React.FC = () => {
@@ -24,7 +24,8 @@ const ChatPage: React.FC = () => {
   const { sendMessage, reSendMessage, abortMessage, deleteMessage, updateMessageFeedback } = useChatMessage({
     conversationId,
   });
-  const { isStreaming, isLoading } = useChatState(conversationId);
+  const { isStreaming, isLoading, messages } = useChatState(conversationId);
+  const hasImageMessage = useHasImageMessage(messages);
   const isSmallScreen = useIsSmallScreen();
   const [form] = Form.useForm<ChatInputFormValues>();
   const { previewBlock, previewPanelSize, handleOpenBlockPreview, handleCloseBlockPreview, handleSplitterResize } =
@@ -70,6 +71,7 @@ const ChatPage: React.FC = () => {
                     form={form}
                     onSend={sendMessage}
                     isStreaming={isStreaming}
+                    hasImageMessage={hasImageMessage}
                     onStop={handleAbortMessage}
                     className={styles["input-container"]}
                   />

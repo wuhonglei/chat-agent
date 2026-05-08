@@ -24,7 +24,6 @@ class ContextSummaryService(LLMService):
             api_key=cfg.api_key,
             api_base=cfg.api_base,
             model_name=cfg.model_name,
-            think_model_name=cfg.model_name,
         )
         super().__init__(llm_config, think_mode=False)
 

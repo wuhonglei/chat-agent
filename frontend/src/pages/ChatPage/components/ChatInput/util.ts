@@ -1,14 +1,22 @@
 import { isUserAttachmentBlock, type UserAttachmentBlock } from "@/interfaces/contentBlock";
 import { AttachmentsProps } from "@ant-design/x";
+import type { UploadFile } from "antd";
 import { GetProp } from "antd";
 import { ButtonState } from "./constant";
 
 export const MAX_CHAT_ATTACHMENTS = 5;
 export const MAX_CHAT_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 export const CHAT_ATTACHMENT_ACCEPT = "image/*,.pdf,application/pdf";
+export const CHAT_ATTACHMENT_ACCEPT_PDF_ONLY = ".pdf,application/pdf";
 
 const IMAGE_EXT_RE = /\.(jpe?g|png|gif|webp)$/i;
 const PDF_EXT_RE = /\.pdf$/i;
+
+export function isImageFile(file: Pick<File, "type" | "name">) {
+  const fileType = file.type.toLowerCase();
+  const fileName = file.name.toLowerCase();
+  return fileType.startsWith("image/") || IMAGE_EXT_RE.test(fileName);
+}
 
 export function getAttachmentBlocks(items: GetProp<AttachmentsProps, "items"> | undefined): UserAttachmentBlock[] {
   if (!items?.length) {
@@ -29,11 +37,10 @@ export function getAttachmentBlocks(items: GetProp<AttachmentsProps, "items"> | 
 
 export function isSupportedChatAttachment(file: File) {
   const fileType = file.type.toLowerCase();
-  const fileName = file.name.toLowerCase();
-  if (fileType.startsWith("image/") || IMAGE_EXT_RE.test(fileName)) {
+  if (isImageFile(file)) {
     return true;
   }
-  return fileType === "application/pdf" || PDF_EXT_RE.test(fileName);
+  return fileType === "application/pdf" || PDF_EXT_RE.test(file.name.toLowerCase());
 }
 
 export function getChatAttachmentValidationError(file: File, currentCount: number) {
@@ -51,4 +58,27 @@ export function getChatAttachmentValidationError(file: File, currentCount: numbe
 
 export function isStreamingState(buttonState: ButtonState) {
   return buttonState === ButtonState.Streaming;
+}
+
+function isImageUploadItem(item: UploadFile<UserAttachmentBlock>) {
+  if (item.type?.startsWith("image/")) {
+    return true;
+  }
+  if (item.name && IMAGE_EXT_RE.test(item.name.toLowerCase())) {
+    return true;
+  }
+  if (item.originFileObj && isImageFile(item.originFileObj)) {
+    return true;
+  }
+  if (item.response && typeof item.response === "object") {
+    return (item.response as UserAttachmentBlock).type === "image";
+  }
+  return false;
+}
+
+export function attachmentItemsHasImage(items: GetProp<AttachmentsProps, "items"> | undefined) {
+  if (!items?.length) {
+    return false;
+  }
+  return items.some(item => isImageUploadItem(item as UploadFile<UserAttachmentBlock>));
 }

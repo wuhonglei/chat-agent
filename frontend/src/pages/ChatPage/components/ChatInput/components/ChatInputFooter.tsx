@@ -5,9 +5,11 @@ import { useIsSmallScreen } from "@/hooks";
 import { ChatInputConfig } from "@/interfaces";
 import { ArrowUpOutlined, PaperClipOutlined } from "@ant-design/icons";
 import { Button, Divider, Form, Tooltip } from "antd";
+import { SizeType } from "antd/es/config-provider/SizeContext";
 import React from "react";
 import { ButtonState, names } from "../constant";
 import { isStreamingState } from "../util";
+import ModelSelect from "./ModelSelect";
 import ToolsSetting from "./ToolsSetting";
 import { CHAT_ATTACHMENT_TOOLTIP, isButtonDisabled } from "./utils";
 
@@ -16,6 +18,7 @@ export interface ChatInputFooterProps {
   values: ChatInputConfig;
   buttonState: ButtonState;
   onPrimaryClick: () => void;
+  hasImageContext: boolean;
 }
 
 const ChatInputFooter: React.FC<ChatInputFooterProps> = ({
@@ -23,8 +26,11 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = ({
   values,
   buttonState,
   onPrimaryClick,
+  hasImageContext,
 }) => {
   const isSmallScreen = useIsSmallScreen();
+  const size = (isSmallScreen ? "small" : "middle") as SizeType;
+
   return (
     <div className="flex items-center gap-2 justify-between">
       <div className="flex items-center gap-2">
@@ -47,18 +53,19 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = ({
         <Form.Item trigger="onClick" initialValue={false} valuePropName="active" name={names.thinkMode}>
           <CustomButton
             bordered={false}
-            size="middle"
+            size={size}
             icon={<ThinkModeIcon />}
             tooltip={isSmallScreen ? undefined : "先思考后回答, 解决推理问题"}
           >
-            深度思考
+            {isSmallScreen ? "" : "深度思考"}
           </CustomButton>
         </Form.Item>
-        <ToolsSetting values={values} />
+        <ToolsSetting values={values} size={size} />
       </div>
       <div className="flex items-center gap-2">
+        <ModelSelect size={size} hasImageContext={hasImageContext} />
         <Button
-          size="middle"
+          size={size}
           shape="round"
           type="primary"
           onClick={onPrimaryClick}

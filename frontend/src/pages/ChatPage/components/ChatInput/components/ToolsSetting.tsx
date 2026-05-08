@@ -1,23 +1,27 @@
 import CustomButton from "@/components/common/CustomButton";
+import { useIsSmallScreen } from "@/hooks";
 import { ChatInputConfig } from "@/interfaces";
 import { ToolOutlined } from "@ant-design/icons";
 import { useMemoizedFn } from "ahooks";
 import { Avatar, Form, Popover, Switch } from "antd";
+import { SizeType } from "antd/es/config-provider/SizeContext";
 import classNames from "classnames";
 import React, { useMemo, useRef, useState } from "react";
 import { names } from "../constant";
 import { useMCPConfig } from "../hooks";
 
 interface ToolsSettingProps {
+  size: SizeType;
   values: ChatInputConfig;
 }
 
-const ToolsSetting: React.FC<ToolsSettingProps> = ({ values }) => {
+const ToolsSetting: React.FC<ToolsSettingProps> = ({ values, size }) => {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLDivElement>(null);
   const mcpAutoMode = Boolean(values.mcpAutoMode);
   const sourceConfig = values.sourceConfig;
   const mcpConfig = useMCPConfig();
+  const isSmallScreen = useIsSmallScreen();
   const icons = useMemo(
     () => mcpConfig.filter(item => sourceConfig?.[item.id]).map(item => item.icon),
     [sourceConfig, mcpConfig]
@@ -76,10 +80,10 @@ const ToolsSetting: React.FC<ToolsSettingProps> = ({ values }) => {
         </>
       }
     >
-      <CustomButton bordered={false} ref={buttonRef} size="middle" className="gap-px" active>
+      <CustomButton bordered={false} ref={buttonRef} size={size} className="gap-px" active>
         <ToolOutlined className="text-base mr-1" />
         {mcpAutoMode ? (
-          <>智能选择</>
+          <>{isSmallScreen ? "" : "智能选择"}</>
         ) : (
           <Avatar.Group>
             {icons.map(icon => (

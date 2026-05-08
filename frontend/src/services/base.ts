@@ -16,7 +16,7 @@ import {
   toChatPage,
 } from "@/utils";
 import camelcaseKeys from "camelcase-keys";
-import { isPlainObject, isString, pick } from "lodash-es";
+import { isObject, isPlainObject, isString, pick } from "lodash-es";
 import snakecaseKeys from "snakecase-keys";
 import { getMessageInstance } from "../utils/message";
 
@@ -108,7 +108,7 @@ apiClient.interceptors.response.use(
 
     let data = responseData;
     // Convert response data to camelCase
-    if (isPlainObject(data) && !(data instanceof Blob)) {
+    if (isObject(data) && !(data instanceof Blob)) {
       data = camelcaseKeys(data, { deep: true });
     }
     return data;
@@ -130,7 +130,7 @@ apiClient.interceptors.response.use(
       });
 
       // Convert error response to camelCase
-      if (isPlainObject(error.response.data)) {
+      if (isObject(error.response.data)) {
         error.response.data = camelcaseKeys(error.response.data, {
           deep: true,
         });

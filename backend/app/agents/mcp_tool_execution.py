@@ -29,12 +29,13 @@ class MCPToolSession:
         self,
         mcp_manager: MCPClientManager,
         user_message: str,
+        model_name: str,
         tool_round_messages: list[ToolMessage],
     ):
         self.mcp_manager = mcp_manager
         self.tool_round_messages = tool_round_messages
         self.policy = ToolCallPolicy(tool_round_messages)
-        self.executor = ToolExecutor(mcp_manager, user_message)
+        self.executor = ToolExecutor(mcp_manager, user_message, model_name)
 
     def reset_for_request(self, user_message: str) -> None:
         self.policy.reset_for_request()

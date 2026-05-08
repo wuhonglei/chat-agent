@@ -4,6 +4,7 @@ import { AxiosResponse } from "axios";
 import { authHeader } from "@/constants";
 import {
   ChatMessage,
+  ChatModelItem,
   ChatRequest,
   MCPConfigItem,
   MessageFeedback,
@@ -89,6 +90,10 @@ export const chatAPI = {
 
   updateMessageFeedback: async (messageId: string, value: MessageFeedbackValue): Promise<MessageFeedback> => {
     return await apiClient.put(`/message/feedback/${messageId}`, { value });
+  },
+
+  getChatModels: async (): Promise<ChatModelItem[]> => {
+    return await apiClient.get("/chat/models");
   },
 
   // Stream message

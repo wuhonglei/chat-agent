@@ -5,6 +5,7 @@ export const names = {
   thinkMode: ["thinkMode"] as NamePath,
   mcpAutoMode: ["mcpAutoMode"] as NamePath,
   sourceConfig: ["sourceConfig"] as NamePath,
+  modelId: ["modelID"] as NamePath,
 };
 
 export enum ButtonState {
