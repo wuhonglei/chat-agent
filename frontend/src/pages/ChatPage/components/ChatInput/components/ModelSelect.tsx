@@ -35,6 +35,7 @@ const ModelSelect: React.FC<Props> = ({ size, hasImageContext }) => {
           popup: { root: { width: 274 } },
           content: { fontSize: 12, color: "var(--color-black-secondary)" },
         }}
+        getPopupContainer={() => document.body}
         optionRender={option => {
           const data = option.data as ModelOption;
           return (

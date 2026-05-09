@@ -48,7 +48,15 @@ const ChatPage: React.FC = () => {
   return (
     <section className="h-full min-h-0">
       <BlockPreviewProvider value={blockPreviewContextValue}>
-        <Splitter style={{ height: "100%", width: "100%" }} onResize={handleSplitterResize}>
+        <Splitter
+          onResize={handleSplitterResize}
+          styles={{
+            root: { height: "100%", width: "100%" },
+          }}
+          classNames={{
+            root: styles["splitter"],
+          }}
+        >
           <Splitter.Panel>
             <section className="h-full min-h-0 flex flex-col">
               <TopHeader conversationInfo={conversationInfo} />
