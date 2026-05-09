@@ -15,3 +15,8 @@
     margin-right: var(--horizontal-offset);
   }
 }
+
+/* 隐藏默认状态下的滚动条（移动端下会出现横向和垂直滚动条） */
+.splitter div:global(.ant-splitter-bar[aria-valuenow="100"]) {
+  overflow: hidden;
+}
