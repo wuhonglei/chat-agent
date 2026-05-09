@@ -3,6 +3,7 @@ import { downloadHtmlContent } from "@/utils";
 import { CloseOutlined, DownloadOutlined } from "@ant-design/icons";
 import { Button, Tooltip, Typography } from "antd";
 import React from "react";
+import { useHtmlPreviewUrl } from "./hooks";
 
 export interface HtmlBlockPreviewPanelProps {
   width: number;
@@ -11,6 +12,8 @@ export interface HtmlBlockPreviewPanelProps {
 }
 
 const HtmlBlockPreviewPanel: React.FC<HtmlBlockPreviewPanelProps> = ({ block, onClose }) => {
+  const previewUrl = useHtmlPreviewUrl(block.content);
+
   const handleDownloadHtml = () => {
     downloadHtmlContent(block.content);
   };
@@ -34,7 +37,8 @@ const HtmlBlockPreviewPanel: React.FC<HtmlBlockPreviewPanelProps> = ({ block, on
       <div className="flex min-h-0 flex-1 flex-col">
         <iframe
           title="HTML 预览"
-          srcDoc={block.content}
+          src={previewUrl}
+          sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-downloads"
           className="h-full min-h-[280px] w-full flex-1 rounded border border-(--ant-color-border-secondary) bg-white"
         />
       </div>
