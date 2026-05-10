@@ -100,6 +100,7 @@ interface UseAutoResumeParams {
   abortControllerRef: RefObject<AbortController | null>;
   autoResumeAttemptedRef: RefObject<string | null>;
   handleStreamPayload: (
+    conversationId: string,
     payload: StreamMessage,
     mode: "initial" | "resume",
     onDone?: (data: Extract<StreamMessage, { type: "done" }>["data"]) => void,
@@ -168,6 +169,7 @@ const useAutoResume = ({
           },
           (payload: StreamMessage) => {
             handleStreamPayload(
+              conversationId,
               payload,
               "resume",
               () => {
@@ -506,6 +508,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
       dispatch(setLoading({ conversationId, data: true }));
 
       try {
+        const streamConversationId = conversationId;
         const abortController = new AbortController();
         abortControllerRef.current = abortController;
         const historyIds = getHistoryMessageIds(historyLimit, messages, index);
@@ -542,7 +545,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
 
         const handleInitialStreamMessage = (data: StreamMessage): void => {
           handleStreamPayload(
-            conversationId,
+            streamConversationId,
             data,
             "initial",
             doneData => {
@@ -557,7 +560,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
         };
         const handleResumeStreamMessage = (data: StreamMessage): void => {
           handleStreamPayload(
-            conversationId,
+            streamConversationId,
             data,
             "resume",
             doneData => {
