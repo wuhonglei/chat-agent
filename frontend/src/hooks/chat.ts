@@ -346,6 +346,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
 
   const handleStreamPayload = useMemoizedFn(
     (
+      conversationId: string,
       payload: StreamMessage,
       mode: "initial" | "resume",
       onDone?: (data: Extract<StreamMessage, { type: "done" }>["data"]) => void,
@@ -541,6 +542,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
 
         const handleInitialStreamMessage = (data: StreamMessage): void => {
           handleStreamPayload(
+            conversationId,
             data,
             "initial",
             doneData => {
@@ -555,6 +557,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
         };
         const handleResumeStreamMessage = (data: StreamMessage): void => {
           handleStreamPayload(
+            conversationId,
             data,
             "resume",
             doneData => {
