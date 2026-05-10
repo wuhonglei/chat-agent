@@ -1,6 +1,6 @@
 # AI 助手会话交互说明（当前实现）
 
-本文档描述前端会话相关的路由、状态与接口对接，按当前 `frontend/src` 与后端 `/api/conversation/*`、`/api/chat/stream` 实现整理。
+本文档描述前端会话相关的路由、状态与接口对接，按当前 `frontend/src` 与后端 `/api/conversation/*`、`/api/chat/*` 实现整理。
 
 ## 1. 路由
 
@@ -26,7 +26,10 @@
 
 - 会话消息：`GET /api/conversation/{conversationId}/messages`
 - 删除消息：`DELETE /api/message/delete/{messageId}`
+- 更新助手消息反馈：`PUT /api/message/feedback/{messageId}`
 - 流式聊天：`POST /api/chat/stream`（SSE）
+- 断线续流：`POST /api/chat/stream/resume`（SSE）
+- 模型列表：`GET /api/chat/models`
 
 ## 3. SSE 协议与前端处理
 
@@ -35,7 +38,7 @@
 后端使用 `data:` 行返回 JSON（不使用 `event:` 行）：
 
 ```text
-data: {"type":"ack","data":{...}}
+data: {"type":"ack","data":{...},"seq":1}
 ```
 
 前端在 `src/services/chat.ts` 中对 `event.data` 做两步处理：
@@ -43,29 +46,35 @@ data: {"type":"ack","data":{...}}
 1. `JSON.parse(event.data)`
 2. `camelcaseKeys(..., { deep: true })`
 
-因此后端蛇形字段（例如 `updated_at`）会变为前端驼峰字段（`updatedAt`）。
+因此后端蛇形字段（例如 `updated_at`、`last_seq`）会变为前端驼峰字段（`updatedAt`、`lastSeq`）。`seq` 由后端 `StreamRelay` 注入，用于续流时记录最后已消费事件。
 
 ### 3.2 事件类型（按典型时序）
 
-`src/hooks/chat.ts` 中注册的事件处理器如下：
+`src/hooks/chat.ts` 中按 `type` 分发的事件如下：
 
 1. `ack`
 2. `refresh_conversation`
 3. `title`（可选）
-4. `mcp_tool_call`（0~N 条，最后可能出现 `{ status: "done" }`）
-5. `reasoning`（`status: start | continue | done`）
-6. `content`（`status: start | continue | done`）
-7. `done`
-8. `error`
+4. `content_block`
+5. `done`
+6. `error`
 
-> 注意：现网工具事件名是 `mcp_tool_call`，不是 `tool_call`。
+`content_block.data.op` 承载正文、思考与工具过程，支持：
+
+- `append`
+- `delta`
+- `tool_delta`
+- `finalize_round`
+- `done`
+
+历史文档中的 `mcp_tool_call`、`reasoning`、`content` 顶层事件已不是现网协议。
 
 ### 3.3 关键约束与坑点
 
 - 前端通过 `type` 分发消息，不依赖 SSE `event` 字段。
-- `reasoning/content` 都是分段流，`status=done` 代表该阶段结束，不代表整次请求结束。
-- `done` 才表示本次消息流完成，随后前端会更新消息状态并重置流状态。
-- 后端 `done.data` 当前返回 `updated_at`；经 `camelcaseKeys` 后为 `updatedAt`。前端若读取 `lastMessageUpdatedAt`，需做兼容处理。
+- `content_block` 的 `op=done` 只表示内容块流结束；顶层 `done` 才表示本次消息流完成。
+- 前端会记录最近消费的 `seq`；页面恢复时若最后一条助手消息仍是 `pending`，会尝试 `POST /api/chat/stream/resume`。
+- 续流只对后端进程内仍活动的流有效；生成完成、进程重启或缓冲被移除后，续流接口返回空 SSE。
 
 ## 4. 典型交互流程
 
@@ -83,11 +92,14 @@ sequenceDiagram
 
     U->>FE: 发送消息
     FE->>API: POST /api/chat/stream
-    API-->>FE: SSE ack + refresh_conversation + mcp_tool_call/reasoning/content + done
+    API-->>FE: SSE ack + refresh_conversation + content_block + done
 
     U->>FE: 打开历史会话
     FE->>API: GET /api/conversation/{conversationId}/messages
     API-->>FE: 返回消息列表
+
+    FE->>API: POST /api/chat/stream/resume（如最后助手消息仍 pending）
+    API-->>FE: 返回 seq 之后的活动流事件，或空 SSE
 ```
 
 ## 5. 鉴权与错误处理
@@ -99,5 +111,6 @@ sequenceDiagram
 ## 6. 与旧文档差异
 
 - 当前实现不使用 `/conversations` 风格路径，统一为 `/api/conversation/*`；
+- 当前实现不再使用 `mcp_tool_call` / `reasoning` / `content` 顶层 SSE 事件，统一使用 `content_block`；
 - 当前文档不再将 ChromaDB、Redis 作为前端会话能力依赖；
 - 当前推荐的开发命令统一使用 `vp`（例如 `vp dev`、`vp build`）。

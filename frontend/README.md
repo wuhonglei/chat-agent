@@ -50,7 +50,7 @@ frontend/
 
 前端通过 `apiClient` 统一访问 `/api` 前缀接口（`src/services/base.ts`）：
 
-- 聊天：`POST /api/chat/stream`
+- 聊天：`POST /api/chat/stream`、`POST /api/chat/stream/resume`、`GET /api/chat/models`
 - 会话：`/api/conversation/*`
 - 用户：`/api/user/*`
 - 认证：`/api/auth/*`
@@ -85,7 +85,7 @@ frontend/
 - PDF：
   - 小屏设备点击后直接下载
   - 非小屏优先在右侧 `BlockPreviewPanel` 打开 PDF 预览
-- HTML：在代码块头部点击“预览”后，使用侧栏 iframe 预览（`sandbox`）
+- HTML：在代码块头部点击“预览”后，使用侧栏 iframe 的 `srcDoc` 预览；当前 iframe 未设置 `sandbox`
 
 相关实现：
 
@@ -112,7 +112,19 @@ frontend/
 - `finalize_round`
 - `done`
 
+服务端会在 SSE JSON envelope 中注入 `seq`。前端在流式处理中记录最近消费的 `seq`，页面恢复时可调用 `POST /api/chat/stream/resume` 继续读取仍处于活动状态的助手消息流。
+
 前端事件类型定义见 `src/interfaces/apiRequest.ts`，流式处理入口见 `src/services/chat.ts` 与 `src/hooks/chat.ts`。
+
+## 模型选择与图片输入
+
+模型下拉列表由 `GET /api/chat/models` 返回，字段包括：
+
+- `modelId`：聊天请求中的模型 ID
+- `title` / `description`：下拉展示文案
+- `imageSupport`：是否允许图片输入
+
+当当前消息含图片上下文时，`ModelSelect` 会禁用 `imageSupport=false` 的模型；发送时后端也会再次校验。
 
 ## 开发指南
 

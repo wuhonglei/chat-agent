@@ -35,27 +35,39 @@
 - `id`
 - `conversation_id`
 - `role`
-- `content`
+- `content_blocks`
 - `created_at`
 - `updated_at`
-- `reasoning`
-- `tool_calls`
 - `message_metadata`
 - `status`
 - `reply_to`
+- `feedback`
 
 说明：
 
+- `content_blocks` 是消息主体 JSON，替代历史独立的 `content`、`reasoning`、`tool_calls` 列。
 - `message_metadata` 与 `reply_to` 仍在模型中保留，属于现网字段，不应按“已废弃”处理。
+- `feedback` 用于助手消息反馈，默认结构为 `{ "value": "default", "updated_at": null }`；用户消息创建时可为 `NULL`。
 
-## 4. 部署与排障核验清单
+`feedback` 对应迁移文件：
 
-### 4.1 发布前核验
+- `backend/alembic/versions/u1v2w3x4y5z6_add_feedback_to_messages.py`
+- `backend/alembic/versions/v2w3x4y5z6a7_messages_feedback_nullable.py`
+
+## 4. 消息写入与更新约束
+
+- 用户消息创建时状态为 `done`，`content_blocks` 来自请求体中的 `UserContentBlock[]`。
+- 助手占位消息创建时状态为 `pending`，`reply_to` 指向用户消息 ID，最终生成完成后更新为 `done` 并写入完整 `content_blocks`。
+- 仅助手消息支持 `PUT /api/message/feedback/{message_id}` 更新反馈；非助手消息会返回 `400`。
+
+## 5. 部署与排障核验清单
+
+### 5.1 发布前核验
 
 1. 确认目标环境已执行到最新 Alembic 版本（`alembic current`）。
 2. 确认应用代码与数据库版本同步（避免“代码已删字段，库未迁移”）。
 
-### 4.2 发布后核验
+### 5.2 发布后核验
 
 重点观察：
 
@@ -63,7 +75,7 @@
 - `messages` 写入失败率
 - 是否出现列不存在错误（如 `column ... does not exist`）
 
-### 4.3 数据库结构抽样检查（PostgreSQL）
+### 5.3 数据库结构抽样检查（PostgreSQL）
 
 ```sql
 SELECT column_name
@@ -74,7 +86,7 @@ ORDER BY ordinal_position;
 
 如果结果中仍出现已下线字段，请先补齐迁移再排查业务问题。
 
-## 5. 约束与后续维护
+## 6. 约束与后续维护
 
 - 本文档仅记录已生效状态，不再作为“下一步删字段方案”。
 - 若后续继续精简字段，需新增独立变更记录，并同步更新本页“已完成字段下线”章节。

@@ -4,7 +4,7 @@
 
 ## 功能概览
 
-- 流式对话：SSE 实时返回推理过程和回复内容
+- 流式对话：SSE 实时返回推理过程和回复内容，支持活动流断线续传
 - 会话管理：创建、分页查询、编辑、删除、加载历史消息
 - 用户认证：短信登录、微信登录、JWT 鉴权
 - MCP 工具：Context7、天气、联网搜索、代码执行、时间、IP 定位
@@ -103,12 +103,13 @@ vp dev
 
 ## 核心接口（当前实现）
 
-- 聊天：`POST /api/chat/stream`
+- 聊天：`POST /api/chat/stream`、`POST /api/chat/stream/resume`、`GET /api/chat/models`
 - 会话：`/api/conversation/*`
 - 认证：`/api/auth/*`
 - 用户：`/api/user/*`
-- 消息：`DELETE /api/message/delete/{message_id}`
+- 消息：`DELETE /api/message/delete/{message_id}`、`PUT /api/message/feedback/{message_id}`
 - 文件：`POST /api/file/upload_avatar`
+- 代码执行：`POST /api/code/execute`
 - 健康检查：`/api/health`、`/api/health/mcp`、`/api/health/mcp_config`
 
 ## 目录结构
@@ -118,6 +119,7 @@ vp dev
 ├── backend/                 # FastAPI 服务
 ├── frontend/                # React + Vite+ 应用
 ├── docs/                    # 业务与架构文档
+├── webhooks/                # GitHub tag 触发部署的 Webhook 服务
 ├── docker-compose.yml
 ├── docker-compose.env.example
 └── deploy.sh

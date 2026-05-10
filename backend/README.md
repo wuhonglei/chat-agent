@@ -5,6 +5,8 @@
 ## 当前能力
 
 - 聊天流式接口：`POST /api/chat/stream`
+- 聊天续流接口：`POST /api/chat/stream/resume`
+- 聊天模型列表：`GET /api/chat/models`
 - 会话管理：创建 / 列表 / 详情 / 更新 / 删除
 - 用户认证：短信登录、微信登录、JWT 鉴权
 - MCP 工具：Context7、天气、联网搜索、代码执行、时间、IP 定位
@@ -97,12 +99,13 @@ make test
 ## API 路由（当前实现）
 
 - 认证：`/api/auth/*`
-- 聊天：`/api/chat/*`
+- 聊天：`/api/chat/stream`、`/api/chat/stream/resume`、`/api/chat/models`
 - 会话：`/api/conversation/*`
-- 消息：`/api/message/*`
+- 消息：`/api/message/delete/{message_id}`、`/api/message/feedback/{message_id}`
 - 用户：`/api/user/*`
 - 文件：`/api/file/*`
 - 健康：`/api/health/*`
+- 代码执行：`/api/code/*`
 
 ## 聊天附件链路（近期高频）
 
@@ -122,7 +125,7 @@ make test
 - 单文件大小上限：`10MB`
 - 图片：`JPEG / PNG / GIF / WebP`
 - PDF：`application/pdf`
-- 图片会在服务端按最长边 `1024px` 等比缩放（超限时），并重新编码后落盘
+- 图片会在服务端按最长边 `2048px` 等比缩放（超限时），并重新编码后落盘
 - PDF 会先校验文件头（`%PDF-`），再执行 PDF -> Markdown 转换
 
 ### 3) PDF -> Markdown 转换策略
@@ -199,7 +202,16 @@ curl -X POST "http://localhost:8000/api/code/execute" \
 SSE 数据格式统一为：
 
 ```text
-data: {"type":"<event_type>","data":{...}}
+data: {"type":"<event_type>","data":{...},"seq":1}
+```
+
+`seq` 由服务端内存中的 `StreamRelay` 注入，用于 `POST /api/chat/stream/resume` 断线续流。续流请求体为：
+
+```json
+{
+  "assistant_message_id": "assistant-message-id",
+  "last_seq": 12
+}
 ```
 
 当前事件类型：
@@ -210,6 +222,18 @@ data: {"type":"<event_type>","data":{...}}
 - `content_block`：内容块流式增量（`append` / `delta` / `tool_delta` / `finalize_round` / `done`）
 - `done`：本轮结束（包含内容长度、推理长度、工具调用次数、更新时间）
 - `error`：本轮失败
+
+续流缓冲仅在当前进程和活动流生命周期内有效；生成完成或进程重启后，续流接口会返回空 SSE。
+
+## 模型列表与图片输入约束
+
+前端模型选择来自 `GET /api/chat/models`，该接口从 `settings.model_map` 返回经过脱敏的模型信息：
+
+- `model_id`：`model_map` 配置键，聊天请求中的 `model_id` 使用该值
+- `title` / `description`：前端展示文案
+- `image_support`：是否支持图片输入
+
+`model_map` 必须包含 `default`。当聊天请求携带图片块且所选模型 `image_support=false` 时，`POST /api/chat/stream` 会返回 `400 当前模型不支持图片输入`。
 
 ## Docker 运行
 

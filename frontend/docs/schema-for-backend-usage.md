@@ -6,20 +6,23 @@
 
 前端发送给 `POST /api/chat/stream` 的核心字段来自 `ChatRequest`（`src/interfaces/chat.ts`）：
 
-- `content`
+- `contentBlocks`
 - `conversationId`
 - `historyIds`
 - `removedMessageIds`
 - `regenerateTitle`
 - `thinkMode`
 - `mcpAutoMode`
+- `modelID`
 - `sourceConfig`
 
 请求发出前会在 `src/services/chat.ts` 中通过 `snakecaseKeys` 转为后端蛇形字段，例如：
 
+- `contentBlocks` -> `content_blocks`
 - `conversationId` -> `conversation_id`
 - `historyIds` -> `history_ids`
 - `removedMessageIds` -> `removed_message_ids`
+- `modelID` -> `model_id`
 
 ## 2. 为什么这里不再记录组件 schema 传输
 
@@ -34,13 +37,20 @@
 
 ```json
 {
-  "content": "帮我总结今天的 AI 新闻",
+  "contentBlocks": [
+    {
+      "id": "cb_user_text_1",
+      "type": "text",
+      "text": "帮我总结今天的 AI 新闻"
+    }
+  ],
   "conversationId": "c123",
   "historyIds": ["m1", "m2"],
   "removedMessageIds": [],
   "regenerateTitle": false,
   "thinkMode": true,
   "mcpAutoMode": true,
+  "modelID": "default",
   "sourceConfig": {
     "web_search": true
   }

@@ -14,14 +14,14 @@
 
 - `requirements.md`：当前版本需求范围与功能边界
 - `认证流程.md`：短信/微信登录与 JWT 鉴权流程
-- `会话管理.md`：会话与消息的接口和数据流
-- `conversation-management-requirements.md`：会话管理需求（按现网接口整理）
+- `会话管理.md`：会话、消息、聊天 SSE 与断线续流协议
 - `图表可视化展示.md`：图表渲染相关说明
 - `nginx-cache-analysis.md`：Nginx 缓存分析
+- `messages表字段精简计划.md`：消息表现网字段、已下线字段与排障核验
 
 ### 规划方案
 
-- `messages表字段精简计划.md`：消息表字段优化计划
+- `conversation-management-requirements.md`：会话管理需求（现网实现 + 规划项混合）
 
 ## 后端文档（`/backend/docs`）
 
@@ -37,7 +37,6 @@
 
 ### 规划方案
 
-- `RETRIEVAL_PRD.md`：检索能力 PRD
 - `目录结构优化建议.md`：目录结构优化建议
 
 ### 历史文档
@@ -52,13 +51,14 @@
 ### 现网实现
 
 - `conversation.md`：会话路由、状态和接口说明（对齐 `/api/conversation/*`）
-- `component-tools-implementation.md`：组件工具前端实现
-- `schema-generation.md` / `schema-for-backend-usage.md`：组件 schema 生成与后端使用
+- `schema-for-backend-usage.md`：前端聊天请求体字段与后端消费说明
 - `conversion_cache.md`、`scroll-properties-explanation.md`、`aegis-埋点分析.md`
 - `/frontend/README.md`：补充 Chat 内容块/附件约束、预览行为、SSE 事件约定
 
 ### 历史文档
 
+- `component-tools-implementation.md`：组件工具旧链路历史归档
+- `schema-generation.md`：旧 schema 脚本生成方式说明
 - `vite-preview-cjs-esm-interop-memory.md`：历史排障记录（命令已按 Vite+ 更新）
 - `知识点.md`、`项目依赖与Cursor-Agent-Skills分析.md`：知识沉淀/分析类文档
 
