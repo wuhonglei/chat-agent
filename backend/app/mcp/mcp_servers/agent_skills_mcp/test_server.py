@@ -107,6 +107,55 @@ async def test_list_project_files_supports_skills_scope() -> None:
     assert "frontend-project-templates" in names
 
 
+@pytest.mark.asyncio
+async def test_list_project_files_depth_controls_recursion() -> None:
+    user_id = _new_id("user")
+    workspace_id = _new_id("conv")
+    try:
+        await write_workspace_file(
+            user_id=user_id,
+            workspace_id=workspace_id,
+            path="project/README.md",
+            content="root-readme",
+        )
+        await write_workspace_file(
+            user_id=user_id,
+            workspace_id=workspace_id,
+            path="project/src/main.py",
+            content="print('hello')",
+        )
+
+        depth1_result = await list_project_files(
+            user_id=user_id,
+            workspace_id=workspace_id,
+            scope="workspace",
+            path="project",
+            depth=1,
+        )
+        depth1_items = (depth1_result.structured_content or {}).get("items", [])
+        depth1_paths = {
+            item.get("path") for item in depth1_items if isinstance(item, dict)
+        }
+        assert "src" in depth1_paths
+        assert "src/main.py" not in depth1_paths
+
+        depth2_result = await list_project_files(
+            user_id=user_id,
+            workspace_id=workspace_id,
+            scope="workspace",
+            path="project",
+            depth=2,
+        )
+        depth2_items = (depth2_result.structured_content or {}).get("items", [])
+        depth2_paths = {
+            item.get("path") for item in depth2_items if isinstance(item, dict)
+        }
+        assert "src/main.py" in depth2_paths
+    finally:
+        await clear_workspace(user_id=user_id, workspace_id=workspace_id)
+        shutil.rmtree(get_workspace_root(user_id, workspace_id), ignore_errors=True)
+
+
 def test_resolve_skills_path_still_blocks_path_escape() -> None:
     with pytest.raises(ValueError, match="forbidden path"):
         resolve_skills_path("../outside.txt")

@@ -82,12 +82,21 @@ async def list_project_files(
     user_id: str = Field(description="当前用户ID"),
     workspace_id: str = Field(description="当前工作区ID（会话ID）"),
     path: str = Field(default="", description="相对 scope 根目录路径"),
+    depth: int = Field(
+        default=1,
+        ge=1,
+        le=5,
+        description="目录递归深度，1 表示仅当前目录下一级内容",
+    ),
     scope: Literal["workspace", "skills"] = Field(
         default="workspace",
         description="根目录范围：workspace(会话工作区) 或 skills(技能目录)",
     ),
 ) -> ToolResult:
     """列出 scope 根目录下指定目录的文件与子目录信息。"""
+    if depth < 1 or depth > 5:
+        raise ValueError("depth must be between 1 and 5")
+
     root, target = _resolve_readonly_root(
         user_id=user_id,
         workspace_id=workspace_id,
@@ -100,24 +109,35 @@ async def list_project_files(
         raise ValueError("path is not a directory")
 
     items: list[dict[str, str | int]] = []
-    for child in sorted(target.iterdir(), key=lambda item: item.name.lower()):
-        items.append(
-            {
-                "name": child.name,
-                "type": "dir" if child.is_dir() else "file",
-                "size": child.stat().st_size if child.is_file() else 0,
-            }
-        )
+
+    def collect_items(current: Path, current_depth: int) -> None:
+        for child in sorted(current.iterdir(), key=lambda item: item.name.lower()):
+            is_dir = child.is_dir()
+            items.append(
+                {
+                    "name": child.name,
+                    "type": "dir" if is_dir else "file",
+                    "size": child.stat().st_size if child.is_file() else 0,
+                    "path": child.relative_to(target).as_posix(),
+                    "depth": current_depth,
+                }
+            )
+            if is_dir and current_depth < depth:
+                collect_items(child, current_depth + 1)
+
+    collect_items(target, 1)
     logger.info(
         "Workspace listed",
         user_id=user_id,
         workspace_id=workspace_id,
         scope=scope,
         path=str(target),
+        depth=depth,
         items_count=len(items),
     )
     usage = format_usage(root) if scope == "workspace" else f"root={root}"
     listing_lines = [
+        f"{'  ' * (int(item['depth']) - 1)}"
         f"{'d' if item['type'] == 'dir' else '-'} "
         f"{(str(item['size']) if item['type'] == 'file' else '-'):>10} "
         f"{item['name']}{'/' if item['type'] == 'dir' else ''}"
@@ -126,7 +146,12 @@ async def list_project_files(
     listing = "\n".join(listing_lines) if listing_lines else "(empty)"
     return ToolResult(
         content=f"{target}\n{listing}",
-        structured_content={"items": items, "usage": usage, "scope": scope},
+        structured_content={
+            "items": items,
+            "usage": usage,
+            "scope": scope,
+            "depth": depth,
+        },
     )
 
 
