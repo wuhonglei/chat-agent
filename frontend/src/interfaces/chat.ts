@@ -64,6 +64,7 @@ export interface RetrieverSource {
 
 export interface ChatInputConfig {
   thinkMode: boolean;
+  websiteBuildMode: boolean;
   mcpAutoMode: boolean;
   sourceConfig: RetrieverSource;
   modelID: string;

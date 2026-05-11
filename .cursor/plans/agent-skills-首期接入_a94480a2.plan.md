@@ -4,19 +4,19 @@ overview: 在聊天主链路中引入按需加载的 Agent Skills（目录发现
 todos:
   - id: schema-and-frontend-flag
     content: 新增 websiteBuildMode 字段并打通前后端请求透传
-    status: pending
+    status: completed
   - id: skill-registry-and-docs
     content: 实现 skill 目录发现与按需 load_skill，并补齐前后端代码生成 SKILL.md
-    status: pending
+    status: completed
   - id: agent-skills-mcp
     content: 实现 agent-skills-mcp（load_skill + 沙箱文件工具）并注册到 MCPRegistry
-    status: pending
+    status: completed
   - id: chat-session-integration
     content: 在 ChatSessionAgent/prompt 中按网站构建开关注入技能目录与工具
-    status: pending
+    status: completed
   - id: tests-and-validation
     content: 补充后端单测与前端行为校验，完成联调验收
-    status: pending
+    status: completed
 isProject: false
 ---
 
@@ -26,6 +26,17 @@ isProject: false
 - 对齐你确认的方向：采用 `s05` 模式（先注入 skills 目录，再按需 `load_skill`）；新增前端“网站构建”开关。
 - 首期仅覆盖“前后端代码生成”场景，不扩展到通用任务编排。
 - 文件工具限定为沙箱目录（不直接操作业务仓库）。
+
+## 最终实施版 v2 清单（已确认）
+- `websiteBuildMode` 默认值：`false`（默认关闭，仅在显式开启时生效）。
+- 沙箱隔离粒度：`per_user`（同一用户跨会话共享沙箱目录）。
+- 沙箱目录路径：`backend/data/user_data/<user_id>/workspace/`。
+- 并发写冲突策略：`last_write_wins`（不加锁，后写覆盖先写）。
+- 沙箱生命周期：`manual_only`（不做自动 TTL 清理）。
+- 资源配额：限制“用户沙箱总大小 + 文件数”，超限拒绝写入。
+- 文件类型：`allow_any`（允许任意扩展名）。
+- Skill 白名单：仅允许 `frontend-codegen`、`backend-codegen` 被 `load_skill` 加载。
+- 工具选择协同：`websiteBuildMode=true` 时强制追加 `agent-skills-mcp`，不受 `mcpAutoMode/sourceConfig` 影响。
 
 ## 后端改造
 - 在请求模型中增加网站构建开关字段，贯通到会话执行链路：
@@ -37,7 +48,7 @@ isProject: false
   - 首期 skills 文档：`frontend-codegen`、`backend-codegen`（放在 `backend/app/services/chat/agent_skills/skills/*/SKILL.md`）
 - 新增本地 MCP server（建议命名 `agent-skills-mcp`），提供：
   - `load_skill(name)`：返回 skill 正文
-  - `list_workspace_files(path?)` / `read_workspace_file(path)` / `write_workspace_file(path, content)` / `delete_workspace_file(path)`：仅允许访问沙箱根目录
+  - `list_workspace_files(path?)` / `read_workspace_file(path)` / `write_workspace_file(path, content)` / `delete_workspace_file(path)`：仅允许访问沙箱根目录 `backend/data/user_data/<user_id>/workspace/`
   - 相关文件：
     - [backend/app/mcp/mcp_registry.py](backend/app/mcp/mcp_registry.py)
     - [backend/app/mcp/mcp_servers/agent_skills_mcp/server.py](backend/app/mcp/mcp_servers/agent_skills_mcp/server.py)
@@ -76,3 +87,8 @@ llm --> finalAnswer[FinalResponse]
 - 路径安全：所有文件工具必须做 `resolve()` + 沙箱根路径前缀校验，拒绝 `..` 越权。
 - 上下文膨胀：`load_skill` 返回正文长度设置上限，必要时截断并附提示。
 - 工具误用：网站构建开关关闭时，不向模型暴露 skills/file 工具。
+- 必做硬约束（v2）：
+  - 文件路径与命名白名单：拦截系统敏感路径、隐私目录和危险文件名模式。
+  - 写操作审计日志：记录 user_id、conversation_id、路径、操作类型、时间、结果。
+  - 配额拦截与错误码规范：超限时返回稳定错误码与可读错误信息。
+  - 手动清理入口：提供可执行的清理命令/接口与最小运维说明。

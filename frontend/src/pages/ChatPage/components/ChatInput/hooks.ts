@@ -43,6 +43,7 @@ export function useButtonState(
 
 const defaultFormValue: ChatInputConfig = {
   thinkMode: false,
+  websiteBuildMode: false,
   mcpAutoMode: true,
   sourceConfig: {},
   modelID: "default",
@@ -72,6 +73,7 @@ export function useFormValuesChange(form: FormInstance<ChatInputFormValues>) {
         pre =>
           ({
             ...pre,
+            websiteBuildMode: isBoolean(pre?.websiteBuildMode) ? pre?.websiteBuildMode : false,
             mcpAutoMode: isBoolean(pre?.mcpAutoMode) ? pre?.mcpAutoMode : true,
             sourceConfig: mcpConfig.reduce((acc: RetrieverSource, item) => {
               const preState = get(pre, ["sourceConfig", item.id], undefined);
