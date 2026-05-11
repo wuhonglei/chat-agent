@@ -16,7 +16,6 @@ from app.mcp.mcp_servers.agent_skills_mcp.config import (
     MAX_READ_CHARS,
     MAX_SKILL_BODY_CHARS,
     MAX_WORKSPACE_BYTES,
-    MAX_WORKSPACE_FILES,
     USER_DATA_ROOT,
 )
 from app.utils.logger import logger
@@ -94,13 +93,6 @@ def _ensure_write_quota(root: Path, *, target: Path, content: str) -> None:
 
     old_size = target.stat().st_size if target.exists() and target.is_file() else 0
     next_total_bytes = total_bytes - old_size + new_size
-    next_file_count = file_count + (0 if target.exists() else 1)
-
-    if next_file_count > MAX_WORKSPACE_FILES:
-        raise ValueError(
-            f"workspace file count exceeds limit {MAX_WORKSPACE_FILES}, "
-            "please delete files first"
-        )
     if next_total_bytes > MAX_WORKSPACE_BYTES:
         raise ValueError(
             f"workspace total bytes exceeds limit {MAX_WORKSPACE_BYTES}, "
@@ -111,7 +103,7 @@ def _ensure_write_quota(root: Path, *, target: Path, content: str) -> None:
 def _format_usage(root: Path) -> str:
     file_count, total_bytes = _workspace_usage(root)
     return (
-        f"workspace={root}, files={file_count}/{MAX_WORKSPACE_FILES}, "
+        f"workspace={root}, files={file_count}, "
         f"bytes={total_bytes}/{MAX_WORKSPACE_BYTES}"
     )
 
