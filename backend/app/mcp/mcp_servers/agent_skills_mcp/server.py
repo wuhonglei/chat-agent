@@ -38,6 +38,7 @@ async def load_skill(
         )
     ),
 ) -> ToolResult:
+    """加载指定技能文档内容，返回技能正文与基础元信息。"""
     document = skill_registry.load(name)
     body = document.body
     truncated = False
@@ -66,6 +67,7 @@ async def list_workspace_files(
     user_id: str = Field(description="当前用户ID"),
     path: str = Field(default="", description="相对 workspace 根目录路径"),
 ) -> ToolResult:
+    """列出用户工作区指定目录下的文件与子目录信息。"""
     root, target = resolve_workspace_path(user_id, path)
     if not target.exists():
         raise ValueError("path does not exist")
@@ -98,6 +100,7 @@ async def read_workspace_file(
     user_id: str = Field(description="当前用户ID"),
     path: str = Field(description="相对 workspace 根目录的文件路径"),
 ) -> ToolResult:
+    """读取用户工作区内单个文件内容，超长内容会被截断。"""
     _, target = resolve_workspace_path(user_id, path)
     if not target.exists() or not target.is_file():
         raise ValueError("file does not exist")
@@ -128,6 +131,7 @@ async def write_workspace_file(
     path: str = Field(description="相对 workspace 根目录的文件路径"),
     content: str = Field(description="要写入的文本内容"),
 ) -> ToolResult:
+    """向用户工作区写入文本文件，必要时自动创建父目录。"""
     root, target = resolve_workspace_path(user_id, path)
     target.parent.mkdir(parents=True, exist_ok=True)
     ensure_write_quota(root, target=target, content=content)
@@ -149,6 +153,7 @@ async def delete_workspace_file(
     user_id: str = Field(description="当前用户ID"),
     path: str = Field(description="相对 workspace 根目录的文件或目录路径"),
 ) -> ToolResult:
+    """删除用户工作区中的文件或目录（不允许删除工作区根目录）。"""
     root, target = resolve_workspace_path(user_id, path)
     if not target.exists():
         raise ValueError("path does not exist")
@@ -169,6 +174,7 @@ async def delete_workspace_file(
 async def clear_workspace(
     user_id: str = Field(description="当前用户ID"),
 ) -> ToolResult:
+    """清空用户工作区根目录下的全部内容。"""
     root = get_workspace_root(user_id)
     if root.exists():
         for child in root.iterdir():
@@ -189,6 +195,7 @@ async def run_bash(
     command: str = Field(description="要执行的 bash 命令"),
     timeout_seconds: int = Field(default=30, ge=1, le=300, description="超时秒数"),
 ) -> ToolResult:
+    """在用户工作区内执行受限 bash 命令并返回执行结果。"""
     ensure_safe_bash_command(command)
     target = get_workspace_root(user_id)
 
