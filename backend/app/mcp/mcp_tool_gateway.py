@@ -15,13 +15,6 @@ class MCPToolGateway:
     """Resolve tool metadata and execute tools through the connection pool."""
 
     AGENT_SKILLS_SERVER_NAME = "agent-skills-mcp"
-    USER_ID_HIDDEN_TOOLS = {
-        "list_workspace_files",
-        "read_workspace_file",
-        "write_workspace_file",
-        "delete_workspace_file",
-        "clear_workspace",
-    }
 
     def __init__(self, pool: MCPConnectionPool, registry: MCPRegistry) -> None:
         self.pool = pool
@@ -196,10 +189,7 @@ class MCPToolGateway:
     def _sanitize_tool_schema_for_llm(
         self, *, server_name: str, tool_name: str, parameters: dict[str, Any]
     ) -> dict[str, Any]:
-        if (
-            server_name != self.AGENT_SKILLS_SERVER_NAME
-            or tool_name not in self.USER_ID_HIDDEN_TOOLS
-        ):
+        if server_name != self.AGENT_SKILLS_SERVER_NAME:
             return parameters
         if not parameters:
             return parameters
