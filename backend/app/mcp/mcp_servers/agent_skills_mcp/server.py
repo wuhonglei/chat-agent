@@ -199,8 +199,9 @@ async def run_bash(
 
     try:
         completed = subprocess.run(
-            ["bash", "-lc", command],
+            command,
             cwd=target,
+            shell=True,
             capture_output=True,
             text=True,
             encoding="utf-8",
