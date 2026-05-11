@@ -1,6 +1,10 @@
 """提示词工具函数模块"""
 
+import platform
+import subprocess
+import sys
 from collections.abc import Sequence
+from functools import lru_cache
 from typing import Any
 
 from app.agent_skills.models import AgentSkillManifest
@@ -24,6 +28,37 @@ from app.schemas.user import MemorySearchItem
 from app.utils.date import get_current_datetime_str
 
 
+def _get_command_version(command: list[str]) -> str:
+    """Get command version output safely."""
+    try:
+        result = subprocess.run(
+            command,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return "unavailable"
+
+    output = (result.stdout or result.stderr).strip()
+    if not output:
+        return "unknown"
+    return output.splitlines()[0]
+
+
+@lru_cache(maxsize=1)
+def _get_runtime_environment() -> dict[str, str]:
+    """Get runtime environment summary for prompts."""
+    return {
+        "system_type": (
+            f"{platform.system()} {platform.release()} ({platform.machine()})"
+        ),
+        "node_version": _get_command_version(["node", "--version"]),
+        "python_version": sys.version.split()[0],
+    }
+
+
 def get_default_system_prompt() -> str:
     """Get default system prompt with current time information"""
     return default_system_prompt_template.render()
@@ -35,10 +70,12 @@ def get_system_prompt_for_chat_session(
     skill_manifests: Sequence[AgentSkillManifest] | None = None,
 ) -> str:
     """Get system prompt for final response generation."""
+    runtime_environment = _get_runtime_environment()
     # 统一单会话 Agent 的 system：最终回答优先 + 工具调用准则（balanced）。
     return system_prompt_for_chat_session_template.render(
         website_build_mode=website_build_mode,
         skill_manifests=skill_manifests or [],
+        **runtime_environment,
     )
 
 
