@@ -61,6 +61,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = ({
             {isSmallScreen ? "" : "深度思考"}
           </CustomButton>
         </Form.Item>
+        {/* 网站构建开关 */}
         <ToolsSetting values={values} size={size} />
       </div>
       <div className="flex items-center gap-2">
