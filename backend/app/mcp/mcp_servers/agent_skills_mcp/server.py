@@ -187,15 +187,10 @@ async def clear_workspace(
 async def run_bash(
     user_id: str = Field(description="当前用户ID"),
     command: str = Field(description="要执行的 bash 命令"),
-    path: str = Field(default="", description="相对 workspace 根目录路径"),
     timeout_seconds: int = Field(default=30, ge=1, le=300, description="超时秒数"),
 ) -> ToolResult:
     ensure_safe_bash_command(command)
-    _, target = resolve_workspace_path(user_id, path)
-    if not target.exists():
-        raise ValueError("path does not exist")
-    if not target.is_dir():
-        raise ValueError("path is not a directory")
+    target = get_workspace_root(user_id)
 
     try:
         completed = subprocess.run(
@@ -252,7 +247,7 @@ async def run_bash(
     return ToolResult(
         content=content,
         structured_content={
-            "path": str(path),
+            "cwd": str(target),
             "exit_code": exit_code,
             "timed_out": timed_out,
             "truncated": truncated,
