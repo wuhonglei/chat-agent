@@ -85,7 +85,7 @@ async def list_project_files(
     depth: int = Field(
         default=1,
         ge=1,
-        le=5,
+        le=10,
         description="目录递归深度，1 表示仅当前目录下一级内容",
     ),
     scope: Literal["workspace", "skills"] = Field(
@@ -94,8 +94,8 @@ async def list_project_files(
     ),
 ) -> ToolResult:
     """列出 scope 根目录下指定目录的文件与子目录信息。"""
-    if depth < 1 or depth > 5:
-        raise ValueError("depth must be between 1 and 5")
+    if depth < 1 or depth > 10:
+        raise ValueError("depth must be between 1 and 10")
 
     root, target = _resolve_readonly_root(
         user_id=user_id,
