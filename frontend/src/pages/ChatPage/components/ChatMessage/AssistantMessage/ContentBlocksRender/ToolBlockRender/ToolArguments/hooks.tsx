@@ -1,4 +1,4 @@
-import { isPlainObject } from "lodash-es";
+import { isPlainObject, trim } from "lodash-es";
 import { useMemo } from "react";
 
 export type ExecuteCodeToolArgumentsResult = {
@@ -173,8 +173,8 @@ export function useExecuteCodeToolArguments(
     }
     const language = parsedArguments.language;
     return {
-      code,
-      language: typeof language === "string" && language ? language : "plaintext",
+      code: trim(code),
+      language: typeof language === "string" && language ? language : "python",
     };
   }, [argumentsJson, argumentsText, toolName]);
 }
