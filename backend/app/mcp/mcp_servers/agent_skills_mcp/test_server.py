@@ -7,11 +7,14 @@ import pytest
 
 from app.mcp.mcp_servers.agent_skills_mcp.server import (
     clear_workspace,
-    read_workspace_file,
+    list_project_files,
+    read_project_file,
     write_workspace_file,
 )
 from app.mcp.mcp_servers.agent_skills_mcp.utils import (
+    get_skills_root,
     get_workspace_root,
+    resolve_skills_path,
     resolve_workspace_path,
 )
 
@@ -41,14 +44,16 @@ async def test_workspace_isolation_by_workspace_id() -> None:
             content="workspace-b",
         )
 
-        read_a = await read_workspace_file(
+        read_a = await read_project_file(
             user_id=user_id,
             workspace_id=workspace_a,
+            scope="workspace",
             path=path,
         )
-        read_b = await read_workspace_file(
+        read_b = await read_project_file(
             user_id=user_id,
             workspace_id=workspace_b,
+            scope="workspace",
             path=path,
         )
 
@@ -72,3 +77,36 @@ def test_resolve_workspace_path_rejects_invalid_workspace_id() -> None:
 def test_resolve_workspace_path_still_blocks_path_escape() -> None:
     with pytest.raises(ValueError, match="forbidden path"):
         resolve_workspace_path("safe-user", "safe-workspace", "../outside.txt")
+
+
+@pytest.mark.asyncio
+async def test_read_project_file_supports_skills_scope() -> None:
+    root = get_skills_root()
+    sample_file = root / "frontend-project-templates" / "SKILL.md"
+    relative_path = str(sample_file.relative_to(root))
+    result = await read_project_file(
+        user_id="safe-user",
+        workspace_id="safe-workspace",
+        scope="skills",
+        path=relative_path,
+    )
+    assert "name:" in str(result.content)
+
+
+@pytest.mark.asyncio
+async def test_list_project_files_supports_skills_scope() -> None:
+    result = await list_project_files(
+        user_id="safe-user",
+        workspace_id="safe-workspace",
+        scope="skills",
+        path="",
+    )
+    payload = result.structured_content or {}
+    items = payload.get("items", [])
+    names = {item.get("name") for item in items if isinstance(item, dict)}
+    assert "frontend-project-templates" in names
+
+
+def test_resolve_skills_path_still_blocks_path_escape() -> None:
+    with pytest.raises(ValueError, match="forbidden path"):
+        resolve_skills_path("../outside.txt")

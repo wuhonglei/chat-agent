@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+from pathlib import Path
+from typing import Literal
 
 from fastmcp import FastMCP
 from fastmcp.tools.tool import ToolResult
@@ -21,6 +23,7 @@ from app.mcp.mcp_servers.agent_skills_mcp.utils import (
     ensure_write_quota,
     format_usage,
     get_workspace_root,
+    resolve_skills_path,
     resolve_workspace_path,
     truncate_content,
 )
@@ -62,14 +65,35 @@ async def load_skill(
     )
 
 
-@mcp.tool(name="list_workspace_files")
-async def list_workspace_files(
+def _resolve_readonly_root(
+    *,
+    user_id: str,
+    workspace_id: str,
+    scope: Literal["workspace", "skills"],
+    path: str,
+) -> tuple[Path, Path]:
+    if scope == "skills":
+        return resolve_skills_path(path)
+    return resolve_workspace_path(user_id, workspace_id, path)
+
+
+@mcp.tool(name="list_project_files")
+async def list_project_files(
     user_id: str = Field(description="当前用户ID"),
     workspace_id: str = Field(description="当前工作区ID（会话ID）"),
-    path: str = Field(default="", description="相对 workspace 根目录路径"),
+    path: str = Field(default="", description="相对 scope 根目录路径"),
+    scope: Literal["workspace", "skills"] = Field(
+        default="workspace",
+        description="根目录范围：workspace(会话工作区) 或 skills(技能目录)",
+    ),
 ) -> ToolResult:
-    """列出用户工作区指定目录下的文件与子目录信息。"""
-    root, target = resolve_workspace_path(user_id, workspace_id, path)
+    """列出 scope 根目录下指定目录的文件与子目录信息。"""
+    root, target = _resolve_readonly_root(
+        user_id=user_id,
+        workspace_id=workspace_id,
+        scope=scope,
+        path=path,
+    )
     if not target.exists():
         raise ValueError("path does not exist")
     if not target.is_dir():
@@ -88,23 +112,34 @@ async def list_workspace_files(
         "Workspace listed",
         user_id=user_id,
         workspace_id=workspace_id,
+        scope=scope,
         path=str(target),
         items_count=len(items),
     )
+    usage = format_usage(root) if scope == "workspace" else f"root={root}"
     return ToolResult(
         content=f"Listed {len(items)} items under {target}",
-        structured_content={"items": items, "usage": format_usage(root)},
+        structured_content={"items": items, "usage": usage, "scope": scope},
     )
 
 
-@mcp.tool(name="read_workspace_file")
-async def read_workspace_file(
+@mcp.tool(name="read_project_file")
+async def read_project_file(
     user_id: str = Field(description="当前用户ID"),
     workspace_id: str = Field(description="当前工作区ID（会话ID）"),
-    path: str = Field(description="相对 workspace 根目录的文件路径"),
+    path: str = Field(description="相对 scope 根目录的文件路径"),
+    scope: Literal["workspace", "skills"] = Field(
+        default="workspace",
+        description="根目录范围：workspace(会话工作区) 或 skills(技能目录)",
+    ),
 ) -> ToolResult:
-    """读取用户工作区内单个文件内容，超长内容会被截断。"""
-    _, target = resolve_workspace_path(user_id, workspace_id, path)
+    """读取 scope 根目录内单个文件内容，超长内容会被截断。"""
+    _, target = _resolve_readonly_root(
+        user_id=user_id,
+        workspace_id=workspace_id,
+        scope=scope,
+        path=path,
+    )
     if not target.exists() or not target.is_file():
         raise ValueError("file does not exist")
     content = target.read_text(encoding="utf-8", errors="replace")
@@ -116,6 +151,7 @@ async def read_workspace_file(
         "Workspace file read",
         user_id=user_id,
         workspace_id=workspace_id,
+        scope=scope,
         path=str(target),
         truncated=truncated,
     )
@@ -123,6 +159,7 @@ async def read_workspace_file(
         content=content + ("\n\n[Truncated by system limit]" if truncated else ""),
         structured_content={
             "path": str(path),
+            "scope": scope,
             "truncated": truncated,
             "size": target.stat().st_size,
         },

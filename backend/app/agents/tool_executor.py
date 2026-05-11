@@ -28,8 +28,8 @@ class ToolExecutor:
     WEB_PAGES_EXTRACT = "web_pages_extract"
     AGENT_SKILLS_SERVER_NAME = "agent-skills-mcp"
     AGENT_SKILLS_WORKSPACE_TOOL_NAMES = {
-        "list_workspace_files",
-        "read_workspace_file",
+        "list_project_files",
+        "read_project_file",
         "write_workspace_file",
         "delete_workspace_file",
         "clear_workspace",

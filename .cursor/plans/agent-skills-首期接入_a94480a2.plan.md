@@ -48,7 +48,7 @@ isProject: false
   - 首期 skills 文档：`frontend-codegen`、`backend-codegen`（放在 `backend/app/services/chat/agent_skills/skills/*/SKILL.md`）
 - 新增本地 MCP server（建议命名 `agent-skills-mcp`），提供：
   - `load_skill(name)`：返回 skill 正文
-  - `list_workspace_files(path?)` / `read_workspace_file(path)` / `write_workspace_file(path, content)` / `delete_workspace_file(path)`：仅允许访问会话沙箱根目录 `backend/data/user_data/<user_id>/workspaces/<workspace_id>/`
+  - `list_project_files(path?, scope?)` / `read_project_file(path, scope?)` / `write_workspace_file(path, content)` / `delete_workspace_file(path)`：其中只读工具支持 `scope=workspace|skills`，写删工具仅允许访问会话沙箱根目录 `backend/data/user_data/<user_id>/workspaces/<workspace_id>/`
   - 相关文件：
     - [backend/app/mcp/mcp_registry.py](backend/app/mcp/mcp_registry.py)
     - [backend/app/mcp/mcp_servers/agent_skills_mcp/server.py](backend/app/mcp/mcp_servers/agent_skills_mcp/server.py)

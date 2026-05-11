@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from app.agent_skills.registry import SKILLS_DIR
 from app.mcp.mcp_servers.agent_skills_mcp.config import (
     DANGEROUS_BASH_PATTERNS,
     FORBIDDEN_SEGMENTS,
@@ -45,10 +46,11 @@ def get_workspace_root(user_id: str, workspace_id: str) -> Path:
     return root
 
 
-def resolve_workspace_path(
-    user_id: str, workspace_id: str, relative_path: str
-) -> tuple[Path, Path]:
-    root = get_workspace_root(user_id, workspace_id)
+def get_skills_root() -> Path:
+    return SKILLS_DIR.resolve()
+
+
+def _resolve_under_root(root: Path, relative_path: str) -> tuple[Path, Path]:
     relative = (relative_path or "").strip()
     if not relative:
         return root, root
@@ -67,6 +69,18 @@ def resolve_workspace_path(
     if not str(target).startswith(str(root)):
         raise ValueError("path escapes workspace")
     return root, target
+
+
+def resolve_workspace_path(
+    user_id: str, workspace_id: str, relative_path: str
+) -> tuple[Path, Path]:
+    root = get_workspace_root(user_id, workspace_id)
+    return _resolve_under_root(root, relative_path)
+
+
+def resolve_skills_path(relative_path: str) -> tuple[Path, Path]:
+    root = get_skills_root()
+    return _resolve_under_root(root, relative_path)
 
 
 def workspace_usage(root: Path) -> tuple[int, int]:
