@@ -21,6 +21,7 @@ DEFAULT_ALLOWED_SKILL_NAMES = {
     "next-best-practices",
     "shadcn",
     "tailwind-design-system",
+    "vite",
 }
 
 
