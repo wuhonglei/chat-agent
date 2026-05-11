@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import shutil
-from pathlib import Path
+import subprocess
 
 from fastmcp import FastMCP
 from fastmcp.tools.tool import ToolResult
@@ -15,96 +15,18 @@ from app.agent_skills import (
 from app.mcp.mcp_servers.agent_skills_mcp.config import (
     MAX_READ_CHARS,
     MAX_SKILL_BODY_CHARS,
-    MAX_WORKSPACE_BYTES,
-    USER_DATA_ROOT,
+)
+from app.mcp.mcp_servers.agent_skills_mcp.utils import (
+    ensure_safe_bash_command,
+    ensure_write_quota,
+    format_usage,
+    get_workspace_root,
+    resolve_workspace_path,
+    truncate_content,
 )
 from app.utils.logger import logger
 
 mcp = FastMCP(name="Agent Skills MCP Service")
-
-_FORBIDDEN_SEGMENTS = {
-    ".git",
-    ".ssh",
-    ".aws",
-    ".cursor",
-    "__pycache__",
-}
-
-
-def _validate_user_id(user_id: str) -> str:
-    normalized = (user_id or "").strip()
-    if (
-        not normalized
-        or "/" in normalized
-        or "\\" in normalized
-        or ".." in normalized
-        or normalized.startswith(".")
-    ):
-        raise ValueError("invalid user_id")
-    return normalized
-
-
-def _get_workspace_root(user_id: str) -> Path:
-    safe_user_id = _validate_user_id(user_id)
-    root = (USER_DATA_ROOT / safe_user_id / "workspace").resolve()
-    root.mkdir(parents=True, exist_ok=True)
-    return root
-
-
-def _resolve_workspace_path(user_id: str, relative_path: str) -> tuple[Path, Path]:
-    root = _get_workspace_root(user_id)
-    relative = (relative_path or "").strip()
-    if not relative:
-        return root, root
-    if Path(relative).is_absolute():
-        raise ValueError("absolute path is not allowed")
-
-    normalized_parts = [part for part in Path(relative).parts if part not in ("", ".")]
-    if not normalized_parts:
-        return root, root
-    for part in normalized_parts:
-        lowered = part.lower()
-        if part == ".." or lowered in _FORBIDDEN_SEGMENTS:
-            raise ValueError("forbidden path")
-
-    target = (root / Path(*normalized_parts)).resolve()
-    if not str(target).startswith(str(root)):
-        raise ValueError("path escapes workspace")
-    return root, target
-
-
-def _workspace_usage(root: Path) -> tuple[int, int]:
-    file_count = 0
-    total_bytes = 0
-    if not root.exists():
-        return file_count, total_bytes
-    for path in root.rglob("*"):
-        if path.is_file():
-            file_count += 1
-            total_bytes += path.stat().st_size
-    return file_count, total_bytes
-
-
-def _ensure_write_quota(root: Path, *, target: Path, content: str) -> None:
-    file_count, total_bytes = _workspace_usage(root)
-    encoded = content.encode("utf-8")
-    new_size = len(encoded)
-
-    old_size = target.stat().st_size if target.exists() and target.is_file() else 0
-    next_total_bytes = total_bytes - old_size + new_size
-    if next_total_bytes > MAX_WORKSPACE_BYTES:
-        raise ValueError(
-            f"workspace total bytes exceeds limit {MAX_WORKSPACE_BYTES}, "
-            "please delete files first"
-        )
-
-
-def _format_usage(root: Path) -> str:
-    file_count, total_bytes = _workspace_usage(root)
-    return (
-        f"workspace={root}, files={file_count}, "
-        f"bytes={total_bytes}/{MAX_WORKSPACE_BYTES}"
-    )
 
 
 @mcp.tool(name="load_skill")
@@ -144,7 +66,7 @@ async def list_workspace_files(
     user_id: str = Field(description="当前用户ID"),
     path: str = Field(default="", description="相对 workspace 根目录路径"),
 ) -> ToolResult:
-    root, target = _resolve_workspace_path(user_id, path)
+    root, target = resolve_workspace_path(user_id, path)
     if not target.exists():
         raise ValueError("path does not exist")
     if not target.is_dir():
@@ -167,7 +89,7 @@ async def list_workspace_files(
     )
     return ToolResult(
         content=f"Listed {len(items)} items under {target}",
-        structured_content={"items": items, "usage": _format_usage(root)},
+        structured_content={"items": items, "usage": format_usage(root)},
     )
 
 
@@ -176,7 +98,7 @@ async def read_workspace_file(
     user_id: str = Field(description="当前用户ID"),
     path: str = Field(description="相对 workspace 根目录的文件路径"),
 ) -> ToolResult:
-    _, target = _resolve_workspace_path(user_id, path)
+    _, target = resolve_workspace_path(user_id, path)
     if not target.exists() or not target.is_file():
         raise ValueError("file does not exist")
     content = target.read_text(encoding="utf-8", errors="replace")
@@ -206,9 +128,9 @@ async def write_workspace_file(
     path: str = Field(description="相对 workspace 根目录的文件路径"),
     content: str = Field(description="要写入的文本内容"),
 ) -> ToolResult:
-    root, target = _resolve_workspace_path(user_id, path)
+    root, target = resolve_workspace_path(user_id, path)
     target.parent.mkdir(parents=True, exist_ok=True)
-    _ensure_write_quota(root, target=target, content=content)
+    ensure_write_quota(root, target=target, content=content)
     target.write_text(content, encoding="utf-8")
     logger.info(
         "Workspace file written",
@@ -218,7 +140,7 @@ async def write_workspace_file(
     )
     return ToolResult(
         content=f"Wrote file: {target}",
-        structured_content={"path": str(path), "usage": _format_usage(root)},
+        structured_content={"path": str(path), "usage": format_usage(root)},
     )
 
 
@@ -227,7 +149,7 @@ async def delete_workspace_file(
     user_id: str = Field(description="当前用户ID"),
     path: str = Field(description="相对 workspace 根目录的文件或目录路径"),
 ) -> ToolResult:
-    root, target = _resolve_workspace_path(user_id, path)
+    root, target = resolve_workspace_path(user_id, path)
     if not target.exists():
         raise ValueError("path does not exist")
     if target == root:
@@ -239,7 +161,7 @@ async def delete_workspace_file(
     logger.info("Workspace path deleted", user_id=user_id, path=str(target))
     return ToolResult(
         content=f"Deleted path: {target}",
-        structured_content={"path": str(path), "usage": _format_usage(root)},
+        structured_content={"path": str(path), "usage": format_usage(root)},
     )
 
 
@@ -247,7 +169,7 @@ async def delete_workspace_file(
 async def clear_workspace(
     user_id: str = Field(description="当前用户ID"),
 ) -> ToolResult:
-    root = _get_workspace_root(user_id)
+    root = get_workspace_root(user_id)
     if root.exists():
         for child in root.iterdir():
             if child.is_dir():
@@ -257,5 +179,81 @@ async def clear_workspace(
     logger.info("Workspace cleared", user_id=user_id, path=str(root))
     return ToolResult(
         content=f"Workspace cleared: {root}",
-        structured_content={"usage": _format_usage(root)},
+        structured_content={"usage": format_usage(root)},
+    )
+
+
+@mcp.tool(name="run_bash")
+async def run_bash(
+    user_id: str = Field(description="当前用户ID"),
+    command: str = Field(description="要执行的 bash 命令"),
+    path: str = Field(default="", description="相对 workspace 根目录路径"),
+    timeout_seconds: int = Field(default=30, ge=1, le=300, description="超时秒数"),
+) -> ToolResult:
+    ensure_safe_bash_command(command)
+    _, target = resolve_workspace_path(user_id, path)
+    if not target.exists():
+        raise ValueError("path does not exist")
+    if not target.is_dir():
+        raise ValueError("path is not a directory")
+
+    try:
+        completed = subprocess.run(
+            ["bash", "-lc", command],
+            cwd=target,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout_seconds,
+            check=False,
+        )
+        stdout = completed.stdout or ""
+        stderr = completed.stderr or ""
+        exit_code = completed.returncode
+        timed_out = False
+    except subprocess.TimeoutExpired as exc:
+        stdout_raw = exc.stdout or ""
+        stderr_raw = exc.stderr or ""
+        stdout = (
+            stdout_raw.decode("utf-8", errors="replace")
+            if isinstance(stdout_raw, bytes)
+            else stdout_raw
+        )
+        stderr = (
+            stderr_raw.decode("utf-8", errors="replace")
+            if isinstance(stderr_raw, bytes)
+            else stderr_raw
+        )
+        exit_code = None
+        timed_out = True
+
+    output = (
+        f"$ {command}\n"
+        f"[cwd={target}]\n"
+        f"[exit_code={exit_code}]\n"
+        f"[timed_out={timed_out}]\n\n"
+        f"--- stdout ---\n{stdout}\n"
+        f"--- stderr ---\n{stderr}"
+    )
+    content, truncated = truncate_content(output)
+    if truncated:
+        content += "\n\n[Truncated by system limit]"
+
+    logger.info(
+        "Bash command executed",
+        user_id=user_id,
+        path=str(target),
+        exit_code=exit_code,
+        timed_out=timed_out,
+        truncated=truncated,
+    )
+    return ToolResult(
+        content=content,
+        structured_content={
+            "path": str(path),
+            "exit_code": exit_code,
+            "timed_out": timed_out,
+            "truncated": truncated,
+        },
     )
