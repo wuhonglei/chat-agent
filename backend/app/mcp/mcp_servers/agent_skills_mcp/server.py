@@ -30,6 +30,15 @@ from app.mcp.mcp_servers.agent_skills_mcp.utils import (
 from app.utils.logger import logger
 
 mcp = FastMCP(name="Agent Skills MCP Service")
+_HEAVY_DIR_NAMES = {
+    "node_modules",
+    ".next",
+    ".git",
+    "dist",
+    "build",
+    ".turbo",
+    ".cache",
+}
 
 
 @mcp.tool(name="load_skill")
@@ -92,6 +101,10 @@ async def list_project_files(
         default="workspace",
         description="根目录范围：workspace(会话工作区) 或 skills(技能目录)",
     ),
+    include_ignored: bool = Field(
+        default=False,
+        description="是否包含默认忽略的重目录（如 node_modules/.next）",
+    ),
 ) -> ToolResult:
     """列出 scope 根目录下指定目录的文件与子目录信息。"""
     if depth < 1 or depth > 10:
@@ -110,18 +123,36 @@ async def list_project_files(
 
     items: list[dict[str, str | int]] = []
 
+    def should_ignore(child: Path) -> bool:
+        return (
+            scope == "workspace"
+            and not include_ignored
+            and child.is_dir()
+            and child.name in _HEAVY_DIR_NAMES
+        )
+
+    def has_visible_children(directory: Path) -> bool:
+        for nested in directory.iterdir():
+            if should_ignore(nested):
+                continue
+            return True
+        return False
+
     def collect_items(current: Path, current_depth: int) -> None:
         for child in sorted(current.iterdir(), key=lambda item: item.name.lower()):
+            if should_ignore(child):
+                continue
             is_dir = child.is_dir()
-            items.append(
-                {
-                    "name": child.name,
-                    "type": "dir" if is_dir else "file",
-                    "size": child.stat().st_size if child.is_file() else 0,
-                    "path": child.relative_to(target).as_posix(),
-                    "depth": current_depth,
-                }
-            )
+            item: dict[str, str | int | bool] = {
+                "name": child.name,
+                "type": "dir" if is_dir else "file",
+                "size": child.stat().st_size if child.is_file() else 0,
+                "path": child.relative_to(target).as_posix(),
+                "depth": current_depth,
+            }
+            if is_dir:
+                item["has_children"] = has_visible_children(child)
+            items.append(item)
             if is_dir and current_depth < depth:
                 collect_items(child, current_depth + 1)
 
@@ -151,6 +182,7 @@ async def list_project_files(
             "usage": usage,
             "scope": scope,
             "depth": depth,
+            "include_ignored": include_ignored,
         },
     )
 

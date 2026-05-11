@@ -15,28 +15,6 @@ from app.utils.auth_deps import get_auth_token_info
 
 router = APIRouter()
 
-_TEXT_EXT_LANGUAGE_MAP = {
-    ".py": "python",
-    ".js": "javascript",
-    ".jsx": "javascript",
-    ".ts": "typescript",
-    ".tsx": "typescript",
-    ".json": "json",
-    ".md": "markdown",
-    ".yml": "yaml",
-    ".yaml": "yaml",
-    ".toml": "toml",
-    ".xml": "xml",
-    ".html": "html",
-    ".css": "css",
-    ".scss": "scss",
-    ".sass": "sass",
-    ".less": "less",
-    ".sh": "bash",
-    ".bash": "bash",
-    ".sql": "sql",
-    ".txt": "text",
-}
 _HEAVY_DIR_NAMES = {
     "node_modules",
     ".next",
@@ -58,10 +36,6 @@ def _is_probably_binary(path: Path) -> bool:
     if not chunk:
         return False
     return b"\x00" in chunk
-
-
-def _detect_language(path: Path) -> str:
-    return _TEXT_EXT_LANGUAGE_MAP.get(path.suffix.lower(), "text")
 
 
 def _is_ignored_dir(name: str, *, include_ignored: bool) -> bool:
@@ -176,7 +150,6 @@ async def get_workspace_file_content(
         data={
             "path": path,
             "content": content,
-            "language": _detect_language(target),
             "size": stat.st_size,
             "updatedAt": _iso_from_timestamp(stat.st_mtime),
         },

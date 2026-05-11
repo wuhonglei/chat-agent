@@ -156,6 +156,60 @@ async def test_list_project_files_depth_controls_recursion() -> None:
         shutil.rmtree(get_workspace_root(user_id, workspace_id), ignore_errors=True)
 
 
+@pytest.mark.asyncio
+async def test_list_project_files_ignores_heavy_directories_by_default() -> None:
+    user_id = _new_id("user")
+    workspace_id = _new_id("conv")
+    try:
+        await write_workspace_file(
+            user_id=user_id,
+            workspace_id=workspace_id,
+            path="src/main.py",
+            content="print('ok')",
+        )
+        await write_workspace_file(
+            user_id=user_id,
+            workspace_id=workspace_id,
+            path="node_modules/pkg/index.js",
+            content="module.exports = {}",
+        )
+        await write_workspace_file(
+            user_id=user_id,
+            workspace_id=workspace_id,
+            path=".next/static/chunk.js",
+            content="console.log('chunk')",
+        )
+
+        default_result = await list_project_files(
+            user_id=user_id,
+            workspace_id=workspace_id,
+            scope="workspace",
+            path="",
+            depth=1,
+        )
+        default_items = (default_result.structured_content or {}).get("items", [])
+        default_names = {item.get("name") for item in default_items if isinstance(item, dict)}
+        assert "src" in default_names
+        assert "node_modules" not in default_names
+        assert ".next" not in default_names
+
+        include_result = await list_project_files(
+            user_id=user_id,
+            workspace_id=workspace_id,
+            scope="workspace",
+            path="",
+            depth=1,
+            include_ignored=True,
+        )
+        include_items = (include_result.structured_content or {}).get("items", [])
+        include_names = {item.get("name") for item in include_items if isinstance(item, dict)}
+        assert "node_modules" in include_names
+        assert ".next" in include_names
+    finally:
+        await clear_workspace(user_id=user_id, workspace_id=workspace_id)
+        shutil.rmtree(get_workspace_root(user_id, workspace_id), ignore_errors=True)
+
+
 def test_resolve_skills_path_still_blocks_path_escape() -> None:
     with pytest.raises(ValueError, match="forbidden path"):
         resolve_skills_path("../outside.txt")

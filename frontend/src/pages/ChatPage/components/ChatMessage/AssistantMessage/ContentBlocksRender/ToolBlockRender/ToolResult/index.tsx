@@ -1,33 +1,39 @@
-import type { ToolResultBlock } from "@/interfaces/contentBlock";
+import type { ToolResultBlock, ToolUseBlock } from "@/interfaces/contentBlock";
 import CodeHighlighter from "@/pages/ChatPage/components/MarkdownContainer/components/CodeHighlighter";
 import { useBlockPreview } from "@/pages/ChatPage/context/BlockPreviewContext";
 import { Button, Divider } from "antd";
-import React, { useMemo } from "react";
+import React from "react";
 import { useParams } from "react-router-dom";
 
 import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
-import { getResultLanguage, stringifyJsonLike } from "../utils";
+import { stringifyJsonLike } from "../utils";
+import { useCanOpenProjectPreview, useToolResultLanguage } from "./hooks";
 import WebSearchResult from "./WebSearchResult";
 import styles from "./index.module.css";
 
 type ToolResultProps = {
   toolName?: string;
   toolResultBlock?: ToolResultBlock;
+  toolUseBlock?: ToolUseBlock;
 };
 
 const containerStyle = { maxHeight: 300, width: "100%", overflow: "auto" };
 
-const ToolResult: React.FC<ToolResultProps> = ({ toolName, toolResultBlock }) => {
+const ToolResult: React.FC<ToolResultProps> = ({ toolName, toolResultBlock, toolUseBlock }) => {
   const blockPreview = useBlockPreview();
   const params = useParams<{ conversationId: string }>();
-  const resultLanguage = useMemo(() => getResultLanguage(toolResultBlock?.content || ""), [toolResultBlock?.content]);
+  const currentToolName = toolName ?? toolUseBlock?.name;
+  const resultLanguage = useToolResultLanguage({
+    currentToolName,
+    toolResultBlock,
+    toolUseBlock,
+  });
   const searchDisplayItems = toolResultBlock?.structuredContentForDisplay;
-  const canOpenProjectPreview = Boolean(
-    !toolResultBlock?.isError &&
-    toolName &&
-    ["write_workspace_file", "delete_workspace_file", "clear_workspace", "run_bash"].includes(toolName) &&
-    params.conversationId
-  );
+  const canOpenProjectPreview = useCanOpenProjectPreview({
+    toolResultBlock,
+    currentToolName,
+    conversationId: params.conversationId,
+  });
 
   if (!toolResultBlock) {
     return null;
@@ -42,11 +48,14 @@ const ToolResult: React.FC<ToolResultProps> = ({ toolName, toolResultBlock }) =>
     );
   }
 
-  if (toolName === "web_search" && searchDisplayItems?.length) {
+  if (currentToolName === "web_search" && searchDisplayItems?.length) {
     return <WebSearchResult items={searchDisplayItems} />;
   }
 
-  if (toolName && ["web_pages_extract", "resolve-library-id", "query-docs"].includes(toolName)) {
+  if (
+    currentToolName &&
+    ["web_pages_extract", "resolve-library-id", "query-docs", "load_skill"].includes(currentToolName)
+  ) {
     return (
       <>
         <Divider orientation="horizontal" style={{ margin: 0 }}></Divider>

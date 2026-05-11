@@ -1,14 +1,15 @@
 import type { ProjectBlock } from "@/interfaces/contentBlock";
 import { EventType, useEmitter } from "@/events";
+import { FILE_EXTENSION_LANGUAGE_MAP } from "@/constants";
 import { workspaceAPI } from "@/services";
 import type { WorkspaceTreeNode } from "@/services";
+import { PROJECT_PREVIEW_DIRECTORY_ICONS } from "./file_icons";
 import { Folder } from "@ant-design/x";
 import { CloseOutlined, ReloadOutlined } from "@ant-design/icons";
+import Editor from "@monaco-editor/react";
 import { useRequest } from "ahooks";
 import { Alert, Button, Empty, Spin, Typography } from "antd";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-
-import CodeHighlighter from "@/pages/ChatPage/components/MarkdownContainer/components/CodeHighlighter";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export interface ProjectPreviewPanelProps {
   width: number;
@@ -23,13 +24,72 @@ type SelectedFile = {
   language: string;
 };
 
+const DIRECTORY_PLACEHOLDER_SEGMENT = "__directory_placeholder__";
+
+function isDirectoryNode(node: WorkspaceTreeNode): boolean {
+  return Array.isArray(node.children);
+}
+
+function isPlaceholderPath(path: string): boolean {
+  return path.split("/").includes(DIRECTORY_PLACEHOLDER_SEGMENT);
+}
+
+function toDisplayPath(fullPath: string, parentFullPath: string): string {
+  if (!parentFullPath) {
+    return fullPath;
+  }
+  const prefix = `${parentFullPath}/`;
+  if (fullPath.startsWith(prefix)) {
+    return fullPath.slice(prefix.length);
+  }
+  return fullPath.split("/").pop() || fullPath;
+}
+
+function normalizeTreeNodes(nodes: WorkspaceTreeNode[], parentFullPath = ""): WorkspaceTreeNode[] {
+  return nodes.map(node => {
+    const fullPath = node.path;
+    const displayPath = toDisplayPath(fullPath, parentFullPath);
+    if (node.nodeType === "dir") {
+      const normalizedChildren = normalizeTreeNodes(node.children || [], fullPath);
+      const shouldAddPlaceholder = normalizedChildren.length === 0 && node.hasChildren;
+      return {
+        title: node.title,
+        path: displayPath,
+        fullPath,
+        nodeType: "dir",
+        hasChildren: node.hasChildren,
+        isLeaf: false,
+        children: shouldAddPlaceholder
+          ? [
+              {
+                title: "",
+                path: DIRECTORY_PLACEHOLDER_SEGMENT,
+                fullPath: `${fullPath}/${DIRECTORY_PLACEHOLDER_SEGMENT}`,
+                nodeType: "file",
+                isLeaf: true,
+                key: `${fullPath}/${DIRECTORY_PLACEHOLDER_SEGMENT}`,
+              },
+            ]
+          : normalizedChildren,
+      };
+    }
+    return {
+      title: node.title,
+      path: displayPath,
+      fullPath,
+      nodeType: "file",
+      isLeaf: true,
+    };
+  });
+}
+
 function replaceDirectoryChildren(
   nodes: WorkspaceTreeNode[],
   targetPath: string,
   nextChildren: WorkspaceTreeNode[]
 ): WorkspaceTreeNode[] {
   return nodes.map(node => {
-    if (node.path === targetPath) {
+    if ((node.fullPath || node.path) === targetPath) {
       return { ...node, children: nextChildren };
     }
     if (!node.children?.length) {
@@ -42,33 +102,43 @@ function replaceDirectoryChildren(
   });
 }
 
+function findNodeByPath(nodes: WorkspaceTreeNode[], targetPath: string): WorkspaceTreeNode | undefined {
+  for (const node of nodes) {
+    if ((node.fullPath || node.path) === targetPath) {
+      return node;
+    }
+    if (!node.children?.length) {
+      continue;
+    }
+    const nestedNode = findNodeByPath(node.children, targetPath);
+    if (nestedNode) {
+      return nestedNode;
+    }
+  }
+  return undefined;
+}
+
 function getLanguageFromPath(path: string): string {
   const ext = path.split(".").pop()?.toLowerCase();
   if (!ext) {
     return "text";
   }
-  const map: Record<string, string> = {
-    ts: "typescript",
-    tsx: "typescript",
-    js: "javascript",
-    jsx: "javascript",
-    py: "python",
-    json: "json",
-    md: "markdown",
-    html: "html",
-    css: "css",
-    yml: "yaml",
-    yaml: "yaml",
-    sh: "bash",
-  };
-  return map[ext] || "text";
+  return FILE_EXTENSION_LANGUAGE_MAP[ext] || "text";
 }
 
-const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block, onClose }) => {
+function getMonacoLanguage(language: string): string {
+  if (language === "text") {
+    return "plaintext";
+  }
+  return language || "plaintext";
+}
+
+const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width, block, onClose }) => {
   const [treeError, setTreeError] = useState<string | null>(null);
   const [treeData, setTreeData] = useState<WorkspaceTreeNode[]>([]);
   const [expandedPaths, setExpandedPaths] = useState<string[]>([]);
   const [loadedDirPaths, setLoadedDirPaths] = useState<Set<string>>(new Set());
+  const loadingDirPathsRef = useRef<Set<string>>(new Set());
 
   const [fileError, setFileError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null);
@@ -83,7 +153,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
         setTreeError(null);
       },
       onSuccess: res => {
-        setTreeData(res.treeData || []);
+        setTreeData(normalizeTreeNodes(res.treeData || []));
         setLoadedDirPaths(new Set([""]));
       },
       onError: error => {
@@ -103,7 +173,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
       },
       onSuccess: (res, params) => {
         const dirPath = params[0] || "";
-        setTreeData(prev => replaceDirectoryChildren(prev, dirPath, res.treeData || []));
+        setTreeData(prev => replaceDirectoryChildren(prev, dirPath, normalizeTreeNodes(res.treeData || [], dirPath)));
         setLoadedDirPaths(prev => {
           const next = new Set(prev);
           next.add(dirPath);
@@ -116,8 +186,24 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
   const refreshTree = useCallback(() => {
     setExpandedPaths([]);
     setLoadedDirPaths(new Set());
+    loadingDirPathsRef.current.clear();
     runLoadRootTree();
   }, [runLoadRootTree]);
+
+  const loadDirTreeIfNeeded = useCallback(
+    async (dirPath: string) => {
+      if (loadedDirPaths.has(dirPath) || loadingDirPathsRef.current.has(dirPath)) {
+        return;
+      }
+      loadingDirPathsRef.current.add(dirPath);
+      try {
+        await runLoadDirTree(dirPath);
+      } finally {
+        loadingDirPathsRef.current.delete(dirPath);
+      }
+    },
+    [loadedDirPaths, runLoadDirTree]
+  );
 
   const { run: runLoadFile, loading: loadingFile } = useRequest(
     async (filePath: string) => {
@@ -133,7 +219,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
           path: res.path,
           title: res.path.split("/").pop() || res.path,
           content: res.content || "",
-          language: res.language || getLanguageFromPath(res.path),
+          language: getLanguageFromPath(res.path),
         });
       },
       onError: error => {
@@ -158,32 +244,45 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
     (paths: string[]) => {
       setExpandedPaths(paths);
       for (const path of paths) {
-        if (!loadedDirPaths.has(path)) {
-          void runLoadDirTree(path);
-        }
+        void loadDirTreeIfNeeded(path);
       }
     },
-    [loadedDirPaths, runLoadDirTree]
+    [loadDirTreeIfNeeded]
   );
 
   const handleFolderClick = useCallback(
     async (folderPath: string) => {
+      setFileError(null);
       const alreadyExpanded = expandedPaths.includes(folderPath);
       if (alreadyExpanded) {
         setExpandedPaths(prev => prev.filter(path => path !== folderPath));
         return;
       }
 
-      if (!loadedDirPaths.has(folderPath)) {
-        try {
-          await runLoadDirTree(folderPath);
-        } catch {
-          return;
-        }
+      try {
+        await loadDirTreeIfNeeded(folderPath);
+      } catch {
+        return;
       }
       setExpandedPaths(prev => (prev.includes(folderPath) ? prev : [...prev, folderPath]));
     },
-    [expandedPaths, loadedDirPaths, runLoadDirTree]
+    [expandedPaths, loadDirTreeIfNeeded]
+  );
+
+  const handleFileClick = useCallback(
+    (filePath: string) => {
+      if (isPlaceholderPath(filePath)) {
+        return;
+      }
+      const targetNode = findNodeByPath(treeData, filePath);
+      const isDirectoryPath = targetNode ? isDirectoryNode(targetNode) : false;
+      if (isDirectoryPath) {
+        void handleFolderClick(filePath);
+        return;
+      }
+      runLoadFile(filePath);
+    },
+    [handleFolderClick, runLoadFile, treeData]
   );
 
   const previewNode = useMemo(() => {
@@ -205,15 +304,21 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
         <Typography.Text type="secondary" className="px-3 py-2 border-b border-(--ant-color-border-secondary)">
           {selectedFile.path}
         </Typography.Text>
-        <div className="min-h-0 flex-1 overflow-auto">
-          <CodeHighlighter
-            lang={selectedFile.language}
-            styles={{
-              code: { width: "100%", minHeight: "100%", borderRadius: 0 },
+        <div className="min-h-0 flex-1 overflow-hidden">
+          <Editor
+            height="100%"
+            language={getMonacoLanguage(selectedFile.language)}
+            value={selectedFile.content}
+            options={{
+              readOnly: true,
+              minimap: { enabled: false },
+              wordWrap: "on",
+              scrollBeyondLastLine: false,
+              automaticLayout: true,
+              renderLineHighlight: "none",
+              padding: { top: 12, bottom: 12 },
             }}
-          >
-            {selectedFile.content}
-          </CodeHighlighter>
+          />
         </div>
       </div>
     );
@@ -240,18 +345,21 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
         ) : (
           <Folder
             treeData={treeData}
-            directoryTreeWith={Math.max(220, Math.round(width * 0.42))}
-            directoryTitle="项目文件"
+            directoryTreeWith={237}
+            styles={{
+              directoryTree: { background: "#fff" },
+            }}
             previewTitle={false}
             expandedPaths={expandedPaths}
             onExpandedPathsChange={handleExpandedPathsChange}
             onFileClick={filePath => {
-              runLoadFile(filePath);
+              handleFileClick(filePath);
             }}
             onFolderClick={folderPath => {
               void handleFolderClick(folderPath);
             }}
             previewRender={previewNode}
+            directoryIcons={PROJECT_PREVIEW_DIRECTORY_ICONS}
           />
         )}
       </div>

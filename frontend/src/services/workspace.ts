@@ -3,8 +3,11 @@ import { apiClient } from "./base";
 export interface WorkspaceTreeNode {
   title: string;
   path: string;
+  fullPath?: string;
   nodeType?: "dir" | "file";
   hasChildren?: boolean;
+  isLeaf?: boolean;
+  key?: string;
   children?: WorkspaceTreeNode[];
 }
 
@@ -18,7 +21,6 @@ export interface WorkspaceFileTreeResponse {
 export interface WorkspaceFileContentResponse {
   path: string;
   content: string;
-  language?: string;
   size?: number;
   updatedAt?: string;
 }
