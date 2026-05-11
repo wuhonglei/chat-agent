@@ -42,6 +42,7 @@ class ToolExecutor:
         self.mcp_manager = mcp_manager
         self.current_user_message = user_message
         self.current_user_id: str | None = None
+        self.current_workspace_id: str | None = None
         self.tool_result_compression = settings.chat_context.tool_result_compression
         self.compactor = ContextCompactor(
             embedding_model=settings.embedding_model,
@@ -50,9 +51,15 @@ class ToolExecutor:
         self.token_calculator = TokenCalculator(model_name)
         self.token_threshold: int = self.token_calculator.get_compression_threshold(0.5)
 
-    def reset_for_request(self, user_message: str, user_id: str | None = None) -> None:
+    def reset_for_request(
+        self,
+        user_message: str,
+        user_id: str | None = None,
+        workspace_id: str | None = None,
+    ) -> None:
         self.current_user_message = user_message
         self.current_user_id = user_id
+        self.current_workspace_id = workspace_id
 
     async def execute_tool_calls_parallel(
         self,
@@ -113,7 +120,7 @@ class ToolExecutor:
         iterations_by_tool[tool_name] -= 1
         try:
             arguments = json.loads(tool_call.function.arguments)
-            self._inject_user_id_for_agent_skills(
+            self._inject_workspace_args_for_agent_skills(
                 tool_name=tool_name,
                 arguments=arguments,
             )
@@ -224,7 +231,7 @@ class ToolExecutor:
             )
             return tool_call_result_message
 
-    def _inject_user_id_for_agent_skills(
+    def _inject_workspace_args_for_agent_skills(
         self, *, tool_name: str, arguments: dict[str, Any]
     ) -> None:
         server_name = self.mcp_manager.get_server_for_tool(tool_name)
@@ -235,8 +242,12 @@ class ToolExecutor:
             return
         if not self.current_user_id:
             raise ValueError("current user_id is required for workspace tools")
+        if not self.current_workspace_id:
+            raise ValueError("current workspace_id is required for workspace tools")
         # Never trust model-supplied user_id; bind to authenticated user.
         arguments["user_id"] = self.current_user_id
+        # Never trust model-supplied workspace_id; bind to current conversation.
+        arguments["workspace_id"] = self.current_workspace_id
 
     async def _apply_tavily_compaction(
         self,

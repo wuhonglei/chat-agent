@@ -29,9 +29,9 @@ isProject: false
 
 ## 最终实施版 v2 清单（已确认）
 - `websiteBuildMode` 默认值：`false`（默认关闭，仅在显式开启时生效）。
-- 沙箱隔离粒度：`per_user`（同一用户跨会话共享沙箱目录）。
-- 沙箱目录路径：`backend/data/user_data/<user_id>/workspace/`。
-- 并发写冲突策略：`last_write_wins`（不加锁，后写覆盖先写）。
+- 沙箱隔离粒度：`per_user + per_conversation`（同一用户不同会话使用独立工作区）。
+- 沙箱目录路径：`backend/data/user_data/<user_id>/workspaces/<workspace_id>/`（`workspace_id=conversation_id`）。
+- 并发写冲突策略：`last_write_wins`（同一会话内不加锁，后写覆盖先写）。
 - 沙箱生命周期：`manual_only`（不做自动 TTL 清理）。
 - 资源配额：限制“用户沙箱总大小 + 文件数”，超限拒绝写入。
 - 文件类型：`allow_any`（允许任意扩展名）。
@@ -48,7 +48,7 @@ isProject: false
   - 首期 skills 文档：`frontend-codegen`、`backend-codegen`（放在 `backend/app/services/chat/agent_skills/skills/*/SKILL.md`）
 - 新增本地 MCP server（建议命名 `agent-skills-mcp`），提供：
   - `load_skill(name)`：返回 skill 正文
-  - `list_workspace_files(path?)` / `read_workspace_file(path)` / `write_workspace_file(path, content)` / `delete_workspace_file(path)`：仅允许访问沙箱根目录 `backend/data/user_data/<user_id>/workspace/`
+  - `list_workspace_files(path?)` / `read_workspace_file(path)` / `write_workspace_file(path, content)` / `delete_workspace_file(path)`：仅允许访问会话沙箱根目录 `backend/data/user_data/<user_id>/workspaces/<workspace_id>/`
   - 相关文件：
     - [backend/app/mcp/mcp_registry.py](backend/app/mcp/mcp_registry.py)
     - [backend/app/mcp/mcp_servers/agent_skills_mcp/server.py](backend/app/mcp/mcp_servers/agent_skills_mcp/server.py)

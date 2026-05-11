@@ -102,7 +102,6 @@ class ChatSessionAgent(BaseAgent):
         user_id: str,
         kb_context_blocks: list[KbContextBlock] | None = None,
     ) -> AsyncGenerator[str, None]:
-        _ = conversation_id
         self.think_mode = chat_request.think_mode
         self.session_output.reset()
         self.content_block_aggregator = ContentBlocksAggregator()
@@ -118,6 +117,7 @@ class ChatSessionAgent(BaseAgent):
             website_build_mode=chat_request.website_build_mode,
             skill_manifests=skill_manifests,
             user_id=user_id,
+            workspace_id=conversation_id,
         )
         server_names = resolve_enabled_mcp_servers(
             chat_request.mcp_auto_mode, chat_request.source_config
@@ -157,7 +157,11 @@ class ChatSessionAgent(BaseAgent):
             self.model_config.model_name,
             self.tool_round_messages,
         )
-        tool_session.reset_for_request(user_message_text, user_id)
+        tool_session.reset_for_request(
+            user_message_text,
+            user_id=user_id,
+            workspace_id=conversation_id,
+        )
 
         if not tools:
             async for sse in self._stream_final_round_events(

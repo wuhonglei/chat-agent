@@ -4,16 +4,16 @@ overview: 将 Agent Skills 沙箱目录从 per_user 单 workspace 升级为 per_
 todos:
   - id: pass-conversation-as-workspace
     content: 在 ChatSessionAgent -> MCPToolSession -> ToolExecutor 链路传递 workspace_id=conversation_id
-    status: pending
+    status: completed
   - id: inject-workspace-id
     content: 在 ToolExecutor 对 agent-skills 工作区工具强制注入 user_id 和 workspace_id
-    status: pending
+    status: completed
   - id: workspace-path-refactor
     content: 重构 agent_skills_mcp utils/server 使用 workspaces/<workspace_id> 新路径且不做历史兼容
-    status: pending
+    status: completed
   - id: tests-and-doc-sync
     content: 补充隔离与校验测试，并同步计划文档中的路径与策略说明
-    status: pending
+    status: completed
 isProject: false
 ---
 

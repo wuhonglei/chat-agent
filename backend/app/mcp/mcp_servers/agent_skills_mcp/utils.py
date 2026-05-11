@@ -24,15 +24,31 @@ def validate_user_id(user_id: str) -> str:
     return normalized
 
 
-def get_workspace_root(user_id: str) -> Path:
+def validate_workspace_id(workspace_id: str) -> str:
+    normalized = (workspace_id or "").strip()
+    if (
+        not normalized
+        or "/" in normalized
+        or "\\" in normalized
+        or ".." in normalized
+        or normalized.startswith(".")
+    ):
+        raise ValueError("invalid workspace_id")
+    return normalized
+
+
+def get_workspace_root(user_id: str, workspace_id: str) -> Path:
     safe_user_id = validate_user_id(user_id)
-    root = (USER_DATA_ROOT / safe_user_id / "workspace").resolve()
+    safe_workspace_id = validate_workspace_id(workspace_id)
+    root = (USER_DATA_ROOT / safe_user_id / "workspaces" / safe_workspace_id).resolve()
     root.mkdir(parents=True, exist_ok=True)
     return root
 
 
-def resolve_workspace_path(user_id: str, relative_path: str) -> tuple[Path, Path]:
-    root = get_workspace_root(user_id)
+def resolve_workspace_path(
+    user_id: str, workspace_id: str, relative_path: str
+) -> tuple[Path, Path]:
+    root = get_workspace_root(user_id, workspace_id)
     relative = (relative_path or "").strip()
     if not relative:
         return root, root

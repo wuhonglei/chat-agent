@@ -65,10 +65,11 @@ async def load_skill(
 @mcp.tool(name="list_workspace_files")
 async def list_workspace_files(
     user_id: str = Field(description="当前用户ID"),
+    workspace_id: str = Field(description="当前工作区ID（会话ID）"),
     path: str = Field(default="", description="相对 workspace 根目录路径"),
 ) -> ToolResult:
     """列出用户工作区指定目录下的文件与子目录信息。"""
-    root, target = resolve_workspace_path(user_id, path)
+    root, target = resolve_workspace_path(user_id, workspace_id, path)
     if not target.exists():
         raise ValueError("path does not exist")
     if not target.is_dir():
@@ -86,6 +87,7 @@ async def list_workspace_files(
     logger.info(
         "Workspace listed",
         user_id=user_id,
+        workspace_id=workspace_id,
         path=str(target),
         items_count=len(items),
     )
@@ -98,10 +100,11 @@ async def list_workspace_files(
 @mcp.tool(name="read_workspace_file")
 async def read_workspace_file(
     user_id: str = Field(description="当前用户ID"),
+    workspace_id: str = Field(description="当前工作区ID（会话ID）"),
     path: str = Field(description="相对 workspace 根目录的文件路径"),
 ) -> ToolResult:
     """读取用户工作区内单个文件内容，超长内容会被截断。"""
-    _, target = resolve_workspace_path(user_id, path)
+    _, target = resolve_workspace_path(user_id, workspace_id, path)
     if not target.exists() or not target.is_file():
         raise ValueError("file does not exist")
     content = target.read_text(encoding="utf-8", errors="replace")
@@ -112,6 +115,7 @@ async def read_workspace_file(
     logger.info(
         "Workspace file read",
         user_id=user_id,
+        workspace_id=workspace_id,
         path=str(target),
         truncated=truncated,
     )
@@ -128,17 +132,19 @@ async def read_workspace_file(
 @mcp.tool(name="write_workspace_file")
 async def write_workspace_file(
     user_id: str = Field(description="当前用户ID"),
+    workspace_id: str = Field(description="当前工作区ID（会话ID）"),
     path: str = Field(description="相对 workspace 根目录的文件路径"),
     content: str = Field(description="要写入的文本内容"),
 ) -> ToolResult:
     """向用户工作区写入文本文件，必要时自动创建父目录。"""
-    root, target = resolve_workspace_path(user_id, path)
+    root, target = resolve_workspace_path(user_id, workspace_id, path)
     target.parent.mkdir(parents=True, exist_ok=True)
     ensure_write_quota(root, target=target, content=content)
     target.write_text(content, encoding="utf-8")
     logger.info(
         "Workspace file written",
         user_id=user_id,
+        workspace_id=workspace_id,
         path=str(target),
         bytes=len(content.encode("utf-8")),
     )
@@ -151,10 +157,11 @@ async def write_workspace_file(
 @mcp.tool(name="delete_workspace_file")
 async def delete_workspace_file(
     user_id: str = Field(description="当前用户ID"),
+    workspace_id: str = Field(description="当前工作区ID（会话ID）"),
     path: str = Field(description="相对 workspace 根目录的文件或目录路径"),
 ) -> ToolResult:
     """删除用户工作区中的文件或目录（不允许删除工作区根目录）。"""
-    root, target = resolve_workspace_path(user_id, path)
+    root, target = resolve_workspace_path(user_id, workspace_id, path)
     if not target.exists():
         raise ValueError("path does not exist")
     if target == root:
@@ -163,7 +170,12 @@ async def delete_workspace_file(
         shutil.rmtree(target)
     else:
         target.unlink()
-    logger.info("Workspace path deleted", user_id=user_id, path=str(target))
+    logger.info(
+        "Workspace path deleted",
+        user_id=user_id,
+        workspace_id=workspace_id,
+        path=str(target),
+    )
     return ToolResult(
         content=f"Deleted path: {target}",
         structured_content={"path": str(path), "usage": format_usage(root)},
@@ -173,16 +185,22 @@ async def delete_workspace_file(
 @mcp.tool(name="clear_workspace")
 async def clear_workspace(
     user_id: str = Field(description="当前用户ID"),
+    workspace_id: str = Field(description="当前工作区ID（会话ID）"),
 ) -> ToolResult:
     """清空用户工作区根目录下的全部内容。"""
-    root = get_workspace_root(user_id)
+    root = get_workspace_root(user_id, workspace_id)
     if root.exists():
         for child in root.iterdir():
             if child.is_dir():
                 shutil.rmtree(child)
             else:
                 child.unlink()
-    logger.info("Workspace cleared", user_id=user_id, path=str(root))
+    logger.info(
+        "Workspace cleared",
+        user_id=user_id,
+        workspace_id=workspace_id,
+        path=str(root),
+    )
     return ToolResult(
         content=f"Workspace cleared: {root}",
         structured_content={"usage": format_usage(root)},
@@ -192,13 +210,14 @@ async def clear_workspace(
 @mcp.tool(name="run_bash")
 async def run_bash(
     user_id: str = Field(description="当前用户ID"),
+    workspace_id: str = Field(description="当前工作区ID（会话ID）"),
     command: str = Field(description="要执行的 bash 命令"),
     cwd: str = Field(default="", description="命令执行目录（相对 workspace 根目录）"),
     timeout_seconds: int = Field(default=30, ge=1, le=300, description="超时秒数"),
 ) -> ToolResult:
     """在用户工作区内执行受限 bash 命令并返回执行结果（cwd 相对 workspace 根目录）。"""
     ensure_safe_bash_command(command)
-    root, target = resolve_workspace_path(user_id, cwd)
+    root, target = resolve_workspace_path(user_id, workspace_id, cwd)
     if not target.exists():
         raise ValueError("cwd does not exist")
     if not target.is_dir():
@@ -251,6 +270,7 @@ async def run_bash(
     logger.info(
         "Bash command executed",
         user_id=user_id,
+        workspace_id=workspace_id,
         path=str(target),
         exit_code=exit_code,
         timed_out=timed_out,

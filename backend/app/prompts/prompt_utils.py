@@ -49,9 +49,10 @@ def _get_command_version(command: list[str]) -> str:
     return output.splitlines()[0]
 
 
-def _get_runtime_environment(user_id: str) -> dict[str, str]:
+def _get_runtime_environment(user_id: str, workspace_id: str) -> dict[str, str]:
     """Get runtime environment summary for prompts."""
-    workspace_dir = f"data/user_data/{user_id}/workspace"
+    safe_workspace_id = workspace_id.strip()
+    workspace_dir = f"data/user_data/{user_id}/workspaces/{safe_workspace_id}"
     return {
         "system_type": (
             f"{platform.system()} {platform.release()} ({platform.machine()})"
@@ -73,9 +74,10 @@ def get_system_prompt_for_chat_session(
     website_build_mode: bool = False,
     skill_manifests: Sequence[AgentSkillManifest] | None = None,
     user_id: str,
+    workspace_id: str,
 ) -> str:
     """Get system prompt for final response generation."""
-    runtime_environment = _get_runtime_environment(user_id)
+    runtime_environment = _get_runtime_environment(user_id, workspace_id)
     # 统一单会话 Agent 的 system：最终回答优先 + 工具调用准则（balanced）。
     return system_prompt_for_chat_session_template.render(
         website_build_mode=website_build_mode,

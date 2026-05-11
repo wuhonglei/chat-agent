@@ -197,7 +197,10 @@ class MCPToolGateway:
         properties = sanitized.get("properties")
         if isinstance(properties, dict):
             properties.pop("user_id", None)
+            properties.pop("workspace_id", None)
         required = sanitized.get("required")
         if isinstance(required, list):
-            sanitized["required"] = [item for item in required if item != "user_id"]
+            sanitized["required"] = [
+                item for item in required if item not in {"user_id", "workspace_id"}
+            ]
         return sanitized
