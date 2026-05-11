@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from typing import Any
 
-from app.mcp.mcp_client import mcp_config_for_fe
+from app.agent_skills.models import AgentSkillManifest
 from app.prompts.system_prompt import (
     default_system_prompt_template,
     system_prompt_for_chat_session_template,
@@ -29,10 +29,17 @@ def get_default_system_prompt() -> str:
     return default_system_prompt_template.render()
 
 
-def get_system_prompt_for_chat_session() -> str:
+def get_system_prompt_for_chat_session(
+    *,
+    website_build_mode: bool = False,
+    skill_manifests: Sequence[AgentSkillManifest] | None = None,
+) -> str:
     """Get system prompt for final response generation."""
     # 统一单会话 Agent 的 system：最终回答优先 + 工具调用准则（balanced）。
-    return system_prompt_for_chat_session_template.render()
+    return system_prompt_for_chat_session_template.render(
+        website_build_mode=website_build_mode,
+        skill_manifests=skill_manifests or [],
+    )
 
 
 def get_system_prompt_for_title() -> str:
@@ -54,6 +61,10 @@ def get_user_message_for_tool_calls(
     kb_context_blocks: 可选，每项建议包含 id、name、content，
     以及可选 created_at（与 user_prompt 模板一致）。
     """
+    # 延迟导入，避免在应用启动阶段触发 mcp_client 的循环依赖。
+    from app.mcp.mcp_client import mcp_client_manager
+
+    mcp_config_for_fe = mcp_client_manager.registry.get_fe_configs()
     id_by_config = {config["id"]: config for config in mcp_config_for_fe}
     server_names = server_names or []
     mcp_configs = [

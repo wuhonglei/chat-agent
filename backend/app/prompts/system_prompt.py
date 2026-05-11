@@ -34,5 +34,22 @@ system_prompt_for_chat_session_template: Template = Template(
 4. 避免重复调用相同工具，特别是使用相似查询多次调用 web_search 或重复提取已提取过的 URL。
 5. 工具选择必须准确：只有与用户问题直接相关的工具才应该被调用。
 </instructions>
+{%- if website_build_mode %}
+<website_build_mode>
+当前回合启用了网站构建模式。
+
+<skill_manifest>
+{%- for skill in skill_manifests %}
+- {{ skill.name }}: {{ skill.description }}
+{%- endfor %}
+</skill_manifest>
+
+<execution_rules>
+1. 当任务涉及前后端代码生成时，先调用 load_skill 读取对应技能，再执行文件工具。
+2. 调用 list/read/write/delete/clear workspace 工具时，无需传入 user_id，系统会自动绑定当前登录用户。
+3. 所有文件操作都必须限制在沙箱目录内，不得尝试访问其它路径。
+</execution_rules>
+</website_build_mode>
+{%- endif %}
 """.strip()
 )

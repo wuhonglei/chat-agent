@@ -26,12 +26,21 @@ class ToolExecutor:
 
     TAVILY_TOOL_NAME = "tavily-mcp"
     WEB_PAGES_EXTRACT = "web_pages_extract"
+    AGENT_SKILLS_SERVER_NAME = "agent-skills-mcp"
+    AGENT_SKILLS_WORKSPACE_TOOLS = {
+        "list_workspace_files",
+        "read_workspace_file",
+        "write_workspace_file",
+        "delete_workspace_file",
+        "clear_workspace",
+    }
 
     def __init__(
         self, mcp_manager: MCPClientManager, user_message: str, model_name: str
     ) -> None:
         self.mcp_manager = mcp_manager
         self.current_user_message = user_message
+        self.current_user_id: str | None = None
         self.tool_result_compression = settings.chat_context.tool_result_compression
         self.compactor = ContextCompactor(
             embedding_model=settings.embedding_model,
@@ -40,8 +49,9 @@ class ToolExecutor:
         self.token_calculator = TokenCalculator(model_name)
         self.token_threshold: int = self.token_calculator.get_compression_threshold(0.5)
 
-    def reset_for_request(self, user_message: str) -> None:
+    def reset_for_request(self, user_message: str, user_id: str | None = None) -> None:
         self.current_user_message = user_message
+        self.current_user_id = user_id
 
     async def execute_tool_calls_parallel(
         self,
@@ -102,6 +112,10 @@ class ToolExecutor:
         iterations_by_tool[tool_name] -= 1
         try:
             arguments = json.loads(tool_call.function.arguments)
+            self._inject_user_id_for_agent_skills(
+                tool_name=tool_name,
+                arguments=arguments,
+            )
             if tool_name == self.WEB_PAGES_EXTRACT and (urls := get("urls", arguments)):
                 normalized_urls = {normalize_url(url) for url in urls if url}
                 new_urls = normalized_urls - extracted_urls
@@ -145,7 +159,17 @@ class ToolExecutor:
                 tool_call_id=tool_call.id,
             )
             server_name = self.mcp_manager.get_server_for_tool(tool_name)
-            if (
+            skip_compaction = (
+                server_name == self.AGENT_SKILLS_SERVER_NAME
+                and tool_name in self.AGENT_SKILLS_WORKSPACE_TOOLS
+            )
+            if skip_compaction:
+                logger.info(
+                    "Skipping tool result compaction for agent skills workspace tool",
+                    tool_name=tool_name,
+                    tool_call_id=tool_call.id,
+                )
+            elif (
                 server_name == self.TAVILY_TOOL_NAME
                 and result.structured_content is not None
             ):
@@ -201,6 +225,19 @@ class ToolExecutor:
                 content_length=len(str(exc)) if str(exc) else 0,
             )
             return tool_call_result_message
+
+    def _inject_user_id_for_agent_skills(
+        self, *, tool_name: str, arguments: dict[str, Any]
+    ) -> None:
+        if tool_name not in self.AGENT_SKILLS_WORKSPACE_TOOLS:
+            return
+        server_name = self.mcp_manager.get_server_for_tool(tool_name)
+        if server_name != self.AGENT_SKILLS_SERVER_NAME:
+            return
+        if not self.current_user_id:
+            raise ValueError("current user_id is required for workspace tools")
+        # Never trust model-supplied user_id; bind to authenticated user.
+        arguments["user_id"] = self.current_user_id
 
     async def _apply_tavily_compaction(
         self,

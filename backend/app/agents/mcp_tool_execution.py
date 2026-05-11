@@ -37,9 +37,9 @@ class MCPToolSession:
         self.policy = ToolCallPolicy(tool_round_messages)
         self.executor = ToolExecutor(mcp_manager, user_message, model_name)
 
-    def reset_for_request(self, user_message: str) -> None:
+    def reset_for_request(self, user_message: str, user_id: str | None = None) -> None:
         self.policy.reset_for_request()
-        self.executor.reset_for_request(user_message)
+        self.executor.reset_for_request(user_message, user_id)
 
     def get_available_tools(
         self, tools: list[dict[str, Any]], iterations_by_tool: dict[str, int]
