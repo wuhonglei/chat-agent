@@ -117,8 +117,15 @@ async def list_project_files(
         items_count=len(items),
     )
     usage = format_usage(root) if scope == "workspace" else f"root={root}"
+    listing_lines = [
+        f"{'d' if item['type'] == 'dir' else '-'} "
+        f"{(str(item['size']) if item['type'] == 'file' else '-'):>10} "
+        f"{item['name']}{'/' if item['type'] == 'dir' else ''}"
+        for item in items
+    ]
+    listing = "\n".join(listing_lines) if listing_lines else "(empty)"
     return ToolResult(
-        content=f"Listed {len(items)} items under {target}",
+        content=f"{target}\n{listing}",
         structured_content={"items": items, "usage": usage, "scope": scope},
     )
 
