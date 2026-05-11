@@ -27,13 +27,6 @@ class ToolExecutor:
     TAVILY_TOOL_NAME = "tavily-mcp"
     WEB_PAGES_EXTRACT = "web_pages_extract"
     AGENT_SKILLS_SERVER_NAME = "agent-skills-mcp"
-    AGENT_SKILLS_WORKSPACE_TOOLS = {
-        "list_workspace_files",
-        "read_workspace_file",
-        "write_workspace_file",
-        "delete_workspace_file",
-        "clear_workspace",
-    }
 
     def __init__(
         self, mcp_manager: MCPClientManager, user_message: str, model_name: str
@@ -159,10 +152,7 @@ class ToolExecutor:
                 tool_call_id=tool_call.id,
             )
             server_name = self.mcp_manager.get_server_for_tool(tool_name)
-            skip_compaction = (
-                server_name == self.AGENT_SKILLS_SERVER_NAME
-                and tool_name in self.AGENT_SKILLS_WORKSPACE_TOOLS
-            )
+            skip_compaction = server_name == self.AGENT_SKILLS_SERVER_NAME
             if skip_compaction:
                 logger.info(
                     "Skipping tool result compaction for agent skills workspace tool",
@@ -229,8 +219,6 @@ class ToolExecutor:
     def _inject_user_id_for_agent_skills(
         self, *, tool_name: str, arguments: dict[str, Any]
     ) -> None:
-        if tool_name not in self.AGENT_SKILLS_WORKSPACE_TOOLS:
-            return
         server_name = self.mcp_manager.get_server_for_tool(tool_name)
         if server_name != self.AGENT_SKILLS_SERVER_NAME:
             return
