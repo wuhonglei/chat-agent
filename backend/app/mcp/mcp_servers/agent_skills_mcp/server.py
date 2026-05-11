@@ -10,7 +10,6 @@ from fastmcp.tools.tool import ToolResult
 from pydantic import Field
 
 from app.agent_skills import (
-    DEFAULT_ALLOWED_SKILL_NAMES,
     skill_registry,
 )
 from app.mcp.mcp_servers.agent_skills_mcp.config import (
@@ -121,12 +120,12 @@ def _format_usage(root: Path) -> str:
 async def load_skill(
     name: str = Field(
         description=(
-            "技能名称，仅允许 frontend-codegen、backend-codegen、"
-            "shadcn/ui、vercel-react-best-practices、next-best-practices"
+            "技能名称（技能唯一标识），传入需要加载的 skill name；"
+            "具体可用项由服务端注册表与白名单配置决定"
         )
     ),
 ) -> ToolResult:
-    document = skill_registry.load(name, allowed_names=DEFAULT_ALLOWED_SKILL_NAMES)
+    document = skill_registry.load(name)
     body = document.body
     truncated = False
     if len(body) > MAX_SKILL_BODY_CHARS:
