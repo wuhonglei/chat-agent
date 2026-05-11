@@ -8,7 +8,18 @@ from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 
-from app.api import auth, chat, code, conversation, file, health, message, models, user
+from app.api import (
+    auth,
+    chat,
+    code,
+    conversation,
+    file,
+    health,
+    message,
+    models,
+    user,
+    workspace,
+)
 from app.core.config import settings
 from app.core.db import create_db_and_tables
 from app.core.jwt import initialize_jwt_manager
@@ -92,6 +103,7 @@ app.include_router(
 app.include_router(health.router, prefix="/api/health", tags=["health"])
 app.include_router(file.router, prefix="/api/file", tags=["file"])
 app.include_router(code.router, prefix="/api/code", tags=["code"])
+app.include_router(workspace.router, prefix="/api/workspaces", tags=["workspace"])
 
 
 @app.get("/")

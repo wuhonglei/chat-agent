@@ -4,11 +4,13 @@ import { useEffect } from "react";
 export enum EventType {
   ChangeConversion = "changeConversion", // 切换对话
   ChangeSidebarCollapse = "changeSidebarCollapse", // 切换侧边栏折叠状态
+  WorkspaceTreeRefresh = "workspaceTreeRefresh", // 刷新工作区文件树
 }
 
 type Events = {
   [EventType.ChangeConversion]: void;
   [EventType.ChangeSidebarCollapse]: boolean;
+  [EventType.WorkspaceTreeRefresh]: { workspaceId: string };
 };
 
 export const emitter: Emitter<Events> = mitt<Events>();
