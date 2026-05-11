@@ -62,7 +62,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = ({
             {isSmallScreen ? "" : "深度思考"}
           </CustomButton>
         </Form.Item>
-        <ToolsSetting values={values} size={size} />
+        <ToolsSetting values={values} size={size} websiteBuildMode={Boolean(values.websiteBuildMode)} />
         <Form.Item trigger="onClick" initialValue={false} valuePropName="active" name={names.websiteBuildMode}>
           <CustomButton
             size={size}

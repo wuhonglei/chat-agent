@@ -8,7 +8,7 @@ import { GetProp } from "antd";
 import { FormInstance } from "antd/es/form";
 import { get, isBoolean, isEmpty, isEqual, isNil, omit, trim } from "lodash-es";
 import { useEffect } from "react";
-import { ButtonState, names } from "./constant";
+import { ButtonState, names, websiteBuildModeForcedOffMcpIds } from "./constant";
 import { getAttachmentBlocks } from "./util";
 
 /**
@@ -69,24 +69,32 @@ export function useFormValuesChange(form: FormInstance<ChatInputFormValues>) {
 
   useEffect(() => {
     if (mcpConfigLoaded) {
-      setFormValues(
-        pre =>
-          ({
-            ...pre,
-            websiteBuildMode: isBoolean(pre?.websiteBuildMode) ? pre?.websiteBuildMode : false,
-            mcpAutoMode: isBoolean(pre?.mcpAutoMode) ? pre?.mcpAutoMode : true,
-            sourceConfig: mcpConfig.reduce((acc: RetrieverSource, item) => {
-              const preState = get(pre, ["sourceConfig", item.id], undefined);
-              // 如果之前没有选中，或者当前 MCP 不在线，则使用服务端默认值
-              if (isNil(preState) || !item.online) {
-                acc[item.id] = item.online;
-              } else {
-                acc[item.id] = preState;
-              }
-              return acc;
-            }, {} as RetrieverSource),
-          }) as ChatInputConfig
-      );
+      setFormValues(pre => {
+        const websiteBuildMode = isBoolean(pre?.websiteBuildMode) ? pre?.websiteBuildMode : false;
+        let mcpAutoMode = isBoolean(pre?.mcpAutoMode) ? pre?.mcpAutoMode : true;
+        const sourceConfig = mcpConfig.reduce((acc: RetrieverSource, item) => {
+          const preState = get(pre, ["sourceConfig", item.id], undefined);
+          // 如果之前没有选中，或者当前 MCP 不在线，则使用服务端默认值
+          if (isNil(preState) || !item.online) {
+            acc[item.id] = item.online;
+          } else {
+            acc[item.id] = preState;
+          }
+          return acc;
+        }, {} as RetrieverSource);
+        if (websiteBuildMode) {
+          mcpAutoMode = false;
+          for (const id of websiteBuildModeForcedOffMcpIds) {
+            sourceConfig[id] = false;
+          }
+        }
+        return {
+          ...pre,
+          websiteBuildMode,
+          mcpAutoMode,
+          sourceConfig,
+        } as ChatInputConfig;
+      });
     }
   }, [mcpConfigLoaded, mcpConfig, setFormValues]);
 
@@ -115,10 +123,29 @@ export function useFormValuesChange(form: FormInstance<ChatInputFormValues>) {
       if (isEqual(changedKeys, names.content)) {
         return;
       }
-      setFormValues(pre => ({
-        ...pre,
-        ...omit(allFields, "content"),
-      }));
+      setFormValues(pre => {
+        const base: ChatInputConfig = {
+          ...pre,
+          ...omit(allFields, "content"),
+        };
+        if (Object.prototype.hasOwnProperty.call(_changedFields, "websiteBuildMode")) {
+          if (_changedFields.websiteBuildMode === true) {
+            const nextSource = { ...base.sourceConfig };
+            for (const id of websiteBuildModeForcedOffMcpIds) {
+              nextSource[id] = false;
+            }
+            return {
+              ...base,
+              mcpAutoMode: false,
+              sourceConfig: nextSource,
+            };
+          }
+          if (_changedFields.websiteBuildMode === false) {
+            return { ...base, mcpAutoMode: true };
+          }
+        }
+        return base;
+      });
     }
   );
 

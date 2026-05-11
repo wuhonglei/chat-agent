@@ -18,6 +18,7 @@ _FRONTMATTER_RE = re.compile(
 
 DEFAULT_ALLOWED_SKILL_NAMES = {
     "frontend-design",
+    "frontend-project-templates",
     "next-best-practices",
     "shadcn",
     "tailwind-design-system",
