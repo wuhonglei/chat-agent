@@ -1,6 +1,6 @@
 import { SendSmsResponse } from "@/interfaces";
 import { userAPI } from "@/services/user";
-import { getRedirectUrl, jumpToLocation } from "@/utils";
+import { getRedirectUrl, jumpToLocation, reportError } from "@/utils";
 import { SafetyOutlined } from "@ant-design/icons";
 import { useCountDown, useLocalStorageState, useRequest } from "ahooks";
 import { App, Button, Form, Input, Space } from "antd";
@@ -51,6 +51,10 @@ const VerifyCodeForm: React.FC<VerifyCodeFormProps> = () => {
         setTimeout(() => {
           jumpToLocation(getRedirectUrl() || "/chat", true);
         }, 200);
+      },
+      onError: error => {
+        reportError("loginWithVerificationCode failed", { error, smsResponse });
+        console.error("登录失败:", error);
       },
     }
   );
