@@ -18,9 +18,9 @@ _FRONTMATTER_RE = re.compile(
 
 DEFAULT_ALLOWED_SKILL_NAMES = {
     "frontend-design",
-    "shadcn/ui",
-    "vercel-react-best-practices",
     "next-best-practices",
+    "shadcn",
+    "tailwind-design-system",
 }
 
 
