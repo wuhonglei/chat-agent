@@ -27,7 +27,6 @@ _FORBIDDEN_SEGMENTS = {
     ".ssh",
     ".aws",
     ".cursor",
-    ".env",
     "__pycache__",
 }
 
@@ -65,7 +64,7 @@ def _resolve_workspace_path(user_id: str, relative_path: str) -> tuple[Path, Pat
         return root, root
     for part in normalized_parts:
         lowered = part.lower()
-        if part == ".." or lowered in _FORBIDDEN_SEGMENTS or lowered.startswith("."):
+        if part == ".." or lowered in _FORBIDDEN_SEGMENTS:
             raise ValueError("forbidden path")
 
     target = (root / Path(*normalized_parts)).resolve()
