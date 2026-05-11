@@ -1,13 +1,15 @@
 """提示词工具函数模块"""
 
+from __future__ import annotations
+
 import platform
 import subprocess
 import sys
 from collections.abc import Sequence
-from functools import lru_cache
 from typing import Any
 
 from app.agent_skills.models import AgentSkillManifest
+from app.agent_skills.registry import SKILLS_DIR
 from app.prompts.system_prompt import (
     default_system_prompt_template,
     system_prompt_for_chat_session_template,
@@ -47,15 +49,17 @@ def _get_command_version(command: list[str]) -> str:
     return output.splitlines()[0]
 
 
-@lru_cache(maxsize=1)
-def _get_runtime_environment() -> dict[str, str]:
+def _get_runtime_environment(user_id: str) -> dict[str, str]:
     """Get runtime environment summary for prompts."""
+    workspace_dir = f"data/user_data/{user_id}/workspace"
     return {
         "system_type": (
             f"{platform.system()} {platform.release()} ({platform.machine()})"
         ),
         "node_version": _get_command_version(["node", "--version"]),
         "python_version": sys.version.split()[0],
+        "skills_dir": str(SKILLS_DIR),
+        "workspace_dir": str(workspace_dir),
     }
 
 
@@ -68,9 +72,10 @@ def get_system_prompt_for_chat_session(
     *,
     website_build_mode: bool = False,
     skill_manifests: Sequence[AgentSkillManifest] | None = None,
+    user_id: str,
 ) -> str:
     """Get system prompt for final response generation."""
-    runtime_environment = _get_runtime_environment()
+    runtime_environment = _get_runtime_environment(user_id)
     # 统一单会话 Agent 的 system：最终回答优先 + 工具调用准则（balanced）。
     return system_prompt_for_chat_session_template.render(
         website_build_mode=website_build_mode,

@@ -53,6 +53,8 @@ system_prompt_for_chat_session_template: Template = Template(
 - system_type: {{ system_type }}
 - node_version: {{ node_version }}
 - python_version: {{ python_version }}
+- skills_dir: {{ skills_dir }}
+- workspace_dir: {{ workspace_dir }}
 </runtime_environment>
 </website_build_mode>
 {%- endif %}
