@@ -47,9 +47,39 @@ npx shadcn@latest add button
 import { Button } from "@/components/ui/button";
 ```
 
-## 目录建议
+## 项目目录结构
 
-- `app/`：路由与页面（App Router）
-- `components/`：通用组件与 UI 组件
-- `lib/`：工具函数（如 `cn`）
-- `public/`：静态资源
+```text
+next-app/
+├── app/
+│   ├── favicon.ico
+│   ├── globals.css
+│   ├── layout.tsx
+│   └── page.tsx
+├── components/
+│   ├── ui/
+│   │   └── button.tsx
+│   ├── theme-provider.tsx
+│   └── .gitkeep
+├── hooks/
+│   └── .gitkeep
+├── public/
+│   └── .gitkeep
+├── .gitignore
+├── .npmrc
+├── .prettierignore
+├── .prettierrc
+├── components.json
+├── eslint.config.mjs
+├── next.config.mjs
+├── package.json
+├── package-lock.json
+├── postcss.config.mjs
+└── tsconfig.json
+```
+
+- `app/`：App Router 页面与全局样式入口
+- `components/ui/`：shadcn/ui 组件目录
+- `components/theme-provider.tsx`：主题（暗黑/亮色）能力封装
+- `hooks/`：预留自定义 hooks 目录
+- `public/`：静态资源目录
