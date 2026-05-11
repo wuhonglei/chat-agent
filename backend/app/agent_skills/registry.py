@@ -25,16 +25,14 @@ DEFAULT_ALLOWED_SKILL_NAMES = {
     "vite",
 }
 
+SKILLS_DIR = Path(__file__).parent / "skills"
+
 
 class AgentSkillRegistry:
     """Central registry for available and loadable skills."""
 
     def __init__(self, skills_dir: Path | None = None) -> None:
-        base_dir = (
-            skills_dir
-            if skills_dir is not None
-            else Path(__file__).resolve().parent / "skills"
-        )
+        base_dir = skills_dir if skills_dir is not None else SKILLS_DIR
         self.skills_dir = base_dir
         self._documents = self._load_all()
 
