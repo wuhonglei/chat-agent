@@ -95,6 +95,13 @@ export interface CodeExecBlock {
   compile: CodeExecStage | null;
 }
 
+export interface ProjectBlock {
+  id: string;
+  type: "project";
+  workspaceId: string;
+  title?: string;
+}
+
 export interface WebSearchResultItem {
   title?: string;
   url?: string;
@@ -126,8 +133,8 @@ export type ContentBlock =
   | PdfBlock
   | MarkdownBlock;
 
-/** 侧栏可预览的内容块（当前支持 PDF、HTML 与代码运行结果） */
-export type PreviewableBlock = PdfBlock | HtmlBlock | CodeExecBlock;
+/** 侧栏可预览的内容块（支持 PDF、HTML、代码运行结果与工作区项目） */
+export type PreviewableBlock = PdfBlock | HtmlBlock | CodeExecBlock | ProjectBlock;
 export type UserContentBlock = TextBlock | ImageBlock | PdfBlock;
 /** 用户消息中的附件块（图片、PDF 等），不含文本块 */
 export type UserAttachmentBlock = Exclude<UserContentBlock, TextBlock>;

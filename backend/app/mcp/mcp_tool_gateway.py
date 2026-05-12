@@ -14,6 +14,8 @@ from app.utils.logger import logger
 class MCPToolGateway:
     """Resolve tool metadata and execute tools through the connection pool."""
 
+    AGENT_SKILLS_SERVER_NAME = "agent-skills-mcp"
+
     def __init__(self, pool: MCPConnectionPool, registry: MCPRegistry) -> None:
         self.pool = pool
         self.registry = registry
@@ -166,16 +168,39 @@ class MCPToolGateway:
                 continue
             tools = self.pool.tools_by_server[server_name]
             for tool in tools:
+                parameters = tool.inputSchema if hasattr(tool, "inputSchema") else {}
+                parameters_for_llm = self._sanitize_tool_schema_for_llm(
+                    server_name=server_name,
+                    tool_name=tool.name,
+                    parameters=parameters,
+                )
                 formatted_tools.append(
                     {
                         "type": "function",
                         "function": {
                             "name": tool.name,
                             "description": tool.description or "",
-                            "parameters": tool.inputSchema
-                            if hasattr(tool, "inputSchema")
-                            else {},
+                            "parameters": parameters_for_llm,
                         },
                     }
                 )
         return formatted_tools
+
+    def _sanitize_tool_schema_for_llm(
+        self, *, server_name: str, tool_name: str, parameters: dict[str, Any]
+    ) -> dict[str, Any]:
+        if server_name != self.AGENT_SKILLS_SERVER_NAME:
+            return parameters
+        if not parameters:
+            return parameters
+        sanitized = copy.deepcopy(parameters)
+        properties = sanitized.get("properties")
+        if isinstance(properties, dict):
+            properties.pop("user_id", None)
+            properties.pop("workspace_id", None)
+        required = sanitized.get("required")
+        if isinstance(required, list):
+            sanitized["required"] = [
+                item for item in required if item not in {"user_id", "workspace_id"}
+            ]
+        return sanitized

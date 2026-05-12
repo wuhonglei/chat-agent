@@ -1,10 +1,12 @@
 """单会话 Agent：同一 messages 线程上 MCP 工具多轮 + content_blocks 流式应答。"""
 
+import sys
 from collections.abc import AsyncGenerator
 from typing import Any
 
 from openai.types.chat import ChatCompletionMessageFunctionToolCall
 
+from app.agent_skills import DEFAULT_ALLOWED_SKILL_NAMES, skill_registry
 from app.agents.base import BaseAgent
 from app.agents.chat_session_state import (
     ChatRoundStateMachine,
@@ -51,6 +53,8 @@ from app.utils.time import get_current_time, get_time_duration
 class ChatSessionAgent(BaseAgent):
     """合并 MCP 工具与最终应答的单会话编排。"""
 
+    AGENT_SKILLS_SERVER_NAME = "agent-skills-mcp"
+
     def __init__(
         self,
         think_mode: bool,
@@ -95,19 +99,32 @@ class ChatSessionAgent(BaseAgent):
         history_summary_before_window: str | None,
         conversation_id: str,
         user_memories: list[MemorySearchItem],
+        user_id: str,
         kb_context_blocks: list[KbContextBlock] | None = None,
     ) -> AsyncGenerator[str, None]:
-        _ = conversation_id
         self.think_mode = chat_request.think_mode
         self.session_output.reset()
         self.content_block_aggregator = ContentBlocksAggregator()
 
         logger.info("User memories", count=len(user_memories))
 
-        system_prompt = get_system_prompt_for_chat_session()
+        skill_manifests = (
+            skill_registry.list_manifests(allowed_names=DEFAULT_ALLOWED_SKILL_NAMES)
+            if chat_request.website_build_mode
+            else []
+        )
+        system_prompt = get_system_prompt_for_chat_session(
+            website_build_mode=chat_request.website_build_mode,
+            skill_manifests=skill_manifests,
+            user_id=user_id,
+            workspace_id=conversation_id,
+        )
         server_names = resolve_enabled_mcp_servers(
             chat_request.mcp_auto_mode, chat_request.source_config
         )
+        if chat_request.website_build_mode and server_names is not None:
+            if self.AGENT_SKILLS_SERVER_NAME not in server_names:
+                server_names.append(self.AGENT_SKILLS_SERVER_NAME)
         tools = await self.mcp_manager.get_tools_for_llm(
             server_names,
             client_ip,
@@ -140,7 +157,11 @@ class ChatSessionAgent(BaseAgent):
             self.model_config.model_name,
             self.tool_round_messages,
         )
-        tool_session.reset_for_request(user_message_text)
+        tool_session.reset_for_request(
+            user_message_text,
+            user_id=user_id,
+            workspace_id=conversation_id,
+        )
 
         if not tools:
             async for sse in self._stream_final_round_events(
@@ -153,12 +174,21 @@ class ChatSessionAgent(BaseAgent):
             return
 
         tools_list = list(tools)
+        max_iterations_by_tool = (
+            sys.maxsize
+            if chat_request.website_build_mode
+            else tool_session.MAX_ITERATIONS_BY_TOOL
+        )
+        max_total_iterations = (
+            sys.maxsize
+            if chat_request.website_build_mode
+            else tool_session.MAX_TOTAL_ITERATIONS
+        )
         iterations_by_tool: dict[str, int] = {
-            t["function"]["name"]: tool_session.MAX_ITERATIONS_BY_TOOL
-            for t in tools_list
+            t["function"]["name"]: max_iterations_by_tool for t in tools_list
         }
 
-        for iteration in range(tool_session.MAX_TOTAL_ITERATIONS):
+        for iteration in range(max_total_iterations):
             tool_session.apply_iteration_hints(
                 messages=base_prompt_messages,
                 tools=tools_list,
@@ -207,12 +237,12 @@ class ChatSessionAgent(BaseAgent):
 
         logger.info(
             "Chat session max tool iterations reached, forcing final answer",
-            max_iterations=tool_session.MAX_TOTAL_ITERATIONS,
+            max_iterations=max_total_iterations,
         )
         async for sse in self._stream_final_round_events(
             messages=base_prompt_messages,
             tool_session=tool_session,
-            iteration=tool_session.MAX_TOTAL_ITERATIONS,
+            iteration=max_total_iterations,
             iterations_by_tool=iterations_by_tool,
         ):
             yield sse

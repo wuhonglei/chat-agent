@@ -14,15 +14,31 @@ RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debia
     echo "deb https://mirrors.aliyun.com/debian/ bookworm-updates main" >> /etc/apt/sources.list && \
     echo "deb https://mirrors.aliyun.com/debian-security/ bookworm-security main" >> /etc/apt/sources.list
 
-# Install system dependencies with retry mechanism
+# Install system dependencies (Python build tools + Node 20 LTS runtime for agent skills)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
+    bash \
     gcc \
     g++ \
     git \
     curl \
+    ca-certificates \
+    gnupg \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" > /etc/apt/sources.list.d/nodesource.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends nodejs \
+    && npm install -g pnpm --registry=https://registry.npmmirror.com \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
+
+# Validate required runtimes for agent skill command execution
+RUN bash --version && \
+    python --version && \
+    node --version && \
+    npm --version && \
+    pnpm --version
 
 # Install uv for faster dependency installation
 # 使用 pip 安装（推荐用于云服务器，利用阿里云镜像加速）

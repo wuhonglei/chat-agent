@@ -1,5 +1,6 @@
 import SquareIcon from "@/assets/svg/SquareIcon.svg?react";
 import ThinkModeIcon from "@/assets/svg/ThinkModeIcon.svg?react";
+import WebSiteIcon from "@/assets/svg/WebSiteIcon.svg?react";
 import CustomButton from "@/components/common/CustomButton";
 import { useIsSmallScreen } from "@/hooks";
 import { ChatInputConfig } from "@/interfaces";
@@ -61,7 +62,17 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = ({
             {isSmallScreen ? "" : "深度思考"}
           </CustomButton>
         </Form.Item>
-        <ToolsSetting values={values} size={size} />
+        <ToolsSetting values={values} size={size} websiteBuildMode={Boolean(values.websiteBuildMode)} />
+        <Form.Item trigger="onClick" initialValue={false} valuePropName="active" name={names.websiteBuildMode}>
+          <CustomButton
+            size={size}
+            bordered={false}
+            icon={<WebSiteIcon />}
+            tooltip={isSmallScreen ? undefined : "启用 Agent Skills 网站构建模式"}
+          >
+            {isSmallScreen ? "" : "网站构建"}
+          </CustomButton>
+        </Form.Item>
       </div>
       <div className="flex items-center gap-2">
         <ModelSelect size={size} hasImageContext={hasImageContext} />

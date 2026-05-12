@@ -149,6 +149,7 @@ class ChatOrchestrator:
         chat_request: ChatRequest,
         history_summary_before_window: str | None,
         history_messages: list[ChatMessage],
+        user_id: str,
         client_ip: str | None,
         user_memories: list[MemorySearchItem] | None = None,
         kb_context_blocks: list[KbContextBlock] | None = None,
@@ -173,6 +174,7 @@ class ChatOrchestrator:
                 history_summary_before_window=history_summary_before_window,
                 conversation_id=chat_request.conversation_id,
                 user_memories=user_memories or [],
+                user_id=user_id,
                 kb_context_blocks=kb_context_blocks,
             ):
                 yield event
@@ -310,6 +312,7 @@ class ChatOrchestrator:
                             chat_request=chat_request,
                             history_summary_before_window=history_summary_before_window,
                             history_messages=prepared_history_messages,
+                            user_id=user_id,
                             client_ip=None,
                             user_memories=user_memories,
                             kb_context_blocks=kb_context_blocks,

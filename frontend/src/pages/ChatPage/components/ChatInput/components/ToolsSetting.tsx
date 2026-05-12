@@ -7,15 +7,20 @@ import { Avatar, Form, Popover, Switch } from "antd";
 import { SizeType } from "antd/es/config-provider/SizeContext";
 import classNames from "classnames";
 import React, { useMemo, useRef, useState } from "react";
-import { names } from "../constant";
+import { names, websiteBuildModeForcedOffMcpIds } from "../constant";
 import { useMCPConfig } from "../hooks";
+
+function isWebsiteBuildForcedOffMcp(id: string): boolean {
+  return (websiteBuildModeForcedOffMcpIds as readonly string[]).includes(id);
+}
 
 interface ToolsSettingProps {
   size: SizeType;
   values: ChatInputConfig;
+  websiteBuildMode: boolean;
 }
 
-const ToolsSetting: React.FC<ToolsSettingProps> = ({ values, size }) => {
+const ToolsSetting: React.FC<ToolsSettingProps> = ({ values, size, websiteBuildMode }) => {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLDivElement>(null);
   const mcpAutoMode = Boolean(values.mcpAutoMode);
@@ -46,7 +51,7 @@ const ToolsSetting: React.FC<ToolsSettingProps> = ({ values, size }) => {
             name={names.mcpAutoMode}
             label={<span className="font-bold">智能选择工具</span>}
           >
-            <Switch />
+            <Switch disabled={websiteBuildMode} />
           </Form.Item>
           {mcpConfig.map(item => (
             <section
@@ -73,7 +78,9 @@ const ToolsSetting: React.FC<ToolsSettingProps> = ({ values, size }) => {
                 valuePropName="checked"
                 name={[...names.sourceConfig, item.id]}
               >
-                <Switch disabled={mcpAutoMode || !item.online} />
+                <Switch
+                  disabled={mcpAutoMode || !item.online || (websiteBuildMode && isWebsiteBuildForcedOffMcp(item.id))}
+                />
               </Form.Item>
             </section>
           ))}

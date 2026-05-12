@@ -3,6 +3,7 @@ import React from "react";
 import CodeExecPreviewPanel from "./CodeExecPreview";
 import HtmlBlockPreviewPanel from "./HtmlPreview";
 import PdfBlockPreviewPanel from "./PdfPreview";
+import ProjectPreviewPanel from "./ProjectPreview";
 
 export interface BlockPreviewPanelProps {
   width: number;
@@ -18,6 +19,8 @@ const BlockPreviewPanel: React.FC<BlockPreviewPanelProps> = ({ width, block, onC
       return <HtmlBlockPreviewPanel width={width} block={block} onClose={onClose} />;
     case "code_exec":
       return <CodeExecPreviewPanel width={width} block={block} onClose={onClose} />;
+    case "project":
+      return <ProjectPreviewPanel width={width} block={block} onClose={onClose} />;
     default: {
       const _exhaustive: never = block;
       return _exhaustive;

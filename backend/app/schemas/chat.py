@@ -113,6 +113,9 @@ class ChatRequest(BaseModel):
         False, description="Whether to regenerate title"
     )
     mcp_auto_mode: bool = Field(True, description="Whether to use mcp auto mode")
+    website_build_mode: bool = Field(
+        False, description="Whether to enable website build mode"
+    )
     think_mode: bool = Field(False, description="Whether to use think mode")
     model_id: str = Field(
         default="default",

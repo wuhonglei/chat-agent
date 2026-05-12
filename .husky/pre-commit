@@ -10,6 +10,16 @@ fi
 vp staged
 cd ..
 
+# Git hook 的 PATH 可能不包含用户本地二进制目录（如 ~/.local/bin）
+if [ -x "$HOME/.local/bin/uv" ]; then
+  export PATH="$HOME/.local/bin:$PATH"
+fi
+
+if ! command -v uv >/dev/null 2>&1; then
+  echo "pre-commit 依赖 uv，请先安装并确保 uv 在 PATH 中。"
+  exit 127
+fi
+
 
 # Backend: ruff + mypy（.pre-commit-config.yaml，仅对暂存的 .py 做类型检查）
 # pre-commit 在 optional-dependencies dev 中，需 --extra dev 才能找到可执行文件

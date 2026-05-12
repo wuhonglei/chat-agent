@@ -7,6 +7,7 @@ from typing import Any
 from fastmcp import FastMCP
 
 from app.core.config import settings
+from app.mcp.mcp_servers.agent_skills_mcp.server import mcp as agent_skills_mcp
 from app.mcp.mcp_servers.code_exec_mcp.server import mcp as code_exec_mcp
 from app.mcp.mcp_servers.ip_locator_mcp.server import mcp as ip_locator_mcp
 from app.mcp.mcp_servers.tavily_mcp.server import mcp as tavily_mcp
@@ -28,6 +29,7 @@ class MCPRegistry:
             "weather-mcp": weather_mcp,
             "tavily-mcp": tavily_mcp,
             "code-exec-mcp": code_exec_mcp,
+            "agent-skills-mcp": agent_skills_mcp,
         }
         self._fe_configs: list[MCPConfigForFeDict] = [
             {

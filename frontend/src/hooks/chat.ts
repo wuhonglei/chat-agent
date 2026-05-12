@@ -9,6 +9,7 @@ import {
   StreamResumeContext,
 } from "@/interfaces";
 import { chatAPI } from "@/services";
+import { emitter, EventType } from "@/events";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   addMessage,
@@ -449,6 +450,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
       }
 
       if (type === "done") {
+        emitter.emit(EventType.WorkspaceTreeRefresh, { workspaceId: conversationId });
         dispatch(updateStreamResumePhase({ conversationId, data: "done" }));
         dispatch(updateMessageStatus({ conversationId, data: MessageStatus.Done }));
         dispatch(

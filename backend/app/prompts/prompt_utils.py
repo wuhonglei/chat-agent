@@ -1,9 +1,15 @@
 """提示词工具函数模块"""
 
+from __future__ import annotations
+
+import platform
+import subprocess
+import sys
 from collections.abc import Sequence
 from typing import Any
 
-from app.mcp.mcp_client import mcp_config_for_fe
+from app.agent_skills.models import AgentSkillManifest
+from app.agent_skills.registry import SKILLS_DIR
 from app.prompts.system_prompt import (
     default_system_prompt_template,
     system_prompt_for_chat_session_template,
@@ -24,15 +30,60 @@ from app.schemas.user import MemorySearchItem
 from app.utils.date import get_current_datetime_str
 
 
+def _get_command_version(command: list[str]) -> str:
+    """Get command version output safely."""
+    try:
+        result = subprocess.run(
+            command,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return "unavailable"
+
+    output = (result.stdout or result.stderr).strip()
+    if not output:
+        return "unknown"
+    return output.splitlines()[0]
+
+
+def _get_runtime_environment(user_id: str, workspace_id: str) -> dict[str, str]:
+    """Get runtime environment summary for prompts."""
+    safe_workspace_id = workspace_id.strip()
+    workspace_dir = f"data/user_data/{user_id}/workspaces/{safe_workspace_id}"
+    return {
+        "system_type": (
+            f"{platform.system()} {platform.release()} ({platform.machine()})"
+        ),
+        "node_version": _get_command_version(["node", "--version"]),
+        "python_version": sys.version.split()[0],
+        "skills_dir": str(SKILLS_DIR),
+        "workspace_dir": str(workspace_dir),
+    }
+
+
 def get_default_system_prompt() -> str:
     """Get default system prompt with current time information"""
     return default_system_prompt_template.render()
 
 
-def get_system_prompt_for_chat_session() -> str:
+def get_system_prompt_for_chat_session(
+    *,
+    website_build_mode: bool = False,
+    skill_manifests: Sequence[AgentSkillManifest] | None = None,
+    user_id: str,
+    workspace_id: str,
+) -> str:
     """Get system prompt for final response generation."""
+    runtime_environment = _get_runtime_environment(user_id, workspace_id)
     # 统一单会话 Agent 的 system：最终回答优先 + 工具调用准则（balanced）。
-    return system_prompt_for_chat_session_template.render()
+    return system_prompt_for_chat_session_template.render(
+        website_build_mode=website_build_mode,
+        skill_manifests=skill_manifests or [],
+        **runtime_environment,
+    )
 
 
 def get_system_prompt_for_title() -> str:
@@ -54,6 +105,10 @@ def get_user_message_for_tool_calls(
     kb_context_blocks: 可选，每项建议包含 id、name、content，
     以及可选 created_at（与 user_prompt 模板一致）。
     """
+    # 延迟导入，避免在应用启动阶段触发 mcp_client 的循环依赖。
+    from app.mcp.mcp_client import mcp_client_manager
+
+    mcp_config_for_fe = mcp_client_manager.registry.get_fe_configs()
     id_by_config = {config["id"]: config for config in mcp_config_for_fe}
     server_names = server_names or []
     mcp_configs = [

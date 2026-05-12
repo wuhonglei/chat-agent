@@ -9,13 +9,15 @@
     "lint": "vp lint .",
     "format": "vp fmt ./src",
     "preview": "vp preview",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "generate:project-preview-icons": "vp exec node scripts/generate-project-preview-file-icons.mjs"
   },
   "dependencies": {
     "@ant-design/icons": "^6.1.1",
     "@ant-design/x": "^2.7.0",
     "@ant-design/x-markdown": "^2.7.0",
     "@microsoft/fetch-event-source": "^2.0.1",
+    "@monaco-editor/react": "^4.7.0",
     "@reduxjs/toolkit": "^2.11.2",
     "aegis-web-sdk": "^1.41.10",
     "ahooks": "^3.9.6",
