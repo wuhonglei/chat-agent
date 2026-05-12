@@ -1,5 +1,6 @@
 import axios from "axios";
-import { addRequestHeaders, apiClient } from "./base";
+import { authHeader } from "@/constants/authHeader";
+import { apiClient } from "./base";
 
 export interface WorkspaceTreeNode {
   title: string;
@@ -40,10 +41,14 @@ export const workspaceAPI = {
     return await apiClient.get(`/workspaces/${workspaceId}/file-content`, { params: { path } });
   },
   getWorkspacePreviewContent: async (workspaceId: string): Promise<string> => {
-    const response = await axios.get<string>(`/api/workspaces/${workspaceId}/preview-content`, {
+    const response = await axios.get<string>(workspaceAPI.getWorkspacePreviewContentUrl(workspaceId), {
       responseType: "text",
-      headers: addRequestHeaders({ Accept: "text/html" }),
+      headers: { Accept: "text/html" },
     });
     return response.data;
+  },
+  getWorkspacePreviewContentUrl: (workspaceId: string): string => {
+    const userId = authHeader.getUserId();
+    return `/api/workspaces/${encodeURIComponent(userId)}/${encodeURIComponent(workspaceId)}/preview-content`;
   },
 };

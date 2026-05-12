@@ -210,13 +210,13 @@ async def get_workspace_file_content(
     )
 
 
-@router.get("/{workspace_id}/preview-content")
+@router.get("/{user_id}/{workspace_id}/preview-content")
 async def get_workspace_preview_content(
+    user_id: str,
     workspace_id: str,
-    auth_info: AuthTokenPayload = Depends(get_auth_token_info),
 ) -> HTMLResponse:
     try:
-        workspace_root, _ = resolve_workspace_path(auth_info.user_id, workspace_id, "")
+        workspace_root, _ = resolve_workspace_path(user_id, workspace_id, "")
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 

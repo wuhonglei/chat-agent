@@ -45,6 +45,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
 
   const [fileError, setFileError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null);
+  const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
   const [appPreviewError, setAppPreviewError] = useState<string | null>(null);
   const [appPreviewHtml, setAppPreviewHtml] = useState("");
 
@@ -113,12 +114,15 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
     [loadedDirPaths, runLoadDirTree]
   );
 
-  const { run: runLoadFile, loading: loadingFile } = useRequest(
-    async (filePath: string) => {
-      return await workspaceAPI.getWorkspaceFileContent(block.workspaceId, filePath);
+  const { refresh: refreshSelectedFile, loading: loadingFile } = useRequest(
+    async () => {
+      return await workspaceAPI.getWorkspaceFileContent(block.workspaceId, selectedFilePath!);
     },
     {
-      manual: true,
+      ready: !!selectedFilePath,
+      refreshDeps: [block.workspaceId, selectedFilePath],
+      ...(selectedFilePath ? { cacheKey: `workspace-file-content:${block.workspaceId}:${selectedFilePath}` } : {}),
+      staleTime: 0,
       onBefore: () => {
         setFileError(null);
       },
@@ -161,6 +165,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
 
   useEffect(() => {
     setPreviewMode("files");
+    setSelectedFilePath(null);
     setSelectedFile(null);
     setFileError(null);
     setAppPreviewError(null);
@@ -224,9 +229,13 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
         void handleFolderClick(filePath);
         return;
       }
-      runLoadFile(filePath);
+      if (filePath === selectedFilePath) {
+        void refreshSelectedFile();
+        return;
+      }
+      setSelectedFilePath(filePath);
     },
-    [handleFolderClick, runLoadFile, treeData]
+    [handleFolderClick, refreshSelectedFile, selectedFilePath, treeData]
   );
 
   const previewNode = useMemo(() => {
@@ -309,20 +318,9 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
   }, [previewMode, refreshTree, runLoadAppPreview]);
 
   const handleOpenAppPreviewInNewPage = useCallback(() => {
-    if (!appPreviewHtml.trim()) {
-      return;
-    }
-    const blob = new Blob([appPreviewHtml], { type: "text/html;charset=utf-8" });
-    const blobUrl = URL.createObjectURL(blob);
-    const openedWindow = window.open(blobUrl, "_blank", "noopener,noreferrer");
-    if (!openedWindow) {
-      URL.revokeObjectURL(blobUrl);
-      return;
-    }
-    window.setTimeout(() => {
-      URL.revokeObjectURL(blobUrl);
-    }, 60_000);
-  }, [appPreviewHtml]);
+    const previewUrl = workspaceAPI.getWorkspacePreviewContentUrl(block.workspaceId);
+    window.open(previewUrl, "_blank", "noopener,noreferrer");
+  }, [block.workspaceId]);
 
   return (
     <section className="h-full min-h-0 flex flex-col border-l border-(--ant-color-border-secondary) bg-(--ant-color-bg-layout)">
@@ -348,7 +346,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
                 type="text"
                 icon={<ExportOutlined />}
                 onClick={handleOpenAppPreviewInNewPage}
-                disabled={!appPreviewHtml.trim() || !!appPreviewError || loadingAppPreview}
+                disabled={loadingAppPreview}
               />
             </Tooltip>
           ) : null}
