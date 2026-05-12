@@ -5,7 +5,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
 from fastmcp import FastMCP
 from fastmcp.tools.tool import ToolResult
@@ -90,21 +90,23 @@ def _resolve_readonly_root(
 async def list_project_files(
     user_id: str = Field(description="当前用户ID"),
     workspace_id: str = Field(description="当前工作区ID（会话ID）"),
-    path: str = Field(default="", description="相对 scope 根目录路径"),
-    depth: int = Field(
-        default=1,
+    path: Annotated[str, Field(description="相对 scope 根目录路径")] = "",
+    depth: Annotated[
+        int,
+        Field(
         ge=1,
         le=10,
         description="目录递归深度，1 表示仅当前目录下一级内容",
-    ),
+        ),
+    ] = 1,
     scope: Literal["workspace", "skills"] = Field(
         default="workspace",
         description="根目录范围：workspace(会话工作区) 或 skills(技能目录)",
     ),
-    include_ignored: bool = Field(
-        default=False,
-        description="是否包含默认忽略的重目录（如 node_modules/.next）",
-    ),
+    include_ignored: Annotated[
+        bool,
+        Field(description="是否包含默认忽略的重目录（如 node_modules/.next）"),
+    ] = False,
 ) -> ToolResult:
     """列出 scope 根目录下指定目录的文件与子目录信息。"""
     if depth < 1 or depth > 10:
@@ -252,6 +254,63 @@ async def write_workspace_file(
     return ToolResult(
         content=f"Wrote file: {target}",
         structured_content={"path": str(path), "usage": format_usage(root)},
+    )
+
+
+@mcp.tool(name="edit_workspace_file")
+async def edit_workspace_file(
+    user_id: str = Field(description="当前用户ID"),
+    workspace_id: str = Field(description="当前工作区ID（会话ID）"),
+    path: str = Field(description="相对 workspace 根目录的文件路径"),
+    old_string: str = Field(description="要被替换的原始文本"),
+    new_string: str = Field(description="替换后的文本"),
+    replace_all: Annotated[
+        bool,
+        Field(description="是否替换所有匹配项，默认为 False（仅允许精确替换 1 处）"),
+    ] = False,
+) -> ToolResult:
+    """在用户工作区内对文本文件执行受控字符串替换。"""
+    if not old_string:
+        raise ValueError("old_string must not be empty")
+
+    root, target = resolve_workspace_path(user_id, workspace_id, path)
+    if not target.exists() or not target.is_file():
+        raise ValueError("file does not exist")
+
+    content = target.read_text(encoding="utf-8", errors="replace")
+    match_count = content.count(old_string)
+    if match_count == 0:
+        raise ValueError("old_string not found")
+
+    if replace_all:
+        updated_content = content.replace(old_string, new_string)
+        applied_count = match_count
+    else:
+        if match_count > 1:
+            raise ValueError(
+                "old_string matched multiple locations; set replace_all=true or provide a unique snippet"
+            )
+        updated_content = content.replace(old_string, new_string, 1)
+        applied_count = 1
+
+    ensure_write_quota(root, target=target, content=updated_content)
+    target.write_text(updated_content, encoding="utf-8")
+    logger.info(
+        "Workspace file edited",
+        user_id=user_id,
+        workspace_id=workspace_id,
+        path=str(target),
+        applied_count=applied_count,
+        replace_all=replace_all,
+    )
+    return ToolResult(
+        content=f"Edited file: {target} (applied={applied_count})",
+        structured_content={
+            "path": str(path),
+            "applied_count": applied_count,
+            "replace_all": replace_all,
+            "usage": format_usage(root),
+        },
     )
 
 

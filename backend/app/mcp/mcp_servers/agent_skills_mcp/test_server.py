@@ -7,6 +7,7 @@ import pytest
 
 from app.mcp.mcp_servers.agent_skills_mcp.server import (
     clear_workspace,
+    edit_workspace_file,
     list_project_files,
     read_project_file,
     write_workspace_file,
@@ -188,7 +189,9 @@ async def test_list_project_files_ignores_heavy_directories_by_default() -> None
             depth=1,
         )
         default_items = (default_result.structured_content or {}).get("items", [])
-        default_names = {item.get("name") for item in default_items if isinstance(item, dict)}
+        default_names = {
+            item.get("name") for item in default_items if isinstance(item, dict)
+        }
         assert "src" in default_names
         assert "node_modules" not in default_names
         assert ".next" not in default_names
@@ -202,7 +205,9 @@ async def test_list_project_files_ignores_heavy_directories_by_default() -> None
             include_ignored=True,
         )
         include_items = (include_result.structured_content or {}).get("items", [])
-        include_names = {item.get("name") for item in include_items if isinstance(item, dict)}
+        include_names = {
+            item.get("name") for item in include_items if isinstance(item, dict)
+        }
         assert "node_modules" in include_names
         assert ".next" in include_names
     finally:
@@ -213,3 +218,58 @@ async def test_list_project_files_ignores_heavy_directories_by_default() -> None
 def test_resolve_skills_path_still_blocks_path_escape() -> None:
     with pytest.raises(ValueError, match="forbidden path"):
         resolve_skills_path("../outside.txt")
+
+
+@pytest.mark.asyncio
+async def test_edit_workspace_file_replaces_once_by_default() -> None:
+    user_id = _new_id("user")
+    workspace_id = _new_id("conv")
+    try:
+        await write_workspace_file(
+            user_id=user_id,
+            workspace_id=workspace_id,
+            path="project/README.md",
+            content="hello world",
+        )
+        await edit_workspace_file(
+            user_id=user_id,
+            workspace_id=workspace_id,
+            path="project/README.md",
+            old_string="world",
+            new_string="workspace",
+        )
+
+        result = await read_project_file(
+            user_id=user_id,
+            workspace_id=workspace_id,
+            scope="workspace",
+            path="project/README.md",
+        )
+        assert "hello workspace" in str(result.content)
+    finally:
+        await clear_workspace(user_id=user_id, workspace_id=workspace_id)
+        shutil.rmtree(get_workspace_root(user_id, workspace_id), ignore_errors=True)
+
+
+@pytest.mark.asyncio
+async def test_edit_workspace_file_requires_unique_match_when_not_replace_all() -> None:
+    user_id = _new_id("user")
+    workspace_id = _new_id("conv")
+    try:
+        await write_workspace_file(
+            user_id=user_id,
+            workspace_id=workspace_id,
+            path="project/a.txt",
+            content="a\na\n",
+        )
+        with pytest.raises(ValueError, match="matched multiple locations"):
+            await edit_workspace_file(
+                user_id=user_id,
+                workspace_id=workspace_id,
+                path="project/a.txt",
+                old_string="a",
+                new_string="b",
+            )
+    finally:
+        await clear_workspace(user_id=user_id, workspace_id=workspace_id)
+        shutil.rmtree(get_workspace_root(user_id, workspace_id), ignore_errors=True)

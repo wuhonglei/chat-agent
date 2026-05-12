@@ -2,7 +2,8 @@ import { EventType, useEmitter } from "@/events";
 import type { ProjectBlock } from "@/interfaces/contentBlock";
 import type { WorkspaceTreeNode } from "@/services";
 import { workspaceAPI } from "@/services";
-import { CloseOutlined, ExportOutlined, ReloadOutlined } from "@ant-design/icons";
+import { downloadFileByUrl } from "@/utils/file";
+import { CloseOutlined, DownloadOutlined, ExportOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Folder } from "@ant-design/x";
 import Editor from "@monaco-editor/react";
 import { useRequest } from "ahooks";
@@ -159,6 +160,24 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
           return;
         }
         setAppPreviewError(message);
+      },
+    }
+  );
+
+  const { run: runDownloadWorkspaceZip, loading: loadingWorkspaceZip } = useRequest(
+    async () => {
+      const workspaceZip = await workspaceAPI.downloadWorkspaceZip(block.workspaceId);
+      const downloadUrl = URL.createObjectURL(workspaceZip);
+      try {
+        await downloadFileByUrl(downloadUrl, `${block.workspaceId}.zip`);
+      } finally {
+        URL.revokeObjectURL(downloadUrl);
+      }
+    },
+    {
+      manual: true,
+      onError: error => {
+        setTreeError(error instanceof Error ? error.message : "下载失败，请稍后重试");
       },
     }
   );
@@ -322,6 +341,11 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
     window.open(previewUrl, "_blank", "noopener,noreferrer");
   }, [block.workspaceId]);
 
+  const handleDownloadWorkspaceZip = useCallback(() => {
+    setTreeError(null);
+    runDownloadWorkspaceZip();
+  }, [runDownloadWorkspaceZip]);
+
   return (
     <section className="h-full min-h-0 flex flex-col border-l border-(--ant-color-border-secondary) bg-(--ant-color-bg-layout)">
       <header className="flex h-[60px] shrink-0 items-center justify-between gap-2 border-b border-(--ant-color-border-secondary) bg-(--ant-color-bg-container) px-3">
@@ -340,6 +364,17 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
           />
         </div>
         <div className="flex items-center gap-1">
+          {previewMode === "files" ? (
+            <Tooltip title="下载项目（zip）">
+              <Button
+                type="text"
+                icon={<DownloadOutlined />}
+                onClick={handleDownloadWorkspaceZip}
+                loading={loadingWorkspaceZip}
+                disabled={loadingTree}
+              />
+            </Tooltip>
+          ) : null}
           {previewMode === "app" ? (
             <Tooltip title="在新页面打开">
               <Button
