@@ -24,6 +24,7 @@ disable-model-invocation: true
 3. 不允许跳过“用户确认”栅栏（Planning 阶段结束后必须等待确认）
 4. 默认最小实现优先，不做超出需求的功能扩展
 5. 不自动执行 `git add` / `git commit` / `git push`，除非用户明确要求
+6. 前端包管理器默认使用 `pnpm`（除非用户明确指定其他工具）
 
 ## 状态机（必须遵循）
 
@@ -142,24 +143,24 @@ stateDiagram-v2
      ```
    - 若用户需求与上述默认配置冲突（例如自定义镜像源、非单文件构建），必须在 Planning 阶段声明并经用户确认后再调整
 3. 安装依赖
-   - 执行：`npm install`
+   - 执行：`pnpm install`
    - 按蓝图安装 Tailwind/shadcn 所需依赖
 4. 配置
    - 配置 Tailwind 内容路径
    - 配置 TypeScript 路径别名（如 `@/`）
    - 初始化 shadcn/ui（如蓝图需要）
    - 必须配置 Vite 单文件构建，确保静态资源全部内联进 HTML：
-     1) 安装依赖：`npm install -D vite-plugin-singlefile`
+     1) 安装依赖：`pnpm add -D vite-plugin-singlefile`
      2) 确认 `vite.config.ts` 已包含 React、Tailwind、`vite-plugin-singlefile`、`@` 别名和 `assetsInlineLimit` 配置
      3) 若项目使用了运行时动态加载资源（如按路径 fetch 图片/字体），需在规划阶段提前声明限制并与用户确认
 5. 验证
-   - 验证 `npm run dev` 可启动（必须使用“定向清理”，禁止全局杀进程）：
+   - 验证 `pnpm dev` 可启动（必须使用“定向清理”，禁止全局杀进程）：
      - 推荐命令：
-       - `npm run dev > /tmp/vite-dev.log 2>&1 & echo $! > /tmp/vite-dev.pid`
+       - `pnpm dev > /tmp/vite-dev.log 2>&1 & echo $! > /tmp/vite-dev.pid`
        - `sleep 3`
        - `cat /tmp/vite-dev.log`
        - `kill "$(cat /tmp/vite-dev.pid)" 2>/dev/null || true`
-   - 禁止使用 `pkill -f "vite"`、`pkill -f "npm run dev"` 等会误伤其他会话的命令
+   - 禁止使用 `pkill -f "vite"`、`pkill -f "pnpm dev"` 等会误伤其他会话的命令
    - 检查关键配置文件存在且内容正确
 6. 归档
    - 记录脚手架生成/修改文件到 `artifacts.scaffoldFiles`
@@ -212,14 +213,14 @@ stateDiagram-v2
 1. 页面组装
    - 在页面/路由文件中集成已完成组件
 2. 构建验证
-   - 执行：`npm run build`
+   - 执行：`pnpm build`
    - 必须额外验证 `dist/index.html`（静态资源全部内联模式）：
      - 允许存在内联 `<script>` / `<style>` / data URL
      - 不应再依赖 `dist/assets/*` 作为运行时必需资源
    - 失败则进入修复循环（可能涉及多个文件）
 3. 运行时验证
-   - 执行：`npm run dev`（同样使用 PID 定向清理，禁止 `pkill -f`）
-   - 推荐：`npm run dev > /tmp/vite-dev.log 2>&1 & echo $! > /tmp/vite-dev.pid && sleep 3 && cat /tmp/vite-dev.log && kill "$(cat /tmp/vite-dev.pid)" 2>/dev/null || true`
+   - 执行：`pnpm dev`（同样使用 PID 定向清理，禁止 `pkill -f`）
+   - 推荐：`pnpm dev > /tmp/vite-dev.log 2>&1 & echo $! > /tmp/vite-dev.pid && sleep 3 && cat /tmp/vite-dev.log && kill "$(cat /tmp/vite-dev.pid)" 2>/dev/null || true`
    - 检查启动日志是否有阻塞错误
 4. 冒烟检查（环境允许时）
    - 检查主页面可访问（200）且无明显运行时报错
@@ -229,8 +230,8 @@ stateDiagram-v2
 
 ### DoD
 
-- `npm run build` 通过
-- `npm run dev` 可启动
+- `pnpm build` 通过
+- `pnpm dev` 可启动
 - 核心链路可访问，无阻塞级运行时错误
 - `stage` 更新为 `completed`
 
@@ -261,8 +262,8 @@ Skill 执行完成时，必须交付：
 
 ## 验证结果
 - `npx tsc --noEmit`: pass/fail
-- `npm run build`: pass/fail
-- `npm run dev`: pass/fail
+- `pnpm build`: pass/fail
+- `pnpm dev`: pass/fail
 - 冒烟检查：pass/fail（含说明）
 
 ## 风险与待办

@@ -71,10 +71,32 @@ class ChatService:
             return "中"
         return "低"
 
+    @staticmethod
+    def _is_simple_ack_query(query: str) -> bool:
+        normalized_query = query.strip().lower()
+        if not normalized_query:
+            return True
+
+        normalized_query = normalized_query.strip("，。！？、,.!?~～…")
+        simple_ack_phrases = {
+            "好",
+            "好的",
+            "ok",
+            "okay",
+            "继续",
+            "确认",
+            "可以",
+            "收到",
+            "行",
+            "没问题",
+            "明白",
+        }
+        return normalized_query in simple_ack_phrases
+
     async def _search_user_memories(
         self, *, query: str, user_id: str
     ) -> list[MemorySearchItem]:
-        if not query:
+        if self._is_simple_ack_query(query):
             return []
         searched_memories: list[MemoryListItem] = await self.memory_service.search(
             query=query,
