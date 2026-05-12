@@ -31,6 +31,7 @@ class ToolExecutor:
         "list_project_files",
         "read_project_file",
         "write_workspace_file",
+        "edit_workspace_file",
         "delete_workspace_file",
         "clear_workspace",
         "run_bash",
