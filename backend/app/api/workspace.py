@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import HTMLResponse
 
 from app.mcp.mcp_servers.agent_skills_mcp.utils import resolve_workspace_path
 from app.schemas.auth import AuthTokenPayload
@@ -176,7 +177,7 @@ async def get_workspace_file_content(
 async def get_workspace_preview_content(
     workspace_id: str,
     auth_info: AuthTokenPayload = Depends(get_auth_token_info),
-) -> ApiResponse[dict[str, Any]]:
+) -> HTMLResponse:
     try:
         workspace_root, _ = resolve_workspace_path(auth_info.user_id, workspace_id, "")
     except ValueError as exc:
@@ -194,14 +195,9 @@ async def get_workspace_preview_content(
         raise HTTPException(status_code=400, detail="预览入口文件不可为二进制内容")
 
     content = target.read_text(encoding="utf-8", errors="replace")
-    stat = target.stat()
-    return ApiResponse.success(
-        data={
-            "workspaceId": workspace_id,
-            "path": path,
-            "content": content,
-            "size": stat.st_size,
-            "updatedAt": _iso_from_timestamp(stat.st_mtime),
+    return HTMLResponse(
+        content=content,
+        headers={
+            "X-Workspace-Preview-Path": path,
         },
-        msg="获取运行预览内容成功",
     )

@@ -1,4 +1,5 @@
-import { apiClient } from "./base";
+import axios from "axios";
+import { addRequestHeaders, apiClient } from "./base";
 
 export interface WorkspaceTreeNode {
   title: string;
@@ -25,10 +26,6 @@ export interface WorkspaceFileContentResponse {
   updatedAt?: string;
 }
 
-export interface WorkspacePreviewContentResponse extends WorkspaceFileContentResponse {
-  workspaceId: string;
-}
-
 export const workspaceAPI = {
   getWorkspaceFileTree: async (
     workspaceId: string,
@@ -42,7 +39,11 @@ export const workspaceAPI = {
   getWorkspaceFileContent: async (workspaceId: string, path: string): Promise<WorkspaceFileContentResponse> => {
     return await apiClient.get(`/workspaces/${workspaceId}/file-content`, { params: { path } });
   },
-  getWorkspacePreviewContent: async (workspaceId: string): Promise<WorkspacePreviewContentResponse> => {
-    return await apiClient.get(`/workspaces/${workspaceId}/preview-content`);
+  getWorkspacePreviewContent: async (workspaceId: string): Promise<string> => {
+    const response = await axios.get<string>(`/api/workspaces/${workspaceId}/preview-content`, {
+      responseType: "text",
+      headers: addRequestHeaders({ Accept: "text/html" }),
+    });
+    return response.data;
   },
 };

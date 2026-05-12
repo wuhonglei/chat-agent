@@ -2,11 +2,11 @@ import { EventType, useEmitter } from "@/events";
 import type { ProjectBlock } from "@/interfaces/contentBlock";
 import type { WorkspaceTreeNode } from "@/services";
 import { workspaceAPI } from "@/services";
-import { CloseOutlined, ReloadOutlined } from "@ant-design/icons";
+import { CloseOutlined, ExportOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Folder } from "@ant-design/x";
 import Editor from "@monaco-editor/react";
 import { useRequest } from "ahooks";
-import { Alert, Button, Empty, Spin, Typography } from "antd";
+import { Alert, Button, Empty, Segmented, Spin, Tooltip, Typography } from "antd";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PROJECT_PREVIEW_DIRECTORY_ICONS } from "./file_icons";
 import {
@@ -47,7 +47,6 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
   const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null);
   const [appPreviewError, setAppPreviewError] = useState<string | null>(null);
   const [appPreviewHtml, setAppPreviewHtml] = useState("");
-  const [appPreviewPath, setAppPreviewPath] = useState<string>("");
 
   const { run: runLoadRootTree, loading: loadingTree } = useRequest(
     async () => {
@@ -147,12 +146,11 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
         setAppPreviewError(null);
       },
       onSuccess: res => {
-        setAppPreviewPath(res.path || "");
-        setAppPreviewHtml(res.content || "");
+        setAppPreviewHtml(res || "");
       },
       onError: error => {
         const message = error instanceof Error ? error.message : "运行预览加载失败";
-        if (message.includes("404") || message.includes("未找到可预览入口文件")) {
+        if (message.includes("404")) {
           setAppPreviewError("未找到可预览入口文件，请先完成构建产物生成");
           return;
         }
@@ -167,7 +165,6 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
     setFileError(null);
     setAppPreviewError(null);
     setAppPreviewHtml("");
-    setAppPreviewPath("");
     refreshTree();
   }, [block.id, refreshTree]);
 
@@ -291,9 +288,6 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
     }
     return (
       <div className="h-full min-h-0 flex flex-col bg-white">
-        <Typography.Text type="secondary" className="px-3 py-2 border-b border-(--ant-color-border-secondary)">
-          {appPreviewPath || "预览入口"}
-        </Typography.Text>
         <iframe
           title="项目运行预览"
           srcDoc={appPreviewHtml}
@@ -302,46 +296,62 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
         />
       </div>
     );
-  }, [appPreviewError, appPreviewHtml, appPreviewPath, loadingAppPreview]);
+  }, [appPreviewError, appPreviewHtml, loadingAppPreview]);
 
   const handleRefresh = useCallback(() => {
     if (previewMode === "app") {
       setAppPreviewError(null);
       setAppPreviewHtml("");
-      setAppPreviewPath("");
       runLoadAppPreview();
       return;
     }
     refreshTree();
   }, [previewMode, refreshTree, runLoadAppPreview]);
 
+  const handleOpenAppPreviewInNewPage = useCallback(() => {
+    if (!appPreviewHtml.trim()) {
+      return;
+    }
+    const blob = new Blob([appPreviewHtml], { type: "text/html;charset=utf-8" });
+    const blobUrl = URL.createObjectURL(blob);
+    const openedWindow = window.open(blobUrl, "_blank", "noopener,noreferrer");
+    if (!openedWindow) {
+      URL.revokeObjectURL(blobUrl);
+      return;
+    }
+    window.setTimeout(() => {
+      URL.revokeObjectURL(blobUrl);
+    }, 60_000);
+  }, [appPreviewHtml]);
+
   return (
     <section className="h-full min-h-0 flex flex-col border-l border-(--ant-color-border-secondary) bg-(--ant-color-bg-layout)">
       <header className="flex h-[60px] shrink-0 items-center justify-between gap-2 border-b border-(--ant-color-border-secondary) bg-(--ant-color-bg-container) px-3">
         <div className="min-w-0 flex items-center gap-2">
-          <Typography.Text type="secondary">{block.title || "项目结构预览"}</Typography.Text>
-          <div className="flex items-center gap-1">
-            <Button
-              size="small"
-              type={previewMode === "files" ? "primary" : "text"}
-              onClick={() => {
-                setPreviewMode("files");
-              }}
-            >
-              文件预览
-            </Button>
-            <Button
-              size="small"
-              type={previewMode === "app" ? "primary" : "text"}
-              onClick={() => {
-                setPreviewMode("app");
-              }}
-            >
-              运行预览
-            </Button>
-          </div>
+          <Segmented<PreviewMode>
+            size="small"
+            value={previewMode}
+            onChange={setPreviewMode}
+            options={[
+              { label: "文件预览", value: "files" },
+              {
+                label: <Tooltip title="项目构建完成后才支持运行预览">运行预览</Tooltip>,
+                value: "app",
+              },
+            ]}
+          />
         </div>
         <div className="flex items-center gap-1">
+          {previewMode === "app" ? (
+            <Tooltip title="在新页面打开">
+              <Button
+                type="text"
+                icon={<ExportOutlined />}
+                onClick={handleOpenAppPreviewInNewPage}
+                disabled={!appPreviewHtml.trim() || !!appPreviewError || loadingAppPreview}
+              />
+            </Tooltip>
+          ) : null}
           <Button
             type="text"
             onClick={handleRefresh}
