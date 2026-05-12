@@ -8,7 +8,7 @@
 - 会话管理：创建、分页查询、编辑、删除、加载历史消息
 - 用户认证：短信登录、微信登录、JWT 鉴权
 - MCP 工具：Context7、天气、联网搜索、代码执行、时间、IP 定位
-- 组件工具：后端可按条件组装组件数据，前端动态渲染
+- 完整前端应用生成：可基于需求自动生成可运行的前端应用骨架与页面代码
 
 ## 界面预览
 
@@ -51,6 +51,9 @@
 ![HTML 预览](docs/imgs/html_preview.png)
 
 ![代码执行](docs/imgs/run_code.png)
+
+![完整前端应用生成](docs/imgs/project_structured.png)
+![完整前端应用预览](docs/imgs/project_preview.png)
 
 ## 技术栈
 
