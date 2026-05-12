@@ -291,7 +291,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
         <iframe
           title="项目运行预览"
           srcDoc={appPreviewHtml}
-          sandbox="allow-scripts"
+          sandbox="allow-scripts allow-same-origin"
           className="h-full min-h-0 w-full flex-1 border-0"
         />
       </div>
