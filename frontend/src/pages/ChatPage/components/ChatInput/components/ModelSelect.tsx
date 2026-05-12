@@ -1,9 +1,8 @@
-import { useAppSelector } from "@/store/hooks";
 import { Form, Select, Typography } from "antd";
 import { SizeType } from "antd/es/config-provider/SizeContext";
-import { DefaultOptionType } from "antd/es/select";
 import { isEmpty } from "lodash-es";
 import React from "react";
+import { ModelOption, useModelOptions } from "./hooks";
 import { names } from "../constant";
 
 interface Props {
@@ -11,18 +10,8 @@ interface Props {
   hasImageContext: boolean;
 }
 
-interface ModelOption extends DefaultOptionType {
-  description: string;
-}
-
 const ModelSelect: React.FC<Props> = ({ size, hasImageContext }) => {
-  const { models } = useAppSelector(state => state.models);
-  const options: ModelOption[] = models.map(item => ({
-    value: item.modelId,
-    label: (item.title && item.title.trim()) || item.modelId,
-    description: (item.description && item.description.trim()) || item.modelId,
-    disabled: hasImageContext && !item.imageSupport,
-  }));
+  const options = useModelOptions(hasImageContext);
 
   return (
     <Form.Item name={names.modelId}>
@@ -40,7 +29,18 @@ const ModelSelect: React.FC<Props> = ({ size, hasImageContext }) => {
           const data = option.data as ModelOption;
           return (
             <div className="py-1">
-              <div className="text-xs text-black-primary leading-5 truncate">{String(data.label)}</div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-xs text-black-primary leading-5 truncate">{String(data.label)}</div>
+                <div className="flex items-center gap-1.5 text-black-secondary">
+                  {data.supportItems
+                    .filter(({ supported }) => supported)
+                    .map(({ key, label, icon: Icon }) => (
+                      <span key={key} title={label} className="inline-flex">
+                        <Icon className="text-black-secondary" />
+                      </span>
+                    ))}
+                </div>
+              </div>
               <Typography.Paragraph
                 ellipsis={{ rows: 2 }}
                 className="leading-5"
