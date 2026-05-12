@@ -45,6 +45,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
 
   const [fileError, setFileError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null);
+  const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
   const [appPreviewError, setAppPreviewError] = useState<string | null>(null);
   const [appPreviewHtml, setAppPreviewHtml] = useState("");
 
@@ -113,12 +114,15 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
     [loadedDirPaths, runLoadDirTree]
   );
 
-  const { run: runLoadFile, loading: loadingFile } = useRequest(
-    async (filePath: string) => {
-      return await workspaceAPI.getWorkspaceFileContent(block.workspaceId, filePath);
+  const { refresh: refreshSelectedFile, loading: loadingFile } = useRequest(
+    async () => {
+      return await workspaceAPI.getWorkspaceFileContent(block.workspaceId, selectedFilePath!);
     },
     {
-      manual: true,
+      ready: !!selectedFilePath,
+      refreshDeps: [block.workspaceId, selectedFilePath],
+      ...(selectedFilePath ? { cacheKey: `workspace-file-content:${block.workspaceId}:${selectedFilePath}` } : {}),
+      staleTime: 0,
       onBefore: () => {
         setFileError(null);
       },
@@ -161,6 +165,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
 
   useEffect(() => {
     setPreviewMode("files");
+    setSelectedFilePath(null);
     setSelectedFile(null);
     setFileError(null);
     setAppPreviewError(null);
@@ -224,9 +229,13 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
         void handleFolderClick(filePath);
         return;
       }
-      runLoadFile(filePath);
+      if (filePath === selectedFilePath) {
+        void refreshSelectedFile();
+        return;
+      }
+      setSelectedFilePath(filePath);
     },
-    [handleFolderClick, runLoadFile, treeData]
+    [handleFolderClick, refreshSelectedFile, selectedFilePath, treeData]
   );
 
   const previewNode = useMemo(() => {
