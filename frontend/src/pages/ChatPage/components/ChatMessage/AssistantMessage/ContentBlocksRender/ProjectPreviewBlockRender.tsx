@@ -19,7 +19,13 @@ const ProjectPreviewBlockRender: React.FC = () => {
   return (
     <div>
       <Button
-        size="small"
+        size="large"
+        variant="solid"
+        shape="round"
+        style={{
+          color: "#fff",
+          background: "linear-gradient(180deg, #121519 0%, #0e1115 50%, #0a0c10 100%)",
+        }}
         onClick={() =>
           blockPreview.openPreview({
             id: createProjectPreviewBlockId(),
@@ -29,7 +35,7 @@ const ProjectPreviewBlockRender: React.FC = () => {
           })
         }
       >
-        打开项目结构预览
+        预览项目结构
       </Button>
     </div>
   );
