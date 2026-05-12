@@ -318,20 +318,9 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
   }, [previewMode, refreshTree, runLoadAppPreview]);
 
   const handleOpenAppPreviewInNewPage = useCallback(() => {
-    if (!appPreviewHtml.trim()) {
-      return;
-    }
-    const blob = new Blob([appPreviewHtml], { type: "text/html;charset=utf-8" });
-    const blobUrl = URL.createObjectURL(blob);
-    const openedWindow = window.open(blobUrl, "_blank", "noopener,noreferrer");
-    if (!openedWindow) {
-      URL.revokeObjectURL(blobUrl);
-      return;
-    }
-    window.setTimeout(() => {
-      URL.revokeObjectURL(blobUrl);
-    }, 60_000);
-  }, [appPreviewHtml]);
+    const previewUrl = workspaceAPI.getWorkspacePreviewContentUrl(block.workspaceId);
+    window.open(previewUrl, "_blank", "noopener,noreferrer");
+  }, [block.workspaceId]);
 
   return (
     <section className="h-full min-h-0 flex flex-col border-l border-(--ant-color-border-secondary) bg-(--ant-color-bg-layout)">
@@ -357,7 +346,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
                 type="text"
                 icon={<ExportOutlined />}
                 onClick={handleOpenAppPreviewInNewPage}
-                disabled={!appPreviewHtml.trim() || !!appPreviewError || loadingAppPreview}
+                disabled={loadingAppPreview}
               />
             </Tooltip>
           ) : null}
