@@ -1,13 +1,11 @@
 import type { ToolResultBlock, ToolUseBlock } from "@/interfaces/contentBlock";
 import CodeHighlighter from "@/pages/ChatPage/components/MarkdownContainer/components/CodeHighlighter";
-import { useBlockPreview } from "@/pages/ChatPage/context/BlockPreviewContext";
-import { Button, Divider } from "antd";
+import { Divider } from "antd";
 import React from "react";
-import { useParams } from "react-router-dom";
 
 import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
 import { stringifyJsonLike } from "../utils";
-import { useCanOpenProjectPreview, useToolResultLanguage } from "./hooks";
+import { useToolResultLanguage } from "./hooks";
 import WebSearchResult from "./WebSearchResult";
 import styles from "./index.module.css";
 
@@ -20,8 +18,6 @@ type ToolResultProps = {
 const containerStyle = { maxHeight: 300, width: "100%", overflow: "auto" };
 
 const ToolResult: React.FC<ToolResultProps> = ({ toolName, toolResultBlock, toolUseBlock }) => {
-  const blockPreview = useBlockPreview();
-  const params = useParams<{ conversationId: string }>();
   const currentToolName = toolName ?? toolUseBlock?.name;
   const resultLanguage = useToolResultLanguage({
     currentToolName,
@@ -29,11 +25,6 @@ const ToolResult: React.FC<ToolResultProps> = ({ toolName, toolResultBlock, tool
     toolUseBlock,
   });
   const searchDisplayItems = toolResultBlock?.structuredContentForDisplay;
-  const canOpenProjectPreview = useCanOpenProjectPreview({
-    toolResultBlock,
-    currentToolName,
-    conversationId: params.conversationId,
-  });
 
   if (!toolResultBlock) {
     return null;
@@ -68,26 +59,6 @@ const ToolResult: React.FC<ToolResultProps> = ({ toolName, toolResultBlock, tool
 
   return (
     <div className="w-full flex flex-col gap-2">
-      {canOpenProjectPreview ? (
-        <div>
-          <Button
-            size="small"
-            onClick={() => {
-              if (!blockPreview || !params.conversationId) {
-                return;
-              }
-              blockPreview.openPreview({
-                id: `cb_project_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-                type: "project",
-                workspaceId: params.conversationId,
-                title: "项目结构预览",
-              });
-            }}
-          >
-            打开项目结构预览
-          </Button>
-        </div>
-      ) : null}
       <CodeHighlighter
         lang={resultLanguage}
         header={"Result is"}

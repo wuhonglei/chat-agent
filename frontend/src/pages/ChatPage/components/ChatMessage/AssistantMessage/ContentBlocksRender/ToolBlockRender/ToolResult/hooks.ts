@@ -4,13 +4,6 @@ import { useMemo } from "react";
 
 import { getResultLanguage } from "../utils";
 
-const PROJECT_PREVIEW_TOOLS = new Set(["write_workspace_file", "delete_workspace_file", "clear_workspace", "run_bash"]);
-type UseCanOpenProjectPreviewParams = {
-  toolResultBlock?: ToolResultBlock;
-  currentToolName?: string;
-  conversationId?: string;
-};
-
 type UseToolResultLanguageParams = {
   currentToolName?: string;
   toolResultBlock?: ToolResultBlock;
@@ -42,14 +35,4 @@ export function useToolResultLanguage({
     }
     return getResultLanguage(toolResultBlock?.content || "");
   }, [currentToolName, toolResultBlock?.content, toolUseBlock?.argumentsJson]);
-}
-
-export function useCanOpenProjectPreview({
-  toolResultBlock,
-  currentToolName,
-  conversationId,
-}: UseCanOpenProjectPreviewParams): boolean {
-  return Boolean(
-    !toolResultBlock?.isError && currentToolName && PROJECT_PREVIEW_TOOLS.has(currentToolName) && conversationId
-  );
 }

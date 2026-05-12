@@ -8,6 +8,7 @@ import {
 } from "@/interfaces/contentBlock";
 
 const START_TEXT_LENGTH_THRESHOLD = 24;
+const PROJECT_PREVIEW_TOOLS = new Set(["write_workspace_file", "delete_workspace_file", "clear_workspace", "run_bash"]);
 
 export type RenderableContentBlock =
   | {
@@ -28,6 +29,10 @@ export type RenderableContentBlock =
       block: ToolUseBlock;
       status: ContentBlockRenderStatus;
       result?: ToolResultBlock;
+    }
+  | {
+      key: string;
+      type: "project_preview";
     };
 
 function isRenderableBlock(block: ContentBlock): block is TextBlock | ThinkingBlock | ToolUseBlock {
@@ -139,6 +144,21 @@ export function deriveRenderableBlocks(
       block,
       status,
       result,
+    });
+  }
+
+  const shouldShowProjectPreview = sourceBlocks.some(block => {
+    if (block.type !== "tool_use" || !block.name || !PROJECT_PREVIEW_TOOLS.has(block.name)) {
+      return false;
+    }
+    const result = byToolUseId.get(block.id) || (block.toolCallId ? byToolCallId.get(block.toolCallId) : undefined);
+    return Boolean(result && !result.isError);
+  });
+
+  if (shouldShowProjectPreview) {
+    items.push({
+      key: "project_preview",
+      type: "project_preview",
     });
   }
 

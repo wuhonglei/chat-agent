@@ -1,5 +1,6 @@
 import { ContentBlock } from "@/interfaces/contentBlock";
 import React from "react";
+import ProjectPreviewBlockRender from "./ProjectPreviewBlockRender.tsx";
 import { ReasoningBlockRender } from "./ReasoningBlockRender.tsx";
 import { TextBlockRender } from "./TextBlockRender.tsx";
 import { ToolBlockRender } from "./ToolBlockRender/index.tsx";
@@ -31,6 +32,9 @@ const ContentBlocksRender: React.FC<Props> = ({ contentBlocks, isStreaming }) =>
               toolResultBlock={item.result}
             />
           );
+        }
+        if (item.type === "project_preview") {
+          return <ProjectPreviewBlockRender key={item.key} />;
         }
         return null;
       })}
