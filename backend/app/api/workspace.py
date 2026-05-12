@@ -25,6 +25,11 @@ _HEAVY_DIR_NAMES = {
     ".cache",
 }
 
+_PREVIEW_ENTRY_CANDIDATES = (
+    "dist/index.html",
+    "build/index.html",
+)
+
 
 def _iso_from_timestamp(ts: float) -> str:
     return datetime.fromtimestamp(ts, tz=UTC).isoformat()
@@ -91,6 +96,16 @@ def _build_tree_data(
     return nodes
 
 
+def _resolve_preview_entry(workspace_root: Path) -> tuple[str, Path] | None:
+    for relative_path in _PREVIEW_ENTRY_CANDIDATES:
+        candidate = (workspace_root / relative_path).resolve()
+        if not str(candidate).startswith(str(workspace_root)):
+            continue
+        if candidate.is_file():
+            return relative_path, candidate
+    return None
+
+
 @router.get("/{workspace_id}/files")
 async def get_workspace_files(
     workspace_id: str,
@@ -154,4 +169,39 @@ async def get_workspace_file_content(
             "updatedAt": _iso_from_timestamp(stat.st_mtime),
         },
         msg="获取文件内容成功",
+    )
+
+
+@router.get("/{workspace_id}/preview-content")
+async def get_workspace_preview_content(
+    workspace_id: str,
+    auth_info: AuthTokenPayload = Depends(get_auth_token_info),
+) -> ApiResponse[dict[str, Any]]:
+    try:
+        workspace_root, _ = resolve_workspace_path(auth_info.user_id, workspace_id, "")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    entry = _resolve_preview_entry(workspace_root)
+    if entry is None:
+        raise HTTPException(
+            status_code=404,
+            detail="未找到可预览入口文件，请先构建项目",
+        )
+
+    path, target = entry
+    if _is_probably_binary(target):
+        raise HTTPException(status_code=400, detail="预览入口文件不可为二进制内容")
+
+    content = target.read_text(encoding="utf-8", errors="replace")
+    stat = target.stat()
+    return ApiResponse.success(
+        data={
+            "workspaceId": workspace_id,
+            "path": path,
+            "content": content,
+            "size": stat.st_size,
+            "updatedAt": _iso_from_timestamp(stat.st_mtime),
+        },
+        msg="获取运行预览内容成功",
     )

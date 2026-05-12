@@ -25,6 +25,10 @@ export interface WorkspaceFileContentResponse {
   updatedAt?: string;
 }
 
+export interface WorkspacePreviewContentResponse extends WorkspaceFileContentResponse {
+  workspaceId: string;
+}
+
 export const workspaceAPI = {
   getWorkspaceFileTree: async (
     workspaceId: string,
@@ -37,5 +41,8 @@ export const workspaceAPI = {
   },
   getWorkspaceFileContent: async (workspaceId: string, path: string): Promise<WorkspaceFileContentResponse> => {
     return await apiClient.get(`/workspaces/${workspaceId}/file-content`, { params: { path } });
+  },
+  getWorkspacePreviewContent: async (workspaceId: string): Promise<WorkspacePreviewContentResponse> => {
+    return await apiClient.get(`/workspaces/${workspaceId}/preview-content`);
   },
 };
