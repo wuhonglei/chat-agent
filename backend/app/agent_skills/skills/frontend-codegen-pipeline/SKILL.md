@@ -115,14 +115,32 @@ stateDiagram-v2
 1. 初始化
    - 默认执行（推荐，非交互）：
      - `npx --yes create-vite@latest vite-tmp --template react-ts --no-interactive && cp -r vite-tmp/* vite-tmp/.* . 2>/dev/null && rm -rf vite-tmp`
-2. 应用内置模板（优先）
-   - 在当前 Skill 目录使用模板文件覆盖/补齐脚手架关键配置：
-     - `templates/vite.config.ts` -> 项目根目录 `vite.config.ts`
-     - `templates/.npmrc` -> 项目根目录 `.npmrc`
-   - 模板用途：
-     - `vite.config.ts`：统一内置 React + Tailwind + `vite-plugin-singlefile`，并提供 `@` 路径别名和静态资源内联构建配置
-     - `.npmrc`：统一 npm 镜像源，降低安装失败率
-   - 若用户需求与模板冲突（例如自定义镜像源、非单文件构建），必须在 Planning 阶段声明并经用户确认后再调整模板内容
+2. 写入基础配置文件（直接在 Skill 中声明）
+   - 写入项目根目录 `.npmrc`：
+     ```ini
+     registry=https://registry.npmmirror.com/
+     ```
+   - 写入项目根目录 `vite.config.ts`：
+     ```ts
+     import { defineConfig } from "vite";
+     import react from "@vitejs/plugin-react";
+     import tailwindcss from "@tailwindcss/vite";
+     import { viteSingleFile } from "vite-plugin-singlefile";
+     import path from "path";
+
+     export default defineConfig({
+       plugins: [react(), tailwindcss(), viteSingleFile()],
+       resolve: {
+         alias: {
+           "@": path.resolve(__dirname, "./src")
+         }
+       },
+       build: {
+         assetsInlineLimit: () => true
+       }
+     });
+     ```
+   - 若用户需求与上述默认配置冲突（例如自定义镜像源、非单文件构建），必须在 Planning 阶段声明并经用户确认后再调整
 3. 安装依赖
    - 执行：`npm install`
    - 按蓝图安装 Tailwind/shadcn 所需依赖
@@ -132,8 +150,7 @@ stateDiagram-v2
    - 初始化 shadcn/ui（如蓝图需要）
    - 必须配置 Vite 单文件构建，确保静态资源全部内联进 HTML：
      1) 安装依赖：`npm install -D vite-plugin-singlefile`
-     2) 默认使用 `templates/vite.config.ts`（已包含 React、Tailwind、`vite-plugin-singlefile`、`@` 别名和 `assetsInlineLimit` 配置）
-        - 如模板不可用，再按最小配置手动补齐上述能力
+     2) 确认 `vite.config.ts` 已包含 React、Tailwind、`vite-plugin-singlefile`、`@` 别名和 `assetsInlineLimit` 配置
      3) 若项目使用了运行时动态加载资源（如按路径 fetch 图片/字体），需在规划阶段提前声明限制并与用户确认
 5. 验证
    - 验证 `npm run dev` 可启动（必须使用“定向清理”，禁止全局杀进程）：
