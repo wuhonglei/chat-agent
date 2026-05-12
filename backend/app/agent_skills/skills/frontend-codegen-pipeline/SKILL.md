@@ -122,6 +122,22 @@ stateDiagram-v2
    - 配置 Tailwind 内容路径
    - 配置 TypeScript 路径别名（如 `@/`）
    - 初始化 shadcn/ui（如蓝图需要）
+   - 必须配置 Vite 单文件构建，确保静态资源全部内联进 HTML：
+     1) 安装依赖：`npm install -D vite-plugin-singlefile`
+     2) 在 `vite.config.ts` 中启用：
+        ```ts
+        import { defineConfig } from "vite";
+        import react from "@vitejs/plugin-react";
+        import { viteSingleFile } from "vite-plugin-singlefile";
+
+        export default defineConfig({
+          plugins: [react(), viteSingleFile()],
+          build: {
+            assetsInlineLimit: () => true
+          }
+        });
+        ```
+     3) 若项目使用了运行时动态加载资源（如按路径 fetch 图片/字体），需在规划阶段提前声明限制并与用户确认
 4. 验证
    - 验证 `npm run dev` 可启动
    - 检查关键配置文件存在且内容正确
@@ -177,6 +193,9 @@ stateDiagram-v2
    - 在页面/路由文件中集成已完成组件
 2. 构建验证
    - 执行：`npm run build`
+   - 必须额外验证 `dist/index.html`（静态资源全部内联模式）：
+     - 允许存在内联 `<script>` / `<style>` / data URL
+     - 不应再依赖 `dist/assets/*` 作为运行时必需资源
    - 失败则进入修复循环（可能涉及多个文件）
 3. 运行时验证
    - 执行：`npm run dev`
