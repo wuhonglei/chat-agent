@@ -1,6 +1,7 @@
 import { ContentBlock } from "@/interfaces/contentBlock";
 import { Collapse } from "antd";
 import React from "react";
+import { useLastTextBlockIndex } from "./hooks.ts";
 import ProjectPreviewBlockRender from "./ProjectPreviewBlockRender.tsx";
 import { ReasoningBlockRender } from "./ReasoningBlockRender.tsx";
 import { TextBlockRender } from "./TextBlockRender.tsx";
@@ -14,13 +15,7 @@ type Props = {
 
 const ContentBlocksRender: React.FC<Props> = ({ contentBlocks, isStreaming }) => {
   const renderableBlocks = deriveRenderableBlocks(contentBlocks, isStreaming);
-  let lastTextBlockIndex = -1;
-  for (let index = renderableBlocks.length - 1; index >= 0; index -= 1) {
-    if (renderableBlocks[index].type === "text") {
-      lastTextBlockIndex = index;
-      break;
-    }
-  }
+  const lastTextBlockIndex = useLastTextBlockIndex(renderableBlocks);
 
   const renderBlock = (item: RenderableContentBlock) => {
     if (item.type === "thinking") {
@@ -40,14 +35,16 @@ const ContentBlocksRender: React.FC<Props> = ({ contentBlocks, isStreaming }) =>
     return null;
   };
 
-  const shouldUseFinishedLayout = !isStreaming && lastTextBlockIndex >= 0;
-  const collapsedBlocks = shouldUseFinishedLayout ? renderableBlocks.slice(0, lastTextBlockIndex) : [];
-  const tailBlocks = shouldUseFinishedLayout ? renderableBlocks.slice(lastTextBlockIndex) : [];
+  // 非流式且文本后仍有过程块时，显示“查看过程”折叠区
+  const shouldShowCollapsedProcessLayout =
+    !isStreaming && lastTextBlockIndex >= 0 && lastTextBlockIndex !== renderableBlocks.length - 1;
+  const collapsedBlocks = shouldShowCollapsedProcessLayout ? renderableBlocks.slice(0, lastTextBlockIndex) : [];
+  const tailBlocks = shouldShowCollapsedProcessLayout ? renderableBlocks.slice(lastTextBlockIndex) : [];
 
   return (
     <div className="flex flex-col gap-2">
-      {!shouldUseFinishedLayout && renderableBlocks.map(renderBlock)}
-      {shouldUseFinishedLayout && collapsedBlocks.length > 0 && (
+      {!shouldShowCollapsedProcessLayout && renderableBlocks.map(renderBlock)}
+      {shouldShowCollapsedProcessLayout && collapsedBlocks.length > 0 && (
         <Collapse
           items={[
             {
@@ -59,7 +56,7 @@ const ContentBlocksRender: React.FC<Props> = ({ contentBlocks, isStreaming }) =>
           className="bg-transparent"
         />
       )}
-      {shouldUseFinishedLayout && tailBlocks.map(renderBlock)}
+      {shouldShowCollapsedProcessLayout && tailBlocks.map(renderBlock)}
     </div>
   );
 };
