@@ -136,7 +136,13 @@ stateDiagram-v2
         - 如模板不可用，再按最小配置手动补齐上述能力
      3) 若项目使用了运行时动态加载资源（如按路径 fetch 图片/字体），需在规划阶段提前声明限制并与用户确认
 5. 验证
-   - 验证 `npm run dev` 可启动
+   - 验证 `npm run dev` 可启动（必须使用“定向清理”，禁止全局杀进程）：
+     - 推荐命令：
+       - `npm run dev > /tmp/vite-dev.log 2>&1 & echo $! > /tmp/vite-dev.pid`
+       - `sleep 3`
+       - `cat /tmp/vite-dev.log`
+       - `kill "$(cat /tmp/vite-dev.pid)" 2>/dev/null || true`
+   - 禁止使用 `pkill -f "vite"`、`pkill -f "npm run dev"` 等会误伤其他会话的命令
    - 检查关键配置文件存在且内容正确
 6. 归档
    - 记录脚手架生成/修改文件到 `artifacts.scaffoldFiles`
@@ -195,7 +201,8 @@ stateDiagram-v2
      - 不应再依赖 `dist/assets/*` 作为运行时必需资源
    - 失败则进入修复循环（可能涉及多个文件）
 3. 运行时验证
-   - 执行：`npm run dev`
+   - 执行：`npm run dev`（同样使用 PID 定向清理，禁止 `pkill -f`）
+   - 推荐：`npm run dev > /tmp/vite-dev.log 2>&1 & echo $! > /tmp/vite-dev.pid && sleep 3 && cat /tmp/vite-dev.log && kill "$(cat /tmp/vite-dev.pid)" 2>/dev/null || true`
    - 检查启动日志是否有阻塞错误
 4. 冒烟检查（环境允许时）
    - 检查主页面可访问（200）且无明显运行时报错
