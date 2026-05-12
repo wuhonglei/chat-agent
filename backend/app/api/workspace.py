@@ -3,15 +3,19 @@
 from __future__ import annotations
 
 import base64
+import io
 import mimetypes
+import os
 import re
+import zipfile
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 
 from app.mcp.mcp_servers.agent_skills_mcp.utils import resolve_workspace_path
 from app.schemas.auth import AuthTokenPayload
@@ -144,6 +148,22 @@ def _inline_preview_assets(html_content: str, entry_file: Path) -> str:
     return _PREVIEW_ASSET_PATTERN.sub(_replace, html_content)
 
 
+def _iter_workspace_files(
+    workspace_root: Path, *, include_ignored: bool
+) -> Iterator[tuple[Path, str]]:
+    for current_root, dir_names, file_names in os.walk(workspace_root):
+        if not include_ignored:
+            dir_names[:] = [
+                dir_name
+                for dir_name in dir_names
+                if not _is_ignored_dir(dir_name, include_ignored=include_ignored)
+            ]
+        for file_name in file_names:
+            file_path = Path(current_root) / file_name
+            arc_name = file_path.relative_to(workspace_root).as_posix()
+            yield file_path, arc_name
+
+
 @router.get("/{workspace_id}/files")
 async def get_workspace_files(
     workspace_id: str,
@@ -207,6 +227,41 @@ async def get_workspace_file_content(
             "updatedAt": _iso_from_timestamp(stat.st_mtime),
         },
         msg="获取文件内容成功",
+    )
+
+
+@router.get("/{workspace_id}/download")
+async def download_workspace(
+    workspace_id: str,
+    include_ignored: bool = Query(default=False),
+    auth_info: AuthTokenPayload = Depends(get_auth_token_info),
+) -> StreamingResponse:
+    try:
+        workspace_root, _ = resolve_workspace_path(auth_info.user_id, workspace_id, "")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    if not workspace_root.exists() or not workspace_root.is_dir():
+        raise HTTPException(status_code=404, detail="工作区不存在")
+
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(
+        zip_buffer, mode="w", compression=zipfile.ZIP_DEFLATED
+    ) as zip_file:
+        has_files = False
+        for file_path, arc_name in _iter_workspace_files(
+            workspace_root, include_ignored=include_ignored
+        ):
+            zip_file.write(file_path, arcname=arc_name)
+            has_files = True
+        if not has_files:
+            zip_file.writestr("README.txt", "Workspace is empty.\n")
+    zip_buffer.seek(0)
+
+    filename = f"{workspace_id}.zip"
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 

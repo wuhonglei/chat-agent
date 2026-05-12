@@ -1,6 +1,6 @@
 import axios from "axios";
 import { authHeader } from "@/constants/authHeader";
-import { apiClient } from "./base";
+import { addRequestHeaders, apiClient } from "./base";
 
 export interface WorkspaceTreeNode {
   title: string;
@@ -47,8 +47,18 @@ export const workspaceAPI = {
     });
     return response.data;
   },
+  downloadWorkspaceZip: async (workspaceId: string): Promise<Blob> => {
+    const response = await axios.get<Blob>(workspaceAPI.getWorkspaceDownloadUrl(workspaceId), {
+      responseType: "blob",
+      headers: addRequestHeaders({ Accept: "application/zip" }),
+    });
+    return response.data;
+  },
   getWorkspacePreviewContentUrl: (workspaceId: string): string => {
     const userId = authHeader.getUserId();
     return `/api/workspaces/${encodeURIComponent(userId)}/${encodeURIComponent(workspaceId)}/preview-content`;
+  },
+  getWorkspaceDownloadUrl: (workspaceId: string): string => {
+    return `/api/workspaces/${encodeURIComponent(workspaceId)}/download`;
   },
 };
