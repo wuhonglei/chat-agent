@@ -16,22 +16,22 @@ import { useNavigate } from "react-router-dom";
 import parentStyles from "../ChatPage/index.module.css";
 
 const websiteBuildPromptTextMap: Record<string, string> = {
-  "product-landing-page":
-    "请帮我创建一个商品落地页网站，包含商品卖点、功能亮点、价格方案、用户评价、FAQ 和购买 CTA，并给出页面结构与首屏文案示例。",
-  "personal-blog":
-    "请帮我创建一个个人博客网站，包含首页、文章列表、文章详情、关于我和联系页面，并给出推荐的技术栈、目录结构与核心功能清单。",
-  dashboard:
-    "请帮我创建一个数据仪表盘网站，包含概览卡片、趋势图、筛选器、明细表格和导出功能，并说明前端组件拆分与状态管理方案。",
   "todo-list":
     "请帮我创建一个待办列表网站，包含任务新增、编辑、完成状态切换、优先级与截止日期管理、筛选搜索与本地持久化，并给出页面结构与核心交互说明。",
+  "personal-blog":
+    "请帮我创建一个个人博客网站，包含首页、文章列表、文章详情、关于我和联系页面，并给出推荐的技术栈、目录结构与核心功能清单。",
+  "product-landing-page":
+    "请帮我创建一个商品落地页网站，包含商品卖点、功能亮点、价格方案、用户评价、FAQ 和购买 CTA，并给出页面结构与首屏文案示例。",
+  dashboard:
+    "请帮我创建一个数据仪表盘网站，包含概览卡片、趋势图、筛选器、明细表格和导出功能，并说明前端组件拆分与状态管理方案。",
 };
 
 const websiteBuildPromptItems: PromptsProps["items"] = [
   {
-    key: "product-landing-page",
-    icon: <BulbOutlined style={{ color: "#FFD700" }} />,
-    label: "创建商品落地页",
-    description: "生成一个完整商品落地页的结构、文案与关键模块建议。",
+    key: "todo-list",
+    icon: <CheckSquareOutlined style={{ color: "#13C2C2" }} />,
+    label: "创建待办列表",
+    description: "搭建支持任务管理、筛选和状态流转的待办应用。",
   },
   {
     key: "personal-blog",
@@ -46,10 +46,10 @@ const websiteBuildPromptItems: PromptsProps["items"] = [
     description: "设计带图表分析与筛选能力的业务仪表盘应用。",
   },
   {
-    key: "todo-list",
-    icon: <CheckSquareOutlined style={{ color: "#13C2C2" }} />,
-    label: "创建待办列表",
-    description: "搭建支持任务管理、筛选和状态流转的待办应用。",
+    key: "product-landing-page",
+    icon: <BulbOutlined style={{ color: "#FFD700" }} />,
+    label: "创建商品落地页",
+    description: "生成一个完整商品落地页的结构、文案与关键模块建议。",
   },
 ];
 
