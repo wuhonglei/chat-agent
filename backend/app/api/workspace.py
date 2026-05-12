@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import base64
+import mimetypes
+import re
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse
@@ -29,6 +33,9 @@ _HEAVY_DIR_NAMES = {
 _PREVIEW_ENTRY_CANDIDATES = (
     "dist/index.html",
     "build/index.html",
+)
+_PREVIEW_ASSET_PATTERN = re.compile(
+    r'(?P<prefix>\b(?:src|href)\s*=\s*["\'])(?P<path>/assets/[^"\']+)(?P<suffix>["\'])'
 )
 
 
@@ -105,6 +112,36 @@ def _resolve_preview_entry(workspace_root: Path) -> tuple[str, Path] | None:
         if candidate.is_file():
             return relative_path, candidate
     return None
+
+
+def _inline_preview_assets(html_content: str, entry_file: Path) -> str:
+    if "/assets/" not in html_content:
+        return html_content
+
+    dist_root = entry_file.parent.resolve()
+    cache: dict[str, str] = {}
+
+    def _replace(match: re.Match[str]) -> str:
+        prefix = match.group("prefix")
+        raw_path = match.group("path")
+        suffix = match.group("suffix")
+        if raw_path in cache:
+            return f"{prefix}{cache[raw_path]}{suffix}"
+
+        parsed_path = urlsplit(raw_path).path.lstrip("/")
+        asset_file = (dist_root / parsed_path).resolve()
+        if not asset_file.is_relative_to(dist_root) or not asset_file.is_file():
+            return match.group(0)
+
+        mime_type = (
+            mimetypes.guess_type(asset_file.name)[0] or "application/octet-stream"
+        )
+        encoded = base64.b64encode(asset_file.read_bytes()).decode("ascii")
+        data_uri = f"data:{mime_type};base64,{encoded}"
+        cache[raw_path] = data_uri
+        return f"{prefix}{data_uri}{suffix}"
+
+    return _PREVIEW_ASSET_PATTERN.sub(_replace, html_content)
 
 
 @router.get("/{workspace_id}/files")
@@ -195,6 +232,7 @@ async def get_workspace_preview_content(
         raise HTTPException(status_code=400, detail="预览入口文件不可为二进制内容")
 
     content = target.read_text(encoding="utf-8", errors="replace")
+    content = _inline_preview_assets(content, target)
     return HTMLResponse(
         content=content,
         headers={
