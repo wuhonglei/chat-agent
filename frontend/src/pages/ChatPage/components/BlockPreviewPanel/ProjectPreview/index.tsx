@@ -48,7 +48,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
   const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null);
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
   const [appPreviewError, setAppPreviewError] = useState<string | null>(null);
-  const [appPreviewHtml, setAppPreviewHtml] = useState("");
+  const [appPreviewReloadKey, setAppPreviewReloadKey] = useState(0);
 
   const { run: runLoadRootTree, loading: loadingTree } = useRequest(
     async () => {
@@ -141,29 +141,6 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
     }
   );
 
-  const { run: runLoadAppPreview, loading: loadingAppPreview } = useRequest(
-    async () => {
-      return await workspaceAPI.getWorkspacePreviewContent(block.workspaceId);
-    },
-    {
-      manual: true,
-      onBefore: () => {
-        setAppPreviewError(null);
-      },
-      onSuccess: res => {
-        setAppPreviewHtml(res || "");
-      },
-      onError: error => {
-        const message = error instanceof Error ? error.message : "运行预览加载失败";
-        if (message.includes("404")) {
-          setAppPreviewError("未找到可预览入口文件，请先完成构建产物生成");
-          return;
-        }
-        setAppPreviewError(message);
-      },
-    }
-  );
-
   const { run: runDownloadWorkspaceZip, loading: loadingWorkspaceZip } = useRequest(
     async () => {
       const workspaceZip = await workspaceAPI.downloadWorkspaceZip(block.workspaceId);
@@ -188,19 +165,9 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
     setSelectedFile(null);
     setFileError(null);
     setAppPreviewError(null);
-    setAppPreviewHtml("");
+    setAppPreviewReloadKey(0);
     refreshTree();
   }, [block.id, refreshTree]);
-
-  useEffect(() => {
-    if (previewMode !== "app") {
-      return;
-    }
-    if (appPreviewHtml || appPreviewError || loadingAppPreview) {
-      return;
-    }
-    runLoadAppPreview();
-  }, [appPreviewError, appPreviewHtml, loadingAppPreview, previewMode, runLoadAppPreview]);
 
   useEmitter(EventType.WorkspaceTreeRefresh, payload => {
     if (payload.workspaceId === block.workspaceId) {
@@ -297,13 +264,6 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
   }, [fileError, loadingFile, selectedFile]);
 
   const appPreviewNode = useMemo(() => {
-    if (loadingAppPreview) {
-      return (
-        <div className="h-full w-full flex items-center justify-center">
-          <Spin />
-        </div>
-      );
-    }
     if (appPreviewError) {
       return (
         <div className="p-3">
@@ -311,30 +271,34 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
         </div>
       );
     }
-    if (!appPreviewHtml.trim()) {
-      return <Empty description="未获取到可预览的 HTML 内容" className="mt-12" />;
-    }
+    const previewBaseUrl = workspaceAPI.getWorkspacePreviewContentUrl(block.workspaceId);
+    const previewUrl = `${previewBaseUrl}${previewBaseUrl.includes("?") ? "&" : "?"}t=${appPreviewReloadKey}`;
     return (
       <div className="h-full min-h-0 flex flex-col bg-white">
         <iframe
           title="项目运行预览"
-          srcDoc={appPreviewHtml}
+          src={previewUrl}
           sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-downloads allow-pointer-lock allow-presentation allow-top-navigation-by-user-activation"
+          onLoad={() => {
+            setAppPreviewError(null);
+          }}
+          onError={() => {
+            setAppPreviewError("运行预览加载失败，请确认构建产物是否已生成");
+          }}
           className="h-full min-h-0 w-full flex-1 border-0"
         />
       </div>
     );
-  }, [appPreviewError, appPreviewHtml, loadingAppPreview]);
+  }, [appPreviewError, appPreviewReloadKey, block.workspaceId]);
 
   const handleRefresh = useCallback(() => {
     if (previewMode === "app") {
       setAppPreviewError(null);
-      setAppPreviewHtml("");
-      runLoadAppPreview();
+      setAppPreviewReloadKey(prev => prev + 1);
       return;
     }
     refreshTree();
-  }, [previewMode, refreshTree, runLoadAppPreview]);
+  }, [previewMode, refreshTree]);
 
   const handleOpenAppPreviewInNewPage = useCallback(() => {
     const previewUrl = workspaceAPI.getWorkspacePreviewContentUrl(block.workspaceId);
@@ -377,19 +341,14 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
           ) : null}
           {previewMode === "app" ? (
             <Tooltip title="在新页面打开">
-              <Button
-                type="text"
-                icon={<ExportOutlined />}
-                onClick={handleOpenAppPreviewInNewPage}
-                disabled={loadingAppPreview}
-              />
+              <Button type="text" icon={<ExportOutlined />} onClick={handleOpenAppPreviewInNewPage} />
             </Tooltip>
           ) : null}
           <Button
             type="text"
             onClick={handleRefresh}
             icon={<ReloadOutlined />}
-            loading={previewMode === "app" ? loadingAppPreview : loadingTree}
+            loading={previewMode === "app" ? false : loadingTree}
           />
           <Button type="text" onClick={onClose} icon={<CloseOutlined />} />
         </div>
