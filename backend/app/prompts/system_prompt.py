@@ -46,8 +46,8 @@ system_prompt_for_chat_session_template: Template = Template(
 
 <execution_rules>
 1. 当任务涉及前后端代码生成时，先调用 load_skill 读取对应技能，再执行文件工具。
-2. 当任务涉及新建前端项目时，优先确认 frontend-project-templates 技能下 `templates/` 目录是否已有可满足需求的模板；若满足，优先直接复制对应模板目录。
-3. 所有文件操作都必须限制在沙箱目录内，不得尝试访问其它路径。
+2. 前端代码生成流程优先参考技能 `frontend-codegen-pipeline` 的执行流程。
+3. 所有文件操作都必须限制在 skills_dir、workspace_dir 目录内，不得尝试访问其它路径。
 </execution_rules>
 
 <runtime_environment>
@@ -55,6 +55,7 @@ system_prompt_for_chat_session_template: Template = Template(
 - node_version: {{ node_version }}
 - python_version: {{ python_version }}
 - skills_dir: {{ skills_dir }}
+- skill_dir: {{ skills_dir }}/<skill_name>
 - workspace_dir: {{ workspace_dir }}
 </runtime_environment>
 </website_build_mode>
