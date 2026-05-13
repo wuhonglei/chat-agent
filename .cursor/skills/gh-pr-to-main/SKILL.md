@@ -53,7 +53,22 @@ git log origin/main..HEAD --no-merges --pretty=format:"### %s%n%n%b%n"
 
 项目若约定中文 commit（见仓库 `.cursorrules`），PR 标题与正文保持与 commit 语言一致即可。
 
-### 4. 使用 gh 创建 PR
+### 4. 先检查当前分支是否已有 PR
+
+先查看当前分支到 `main` 的 PR（若存在会返回状态）：
+
+```bash
+gh pr view --json number,title,url,state,isDraft,mergedAt,baseRefName,headRefName
+```
+
+按状态处理：
+
+- `OPEN`：不要重复创建，直接复用已有 PR（必要时 `gh pr edit` 更新标题/正文）。
+- `MERGED`：说明该分支历史上的 PR 已合并；若当前又有新提交需要继续合并，创建一个**新的** PR。
+- `CLOSED` 且未合并：按团队约定选择 `gh pr reopen` 或新建 PR（默认建议新建，避免历史讨论混淆）。
+- 命令报错 `no pull requests found`：说明当前分支尚无 PR，直接新建。
+
+### 5. 使用 gh 创建（或重新创建）PR
 
 当前分支已推送后：
 
@@ -83,6 +98,7 @@ gh pr create --base main
 - [ ] `origin/main..HEAD` 至少有一个提交
 - [ ] 分支已 `git push` 到 `origin`
 - [ ] `--base main` 与仓库默认合并目标一致
+- [ ] 已执行 `gh pr view` 检查当前分支 PR 状态（OPEN / MERGED / CLOSED）
 - [ ] 标题概括整体，正文反映各 commit（或合并后的清晰说明）
 
 ## 常见问题
@@ -90,7 +106,7 @@ gh pr create --base main
 | 情况 | 处理 |
 |------|------|
 | `gh: command not found` | 安装 `gh` 并 `gh auth login` |
-| `pull request already exists` | `gh pr view` 查看已有 PR，或改用 `gh pr edit` |
+| `pull request already exists` | 先 `gh pr view --json state,url` 检查状态；`OPEN` 则编辑现有 PR，`MERGED` 则新建 PR |
 | 本地无 `main` | 使用 `origin/main` 做 `git log`；`--base main` 仍指向远端分支名 |
 | 需包含 merge commit | 去掉 `git log` 的 `--no-merges` |
 
