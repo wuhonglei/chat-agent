@@ -20,6 +20,7 @@ from app.schemas.chat import (
     StreamStopRequest,
 )
 from app.schemas.config import LLMConfig
+from app.schemas.response import ApiResponse
 from app.services.chat import ChatService
 from app.services.chat.stream_relay import StreamRelay
 from app.services.message import MessageDbService
@@ -245,7 +246,7 @@ async def resume_chat_stream(
 async def stop_chat_stream(
     request: StreamStopRequest,
     auth_info: AuthTokenPayload = Depends(get_auth_token_info),
-) -> dict[str, bool]:
+) -> ApiResponse[dict[str, bool]]:
     _ensure_authorized_assistant_message(
         assistant_message_id=request.assistant_message_id,
         auth_info=auth_info,
@@ -260,7 +261,7 @@ async def stop_chat_stream(
     with MessageDbService() as message_service:
         assistant_message = message_service.get_message(request.assistant_message_id)
         if assistant_message is None:
-            return {"stopped": True}
+            return ApiResponse.success(data={"stopped": True}, msg="流式响应已停止")
         if assistant_message.status == MessageStatus.PENDING:
             conversation = message_service.get_conversation(
                 assistant_message.conversation_id
@@ -276,4 +277,4 @@ async def stop_chat_stream(
         assistant_message_id=request.assistant_message_id,
         user_id=auth_info.user_id,
     )
-    return {"stopped": True}
+    return ApiResponse.success(data={"stopped": True}, msg="流式响应已停止")
