@@ -25,6 +25,7 @@ disable-model-invocation: true
 4. 默认最小实现优先，不做超出需求的功能扩展
 5. 不自动执行 `git add` / `git commit` / `git push`，除非用户明确要求
 6. 前端包管理器默认使用 `pnpm`（除非用户明确指定其他工具）
+7. 任何 `pnpm run dev`（或 `pnpm dev`）验证都必须在检查完成后关闭进程，禁止让开发服务器持续后台运行
 
 ## 状态机（必须遵循）
 
@@ -155,6 +156,7 @@ stateDiagram-v2
      3) 若项目使用了运行时动态加载资源（如按路径 fetch 图片/字体），需在规划阶段提前声明限制并与用户确认
 5. 验证
    - 验证 `pnpm dev` 可启动（必须使用“定向清理”，禁止全局杀进程）：
+   - 验证结束后必须关闭该次启动的 dev 进程，避免端口占用与后台残留进程
      - 推荐命令：
        - `pnpm dev > /tmp/vite-dev.log 2>&1 & echo $! > /tmp/vite-dev.pid`
        - `sleep 3`
@@ -220,6 +222,7 @@ stateDiagram-v2
    - 失败则进入修复循环（可能涉及多个文件）
 3. 运行时验证
    - 执行：`pnpm dev`（同样使用 PID 定向清理，禁止 `pkill -f`）
+   - 该步骤仅用于短时验证；日志检查完成后必须关闭 dev 进程，避免长期占用端口
    - 推荐：`pnpm dev > /tmp/vite-dev.log 2>&1 & echo $! > /tmp/vite-dev.pid && sleep 3 && cat /tmp/vite-dev.log && kill "$(cat /tmp/vite-dev.pid)" 2>/dev/null || true`
    - 检查启动日志是否有阻塞错误
 4. 冒烟检查（环境允许时）
