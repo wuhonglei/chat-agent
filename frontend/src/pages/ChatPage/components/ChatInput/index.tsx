@@ -79,6 +79,11 @@ const ChatInput: React.FC<ChatInputProps> = ({
     if (isSmallScreen) {
       return false;
     }
+    if (isStreaming) {
+      event.preventDefault();
+      message.warning("当前消息正在生成，请先点击停止");
+      return false;
+    }
     event.preventDefault();
     handleSend();
   });

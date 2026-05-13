@@ -14,7 +14,6 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   addMessage,
   appendContentBlockToLastMessage,
-  clearLastMessage,
   clearMessagesAfterIndex,
   clearStreamResumeContext,
   DEFAULT_CHAT_STATE,
@@ -251,7 +250,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
   const { conversationId, historyLimit = 100 } = options;
   const dispatch = useAppDispatch();
   const { message } = App.useApp();
-  const { messages, isLoading, isStreaming, streamResumeContext } = useChatState(conversationId);
+  const { messages, isStreaming, streamResumeContext } = useChatState(conversationId);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const tempMessageRef = useRef<TempMessageState | null>(null);
@@ -279,19 +278,20 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
     if (abortControllerRef.current && isStreaming) {
       abortControllerRef.current.abort();
       const lastMessage = lastMessageCheck(messages);
-      if (lastMessage && lastMessage.id && isLoading) {
-        dispatch(clearLastMessage({ conversationId, data: undefined }));
-        if (!isLocalMessageId(lastMessage.id)) {
-          chatAPI.deleteMessage(lastMessage.id).catch(error => {
-            reportError("abortMessage deleteMessage", {
-              error,
-              conversationId,
-              messageId: lastMessage.id,
-            });
+      const assistantMessageId =
+        tempMessageRef.current?.assistantServerMessageId ||
+        streamResumeContext?.assistantMessageId ||
+        (lastMessage && !isLocalMessageId(lastMessage.id) ? lastMessage.id : undefined);
+      if (assistantMessageId) {
+        chatAPI.streamMessageStop({ assistantMessageId }).catch(error => {
+          reportError("abortMessage streamMessageStop", {
+            error,
+            conversationId,
+            assistantMessageId,
           });
-        }
+        });
       }
-
+      dispatch(updateMessageStatus({ conversationId, data: MessageStatus.Stopped }));
       resetState(conversationId);
     }
   });
@@ -501,9 +501,9 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
         return;
       }
 
-      // 如果正在流式传输，先中止当前请求
-      if (abortControllerRef.current && isStreaming) {
-        abortMessage(conversationId);
+      if (isStreaming) {
+        message.warning("当前消息正在生成，请先停止后再发送新消息");
+        return;
       }
 
       dispatch(setStreaming({ conversationId, data: true }));
