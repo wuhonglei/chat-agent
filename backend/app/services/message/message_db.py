@@ -271,3 +271,19 @@ class MessageDbService(DbService):
             merged_metadata.update(extra_metadata)
             assistant_message.message_metadata = merged_metadata
         return self._persist_message(assistant_message, conversation)
+
+    def update_assistant_message_status(
+        self,
+        conversation: ConversationDb,
+        assistant_message: MessageDb,
+        *,
+        status: MessageStatus,
+        extra_metadata: dict[str, Any] | None = None,
+    ) -> MessageDb:
+        assistant_message.status = status
+        assistant_message.updated_at = get_datetime_now()
+        if extra_metadata:
+            merged_metadata = dict(assistant_message.message_metadata or {})
+            merged_metadata.update(extra_metadata)
+            assistant_message.message_metadata = merged_metadata
+        return self._persist_message(assistant_message, conversation)

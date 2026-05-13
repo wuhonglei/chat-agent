@@ -21,6 +21,10 @@ interface StreamResumeRequest {
   lastSeq: number;
 }
 
+interface StreamStopRequest {
+  assistantMessageId: string;
+}
+
 const streamWithSSE = async (
   url: string,
   body: string,
@@ -143,6 +147,10 @@ export const chatAPI = {
       abortController
     );
     return;
+  },
+
+  streamMessageStop: async (data: StreamStopRequest): Promise<void> => {
+    await apiClient.post("/chat/stream/stop", data);
   },
 };
 

@@ -2,7 +2,7 @@ import { type UserAttachmentBlock } from "@/interfaces/contentBlock";
 import { fileAPI } from "@/services/file";
 import { Attachments, AttachmentsProps, Sender } from "@ant-design/x";
 import type { UploadFile } from "antd";
-import { GetProp, GetRef, message } from "antd";
+import { App, GetProp, GetRef } from "antd";
 import React from "react";
 import { CHAT_ATTACHMENT_ACCEPT, MAX_CHAT_ATTACHMENTS, getChatAttachmentValidationError, isImageFile } from "../util";
 import { getChatInputAttachmentStyles, sortAttachmentsByImageFirst, withServerAttachmentPreview } from "./utils";
@@ -20,6 +20,7 @@ const ChatInputSenderHeader: React.FC<ChatInputSenderHeaderProps> = ({
   setAttachmentItems,
   canUploadImage,
 }) => {
+  const { message } = App.useApp();
   const hasAttachmentItems = Boolean(attachmentItems?.length);
 
   return (

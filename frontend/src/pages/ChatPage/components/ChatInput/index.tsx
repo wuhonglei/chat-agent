@@ -3,7 +3,7 @@ import { ChatInputFormValues, SendMessageOptions } from "@/interfaces";
 import { isPlainEnter } from "@/utils";
 import { Attachments, AttachmentsProps, Sender } from "@ant-design/x";
 import { useMemoizedFn } from "ahooks";
-import { ConfigProvider, Form, FormInstance, GetProp, GetRef, message } from "antd";
+import { App, ConfigProvider, Form, FormInstance, GetProp, GetRef } from "antd";
 import classNames from "classnames";
 import React from "react";
 import ChatInputFooter from "./components/ChatInputFooter";
@@ -41,6 +41,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   style,
   form,
 }) => {
+  const { message } = App.useApp();
   const content = Form.useWatch(names.content, form);
   const modelId = Form.useWatch(names.modelId, form);
   const [attachmentItems, setAttachmentItems] = React.useState<GetProp<AttachmentsProps, "items">>([]);
@@ -77,6 +78,11 @@ const ChatInput: React.FC<ChatInputProps> = ({
       return;
     }
     if (isSmallScreen) {
+      return false;
+    }
+    if (isStreaming) {
+      event.preventDefault();
+      message.warning("当前消息正在生成，请先点击停止");
       return false;
     }
     event.preventDefault();

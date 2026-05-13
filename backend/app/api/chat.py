@@ -13,8 +13,14 @@ from app.core.config import settings
 from app.mcp.mcp_client import MCPClientManager
 from app.protocols.chat_messages import build_error_event
 from app.schemas.auth import AuthTokenPayload
-from app.schemas.chat import ChatRequest, StreamResumeRequest
+from app.schemas.chat import (
+    ChatRequest,
+    MessageStatus,
+    StreamResumeRequest,
+    StreamStopRequest,
+)
 from app.schemas.config import LLMConfig
+from app.schemas.response import ApiResponse
 from app.services.chat import ChatService
 from app.services.chat.stream_relay import StreamRelay
 from app.services.message import MessageDbService
@@ -24,6 +30,7 @@ from app.utils.logger import logger
 router = APIRouter()
 _BACKGROUND_TASKS: set[asyncio.Task[None]] = set()
 _STREAM_RELAY = StreamRelay()
+_STREAM_PRODUCER_TASKS: dict[str, asyncio.Task[None]] = {}
 
 
 async def _run_producer(
@@ -81,9 +88,11 @@ async def _run_detached_sse_stream(
         name=f"chat_stream_producer_{log_ctx.get('assistant_message_id', 'unknown')}",
     )
     _BACKGROUND_TASKS.add(producer_task)
+    _STREAM_PRODUCER_TASKS[stream_id] = producer_task
 
     def _on_producer_done(task: asyncio.Task[None]) -> None:
         _BACKGROUND_TASKS.discard(task)
+        _STREAM_PRODUCER_TASKS.pop(stream_id, None)
         exception: BaseException | None = None
         if not task.cancelled():
             with contextlib.suppress(Exception):
@@ -101,6 +110,20 @@ async def _run_detached_sse_stream(
 async def _empty_stream() -> AsyncGenerator[str, None]:
     return
     yield  # pragma: no cover
+
+
+def _ensure_authorized_assistant_message(
+    *,
+    assistant_message_id: str,
+    auth_info: AuthTokenPayload,
+) -> None:
+    with MessageDbService() as message_service:
+        message = message_service.get_message(assistant_message_id)
+        if message is None or message.role != "assistant":
+            raise HTTPException(status_code=404, detail="助手消息不存在")
+        conversation = message_service.get_conversation(message.conversation_id)
+        if conversation.user_id != auth_info.user_id:
+            raise HTTPException(status_code=403, detail="无权访问该消息")
 
 
 def _resolve_llm_config(model_id: str) -> LLMConfig:
@@ -187,13 +210,10 @@ async def resume_chat_stream(
     request: StreamResumeRequest,
     auth_info: AuthTokenPayload = Depends(get_auth_token_info),
 ) -> StreamingResponse:
-    with MessageDbService() as message_service:
-        message = message_service.get_message(request.assistant_message_id)
-        if message is None or message.role != "assistant":
-            raise HTTPException(status_code=404, detail="助手消息不存在")
-        conversation = message_service.get_conversation(message.conversation_id)
-        if conversation.user_id != auth_info.user_id:
-            raise HTTPException(status_code=403, detail="无权访问该消息")
+    _ensure_authorized_assistant_message(
+        assistant_message_id=request.assistant_message_id,
+        auth_info=auth_info,
+    )
 
     if not await _STREAM_RELAY.has_stream(request.assistant_message_id):
         logger.info(
@@ -220,3 +240,41 @@ async def resume_chat_stream(
         ),
         media_type="text/event-stream",
     )
+
+
+@router.post("/stream/stop")
+async def stop_chat_stream(
+    request: StreamStopRequest,
+    auth_info: AuthTokenPayload = Depends(get_auth_token_info),
+) -> ApiResponse[dict[str, bool]]:
+    _ensure_authorized_assistant_message(
+        assistant_message_id=request.assistant_message_id,
+        auth_info=auth_info,
+    )
+
+    producer_task = _STREAM_PRODUCER_TASKS.get(request.assistant_message_id)
+    if producer_task and not producer_task.done():
+        producer_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await producer_task
+
+    with MessageDbService() as message_service:
+        assistant_message = message_service.get_message(request.assistant_message_id)
+        if assistant_message is None:
+            return ApiResponse.success(data={"stopped": True}, msg="流式响应已停止")
+        if assistant_message.status == MessageStatus.PENDING:
+            conversation = message_service.get_conversation(
+                assistant_message.conversation_id
+            )
+            message_service.update_assistant_message_status(
+                conversation,
+                assistant_message,
+                status=MessageStatus.STOPPED,
+            )
+
+    logger.info(
+        "Chat stream stopped by user",
+        assistant_message_id=request.assistant_message_id,
+        user_id=auth_info.user_id,
+    )
+    return ApiResponse.success(data={"stopped": True}, msg="流式响应已停止")

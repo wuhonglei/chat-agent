@@ -142,6 +142,12 @@ class StreamResumeRequest(BaseModel):
     last_seq: int = Field(0, ge=0, description="Last successfully consumed sequence")
 
 
+class StreamStopRequest(BaseModel):
+    """SSE stop request model"""
+
+    assistant_message_id: str = Field(..., description="Assistant message ID")
+
+
 class ChatSource(BaseModel):
     """Chat source reference model"""
 
