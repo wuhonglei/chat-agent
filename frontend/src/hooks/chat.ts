@@ -216,17 +216,19 @@ const useAutoResume = ({
       }
       controller.abort();
     };
+    // isStreaming is intentionally excluded because this effect sets it to true after starting resume.
+    // resumeStartLastEventId is intentionally excluded because resume events update it while streaming.
+    // Depending on either value immediately cleans up and aborts the in-flight resume request.
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [
     abortControllerRef,
     autoResumeAttemptedRef,
     conversationId,
     dispatch,
     handleStreamPayload,
-    isStreaming,
     messagesLength,
     resetState,
     resumePhase,
-    resumeStartLastEventId,
     resumeAssistantMessageId,
   ]);
 };
