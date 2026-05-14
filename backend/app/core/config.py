@@ -14,6 +14,7 @@ from app.core.nacos.config import NacosConfigSettingsSource
 from app.schemas.config import (
     AppConfig,
     ChatContextConfig,
+    CORSConfig,
     DatabaseConfig,
     EmbeddingModelConfig,
     KbFileRagConfig,
@@ -33,6 +34,7 @@ class Settings(BaseSettings):
     """Application settings - 使用层级结构匹配 YAML 配置"""
 
     app: AppConfig = Field(default_factory=AppConfig)
+    cors: CORSConfig = Field(default_factory=CORSConfig)
     model_map: dict[str, LLMConfig] = Field(
         description="模型映射配置（model_name_key -> LLM 配置，必须包含 default）"
     )

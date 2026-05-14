@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
 
 from app.api import (
@@ -79,6 +80,13 @@ app = FastAPI(
 # 添加日志中间件（必须在路由之前添加）
 # 执行顺序：中间件 → 路由匹配 → 依赖注入 → 路由处理函数 → 依赖清理 → 中间件继续
 app.add_middleware(LoggingMiddleware)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors.allow_origins,
+    allow_credentials=settings.cors.allow_credentials,
+    allow_methods=settings.cors.allow_methods,
+    allow_headers=settings.cors.allow_headers,
+)
 
 # 注册全局异常处理器（按优先级顺序注册）
 # 1. 验证异常处理器（最具体）
