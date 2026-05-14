@@ -24,6 +24,17 @@ interface StreamStopRequest {
   assistantMessageId: string;
 }
 
+const getDefaultStreamRetryState = () => ({
+  startedAt: Date.now(),
+  retryCount: 0,
+  maxRetryCount: 8,
+  maxRetryDurationMs: 60_000,
+  baseRetryIntervalMs: 1_000,
+});
+
+const getExponentialRetryIntervalMs = (retryCount: number, baseRetryIntervalMs: number): number =>
+  baseRetryIntervalMs * 2 ** Math.max(retryCount - 1, 0);
+
 const streamWithSSE = async (
   url: string,
   body: string,
@@ -33,10 +44,7 @@ const streamWithSSE = async (
   abortController: AbortController,
   lastEventId?: number
 ): Promise<void> => {
-  const startedAt = Date.now();
-  let retryCount = 0;
-  const maxRetryCount = 8;
-  const maxRetryDurationMs = 60_000;
+  let retryState = getDefaultStreamRetryState();
   const headers = addRequestHeaders({
     "Content-Type": "application/json",
     ...(lastEventId && lastEventId > 0 ? { "Last-Event-ID": String(lastEventId) } : {}),
@@ -58,6 +66,7 @@ const streamWithSSE = async (
         toLoginPage(location.pathname);
         return Promise.reject(new Error("Unauthorized"));
       }
+      retryState = getDefaultStreamRetryState();
     },
     onmessage(event) {
       if (event.data) {
@@ -81,14 +90,15 @@ const streamWithSSE = async (
     onerror(err) {
       const error = err as Error;
       onError(error);
-      retryCount += 1;
+      retryState.retryCount += 1;
       if (error.message === "Unauthorized") {
         throw error;
       }
-      if (retryCount > maxRetryCount || Date.now() - startedAt > maxRetryDurationMs) {
+      const elapsedMs = Date.now() - retryState.startedAt;
+      if (retryState.retryCount > retryState.maxRetryCount || elapsedMs > retryState.maxRetryDurationMs) {
         throw error;
       }
-      return undefined;
+      return getExponentialRetryIntervalMs(retryState.retryCount, retryState.baseRetryIntervalMs);
     },
     onclose() {
       onClose();
