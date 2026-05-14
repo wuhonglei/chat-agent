@@ -13,6 +13,30 @@ class AppConfig(BaseModel):
     port: int = 8000
 
 
+class CORSConfig(BaseModel):
+    """跨域资源共享配置"""
+
+    allow_origins: list[str] = Field(
+        default_factory=lambda: [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ],
+        description="允许跨域访问的前端源",
+    )
+    allow_credentials: bool = Field(
+        default=True,
+        description="是否允许跨域请求携带凭证",
+    )
+    allow_methods: list[str] = Field(
+        default_factory=lambda: ["*"],
+        description="允许的跨域请求方法",
+    )
+    allow_headers: list[str] = Field(
+        default_factory=lambda: ["*"],
+        description="允许的跨域请求头",
+    )
+
+
 class BaseLLMModelConfig(BaseModel):
     """LLM 模型 API 基础配置"""
 
