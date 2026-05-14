@@ -6,7 +6,7 @@ import { ConversationInfo } from "./conversation";
 type StreamEnvelope<TType extends string, TData> = {
   type: TType;
   data: TData;
-  seq?: number;
+  lastEventId?: number;
 };
 
 export type StreamMessage =

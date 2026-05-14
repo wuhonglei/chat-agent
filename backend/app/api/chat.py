@@ -3,9 +3,10 @@
 import asyncio
 import contextlib
 from collections.abc import AsyncGenerator, Callable
+from dataclasses import dataclass
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import StreamingResponse
 
 from app.api.deps import get_mcp_manager
@@ -31,6 +32,14 @@ router = APIRouter()
 _BACKGROUND_TASKS: set[asyncio.Task[None]] = set()
 _STREAM_RELAY = StreamRelay()
 _STREAM_PRODUCER_TASKS: dict[str, asyncio.Task[None]] = {}
+_TURN_IDEMPOTENCY_LOCK = asyncio.Lock()
+_TURN_IDEMPOTENCY_CACHE: dict[tuple[str, str, str], "_IdempotentTurn"] = {}
+
+
+@dataclass(frozen=True)
+class _IdempotentTurn:
+    user_message_id: str
+    assistant_message_id: str
 
 
 async def _run_producer(
@@ -61,11 +70,13 @@ async def _run_producer(
 async def _drain_stream(
     stream_id: str,
     *,
-    after_seq: int,
+    last_event_id: int,
     log_ctx: dict[str, Any],
 ) -> AsyncGenerator[str, None]:
     try:
-        async for event in _STREAM_RELAY.iter_resume(stream_id, after_seq=after_seq):
+        async for event in _STREAM_RELAY.iter_resume(
+            stream_id, last_event_id=last_event_id
+        ):
             yield event
     except asyncio.CancelledError:
         logger.info("SSE consumer disconnected, producer continues", **log_ctx)
@@ -104,7 +115,7 @@ async def _run_detached_sse_stream(
         )
 
     producer_task.add_done_callback(_on_producer_done)
-    return _drain_stream(stream_id=stream_id, after_seq=0, log_ctx=log_ctx)
+    return _drain_stream(stream_id=stream_id, last_event_id=0, log_ctx=log_ctx)
 
 
 async def _empty_stream() -> AsyncGenerator[str, None]:
@@ -141,11 +152,33 @@ def _contains_image_block(chat_request: ChatRequest) -> bool:
     return any(block.type == "image" for block in chat_request.content_blocks)
 
 
+def _parse_last_event_id(last_event_id: str | None) -> int:
+    if not last_event_id:
+        return 0
+    try:
+        parsed = int(last_event_id)
+    except ValueError:
+        return 0
+    return max(parsed, 0)
+
+
+def _idempotency_key(
+    *,
+    user_id: str,
+    conversation_id: str,
+    client_turn_id: str | None,
+) -> tuple[str, str, str] | None:
+    if not client_turn_id:
+        return None
+    return (user_id, conversation_id, client_turn_id)
+
+
 @router.post("/stream")
 async def stream_chat(
     chat_request: ChatRequest,
     mcp_manager: MCPClientManager = Depends(get_mcp_manager),
     auth_info: AuthTokenPayload = Depends(get_auth_token_info),
+    last_event_id_header: str | None = Header(default=None, alias="Last-Event-ID"),
 ) -> StreamingResponse:
     """Stream chat response, 按需保存用户与助手消息。user_id 用于 Mem0 记忆与 user_context 注入。"""
     logger.info(
@@ -161,21 +194,47 @@ async def stream_chat(
     if _contains_image_block(chat_request) and not llm_config.image_support:
         raise HTTPException(status_code=400, detail="当前模型不支持图片输入")
 
+    last_event_id = _parse_last_event_id(last_event_id_header)
     user_metadata = chat_request.model_dump(
         exclude_none=True, exclude={"content_blocks"}
     )
-    with MessageDbService() as message_service:
-        created_messages = message_service.create_chat_messages(
-            conversation_id=chat_request.conversation_id,
-            content_blocks=chat_request.content_blocks,
-            user_metadata=user_metadata,
-            removed_message_ids=chat_request.removed_message_ids,
+    idempotency_key = _idempotency_key(
+        user_id=auth_info.user_id,
+        conversation_id=chat_request.conversation_id,
+        client_turn_id=chat_request.client_turn_id,
+    )
+    created_messages: _IdempotentTurn
+    is_idempotent_hit = False
+    async with _TURN_IDEMPOTENCY_LOCK:
+        cached_turn = (
+            _TURN_IDEMPOTENCY_CACHE.get(idempotency_key)
+            if idempotency_key is not None
+            else None
         )
+        if cached_turn is not None:
+            created_messages = cached_turn
+            is_idempotent_hit = True
+        else:
+            with MessageDbService() as message_service:
+                db_created_messages = message_service.create_chat_messages(
+                    conversation_id=chat_request.conversation_id,
+                    content_blocks=chat_request.content_blocks,
+                    user_metadata=user_metadata,
+                    removed_message_ids=chat_request.removed_message_ids,
+                )
+            created_messages = _IdempotentTurn(
+                user_message_id=db_created_messages.user_message_id,
+                assistant_message_id=db_created_messages.assistant_message_id,
+            )
+            if idempotency_key is not None:
+                _TURN_IDEMPOTENCY_CACHE[idempotency_key] = created_messages
     logger.info(
-        "Messages created",
+        "Messages resolved",
         conversation_id=chat_request.conversation_id,
         user_message_id=created_messages.user_message_id,
         assistant_message_id=created_messages.assistant_message_id,
+        client_turn_id=chat_request.client_turn_id,
+        idempotent_hit=is_idempotent_hit,
     )
 
     chat_service = ChatService(
@@ -188,7 +247,23 @@ async def stream_chat(
         "conversation_id": chat_request.conversation_id,
         "user_id": auth_info.user_id,
         "assistant_message_id": created_messages.assistant_message_id,
+        "last_event_id": last_event_id,
     }
+    if is_idempotent_hit:
+        if await _STREAM_RELAY.has_stream(created_messages.assistant_message_id):
+            return StreamingResponse(
+                _drain_stream(
+                    stream_id=created_messages.assistant_message_id,
+                    last_event_id=last_event_id,
+                    log_ctx=log_ctx,
+                ),
+                media_type="text/event-stream",
+            )
+        return StreamingResponse(
+            _empty_stream(),
+            media_type="text/event-stream",
+        )
+
     stream = await _run_detached_sse_stream(
         lambda: chat_service.stream_chat_events(
             chat_request,
@@ -209,18 +284,21 @@ async def stream_chat(
 async def resume_chat_stream(
     request: StreamResumeRequest,
     auth_info: AuthTokenPayload = Depends(get_auth_token_info),
+    last_event_id_header: str | None = Header(default=None, alias="Last-Event-ID"),
 ) -> StreamingResponse:
     _ensure_authorized_assistant_message(
         assistant_message_id=request.assistant_message_id,
         auth_info=auth_info,
     )
 
+    last_event_id = _parse_last_event_id(last_event_id_header)
+
     if not await _STREAM_RELAY.has_stream(request.assistant_message_id):
         logger.info(
             "Resume requested for inactive stream",
             assistant_message_id=request.assistant_message_id,
             user_id=auth_info.user_id,
-            last_seq=request.last_seq,
+            last_event_id=last_event_id,
         )
         return StreamingResponse(
             _empty_stream(),
@@ -230,12 +308,12 @@ async def resume_chat_stream(
     log_ctx = {
         "assistant_message_id": request.assistant_message_id,
         "user_id": auth_info.user_id,
-        "resume_last_seq": request.last_seq,
+        "resume_last_event_id": last_event_id,
     }
     return StreamingResponse(
         _drain_stream(
             stream_id=request.assistant_message_id,
-            after_seq=request.last_seq,
+            last_event_id=last_event_id,
             log_ctx=log_ctx,
         ),
         media_type="text/event-stream",

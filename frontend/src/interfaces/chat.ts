@@ -92,6 +92,7 @@ export type NewConversationCache =
 
 export interface ChatRequest extends ChatInputConfig {
   contentBlocks: UserContentBlock[];
+  clientTurnId: string;
   conversationId?: string;
   historyIds: string[];
   regenerateTitle: boolean;
@@ -121,7 +122,7 @@ export type StreamResumePhase = "streaming" | "closed" | "done" | "error";
 
 export interface StreamResumeContext {
   assistantMessageId: string;
-  lastSeq: number;
+  lastEventId: number;
   phase: StreamResumePhase;
   updatedAt: string;
 }
