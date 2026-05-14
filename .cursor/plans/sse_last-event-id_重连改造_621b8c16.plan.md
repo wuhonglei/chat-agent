@@ -4,13 +4,13 @@ overview: 在保持 `POST /chat/stream` 的前提下，引入 `Last-Event-ID` �
 todos:
   - id: backend-sse-id-frame
     content: 后端 SSE 输出补齐 id 并统一 last_event_id 来源（Last-Event-ID 请求头 / 请求体字段）
-    status: in_progress
+    status: completed
   - id: backend-idempotency
     content: 引入 client_turn_id 内存级幂等查询与复用（短期方案），降低重复创建消息概率
-    status: pending
+    status: completed
   - id: frontend-event-id
     content: 前端消费 event.id 并在重连时注入 Last-Event-ID 头，删除 hooks 外层 retry
-    status: pending
+    status: completed
   - id: rename-and-tests
     content: 前后端全量重命名 seq/last_seq 为 last_event_id，并补充单测与端到端验证
     status: pending

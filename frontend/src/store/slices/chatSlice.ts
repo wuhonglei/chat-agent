@@ -265,16 +265,16 @@ const chatSlice = createSlice({
       const chatState = conversationIdCheck(state, conversationId);
       chatState.streamResumeContext = data;
     },
-    updateStreamResumeSeq: (state, action: PayloadAction<ConversationActionPayload<number>>) => {
+    updateStreamResumeLastEventId: (state, action: PayloadAction<ConversationActionPayload<number>>) => {
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
       if (!chatState.streamResumeContext) {
         return;
       }
-      if (data <= chatState.streamResumeContext.lastSeq) {
+      if (data <= chatState.streamResumeContext.lastEventId) {
         return;
       }
-      chatState.streamResumeContext.lastSeq = data;
+      chatState.streamResumeContext.lastEventId = data;
       chatState.streamResumeContext.updatedAt = new Date().toISOString();
     },
     updateStreamResumePhase: (state, action: PayloadAction<ConversationActionPayload<StreamResumePhase>>) => {
@@ -317,7 +317,7 @@ export const {
   clearLastMessage,
   resetChatState,
   setStreamResumeContext,
-  updateStreamResumeSeq,
+  updateStreamResumeLastEventId,
   updateStreamResumePhase,
   clearStreamResumeContext,
   clearChatState,

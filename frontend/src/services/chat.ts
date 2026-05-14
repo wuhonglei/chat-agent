@@ -18,7 +18,6 @@ import { addRequestHeaders, apiClient } from "./base";
 
 interface StreamResumeRequest {
   assistantMessageId: string;
-  lastSeq: number;
 }
 
 interface StreamStopRequest {
@@ -31,13 +30,20 @@ const streamWithSSE = async (
   onMessage: (message: StreamMessage) => void,
   onError: (error: Error) => void,
   onClose: () => void,
-  abortController: AbortController
+  abortController: AbortController,
+  lastEventId?: number
 ): Promise<void> => {
+  const startedAt = Date.now();
+  let retryCount = 0;
+  const maxRetryCount = 8;
+  const maxRetryDurationMs = 60_000;
+  const headers = addRequestHeaders({
+    "Content-Type": "application/json",
+    ...(lastEventId && lastEventId > 0 ? { "Last-Event-ID": String(lastEventId) } : {}),
+  });
   await fetchEventSource(url, {
     method: "POST",
-    headers: addRequestHeaders({
-      "Content-Type": "application/json",
-    }),
+    headers,
     body,
     signal: abortController.signal,
     onopen: async (response: Response): Promise<void> => {
@@ -57,6 +63,10 @@ const streamWithSSE = async (
       if (event.data) {
         try {
           const parsed: StreamMessage = camelcaseKeys(JSON.parse(event.data), { deep: true });
+          const parsedLastEventId = Number.parseInt(event.id, 10);
+          if (Number.isFinite(parsedLastEventId) && parsedLastEventId > 0) {
+            parsed.lastEventId = parsedLastEventId;
+          }
           onMessage(parsed);
         } catch (e) {
           // 上报消息解析错误
@@ -69,8 +79,16 @@ const streamWithSSE = async (
       }
     },
     onerror(err) {
-      onError(err as Error);
-      throw err;
+      const error = err as Error;
+      onError(error);
+      retryCount += 1;
+      if (error.message === "Unauthorized") {
+        throw error;
+      }
+      if (retryCount > maxRetryCount || Date.now() - startedAt > maxRetryDurationMs) {
+        throw error;
+      }
+      return undefined;
     },
     onclose() {
       onClose();
@@ -131,7 +149,8 @@ export const chatAPI = {
     onMessage: (message: StreamMessage) => void,
     onError: (error: Error) => void,
     onClose: () => void,
-    abortController: AbortController
+    abortController: AbortController,
+    lastEventId: number
   ): Promise<void> => {
     const body = JSON.stringify(
       snakecaseKeys(data as unknown as Record<string, unknown>, {
@@ -144,7 +163,8 @@ export const chatAPI = {
       onMessage,
       onError,
       onClose,
-      abortController
+      abortController,
+      lastEventId
     );
     return;
   },

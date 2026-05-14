@@ -121,6 +121,10 @@ class ChatRequest(BaseModel):
         default="default",
         description="model_map 配置键，或可与某条 LLM 配置的 model_name 匹配",
     )
+    client_turn_id: str | None = Field(
+        default=None,
+        description="Client-generated idempotency key for one user turn",
+    )
 
     @field_validator("content_blocks", mode="before")
     @classmethod
@@ -139,7 +143,6 @@ class StreamResumeRequest(BaseModel):
     """SSE resume request model"""
 
     assistant_message_id: str = Field(..., description="Assistant message ID")
-    last_seq: int = Field(0, ge=0, description="Last successfully consumed sequence")
 
 
 class StreamStopRequest(BaseModel):

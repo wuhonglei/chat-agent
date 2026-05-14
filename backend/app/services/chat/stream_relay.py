@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 from collections import deque
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
@@ -11,7 +10,7 @@ from dataclasses import dataclass, field
 
 @dataclass(frozen=True)
 class _StreamEvent:
-    seq: int
+    last_event_id: int
     payload: str
 
 
@@ -22,27 +21,16 @@ class _Terminal:
 @dataclass
 class _RelayEntry:
     events: deque[_StreamEvent]
-    next_seq: int = 1
+    next_event_id: int = 1
     closed: bool = False
     subscribers: set[asyncio.Queue[_StreamEvent | _Terminal]] = field(
         default_factory=set
     )
 
 
-def _inject_seq_into_sse_payload(event: str, seq: int) -> str:
-    """Inject sequence number into the SSE JSON payload."""
-    prefix = "data: "
-    if not event.startswith(prefix):
-        return event
-    body = event[len(prefix) :].strip()
-    try:
-        payload = json.loads(body)
-    except Exception:
-        return event
-    if not isinstance(payload, dict):
-        return event
-    payload["seq"] = seq
-    return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+def _wrap_sse_event_with_id(event: str, last_event_id: int) -> str:
+    """Attach an SSE id line so clients can resume with Last-Event-ID."""
+    return f"id: {last_event_id}\n{event}"
 
 
 class StreamRelay:
@@ -68,20 +56,23 @@ class StreamRelay:
                 entry = _RelayEntry(events=deque(maxlen=self._max_events))
                 self._entries[stream_id] = entry
             if entry.closed:
-                return entry.next_seq - 1
+                return entry.next_event_id - 1
 
-            seq = entry.next_seq
-            entry.next_seq += 1
-            wrapped_event = _inject_seq_into_sse_payload(event, seq)
-            stream_event = _StreamEvent(seq=seq, payload=wrapped_event)
+            last_event_id = entry.next_event_id
+            entry.next_event_id += 1
+            wrapped_event = _wrap_sse_event_with_id(event, last_event_id)
+            stream_event = _StreamEvent(
+                last_event_id=last_event_id,
+                payload=wrapped_event,
+            )
             entry.events.append(stream_event)
             for queue in entry.subscribers:
                 queue.put_nowait(stream_event)
-            return seq
+            return last_event_id
 
     async def close(self, stream_id: str) -> None:
         async with self._lock:
-            entry = self._entries.pop(stream_id, None)
+            entry = self._entries.get(stream_id)
             if entry is None:
                 return
             entry.closed = True
@@ -94,7 +85,7 @@ class StreamRelay:
             return stream_id in self._entries
 
     async def iter_resume(
-        self, stream_id: str, after_seq: int
+        self, stream_id: str, last_event_id: int
     ) -> AsyncGenerator[str, None]:
         queue: asyncio.Queue[_StreamEvent | _Terminal] | None = None
         replay_events: list[_StreamEvent] = []
@@ -102,7 +93,9 @@ class StreamRelay:
             entry = self._entries.get(stream_id)
             if entry is None:
                 return
-            replay_events = [event for event in entry.events if event.seq > after_seq]
+            replay_events = [
+                event for event in entry.events if event.last_event_id > last_event_id
+            ]
             if not entry.closed:
                 queue = asyncio.Queue()
                 entry.subscribers.add(queue)
@@ -110,7 +103,7 @@ class StreamRelay:
         try:
             for event in replay_events:
                 yield event.payload
-                after_seq = max(after_seq, event.seq)
+                last_event_id = max(last_event_id, event.last_event_id)
 
             if queue is None:
                 return
@@ -119,9 +112,9 @@ class StreamRelay:
                 item = await queue.get()
                 if isinstance(item, _Terminal):
                     return
-                if item.seq <= after_seq:
+                if item.last_event_id <= last_event_id:
                     continue
-                after_seq = item.seq
+                last_event_id = item.last_event_id
                 yield item.payload
         finally:
             if queue is not None:
