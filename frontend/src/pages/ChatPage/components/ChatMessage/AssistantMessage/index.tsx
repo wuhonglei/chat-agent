@@ -1,4 +1,4 @@
-import { ChatMessage as ChatMessageType, MessageFeedbackValue } from "@/interfaces";
+import { ChatMessage as ChatMessageType, MessageFeedbackValue, MessageStatus } from "@/interfaces";
 import { Bubble } from "@ant-design/x";
 import React from "react";
 import AssistantOperation from "../components/AssistantOperation";
@@ -38,7 +38,12 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
       loading={isLoading}
       className="w-full mt-4"
       classNames={{ body: "w-full", content: "w-full" }}
-      contentRender={() => <ContentBlocksRender contentBlocks={message.contentBlocks} isStreaming={isStreaming} />}
+      contentRender={() => (
+        <>
+          <ContentBlocksRender contentBlocks={message.contentBlocks} isStreaming={isStreaming} />
+          {message.status === MessageStatus.Stopped && <div className="text-gray-400 text-sm mt-2">Output Stopped</div>}
+        </>
+      )}
       footer={
         isStreaming ? null : (
           <AssistantOperation
