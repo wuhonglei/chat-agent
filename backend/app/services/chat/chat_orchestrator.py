@@ -21,6 +21,7 @@ from app.schemas.chat import (
     ChatRequest,
     ContentBlock,
     KbContextBlock,
+    MessageStatus,
     count_tool_use_blocks,
     extract_user_text,
 )
@@ -322,6 +323,15 @@ class ChatOrchestrator:
                     ):
                         event_count += 1
                         yield event
+                except asyncio.CancelledError:
+                    assistant_response = self.collect_assistant_response()
+                    message_service.update_assistant_message(
+                        conversation,
+                        assistant_message,
+                        assistant_response=assistant_response,
+                        status=MessageStatus.STOPPED,
+                    )
+                    raise
                 finally:
                     if title_task is not None and not title_task.done():
                         title_task.cancel()
