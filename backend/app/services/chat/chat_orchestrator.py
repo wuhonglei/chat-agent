@@ -324,6 +324,9 @@ class ChatOrchestrator:
                         event_count += 1
                         yield event
                 except asyncio.CancelledError:
+                    # 流式中断时，content_block_aggregator 已累积当前轮的数据，
+                    # 但 session_output.content_blocks 还没同步 — 手动同步后再收集。
+                    self.chat_session_agent._sync_session_output()
                     assistant_response = self.collect_assistant_response()
                     message_service.update_assistant_message(
                         conversation,
