@@ -6,11 +6,12 @@ import { ButtonState } from "./constant";
 
 export const MAX_CHAT_ATTACHMENTS = 5;
 export const MAX_CHAT_ATTACHMENT_BYTES = 10 * 1024 * 1024;
-export const CHAT_ATTACHMENT_ACCEPT = "image/*,.pdf,application/pdf";
+export const CHAT_ATTACHMENT_ACCEPT = "image/*,.pdf,application/pdf,.md,.markdown,text/markdown";
 export const CHAT_ATTACHMENT_ACCEPT_PDF_ONLY = ".pdf,application/pdf";
 
 const IMAGE_EXT_RE = /\.(jpe?g|png|gif|webp)$/i;
 const PDF_EXT_RE = /\.pdf$/i;
+const MARKDOWN_EXT_RE = /\.(md|markdown)$/i;
 
 export function isImageFile(file: Pick<File, "type" | "name">) {
   const fileType = file.type.toLowerCase();
@@ -40,7 +41,10 @@ export function isSupportedChatAttachment(file: File) {
   if (isImageFile(file)) {
     return true;
   }
-  return fileType === "application/pdf" || PDF_EXT_RE.test(file.name.toLowerCase());
+  if (fileType === "application/pdf" || PDF_EXT_RE.test(file.name.toLowerCase())) {
+    return true;
+  }
+  return MARKDOWN_EXT_RE.test(file.name.toLowerCase()) || fileType === "text/markdown";
 }
 
 export function getChatAttachmentValidationError(file: File, currentCount: number) {
@@ -48,7 +52,7 @@ export function getChatAttachmentValidationError(file: File, currentCount: numbe
     return `最多上传 ${MAX_CHAT_ATTACHMENTS} 个附件`;
   }
   if (!isSupportedChatAttachment(file)) {
-    return "仅支持 JPEG、PNG、GIF、WebP 图片和 PDF";
+    return "仅支持 JPEG、PNG、GIF、WebP 图片、PDF 和 Markdown";
   }
   if (file.size > MAX_CHAT_ATTACHMENT_BYTES) {
     return "单个附件不能超过 10MB";

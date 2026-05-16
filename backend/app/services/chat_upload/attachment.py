@@ -15,6 +15,7 @@ _BACKEND_ROOT = Path(__file__).resolve().parents[3]
 MAX_CHAT_ATTACHMENT_BYTES = 10 * 1024 * 1024  # 10 MiB
 CHAT_ATTACHMENT_PREVIEW_PREFIX = "/api/file/preview"
 PDF_CONTENT_TYPE: Literal["application/pdf"] = "application/pdf"
+MARKDOWN_CONTENT_TYPE: Literal["text/markdown"] = "text/markdown"
 
 # 单段 basename：首字符为字母/数字，其余可含 ._-；白名单后缀，不固定 UUID/哈希分段与位数。
 _FILENAME_RE = re.compile(
@@ -89,9 +90,13 @@ def media_type_for_preview(filename: str) -> str:
 
 async def save_chat_attachment(*, user_id: str, file: UploadFile) -> AttachmentBlock:
     from app.services.chat_upload.image import save_chat_image
+    from app.services.chat_upload.markdown import save_chat_markdown
     from app.services.chat_upload.pdf import save_chat_pdf
 
     content_type = (file.content_type or "").lower()
+    raw_filename = (file.filename or "").lower()
     if content_type == PDF_CONTENT_TYPE:
         return await save_chat_pdf(user_id=user_id, file=file)
+    if raw_filename.endswith(".md") or raw_filename.endswith(".markdown"):
+        return await save_chat_markdown(user_id=user_id, file=file)
     return await save_chat_image(user_id=user_id, file=file)

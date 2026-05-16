@@ -1,6 +1,7 @@
 """对话附件上传与处理服务。"""
 
 from app.services.chat_upload.attachment import (
+    MARKDOWN_CONTENT_TYPE,
     MAX_CHAT_ATTACHMENT_BYTES,
     PDF_CONTENT_TYPE,
     build_attachment_preview_url,
@@ -15,6 +16,7 @@ from app.services.chat_upload.kb_chunk_embedding import (
     KbFileChunkIndexingError,
     index_uploaded_text_chunks,
 )
+from app.services.chat_upload.markdown import save_chat_markdown
 from app.services.chat_upload.pdf import save_chat_pdf
 from app.services.chat_upload.pdf_markdown_converter import (
     PdfMarkdownConversionError,
@@ -22,6 +24,7 @@ from app.services.chat_upload.pdf_markdown_converter import (
 )
 
 __all__ = [
+    "MARKDOWN_CONTENT_TYPE",
     "MAX_CHAT_ATTACHMENT_BYTES",
     "PDF_CONTENT_TYPE",
     "build_attachment_preview_url",
@@ -31,6 +34,7 @@ __all__ = [
     "save_chat_attachment",
     "user_upload_file_path",
     "save_chat_image",
+    "save_chat_markdown",
     "save_chat_pdf",
     "KbFileChunkIndexingError",
     "index_uploaded_text_chunks",

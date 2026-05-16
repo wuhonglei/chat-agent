@@ -134,8 +134,8 @@ export type ContentBlock =
   | MarkdownBlock;
 
 /** 侧栏可预览的内容块（支持 PDF、HTML、代码运行结果与工作区项目） */
-export type PreviewableBlock = PdfBlock | HtmlBlock | CodeExecBlock | ProjectBlock;
-export type UserContentBlock = TextBlock | ImageBlock | PdfBlock;
+export type PreviewableBlock = PdfBlock | HtmlBlock | CodeExecBlock | ProjectBlock | MarkdownBlock;
+export type UserContentBlock = TextBlock | ImageBlock | PdfBlock | MarkdownBlock;
 /** 用户消息中的附件块（图片、PDF 等），不含文本块 */
 export type UserAttachmentBlock = Exclude<UserContentBlock, TextBlock>;
 
@@ -169,7 +169,7 @@ export function hasAttachmentBlocks(blocks: ContentBlock[] | undefined): boolean
 }
 
 export function isUserAttachmentBlock(block: ContentBlock): block is UserAttachmentBlock {
-  return block.type === "image" || block.type === "pdf";
+  return block.type === "image" || block.type === "pdf" || block.type === "markdown";
 }
 
 /** 组装发往后端的用户 content_blocks：先文本块，再按顺序追加附件块（图片、PDF 等） */
