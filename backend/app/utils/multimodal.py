@@ -18,7 +18,7 @@ from app.schemas.chat import (
     extract_user_text,
     normalize_content_blocks,
 )
-from app.services.chat_upload.attachment import user_upload_file_path
+from app.services.chat_upload.attachment import shared_upload_file_path
 from app.utils.logger import logger
 
 _IMAGE_PREVIEW_PATH_PATTERNS = (re.compile(r"^/api/file/preview/([^/]+)/(.+)$"),)
@@ -214,8 +214,8 @@ def _resolve_image_path(url: str) -> Path | None:
         return None
 
     user_id = unquote(match.group(1))
-    filename = unquote(match.group(2))
+    storage_key = unquote(match.group(2))
     try:
-        return user_upload_file_path(user_id, filename)
+        return shared_upload_file_path(user_id, storage_key)
     except Exception:
         return None

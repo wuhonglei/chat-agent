@@ -1,11 +1,17 @@
 """Conversations endpoints"""
 
+import shutil
 from typing import Any
 
 from fastapi import APIRouter, Depends
 from sqlmodel import Session
 
 from app.core.db import get_db
+from app.mcp.mcp_servers.agent_skills_mcp.config import USER_DATA_ROOT
+from app.mcp.mcp_servers.agent_skills_mcp.utils import (
+    validate_user_id,
+    validate_workspace_id,
+)
 from app.schemas.auth import AuthTokenPayload
 from app.schemas.conversation import (
     ConversationInfo,
@@ -19,6 +25,44 @@ from app.utils.auth_deps import get_auth_token_info, require_auth
 from app.utils.logger import logger
 
 router = APIRouter()
+
+
+def _delete_conversation_workspace(user_id: str | None, conversation_id: str) -> None:
+    """Delete the per-conversation workspace directory if it exists."""
+    if not user_id:
+        logger.warning(
+            "Skip deleting conversation workspace because user_id is missing",
+            conversation_id=conversation_id,
+        )
+        return
+
+    try:
+        safe_user_id = validate_user_id(user_id)
+        safe_workspace_id = validate_workspace_id(conversation_id)
+    except ValueError as exc:
+        logger.warning(
+            "Skip deleting conversation workspace because path id is invalid",
+            conversation_id=conversation_id,
+            user_id=user_id,
+            error=str(exc),
+        )
+        return
+
+    workspace_root = (
+        USER_DATA_ROOT / safe_user_id / "workspaces" / safe_workspace_id
+    ).resolve()
+    user_workspaces_root = (USER_DATA_ROOT / safe_user_id / "workspaces").resolve()
+    if (
+        workspace_root != user_workspaces_root
+        and user_workspaces_root in workspace_root.parents
+    ):
+        shutil.rmtree(workspace_root, ignore_errors=True)
+        logger.info(
+            "Conversation workspace deleted",
+            conversation_id=conversation_id,
+            user_id=user_id,
+            workspace_root=str(workspace_root),
+        )
 
 
 @router.post("/register")
@@ -141,5 +185,6 @@ async def delete_conversation(
     conversation = service.get_conversation(conversation_id)
     if not conversation:
         return ApiResponse.error(code=404, msg="会话不存在")
+    _delete_conversation_workspace(conversation.user_id, conversation.id)
     service.delete_conversation(conversation)
     return ApiResponse.success(data=conversation.id, msg="删除对话成功")

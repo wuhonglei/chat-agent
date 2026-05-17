@@ -20,11 +20,6 @@ CHAT_ATTACHMENT_PREVIEW_PREFIX = "/api/file/preview"
 PDF_CONTENT_TYPE: Literal["application/pdf"] = "application/pdf"
 MARKDOWN_CONTENT_TYPE: Literal["text/markdown"] = "text/markdown"
 
-# 单段 basename：首字符为字母/数字，其余可含 ._-；白名单后缀，不固定 UUID/哈希分段与位数。
-_FILENAME_RE = re.compile(
-    r"^[A-Za-z0-9][A-Za-z0-9._-]{0,237}\.(jpg|jpeg|png|gif|webp|pdf|md)$",
-    re.IGNORECASE,
-)
 _STORAGE_KEY_RE = re.compile(
     r"^(raw|derived)/[A-Fa-f0-9][A-Fa-f0-9._-]{0,237}\.(jpg|jpeg|png|gif|webp|pdf|md)$",
     re.IGNORECASE,
@@ -70,12 +65,6 @@ def build_attachment_preview_url(user_id: str, storage_key: str) -> str:
     return f"{CHAT_ATTACHMENT_PREVIEW_PREFIX}/{user_id}/{storage_key}"
 
 
-def get_user_upload_dir(user_id: str) -> Path:
-    if not user_id or "/" in user_id or "\\" in user_id or ".." in user_id:
-        raise HTTPException(status_code=400, detail="无效的用户 ID")
-    return _BACKEND_ROOT / "data" / "user_data" / user_id / "uploads"
-
-
 def get_user_shared_upload_dir(user_id: str) -> Path:
     if not user_id or "/" in user_id or "\\" in user_id or ".." in user_id:
         raise HTTPException(status_code=400, detail="无效的用户 ID")
@@ -91,23 +80,8 @@ def build_derived_markdown_storage_key(content_id: str) -> str:
     return f"derived/{content_id}.md"
 
 
-def user_upload_file_path(user_id: str, storage_key_or_filename: str) -> Path:
-    """校验 storage_key/旧文件名并返回磁盘路径；非法参数与越界均 404。"""
-    if not user_id or "/" in user_id or "\\" in user_id or ".." in user_id:
-        raise HTTPException(status_code=404, detail="文件不存在")
-    if "/" in storage_key_or_filename:
-        return shared_upload_file_path(user_id, storage_key_or_filename)
-    if not _FILENAME_RE.match(storage_key_or_filename):
-        raise HTTPException(status_code=404, detail="文件不存在")
-    base = (_BACKEND_ROOT / "data" / "user_data" / user_id / "uploads").resolve()
-    target = (base / storage_key_or_filename).resolve()
-    if not str(target).startswith(str(base)):
-        raise HTTPException(status_code=404, detail="文件不存在")
-    return target
-
-
 def shared_upload_file_path(user_id: str, storage_key: str) -> Path:
-    """校验 storage_key 并返回 shared/uploads 下的磁盘路径。"""
+    """校验 storage_key 并返回 uploads 下的磁盘路径。"""
     if not _STORAGE_KEY_RE.match(storage_key):
         raise HTTPException(status_code=404, detail="文件不存在")
     base = get_user_shared_upload_dir(user_id).resolve()
@@ -118,12 +92,11 @@ def shared_upload_file_path(user_id: str, storage_key: str) -> Path:
 
 
 def resolve_markdown_path_for_content_id(user_id: str, content_id: str) -> Path | None:
-    """按新旧存储位置查找附件 Markdown 全文。"""
+    """按当前 storage_key 规范查找附件 Markdown 全文。"""
     candidates = (
         get_user_shared_upload_dir(user_id)
         / build_derived_markdown_storage_key(content_id),
         get_user_shared_upload_dir(user_id) / build_raw_storage_key(content_id, ".md"),
-        get_user_upload_dir(user_id) / f"{content_id}.md",
     )
     for candidate in candidates:
         try:
@@ -151,7 +124,7 @@ def resolve_file_ref(
     conversation_id: str | None = None,
     db: Session | None = None,
 ) -> Path:
-    """解析旧 URL、新 storage_key URL、storage_key 或内容 id 到真实文件路径。"""
+    """解析 storage_key URL、storage_key 或内容 id 到真实文件路径。"""
     storage_key = _storage_key_from_preview_url(ref, user_id)
     if storage_key is None and "/" in ref:
         storage_key = ref
@@ -167,9 +140,10 @@ def resolve_file_ref(
             ).first()
             if mounted is None:
                 raise HTTPException(status_code=404, detail="文件不存在")
-        path = user_upload_file_path(user_id, storage_key)
+        path = shared_upload_file_path(user_id, storage_key)
         if path.is_file():
             return path
+        raise HTTPException(status_code=404, detail="文件不存在")
 
     if db is not None and conversation_id:
         mounts = db.exec(
@@ -182,16 +156,11 @@ def resolve_file_ref(
             attachment_file = db.get(AttachmentFileDb, mount.attachment_file_id)
             if attachment_file is None or attachment_file.content_id != ref:
                 continue
-            path = user_upload_file_path(user_id, attachment_file.storage_key)
+            path = shared_upload_file_path(user_id, attachment_file.storage_key)
             if path.is_file():
                 return path
-            if attachment_file.legacy_source:
-                legacy_path = Path(attachment_file.legacy_source)
-                if legacy_path.is_file():
-                    return legacy_path
 
-    legacy_key = _storage_key_from_preview_url(ref, user_id) or ref
-    return user_upload_file_path(user_id, legacy_key)
+    raise HTTPException(status_code=404, detail="文件不存在")
 
 
 def upsert_attachment_file(
@@ -206,7 +175,6 @@ def upsert_attachment_file(
     display_name: str,
     derived_from_id: str | None = None,
     derived_kind: str | None = None,
-    legacy_source: str | None = None,
 ) -> AttachmentFileDb | None:
     if db is None:
         return None
@@ -224,7 +192,6 @@ def upsert_attachment_file(
         existing.display_name = display_name
         existing.derived_from_id = derived_from_id
         existing.derived_kind = derived_kind
-        existing.legacy_source = legacy_source
         existing.storage_version = STORAGE_VERSION
         db.add(existing)
         db.flush()
@@ -240,7 +207,6 @@ def upsert_attachment_file(
         display_name=display_name,
         derived_from_id=derived_from_id,
         derived_kind=derived_kind,
-        legacy_source=legacy_source,
         storage_version=STORAGE_VERSION,
     )
     db.add(attachment_file)

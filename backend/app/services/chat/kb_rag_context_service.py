@@ -15,10 +15,7 @@ from app.core.db import engine
 from app.models.kb_file_chunk_embedding_db import EMBEDDING_DIMENSION
 from app.schemas.chat import KbContextBlock
 from app.schemas.config import KbFileRagConfig
-from app.services.chat_upload.attachment import (
-    get_user_upload_dir,
-    resolve_markdown_path_for_content_id,
-)
+from app.services.chat_upload.attachment import resolve_markdown_path_for_content_id
 from app.utils.date import get_relative_time_diff
 from app.utils.logger import logger
 
@@ -224,21 +221,12 @@ class KbRagContextService:
             user_id, file_id
         )
         if markdown_path is None:
-            try:
-                legacy_upload_dir = get_user_upload_dir(user_id)
-            except Exception:
-                legacy_upload_dir = None
-            if legacy_upload_dir is not None:
-                legacy_path = legacy_upload_dir / f"{file_id}.md"
-                if legacy_path.is_file():
-                    markdown_path = legacy_path
-            if markdown_path is None:
-                logger.warning(
-                    "KB RAG full markdown missing, fallback to chunks",
-                    user_id=user_id,
-                    file_id=file_id,
-                )
-                return None
+            logger.warning(
+                "KB RAG full markdown missing, fallback to chunks",
+                user_id=user_id,
+                file_id=file_id,
+            )
+            return None
         if not markdown_path.is_file():
             logger.warning(
                 "KB RAG full markdown missing, fallback to chunks",
