@@ -157,7 +157,7 @@ class ToolExecutor:
                 iteration=current_iteration + 1,
                 arguments=arguments,
             )
-            result, filtered_params = await self.mcp_manager.call_tool(
+            result, call_warnings = await self.mcp_manager.call_tool(
                 tool_name, arguments
             )
             content = self.mcp_manager.format_mcp_result(result)
@@ -190,18 +190,14 @@ class ToolExecutor:
                 )
 
             content = tool_call_result_message.content or ""
-            if filtered_params:
-                warning_msg = (
-                    f"⚠️ 警告：以下参数被忽略（工具 {tool_name} 不支持这些参数）："
-                    f"{', '.join(filtered_params)}。"
-                    f"请勿在后续调用中使用这些参数。\n\n"
-                )
+            warning_msg = self._build_tool_warning_message(tool_name, call_warnings)
+            if warning_msg:
                 content = warning_msg + content
                 tool_call_result_message.content = content
                 logger.info(
-                    "Added filtered params warning to tool result",
+                    "Added tool warnings to tool result",
                     tool_name=tool_name,
-                    filtered_params=filtered_params,
+                    warnings=call_warnings,
                 )
             logger.info(
                 "MCP tool result received",
@@ -281,3 +277,38 @@ class ToolExecutor:
             threshold_tokens_count=self.tool_result_compression.threshold_tokens,
         )
         return tool_message.model_copy(update=compaction.model_dump(mode="json"))
+
+    @staticmethod
+    def _build_tool_warning_message(
+        tool_name: str, call_warnings: list[dict[str, Any]] | list[str]
+    ) -> str:
+        if not call_warnings:
+            return ""
+        legacy_filtered_params = [
+            item for item in call_warnings if isinstance(item, str)
+        ]
+        messages: list[str] = []
+        if legacy_filtered_params:
+            messages.append(
+                f"⚠️ 警告：以下参数被忽略（工具 {tool_name} 不支持这些参数）："
+                f"{', '.join(legacy_filtered_params)}。"
+                "请勿在后续调用中使用这些参数。"
+            )
+        for warning in call_warnings:
+            if not isinstance(warning, dict):
+                continue
+            if warning.get("code") == "unsupported_arguments_filtered":
+                removed_params = warning.get("details", {}).get("removed_params", [])
+                if removed_params:
+                    messages.append(
+                        f"⚠️ 警告：以下参数被忽略（工具 {tool_name} 不支持这些参数）："
+                        f"{', '.join(removed_params)}。"
+                        "请勿在后续调用中使用这些参数。"
+                    )
+                continue
+            message = warning.get("message")
+            if isinstance(message, str) and message:
+                messages.append(f"⚠️ 提示：{message}")
+        if not messages:
+            return ""
+        return "\n".join(messages) + "\n\n"
