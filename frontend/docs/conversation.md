@@ -29,6 +29,7 @@
 - 更新助手消息反馈：`PUT /api/message/feedback/{messageId}`
 - 流式聊天：`POST /api/chat/stream`（SSE）
 - 断线续流：`POST /api/chat/stream/resume`（SSE）
+- 停止流式聊天：`POST /api/chat/stream/stop`
 - 模型列表：`GET /api/chat/models`
 
 ## 3. SSE 协议与前端处理
@@ -75,6 +76,8 @@ data: {"type":"ack","data":{...},"seq":1}
 - `content_block` 的 `op=done` 只表示内容块流结束；顶层 `done` 才表示本次消息流完成。
 - 前端会记录最近消费的 `seq`；页面恢复时若最后一条助手消息仍是 `pending`，会尝试 `POST /api/chat/stream/resume`。
 - 续流只对后端进程内仍活动的流有效；生成完成、进程重启或缓冲被移除后，续流接口返回空 SSE。
+- 传输错误会由 `fetch-event-source` 自动重试，当前指数退避参数在 `src/services/chat.ts`：最多 `8` 次，最长约 `60s`，基础间隔 `1000ms`。
+- 用户点击停止时，前端调用 `POST /api/chat/stream/stop`；后端可能将助手消息保存为 `stopped`，并尽力保留停止前已聚合的内容块。
 
 ## 4. 典型交互流程
 
@@ -100,6 +103,10 @@ sequenceDiagram
 
     FE->>API: POST /api/chat/stream/resume（如最后助手消息仍 pending）
     API-->>FE: 返回 seq 之后的活动流事件，或空 SSE
+
+    U->>FE: 点击停止生成
+    FE->>API: POST /api/chat/stream/stop
+    API-->>FE: 返回 stopped=true
 ```
 
 ## 5. 鉴权与错误处理
