@@ -1,4 +1,4 @@
-import { ImageBlock, PdfBlock } from "@/interfaces/contentBlock";
+import { ImageBlock, MarkdownBlock, PdfBlock } from "@/interfaces/contentBlock";
 
 import { apiClient } from "./base";
 
@@ -13,7 +13,7 @@ export const fileAPI = {
     });
   },
 
-  uploadChatAttachment: async (file: File): Promise<ImageBlock | PdfBlock> => {
+  uploadChatAttachment: async (file: File): Promise<ImageBlock | PdfBlock | MarkdownBlock> => {
     const formData = new FormData();
     formData.append("file", file);
     return await apiClient.post("/file/upload", formData, {

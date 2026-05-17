@@ -45,10 +45,19 @@ function attachmentToFileCardItem(
         name: block.name?.trim() || "document.pdf",
         byte: block.size,
         onClick: () => {
-          // if (isSmallScreen) {
-          // triggerPdfDownload(block);
-          // return;
-          // }
+          if (onPreviewBlock) {
+            onPreviewBlock(block);
+            return;
+          }
+          window.open(block.url, "_blank", "noopener,noreferrer");
+        },
+      };
+    case "markdown":
+      return {
+        key: block.id,
+        name: block.name?.trim() || "document.md",
+        byte: block.size,
+        onClick: () => {
           if (onPreviewBlock) {
             onPreviewBlock(block);
             return;
