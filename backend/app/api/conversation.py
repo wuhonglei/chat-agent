@@ -30,7 +30,7 @@ async def register_conversation(
     """Register a new conversation"""
     service = ConversationDbService(db)
     conversation_info = service.register_conversation(
-        title=request.title, user_id=token_info.user_id
+        title=request.title, user_id=token_info.user_id, is_active=request.is_active
     )
     logger.info(
         "Conversation registered for chat stream",
@@ -113,6 +113,21 @@ async def update_conversation(
         return ApiResponse.error(code=404, msg="会话不存在")
     conversation_info = service.update_conversation(conversation, request)
     return ApiResponse.success(data=conversation_info, msg="更新对话成功")
+
+
+@router.put("/activate/{conversation_id}")
+async def activate_conversation(
+    conversation_id: str,
+    db: Session = Depends(get_db),
+    token_info: AuthTokenPayload = Depends(get_auth_token_info),
+) -> ApiResponse[ConversationInfo]:
+    """Activate a draft conversation."""
+    service = ConversationDbService(db)
+    conversation = service.get_conversation(conversation_id)
+    if not conversation or conversation.user_id != token_info.user_id:
+        return ApiResponse.error(code=404, msg="会话不存在")
+    conversation_info = service.activate_conversation(conversation)
+    return ApiResponse.success(data=conversation_info, msg="会话已激活")
 
 
 @router.delete("/delete/{conversation_id}")

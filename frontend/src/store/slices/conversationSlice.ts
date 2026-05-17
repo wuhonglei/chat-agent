@@ -32,7 +32,14 @@ const initialState: ConversationState = {
 export const registerConversation = createAsyncThunk(
   "conversation/registerConversation",
   async (params?: CreateConversationRequest) => {
-    return await conversationAPI.createConversation(params);
+    return await conversationAPI.registerConversation(params);
+  }
+);
+
+export const activateConversation = createAsyncThunk(
+  "conversation/activateConversation",
+  async (conversationId: string) => {
+    return await conversationAPI.activateConversation(conversationId);
   }
 );
 
@@ -112,6 +119,12 @@ const setCurrentConversationHelper = (state: ConversationState, conversation: Co
   state.conversationInfo = conversation;
 };
 
+const publishConversationHelper = (state: ConversationState, conversation: ConversationInfo): void => {
+  removeConversationFromListHelper(state, conversation.id);
+  prependConversationToListHelper(state, conversation);
+  setCurrentConversationHelper(state, conversation);
+};
+
 const conversationSlice = createSlice({
   name: "conversation",
   initialState,
@@ -181,8 +194,12 @@ const conversationSlice = createSlice({
   extraReducers: builder => {
     // registerConversation
     builder.addCase(registerConversation.fulfilled, (state, action) => {
-      prependConversationToListHelper(state, action.payload);
-      setCurrentConversationHelper(state, action.payload);
+      publishConversationHelper(state, action.payload);
+    });
+
+    // activateConversation
+    builder.addCase(activateConversation.fulfilled, (state, action) => {
+      publishConversationHelper(state, action.payload);
     });
 
     // loadConversations：offset=0 时替换列表，offset>0 时追加（用于滚动加载更多）

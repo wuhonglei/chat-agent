@@ -9,6 +9,7 @@ export interface ConversationInfo {
   id: string;
   title: string;
   createdBy: TitleCreatedBy;
+  isActive?: boolean;
   updatedAt: string;
   lastMessageCreatedAt: string;
   lastMessageUpdatedAt: string;
@@ -21,6 +22,7 @@ export interface EditConversationInfo {
 
 export interface CreateConversationRequest {
   title?: string;
+  isActive?: boolean;
 }
 
 export interface ConversationListResponse {
