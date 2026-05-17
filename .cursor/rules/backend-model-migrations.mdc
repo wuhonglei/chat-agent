@@ -1,0 +1,22 @@
+---
+description: 后端数据库模型变更必须同步 Alembic 迁移
+globs: backend/app/models/**/*.py
+alwaysApply: false
+---
+
+# 后端模型迁移规则
+
+当修改 `backend/app/models` 下的数据库模型定义时，如果变更会影响数据库 schema，必须同步创建 Alembic 迁移脚本。
+
+需要迁移的常见变更：
+
+- 新增、删除或重命名表。
+- 新增、删除或重命名字段。
+- 修改字段类型、长度、nullable、默认值、索引、唯一约束或外键。
+- 修改 `__tablename__`、`__table_args__` 或 SQLAlchemy `Column` 参数。
+
+执行要求：
+
+- 不要修改已经合入/可能已应用的历史迁移；创建新的 `backend/alembic/versions/*.py`。
+- 迁移脚本需要包含 `upgrade()` 和可回滚的 `downgrade()`。
+- 完成后至少运行 `cd backend && make lint`，并用 `uv run alembic heads` 确认迁移链路只有预期 head。
