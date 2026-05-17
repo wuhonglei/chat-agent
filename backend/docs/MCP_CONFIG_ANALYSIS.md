@@ -13,7 +13,6 @@
 
 在 `app/mcp/mcp_client.py` 中，当前注册的服务为：
 
-- `ip-locator-mcp`（本地 FastMCP）
 - `time-mcp`（本地 FastMCP）
 - `context7-mcp`（远程配置，来自 `settings.mcp.context7_mcp`）
 - `weather-mcp`（本地 FastMCP）

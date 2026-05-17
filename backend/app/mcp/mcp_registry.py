@@ -9,7 +9,6 @@ from fastmcp import FastMCP
 from app.core.config import settings
 from app.mcp.mcp_servers.agent_skills_mcp.server import mcp as agent_skills_mcp
 from app.mcp.mcp_servers.code_exec_mcp.server import mcp as code_exec_mcp
-from app.mcp.mcp_servers.ip_locator_mcp.server import mcp as ip_locator_mcp
 from app.mcp.mcp_servers.tavily_mcp.server import mcp as tavily_mcp
 from app.mcp.mcp_servers.time_mcp.server import mcp as time_mcp
 from app.mcp.mcp_servers.weather_mcp.server import mcp as weather_mcp
@@ -21,7 +20,6 @@ class MCPRegistry:
 
     def __init__(self) -> None:
         self._servers: dict[str, Any] = {
-            "ip-locator-mcp": ip_locator_mcp,
             "time-mcp": time_mcp,
             "context7-mcp": settings.mcp.context7_mcp.model_dump(
                 mode="json", exclude={"cache_config"}

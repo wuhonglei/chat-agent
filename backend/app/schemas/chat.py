@@ -217,10 +217,15 @@ class ToolResultBlock(BaseModel):
     summary: str | None = Field(default=None, description="Tool result summary")
 
 
-class ImageBlock(BaseModel):
+class AttachmentBaseBlock(BaseModel):
     id: str = Field(..., description="Block ID")
-    type: Literal["image"] = "image"
     url: str = Field(..., description="Preview URL path (e.g. /api/file/preview/...)")
+    storage_key: str | None = Field(
+        default=None, description="Relative storage key under shared/uploads"
+    )
+    storage_version: int | None = Field(
+        default=None, description="Storage schema version"
+    )
     name: str = Field(
         default="",
         max_length=240,
@@ -231,22 +236,20 @@ class ImageBlock(BaseModel):
         ge=0,
         description="落盘文件字节数（经缩放/重编码等处理后的实际大小）",
     )
+
+
+class ImageBlock(AttachmentBaseBlock):
+    type: Literal["image"] = "image"
     mime: str = Field(..., description="MIME type e.g. image/jpeg")
 
 
-class MarkdownBlock(BaseModel):
-    id: str = Field(..., description="Block ID")
+class MarkdownBlock(AttachmentBaseBlock):
     type: Literal["markdown"] = "markdown"
-    url: str = Field(..., description="Preview URL path (e.g. /api/file/preview/...)")
-    name: str = Field(
-        default="",
-        max_length=240,
-        description="展示用文件名（已安全化）；历史数据可能为空",
+    derived_from_id: str | None = Field(
+        default=None, description="Source attachment content ID for derived files"
     )
-    size: int = Field(
-        ...,
-        ge=0,
-        description="落盘文件字节数",
+    derived_kind: str | None = Field(
+        default=None, description="Derived file relationship kind"
     )
     mime: Literal["text/markdown"] = Field(
         default="text/markdown",
@@ -254,20 +257,8 @@ class MarkdownBlock(BaseModel):
     )
 
 
-class PdfBlock(BaseModel):
-    id: str = Field(..., description="Block ID")
+class PdfBlock(AttachmentBaseBlock):
     type: Literal["pdf"] = "pdf"
-    url: str = Field(..., description="Preview URL path (e.g. /api/file/preview/...)")
-    name: str = Field(
-        default="",
-        max_length=240,
-        description="展示用文件名（已安全化）；历史数据可能为空",
-    )
-    size: int = Field(
-        ...,
-        ge=0,
-        description="落盘文件字节数",
-    )
     mime: Literal["application/pdf"] = Field(
         default="application/pdf",
         description="MIME type for PDF",
@@ -295,6 +286,7 @@ ContentBlock: TypeAlias = (
     | ImageBlock
     | PdfBlock
     | MarkdownBlock
+    | KbContextBlock
 )
 _CONTENT_BLOCKS_ADAPTER = TypeAdapter(list[ContentBlock])
 

@@ -2,20 +2,25 @@
 
 from __future__ import annotations
 
+import hashlib
 from io import BytesIO
 from typing import cast
 
 from fastapi import HTTPException, UploadFile
 from PIL import Image, ImageOps, ImageSequence
+from sqlmodel import Session
 
 from app.schemas.chat import ImageBlock
 from app.services.chat_upload.attachment import (
     MAX_CHAT_ATTACHMENT_BYTES,
+    STORAGE_VERSION,
     build_attachment_preview_url,
-    get_user_upload_dir,
+    build_raw_storage_key,
+    get_user_shared_upload_dir,
+    mount_conversation_attachment,
     sanitize_upload_display_name,
+    upsert_attachment_file,
 )
-from app.utils.common import gen_uuid
 from app.utils.logger import logger
 
 MAX_CHAT_IMAGE_EDGE = 2048  # 最长边像素上限（等比例缩放）
@@ -130,7 +135,17 @@ def _downscale_image_bytes(data: bytes, ext: str) -> bytes:
         im.close()
 
 
-async def save_chat_image(*, user_id: str, file: UploadFile) -> ImageBlock:
+def _image_sha256_hex(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+async def save_chat_image(
+    *,
+    user_id: str,
+    file: UploadFile,
+    conversation_id: str | None = None,
+    db: Session | None = None,
+) -> ImageBlock:
     """保存上传图片并返回 ImageBlock（url 为站内预览路径）。"""
     content_type = (file.content_type or "").lower()
     if content_type not in _ALLOWED_CONTENT_TYPES:
@@ -144,15 +159,15 @@ async def save_chat_image(*, user_id: str, file: UploadFile) -> ImageBlock:
         raise HTTPException(status_code=400, detail="图片大小不能超过 10MB")
 
     ext = _ALLOWED_CONTENT_TYPES[content_type]
-    block_id = gen_uuid()
-    filename = f"{block_id}{ext}"
-
-    upload_dir = get_user_upload_dir(user_id)
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    dest = upload_dir / filename
-
     processed = _downscale_image_bytes(chunk, ext)
-    dest.write_bytes(processed)
+    block_id = _image_sha256_hex(processed)
+    storage_key = build_raw_storage_key(block_id, ext)
+
+    upload_dir = get_user_shared_upload_dir(user_id)
+    dest = upload_dir / storage_key
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if not dest.is_file():
+        dest.write_bytes(processed)
     stored_size = len(processed)
     display_name = sanitize_upload_display_name(
         file.filename,
@@ -163,11 +178,30 @@ async def save_chat_image(*, user_id: str, file: UploadFile) -> ImageBlock:
     logger.info(
         "Chat image saved",
         user_id=user_id,
-        filename=filename,
+        storage_key=storage_key,
         bytes=stored_size,
     )
 
-    url = build_attachment_preview_url(user_id, filename)
+    attachment_file = upsert_attachment_file(
+        db=db,
+        user_id=user_id,
+        content_id=block_id,
+        storage_key=storage_key,
+        kind="raw",
+        mime="image/jpeg"
+        if content_type in ("image/jpeg", "image/jpg")
+        else content_type,
+        size=stored_size,
+        display_name=display_name,
+    )
+    mount_conversation_attachment(
+        db=db,
+        user_id=user_id,
+        conversation_id=conversation_id,
+        attachment_file=attachment_file,
+    )
+
+    url = build_attachment_preview_url(user_id, storage_key)
     mime_normalized = (
         "image/jpeg" if content_type in ("image/jpeg", "image/jpg") else content_type
     )
@@ -175,6 +209,8 @@ async def save_chat_image(*, user_id: str, file: UploadFile) -> ImageBlock:
         id=block_id,
         type="image",
         url=url,
+        storage_key=storage_key,
+        storage_version=STORAGE_VERSION,
         name=display_name,
         size=stored_size,
         mime=mime_normalized,

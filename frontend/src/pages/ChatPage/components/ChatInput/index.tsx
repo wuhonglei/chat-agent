@@ -23,6 +23,8 @@ import {
 } from "./util";
 
 interface ChatInputProps {
+  conversationId?: string;
+  ensureConversationId?: () => Promise<string>;
   isStreaming?: boolean;
   hasImageMessage?: boolean;
   className?: string;
@@ -33,6 +35,8 @@ interface ChatInputProps {
 }
 
 const ChatInput: React.FC<ChatInputProps> = ({
+  conversationId,
+  ensureConversationId,
   onSend,
   onStop,
   isStreaming,
@@ -144,6 +148,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
             ref={senderRef}
             header={
               <ChatInputSenderHeader
+                conversationId={conversationId}
+                ensureConversationId={ensureConversationId}
                 attachmentsRef={attachmentsRef}
                 attachmentItems={attachmentItems}
                 setAttachmentItems={setAttachmentItems}

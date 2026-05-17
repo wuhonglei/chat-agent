@@ -2,9 +2,11 @@
 
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
+from sqlmodel import Session
 
+from app.core.db import get_db
 from app.schemas.auth import AuthTokenPayload
 from app.schemas.chat import AttachmentBlock
 from app.schemas.response import ApiResponse
@@ -22,23 +24,30 @@ router = APIRouter()
 @router.post("/upload")
 async def upload_chat_attachment(
     file: UploadFile = File(...),
+    conversation_id: str | None = Form(default=None),
+    db: Session = Depends(get_db),
     auth_info: AuthTokenPayload = Depends(get_auth_token_info),
 ) -> ApiResponse[AttachmentBlock]:
-    """上传聊天附件（需登录）；保存至 data/user_data/{user_id}/uploads/。"""
-    block = await save_chat_attachment(user_id=auth_info.user_id, file=file)
+    """上传聊天附件（需登录）；保存至 shared/uploads 并挂载到会话。"""
+    block = await save_chat_attachment(
+        user_id=auth_info.user_id,
+        file=file,
+        conversation_id=conversation_id,
+        db=db,
+    )
     return ApiResponse.success(data=block, msg="上传成功")
 
 
-@router.get("/preview/{user_id}/{filename}")
-async def preview_chat_attachment(user_id: str, filename: str) -> FileResponse:
+@router.get("/preview/{user_id}/{storage_key:path}")
+async def preview_chat_attachment(user_id: str, storage_key: str) -> FileResponse:
     """预览已上传附件（无需登录）；依赖路径不可猜测性。"""
-    path: Path = user_upload_file_path(user_id, filename)
+    path: Path = user_upload_file_path(user_id, storage_key)
     if not path.is_file():
         raise HTTPException(status_code=404, detail="文件不存在")
     return FileResponse(
         path=str(path),
-        media_type=media_type_for_preview(filename),
-        filename=filename,
+        media_type=media_type_for_preview(storage_key),
+        filename=Path(storage_key).name,
     )
 
 

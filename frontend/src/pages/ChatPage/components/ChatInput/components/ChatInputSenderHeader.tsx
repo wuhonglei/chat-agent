@@ -8,6 +8,8 @@ import { CHAT_ATTACHMENT_ACCEPT, MAX_CHAT_ATTACHMENTS, getChatAttachmentValidati
 import { getChatInputAttachmentStyles, sortAttachmentsByImageFirst, withServerAttachmentPreview } from "./utils";
 
 export interface ChatInputSenderHeaderProps {
+  conversationId?: string;
+  ensureConversationId?: () => Promise<string>;
   attachmentsRef: React.RefObject<GetRef<typeof Attachments> | null>;
   attachmentItems: GetProp<AttachmentsProps, "items">;
   setAttachmentItems: React.Dispatch<React.SetStateAction<GetProp<AttachmentsProps, "items">>>;
@@ -15,6 +17,8 @@ export interface ChatInputSenderHeaderProps {
 }
 
 const ChatInputSenderHeader: React.FC<ChatInputSenderHeaderProps> = ({
+  conversationId,
+  ensureConversationId,
   attachmentsRef,
   attachmentItems,
   setAttachmentItems,
@@ -66,7 +70,11 @@ const ChatInputSenderHeader: React.FC<ChatInputSenderHeaderProps> = ({
         customRequest={async options => {
           const { file, onError, onSuccess } = options;
           try {
-            const block = await fileAPI.uploadChatAttachment(file as File);
+            const uploadConversationId = conversationId ?? (await ensureConversationId?.());
+            if (!uploadConversationId) {
+              throw new Error("缺少会话 ID，无法上传附件");
+            }
+            const block = await fileAPI.uploadChatAttachment(file as File, uploadConversationId);
             onSuccess?.(block);
           } catch (e) {
             onError?.(e as Error);

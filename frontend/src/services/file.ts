@@ -13,9 +13,10 @@ export const fileAPI = {
     });
   },
 
-  uploadChatAttachment: async (file: File): Promise<ImageBlock | PdfBlock | MarkdownBlock> => {
+  uploadChatAttachment: async (file: File, conversationId: string): Promise<ImageBlock | PdfBlock | MarkdownBlock> => {
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("conversation_id", conversationId);
     return await apiClient.post("/file/upload", formData, {
       headers: {
         "Content-Type": "multipart/form-data",

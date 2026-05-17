@@ -39,7 +39,7 @@ class ConversationDbService(DbService):
         return conversation.model_dump(mode="json")
 
     def register_conversation(
-        self, title: str | None, user_id: str
+        self, title: str | None, user_id: str, is_active: bool = True
     ) -> ConversationInfo:
         """注册新对话"""
         db = self._ensure_db()
@@ -47,6 +47,7 @@ class ConversationDbService(DbService):
             title=title or "新对话",
             created_by=CreatedBy.DEFAULT,
             user_id=user_id,
+            is_active=is_active,
         )
         db.add(conversation)
         # 先构建返回数据，再提交事务。
@@ -68,6 +69,7 @@ class ConversationDbService(DbService):
         conversations = db.exec(
             select(ConversationDb)
             .where(ConversationDb.user_id == user_id)
+            .where(ConversationDb.is_active)
             .order_by(last_message_created_at_column.desc())
         ).all()
         logger.debug("Found conversations", count=len(conversations))
@@ -98,11 +100,13 @@ class ConversationDbService(DbService):
             select(func.count())
             .select_from(ConversationDb)
             .where(ConversationDb.user_id == user_id)
+            .where(ConversationDb.is_active)
         )
         total = db.exec(count_stmt).one()
         data_stmt = (
             select(ConversationDb)
             .where(ConversationDb.user_id == user_id)
+            .where(ConversationDb.is_active)
             .order_by(last_message_created_at_column.desc())
             .offset(offset)
             .limit(limit)
@@ -133,6 +137,15 @@ class ConversationDbService(DbService):
         if not conversation:
             return None
 
+        conversation_info = ConversationInfo.model_validate(
+            self.conversation_to_dict(conversation)
+        )
+        return conversation_info
+
+    def activate_conversation(self, conversation: ConversationDb) -> ConversationInfo:
+        """激活草稿会话，使其出现在会话列表中。"""
+        conversation.is_active = True
+        conversation.updated_at = get_datetime_now()
         conversation_info = ConversationInfo.model_validate(
             self.conversation_to_dict(conversation)
         )

@@ -34,6 +34,8 @@ export interface ImageBlock {
   id: string;
   type: "image";
   url: string;
+  storageKey?: string;
+  storageVersion?: number;
   /** 展示用文件名（服务端已安全化）；历史消息可能缺省 */
   name?: string;
   /** 落盘文件字节数（经缩放/重编码等处理后的实际大小） */
@@ -47,6 +49,10 @@ export interface MarkdownBlock {
   id: string;
   type: "markdown";
   url: string;
+  storageKey?: string;
+  storageVersion?: number;
+  derivedFromId?: string;
+  derivedKind?: string;
   /** 展示用文件名（服务端已安全化）；历史消息可能缺省 */
   name?: string;
   /** 落盘文件字节数 */
@@ -59,6 +65,8 @@ export interface PdfBlock {
   id: string;
   type: "pdf";
   url: string;
+  storageKey?: string;
+  storageVersion?: number;
   /** 展示用文件名（服务端已安全化）；历史消息可能缺省 */
   name?: string;
   /** 落盘文件字节数 */

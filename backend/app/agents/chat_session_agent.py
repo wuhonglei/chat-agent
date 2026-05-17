@@ -119,7 +119,6 @@ class ChatSessionAgent(BaseAgent):
         server_names = self._resolve_request_mcp_servers(chat_request)
         tools = await self.mcp_manager.get_tools_for_llm(
             server_names,
-            client_ip,
         )
 
         user_message_text = extract_user_text_with_attachment_placeholder(
@@ -127,7 +126,6 @@ class ChatSessionAgent(BaseAgent):
         )
         tool_guided_user_message = get_user_message_for_tool_calls(
             user_message_text,
-            client_ip,
             kb_context_blocks=kb_context_blocks,
             user_memories=user_memories,
             window_out_summary=history_summary_before_window,

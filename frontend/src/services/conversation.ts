@@ -16,9 +16,13 @@ export const conversationAPI = {
   },
 
   // 创建对话
-  createConversation: async (data?: CreateConversationRequest): Promise<ConversationInfo> => {
+  registerConversation: async (data?: CreateConversationRequest): Promise<ConversationInfo> => {
     const base = data ?? { title: withDevConversationTitlePrefix("新对话") };
     return await apiClient.post("/conversation/register", base);
+  },
+
+  activateConversation: async (conversationId: string): Promise<ConversationInfo> => {
+    return await apiClient.put(`/conversation/activate/${conversationId}`);
   },
 
   // 获取对话列表

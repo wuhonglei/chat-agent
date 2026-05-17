@@ -7,7 +7,7 @@ Chat Agent 后端是 AI 对话平台的服务端，基于 FastAPI，提供流式
 ### 核心功能
 
 - **智能问答**：基于 RAG 技术的精准问答，支持流式响应
-- **MCP 工具集成**：通过 Model Context Protocol 集成多种外部工具（天气、搜索、代码执行、时间、IP 定位、Context7 等）
+- **MCP 工具集成**：通过 Model Context Protocol 集成多种外部工具（天气、搜索、代码执行、时间、Context7 等）
 - **Agent 架构**：使用多 Agent 协作处理用户请求（MCP Tools Agent、Component Tools Agent、Response Generation Agent、Title Generation Agent）
 - **对话管理**：支持多轮对话、对话历史管理、消息持久化
 - **用户认证**：基于 JWT 的用户认证体系
@@ -54,7 +54,6 @@ backend/
 │   │       ├── tavily_mcp/       # 联网搜索
 │   │       ├── weather_mcp/      # 天气查询
 │   │       ├── code_exec_mcp/    # 代码执行沙箱
-│   │       ├── ip_locator_mcp/   # IP 定位
 │   │       ├── time_mcp/         # 时间服务
 │   │       └── context7_mcp/     # Context7 文档
 │   ├── middleware/       # 中间件

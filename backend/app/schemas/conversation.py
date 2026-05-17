@@ -32,6 +32,7 @@ class RegisterConversationRequest(BaseModel):
     """Register conversation request model"""
 
     title: str | None = Field(None, description="Conversation title")
+    is_active: bool = Field(default=True, description="Whether conversation is visible")
 
 
 class ConversationListRequest(BaseModel):

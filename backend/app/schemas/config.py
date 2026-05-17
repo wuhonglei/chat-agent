@@ -139,15 +139,6 @@ class TavilyMCPConfig(BaseModel):
     )
 
 
-class IpLocatorMCPConfig(BaseModel):
-    """IP Locator MCP 配置"""
-
-    cache_config: MCPCacheConfig = Field(
-        default_factory=MCPCacheConfig,
-        description="工具调用结果缓存配置",
-    )
-
-
 class TimeMCPConfig(BaseModel):
     """Time MCP 配置"""
 
@@ -170,6 +161,24 @@ class CodeExecMCPConfig(BaseModel):
     )
 
 
+class MCPGatewayConfig(BaseModel):
+    """MCP Tool Gateway 配置"""
+
+    strict_tool_name_conflict: bool = Field(
+        default=False,
+        description="是否在工具重名冲突时抛错并阻止初始化",
+    )
+    call_tool_timeout_seconds: int = Field(
+        default=60,
+        ge=1,
+        description="MCP 工具调用默认超时（秒）",
+    )
+    call_tool_timeout_seconds_by_server: dict[str, int] = Field(
+        default_factory=dict,
+        description="按 server_name 覆盖工具调用超时（秒）",
+    )
+
+
 class MCPConfig(BaseModel):
     """MCP 配置"""
 
@@ -185,10 +194,6 @@ class MCPConfig(BaseModel):
     tavily_mcp: TavilyMCPConfig = Field(
         default_factory=TavilyMCPConfig  # type: ignore[arg-type]
     )
-    ip_locator_mcp: IpLocatorMCPConfig = Field(
-        default_factory=IpLocatorMCPConfig,
-        description="IP Locator MCP 配置",
-    )
     time_mcp: TimeMCPConfig = Field(
         default_factory=TimeMCPConfig,
         description="Time MCP 配置",
@@ -196,6 +201,10 @@ class MCPConfig(BaseModel):
     code_exec_mcp: CodeExecMCPConfig = Field(
         default_factory=CodeExecMCPConfig,  # type: ignore[arg-type]
         description="Code Exec MCP 配置",
+    )
+    gateway: MCPGatewayConfig = Field(
+        default_factory=MCPGatewayConfig,
+        description="MCP 网关行为配置",
     )
 
 

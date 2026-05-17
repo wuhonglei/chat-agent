@@ -53,9 +53,6 @@ user_message_for_tool_call_template: Template = Template(
   {%- endif %}
   <context>
     <current_datetime>{{ current_datetime|e }}</current_datetime>
-    {%- if client_ip %}
-    <client_ip>{{ client_ip|e }}</client_ip>
-    {%- endif %}
   </context>
 </tool_call_context>
 """.strip()

@@ -1,4 +1,4 @@
-import { ChatInputFormValues, SendMessageOptions } from "@/interfaces";
+import { ChatInputFormValues, ConversationInfo, SendMessageOptions } from "@/interfaces";
 import ChatInput from "@/pages/ChatPage/components/ChatInput";
 import { registerConversation } from "@/store/slices/conversationSlice";
 import { BulbOutlined, CheckSquareOutlined, CodeOutlined, RocketOutlined } from "@ant-design/icons";
@@ -14,6 +14,7 @@ import Title from "antd/es/typography/Title";
 import classNames from "classnames";
 import { useNavigate } from "react-router-dom";
 import parentStyles from "../ChatPage/index.module.css";
+import { useDraftConversation } from "./hooks";
 
 const websiteBuildPromptTextMap: Record<string, string> = {
   "todo-list":
@@ -57,12 +58,19 @@ export default function EmptyChatPage() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { setCacheData } = useNewConversation();
+  const { draftConversation, ensureDraftConversationId, publishDraftConversation } = useDraftConversation();
 
   const [form] = Form.useForm<ChatInputFormValues>();
   const websiteBuildMode = Form.useWatch("websiteBuildMode", form);
+
   const handleMessageSend = useMemoizedFn(async (values: ChatInputFormValues, options?: SendMessageOptions) => {
-    // 创建会话
-    const { id } = await dispatch(registerConversation()).unwrap();
+    // 如果上传附件时已经创建了草稿会话，则复用该会话。
+    let activeConversation: ConversationInfo | null = null;
+    if (draftConversation) {
+      activeConversation = await publishDraftConversation(draftConversation);
+    } else {
+      activeConversation = await dispatch(registerConversation({ isActive: true })).unwrap();
+    }
     const data = {
       isNewConversation: true,
       values,
@@ -73,7 +81,7 @@ export default function EmptyChatPage() {
     setCacheData(data);
 
     // 更新 URL 到新的会话 ID
-    navigate(`/chat/${id}`, {
+    navigate(`/chat/${activeConversation.id}`, {
       replace: true,
     });
   });
@@ -98,7 +106,13 @@ export default function EmptyChatPage() {
             }}
           />
         ) : null}
-        <ChatInput form={form} onSend={handleMessageSend} className="w-full" />
+        <ChatInput
+          form={form}
+          className="w-full"
+          onSend={handleMessageSend}
+          conversationId={draftConversation?.id}
+          ensureConversationId={ensureDraftConversationId}
+        />
       </div>
     </div>
   );

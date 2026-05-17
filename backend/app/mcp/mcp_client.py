@@ -6,6 +6,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
+from app.core.config import settings
 from app.mcp.mcp_connection_pool import MCPConnectionPool
 from app.mcp.mcp_registry import MCPRegistry
 from app.mcp.mcp_tool_gateway import MCPToolGateway
@@ -18,7 +19,15 @@ class MCPClientManager:
     def __init__(self) -> None:
         self.registry = MCPRegistry()
         self.pool = MCPConnectionPool(self.registry)
-        self.gateway = MCPToolGateway(self.pool, self.registry)
+        self.gateway = MCPToolGateway(
+            self.pool,
+            self.registry,
+            strict_tool_name_conflict=settings.mcp.gateway.strict_tool_name_conflict,
+            tool_call_timeout_seconds=settings.mcp.gateway.call_tool_timeout_seconds,
+            tool_call_timeout_seconds_by_server=(
+                settings.mcp.gateway.call_tool_timeout_seconds_by_server
+            ),
+        )
 
     @property
     def clients(self) -> dict[str, Any]:
@@ -51,7 +60,7 @@ class MCPClientManager:
 
     async def call_tool(
         self, tool_name: str, arguments: dict[str, Any] | None = None
-    ) -> tuple[Any, list[str]]:
+    ) -> tuple[Any, list[dict[str, Any]]]:
         return await self.gateway.call_tool(tool_name, arguments)
 
     @staticmethod
@@ -79,9 +88,9 @@ class MCPClientManager:
         return await self.gateway.get_mcp_config_for_fe()
 
     async def get_tools_for_llm(
-        self, server_names: list[str] | None, client_ip: str | None = None
+        self, server_names: list[str] | None
     ) -> list[dict[str, Any]]:
-        return self.gateway.get_tools_for_llm(server_names, client_ip)
+        return self.gateway.get_tools_for_llm(server_names)
 
 
 mcp_client_manager = MCPClientManager()
