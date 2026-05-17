@@ -58,15 +58,9 @@ export interface ChatHistory {
   content: string;
 }
 
-export interface RetrieverSource {
-  [key: string]: boolean;
-}
-
 export interface ChatInputConfig {
   thinkMode: boolean;
   websiteBuildMode: boolean;
-  mcpAutoMode: boolean;
-  sourceConfig: RetrieverSource;
   modelID: string;
 }
 

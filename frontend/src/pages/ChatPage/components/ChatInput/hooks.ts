@@ -1,4 +1,4 @@
-import { ChatInputConfig, ChatInputFormValues, MCPConfigItem, RetrieverSource } from "@/interfaces";
+import { ChatInputConfig, ChatInputFormValues } from "@/interfaces";
 import { RootState } from "@/store";
 import { useAppSelector } from "@/store/hooks";
 import { AttachmentsProps } from "@ant-design/x";
@@ -6,9 +6,9 @@ import { createSelector } from "@reduxjs/toolkit";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { GetProp } from "antd";
 import { FormInstance } from "antd/es/form";
-import { get, isBoolean, isEmpty, isEqual, isNil, omit, trim } from "lodash-es";
+import { isEmpty, isEqual, omit, trim } from "lodash-es";
 import { useEffect } from "react";
-import { ButtonState, names, websiteBuildModeForcedOffMcpIds } from "./constant";
+import { ButtonState, names } from "./constant";
 import { getAttachmentBlocks } from "./util";
 
 /**
@@ -44,16 +44,9 @@ export function useButtonState(
 const defaultFormValue: ChatInputConfig = {
   thinkMode: false,
   websiteBuildMode: false,
-  mcpAutoMode: true,
-  sourceConfig: {},
   modelID: "default",
 };
 
-// 创建 memoized selector 来避免不必要的重新渲染
-const selectMCPConfig = createSelector(
-  [(state: RootState) => state.mcp.mcpConfig, (state: RootState) => state.mcp.mcpConfigLoaded],
-  (mcpConfig, mcpConfigLoaded) => ({ mcpConfig, mcpConfigLoaded })
-);
 const selectModels = createSelector(
   [(state: RootState) => state.models.models, (state: RootState) => state.models.loaded],
   (models, modelsLoaded) => ({ models, modelsLoaded })
@@ -64,39 +57,7 @@ export function useFormValuesChange(form: FormInstance<ChatInputFormValues>) {
   const [formValues, setFormValues] = useLocalStorageState<ChatInputConfig>(chatInputFormValuesStorageKey, {
     defaultValue: defaultFormValue,
   });
-  const { mcpConfig, mcpConfigLoaded } = useAppSelector(selectMCPConfig);
   const { models, modelsLoaded } = useAppSelector(selectModels);
-
-  useEffect(() => {
-    if (mcpConfigLoaded) {
-      setFormValues(pre => {
-        const websiteBuildMode = isBoolean(pre?.websiteBuildMode) ? pre?.websiteBuildMode : false;
-        let mcpAutoMode = isBoolean(pre?.mcpAutoMode) ? pre?.mcpAutoMode : true;
-        const sourceConfig = mcpConfig.reduce((acc: RetrieverSource, item) => {
-          const preState = get(pre, ["sourceConfig", item.id], undefined);
-          // 如果之前没有选中，或者当前 MCP 不在线，则使用服务端默认值
-          if (isNil(preState) || !item.online) {
-            acc[item.id] = item.online;
-          } else {
-            acc[item.id] = preState;
-          }
-          return acc;
-        }, {} as RetrieverSource);
-        if (websiteBuildMode) {
-          mcpAutoMode = false;
-          for (const id of websiteBuildModeForcedOffMcpIds) {
-            sourceConfig[id] = false;
-          }
-        }
-        return {
-          ...pre,
-          websiteBuildMode,
-          mcpAutoMode,
-          sourceConfig,
-        } as ChatInputConfig;
-      });
-    }
-  }, [mcpConfigLoaded, mcpConfig, setFormValues]);
 
   useEffect(() => {
     if (!modelsLoaded || isEmpty(models)) {
@@ -128,22 +89,6 @@ export function useFormValuesChange(form: FormInstance<ChatInputFormValues>) {
           ...pre,
           ...omit(allFields, "content"),
         };
-        if (Object.prototype.hasOwnProperty.call(_changedFields, "websiteBuildMode")) {
-          if (_changedFields.websiteBuildMode === true) {
-            const nextSource = { ...base.sourceConfig };
-            for (const id of websiteBuildModeForcedOffMcpIds) {
-              nextSource[id] = false;
-            }
-            return {
-              ...base,
-              mcpAutoMode: false,
-              sourceConfig: nextSource,
-            };
-          }
-          if (_changedFields.websiteBuildMode === false) {
-            return { ...base, mcpAutoMode: true };
-          }
-        }
         return base;
       });
     }
@@ -154,27 +99,8 @@ export function useFormValuesChange(form: FormInstance<ChatInputFormValues>) {
   }, [formValues, form]);
 
   return {
-    values: formValues,
     onValuesChange,
   };
-}
-
-export const cachedMcpConfigStorageKey = "cached-mcp-config-v1";
-const defaultCachedMcpConfig: MCPConfigItem[] = [];
-
-export function useMCPConfig() {
-  const { mcpConfig, mcpConfigLoaded } = useAppSelector(selectMCPConfig);
-  const [cachedMcpConfig, setCachedMcpConfig] = useLocalStorageState<MCPConfigItem[]>(cachedMcpConfigStorageKey, {
-    defaultValue: defaultCachedMcpConfig,
-  });
-
-  useEffect(() => {
-    if (mcpConfigLoaded) {
-      setCachedMcpConfig(mcpConfig);
-    }
-  }, [mcpConfigLoaded, mcpConfig, setCachedMcpConfig]);
-
-  return cachedMcpConfig || defaultCachedMcpConfig;
 }
 
 export function useModelImageSupport(modelId: string | undefined): boolean {

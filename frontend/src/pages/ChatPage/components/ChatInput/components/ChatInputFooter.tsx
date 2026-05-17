@@ -3,7 +3,6 @@ import ThinkModeIcon from "@/assets/svg/ThinkModeIcon.svg?react";
 import WebSiteIcon from "@/assets/svg/WebSiteIcon.svg?react";
 import CustomButton from "@/components/common/CustomButton";
 import { useIsSmallScreen } from "@/hooks";
-import { ChatInputConfig } from "@/interfaces";
 import { ArrowUpOutlined, PaperClipOutlined } from "@ant-design/icons";
 import { Button, Divider, Form, Tooltip } from "antd";
 import { SizeType } from "antd/es/config-provider/SizeContext";
@@ -11,12 +10,10 @@ import React from "react";
 import { ButtonState, names } from "../constant";
 import { isStreamingState } from "../util";
 import ModelSelect from "./ModelSelect";
-import ToolsSetting from "./ToolsSetting";
 import { CHAT_ATTACHMENT_TOOLTIP, isButtonDisabled } from "./utils";
 
 export interface ChatInputFooterProps {
   onOpenAttachmentPicker: () => void;
-  values: ChatInputConfig;
   buttonState: ButtonState;
   onPrimaryClick: () => void;
   hasImageContext: boolean;
@@ -24,7 +21,6 @@ export interface ChatInputFooterProps {
 
 const ChatInputFooter: React.FC<ChatInputFooterProps> = ({
   onOpenAttachmentPicker,
-  values,
   buttonState,
   onPrimaryClick,
   hasImageContext,
@@ -35,12 +31,6 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = ({
   return (
     <div className="flex items-center gap-2 justify-between">
       <div className="flex items-center gap-2">
-        <Form.Item hidden name={names.mcpAutoMode}>
-          <span />
-        </Form.Item>
-        <Form.Item hidden name={names.sourceConfig}>
-          <span />
-        </Form.Item>
         <Tooltip title={isSmallScreen ? undefined : CHAT_ATTACHMENT_TOOLTIP}>
           <Button
             type="text"
@@ -62,7 +52,6 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = ({
             {isSmallScreen ? "" : "深度思考"}
           </CustomButton>
         </Form.Item>
-        <ToolsSetting values={values} size={size} websiteBuildMode={Boolean(values.websiteBuildMode)} />
         <Form.Item trigger="onClick" initialValue={false} valuePropName="active" name={names.websiteBuildMode}>
           <CustomButton
             size={size}

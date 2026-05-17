@@ -7,16 +7,7 @@ from openai.types.chat import ChatCompletionMessageFunctionToolCall
 from app.agents.tool_call_policy import ToolCallPolicy
 from app.agents.tool_executor import ToolExecutor
 from app.mcp.mcp_client import MCPClientManager
-from app.schemas.chat import SourceConfig
 from app.schemas.llm import ToolMessage, ToolResultMessage, ToolUseMessage
-
-
-def resolve_enabled_mcp_servers(
-    mcp_auto_mode: bool, source_config: SourceConfig
-) -> list[str] | None:
-    if mcp_auto_mode:
-        return None
-    return [key for key, value in source_config.model_dump().items() if value is True]
 
 
 class MCPToolSession:

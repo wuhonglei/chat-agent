@@ -352,9 +352,7 @@ Request Body:
     {"role": "user", "content": "你好"},
     {"role": "assistant", "content": "你好，很高兴为你服务"}
   ],
-  "source_config": {},
   "regenerate_title": false,
-  "mcp_auto_mode": true,
   "think_mode": false
 }
 ```
