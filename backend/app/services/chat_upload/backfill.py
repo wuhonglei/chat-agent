@@ -6,6 +6,10 @@
 3. 跳过已具备当前 STORAGE_VERSION 与 storage_key 的附件块，减少重复 DB/文件 IO。
 4. 仅在新版 shared/uploads 目标文件不存在时复制旧 uploads 文件，降低磁盘写入成本。
 5. 建议在业务低峰运行，并根据数据库与磁盘 IO 情况调小 --batch-size。
+
+执行命令:
+cd backend
+uv run -m app.services.chat_upload.backfill
 """
 
 from __future__ import annotations
@@ -17,6 +21,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlparse
 
+from sqlalchemy.orm.attributes import flag_modified
 from sqlmodel import Session, select
 
 from app.core.db import engine
@@ -207,11 +212,12 @@ def run_attachment_storage_backfill(
                         )
                 if updated:
                     message.content_blocks = blocks
+                    flag_modified(message, "content_blocks")
                     db.add(message)
                 _save_checkpoint(message.id)
                 processed += 1
             db.commit()
-    logger.info("Attachment storage backfill completed", processed=processed)
+    logger.info(f"Attachment storage backfill completed, processed={processed}")
 
 
 def main() -> None:
