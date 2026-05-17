@@ -1,5 +1,5 @@
 ---
-name: Phase 0 安全与路径解耦
+name: 执行沙箱与虚拟路径基线方案
 overview: 在本周内完成命令执行容器化隔离与全链路虚拟路径改造，建立可审计、可回归、可灰度的安全底座，为后续 Skills 扩展解除风险。
 todos:
   - id: define-sandbox-executor
@@ -23,7 +23,15 @@ todos:
 isProject: false
 ---
 
-# Phase 0 方案（容器沙箱 + 全链路虚拟路径）
+# 执行沙箱与虚拟路径基线方案（容器沙箱 + 全链路虚拟路径）
+
+## 现状描述
+- 当前主链路已具备会话级工具编排能力：`ChatSessionAgent` + `ToolExecutor` + `MCPToolGateway` 可完成多轮工具调用、参数校验与 `workspace_id` 绑定。
+- 文件工具已有基础安全控制：`agent_skills_mcp/utils.py` 提供工作区根目录约束、路径规范化与写入配额检查。
+- 代码执行能力已接入 Piston（`code_exec_mcp`、`/api/code`），具备与宿主进程隔离的基础形态，但尚未形成统一执行策略与审计口径。
+- 关键风险仍存在于命令执行：`run_bash` 仍有宿主直接执行路径（含 `shell=True` 风险面），与“命令执行沙箱隔离”的 Phase 0 目标不一致。
+- 路径层面仍存在耦合：提示词与部分工具返回仍可能暴露物理路径（如 `data/user_data/...`），与“全链路虚拟路径”目标不一致。
+- 结论：当前系统“可用但不够安全且耦合偏高”，需要通过 Phase 0 完成安全底座与路径协议统一，避免后续能力扩展放大风险。
 
 ## 目标与验收
 - 完成命令执行从宿主机迁移到统一 `SandboxExecutor`（容器后端），禁止直接宿主 `shell=True` 执行。
