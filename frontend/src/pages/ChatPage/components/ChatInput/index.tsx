@@ -50,7 +50,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
   const buttonState = useButtonState(content, isStreaming, attachmentItems);
   const isSmallScreen = useIsSmallScreen();
-  const { values, onValuesChange } = useFormValuesChange(form);
+  const { onValuesChange } = useFormValuesChange(form);
   const canUploadImage = useModelImageSupport(modelId);
   const hasImageAttachment = attachmentItemsHasImage(attachmentItems);
   const hasImageContext = hasImageAttachment || hasImageMessage;
@@ -163,7 +163,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
             }}
             footer={() => (
               <ChatInputFooter
-                values={values}
                 buttonState={buttonState}
                 hasImageContext={hasImageContext}
                 onPrimaryClick={handleBtnClick}
