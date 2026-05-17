@@ -45,7 +45,6 @@ class AttachmentFileDb(SQLModel, table=True):
     display_name: str = Field(default="", max_length=240)
     derived_from_id: str | None = Field(default=None, max_length=64)
     derived_kind: str | None = Field(default=None, max_length=64)
-    legacy_source: str | None = Field(default=None, max_length=512)
     storage_version: int = Field(default=2)
     created_at: datetime = Field(
         default_factory=lambda: get_datetime_now(),

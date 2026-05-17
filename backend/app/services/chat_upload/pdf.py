@@ -17,12 +17,10 @@ from app.services.chat_upload.attachment import (
     build_attachment_preview_url,
     build_derived_markdown_storage_key,
     build_raw_storage_key,
+    get_user_shared_upload_dir,
     mount_conversation_attachment,
     sanitize_upload_display_name,
     upsert_attachment_file,
-)
-from app.services.chat_upload.attachment import (
-    get_user_shared_upload_dir as _get_user_shared_upload_dir,
 )
 from app.services.chat_upload.kb_chunk_embedding import (
     KbFileChunkIndexingError,
@@ -37,11 +35,6 @@ from app.utils.logger import logger
 
 def _pdf_sha256_hex(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
-
-
-def get_user_upload_dir(user_id: str) -> Path:
-    """Compatibility hook for tests; production path is shared/uploads."""
-    return _get_user_shared_upload_dir(user_id)
 
 
 def _build_pdf_block(
@@ -199,7 +192,7 @@ async def save_chat_pdf(
         default_stem="document",
     )
 
-    upload_dir = get_user_upload_dir(user_id)
+    upload_dir = get_user_shared_upload_dir(user_id)
     dest: Path = upload_dir / pdf_storage_key
     md_path = upload_dir / md_storage_key
     dest.parent.mkdir(parents=True, exist_ok=True)

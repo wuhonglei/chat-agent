@@ -5,11 +5,11 @@ from app.services.chat_upload.attachment import (
     MAX_CHAT_ATTACHMENT_BYTES,
     PDF_CONTENT_TYPE,
     build_attachment_preview_url,
-    get_user_upload_dir,
+    get_user_shared_upload_dir,
     media_type_for_preview,
     sanitize_upload_display_name,
     save_chat_attachment,
-    user_upload_file_path,
+    shared_upload_file_path,
 )
 from app.services.chat_upload.image import save_chat_image
 from app.services.chat_upload.kb_chunk_embedding import (
@@ -28,11 +28,11 @@ __all__ = [
     "MAX_CHAT_ATTACHMENT_BYTES",
     "PDF_CONTENT_TYPE",
     "build_attachment_preview_url",
-    "get_user_upload_dir",
+    "get_user_shared_upload_dir",
     "media_type_for_preview",
     "sanitize_upload_display_name",
     "save_chat_attachment",
-    "user_upload_file_path",
+    "shared_upload_file_path",
     "save_chat_image",
     "save_chat_markdown",
     "save_chat_pdf",

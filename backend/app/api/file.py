@@ -14,7 +14,7 @@ from app.services.base_service.file_service import FileService
 from app.services.chat_upload.attachment import (
     media_type_for_preview,
     save_chat_attachment,
-    user_upload_file_path,
+    shared_upload_file_path,
 )
 from app.utils.auth_deps import get_auth_token_info, require_auth
 
@@ -41,7 +41,7 @@ async def upload_chat_attachment(
 @router.get("/preview/{user_id}/{storage_key:path}")
 async def preview_chat_attachment(user_id: str, storage_key: str) -> FileResponse:
     """预览已上传附件（无需登录）；依赖路径不可猜测性。"""
-    path: Path = user_upload_file_path(user_id, storage_key)
+    path: Path = shared_upload_file_path(user_id, storage_key)
     if not path.is_file():
         raise HTTPException(status_code=404, detail="文件不存在")
     return FileResponse(
