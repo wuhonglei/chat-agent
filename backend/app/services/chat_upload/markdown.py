@@ -6,13 +6,18 @@ import asyncio
 import hashlib
 
 from fastapi import HTTPException, UploadFile
+from sqlmodel import Session
 
 from app.schemas.chat import MarkdownBlock
 from app.services.chat_upload.attachment import (
     MARKDOWN_CONTENT_TYPE,
+    STORAGE_VERSION,
     build_attachment_preview_url,
-    get_user_upload_dir,
+    build_raw_storage_key,
+    get_user_shared_upload_dir,
+    mount_conversation_attachment,
     sanitize_upload_display_name,
+    upsert_attachment_file,
 )
 from app.services.chat_upload.kb_chunk_embedding import (
     KbFileChunkIndexingError,
@@ -36,27 +41,53 @@ def _build_markdown_block(
     *,
     content_hash: str,
     user_id: str,
-    filename: str,
+    storage_key: str,
     file_size: int,
     file: UploadFile,
+    db: Session | None = None,
+    conversation_id: str | None = None,
 ) -> MarkdownBlock:
     display_name = sanitize_upload_display_name(
         file.filename,
         ext=".md",
         default_stem="document",
     )
-    url = build_attachment_preview_url(user_id, filename)
+    attachment_file = upsert_attachment_file(
+        db=db,
+        user_id=user_id,
+        content_id=content_hash,
+        storage_key=storage_key,
+        kind="raw",
+        mime="text/markdown",
+        size=file_size,
+        display_name=display_name,
+    )
+    mount_conversation_attachment(
+        db=db,
+        user_id=user_id,
+        conversation_id=conversation_id,
+        attachment_file=attachment_file,
+    )
+    url = build_attachment_preview_url(user_id, storage_key)
     return MarkdownBlock(
         id=content_hash,
         type="markdown",
         url=url,
+        storage_key=storage_key,
+        storage_version=STORAGE_VERSION,
         name=display_name,
         size=file_size,
         mime="text/markdown",
     )
 
 
-async def save_chat_markdown(*, user_id: str, file: UploadFile) -> MarkdownBlock:
+async def save_chat_markdown(
+    *,
+    user_id: str,
+    file: UploadFile,
+    conversation_id: str | None = None,
+    db: Session | None = None,
+) -> MarkdownBlock:
     """保存上传 Markdown（按内容 SHA-256 命名）；已存在同内容则复用。"""
     content_type = (file.content_type or "").lower()
     raw_filename = (file.filename or "").lower()
@@ -79,16 +110,16 @@ async def save_chat_markdown(*, user_id: str, file: UploadFile) -> MarkdownBlock
         ) from exc
 
     content_hash = _markdown_sha256_hex(chunk)
-    filename = f"{content_hash}.md"
+    storage_key = build_raw_storage_key(content_hash, ".md")
     file_name = sanitize_upload_display_name(
         file.filename,
         ext=".md",
         default_stem="document",
     )
 
-    upload_dir = get_user_upload_dir(user_id)
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    dest = upload_dir / filename
+    upload_dir = get_user_shared_upload_dir(user_id)
+    dest = upload_dir / storage_key
+    dest.parent.mkdir(parents=True, exist_ok=True)
 
     # 去重：文件已存在且内容一致则直接返回
     if dest.is_file():
@@ -97,16 +128,18 @@ async def save_chat_markdown(*, user_id: str, file: UploadFile) -> MarkdownBlock
             logger.info(
                 "Chat markdown deduplicated",
                 user_id=user_id,
-                filename=filename,
+                storage_key=storage_key,
                 bytes=len(existing),
                 embedding_skipped=True,
             )
             return _build_markdown_block(
                 content_hash=content_hash,
                 user_id=user_id,
-                filename=filename,
+                storage_key=storage_key,
                 file_size=len(existing),
                 file=file,
+                db=db,
+                conversation_id=conversation_id,
             )
 
     await asyncio.to_thread(dest.write_bytes, chunk)
@@ -129,7 +162,7 @@ async def save_chat_markdown(*, user_id: str, file: UploadFile) -> MarkdownBlock
             "Chat markdown embedding indexing failed",
             user_id=user_id,
             file_id=content_hash,
-            filename=filename,
+            storage_key=storage_key,
             error=exc,
         )
         raise HTTPException(
@@ -139,14 +172,16 @@ async def save_chat_markdown(*, user_id: str, file: UploadFile) -> MarkdownBlock
     logger.info(
         "Chat markdown saved",
         user_id=user_id,
-        filename=filename,
+        storage_key=storage_key,
         bytes=len(chunk),
         deduplicated=False,
     )
     return _build_markdown_block(
         content_hash=content_hash,
         user_id=user_id,
-        filename=filename,
+        storage_key=storage_key,
         file_size=len(chunk),
         file=file,
+        db=db,
+        conversation_id=conversation_id,
     )

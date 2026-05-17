@@ -21,10 +21,7 @@ from app.schemas.chat import (
 from app.services.chat_upload.attachment import user_upload_file_path
 from app.utils.logger import logger
 
-_IMAGE_PREVIEW_PATH_PATTERNS = (
-    re.compile(r"^/api/file/preview/([^/]+)/([^/]+)$"),
-    re.compile(r"^/api/file/image/preview/([^/]+)/([^/]+)$"),
-)
+_IMAGE_PREVIEW_PATH_PATTERNS = (re.compile(r"^/api/file/preview/([^/]+)/(.+)$"),)
 _IMAGE_ONLY_PLACEHOLDER = "[用户发送了图片]"
 _PDF_ONLY_PLACEHOLDER = "[用户发送了 PDF 文件]"
 _MARKDOWN_ONLY_PLACEHOLDER = "[用户发送了 Markdown 文件]"

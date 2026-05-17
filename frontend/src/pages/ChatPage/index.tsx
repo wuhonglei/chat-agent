@@ -76,6 +76,7 @@ const ChatPage: React.FC = () => {
                   />
                   {/* Input area */}
                   <ChatInput
+                    conversationId={conversationId}
                     form={form}
                     onSend={sendMessage}
                     isStreaming={isStreaming}

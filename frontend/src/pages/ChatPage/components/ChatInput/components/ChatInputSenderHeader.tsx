@@ -8,6 +8,7 @@ import { CHAT_ATTACHMENT_ACCEPT, MAX_CHAT_ATTACHMENTS, getChatAttachmentValidati
 import { getChatInputAttachmentStyles, sortAttachmentsByImageFirst, withServerAttachmentPreview } from "./utils";
 
 export interface ChatInputSenderHeaderProps {
+  conversationId: string;
   attachmentsRef: React.RefObject<GetRef<typeof Attachments> | null>;
   attachmentItems: GetProp<AttachmentsProps, "items">;
   setAttachmentItems: React.Dispatch<React.SetStateAction<GetProp<AttachmentsProps, "items">>>;
@@ -15,6 +16,7 @@ export interface ChatInputSenderHeaderProps {
 }
 
 const ChatInputSenderHeader: React.FC<ChatInputSenderHeaderProps> = ({
+  conversationId,
   attachmentsRef,
   attachmentItems,
   setAttachmentItems,
@@ -66,7 +68,7 @@ const ChatInputSenderHeader: React.FC<ChatInputSenderHeaderProps> = ({
         customRequest={async options => {
           const { file, onError, onSuccess } = options;
           try {
-            const block = await fileAPI.uploadChatAttachment(file as File);
+            const block = await fileAPI.uploadChatAttachment(file as File, conversationId);
             onSuccess?.(block);
           } catch (e) {
             onError?.(e as Error);

@@ -7,14 +7,22 @@ import hashlib
 from pathlib import Path
 
 from fastapi import HTTPException, UploadFile
+from sqlmodel import Session
 
 from app.schemas.chat import MarkdownBlock, PdfBlock
 from app.services.chat_upload.attachment import (
     MAX_CHAT_ATTACHMENT_BYTES,
     PDF_CONTENT_TYPE,
+    STORAGE_VERSION,
     build_attachment_preview_url,
-    get_user_upload_dir,
+    build_derived_markdown_storage_key,
+    build_raw_storage_key,
+    mount_conversation_attachment,
     sanitize_upload_display_name,
+    upsert_attachment_file,
+)
+from app.services.chat_upload.attachment import (
+    get_user_shared_upload_dir as _get_user_shared_upload_dir,
 )
 from app.services.chat_upload.kb_chunk_embedding import (
     KbFileChunkIndexingError,
@@ -31,15 +39,22 @@ def _pdf_sha256_hex(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def get_user_upload_dir(user_id: str) -> Path:
+    """Compatibility hook for tests; production path is shared/uploads."""
+    return _get_user_shared_upload_dir(user_id)
+
+
 def _build_pdf_block(
     *,
     content_hash: str,
     user_id: str,
-    filename: str,
-    md_filename: str,
+    pdf_storage_key: str,
+    md_storage_key: str,
     pdf_size: int,
     markdown_size: int,
     file: UploadFile,
+    db: Session | None = None,
+    conversation_id: str | None = None,
 ) -> PdfBlock:
     pdf_display_name = sanitize_upload_display_name(
         file.filename,
@@ -51,12 +66,50 @@ def _build_pdf_block(
         ext=".md",
         default_stem="document",
     )
-    pdf_url = build_attachment_preview_url(user_id, filename)
-    markdown_url = build_attachment_preview_url(user_id, md_filename)
+    pdf_url = build_attachment_preview_url(user_id, pdf_storage_key)
+    markdown_url = build_attachment_preview_url(user_id, md_storage_key)
+    pdf_file = upsert_attachment_file(
+        db=db,
+        user_id=user_id,
+        content_id=content_hash,
+        storage_key=pdf_storage_key,
+        kind="raw",
+        mime=PDF_CONTENT_TYPE,
+        size=pdf_size,
+        display_name=pdf_display_name,
+    )
+    md_file = upsert_attachment_file(
+        db=db,
+        user_id=user_id,
+        content_id=content_hash,
+        storage_key=md_storage_key,
+        kind="derived",
+        mime="text/markdown",
+        size=markdown_size,
+        display_name=markdown_display_name,
+        derived_from_id=content_hash,
+        derived_kind="pdf_to_markdown",
+    )
+    mount_conversation_attachment(
+        db=db,
+        user_id=user_id,
+        conversation_id=conversation_id,
+        attachment_file=pdf_file,
+    )
+    mount_conversation_attachment(
+        db=db,
+        user_id=user_id,
+        conversation_id=conversation_id,
+        attachment_file=md_file,
+    )
     markdown_block = MarkdownBlock(
         id=content_hash,
         type="markdown",
         url=markdown_url,
+        storage_key=md_storage_key,
+        storage_version=STORAGE_VERSION,
+        derived_from_id=content_hash,
+        derived_kind="pdf_to_markdown",
         name=markdown_display_name,
         size=markdown_size,
         mime="text/markdown",
@@ -65,6 +118,8 @@ def _build_pdf_block(
         id=content_hash,
         type="pdf",
         url=pdf_url,
+        storage_key=pdf_storage_key,
+        storage_version=STORAGE_VERSION,
         name=pdf_display_name,
         size=pdf_size,
         mime=PDF_CONTENT_TYPE,
@@ -117,7 +172,13 @@ async def _index_pdf_markdown_or_raise(
         ) from exc
 
 
-async def save_chat_pdf(*, user_id: str, file: UploadFile) -> PdfBlock:
+async def save_chat_pdf(
+    *,
+    user_id: str,
+    file: UploadFile,
+    conversation_id: str | None = None,
+    db: Session | None = None,
+) -> PdfBlock:
     """保存上传 PDF（按内容 SHA-256 命名）；已存在同内容则复用并返回既有结果。"""
     content_type = (file.content_type or "").lower()
     if content_type != PDF_CONTENT_TYPE:
@@ -130,8 +191,8 @@ async def save_chat_pdf(*, user_id: str, file: UploadFile) -> PdfBlock:
         raise HTTPException(status_code=400, detail="PDF 文件无效或已损坏")
 
     content_hash = _pdf_sha256_hex(chunk)
-    filename = f"{content_hash}.pdf"
-    md_filename = f"{content_hash}.md"
+    pdf_storage_key = build_raw_storage_key(content_hash, ".pdf")
+    md_storage_key = build_derived_markdown_storage_key(content_hash)
     file_name = sanitize_upload_display_name(
         file.filename,
         ext=".pdf",
@@ -139,9 +200,10 @@ async def save_chat_pdf(*, user_id: str, file: UploadFile) -> PdfBlock:
     )
 
     upload_dir = get_user_upload_dir(user_id)
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    dest: Path = upload_dir / filename
-    md_path = upload_dir / md_filename
+    dest: Path = upload_dir / pdf_storage_key
+    md_path = upload_dir / md_storage_key
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    md_path.parent.mkdir(parents=True, exist_ok=True)
 
     if dest.is_file() and md_path.is_file():
         if dest.stat().st_size == len(chunk):
@@ -151,7 +213,7 @@ async def save_chat_pdf(*, user_id: str, file: UploadFile) -> PdfBlock:
                 logger.info(
                     "Chat pdf deduplicated",
                     user_id=user_id,
-                    filename=filename,
+                    storage_key=pdf_storage_key,
                     pdf_bytes=len(existing_pdf),
                     markdown_bytes=markdown_size,
                     embedding_skipped=True,
@@ -159,11 +221,13 @@ async def save_chat_pdf(*, user_id: str, file: UploadFile) -> PdfBlock:
                 return _build_pdf_block(
                     content_hash=content_hash,
                     user_id=user_id,
-                    filename=filename,
-                    md_filename=md_filename,
+                    pdf_storage_key=pdf_storage_key,
+                    md_storage_key=md_storage_key,
                     pdf_size=len(existing_pdf),
                     markdown_size=markdown_size,
                     file=file,
+                    db=db,
+                    conversation_id=conversation_id,
                 )
 
     wrote_pdf = False
@@ -188,7 +252,7 @@ async def save_chat_pdf(*, user_id: str, file: UploadFile) -> PdfBlock:
             logger.error(
                 "Chat pdf markdown conversion failed",
                 user_id=user_id,
-                filename=filename,
+                storage_key=pdf_storage_key,
                 error=exc,
             )
             raise HTTPException(
@@ -210,18 +274,20 @@ async def save_chat_pdf(*, user_id: str, file: UploadFile) -> PdfBlock:
     logger.info(
         "Chat pdf saved",
         user_id=user_id,
-        filename=filename,
+        storage_key=pdf_storage_key,
         bytes=pdf_size,
-        markdown_filename=md_path.name,
+        markdown_storage_key=md_storage_key,
         markdown_bytes=markdown_size,
         deduplicated=False,
     )
     return _build_pdf_block(
         content_hash=content_hash,
         user_id=user_id,
-        filename=filename,
-        md_filename=md_filename,
+        pdf_storage_key=pdf_storage_key,
+        md_storage_key=md_storage_key,
         pdf_size=pdf_size,
         markdown_size=markdown_size,
         file=file,
+        db=db,
+        conversation_id=conversation_id,
     )
