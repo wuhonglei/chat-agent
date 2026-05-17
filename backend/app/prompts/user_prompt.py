@@ -34,13 +34,6 @@ user_message_for_tool_call_template: Template = Template(
 {%- if window_out_summary %}
   <window_out_summary>{{ window_out_summary|e }}</window_out_summary>
 {%- endif %}
-{%- if not mcp_auto_mode %}
-  <selected_mcp_servers>
-{%- for server in mcp_configs %}
-    <server id="{{ server.id|e }}">{{ server.description|e }}</server>
-{%- endfor %}
-  </selected_mcp_servers>
-{%- endif %}
   <rules>
     <rule>避免重复调用: 不要使用相似查询多次调用 web_search，不要重复提取已提取过的 URL</rule>
     <rule>检查历史工具调用结果: 在调用工具前，仔细检查历史工具调用结果是否已足够回答问题。如果已获得足够信息，请直接给出最终回答并停止调用更多工具。</rule>

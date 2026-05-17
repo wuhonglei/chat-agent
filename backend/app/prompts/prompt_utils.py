@@ -93,8 +93,6 @@ def get_system_prompt_for_title() -> str:
 
 def get_user_message_for_tool_calls(
     user_message_text: str,
-    mcp_auto_mode: bool,
-    server_names: list[str],
     client_ip: str | None,
     kb_context_blocks: list[KbContextBlock] | None = None,
     user_memories: Sequence[MemorySearchItem] | None = None,
@@ -105,25 +103,11 @@ def get_user_message_for_tool_calls(
     kb_context_blocks: 可选，每项建议包含 id、name、content，
     以及可选 created_at（与 user_prompt 模板一致）。
     """
-    # 延迟导入，避免在应用启动阶段触发 mcp_client 的循环依赖。
-    from app.mcp.mcp_client import mcp_client_manager
-
-    mcp_config_for_fe = mcp_client_manager.registry.get_fe_configs()
-    id_by_config = {config["id"]: config for config in mcp_config_for_fe}
-    server_names = server_names or []
-    mcp_configs = [
-        id_by_config[server_name]
-        for server_name in server_names
-        if server_name in id_by_config
-    ]
-
     return user_message_for_tool_call_template.render(
         user_message_text=user_message_text,
         kb_context_blocks=kb_context_blocks or [],
         user_memories=user_memories,
         window_out_summary=window_out_summary,
-        mcp_auto_mode=mcp_auto_mode,
-        mcp_configs=mcp_configs,
         current_datetime=get_current_datetime_str(),
         client_ip=client_ip,
     ).strip()

@@ -12,9 +12,7 @@
 - `removedMessageIds`
 - `regenerateTitle`
 - `thinkMode`
-- `mcpAutoMode`
 - `modelID`
-- `sourceConfig`
 
 请求发出前会在 `src/services/chat.ts` 中通过 `snakecaseKeys` 转为后端蛇形字段，例如：
 
@@ -49,11 +47,7 @@
   "removedMessageIds": [],
   "regenerateTitle": false,
   "thinkMode": true,
-  "mcpAutoMode": true,
-  "modelID": "default",
-  "sourceConfig": {
-    "web_search": true
-  }
+  "modelID": "default"
 }
 ```
 
@@ -63,4 +57,3 @@
 
 - 直接按旧文档添加 `componentToolsForBackend`，后端不会消费该字段。
 - 调试抓包时看到后端字段名与前端 TS 类型不一致是正常现象（snake_case 转换导致）。
-

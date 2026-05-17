@@ -34,7 +34,7 @@
 
 | 埋点位置                                           | 事件名称         | 事件参数                                                                                               | 优先级 |
 | -------------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------ | ------ |
-| `src/hooks/chat.ts` (sendMessage)                  | `send_message`   | `{ conversation_id: string, has_think_mode: boolean, has_mcp_tools: boolean, message_length: number }` | 高     |
+| `src/hooks/chat.ts` (sendMessage)                  | `send_message`   | `{ conversation_id: string, has_think_mode: boolean, message_length: number }` | 高     |
 | `src/hooks/chat.ts` (reSendMessage)                | `resend_message` | `{ conversation_id: string, message_index: number }`                                                   | 中     |
 | `src/hooks/chat.ts` (abortMessage)                 | `abort_message`  | `{ conversation_id: string, message_id: string }`                                                      | 中     |
 | `src/pages/ChatPage/index.tsx` (handleEditMessage) | `edit_message`   | `{ conversation_id: string, message_index: number }`                                                   | 中     |
@@ -44,8 +44,6 @@
 | 埋点位置                                                   | 事件名称               | 事件参数                                                           | 优先级 |
 | ---------------------------------------------------------- | ---------------------- | ------------------------------------------------------------------ | ------ |
 | `src/pages/ChatPage/components/ChatInput/index.tsx`        | `toggle_think_mode`    | `{ enabled: boolean }`                                             | 中     |
-| `src/pages/ChatPage/components/ChatInput/ToolsSetting.tsx` | `toggle_mcp_auto_mode` | `{ enabled: boolean }`                                             | 中     |
-| `src/pages/ChatPage/components/ChatInput/ToolsSetting.tsx` | `select_mcp_server`    | `{ server_id: string, server_name: string }`                       | 中     |
 | `src/hooks/chat.ts` (tool_call handler)                    | `tool_call_start`      | `{ conversation_id: string, tool_name: string }`                   | 中     |
 | `src/hooks/chat.ts` (tool_call handler)                    | `tool_call_done`       | `{ conversation_id: string, tool_name: string, duration: number }` | 中     |
 | `src/hooks/chat.ts` (reasoning handler)                    | `reasoning_start`      | `{ conversation_id: string }`                                      | 中     |
@@ -234,7 +232,6 @@ const sendMessage = useMemoizedFn(
     reportEvent("send_message", {
       conversation_id: conversationId,
       has_think_mode: values.thinkMode || false,
-      has_mcp_tools: !isEmpty(values.sourceConfig),
       message_length: values.content?.length || 0,
     });
 

@@ -41,12 +41,6 @@ class MessageFeedback(BaseModel):
     )
 
 
-class SourceConfig(BaseModel):
-    """Source configuration model"""
-
-    model_config = ConfigDict(extra="allow")
-
-
 class ChatMessageRequestItem(BaseModel):
     """Chat message model"""
 
@@ -106,13 +100,9 @@ class ChatRequest(BaseModel):
     removed_message_ids: list[str] | None = Field(
         None, description="Message IDs to be removed"
     )
-    source_config: SourceConfig = Field(
-        default_factory=SourceConfig, description="Source configuration"
-    )
     regenerate_title: bool | None = Field(
         False, description="Whether to regenerate title"
     )
-    mcp_auto_mode: bool = Field(True, description="Whether to use mcp auto mode")
     website_build_mode: bool = Field(
         False, description="Whether to enable website build mode"
     )

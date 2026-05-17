@@ -57,8 +57,6 @@ curl -N -X POST "http://localhost:8000/api/chat/stream" \
     "content": "帮我检索最新的 AI Agent 工程实践",
     "conversation_id": "your-conversation-id",
     "history_ids": [],
-    "source_config": {},
-    "mcp_auto_mode": true,
     "think_mode": false,
     "component_tools_for_backend": []
   }'

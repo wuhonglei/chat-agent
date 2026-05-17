@@ -13,10 +13,7 @@ from app.agents.chat_session_state import (
     RoundState,
     SessionOutput,
 )
-from app.agents.mcp_tool_execution import (
-    MCPToolSession,
-    resolve_enabled_mcp_servers,
-)
+from app.agents.mcp_tool_execution import MCPToolSession
 from app.agents.utils.content_blocks import ContentBlocksAggregator
 from app.agents.utils.tool_call_stream import (
     merge_tool_call_deltas,
@@ -130,8 +127,6 @@ class ChatSessionAgent(BaseAgent):
         )
         tool_guided_user_message = get_user_message_for_tool_calls(
             user_message_text,
-            chat_request.mcp_auto_mode,
-            server_names or [],
             client_ip,
             kb_context_blocks=kb_context_blocks,
             user_memories=user_memories,
@@ -246,26 +241,12 @@ class ChatSessionAgent(BaseAgent):
     def _resolve_request_mcp_servers(
         self, chat_request: ChatRequest
     ) -> list[str] | None:
-        server_names = resolve_enabled_mcp_servers(
-            chat_request.mcp_auto_mode, chat_request.source_config
-        )
+        all_servers = list(self.mcp_manager.registry.get_servers())
         if chat_request.website_build_mode:
-            if (
-                server_names is not None
-                and self.AGENT_SKILLS_SERVER_NAME not in server_names
-            ):
-                server_names.append(self.AGENT_SKILLS_SERVER_NAME)
-            return server_names
-
-        if server_names is None:
-            return [
-                server_name
-                for server_name in self.mcp_manager.registry.get_servers()
-                if server_name != self.AGENT_SKILLS_SERVER_NAME
-            ]
+            return all_servers
         return [
             server_name
-            for server_name in server_names
+            for server_name in all_servers
             if server_name != self.AGENT_SKILLS_SERVER_NAME
         ]
 
