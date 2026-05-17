@@ -52,7 +52,6 @@
 - `tavily-mcp`
 - `code-exec-mcp`
 - `time-mcp`
-- `ip-locator-mcp`
 
 ### 2.5 用户信息与记忆
 - 获取与更新用户信息

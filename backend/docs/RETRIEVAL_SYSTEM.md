@@ -27,7 +27,6 @@
 - `weather-mcp`
 - `tavily-mcp`
 - `code-exec-mcp`
-- `ip-locator-mcp`
 - `time-mcp`
 
 ### 1.3 与“检索”相关的现网能力

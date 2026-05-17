@@ -88,9 +88,9 @@ class MCPClientManager:
         return await self.gateway.get_mcp_config_for_fe()
 
     async def get_tools_for_llm(
-        self, server_names: list[str] | None, client_ip: str | None = None
+        self, server_names: list[str] | None
     ) -> list[dict[str, Any]]:
-        return self.gateway.get_tools_for_llm(server_names, client_ip)
+        return self.gateway.get_tools_for_llm(server_names)
 
 
 mcp_client_manager = MCPClientManager()

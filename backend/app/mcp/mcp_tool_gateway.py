@@ -303,9 +303,7 @@ class MCPToolGateway:
             server["online"] = health_status.get(server["id"], False)
         return mcp_config_for_fe_copy
 
-    def get_tools_for_llm(
-        self, server_names: list[str] | None, client_ip: str | None = None
-    ) -> list[dict[str, Any]]:
+    def get_tools_for_llm(self, server_names: list[str] | None) -> list[dict[str, Any]]:
         self.pool.ensure_initialized()
         formatted_tools = []
         if server_names is None:
@@ -320,19 +318,6 @@ class MCPToolGateway:
                 for server_name in dict.fromkeys(server_names)
                 if server_name in self.pool.tools_by_server
             ]
-        if client_ip:
-            if (
-                "ip-locator-mcp" in self.pool.tools_by_server
-                and "ip-locator-mcp" not in final_server_names
-            ):
-                final_server_names.append("ip-locator-mcp")
-        else:
-            final_server_names = [
-                server_name
-                for server_name in final_server_names
-                if server_name != "ip-locator-mcp"
-            ]
-
         for server_name in final_server_names:
             tools = self.pool.tools_by_server[server_name]
             for tool in tools:

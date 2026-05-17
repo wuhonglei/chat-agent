@@ -93,7 +93,6 @@ def get_system_prompt_for_title() -> str:
 
 def get_user_message_for_tool_calls(
     user_message_text: str,
-    client_ip: str | None,
     kb_context_blocks: list[KbContextBlock] | None = None,
     user_memories: Sequence[MemorySearchItem] | None = None,
     window_out_summary: str | None = None,
@@ -109,7 +108,6 @@ def get_user_message_for_tool_calls(
         user_memories=user_memories,
         window_out_summary=window_out_summary,
         current_datetime=get_current_datetime_str(),
-        client_ip=client_ip,
     ).strip()
 
 

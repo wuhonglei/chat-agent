@@ -139,15 +139,6 @@ class TavilyMCPConfig(BaseModel):
     )
 
 
-class IpLocatorMCPConfig(BaseModel):
-    """IP Locator MCP 配置"""
-
-    cache_config: MCPCacheConfig = Field(
-        default_factory=MCPCacheConfig,
-        description="工具调用结果缓存配置",
-    )
-
-
 class TimeMCPConfig(BaseModel):
     """Time MCP 配置"""
 
@@ -202,10 +193,6 @@ class MCPConfig(BaseModel):
     )
     tavily_mcp: TavilyMCPConfig = Field(
         default_factory=TavilyMCPConfig  # type: ignore[arg-type]
-    )
-    ip_locator_mcp: IpLocatorMCPConfig = Field(
-        default_factory=IpLocatorMCPConfig,
-        description="IP Locator MCP 配置",
     )
     time_mcp: TimeMCPConfig = Field(
         default_factory=TimeMCPConfig,
