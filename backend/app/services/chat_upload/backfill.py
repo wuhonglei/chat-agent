@@ -4,7 +4,7 @@
 1. 作为离线脚本按需执行，不放入请求链路，避免影响用户对话延迟。
 2. 使用 batch_size 分批扫描消息，并通过本地 checkpoint 支持断点续跑。
 3. 跳过已具备当前 STORAGE_VERSION 与 storage_key 的附件块，减少重复 DB/文件 IO。
-4. 仅在新版 shared/uploads 目标文件不存在时复制旧 uploads 文件，降低磁盘写入成本。
+4. 仅在新版 shared/uploads 目标文件不存在时移动旧 uploads 文件，降低磁盘写入成本。
 5. 建议在业务低峰运行，并根据数据库与磁盘 IO 情况调小 --batch-size。
 
 执行命令:
@@ -73,11 +73,11 @@ def _parse_preview_url(url: str) -> tuple[str, str] | None:
     return (unquote(parts[0]), unquote(parts[1]))
 
 
-def _copy_legacy_file(source: Path, target: Path) -> None:
+def _move_legacy_file(source: Path, target: Path) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
     if target.is_file():
         return
-    shutil.copy2(source, target)
+    shutil.move(source, target)
 
 
 def _storage_key_for_block(
@@ -140,7 +140,7 @@ def _backfill_block(
     source_path = user_upload_file_path(user_id, filename)
     target_path = user_upload_file_path(user_id, storage_key)
     if source_path.is_file():
-        _copy_legacy_file(source_path, target_path)
+        _move_legacy_file(source_path, target_path)
 
     content_id = str(block.get("id") or Path(filename).stem)
     display_name = str(block.get("name") or Path(filename).name)

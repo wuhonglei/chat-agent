@@ -79,7 +79,7 @@ def get_user_upload_dir(user_id: str) -> Path:
 def get_user_shared_upload_dir(user_id: str) -> Path:
     if not user_id or "/" in user_id or "\\" in user_id or ".." in user_id:
         raise HTTPException(status_code=400, detail="无效的用户 ID")
-    return _BACKEND_ROOT / "data" / "user_data" / user_id / "shared" / "uploads"
+    return _BACKEND_ROOT / "data" / "user_data" / user_id / "uploads"
 
 
 def build_raw_storage_key(content_id: str, ext: str) -> str:
