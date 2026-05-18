@@ -8,14 +8,13 @@ from app.mcp.mcp_servers.file_mcp.base import ToolContext
 from app.mcp.mcp_servers.file_mcp.edit_file import EditFileTool
 from app.mcp.mcp_servers.file_mcp.read_file import ReadFileTool
 from app.mcp.mcp_servers.file_mcp.write_file import WriteFileTool
-from app.utils.logger import conversation_id_var, user_id_var
+from app.utils.context import set_request_context
 
 
 @pytest.fixture
 def ctx() -> ToolContext:
     # Set contextvars for testing
-    user_id_var.set("test_user")
-    conversation_id_var.set("test_workspace")
+    set_request_context(user_id="test_user", conversation_id="test_workspace")
     return ToolContext()
 
 

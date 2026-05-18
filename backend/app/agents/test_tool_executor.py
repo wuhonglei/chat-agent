@@ -17,7 +17,7 @@ def test_reset_for_request_sets_contextvars() -> None:
     manager = cast(Any, _FakeMCPManager({}))
     executor = ToolExecutor(manager, "message", "gpt-4o-mini")
 
-    from app.utils.logger import conversation_id_var, user_id_var
+    from app.utils.context import get_request_context
 
     executor.reset_for_request(
         user_message="message",
@@ -25,19 +25,19 @@ def test_reset_for_request_sets_contextvars() -> None:
         workspace_id="test-workspace",
     )
 
-    assert user_id_var.get() == "test-user"
-    assert conversation_id_var.get() == "test-workspace"
+    ctx = get_request_context()
+    assert ctx.user_id == "test-user"
+    assert ctx.conversation_id == "test-workspace"
 
 
 def test_reset_for_request_with_none_values() -> None:
     manager = cast(Any, _FakeMCPManager({}))
     executor = ToolExecutor(manager, "message", "gpt-4o-mini")
 
-    from app.utils.logger import conversation_id_var, user_id_var
+    from app.utils.context import get_request_context, reset_request_context
 
-    # Reset to None
-    user_id_var.set(None)
-    conversation_id_var.set(None)
+    # Reset to clean state
+    reset_request_context()
 
     executor.reset_for_request(
         user_message="message",
@@ -45,5 +45,6 @@ def test_reset_for_request_with_none_values() -> None:
         workspace_id=None,
     )
 
-    assert user_id_var.get() is None
-    assert conversation_id_var.get() is None
+    ctx = get_request_context()
+    assert ctx.user_id is None
+    assert ctx.conversation_id is None

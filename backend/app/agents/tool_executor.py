@@ -15,8 +15,9 @@ from app.core.config import settings
 from app.mcp.mcp_client import MCPClientManager
 from app.schemas.llm import ToolResultMessage
 from app.utils.common import normalize_url
+from app.utils.context import set_request_context
 from app.utils.context_compactor import ContextCompactor
-from app.utils.logger import conversation_id_var, logger, user_id_var
+from app.utils.logger import logger
 from app.utils.time import get_current_time, get_time_duration
 from app.utils.token import TokenCalculator
 
@@ -55,10 +56,7 @@ class ToolExecutor:
         self.current_workspace_id = workspace_id
 
         # Set contextvars for tools to access
-        if user_id:
-            user_id_var.set(user_id)
-        if workspace_id:
-            conversation_id_var.set(workspace_id)
+        set_request_context(user_id=user_id, conversation_id=workspace_id)
 
     async def execute_tool_calls_parallel(
         self,

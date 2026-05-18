@@ -9,7 +9,6 @@
 
 import json
 import sys
-from contextvars import ContextVar
 from typing import Any
 
 from loguru import logger as _loguru_logger
@@ -19,6 +18,7 @@ try:
 except ImportError:
     Message = Any  # type: ignore
 
+from app.utils.context import get_request_context
 from app.utils.time import format_datetime_to_iso8601
 
 
@@ -47,15 +47,7 @@ def _make_json_serializable(obj: Any) -> Any:
             return str(obj)
 
 
-# 上下文变量，用于存储请求相关的上下文信息
-request_id_var: ContextVar[str | None] = ContextVar("request_id", default=None)
-user_id_var: ContextVar[str | None] = ContextVar("user_id", default=None)
-anonymous_user_id_var: ContextVar[str | None] = ContextVar(
-    "anonymous_user_id", default=None
-)
-client_id_var: ContextVar[str | None] = ContextVar("client_id", default=None)
-client_ip_var: ContextVar[str | None] = ContextVar("client_ip", default=None)
-conversation_id_var: ContextVar[str | None] = ContextVar("conversation_id", default=None)
+
 
 
 def production_sink(message: Message) -> None:
@@ -125,20 +117,7 @@ def production_sink(message: Message) -> None:
 
 def get_log_context() -> dict[str, Any]:
     """获取当前日志上下文信息"""
-    context = {}
-    if request_id := request_id_var.get():
-        context["request_id"] = request_id
-    if user_id := user_id_var.get():
-        context["user_id"] = user_id
-    if anonymous_user_id := anonymous_user_id_var.get():
-        context["anonymous_user_id"] = anonymous_user_id
-    if client_id := client_id_var.get():
-        context["client_id"] = client_id
-    if client_ip := client_ip_var.get():
-        context["client_ip"] = client_ip
-    if conversation_id := conversation_id_var.get():
-        context["conversation_id"] = conversation_id
-    return context
+    return get_request_context().to_log_dict()
 
 
 class LoggerWrapper:
@@ -264,10 +243,5 @@ def setup_logger(debug: bool = False) -> None:
 __all__ = [
     "logger",  # logger 对象，通过 logger.info, logger.warning 等方式使用
     "setup_logger",
-    "request_id_var",
-    "user_id_var",
-    "anonymous_user_id_var",
-    "client_ip_var",
-    "conversation_id_var",
     "get_log_context",
 ]
