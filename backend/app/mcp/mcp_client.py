@@ -80,9 +80,6 @@ class MCPClientManager:
         finally:
             self.cleanup()
 
-    async def health_check(self) -> dict[str, bool]:
-        return await self.gateway.health_check()
-
     async def get_tools_for_llm(
         self, server_names: list[str] | None
     ) -> list[dict[str, Any]]:

@@ -277,21 +277,6 @@ class MCPToolGateway:
     def get_server_for_tool(self, tool_name: str) -> str | None:
         return self.tools_map.get(tool_name)
 
-    async def health_check(self) -> dict[str, bool]:
-        self.pool.ensure_initialized()
-        health_status: dict[str, bool] = {}
-        for server_name in self.pool.clients:
-            registered = server_name in self.pool.clients
-            available = server_name in self.pool.tools_by_server
-            logger.info(
-                "Health check result",
-                server_name=server_name,
-                registered=registered,
-                available=available,
-            )
-            health_status[server_name] = registered and available
-        return health_status
-
     def get_tools_for_llm(self, server_names: list[str] | None) -> list[dict[str, Any]]:
         self.pool.ensure_initialized()
         formatted_tools = []

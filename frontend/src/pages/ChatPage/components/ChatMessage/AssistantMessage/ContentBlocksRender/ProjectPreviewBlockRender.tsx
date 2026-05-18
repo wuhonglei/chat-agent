@@ -1,4 +1,4 @@
-import { useBlockPreview } from "@/pages/ChatPage/context/BlockPreviewContext";
+import { useBlockPreview } from "@/pages/ChatPage/context/useBlockPreview";
 import { Button } from "antd";
 import React from "react";
 import { useParams } from "react-router-dom";
