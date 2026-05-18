@@ -7,8 +7,9 @@ from typing import Any
 from fastmcp import FastMCP
 
 from app.core.config import settings
-from app.mcp.mcp_servers.agent_skills_mcp.server import mcp as agent_skills_mcp
 from app.mcp.mcp_servers.code_exec_mcp.server import mcp as code_exec_mcp
+from app.mcp.mcp_servers.file_mcp.server import mcp as file_mcp
+from app.mcp.mcp_servers.shell_mcp.server import mcp as shell_mcp
 from app.mcp.mcp_servers.tavily_mcp.server import mcp as tavily_mcp
 from app.mcp.mcp_servers.time_mcp.server import mcp as time_mcp
 from app.mcp.mcp_servers.weather_mcp.server import mcp as weather_mcp
@@ -27,7 +28,8 @@ class MCPRegistry:
             "weather-mcp": weather_mcp,
             "tavily-mcp": tavily_mcp,
             "code-exec-mcp": code_exec_mcp,
-            "agent-skills-mcp": agent_skills_mcp,
+            "file-mcp": file_mcp,
+            "shell-mcp": shell_mcp,
         }
         self._fe_configs: list[MCPConfigForFeDict] = [
             {

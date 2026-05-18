@@ -50,8 +50,6 @@ from app.utils.time import get_current_time, get_time_duration
 class ChatSessionAgent(BaseAgent):
     """合并 MCP 工具与最终应答的单会话编排。"""
 
-    AGENT_SKILLS_SERVER_NAME = "agent-skills-mcp"
-
     def __init__(
         self,
         think_mode: bool,
@@ -240,13 +238,7 @@ class ChatSessionAgent(BaseAgent):
         self, chat_request: ChatRequest
     ) -> list[str] | None:
         all_servers = list(self.mcp_manager.registry.get_servers())
-        if chat_request.website_build_mode:
-            return all_servers
-        return [
-            server_name
-            for server_name in all_servers
-            if server_name != self.AGENT_SKILLS_SERVER_NAME
-        ]
+        return all_servers
 
     def _build_round_prompt_messages(
         self, base_messages: list[dict[str, Any]]

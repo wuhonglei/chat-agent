@@ -45,7 +45,7 @@ const ToolResult: React.FC<ToolResultProps> = ({ toolName, toolResultBlock, tool
 
   if (
     currentToolName &&
-    ["web_pages_extract", "resolve-library-id", "query-docs", "load_skill"].includes(currentToolName)
+    ["web_pages_extract", "resolve-library-id", "query-docs", "load_skill", "read_file"].includes(currentToolName)
   ) {
     return (
       <>

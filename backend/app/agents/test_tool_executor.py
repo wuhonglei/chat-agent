@@ -13,66 +13,37 @@ class _FakeMCPManager:
         return self._mapping.get(tool_name)
 
 
-def test_inject_workspace_args_for_agent_skills_overrides_model_args() -> None:
-    manager = cast(
-        Any, _FakeMCPManager({"write_workspace_file": "agent-skills-mcp"})
-    )
+def test_reset_for_request_sets_contextvars() -> None:
+    manager = cast(Any, _FakeMCPManager({}))
     executor = ToolExecutor(manager, "message", "gpt-4o-mini")
+
+    from app.utils.logger import conversation_id_var, user_id_var
+
     executor.reset_for_request(
         user_message="message",
-        user_id="trusted-user",
-        workspace_id="trusted-workspace",
+        user_id="test-user",
+        workspace_id="test-workspace",
     )
 
-    arguments = {
-        "user_id": "forged-user",
-        "workspace_id": "forged-workspace",
-        "path": "index.tsx",
-    }
-    executor._inject_workspace_args_for_agent_skills(
-        tool_name="write_workspace_file",
-        arguments=arguments,
-    )
-
-    assert arguments["user_id"] == "trusted-user"
-    assert arguments["workspace_id"] == "trusted-workspace"
+    assert user_id_var.get() == "test-user"
+    assert conversation_id_var.get() == "test-workspace"
 
 
-def test_inject_workspace_args_for_agent_skills_requires_workspace_id() -> None:
-    manager = cast(
-        Any, _FakeMCPManager({"write_workspace_file": "agent-skills-mcp"})
-    )
+def test_reset_for_request_with_none_values() -> None:
+    manager = cast(Any, _FakeMCPManager({}))
     executor = ToolExecutor(manager, "message", "gpt-4o-mini")
+
+    from app.utils.logger import conversation_id_var, user_id_var
+
+    # Reset to None
+    user_id_var.set(None)
+    conversation_id_var.set(None)
+
     executor.reset_for_request(
         user_message="message",
-        user_id="trusted-user",
+        user_id=None,
         workspace_id=None,
     )
 
-    try:
-        executor._inject_workspace_args_for_agent_skills(
-            tool_name="write_workspace_file",
-            arguments={},
-        )
-    except ValueError as exc:
-        assert str(exc) == "current workspace_id is required for workspace tools"
-    else:
-        raise AssertionError("expected ValueError when workspace_id is missing")
-
-
-def test_inject_workspace_args_for_agent_skills_skips_non_workspace_tool() -> None:
-    manager = cast(Any, _FakeMCPManager({"load_skill": "agent-skills-mcp"}))
-    executor = ToolExecutor(manager, "message", "gpt-4o-mini")
-    executor.reset_for_request(
-        user_message="message",
-        user_id="trusted-user",
-        workspace_id="trusted-workspace",
-    )
-
-    arguments = {"name": "frontend-project-templates"}
-    executor._inject_workspace_args_for_agent_skills(
-        tool_name="load_skill",
-        arguments=arguments,
-    )
-
-    assert arguments == {"name": "frontend-project-templates"}
+    assert user_id_var.get() is None
+    assert conversation_id_var.get() is None

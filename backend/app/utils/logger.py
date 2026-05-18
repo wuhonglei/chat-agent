@@ -55,6 +55,7 @@ anonymous_user_id_var: ContextVar[str | None] = ContextVar(
 )
 client_id_var: ContextVar[str | None] = ContextVar("client_id", default=None)
 client_ip_var: ContextVar[str | None] = ContextVar("client_ip", default=None)
+conversation_id_var: ContextVar[str | None] = ContextVar("conversation_id", default=None)
 
 
 def production_sink(message: Message) -> None:
@@ -135,6 +136,8 @@ def get_log_context() -> dict[str, Any]:
         context["client_id"] = client_id
     if client_ip := client_ip_var.get():
         context["client_ip"] = client_ip
+    if conversation_id := conversation_id_var.get():
+        context["conversation_id"] = conversation_id
     return context
 
 
@@ -265,5 +268,6 @@ __all__ = [
     "user_id_var",
     "anonymous_user_id_var",
     "client_ip_var",
+    "conversation_id_var",
     "get_log_context",
 ]

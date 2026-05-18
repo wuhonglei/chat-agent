@@ -7,11 +7,6 @@ from fastapi import APIRouter, Depends
 from sqlmodel import Session
 
 from app.core.db import get_db
-from app.mcp.mcp_servers.agent_skills_mcp.config import USER_DATA_ROOT
-from app.mcp.mcp_servers.agent_skills_mcp.utils import (
-    validate_user_id,
-    validate_workspace_id,
-)
 from app.schemas.auth import AuthTokenPayload
 from app.schemas.conversation import (
     ConversationInfo,
@@ -23,6 +18,7 @@ from app.schemas.response import ApiResponse
 from app.services.conversation import ConversationDbService
 from app.utils.auth_deps import get_auth_token_info, require_auth
 from app.utils.logger import logger
+from app.utils.workspace import USER_DATA_ROOT, validate_user_id, validate_workspace_id
 
 router = APIRouter()
 

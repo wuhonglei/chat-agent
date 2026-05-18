@@ -472,6 +472,15 @@ wheels = [
 ]
 
 [[package]]
+name = "bashlex"
+version = "0.18"
+source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }
+sdist = { url = "https://mirrors.aliyun.com/pypi/packages/76/60/aae0bb54f9af5e0128ba90eb83d8d0d506ee8f0475c4fdda3deeda20b1d2/bashlex-0.18.tar.gz", hash = "sha256:5bb03a01c6d5676338c36fd1028009c8ad07e7d61d8a1ce3f513b7fff52796ee" }
+wheels = [
+    { url = "https://mirrors.aliyun.com/pypi/packages/f4/be/6985abb1011fda8a523cfe21ed9629e397d6e06fb5bae99750402b25c95b/bashlex-0.18-py2.py3-none-any.whl", hash = "sha256:91d73a23a3e51711919c1c899083890cdecffc91d8c088942725ac13e9dcfffa" },
+]
+
+[[package]]
 name = "beartype"
 version = "0.22.9"
 source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }
@@ -728,9 +737,11 @@ dependencies = [
     { name = "aiofiles" },
     { name = "aiopyston" },
     { name = "alembic" },
+    { name = "bashlex" },
     { name = "cos-python-sdk-v5" },
     { name = "cryptography" },
     { name = "dashscope" },
+    { name = "docker" },
     { name = "faiss-cpu" },
     { name = "fastapi" },
     { name = "fastmcp" },
@@ -790,9 +801,11 @@ requires-dist = [
     { name = "aiofiles", specifier = ">=23.2.0" },
     { name = "aiopyston", specifier = ">=1.2.1" },
     { name = "alembic", specifier = ">=1.13.1" },
+    { name = "bashlex", specifier = ">=0.18" },
     { name = "cos-python-sdk-v5", specifier = ">=1.9.41" },
     { name = "cryptography", specifier = ">=46.0.7" },
     { name = "dashscope", specifier = ">=1.25.16" },
+    { name = "docker", specifier = ">=7.0.0" },
     { name = "faiss-cpu", specifier = ">=1.13.2" },
     { name = "fastapi", specifier = ">=0.109.0" },
     { name = "fastmcp", specifier = ">=3.1.0" },
@@ -1182,6 +1195,20 @@ source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }
 sdist = { url = "https://mirrors.aliyun.com/pypi/packages/8c/8b/57666417c0f90f08bcafa776861060426765fdb422eb10212086fb811d26/dnspython-2.8.0.tar.gz", hash = "sha256:181d3c6996452cb1189c4046c61599b84a5a86e099562ffde77d26984ff26d0f" }
 wheels = [
     { url = "https://mirrors.aliyun.com/pypi/packages/ba/5a/18ad964b0086c6e62e2e7500f7edc89e3faa45033c71c1893d34eed2b2de/dnspython-2.8.0-py3-none-any.whl", hash = "sha256:01d9bbc4a2d76bf0db7c1f729812ded6d912bd318d3b1cf81d30c0f845dbf3af" },
+]
+
+[[package]]
+name = "docker"
+version = "7.1.0"
+source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }
+dependencies = [
+    { name = "pywin32", marker = "sys_platform == 'win32'" },
+    { name = "requests" },
+    { name = "urllib3" },
+]
+sdist = { url = "https://mirrors.aliyun.com/pypi/packages/91/9b/4a2ea29aeba62471211598dac5d96825bb49348fa07e906ea930394a83ce/docker-7.1.0.tar.gz", hash = "sha256:ad8c70e6e3f8926cb8a92619b832b4ea5299e2831c14284663184e200546fa6c" }
+wheels = [
+    { url = "https://mirrors.aliyun.com/pypi/packages/e3/26/57c6fb270950d476074c087527a558ccb6f4436657314bfb6cdf484114c4/docker-7.1.0-py3-none-any.whl", hash = "sha256:c96b93b7f0a746f9e77d325bcfb87422a3d8bd4f03136ae8a85b37f1898d5fc0" },
 ]
 
 [[package]]
