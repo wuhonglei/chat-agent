@@ -6,7 +6,6 @@ import {
   ChatMessage,
   ChatModelItem,
   ChatRequest,
-  MCPConfigItem,
   MessageFeedback,
   MessageFeedbackValue,
   StreamMessage,
@@ -192,10 +191,5 @@ export const healthAPI = {
   // MCP health check
   checkMCPHealth: async (): Promise<AxiosResponse<{ status: string }>> => {
     return await apiClient.get("/health/mcp");
-  },
-
-  // MCP config
-  getMCPConfig: async (): Promise<MCPConfigItem[]> => {
-    return await apiClient.get("/health/mcp_config");
   },
 };

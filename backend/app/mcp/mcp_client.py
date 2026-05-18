@@ -10,7 +10,6 @@ from app.core.config import settings
 from app.mcp.mcp_connection_pool import MCPConnectionPool
 from app.mcp.mcp_registry import MCPRegistry
 from app.mcp.mcp_tool_gateway import MCPToolGateway
-from app.schemas.mcp import MCPConfigForFeDict
 
 
 class MCPClientManager:
@@ -84,9 +83,6 @@ class MCPClientManager:
     async def health_check(self) -> dict[str, bool]:
         return await self.gateway.health_check()
 
-    async def get_mcp_config_for_fe(self) -> list[MCPConfigForFeDict]:
-        return await self.gateway.get_mcp_config_for_fe()
-
     async def get_tools_for_llm(
         self, server_names: list[str] | None
     ) -> list[dict[str, Any]]:
@@ -94,7 +90,6 @@ class MCPClientManager:
 
 
 mcp_client_manager = MCPClientManager()
-mcp_config_for_fe = mcp_client_manager.registry.get_fe_configs()
 
 
 async def get_mcp_manager() -> MCPClientManager:

@@ -1,7 +1,6 @@
 import { WEB_TAB_TITLE } from "@/constants";
 import { ConversationInfo } from "@/interfaces";
 import { useAppDispatch } from "@/store/hooks";
-import { getMCPConfig } from "@/store/slices/mcpSlice";
 import { fetchModels } from "@/store/slices/modelsSlice";
 import { getUserDetail } from "@/store/slices/userSlice";
 import { isTitleCreatedByDefault } from "@/utils";
@@ -12,7 +11,7 @@ import { isEmpty } from "lodash-es";
 import { useEffect, useMemo } from "react";
 
 /**
- * 应用初始化：拉取 MCP 配置与用户详情
+ * 应用初始化：拉取用户详情与模型列表
  */
 export function useAppInit(): void {
   const dispatch = useAppDispatch();
@@ -20,7 +19,6 @@ export function useAppInit(): void {
   useEffect(() => {
     const init = async () => {
       try {
-        dispatch(getMCPConfig());
         dispatch(fetchModels());
         await dispatch(getUserDetail()).unwrap();
       } catch (error) {
