@@ -47,9 +47,6 @@ def _make_json_serializable(obj: Any) -> Any:
             return str(obj)
 
 
-
-
-
 def production_sink(message: Message) -> None:
     """生产环境自定义 sink，输出精简的 JSON 格式日志
 
