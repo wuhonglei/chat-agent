@@ -91,16 +91,33 @@ backend/app/
 
 ### 2.3 工具层结构（对齐 kimi 命名）
 
+每个工具独立为一个文件，按 MCP 服务归属放置：
+
 ```
-backend/app/tools/
-├── __init__.py
-├── base.py                             # ToolBase 抽象基类
-├── schemas.py                          # JSON Schema 定义（对齐 kimi 格式）
-├── read_file.py                        # read_file 工具
-├── write_file.py                       # write_file 工具
-├── edit_file.py                        # edit_file 工具
-├── search_files.py                     # search_files 工具
-└── shell.py                            # shell 工具
+backend/app/mcp/mcp_servers/
+├── file_mcp/
+│   ├── server.py                       # FastMCP("File MCP Service") 注册入口
+│   ├── base.py                         # ToolBase 抽象基类
+│   ├── schemas.py                      # JSON Schema 定义（对齐 kimi 格式）
+│   ├── read_file.py                    # read_file 工具
+│   ├── write_file.py                   # write_file 工具
+│   ├── edit_file.py                    # edit_file 工具
+│   ├── search_files.py                 # search_files 工具
+│   ├── load_skill.py                   # load_skill 工具
+│   ├── utils.py                        # 路径解析、配额校验
+│   ├── config.py                       # 文件相关配置
+│   └── test_server.py                  # 测试
+│
+├── shell_mcp/
+│   ├── server.py                       # FastMCP("Shell MCP Service") 注册入口
+│   ├── base.py                         # ToolBase 抽象基类（可复用或共享）
+│   ├── schemas.py                      # shell JSON Schema 定义
+│   ├── shell.py                        # shell 工具
+│   ├── policy.py                       # 命令策略引擎（AST 级解析）
+│   ├── executor.py                     # SandboxExecutor 委托
+│   ├── audit.py                        # 审计日志
+│   ├── config.py                       # 沙箱配置
+│   └── test_server.py                  # 测试
 ```
 
 ---
@@ -237,7 +254,6 @@ class SandboxAuditEntry:
 | `/workspace/` | `data/user_data/{uid}/workspaces/{wid}/` | 读写 | 当前会话工作区 |
 | `/uploads/` | `data/user_data/{uid}/uploads/` | 只读 | 当前会话已挂载文件（DB 查询） |
 | `/skills/` | `app/agent_skills/skills/` | 只读 | 技能目录 |
-| `/shared/` | `data/user_data/{uid}/shared/` | 读写 | 用户共享文件 |
 
 ### B2. VirtualPathMapper
 
@@ -362,7 +378,7 @@ WRITE_FILE_SCHEMA = {
         "properties": {
             "file_path": {
                 "type": "string",
-                "description": "The virtual path to the file to write (must be under /workspace/ or /shared/)"
+                "description": "The virtual path to the file to write (must be under /workspace/)"
             },
             "content": {
                 "type": "string",
@@ -502,7 +518,7 @@ SHELL_SCHEMA = {
 ### 5.3 路径白名单（对齐 kimi Allowed/Forbidden Paths）
 
 ```
-Read-Write:  /workspace/*, /shared/*
+Read-Write:  /workspace/*
 Read-Only:   /uploads/*, /skills/*
 Forbidden:   物理路径、其他虚拟路径前缀
 ```
@@ -545,7 +561,7 @@ Forbidden:   物理路径、其他虚拟路径前缀
 **实现方案**：
 
 ```python
-# backend/app/tools/search_files.py
+# backend/app/mcp/mcp_servers/file_mcp/search_files.py
 class SearchFilesTool(ToolBase):
     name = "search_files"
     description = SEARCH_FILES_SCHEMA["description"]
@@ -583,7 +599,7 @@ class SearchFilesTool(ToolBase):
 ```
 
 **安全约束**：
-- 搜索范围限定在虚拟路径白名单内（`/workspace/`、`/skills/`、`/shared/`）
+- 搜索范围限定在虚拟路径白名单内（`/workspace/`、`/skills/`）
 - 不支持搜索 `/uploads/`（文件内容通过 RAG 索引，不直接搜索）
 - 正则表达式编译失败时返回明确错误
 - 结果中所有物理路径替换为虚拟路径
@@ -706,7 +722,9 @@ interface WorkspaceTreeNode {
 
 ---
 
-## 八、后端 API 改造
+## 八、后端 API 改造（可暂缓）
+
+> **暂缓说明**：此部分为展示层优化，不影响安全隔离核心目标。MCP 工具层已保障 LLM 只接触虚拟路径，前端 API 改造可独立迭代。建议在 Week 4 或后续阶段实施。
 
 ### 8.1 workspace API（`api/workspace.py`）
 
@@ -780,7 +798,6 @@ VFS__ENABLED=true
 VFS__WORKSPACE_PREFIX=/workspace/
 VFS__UPLOADS_PREFIX=/uploads/
 VFS__SKILLS_PREFIX=/skills/
-VFS__SHARED_PREFIX=/shared/
 VFS__MAX_FILE_SIZE_MB=100                # 单文件大小限制
 VFS__MAX_LINE_LENGTH=2000                # 单行截断长度
 VFS__WRITE_MAX_CHARS=100000              # 单次写入字符限制（对齐 kimi）
@@ -812,22 +829,24 @@ Week 2: 核心逻辑实现
 ├── Docker 沙箱后端完整实现（资源限制、挂载、capability dropping）
 ├── 命令策略引擎（bashlex AST 解析 + 白名单）
 ├── file-mcp 5 个工具实现（对齐 kimi Schema + 行为）
-├── shell-mcp shell 工具实现（对接 SandboxExecutor）
-└── 后端 API 路径改造（workspace API、file API 返回虚拟路径）
+└── shell-mcp shell 工具实现（对接 SandboxExecutor）
 
 Week 3: 前端适配 + 安全加固
 ├── 前端工具名同步（read_file、write_file、edit_file、shell）
-├── 前端路径模型变更（移除 fullPath，使用虚拟路径）
 ├── 审计日志实现
 ├── 安全测试用例集（路径遍历、符号链接、编码绕过、命令注入）
-└── 本地执行器（开发模式 fallback）
+└── 安全测试集 100% 通过
 
 Week 4: 集成测试 + 灰度
 ├── 端到端集成测试
 ├── 性能基准测试（沙箱延迟 < 500ms）
 ├── 灰度开关实现（按用户 ID 百分比放量）
-├── 回归测试（文件上传/下载、项目预览、workspace ZIP）
-└── 安全测试集 100% 通过
+└── 回归测试（MCP 工具调用、文件操作、命令执行）
+
+后续迭代（可暂缓）
+├── 后端 API 路径改造（workspace API、file API 返回虚拟路径）
+├── 前端路径模型变更（移除 fullPath，使用虚拟路径）
+└── 回归测试（文件上传/下载、项目预览、workspace ZIP）
 ```
 
 ---
@@ -890,21 +909,23 @@ Week 4: 集成测试 + 灰度
 | `backend/app/vfs/resolver.py` | PathResolver |
 | `backend/app/vfs/uploads_provider.py` | UploadsProvider |
 | `backend/app/vfs/config.py` | 虚拟路径配置 |
-| `backend/app/tools/__init__.py` | 工具层模块 |
-| `backend/app/tools/base.py` | ToolBase 抽象基类 |
-| `backend/app/tools/schemas.py` | JSON Schema 定义 |
-| `backend/app/tools/read_file.py` | read_file 工具 |
-| `backend/app/tools/write_file.py` | write_file 工具 |
-| `backend/app/tools/edit_file.py` | edit_file 工具 |
-| `backend/app/tools/search_files.py` | search_files 工具 |
-| `backend/app/tools/shell.py` | shell 工具 |
 | `backend/app/mcp/mcp_servers/file_mcp/__init__.py` | file-mcp 模块 |
-| `backend/app/mcp/mcp_servers/file_mcp/server.py` | file-mcp 服务入口 |
-| `backend/app/mcp/mcp_servers/file_mcp/utils.py` | 文件工具函数 |
-| `backend/app/mcp/mcp_servers/file_mcp/config.py` | 文件配置 |
+| `backend/app/mcp/mcp_servers/file_mcp/server.py` | file-mcp 服务注册入口 |
+| `backend/app/mcp/mcp_servers/file_mcp/base.py` | ToolBase 抽象基类 |
+| `backend/app/mcp/mcp_servers/file_mcp/schemas.py` | JSON Schema 定义 |
+| `backend/app/mcp/mcp_servers/file_mcp/read_file.py` | read_file 工具 |
+| `backend/app/mcp/mcp_servers/file_mcp/write_file.py` | write_file 工具 |
+| `backend/app/mcp/mcp_servers/file_mcp/edit_file.py` | edit_file 工具 |
+| `backend/app/mcp/mcp_servers/file_mcp/search_files.py` | search_files 工具 |
+| `backend/app/mcp/mcp_servers/file_mcp/load_skill.py` | load_skill 工具 |
+| `backend/app/mcp/mcp_servers/file_mcp/utils.py` | 路径解析、配额校验 |
+| `backend/app/mcp/mcp_servers/file_mcp/config.py` | 文件相关配置 |
 | `backend/app/mcp/mcp_servers/file_mcp/test_server.py` | 文件工具测试 |
 | `backend/app/mcp/mcp_servers/shell_mcp/__init__.py` | shell-mcp 模块 |
-| `backend/app/mcp/mcp_servers/shell_mcp/server.py` | shell-mcp 服务入口 |
+| `backend/app/mcp/mcp_servers/shell_mcp/server.py` | shell-mcp 服务注册入口 |
+| `backend/app/mcp/mcp_servers/shell_mcp/base.py` | ToolBase 抽象基类 |
+| `backend/app/mcp/mcp_servers/shell_mcp/schemas.py` | shell JSON Schema 定义 |
+| `backend/app/mcp/mcp_servers/shell_mcp/shell.py` | shell 工具 |
 | `backend/app/mcp/mcp_servers/shell_mcp/policy.py` | 命令策略引擎 |
 | `backend/app/mcp/mcp_servers/shell_mcp/executor.py` | SandboxExecutor 委托 |
 | `backend/app/mcp/mcp_servers/shell_mcp/audit.py` | 审计日志 |
@@ -919,14 +940,14 @@ Week 4: 集成测试 + 灰度
 | `backend/app/agents/tool_executor.py` | 工具名列表更新，注入逻辑适配两个 MCP |
 | `backend/app/mcp/mcp_tool_gateway.py` | 工具 schema 清洗适配新工具名 |
 | `backend/app/prompts/system_prompt.py` | 更新工具引用和路径说明 |
-| `backend/app/api/workspace.py` | API 响应使用虚拟路径 |
-| `backend/app/api/file.py` | 上传返回路径改为虚拟路径 |
+| `backend/app/api/workspace.py` | API 响应使用虚拟路径（**可暂缓**） |
+| `backend/app/api/file.py` | 上传返回路径改为虚拟路径（**可暂缓**） |
 | `backend/pyproject.toml` | 新增 docker、bashlex 依赖 |
 | `frontend/src/pages/.../ToolResult/hooks.ts` | `read_project_file` → `read_file` |
 | `frontend/src/pages/.../viewModel.ts` | `write_workspace_file` → `write_file` |
-| `frontend/src/pages/.../ProjectPreview/utils.ts` | 移除 fullPath，使用虚拟路径 |
-| `frontend/src/pages/.../ProjectPreview/index.tsx` | 移除 fullPath 使用 |
-| `frontend/src/services/workspace.ts` | WorkspaceTreeNode 移除 fullPath |
+| `frontend/src/pages/.../ProjectPreview/utils.ts` | 移除 fullPath，使用虚拟路径（**可暂缓**） |
+| `frontend/src/pages/.../ProjectPreview/index.tsx` | 移除 fullPath 使用（**可暂缓**） |
+| `frontend/src/services/workspace.ts` | WorkspaceTreeNode 移除 fullPath（**可暂缓**） |
 
 ### 删除文件
 
