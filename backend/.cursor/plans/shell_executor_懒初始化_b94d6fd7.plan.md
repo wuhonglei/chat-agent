@@ -4,16 +4,16 @@ overview: 在 ShellTool.execute() 内按 user_id + workspace_id 懒初始化沙�
 todos:
   - id: shell-tool-ensure-init
     content: 在 ShellTool 实现 get_or_create_executor（按 workspace 键缓存 ShellExecutor + dict_lock）并在 execute() 中调用
-    status: in_progress
+    status: completed
   - id: shell-executor-cwd
     content: ShellExecutor 保存 workspace_path，execute() 按 docker/local 选择 cwd；workspace 切换时支持 re-setup
-    status: pending
+    status: completed
   - id: server-api
     content: 整理 server.py 的 initialize_shell_executor 与 ShellTool 的对接说明
-    status: pending
+    status: completed
   - id: tests
     content: 补充 ShellTool ensure_initialized 与 local cwd 的单元测试
-    status: pending
+    status: completed
 isProject: false
 ---
 

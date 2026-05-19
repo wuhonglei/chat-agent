@@ -17,15 +17,13 @@ from app.mcp.mcp_servers.shell_mcp.shell import ShellTool
 
 mcp = FastMCP(name="Shell MCP Service")
 
-# Tool instance
+# Tool instance (per-worker singleton; executors cached per workspace inside)
 _shell_tool = ShellTool()
 
 
 @mcp.tool(name="shell")
 async def shell(
-    command: str = Field(
-        description="The shell command to execute."
-    ),
+    command: str = Field(description="The shell command to execute."),
     description: str = Field(
         description="Clear, concise summary (5-10 words) of what this command does."
     ),
@@ -54,10 +52,14 @@ async def shell(
 
 
 async def initialize_shell_executor(workspace_path: Path) -> None:
-    """Initialize the shell executor with workspace path."""
+    """Pre-initialize shell sandbox for an explicit path (tests/scripts only).
+
+    Production traffic should rely on lazy init via ShellTool.get_or_create_executor
+    when the shell tool is invoked with user_id and workspace_id from request context.
+    """
     await _shell_tool.initialize(workspace_path)
 
 
 async def cleanup_shell_executor() -> None:
-    """Cleanup shell executor resources."""
+    """Cleanup all cached shell executors (tests/teardown)."""
     await _shell_tool.cleanup()

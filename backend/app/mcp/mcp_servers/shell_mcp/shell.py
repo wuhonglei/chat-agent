@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +11,7 @@ from app.mcp.mcp_servers.shell_mcp.config import shell_config
 from app.mcp.mcp_servers.shell_mcp.executor import ShellExecutor
 from app.mcp.mcp_servers.shell_mcp.policy import policy_engine
 from app.sandbox.executor import ExecutionResult
+from app.utils.workspace import get_workspace_root
 
 
 class ShellTool:
@@ -19,11 +21,47 @@ class ShellTool:
     description = "Execute shell commands in a sandboxed environment with proper security measures."
 
     def __init__(self) -> None:
-        self._executor = ShellExecutor()
+        self._executors: dict[tuple[str, str], ShellExecutor] = {}
+        self._dict_lock = asyncio.Lock()
+
+    async def get_or_create_executor(
+        self, user_id: str, workspace_id: str
+    ) -> tuple[ShellExecutor | None, str | None]:
+        """Return a workspace-scoped executor, creating one on first use."""
+        if not (user_id or "").strip():
+            return None, "user_id is required for shell execution"
+        if not (workspace_id or "").strip():
+            return None, "workspace_id is required for shell execution"
+
+        key = (user_id.strip(), workspace_id.strip())
+        cached = self._executors.get(key)
+        if cached is not None:
+            return cached, None
+
+        try:
+            workspace_path = get_workspace_root(key[0], key[1])
+        except ValueError as exc:
+            return None, str(exc)
+
+        async with self._dict_lock:
+            cached = self._executors.get(key)
+            if cached is not None:
+                return cached, None
+
+            executor = ShellExecutor()
+            await executor.initialize(workspace_path, user_id=key[0])
+            self._executors[key] = executor
+            return executor, None
 
     async def initialize(self, workspace_path: Path) -> None:
-        """Initialize the shell executor."""
-        await self._executor.initialize(workspace_path)
+        """Initialize executor for an explicit path (tests/scripts)."""
+        key = ("__explicit__", str(workspace_path.resolve()))
+        async with self._dict_lock:
+            executor = self._executors.get(key)
+            if executor is None:
+                executor = ShellExecutor()
+                self._executors[key] = executor
+            await executor.initialize(workspace_path.resolve())
 
     async def execute(
         self,
@@ -64,10 +102,13 @@ class ShellTool:
                 f"Error: Command blocked by security policy: {policy_decision.reason}"
             )
 
-        # Execute in sandbox
-        result = await self._executor.execute(
+        executor, init_error = await self.get_or_create_executor(user_id, workspace_id)
+        if init_error:
+            return f"Error: {init_error}"
+
+        assert executor is not None
+        result = await executor.execute(
             command=command,
-            cwd="/workspace",
             timeout=timeout,
             description=description,
         )
@@ -125,5 +166,8 @@ class ShellTool:
         return output
 
     async def cleanup(self) -> None:
-        """Cleanup resources."""
-        await self._executor.cleanup()
+        """Cleanup all cached executors."""
+        async with self._dict_lock:
+            for executor in self._executors.values():
+                await executor.cleanup()
+            self._executors.clear()
