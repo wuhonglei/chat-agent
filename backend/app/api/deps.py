@@ -4,7 +4,7 @@ from typing import cast
 
 from fastapi import Request
 
-from app.mcp.mcp_client import MCPClientManager
+from app.mcp.client import MCPClientManager
 
 
 def get_mcp_manager(request: Request) -> MCPClientManager:

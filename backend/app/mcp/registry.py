@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastmcp import FastMCP
-
 from app.core.config import settings
 from app.mcp.mcp_servers.code_exec_mcp.server import mcp as code_exec_mcp
 from app.mcp.mcp_servers.file_mcp.server import mcp as file_mcp
@@ -33,7 +31,3 @@ class MCPRegistry:
 
     def get_servers(self) -> dict[str, Any]:
         return dict(self._servers)
-
-
-def is_local_fastmcp(server_instance: Any) -> bool:
-    return isinstance(server_instance, FastMCP)

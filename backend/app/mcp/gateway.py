@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.mcp.mcp_connection_pool import MCPConnectionPool
-from app.mcp.mcp_registry import MCPRegistry
+from app.mcp.connection_pool import MCPConnectionPool
+from app.mcp.registry import MCPRegistry
 from app.utils.logger import logger
 
 

@@ -6,7 +6,7 @@ from openai.types.chat import ChatCompletionMessageFunctionToolCall
 
 from app.agents.tool_call_policy import ToolCallPolicy
 from app.agents.tool_executor import ToolExecutor
-from app.mcp.mcp_client import MCPClientManager
+from app.mcp.client import MCPClientManager
 from app.schemas.llm import ToolMessage, ToolResultMessage, ToolUseMessage
 
 

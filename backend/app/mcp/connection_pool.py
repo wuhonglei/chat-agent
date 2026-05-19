@@ -14,7 +14,8 @@ from fastmcp.client.transports import (
     StreamableHttpTransport,
 )
 
-from app.mcp.mcp_registry import MCPRegistry, is_local_fastmcp
+from app.mcp.registry import MCPRegistry
+from app.mcp.transport import is_local_fastmcp
 from app.utils.logger import logger
 
 

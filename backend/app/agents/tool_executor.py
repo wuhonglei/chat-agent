@@ -12,7 +12,7 @@ from toolz import get
 
 from app.agents.utils import TavilyResultProcessor
 from app.core.config import settings
-from app.mcp.mcp_client import MCPClientManager
+from app.mcp.client import MCPClientManager
 from app.schemas.llm import ToolResultMessage
 from app.utils.common import normalize_url
 from app.utils.context import set_request_context

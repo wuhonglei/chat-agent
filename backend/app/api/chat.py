@@ -11,7 +11,7 @@ from fastapi.responses import StreamingResponse
 
 from app.api.deps import get_mcp_manager
 from app.core.config import settings
-from app.mcp.mcp_client import MCPClientManager
+from app.mcp.client import MCPClientManager
 from app.protocols.chat_messages import build_error_event
 from app.schemas.auth import AuthTokenPayload
 from app.schemas.chat import (

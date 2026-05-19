@@ -18,7 +18,7 @@ from app.agents.utils.tool_call_stream import (
     merge_tool_call_deltas,
     tool_call_acc_to_openai_list,
 )
-from app.mcp.mcp_client import MCPClientManager
+from app.mcp.client import MCPClientManager
 from app.prompts.prompt_utils import (
     get_system_prompt_for_chat_session,
     get_user_message_for_tool_calls,

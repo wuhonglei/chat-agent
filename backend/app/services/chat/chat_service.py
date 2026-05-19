@@ -5,7 +5,7 @@ from typing import Literal
 
 from app.agents import ChatSessionAgent, TitleGenerationAgent
 from app.core.config import settings
-from app.mcp.mcp_client import MCPClientManager
+from app.mcp.client import MCPClientManager
 from app.schemas.chat import ChatRequest
 from app.schemas.config import ChatContextConfig, LLMConfig
 from app.schemas.user import MemoryListItem, MemorySearchItem
