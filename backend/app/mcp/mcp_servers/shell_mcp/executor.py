@@ -85,14 +85,19 @@ class ShellExecutor:
         return str(self._workspace_path)
 
     def _adapt_command_for_backend(self, command: str) -> str:
-        """Adjust commands written for container paths when running locally."""
-        if self._effective_backend != "local":
-            return command
-        # cwd is already the workspace root; drop redundant cd into /workspace
+        """Drop redundant /workspace cd/mkdir; cwd is already the workspace root."""
+        adapted = command
+        # mkdir on /workspace fails on Docker read-only root or is unnecessary when mounted
+        adapted = re.sub(
+            r"^\s*mkdir\s+(?:-p\s+)?/workspace\s*(?:&&|;)\s*",
+            "",
+            adapted,
+            count=1,
+        )
         adapted = re.sub(
             r"^\s*cd\s+/workspace\s*(?:&&|;)\s*",
             "",
-            command,
+            adapted,
             count=1,
         )
         adapted = re.sub(r"^\s*cd\s+/workspace\s*$", ".", adapted)

@@ -150,7 +150,7 @@ class DockerSandboxExecutor(SandboxExecutor):
             "nano_cpus": int(settings.sandbox.cpu_limit * 1e9),
             "mem_limit": settings.sandbox.memory_limit,
             "pids_limit": settings.sandbox.pid_limit,
-            "read_only": True,  # Read-only root filesystem
+            "read_only": False,  # workspace bind mount is RW; allow writes under /workspace
             "user": "1000:1000",  # Non-root execution
             "cap_drop": ["ALL"],  # Drop all capabilities
             "security_opt": ["no-new-privileges"],  # Prevent privilege escalation

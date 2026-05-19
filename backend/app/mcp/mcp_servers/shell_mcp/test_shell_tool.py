@@ -91,13 +91,20 @@ async def test_get_or_create_executor_different_workspaces(
     assert mock_initialize.await_count == 2
 
 
-def test_adapt_command_strips_cd_workspace_for_local_backend() -> None:
+def test_adapt_command_strips_cd_workspace() -> None:
     executor = ShellExecutor()
-    executor._effective_backend = "local"
     adapted = executor._adapt_command_for_backend(
         "cd /workspace && npx --yes create-vite@latest vite-tmp"
     )
     assert adapted == "npx --yes create-vite@latest vite-tmp"
+
+
+def test_adapt_command_strips_mkdir_workspace() -> None:
+    executor = ShellExecutor()
+    adapted = executor._adapt_command_for_backend(
+        "mkdir -p /workspace && cd /workspace && ls"
+    )
+    assert adapted == "ls"
 
 
 @pytest.mark.asyncio
