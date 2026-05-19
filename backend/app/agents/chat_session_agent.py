@@ -238,7 +238,9 @@ class ChatSessionAgent(BaseAgent):
     ) -> list[str] | None:
         all_servers = list(self.mcp_manager.registry.get_servers())
         if chat_request.agent_mode > 0:
-            return [s for s in all_servers if s in MCPToolSession.AGENT_MODE_MCP_SERVERS]
+            return [
+                s for s in all_servers if s in MCPToolSession.AGENT_MODE_MCP_SERVERS
+            ]
         return all_servers
 
     def _build_round_prompt_messages(
