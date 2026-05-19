@@ -8,7 +8,7 @@ import signal
 import time
 from pathlib import Path
 
-from app.sandbox.config import sandbox_config
+from app.core.config import settings
 from app.sandbox.executor import ExecutionRequest, ExecutionResult, SandboxExecutor
 from app.utils.logger import logger
 
@@ -83,7 +83,7 @@ class LocalSandboxExecutor(SandboxExecutor):
 
             # Truncate output if needed
             output_truncated = False
-            max_output = sandbox_config.output_limit
+            max_output = settings.sandbox.output_limit
             if len(stdout) + len(stderr) > max_output:
                 stdout = stdout[: max_output // 2]
                 stderr = stderr[: max_output // 2]

@@ -38,9 +38,11 @@ class CommandPolicyEngine:
         "sort",
         "cp",
         "mv",
+        "rm",
         "mkdir",
         "touch",
         "echo",
+        "cd",
         "pwd",
         "whoami",
         "date",
@@ -229,7 +231,6 @@ class CommandPolicyEngine:
     def _check_ast_node(self, node: Any) -> bool:
         """Recursively check AST node for dangerous patterns."""
         try:
-
             # Check node type
             if hasattr(node, "kind"):
                 # Check for command substitution
@@ -250,30 +251,93 @@ class CommandPolicyEngine:
         except Exception:
             return False
 
-    def _validate_whitelist(self, command: str) -> PolicyDecision:
-        """Layer 2: Command whitelist validation."""
-        # Extract first command (handle pipes, chains, etc.)
-        # Simple extraction: split by whitespace and get first token
-        parts = command.split()
-        if not parts:
-            return PolicyDecision(allowed=False, reason="Empty command")
+    @staticmethod
+    def _command_node_to_str(node: Any) -> str:
+        return " ".join(
+            part.word for part in node.parts if hasattr(part, "word") and part.word
+        )
 
-        # Get base command (without path)
+    def _split_command_segments(self, command: str) -> list[str]:
+        """Split compound commands (&&, ||, ;) into segments for whitelist checks."""
+        try:
+            import bashlex
+
+            segments: list[str] = []
+            for parsed in bashlex.parse(command):
+                if not hasattr(parsed, "parts"):
+                    continue
+                for part in parsed.parts:
+                    if getattr(part, "kind", None) == "command":
+                        segment = self._command_node_to_str(part)
+                        if segment:
+                            segments.append(segment)
+
+            if segments:
+                return segments
+        except ImportError:
+            pass
+        except Exception:
+            pass
+
+        # Fallback: split on chain operators (simple heuristic)
+        normalized = command.replace("\n", " ")
+        parts = re.split(r"\s*(?:&&|\|\||;)\s*", normalized)
+        return [part.strip() for part in parts if part.strip()]
+
+    def _validate_cd_segment(self, segment: str) -> PolicyDecision:
+        """Restrict cd targets to workspace-safe paths."""
+        parts = segment.split()
+        if len(parts) < 2:
+            return PolicyDecision(allowed=True)
+
+        target = parts[1]
+        if ".." in target:
+            return PolicyDecision(
+                allowed=False,
+                reason="cd path traversal (..) is not allowed",
+            )
+        if target.startswith("/") and not target.startswith("/workspace"):
+            return PolicyDecision(
+                allowed=False,
+                reason=f"cd outside workspace is not allowed: {target}",
+            )
+        return PolicyDecision(allowed=True)
+
+    def _validate_whitelist_segment(self, segment: str) -> PolicyDecision:
+        """Validate a single command segment against the whitelist."""
+        parts = segment.split()
+        if not parts:
+            return PolicyDecision(allowed=False, reason="Empty command segment")
+
         base_cmd = parts[0].split("/")[-1]
 
-        # Check if explicitly blocked
         if base_cmd in self.BLOCKED_COMMANDS:
             return PolicyDecision(
                 allowed=False,
                 reason=f"Command '{base_cmd}' is blocked by security policy",
             )
 
-        # Check if in whitelist
         if base_cmd not in self.ALLOWED_COMMANDS:
             return PolicyDecision(
                 allowed=False,
                 reason=f"Command '{base_cmd}' is not in the allowed commands list",
             )
+
+        if base_cmd == "cd":
+            return self._validate_cd_segment(segment)
+
+        return PolicyDecision(allowed=True)
+
+    def _validate_whitelist(self, command: str) -> PolicyDecision:
+        """Layer 2: Command whitelist validation for simple and chained commands."""
+        segments = self._split_command_segments(command)
+        if not segments:
+            return PolicyDecision(allowed=False, reason="Empty command")
+
+        for segment in segments:
+            result = self._validate_whitelist_segment(segment)
+            if not result.allowed:
+                return result
 
         return PolicyDecision(allowed=True)
 

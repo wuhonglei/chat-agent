@@ -10,6 +10,7 @@ import pytest
 from app.mcp.mcp_servers.shell_mcp.executor import ShellExecutor
 from app.mcp.mcp_servers.shell_mcp.shell import ShellTool
 from app.sandbox.executor import ExecutionResult
+from app.schemas.config import SandboxConfig
 
 
 @pytest.fixture
@@ -90,6 +91,35 @@ async def test_get_or_create_executor_different_workspaces(
     assert mock_initialize.await_count == 2
 
 
+def test_adapt_command_strips_cd_workspace_for_local_backend() -> None:
+    executor = ShellExecutor()
+    executor._effective_backend = "local"
+    adapted = executor._adapt_command_for_backend(
+        "cd /workspace && npx --yes create-vite@latest vite-tmp"
+    )
+    assert adapted == "npx --yes create-vite@latest vite-tmp"
+
+
+@pytest.mark.asyncio
+async def test_shell_executor_falls_back_to_local_when_docker_unavailable(
+    tmp_path: Path,
+) -> None:
+    executor = ShellExecutor()
+
+    mock_settings = MagicMock()
+    mock_settings.sandbox = SandboxConfig(backend="docker", timeout=30000)
+    with (
+        patch("app.mcp.mcp_servers.shell_mcp.executor.settings", mock_settings),
+        patch(
+            "app.mcp.mcp_servers.shell_mcp.executor.is_docker_daemon_available",
+            return_value=False,
+        ),
+    ):
+        await executor.initialize(tmp_path)
+
+    assert executor._effective_backend == "local"
+
+
 @pytest.mark.asyncio
 async def test_shell_executor_local_cwd_uses_workspace_path(tmp_path: Path) -> None:
     executor = ShellExecutor()
@@ -98,13 +128,14 @@ async def test_shell_executor_local_cwd_uses_workspace_path(tmp_path: Path) -> N
         return_value=ExecutionResult(stdout="ok", return_code=0)
     )
 
-    with patch("app.mcp.mcp_servers.shell_mcp.executor.sandbox_config") as mock_config:
-        mock_config.backend = "local"
-        mock_config.timeout = 30000
+    mock_settings = MagicMock()
+    mock_settings.sandbox = SandboxConfig(backend="local", timeout=30000)
+    with patch("app.mcp.mcp_servers.shell_mcp.executor.settings", mock_settings):
         await executor.initialize(tmp_path)
         executor._executor = mock_backend
         executor._initialized = True
         executor._workspace_path = tmp_path.resolve()
+        executor._effective_backend = "local"
 
         await executor.execute(command="pwd")
 
@@ -122,13 +153,20 @@ async def test_shell_executor_docker_cwd_uses_workspace_prefix(tmp_path: Path) -
         return_value=ExecutionResult(stdout="ok", return_code=0)
     )
 
-    with patch("app.mcp.mcp_servers.shell_mcp.executor.sandbox_config") as mock_config:
-        mock_config.backend = "docker"
-        mock_config.timeout = 30000
+    mock_settings = MagicMock()
+    mock_settings.sandbox = SandboxConfig(backend="docker", timeout=30000)
+    with (
+        patch("app.mcp.mcp_servers.shell_mcp.executor.settings", mock_settings),
+        patch(
+            "app.mcp.mcp_servers.shell_mcp.executor.is_docker_daemon_available",
+            return_value=True,
+        ),
+    ):
         await executor.initialize(tmp_path)
         executor._executor = mock_backend
         executor._initialized = True
         executor._workspace_path = tmp_path.resolve()
+        executor._effective_backend = "docker"
 
         await executor.execute(command="ls")
 

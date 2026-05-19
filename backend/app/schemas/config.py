@@ -438,6 +438,33 @@ class ChatContextConfig(BaseModel):
     )
 
 
+class SandboxConfig(BaseModel):
+    """Shell 沙箱执行配置"""
+
+    enabled: bool = Field(default=True, description="是否启用沙箱执行")
+    backend: str = Field(
+        default="docker",
+        description="沙箱后端：docker 或 local（Docker 不可用时可自动回退 local）",
+    )
+    image: str = Field(default="ubuntu:22.04", description="Docker 沙箱镜像")
+    cpu_limit: float = Field(default=1.0, description="CPU 限制（核数）")
+    memory_limit: str = Field(default="512m", description="内存限制")
+    pid_limit: int = Field(default=100, description="最大进程数")
+    timeout: int = Field(
+        default=600000,
+        description="默认超时（毫秒，最大 600000）",
+    )
+    network_enabled: bool = Field(default=False, description="Docker 沙箱是否允许网络")
+    container_pool_size: int = Field(
+        default=5,
+        description="容器预热池大小（预留，尚未实现）",
+    )
+    output_limit: int = Field(
+        default=50000,
+        description="输出截断前的最大字符数",
+    )
+
+
 class WechatConfig(BaseModel):
     """微信配置（微信开放平台网站应用）"""
 

@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from app.sandbox.config import sandbox_config
+from app.core.config import settings
 from app.sandbox.executor import ExecutionRequest, ExecutionResult, SandboxExecutor
 from app.utils.logger import logger
 
@@ -70,7 +70,7 @@ class DockerSandboxExecutor(SandboxExecutor):
 
                 # Truncate output if needed
                 output_truncated = False
-                max_output = sandbox_config.output_limit
+                max_output = settings.sandbox.output_limit
                 if len(stdout_str) + len(stderr_str) > max_output:
                     stdout_str = stdout_str[: max_output // 2]
                     stderr_str = stderr_str[: max_output // 2]
@@ -139,17 +139,17 @@ class DockerSandboxExecutor(SandboxExecutor):
             env.update(request.env)
 
         config = {
-            "image": sandbox_config.image,
+            "image": settings.sandbox.image,
             "command": ["bash", "-c", request.command],
             "working_dir": request.cwd,
             "detach": True,
             "environment": env,
             "mounts": mounts,
             # Security constraints (aligned with kimi)
-            "network_disabled": not sandbox_config.network_enabled,
-            "nano_cpus": int(sandbox_config.cpu_limit * 1e9),
-            "mem_limit": sandbox_config.memory_limit,
-            "pids_limit": sandbox_config.pid_limit,
+            "network_disabled": not settings.sandbox.network_enabled,
+            "nano_cpus": int(settings.sandbox.cpu_limit * 1e9),
+            "mem_limit": settings.sandbox.memory_limit,
+            "pids_limit": settings.sandbox.pid_limit,
             "read_only": True,  # Read-only root filesystem
             "user": "1000:1000",  # Non-root execution
             "cap_drop": ["ALL"],  # Drop all capabilities
