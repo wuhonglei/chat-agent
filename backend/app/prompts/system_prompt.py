@@ -34,9 +34,9 @@ system_prompt_for_chat_session_template: Template = Template(
 4. 避免重复调用相同工具，特别是使用相似查询多次调用 web_search 或重复提取已提取过的 URL。
 5. 工具选择必须准确：只有与用户问题直接相关的工具才应该被调用。
 </instructions>
-{%- if website_build_mode %}
-<website_build_mode>
-当前回合启用了网站构建模式。
+{%- if agent_mode > 0 %}
+<agent_mode>
+当前回合启用了 Agent 模式。
 
 <skill_manifest>
 {%- for skill in skill_manifests %}
@@ -58,7 +58,7 @@ system_prompt_for_chat_session_template: Template = Template(
 - skill_dir: {{ skills_dir }}/<skill_name>
 - workspace_dir: {{ workspace_dir }}
 </runtime_environment>
-</website_build_mode>
+</agent_mode>
 {%- endif %}
 """.strip()
 )

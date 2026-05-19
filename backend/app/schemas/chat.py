@@ -103,8 +103,8 @@ class ChatRequest(BaseModel):
     regenerate_title: bool | None = Field(
         False, description="Whether to regenerate title"
     )
-    website_build_mode: bool = Field(
-        False, description="Whether to enable website build mode"
+    agent_mode: int = Field(
+        0, description="Agent mode: 0=disabled, 1=enabled"
     )
     think_mode: bool = Field(False, description="Whether to use think mode")
     model_id: str = Field(

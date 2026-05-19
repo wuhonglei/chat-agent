@@ -43,7 +43,7 @@ export function useButtonState(
 
 const defaultFormValue: ChatInputConfig = {
   thinkMode: false,
-  websiteBuildMode: false,
+  agentMode: 0,
   modelID: "default",
 };
 

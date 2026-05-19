@@ -60,7 +60,7 @@ export interface ChatHistory {
 
 export interface ChatInputConfig {
   thinkMode: boolean;
-  websiteBuildMode: boolean;
+  agentMode: number; // 0=关闭, 1=开启
   modelID: string;
 }
 

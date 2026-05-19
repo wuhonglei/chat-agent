@@ -1,6 +1,5 @@
 """单会话 Agent：同一 messages 线程上 MCP 工具多轮 + content_blocks 流式应答。"""
 
-import sys
 from collections.abc import AsyncGenerator
 from typing import Any
 
@@ -105,11 +104,11 @@ class ChatSessionAgent(BaseAgent):
 
         skill_manifests = (
             skill_registry.list_manifests(allowed_names=DEFAULT_ALLOWED_SKILL_NAMES)
-            if chat_request.website_build_mode
+            if chat_request.agent_mode > 0
             else []
         )
         system_prompt = get_system_prompt_for_chat_session(
-            website_build_mode=chat_request.website_build_mode,
+            agent_mode=chat_request.agent_mode,
             skill_manifests=skill_manifests,
             user_id=user_id,
             workspace_id=conversation_id,
@@ -161,13 +160,13 @@ class ChatSessionAgent(BaseAgent):
 
         tools_list = list(tools)
         max_iterations_by_tool = (
-            sys.maxsize
-            if chat_request.website_build_mode
+            tool_session.AGENT_MODE_MAX_ITERATIONS
+            if chat_request.agent_mode > 0
             else tool_session.MAX_ITERATIONS_BY_TOOL
         )
         max_total_iterations = (
-            sys.maxsize
-            if chat_request.website_build_mode
+            tool_session.AGENT_MODE_MAX_ITERATIONS
+            if chat_request.agent_mode > 0
             else tool_session.MAX_TOTAL_ITERATIONS
         )
         iterations_by_tool: dict[str, int] = {
@@ -238,6 +237,8 @@ class ChatSessionAgent(BaseAgent):
         self, chat_request: ChatRequest
     ) -> list[str] | None:
         all_servers = list(self.mcp_manager.registry.get_servers())
+        if chat_request.agent_mode > 0:
+            return [s for s in all_servers if s in MCPToolSession.AGENT_MODE_MCP_SERVERS]
         return all_servers
 
     def _build_round_prompt_messages(

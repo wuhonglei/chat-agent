@@ -71,16 +71,15 @@ def get_default_system_prompt() -> str:
 
 def get_system_prompt_for_chat_session(
     *,
-    website_build_mode: bool = False,
+    agent_mode: int = 0,
     skill_manifests: Sequence[AgentSkillManifest] | None = None,
     user_id: str,
     workspace_id: str,
 ) -> str:
     """Get system prompt for final response generation."""
     runtime_environment = _get_runtime_environment(user_id, workspace_id)
-    # 统一单会话 Agent 的 system：最终回答优先 + 工具调用准则（balanced）。
     return system_prompt_for_chat_session_template.render(
-        website_build_mode=website_build_mode,
+        agent_mode=agent_mode,
         skill_manifests=skill_manifests or [],
         **runtime_environment,
     )
