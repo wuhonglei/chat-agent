@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import platform
 import subprocess
 import sys
 from collections.abc import Sequence
 from typing import Any
 
 from app.agent_skills.models import AgentSkillManifest
-from app.agent_skills.registry import SKILLS_DIR
 from app.prompts.system_prompt import (
     default_system_prompt_template,
     system_prompt_for_chat_session_template,
@@ -28,6 +26,7 @@ from app.prompts.user_prompt import (
 from app.schemas.chat import ContentBlock, KbContextBlock
 from app.schemas.user import MemorySearchItem
 from app.utils.date import get_current_datetime_str
+from app.vfs.config import vfs_config
 
 
 def _get_command_version(command: list[str]) -> str:
@@ -49,18 +48,14 @@ def _get_command_version(command: list[str]) -> str:
     return output.splitlines()[0]
 
 
-def _get_runtime_environment(user_id: str, workspace_id: str) -> dict[str, str]:
-    """Get runtime environment summary for prompts."""
-    safe_workspace_id = workspace_id.strip()
-    workspace_dir = f"data/user_data/{user_id}/workspaces/{safe_workspace_id}"
+def _get_runtime_environment() -> dict[str, str]:
+    """Get runtime environment summary for Agent mode prompts."""
     return {
-        "system_type": (
-            f"{platform.system()} {platform.release()} ({platform.machine()})"
-        ),
+        "workspace_prefix": vfs_config.workspace_prefix,
+        "skills_prefix": vfs_config.skills_prefix,
+        "uploads_prefix": vfs_config.uploads_prefix,
         "node_version": _get_command_version(["node", "--version"]),
         "python_version": sys.version.split()[0],
-        "skills_dir": str(SKILLS_DIR),
-        "workspace_dir": str(workspace_dir),
     }
 
 
@@ -73,15 +68,12 @@ def get_system_prompt_for_chat_session(
     *,
     agent_mode: int = 0,
     skill_manifests: Sequence[AgentSkillManifest] | None = None,
-    user_id: str,
-    workspace_id: str,
 ) -> str:
     """Get system prompt for final response generation."""
-    runtime_environment = _get_runtime_environment(user_id, workspace_id)
     return system_prompt_for_chat_session_template.render(
         agent_mode=agent_mode,
         skill_manifests=skill_manifests or [],
-        **runtime_environment,
+        **_get_runtime_environment(),
     )
 
 

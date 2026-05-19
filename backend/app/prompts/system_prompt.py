@@ -45,18 +45,15 @@ system_prompt_for_chat_session_template: Template = Template(
 </skill_manifest>
 
 <execution_rules>
-1. 当任务涉及前后端代码生成时，先调用 load_skill 读取对应技能，再执行文件工具。
-2. 前端代码生成流程优先参考技能 `frontend-codegen-pipeline` 的执行流程。
-3. 所有文件操作都必须限制在 skills_dir、workspace_dir 目录内，不得尝试访问其它路径。
+1. 文件工具须使用虚拟路径前缀：{{ workspace_prefix }}（读写）、{{ skills_prefix }}（只读）、{{ uploads_prefix }}（只读），不得访问其它路径。
 </execution_rules>
 
 <runtime_environment>
-- system_type: {{ system_type }}
+- workspace: {{ workspace_prefix }}
+- skills: {{ skills_prefix }}
+- uploads: {{ uploads_prefix }}
 - node_version: {{ node_version }}
 - python_version: {{ python_version }}
-- skills_dir: {{ skills_dir }}
-- skill_dir: {{ skills_dir }}/<skill_name>
-- workspace_dir: {{ workspace_dir }}
 </runtime_environment>
 </agent_mode>
 {%- endif %}

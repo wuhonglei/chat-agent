@@ -110,8 +110,6 @@ class ChatSessionAgent(BaseAgent):
         system_prompt = get_system_prompt_for_chat_session(
             agent_mode=chat_request.agent_mode,
             skill_manifests=skill_manifests,
-            user_id=user_id,
-            workspace_id=conversation_id,
         )
         server_names = self._resolve_request_mcp_servers(chat_request)
         tools = await self.mcp_manager.get_tools_for_llm(
