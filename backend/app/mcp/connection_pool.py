@@ -7,7 +7,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastmcp import Client
+from fastmcp import Client, FastMCP
 from fastmcp.client.transports import (
     FastMCPTransport,
     StdioTransport,
@@ -15,7 +15,6 @@ from fastmcp.client.transports import (
 )
 
 from app.mcp.registry import MCPRegistry
-from app.mcp.transport import is_local_fastmcp
 from app.utils.logger import logger
 
 
@@ -38,7 +37,7 @@ class MCPConnectionPool:
         for server_name, server_instance in servers.items():
             try:
                 transport: Any
-                if is_local_fastmcp(server_instance):
+                if isinstance(server_instance, FastMCP):
                     transport = FastMCPTransport(server_instance)
                     logger.info(
                         "Using FastMCPTransport for local server",
