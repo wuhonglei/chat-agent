@@ -24,7 +24,7 @@ router = APIRouter()
 @router.post("/upload")
 async def upload_chat_attachment(
     file: UploadFile = File(...),
-    conversation_id: str | None = Form(default=None),
+    conversation_id: str = Form(...),
     db: Session = Depends(get_db),
     auth_info: AuthTokenPayload = Depends(get_auth_token_info),
 ) -> ApiResponse[AttachmentBlock]:

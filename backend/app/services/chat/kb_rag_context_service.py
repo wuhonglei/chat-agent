@@ -13,16 +13,17 @@ from sqlalchemy import bindparam, text
 
 from app.core.db import engine
 from app.models.kb_file_chunk_embedding_db import EMBEDDING_DIMENSION
-from app.schemas.chat import KbContextBlock
+from app.schemas.chat import ChatMessage, ContentBlock, KbContextBlock
 from app.schemas.config import KbFileRagConfig
-from app.services.chat_upload.attachment import resolve_markdown_path_for_content_id
+from app.services.chat_upload.attachment import resolve_upload_file_path_with_legacy
 from app.utils.date import get_relative_time_diff
 from app.utils.logger import logger
+from app.utils.multimodal import resolve_storage_key_for_content_id
 
 
 @dataclass(frozen=True)
 class RetrievedChunk:
-    file_id: str
+    content_id: str
     chunk_idx: int
     chunk_content: str
     distance: float
@@ -34,7 +35,7 @@ class QueryEmbeddingProvider(Protocol):
 
 
 class KbRagContextService:
-    """基于会话内附件 file_id 集合构建 KB 上下文。"""
+    """基于会话内附件 content_id 集合构建 KB 上下文。"""
 
     def __init__(
         self, rag_config: KbFileRagConfig, embedding_service: QueryEmbeddingProvider
@@ -52,13 +53,15 @@ class KbRagContextService:
         *,
         user_id: str,
         query_text: str,
-        candidate_file_ids: set[str],
+        candidate_content_ids: set[str],
         current_turn_has_attachment: bool,
+        content_blocks: list[ContentBlock] | None = None,
+        history_messages: list[ChatMessage] | None = None,
     ) -> list[KbContextBlock] | None:
         clean_query = query_text.strip()
         if not clean_query:
             return None
-        if not candidate_file_ids:
+        if not candidate_content_ids:
             return None
 
         query_vector = await self.embedding_service.aembed_query(clean_query)
@@ -76,14 +79,14 @@ class KbRagContextService:
         chunks = await asyncio.to_thread(
             self._search_top_k_chunks,
             user_id,
-            sorted(candidate_file_ids),
+            sorted(candidate_content_ids),
             query_vector,
             self.rag_config.retrieval_top_k,
         )
         if not chunks:
             logger.info(
                 "Skip KB RAG: no matched chunks",
-                candidate_files=len(candidate_file_ids),
+                candidate_files=len(candidate_content_ids),
             )
             return None
 
@@ -103,6 +106,8 @@ class KbRagContextService:
             self._assemble_context_text,
             user_id,
             chunks,
+            content_blocks or [],
+            history_messages or [],
         )
         if not context_blocks:
             logger.info("Skip KB RAG: assembled context is empty")
@@ -117,7 +122,7 @@ class KbRagContextService:
     def _search_top_k_chunks(
         self,
         user_id: str,
-        candidate_file_ids: list[str],
+        candidate_content_ids: list[str],
         query_vector: list[float],
         top_k: int,
     ) -> list[RetrievedChunk]:
@@ -125,25 +130,25 @@ class KbRagContextService:
         statement = text(
             """
             SELECT
-                file_id,
+                content_id,
                 chunk_idx,
                 chunk_content,
                 metadata AS metadata_json,
                 (embedding_vector <=> CAST(:query_vector AS vector)) AS distance
             FROM kb_file_chunk_embeddings
             WHERE user_id = :user_id
-              AND file_id IN :file_ids
+              AND content_id IN :content_ids
             ORDER BY embedding_vector <=> CAST(:query_vector AS vector)
             LIMIT :top_k
             """
-        ).bindparams(bindparam("file_ids", expanding=True))
+        ).bindparams(bindparam("content_ids", expanding=True))
         with engine.connect() as conn:
             rows = (
                 conn.execute(
                     statement,
                     {
                         "user_id": user_id,
-                        "file_ids": candidate_file_ids,
+                        "content_ids": candidate_content_ids,
                         "query_vector": vector_literal,
                         "top_k": top_k,
                     },
@@ -153,7 +158,7 @@ class KbRagContextService:
             )
         return [
             RetrievedChunk(
-                file_id=str(row["file_id"]),
+                content_id=str(row["content_id"]),
                 chunk_idx=int(row["chunk_idx"]),
                 chunk_content=str(row["chunk_content"]),
                 distance=float(row["distance"]),
@@ -163,33 +168,42 @@ class KbRagContextService:
         ]
 
     def _assemble_context_text(
-        self, user_id: str, chunks: list[RetrievedChunk]
+        self,
+        user_id: str,
+        chunks: list[RetrievedChunk],
+        content_blocks: list[ContentBlock],
+        history_messages: list[ChatMessage],
     ) -> list[KbContextBlock]:
         grouped_chunks: dict[str, list[RetrievedChunk]] = {}
-        ordered_file_ids: list[str] = []
+        ordered_content_ids: list[str] = []
         for chunk in chunks:
-            if chunk.file_id not in grouped_chunks:
-                grouped_chunks[chunk.file_id] = []
-                ordered_file_ids.append(chunk.file_id)
-            grouped_chunks[chunk.file_id].append(chunk)
+            if chunk.content_id not in grouped_chunks:
+                grouped_chunks[chunk.content_id] = []
+                ordered_content_ids.append(chunk.content_id)
+            grouped_chunks[chunk.content_id].append(chunk)
 
         context_blocks: list[KbContextBlock] = []
-        for file_id in ordered_file_ids:
-            file_chunks = grouped_chunks[file_id]
+        for content_id in ordered_content_ids:
+            file_chunks = grouped_chunks[content_id]
             first_metadata = file_chunks[0].metadata_json
-            file_name = str(first_metadata.get("file_name") or f"{file_id}.md")
+            file_name = str(first_metadata.get("file_name") or f"{content_id}.md")
             source_token_count = int(first_metadata.get("source_token_count") or 0)
             created_at_datetime = self._extract_created_at(first_metadata)
             created_at = get_relative_time_diff(created_at_datetime)
 
             full_text: str | None = None
             if source_token_count <= self.rag_config.short_doc_max_tokens:
-                full_text = self._read_full_markdown_text(user_id, file_id)
+                full_text = self._read_full_markdown_text(
+                    user_id,
+                    content_id,
+                    content_blocks=content_blocks,
+                    history_messages=history_messages,
+                )
 
             if full_text:
                 context_blocks.append(
                     KbContextBlock(
-                        id=file_id,
+                        id=content_id,
                         name=file_name,
                         created_at=created_at,
                         content=full_text,
@@ -207,7 +221,7 @@ class KbRagContextService:
             if merged_chunk_text:
                 context_blocks.append(
                     KbContextBlock(
-                        id=file_id,
+                        id=content_id,
                         name=file_name,
                         created_at=created_at,
                         content=merged_chunk_text,
@@ -216,23 +230,36 @@ class KbRagContextService:
 
         return context_blocks
 
-    def _read_full_markdown_text(self, user_id: str, file_id: str) -> str | None:
-        markdown_path: Path | None = resolve_markdown_path_for_content_id(
-            user_id, file_id
+    def _read_full_markdown_text(
+        self,
+        user_id: str,
+        content_id: str,
+        *,
+        content_blocks: list[ContentBlock],
+        history_messages: list[ChatMessage],
+    ) -> str | None:
+        storage_key = resolve_storage_key_for_content_id(
+            content_id,
+            content_blocks=content_blocks,
+            history_messages=history_messages,
+        )
+        if storage_key is None:
+            logger.warning(
+                "KB RAG full markdown storage_key missing, fallback to chunks",
+                user_id=user_id,
+                content_id=content_id,
+            )
+            return None
+
+        markdown_path: Path | None = resolve_upload_file_path_with_legacy(
+            user_id, storage_key
         )
         if markdown_path is None:
             logger.warning(
                 "KB RAG full markdown missing, fallback to chunks",
                 user_id=user_id,
-                file_id=file_id,
-            )
-            return None
-        if not markdown_path.is_file():
-            logger.warning(
-                "KB RAG full markdown missing, fallback to chunks",
-                user_id=user_id,
-                file_id=file_id,
-                markdown_path=str(markdown_path),
+                content_id=content_id,
+                storage_key=storage_key,
             )
             return None
         try:
@@ -241,7 +268,7 @@ class KbRagContextService:
             logger.warning(
                 "KB RAG full markdown read failed, fallback to chunks",
                 user_id=user_id,
-                file_id=file_id,
+                content_id=content_id,
                 markdown_path=str(markdown_path),
                 error=exc,
             )

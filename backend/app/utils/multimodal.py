@@ -18,7 +18,10 @@ from app.schemas.chat import (
     extract_user_text,
     normalize_content_blocks,
 )
-from app.services.chat_upload.attachment import shared_upload_file_path
+from app.services.chat_upload.attachment import (
+    resolve_upload_file_path_with_legacy,
+    shared_upload_file_path,
+)
 from app.utils.logger import logger
 
 _IMAGE_PREVIEW_PATH_PATTERNS = (re.compile(r"^/api/file/preview/([^/]+)/(.+)$"),)
@@ -70,31 +73,64 @@ def extract_user_text_with_attachment_placeholder(
     return ""
 
 
-def collect_attachment_file_ids(
+def collect_attachment_content_ids(
     content_blocks: list[ContentBlock] | list[dict[str, Any]] | None,
 ) -> set[str]:
-    file_ids: set[str] = set()
+    content_ids: set[str] = set()
     for block in normalize_content_blocks(content_blocks):
         if isinstance(block, MarkdownBlock):
-            file_ids.add(block.id)
+            content_ids.add(block.id)
             continue
         if not isinstance(block, PdfBlock):
             continue
-        file_ids.add(block.id)
+        content_ids.add(block.id)
         if block.markdown is not None and block.markdown.id:
-            file_ids.add(block.markdown.id)
-    return file_ids
+            content_ids.add(block.markdown.id)
+    return content_ids
 
 
-def collect_attachment_file_ids_from_history_messages(
+def collect_attachment_content_ids_from_history_messages(
     history_messages: list[ChatMessage] | None,
 ) -> set[str]:
-    file_ids: set[str] = set()
+    content_ids: set[str] = set()
     for message in history_messages or []:
         if message.role != "user":
             continue
-        file_ids.update(collect_attachment_file_ids(message.content_blocks))
-    return file_ids
+        content_ids.update(collect_attachment_content_ids(message.content_blocks))
+    return content_ids
+
+
+def resolve_storage_key_for_content_id(
+    content_id: str,
+    *,
+    content_blocks: list[ContentBlock] | list[dict[str, Any]] | None,
+    history_messages: list[ChatMessage] | None,
+) -> str | None:
+    """在当前轮 blocks + 历史 user messages 中，按 id 查找 Markdown 的 storage_key。"""
+
+    def _lookup(blocks: list[ContentBlock] | list[dict[str, Any]] | None) -> str | None:
+        for block in normalize_content_blocks(blocks):
+            if isinstance(block, MarkdownBlock) and block.id == content_id:
+                return block.storage_key
+            if (
+                isinstance(block, PdfBlock)
+                and block.markdown is not None
+                and block.markdown.id == content_id
+            ):
+                return block.markdown.storage_key
+        return None
+
+    found = _lookup(content_blocks)
+    if found is not None:
+        return found
+
+    for message in reversed(history_messages or []):
+        if message.role != "user":
+            continue
+        found = _lookup(message.content_blocks)
+        if found is not None:
+            return found
+    return None
 
 
 def build_title_user_message_for_llm(
@@ -168,6 +204,9 @@ def _build_text_content(
     include_text_blocks: bool,
 ) -> str:
     segments: list[str] = []
+    for block in content_blocks:
+        if isinstance(block, KbContextBlock) and block.content.strip():
+            segments.append(block.content.strip())
     if leading_text and leading_text.strip():
         segments.append(leading_text.strip())
     if include_text_blocks:
@@ -215,6 +254,9 @@ def _resolve_image_path(url: str) -> Path | None:
 
     user_id = unquote(match.group(1))
     storage_key = unquote(match.group(2))
+    path = resolve_upload_file_path_with_legacy(user_id, storage_key)
+    if path is not None:
+        return path
     try:
         return shared_upload_file_path(user_id, storage_key)
     except Exception:

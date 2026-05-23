@@ -50,7 +50,7 @@ class PathResolver:
             relative_part = virtual_path[len(vfs_config.workspace_prefix) :]
             permission = PathPermission.READ_WRITE
         elif virtual_path.startswith(vfs_config.uploads_prefix):
-            base_dir = self._get_uploads_root(user_id)
+            base_dir = self._get_uploads_root(user_id, workspace_id)
             relative_part = virtual_path[len(vfs_config.uploads_prefix) :]
             permission = PathPermission.READ_ONLY
         elif virtual_path.startswith(vfs_config.skills_prefix):
@@ -107,10 +107,11 @@ class PathResolver:
         root.mkdir(parents=True, exist_ok=True)
         return root
 
-    def _get_uploads_root(self, user_id: str) -> Path:
-        """Get uploads root directory."""
+    def _get_uploads_root(self, user_id: str, workspace_id: str) -> Path:
+        """Get conversation-scoped uploads root directory."""
         safe_user_id = self._validate_id(user_id)
-        root = USER_DATA_ROOT / safe_user_id / "uploads"
+        safe_workspace_id = self._validate_id(workspace_id)
+        root = USER_DATA_ROOT / safe_user_id / "uploads" / safe_workspace_id
         root.mkdir(parents=True, exist_ok=True)
         return root
 

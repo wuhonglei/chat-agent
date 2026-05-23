@@ -103,9 +103,7 @@ class ChatRequest(BaseModel):
     regenerate_title: bool | None = Field(
         False, description="Whether to regenerate title"
     )
-    agent_mode: int = Field(
-        0, description="Agent mode: 0=disabled, 1=enabled"
-    )
+    agent_mode: int = Field(0, description="Agent mode: 0=disabled, 1=enabled")
     think_mode: bool = Field(False, description="Whether to use think mode")
     model_id: str = Field(
         default="default",
@@ -269,7 +267,7 @@ class PdfBlock(AttachmentBaseBlock):
 
 
 class KbContextBlock(BaseModel):
-    id: str = Field(..., description="附件 file_id")
+    id: str = Field(..., description="附件 content_id")
     type: Literal["kb_context"] = "kb_context"
     name: str = Field(default="", description="附件文件名")
     created_at: str | None = Field(default=None, description="附件创建相对时间")

@@ -38,7 +38,17 @@ class VirtualPathMapper:
                 return vfs_config.workspace_prefix.rstrip("/")
             return f"{vfs_config.workspace_prefix}{relative.as_posix()}"
 
-        # Check uploads
+        # Check uploads (conversation-scoped)
+        uploads_conv_root = (
+            USER_DATA_ROOT / ctx.user_id / "uploads" / ctx.workspace_id
+        ).resolve()
+        if str(physical_resolved).startswith(str(uploads_conv_root)):
+            relative = physical_resolved.relative_to(uploads_conv_root)
+            if str(relative) == ".":
+                return vfs_config.uploads_prefix.rstrip("/")
+            return f"{vfs_config.uploads_prefix}{relative.as_posix()}"
+
+        # Legacy: user-level uploads root (v2 paths during migration)
         uploads_root = (USER_DATA_ROOT / ctx.user_id / "uploads").resolve()
         if str(physical_resolved).startswith(str(uploads_root)):
             relative = physical_resolved.relative_to(uploads_root)
@@ -94,7 +104,15 @@ class VirtualPathMapper:
         if workspace_root in text:
             text = text.replace(workspace_root, vfs_config.workspace_prefix.rstrip("/"))
 
-        # Replace uploads paths
+        uploads_conv_root = str(
+            (USER_DATA_ROOT / ctx.user_id / "uploads" / ctx.workspace_id).resolve()
+        )
+        if uploads_conv_root in text:
+            text = text.replace(
+                uploads_conv_root, vfs_config.uploads_prefix.rstrip("/")
+            )
+
+        # Replace legacy user-level uploads paths
         uploads_root = str((USER_DATA_ROOT / ctx.user_id / "uploads").resolve())
         if uploads_root in text:
             text = text.replace(uploads_root, vfs_config.uploads_prefix.rstrip("/"))

@@ -5,12 +5,11 @@ from __future__ import annotations
 import re
 from pathlib import Path
 from typing import Literal
-from urllib.parse import unquote, urlparse
 
 from fastapi import HTTPException, UploadFile
-from sqlmodel import Session, select
+from sqlmodel import Session
 
-from app.models import AttachmentFileDb, ConversationAttachmentDb, ConversationDb
+from app.models import ConversationDb
 from app.schemas.chat import AttachmentBlock
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[3]
@@ -20,12 +19,22 @@ CHAT_ATTACHMENT_PREVIEW_PREFIX = "/api/file/preview"
 PDF_CONTENT_TYPE: Literal["application/pdf"] = "application/pdf"
 MARKDOWN_CONTENT_TYPE: Literal["text/markdown"] = "text/markdown"
 
-_STORAGE_KEY_RE = re.compile(
+_UUID_SEGMENT = (
+    r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+)
+_STORAGE_KEY_V3_TOP_RE = re.compile(
+    rf"^{_UUID_SEGMENT}/[^/\\]+\.(jpg|jpeg|png|gif|webp|pdf|md)$",
+    re.IGNORECASE,
+)
+_STORAGE_KEY_V3_DERIVED_RE = re.compile(
+    rf"^{_UUID_SEGMENT}/derived/[^/\\]+\.md$",
+    re.IGNORECASE,
+)
+_STORAGE_KEY_V2_RE = re.compile(
     r"^(raw|derived)/[A-Fa-f0-9][A-Fa-f0-9._-]{0,237}\.(jpg|jpeg|png|gif|webp|pdf|md)$",
     re.IGNORECASE,
 )
-_PREVIEW_PREFIX = f"{CHAT_ATTACHMENT_PREVIEW_PREFIX}/"
-STORAGE_VERSION = 2
+STORAGE_VERSION = 3
 
 _EXT_TO_MEDIA_TYPE: dict[str, str] = {
     ".jpg": "image/jpeg",
@@ -38,6 +47,19 @@ _EXT_TO_MEDIA_TYPE: dict[str, str] = {
 }
 
 _STEM_SAFE_RE = re.compile(r"[^\w\-. \u0080-\uFFFF]+", re.UNICODE)
+
+
+def _validate_id(value: str, *, label: str = "ID") -> str:
+    normalized = (value or "").strip()
+    if (
+        not normalized
+        or "/" in normalized
+        or "\\" in normalized
+        or ".." in normalized
+        or normalized.startswith(".")
+    ):
+        raise HTTPException(status_code=400, detail=f"无效的{label}")
+    return normalized
 
 
 def sanitize_upload_display_name(
@@ -66,24 +88,70 @@ def build_attachment_preview_url(user_id: str, storage_key: str) -> str:
 
 
 def get_user_shared_upload_dir(user_id: str) -> Path:
-    if not user_id or "/" in user_id or "\\" in user_id or ".." in user_id:
-        raise HTTPException(status_code=400, detail="无效的用户 ID")
-    return _BACKEND_ROOT / "data" / "user_data" / user_id / "uploads"
+    """用户 uploads 根目录（含各会话子目录）。"""
+    safe_user_id = _validate_id(user_id, label="用户 ID")
+    return _BACKEND_ROOT / "data" / "user_data" / safe_user_id / "uploads"
 
 
-def build_raw_storage_key(content_id: str, ext: str) -> str:
-    ext_norm = ext if ext.startswith(".") else f".{ext}"
-    return f"raw/{content_id}{ext_norm.lower()}"
+def get_conversation_upload_dir(user_id: str, conversation_id: str) -> Path:
+    safe_user_id = _validate_id(user_id, label="用户 ID")
+    safe_conversation_id = _validate_id(conversation_id, label="会话 ID")
+    path = (
+        _BACKEND_ROOT
+        / "data"
+        / "user_data"
+        / safe_user_id
+        / "uploads"
+        / safe_conversation_id
+    )
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 
-def build_derived_markdown_storage_key(content_id: str) -> str:
-    return f"derived/{content_id}.md"
+def build_conversation_storage_key(conversation_id: str, display_name: str) -> str:
+    safe_conversation_id = _validate_id(conversation_id, label="会话 ID")
+    if not display_name or "/" in display_name or "\\" in display_name:
+        raise HTTPException(status_code=400, detail="无效的文件名")
+    return f"{safe_conversation_id}/{display_name}"
 
 
-def shared_upload_file_path(user_id: str, storage_key: str) -> Path:
-    """校验 storage_key 并返回 uploads 下的磁盘路径。"""
-    if not _STORAGE_KEY_RE.match(storage_key):
-        raise HTTPException(status_code=404, detail="文件不存在")
+def build_derived_markdown_storage_key(
+    conversation_id: str, pdf_display_name: str
+) -> str:
+    stem = Path(pdf_display_name).stem
+    if not stem or "/" in stem or "\\" in stem:
+        raise HTTPException(status_code=400, detail="无效的文件名")
+    safe_conversation_id = _validate_id(conversation_id, label="会话 ID")
+    return f"{safe_conversation_id}/derived/{stem}.md"
+
+
+def allocate_unique_display_name(
+    user_id: str,
+    conversation_id: str,
+    display_name: str,
+) -> str:
+    upload_dir = get_conversation_upload_dir(user_id, conversation_id)
+    candidate = display_name
+    if not (upload_dir / candidate).exists():
+        return candidate
+    stem = Path(display_name).stem
+    ext = Path(display_name).suffix
+    counter = 1
+    while True:
+        candidate = f"{stem}({counter}){ext}"
+        if not (upload_dir / candidate).exists():
+            return candidate
+        counter += 1
+
+
+def _is_v3_storage_key(storage_key: str) -> bool:
+    return bool(
+        _STORAGE_KEY_V3_TOP_RE.match(storage_key)
+        or _STORAGE_KEY_V3_DERIVED_RE.match(storage_key)
+    )
+
+
+def _resolve_under_uploads(user_id: str, storage_key: str) -> Path:
     base = get_user_shared_upload_dir(user_id).resolve()
     target = (base / storage_key).resolve()
     if not str(target).startswith(str(base)):
@@ -91,159 +159,40 @@ def shared_upload_file_path(user_id: str, storage_key: str) -> Path:
     return target
 
 
-def resolve_markdown_path_for_content_id(user_id: str, content_id: str) -> Path | None:
-    """按当前 storage_key 规范查找附件 Markdown 全文。"""
-    candidates = (
-        get_user_shared_upload_dir(user_id)
-        / build_derived_markdown_storage_key(content_id),
-        get_user_shared_upload_dir(user_id) / build_raw_storage_key(content_id, ".md"),
-    )
-    for candidate in candidates:
-        try:
-            resolved = candidate.resolve()
-        except OSError:
-            continue
-        if resolved.is_file():
-            return resolved
-    return None
+def shared_upload_file_path(user_id: str, storage_key: str) -> Path:
+    """校验 v3 storage_key 并返回 uploads 下的磁盘路径。"""
+    if not _is_v3_storage_key(storage_key):
+        raise HTTPException(status_code=404, detail="文件不存在")
+    return _resolve_under_uploads(user_id, storage_key)
 
 
-def _storage_key_from_preview_url(ref: str, user_id: str) -> str | None:
-    path = urlparse(ref).path
-    prefix = f"{_PREVIEW_PREFIX}{user_id}/"
-    if not path.startswith(prefix):
+def _try_v2_hash_path(user_id: str, storage_key: str) -> Path | None:
+    if not _STORAGE_KEY_V2_RE.match(storage_key):
         return None
-    value = unquote(path[len(prefix) :])
-    return value or None
+    path = _resolve_under_uploads(user_id, storage_key)
+    return path if path.is_file() else None
 
 
-def resolve_file_ref(
-    *,
-    ref: str,
-    user_id: str,
-    conversation_id: str | None = None,
-    db: Session | None = None,
-) -> Path:
-    """解析 storage_key URL、storage_key 或内容 id 到真实文件路径。"""
-    storage_key = _storage_key_from_preview_url(ref, user_id)
-    if storage_key is None and "/" in ref:
-        storage_key = ref
-
-    if storage_key is not None:
-        if "/" in storage_key and conversation_id and db is not None:
-            mounted = db.exec(
-                select(ConversationAttachmentDb).where(
-                    ConversationAttachmentDb.conversation_id == conversation_id,
-                    ConversationAttachmentDb.user_id == user_id,
-                    ConversationAttachmentDb.storage_key == storage_key,
-                )
-            ).first()
-            if mounted is None:
-                raise HTTPException(status_code=404, detail="文件不存在")
-        path = shared_upload_file_path(user_id, storage_key)
+def resolve_upload_file_path_with_legacy(user_id: str, storage_key: str) -> Path | None:
+    """迁移窗口期：先 v3，再 v2 raw/derived hash 路径。"""
+    if _is_v3_storage_key(storage_key):
+        path = _resolve_under_uploads(user_id, storage_key)
         if path.is_file():
             return path
-        raise HTTPException(status_code=404, detail="文件不存在")
-
-    if db is not None and conversation_id:
-        mounts = db.exec(
-            select(ConversationAttachmentDb).where(
-                ConversationAttachmentDb.conversation_id == conversation_id,
-                ConversationAttachmentDb.user_id == user_id,
-            )
-        ).all()
-        for mount in mounts:
-            attachment_file = db.get(AttachmentFileDb, mount.attachment_file_id)
-            if attachment_file is None or attachment_file.content_id != ref:
-                continue
-            path = shared_upload_file_path(user_id, attachment_file.storage_key)
-            if path.is_file():
-                return path
-
-    raise HTTPException(status_code=404, detail="文件不存在")
+    return _try_v2_hash_path(user_id, storage_key)
 
 
-def upsert_attachment_file(
-    *,
+def ensure_conversation_owned(
     db: Session | None,
-    user_id: str,
-    content_id: str,
-    storage_key: str,
-    kind: str,
-    mime: str,
-    size: int,
-    display_name: str,
-    derived_from_id: str | None = None,
-    derived_kind: str | None = None,
-) -> AttachmentFileDb | None:
-    if db is None:
-        return None
-    existing = db.exec(
-        select(AttachmentFileDb).where(
-            AttachmentFileDb.user_id == user_id,
-            AttachmentFileDb.storage_key == storage_key,
-        )
-    ).first()
-    if existing is not None:
-        existing.content_id = content_id
-        existing.kind = kind
-        existing.mime = mime
-        existing.size = size
-        existing.display_name = display_name
-        existing.derived_from_id = derived_from_id
-        existing.derived_kind = derived_kind
-        existing.storage_version = STORAGE_VERSION
-        db.add(existing)
-        db.flush()
-        return existing
-
-    attachment_file = AttachmentFileDb(
-        user_id=user_id,
-        content_id=content_id,
-        storage_key=storage_key,
-        kind=kind,
-        mime=mime,
-        size=size,
-        display_name=display_name,
-        derived_from_id=derived_from_id,
-        derived_kind=derived_kind,
-        storage_version=STORAGE_VERSION,
-    )
-    db.add(attachment_file)
-    db.flush()
-    return attachment_file
-
-
-def mount_conversation_attachment(
     *,
-    db: Session | None,
     user_id: str,
-    conversation_id: str | None,
-    attachment_file: AttachmentFileDb | None,
+    conversation_id: str,
 ) -> None:
-    if db is None or conversation_id is None or attachment_file is None:
+    if db is None:
         return
     conversation = db.get(ConversationDb, conversation_id)
     if conversation is None or conversation.user_id != user_id:
         raise HTTPException(status_code=404, detail="对话不存在")
-
-    existing = db.exec(
-        select(ConversationAttachmentDb).where(
-            ConversationAttachmentDb.conversation_id == conversation_id,
-            ConversationAttachmentDb.storage_key == attachment_file.storage_key,
-        )
-    ).first()
-    if existing is not None:
-        return
-    db.add(
-        ConversationAttachmentDb(
-            conversation_id=conversation_id,
-            user_id=user_id,
-            attachment_file_id=attachment_file.id,
-            storage_key=attachment_file.storage_key,
-        )
-    )
-    db.flush()
 
 
 def media_type_for_preview(filename: str) -> str:
@@ -258,23 +207,36 @@ async def save_chat_attachment(
     *,
     user_id: str,
     file: UploadFile,
-    conversation_id: str | None = None,
+    conversation_id: str,
     db: Session | None = None,
 ) -> AttachmentBlock:
     from app.services.chat_upload.image import save_chat_image
     from app.services.chat_upload.markdown import save_chat_markdown
     from app.services.chat_upload.pdf import save_chat_pdf
 
+    if not (conversation_id or "").strip():
+        raise HTTPException(status_code=400, detail="conversation_id 为必填项")
+    ensure_conversation_owned(db, user_id=user_id, conversation_id=conversation_id)
+
     content_type = (file.content_type or "").lower()
     raw_filename = (file.filename or "").lower()
     if content_type == PDF_CONTENT_TYPE:
         return await save_chat_pdf(
-            user_id=user_id, file=file, conversation_id=conversation_id, db=db
+            user_id=user_id,
+            file=file,
+            conversation_id=conversation_id,
+            db=db,
         )
     if raw_filename.endswith(".md") or raw_filename.endswith(".markdown"):
         return await save_chat_markdown(
-            user_id=user_id, file=file, conversation_id=conversation_id, db=db
+            user_id=user_id,
+            file=file,
+            conversation_id=conversation_id,
+            db=db,
         )
     return await save_chat_image(
-        user_id=user_id, file=file, conversation_id=conversation_id, db=db
+        user_id=user_id,
+        file=file,
+        conversation_id=conversation_id,
+        db=db,
     )
