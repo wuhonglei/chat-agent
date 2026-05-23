@@ -48,14 +48,6 @@ class VirtualPathMapper:
                 return vfs_config.uploads_prefix.rstrip("/")
             return f"{vfs_config.uploads_prefix}{relative.as_posix()}"
 
-        # Legacy: user-level uploads root (v2 paths during migration)
-        uploads_root = (USER_DATA_ROOT / ctx.user_id / "uploads").resolve()
-        if str(physical_resolved).startswith(str(uploads_root)):
-            relative = physical_resolved.relative_to(uploads_root)
-            if str(relative) == ".":
-                return vfs_config.uploads_prefix.rstrip("/")
-            return f"{vfs_config.uploads_prefix}{relative.as_posix()}"
-
         # Check skills
         skills_root = SKILLS_ROOT.resolve()
         if str(physical_resolved).startswith(str(skills_root)):
@@ -111,11 +103,6 @@ class VirtualPathMapper:
             text = text.replace(
                 uploads_conv_root, vfs_config.uploads_prefix.rstrip("/")
             )
-
-        # Replace legacy user-level uploads paths
-        uploads_root = str((USER_DATA_ROOT / ctx.user_id / "uploads").resolve())
-        if uploads_root in text:
-            text = text.replace(uploads_root, vfs_config.uploads_prefix.rstrip("/"))
 
         # Replace skills paths
         skills_root = str(SKILLS_ROOT.resolve())
