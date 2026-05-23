@@ -103,14 +103,12 @@ class Context7MCPConfig(BaseModel):
     )
 
 
-class ConfluenceMCPConfig(BaseModel):
-    """Confluence MCP 配置"""
+class ZreadMCPConfig(BaseModel):
+    """Zread MCP 配置（远程 Streamable HTTP）"""
 
-    confluence_url: str = Field(description="Confluence URL")
-    confluence_personal_token: str = Field(description="Confluence Personal Token")
-    confluence_auth_type: str = Field(
-        description="Confluence 认证类型：pat, basic, oauth"
-    )
+    url: str = Field(description="Zread MCP URL")
+    headers: dict[str, str] = Field(description="Zread MCP 请求头（含 Authorization）")
+    verify_ssl: bool = Field(default=True, description="是否验证 SSL")
     cache_config: MCPCacheConfig = Field(
         default_factory=MCPCacheConfig,
         description="工具调用结果缓存配置",
@@ -185,8 +183,8 @@ class MCPConfig(BaseModel):
     context7_mcp: Context7MCPConfig = Field(
         default_factory=Context7MCPConfig  # type: ignore[arg-type]
     )
-    confluence_mcp: ConfluenceMCPConfig = Field(
-        default_factory=ConfluenceMCPConfig  # type: ignore[arg-type]
+    zread_mcp: ZreadMCPConfig = Field(
+        default_factory=ZreadMCPConfig  # type: ignore[arg-type]
     )
     weather_mcp: WeatherMCPConfig = Field(
         default_factory=WeatherMCPConfig  # type: ignore[arg-type]

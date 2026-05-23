@@ -30,10 +30,6 @@ _STORAGE_KEY_V3_DERIVED_RE = re.compile(
     rf"^{_UUID_SEGMENT}/derived/[^/\\]+\.md$",
     re.IGNORECASE,
 )
-_STORAGE_KEY_V2_RE = re.compile(
-    r"^(raw|derived)/[A-Fa-f0-9][A-Fa-f0-9._-]{0,237}\.(jpg|jpeg|png|gif|webp|pdf|md)$",
-    re.IGNORECASE,
-)
 STORAGE_VERSION = 3
 
 _EXT_TO_MEDIA_TYPE: dict[str, str] = {
@@ -166,20 +162,12 @@ def shared_upload_file_path(user_id: str, storage_key: str) -> Path:
     return _resolve_under_uploads(user_id, storage_key)
 
 
-def _try_v2_hash_path(user_id: str, storage_key: str) -> Path | None:
-    if not _STORAGE_KEY_V2_RE.match(storage_key):
+def resolve_upload_file_path(user_id: str, storage_key: str) -> Path | None:
+    """校验 v3 storage_key 并返回已存在的 uploads 磁盘路径。"""
+    if not _is_v3_storage_key(storage_key):
         return None
     path = _resolve_under_uploads(user_id, storage_key)
     return path if path.is_file() else None
-
-
-def resolve_upload_file_path_with_legacy(user_id: str, storage_key: str) -> Path | None:
-    """迁移窗口期：先 v3，再 v2 raw/derived hash 路径。"""
-    if _is_v3_storage_key(storage_key):
-        path = _resolve_under_uploads(user_id, storage_key)
-        if path.is_file():
-            return path
-    return _try_v2_hash_path(user_id, storage_key)
 
 
 def ensure_conversation_owned(

@@ -15,7 +15,7 @@ from app.core.db import engine
 from app.models.kb_file_chunk_embedding_db import EMBEDDING_DIMENSION
 from app.schemas.chat import ChatMessage, ContentBlock, KbContextBlock
 from app.schemas.config import KbFileRagConfig
-from app.services.chat_upload.attachment import resolve_upload_file_path_with_legacy
+from app.services.chat_upload.attachment import resolve_upload_file_path
 from app.utils.date import get_relative_time_diff
 from app.utils.logger import logger
 from app.utils.multimodal import resolve_storage_key_for_content_id
@@ -251,9 +251,7 @@ class KbRagContextService:
             )
             return None
 
-        markdown_path: Path | None = resolve_upload_file_path_with_legacy(
-            user_id, storage_key
-        )
+        markdown_path: Path | None = resolve_upload_file_path(user_id, storage_key)
         if markdown_path is None:
             logger.warning(
                 "KB RAG full markdown missing, fallback to chunks",
