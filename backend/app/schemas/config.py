@@ -115,20 +115,6 @@ class ZreadMCPConfig(BaseModel):
     )
 
 
-class ConfluenceMCPConfig(BaseModel):
-    """Confluence MCP 配置"""
-
-    confluence_url: str = Field(description="Confluence URL")
-    confluence_personal_token: str = Field(description="Confluence Personal Token")
-    confluence_auth_type: str = Field(
-        description="Confluence 认证类型：pat, basic, oauth"
-    )
-    cache_config: MCPCacheConfig = Field(
-        default_factory=MCPCacheConfig,
-        description="工具调用结果缓存配置",
-    )
-
-
 class WeatherMCPConfig(BaseModel):
     """Weather MCP 配置"""
 
@@ -199,9 +185,6 @@ class MCPConfig(BaseModel):
     )
     zread_mcp: ZreadMCPConfig = Field(
         default_factory=ZreadMCPConfig  # type: ignore[arg-type]
-    )
-    confluence_mcp: ConfluenceMCPConfig = Field(
-        default_factory=ConfluenceMCPConfig  # type: ignore[arg-type]
     )
     weather_mcp: WeatherMCPConfig = Field(
         default_factory=WeatherMCPConfig  # type: ignore[arg-type]

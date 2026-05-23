@@ -22,7 +22,7 @@ alwaysApply: false
 - **mypy**：类型检查（`make check`）
 
 ### 其他核心组件
-- **MCP (Model Context Protocol) / FastMCP**：MCP 客户端与多种 MCP 服务（`app/mcp/`），如 `time_mcp`、`context7_mcp`、`tavily_mcp`、`confluence_mcp` 等
+- **MCP (Model Context Protocol) / FastMCP**：MCP 客户端与多种 MCP 服务（`app/mcp/`），如 `time_mcp`、`context7_mcp`、`tavily_mcp` 等
 - **LangChain**：Agent 与工具编排（`app/agents/`）
 - **OpenAI 兼容 API**：对接 DeepSeek 等 LLM
 - **ChromaDB**：向量存储与检索

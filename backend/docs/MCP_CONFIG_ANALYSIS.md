@@ -19,8 +19,6 @@
 - `tavily-mcp`（本地 FastMCP）
 - `code-exec-mcp`（本地 FastMCP）
 
-> 说明：当前主应用不包含 `confluence_mcp` 的运行时注册。
-
 ## 3. 配置来源
 
 ### 3.1 主配置入口
@@ -59,7 +57,6 @@
 
 以下内容属于历史方案或已不适配当前代码，已从“当前实现”口径中剔除：
 
-- `confluence_mcp` 作为现网服务的描述；
 - 依赖 `inject_mcp_env_vars` 作为主加载链路的描述；
 - 与现有 `mcp_client.py` 不一致的 server 列表或初始化顺序假设。
 
