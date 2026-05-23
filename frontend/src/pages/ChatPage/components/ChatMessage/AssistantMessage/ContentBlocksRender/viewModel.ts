@@ -8,7 +8,7 @@ import {
 } from "@/interfaces/contentBlock";
 
 const START_TEXT_LENGTH_THRESHOLD = 24;
-const PROJECT_PREVIEW_TOOLS = new Set(["write_workspace_file"]);
+const PROJECT_PREVIEW_TOOLS = new Set(["write_workspace_file", "write_file"]);
 
 export type RenderableContentBlock =
   | {

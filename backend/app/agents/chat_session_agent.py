@@ -1,6 +1,5 @@
 """单会话 Agent：同一 messages 线程上 MCP 工具多轮 + content_blocks 流式应答。"""
 
-import sys
 from collections.abc import AsyncGenerator
 from typing import Any
 
@@ -19,7 +18,7 @@ from app.agents.utils.tool_call_stream import (
     merge_tool_call_deltas,
     tool_call_acc_to_openai_list,
 )
-from app.mcp.mcp_client import MCPClientManager
+from app.mcp.client import MCPClientManager
 from app.prompts.prompt_utils import (
     get_system_prompt_for_chat_session,
     get_user_message_for_tool_calls,
@@ -49,8 +48,6 @@ from app.utils.time import get_current_time, get_time_duration
 
 class ChatSessionAgent(BaseAgent):
     """合并 MCP 工具与最终应答的单会话编排。"""
-
-    AGENT_SKILLS_SERVER_NAME = "agent-skills-mcp"
 
     def __init__(
         self,
@@ -107,14 +104,12 @@ class ChatSessionAgent(BaseAgent):
 
         skill_manifests = (
             skill_registry.list_manifests(allowed_names=DEFAULT_ALLOWED_SKILL_NAMES)
-            if chat_request.website_build_mode
+            if chat_request.agent_mode > 0
             else []
         )
         system_prompt = get_system_prompt_for_chat_session(
-            website_build_mode=chat_request.website_build_mode,
+            agent_mode=chat_request.agent_mode,
             skill_manifests=skill_manifests,
-            user_id=user_id,
-            workspace_id=conversation_id,
         )
         server_names = self._resolve_request_mcp_servers(chat_request)
         tools = await self.mcp_manager.get_tools_for_llm(
@@ -163,13 +158,13 @@ class ChatSessionAgent(BaseAgent):
 
         tools_list = list(tools)
         max_iterations_by_tool = (
-            sys.maxsize
-            if chat_request.website_build_mode
+            tool_session.AGENT_MODE_MAX_ITERATIONS
+            if chat_request.agent_mode > 0
             else tool_session.MAX_ITERATIONS_BY_TOOL
         )
         max_total_iterations = (
-            sys.maxsize
-            if chat_request.website_build_mode
+            tool_session.AGENT_MODE_MAX_ITERATIONS
+            if chat_request.agent_mode > 0
             else tool_session.MAX_TOTAL_ITERATIONS
         )
         iterations_by_tool: dict[str, int] = {
@@ -239,14 +234,9 @@ class ChatSessionAgent(BaseAgent):
     def _resolve_request_mcp_servers(
         self, chat_request: ChatRequest
     ) -> list[str] | None:
-        all_servers = list(self.mcp_manager.registry.get_servers())
-        if chat_request.website_build_mode:
-            return all_servers
-        return [
-            server_name
-            for server_name in all_servers
-            if server_name != self.AGENT_SKILLS_SERVER_NAME
-        ]
+        if chat_request.agent_mode > 0:
+            return list(MCPToolSession.AGENT_MODE_SERVERS)
+        return list(MCPToolSession.NORMAL_MODE_SERVERS)
 
     def _build_round_prompt_messages(
         self, base_messages: list[dict[str, Any]]

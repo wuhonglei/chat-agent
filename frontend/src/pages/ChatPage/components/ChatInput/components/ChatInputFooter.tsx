@@ -1,6 +1,6 @@
 import SquareIcon from "@/assets/svg/SquareIcon.svg?react";
 import ThinkModeIcon from "@/assets/svg/ThinkModeIcon.svg?react";
-import WebSiteIcon from "@/assets/svg/WebSiteIcon.svg?react";
+import AgentIcon from "@/assets/svg/AgentIcon.svg?react";
 import CustomButton from "@/components/common/CustomButton";
 import { useIsSmallScreen } from "@/hooks";
 import { ArrowUpOutlined, PaperClipOutlined } from "@ant-design/icons";
@@ -52,14 +52,14 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = ({
             {isSmallScreen ? "" : "深度思考"}
           </CustomButton>
         </Form.Item>
-        <Form.Item trigger="onClick" initialValue={false} valuePropName="active" name={names.websiteBuildMode}>
+        <Form.Item trigger="onClick" initialValue={0} valuePropName="active" name={names.agentMode}>
           <CustomButton
             size={size}
             bordered={false}
-            icon={<WebSiteIcon />}
-            tooltip={isSmallScreen ? undefined : "启用 Agent Skills 网站构建模式"}
+            icon={<AgentIcon />}
+            tooltip={isSmallScreen ? undefined : "启用 Agent 模式"}
           >
-            {isSmallScreen ? "" : "网站构建"}
+            {isSmallScreen ? "" : "Agent"}
           </CustomButton>
         </Form.Item>
       </div>

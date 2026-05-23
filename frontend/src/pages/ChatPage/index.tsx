@@ -9,7 +9,7 @@ import BlockPreviewPanel from "./components/BlockPreviewPanel";
 import ChatInput from "./components/ChatInput";
 import { ChatMessageList } from "./components/ChatMessage";
 import TopHeader from "./components/TopHeader";
-import { BlockPreviewProvider } from "./context/BlockPreviewContext";
+import { BlockPreviewProvider } from "./context/BlockPreviewProvider";
 import { useBlockPreviewHandlers, useChatMessageHandlers, useHasImageMessage } from "./hooks";
 import styles from "./index.module.css";
 

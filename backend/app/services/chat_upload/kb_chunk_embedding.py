@@ -6,7 +6,7 @@ import asyncio
 from typing import Any, cast
 
 from langchain_text_splitters import MarkdownTextSplitter
-from sqlmodel import Session, delete
+from sqlmodel import Session, select
 
 from app.core.config import settings
 from app.core.db import engine
@@ -33,7 +33,7 @@ def _split_markdown_text(
 async def index_uploaded_text_chunks(
     *,
     user_id: str,
-    file_id: str,
+    content_id: str,
     text: str,
     file_name: str,
     source_kind: str,
@@ -45,6 +45,23 @@ async def index_uploaded_text_chunks(
     normalized_text = text.strip()
     if not normalized_text:
         raise KbFileChunkIndexingError("转换后的文本为空，无法生成向量")
+
+    user_id_column = cast(Any, KbFileChunkEmbeddingDb.user_id)
+    content_id_column = cast(Any, KbFileChunkEmbeddingDb.content_id)
+    with Session(engine) as session:
+        existing = session.exec(
+            select(KbFileChunkEmbeddingDb)
+            .where(user_id_column == user_id, content_id_column == content_id)
+            .limit(1)
+        ).first()
+        if existing is not None:
+            logger.info(
+                "KB file chunks indexing skipped",
+                user_id=user_id,
+                content_id=content_id,
+                embedding_skipped=True,
+            )
+            return 0
 
     rag_cfg = settings.kb_file_rag
     chunks = await asyncio.to_thread(
@@ -76,19 +93,11 @@ async def index_uploaded_text_chunks(
     }
 
     try:
-        user_id_column = cast(Any, KbFileChunkEmbeddingDb.user_id)
-        file_id_column = cast(Any, KbFileChunkEmbeddingDb.file_id)
         with Session(engine) as session:
-            session.exec(
-                delete(KbFileChunkEmbeddingDb).where(
-                    user_id_column == user_id,
-                    file_id_column == file_id,
-                )
-            )
             rows = [
                 KbFileChunkEmbeddingDb(
                     user_id=user_id,
-                    file_id=file_id,
+                    content_id=content_id,
                     chunk_idx=idx,
                     chunk_content=chunk_text,
                     embedding_vector=vectors[idx],
@@ -104,7 +113,7 @@ async def index_uploaded_text_chunks(
     logger.info(
         "KB file chunks indexed",
         user_id=user_id,
-        file_id=file_id,
+        content_id=content_id,
         chunks_count=len(chunks),
         source_token_count=source_token_count,
         source_kind=source_kind,

@@ -24,7 +24,7 @@ from app.api import (
 from app.core.config import settings
 from app.core.db import create_db_and_tables
 from app.core.jwt import initialize_jwt_manager
-from app.mcp.mcp_client import get_mcp_manager
+from app.mcp import get_mcp_manager
 from app.middleware import LoggingMiddleware
 from app.middleware.exception_handler import (
     general_exception_handler,

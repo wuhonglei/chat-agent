@@ -9,14 +9,8 @@ from starlette.responses import Response
 
 from app.utils.auth_deps import get_user_id_from_token
 from app.utils.common import gen_uuid
-from app.utils.logger import (
-    anonymous_user_id_var,
-    client_id_var,
-    client_ip_var,
-    logger,
-    request_id_var,
-    user_id_var,
-)
+from app.utils.context import set_request_context
+from app.utils.logger import logger
 from app.utils.network import get_audit_client_ip
 
 # 不需要记录日志的路径（通常是健康检查、监控等高频低价值请求）
@@ -44,23 +38,19 @@ def set_context_var(request: Request) -> None:
     Args:
         request: FastAPI 请求对象
     """
-    # 生成 request_id（所有请求都需要，用于追踪）
     request_id = request.headers.get("X-Request-ID") or gen_uuid()
-    request_id_var.set(request_id)
+    user_id = get_user_id_from_token(request.headers.get("Authorization"))
+    anonymous_user_id = request.headers.get("X-Anonymous-User-ID")
+    client_id = request.headers.get("X-Client-ID")
+    client_ip = get_audit_client_ip(request)
 
-    # 获取 user_id（所有请求都需要，用于追踪）
-    if user_id := get_user_id_from_token(request.headers.get("Authorization")):
-        user_id_var.set(user_id)
-    elif anonymous_user_id := request.headers.get("X-Anonymous-User-ID"):
-        anonymous_user_id_var.set(anonymous_user_id)
-
-    # 获取客户端 ID（所有请求都需要，用于追踪）
-    if client_id := request.headers.get("X-Client-ID"):
-        client_id_var.set(client_id)
-
-    # 获取客户端 IP（所有请求都需要，用于安全审计）
-    if client_ip := get_audit_client_ip(request):
-        client_ip_var.set(client_ip)
+    set_request_context(
+        request_id=request_id,
+        user_id=user_id,
+        anonymous_user_id=anonymous_user_id if not user_id else None,
+        client_id=client_id,
+        client_ip=client_ip,
+    )
 
 
 class LoggingMiddleware(BaseHTTPMiddleware):

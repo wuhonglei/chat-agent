@@ -21,6 +21,7 @@ from app.schemas.config import (
     LLMConfig,
     MCPConfig,
     PdfMarkdownConfig,
+    SandboxConfig,
     SecurityConfig,
     SmsConfig,
     StorageConfig,
@@ -59,6 +60,10 @@ class Settings(BaseSettings):
     kb_file_rag: KbFileRagConfig = Field(
         default_factory=KbFileRagConfig,
         description="知识库上传文件分块与 RAG 相关配置",
+    )
+    sandbox: SandboxConfig = Field(
+        default_factory=SandboxConfig,
+        description="Shell 沙箱执行配置",
     )
     wechat: WechatConfig = Field(description="微信配置")
 

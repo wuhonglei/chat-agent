@@ -1,12 +1,10 @@
 import { fetchEventSource } from "@microsoft/fetch-event-source";
-import { AxiosResponse } from "axios";
 
 import { authHeader } from "@/constants";
 import {
   ChatMessage,
   ChatModelItem,
   ChatRequest,
-  MCPConfigItem,
   MessageFeedback,
   MessageFeedbackValue,
   StreamMessage,
@@ -179,23 +177,5 @@ export const chatAPI = {
 
   streamMessageStop: async (data: StreamStopRequest): Promise<void> => {
     await apiClient.post("/chat/stream/stop", data);
-  },
-};
-
-// Health Check API
-export const healthAPI = {
-  // Health check
-  checkHealth: async (): Promise<AxiosResponse<{ status: string }>> => {
-    return await apiClient.get("/health");
-  },
-
-  // MCP health check
-  checkMCPHealth: async (): Promise<AxiosResponse<{ status: string }>> => {
-    return await apiClient.get("/health/mcp");
-  },
-
-  // MCP config
-  getMCPConfig: async (): Promise<MCPConfigItem[]> => {
-    return await apiClient.get("/health/mcp_config");
   },
 };

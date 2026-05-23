@@ -17,10 +17,10 @@ from urllib.parse import urlsplit
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse, StreamingResponse
 
-from app.mcp.mcp_servers.agent_skills_mcp.utils import resolve_workspace_path
 from app.schemas.auth import AuthTokenPayload
 from app.schemas.response import ApiResponse
 from app.utils.auth_deps import get_auth_token_info
+from app.utils.workspace import resolve_workspace_path
 
 router = APIRouter()
 

@@ -12,9 +12,10 @@ from toolz import get
 
 from app.agents.utils import TavilyResultProcessor
 from app.core.config import settings
-from app.mcp.mcp_client import MCPClientManager
+from app.mcp.client import MCPClientManager
 from app.schemas.llm import ToolResultMessage
 from app.utils.common import normalize_url
+from app.utils.context import set_request_context
 from app.utils.context_compactor import ContextCompactor
 from app.utils.logger import logger
 from app.utils.time import get_current_time, get_time_duration
@@ -26,16 +27,8 @@ class ToolExecutor:
 
     TAVILY_TOOL_NAME = "tavily-mcp"
     WEB_PAGES_EXTRACT = "web_pages_extract"
-    AGENT_SKILLS_SERVER_NAME = "agent-skills-mcp"
-    AGENT_SKILLS_WORKSPACE_TOOL_NAMES = {
-        "list_project_files",
-        "read_project_file",
-        "write_workspace_file",
-        "edit_workspace_file",
-        "delete_workspace_file",
-        "clear_workspace",
-        "run_bash",
-    }
+    FILE_MCP_SERVER_NAME = "file-mcp"
+    SHELL_MCP_SERVER_NAME = "shell-mcp"
 
     def __init__(
         self, mcp_manager: MCPClientManager, user_message: str, model_name: str
@@ -61,6 +54,9 @@ class ToolExecutor:
         self.current_user_message = user_message
         self.current_user_id = user_id
         self.current_workspace_id = workspace_id
+
+        # Set contextvars for tools to access
+        set_request_context(user_id=user_id, conversation_id=workspace_id)
 
     async def execute_tool_calls_parallel(
         self,
@@ -121,10 +117,6 @@ class ToolExecutor:
         iterations_by_tool[tool_name] -= 1
         try:
             arguments = json.loads(tool_call.function.arguments)
-            self._inject_workspace_args_for_agent_skills(
-                tool_name=tool_name,
-                arguments=arguments,
-            )
             if tool_name == self.WEB_PAGES_EXTRACT and (urls := get("urls", arguments)):
                 normalized_urls = {normalize_url(url) for url in urls if url}
                 new_urls = normalized_urls - extracted_urls
@@ -168,7 +160,10 @@ class ToolExecutor:
                 tool_call_id=tool_call.id,
             )
             server_name = self.mcp_manager.get_server_for_tool(tool_name)
-            skip_compaction = server_name == self.AGENT_SKILLS_SERVER_NAME
+            skip_compaction = server_name in (
+                self.FILE_MCP_SERVER_NAME,
+                self.SHELL_MCP_SERVER_NAME,
+            )
             if skip_compaction:
                 logger.info(
                     "Skipping tool result compaction for agent skills workspace tool",
@@ -227,24 +222,6 @@ class ToolExecutor:
                 content_length=len(str(exc)) if str(exc) else 0,
             )
             return tool_call_result_message
-
-    def _inject_workspace_args_for_agent_skills(
-        self, *, tool_name: str, arguments: dict[str, Any]
-    ) -> None:
-        server_name = self.mcp_manager.get_server_for_tool(tool_name)
-        if (
-            server_name != self.AGENT_SKILLS_SERVER_NAME
-            or tool_name not in self.AGENT_SKILLS_WORKSPACE_TOOL_NAMES
-        ):
-            return
-        if not self.current_user_id:
-            raise ValueError("current user_id is required for workspace tools")
-        if not self.current_workspace_id:
-            raise ValueError("current workspace_id is required for workspace tools")
-        # Never trust model-supplied user_id; bind to authenticated user.
-        arguments["user_id"] = self.current_user_id
-        # Never trust model-supplied workspace_id; bind to current conversation.
-        arguments["workspace_id"] = self.current_workspace_id
 
     async def _apply_tavily_compaction(
         self,

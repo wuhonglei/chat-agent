@@ -1,8 +1,10 @@
 import { useIsSmallScreen } from "@/hooks";
 import { ChatInputFormValues, SendMessageOptions } from "@/interfaces";
+import { type UserAttachmentBlock } from "@/interfaces/contentBlock";
 import { isPlainEnter } from "@/utils";
 import { Attachments, AttachmentsProps, Sender } from "@ant-design/x";
 import { useMemoizedFn } from "ahooks";
+import type { UploadFile } from "antd";
 import { App, ConfigProvider, Form, FormInstance, GetProp, GetRef } from "antd";
 import classNames from "classnames";
 import React from "react";
@@ -11,10 +13,12 @@ import ChatInputSenderHeader from "./components/ChatInputSenderHeader";
 import { names } from "./constant";
 import styles from "./css/index.module.css";
 import { useButtonState, useFormValuesChange, useModelImageSupport } from "./hooks";
+import { sortAttachmentsByImageFirst, withServerAttachmentPreview } from "./components/utils";
 import {
   CHAT_ATTACHMENT_ACCEPT,
   CHAT_ATTACHMENT_ACCEPT_PDF_ONLY,
   MAX_CHAT_ATTACHMENTS,
+  areAttachmentsReady,
   attachmentItemsHasImage,
   getAttachmentBlocks,
   getChatAttachmentValidationError,
@@ -51,6 +55,26 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const [attachmentItems, setAttachmentItems] = React.useState<GetProp<AttachmentsProps, "items">>([]);
   const senderRef = React.useRef<GetRef<typeof Sender>>(null);
   const attachmentsRef = React.useRef<GetRef<typeof Attachments>>(null);
+  const ignoreAttachmentChangeRef = React.useRef(false);
+
+  const enableAttachmentChange = useMemoizedFn(() => {
+    ignoreAttachmentChangeRef.current = false;
+  });
+
+  const handleAttachmentItemsChange = useMemoizedFn((fileList: GetProp<AttachmentsProps, "items">) => {
+    if (ignoreAttachmentChangeRef.current) {
+      return;
+    }
+    const normalizedFileList = fileList.map(file =>
+      withServerAttachmentPreview(file as UploadFile<UserAttachmentBlock>)
+    );
+    setAttachmentItems(sortAttachmentsByImageFirst(normalizedFileList));
+  });
+
+  const resetAttachments = useMemoizedFn(() => {
+    ignoreAttachmentChangeRef.current = true;
+    setAttachmentItems([]);
+  });
 
   const buttonState = useButtonState(content, isStreaming, attachmentItems);
   const isSmallScreen = useIsSmallScreen();
@@ -62,10 +86,14 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const handleSend = useMemoizedFn(() => {
     const fieldValues = form.getFieldsValue();
     const text = (fieldValues.content || "").trim();
-    const attachmentBlocks = getAttachmentBlocks(attachmentItems);
     if (!text) {
       return;
     }
+    if (!areAttachmentsReady(attachmentItems)) {
+      message.warning("附件正在上传，请稍候");
+      return;
+    }
+    const attachmentBlocks = getAttachmentBlocks(attachmentItems);
     onSend(
       {
         ...fieldValues,
@@ -74,7 +102,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
       { attachmentBlocks }
     );
     form.resetFields([names.content]);
-    setAttachmentItems([]);
+    resetAttachments();
   });
 
   const handlePressEnter = useMemoizedFn((event: React.KeyboardEvent<Element>) => {
@@ -103,6 +131,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   });
 
   const openAttachmentPicker = useMemoizedFn(() => {
+    enableAttachmentChange();
     queueMicrotask(() => {
       attachmentsRef.current?.select({
         accept: canUploadImage ? CHAT_ATTACHMENT_ACCEPT : CHAT_ATTACHMENT_ACCEPT_PDF_ONLY,
@@ -112,6 +141,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   });
 
   const handlePasteFile = useMemoizedFn((files: FileList) => {
+    enableAttachmentChange();
     let nextCount = attachmentItems.length;
     for (const file of files) {
       if (!canUploadImage && isImageFile(file)) {
@@ -152,7 +182,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
                 ensureConversationId={ensureConversationId}
                 attachmentsRef={attachmentsRef}
                 attachmentItems={attachmentItems}
-                setAttachmentItems={setAttachmentItems}
+                onAttachmentItemsChange={handleAttachmentItemsChange}
+                onAttachmentAddStart={enableAttachmentChange}
                 canUploadImage={canUploadImage}
               />
             }

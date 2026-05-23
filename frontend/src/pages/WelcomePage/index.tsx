@@ -61,7 +61,7 @@ export default function EmptyChatPage() {
   const { draftConversation, ensureDraftConversationId, publishDraftConversation } = useDraftConversation();
 
   const [form] = Form.useForm<ChatInputFormValues>();
-  const websiteBuildMode = Form.useWatch("websiteBuildMode", form);
+  const agentMode = Form.useWatch("agentMode", form);
 
   const handleMessageSend = useMemoizedFn(async (values: ChatInputFormValues, options?: SendMessageOptions) => {
     // 如果上传附件时已经创建了草稿会话，则复用该会话。
@@ -95,7 +95,7 @@ export default function EmptyChatPage() {
         <Title level={3} className="flex items-center gap-4">
           有什么我能帮你的吗？
         </Title>
-        {websiteBuildMode ? (
+        {agentMode ? (
           <Prompts
             wrap={true}
             vertical={false}

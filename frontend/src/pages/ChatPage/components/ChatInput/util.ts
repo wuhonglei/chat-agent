@@ -36,6 +36,13 @@ export function getAttachmentBlocks(items: GetProp<AttachmentsProps, "items"> | 
   return out;
 }
 
+export function areAttachmentsReady(items: GetProp<AttachmentsProps, "items"> | undefined): boolean {
+  if (!items?.length) {
+    return true;
+  }
+  return getAttachmentBlocks(items).length === items.length;
+}
+
 export function isSupportedChatAttachment(file: File) {
   const fileType = file.type.toLowerCase();
   if (isImageFile(file)) {

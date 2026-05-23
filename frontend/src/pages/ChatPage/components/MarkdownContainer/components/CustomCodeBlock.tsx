@@ -1,5 +1,5 @@
 import { useIsSmallScreen } from "@/hooks";
-import { useBlockPreview } from "@/pages/ChatPage/context/BlockPreviewContext";
+import { useBlockPreview } from "@/pages/ChatPage/context/useBlockPreview";
 import { Mermaid } from "@ant-design/x";
 import React, { memo } from "react";
 import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";

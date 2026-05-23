@@ -6,7 +6,7 @@ from openai.types.chat import ChatCompletionMessageFunctionToolCall
 
 from app.agents.tool_call_policy import ToolCallPolicy
 from app.agents.tool_executor import ToolExecutor
-from app.mcp.mcp_client import MCPClientManager
+from app.mcp.client import MCPClientManager
 from app.schemas.llm import ToolMessage, ToolResultMessage, ToolUseMessage
 
 
@@ -15,6 +15,21 @@ class MCPToolSession:
 
     MAX_TOTAL_ITERATIONS = 10
     MAX_ITERATIONS_BY_TOOL = 5
+    AGENT_MODE_MAX_ITERATIONS = 20
+    NORMAL_MODE_SERVERS = {
+        "time-mcp",
+        "weather-mcp",
+        "tavily-mcp",
+        "code-exec-mcp",
+        "context7-mcp",
+    }
+    AGENT_MODE_SERVERS = {
+        "file-mcp",
+        "shell-mcp",
+        "tavily-mcp",
+        "code-exec-mcp",
+        "context7-mcp",
+    }
 
     def __init__(
         self,

@@ -31,9 +31,9 @@ class KbFileChunkEmbeddingDb(SQLModel, table=True):
         ),
         description="用户 ID",
     )
-    file_id: str = Field(
+    content_id: str = Field(
         sa_column=Column(String(64), nullable=False, index=True),
-        description="文件内容哈希 ID",
+        description="文件内容 SHA-256",
     )
     chunk_idx: int = Field(
         sa_column=Column(Integer, nullable=False),

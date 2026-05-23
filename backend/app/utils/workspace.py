@@ -1,18 +1,29 @@
+"""Workspace utility functions for path validation and quota management."""
+
 from __future__ import annotations
 
 from pathlib import Path
 
 from app.agent_skills.registry import SKILLS_DIR
-from app.mcp.mcp_servers.agent_skills_mcp.config import (
-    DANGEROUS_BASH_PATTERNS,
-    FORBIDDEN_SEGMENTS,
-    MAX_READ_CHARS,
-    MAX_WORKSPACE_BYTES,
-    USER_DATA_ROOT,
-)
+
+FORBIDDEN_SEGMENTS = {
+    ".git",
+    ".ssh",
+    ".aws",
+    ".cursor",
+    "__pycache__",
+    ".env",
+}
+
+MAX_WORKSPACE_BYTES = 2000 * 1024 * 1024
+MAX_READ_CHARS = 200_000
+
+BACKEND_ROOT = Path(__file__).resolve().parents[2]
+USER_DATA_ROOT = BACKEND_ROOT / "data" / "user_data"
 
 
 def validate_user_id(user_id: str) -> str:
+    """Validate and normalize user_id."""
     normalized = (user_id or "").strip()
     if (
         not normalized
@@ -26,6 +37,7 @@ def validate_user_id(user_id: str) -> str:
 
 
 def validate_workspace_id(workspace_id: str) -> str:
+    """Validate and normalize workspace_id."""
     normalized = (workspace_id or "").strip()
     if (
         not normalized
@@ -39,6 +51,7 @@ def validate_workspace_id(workspace_id: str) -> str:
 
 
 def get_workspace_root(user_id: str, workspace_id: str) -> Path:
+    """Get workspace root directory, creating it if needed."""
     safe_user_id = validate_user_id(user_id)
     safe_workspace_id = validate_workspace_id(workspace_id)
     root = (USER_DATA_ROOT / safe_user_id / "workspaces" / safe_workspace_id).resolve()
@@ -47,10 +60,12 @@ def get_workspace_root(user_id: str, workspace_id: str) -> Path:
 
 
 def get_skills_root() -> Path:
+    """Get skills root directory."""
     return SKILLS_DIR.resolve()
 
 
 def _resolve_under_root(root: Path, relative_path: str) -> tuple[Path, Path]:
+    """Resolve relative path under root with security checks."""
     relative = (relative_path or "").strip()
     if not relative:
         return root, root
@@ -74,16 +89,19 @@ def _resolve_under_root(root: Path, relative_path: str) -> tuple[Path, Path]:
 def resolve_workspace_path(
     user_id: str, workspace_id: str, relative_path: str
 ) -> tuple[Path, Path]:
+    """Resolve workspace relative path with security checks."""
     root = get_workspace_root(user_id, workspace_id)
     return _resolve_under_root(root, relative_path)
 
 
 def resolve_skills_path(relative_path: str) -> tuple[Path, Path]:
+    """Resolve skills relative path with security checks."""
     root = get_skills_root()
     return _resolve_under_root(root, relative_path)
 
 
 def workspace_usage(root: Path) -> tuple[int, int]:
+    """Get workspace usage statistics."""
     file_count = 0
     total_bytes = 0
     if not root.exists():
@@ -96,6 +114,7 @@ def workspace_usage(root: Path) -> tuple[int, int]:
 
 
 def ensure_write_quota(root: Path, *, target: Path, content: str) -> None:
+    """Check write quota before writing file."""
     _, total_bytes = workspace_usage(root)
     encoded = content.encode("utf-8")
     new_size = len(encoded)
@@ -110,6 +129,7 @@ def ensure_write_quota(root: Path, *, target: Path, content: str) -> None:
 
 
 def format_usage(root: Path) -> str:
+    """Format workspace usage as string."""
     file_count, total_bytes = workspace_usage(root)
     return (
         f"workspace={root}, files={file_count}, "
@@ -118,15 +138,7 @@ def format_usage(root: Path) -> str:
 
 
 def truncate_content(content: str, *, limit: int = MAX_READ_CHARS) -> tuple[str, bool]:
+    """Truncate content to limit."""
     if len(content) <= limit:
         return content, False
     return content[:limit], True
-
-
-def ensure_safe_bash_command(command: str) -> None:
-    normalized = f" {command.strip().lower()} "
-    if not normalized.strip():
-        raise ValueError("command is empty")
-    for pattern in DANGEROUS_BASH_PATTERNS:
-        if pattern in normalized:
-            raise ValueError(f"dangerous command blocked: {pattern.strip()}")

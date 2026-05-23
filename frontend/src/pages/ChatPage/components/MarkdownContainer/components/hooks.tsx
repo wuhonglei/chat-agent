@@ -1,4 +1,4 @@
-import type { BlockPreviewContextValue } from "@/pages/ChatPage/context/BlockPreviewContext";
+import type { BlockPreviewContextValue } from "@/pages/ChatPage/context/blockPreviewContext";
 import type { CodeRuntimeLanguage } from "@/interfaces/contentBlock";
 import React, { useMemo } from "react";
 import CodeExecHeader from "./CodeExecHeader";

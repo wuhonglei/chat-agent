@@ -29,6 +29,12 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           colorText: "rgba(0,0,0,0.85)",
           colorFillContent: "rgba(0, 0, 0, 0.04)",
         },
+        components: {
+          Conversations: {
+            // 会话项与分组标题默认使用 controlHeightLG（40px），侧边栏改为 32px
+            controlHeightLG: 36,
+          },
+        },
       }}
     >
       <AntdApp>

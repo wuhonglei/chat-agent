@@ -14,12 +14,12 @@ from app.schemas.chat import ImageBlock
 from app.services.chat_upload.attachment import (
     MAX_CHAT_ATTACHMENT_BYTES,
     STORAGE_VERSION,
+    allocate_unique_display_name,
     build_attachment_preview_url,
-    build_raw_storage_key,
-    get_user_shared_upload_dir,
-    mount_conversation_attachment,
+    build_conversation_storage_key,
+    ensure_conversation_owned,
+    get_conversation_upload_dir,
     sanitize_upload_display_name,
-    upsert_attachment_file,
 )
 from app.utils.logger import logger
 
@@ -143,10 +143,12 @@ async def save_chat_image(
     *,
     user_id: str,
     file: UploadFile,
-    conversation_id: str | None = None,
+    conversation_id: str,
     db: Session | None = None,
 ) -> ImageBlock:
     """保存上传图片并返回 ImageBlock（url 为站内预览路径）。"""
+    ensure_conversation_owned(db, user_id=user_id, conversation_id=conversation_id)
+
     content_type = (file.content_type or "").lower()
     if content_type not in _ALLOWED_CONTENT_TYPES:
         raise HTTPException(
@@ -160,45 +162,27 @@ async def save_chat_image(
 
     ext = _ALLOWED_CONTENT_TYPES[content_type]
     processed = _downscale_image_bytes(chunk, ext)
-    block_id = _image_sha256_hex(processed)
-    storage_key = build_raw_storage_key(block_id, ext)
+    content_hash = _image_sha256_hex(processed)
 
-    upload_dir = get_user_shared_upload_dir(user_id)
-    dest = upload_dir / storage_key
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    if not dest.is_file():
-        dest.write_bytes(processed)
-    stored_size = len(processed)
     display_name = sanitize_upload_display_name(
         file.filename,
         ext=ext,
         default_stem="image",
     )
+    display_name = allocate_unique_display_name(user_id, conversation_id, display_name)
+    storage_key = build_conversation_storage_key(conversation_id, display_name)
+
+    upload_dir = get_conversation_upload_dir(user_id, conversation_id)
+    dest = upload_dir / display_name
+    dest.write_bytes(processed)
+    stored_size = len(processed)
 
     logger.info(
         "Chat image saved",
         user_id=user_id,
+        conversation_id=conversation_id,
         storage_key=storage_key,
         bytes=stored_size,
-    )
-
-    attachment_file = upsert_attachment_file(
-        db=db,
-        user_id=user_id,
-        content_id=block_id,
-        storage_key=storage_key,
-        kind="raw",
-        mime="image/jpeg"
-        if content_type in ("image/jpeg", "image/jpg")
-        else content_type,
-        size=stored_size,
-        display_name=display_name,
-    )
-    mount_conversation_attachment(
-        db=db,
-        user_id=user_id,
-        conversation_id=conversation_id,
-        attachment_file=attachment_file,
     )
 
     url = build_attachment_preview_url(user_id, storage_key)
@@ -206,7 +190,7 @@ async def save_chat_image(
         "image/jpeg" if content_type in ("image/jpeg", "image/jpg") else content_type
     )
     return ImageBlock(
-        id=block_id,
+        id=content_hash,
         type="image",
         url=url,
         storage_key=storage_key,
