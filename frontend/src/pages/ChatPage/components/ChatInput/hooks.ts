@@ -9,7 +9,7 @@ import { FormInstance } from "antd/es/form";
 import { isEmpty, isEqual, omit, trim } from "lodash-es";
 import { useEffect } from "react";
 import { ButtonState, names } from "./constant";
-import { getAttachmentBlocks } from "./util";
+import { areAttachmentsReady } from "./util";
 
 /**
  * 根据消息内容、附件是否可发送、是否流式传输，返回按钮状态
@@ -33,8 +33,7 @@ export function useButtonState(
   }
 
   // 所有附件都已上传完成
-  const hasReady = getAttachmentBlocks(attachmentItems).length === attachmentItems.length;
-  if (hasReady) {
+  if (areAttachmentsReady(attachmentItems)) {
     return ButtonState.Typing;
   }
 

@@ -1,18 +1,17 @@
-import { type UserAttachmentBlock } from "@/interfaces/contentBlock";
 import { fileAPI } from "@/services/file";
 import { Attachments, AttachmentsProps, Sender } from "@ant-design/x";
-import type { UploadFile } from "antd";
 import { App, GetProp, GetRef } from "antd";
 import React from "react";
 import { CHAT_ATTACHMENT_ACCEPT, MAX_CHAT_ATTACHMENTS, getChatAttachmentValidationError, isImageFile } from "../util";
-import { getChatInputAttachmentStyles, sortAttachmentsByImageFirst, withServerAttachmentPreview } from "./utils";
+import { getChatInputAttachmentStyles } from "./utils";
 
 export interface ChatInputSenderHeaderProps {
   conversationId?: string;
   ensureConversationId?: () => Promise<string>;
   attachmentsRef: React.RefObject<GetRef<typeof Attachments> | null>;
   attachmentItems: GetProp<AttachmentsProps, "items">;
-  setAttachmentItems: React.Dispatch<React.SetStateAction<GetProp<AttachmentsProps, "items">>>;
+  onAttachmentItemsChange: (fileList: GetProp<AttachmentsProps, "items">) => void;
+  onAttachmentAddStart: () => void;
   canUploadImage: boolean;
 }
 
@@ -21,7 +20,8 @@ const ChatInputSenderHeader: React.FC<ChatInputSenderHeaderProps> = ({
   ensureConversationId,
   attachmentsRef,
   attachmentItems,
-  setAttachmentItems,
+  onAttachmentItemsChange,
+  onAttachmentAddStart,
   canUploadImage,
 }) => {
   const { message } = App.useApp();
@@ -50,6 +50,7 @@ const ChatInputSenderHeader: React.FC<ChatInputSenderHeaderProps> = ({
         items={attachmentItems}
         placeholder={undefined}
         beforeUpload={file => {
+          onAttachmentAddStart();
           if (!canUploadImage && isImageFile(file as File)) {
             message.warning("当前模型不支持图片，请切换支持图片的模型后再上传");
             return false;
@@ -62,10 +63,7 @@ const ChatInputSenderHeader: React.FC<ChatInputSenderHeaderProps> = ({
           return true;
         }}
         onChange={({ fileList }) => {
-          const normalizedFileList = fileList.map(f =>
-            withServerAttachmentPreview(f as UploadFile<UserAttachmentBlock>)
-          );
-          setAttachmentItems(sortAttachmentsByImageFirst(normalizedFileList));
+          onAttachmentItemsChange(fileList);
         }}
         customRequest={async options => {
           const { file, onError, onSuccess } = options;
