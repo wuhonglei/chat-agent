@@ -22,9 +22,6 @@ class MCPRegistry:
             "context7-mcp": settings.mcp.context7_mcp.model_dump(
                 mode="json", exclude={"cache_config"}
             ),
-            "zread-mcp": settings.mcp.zread_mcp.model_dump(
-                mode="json", exclude={"cache_config"}
-            ),
             "weather-mcp": weather_mcp,
             "tavily-mcp": tavily_mcp,
             "code-exec-mcp": code_exec_mcp,
