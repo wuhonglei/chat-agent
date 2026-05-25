@@ -10,13 +10,11 @@ from openai.types.chat import ChatCompletionMessageFunctionToolCall
 from toolz import get_in
 
 from app.prompts import (
-    get_disabled_tools_message,
     get_gentle_tips_in_web_search,
     get_tool_call_sufficient_info_message,
 )
 from app.schemas.llm import ToolMessage
 from app.utils.common import normalize_url
-from app.utils.logger import logger
 from app.utils.mcp import count_tool_calls, has_tool_been_called
 from app.utils.message import update_last_user_message
 from app.utils.vocab import VocabProcessor
@@ -41,37 +39,14 @@ class ToolCallPolicy:
         self.extracted_urls = set()
         self.tool_arguments_history_by_name.clear()
 
-    def get_available_tools(
-        self, tools: list[dict[str, Any]], iterations_by_tool: dict[str, int]
-    ) -> tuple[list[dict[str, Any]], list[str]]:
-        available_tools: list[dict[str, Any]] = []
-        disabled_tools: list[str] = []
-        for tool in tools:
-            tool_name = tool.get("function", {}).get("name", "")
-            if iterations_by_tool.get(tool_name, 0) > 0:
-                available_tools.append(tool)
-            else:
-                disabled_tools.append(tool_name)
-        return available_tools, disabled_tools
-
     def apply_iteration_hints(
         self,
         *,
         messages: list[dict[str, Any]],
-        tools: list[dict[str, Any]],
-        iterations_by_tool: dict[str, int],
         tool_guided_user_message: str,
         iteration: int,
     ) -> None:
-        _, disabled_tools = self.get_available_tools(tools, iterations_by_tool)
         hint_messages: list[str] = []
-        if disabled_tools:
-            logger.info(
-                "Pre-filtered tools that reached max iterations",
-                disabled_tools=disabled_tools,
-                iteration=iteration + 1,
-            )
-            hint_messages.append(get_disabled_tools_message(disabled_tools))
         if has_tool_been_called([self.WEB_SEARCH], self.tool_round_messages):
             hint_messages.append(get_gentle_tips_in_web_search())
         if has_tool_been_called(

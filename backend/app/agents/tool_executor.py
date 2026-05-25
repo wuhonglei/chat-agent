@@ -63,7 +63,6 @@ class ToolExecutor:
         *,
         tool_calls: list[ChatCompletionMessageFunctionToolCall],
         current_iteration: int,
-        iterations_by_tool: dict[str, int],
         extracted_urls: set[str],
         on_arguments_recorded: Callable[[str, dict[str, Any], str], None],
         on_urls_extracted: Callable[[set[str]], None],
@@ -72,7 +71,6 @@ class ToolExecutor:
             self.execute_single_tool(
                 tool_call=tool_call,
                 current_iteration=current_iteration,
-                iterations_by_tool=iterations_by_tool,
                 extracted_urls=extracted_urls,
                 on_arguments_recorded=on_arguments_recorded,
                 on_urls_extracted=on_urls_extracted,
@@ -87,34 +85,12 @@ class ToolExecutor:
         *,
         tool_call: ChatCompletionMessageFunctionToolCall,
         current_iteration: int,
-        iterations_by_tool: dict[str, int],
         extracted_urls: set[str],
         on_arguments_recorded: Callable[[str, dict[str, Any], str], None],
         on_urls_extracted: Callable[[set[str]], None],
     ) -> ToolResultMessage:
         tool_name = tool_call.function.name
         start_time = get_current_time()
-        if tool_name not in iterations_by_tool:
-            logger.warning(
-                "Tool not found in iterations tracking (unexpected), initializing as exhausted",
-                tool_name=tool_name,
-                iteration=current_iteration + 1,
-            )
-            iterations_by_tool[tool_name] = 0
-        if iterations_by_tool[tool_name] <= 0:
-            logger.info(
-                "Tool max iterations reached, skipping",
-                tool_name=tool_name,
-                iteration=current_iteration + 1,
-            )
-            return ToolResultMessage(
-                role="tool",
-                is_error=True,
-                tool_call_id=tool_call.id,
-                content=f"Tool {tool_name} has hit max iterations, skipping",
-            )
-
-        iterations_by_tool[tool_name] -= 1
         try:
             arguments = json.loads(tool_call.function.arguments)
             if tool_name == self.WEB_PAGES_EXTRACT and (urls := get("urls", arguments)):

@@ -15,7 +15,6 @@ from app.prompts.system_prompt import (
 )
 from app.prompts.user_prompt import (
     WINDOW_OUT_SUMMARY_MERGE_PROMPT,
-    disabled_tools_message_template,
     gentle_tips_in_web_search_template,
     tool_call_sufficient_info_template,
     user_message_for_default_template,
@@ -146,11 +145,6 @@ def get_prompt_for_title(
         user_input, kb_context_blocks
     )
     return system_prompt, user_message_prompt
-
-
-def get_disabled_tools_message(disabled_tools: list[str]) -> str:
-    """Get disabled tools message"""
-    return disabled_tools_message_template.render(disabled_tools=disabled_tools).strip()
 
 
 def get_gentle_tips_in_web_search() -> str:
