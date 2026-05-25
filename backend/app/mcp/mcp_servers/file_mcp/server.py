@@ -31,7 +31,7 @@ _load_skill = LoadSkillTool()
 @mcp.tool(name="read_file")
 async def read_file(
     file_path: str = Field(
-        description="The virtual path to the file to read (e.g. /workspace/src/main.py, /uploads/report.pdf)"
+        description="The virtual path to the file to read (e.g. /mnt/user-data/workspace/src/main.py, /mnt/user-data/uploads/report.pdf)"
     ),
     offset: Annotated[
         int,
@@ -55,13 +55,15 @@ async def read_file(
         {"file_path": file_path, "offset": offset, "limit": limit},
         ctx,
     )
-    return ToolResult(content=result.content, structured_content=result.structured_content)
+    return ToolResult(
+        content=result.content, structured_content=result.structured_content
+    )
 
 
 @mcp.tool(name="write_file")
 async def write_file(
     file_path: str = Field(
-        description="The virtual path to the file to write (must be under /workspace/)"
+        description="The virtual path to the file to write (under /mnt/user-data/workspace/ or /mnt/user-data/outputs/)"
     ),
     content: str = Field(
         description="The content to write to the file, maxlength is 100000"
@@ -77,17 +79,15 @@ async def write_file(
         {"file_path": file_path, "content": content, "append": append},
         ctx,
     )
-    return ToolResult(content=result.content, structured_content=result.structured_content)
+    return ToolResult(
+        content=result.content, structured_content=result.structured_content
+    )
 
 
 @mcp.tool(name="edit_file")
 async def edit_file(
-    file_path: str = Field(
-        description="The virtual path to the file to modify"
-    ),
-    old_string: str = Field(
-        description="The text to replace"
-    ),
+    file_path: str = Field(description="The virtual path to the file to modify"),
+    old_string: str = Field(description="The text to replace"),
     new_string: str = Field(
         description="The text to replace it with (must be different from old_string)"
     ),
@@ -107,7 +107,9 @@ async def edit_file(
         },
         ctx,
     )
-    return ToolResult(content=result.content, structured_content=result.structured_content)
+    return ToolResult(
+        content=result.content, structured_content=result.structured_content
+    )
 
 
 @mcp.tool(name="search_files")
@@ -170,16 +172,18 @@ async def search_files(
         },
         ctx,
     )
-    return ToolResult(content=result.content, structured_content=result.structured_content)
+    return ToolResult(
+        content=result.content, structured_content=result.structured_content
+    )
 
 
 @mcp.tool(name="load_skill")
 async def load_skill(
-    name: str = Field(
-        description="The skill name (unique identifier) to load"
-    ),
+    name: str = Field(description="The skill name (unique identifier) to load"),
 ) -> ToolResult:
     """Load a skill document by name. Returns the skill's markdown content."""
     ctx = ToolContext()
     result = await _load_skill.execute({"name": name}, ctx)
-    return ToolResult(content=result.content, structured_content=result.structured_content)
+    return ToolResult(
+        content=result.content, structured_content=result.structured_content
+    )

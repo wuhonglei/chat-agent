@@ -36,7 +36,7 @@ class ToolExecutor:
         self.mcp_manager = mcp_manager
         self.current_user_message = user_message
         self.current_user_id: str | None = None
-        self.current_workspace_id: str | None = None
+        self.current_conversation_id: str | None = None
         self.tool_result_compression = settings.chat_context.tool_result_compression
         self.compactor = ContextCompactor(
             embedding_model=settings.embedding_model,
@@ -49,14 +49,14 @@ class ToolExecutor:
         self,
         user_message: str,
         user_id: str | None = None,
-        workspace_id: str | None = None,
+        conversation_id: str | None = None,
     ) -> None:
         self.current_user_message = user_message
         self.current_user_id = user_id
-        self.current_workspace_id = workspace_id
+        self.current_conversation_id = conversation_id
 
         # Set contextvars for tools to access
-        set_request_context(user_id=user_id, conversation_id=workspace_id)
+        set_request_context(user_id=user_id, conversation_id=conversation_id)
 
     async def execute_tool_calls_parallel(
         self,

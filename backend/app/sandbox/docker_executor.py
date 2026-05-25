@@ -10,6 +10,7 @@ from typing import Any
 from app.core.config import settings
 from app.sandbox.executor import ExecutionRequest, ExecutionResult, SandboxExecutor
 from app.utils.logger import logger
+from app.vfs.config import vfs_config
 
 
 class DockerSandboxExecutor(SandboxExecutor):
@@ -18,6 +19,7 @@ class DockerSandboxExecutor(SandboxExecutor):
     def __init__(self) -> None:
         self._workspace_path: Path | None = None
         self._uploads_path: Path | None = None
+        self._outputs_path: Path | None = None
 
     async def setup(self, workspace_path: Path) -> None:
         """Setup workspace path for container mounts."""
@@ -25,8 +27,13 @@ class DockerSandboxExecutor(SandboxExecutor):
         self._workspace_path.mkdir(parents=True, exist_ok=True)
 
     async def set_uploads_path(self, uploads_path: Path) -> None:
-        """Set uploads path for read-only mount."""
+        """Set conversation uploads path for read-only mount."""
         self._uploads_path = uploads_path.resolve()
+
+    async def set_outputs_path(self, outputs_path: Path) -> None:
+        """Set conversation outputs path for read-write mount."""
+        self._outputs_path = outputs_path.resolve()
+        self._outputs_path.mkdir(parents=True, exist_ok=True)
 
     async def execute(self, request: ExecutionRequest) -> ExecutionResult:
         """Execute command in Docker container with security constraints."""
@@ -42,22 +49,17 @@ class DockerSandboxExecutor(SandboxExecutor):
             import docker
 
             client = docker.from_env()
-
-            # Build container configuration
             container_config = self._build_container_config(request)
 
-            # Run container
-            timeout_sec = min(request.timeout / 1000, 600)  # max 600s
+            timeout_sec = min(request.timeout / 1000, 600)
             container = await asyncio.to_thread(
                 client.containers.run,
                 **container_config,
             )
 
             try:
-                # Wait for container to finish with timeout
                 result = await asyncio.to_thread(container.wait, timeout=timeout_sec)
 
-                # Get logs
                 stdout = await asyncio.to_thread(
                     container.logs, stdout=True, stderr=False
                 )
@@ -68,7 +70,6 @@ class DockerSandboxExecutor(SandboxExecutor):
                 stdout_str = stdout.decode("utf-8", errors="replace") if stdout else ""
                 stderr_str = stderr.decode("utf-8", errors="replace") if stderr else ""
 
-                # Truncate output if needed
                 output_truncated = False
                 max_output = settings.sandbox.output_limit
                 if len(stdout_str) + len(stderr_str) > max_output:
@@ -88,7 +89,6 @@ class DockerSandboxExecutor(SandboxExecutor):
                 )
 
             finally:
-                # Always remove container
                 try:
                     await asyncio.to_thread(container.remove, force=True)
                 except Exception:
@@ -106,60 +106,69 @@ class DockerSandboxExecutor(SandboxExecutor):
     def _build_container_config(self, request: ExecutionRequest) -> dict[str, Any]:
         """Build Docker container run configuration."""
         mounts = []
+        workspace_target = vfs_config.workspace_prefix.rstrip("/")
+        uploads_target = vfs_config.uploads_prefix.rstrip("/")
+        outputs_target = vfs_config.outputs_prefix.rstrip("/")
 
-        # Workspace mount (read-write)
         if self._workspace_path:
             mounts.append(
                 {
                     "source": str(self._workspace_path),
-                    "target": "/workspace",
+                    "target": workspace_target,
                     "type": "bind",
                     "read_only": False,
                 }
             )
 
-        # Uploads mount (read-only)
         if self._uploads_path and self._uploads_path.exists():
             mounts.append(
                 {
                     "source": str(self._uploads_path),
-                    "target": "/uploads",
+                    "target": uploads_target,
                     "type": "bind",
                     "read_only": True,
                 }
             )
 
-        # Environment variables
+        if self._outputs_path:
+            self._outputs_path.mkdir(parents=True, exist_ok=True)
+            mounts.append(
+                {
+                    "source": str(self._outputs_path),
+                    "target": outputs_target,
+                    "type": "bind",
+                    "read_only": False,
+                }
+            )
+
         env = {
-            "HOME": "/workspace",
+            "HOME": workspace_target,
             "TMPDIR": "/tmp",
             "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
         }
         if request.env:
             env.update(request.env)
 
-        config = {
+        return {
             "image": settings.sandbox.image,
             "command": ["bash", "-c", request.command],
             "working_dir": request.cwd,
             "detach": True,
             "environment": env,
             "mounts": mounts,
-            # Security constraints (aligned with kimi)
             "network_disabled": not settings.sandbox.network_enabled,
             "nano_cpus": int(settings.sandbox.cpu_limit * 1e9),
             "mem_limit": settings.sandbox.memory_limit,
             "pids_limit": settings.sandbox.pid_limit,
-            "read_only": False,  # workspace bind mount is RW; allow writes under /workspace
-            "user": "1000:1000",  # Non-root execution
-            "cap_drop": ["ALL"],  # Drop all capabilities
-            "security_opt": ["no-new-privileges"],  # Prevent privilege escalation
-            "tmpfs": {"/tmp": "size=100m"},  # Writable tmp
+            "read_only": False,
+            "user": "1000:1000",
+            "cap_drop": ["ALL"],
+            "security_opt": ["no-new-privileges"],
+            "tmpfs": {"/tmp": "size=100m"},
         }
-
-        return config
 
     async def cleanup(self) -> None:
         """Cleanup Docker resources."""
         self._workspace_path = None
         self._uploads_path = None
+        self._outputs_path = None

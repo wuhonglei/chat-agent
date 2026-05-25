@@ -30,6 +30,19 @@
 - Do **not** use `npm`/`pnpm` directly; always use `vp install`, `vp dev`, `vp lint .`, `vp build`.
 - Dev server proxies `/api` to `http://localhost:8000` (see `vite.config.ts`).
 
+### User data layout (v4)
+
+Per-user disk layout under `backend/data/user_data/{user_id}/`:
+
+```
+conversations/{conversation_id}/
+  workspace/   # Agent read/write work area
+  uploads/     # Session uploads (+ derived/ for PDF markdown)
+  outputs/     # Final deliverables
+```
+
+Agent virtual paths (not disk directory names): `/mnt/user-data/workspace/`, `/mnt/user-data/uploads/`, `/mnt/user-data/outputs/`, `/mnt/skills/`. Path helpers live in `app/vfs/paths.py`. Alembic revision `b4c5d6e7f8a9` migrates v3 `workspaces/{conv}` and `uploads/{conv}` into the layout above.
+
 ### Running tests
 
 - **Backend**: `cd backend && make lint` (ruff), `make test` (pytest, but `tests/mcp_demo/` requires real API keys—exclude with `--ignore=tests/mcp_demo`).

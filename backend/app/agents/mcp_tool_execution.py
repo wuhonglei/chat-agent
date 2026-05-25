@@ -46,10 +46,10 @@ class MCPToolSession:
         self,
         user_message: str,
         user_id: str | None = None,
-        workspace_id: str | None = None,
+        conversation_id: str | None = None,
     ) -> None:
         self.policy.reset_for_request()
-        self.executor.reset_for_request(user_message, user_id, workspace_id)
+        self.executor.reset_for_request(user_message, user_id, conversation_id)
 
     def apply_iteration_hints(
         self,

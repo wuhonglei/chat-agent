@@ -28,7 +28,7 @@ class ReadFileTool(ToolBase):
         try:
             # Resolve virtual path to physical
             physical_path = resolve_virtual_path(
-                file_path, ctx.user_id, ctx.workspace_id, PathPermission.READ_ONLY
+                file_path, ctx.user_id, ctx.conversation_id, PathPermission.READ_ONLY
             )
 
             if not physical_path.is_file():

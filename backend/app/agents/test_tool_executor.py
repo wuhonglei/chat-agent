@@ -22,12 +22,12 @@ def test_reset_for_request_sets_contextvars() -> None:
     executor.reset_for_request(
         user_message="message",
         user_id="test-user",
-        workspace_id="test-workspace",
+        conversation_id="test-conversation",
     )
 
     ctx = get_request_context()
     assert ctx.user_id == "test-user"
-    assert ctx.conversation_id == "test-workspace"
+    assert ctx.conversation_id == "test-conversation"
 
 
 def test_reset_for_request_with_none_values() -> None:
@@ -42,7 +42,7 @@ def test_reset_for_request_with_none_values() -> None:
     executor.reset_for_request(
         user_message="message",
         user_id=None,
-        workspace_id=None,
+        conversation_id=None,
     )
 
     ctx = get_request_context()

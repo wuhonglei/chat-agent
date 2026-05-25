@@ -11,6 +11,7 @@ from app.mcp.mcp_servers.file_mcp.base import ToolBase, ToolContext, ToolResult
 from app.mcp.mcp_servers.file_mcp.utils import resolve_virtual_path
 from app.utils.logger import logger
 from app.vfs.mapper import MappingContext, VirtualPathMapper
+from app.vfs.paths import get_paths
 from app.vfs.resolver import PathPermission
 
 
@@ -38,12 +39,12 @@ class SearchFilesTool(ToolBase):
             # Resolve search directory
             if path == ".":
                 # Default to workspace root
-                from app.mcp.mcp_servers.file_mcp.utils import get_workspace_root
-
-                search_dir = get_workspace_root(ctx.user_id, ctx.workspace_id)
+                search_dir = get_paths().ensure_sandbox_work_dir(
+                    ctx.user_id, ctx.conversation_id
+                )
             else:
                 search_dir = resolve_virtual_path(
-                    path, ctx.user_id, ctx.workspace_id, PathPermission.READ_ONLY
+                    path, ctx.user_id, ctx.conversation_id, PathPermission.READ_ONLY
                 )
 
             if not search_dir.exists():
@@ -53,9 +54,7 @@ class SearchFilesTool(ToolBase):
 
             # Execute search
             if target == "files":
-                results = await self._search_files(
-                    search_dir, pattern, limit, offset
-                )
+                results = await self._search_files(search_dir, pattern, limit, offset)
             else:
                 results = await self._search_content(
                     search_dir, pattern, file_glob, limit, offset, output_mode, context
@@ -64,7 +63,7 @@ class SearchFilesTool(ToolBase):
             # Replace physical paths with virtual paths
             mapper = VirtualPathMapper()
             mapping_ctx = MappingContext(
-                user_id=ctx.user_id, workspace_id=ctx.workspace_id
+                user_id=ctx.user_id, conversation_id=ctx.conversation_id
             )
 
             # Convert results to virtual paths

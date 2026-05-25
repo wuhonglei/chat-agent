@@ -51,6 +51,7 @@ def _get_runtime_environment() -> dict[str, str]:
     """Get runtime environment summary for Agent mode prompts."""
     return {
         "workspace_prefix": vfs_config.workspace_prefix,
+        "outputs_prefix": vfs_config.outputs_prefix,
         "skills_prefix": vfs_config.skills_prefix,
         "uploads_prefix": vfs_config.uploads_prefix,
         "node_version": _get_command_version(["node", "--version"]),

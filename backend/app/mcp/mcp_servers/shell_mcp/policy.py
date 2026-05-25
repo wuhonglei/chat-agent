@@ -296,10 +296,17 @@ class CommandPolicyEngine:
                 allowed=False,
                 reason="cd path traversal (..) is not allowed",
             )
-        if target.startswith("/") and not target.startswith("/workspace"):
+        from app.vfs.config import vfs_config
+
+        allowed_roots = (
+            vfs_config.workspace_prefix.rstrip("/"),
+            vfs_config.uploads_prefix.rstrip("/"),
+            vfs_config.outputs_prefix.rstrip("/"),
+        )
+        if target.startswith("/") and not target.startswith(allowed_roots):
             return PolicyDecision(
                 allowed=False,
-                reason=f"cd outside workspace is not allowed: {target}",
+                reason=f"cd outside sandbox paths is not allowed: {target}",
             )
         return PolicyDecision(allowed=True)
 

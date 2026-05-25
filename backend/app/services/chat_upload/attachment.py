@@ -11,8 +11,7 @@ from sqlmodel import Session
 
 from app.models import ConversationDb
 from app.schemas.chat import AttachmentBlock
-
-_BACKEND_ROOT = Path(__file__).resolve().parents[3]
+from app.vfs.paths import get_paths
 
 MAX_CHAT_ATTACHMENT_BYTES = 10 * 1024 * 1024  # 10 MiB
 CHAT_ATTACHMENT_PREVIEW_PREFIX = "/api/file/preview"
@@ -34,7 +33,7 @@ _STORAGE_KEY_V2_RE = re.compile(
     r"^(raw|derived)/[A-Fa-f0-9][A-Fa-f0-9._-]{0,237}\.(jpg|jpeg|png|gif|webp|pdf|md)$",
     re.IGNORECASE,
 )
-STORAGE_VERSION = 3
+STORAGE_VERSION = 4
 
 _EXT_TO_MEDIA_TYPE: dict[str, str] = {
     ".jpg": "image/jpeg",
@@ -88,22 +87,15 @@ def build_attachment_preview_url(user_id: str, storage_key: str) -> str:
 
 
 def get_user_shared_upload_dir(user_id: str) -> Path:
-    """用户 uploads 根目录（含各会话子目录）。"""
+    """Legacy uploads root (v2 flat + v3 per-conversation under ``uploads/``)."""
     safe_user_id = _validate_id(user_id, label="用户 ID")
-    return _BACKEND_ROOT / "data" / "user_data" / safe_user_id / "uploads"
+    return get_paths().legacy_user_uploads_dir(safe_user_id)
 
 
 def get_conversation_upload_dir(user_id: str, conversation_id: str) -> Path:
     safe_user_id = _validate_id(user_id, label="用户 ID")
     safe_conversation_id = _validate_id(conversation_id, label="会话 ID")
-    path = (
-        _BACKEND_ROOT
-        / "data"
-        / "user_data"
-        / safe_user_id
-        / "uploads"
-        / safe_conversation_id
-    )
+    path = get_paths().sandbox_uploads_dir(safe_user_id, safe_conversation_id)
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -151,7 +143,32 @@ def _is_v3_storage_key(storage_key: str) -> bool:
     )
 
 
+def _resolve_v4_upload_path(user_id: str, storage_key: str) -> Path | None:
+    """Resolve v3/v4 storage_key ``{conversation_id}/...`` on new layout."""
+    if not _is_v3_storage_key(storage_key):
+        return None
+    parts = storage_key.split("/", 1)
+    if len(parts) != 2:
+        return None
+    conversation_id, relative = parts[0], parts[1]
+    safe_user_id = _validate_id(user_id, label="用户 ID")
+    safe_conversation_id = _validate_id(conversation_id, label="会话 ID")
+    paths = get_paths()
+    candidates = [
+        paths.sandbox_uploads_dir(safe_user_id, safe_conversation_id) / relative,
+        paths.legacy_user_uploads_dir(safe_user_id) / storage_key,
+    ]
+    for candidate in candidates:
+        resolved = candidate.resolve()
+        if resolved.is_file():
+            return resolved
+    return None
+
+
 def _resolve_under_uploads(user_id: str, storage_key: str) -> Path:
+    v4 = _resolve_v4_upload_path(user_id, storage_key)
+    if v4 is not None:
+        return v4
     base = get_user_shared_upload_dir(user_id).resolve()
     target = (base / storage_key).resolve()
     if not str(target).startswith(str(base)):
@@ -160,10 +177,15 @@ def _resolve_under_uploads(user_id: str, storage_key: str) -> Path:
 
 
 def shared_upload_file_path(user_id: str, storage_key: str) -> Path:
-    """校验 v3 storage_key 并返回 uploads 下的磁盘路径。"""
-    if not _is_v3_storage_key(storage_key):
+    """校验 storage_key 并返回磁盘路径（v4 优先，legacy fallback）。"""
+    if _is_v3_storage_key(storage_key):
+        path = _resolve_v4_upload_path(user_id, storage_key)
+        if path is not None:
+            return path
+    path = _resolve_under_uploads(user_id, storage_key)
+    if not path.is_file():
         raise HTTPException(status_code=404, detail="文件不存在")
-    return _resolve_under_uploads(user_id, storage_key)
+    return path
 
 
 def _try_v2_hash_path(user_id: str, storage_key: str) -> Path | None:

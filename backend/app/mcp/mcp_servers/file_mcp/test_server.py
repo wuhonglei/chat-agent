@@ -9,6 +9,7 @@ from app.mcp.mcp_servers.file_mcp.edit_file import EditFileTool
 from app.mcp.mcp_servers.file_mcp.read_file import ReadFileTool
 from app.mcp.mcp_servers.file_mcp.write_file import WriteFileTool
 from app.utils.context import set_request_context
+from app.vfs.config import vfs_config
 
 
 @pytest.fixture
@@ -21,7 +22,9 @@ def ctx() -> ToolContext:
 @pytest.mark.asyncio
 async def test_read_file_not_found(ctx: ToolContext) -> None:
     tool = ReadFileTool()
-    result = await tool.execute({"file_path": "/workspace/nonexistent.txt"}, ctx)
+    result = await tool.execute(
+        {"file_path": f"{vfs_config.workspace_prefix}nonexistent.txt"}, ctx
+    )
     assert result.is_error
 
 
@@ -29,7 +32,7 @@ async def test_read_file_not_found(ctx: ToolContext) -> None:
 async def test_write_file_invalid_path(ctx: ToolContext) -> None:
     tool = WriteFileTool()
     result = await tool.execute(
-        {"file_path": "/uploads/test.txt", "content": "hello"},
+        {"file_path": f"{vfs_config.uploads_prefix}test.txt", "content": "hello"},
         ctx,
     )
     assert result.is_error
@@ -41,7 +44,7 @@ async def test_edit_file_empty_old_string(ctx: ToolContext) -> None:
     tool = EditFileTool()
     result = await tool.execute(
         {
-            "file_path": "/workspace/test.txt",
+            "file_path": f"{vfs_config.workspace_prefix}test.txt",
             "old_string": "",
             "new_string": "new",
         },
@@ -56,7 +59,7 @@ async def test_edit_file_same_strings(ctx: ToolContext) -> None:
     tool = EditFileTool()
     result = await tool.execute(
         {
-            "file_path": "/workspace/test.txt",
+            "file_path": f"{vfs_config.workspace_prefix}test.txt",
             "old_string": "same",
             "new_string": "same",
         },

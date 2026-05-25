@@ -87,8 +87,8 @@ backend/
 │   └── versions/         # 迁移版本
 ├── tests/                # 测试文件
 ├── data/                 # 数据存储
-│   ├── vectordb/         # 向量数据库存储
-│   └── temp/             # 临时文件
+│   ├── user_data/        # 用户会话工作区、上传与产出（见 app/vfs/paths.py）
+│   └── mcp_cache/        # MCP 工具结果缓存
 ├── docs/                 # 文档
 ├── pyproject.toml        # 项目依赖配置
 ├── uv.lock              # 依赖锁文件

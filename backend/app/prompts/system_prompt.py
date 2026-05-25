@@ -45,11 +45,13 @@ system_prompt_for_chat_session_template: Template = Template(
 </skill_manifest>
 
 <execution_rules>
-1. 文件工具须使用虚拟路径前缀：{{ workspace_prefix }}（读写）、{{ skills_prefix }}（只读）、{{ uploads_prefix }}（只读），不得访问其它路径。
+1. 文件工具须使用虚拟路径前缀：{{ workspace_prefix }}（读写）、{{ outputs_prefix }}（读写，最终交付物）、{{ skills_prefix }}（只读）、{{ uploads_prefix }}（只读），不得访问其它路径。
+2. 需要向用户交付的最终文件（报告、导出包等）应写入 {{ outputs_prefix }}。
 </execution_rules>
 
 <runtime_environment>
 - workspace: {{ workspace_prefix }}
+- outputs: {{ outputs_prefix }}
 - skills: {{ skills_prefix }}
 - uploads: {{ uploads_prefix }}
 - node_version: {{ node_version }}

@@ -143,7 +143,7 @@ class ChatSessionAgent(BaseAgent):
         tool_session.reset_for_request(
             user_message_text,
             user_id=user_id,
-            workspace_id=conversation_id,
+            conversation_id=conversation_id,
         )
 
         if not tools:

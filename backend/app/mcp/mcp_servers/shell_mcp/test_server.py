@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from app.mcp.mcp_servers.shell_mcp.policy import CommandPolicyEngine
+from app.vfs.config import vfs_config
 
 
 @pytest.fixture
@@ -60,8 +61,9 @@ def test_policy_npm_allowed(policy: CommandPolicyEngine) -> None:
 
 
 def test_policy_chained_vite_scaffold_command(policy: CommandPolicyEngine) -> None:
+    prefix = vfs_config.workspace_prefix.rstrip("/")
     command = (
-        "cd /workspace && npx --yes create-vite@latest vite-tmp "
+        f"cd {prefix} && npx --yes create-vite@latest vite-tmp "
         "--template react-ts --no-interactive && "
         "cp -r vite-tmp/* vite-tmp/.* . 2>/dev/null && rm -rf vite-tmp"
     )
@@ -72,7 +74,7 @@ def test_policy_chained_vite_scaffold_command(policy: CommandPolicyEngine) -> No
 def test_policy_cd_outside_workspace_blocked(policy: CommandPolicyEngine) -> None:
     result = policy.validate_command("cd /etc && ls")
     assert not result.allowed
-    assert "workspace" in (result.reason or "").lower()
+    assert "sandbox" in (result.reason or "").lower()
 
 
 def test_policy_chained_command_rejects_blocked_segment(

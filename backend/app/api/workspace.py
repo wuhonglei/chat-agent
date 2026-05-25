@@ -164,9 +164,9 @@ def _iter_workspace_files(
             yield file_path, arc_name
 
 
-@router.get("/{workspace_id}/files")
+@router.get("/{conversation_id}/files")
 async def get_workspace_files(
-    workspace_id: str,
+    conversation_id: str,
     path: str = Query(default=""),
     depth: int = Query(default=1, ge=1, le=1),
     include_ignored: bool = Query(default=False),
@@ -178,7 +178,7 @@ async def get_workspace_files(
             detail="当前接口仅支持 depth=1，请通过 path 参数懒加载子目录",
         )
     try:
-        root, target = resolve_workspace_path(auth_info.user_id, workspace_id, path)
+        root, target = resolve_workspace_path(auth_info.user_id, conversation_id, path)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     if not target.exists() or not target.is_dir():
@@ -192,7 +192,7 @@ async def get_workspace_files(
     updated_at = _iso_from_timestamp(root.stat().st_mtime) if root.exists() else None
     return ApiResponse.success(
         data={
-            "workspaceId": workspace_id,
+            "workspaceId": conversation_id,
             "path": path,
             "treeData": tree_data,
             "updatedAt": updated_at,
@@ -201,14 +201,14 @@ async def get_workspace_files(
     )
 
 
-@router.get("/{workspace_id}/file-content")
+@router.get("/{conversation_id}/file-content")
 async def get_workspace_file_content(
-    workspace_id: str,
+    conversation_id: str,
     path: str = Query(..., min_length=1),
     auth_info: AuthTokenPayload = Depends(get_auth_token_info),
 ) -> ApiResponse[dict[str, Any]]:
     try:
-        _, target = resolve_workspace_path(auth_info.user_id, workspace_id, path)
+        _, target = resolve_workspace_path(auth_info.user_id, conversation_id, path)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
@@ -230,14 +230,16 @@ async def get_workspace_file_content(
     )
 
 
-@router.get("/{workspace_id}/download")
+@router.get("/{conversation_id}/download")
 async def download_workspace(
-    workspace_id: str,
+    conversation_id: str,
     include_ignored: bool = Query(default=False),
     auth_info: AuthTokenPayload = Depends(get_auth_token_info),
 ) -> StreamingResponse:
     try:
-        workspace_root, _ = resolve_workspace_path(auth_info.user_id, workspace_id, "")
+        workspace_root, _ = resolve_workspace_path(
+            auth_info.user_id, conversation_id, ""
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     if not workspace_root.exists() or not workspace_root.is_dir():
@@ -257,7 +259,7 @@ async def download_workspace(
             zip_file.writestr("README.txt", "Workspace is empty.\n")
     zip_buffer.seek(0)
 
-    filename = f"{workspace_id}.zip"
+    filename = f"{conversation_id}.zip"
     return StreamingResponse(
         zip_buffer,
         media_type="application/zip",
@@ -265,13 +267,13 @@ async def download_workspace(
     )
 
 
-@router.get("/{user_id}/{workspace_id}/preview-content")
+@router.get("/{user_id}/{conversation_id}/preview-content")
 async def get_workspace_preview_content(
     user_id: str,
-    workspace_id: str,
+    conversation_id: str,
 ) -> HTMLResponse:
     try:
-        workspace_root, _ = resolve_workspace_path(user_id, workspace_id, "")
+        workspace_root, _ = resolve_workspace_path(user_id, conversation_id, "")
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 

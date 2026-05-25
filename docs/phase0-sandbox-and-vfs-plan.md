@@ -184,7 +184,9 @@ class ExecutionResult:
 
 挂载点：
 ```
-workspace:/workspace:rw                  # 会话工作区（读写）
+/mnt/user-data/workspace:/mnt/user-data/workspace:rw
+/mnt/user-data/uploads:/mnt/user-data/uploads:ro
+/mnt/user-data/outputs:/mnt/user-data/outputs:rw
 uploads:/uploads:ro                      # 上传文件（只读）
 ```
 
@@ -251,8 +253,10 @@ class SandboxAuditEntry:
 
 | 虚拟路径 | 物理路径 | 权限 | 说明 |
 |---------|---------|------|------|
-| `/workspace/` | `data/user_data/{uid}/workspaces/{wid}/` | 读写 | 当前会话工作区 |
-| `/uploads/` | `data/user_data/{uid}/uploads/` | 只读 | 当前会话已挂载文件（DB 查询） |
+| `/mnt/user-data/workspace/` | `data/user_data/{uid}/conversations/{conv}/workspace/` | 读写 | 当前会话工作区 |
+| `/mnt/user-data/uploads/` | `data/user_data/{uid}/conversations/{conv}/uploads/` | 只读 | 当前会话上传（含 `derived/`） |
+| `/mnt/user-data/outputs/` | `data/user_data/{uid}/conversations/{conv}/outputs/` | 读写 | 最终交付物目录 |
+| `/mnt/skills/` | `app/agent_skills/skills/` | 只读 | Agent 技能文档 |
 | `/skills/` | `app/agent_skills/skills/` | 只读 | 技能目录 |
 
 ### B2. VirtualPathMapper

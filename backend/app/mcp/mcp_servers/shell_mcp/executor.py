@@ -11,6 +11,8 @@ from app.sandbox.docker_executor import DockerSandboxExecutor
 from app.sandbox.executor import ExecutionRequest, ExecutionResult, SandboxExecutor
 from app.sandbox.local_executor import LocalSandboxExecutor
 from app.utils.logger import logger
+from app.vfs.config import vfs_config
+from app.vfs.paths import get_paths
 
 
 class ShellExecutor:
@@ -23,7 +25,6 @@ class ShellExecutor:
         self._initialized = False
 
     def _resolve_backend(self) -> str:
-        """Pick sandbox backend, falling back to local when Docker is unavailable."""
         configured = settings.sandbox.backend
         if configured == "docker" and not is_docker_daemon_available():
             logger.warning(
@@ -39,9 +40,13 @@ class ShellExecutor:
         return LocalSandboxExecutor()
 
     async def initialize(
-        self, workspace_path: Path, *, user_id: str | None = None
+        self,
+        workspace_path: Path,
+        *,
+        user_id: str | None = None,
+        conversation_id: str | None = None,
     ) -> None:
-        """Initialize the sandbox executor for a workspace path."""
+        """Initialize the sandbox executor for a conversation workspace path."""
         resolved = workspace_path.resolve()
         backend = self._resolve_backend()
 
@@ -63,10 +68,15 @@ class ShellExecutor:
         assert self._executor is not None
         await self._executor.setup(resolved)
 
-        if user_id and isinstance(self._executor, DockerSandboxExecutor):
-            from app.mcp.mcp_servers.file_mcp.utils import get_uploads_root
-
-            await self._executor.set_uploads_path(get_uploads_root(user_id))
+        if (
+            user_id
+            and conversation_id
+            and isinstance(self._executor, DockerSandboxExecutor)
+        ):
+            uploads_dir = get_paths().sandbox_uploads_dir(user_id, conversation_id)
+            outputs_dir = get_paths().sandbox_outputs_dir(user_id, conversation_id)
+            await self._executor.set_uploads_path(uploads_dir)
+            await self._executor.set_outputs_path(outputs_dir)
 
         self._workspace_path = resolved
         self._initialized = True
@@ -77,41 +87,44 @@ class ShellExecutor:
             workspace=str(resolved),
         )
 
-    def _resolve_cwd(self) -> str:
+    def _workspace_mount_prefix(self) -> str:
         if self._effective_backend == "docker":
-            return "/workspace"
+            return vfs_config.workspace_prefix.rstrip("/")
         if self._workspace_path is None:
-            return "/workspace"
+            return vfs_config.workspace_prefix.rstrip("/")
         return str(self._workspace_path)
 
+    def _resolve_cwd(self) -> str:
+        return self._workspace_mount_prefix()
+
     def _adapt_command_for_backend(self, command: str) -> str:
-        """Drop redundant /workspace cd/mkdir; cwd is already the workspace root."""
+        """Drop redundant workspace cd/mkdir; cwd is already the workspace root."""
+        prefix = re.escape(self._workspace_mount_prefix())
         adapted = command
-        # mkdir on /workspace fails on Docker read-only root or is unnecessary when mounted
         adapted = re.sub(
-            r"^\s*mkdir\s+(?:-p\s+)?/workspace\s*(?:&&|;)\s*",
+            rf"^\s*mkdir\s+(?:-p\s+)?{prefix}\s*(?:&&|;)\s*",
             "",
             adapted,
             count=1,
         )
         adapted = re.sub(
-            r"^\s*cd\s+/workspace\s*(?:&&|;)\s*",
+            rf"^\s*cd\s+{prefix}\s*(?:&&|;)\s*",
             "",
             adapted,
             count=1,
         )
-        adapted = re.sub(r"^\s*cd\s+/workspace\s*$", ".", adapted)
+        adapted = re.sub(rf"^\s*cd\s+{prefix}\s*$", ".", adapted)
         return adapted.strip() or "true"
 
     async def execute(
         self,
         command: str,
-        cwd: str = "/workspace",
+        cwd: str | None = None,
         timeout: int = 30000,
         description: str = "",
     ) -> ExecutionResult:
         """Execute a command in sandbox."""
-        _ = cwd  # cwd is derived from backend + workspace_path
+        _ = cwd
         if not self._initialized or not self._executor:
             return ExecutionResult(
                 blocked=True,

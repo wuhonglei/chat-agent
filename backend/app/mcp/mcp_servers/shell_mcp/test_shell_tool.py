@@ -11,6 +11,7 @@ from app.mcp.mcp_servers.shell_mcp.executor import ShellExecutor
 from app.mcp.mcp_servers.shell_mcp.shell import ShellTool
 from app.sandbox.executor import ExecutionResult
 from app.schemas.config import SandboxConfig
+from app.vfs.config import vfs_config
 
 
 @pytest.fixture
@@ -27,23 +28,26 @@ async def test_get_or_create_executor_missing_user_id(shell_tool: ShellTool) -> 
 
 
 @pytest.mark.asyncio
-async def test_get_or_create_executor_missing_workspace_id(
+async def test_get_or_create_executor_missing_conversation_id(
     shell_tool: ShellTool,
 ) -> None:
     executor, error = await shell_tool.get_or_create_executor("user-1", "")
     assert executor is None
     assert error is not None
-    assert "workspace_id" in error
+    assert "conversation_id" in error
 
 
 @pytest.mark.asyncio
 async def test_get_or_create_executor_initializes_once(shell_tool: ShellTool) -> None:
     workspace_path = Path("/tmp/test-workspace-shell")
 
+    mock_paths = MagicMock()
+    mock_paths.ensure_sandbox_work_dir.return_value = workspace_path
+
     with (
         patch(
-            "app.mcp.mcp_servers.shell_mcp.shell.get_workspace_root",
-            return_value=workspace_path,
+            "app.mcp.mcp_servers.shell_mcp.shell.get_paths",
+            return_value=mock_paths,
         ),
         patch.object(
             ShellExecutor, "initialize", new_callable=AsyncMock
@@ -67,15 +71,18 @@ async def test_get_or_create_executor_different_workspaces(
     path_a = Path("/tmp/ws-a")
     path_b = Path("/tmp/ws-b")
 
-    def _workspace_root(user_id: str, workspace_id: str) -> Path:
-        if workspace_id == "ws-a":
+    def _ensure_work_dir(user_id: str, conversation_id: str) -> Path:
+        if conversation_id == "ws-a":
             return path_a
         return path_b
 
+    mock_paths = MagicMock()
+    mock_paths.ensure_sandbox_work_dir.side_effect = _ensure_work_dir
+
     with (
         patch(
-            "app.mcp.mcp_servers.shell_mcp.shell.get_workspace_root",
-            side_effect=_workspace_root,
+            "app.mcp.mcp_servers.shell_mcp.shell.get_paths",
+            return_value=mock_paths,
         ),
         patch.object(
             ShellExecutor, "initialize", new_callable=AsyncMock
@@ -93,16 +100,18 @@ async def test_get_or_create_executor_different_workspaces(
 
 def test_adapt_command_strips_cd_workspace() -> None:
     executor = ShellExecutor()
+    prefix = vfs_config.workspace_prefix.rstrip("/")
     adapted = executor._adapt_command_for_backend(
-        "cd /workspace && npx --yes create-vite@latest vite-tmp"
+        f"cd {prefix} && npx --yes create-vite@latest vite-tmp"
     )
     assert adapted == "npx --yes create-vite@latest vite-tmp"
 
 
 def test_adapt_command_strips_mkdir_workspace() -> None:
     executor = ShellExecutor()
+    prefix = vfs_config.workspace_prefix.rstrip("/")
     adapted = executor._adapt_command_for_backend(
-        "mkdir -p /workspace && cd /workspace && ls"
+        f"mkdir -p {prefix} && cd {prefix} && ls"
     )
     assert adapted == "ls"
 
@@ -180,4 +189,4 @@ async def test_shell_executor_docker_cwd_uses_workspace_prefix(tmp_path: Path) -
     call_args = mock_backend.execute.await_args
     assert call_args is not None
     request = call_args[0][0]
-    assert request.cwd == "/workspace"
+    assert request.cwd == vfs_config.workspace_prefix.rstrip("/")

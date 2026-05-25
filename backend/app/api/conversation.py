@@ -18,7 +18,7 @@ from app.schemas.response import ApiResponse
 from app.services.conversation import ConversationDbService
 from app.utils.auth_deps import get_auth_token_info, require_auth
 from app.utils.logger import logger
-from app.utils.workspace import USER_DATA_ROOT, validate_user_id, validate_workspace_id
+from app.vfs.paths import get_paths
 
 router = APIRouter()
 
@@ -33,32 +33,48 @@ def _delete_conversation_workspace(user_id: str | None, conversation_id: str) ->
         return
 
     try:
-        safe_user_id = validate_user_id(user_id)
-        safe_workspace_id = validate_workspace_id(conversation_id)
+        paths = get_paths()
+        safe_user_id = paths.validate_user_id(user_id)
+        safe_conversation_id = paths.validate_conversation_id(conversation_id)
     except ValueError as exc:
         logger.warning(
-            "Skip deleting conversation workspace because path id is invalid",
+            "Skip deleting conversation data because path id is invalid",
             conversation_id=conversation_id,
             user_id=user_id,
             error=str(exc),
         )
         return
 
-    workspace_root = (
-        USER_DATA_ROOT / safe_user_id / "workspaces" / safe_workspace_id
+    conversation_root = (
+        get_paths().conversation_dir(safe_user_id, safe_conversation_id).resolve()
+    )
+    conversations_parent = get_paths().conversations_dir(safe_user_id).resolve()
+    legacy_workspace = (
+        get_paths().legacy_workspaces_dir(safe_user_id) / safe_conversation_id
     ).resolve()
-    user_workspaces_root = (USER_DATA_ROOT / safe_user_id / "workspaces").resolve()
+    legacy_uploads = (
+        get_paths().legacy_user_uploads_dir(safe_user_id) / safe_conversation_id
+    ).resolve()
+
     if (
-        workspace_root != user_workspaces_root
-        and user_workspaces_root in workspace_root.parents
+        conversation_root != conversations_parent
+        and conversations_parent in conversation_root.parents
     ):
-        shutil.rmtree(workspace_root, ignore_errors=True)
+        shutil.rmtree(conversation_root, ignore_errors=True)
         logger.info(
-            "Conversation workspace deleted",
+            "Conversation directory deleted",
             conversation_id=conversation_id,
             user_id=user_id,
-            workspace_root=str(workspace_root),
+            conversation_root=str(conversation_root),
         )
+    for legacy_path in (legacy_workspace, legacy_uploads):
+        if legacy_path.exists():
+            shutil.rmtree(legacy_path, ignore_errors=True)
+            logger.info(
+                "Legacy conversation path deleted",
+                conversation_id=conversation_id,
+                path=str(legacy_path),
+            )
 
 
 @router.post("/register")

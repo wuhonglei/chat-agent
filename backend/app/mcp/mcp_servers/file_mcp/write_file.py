@@ -5,13 +5,10 @@ from __future__ import annotations
 from typing import Any
 
 from app.mcp.mcp_servers.file_mcp.base import ToolBase, ToolContext, ToolResult
-from app.mcp.mcp_servers.file_mcp.utils import (
-    ensure_write_quota,
-    get_workspace_root,
-    resolve_virtual_path,
-)
+from app.mcp.mcp_servers.file_mcp.utils import ensure_write_quota, resolve_virtual_path
 from app.utils.logger import logger
 from app.vfs.config import vfs_config
+from app.vfs.paths import get_paths
 from app.vfs.resolver import PathPermission
 
 
@@ -38,22 +35,29 @@ class WriteFileTool(ToolBase):
             )
 
         try:
-            # Resolve virtual path - must be under /workspace/
-            if not file_path.startswith(vfs_config.workspace_prefix):
+            writable_prefixes = (
+                vfs_config.workspace_prefix,
+                vfs_config.outputs_prefix,
+            )
+            if not file_path.startswith(writable_prefixes):
                 return ToolResult(
-                    content=f"Error: Write operation only allowed under {vfs_config.workspace_prefix}",
+                    content=(
+                        "Error: Write operation only allowed under "
+                        f"{vfs_config.workspace_prefix} or {vfs_config.outputs_prefix}"
+                    ),
                     is_error=True,
                 )
 
             physical_path = resolve_virtual_path(
-                file_path, ctx.user_id, ctx.workspace_id, PathPermission.READ_WRITE
+                file_path, ctx.user_id, ctx.conversation_id, PathPermission.READ_WRITE
             )
 
-            # Get workspace root for quota check
-            workspace_root = get_workspace_root(ctx.user_id, ctx.workspace_id)
+            workspace_root = get_paths().ensure_sandbox_work_dir(
+                ctx.user_id, ctx.conversation_id
+            )
 
             # Check write quota
-            ensure_write_quota(workspace_root, physical_path, content)
+            ensure_write_quota(workspace_root, target=physical_path, content=content)
 
             # Create parent directories
             physical_path.parent.mkdir(parents=True, exist_ok=True)

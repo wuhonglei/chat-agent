@@ -4,22 +4,22 @@ overview: 将 `backend/data/user_data/<user_id>/` 改为 `conversations/<convers
 todos:
   - id: paths-module
     content: 新增 app/vfs/paths.py（Paths 类 + USER_DATA_ROOT + 会话目录布局），utils/workspace、vfs/config、attachment 改为委托
-    status: pending
+    status: completed
   - id: rename-conversation-id
     content: 后端 workspace_id 参数/字段/校验函数统一重命名为 conversation_id（含 ToolExecutor、VFS、MCP、workspace API）
-    status: pending
+    status: completed
   - id: vfs-mcp
     content: 更新 VFSConfig/resolver/mapper/uploads_provider、file MCP（含 outputs 写权限）、system_prompt
-    status: pending
+    status: completed
   - id: sandbox-docker
     content: Docker 挂载与 shell policy/executor 对齐 /mnt/user-data/*，修复会话级 uploads 挂载
-    status: pending
+    status: completed
   - id: migration-v4
     content: Alembic 数据迁移：磁盘 v3→v4 搬迁、content_blocks 虚拟路径回填、STORAGE_VERSION=4
-    status: pending
+    status: completed
   - id: tests-docs
     content: 更新/新增路径与 MCP 单测，同步 phase0 文档与 AGENTS.md
-    status: pending
+    status: completed
 isProject: false
 ---
 
