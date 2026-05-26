@@ -87,6 +87,7 @@ export default defineConfig({
       "yarn.lock",
       ".agents/**",
       ".cursor/skills/**",
+      "backend/skills/**",
       ".env",
       ".env.local",
       ".env.*.local",
@@ -104,8 +105,8 @@ export default defineConfig({
     ],
   },
   staged: {
-    "*.{ts,tsx,js,jsx}": "vp check --fix",
-    // 经脚本过滤后再 fmt，避免仅暂存 .cursor/skills 下文件时 vp fmt 无目标而失败
+    "*.{ts,tsx,js,jsx}": "bash ./scripts/vp-check-staged.sh",
+    // 经脚本过滤后再 fmt/check，避免仅暂存 skills 目录下文件时 vp 无目标而失败
     "*.{json,css,md}": "bash ./scripts/vp-fmt-staged.sh",
   },
   plugins: [

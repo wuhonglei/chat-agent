@@ -96,6 +96,7 @@ exclude = [
     "build",
     "dist",
     "tests",
+    "skills",
 ]
 
 [tool.ruff.lint]

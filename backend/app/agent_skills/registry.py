@@ -10,6 +10,7 @@ from app.agent_skills.models import (
     AgentSkillDocument,
     AgentSkillManifest,
 )
+from app.vfs.paths import SKILLS_ROOT
 
 _FRONTMATTER_RE = re.compile(
     r"\A---\n(?P<meta>.*?)\n---\n(?P<body>.*)\Z",
@@ -25,14 +26,12 @@ DEFAULT_ALLOWED_SKILL_NAMES = {
     "vite",
 }
 
-SKILLS_DIR = Path(__file__).parent / "skills"
-
 
 class AgentSkillRegistry:
     """Central registry for available and loadable skills."""
 
     def __init__(self, skills_dir: Path | None = None) -> None:
-        base_dir = skills_dir if skills_dir is not None else SKILLS_DIR
+        base_dir = skills_dir if skills_dir is not None else SKILLS_ROOT
         self.skills_dir = base_dir
         self._documents = self._load_all()
 
