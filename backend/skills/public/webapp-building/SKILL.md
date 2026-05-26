@@ -16,14 +16,14 @@ description: Tools for building modern React webapps with TypeScript, Tailwind C
 | Init script (read-only skill) | `/mnt/skills/public/webapp-building/scripts/init-webapp.sh` |
 
 - Do all temporary work under `workspace/` (source, `node_modules`, intermediate builds).
-- Copy the production `dist/` to `outputs/` when ready, then use `present_file` to show it to the user.
+- Copy the production `dist/` to `outputs/` when ready.
 
 ## Workflow
 
 1. Run `init-webapp.sh` — scaffold project in `/mnt/user-data/workspace/app/`
 2. Edit source under `src/`
 3. `pnpm run build` in the workspace project
-4. Copy `dist/` to `/mnt/user-data/outputs/app-dist/` and `present_file` the deliverable
+4. Copy `dist/` to `/mnt/user-data/outputs/app-dist/`
 
 ## Quick Start
 
@@ -88,14 +88,14 @@ cd /mnt/user-data/workspace/app && pnpm run build 2>&1
 
 ### 4. Deliver
 
-Copy the production build to outputs, then present to the user:
+Copy the production build to outputs:
 
 ```bash
 rm -rf /mnt/user-data/outputs/app-dist
-cp -r /mnt/user-data/workspace/app/dist /mnt/user-data/outputs/app-dist
+mkdir -p /mnt/user-data/outputs/app-dist
+# Copy directory contents (not the folder itself) for predictable layout.
+cp -r /mnt/user-data/workspace/app/dist/. /mnt/user-data/outputs/app-dist/
 ```
-
-Use `present_file` on files under `/mnt/user-data/outputs/app-dist/` (e.g. `index.html`).
 
 If the user needs the full source repo as a deliverable, zip or copy the workspace project into `outputs/` instead of (or in addition to) `dist/`.
 
