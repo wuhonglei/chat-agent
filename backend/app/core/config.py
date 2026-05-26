@@ -46,7 +46,10 @@ class Settings(BaseSettings):
     summarizer_model: SummarizerModelConfig = Field(description="摘要生成模型 API 配置")
     embedding_model: EmbeddingModelConfig = Field(description="Embedding 模型 API 配置")
     mcp: MCPConfig = Field(description="MCP 工具配置")
-    storage: StorageConfig = Field(description="S3 存储配置")
+    storage: StorageConfig = Field(
+        default_factory=StorageConfig,
+        description="存储配置（头像本地目录）",
+    )
     security: SecurityConfig = Field(description="JWT 安全配置")
     sms: SmsConfig = Field(description="腾讯云短信配置")
     database: DatabaseConfig = Field(description="PostgreSQL 数据库配置")

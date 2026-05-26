@@ -191,22 +191,10 @@ class MCPConfig(BaseModel):
     )
 
 
-class TencentCOSConfig(BaseModel):
-    """腾讯云 COS 存储配置"""
-
-    secret_id: str = Field(..., description="The secret ID of the storage")
-    secret_key: str = Field(..., description="The secret key of the storage")
-    region: str = Field("ap-guangzhou", description="The region of the storage")
-    bucket: str = Field("ai-chat-1258352625", description="The bucket of the storage")
-
-
 class StorageConfig(BaseModel):
-    """存储配置"""
+    """存储配置（头像本地目录）"""
 
     avatar_dir: str = "./data/avatars"
-    tencent_cos: TencentCOSConfig = Field(
-        default_factory=TencentCOSConfig  # type: ignore[arg-type]
-    )
 
 
 class JWTConfig(BaseModel):
