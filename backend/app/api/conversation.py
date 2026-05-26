@@ -49,12 +49,6 @@ def _delete_conversation_workspace(user_id: str | None, conversation_id: str) ->
         get_paths().conversation_dir(safe_user_id, safe_conversation_id).resolve()
     )
     conversations_parent = get_paths().conversations_dir(safe_user_id).resolve()
-    legacy_workspace = (
-        get_paths().legacy_workspaces_dir(safe_user_id) / safe_conversation_id
-    ).resolve()
-    legacy_uploads = (
-        get_paths().legacy_user_uploads_dir(safe_user_id) / safe_conversation_id
-    ).resolve()
 
     if (
         conversation_root != conversations_parent
@@ -67,14 +61,6 @@ def _delete_conversation_workspace(user_id: str | None, conversation_id: str) ->
             user_id=user_id,
             conversation_root=str(conversation_root),
         )
-    for legacy_path in (legacy_workspace, legacy_uploads):
-        if legacy_path.exists():
-            shutil.rmtree(legacy_path, ignore_errors=True)
-            logger.info(
-                "Legacy conversation path deleted",
-                conversation_id=conversation_id,
-                path=str(legacy_path),
-            )
 
 
 @router.post("/register")

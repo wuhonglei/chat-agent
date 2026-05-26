@@ -57,13 +57,6 @@ class VirtualPathMapper:
                 return vfs_config.outputs_prefix.rstrip("/")
             return f"{vfs_config.outputs_prefix}{relative.as_posix()}"
 
-        legacy_uploads = paths.legacy_user_uploads_dir(ctx.user_id).resolve()
-        if str(physical_resolved).startswith(str(legacy_uploads)):
-            relative = physical_resolved.relative_to(legacy_uploads)
-            if str(relative) == ".":
-                return vfs_config.uploads_prefix.rstrip("/")
-            return f"{vfs_config.uploads_prefix}{relative.as_posix()}"
-
         skills_root = SKILLS_ROOT.resolve()
         if str(physical_resolved).startswith(str(skills_root)):
             relative = physical_resolved.relative_to(skills_root)
@@ -125,10 +118,6 @@ class VirtualPathMapper:
                     ).resolve()
                 ),
                 vfs_config.outputs_prefix.rstrip("/"),
-            ),
-            (
-                str(paths.legacy_user_uploads_dir(ctx.user_id).resolve()),
-                vfs_config.uploads_prefix.rstrip("/"),
             ),
             (str(SKILLS_ROOT.resolve()), vfs_config.skills_prefix.rstrip("/")),
         )

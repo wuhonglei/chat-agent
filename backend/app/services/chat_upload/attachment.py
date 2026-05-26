@@ -21,16 +21,12 @@ MARKDOWN_CONTENT_TYPE: Literal["text/markdown"] = "text/markdown"
 _UUID_SEGMENT = (
     r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
 )
-_STORAGE_KEY_V3_TOP_RE = re.compile(
+_STORAGE_KEY_CONV_TOP_RE = re.compile(
     rf"^{_UUID_SEGMENT}/[^/\\]+\.(jpg|jpeg|png|gif|webp|pdf|md)$",
     re.IGNORECASE,
 )
-_STORAGE_KEY_V3_DERIVED_RE = re.compile(
+_STORAGE_KEY_CONV_DERIVED_RE = re.compile(
     rf"^{_UUID_SEGMENT}/derived/[^/\\]+\.md$",
-    re.IGNORECASE,
-)
-_STORAGE_KEY_V2_RE = re.compile(
-    r"^(raw|derived)/[A-Fa-f0-9][A-Fa-f0-9._-]{0,237}\.(jpg|jpeg|png|gif|webp|pdf|md)$",
     re.IGNORECASE,
 )
 STORAGE_VERSION = 4
@@ -86,12 +82,6 @@ def build_attachment_preview_url(user_id: str, storage_key: str) -> str:
     return f"{CHAT_ATTACHMENT_PREVIEW_PREFIX}/{user_id}/{storage_key}"
 
 
-def get_user_shared_upload_dir(user_id: str) -> Path:
-    """Legacy uploads root (v2 flat + v3 per-conversation under ``uploads/``)."""
-    safe_user_id = _validate_id(user_id, label="用户 ID")
-    return get_paths().legacy_user_uploads_dir(safe_user_id)
-
-
 def get_conversation_upload_dir(user_id: str, conversation_id: str) -> Path:
     safe_user_id = _validate_id(user_id, label="用户 ID")
     safe_conversation_id = _validate_id(conversation_id, label="会话 ID")
@@ -136,16 +126,16 @@ def allocate_unique_display_name(
         counter += 1
 
 
-def _is_v3_storage_key(storage_key: str) -> bool:
+def _is_conversation_storage_key(storage_key: str) -> bool:
     return bool(
-        _STORAGE_KEY_V3_TOP_RE.match(storage_key)
-        or _STORAGE_KEY_V3_DERIVED_RE.match(storage_key)
+        _STORAGE_KEY_CONV_TOP_RE.match(storage_key)
+        or _STORAGE_KEY_CONV_DERIVED_RE.match(storage_key)
     )
 
 
-def _resolve_v4_upload_path(user_id: str, storage_key: str) -> Path | None:
-    """Resolve v3/v4 storage_key ``{conversation_id}/...`` on new layout."""
-    if not _is_v3_storage_key(storage_key):
+def _resolve_conversation_upload_path(user_id: str, storage_key: str) -> Path | None:
+    """Resolve storage_key ``{conversation_id}/...`` on v4 layout."""
+    if not _is_conversation_storage_key(storage_key):
         return None
     parts = storage_key.split("/", 1)
     if len(parts) != 2:
@@ -153,55 +143,26 @@ def _resolve_v4_upload_path(user_id: str, storage_key: str) -> Path | None:
     conversation_id, relative = parts[0], parts[1]
     safe_user_id = _validate_id(user_id, label="用户 ID")
     safe_conversation_id = _validate_id(conversation_id, label="会话 ID")
-    paths = get_paths()
-    candidates = [
-        paths.sandbox_uploads_dir(safe_user_id, safe_conversation_id) / relative,
-        paths.legacy_user_uploads_dir(safe_user_id) / storage_key,
-    ]
-    for candidate in candidates:
-        resolved = candidate.resolve()
-        if resolved.is_file():
-            return resolved
+    candidate = (
+        get_paths().sandbox_uploads_dir(safe_user_id, safe_conversation_id) / relative
+    )
+    resolved = candidate.resolve()
+    if resolved.is_file():
+        return resolved
     return None
 
 
-def _resolve_under_uploads(user_id: str, storage_key: str) -> Path:
-    v4 = _resolve_v4_upload_path(user_id, storage_key)
-    if v4 is not None:
-        return v4
-    base = get_user_shared_upload_dir(user_id).resolve()
-    target = (base / storage_key).resolve()
-    if not str(target).startswith(str(base)):
-        raise HTTPException(status_code=404, detail="文件不存在")
-    return target
-
-
 def shared_upload_file_path(user_id: str, storage_key: str) -> Path:
-    """校验 storage_key 并返回磁盘路径（v4 优先，legacy fallback）。"""
-    if _is_v3_storage_key(storage_key):
-        path = _resolve_v4_upload_path(user_id, storage_key)
-        if path is not None:
-            return path
-    path = _resolve_under_uploads(user_id, storage_key)
-    if not path.is_file():
+    """校验 storage_key 并返回磁盘路径。"""
+    path = _resolve_conversation_upload_path(user_id, storage_key)
+    if path is None:
         raise HTTPException(status_code=404, detail="文件不存在")
     return path
 
 
-def _try_v2_hash_path(user_id: str, storage_key: str) -> Path | None:
-    if not _STORAGE_KEY_V2_RE.match(storage_key):
-        return None
-    path = _resolve_under_uploads(user_id, storage_key)
-    return path if path.is_file() else None
-
-
-def resolve_upload_file_path_with_legacy(user_id: str, storage_key: str) -> Path | None:
-    """迁移窗口期：先 v3，再 v2 raw/derived hash 路径。"""
-    if _is_v3_storage_key(storage_key):
-        path = _resolve_under_uploads(user_id, storage_key)
-        if path.is_file():
-            return path
-    return _try_v2_hash_path(user_id, storage_key)
+def try_resolve_upload_file_path(user_id: str, storage_key: str) -> Path | None:
+    """Return upload path if the file exists, else None (no HTTPException)."""
+    return _resolve_conversation_upload_path(user_id, storage_key)
 
 
 def ensure_conversation_owned(

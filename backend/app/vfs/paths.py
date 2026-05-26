@@ -67,14 +67,6 @@ class Paths:
         root.mkdir(parents=True, exist_ok=True)
         return root
 
-    def legacy_user_uploads_dir(self, user_id: str) -> Path:
-        """v2/v3 pre-migration: ``user_data/{uid}/uploads`` (flat + per-conv)."""
-        return self.user_dir(user_id) / "uploads"
-
-    def legacy_workspaces_dir(self, user_id: str) -> Path:
-        """v3 pre-migration: ``user_data/{uid}/workspaces/{conv}``."""
-        return self.user_dir(user_id) / "workspaces"
-
     def ensure_conversation_dirs(self, user_id: str, conversation_id: str) -> None:
         for directory in (
             self.sandbox_work_dir(user_id, conversation_id),

@@ -18,10 +18,7 @@ from app.schemas.chat import (
     extract_user_text,
     normalize_content_blocks,
 )
-from app.services.chat_upload.attachment import (
-    resolve_upload_file_path_with_legacy,
-    shared_upload_file_path,
-)
+from app.services.chat_upload.attachment import try_resolve_upload_file_path
 from app.utils.logger import logger
 
 _IMAGE_PREVIEW_PATH_PATTERNS = (re.compile(r"^/api/file/preview/([^/]+)/(.+)$"),)
@@ -254,10 +251,4 @@ def _resolve_image_path(url: str) -> Path | None:
 
     user_id = unquote(match.group(1))
     storage_key = unquote(match.group(2))
-    path = resolve_upload_file_path_with_legacy(user_id, storage_key)
-    if path is not None:
-        return path
-    try:
-        return shared_upload_file_path(user_id, storage_key)
-    except Exception:
-        return None
+    return try_resolve_upload_file_path(user_id, storage_key)
