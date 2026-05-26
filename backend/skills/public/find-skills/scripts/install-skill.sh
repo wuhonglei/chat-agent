@@ -33,7 +33,7 @@ fi
 
 SKILL_SOURCE="$HOME/.agents/skills/$SKILL_NAME"
 
-npx skills add "$FULL_SKILL_NAME" -g -y > /dev/null 2>&1
+npx --yes skills add "$FULL_SKILL_NAME" -g -y > /dev/null 2>&1
 
 if [[ ! -d "$SKILL_SOURCE" ]]; then
   echo "Skill '$SKILL_NAME' installation failed"

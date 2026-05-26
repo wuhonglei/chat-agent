@@ -24,9 +24,11 @@ The Skills CLI (`npx skills`) is the package manager for the open agent skills e
 
 **Key commands:**
 
-- `npx skills find [query]` - Search for skills interactively or by keyword
-- `npx skills check` - Check for skill updates
-- `npx skills update` - Update all installed skills
+- `npx --yes skills find [query]` - Search for skills by keyword (non-interactive)
+- `npx --yes skills check` - Check for skill updates
+- `npx --yes skills update` - Update all installed skills
+
+**Non-interactive use:** When running via script or agent (no TTY), always prefix with `npx --yes` so npm auto-confirms installing the `skills` package on first run. Without it, npx prompts `Ok to proceed? (y)` and hangs.
 
 **Browse skills at:** https://skills.sh/
 
@@ -45,14 +47,14 @@ When a user asks for help with something, identify:
 Run the find command with a relevant query:
 
 ```bash
-npx skills find [query]
+npx --yes skills find [query]
 ```
 
 For example:
 
-- User asks "how do I make my React app faster?" → `npx skills find react performance`
-- User asks "can you help me with PR reviews?" → `npx skills find pr review`
-- User asks "I need to create a changelog" → `npx skills find changelog`
+- User asks "how do I make my React app faster?" → `npx --yes skills find react performance`
+- User asks "can you help me with PR reviews?" → `npx --yes skills find pr review`
+- User asks "I need to create a changelog" → `npx --yes skills find changelog`
 
 The command will return results like:
 
@@ -125,7 +127,7 @@ If no relevant skills exist:
 
 1. Acknowledge that no existing skill was found
 2. Offer to help with the task directly using your general capabilities
-3. Suggest the user could create their own skill with `npx skills init`
+3. Suggest the user could create their own skill with `npx --yes skills init`
 
 Example:
 
@@ -134,5 +136,5 @@ I searched for skills related to "xyz" but didn't find any matches.
 I can still help you with this task directly! Would you like me to proceed?
 
 If this is something you do often, you could create your own skill:
-npx skills init my-xyz-skill
+npx --yes skills init my-xyz-skill
 ```
