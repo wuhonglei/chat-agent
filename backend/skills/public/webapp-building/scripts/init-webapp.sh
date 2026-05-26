@@ -7,7 +7,20 @@ set -e
 
 SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_NAME="$1"
-[[ "$OSTYPE" == "darwin"* ]] && SED_INPLACE="sed -i ''" || SED_INPLACE="sed -i"
+
+_update_html_title() {
+  local file="$1"
+  local title="$2"
+  local escaped
+  escaped=$(printf '%s\n' "$title" | sed 's/[\/&]/\\&/g')
+  # Do not store "sed -i ''" in a variable — expanding it breaks on macOS and
+  # leaves a stray backup file named index.html''.
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    sed -i '' "s/<title>.*<\/title>/<title>${escaped}<\/title>/" "$file"
+  else
+    sed -i "s/<title>.*<\/title>/<title>${escaped}<\/title>/" "$file"
+  fi
+}
 
 # Shell MCP cwd is the conversation workspace root (physical on local, virtual in Docker).
 # Use a relative default so local mode does not write to non-existent /mnt/... paths.
@@ -51,8 +64,7 @@ mkdir -p "$TEMP_PATH"
 
 # Copy including dotfiles (.npmrc, .gitignore); plain "/*" skips them.
 cp -r "$SCRIPTS_DIR/template/." "$TEMP_PATH/"
-ESCAPED_REPLACE=$(printf '%s\n' "$PROJECT_NAME" | sed 's/[\/&]/\\&/g')
-$SED_INPLACE 's/<title>.*<\/title>/<title>'"$ESCAPED_REPLACE"'<\/title>/' "$TEMP_PATH"/index.html
+_update_html_title "$TEMP_PATH/index.html" "$PROJECT_NAME"
 cp -r "$TEMP_PATH/." "$PROJECT_PATH/"
 rm -rf "$TEMP_PATH"
 
