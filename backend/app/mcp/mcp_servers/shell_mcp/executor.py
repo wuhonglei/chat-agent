@@ -116,6 +116,28 @@ class ShellExecutor:
     def _resolve_cwd(self) -> str:
         return self._workspace_mount_prefix()
 
+    def _build_shell_env(self) -> dict[str, str] | None:
+        """Build per-user shell environment variables.
+
+        Docker uses the virtual skills-custom path (container bind mount).
+        Local uses the resolved host path so mkdir/cp in scripts work on the host.
+        """
+        if not self._user_id:
+            return None
+
+        skills_custom_virtual = vfs_config.skills_custom_prefix.rstrip("/")
+
+        if self._effective_backend == "local":
+            if not self._conversation_id:
+                return None
+            mappings = build_path_mappings(self._user_id, self._conversation_id)
+            physical = mappings.get(skills_custom_virtual)
+            if physical is None:
+                return None
+            return {"USER_SKILLS_DIR": physical}
+
+        return {"USER_SKILLS_DIR": skills_custom_virtual}
+
     def _adapt_command_for_backend(self, command: str) -> str:
         """Drop redundant workspace cd/mkdir; cwd is already the workspace root."""
         prefix = re.escape(self._workspace_mount_prefix())
@@ -150,11 +172,7 @@ class ShellExecutor:
                 block_reason="Executor not initialized",
             )
 
-        shell_env: dict[str, str] | None = None
-        if self._user_id and self._effective_backend == "docker":
-            shell_env = {
-                "USER_SKILLS_DIR": vfs_config.skills_custom_prefix.rstrip("/"),
-            }
+        shell_env = self._build_shell_env()
 
         resolved_command = command
         if (

@@ -239,6 +239,48 @@ async def test_shell_executor_local_resolves_virtual_paths_in_command(
 
 
 @pytest.mark.asyncio
+async def test_shell_executor_local_sets_user_skills_dir_env(
+    tmp_path: Path,
+) -> None:
+    from app.vfs.paths import Paths
+
+    paths = Paths(base_dir=tmp_path / "user_data")
+    user_id = "user-1"
+    conversation_id = "conv-1"
+    paths.ensure_conversation_dirs(user_id, conversation_id)
+    paths.ensure_user_skills_dir(user_id)
+    workspace = paths.ensure_sandbox_work_dir(user_id, conversation_id)
+    expected_skills_dir = str(paths.user_skills_dir(user_id).resolve())
+
+    executor = ShellExecutor()
+    mock_backend = MagicMock()
+    mock_backend.execute = AsyncMock(
+        return_value=ExecutionResult(stdout="", return_code=0)
+    )
+
+    mock_settings = MagicMock()
+    mock_settings.sandbox = SandboxConfig(backend="local", timeout=30000)
+    with (
+        patch("app.mcp.mcp_servers.shell_mcp.executor.settings", mock_settings),
+        patch(
+            "app.mcp.mcp_servers.shell_mcp.virtual_paths.get_paths", return_value=paths
+        ),
+        patch("app.vfs.paths.get_paths", return_value=paths),
+    ):
+        await executor.initialize(
+            workspace, user_id=user_id, conversation_id=conversation_id
+        )
+        executor._executor = mock_backend
+        await executor.execute(command="echo ok")
+
+    call_args = mock_backend.execute.await_args
+    assert call_args is not None
+    request = call_args[0][0]
+    assert request.env is not None
+    assert request.env["USER_SKILLS_DIR"] == expected_skills_dir
+
+
+@pytest.mark.asyncio
 async def test_shell_executor_local_blocks_unsafe_host_path(tmp_path: Path) -> None:
     from app.vfs.paths import Paths
 
