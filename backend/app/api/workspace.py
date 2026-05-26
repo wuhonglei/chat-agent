@@ -20,6 +20,7 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from app.schemas.auth import AuthTokenPayload
 from app.schemas.response import ApiResponse
 from app.utils.auth_deps import get_auth_token_info
+from app.utils.logger import logger
 from app.utils.workspace import resolve_workspace_path
 
 router = APIRouter()
@@ -32,6 +33,9 @@ _HEAVY_DIR_NAMES = {
     "build",
     ".turbo",
     ".cache",
+    ".local",
+    "Library",
+    ".vite-plus",
 }
 
 _PREVIEW_ENTRY_CANDIDATES = (
@@ -277,7 +281,9 @@ async def get_workspace_preview_content(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
+    logger.info(f"workspace_root: {workspace_root}")
     entry = _resolve_preview_entry(workspace_root)
+    logger.info(f"entry: {entry}")
     if entry is None:
         raise HTTPException(
             status_code=404,
