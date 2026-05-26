@@ -11,6 +11,7 @@ class AgentSkillManifest:
 
     name: str
     description: str
+    location: str
 
 
 @dataclass(frozen=True)

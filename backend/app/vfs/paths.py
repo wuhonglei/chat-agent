@@ -7,7 +7,8 @@ from pathlib import Path
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 USER_DATA_ROOT = BACKEND_ROOT / "data" / "user_data"
-SKILLS_ROOT = BACKEND_ROOT / "skills" / "public"
+SKILLS_ROOT = BACKEND_ROOT / "skills"
+SKILLS_PUBLIC_DIR = SKILLS_ROOT / "public"
 VIRTUAL_PATH_PREFIX = "/mnt/user-data"
 
 _SAFE_ID_RE = re.compile(r"^[A-Za-z0-9_\-]+$")

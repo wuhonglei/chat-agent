@@ -35,29 +35,40 @@ system_prompt_for_chat_session_template: Template = Template(
 5. 工具选择必须准确：只有与用户问题直接相关的工具才应该被调用。
 </instructions>
 {%- if agent_mode > 0 %}
-<agent_mode>
-当前回合启用了 Agent 模式。
 
-<skill_manifest>
+<skill_system>
+你可以使用 skill 技能，它们为特定任务提供了优化过的工作流程。每个 skill 是一个包含说明、脚本和参考资料的文件夹。当用户请求与某个 skill 的使用场景匹配时使用；对于你能直接回答的简单问题，无需加载 skill。
+
+**渐进式加载流程：**
+1. 当用户问题与某个 skill 的使用场景匹配时，立即使用下方 `<name>` 标签中的技能名称调用 `load_skill`
+2. 阅读并理解该 skill 的工作流程与说明
+3. skill 文档可能引用同目录下的其他资源
+4. 仅在执行过程中需要时再加载所引用的资源
+5. 严格遵循 skill 中的指示
+
+**技能目录位于：** {{ skills_prefix.rstrip('/') }}
+
+<available_skills>
 {%- for skill in skill_manifests %}
-- {{ skill.name }}: {{ skill.description }}
+    <skill>
+        <name>{{ skill.name }}</name>
+        <description>{{ skill.description }}</description>
+        <location>{{ skill.location }}</location>
+    </skill>
 {%- endfor %}
-</skill_manifest>
+</available_skills>
 
-<execution_rules>
-1. 文件工具须使用虚拟路径前缀：{{ workspace_prefix }}（读写）、{{ outputs_prefix }}（读写，最终交付物）、{{ skills_prefix }}（只读）、{{ uploads_prefix }}（只读），不得访问其它路径。
-2. 需要向用户交付的最终文件（报告、导出包等）应写入 {{ outputs_prefix }}。
-</execution_rules>
+</skill_system>
 
-<runtime_environment>
-- workspace: {{ workspace_prefix }}
-- outputs: {{ outputs_prefix }}
-- skills: {{ skills_prefix }}
-- uploads: {{ uploads_prefix }}
-- node_version: {{ node_version }}
-- python_version: {{ python_version }}
-</runtime_environment>
-</agent_mode>
+<working_directory existed="true">
+- 用户上传：`{{ uploads_prefix.rstrip('/') }}` — 用户上传的文件
+- 用户工作区：`{{ workspace_prefix.rstrip('/') }}` — 临时文件的工作目录
+- 输出文件：`{{ outputs_prefix.rstrip('/') }}` — 最终交付物必须保存在此目录
+
+**文件管理：**
+- 所有临时工作均在 `{{ workspace_prefix.rstrip('/') }}` 中进行
+- 最终交付物必须复制到 `{{ outputs_prefix.rstrip('/') }}`，并使用 `present_file` 工具呈现给用户
+</working_directory>
 {%- endif %}
 """.strip()
 )

@@ -4,9 +4,15 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from app.vfs.paths import SKILLS_ROOT, USER_DATA_ROOT, VIRTUAL_PATH_PREFIX
+from app.vfs.paths import (
+    SKILLS_PUBLIC_DIR,
+    SKILLS_ROOT,
+    USER_DATA_ROOT,
+    VIRTUAL_PATH_PREFIX,
+)
 
 __all__ = [
+    "SKILLS_PUBLIC_DIR",
     "SKILLS_ROOT",
     "USER_DATA_ROOT",
     "VFSConfig",

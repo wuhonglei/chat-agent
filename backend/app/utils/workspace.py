@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.vfs.config import SKILLS_ROOT
-from app.vfs.paths import get_paths
+from app.vfs.paths import SKILLS_PUBLIC_DIR, get_paths
 from app.vfs.resolver import resolve_relative_under_root
 
 MAX_WORKSPACE_BYTES = 2000 * 1024 * 1024
@@ -22,7 +21,7 @@ def resolve_workspace_path(
 
 def resolve_skills_path(relative_path: str) -> tuple[Path, Path]:
     """Resolve skills-relative path with security checks."""
-    return resolve_relative_under_root(SKILLS_ROOT.resolve(), relative_path)
+    return resolve_relative_under_root(SKILLS_PUBLIC_DIR.resolve(), relative_path)
 
 
 def workspace_usage(root: Path) -> tuple[int, int]:

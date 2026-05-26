@@ -3,35 +3,26 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
 from pathlib import Path
 
 from app.agent_skills.models import (
     AgentSkillDocument,
     AgentSkillManifest,
 )
-from app.vfs.paths import SKILLS_ROOT
+from app.vfs.config import vfs_config
+from app.vfs.paths import SKILLS_PUBLIC_DIR
 
 _FRONTMATTER_RE = re.compile(
     r"\A---\n(?P<meta>.*?)\n---\n(?P<body>.*)\Z",
     re.DOTALL,
 )
 
-DEFAULT_ALLOWED_SKILL_NAMES = {
-    "frontend-codegen-pipeline",
-    # "frontend-project-templates",
-    "next-best-practices",
-    "shadcn",
-    "tailwind-design-system",
-    "vite",
-}
-
 
 class AgentSkillRegistry:
     """Central registry for available and loadable skills."""
 
     def __init__(self, skills_dir: Path | None = None) -> None:
-        base_dir = skills_dir if skills_dir is not None else SKILLS_ROOT
+        base_dir = skills_dir if skills_dir is not None else SKILLS_PUBLIC_DIR
         self.skills_dir = base_dir
         self._documents = self._load_all()
 
@@ -60,8 +51,14 @@ class AgentSkillRegistry:
             name = skill_dir_name
             description = self._extract_first_non_empty_line(body)
 
+        skill_relative = path.relative_to(SKILLS_PUBLIC_DIR.parent)
+        location = f"{vfs_config.skills_prefix.rstrip('/')}/{skill_relative.as_posix()}"
         return AgentSkillDocument(
-            manifest=AgentSkillManifest(name=name, description=description),
+            manifest=AgentSkillManifest(
+                name=name,
+                description=description,
+                location=location,
+            ),
             body=body,
         )
 
@@ -86,29 +83,13 @@ class AgentSkillRegistry:
                 return stripped
         return ""
 
-    def list_manifests(
-        self, *, allowed_names: Iterable[str] | None = None
-    ) -> list[AgentSkillManifest]:
-        if allowed_names is None:
-            return sorted(
-                [doc.manifest for doc in self._documents.values()],
-                key=lambda item: item.name,
-            )
-        allowed_set = set(allowed_names)
+    def list_manifests(self) -> list[AgentSkillManifest]:
         return sorted(
-            [
-                doc.manifest
-                for name, doc in self._documents.items()
-                if name in allowed_set
-            ],
+            [doc.manifest for doc in self._documents.values()],
             key=lambda item: item.name,
         )
 
-    def load(
-        self, name: str, *, allowed_names: Iterable[str] | None = None
-    ) -> AgentSkillDocument:
-        if allowed_names is not None and name not in set(allowed_names):
-            raise ValueError(f"Skill '{name}' is not allowed")
+    def load(self, name: str) -> AgentSkillDocument:
         document = self._documents.get(name)
         if document is None:
             raise ValueError(f"Skill '{name}' not found")
