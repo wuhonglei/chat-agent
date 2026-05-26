@@ -2,15 +2,15 @@
 Time MCP Server 测试
 
 运行方式:
-  pytest app/mcp/mcp_servers/time_mcp/test_server.py -v
-  python -m pytest app/mcp/mcp_servers/time_mcp/test_server.py -v
+  pytest tests/mcp/mcp_servers/time_mcp/test_time_mcp.py -v
+  python -m pytest tests/mcp/mcp_servers/time_mcp/test_time_mcp.py -v
 
 调试方式:
   1. VS Code: 在测试或 server.py 中打断点 → 运行与调试 → 选「Debug Time MCP 测试 (pytest)」
      按提示输入测试名（如 test_get_current_time_with_valid_timezone）或留空跑全部。
-  2. 只跑一个测试: pytest app/mcp/mcp_servers/time_mcp/test_server.py -v -k test_format_results
-  3. 失败时进入 pdb: pytest app/mcp/mcp_servers/time_mcp/test_server.py -v --pdb
-  4. 打印完整输出: pytest app/mcp/mcp_servers/time_mcp/test_server.py -v -s
+  2. 只跑一个测试: pytest tests/mcp/mcp_servers/time_mcp/test_time_mcp.py -v -k test_format_results
+  3. 失败时进入 pdb: pytest tests/mcp/mcp_servers/time_mcp/test_time_mcp.py -v --pdb
+  4. 打印完整输出: pytest tests/mcp/mcp_servers/time_mcp/test_time_mcp.py -v -s
 """
 
 import re

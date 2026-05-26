@@ -66,12 +66,21 @@ class TestClassifyCommand:
         [
             "ls -la",
             "python3 script.py",
+            "python --version",
+            "git status",
             'echo "Today is $(date)"',
             "mkdir -p src/{components,utils}",
         ],
     )
     def test_safe_classified_as_pass(self, cmd: str) -> None:
         assert classify_command(cmd) == "pass"
+
+    def test_vite_scaffold_compound_allowed(self) -> None:
+        command = (
+            "npx --yes create-vite@latest vite-tmp --template react-ts && "
+            "cd vite-tmp && npm install && npm run build"
+        )
+        assert classify_command(command) == "pass"
 
     @pytest.mark.parametrize(
         ("cmd", "expected"),
@@ -82,6 +91,7 @@ class TestClassifyCommand:
             ("cd /workspace && ls -la && python3 main.py", "pass"),
             ("safe;rm -rf /", "block"),
             ("rm -rf /&&echo ok", "block"),
+            ("ls -la && rm -rf /", "block"),
         ],
     )
     def test_compound_command_classification(self, cmd: str, expected: str) -> None:
@@ -103,8 +113,9 @@ class TestSplitCompoundCommand:
 
 
 class TestAuditCommand:
-    def test_empty_command_blocked(self) -> None:
-        result = audit_command("   ")
+    @pytest.mark.parametrize("cmd", ["", "   "])
+    def test_empty_command_blocked(self, cmd: str) -> None:
+        result = audit_command(cmd)
         assert result.verdict == "block"
         assert result.reason == "empty command"
 
@@ -123,6 +134,10 @@ class TestAuditCommand:
 
     def test_vite_passes(self) -> None:
         result = audit_command("npx vite build")
+        assert result.verdict == "pass"
+
+    def test_curl_allowed(self) -> None:
+        result = audit_command("curl https://example.com")
         assert result.verdict == "pass"
 
     def test_medium_risk_warning_format(self) -> None:

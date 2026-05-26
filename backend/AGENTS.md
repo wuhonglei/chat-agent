@@ -203,7 +203,6 @@ make check
 
 以下模块在 `mypy.ini` 中被忽略类型检查错误：
 - `tests.*`
-- `app.mcp.mcp_servers.*.test_server`
 
 ## 测试
 
