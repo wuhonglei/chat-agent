@@ -14,7 +14,7 @@ class MCPToolSession:
     """单次请求内的 MCP 工具状态与执行逻辑。"""
 
     MAX_TOTAL_ITERATIONS = 10
-    AGENT_MODE_MAX_ITERATIONS = 20
+    AGENT_MODE_MAX_ITERATIONS = 90
     NORMAL_MODE_SERVERS = {
         "time-mcp",
         "weather-mcp",
