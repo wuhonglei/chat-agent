@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Install a skill and link it to the user's custom skills directory.
+# Install a skill and copy it to the user's custom skills directory.
 # Usage: install-skill.sh <owner/repo@skill-name>
 # Example: install-skill.sh vercel-labs/agent-skills@vercel-react-best-practices
 #
@@ -41,7 +41,9 @@ if [[ ! -d "$SKILL_SOURCE" ]]; then
 fi
 
 mkdir -p "$SKILL_TARGET"
-ln -sf "$SKILL_SOURCE" "$SKILL_TARGET/$SKILL_NAME"
+SKILL_DEST="$SKILL_TARGET/$SKILL_NAME"
+rm -rf "$SKILL_DEST"
+cp -r "$SKILL_SOURCE" "$SKILL_DEST"
 
 echo "Skill '$SKILL_NAME' installed successfully at $SKILL_TARGET/$SKILL_NAME"
 echo "Virtual path: /mnt/skills/custom/$SKILL_NAME/"
