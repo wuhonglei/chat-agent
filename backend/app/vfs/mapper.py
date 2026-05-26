@@ -94,10 +94,14 @@ class VirtualPathMapper:
             return PathPermission.READ_ONLY
         return PathPermission.FORBIDDEN
 
+    def mask_paths_in_text(self, text: str, ctx: MappingContext) -> str:
+        """Replace known physical path patterns with virtual paths in plain text."""
+        return self._replace_physical_paths(text, ctx)
+
     def sanitize_response(self, data: Any, ctx: MappingContext) -> Any:
         """Recursively replace physical paths with virtual paths in response data."""
         if isinstance(data, str):
-            return self._replace_physical_paths(data, ctx)
+            return self.mask_paths_in_text(data, ctx)
         if isinstance(data, dict):
             return {k: self.sanitize_response(v, ctx) for k, v in data.items()}
         if isinstance(data, list):

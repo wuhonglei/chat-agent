@@ -6,6 +6,13 @@ import re
 from pathlib import Path
 
 from app.core.config import settings
+from app.mcp.mcp_servers.shell_mcp.virtual_paths import (
+    LocalCommandPathError,
+    build_path_mappings,
+    mask_paths_in_output,
+    replace_virtual_paths_in_command,
+    validate_local_command_paths,
+)
 from app.sandbox.docker_availability import is_docker_daemon_available
 from app.sandbox.docker_executor import DockerSandboxExecutor
 from app.sandbox.executor import ExecutionRequest, ExecutionResult, SandboxExecutor
@@ -26,6 +33,7 @@ class ShellExecutor:
         self._executor: SandboxExecutor | None = None
         self._workspace_path: Path | None = None
         self._user_id: str | None = None
+        self._conversation_id: str | None = None
         self._effective_backend: str = settings.sandbox.backend
         self._initialized = False
 
@@ -73,6 +81,7 @@ class ShellExecutor:
         await self._executor.setup(resolved)
 
         self._user_id = user_id
+        self._conversation_id = conversation_id
         if (
             user_id
             and conversation_id
@@ -147,15 +156,47 @@ class ShellExecutor:
                 "USER_SKILLS_DIR": vfs_config.skills_custom_prefix.rstrip("/"),
             }
 
+        resolved_command = command
+        if (
+            self._effective_backend == "local"
+            and self._user_id
+            and self._conversation_id
+        ):
+            mappings = build_path_mappings(self._user_id, self._conversation_id)
+            try:
+                validate_local_command_paths(command, mappings)
+            except LocalCommandPathError as exc:
+                return ExecutionResult(
+                    blocked=True,
+                    block_reason=str(exc),
+                )
+            resolved_command = replace_virtual_paths_in_command(command, mappings)
+
         request = ExecutionRequest(
-            command=self._adapt_command_for_backend(command),
+            command=self._adapt_command_for_backend(resolved_command),
             cwd=self._resolve_cwd(),
             timeout=min(timeout, settings.sandbox.timeout),
             description=description,
             env=shell_env,
         )
 
-        return await self._executor.execute(request)
+        result = await self._executor.execute(request)
+
+        if (
+            self._effective_backend == "local"
+            and self._user_id
+            and self._conversation_id
+            and not result.blocked
+        ):
+            result.stdout = mask_paths_in_output(
+                result.stdout, self._user_id, self._conversation_id
+            )
+            if result.stderr:
+                result.stderr = mask_paths_in_output(
+                    result.stderr, self._user_id, self._conversation_id
+                )
+
+        return result
 
     async def cleanup(self) -> None:
         """Cleanup executor resources."""
@@ -164,5 +205,6 @@ class ShellExecutor:
         self._executor = None
         self._workspace_path = None
         self._user_id = None
+        self._conversation_id = None
         self._effective_backend = settings.sandbox.backend
         self._initialized = False

@@ -192,6 +192,91 @@ async def test_shell_executor_local_cwd_uses_workspace_path(tmp_path: Path) -> N
 
 
 @pytest.mark.asyncio
+async def test_shell_executor_local_resolves_virtual_paths_in_command(
+    tmp_path: Path,
+) -> None:
+    from app.vfs.paths import Paths
+
+    paths = Paths(base_dir=tmp_path / "user_data")
+    user_id = "user-1"
+    conversation_id = "conv-1"
+    paths.ensure_conversation_dirs(user_id, conversation_id)
+    upload_file = paths.sandbox_uploads_dir(user_id, conversation_id) / "a.txt"
+    upload_file.write_text("hi", encoding="utf-8")
+    workspace = paths.ensure_sandbox_work_dir(user_id, conversation_id)
+
+    executor = ShellExecutor()
+    mock_backend = MagicMock()
+    host_stdout = str(upload_file)
+    mock_backend.execute = AsyncMock(
+        return_value=ExecutionResult(stdout=host_stdout, return_code=0)
+    )
+
+    mock_settings = MagicMock()
+    mock_settings.sandbox = SandboxConfig(backend="local", timeout=30000)
+    with (
+        patch("app.mcp.mcp_servers.shell_mcp.executor.settings", mock_settings),
+        patch("app.mcp.mcp_servers.shell_mcp.shell.get_paths", return_value=paths),
+        patch(
+            "app.mcp.mcp_servers.shell_mcp.virtual_paths.get_paths", return_value=paths
+        ),
+        patch("app.vfs.paths.get_paths", return_value=paths),
+        patch("app.vfs.mapper.get_paths", return_value=paths),
+    ):
+        await executor.initialize(
+            workspace, user_id=user_id, conversation_id=conversation_id
+        )
+        executor._executor = mock_backend
+        result = await executor.execute(command=f"cat {vfs_config.uploads_prefix}a.txt")
+
+    call_args = mock_backend.execute.await_args
+    assert call_args is not None
+    request = call_args[0][0]
+    assert vfs_config.uploads_prefix not in request.command
+    assert str(upload_file) in request.command
+    assert vfs_config.uploads_prefix in result.stdout
+    assert "user_data" not in result.stdout
+
+
+@pytest.mark.asyncio
+async def test_shell_executor_local_blocks_unsafe_host_path(tmp_path: Path) -> None:
+    from app.vfs.paths import Paths
+
+    paths = Paths(base_dir=tmp_path / "user_data")
+    user_id = "user-1"
+    conversation_id = "conv-1"
+    paths.ensure_conversation_dirs(user_id, conversation_id)
+    workspace = paths.ensure_sandbox_work_dir(user_id, conversation_id)
+
+    executor = ShellExecutor()
+    mock_backend = MagicMock()
+    mock_backend.execute = AsyncMock(
+        return_value=ExecutionResult(stdout="", return_code=0)
+    )
+
+    mock_settings = MagicMock()
+    mock_settings.sandbox = SandboxConfig(backend="local", timeout=30000)
+    with (
+        patch("app.mcp.mcp_servers.shell_mcp.executor.settings", mock_settings),
+        patch("app.mcp.mcp_servers.shell_mcp.shell.get_paths", return_value=paths),
+        patch(
+            "app.mcp.mcp_servers.shell_mcp.virtual_paths.get_paths", return_value=paths
+        ),
+        patch("app.vfs.paths.get_paths", return_value=paths),
+    ):
+        await executor.initialize(
+            workspace, user_id=user_id, conversation_id=conversation_id
+        )
+        executor._executor = mock_backend
+        result = await executor.execute(command="cat /Users/me/secret.txt")
+
+    assert result.blocked is True
+    assert result.block_reason is not None
+    assert "Unsafe absolute paths" in result.block_reason
+    mock_backend.execute.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_shell_executor_docker_cwd_uses_workspace_prefix(tmp_path: Path) -> None:
     executor = ShellExecutor()
     mock_backend = MagicMock()
