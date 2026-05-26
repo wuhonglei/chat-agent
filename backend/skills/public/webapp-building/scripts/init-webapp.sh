@@ -49,10 +49,11 @@ echo "Creating project: $PROJECT_PATH"
 rm -rf "$TEMP_PATH"
 mkdir -p "$TEMP_PATH"
 
-cp -r "$SCRIPTS_DIR/template"/* "$TEMP_PATH"/
+# Copy including dotfiles (.npmrc, .gitignore); plain "/*" skips them.
+cp -r "$SCRIPTS_DIR/template/." "$TEMP_PATH/"
 ESCAPED_REPLACE=$(printf '%s\n' "$PROJECT_NAME" | sed 's/[\/&]/\\&/g')
 $SED_INPLACE 's/<title>.*<\/title>/<title>'"$ESCAPED_REPLACE"'<\/title>/' "$TEMP_PATH"/index.html
-cp -r "$TEMP_PATH"/* "$PROJECT_PATH"/
+cp -r "$TEMP_PATH/." "$PROJECT_PATH/"
 rm -rf "$TEMP_PATH"
 
 # ─────────────────────────────────────────────────────────────────────────────
