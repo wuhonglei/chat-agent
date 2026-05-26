@@ -114,7 +114,7 @@ class AgentSkillRegistry:
         return document
 
 
-@lru_cache(maxsize=128)
+@lru_cache
 def get_skill_registry(user_id: str | None = None) -> AgentSkillRegistry:
     """Return a cached registry for *user_id* (``None`` = public skills only)."""
     return AgentSkillRegistry(user_id=user_id)
