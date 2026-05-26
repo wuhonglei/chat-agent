@@ -7,12 +7,12 @@ from fastapi.responses import FileResponse
 
 from app.schemas.response import ApiResponse
 from app.services.base_service.file_service import FileService
-from app.services.chat_upload.attachment import media_type_for_preview
 from app.utils.auth_deps import require_auth
 from app.utils.avatar import (
     InvalidAvatarError,
     avatar_local_path,
     is_valid_avatar_filename,
+    media_type_for_avatar,
 )
 
 router = APIRouter()
@@ -44,6 +44,6 @@ async def get_avatar(filename: str) -> FileResponse:
         raise HTTPException(status_code=404, detail="文件不存在")
     return FileResponse(
         path=str(path),
-        media_type=media_type_for_preview(filename),
+        media_type=media_type_for_avatar(filename),
         filename=Path(filename).name,
     )

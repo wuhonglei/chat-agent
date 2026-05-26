@@ -18,6 +18,14 @@ _AVATAR_FILENAME_RE = re.compile(
 
 _ALLOWED_UPLOAD_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 
+_EXT_TO_MEDIA_TYPE: dict[str, str] = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+}
+
 
 class InvalidAvatarError(ValueError):
     """头像字段格式不合法。"""
@@ -93,6 +101,14 @@ def normalize_avatar_for_storage(value: str) -> str:
         return stripped
 
     raise InvalidAvatarError("头像须为 /api/avatars/{filename} 或 http(s) 外链")
+
+
+def media_type_for_avatar(filename: str) -> str:
+    lower = filename.lower()
+    for suf, mt in _EXT_TO_MEDIA_TYPE.items():
+        if lower.endswith(suf):
+            return mt
+    return "application/octet-stream"
 
 
 def assert_allowed_upload_extension(file_ext: str) -> None:
