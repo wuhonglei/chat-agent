@@ -31,7 +31,7 @@ _resolve_project_path() {
 # Validation
 # ─────────────────────────────────────────────────────────────────────────────
 
-! command -v npm &>/dev/null && { echo "Error: npm not found"; exit 1; }
+! command -v pnpm &>/dev/null && { echo "Error: pnpm not found (install via npm i -g pnpm or use project Docker image)"; exit 1; }
 [[ -z "$1" ]] && {
   echo "Usage: $0 <website-title>"
   echo "  Default PROJECT_PATH=${DEFAULT_PROJECT_PATH} (under shell workspace cwd)"
@@ -60,14 +60,14 @@ rm -rf "$TEMP_PATH"
 # Dependencies
 # ─────────────────────────────────────────────────────────────────────────────
 
-echo "Installing dependencies in $PROJECT_PATH ..."
-(cd "$PROJECT_PATH" && npm install)
+echo "Installing dependencies in $PROJECT_PATH (pnpm) ..."
+(cd "$PROJECT_PATH" && pnpm install --frozen-lockfile)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Done
 # ─────────────────────────────────────────────────────────────────────────────
 
-echo "Using Node.js 20, Tailwind CSS v3.4.19, and Vite v7.2.4"
+echo "Using pnpm, Node.js 20+, Tailwind CSS v3.4.19, and Vite"
 echo ""
 echo "Tailwind CSS has been set up with the shadcn theme"
 echo ""
@@ -75,8 +75,8 @@ echo "Setup complete: $PROJECT_PATH"
 echo ""
 echo "Next steps:"
 echo "  cd $PROJECT_PATH"
-echo "  npm run dev    # optional local preview"
-echo "  npm run build  # production build -> dist/"
+echo "  pnpm run dev    # optional local preview"
+echo "  pnpm run build  # production build -> dist/"
 echo "  cp -r dist /mnt/user-data/outputs/app-dist  # deliverable (paths rewritten in local shell)"
 echo ""
 echo "Components (40+):"

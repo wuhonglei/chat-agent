@@ -5,7 +5,7 @@ description: Tools for building modern React webapps with TypeScript, Tailwind C
 
 # WebApp Building
 
-**Stack**: React + TypeScript + Vite + Tailwind CSS + shadcn/ui
+**Stack**: React + TypeScript + Vite + Tailwind CSS + shadcn/ui + **pnpm**
 
 ## Virtual paths (chat-agent VFS)
 
@@ -22,7 +22,7 @@ description: Tools for building modern React webapps with TypeScript, Tailwind C
 
 1. Run `init-webapp.sh` — scaffold project in `/mnt/user-data/workspace/app/`
 2. Edit source under `src/`
-3. `npm run build` in the workspace project
+3. `pnpm run build` in the workspace project
 4. Copy `dist/` to `/mnt/user-data/outputs/app-dist/` and `present_file` the deliverable
 
 ## Quick Start
@@ -45,7 +45,8 @@ PROJECT_PATH=/mnt/user-data/workspace/my-app \
 
 - Shell tool cwd is the conversation **workspace root**; `init-webapp.sh` defaults to `./app` (Docker: `/mnt/user-data/workspace/app`; local: physical path under `data/user_data/.../workspace/app`)
 - Override with `PROJECT_PATH=./my-app` or a virtual path on the command line (local shell rewrites `/mnt/user-data/...` in the command string)
-- Script is non-interactive; runs `npm install` after copying the template
+- Uses **pnpm** with `pnpm-lock.yaml` and `pnpm install --frozen-lockfile` (requires `pnpm` in sandbox; backend Docker image includes it)
+- `.npmrc` points at `https://registry.npmmirror.com/`
 - Skill directory is read-only; never write generated app files under `/mnt/skills/`
 
 This creates a fully configured project with:
@@ -56,7 +57,7 @@ This creates a fully configured project with:
 - 40+ shadcn/ui components pre-installed
 - Radix UI dependencies included
 - Production build via Vite
-- Node 20+ compatibility
+- Node 20+ and pnpm 9 compatibility
 
 ### 2. Develop
 
@@ -69,13 +70,13 @@ Edit files under `/mnt/user-data/workspace/app/src/`:
 Dev server (optional):
 
 ```bash
-cd /mnt/user-data/workspace/app && npm run dev
+cd /mnt/user-data/workspace/app && pnpm run dev
 ```
 
 ### 3. Build
 
 ```bash
-cd /mnt/user-data/workspace/app && npm run build 2>&1
+cd /mnt/user-data/workspace/app && pnpm run build 2>&1
 ```
 
 **Build output** (`dist/` inside workspace):
@@ -101,7 +102,7 @@ If the user needs the full source repo as a deliverable, zip or copy the workspa
 ## Debugging
 
 1. Fix source files in `workspace/app/src/`
-2. `npm run build`
+2. `pnpm run build`
 3. Verify `workspace/app/dist/`
 4. Re-copy to `outputs/app-dist/` and present again
 
