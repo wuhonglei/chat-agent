@@ -16,6 +16,7 @@ from app.schemas.user import (
 )
 from app.services.user import MemoryService, UserDbService
 from app.utils.auth_deps import get_auth_token_info
+from app.utils.avatar import InvalidAvatarError
 
 router = APIRouter()
 
@@ -41,7 +42,12 @@ async def update_user_info(
 ) -> ApiResponse[UserDb]:
     """更新用户信息"""
     user_service = UserDbService(db)
-    user = user_service.update_user_info(token_info.user_id, update_info)
+    try:
+        user = user_service.update_user_info(token_info.user_id, update_info)
+    except InvalidAvatarError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
     return ApiResponse.success(data=user)
 
 

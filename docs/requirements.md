@@ -107,7 +107,8 @@
 - `PUT /api/user/update_info`
 - `GET /api/user/memories`
 - `DELETE /api/user/memories/{memory_id}`
-- `POST /api/file/upload_avatar`
+- `POST /api/avatars/upload`
+- `GET /api/avatars/{filename}`
 
 ## 5. 非功能性要求
 

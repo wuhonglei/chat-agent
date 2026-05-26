@@ -6,6 +6,7 @@ from app.models import UserDb
 from app.schemas.auth import SigninResponse, WeChatUserInfoResponse
 from app.schemas.user import UpdateUserInfo
 from app.services.base_service.db_service import DbService
+from app.utils.avatar import normalize_avatar_for_storage
 from app.utils.date import get_datetime_now
 from app.utils.logger import logger
 
@@ -119,7 +120,7 @@ class UserDbService(DbService):
         if update_info.name is not None:
             user.name = update_info.name
         if update_info.avatar is not None:
-            user.avatar = update_info.avatar
+            user.avatar = normalize_avatar_for_storage(update_info.avatar)
         db.add(user)
         return user
 

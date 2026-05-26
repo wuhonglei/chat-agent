@@ -11,6 +11,7 @@ from pydantic import ValidationError
 
 from app.api import (
     auth,
+    avatars,
     chat,
     code,
     conversation,
@@ -110,6 +111,7 @@ app.include_router(
 )
 app.include_router(health.router, prefix="/api/health", tags=["health"])
 app.include_router(file.router, prefix="/api/file", tags=["file"])
+app.include_router(avatars.router, prefix="/api/avatars", tags=["avatars"])
 app.include_router(code.router, prefix="/api/code", tags=["code"])
 app.include_router(workspace.router, prefix="/api/workspaces", tags=["workspace"])
 
