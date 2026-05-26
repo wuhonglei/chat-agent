@@ -87,7 +87,7 @@ Learn more: https://skills.sh/vercel-labs/agent-skills/vercel-react-best-practic
 
 ### Step 4: Install the Skill
 
-If the user wants to proceed, use the `install-skill.sh` script to install the skill and automatically link it to the project:
+If the user wants to proceed, use the `install-skill.sh` script to install the skill and copy it to the user's custom skills directory:
 
 ```bash
 bash /path/to/skill/scripts/install-skill.sh <owner/repo@skill-name>
@@ -99,7 +99,7 @@ For example, if the user wants to install `vercel-react-best-practices`:
 bash /path/to/skill/scripts/install-skill.sh vercel-labs/agent-skills@vercel-react-best-practices
 ```
 
-The script installs the skill to `/mnt/skills/custom/` (per-user custom skills directory). Requires `USER_SKILLS_DIR` in the shell environment (set automatically in Docker sandbox).
+The script copies the skill into `$USER_SKILLS_DIR/<skill-name>/` (default virtual path `/mnt/skills/custom/<skill-name>/`). Requires `USER_SKILLS_DIR` in the shell environment (set automatically in Docker sandbox).
 
 ## Common Skill Categories
 

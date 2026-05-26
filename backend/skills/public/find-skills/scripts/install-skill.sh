@@ -4,8 +4,7 @@
 # Usage: install-skill.sh <owner/repo@skill-name>
 # Example: install-skill.sh vercel-labs/agent-skills@vercel-react-best-practices
 #
-# Target directory (first match):
-#   USER_SKILLS_DIR — e.g. /mnt/skills/custom in Docker sandbox
+# Target directory: USER_SKILLS_DIR (e.g. /mnt/skills/custom in Docker sandbox)
 
 set -e
 
@@ -46,4 +45,4 @@ rm -rf "$SKILL_DEST"
 cp -r "$SKILL_SOURCE" "$SKILL_DEST"
 
 echo "Skill '$SKILL_NAME' installed successfully at $SKILL_TARGET/$SKILL_NAME"
-echo "Virtual path: /mnt/skills/custom/$SKILL_NAME/"
+echo "Virtual path: ${USER_SKILLS_DIR%/}/$SKILL_NAME/"
