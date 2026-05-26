@@ -7,66 +7,111 @@ description: Tools for building modern React webapps with TypeScript, Tailwind C
 
 **Stack**: React + TypeScript + Vite + Tailwind CSS + shadcn/ui
 
+## Virtual paths (chat-agent VFS)
+
+| Purpose | Path |
+|---------|------|
+| Project scaffold & development | `/mnt/user-data/workspace/app/` |
+| Built static site (deliverable) | `/mnt/user-data/outputs/app-dist/` |
+| Init script (read-only skill) | `/mnt/skills/public/webapp-building/scripts/init-webapp.sh` |
+
+- Do all temporary work under `workspace/` (source, `node_modules`, intermediate builds).
+- Copy the production `dist/` to `outputs/` when ready, then use `present_file` to show it to the user.
+
 ## Workflow
 
-1. `scripts/init-webapp.sh <website-title>` — Initialize project in /mnt/okcomputer/output/app, with website title
-2. Edit source code in `src/`
-3. Build the React app 
-4. Deploy the build output in `/mnt/okcomputer/output/app/dist/`
+1. Run `init-webapp.sh` — scaffold project in `/mnt/user-data/workspace/app/`
+2. Edit source under `src/`
+3. `npm run build` in the workspace project
+4. Copy `dist/` to `/mnt/user-data/outputs/app-dist/` and `present_file` the deliverable
 
 ## Quick Start
 
 ### 1. Initialize
 
 ```bash
-# init project in /mnt/okcomputer/output/app with website title
-bash scripts/init-webapp.sh <website-title>
-cd /mnt/okcomputer/output/app
+bash /mnt/skills/public/webapp-building/scripts/init-webapp.sh "<website-title>"
+cd /mnt/user-data/workspace/app
 ```
 
-**AI Agent Notes**:
-- The project path is /mnt/okcomputer/output/app
-- Non-interactive execution with auto-confirm
+Override install location (optional):
+
+```bash
+PROJECT_PATH=/mnt/user-data/workspace/my-app \
+  bash /mnt/skills/public/webapp-building/scripts/init-webapp.sh "<website-title>"
+```
+
+**AI agent notes**
+
+- Shell tool cwd is the conversation **workspace root**; `init-webapp.sh` defaults to `./app` (Docker: `/mnt/user-data/workspace/app`; local: physical path under `data/user_data/.../workspace/app`)
+- Override with `PROJECT_PATH=./my-app` or a virtual path on the command line (local shell rewrites `/mnt/user-data/...` in the command string)
+- Script is non-interactive; runs `npm install` after copying the template
+- Skill directory is read-only; never write generated app files under `/mnt/skills/`
 
 This creates a fully configured project with:
 
-- ✅ React + TypeScript (via Vite)
-- ✅ Tailwind CSS 3.4.19 with shadcn/ui theming system
-- ✅ Path aliases (`@/`) configured
-- ✅ 40+ shadcn/ui components pre-installed
-- ✅ All Radix UI dependencies included
-- ✅ Production build optimization with Vite
-- ✅ Node 20+ compatibility (auto-detects and pins Vite version)
+- React + TypeScript (Vite)
+- Tailwind CSS 3.4.19 with shadcn/ui theming
+- Path aliases (`@/`) configured
+- 40+ shadcn/ui components pre-installed
+- Radix UI dependencies included
+- Production build via Vite
+- Node 20+ compatibility
 
 ### 2. Develop
 
-Edit generated files in `src/`: page sections go in `src/sections/`, custom React hooks in `src/hooks/`, and TypeScript definitions in `src/types/`.
+Edit files under `/mnt/user-data/workspace/app/src/`:
+
+- Page sections → `src/sections/`
+- Custom hooks → `src/hooks/`
+- Types → `src/types/`
+
+Dev server (optional):
+
+```bash
+cd /mnt/user-data/workspace/app && npm run dev
+```
 
 ### 3. Build
 
 ```bash
-# within project:
-cd /mnt/okcomputer/output/app && npm run build 2>&1
+cd /mnt/user-data/workspace/app && npm run build 2>&1
 ```
 
-**Output** (`dist/`):
-- `index.html` — Entry point
-- `assets/index-[hash].js` — Bundled JS
-- `assets/index-[hash].css` — Bundled CSS
-- Optimized images, fonts, other assets
+**Build output** (`dist/` inside workspace):
 
-**Optimizations**: Tree-shaking, code splitting, asset compression, minification, cache-busting hashes.
+- `index.html` — entry point
+- `assets/index-[hash].js` — bundled JS
+- `assets/index-[hash].css` — bundled CSS
+- Optimized images, fonts, and other assets
 
-### 4. Deploy
+### 4. Deliver
 
-Deploy the build output in `/mnt/okcomputer/output/app/dist/`
+Copy the production build to outputs, then present to the user:
+
+```bash
+rm -rf /mnt/user-data/outputs/app-dist
+cp -r /mnt/user-data/workspace/app/dist /mnt/user-data/outputs/app-dist
+```
+
+Use `present_file` on files under `/mnt/user-data/outputs/app-dist/` (e.g. `index.html`).
+
+If the user needs the full source repo as a deliverable, zip or copy the workspace project into `outputs/` instead of (or in addition to) `dist/`.
 
 ## Debugging
 
-1. Fix source files
+1. Fix source files in `workspace/app/src/`
 2. `npm run build`
-3. Test `dist/`
-4. Redeploy
+3. Verify `workspace/app/dist/`
+4. Re-copy to `outputs/app-dist/` and present again
+
+## Maintainer: refresh template dependencies
+
+Optional — run locally when updating the template, not required for agents:
+
+```bash
+bash /mnt/skills/public/webapp-building/scripts/.prepare-template.sh
+```
 
 ## Reference
 
