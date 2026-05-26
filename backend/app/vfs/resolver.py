@@ -77,6 +77,10 @@ class PathResolver:
             base_dir = paths.sandbox_outputs_dir(user_id, conversation_id)
             relative_part = virtual_path[len(vfs_config.outputs_prefix) :]
             permission = PathPermission.READ_WRITE
+        elif virtual_path.startswith(vfs_config.skills_custom_prefix):
+            base_dir = paths.user_skills_dir(user_id)
+            relative_part = virtual_path[len(vfs_config.skills_custom_prefix) :]
+            permission = PathPermission.READ_WRITE
         elif virtual_path.startswith(vfs_config.skills_prefix):
             base_dir = SKILLS_ROOT
             relative_part = virtual_path[len(vfs_config.skills_prefix) :]
@@ -85,7 +89,8 @@ class PathResolver:
             raise ValueError(
                 f"Invalid virtual path prefix. Must start with "
                 f"{vfs_config.workspace_prefix}, {vfs_config.uploads_prefix}, "
-                f"{vfs_config.outputs_prefix}, or {vfs_config.skills_prefix}"
+                f"{vfs_config.outputs_prefix}, {vfs_config.skills_custom_prefix}, "
+                f"or {vfs_config.skills_prefix}"
             )
 
         base_dir = base_dir.resolve()

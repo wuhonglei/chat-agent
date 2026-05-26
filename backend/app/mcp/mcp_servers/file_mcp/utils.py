@@ -30,6 +30,8 @@ def resolve_virtual_path(
     user_id: str,
     conversation_id: str,
     permission: PathPermission = PathPermission.READ_WRITE,
+    *,
+    must_exist: bool = True,
 ) -> Path:
     """Resolve virtual path to physical path."""
     resolver = PathResolver()
@@ -45,7 +47,7 @@ def resolve_virtual_path(
             f"Write operation not allowed on read-only path: {virtual_path}"
         )
 
-    if not physical_path.exists():
+    if must_exist and not physical_path.exists():
         raise ValueError(f"Path does not exist: {virtual_path}")
 
     return physical_path

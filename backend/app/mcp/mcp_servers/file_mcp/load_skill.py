@@ -24,9 +24,9 @@ class LoadSkillTool(ToolBase):
             return ToolResult(content="Error: name is required", is_error=True)
 
         try:
-            from app.agent_skills import skill_registry
+            from app.agent_skills import get_skill_registry
 
-            document = skill_registry.load(skill_name)
+            document = get_skill_registry(ctx.user_id or None).load(skill_name)
             body = document.body
 
             # Truncate if too long

@@ -9,6 +9,7 @@ BACKEND_ROOT = Path(__file__).resolve().parents[2]
 USER_DATA_ROOT = BACKEND_ROOT / "data" / "user_data"
 SKILLS_ROOT = BACKEND_ROOT / "skills"
 SKILLS_PUBLIC_DIR = SKILLS_ROOT / "public"
+SKILLS_CUSTOM_SEGMENT = "custom"
 VIRTUAL_PATH_PREFIX = "/mnt/user-data"
 
 _SAFE_ID_RE = re.compile(r"^[A-Za-z0-9_\-]+$")
@@ -58,6 +59,17 @@ class Paths:
 
     def sandbox_outputs_dir(self, user_id: str, conversation_id: str) -> Path:
         return self.conversation_dir(user_id, conversation_id) / "outputs"
+
+    def user_skills_dir(self, user_id: str) -> Path:
+        """Per-user custom skills root (virtual ``/mnt/skills/custom/``)."""
+        return self.user_dir(user_id) / "skills"
+
+    def ensure_user_skills_dir(self, user_id: str) -> Path:
+        """Create user skills directory if missing."""
+        root = self.user_skills_dir(self.validate_user_id(user_id)).resolve()
+        root.mkdir(parents=True, exist_ok=True)
+        root.chmod(0o777)
+        return root
 
     def ensure_sandbox_work_dir(self, user_id: str, conversation_id: str) -> Path:
         """Return workspace dir, creating it if missing."""

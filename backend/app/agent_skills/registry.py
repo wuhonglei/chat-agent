@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 from pathlib import Path
 
 from app.agent_skills.models import (
@@ -10,7 +11,7 @@ from app.agent_skills.models import (
     AgentSkillManifest,
 )
 from app.vfs.config import vfs_config
-from app.vfs.paths import SKILLS_PUBLIC_DIR
+from app.vfs.paths import SKILLS_PUBLIC_DIR, get_paths
 
 _FRONTMATTER_RE = re.compile(
     r"\A---\n(?P<meta>.*?)\n---\n(?P<body>.*)\Z",
@@ -21,22 +22,40 @@ _FRONTMATTER_RE = re.compile(
 class AgentSkillRegistry:
     """Central registry for available and loadable skills."""
 
-    def __init__(self, skills_dir: Path | None = None) -> None:
-        base_dir = skills_dir if skills_dir is not None else SKILLS_PUBLIC_DIR
-        self.skills_dir = base_dir
+    def __init__(
+        self,
+        *,
+        user_id: str | None = None,
+        skills_dir: Path | None = None,
+    ) -> None:
+        self.user_id = user_id
+        self.skills_dir = skills_dir if skills_dir is not None else SKILLS_PUBLIC_DIR
         self._documents = self._load_all()
 
     def _load_all(self) -> dict[str, AgentSkillDocument]:
         documents: dict[str, AgentSkillDocument] = {}
-        if not self.skills_dir.exists():
-            return documents
 
-        for path in sorted(self.skills_dir.glob("*/SKILL.md")):
-            document = self._load_document(path)
-            documents[document.manifest.name] = document
+        if self.skills_dir.exists():
+            for path in sorted(self.skills_dir.glob("*/SKILL.md")):
+                document = self._load_document(
+                    path,
+                    location_prefix=f"{vfs_config.skills_prefix}public",
+                )
+                documents[document.manifest.name] = document
+
+        if self.user_id:
+            custom_dir = get_paths().user_skills_dir(self.user_id)
+            if custom_dir.exists():
+                for path in sorted(custom_dir.glob("*/SKILL.md")):
+                    document = self._load_document(
+                        path,
+                        location_prefix=vfs_config.skills_custom_prefix.rstrip("/"),
+                    )
+                    documents[document.manifest.name] = document
+
         return documents
 
-    def _load_document(self, path: Path) -> AgentSkillDocument:
+    def _load_document(self, path: Path, *, location_prefix: str) -> AgentSkillDocument:
         raw_text = path.read_text(encoding="utf-8").strip()
         match = _FRONTMATTER_RE.match(raw_text)
         skill_dir_name = path.parent.name
@@ -51,8 +70,7 @@ class AgentSkillRegistry:
             name = skill_dir_name
             description = self._extract_first_non_empty_line(body)
 
-        skill_relative = path.relative_to(SKILLS_PUBLIC_DIR.parent)
-        location = f"{vfs_config.skills_prefix.rstrip('/')}/{skill_relative.as_posix()}"
+        location = f"{location_prefix}/{skill_dir_name}/SKILL.md"
         return AgentSkillDocument(
             manifest=AgentSkillManifest(
                 name=name,
@@ -96,4 +114,7 @@ class AgentSkillRegistry:
         return document
 
 
-skill_registry = AgentSkillRegistry()
+@lru_cache(maxsize=128)
+def get_skill_registry(user_id: str | None = None) -> AgentSkillRegistry:
+    """Return a cached registry for *user_id* (``None`` = public skills only)."""
+    return AgentSkillRegistry(user_id=user_id)

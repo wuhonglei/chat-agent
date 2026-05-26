@@ -43,15 +43,19 @@ class EditFileTool(ToolBase):
             writable_prefixes = (
                 vfs_config.workspace_prefix,
                 vfs_config.outputs_prefix,
+                vfs_config.skills_custom_prefix,
             )
             if not file_path.startswith(writable_prefixes):
                 return ToolResult(
                     content=(
                         "Error: Edit operation only allowed under "
-                        f"{vfs_config.workspace_prefix} or {vfs_config.outputs_prefix}"
+                        f"{vfs_config.workspace_prefix}, {vfs_config.outputs_prefix}, "
+                        f"or {vfs_config.skills_custom_prefix}"
                     ),
                     is_error=True,
                 )
+
+            is_custom_skill = file_path.startswith(vfs_config.skills_custom_prefix)
 
             physical_path = resolve_virtual_path(
                 file_path, ctx.user_id, ctx.conversation_id, PathPermission.READ_WRITE
@@ -89,13 +93,13 @@ class EditFileTool(ToolBase):
                 updated_content = content.replace(old_string, new_string, 1)
                 applied_count = 1
 
-            # Check write quota
-            workspace_root = get_paths().ensure_sandbox_work_dir(
-                ctx.user_id, ctx.conversation_id
-            )
-            ensure_write_quota(
-                workspace_root, target=physical_path, content=updated_content
-            )
+            if not is_custom_skill:
+                workspace_root = get_paths().ensure_sandbox_work_dir(
+                    ctx.user_id, ctx.conversation_id
+                )
+                ensure_write_quota(
+                    workspace_root, target=physical_path, content=updated_content
+                )
 
             # Write updated content
             physical_path.write_text(updated_content, encoding="utf-8")

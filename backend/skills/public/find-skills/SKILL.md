@@ -97,7 +97,7 @@ For example, if the user wants to install `vercel-react-best-practices`:
 bash /path/to/skill/scripts/install-skill.sh vercel-labs/agent-skills@vercel-react-best-practices
 ```
 
-The script will install the skill globally to `skills/custom/`
+The script installs the skill to `/mnt/skills/custom/` (per-user custom skills directory). Requires `USER_SKILLS_DIR` in the shell environment (set automatically in Docker sandbox).
 
 ## Common Skill Categories
 

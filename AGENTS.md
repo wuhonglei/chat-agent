@@ -35,13 +35,14 @@
 Per-user disk layout under `backend/data/user_data/{user_id}/`:
 
 ```
+skills/                          # User custom skills (virtual /mnt/skills/custom/)
 conversations/{conversation_id}/
   workspace/   # Agent read/write work area
   uploads/     # Session uploads (+ derived/ for PDF markdown)
   outputs/     # Final deliverables
 ```
 
-Agent virtual paths (not disk directory names): `/mnt/user-data/workspace/`, `/mnt/user-data/uploads/`, `/mnt/user-data/outputs/`, `/mnt/skills/`. Path helpers live in `app/vfs/paths.py`. Alembic revision `b4c5d6e7f8a9` migrates v3 `workspaces/{conv}` and `uploads/{conv}` into the layout above.
+Agent virtual paths (not disk directory names): `/mnt/user-data/workspace/`, `/mnt/user-data/uploads/`, `/mnt/user-data/outputs/`, `/mnt/skills/public/` (built-in, read-only), `/mnt/skills/custom/` (per-user, read-write). Path helpers live in `app/vfs/paths.py`. Alembic revision `b4c5d6e7f8a9` migrates v3 `workspaces/{conv}` and `uploads/{conv}` into the layout above.
 
 ### Running tests
 

@@ -21,6 +21,7 @@ class ShellExecutor:
     def __init__(self) -> None:
         self._executor: SandboxExecutor | None = None
         self._workspace_path: Path | None = None
+        self._user_id: str | None = None
         self._effective_backend: str = settings.sandbox.backend
         self._initialized = False
 
@@ -68,15 +69,21 @@ class ShellExecutor:
         assert self._executor is not None
         await self._executor.setup(resolved)
 
+        self._user_id = user_id
         if (
             user_id
             and conversation_id
             and isinstance(self._executor, DockerSandboxExecutor)
         ):
-            uploads_dir = get_paths().sandbox_uploads_dir(user_id, conversation_id)
-            outputs_dir = get_paths().sandbox_outputs_dir(user_id, conversation_id)
+            paths = get_paths()
+            uploads_dir = paths.sandbox_uploads_dir(user_id, conversation_id)
+            outputs_dir = paths.sandbox_outputs_dir(user_id, conversation_id)
             await self._executor.set_uploads_path(uploads_dir)
             await self._executor.set_outputs_path(outputs_dir)
+            await self._executor.set_user_skills_path(
+                paths.ensure_user_skills_dir(user_id)
+            )
+            await self._executor.set_skills_public_path()
 
         self._workspace_path = resolved
         self._initialized = True
@@ -131,11 +138,18 @@ class ShellExecutor:
                 block_reason="Executor not initialized",
             )
 
+        shell_env: dict[str, str] | None = None
+        if self._user_id and self._effective_backend == "docker":
+            shell_env = {
+                "USER_SKILLS_DIR": vfs_config.skills_custom_prefix.rstrip("/"),
+            }
+
         request = ExecutionRequest(
             command=self._adapt_command_for_backend(command),
             cwd=self._resolve_cwd(),
             timeout=min(timeout, settings.sandbox.timeout),
             description=description,
+            env=shell_env,
         )
 
         return await self._executor.execute(request)
@@ -146,5 +160,6 @@ class ShellExecutor:
             await self._executor.cleanup()
         self._executor = None
         self._workspace_path = None
+        self._user_id = None
         self._effective_backend = settings.sandbox.backend
         self._initialized = False

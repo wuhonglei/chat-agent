@@ -38,26 +38,36 @@ class WriteFileTool(ToolBase):
             writable_prefixes = (
                 vfs_config.workspace_prefix,
                 vfs_config.outputs_prefix,
+                vfs_config.skills_custom_prefix,
             )
             if not file_path.startswith(writable_prefixes):
                 return ToolResult(
                     content=(
                         "Error: Write operation only allowed under "
-                        f"{vfs_config.workspace_prefix} or {vfs_config.outputs_prefix}"
+                        f"{vfs_config.workspace_prefix}, {vfs_config.outputs_prefix}, "
+                        f"or {vfs_config.skills_custom_prefix}"
                     ),
                     is_error=True,
                 )
 
+            is_custom_skill = file_path.startswith(vfs_config.skills_custom_prefix)
             physical_path = resolve_virtual_path(
-                file_path, ctx.user_id, ctx.conversation_id, PathPermission.READ_WRITE
+                file_path,
+                ctx.user_id,
+                ctx.conversation_id,
+                PathPermission.READ_WRITE,
+                must_exist=False,
             )
 
-            workspace_root = get_paths().ensure_sandbox_work_dir(
-                ctx.user_id, ctx.conversation_id
-            )
-
-            # Check write quota
-            ensure_write_quota(workspace_root, target=physical_path, content=content)
+            if not is_custom_skill:
+                workspace_root = get_paths().ensure_sandbox_work_dir(
+                    ctx.user_id, ctx.conversation_id
+                )
+                ensure_write_quota(
+                    workspace_root, target=physical_path, content=content
+                )
+            else:
+                get_paths().ensure_user_skills_dir(ctx.user_id)
 
             # Create parent directories
             physical_path.parent.mkdir(parents=True, exist_ok=True)

@@ -57,6 +57,13 @@ class VirtualPathMapper:
                 return vfs_config.outputs_prefix.rstrip("/")
             return f"{vfs_config.outputs_prefix}{relative.as_posix()}"
 
+        user_skills_root = paths.user_skills_dir(ctx.user_id).resolve()
+        if str(physical_resolved).startswith(str(user_skills_root)):
+            relative = physical_resolved.relative_to(user_skills_root)
+            if str(relative) == ".":
+                return vfs_config.skills_custom_prefix.rstrip("/")
+            return f"{vfs_config.skills_custom_prefix}{relative.as_posix()}"
+
         skills_root = SKILLS_ROOT.resolve()
         if str(physical_resolved).startswith(str(skills_root)):
             relative = physical_resolved.relative_to(skills_root)
@@ -81,6 +88,8 @@ class VirtualPathMapper:
             return PathPermission.READ_WRITE
         if virtual.startswith(vfs_config.uploads_prefix):
             return PathPermission.READ_ONLY
+        if virtual.startswith(vfs_config.skills_custom_prefix):
+            return PathPermission.READ_WRITE
         if virtual.startswith(vfs_config.skills_prefix):
             return PathPermission.READ_ONLY
         return PathPermission.FORBIDDEN
@@ -118,6 +127,10 @@ class VirtualPathMapper:
                     ).resolve()
                 ),
                 vfs_config.outputs_prefix.rstrip("/"),
+            ),
+            (
+                str(paths.user_skills_dir(ctx.user_id).resolve()),
+                vfs_config.skills_custom_prefix.rstrip("/"),
             ),
             (str(SKILLS_ROOT.resolve()), vfs_config.skills_prefix.rstrip("/")),
         )

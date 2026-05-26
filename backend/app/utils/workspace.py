@@ -20,8 +20,14 @@ def resolve_workspace_path(
 
 
 def resolve_skills_path(relative_path: str) -> tuple[Path, Path]:
-    """Resolve skills-relative path with security checks."""
+    """Resolve public skills-relative path with security checks."""
     return resolve_relative_under_root(SKILLS_PUBLIC_DIR.resolve(), relative_path)
+
+
+def resolve_user_skills_path(user_id: str, relative_path: str) -> tuple[Path, Path]:
+    """Resolve per-user custom skills path with security checks."""
+    root = get_paths().ensure_user_skills_dir(user_id)
+    return resolve_relative_under_root(root, relative_path)
 
 
 def workspace_usage(root: Path) -> tuple[int, int]:

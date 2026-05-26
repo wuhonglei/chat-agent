@@ -41,6 +41,10 @@ class VFSConfig(BaseModel):
         default="/mnt/skills/",
         description="Virtual path prefix for skills",
     )
+    skills_custom_prefix: str = Field(
+        default="/mnt/skills/custom/",
+        description="Virtual path prefix for per-user custom skills",
+    )
     max_file_size_mb: int = Field(default=100, description="Max single file size in MB")
     max_line_length: int = Field(
         default=2000, description="Max line length before truncation"

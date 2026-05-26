@@ -5,7 +5,7 @@ from typing import Any
 
 from openai.types.chat import ChatCompletionMessageFunctionToolCall
 
-from app.agent_skills import skill_registry
+from app.agent_skills import get_skill_registry
 from app.agents.base import BaseAgent
 from app.agents.chat_session_state import (
     ChatRoundStateMachine,
@@ -103,7 +103,9 @@ class ChatSessionAgent(BaseAgent):
         logger.info("User memories", count=len(user_memories))
 
         skill_manifests = (
-            skill_registry.list_manifests() if chat_request.agent_mode > 0 else []
+            get_skill_registry(user_id).list_manifests()
+            if chat_request.agent_mode > 0
+            else []
         )
         system_prompt = get_system_prompt_for_chat_session(
             agent_mode=chat_request.agent_mode,

@@ -51,3 +51,13 @@ def test_validate_conversation_id_rejects_unsafe(paths: Paths) -> None:
 
 def test_virtual_path_prefix_constant() -> None:
     assert VIRTUAL_PATH_PREFIX == "/mnt/user-data"
+
+
+def test_user_skills_dir(paths: Paths) -> None:
+    assert paths.user_skills_dir("user-1") == paths.user_dir("user-1") / "skills"
+
+
+def test_ensure_user_skills_dir(paths: Paths) -> None:
+    root = paths.ensure_user_skills_dir("user-1")
+    assert root.is_dir()
+    assert root == paths.user_skills_dir("user-1").resolve()

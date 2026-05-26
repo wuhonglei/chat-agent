@@ -10,7 +10,7 @@ from typing import Any
 from app.core.config import settings
 from app.sandbox.executor import ExecutionRequest, ExecutionResult, SandboxExecutor
 from app.utils.logger import logger
-from app.vfs.config import vfs_config
+from app.vfs.config import SKILLS_PUBLIC_DIR, vfs_config
 
 
 class DockerSandboxExecutor(SandboxExecutor):
@@ -20,6 +20,8 @@ class DockerSandboxExecutor(SandboxExecutor):
         self._workspace_path: Path | None = None
         self._uploads_path: Path | None = None
         self._outputs_path: Path | None = None
+        self._user_skills_path: Path | None = None
+        self._skills_public_path: Path | None = None
 
     async def setup(self, workspace_path: Path) -> None:
         """Setup workspace path for container mounts."""
@@ -34,6 +36,18 @@ class DockerSandboxExecutor(SandboxExecutor):
         """Set conversation outputs path for read-write mount."""
         self._outputs_path = outputs_path.resolve()
         self._outputs_path.mkdir(parents=True, exist_ok=True)
+
+    async def set_user_skills_path(self, user_skills_path: Path) -> None:
+        """Set per-user custom skills path for read-write mount at /mnt/skills/custom."""
+        self._user_skills_path = user_skills_path.resolve()
+        self._user_skills_path.mkdir(parents=True, exist_ok=True)
+
+    async def set_skills_public_path(
+        self, skills_public_path: Path | None = None
+    ) -> None:
+        """Set built-in public skills path for read-only mount at /mnt/skills/public."""
+        path = (skills_public_path or SKILLS_PUBLIC_DIR).resolve()
+        self._skills_public_path = path if path.exists() else None
 
     async def execute(self, request: ExecutionRequest) -> ExecutionResult:
         """Execute command in Docker container with security constraints."""
@@ -141,10 +155,33 @@ class DockerSandboxExecutor(SandboxExecutor):
                 }
             )
 
+        skills_custom_target = vfs_config.skills_custom_prefix.rstrip("/")
+        if self._user_skills_path:
+            mounts.append(
+                {
+                    "source": str(self._user_skills_path),
+                    "target": skills_custom_target,
+                    "type": "bind",
+                    "read_only": False,
+                }
+            )
+
+        skills_public_target = f"{vfs_config.skills_prefix.rstrip('/')}/public"
+        if self._skills_public_path and self._skills_public_path.exists():
+            mounts.append(
+                {
+                    "source": str(self._skills_public_path),
+                    "target": skills_public_target,
+                    "type": "bind",
+                    "read_only": True,
+                }
+            )
+
         env = {
             "HOME": workspace_target,
             "TMPDIR": "/tmp",
             "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+            "USER_SKILLS_DIR": skills_custom_target,
         }
         if request.env:
             env.update(request.env)
@@ -172,3 +209,5 @@ class DockerSandboxExecutor(SandboxExecutor):
         self._workspace_path = None
         self._uploads_path = None
         self._outputs_path = None
+        self._user_skills_path = None
+        self._skills_public_path = None
