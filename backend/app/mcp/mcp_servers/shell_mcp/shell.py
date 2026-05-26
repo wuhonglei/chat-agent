@@ -7,9 +7,12 @@ from pathlib import Path
 from typing import Any
 
 from app.mcp.mcp_servers.shell_mcp.audit import SandboxAuditEntry, log_audit_entry
+from app.mcp.mcp_servers.shell_mcp.command_audit import (
+    audit_command,
+    format_medium_risk_warning,
+)
 from app.mcp.mcp_servers.shell_mcp.config import shell_config
 from app.mcp.mcp_servers.shell_mcp.executor import SandboxBackendError, ShellExecutor
-from app.mcp.mcp_servers.shell_mcp.policy import policy_engine
 from app.sandbox.executor import ExecutionResult
 from app.vfs.paths import get_paths
 
@@ -87,22 +90,21 @@ class ShellTool:
 
         timeout = min(timeout, shell_config.max_timeout_ms)
 
-        policy_decision = policy_engine.validate_command(command)
+        audit_result = audit_command(command)
 
-        if not policy_decision.allowed:
-            audit_entry = SandboxAuditEntry(
-                user_id=user_id,
-                conversation_id=conversation_id,
-                command=command,
-                description=description,
-                decision="blocked",
-                block_reason=policy_decision.reason,
+        if audit_result.verdict == "block":
+            log_audit_entry(
+                SandboxAuditEntry(
+                    user_id=user_id,
+                    conversation_id=conversation_id,
+                    command=command,
+                    description=description,
+                    verdict="block",
+                    block_reason=audit_result.reason,
+                )
             )
-            log_audit_entry(audit_entry)
-
-            return (
-                f"Error: Command blocked by security policy: {policy_decision.reason}"
-            )
+            reason = audit_result.reason or "security violation detected"
+            return f"Error: Command blocked: {reason}"
 
         executor, init_error = await self.get_or_create_executor(
             user_id, conversation_id
@@ -119,17 +121,21 @@ class ShellTool:
 
         output = self._format_output(command, result)
 
-        audit_entry = SandboxAuditEntry(
-            user_id=user_id,
-            conversation_id=conversation_id,
-            command=command,
-            description=description,
-            decision="allowed",
-            return_code=result.return_code,
-            duration_ms=result.duration_ms,
-            output_size=len(output),
+        if audit_result.verdict == "warn":
+            output += format_medium_risk_warning(command)
+
+        log_audit_entry(
+            SandboxAuditEntry(
+                user_id=user_id,
+                conversation_id=conversation_id,
+                command=command,
+                description=description,
+                verdict=audit_result.verdict,
+                return_code=result.return_code,
+                duration_ms=result.duration_ms,
+                output_size=len(output),
+            )
         )
-        log_audit_entry(audit_entry)
 
         return output
 

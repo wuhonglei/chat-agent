@@ -17,6 +17,10 @@ class ShellMCPConfig(BaseModel):
     max_timeout_ms: int = Field(
         default=600000, description="Maximum timeout in milliseconds (10 minutes)"
     )
+    max_command_chars: int = Field(
+        default=10000,
+        description="Maximum shell command length before audit rejection",
+    )
 
 
 shell_config = ShellMCPConfig()

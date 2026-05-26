@@ -277,6 +277,95 @@ async def test_shell_executor_local_blocks_unsafe_host_path(tmp_path: Path) -> N
 
 
 @pytest.mark.asyncio
+async def test_shell_tool_blocks_rm_rf_without_executor(
+    shell_tool: ShellTool,
+) -> None:
+    with patch.object(ShellExecutor, "execute", new_callable=AsyncMock) as mock_execute:
+        output = await shell_tool.execute(
+            {"command": "rm -rf /", "description": "dangerous test"},
+            user_id="user-1",
+            conversation_id="ws-1",
+        )
+
+    assert "Command blocked" in output
+    mock_execute.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_shell_tool_warn_appends_to_output(
+    shell_tool: ShellTool,
+    tmp_path: Path,
+) -> None:
+    mock_paths = MagicMock()
+    mock_paths.ensure_sandbox_work_dir.return_value = tmp_path
+
+    mock_executor = MagicMock()
+    mock_executor.execute = AsyncMock(
+        return_value=ExecutionResult(stdout="ok", return_code=0)
+    )
+
+    with (
+        patch(
+            "app.mcp.mcp_servers.shell_mcp.shell.get_paths",
+            return_value=mock_paths,
+        ),
+        patch.object(
+            shell_tool,
+            "get_or_create_executor",
+            new_callable=AsyncMock,
+            return_value=(mock_executor, None),
+        ),
+    ):
+        output = await shell_tool.execute(
+            {"command": "pip install requests", "description": "install deps"},
+            user_id="user-1",
+            conversation_id="ws-1",
+        )
+
+    assert "⚠️" in output
+    assert "pip install requests" in output
+    mock_executor.execute.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_shell_tool_allows_vite_without_whitelist(
+    shell_tool: ShellTool,
+    tmp_path: Path,
+) -> None:
+    mock_paths = MagicMock()
+    mock_paths.ensure_sandbox_work_dir.return_value = tmp_path
+
+    mock_executor = MagicMock()
+    mock_executor.execute = AsyncMock(
+        return_value=ExecutionResult(stdout="ok", return_code=0)
+    )
+
+    with (
+        patch(
+            "app.mcp.mcp_servers.shell_mcp.shell.get_paths",
+            return_value=mock_paths,
+        ),
+        patch.object(
+            shell_tool,
+            "get_or_create_executor",
+            new_callable=AsyncMock,
+            return_value=(mock_executor, None),
+        ),
+    ):
+        output = await shell_tool.execute(
+            {
+                "command": "npx --yes create-vite@latest app",
+                "description": "scaffold vite app",
+            },
+            user_id="user-1",
+            conversation_id="ws-1",
+        )
+
+    assert "Command blocked" not in output
+    mock_executor.execute.assert_awaited_once()
+
+
+@pytest.mark.asyncio
 async def test_shell_executor_docker_cwd_uses_workspace_prefix(tmp_path: Path) -> None:
     executor = ShellExecutor()
     mock_backend = MagicMock()

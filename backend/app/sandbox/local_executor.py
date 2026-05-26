@@ -17,7 +17,7 @@ class LocalSandboxExecutor(SandboxExecutor):
     """Execute commands locally with process group isolation.
 
     Used when sandbox.backend is set to local (e.g. development without Docker).
-    Still applies policy engine filtering before execution.
+    Command audit and path validation run in shell_mcp before execution.
     """
 
     def __init__(self) -> None:

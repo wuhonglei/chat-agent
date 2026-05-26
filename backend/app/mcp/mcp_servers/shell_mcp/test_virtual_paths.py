@@ -110,6 +110,25 @@ def test_validate_allows_system_bin_path(mappings: dict[str, str]) -> None:
     validate_local_command_paths("ls /usr/bin | head", mappings)
 
 
+def test_validate_rejects_cat_root(mappings: dict[str, str]) -> None:
+    with pytest.raises(LocalCommandPathError, match="Unsafe absolute paths"):
+        validate_local_command_paths("cat /", mappings)
+
+
+def test_validate_rejects_command_cd_outside_virtual(
+    mappings: dict[str, str],
+) -> None:
+    with pytest.raises(LocalCommandPathError, match="Unsafe working directory"):
+        validate_local_command_paths("command cd /etc", mappings)
+
+
+def test_validate_allows_cd_skills(mappings: dict[str, str]) -> None:
+    validate_local_command_paths(
+        f"cd {vfs_config.skills_prefix.rstrip('/')}/public",
+        mappings,
+    )
+
+
 def test_mask_paths_in_output(path_layout: tuple[Paths, str, str]) -> None:
     paths, user_id, conversation_id = path_layout
     workspace = str(paths.sandbox_work_dir(user_id, conversation_id).resolve())

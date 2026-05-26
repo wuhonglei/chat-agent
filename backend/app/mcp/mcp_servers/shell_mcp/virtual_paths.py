@@ -14,6 +14,7 @@ PathMappings = dict[str, str]
 
 _ABSOLUTE_PATH_PATTERN = re.compile(r"(?<![:\w])(?<!:/)/(?:[^\s\"'`;&|<>()]+)")
 _FILE_URL_PATTERN = re.compile(r"\bfile://\S+", re.IGNORECASE)
+_URL_WITH_SCHEME_PATTERN = re.compile(r"^[a-z][a-z0-9+.-]*://", re.IGNORECASE)
 _URL_IN_COMMAND_PATTERN = re.compile(
     r"\b[a-z][a-z0-9+.-]*://[^\s\"'`;&|<>()]+", re.IGNORECASE
 )
@@ -28,7 +29,61 @@ _SYSTEM_PATH_PREFIXES = (
     "/dev/",
 )
 _SHELL_COMMAND_SEPARATORS = frozenset({";", "&&", "||", "|", "|&", "&", "(", ")"})
+_SHELL_REDIRECTION_OPERATORS = frozenset(
+    {
+        "<",
+        ">",
+        "<<",
+        ">>",
+        "<<<",
+        "<>",
+        ">&",
+        "<&",
+        "&>",
+        "&>>",
+        ">|",
+    }
+)
 _LOCAL_BASH_CWD_COMMANDS = frozenset({"cd", "pushd"})
+_LOCAL_BASH_COMMAND_WRAPPERS = frozenset({"command", "builtin"})
+_LOCAL_BASH_COMMAND_PREFIX_KEYWORDS = frozenset(
+    {
+        "!",
+        "{",
+        "case",
+        "do",
+        "elif",
+        "else",
+        "for",
+        "if",
+        "select",
+        "then",
+        "time",
+        "until",
+        "while",
+    }
+)
+_LOCAL_BASH_COMMAND_END_KEYWORDS = frozenset({"}", "done", "esac", "fi"})
+_LOCAL_BASH_ROOT_PATH_COMMANDS = frozenset(
+    {
+        "awk",
+        "cat",
+        "cp",
+        "du",
+        "find",
+        "grep",
+        "head",
+        "less",
+        "ln",
+        "ls",
+        "more",
+        "mv",
+        "rm",
+        "sed",
+        "tail",
+        "tar",
+    }
+)
 
 
 class LocalCommandPathError(PermissionError):
@@ -131,7 +186,7 @@ def _reject_path_traversal(path: str) -> None:
             raise LocalCommandPathError("Access denied: path traversal detected")
 
 
-def _is_allowed_absolute_path(path: str) -> bool:
+def _is_allowed_absolute_path(path: str, *, allow_system_paths: bool = True) -> bool:
     if path == VIRTUAL_PATH_PREFIX or path.startswith(f"{VIRTUAL_PATH_PREFIX}/"):
         _reject_path_traversal(path)
         return True
@@ -141,12 +196,24 @@ def _is_allowed_absolute_path(path: str) -> bool:
         _reject_path_traversal(path)
         return True
 
-    if any(
+    if allow_system_paths and any(
         path == prefix.rstrip("/") or path.startswith(prefix)
         for prefix in _SYSTEM_PATH_PREFIXES
     ):
         return True
 
+    return False
+
+
+def _is_non_file_url_token(token: str) -> bool:
+    values = [token]
+    if "=" in token:
+        values.append(token.split("=", 1)[1])
+
+    for value in values:
+        match = _URL_WITH_SCHEME_PATTERN.match(value)
+        if match and not value.lower().startswith("file://"):
+            return True
     return False
 
 
@@ -163,7 +230,7 @@ def _is_in_spans(position: int, spans: list[tuple[int, int]]) -> bool:
 
 
 def _has_dotdot_path_segment(token: str) -> bool:
-    if "://" in token and not token.lower().startswith("file://"):
+    if _is_non_file_url_token(token):
         return False
     return bool(_DOTDOT_PATH_SEGMENT_PATTERN.search(token))
 
@@ -181,54 +248,92 @@ def _split_shell_tokens(command: str) -> list[str]:
         return command.split()
 
 
-def _validate_cd_targets(tokens: list[str]) -> None:
-    index = 0
+def _is_shell_command_separator(token: str) -> bool:
+    return token in _SHELL_COMMAND_SEPARATORS
+
+
+def _is_shell_redirection_operator(token: str) -> bool:
+    return token in _SHELL_REDIRECTION_OPERATORS
+
+
+def _is_shell_assignment(token: str) -> bool:
+    name, separator, _ = token.partition("=")
+    if not separator or not name:
+        return False
+    return bool(re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name))
+
+
+def _next_cd_target(tokens: list[str], start_index: int) -> tuple[str | None, int]:
+    index = start_index
     while index < len(tokens):
         token = tokens[index]
-        if token in _SHELL_COMMAND_SEPARATORS:
+        if _is_shell_command_separator(token):
+            return None, index
+        if _is_shell_redirection_operator(token):
+            index += 2
+            continue
+        if token == "--":
             index += 1
             continue
-
-        command_name = token.rsplit("/", 1)[-1]
-        if command_name not in _LOCAL_BASH_CWD_COMMANDS:
+        if token in {"-L", "-P", "-e", "-@"}:
             index += 1
             continue
+        if token.startswith("-") and token != "-":
+            index += 1
+            continue
+        return token, index + 1
+    return None, index
 
-        target_index = index + 1
-        while target_index < len(tokens):
-            candidate = tokens[target_index]
-            if candidate in _SHELL_COMMAND_SEPARATORS:
-                break
-            if candidate.startswith("-"):
-                target_index += 1
-                continue
-            target = candidate
-            if target.startswith(("$", "`", "~")):
-                raise LocalCommandPathError(
-                    f"Unsafe working directory change: {command_name} {target}. "
-                    f"Use paths under {VIRTUAL_PATH_PREFIX}"
-                )
-            if target.startswith("/"):
-                _reject_path_traversal(target)
-                if not _is_allowed_absolute_path(target):
-                    raise LocalCommandPathError(
-                        f"Unsafe working directory change: {command_name} {target}. "
-                        f"Use paths under {VIRTUAL_PATH_PREFIX}"
-                    )
-            break
 
+def _validate_cwd_target(command_name: str, target: str | None) -> None:
+    if target is None or target == "-":
+        raise LocalCommandPathError(
+            f"Unsafe working directory change in command: {command_name}. "
+            f"Use paths under {VIRTUAL_PATH_PREFIX}"
+        )
+    if target.startswith(("$", "`")):
+        raise LocalCommandPathError(
+            f"Unsafe working directory change in command: {command_name} {target}. "
+            f"Use paths under {VIRTUAL_PATH_PREFIX}"
+        )
+    if target.startswith("~"):
+        raise LocalCommandPathError(
+            f"Unsafe working directory change in command: {command_name} {target}. "
+            f"Use paths under {VIRTUAL_PATH_PREFIX}"
+        )
+    if target.startswith("/"):
+        _reject_path_traversal(target)
+        if not _is_allowed_absolute_path(target, allow_system_paths=False):
+            raise LocalCommandPathError(
+                f"Unsafe working directory change in command: {command_name} {target}. "
+                f"Use paths under {VIRTUAL_PATH_PREFIX}"
+            )
+
+
+def _validate_root_path_args(
+    command_name: str, tokens: list[str], start_index: int
+) -> None:
+    if command_name not in _LOCAL_BASH_ROOT_PATH_COMMANDS:
+        return
+
+    index = start_index
+    while index < len(tokens):
+        token = tokens[index]
+        if _is_shell_command_separator(token):
+            return
+        if _is_shell_redirection_operator(token):
+            index += 2
+            continue
+        if token == "/" and not _is_non_file_url_token(token):
+            raise LocalCommandPathError(
+                f"Unsafe absolute paths in command: /. "
+                f"Use paths under {VIRTUAL_PATH_PREFIX}"
+            )
         index += 1
 
 
-def validate_local_command_paths(command: str, mappings: PathMappings) -> None:
-    """Validate absolute paths in a local-sandbox command (before virtual→physical replace)."""
-    file_url_match = _FILE_URL_PATTERN.search(command)
-    if file_url_match:
-        raise LocalCommandPathError(
-            f"Unsafe file:// URL in command: {file_url_match.group()}. "
-            f"Use paths under {VIRTUAL_PATH_PREFIX}"
-        )
-
+def _validate_shell_tokens(command: str) -> None:
+    """Conservatively reject path escapes missed by absolute-path scanning."""
     if re.search(r"\$\([^)]*\b(?:cd|pushd)\b", command):
         raise LocalCommandPathError(
             f"Unsafe working directory change in command substitution. "
@@ -236,11 +341,73 @@ def validate_local_command_paths(command: str, mappings: PathMappings) -> None:
         )
 
     tokens = _split_shell_tokens(command)
+
     for token in tokens:
+        if _is_shell_command_separator(token) or _is_shell_redirection_operator(token):
+            continue
         if _has_dotdot_path_segment(token):
             raise LocalCommandPathError("Access denied: path traversal detected")
 
-    _validate_cd_targets(tokens)
+    at_command_start = True
+    index = 0
+    while index < len(tokens):
+        token = tokens[index]
+
+        if _is_shell_command_separator(token):
+            at_command_start = True
+            index += 1
+            continue
+
+        if _is_shell_redirection_operator(token):
+            index += 1
+            continue
+
+        if at_command_start and _is_shell_assignment(token):
+            index += 1
+            continue
+
+        command_name = token.rsplit("/", 1)[-1]
+        if at_command_start and command_name in (
+            _LOCAL_BASH_COMMAND_PREFIX_KEYWORDS | _LOCAL_BASH_COMMAND_END_KEYWORDS
+        ):
+            index += 1
+            continue
+
+        if not at_command_start:
+            index += 1
+            continue
+
+        at_command_start = False
+        if command_name in _LOCAL_BASH_COMMAND_WRAPPERS and index + 1 < len(tokens):
+            wrapped_name = tokens[index + 1].rsplit("/", 1)[-1]
+            if wrapped_name in _LOCAL_BASH_CWD_COMMANDS:
+                target, next_index = _next_cd_target(tokens, index + 2)
+                _validate_cwd_target(wrapped_name, target)
+                index = next_index
+                continue
+            _validate_root_path_args(wrapped_name, tokens, index + 2)
+
+        if command_name not in _LOCAL_BASH_CWD_COMMANDS:
+            _validate_root_path_args(command_name, tokens, index + 1)
+            index += 1
+            continue
+
+        target, next_index = _next_cd_target(tokens, index + 1)
+        _validate_cwd_target(command_name, target)
+        index = next_index
+
+
+def validate_local_command_paths(command: str, mappings: PathMappings) -> None:
+    """Validate absolute paths in a local-sandbox command (before virtual→physical replace)."""
+    _ = mappings
+    file_url_match = _FILE_URL_PATTERN.search(command)
+    if file_url_match:
+        raise LocalCommandPathError(
+            f"Unsafe file:// URL in command: {file_url_match.group()}. "
+            f"Use paths under {VIRTUAL_PATH_PREFIX}"
+        )
+
+    _validate_shell_tokens(command)
 
     unsafe_paths: list[str] = []
     url_spans = _non_file_url_spans(command)

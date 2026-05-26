@@ -1,85 +1,59 @@
-"""Tests for shell MCP server."""
+"""Tests for shell MCP command audit (replaces legacy policy whitelist tests)."""
 
 from __future__ import annotations
 
-import pytest
-
-from app.mcp.mcp_servers.shell_mcp.policy import CommandPolicyEngine
-from app.vfs.config import vfs_config
+from app.mcp.mcp_servers.shell_mcp.command_audit import audit_command, classify_command
 
 
-@pytest.fixture
-def policy() -> CommandPolicyEngine:
-    return CommandPolicyEngine()
+def test_audit_empty_command() -> None:
+    result = audit_command("")
+    assert result.verdict == "block"
+    assert result.reason == "empty command"
 
 
-def test_policy_empty_command(policy: CommandPolicyEngine) -> None:
-    result = policy.validate_command("")
-    assert not result.allowed
-    assert "empty" in result.reason.lower()
+def test_audit_rm_rf_blocked() -> None:
+    result = audit_command("rm -rf /")
+    assert result.verdict == "block"
 
 
-def test_policy_blocked_command(policy: CommandPolicyEngine) -> None:
-    result = policy.validate_command("sudo ls")
-    assert not result.allowed
-    assert "blocked" in result.reason.lower()
+def test_audit_pipe_to_shell_blocked() -> None:
+    result = audit_command("echo hello | sh")
+    assert result.verdict == "block"
 
 
-def test_policy_allowed_command(policy: CommandPolicyEngine) -> None:
-    result = policy.validate_command("ls -la")
-    assert result.allowed
+def test_audit_fork_bomb_blocked() -> None:
+    result = audit_command(":(){ :|:& };:")
+    assert result.verdict == "block"
 
 
-def test_policy_dangerous_rm_rf(policy: CommandPolicyEngine) -> None:
-    result = policy.validate_command("rm -rf /")
-    assert not result.allowed
+def test_audit_git_allowed() -> None:
+    result = audit_command("git status")
+    assert result.verdict == "pass"
 
 
-def test_policy_pipe_to_shell(policy: CommandPolicyEngine) -> None:
-    result = policy.validate_command("echo hello | sh")
-    assert not result.allowed
+def test_audit_python_allowed() -> None:
+    result = audit_command("python --version")
+    assert result.verdict == "pass"
 
 
-def test_policy_fork_bomb(policy: CommandPolicyEngine) -> None:
-    result = policy.validate_command(":(){ :|:& };:")
-    assert not result.allowed
+def test_audit_pip_install_warns() -> None:
+    result = audit_command("pip install requests")
+    assert result.verdict == "warn"
 
 
-def test_policy_git_allowed(policy: CommandPolicyEngine) -> None:
-    result = policy.validate_command("git status")
-    assert result.allowed
-
-
-def test_policy_python_allowed(policy: CommandPolicyEngine) -> None:
-    result = policy.validate_command("python --version")
-    assert result.allowed
-
-
-def test_policy_npm_allowed(policy: CommandPolicyEngine) -> None:
-    result = policy.validate_command("npm install")
-    assert result.allowed
-
-
-def test_policy_chained_vite_scaffold_command(policy: CommandPolicyEngine) -> None:
-    prefix = vfs_config.workspace_prefix.rstrip("/")
+def test_audit_vite_scaffold_allowed() -> None:
     command = (
-        f"cd {prefix} && npx --yes create-vite@latest vite-tmp "
-        "--template react-ts --no-interactive && "
-        "cp -r vite-tmp/* vite-tmp/.* . 2>/dev/null && rm -rf vite-tmp"
+        "npx --yes create-vite@latest vite-tmp --template react-ts && "
+        "cd vite-tmp && npm install && npm run build"
     )
-    result = policy.validate_command(command)
-    assert result.allowed
+    assert classify_command(command) == "pass"
 
 
-def test_policy_cd_outside_workspace_blocked(policy: CommandPolicyEngine) -> None:
-    result = policy.validate_command("cd /etc && ls")
-    assert not result.allowed
-    assert "sandbox" in (result.reason or "").lower()
+def test_audit_curl_allowed() -> None:
+    result = audit_command("curl https://example.com")
+    assert result.verdict == "pass"
 
 
-def test_policy_chained_command_rejects_blocked_segment(
-    policy: CommandPolicyEngine,
-) -> None:
-    result = policy.validate_command("ls -la && sudo id")
-    assert not result.allowed
-    assert "blocked" in (result.reason or "").lower()
+def test_audit_chained_command_blocks_dangerous_segment() -> None:
+    result = audit_command("ls -la && rm -rf /")
+    assert result.verdict == "block"
