@@ -8,7 +8,7 @@ from typing import Any
 
 from app.mcp.mcp_servers.shell_mcp.audit import SandboxAuditEntry, log_audit_entry
 from app.mcp.mcp_servers.shell_mcp.config import shell_config
-from app.mcp.mcp_servers.shell_mcp.executor import ShellExecutor
+from app.mcp.mcp_servers.shell_mcp.executor import SandboxBackendError, ShellExecutor
 from app.mcp.mcp_servers.shell_mcp.policy import policy_engine
 from app.sandbox.executor import ExecutionResult
 from app.vfs.paths import get_paths
@@ -49,9 +49,12 @@ class ShellTool:
                 return cached, None
 
             executor = ShellExecutor()
-            await executor.initialize(
-                workspace_path, user_id=key[0], conversation_id=key[1]
-            )
+            try:
+                await executor.initialize(
+                    workspace_path, user_id=key[0], conversation_id=key[1]
+                )
+            except SandboxBackendError as exc:
+                return None, str(exc)
             self._executors[key] = executor
             return executor, None
 

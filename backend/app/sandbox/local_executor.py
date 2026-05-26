@@ -16,7 +16,7 @@ from app.utils.logger import logger
 class LocalSandboxExecutor(SandboxExecutor):
     """Execute commands locally with process group isolation.
 
-    Used as fallback when Docker is not available (development mode).
+    Used when sandbox.backend is set to local (e.g. development without Docker).
     Still applies policy engine filtering before execution.
     """
 

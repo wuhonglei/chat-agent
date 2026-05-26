@@ -117,9 +117,40 @@ def test_adapt_command_strips_mkdir_workspace() -> None:
 
 
 @pytest.mark.asyncio
-async def test_shell_executor_falls_back_to_local_when_docker_unavailable(
+async def test_get_or_create_executor_returns_error_when_docker_unavailable(
+    shell_tool: ShellTool,
+) -> None:
+    workspace_path = Path("/tmp/test-workspace-docker-down")
+
+    mock_paths = MagicMock()
+    mock_paths.ensure_sandbox_work_dir.return_value = workspace_path
+
+    mock_settings = MagicMock()
+    mock_settings.sandbox = SandboxConfig(backend="docker", timeout=30000)
+    with (
+        patch(
+            "app.mcp.mcp_servers.shell_mcp.shell.get_paths",
+            return_value=mock_paths,
+        ),
+        patch("app.mcp.mcp_servers.shell_mcp.executor.settings", mock_settings),
+        patch(
+            "app.mcp.mcp_servers.shell_mcp.executor.is_docker_daemon_available",
+            return_value=False,
+        ),
+    ):
+        executor, error = await shell_tool.get_or_create_executor("user-1", "ws-1")
+
+    assert executor is None
+    assert error is not None
+    assert "Docker daemon is unavailable" in error
+
+
+@pytest.mark.asyncio
+async def test_shell_executor_fails_when_docker_unavailable(
     tmp_path: Path,
 ) -> None:
+    from app.mcp.mcp_servers.shell_mcp.executor import SandboxBackendError
+
     executor = ShellExecutor()
 
     mock_settings = MagicMock()
@@ -130,10 +161,9 @@ async def test_shell_executor_falls_back_to_local_when_docker_unavailable(
             "app.mcp.mcp_servers.shell_mcp.executor.is_docker_daemon_available",
             return_value=False,
         ),
+        pytest.raises(SandboxBackendError, match="Docker daemon is unavailable"),
     ):
         await executor.initialize(tmp_path)
-
-    assert executor._effective_backend == "local"
 
 
 @pytest.mark.asyncio

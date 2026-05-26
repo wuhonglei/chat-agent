@@ -415,7 +415,7 @@ class SandboxConfig(BaseModel):
     enabled: bool = Field(default=True, description="是否启用沙箱执行")
     backend: str = Field(
         default="docker",
-        description="沙箱后端：docker 或 local（Docker 不可用时可自动回退 local）",
+        description="沙箱后端：docker 或 local（backend=docker 时 Docker 不可用将直接失败，不回退）",
     )
     image: str = Field(default="ubuntu:22.04", description="Docker 沙箱镜像")
     cpu_limit: float = Field(default=1.0, description="CPU 限制（核数）")

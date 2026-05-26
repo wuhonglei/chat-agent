@@ -15,6 +15,10 @@ from app.vfs.config import vfs_config
 from app.vfs.paths import get_paths
 
 
+class SandboxBackendError(RuntimeError):
+    """Configured sandbox backend is not available."""
+
+
 class ShellExecutor:
     """Wrapper around SandboxExecutor for shell MCP integration."""
 
@@ -28,11 +32,10 @@ class ShellExecutor:
     def _resolve_backend(self) -> str:
         configured = settings.sandbox.backend
         if configured == "docker" and not is_docker_daemon_available():
-            logger.warning(
-                "Docker daemon unavailable, falling back to local sandbox",
-                configured_backend=configured,
+            raise SandboxBackendError(
+                "Docker daemon is unavailable but sandbox.backend is 'docker'. "
+                "Start Docker or set SANDBOX__BACKEND=local for local execution."
             )
-            return "local"
         return configured
 
     def _create_sandbox_executor(self, backend: str) -> SandboxExecutor:
