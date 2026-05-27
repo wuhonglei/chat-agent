@@ -14,8 +14,6 @@ class LoadSkillTool(ToolBase):
     name = "load_skill"
     description = "Load a skill document by name. Returns the skill's markdown content."
 
-    MAX_SKILL_BODY_CHARS = 20000
-
     async def execute(self, arguments: dict[str, Any], ctx: ToolContext) -> ToolResult:
         """Execute load_skill tool."""
         skill_name = arguments.get("name", "")
@@ -27,20 +25,11 @@ class LoadSkillTool(ToolBase):
             from app.agent_skills import get_skill_registry
 
             document = get_skill_registry(ctx.user_id or None).load(skill_name)
-            body = document.body
-
-            # Truncate if too long
-            truncated = False
-            if len(body) > self.MAX_SKILL_BODY_CHARS:
-                body = body[: self.MAX_SKILL_BODY_CHARS]
-                truncated = True
-
-            content = body + ("\n\n[Truncated by system limit]" if truncated else "")
+            content = document.body
 
             logger.info(
                 "Skill loaded",
                 skill_name=skill_name,
-                truncated=truncated,
                 body_length=len(content),
             )
 
@@ -49,7 +38,6 @@ class LoadSkillTool(ToolBase):
                 structured_content={
                     "name": document.manifest.name,
                     "description": document.manifest.description,
-                    "truncated": truncated,
                 },
             )
 
