@@ -20,7 +20,7 @@ from app.api import (
     message,
     models,
     user,
-    workspace,
+    user_data,
 )
 from app.core.config import settings
 from app.core.db import create_db_and_tables
@@ -113,7 +113,7 @@ app.include_router(health.router, prefix="/api/health", tags=["health"])
 app.include_router(file.router, prefix="/api/file", tags=["file"])
 app.include_router(avatars.router, prefix="/api/avatars", tags=["avatars"])
 app.include_router(code.router, prefix="/api/code", tags=["code"])
-app.include_router(workspace.router, prefix="/api/workspaces", tags=["workspace"])
+app.include_router(user_data.router, prefix="/api/workspaces", tags=["workspace"])
 
 
 @app.get("/")

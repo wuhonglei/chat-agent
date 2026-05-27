@@ -1,4 +1,4 @@
-"""Workspace read-only APIs for project preview."""
+"""User data read-only APIs for project preview."""
 
 from __future__ import annotations
 
