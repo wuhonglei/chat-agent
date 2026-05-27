@@ -42,7 +42,7 @@ async def test_get_or_create_executor_initializes_once(shell_tool: ShellTool) ->
     workspace_path = Path("/tmp/test-workspace-shell")
 
     mock_paths = MagicMock()
-    mock_paths.ensure_sandbox_work_dir.return_value = workspace_path
+    mock_paths.sandbox_work_dir.return_value = workspace_path
 
     with (
         patch(
@@ -71,13 +71,13 @@ async def test_get_or_create_executor_different_workspaces(
     path_a = Path("/tmp/ws-a")
     path_b = Path("/tmp/ws-b")
 
-    def _ensure_work_dir(user_id: str, conversation_id: str) -> Path:
+    def _sandbox_work_dir(user_id: str, conversation_id: str) -> Path:
         if conversation_id == "ws-a":
             return path_a
         return path_b
 
     mock_paths = MagicMock()
-    mock_paths.ensure_sandbox_work_dir.side_effect = _ensure_work_dir
+    mock_paths.sandbox_work_dir.side_effect = _sandbox_work_dir
 
     with (
         patch(
@@ -123,7 +123,7 @@ async def test_get_or_create_executor_returns_error_when_docker_unavailable(
     workspace_path = Path("/tmp/test-workspace-docker-down")
 
     mock_paths = MagicMock()
-    mock_paths.ensure_sandbox_work_dir.return_value = workspace_path
+    mock_paths.sandbox_work_dir.return_value = workspace_path
 
     mock_settings = MagicMock()
     mock_settings.sandbox = SandboxConfig(backend="docker", timeout=30000)
@@ -339,7 +339,7 @@ async def test_shell_tool_warn_appends_to_output(
     tmp_path: Path,
 ) -> None:
     mock_paths = MagicMock()
-    mock_paths.ensure_sandbox_work_dir.return_value = tmp_path
+    mock_paths.sandbox_work_dir.return_value = tmp_path
 
     mock_executor = MagicMock()
     mock_executor.execute = AsyncMock(
@@ -375,7 +375,7 @@ async def test_shell_tool_allows_vite_without_whitelist(
     tmp_path: Path,
 ) -> None:
     mock_paths = MagicMock()
-    mock_paths.ensure_sandbox_work_dir.return_value = tmp_path
+    mock_paths.sandbox_work_dir.return_value = tmp_path
 
     mock_executor = MagicMock()
     mock_executor.execute = AsyncMock(

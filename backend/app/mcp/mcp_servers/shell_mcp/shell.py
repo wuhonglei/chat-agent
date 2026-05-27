@@ -42,7 +42,9 @@ class ShellTool:
             return cached, None
 
         try:
-            workspace_path = get_paths().ensure_sandbox_work_dir(key[0], key[1])
+            paths = get_paths()
+            paths.ensure_conversation_dirs(key[0], key[1])
+            workspace_path = paths.sandbox_work_dir(key[0], key[1]).resolve()
         except ValueError as exc:
             return None, str(exc)
 
