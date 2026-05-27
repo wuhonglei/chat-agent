@@ -29,8 +29,6 @@ _HEAVY_DIR_NAMES = {
     "node_modules",
     ".next",
     ".git",
-    "dist",
-    "build",
     ".turbo",
     ".cache",
     ".local",
