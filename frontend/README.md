@@ -66,6 +66,7 @@ frontend/
 - `text`：文本块
 - `image`：图片附件块
 - `pdf`：PDF 附件块
+- `markdown`：Markdown 附件块
 
 发送时会先写入文本块，再按上传顺序追加附件块（`buildUserContentBlocks`）。
 
@@ -73,7 +74,7 @@ frontend/
 
 `ChatInput` 当前约束（`src/pages/ChatPage/components/ChatInput/util.ts`）：
 
-- 支持类型：图片（JPEG/PNG/GIF/WebP）和 PDF
+- 支持类型：图片（JPEG/PNG/GIF/WebP）、PDF 和 Markdown（`.md` / `.markdown` / `text/markdown`）
 - 单文件大小：不超过 `10MB`
 - 单次消息附件数量：最多 `5` 个
 - 上传接口：`POST /api/file/upload`（`src/services/file.ts`）
@@ -85,6 +86,7 @@ frontend/
 - PDF：
   - 小屏设备点击后直接下载
   - 非小屏优先在右侧 `BlockPreviewPanel` 打开 PDF 预览
+- Markdown：作为独立 `MarkdownBlock` 打开右侧预览；PDF 转写出的 Markdown 也复用同一块结构
 - HTML：在代码块头部点击“预览”后，使用侧栏 iframe 的 `srcDoc` 预览；当前 iframe 未设置 `sandbox`
 
 相关实现：

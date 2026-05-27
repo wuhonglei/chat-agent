@@ -116,7 +116,8 @@ make test
 
 上传成功后返回 `AttachmentBlock`：
 - 图片返回 `ImageBlock`
-- PDF 返回 `PdfBlock`，并在 `markdownBlock` 中携带同源 Markdown 预览信息
+- PDF 返回 `PdfBlock`，并在 `markdown` 中携带同源 Markdown 预览信息
+- Markdown（`.md` / `.markdown` / `text/markdown`）返回独立 `MarkdownBlock`
 
 预览 URL 统一为：`/api/file/preview/{user_id}/{filename}`。
 
@@ -125,8 +126,10 @@ make test
 - 单文件大小上限：`10MB`
 - 图片：`JPEG / PNG / GIF / WebP`
 - PDF：`application/pdf`
+- Markdown：`.md` / `.markdown` / `text/markdown`，内容必须是 UTF-8 文本
 - 图片会在服务端按最长边 `2048px` 等比缩放（超限时），并重新编码后落盘
 - PDF 会先校验文件头（`%PDF-`），再执行 PDF -> Markdown 转换
+- Markdown 按内容 SHA-256 命名落盘；同内容重复上传会复用已有文件
 
 ### 3) PDF -> Markdown 转换策略
 

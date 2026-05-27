@@ -21,6 +21,7 @@ class MCPToolSession:
         "tavily-mcp",
         "code-exec-mcp",
         "context7-mcp",
+        "zread-mcp",
     }
     AGENT_MODE_SERVERS = {
         "file-mcp",
@@ -28,6 +29,7 @@ class MCPToolSession:
         "tavily-mcp",
         "code-exec-mcp",
         "context7-mcp",
+        "zread-mcp",
     }
 
     def __init__(
