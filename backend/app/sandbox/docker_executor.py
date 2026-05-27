@@ -166,7 +166,7 @@ class DockerSandboxExecutor(SandboxExecutor):
                 }
             )
 
-        skills_public_target = f"{vfs_config.skills_prefix.rstrip('/')}/public"
+        skills_public_target = vfs_config.skills_public_prefix.rstrip("/")
         if self._skills_public_path and self._skills_public_path.exists():
             mounts.append(
                 {

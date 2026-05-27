@@ -28,7 +28,9 @@ def test_registry_merges_public_and_custom(tmp_path: Path) -> None:
 
     paths_module._paths = Paths(base_dir=user_data)
     try:
-        registry = AgentSkillRegistry(user_id="user-1", skills_dir=public_dir)
+        registry = AgentSkillRegistry(
+            skills_dirs=[str(public_dir), str(user_skills)],
+        )
         manifests = {m.name: m for m in registry.list_manifests()}
         assert "user-only" in manifests
         assert (
@@ -46,7 +48,7 @@ def test_registry_public_only_without_user_id(tmp_path: Path) -> None:
     public_dir = tmp_path / "skills_public"
     _write_skill(public_dir / "builtin", "builtin", "built-in skill")
 
-    registry = AgentSkillRegistry(skills_dir=public_dir)
+    registry = AgentSkillRegistry(skills_dirs=[str(public_dir)])
     manifests = registry.list_manifests()
     assert len(manifests) == 1
     assert manifests[0].location == "/mnt/skills/public/builtin/SKILL.md"

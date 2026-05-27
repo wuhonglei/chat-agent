@@ -45,7 +45,7 @@ system_prompt_for_chat_session_template: Template = Template(
 5. 严格遵循 skill 中的指示
 
 **技能目录：**
-- 内置技能（只读）：`{{ skills_prefix.rstrip('/') }}public/`
+- 内置技能（只读）：`{{ skills_public_prefix.rstrip('/') }}/`
 - 用户自定义技能（可读写）：`{{ skills_custom_prefix.rstrip('/') }}` — find-skills、skill-creator 安装或新建技能时使用；示例：`{{ skills_custom_prefix }}my-skill/SKILL.md`
 
 <available_skills>

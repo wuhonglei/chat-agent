@@ -39,7 +39,7 @@ def test_resolve_custom_skill_path(paths: Paths, resolver: PathResolver) -> None
 
 def test_resolve_public_skill_path(resolver: PathResolver) -> None:
     physical, permission = resolver.resolve_virtual_to_physical(
-        f"{vfs_config.skills_prefix}public/bootstrap/SKILL.md",
+        f"{vfs_config.skills_public_prefix}bootstrap/SKILL.md",
         "user-1",
         "conv-1",
     )

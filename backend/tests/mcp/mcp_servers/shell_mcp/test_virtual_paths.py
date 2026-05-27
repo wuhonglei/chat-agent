@@ -124,7 +124,7 @@ def test_validate_rejects_command_cd_outside_virtual(
 
 def test_validate_allows_cd_skills(mappings: dict[str, str]) -> None:
     validate_local_command_paths(
-        f"cd {vfs_config.skills_prefix.rstrip('/')}/public",
+        f"cd {vfs_config.skills_public_prefix.rstrip('/')}",
         mappings,
     )
 

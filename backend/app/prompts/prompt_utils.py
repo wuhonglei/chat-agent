@@ -53,6 +53,7 @@ def _get_runtime_environment() -> dict[str, str]:
         "workspace_prefix": vfs_config.workspace_prefix,
         "outputs_prefix": vfs_config.outputs_prefix,
         "skills_prefix": vfs_config.skills_prefix,
+        "skills_public_prefix": vfs_config.skills_public_prefix,
         "skills_custom_prefix": vfs_config.skills_custom_prefix,
         "uploads_prefix": vfs_config.uploads_prefix,
         "node_version": _get_command_version(["node", "--version"]),

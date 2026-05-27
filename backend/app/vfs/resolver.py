@@ -6,7 +6,7 @@ from enum import Enum
 from pathlib import Path
 
 from app.vfs.config import SKILLS_ROOT, vfs_config
-from app.vfs.paths import get_paths
+from app.vfs.paths import SKILLS_PUBLIC_DIR, get_paths
 
 FORBIDDEN_SEGMENTS = frozenset(
     {
@@ -81,6 +81,10 @@ class PathResolver:
             base_dir = paths.user_skills_dir(user_id)
             relative_part = virtual_path[len(vfs_config.skills_custom_prefix) :]
             permission = PathPermission.READ_WRITE
+        elif virtual_path.startswith(vfs_config.skills_public_prefix):
+            base_dir = SKILLS_PUBLIC_DIR
+            relative_part = virtual_path[len(vfs_config.skills_public_prefix) :]
+            permission = PathPermission.READ_ONLY
         elif virtual_path.startswith(vfs_config.skills_prefix):
             base_dir = SKILLS_ROOT
             relative_part = virtual_path[len(vfs_config.skills_prefix) :]
@@ -90,7 +94,7 @@ class PathResolver:
                 f"Invalid virtual path prefix. Must start with "
                 f"{vfs_config.workspace_prefix}, {vfs_config.uploads_prefix}, "
                 f"{vfs_config.outputs_prefix}, {vfs_config.skills_custom_prefix}, "
-                f"or {vfs_config.skills_prefix}"
+                f"{vfs_config.skills_public_prefix}, or {vfs_config.skills_prefix}"
             )
 
         base_dir = base_dir.resolve()

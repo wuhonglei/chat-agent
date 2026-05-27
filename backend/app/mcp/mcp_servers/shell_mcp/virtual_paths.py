@@ -8,7 +8,7 @@ from pathlib import Path
 
 from app.vfs.config import SKILLS_ROOT, vfs_config
 from app.vfs.mapper import MappingContext, VirtualPathMapper
-from app.vfs.paths import VIRTUAL_PATH_PREFIX, get_paths
+from app.vfs.paths import SKILLS_PUBLIC_DIR, VIRTUAL_PATH_PREFIX, get_paths
 
 PathMappings = dict[str, str]
 
@@ -107,6 +107,7 @@ def build_path_mappings(user_id: str, conversation_id: str) -> PathMappings:
         vfs_config.uploads_prefix.rstrip("/"): uploads,
         vfs_config.outputs_prefix.rstrip("/"): outputs,
         vfs_config.skills_custom_prefix.rstrip("/"): skills_custom,
+        vfs_config.skills_public_prefix.rstrip("/"): str(SKILLS_PUBLIC_DIR.resolve()),
         vfs_config.skills_prefix.rstrip("/"): skills,
     }
 
@@ -163,6 +164,13 @@ def replace_virtual_paths_in_command(command: str, mappings: PathMappings) -> st
             lambda m: replace_virtual_path(m.group(0), mappings), result
         )
 
+    skills_public = vfs_config.skills_public_prefix.rstrip("/")
+    if skills_public in mappings and skills_public in result:
+        pattern = re.compile(rf"{re.escape(skills_public)}{_VIRTUAL_PATH_SUFFIX}")
+        result = pattern.sub(
+            lambda m: replace_virtual_path(m.group(0), mappings), result
+        )
+
     skills_prefix = vfs_config.skills_prefix.rstrip("/")
     if skills_prefix in mappings and skills_prefix in result:
         pattern = re.compile(rf"{re.escape(skills_prefix)}{_VIRTUAL_PATH_SUFFIX}")
@@ -188,6 +196,11 @@ def _reject_path_traversal(path: str) -> None:
 
 def _is_allowed_absolute_path(path: str, *, allow_system_paths: bool = True) -> bool:
     if path == VIRTUAL_PATH_PREFIX or path.startswith(f"{VIRTUAL_PATH_PREFIX}/"):
+        _reject_path_traversal(path)
+        return True
+
+    skills_public = vfs_config.skills_public_prefix.rstrip("/")
+    if path == skills_public or path.startswith(f"{skills_public}/"):
         _reject_path_traversal(path)
         return True
 

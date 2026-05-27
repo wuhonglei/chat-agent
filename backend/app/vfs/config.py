@@ -41,6 +41,10 @@ class VFSConfig(BaseModel):
         default="/mnt/skills/",
         description="Virtual path prefix for skills",
     )
+    skills_public_prefix: str = Field(
+        default="/mnt/skills/public/",
+        description="Virtual path prefix for built-in public skills",
+    )
     skills_custom_prefix: str = Field(
         default="/mnt/skills/custom/",
         description="Virtual path prefix for per-user custom skills",
