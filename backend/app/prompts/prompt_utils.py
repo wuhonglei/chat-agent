@@ -7,7 +7,7 @@ import sys
 from collections.abc import Sequence
 from typing import Any
 
-from app.agent_skills.models import AgentSkillManifest
+from app.agent_skills.types import AgentSkillManifest
 from app.prompts.system_prompt import (
     default_system_prompt_template,
     system_prompt_for_chat_session_template,

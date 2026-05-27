@@ -1,4 +1,4 @@
-"""Agent skill domain models."""
+"""Agent skill domain types."""
 
 from __future__ import annotations
 

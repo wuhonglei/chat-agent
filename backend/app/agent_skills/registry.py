@@ -6,7 +6,7 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
-from app.agent_skills.models import (
+from app.agent_skills.types import (
     AgentSkillDocument,
     AgentSkillManifest,
 )
