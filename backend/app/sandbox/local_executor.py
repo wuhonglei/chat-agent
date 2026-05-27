@@ -48,7 +48,6 @@ class LocalSandboxExecutor(SandboxExecutor):
                 cwd=request.cwd,
                 env={
                     **os.environ,
-                    "HOME": str(self._workspace_path),
                     "TMPDIR": "/tmp",
                     **(request.env or {}),
                 },

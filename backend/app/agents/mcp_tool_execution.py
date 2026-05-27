@@ -27,7 +27,6 @@ class MCPToolSession:
         "file-mcp",
         "shell-mcp",
         "tavily-mcp",
-        "code-exec-mcp",
         "context7-mcp",
         "zread-mcp",
     }
