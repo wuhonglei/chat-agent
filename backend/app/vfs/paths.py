@@ -71,6 +71,15 @@ class Paths:
         root.chmod(0o777)
         return root
 
+    def ensure_conversation_dir(self, user_id: str, conversation_id: str) -> Path:
+        """Return conversation dir ``.../conversations/{cid}/``, creating it if missing."""
+        root = self.conversation_dir(
+            self.validate_user_id(user_id),
+            self.validate_conversation_id(conversation_id),
+        ).resolve()
+        root.mkdir(parents=True, exist_ok=True)
+        return root
+
     def ensure_sandbox_work_dir(self, user_id: str, conversation_id: str) -> Path:
         """Return workspace dir, creating it if missing."""
         root = self.sandbox_work_dir(

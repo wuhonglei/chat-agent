@@ -21,7 +21,7 @@ from app.schemas.auth import AuthTokenPayload
 from app.schemas.response import ApiResponse
 from app.utils.auth_deps import get_auth_token_info
 from app.utils.logger import logger
-from app.utils.workspace import resolve_workspace_path
+from app.utils.workspace import resolve_conversation_path
 
 router = APIRouter()
 
@@ -36,9 +36,12 @@ _HEAVY_DIR_NAMES = {
     ".local",
     "Library",
     ".vite-plus",
+    ".DS_Store",
 }
 
 _PREVIEW_ENTRY_CANDIDATES = (
+    "workspace/dist/index.html",
+    "workspace/build/index.html",
     "dist/index.html",
     "build/index.html",
 )
@@ -76,7 +79,7 @@ def _has_visible_children(dir_path: Path, *, include_ignored: bool) -> bool:
 def _build_tree_data(
     target_root: Path,
     *,
-    workspace_root: Path,
+    conversation_root: Path,
     include_ignored: bool,
 ) -> list[dict[str, Any]]:
     nodes: list[dict[str, Any]] = []
@@ -87,7 +90,7 @@ def _build_tree_data(
             child.name, include_ignored=include_ignored
         ):
             continue
-        relative_path = child.relative_to(workspace_root).as_posix()
+        relative_path = child.relative_to(conversation_root).as_posix()
         if child.is_dir():
             nodes.append(
                 {
@@ -112,10 +115,10 @@ def _build_tree_data(
     return nodes
 
 
-def _resolve_preview_entry(workspace_root: Path) -> tuple[str, Path] | None:
+def _resolve_preview_entry(conversation_root: Path) -> tuple[str, Path] | None:
     for relative_path in _PREVIEW_ENTRY_CANDIDATES:
-        candidate = (workspace_root / relative_path).resolve()
-        if not str(candidate).startswith(str(workspace_root)):
+        candidate = (conversation_root / relative_path).resolve()
+        if not str(candidate).startswith(str(conversation_root)):
             continue
         if candidate.is_file():
             return relative_path, candidate
@@ -152,10 +155,10 @@ def _inline_preview_assets(html_content: str, entry_file: Path) -> str:
     return _PREVIEW_ASSET_PATTERN.sub(_replace, html_content)
 
 
-def _iter_workspace_files(
-    workspace_root: Path, *, include_ignored: bool
+def _iter_conversation_files(
+    conversation_root: Path, *, include_ignored: bool
 ) -> Iterator[tuple[Path, str]]:
-    for current_root, dir_names, file_names in os.walk(workspace_root):
+    for current_root, dir_names, file_names in os.walk(conversation_root):
         if not include_ignored:
             dir_names[:] = [
                 dir_name
@@ -164,7 +167,7 @@ def _iter_workspace_files(
             ]
         for file_name in file_names:
             file_path = Path(current_root) / file_name
-            arc_name = file_path.relative_to(workspace_root).as_posix()
+            arc_name = file_path.relative_to(conversation_root).as_posix()
             yield file_path, arc_name
 
 
@@ -182,7 +185,9 @@ async def get_workspace_files(
             detail="当前接口仅支持 depth=1，请通过 path 参数懒加载子目录",
         )
     try:
-        root, target = resolve_workspace_path(auth_info.user_id, conversation_id, path)
+        root, target = resolve_conversation_path(
+            auth_info.user_id, conversation_id, path
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     if not target.exists() or not target.is_dir():
@@ -190,7 +195,7 @@ async def get_workspace_files(
 
     tree_data = _build_tree_data(
         target,
-        workspace_root=root,
+        conversation_root=root,
         include_ignored=include_ignored,
     )
     updated_at = _iso_from_timestamp(root.stat().st_mtime) if root.exists() else None
@@ -212,7 +217,7 @@ async def get_workspace_file_content(
     auth_info: AuthTokenPayload = Depends(get_auth_token_info),
 ) -> ApiResponse[dict[str, Any]]:
     try:
-        _, target = resolve_workspace_path(auth_info.user_id, conversation_id, path)
+        _, target = resolve_conversation_path(auth_info.user_id, conversation_id, path)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
@@ -241,21 +246,21 @@ async def download_workspace(
     auth_info: AuthTokenPayload = Depends(get_auth_token_info),
 ) -> StreamingResponse:
     try:
-        workspace_root, _ = resolve_workspace_path(
+        conversation_root, _ = resolve_conversation_path(
             auth_info.user_id, conversation_id, ""
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
-    if not workspace_root.exists() or not workspace_root.is_dir():
-        raise HTTPException(status_code=404, detail="工作区不存在")
+    if not conversation_root.exists() or not conversation_root.is_dir():
+        raise HTTPException(status_code=404, detail="会话目录不存在")
 
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(
         zip_buffer, mode="w", compression=zipfile.ZIP_DEFLATED
     ) as zip_file:
         has_files = False
-        for file_path, arc_name in _iter_workspace_files(
-            workspace_root, include_ignored=include_ignored
+        for file_path, arc_name in _iter_conversation_files(
+            conversation_root, include_ignored=include_ignored
         ):
             zip_file.write(file_path, arcname=arc_name)
             has_files = True
@@ -277,12 +282,12 @@ async def get_workspace_preview_content(
     conversation_id: str,
 ) -> HTMLResponse:
     try:
-        workspace_root, _ = resolve_workspace_path(user_id, conversation_id, "")
+        conversation_root, _ = resolve_conversation_path(user_id, conversation_id, "")
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
-    logger.info(f"workspace_root: {workspace_root}")
-    entry = _resolve_preview_entry(workspace_root)
+    logger.info(f"conversation_root: {conversation_root}")
+    entry = _resolve_preview_entry(conversation_root)
     logger.info(f"entry: {entry}")
     if entry is None:
         raise HTTPException(

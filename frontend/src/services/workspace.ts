@@ -1,5 +1,5 @@
-import axios from "axios";
 import { authHeader } from "@/constants/authHeader";
+import axios from "axios";
 import { addRequestHeaders, apiClient } from "./base";
 
 export interface WorkspaceTreeNode {
@@ -33,12 +33,12 @@ export const workspaceAPI = {
     options?: { path?: string; depth?: number; includeIgnored?: boolean }
   ): Promise<WorkspaceFileTreeResponse> => {
     const { path = "", depth = 1, includeIgnored = false } = options || {};
-    return await apiClient.get(`/workspaces/${workspaceId}/files`, {
+    return await apiClient.get(`/user_data/${workspaceId}/files`, {
       params: { path, depth, includeIgnored },
     });
   },
   getWorkspaceFileContent: async (workspaceId: string, path: string): Promise<WorkspaceFileContentResponse> => {
-    return await apiClient.get(`/workspaces/${workspaceId}/file-content`, { params: { path } });
+    return await apiClient.get(`/user_data/${workspaceId}/file-content`, { params: { path } });
   },
   getWorkspacePreviewContent: async (workspaceId: string): Promise<string> => {
     const response = await axios.get<string>(workspaceAPI.getWorkspacePreviewContentUrl(workspaceId), {
@@ -56,9 +56,9 @@ export const workspaceAPI = {
   },
   getWorkspacePreviewContentUrl: (workspaceId: string): string => {
     const userId = authHeader.getUserId();
-    return `/api/workspaces/${encodeURIComponent(userId)}/${encodeURIComponent(workspaceId)}/preview-content`;
+    return `/api/user_data/${encodeURIComponent(userId)}/${encodeURIComponent(workspaceId)}/preview-content`;
   },
   getWorkspaceDownloadUrl: (workspaceId: string): string => {
-    return `/api/workspaces/${encodeURIComponent(workspaceId)}/download`;
+    return `/api/user_data/${encodeURIComponent(workspaceId)}/download`;
   },
 };

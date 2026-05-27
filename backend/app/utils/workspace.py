@@ -1,32 +1,21 @@
-"""HTTP workspace API helpers: relative paths under sandbox work dir and quotas."""
+"""Conversation path resolution for user_data API and sandbox workspace write quotas."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from app.vfs.paths import SKILLS_PUBLIC_DIR, get_paths
+from app.vfs.paths import get_paths
 from app.vfs.resolver import resolve_relative_under_root
 
 MAX_WORKSPACE_BYTES = 2000 * 1024 * 1024
 MAX_READ_CHARS = 200_000
 
 
-def resolve_workspace_path(
+def resolve_conversation_path(
     user_id: str, conversation_id: str, relative_path: str
 ) -> tuple[Path, Path]:
-    """Resolve workspace-relative path for /api/workspaces (not virtual /mnt/...)."""
-    root = get_paths().ensure_sandbox_work_dir(user_id, conversation_id)
-    return resolve_relative_under_root(root, relative_path)
-
-
-def resolve_skills_path(relative_path: str) -> tuple[Path, Path]:
-    """Resolve public skills-relative path with security checks."""
-    return resolve_relative_under_root(SKILLS_PUBLIC_DIR.resolve(), relative_path)
-
-
-def resolve_user_skills_path(user_id: str, relative_path: str) -> tuple[Path, Path]:
-    """Resolve per-user custom skills path with security checks."""
-    root = get_paths().ensure_user_skills_dir(user_id)
+    """Resolve paths under ``data/user_data/{uid}/conversations/{cid}/`` for /api/user_data."""
+    root = get_paths().ensure_conversation_dir(user_id, conversation_id)
     return resolve_relative_under_root(root, relative_path)
 
 
@@ -56,15 +45,6 @@ def ensure_write_quota(root: Path, *, target: Path, content: str) -> None:
             f"workspace total bytes exceeds limit {MAX_WORKSPACE_BYTES}, "
             "please delete files first",
         )
-
-
-def format_usage(root: Path) -> str:
-    """Format workspace usage as string."""
-    file_count, total_bytes = workspace_usage(root)
-    return (
-        f"workspace={root}, files={file_count}, "
-        f"bytes={total_bytes}/{MAX_WORKSPACE_BYTES}"
-    )
 
 
 def truncate_content(content: str, *, limit: int = MAX_READ_CHARS) -> tuple[str, bool]:
