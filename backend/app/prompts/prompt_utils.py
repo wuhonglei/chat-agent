@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import subprocess
-import sys
 from collections.abc import Sequence
 from typing import Any
 
@@ -28,36 +26,14 @@ from app.utils.date import get_current_datetime_str
 from app.vfs.config import vfs_config
 
 
-def _get_command_version(command: list[str]) -> str:
-    """Get command version output safely."""
-    try:
-        result = subprocess.run(
-            command,
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=2,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return "unavailable"
-
-    output = (result.stdout or result.stderr).strip()
-    if not output:
-        return "unknown"
-    return output.splitlines()[0]
-
-
-def _get_runtime_environment() -> dict[str, str]:
-    """Get runtime environment summary for Agent mode prompts."""
+def _get_agent_mode_prompt_context() -> dict[str, str]:
+    """VFS path prefixes injected into system prompt when agent_mode > 0."""
     return {
         "workspace_prefix": vfs_config.workspace_prefix,
         "outputs_prefix": vfs_config.outputs_prefix,
-        "skills_prefix": vfs_config.skills_prefix,
+        "uploads_prefix": vfs_config.uploads_prefix,
         "skills_public_prefix": vfs_config.skills_public_prefix,
         "skills_custom_prefix": vfs_config.skills_custom_prefix,
-        "uploads_prefix": vfs_config.uploads_prefix,
-        "node_version": _get_command_version(["node", "--version"]),
-        "python_version": sys.version.split()[0],
     }
 
 
@@ -72,10 +48,11 @@ def get_system_prompt_for_chat_session(
     skill_manifests: Sequence[AgentSkillManifest] | None = None,
 ) -> str:
     """Get system prompt for final response generation."""
+    extra = _get_agent_mode_prompt_context() if agent_mode > 0 else {}
     return system_prompt_for_chat_session_template.render(
         agent_mode=agent_mode,
         skill_manifests=skill_manifests or [],
-        **_get_runtime_environment(),
+        **extra,
     )
 
 
