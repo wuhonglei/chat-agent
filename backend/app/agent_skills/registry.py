@@ -13,11 +13,6 @@ from app.agent_skills.types import (
 from app.vfs.config import vfs_config
 from app.vfs.paths import SKILLS_PUBLIC_DIR, get_paths
 
-_SKILL_LOCATION_PREFIXES: tuple[str, ...] = (
-    vfs_config.skills_public_prefix.rstrip("/"),
-    vfs_config.skills_custom_prefix.rstrip("/"),
-)
-
 _FRONTMATTER_RE = re.compile(
     r"\A---\n(?P<meta>.*?)\n---\n(?P<body>.*)\Z",
     re.DOTALL,
@@ -33,11 +28,11 @@ class AgentSkillRegistry:
     def _load_all(self, skills_dirs: list[str]) -> dict[str, AgentSkillDocument]:
         documents: dict[str, AgentSkillDocument] = {}
 
-        for index, skills_dir in enumerate(skills_dirs):
+        for skills_dir in skills_dirs:
             root = Path(skills_dir)
             if not root.exists():
                 continue
-            location_prefix = _location_prefix_for_index(index)
+            location_prefix = _location_prefix_for_dir(skills_dir)
             for path in sorted(root.glob("*/SKILL.md")):
                 document = self._load_document(path, location_prefix=location_prefix)
                 documents[document.manifest.name] = document
@@ -110,10 +105,17 @@ def _skill_dirs_for_user(user_id: str | None) -> list[str]:
     return dirs
 
 
-def _location_prefix_for_index(index: int) -> str:
-    if index < len(_SKILL_LOCATION_PREFIXES):
-        return _SKILL_LOCATION_PREFIXES[index]
-    return vfs_config.skills_custom_prefix.rstrip("/")
+def _location_prefix_for_dir(skills_dir: str | Path) -> str:
+    """Map a skills root directory to its virtual path prefix by path suffix."""
+    public_prefix = vfs_config.skills_public_prefix.rstrip("/")
+    custom_prefix = vfs_config.skills_custom_prefix.rstrip("/")
+    name = Path(skills_dir).resolve().name
+
+    if name == "public":
+        return public_prefix
+    if name == "skills":
+        return custom_prefix
+    return custom_prefix
 
 
 @lru_cache
