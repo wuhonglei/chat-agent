@@ -280,25 +280,31 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
   });
 
   const abortMessage = useMemoizedFn((conversationId): void => {
-    if (abortControllerRef.current && isStreaming) {
-      abortControllerRef.current.abort();
-      const lastMessage = lastMessageCheck(messages);
-      const assistantMessageId =
-        tempMessageRef.current?.assistantServerMessageId ||
-        streamResumeContext?.assistantMessageId ||
-        (lastMessage && !isLocalMessageId(lastMessage.id) ? lastMessage.id : undefined);
-      if (assistantMessageId) {
-        chatAPI.streamMessageStop({ assistantMessageId }).catch(error => {
-          reportError("abortMessage streamMessageStop", {
-            error,
-            conversationId,
-            assistantMessageId,
-          });
-        });
-      }
-      dispatch(updateMessageStatus({ conversationId, data: MessageStatus.Stopped }));
-      resetState(conversationId);
+    if (!isStreaming) {
+      return;
     }
+
+    // 即使 AbortController 丢失（例如某些重渲染/续传边界场景），也应尽量通过 stop 接口停止服务端流。
+    const controller = abortControllerRef.current;
+    abortControllerRef.current = null;
+    controller?.abort();
+
+    const lastMessage = lastMessageCheck(messages);
+    const assistantMessageId =
+      tempMessageRef.current?.assistantServerMessageId ||
+      streamResumeContext?.assistantMessageId ||
+      (lastMessage && !isLocalMessageId(lastMessage.id) ? lastMessage.id : undefined);
+    if (assistantMessageId) {
+      chatAPI.streamMessageStop({ assistantMessageId }).catch(error => {
+        reportError("abortMessage streamMessageStop", {
+          error,
+          conversationId,
+          assistantMessageId,
+        });
+      });
+    }
+    dispatch(updateMessageStatus({ conversationId, data: MessageStatus.Stopped }));
+    resetState(conversationId);
   });
 
   const deleteMessage = useMemoizedFn(async (messageId: string): Promise<void> => {
