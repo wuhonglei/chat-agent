@@ -75,7 +75,6 @@ class Context7MCPConfig(BaseModel):
 
     url: str = Field(description="Context7 URL")
     headers: dict[str, str] = Field(description="Context7 Headers")
-    verify_ssl: bool = Field(default=True, description="是否验证 SSL")
 
 
 class WeatherMCPConfig(BaseModel):

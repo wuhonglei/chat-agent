@@ -45,7 +45,6 @@ class MCPConnectionPool:
                         transport_type="FastMCPTransport",
                     )
                 elif isinstance(server_instance, dict) and "url" in server_instance:
-                    verify_ssl = server_instance.get("verify_ssl", True)
                     transport = StreamableHttpTransport(
                         url=server_instance["url"],
                         headers=server_instance.get("headers", {}),
@@ -54,7 +53,6 @@ class MCPConnectionPool:
                         "Using StreamableHttpTransport for remote server",
                         server_name=server_name,
                         transport_type="StreamableHttpTransport",
-                        verify_ssl=verify_ssl,
                     )
                 elif isinstance(server_instance, dict) and "command" in server_instance:
                     transport = StdioTransport(**server_instance)

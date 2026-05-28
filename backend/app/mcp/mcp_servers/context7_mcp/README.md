@@ -19,4 +19,4 @@ mcp:
 
 ### 独立运行（.env）
 
-参考 `.env.example`，必填 `CONTEXT7_API_KEY`；可选 `CONTEXT7_URL`、`CONTEXT7_VERIFY_SSL`。
+参考 `.env.example`，必填 `CONTEXT7_API_KEY`；可选 `CONTEXT7_URL`。
