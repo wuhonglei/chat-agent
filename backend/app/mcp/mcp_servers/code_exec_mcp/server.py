@@ -12,15 +12,11 @@ from fastmcp.tools.tool import ToolResult
 from pydantic import Field
 from pyston import File, PystonClient
 
-from app.mcp.cache import add_response_caching_if_enabled
-
 from .config import config
 from .models import CodeExecResponse, CodeExecStage
 from .utils import format_results
 
 mcp = FastMCP(name="Code Exec MCP Service")
-
-add_response_caching_if_enabled(mcp, config.cache_config)
 
 SupportedLanguage = Literal["python", "javascript", "typescript"]
 

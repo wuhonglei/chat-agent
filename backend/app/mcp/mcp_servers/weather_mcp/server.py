@@ -11,9 +11,6 @@ from fastmcp.client.transports import FastMCPTransport
 from fastmcp.tools.tool import ToolResult
 from pydantic import Field
 
-from app.mcp.cache import add_response_caching_if_enabled
-
-from .config import config
 from .models import (
     CitySearchResponse,
     WeatherAlertResponse,
@@ -34,8 +31,6 @@ from .utils import (
 mcp = FastMCP(
     name="Weather MCP Service",
 )
-
-add_response_caching_if_enabled(mcp, config.cache_config)
 
 
 @mcp.tool(name="search_city")

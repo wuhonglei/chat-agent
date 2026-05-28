@@ -19,9 +19,7 @@ class MCPRegistry:
     def __init__(self) -> None:
         self._servers: dict[str, Any] = {
             "time-mcp": time_mcp,
-            "context7-mcp": settings.mcp.context7_mcp.model_dump(
-                mode="json", exclude={"cache_config"}
-            ),
+            "context7-mcp": settings.mcp.context7_mcp.model_dump(mode="json"),
             "weather-mcp": weather_mcp,
             "tavily-mcp": tavily_mcp,
             "code-exec-mcp": code_exec_mcp,

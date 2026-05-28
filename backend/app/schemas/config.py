@@ -70,37 +70,12 @@ class LLMConfig(BaseModel):
     )
 
 
-class MCPCacheConfig(BaseModel):
-    """单个 MCP 的 tools/call 结果缓存配置"""
-
-    cache_enabled: bool = Field(
-        default=False,
-        description="是否启用缓存",
-    )
-    cache_dir: str = Field(
-        default="./data/mcp_cache",
-        description="缓存存储目录（DiskStore）",
-    )
-    call_tool_ttl: int = Field(
-        default=300,
-        description="工具调用缓存 TTL（秒）",
-    )
-    call_tool_excluded: list[str] = Field(
-        default_factory=list,
-        description="不缓存的工具名列表",
-    )
-
-
 class Context7MCPConfig(BaseModel):
     """Context7 MCP 配置"""
 
     url: str = Field(description="Context7 URL")
     headers: dict[str, str] = Field(description="Context7 Headers")
     verify_ssl: bool = Field(default=True, description="是否验证 SSL")
-    cache_config: MCPCacheConfig = Field(
-        default_factory=MCPCacheConfig,
-        description="工具调用结果缓存配置",
-    )
 
 
 class WeatherMCPConfig(BaseModel):
@@ -109,38 +84,23 @@ class WeatherMCPConfig(BaseModel):
     qweather_api_key: str = Field(description="和风天气 API 密钥")
     qweather_base_url: str = Field(description="和风天气 API 基础地址")
     qweather_timeout: int = Field(description="和风天气 API 超时时间")
-    cache_config: MCPCacheConfig = Field(
-        default_factory=MCPCacheConfig,
-        description="工具调用结果缓存配置",
-    )
 
 
 class TavilyMCPConfig(BaseModel):
     """Tavily MCP 配置"""
 
     tavily_api_key: str = Field(description="Tavily API 密钥")
-    cache_config: MCPCacheConfig = Field(
-        default_factory=MCPCacheConfig,
-        description="工具调用结果缓存配置",
-    )
 
 
 class TimeMCPConfig(BaseModel):
     """Time MCP 配置"""
 
-    cache_config: MCPCacheConfig = Field(
-        default_factory=MCPCacheConfig,
-        description="工具调用结果缓存配置",
-    )
+    pass
 
 
 class CodeExecMCPConfig(BaseModel):
     """Code Exec MCP 配置"""
 
-    cache_config: MCPCacheConfig = Field(
-        default_factory=MCPCacheConfig,
-        description="工具调用结果缓存配置",
-    )
     piston_base_url: str = Field(
         ...,
         description="Piston API 基础地址",

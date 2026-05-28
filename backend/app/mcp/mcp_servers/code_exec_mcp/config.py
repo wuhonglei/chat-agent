@@ -4,14 +4,8 @@ from pathlib import Path
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from app.schemas.config import MCPCacheConfig
-
 
 class _Settings(BaseSettings):
-    cache_config: MCPCacheConfig = Field(
-        default_factory=MCPCacheConfig,
-        description="工具调用结果缓存配置",
-    )
     piston_base_url: str = Field(
         ...,
         description="Piston API 基础地址",
@@ -26,7 +20,7 @@ class _Settings(BaseSettings):
     )
 
 
-# 主应用内直接使用 settings.mcp.code_exec_mcp（含 Nacos 下发的 cache_config）；
+# 主应用内直接使用 settings.mcp.code_exec_mcp；
 # 独立运行时使用本文件 Settings（.env）
 if "app.core.config" in sys.modules:
     from app.core.config import settings

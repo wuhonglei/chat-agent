@@ -3,16 +3,12 @@
 import sys
 from pathlib import Path
 
-from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-from app.schemas.config import MCPCacheConfig
 
 
 class _Settings(BaseSettings):
     url: str
     headers: dict[str, str]
-    cache_config: MCPCacheConfig = Field(default_factory=MCPCacheConfig)
     model_config = SettingsConfigDict(
         env_file=Path(__file__).parent / ".env",
         env_file_encoding="utf-8",
