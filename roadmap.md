@@ -212,7 +212,7 @@
 当前 MCP 分层（`Settings -> Registry -> ConnectionPool -> Gateway`）方向正确，但存在：
 
 - `context7-mcp` 的 `verify_ssl` 配置未贯通到 HTTP Transport，且代理侧存在默认关闭证书校验的实现
-- 配置来源双轨：主应用 `settings.mcp.`* 与各 server 模块内 `_Settings(.env)` 并存；`shell-mcp` / `file-mcp` 另走独立配置对象
+- 配置来源双轨：主应用 `settings.mcp.*` 与各 server 模块内 `_Settings(.env)` 并存；`shell-mcp` / `file-mcp` 另走独立配置对象
 - `MCPRegistry` 为硬编码静态表，新增/下线 MCP 需改代码
 - `/api/health` 未暴露 MCP 连接与工具索引状态，排障成本高
 
@@ -224,7 +224,7 @@
 | 顺序  | 子项                                   | 说明                                    |
 | --- | ------------------------------------ | ------------------------------------- |
 | 1   | `verify_ssl` 配置生效与默认严格校验             | 配置与行为不一致，远程 MCP 存在 TLS 风险；优先落地        |
-| 2   | MCP 运行时配置统一收口至 `settings.mcp.`*      | 建立运维单一真相源，消除 Nacos / `.env` / 模块内配置双轨 |
+| 2   | MCP 运行时配置统一收口至 `settings.mcp.*`       | 建立运维单一真相源，消除 Nacos / `.env` / 模块内配置双轨 |
 | 3   | Registry 配置驱动（类型化 server descriptor） | 新增 MCP 少改核心代码；为 #3 Skills 标准化接入前置     |
 | 4   | Health 接口暴露 MCP 子状态                  | 支撑线上可用性判断；与后续 #1 / #2 观测协同            |
 
@@ -245,7 +245,7 @@
 - `MCPConfig` 扩展字段与 Nacos 配置示例
 - Registry / ConnectionPool 改造与回归测试
 - Health MCP 子状态字段说明
-- 运维接入说明（环境变量 `MCP__`* 映射表）
+- 运维接入说明（环境变量 `MCP__*` 映射表）
 
 **验收标准**
 
@@ -261,7 +261,7 @@
 - #4 沙箱隔离是 #3 Skills 扩展的前置条件（无安全隔离不扩工具能力）
 - #5 虚拟映射、**#7 MCP 配置标准化**建议与 #4 在 Phase 0 并行推进（路径边界 + 工具接入边界）
 - **#7 是 #3 Skills 扩展的前置条件**（标准注册协议与单一配置源）
-- #2 LLM 观测优先于 #1 Prometheus，先建立 Agent 核心链路可诊断能力
+- #2 LLM 观测优先于 #1 Prometheus，先建立 Agent 核心链路可诊断、可量化能力
 
 ### 5.2 指标建设轨依赖
 
