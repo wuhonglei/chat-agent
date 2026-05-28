@@ -15,21 +15,6 @@ class MCPToolSession:
 
     MAX_TOTAL_ITERATIONS = 10
     AGENT_MODE_MAX_ITERATIONS = 90
-    NORMAL_MODE_SERVERS = {
-        "time-mcp",
-        "weather-mcp",
-        "tavily-mcp",
-        "code-exec-mcp",
-        "context7-mcp",
-        "zread-mcp",
-    }
-    AGENT_MODE_SERVERS = {
-        "file-mcp",
-        "shell-mcp",
-        "tavily-mcp",
-        "context7-mcp",
-        "zread-mcp",
-    }
 
     def __init__(
         self,

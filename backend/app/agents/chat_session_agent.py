@@ -18,6 +18,7 @@ from app.agents.utils.tool_call_stream import (
     merge_tool_call_deltas,
     tool_call_acc_to_openai_list,
 )
+from app.core.config import settings
 from app.mcp.client import MCPClientManager
 from app.prompts.prompt_utils import (
     get_system_prompt_for_chat_session,
@@ -218,8 +219,8 @@ class ChatSessionAgent(BaseAgent):
         self, chat_request: ChatRequest
     ) -> list[str] | None:
         if chat_request.agent_mode > 0:
-            return list(MCPToolSession.AGENT_MODE_SERVERS)
-        return list(MCPToolSession.NORMAL_MODE_SERVERS)
+            return list(settings.mcp.agent_mode_servers)
+        return list(settings.mcp.normal_mode_servers)
 
     def _build_round_prompt_messages(
         self, base_messages: list[dict[str, Any]]

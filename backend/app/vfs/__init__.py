@@ -9,7 +9,9 @@ from app.vfs.resolver import (
     PathResolver,
     resolve_relative_under_root,
 )
-from app.vfs.uploads_provider import UploadsProvider
+
+# UploadsProvider imports chat_upload.attachment, which imports vfs.paths.
+# Do not re-export it here to avoid circular imports on ``from app.vfs.paths import ...``.
 
 __all__ = [
     "FORBIDDEN_SEGMENTS",
@@ -17,7 +19,6 @@ __all__ = [
     "PathPermission",
     "PathResolver",
     "resolve_relative_under_root",
-    "UploadsProvider",
     "USER_DATA_ROOT",
     "VFSConfig",
     "VIRTUAL_PATH_PREFIX",

@@ -1,5 +1,7 @@
 """配置模型定义"""
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -70,39 +72,39 @@ class LLMConfig(BaseModel):
     )
 
 
-class Context7MCPConfig(BaseModel):
-    """Context7 MCP 配置"""
+class MCPServerEntry(BaseModel):
+    """单个 MCP Server 的接入配置。
 
-    url: str = Field(description="Context7 URL")
-    headers: dict[str, str] = Field(description="Context7 Headers")
+    transport 决定连接方式：
+    - fastmcp：进程内通信，需要 module 指定 Python 模块路径
+    - http：远程 HTTP 通信，需要 url
+    - stdio：子进程通信，需要 command
+    """
 
-
-class WeatherMCPConfig(BaseModel):
-    """Weather MCP 配置"""
-
-    qweather_api_key: str = Field(description="和风天气 API 密钥")
-    qweather_base_url: str = Field(description="和风天气 API 基础地址")
-    qweather_timeout: int = Field(description="和风天气 API 超时时间")
-
-
-class TavilyMCPConfig(BaseModel):
-    """Tavily MCP 配置"""
-
-    tavily_api_key: str = Field(description="Tavily API 密钥")
-
-
-class TimeMCPConfig(BaseModel):
-    """Time MCP 配置"""
-
-    pass
-
-
-class CodeExecMCPConfig(BaseModel):
-    """Code Exec MCP 配置"""
-
-    piston_base_url: str = Field(
-        ...,
-        description="Piston API 基础地址",
+    enabled: bool = Field(default=True, description="是否启用该 Server")
+    transport: Literal["fastmcp", "http", "stdio"] = Field(
+        default="fastmcp",
+        description="传输方式：fastmcp（进程内）、http（远程）、stdio（子进程）",
+    )
+    # fastmcp 传输参数
+    module: str | None = Field(
+        default=None,
+        description="Python 模块路径，如 app.mcp.mcp_servers.time_mcp.server（transport=fastmcp 时必填）",
+    )
+    instance: str = Field(default="mcp", description="模块中 FastMCP 实例的属性名")
+    # http 传输参数
+    url: str | None = Field(
+        default=None, description="远程 MCP Server URL（transport=http 时必填）"
+    )
+    headers: dict[str, str] = Field(default_factory=dict, description="HTTP 请求头")
+    # stdio 传输参数
+    command: str | None = Field(
+        default=None, description="可执行文件路径（transport=stdio 时必填）"
+    )
+    args: list[str] = Field(default_factory=list, description="命令行参数")
+    env: dict[str, str] = Field(
+        default_factory=dict,
+        description="业务参数（fastmcp 进程内 Server）或子进程环境变量（stdio）",
     )
 
 
@@ -125,24 +127,59 @@ class MCPGatewayConfig(BaseModel):
 
 
 class MCPConfig(BaseModel):
-    """MCP 配置"""
+    """MCP 配置。
 
-    context7_mcp: Context7MCPConfig = Field(
-        default_factory=Context7MCPConfig  # type: ignore[arg-type]
+    servers 字段控制加载哪些 MCP Server 及其传输方式。
+    留空时使用内置默认值（所有本地 Server + context7 远程 Server）。
+    通过设置 enabled: false 可禁用单个 Server，无需删除代码。
+    """
+
+    servers: dict[str, MCPServerEntry] = Field(
+        default_factory=lambda: {
+            "time-mcp": MCPServerEntry(
+                module="app.mcp.mcp_servers.time_mcp.server",
+            ),
+            "context7-mcp": MCPServerEntry(
+                transport="http",
+            ),
+            "weather-mcp": MCPServerEntry(
+                module="app.mcp.mcp_servers.weather_mcp.server",
+            ),
+            "tavily-mcp": MCPServerEntry(
+                module="app.mcp.mcp_servers.tavily_mcp.server",
+            ),
+            "code-exec-mcp": MCPServerEntry(
+                module="app.mcp.mcp_servers.code_exec_mcp.server",
+            ),
+            "file-mcp": MCPServerEntry(
+                module="app.mcp.mcp_servers.file_mcp.server",
+            ),
+            "shell-mcp": MCPServerEntry(
+                module="app.mcp.mcp_servers.shell_mcp.server",
+            ),
+        },
+        description="MCP Server 接入配置（server_name -> MCPServerEntry）",
     )
-    weather_mcp: WeatherMCPConfig = Field(
-        default_factory=WeatherMCPConfig  # type: ignore[arg-type]
+    normal_mode_servers: list[str] = Field(
+        default_factory=lambda: [
+            "time-mcp",
+            "weather-mcp",
+            "tavily-mcp",
+            "code-exec-mcp",
+            "context7-mcp",
+            "zread-mcp",
+        ],
+        description="普通对话（agent_mode=0）下暴露给 LLM 的 MCP Server 名称列表",
     )
-    tavily_mcp: TavilyMCPConfig = Field(
-        default_factory=TavilyMCPConfig  # type: ignore[arg-type]
-    )
-    time_mcp: TimeMCPConfig = Field(
-        default_factory=TimeMCPConfig,
-        description="Time MCP 配置",
-    )
-    code_exec_mcp: CodeExecMCPConfig = Field(
-        default_factory=CodeExecMCPConfig,  # type: ignore[arg-type]
-        description="Code Exec MCP 配置",
+    agent_mode_servers: list[str] = Field(
+        default_factory=lambda: [
+            "file-mcp",
+            "shell-mcp",
+            "tavily-mcp",
+            "context7-mcp",
+            "zread-mcp",
+        ],
+        description="Agent 模式（agent_mode>0）下暴露给 LLM 的 MCP Server 名称列表",
     )
     gateway: MCPGatewayConfig = Field(
         default_factory=MCPGatewayConfig,

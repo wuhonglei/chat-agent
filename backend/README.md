@@ -173,7 +173,7 @@ make test
 
 服务端通过 Piston 沙箱执行代码，基础地址来自：
 
-- `settings.mcp.code_exec_mcp.piston_base_url`
+- `settings.mcp.servers["code-exec-mcp"].env["piston_base_url"]`
 
 ### 请求示例
 

@@ -1,15 +1,23 @@
-import sys
-from pathlib import Path
+from __future__ import annotations
 
-from pydantic import Field
+from pathlib import Path
+from typing import Any
+
+from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.mcp.mcp_servers._config_utils import require_env
+from app.schemas.config import MCPServerEntry
 
-class _Settings(BaseSettings):
-    piston_base_url: str = Field(
-        ...,
-        description="Piston API 基础地址",
-    )
+_config: CodeExecMCPConfig | None = None
+
+
+class CodeExecMCPConfig(BaseModel):
+    piston_base_url: str = Field(..., description="Piston API 基础地址")
+
+
+class _StandaloneSettings(BaseSettings):
+    piston_base_url: str = Field(..., description="Piston API 基础地址")
 
     model_config = SettingsConfigDict(
         env_file=Path(__file__).parent / ".env",
@@ -20,11 +28,21 @@ class _Settings(BaseSettings):
     )
 
 
-# 主应用内直接使用 settings.mcp.code_exec_mcp；
-# 独立运行时使用本文件 Settings（.env）
-if "app.core.config" in sys.modules:
-    from app.core.config import settings
+def configure(entry: MCPServerEntry) -> None:
+    global _config
+    _config = CodeExecMCPConfig(
+        piston_base_url=require_env(entry.env, "piston_base_url"),
+    )
 
-    config = settings.mcp.code_exec_mcp
-else:
-    config = _Settings()  # type: ignore[call-arg,assignment]
+
+def get_config() -> CodeExecMCPConfig:
+    if _config is not None:
+        return _config
+    standalone = _StandaloneSettings()  # type: ignore[call-arg]
+    return CodeExecMCPConfig(piston_base_url=standalone.piston_base_url)
+
+
+def __getattr__(name: str) -> Any:
+    if name == "config":
+        return get_config()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
