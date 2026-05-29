@@ -6,6 +6,7 @@ from typing import Any
 
 from app.mcp.connection_pool import MCPConnectionPool
 from app.mcp.registry import MCPRegistry
+from app.schemas.config import MCPGatewayConfig
 from app.utils.logger import logger
 
 _SCHEMA_COMPOSITION_KEYS = frozenset(("oneOf", "allOf", "anyOf", "$ref"))
@@ -35,6 +36,14 @@ class MCPToolGateway:
             dict(tool_call_timeout_seconds_by_server)
             if tool_call_timeout_seconds_by_server
             else {}
+        )
+
+    def apply_config(self, gateway_config: MCPGatewayConfig) -> None:
+        """Apply gateway settings from ``settings.mcp.gateway`` without reconnecting."""
+        self.strict_tool_name_conflict = gateway_config.strict_tool_name_conflict
+        self.tool_call_timeout_seconds = gateway_config.call_tool_timeout_seconds
+        self.tool_call_timeout_seconds_by_server = dict(
+            gateway_config.call_tool_timeout_seconds_by_server
         )
 
     # ------------------------------------------------------------------

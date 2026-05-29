@@ -89,6 +89,20 @@ mcp:
 
 ## 4. 运行时管理机制
 
+### 4.1 Nacos 热更新
+
+当 Nacos 推送配置变更时：
+
+1. `reload_settings()` 重建全局 `settings`（含 `settings.mcp`）；
+2. 对比 `mcp.servers` + `mcp.gateway` 的 fingerprint，有变化则调度 `MCPClientManager.reload_async()`；
+3. `reload_async` 会 `cleanup` 连接池 → `registry.reload_from_config()` → 重新 `initialize` → 重建 `tools_map`。
+
+`normal_mode_servers` / `agent_mode_servers` 仅影响请求时从 `settings` 读取的 Server 列表，**不触发** MCP 重连。
+
+应用启动时在 `lifespan` 中调用 `register_mcp_reload_target(loop, manager)` 注册事件循环与单例引用。
+
+### 4.2 核心职责
+
 `MCPClientManager` 的核心职责：
 
 1. 初始化所有 MCP 客户端连接（通过 `MCPConnectionPool`）；

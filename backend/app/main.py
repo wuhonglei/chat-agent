@@ -1,5 +1,6 @@
 """Main FastAPI application"""
 
+import asyncio
 import warnings
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -25,7 +26,7 @@ from app.api import (
 from app.core.config import settings
 from app.core.db import create_db_and_tables
 from app.core.jwt import initialize_jwt_manager
-from app.mcp import get_mcp_manager
+from app.mcp import get_mcp_manager, register_mcp_reload_target
 from app.middleware import LoggingMiddleware
 from app.middleware.exception_handler import (
     general_exception_handler,
@@ -58,8 +59,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # 如果权限不足，应用会继续运行但需要手动创建表
     create_db_and_tables()
 
-    # 初始化 MCP Manager
-    app.state.mcp_manager = await get_mcp_manager()
+    # 初始化 MCP Manager，并注册 Nacos 热更新回调目标
+    mcp_manager = await get_mcp_manager()
+    app.state.mcp_manager = mcp_manager
+    register_mcp_reload_target(asyncio.get_running_loop(), mcp_manager)
 
     # 初始化 JWT Manager（提前加载密钥文件，避免每次请求时重复读取）
     app.state.jwt_manager = initialize_jwt_manager()

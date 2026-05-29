@@ -132,6 +132,16 @@ def reload_settings() -> None:
     with _settings_reload_lock:
         _current_settings = _build_settings()
     logger.info("Settings 已重新加载（Nacos 或手动 reload_settings）")
+    try:
+        from app.mcp.reload import on_settings_reloaded
+
+        on_settings_reloaded()
+    except Exception as e:
+        logger.error(
+            "Settings 重载后调度 MCP 热更新失败",
+            error=e,
+            exc_info=True,
+        )
 
 
 settings = cast(Settings, _SettingsProxy())

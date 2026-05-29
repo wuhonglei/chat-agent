@@ -31,6 +31,16 @@ class MCPRegistry:
     def get_servers(self) -> dict[str, Any]:
         return dict(self._servers)
 
+    def reload_from_config(self) -> None:
+        """Rebuild server map from current ``settings.mcp.servers``."""
+        self._servers.clear()
+        self._load_from_config()
+        logger.info(
+            "MCP registry reloaded from config",
+            server_count=len(self._servers),
+            server_names=sorted(self._servers),
+        )
+
     # ------------------------------------------------------------------
     # Config loading
     # ------------------------------------------------------------------
