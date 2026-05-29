@@ -1,6 +1,6 @@
 """Configuration-driven MCP registry.
 
-Reads ``settings.mcp.servers`` to decide which MCP servers to load and how
+Reads ``settings.mcp.mcp_servers`` to decide which MCP servers to load and how
 to connect to them.  Three transport types are supported:
 
 * **fastmcp** – in-process ``FastMCP`` instance, loaded via ``importlib``.
@@ -32,7 +32,7 @@ class MCPRegistry:
         return dict(self._servers)
 
     def reload_from_config(self) -> None:
-        """Rebuild server map from current ``settings.mcp.servers``."""
+        """Rebuild server map from current ``settings.mcp.mcp_servers``."""
         self._servers.clear()
         self._load_from_config()
         logger.info(
@@ -46,8 +46,8 @@ class MCPRegistry:
     # ------------------------------------------------------------------
 
     def _load_from_config(self) -> None:
-        """Build the server map from ``settings.mcp.servers``."""
-        server_configs: dict[str, MCPServerEntry] = settings.mcp.servers
+        """Build the server map from ``settings.mcp.mcp_servers``."""
+        server_configs: dict[str, MCPServerEntry] = settings.mcp.mcp_servers
         for name, entry in server_configs.items():
             if not entry.enabled:
                 logger.info("MCP Server disabled by config", server_name=name)

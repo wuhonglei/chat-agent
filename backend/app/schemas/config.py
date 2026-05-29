@@ -111,12 +111,12 @@ class MCPServerEntry(BaseModel):
 class MCPConfig(BaseModel):
     """MCP 配置。
 
-    servers 字段控制加载哪些 MCP Server 及其传输方式。
+    mcp_servers 字段控制加载哪些 MCP Server 及其传输方式。
     留空时使用内置默认值（所有本地 Server + context7 远程 Server）。
     通过设置 enabled: false 可禁用单个 Server，无需删除代码。
     """
 
-    servers: dict[str, MCPServerEntry] = Field(
+    mcp_servers: dict[str, MCPServerEntry] = Field(
         default_factory=lambda: {
             "time-mcp": MCPServerEntry(
                 module="app.mcp.mcp_servers.time_mcp.server",

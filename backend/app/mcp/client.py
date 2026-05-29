@@ -49,7 +49,7 @@ class MCPClientManager:
             mcp = settings.mcp
             logger.info(
                 "Reloading MCP manager",
-                server_names=sorted(mcp.servers),
+                server_names=sorted(mcp.mcp_servers),
             )
             self.gateway.tools_map.clear()
             self.gateway.tool_conflicts.clear()

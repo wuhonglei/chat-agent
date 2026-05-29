@@ -11,7 +11,7 @@
 
 ## 2. 当前 MCP 服务清单
 
-由 `settings.mcp.servers` 配置驱动（默认值见 `app/schemas/config.py` 的 `MCPConfig.servers`）：
+由 `settings.mcp.mcp_servers` 配置驱动（默认值见 `app/schemas/config.py` 的 `MCPConfig.mcp_servers`）：
 
 | Server 名称 | 传输方式 | 模块路径 | 说明 |
 |---|---|---|---|
@@ -21,13 +21,13 @@
 | `code-exec-mcp` | fastmcp | `app.mcp.mcp_servers.code_exec_mcp.server` | 代码执行沙箱 |
 | `file-mcp` | fastmcp | `app.mcp.mcp_servers.file_mcp.server` | 文件操作 |
 | `shell-mcp` | fastmcp | `app.mcp.mcp_servers.shell_mcp.server` | Shell 命令执行 |
-| `context7-mcp` | http | `url` + `headers`（见 `mcp.servers`） | Context7 文档检索 |
+| `context7-mcp` | http | `url` + `headers`（见 `mcp.mcp_servers`） | Context7 文档检索 |
 
 ## 3. 配置驱动机制
 
-### 3.1 核心配置：`mcp.servers`
+### 3.1 核心配置：`mcp.mcp_servers`
 
-`MCPConfig.servers` 是一个 `dict[str, MCPServerEntry]`，每个 entry 定义：
+`MCPConfig.mcp_servers` 是一个 `dict[str, MCPServerEntry]`，每个 entry 定义：
 
 ```python
 class MCPServerEntry(BaseModel):
@@ -59,7 +59,7 @@ class MCPServerEntry(BaseModel):
 
 - 后端统一配置在 `app/core/config.py` 的 `settings` 中加载；
 - 优先级（从高到低）：初始化参数 → 环境变量 → .env 文件 → Nacos 配置中心；
-- 环境变量使用 `__` 作为嵌套分隔符，如 `MCP__SERVERS`。
+- 环境变量使用 `__` 作为嵌套分隔符，如 `MCP__MCP_SERVERS`。
 
 ### 3.4 禁用/启用 Server
 
@@ -67,13 +67,13 @@ class MCPServerEntry(BaseModel):
 
 ```yaml
 # .env 或 Nacos
-MCP__SERVERS='{"weather-mcp": {"enabled": false}}'
+MCP__MCP_SERVERS='{"weather-mcp": {"enabled": false}}'
 ```
 
 或在 Python 配置中：
 ```python
 mcp:
-  servers:
+  mcp_servers:
     weather-mcp:
       enabled: false
 ```
@@ -83,7 +83,7 @@ mcp:
 新增 MCP Server 只需两步：
 
 1. 在 `app/mcp/mcp_servers/<name>/server.py` 创建 FastMCP 实例；
-2. 在 `mcp.servers` 配置中添加对应条目。
+2. 在 `mcp.mcp_servers` 配置中添加对应条目。
 
 无需修改 `registry.py`、`connection_pool.py` 或其他代码。
 
@@ -94,7 +94,7 @@ mcp:
 当 Nacos 推送配置变更时：
 
 1. `reload_settings()` 重建全局 `settings`（含 `settings.mcp`）；
-2. 对比 `mcp.servers` 的 fingerprint，有变化则调度 `MCPClientManager.reload_async()`；
+2. 对比 `mcp.mcp_servers` 的 fingerprint，有变化则调度 `MCPClientManager.reload_async()`；
 3. `reload_async` 会 `cleanup` 连接池 → `registry.reload_from_config()` → 重新 `initialize` → 重建 `tools_map`。
 
 `normal_mode_servers` / `agent_mode_servers` 仅影响请求时从 `settings` 读取的 Server 列表，**不触发** MCP 重连。
@@ -113,13 +113,13 @@ mcp:
 ## 5. 与历史方案差异
 
 - **旧方案**：`registry.py` 硬编码 import 所有 Server 实例；
-- **新方案**：`registry.py` 从 `settings.mcp.servers` 读取配置，通过 `importlib` 动态加载；
+- **新方案**：`registry.py` 从 `settings.mcp.mcp_servers` 读取配置，通过 `importlib` 动态加载；
 - 行为完全等价，默认配置下加载的 Server 列表不变。
 
 ## 6. 建议维护方式
 
-- Server 列表以 `settings.mcp.servers` 默认值为准（`app/schemas/config.py`）；
-- 每个 Server 的业务参数（API Key 等）写在 `mcp.servers.<name>.env`（http 类用 `url`/`headers`）；`MCPRegistry` 加载 server 模块前调用对应 `mcp_servers/*/config.configure(entry)` 注入，各 server 通过 `get_config()` 读取；
+- Server 列表以 `settings.mcp.mcp_servers` 默认值为准（`app/schemas/config.py`）；
+- 每个 Server 的业务参数（API Key 等）写在 `mcp.mcp_servers.<name>.env`（http 类用 `url`/`headers`）；`MCPRegistry` 加载 server 模块前调用对应 `mcp_servers/*/config.configure(entry)` 注入，各 server 通过 `get_config()` 读取；
 - 若新增 MCP Server，需同步更新：
-  - `MCPConfig.servers` 默认值；
+  - `MCPConfig.mcp_servers` 默认值；
   - 对应的 Server 实现模块。

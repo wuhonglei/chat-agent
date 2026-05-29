@@ -23,9 +23,9 @@ _last_fingerprint: str | None = None
 def mcp_config_fingerprint(mcp: MCPConfig) -> str:
     """Stable fingerprint for MCP server wiring."""
     payload = {
-        "servers": {
+        "mcp_servers": {
             name: entry.model_dump(mode="json")
-            for name, entry in sorted(mcp.servers.items())
+            for name, entry in sorted(mcp.mcp_servers.items())
         },
     }
     return json.dumps(payload, sort_keys=True, separators=(",", ":"))
