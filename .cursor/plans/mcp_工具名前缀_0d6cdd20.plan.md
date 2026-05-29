@@ -1,27 +1,27 @@
 ---
 name: MCP 工具名前缀
-overview: 借鉴 DeerFlow / langchain-mcp-adapters 的「Agent 层带前缀、MCP 层裸名」双轨命名，在 MCPToolGateway 统一实现注册拼接与调用前剥离；同步更新策略、Prompt、前端展示（仅 UI 层可识别历史裸名 content block，不做 call_tool 裸名 fallback）。
+overview: 在 mcp_servers 已使用短名 key（无 -mcp 后缀）前提下，于 MCPToolGateway 实现「Agent 层 {server_name}_{tool.name}、MCP 层裸名」双轨命名；ToolUseBlock 持久化 server_name/mcp_tool_name 并全量 backfill 历史数据；同步策略、Prompt、前端与文档。
 todos:
   - id: tool-naming-module
-    content: 新增 backend/app/mcp/tool_naming.py（拼接/剥离/匹配）及 tests/mcp/test_tool_naming.py
+    content: 新增 backend/app/mcp/tool_naming.py（llm_tool_name/to_mcp_tool_name/最长前缀匹配）及 tests/mcp/test_tool_naming.py
     status: pending
   - id: gateway-prefix
-    content: 改造 MCPToolGateway（移除 tool_conflicts/_handle_conflict）；注册/暴露带前缀 LLM 名，call_tool 用 to_mcp_tool_name；同步 client.reload 清理逻辑
-    status: pending
-  - id: agents-prompts
-    content: 更新 tool_call_policy、tool_executor、tavily_result_processor 与 prompts 中的工具名比较与文案
-    status: pending
-  - id: frontend-bare-name
-    content: 新增 mcpToolName 工具函数并更新 ToolBlock 相关组件（图标/结果/参数/标题）
+    content: 改造 MCPToolGateway（移除 tool_conflicts/_handle_conflict）；注册/暴露带前缀 LLM 名，call_tool/get_tool_info/schema 用 to_mcp_tool_name；同步 client.reload；test_gateway_tool_names.py
     status: pending
   - id: tooluseblock-fields
     content: ToolUseBlock 增加 server_name、mcp_tool_name；finalize_round 从 gateway 写入；前后端 schema 同步
+    status: pending
+  - id: agents-prompts
+    content: 更新 tool_call_policy、tavily_result_processor、prompts、has_tool_been_called；优先 block.mcp_tool_name 或 is_llm_tool
+    status: pending
+  - id: frontend-bare-name
+    content: 新增 mcpToolName.ts；ToolBlock 优先 mcpToolName，回退 bareToolName/matchesTool；更新图标/标题/参数/结果
     status: pending
   - id: backfill-tool-use-blocks
     content: 全量扫描 messages.content_blocks 补全历史 ToolUseBlock（静态映射+agent_mode 消歧）；dry-run 与报告
     status: pending
   - id: docs-tests
-    content: 更新 MCP_CONFIG_ANALYSIS.md，补充 gateway 集成测试并跑通 lint/test
+    content: 更新 MCP_CONFIG_ANALYSIS.md、RETRIEVAL_SYSTEM.md；跑通 make lint/test
     status: pending
 isProject: false
 ---
