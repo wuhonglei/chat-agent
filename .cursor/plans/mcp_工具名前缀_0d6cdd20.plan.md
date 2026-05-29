@@ -167,7 +167,7 @@ def resolve_tool_use_fields(llm_name: str) -> tuple[str, str, str]:
 - 前端 [`chat.ts`](frontend/src/services/chat.ts) 对 SSE 做 `camelcaseKeys` → `serverName` / `mcpToolName`；[`chatSlice`](frontend/src/store/slices/chatSlice.ts) 在 `tool_delta` 分支合并到 `ToolUseBlock`，ToolBlock 可在参数流式阶段即用 `mcpToolName` 选图标/标题。
 - 扩展 [`ContentBlockEvent`](frontend/src/interfaces/contentBlock.ts)：`append` 的 `ToolUseBlock` 与 `tool_delta` 均携带必填的 `serverName`、`mcpToolName`（首次 append 即齐全）。
 
-**`finalize_round` 职责不变（仅参数 JSON）：** 继续只解析 `arguments_json`；**不再**作为 `server_name` / `mcp_tool_name` 的主写入路径。可选防御：若 `name` 已有而两字段缺失（异常流），再补一次 enrich 并打 debug 日志。
+**`finalize_round`：** 仅解析 `arguments_json`；**不**写入或修补 `server_name` / `mcp_tool_name`（无防御性 enrich，异常流依赖延迟 append 与必填模型在创建块时已保证三字段齐全）。
 
 **Aggregator 依赖：** `ContentBlocksAggregator` 构造或 `set_tool_name_resolver(...)` 注入 `get_server_for_tool`（来自 `MCPClientManager.gateway`），由 [`chat_session_agent`](backend/app/agents/chat_session_agent.py) 在会话开始时绑定。
 
