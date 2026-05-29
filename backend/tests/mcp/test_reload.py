@@ -18,7 +18,7 @@ from app.schemas.config import MCPConfig, MCPServerEntry
 def test_mcp_config_fingerprint_stable_for_same_config() -> None:
     mcp = MCPConfig(
         mcp_servers={
-            "time-mcp": MCPServerEntry(
+            "time": MCPServerEntry(
                 module="app.mcp.mcp_servers.time_mcp.server",
             ),
         },
@@ -29,7 +29,7 @@ def test_mcp_config_fingerprint_stable_for_same_config() -> None:
 def test_mcp_config_fingerprint_changes_when_server_disabled() -> None:
     base = MCPConfig(
         mcp_servers={
-            "time-mcp": MCPServerEntry(
+            "time": MCPServerEntry(
                 module="app.mcp.mcp_servers.time_mcp.server",
                 enabled=True,
             ),
@@ -37,7 +37,7 @@ def test_mcp_config_fingerprint_changes_when_server_disabled() -> None:
     )
     disabled = MCPConfig(
         mcp_servers={
-            "time-mcp": MCPServerEntry(
+            "time": MCPServerEntry(
                 module="app.mcp.mcp_servers.time_mcp.server",
                 enabled=False,
             ),
@@ -59,14 +59,14 @@ async def test_on_settings_reloaded_schedules_reload(
 
     mcp_a = MCPConfig(
         mcp_servers={
-            "time-mcp": MCPServerEntry(
+            "time": MCPServerEntry(
                 module="app.mcp.mcp_servers.time_mcp.server",
             ),
         },
     )
     mcp_b = MCPConfig(
         mcp_servers={
-            "time-mcp": MCPServerEntry(
+            "time": MCPServerEntry(
                 module="app.mcp.mcp_servers.time_mcp.server",
                 enabled=False,
             ),

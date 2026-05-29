@@ -34,7 +34,7 @@ class _StandaloneSettings(BaseSettings):
 def configure(entry: MCPServerEntry) -> None:
     global _config
     if not entry.url:
-        raise ValueError("context7-mcp requires url in MCPServerEntry")
+        raise ValueError("context7 requires url in MCPServerEntry")
     _config = Context7MCPConfig(url=entry.url, headers=dict(entry.headers))
 
 

@@ -118,25 +118,25 @@ class MCPConfig(BaseModel):
 
     mcp_servers: dict[str, MCPServerEntry] = Field(
         default_factory=lambda: {
-            "time-mcp": MCPServerEntry(
+            "time": MCPServerEntry(
                 module="app.mcp.mcp_servers.time_mcp.server",
             ),
-            "context7-mcp": MCPServerEntry(
+            "context7": MCPServerEntry(
                 transport="http",
             ),
-            "weather-mcp": MCPServerEntry(
+            "weather": MCPServerEntry(
                 module="app.mcp.mcp_servers.weather_mcp.server",
             ),
-            "tavily-mcp": MCPServerEntry(
+            "tavily": MCPServerEntry(
                 module="app.mcp.mcp_servers.tavily_mcp.server",
             ),
-            "code-exec-mcp": MCPServerEntry(
+            "code-exec": MCPServerEntry(
                 module="app.mcp.mcp_servers.code_exec_mcp.server",
             ),
-            "file-mcp": MCPServerEntry(
+            "file": MCPServerEntry(
                 module="app.mcp.mcp_servers.file_mcp.server",
             ),
-            "shell-mcp": MCPServerEntry(
+            "shell": MCPServerEntry(
                 module="app.mcp.mcp_servers.shell_mcp.server",
             ),
         },
@@ -144,22 +144,22 @@ class MCPConfig(BaseModel):
     )
     normal_mode_servers: list[str] = Field(
         default_factory=lambda: [
-            "time-mcp",
-            "weather-mcp",
-            "tavily-mcp",
-            "code-exec-mcp",
-            "context7-mcp",
-            "zread-mcp",
+            "time",
+            "weather",
+            "tavily",
+            "code-exec",
+            "context7",
+            "zread",
         ],
         description="普通对话（agent_mode=0）下暴露给 LLM 的 MCP Server 名称列表",
     )
     agent_mode_servers: list[str] = Field(
         default_factory=lambda: [
-            "file-mcp",
-            "shell-mcp",
-            "tavily-mcp",
-            "context7-mcp",
-            "zread-mcp",
+            "file",
+            "shell",
+            "tavily",
+            "context7",
+            "zread",
         ],
         description="Agent 模式（agent_mode>0）下暴露给 LLM 的 MCP Server 名称列表",
     )

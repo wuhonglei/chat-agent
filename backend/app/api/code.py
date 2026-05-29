@@ -13,7 +13,7 @@ from app.schemas.response import ApiResponse
 
 router = APIRouter()
 
-_CODE_EXEC_SERVER = "code-exec-mcp"
+_CODE_EXEC_SERVER = "code-exec"
 
 
 class CodeExecuteRequest(BaseModel):

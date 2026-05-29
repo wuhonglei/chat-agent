@@ -25,10 +25,10 @@ from app.utils.token import TokenCalculator
 class ToolExecutor:
     """Execute MCP tools and compact their results."""
 
-    TAVILY_TOOL_NAME = "tavily-mcp"
+    TAVILY_TOOL_NAME = "tavily"
     WEB_PAGES_EXTRACT = "web_pages_extract"
-    FILE_MCP_SERVER_NAME = "file-mcp"
-    SHELL_MCP_SERVER_NAME = "shell-mcp"
+    FILE_MCP_SERVER_NAME = "file"
+    SHELL_MCP_SERVER_NAME = "shell"
 
     def __init__(
         self, mcp_manager: MCPClientManager, user_message: str, model_name: str
