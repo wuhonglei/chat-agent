@@ -6,7 +6,6 @@ from typing import Any
 
 from app.mcp.connection_pool import MCPConnectionPool
 from app.mcp.registry import MCPRegistry
-from app.schemas.config import MCPGatewayConfig
 from app.utils.logger import logger
 
 _SCHEMA_COMPOSITION_KEYS = frozenset(("oneOf", "allOf", "anyOf", "$ref"))
@@ -15,36 +14,17 @@ _SCHEMA_COMPOSITION_KEYS = frozenset(("oneOf", "allOf", "anyOf", "$ref"))
 class MCPToolGateway:
     """Resolve tool metadata and execute tools through the connection pool."""
 
-    DEFAULT_TOOL_CALL_TIMEOUT_SECONDS = 60
+    TOOL_CALL_TIMEOUT_SECONDS = 60
 
     def __init__(
         self,
         pool: MCPConnectionPool,
         registry: MCPRegistry,
-        *,
-        strict_tool_name_conflict: bool = False,
-        tool_call_timeout_seconds: int = DEFAULT_TOOL_CALL_TIMEOUT_SECONDS,
-        tool_call_timeout_seconds_by_server: dict[str, int] | None = None,
     ) -> None:
         self.pool = pool
         self.registry = registry
         self.tools_map: dict[str, str] = {}
         self.tool_conflicts: dict[str, list[str]] = {}
-        self.strict_tool_name_conflict = strict_tool_name_conflict
-        self.tool_call_timeout_seconds = tool_call_timeout_seconds
-        self.tool_call_timeout_seconds_by_server = (
-            dict(tool_call_timeout_seconds_by_server)
-            if tool_call_timeout_seconds_by_server
-            else {}
-        )
-
-    def apply_config(self, gateway_config: MCPGatewayConfig) -> None:
-        """Apply gateway settings from ``settings.mcp.gateway`` without reconnecting."""
-        self.strict_tool_name_conflict = gateway_config.strict_tool_name_conflict
-        self.tool_call_timeout_seconds = gateway_config.call_tool_timeout_seconds
-        self.tool_call_timeout_seconds_by_server = dict(
-            gateway_config.call_tool_timeout_seconds_by_server
-        )
 
     # ------------------------------------------------------------------
     # Index
@@ -73,15 +53,8 @@ class MCPToolGateway:
             tool_name=tool_name,
             existing_server=existing,
             new_server=new_server,
-            conflict_policy="raise"
-            if self.strict_tool_name_conflict
-            else "keep_first_server",
+            conflict_policy="keep_first_server",
         )
-        if self.strict_tool_name_conflict:
-            raise ValueError(
-                f"Tool name conflict: '{tool_name}' is registered by "
-                f"{', '.join(conflicts)}"
-            )
 
     # ------------------------------------------------------------------
     # Execute
@@ -105,7 +78,7 @@ class MCPToolGateway:
         self._validate_required(tool_name, args, schema)
         warnings = self._build_warnings(tool_name, removed, mode)
 
-        timeout = self._resolve_timeout(server_name)
+        timeout = self.TOOL_CALL_TIMEOUT_SECONDS
         logger.info(
             "Calling tool",
             tool_name=tool_name,
@@ -183,7 +156,7 @@ class MCPToolGateway:
         ]
 
     # ------------------------------------------------------------------
-    # Schema & timeout
+    # Schema
     # ------------------------------------------------------------------
 
     def _get_tool_input_schema(
@@ -197,12 +170,6 @@ class MCPToolGateway:
             return None
         schema = getattr(tool, "inputSchema", None)
         return schema if isinstance(schema, dict) else None
-
-    def _resolve_timeout(self, server_name: str) -> int:
-        timeout = self.tool_call_timeout_seconds_by_server.get(
-            server_name, self.tool_call_timeout_seconds
-        )
-        return timeout if timeout > 0 else self.DEFAULT_TOOL_CALL_TIMEOUT_SECONDS
 
     # ------------------------------------------------------------------
     # Query helpers

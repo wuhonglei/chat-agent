@@ -108,24 +108,6 @@ class MCPServerEntry(BaseModel):
     )
 
 
-class MCPGatewayConfig(BaseModel):
-    """MCP Tool Gateway 配置"""
-
-    strict_tool_name_conflict: bool = Field(
-        default=False,
-        description="是否在工具重名冲突时抛错并阻止初始化",
-    )
-    call_tool_timeout_seconds: int = Field(
-        default=60,
-        ge=1,
-        description="MCP 工具调用默认超时（秒）",
-    )
-    call_tool_timeout_seconds_by_server: dict[str, int] = Field(
-        default_factory=dict,
-        description="按 server_name 覆盖工具调用超时（秒）",
-    )
-
-
 class MCPConfig(BaseModel):
     """MCP 配置。
 
@@ -180,10 +162,6 @@ class MCPConfig(BaseModel):
             "zread-mcp",
         ],
         description="Agent 模式（agent_mode>0）下暴露给 LLM 的 MCP Server 名称列表",
-    )
-    gateway: MCPGatewayConfig = Field(
-        default_factory=MCPGatewayConfig,
-        description="MCP 网关行为配置",
     )
 
 

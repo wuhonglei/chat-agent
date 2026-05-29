@@ -21,13 +21,12 @@ _last_fingerprint: str | None = None
 
 
 def mcp_config_fingerprint(mcp: MCPConfig) -> str:
-    """Stable fingerprint for MCP server wiring and gateway settings."""
+    """Stable fingerprint for MCP server wiring."""
     payload = {
         "servers": {
             name: entry.model_dump(mode="json")
             for name, entry in sorted(mcp.servers.items())
         },
-        "gateway": mcp.gateway.model_dump(mode="json"),
     }
     return json.dumps(payload, sort_keys=True, separators=(",", ":"))
 

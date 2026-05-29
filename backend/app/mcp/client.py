@@ -20,15 +20,7 @@ class MCPClientManager:
     def __init__(self) -> None:
         self.registry = MCPRegistry()
         self.pool = MCPConnectionPool(self.registry)
-        self.gateway = MCPToolGateway(
-            self.pool,
-            self.registry,
-            strict_tool_name_conflict=settings.mcp.gateway.strict_tool_name_conflict,
-            tool_call_timeout_seconds=settings.mcp.gateway.call_tool_timeout_seconds,
-            tool_call_timeout_seconds_by_server=(
-                settings.mcp.gateway.call_tool_timeout_seconds_by_server
-            ),
-        )
+        self.gateway = MCPToolGateway(self.pool, self.registry)
         self._reload_lock = asyncio.Lock()
 
     @property
@@ -64,7 +56,6 @@ class MCPClientManager:
             self.pool.cleanup()
             self.registry.reload_from_config()
             await self.pool.initialize()
-            self.gateway.apply_config(mcp.gateway)
             self.gateway.rebuild_tool_index()
             logger.info(
                 "MCP manager reload complete",
