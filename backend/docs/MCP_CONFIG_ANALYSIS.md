@@ -94,7 +94,7 @@ mcp:
 当 Nacos 推送配置变更时：
 
 1. `reload_settings()` 重建全局 `settings`（含 `settings.mcp`）；
-2. 对比 `mcp.servers` + `mcp.gateway` 的 fingerprint，有变化则调度 `MCPClientManager.reload_async()`；
+2. 对比 `mcp.servers` 的 fingerprint，有变化则调度 `MCPClientManager.reload_async()`；
 3. `reload_async` 会 `cleanup` 连接池 → `registry.reload_from_config()` → 重新 `initialize` → 重建 `tools_map`。
 
 `normal_mode_servers` / `agent_mode_servers` 仅影响请求时从 `settings` 读取的 Server 列表，**不触发** MCP 重连。
