@@ -6,7 +6,7 @@ todos:
     content: 新增 backend/app/mcp/tool_naming.py（拼接/剥离/匹配）及 tests/mcp/test_tool_naming.py
     status: pending
   - id: gateway-prefix
-    content: 改造 MCPToolGateway：注册拼接前缀、tools_map 路由、调用前按 server 剥离裸名
+    content: 改造 MCPToolGateway（移除 tool_conflicts/_handle_conflict）；注册/暴露带前缀 LLM 名，call_tool 用 to_mcp_tool_name；同步 client.reload 清理逻辑
     status: pending
   - id: agents-prompts
     content: 更新 tool_call_policy、tool_executor、tavily_result_processor 与 prompts 中的工具名比较与文案
