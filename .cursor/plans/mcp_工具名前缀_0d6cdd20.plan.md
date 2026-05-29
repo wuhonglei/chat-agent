@@ -9,13 +9,13 @@ todos:
     content: 改造 MCPToolGateway（移除 tool_conflicts/_handle_conflict）；注册/暴露带前缀 LLM 名，call_tool/get_tool_info/schema 用 to_mcp_tool_name；同步 client.reload；test_gateway_tool_names.py
     status: pending
   - id: tooluseblock-fields
-    content: ToolUseBlock 增加 server_name、mcp_tool_name；finalize_round 从 gateway 写入；前后端 schema 同步
+    content: ToolUseBlock 增加 server_name、mcp_tool_name；与 name 同在 process_tool_call_deltas 写入并随 tool_delta 下发；前后端 schema/SSE 同步
     status: pending
   - id: agents-prompts
     content: 更新 tool_call_policy、tavily_result_processor、prompts、has_tool_been_called；优先 block.mcp_tool_name 或 is_llm_tool
     status: pending
   - id: frontend-bare-name
-    content: 新增 mcpToolName.ts；ToolBlock 优先 mcpToolName，回退 bareToolName/matchesTool；更新图标/标题/参数/结果
+    content: ContentBlockEvent tool_delta 增加 serverName/mcpToolName；chatSlice 流式合并；ToolBlock 优先新字段渲染
     status: pending
   - id: backfill-tool-use-blocks
     content: 全量扫描 messages.content_blocks 补全历史 ToolUseBlock（静态映射+agent_mode 消歧）；dry-run 与报告
@@ -129,25 +129,41 @@ await client.call_tool(mcp_name, args, ...)
 
 - 入参为 LLM 名；schema 查找时对 `tools_by_server[server_name]` 用 `to_mcp_tool_name(...)` 与 `tool.name` 比较。
 
-### 3. ToolUseBlock 显式字段（推荐，已确认全量补全）
+### 3. ToolUseBlock 显式字段（全量 backfill + 流式同步写入）
 
 在 [`ToolUseBlock`](backend/app/schemas/chat.py) 增加可选字段（存于 `messages.content_blocks` JSON，**无需**改表结构）：
 
 | 字段 | 含义 | 写入时机 |
 |------|------|----------|
-| `name` | LLM 可见名（带前缀），与流式 delta / `tool_messages_from_content_blocks` 回放一致 | 现有 `process_tool_call_deltas` |
-| `server_name` | `mcp_servers` 配置键 | `finalize_round` 或 name 确定后，经 `gateway.get_server_for_tool(name)` |
-| `mcp_tool_name` | MCP 裸工具名 | `to_mcp_tool_name(name, server_name)` |
+| `name` | LLM 可见名（带前缀） | `process_tool_call_deltas`（`fn.name` 到达时） |
+| `server_name` | `mcp_servers` 配置键 | **与 `name` 同一时刻**（见下） |
+| `mcp_tool_name` | MCP 裸工具名 | **与 `name` 同一时刻** |
 
-**为何建议加字段（而不只靠 `name` 解析）：**
+**流式写入（满足前端实时渲染）：**
 
-- 前端图标、结果组件、策略统计可直接用 `mcp_tool_name`，不必依赖 server 列表做最长前缀匹配。
-- 读历史消息时避免「裸名 `web_search` 无法反推 server」的歧义（前缀改造前大量裸名落库）。
-- `tool_messages_from_content_blocks` / [`base.py`](backend/app/agents/base.py) 重建 LLM 上下文时仍只读 `name`，行为不变。
+LLM 通常在首个 tool delta 即给出完整 `function.name`。在 [`process_tool_call_deltas`](backend/app/agents/utils/content_blocks.py) 中，当设置 `existing_block.name = fn.name` 时**同步**：
 
-**写入路径：** [`ContentBlocksAggregator.finalize_round`](backend/app/agents/utils/content_blocks.py) 对本轮 `ToolUseBlock` 注入 `server_name`、`mcp_tool_name`（需注入 `MCPClientManager` 或 gateway 查询能力）。
+```python
+def _enrich_tool_use_names(block: ToolUseBlock, llm_name: str) -> dict[str, str]:
+    server = gateway.get_server_for_tool(llm_name)  # tools_map 查 server
+    updates = {"name": llm_name}
+    if server:
+        updates["server_name"] = server
+        updates["mcp_tool_name"] = to_mcp_tool_name(llm_name, server)
+    return updates
+```
 
-**不变量（新数据）：** `name == llm_tool_name(server_name, mcp_tool_name)`（在两者均非空时断言或单测保证）。
+- 写入 block 对象，并并入当次 `tool_delta` 的 `updates`（与 `name` 同一条 SSE）。
+- 前端 [`chat.ts`](frontend/src/services/chat.ts) 对 SSE 做 `camelcaseKeys` → `serverName` / `mcpToolName`；[`chatSlice`](frontend/src/store/slices/chatSlice.ts) 在 `tool_delta` 分支合并到 `ToolUseBlock`，ToolBlock 可在参数流式阶段即用 `mcpToolName` 选图标/标题。
+- 扩展 [`ContentBlockEvent`](frontend/src/interfaces/contentBlock.ts) 的 `tool_delta`：`serverName?`、`mcpToolName?`。
+
+**`finalize_round` 职责不变（仅参数 JSON）：** 继续只解析 `arguments_json`；**不再**作为 `server_name` / `mcp_tool_name` 的主写入路径。可选防御：若 `name` 已有而两字段缺失（异常流），再补一次 enrich 并打 debug 日志。
+
+**Aggregator 依赖：** `ContentBlocksAggregator` 构造或 `set_tool_name_resolver(...)` 注入 `get_server_for_tool`（来自 `MCPClientManager.gateway`），由 [`chat_session_agent`](backend/app/agents/chat_session_agent.py) 在会话开始时绑定。
+
+**为何仍持久化两字段：** 历史消息/backfill、落库后非流式加载、策略统计不依赖前端解析；`tool_messages_from_content_blocks` / [`base.py`](backend/app/agents/base.py) 重建 LLM 上下文仍**只读 `name`**。
+
+**不变量（新数据）：** 当 `server_name` 非空时，`name == llm_tool_name(server_name, mcp_tool_name)`。
 
 ### 4. 历史数据全量补全迁移（用户选择：full_backfill）
 
@@ -171,8 +187,9 @@ await client.call_tool(mcp_name, args, ...)
 
 - [`tool_call_policy.py`](backend/app/agents/tool_call_policy.py)、[`tavily_result_processor.py`](backend/app/agents/utils/tavily_result_processor.py)：优先 `block.mcp_tool_name` 或 `is_llm_tool(name, "tavily", "web_search")`。
 - Prompt 与 LLM schema 一致（`tavily_web_search`）。
-- 前端 [`ToolUseBlock`](frontend/src/interfaces/contentBlock.ts) 增加 `serverName?`、`mcpToolName?`；展示/图标**优先** `mcpToolName`，其次 `bareToolName(name)`，最后裸名 `matchesTool` 启发式（兼容未补全记录）。
-- 可选保留 [`mcpToolName.ts`](frontend/src/utils/mcpToolName.ts) 作为无字段时的回退。
+- 流式：`tool_delta` 携带 `serverName`/`mcpToolName`（与 `name` 同包）；`chatSlice` 写入 block。
+- 静态加载/历史：[`ToolUseBlock`](frontend/src/interfaces/contentBlock.ts) 上 `serverName?`、`mcpToolName?`；展示**优先** `mcpToolName`，其次 `bareToolName(name)`，最后 `matchesTool`（未 backfill 记录）。
+- 可选 [`mcpToolName.ts`](frontend/src/utils/mcpToolName.ts) 仅作无字段时的回退。
 
 ### 6. 文档与测试
 
@@ -187,11 +204,12 @@ await client.call_tool(mcp_name, args, ...)
 ```
 1. [注册]   MCP: web_search
 2. [暴露]   LLM schema: tavily_web_search
-3. [调用]   LLM 传入 tavily_web_search
-4. [路由]   tools_map → server_name = tavily
-5. [剥离]   to_mcp_tool_name → web_search
-6. [MCP]    client.call_tool("web_search", args)
-7. [持久化] name=tavily_web_search, server_name=tavily, mcp_tool_name=web_search
+3. [流式]   tool_delta: name + server_name + mcp_tool_name → 前端即时渲染
+4. [调用]   LLM 传入 tavily_web_search
+5. [路由]   tools_map → server_name = tavily
+6. [剥离]   to_mcp_tool_name → web_search
+7. [MCP]    client.call_tool("web_search", args)
+8. [落库]   content_blocks 含三字段；finalize_round 仅解析 arguments_json
 ```
 
 ---
@@ -200,7 +218,7 @@ await client.call_tool(mcp_name, args, ...)
 
 1. `tool_naming.py` + 单元测试（含 DeerFlow 对照用例）
 2. `gateway.py` 改造
-3. `ToolUseBlock` 字段 + `finalize_round` 写入
+3. `ToolUseBlock` 字段 + `process_tool_call_deltas` 同步 enrich + SSE/chatSlice
 4. Agent / Prompt（可读 `mcp_tool_name`）
 5. 前端 schema + ToolBlock 优先读新字段
 6. 全量 backfill 脚本（dry-run → 生产执行）+ 报告
