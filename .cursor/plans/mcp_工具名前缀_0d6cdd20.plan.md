@@ -9,7 +9,7 @@ todos:
     content: 改造 MCPToolGateway（移除 tool_conflicts/_handle_conflict）；注册/暴露带前缀 LLM 名，call_tool/get_tool_info/schema 用 to_mcp_tool_name；同步 client.reload；test_gateway_tool_names.py
     status: pending
   - id: tooluseblock-fields
-    content: ToolUseBlock 增加 server_name、mcp_tool_name；与 name 同在 process_tool_call_deltas 写入并随 tool_delta 下发；前后端 schema/SSE 同步
+    content: ToolUseBlock 必填 server_name/mcp_tool_name；延迟 append 至 name 可解析；enrich 与 SSE 一次带齐三字段；前后端 schema 同步
     status: pending
   - id: agents-prompts
     content: 更新 tool_call_policy、tool_executor（含 WEB_PAGES_EXTRACT 等裸名比较）、tavily_result_processor、prompts、has_tool_been_called；统一 is_llm_tool
@@ -141,38 +141,31 @@ await client.call_tool(mcp_name, args, ...)
 
 | 字段 | Schema 类型 | 写入时机 |
 |------|-------------|----------|
-| `name` | 可选（与现有一致） | `process_tool_call_deltas`（`fn.name` 到达时） |
-| `server_name` | **可选** `str \| None = None` | 与 `name` 同一时刻（见下） |
-| `mcp_tool_name` | **可选** `str \| None = None` | 与 `name` 同一时刻 |
+| `name` | 可选（与现有一致） | 见流式策略 |
+| `server_name` | **必填** `str` | 与 `name` 同一次写入 |
+| `mcp_tool_name` | **必填** `str` | 与 `name` 同一次写入 |
 
-**必选性：**
+**Pydantic / TypeScript 均为必填**（`Field(...)` / 非 optional 属性）。**须先完成 §4 迁移并通过 `--verify-only`**，再部署含必填模型的代码，否则 `normalize_content_blocks` 加载旧消息会失败。
 
-| 层面 | `server_name` / `mcp_tool_name` |
-|------|----------------------------------|
-| **Pydantic / TypeScript 类型** | 仍为可选 `str \| None`（避免迁移前旧 JSON 校验失败） |
-| **数据契约（迁移后 + 新写入）** | 凡 `name` 非空的 `ToolUseBlock`，**两字段必须存在且非空**；由迁移脚本一次性保证历史数据，由 enrich 保证新数据 |
-| **前端（迁移完成后）** | 以 `mcpToolName` / `serverName` 为主路径渲染；仅保留极薄防御（空 name 的 orphan block） |
+**流式写入（满足前端实时渲染 + 必填模型）：**
 
-迁移完成并验收前，不在生产启用依赖两字段的前端逻辑；或先上后端 enrich + 脚本，验收后再切前端主路径。
+当前实现会在首个 tool delta **无 `name`** 时 `append` 空 `ToolUseBlock`，与必填字段冲突。改为：
 
-**流式写入（满足前端实时渲染）：**
-
-LLM 通常在首个 tool delta 即给出完整 `function.name`。在 [`process_tool_call_deltas`](backend/app/agents/utils/content_blocks.py) 中，当设置 `existing_block.name = fn.name` 时**同步**：
+1. **延迟创建 block**：`tool_call index` 在见到非空 `fn.name` 之前只缓存 `tool_call_id` / `arguments` 片段，不 `append`。
+2. **首次具备可解析 LLM 名时** 一次 `append` 完整块（含 `name`、`server_name`、`mcp_tool_name`），并继续对后续 delta 发 `tool_delta`。
 
 ```python
-def _enrich_tool_use_names(block: ToolUseBlock, llm_name: str) -> dict[str, str]:
-    server = gateway.get_server_for_tool(llm_name)  # tools_map 查 server
-    updates = {"name": llm_name}
-    if server:
-        updates["server_name"] = server
-        updates["mcp_tool_name"] = to_mcp_tool_name(llm_name, server)
-    return updates
+def resolve_tool_use_fields(llm_name: str) -> tuple[str, str, str]:
+    server = gateway.get_server_for_tool(llm_name)
+    if not server:
+        raise ValueError(f"未知工具名: {llm_name}")  # 与 gateway 无裸名 fallback 一致
+    return llm_name, server, to_mcp_tool_name(llm_name, server)
 ```
 
-- 写入 block 对象，并并入当次 `tool_delta` 的 `updates`（与 `name` 同一条 SSE）。
+- 首次 `append` 的 `block` payload 已含三字段；后续 `tool_delta` 可只带 `arguments_delta` / `tool_call_id`。
 - 若 provider 分片下发 `function.name`，在**每次** `fn.name` 更新时重新 enrich（幂等）；最终以完整 LLM 名为准。
 - 前端 [`chat.ts`](frontend/src/services/chat.ts) 对 SSE 做 `camelcaseKeys` → `serverName` / `mcpToolName`；[`chatSlice`](frontend/src/store/slices/chatSlice.ts) 在 `tool_delta` 分支合并到 `ToolUseBlock`，ToolBlock 可在参数流式阶段即用 `mcpToolName` 选图标/标题。
-- 扩展 [`ContentBlockEvent`](frontend/src/interfaces/contentBlock.ts) 的 `tool_delta`：`serverName?`、`mcpToolName?`。
+- 扩展 [`ContentBlockEvent`](frontend/src/interfaces/contentBlock.ts)：`append` 的 `ToolUseBlock` 与 `tool_delta` 均携带必填的 `serverName`、`mcpToolName`（首次 append 即齐全）。
 
 **`finalize_round` 职责不变（仅参数 JSON）：** 继续只解析 `arguments_json`；**不再**作为 `server_name` / `mcp_tool_name` 的主写入路径。可选防御：若 `name` 已有而两字段缺失（异常流），再补一次 enrich 并打 debug 日志。
 
@@ -214,7 +207,7 @@ uv run python backend/scripts/backfill_tool_use_block_names.py --verify-only
 
 **回滚：** 脚本支持 `--rollback-from <snapshot.json>`（正式跑前可选导出受影响行的 `content_blocks` 快照）。
 
-**与发版顺序：** 先部署含 enrich 的后端 → 跑 backfill → `--verify-only` 通过 → 再依赖两字段的前端主路径上线。
+**与发版顺序：** ① 在**旧代码仍可读**的环境跑 backfill → `--verify-only` 通过；② 部署含**必填模型 + 延迟 append enrich** 的后端与前端；③ 禁止回滚到未迁移库 + 新 schema 的组合。
 
 **附录：`STATIC_BARE_TOOL_TO_SERVER`（实现时在脚本内维护，单测锁定）**
 
@@ -240,8 +233,7 @@ uv run python backend/scripts/backfill_tool_use_block_names.py --verify-only
 | [`tavily_result_processor.py`](backend/app/agents/utils/tavily_result_processor.py) | 各分支用 `is_llm_tool(tool_name, "tavily", bare)` |
 | Prompts | 文案与 schema 一致（`tavily_web_search` 等） |
 - 流式：`tool_delta` 携带 `serverName`/`mcpToolName`（与 `name` 同包）；`chatSlice` 写入 block。
-- 静态加载/历史（**迁移验收后**）：[`ToolUseBlock`](frontend/src/interfaces/contentBlock.ts) 上 `serverName`、`mcpToolName`；渲染直接使用，不再依赖 `bareToolName(name)` 猜 server。
-- [`mcpToolName.ts`](frontend/src/utils/mcpToolName.ts) 仅用于开发期或 orphan 块防御，不作为历史消息主路径。
+- [`ToolUseBlock`](frontend/src/interfaces/contentBlock.ts)：`serverName`、`mcpToolName` 为**必填**；渲染直接使用（迁移验收后历史数据亦满足）。
 
 ### 6. 文档与测试
 
@@ -314,5 +306,5 @@ uv run python backend/scripts/backfill_tool_use_block_names.py --verify-only
 
 1. `tool_executor` / `tool_call_policy` 中除 server 判断外，凡比较**工具裸名**处都要走 `is_llm_tool`，否则会漏掉 `tavily_web_search` 等前缀名。
 2. 流式 `function.name` 若分片到达，enrich 需随 `name` 更新而幂等重算。
-3. 历史数据：迁移脚本 + `--verify-only` 保证有 `name` 的块两字段必存在；前端迁移后不再依赖裸名启发式。
+3. 历史数据：先 migrate + verify，再上线必填 schema；流式采用延迟 append，避免空块无法通过校验。
 4. backfill 与线上一致：旧 `tavily-mcp_*` 先 key 映射再 `resolve_server_by_prefix`；歧义必须 fallback，不得 `null`。
