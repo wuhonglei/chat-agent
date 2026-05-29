@@ -44,7 +44,7 @@ DeerFlow 通过 `MultiServerMCPClient(tool_name_prefix=True)` 在 **LangChain/Ag
 
 1. **前缀仅用于 Agent/LLM 层**，MCP 协议与各 Server 实现不改。
 2. **`server_name` 必须等于 `mcp_servers` 配置键**（如 `tavily`、`code-exec`；已去掉 `-mcp` 后缀），拼接与剥离都基于该 key，不用模块名或别名。
-3. **调用前剥离（strip）而非长期维护 `original_tool_names` 映射表**：先由 `tools_map[llm_name]` 得到 `server_name`，再 `strip_llm_tool_name(llm_name, server_name)` → 原始名（与 DeerFlow `_make_session_pool_tool` 一致）。
+3. **调用前剥离而非长期维护 `original_tool_names` 映射表**：先由 `tools_map[llm_name]` 得到 `server_name`，再 `to_mcp_tool_name(llm_name, server_name)` → 原始名（与 DeerFlow `_make_session_pool_tool` 一致）。
 4. **Best-effort 剥离**：仅当 `llm_name.startswith(f"{server_name}_")` 时剥离；否则将全名传给 MCP（用于极少数边界或调试）。
 
 **本项目差异（保留原方案）：**
@@ -80,11 +80,10 @@ flowchart LR
 | 函数 | 职责 | 对应 DeerFlow |
 |------|------|----------------|
 | `llm_tool_name(server_name, bare_name)` | `f"{server_name}_{bare_name}"` | adapter `lc_tool_name` |
-| `strip_llm_tool_name(llm_name, server_name)` | `startswith` 后 `len(prefix)` 截断 | `_make_session_pool_tool` |
-| `to_mcp_tool_name(llm_name, server_name)` | 包装 strip，供 gateway 调用 | 同上 |
+| `to_mcp_tool_name(llm_name, server_name)` | 已知 server 时剥前缀（内聚 strip 逻辑）；gateway / schema 查找唯一使用 | `_make_session_pool_tool` |
 | `is_llm_tool(llm_name, server_name, bare_name)` | 策略层比较 | — |
 | `resolve_server_by_prefix(llm_name, server_names)` | 已知 key 列表上**最长前缀**匹配 `f"{name}_"` | DeerFlow 归属识别（增强） |
-| `bare_tool_name(llm_name, server_names)` | 先 `resolve_server_by_prefix`，再 `strip_llm_tool_name`；无匹配则原样返回 | — |
+| `bare_tool_name(llm_name, server_names)` | `resolve_server_by_prefix` → `to_mcp_tool_name`；无匹配则原样返回 | — |
 
 **`resolve_server_by_prefix` 算法（后端/前端一致）：**
 
@@ -107,7 +106,7 @@ llm_name = llm_tool_name(server_name, tool.name)
 self.tools_map[llm_name] = server_name
 ```
 
-- 跨 Server 同名冲突：前缀后天然消除；`tool_conflicts` / `keep_first_server` 可降级为断言级防御日志。
+- 跨 Server 裸工具名冲突：前缀后天然消除；**删除** `tool_conflicts`、`_handle_conflict` 与 `keep_first_server`（`tools_map` 仅索引带前缀 `llm_name`）。
 - **不再维护** `original_tool_names` 字典（改由 strip 推导，与 DeerFlow 一致）。
 
 **`get_tools_for_llm`**
