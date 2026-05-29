@@ -204,7 +204,11 @@ async def get_weather_alerts(
 
 
 mcp.disable(
-    names={"get_weather_alerts", "get_weather_daily_forecast"},
+    names={
+        "get_weather_alerts",
+        "get_weather_daily_forecast",
+        "get_weather_hourly_forecast",
+    },
     components={"tool"},
 )
 
