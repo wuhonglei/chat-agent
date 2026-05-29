@@ -12,7 +12,7 @@ todos:
     content: ToolUseBlock 增加 server_name、mcp_tool_name；与 name 同在 process_tool_call_deltas 写入并随 tool_delta 下发；前后端 schema/SSE 同步
     status: pending
   - id: agents-prompts
-    content: 更新 tool_call_policy、tavily_result_processor、prompts、has_tool_been_called；优先 block.mcp_tool_name 或 is_llm_tool
+    content: 更新 tool_call_policy、tool_executor（含 WEB_PAGES_EXTRACT 等裸名比较）、tavily_result_processor、prompts、has_tool_been_called；统一 is_llm_tool
     status: pending
   - id: frontend-bare-name
     content: ContentBlockEvent tool_delta 增加 serverName/mcpToolName；chatSlice 流式合并；ToolBlock 优先新字段渲染
@@ -27,6 +27,12 @@ isProject: false
 ---
 
 # MCP 工具名 `{server_name}_` 前缀改造方案
+
+## 前置：Server 配置键已短名化
+
+`mcp_servers` 默认键为 `tavily`、`file`、`shell`、`code-exec`、`time`、`weather`、`context7`（已无 `-mcp` 后缀）。Nacos / `MCP__MCP_SERVERS` 须同步。前缀改造尚未落地（[`gateway.py`](backend/app/mcp/gateway.py) 仍用裸 `tool.name`）。
+
+---
 
 ## 与 DeerFlow 的对照与借鉴
 
@@ -154,6 +160,7 @@ def _enrich_tool_use_names(block: ToolUseBlock, llm_name: str) -> dict[str, str]
 ```
 
 - 写入 block 对象，并并入当次 `tool_delta` 的 `updates`（与 `name` 同一条 SSE）。
+- 若 provider 分片下发 `function.name`，在**每次** `fn.name` 更新时重新 enrich（幂等）；最终以完整 LLM 名为准。
 - 前端 [`chat.ts`](frontend/src/services/chat.ts) 对 SSE 做 `camelcaseKeys` → `serverName` / `mcpToolName`；[`chatSlice`](frontend/src/store/slices/chatSlice.ts) 在 `tool_delta` 分支合并到 `ToolUseBlock`，ToolBlock 可在参数流式阶段即用 `mcpToolName` 选图标/标题。
 - 扩展 [`ContentBlockEvent`](frontend/src/interfaces/contentBlock.ts) 的 `tool_delta`：`serverName?`、`mcpToolName?`。
 
@@ -185,15 +192,19 @@ def _enrich_tool_use_names(block: ToolUseBlock, llm_name: str) -> dict[str, str]
 
 ### 5. Agent / Prompt / 前端
 
-- [`tool_call_policy.py`](backend/app/agents/tool_call_policy.py)、[`tavily_result_processor.py`](backend/app/agents/utils/tavily_result_processor.py)：优先 `block.mcp_tool_name` 或 `is_llm_tool(name, "tavily", "web_search")`。
-- Prompt 与 LLM schema 一致（`tavily_web_search`）。
+| 模块 | 改造要点 |
+|------|----------|
+| [`tool_call_policy.py`](backend/app/agents/tool_call_policy.py) | 历史 key / `has_tool_been_called` / `tool_arguments_history_by_name` 用 `is_llm_tool(name, server, bare)` 或展开为 `tavily_web_search` 等 LLM 名（勿只比裸名 `web_search`） |
+| [`tool_executor.py`](backend/app/agents/tool_executor.py) | `get_server_for_tool` 仍返回短 key，常量不变；**但** `tool_name == WEB_PAGES_EXTRACT` 等裸名比较须改为 `is_llm_tool(...)`（前缀后为 `tavily_web_pages_extract`） |
+| [`tavily_result_processor.py`](backend/app/agents/utils/tavily_result_processor.py) | 各分支用 `is_llm_tool(tool_name, "tavily", bare)` |
+| Prompts | 文案与 schema 一致（`tavily_web_search` 等） |
 - 流式：`tool_delta` 携带 `serverName`/`mcpToolName`（与 `name` 同包）；`chatSlice` 写入 block。
 - 静态加载/历史：[`ToolUseBlock`](frontend/src/interfaces/contentBlock.ts) 上 `serverName?`、`mcpToolName?`；展示**优先** `mcpToolName`，其次 `bareToolName(name)`，最后 `matchesTool`（未 backfill 记录）。
 - 可选 [`mcpToolName.ts`](frontend/src/utils/mcpToolName.ts) 仅作无字段时的回退。
 
 ### 6. 文档与测试
 
-- 更新 [`backend/docs/MCP_CONFIG_ANALYSIS.md`](backend/docs/MCP_CONFIG_ANALYSIS.md)：增加「命名双轨」一节，对照 DeerFlow 时序图。
+- 更新 [`backend/docs/MCP_CONFIG_ANALYSIS.md`](backend/docs/MCP_CONFIG_ANALYSIS.md)、[`backend/docs/RETRIEVAL_SYSTEM.md`](backend/docs/RETRIEVAL_SYSTEM.md)：Server 短名 +「命名双轨」一节。
 - `tests/mcp/test_tool_naming.py`：剥离逻辑与 DeerFlow 示例表对齐（`github` + `search` → `github_search` → `search`）。
 - `tests/mcp/test_gateway_tool_names.py`：mock 双 server 同名工具，验证暴露名不同、调用均落到正确裸名。
 
@@ -231,7 +242,7 @@ def _enrich_tool_use_names(block: ToolUseBlock, llm_name: str) -> dict[str, str]
 | 要点 | 说明 |
 |------|------|
 | 前缀与配置强绑定 | `server_name` 必须等于 `mcp_servers` 的 key |
-| 重叠 server key | 如同时存在 `mcp` 与 `mcp_extra`，依赖**最长前缀**避免误归属 |
+| 重叠 server key | 如 `code` 与 `code-exec`，依赖**最长前缀**避免误归属 |
 | 工具名本身含 `_` | 已知 `server_name` 下用完整前缀 `f"{server_name}_"` 剥离，裸名可保留尾部 `_` |
 | 进行中/历史会话 | 全量 backfill 补 `server_name`/`mcp_tool_name`；未补全记录前端仍可用启发式 |
 | 裸名歧义 | backfill 结合 `agent_mode` 与启用 server 列表；无法判定则字段留空并记日志 |
@@ -247,3 +258,20 @@ def _enrich_tool_use_names(block: ToolUseBlock, llm_name: str) -> dict[str, str]
 | `my_custom_mcp` | `web_search` | `my_custom_mcp_web_search` | `web_search` |
 | `file` | `read_file` | `file_read_file` | `read_file` |
 | `time` | `get_current_time` | `time_get_current_time` | `get_current_time` |
+
+---
+
+## 逻辑审阅结论（通顺性）
+
+**主链路一致：** MCP 裸名 → Gateway 注册/暴露带前缀 LLM 名 → LLM 回传带前缀名 → `tools_map` 路由 → `to_mcp_tool_name` 调 MCP → ToolUseBlock 三字段落库/流式下发。与 DeerFlow 双轨模型对齐。
+
+**已对齐的迭代决策：** 仅 `to_mcp_tool_name` 对外剥离；删除 `tool_conflicts`；ToolUseBlock 三字段与 `name` 同刻 `tool_delta` 下发；历史全量 backfill 不改写 `name`。
+
+**实施依赖顺序合理：** `tool_naming` → `gateway`（tools_map 带前缀）→ ToolUseBlock enrich（依赖 `get_server_for_tool`）→ Agent/Prompt/前端 → backfill → 文档测试。
+
+**需在实现中留意的缺口（已写入上文）：**
+
+1. `tool_executor` / `tool_call_policy` 中除 server 判断外，凡比较**工具裸名**处都要走 `is_llm_tool`，否则会漏掉 `tavily_web_search` 等前缀名。
+2. 流式 `function.name` 若分片到达，enrich 需随 `name` 更新而幂等重算。
+3. 前端回退链：流式/落库字段 → `bareToolName(name)` → `matchesTool`（覆盖 backfill 前历史）。
+4. backfill 与线上一致：旧 `tavily-mcp_*` 先 key 映射再 `resolve_server_by_prefix`。
