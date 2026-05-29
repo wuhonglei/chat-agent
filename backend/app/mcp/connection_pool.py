@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 from fastmcp import Client, FastMCP
-from fastmcp.client.transports import (
+from fastmcp.client import (
     FastMCPTransport,
     StdioTransport,
     StreamableHttpTransport,
