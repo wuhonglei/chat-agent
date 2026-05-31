@@ -54,7 +54,15 @@ def avatar_filename_from_storage(value: str) -> str:
 def avatar_local_path(filename: str) -> Path:
     if not is_valid_avatar_filename(filename):
         raise InvalidAvatarError(f"无效的头像文件名: {filename}")
-    return Path(settings.storage.avatar_dir) / filename
+
+    base_dir = Path(settings.storage.avatar_dir).resolve()
+    candidate = (base_dir / filename).resolve()
+    try:
+        candidate.relative_to(base_dir)
+    except ValueError as e:
+        raise InvalidAvatarError(f"无效的头像文件名: {filename}") from e
+
+    return candidate
 
 
 def is_cos_avatar_url(value: str) -> bool:
