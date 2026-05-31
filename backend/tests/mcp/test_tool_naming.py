@@ -73,6 +73,20 @@ def test_resolve_tool_use_fields() -> None:
     assert mcp == "web_search"
 
 
+def test_resolve_tool_use_fields_normalizes_bare_name() -> None:
+    from app.mcp.tool_naming import resolve_tool_use_fields
+
+    def lookup(name: str) -> ToolRoute | None:
+        if name == "load_skill":
+            return ToolRoute(server_name="file", mcp_tool_name="load_skill")
+        return None
+
+    name, server, mcp = resolve_tool_use_fields("load_skill", lookup)
+    assert name == "file_load_skill"
+    assert server == "file"
+    assert mcp == "load_skill"
+
+
 def test_resolve_tool_use_fields_unknown_raises() -> None:
     from app.mcp.tool_naming import resolve_tool_use_fields
 

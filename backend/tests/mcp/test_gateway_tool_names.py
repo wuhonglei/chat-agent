@@ -81,3 +81,30 @@ async def test_call_tool_rejects_bare_name(
     gw = gateway_with_duplicate_bare_names
     with pytest.raises(ValueError, match="不存在"):
         await gw.call_tool("search", {})
+
+
+@pytest.mark.asyncio
+async def test_call_tool_accepts_unique_bare_name() -> None:
+    registry = MagicMock()
+    registry.get_servers.return_value = {"file"}
+
+    pool = MagicMock()
+    pool._initialized = True
+    pool.tools_by_server = {"file": [_tool("load_skill")]}
+    pool.ensure_initialized = MagicMock()
+
+    gw = MCPToolGateway(pool, registry)
+    gw.rebuild_tool_index()
+
+    client = MagicMock()
+    client.__aenter__ = AsyncMock(return_value=client)
+    client.__aexit__ = AsyncMock(return_value=None)
+    client.call_tool = AsyncMock(return_value="ok")
+    gw.pool.clients = {"file": client}
+
+    result, warnings = await gw.call_tool("load_skill", {"name": "demo"})
+    assert result == "ok"
+    assert warnings == []
+    client.call_tool.assert_awaited_once()
+    args, _kwargs = client.call_tool.call_args
+    assert args[0] == "load_skill"

@@ -38,7 +38,7 @@ system_prompt_for_chat_session_template: Template = Template(
 你可以使用 skill 技能，它们为特定任务提供了优化过的工作流程。每个 skill 是一个包含说明、脚本和参考资料的文件夹。当用户请求与某个 skill 的使用场景匹配时使用；对于你能直接回答的简单问题，无需加载 skill。
 
 **渐进式加载流程：**
-1. 当用户问题与某个 skill 的使用场景匹配时，立即使用下方 `<name>` 标签中的技能名称调用 `load_skill`
+1. 当用户问题与某个 skill 的使用场景匹配时，立即调用 `{{ load_skill_tool_name }}` 工具，参数 name 为下方 `<name>` 标签中的技能名称
 2. 阅读并理解该 skill 的工作流程与说明
 3. skill 文档可能引用同目录下的其他资源
 4. 仅在执行过程中需要时再加载所引用的资源
