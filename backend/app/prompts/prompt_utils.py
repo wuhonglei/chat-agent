@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from app.agent_skills.types import AgentSkillManifest
-from app.mcp.constants import FILE_SERVER
+from app.mcp.constants import SKILL_MANAGER_SERVER
 from app.mcp.tool_naming import llm_tool_name
 from app.prompts.system_prompt import (
     default_system_prompt_template,
@@ -52,7 +52,7 @@ def get_system_prompt_for_chat_session(
     """Get system prompt for final response generation."""
     extra = _get_agent_mode_prompt_context() if agent_mode > 0 else {}
     if agent_mode > 0:
-        extra["load_skill_tool_name"] = llm_tool_name(FILE_SERVER, "load_skill")
+        extra["load_skill_tool_name"] = llm_tool_name(SKILL_MANAGER_SERVER, "load_skill")
     return system_prompt_for_chat_session_template.render(
         agent_mode=agent_mode,
         skill_manifests=skill_manifests or [],

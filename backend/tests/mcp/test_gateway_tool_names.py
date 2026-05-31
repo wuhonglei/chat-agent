@@ -84,13 +84,13 @@ async def test_call_tool_rejects_bare_name(
 
 
 @pytest.mark.asyncio
-async def test_call_tool_accepts_unique_bare_name() -> None:
+async def test_call_tool_accepts_prefixed_skill_manager_name() -> None:
     registry = MagicMock()
-    registry.get_servers.return_value = {"file"}
+    registry.get_servers.return_value = {"skill_manager"}
 
     pool = MagicMock()
     pool._initialized = True
-    pool.tools_by_server = {"file": [_tool("load_skill")]}
+    pool.tools_by_server = {"skill_manager": [_tool("load_skill")]}
     pool.ensure_initialized = MagicMock()
 
     gw = MCPToolGateway(pool, registry)
@@ -100,9 +100,9 @@ async def test_call_tool_accepts_unique_bare_name() -> None:
     client.__aenter__ = AsyncMock(return_value=client)
     client.__aexit__ = AsyncMock(return_value=None)
     client.call_tool = AsyncMock(return_value="ok")
-    gw.pool.clients = {"file": client}
+    gw.pool.clients = {"skill_manager": client}
 
-    result, warnings = await gw.call_tool("load_skill", {"name": "demo"})
+    result, warnings = await gw.call_tool("skill_manager_load_skill", {"name": "demo"})
     assert result == "ok"
     assert warnings == []
     client.call_tool.assert_awaited_once()

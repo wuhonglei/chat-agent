@@ -7,6 +7,7 @@ from app.mcp.tool_naming import llm_tool_name
 # --- MCP server keys (= mcp_servers config keys) ---
 TAVILY_SERVER = "tavily"
 FILE_SERVER = "file"
+SKILL_MANAGER_SERVER = "skill_manager"
 SHELL_SERVER = "shell"
 CODE_EXEC_SERVER = "code-exec"
 

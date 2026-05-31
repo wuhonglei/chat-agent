@@ -136,6 +136,9 @@ class MCPConfig(BaseModel):
             "file": MCPServerEntry(
                 module="app.mcp.mcp_servers.file_mcp.server",
             ),
+            "skill_manager": MCPServerEntry(
+                module="app.mcp.mcp_servers.skill_manager_mcp.server",
+            ),
             "shell": MCPServerEntry(
                 module="app.mcp.mcp_servers.shell_mcp.server",
             ),
@@ -156,6 +159,7 @@ class MCPConfig(BaseModel):
     agent_mode_servers: list[str] = Field(
         default_factory=lambda: [
             "file",
+            "skill_manager",
             "shell",
             "tavily",
             "context7",

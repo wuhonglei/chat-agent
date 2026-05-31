@@ -59,7 +59,7 @@ STATIC_BARE_TOOL_TO_SERVER: dict[str, str] = {
     "write_workspace_file": "file",
     "edit_file": "file",
     "search_files": "file",
-    "load_skill": "file",
+    "load_skill": "skill_manager",
     "shell": "shell",
     "execute_code": "code-exec",
     "list_runtimes": "code-exec",

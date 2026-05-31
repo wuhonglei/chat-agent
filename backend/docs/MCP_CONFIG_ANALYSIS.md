@@ -20,6 +20,7 @@
 | `tavily` | fastmcp | `app.mcp.mcp_servers.tavily_mcp.server` | 联网搜索 |
 | `code-exec` | fastmcp | `app.mcp.mcp_servers.code_exec_mcp.server` | 代码执行沙箱 |
 | `file` | fastmcp | `app.mcp.mcp_servers.file_mcp.server` | 文件操作 |
+| `skill_manager` | fastmcp | `app.mcp.mcp_servers.skill_manager_mcp.server` | Agent Skill 加载 |
 | `shell` | fastmcp | `app.mcp.mcp_servers.shell_mcp.server` | Shell 命令执行 |
 | `context7` | http | `url` + `headers`（见 `mcp.mcp_servers`） | Context7 文档检索 |
 
