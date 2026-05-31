@@ -44,7 +44,10 @@ flowchart TD
   defaultRenderer --> ThinkUI
 ```
 
-**不在本次范围**：后端 `structuredContentForDisplay` 扩展（仅迁移现有 `web_search` 用法）。
+**不在本次范围**：
+
+- 后端 `structuredContentForDisplay` 扩展（仅迁移现有 `web_search` 用法）
+- Shell 结构化结果与终端 UI：**见独立计划** [shell_structured_display_schema.plan.md](./shell_structured_display_schema.plan.md)（MCP schema、agent 挂载、前端 `ShellToolResult` 均不在 registry 重构内）
 
 ---
 
@@ -113,7 +116,7 @@ export function resolveToolRenderer(
 | `file` | `read_file`, `write_file`, `edit_file`, `search_files`, `present_files` | icon；`read_file` markdown result；读/写/改文件时从 `argumentsJson.file_path`（或 `path`）后缀推断 result / args 高亮语言（复用 `FILE_EXTENSION_LANGUAGE_MAP` / `getLanguageFromPath`） |
 | `code` | `execute_code`, `list_runtimes` | icon + execute_code 参数代码高亮 |
 | `skill_manager` | `load_skill` | icon + markdown result |
-| `shell` | `shell` | icon |
+| `shell` | `shell` | icon；result/args 终端风格展示待 [shell 结构化 display 计划](./shell_structured_display_schema.plan.md) 落地后再注册 |
 | `weather` | `search_city`, `get_current_weather`, ... | icon |
 | `context7` | `resolve-library-id`, `query-docs` | icon + markdown result |
 | `time` | `get_current_time` | icon |
