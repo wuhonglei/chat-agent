@@ -5,7 +5,6 @@ export function mergeToolRenderer(custom: ToolRenderer | undefined, fallback: To
     return fallback;
   }
   return {
-    icon: custom.icon ?? fallback.icon,
     renderArguments: custom.renderArguments ?? fallback.renderArguments,
     renderResult: custom.renderResult ?? fallback.renderResult,
     getResultLanguage: custom.getResultLanguage ?? fallback.getResultLanguage,

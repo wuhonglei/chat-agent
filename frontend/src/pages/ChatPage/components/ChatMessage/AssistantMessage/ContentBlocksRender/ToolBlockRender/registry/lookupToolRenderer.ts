@@ -1,3 +1,4 @@
+import { lookupToolIcon } from "./icons";
 import type { ToolRenderer } from "./types";
 import { mergeToolRenderer } from "./mergeToolRenderer";
 
@@ -8,8 +9,11 @@ export function lookupToolRenderer(
   servers: Record<string, Record<string, ToolRenderer>>,
   fallback: ToolRenderer
 ): ToolRenderer {
-  if (!serverName) {
-    return fallback;
-  }
-  return mergeToolRenderer(servers[serverName]?.[mcpToolName], fallback);
+  const merged = serverName
+    ? mergeToolRenderer(servers[serverName]?.[mcpToolName], fallback)
+    : fallback;
+  return {
+    ...merged,
+    icon: lookupToolIcon(serverName, mcpToolName, fallback.icon),
+  };
 }

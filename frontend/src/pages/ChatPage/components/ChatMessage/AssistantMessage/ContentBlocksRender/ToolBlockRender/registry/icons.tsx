@@ -25,21 +25,70 @@ export function renderIcon(Icon: React.ComponentType<{ className?: string }>): R
 
 export const DEFAULT_ICON = <ToolOutlined className={ICON_CLASS_NAME} />;
 
-export {
-  CodeIcon,
-  Context7Icon,
-  EditFileIcon,
-  LoadSkillIcon,
-  PresentFilesIcon,
-  ReadFileIcon,
-  SearchFilesIcon,
-  ShellIcon,
-  TimeIcon,
-  WeatherIcon,
-  WebCrawlIcon,
-  WebExtractIcon,
-  WebResearchIcon,
-  WebSearchIcon,
-  WriteFileIcon,
-  ZreadIcon,
+const codeIcon = renderIcon(CodeIcon);
+const context7Icon = renderIcon(Context7Icon);
+const shellIcon = renderIcon(ShellIcon);
+const loadSkillIcon = renderIcon(LoadSkillIcon);
+const timeIcon = renderIcon(TimeIcon);
+const weatherIcon = renderIcon(WeatherIcon);
+const zreadIcon = renderIcon(ZreadIcon);
+
+/** MCP tool icons keyed by server name and tool name (matches backend mcp_servers config). */
+export const SERVER_TOOL_ICONS: Record<string, Record<string, React.ReactNode>> = {
+  tavily: {
+    web_search: renderIcon(WebSearchIcon),
+    web_pages_extract: renderIcon(WebExtractIcon),
+    web_site_crawl: renderIcon(WebCrawlIcon),
+    web_site_map: renderIcon(WebResearchIcon),
+    research: renderIcon(WebResearchIcon),
+  },
+  file: {
+    read_file: renderIcon(ReadFileIcon),
+    write_file: renderIcon(WriteFileIcon),
+    edit_file: renderIcon(EditFileIcon),
+    search_files: renderIcon(SearchFilesIcon),
+    present_files: renderIcon(PresentFilesIcon),
+  },
+  code: {
+    execute_code: codeIcon,
+    list_runtimes: codeIcon,
+  },
+  shell: {
+    shell: shellIcon,
+  },
+  skill_manager: {
+    load_skill: loadSkillIcon,
+  },
+  context7: {
+    "resolve-library-id": context7Icon,
+    "query-docs": context7Icon,
+  },
+  weather: {
+    search_city: weatherIcon,
+    get_current_weather: weatherIcon,
+    get_weather_hourly_forecast: weatherIcon,
+    get_weather_daily_forecast: weatherIcon,
+    get_weather_alerts: weatherIcon,
+  },
+  time: {
+    get_current_time: timeIcon,
+  },
+  zread: {
+    get_repo_structure: zreadIcon,
+    read_file: zreadIcon,
+  },
 };
+
+export function lookupToolIcon(
+  serverName: string | undefined,
+  mcpToolName: string,
+  fallback: React.ReactNode = DEFAULT_ICON
+): React.ReactNode {
+  if (!serverName) {
+    return fallback;
+  }
+  return SERVER_TOOL_ICONS[serverName]?.[mcpToolName] ?? fallback;
+}
+
+/** @alias lookupToolIcon */
+export const lookUpIcon = lookupToolIcon;

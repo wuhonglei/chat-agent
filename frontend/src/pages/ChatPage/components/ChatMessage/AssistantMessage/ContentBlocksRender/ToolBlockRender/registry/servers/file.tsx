@@ -1,12 +1,4 @@
 import { renderMarkdownToolResult } from "../components/MarkdownToolResult";
-import {
-  EditFileIcon,
-  PresentFilesIcon,
-  ReadFileIcon,
-  SearchFilesIcon,
-  WriteFileIcon,
-  renderIcon,
-} from "../icons";
 import { getFilePathFromArgs, getLanguageFromFilePath } from "../utils/filePathLanguage";
 import type { ToolRenderContext, ToolRendererRegistry } from "../types";
 
@@ -23,22 +15,15 @@ function fileResultLanguage(ctx: ToolRenderContext): string {
 
 export const fileRenderers: ToolRendererRegistry[string] = {
   read_file: {
-    icon: renderIcon(ReadFileIcon),
     renderResult: renderMarkdownToolResult,
     getResultLanguage: fileResultLanguage,
   },
   write_file: {
-    icon: renderIcon(WriteFileIcon),
     getResultLanguage: fileResultLanguage,
   },
   edit_file: {
-    icon: renderIcon(EditFileIcon),
     getResultLanguage: fileResultLanguage,
   },
-  search_files: {
-    icon: renderIcon(SearchFilesIcon),
-  },
-  present_files: {
-    icon: renderIcon(PresentFilesIcon),
-  },
+  search_files: {},
+  present_files: {},
 };
