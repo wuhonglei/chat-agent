@@ -2,6 +2,12 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.mcp.constants import (
+    TAVILY_SERVER,
+    WEB_PAGES_EXTRACT_BARE,
+    WEB_SEARCH_BARE,
+    WEB_SITE_CRAWL_BARE,
+)
 from app.mcp.mcp_servers.tavily_mcp import utils as tavily_utils
 from app.mcp.mcp_servers.tavily_mcp.models import (
     MultipleTavilySearchResponse,
@@ -10,14 +16,11 @@ from app.mcp.mcp_servers.tavily_mcp.models import (
     TavilySearchResponse,
     TavilySearchResultItem,
 )
+from app.mcp.tool_naming import is_llm_tool
 from app.utils.context_compactor import CompactionResult, ContextCompactor
 
 
 class TavilyResultProcessor:
-    WEB_SEARCH = "web_search"
-    WEB_PAGES_EXTRACT = "web_pages_extract"
-    WEB_SITE_CRAWL = "web_site_crawl"
-
     def __init__(
         self,
         compactor: ContextCompactor,
@@ -33,7 +36,7 @@ class TavilyResultProcessor:
     async def format_result(
         self, tool_name: str, structured_content: dict[str, Any]
     ) -> CompactionResult:
-        if tool_name == self.WEB_SEARCH:
+        if is_llm_tool(tool_name, TAVILY_SERVER, WEB_SEARCH_BARE):
             search_payload = MultipleTavilySearchResponse.model_validate(
                 structured_content
             )
@@ -50,7 +53,7 @@ class TavilyResultProcessor:
             )
             return compaction_result
 
-        if tool_name == self.WEB_PAGES_EXTRACT:
+        if is_llm_tool(tool_name, TAVILY_SERVER, WEB_PAGES_EXTRACT_BARE):
             extract_payload = TavilyExtractResponse.model_validate(structured_content)
             extract_payload, compaction_result = await self._compact_extract_response(
                 extract_payload,
@@ -62,7 +65,7 @@ class TavilyResultProcessor:
             compaction_result.summary = summary
             return compaction_result
 
-        if tool_name == self.WEB_SITE_CRAWL:
+        if is_llm_tool(tool_name, TAVILY_SERVER, WEB_SITE_CRAWL_BARE):
             crawl_payload = TavilyCrawlResponse.model_validate(structured_content)
             crawl_payload, compaction_result = await self._compact_crawl_response(
                 crawl_payload,

@@ -4,25 +4,25 @@ overview: 在 mcp_servers 短名 key 前提下实现 LLM/MCP 双轨工具名；T
 todos:
   - id: tool-naming-module
     content: 新增 backend/app/mcp/tool_naming.py（llm_tool_name/to_mcp_tool_name/最长前缀匹配）及 tests/mcp/test_tool_naming.py
-    status: pending
+    status: completed
   - id: gateway-prefix
     content: 改造 MCPToolGateway（移除 tool_conflicts/_handle_conflict）；注册/暴露带前缀 LLM 名，call_tool/get_tool_info/schema 用 to_mcp_tool_name；同步 client.reload；test_gateway_tool_names.py
-    status: pending
+    status: completed
   - id: tooluseblock-fields
     content: ToolUseBlock 必填 server_name/mcp_tool_name（有 name 时同刻 enrich）；保持现有首 delta append；enrich 与 SSE 同步三字段；前后端 schema 同步
-    status: pending
+    status: completed
   - id: agents-prompts
     content: 更新 tool_call_policy、tool_executor（含 WEB_PAGES_EXTRACT 等裸名比较）、tavily_result_processor、prompts、has_tool_been_called；统一 is_llm_tool
-    status: pending
+    status: completed
   - id: frontend-bare-name
     content: ContentBlockEvent tool_delta 增加 serverName/mcpToolName；chatSlice 流式合并；ToolBlock 优先新字段渲染
-    status: pending
+    status: completed
   - id: backfill-tool-use-blocks
     content: 脚本 backfill（主路径裸 name→静态表+agent_mode）；补全三字段并将 name 改为 llm_tool_name；verify 不变量
-    status: pending
+    status: completed
   - id: docs-tests
     content: 更新 MCP_CONFIG_ANALYSIS.md、RETRIEVAL_SYSTEM.md；跑通 make lint/test
-    status: pending
+    status: completed
 isProject: false
 ---
 

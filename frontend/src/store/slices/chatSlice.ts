@@ -215,6 +215,12 @@ const chatSlice = createSlice({
           if (data.name) {
             target.name = data.name;
           }
+          if (data.serverName) {
+            target.serverName = data.serverName;
+          }
+          if (data.mcpToolName) {
+            target.mcpToolName = data.mcpToolName;
+          }
           if (data.toolCallId) {
             target.toolCallId = data.toolCallId;
           }

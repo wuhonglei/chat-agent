@@ -15,13 +15,13 @@
 
 | Server 名称 | 传输方式 | 模块路径 | 说明 |
 |---|---|---|---|
-| `time-mcp` | fastmcp | `app.mcp.mcp_servers.time_mcp.server` | 时间查询 |
-| `weather-mcp` | fastmcp | `app.mcp.mcp_servers.weather_mcp.server` | 天气查询 |
-| `tavily-mcp` | fastmcp | `app.mcp.mcp_servers.tavily_mcp.server` | 联网搜索 |
-| `code-exec-mcp` | fastmcp | `app.mcp.mcp_servers.code_exec_mcp.server` | 代码执行沙箱 |
-| `file-mcp` | fastmcp | `app.mcp.mcp_servers.file_mcp.server` | 文件操作 |
-| `shell-mcp` | fastmcp | `app.mcp.mcp_servers.shell_mcp.server` | Shell 命令执行 |
-| `context7-mcp` | http | `url` + `headers`（见 `mcp.mcp_servers`） | Context7 文档检索 |
+| `time` | fastmcp | `app.mcp.mcp_servers.time_mcp.server` | 时间查询 |
+| `weather` | fastmcp | `app.mcp.mcp_servers.weather_mcp.server` | 天气查询 |
+| `tavily` | fastmcp | `app.mcp.mcp_servers.tavily_mcp.server` | 联网搜索 |
+| `code-exec` | fastmcp | `app.mcp.mcp_servers.code_exec_mcp.server` | 代码执行沙箱 |
+| `file` | fastmcp | `app.mcp.mcp_servers.file_mcp.server` | 文件操作 |
+| `shell` | fastmcp | `app.mcp.mcp_servers.shell_mcp.server` | Shell 命令执行 |
+| `context7` | http | `url` + `headers`（见 `mcp.mcp_servers`） | Context7 文档检索 |
 
 ## 3. 配置驱动机制
 
@@ -107,8 +107,21 @@ mcp:
 
 1. 初始化所有 MCP 客户端连接（通过 `MCPConnectionPool`）；
 2. 拉取并缓存工具列表（`tools_by_server`）；
-3. 维护 `tool_name -> server_name` 映射（`tools_map`）；
+3. 维护 `tool_name -> server_name` 映射（`tools_map`，键为 **LLM 可见名** `{server}_{bare}`）；
 4. 根据工具 schema 过滤无效参数后调用工具（`MCPToolGateway`）。
+
+### 4.3 工具命名双轨
+
+| 阶段 | 示例（tavily / web_search） |
+|------|------------------------------|
+| MCP `list_tools` | `web_search` |
+| 暴露给 LLM / `tools_map` | `tavily_web_search` |
+| LLM `tool_call` | `tavily_web_search` |
+| `call_tool` 前剥离 | `web_search` |
+
+实现见 `app/mcp/tool_naming.py` 与 `MCPToolGateway`。`ToolUseBlock` 持久化 `name`（LLM 名）、`server_name`、`mcp_tool_name`（裸名）。
+
+历史消息需运行 `backend/scripts/backfill_tool_use_block_names.py` 迁移。
 
 ## 5. 与历史方案差异
 

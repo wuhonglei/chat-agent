@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.mcp.connection_pool import MCPConnectionPool
 from app.mcp.gateway import MCPToolGateway
 from app.mcp.registry import MCPRegistry
+from app.mcp.tool_naming import ToolRoute
 from app.utils.logger import logger
 
 
@@ -32,7 +33,7 @@ class MCPClientManager:
         return self.pool.tools_by_server
 
     @property
-    def tools_map(self) -> dict[str, str]:
+    def tools_map(self) -> dict[str, ToolRoute]:
         return self.gateway.tools_map
 
     @property
@@ -52,7 +53,6 @@ class MCPClientManager:
                 server_names=sorted(mcp.mcp_servers),
             )
             self.gateway.tools_map.clear()
-            self.gateway.tool_conflicts.clear()
             self.pool.cleanup()
             self.registry.reload_from_config()
             await self.pool.initialize()
@@ -85,7 +85,10 @@ class MCPClientManager:
 
     async def get_tool_info(self, tool_name: str) -> Any | None:
         async with self._reload_lock:
-            return await self.gateway.get_tool_info(tool_name)
+            return self.gateway.get_tool_info(tool_name)
+
+    def get_tool_route(self, tool_name: str) -> ToolRoute | None:
+        return self.gateway.get_tool_route(tool_name)
 
     def get_server_for_tool(self, tool_name: str) -> str | None:
         return self.gateway.get_server_for_tool(tool_name)

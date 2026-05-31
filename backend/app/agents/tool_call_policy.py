@@ -9,6 +9,14 @@ from typing import Any
 from openai.types.chat import ChatCompletionMessageFunctionToolCall
 from toolz import get_in
 
+from app.mcp.constants import (
+    TAVILY_SERVER,
+    WEB_PAGES_EXTRACT_BARE,
+    WEB_PAGES_EXTRACT_LLM,
+    WEB_SEARCH_BARE,
+    WEB_SEARCH_LLM,
+)
+from app.mcp.tool_naming import is_llm_tool
 from app.prompts import (
     get_gentle_tips_in_web_search,
     get_tool_call_sufficient_info_message,
@@ -23,8 +31,6 @@ from app.utils.vocab import VocabProcessor
 class ToolCallPolicy:
     """Manage tool iteration limits and duplicate-call heuristics."""
 
-    WEB_SEARCH = "web_search"
-    WEB_PAGES_EXTRACT = "web_pages_extract"
     QUERY_SIMILARITY_THRESHOLD = 0.7
 
     def __init__(self, tool_round_messages: list[ToolMessage]) -> None:
@@ -47,10 +53,12 @@ class ToolCallPolicy:
         iteration: int,
     ) -> None:
         hint_messages: list[str] = []
-        if has_tool_been_called([self.WEB_SEARCH], self.tool_round_messages):
+        if has_tool_been_called(
+            [(TAVILY_SERVER, WEB_SEARCH_BARE)], self.tool_round_messages
+        ):
             hint_messages.append(get_gentle_tips_in_web_search())
         if has_tool_been_called(
-            [self.WEB_PAGES_EXTRACT], self.tool_round_messages
+            [(TAVILY_SERVER, WEB_PAGES_EXTRACT_BARE)], self.tool_round_messages
         ) and (len(self.extracted_urls) >= 3):
             hint_messages.append(
                 f"⚠️ 已提取了 {len(self.extracted_urls)} 个 URL 的内容。如果这些内容已足够回答问题，请停止继续调用工具，并直接给出最终回答。"
@@ -82,10 +90,11 @@ class ToolCallPolicy:
         self.extracted_urls.update(urls)
 
     def _get_web_search_queries(self) -> list[str]:
-        queries = []
-        for call_info in self.tool_arguments_history_by_name.get(self.WEB_SEARCH, []):
-            if query := get_in(["arguments", "query"], call_info):
-                queries.append(query)
+        queries: list[str] = []
+        for call_info in self.tool_arguments_history_by_name.get(WEB_SEARCH_LLM, []):
+            if queries_list := get_in(["arguments", "queries"], call_info):
+                if isinstance(queries_list, list):
+                    queries.extend(str(q) for q in queries_list if q)
         return queries
 
     def _check_query_similarity(self, new_query: str) -> tuple[bool, float]:
@@ -136,22 +145,25 @@ class ToolCallPolicy:
     ) -> tuple[bool, str | None]:
         web_search_count = len(self._get_web_search_queries())
         web_pages_extract_count = len(
-            self.tool_arguments_history_by_name.get(self.WEB_PAGES_EXTRACT, [])
+            self.tool_arguments_history_by_name.get(WEB_PAGES_EXTRACT_LLM, [])
         )
         total_tool_calls = count_tool_calls(self.tool_round_messages)
         if tool_calls:
             tool_arguments_by_name = self._group_tool_call_arguments_by_name(tool_calls)
-            for call_info in get_in([self.WEB_SEARCH], tool_arguments_by_name, []):
-                query = get_in(["arguments", "query"], call_info)
-                if query:
-                    is_similar, similarity = self._check_query_similarity(query)
+            for call_info in get_in([WEB_SEARCH_LLM], tool_arguments_by_name, []):
+                queries = get_in(["arguments", "queries"], call_info)
+                query_texts: list[str] = []
+                if isinstance(queries, list):
+                    query_texts.extend(str(q) for q in queries if q)
+                for query_text in query_texts:
+                    is_similar, similarity = self._check_query_similarity(query_text)
                     if is_similar and web_search_count >= 1:
                         return (
                             False,
                             f"⚠️ 当前查询与历史查询相似度很高（{similarity:.1%}）。如果之前的搜索结果已足够回答问题，请停止继续调用工具，并直接给出最终回答。",
                         )
             for call_info in get_in(
-                [self.WEB_PAGES_EXTRACT], tool_arguments_by_name, []
+                [WEB_PAGES_EXTRACT_LLM], tool_arguments_by_name, []
             ):
                 urls = get_in(["arguments", "urls"], call_info)
                 if urls:
@@ -182,3 +194,7 @@ class ToolCallPolicy:
                 f"⚠️ 已执行了 {total_tool_calls} 次工具调用。如果已获得足够信息，请停止继续调用工具，并直接给出最终回答。",
             )
         return True, None
+
+    @staticmethod
+    def matches_tavily_tool(tool_name: str, bare_name: str) -> bool:
+        return is_llm_tool(tool_name, TAVILY_SERVER, bare_name)

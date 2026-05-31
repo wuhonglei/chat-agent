@@ -1,3 +1,4 @@
+from app.mcp.tool_naming import is_llm_tool
 from app.schemas.llm import (
     ToolMessage,
     ToolResultMessage,
@@ -13,7 +14,7 @@ def extract_tool_call_names(output_messages: list[ToolMessage]) -> list[str]:
         output_messages: 工具调用消息列表
 
     Returns:
-        list[str]: 工具名称列表
+        list[str]: 工具名称列表（LLM 可见名，带 server 前缀）
     """
     tool_names = []
     for message in output_messages:
@@ -37,10 +38,17 @@ def count_tool_calls(output_messages: list[ToolMessage]) -> int:
 
 
 def has_tool_been_called(
-    names: list[str], tool_call_messages: list[ToolMessage]
+    specs: list[tuple[str, str]],
+    tool_call_messages: list[ToolMessage],
 ) -> bool:
     """
-    Check if any tool in the list has been called.
+    Check if any tool has been called.
+
+    Each spec is ``(server_name, bare_tool_name)``; matches LLM-prefixed names.
     """
     tool_call_names = extract_tool_call_names(tool_call_messages)
-    return any(tool_name in tool_call_names for tool_name in names)
+    return any(
+        is_llm_tool(name, server, bare)
+        for name in tool_call_names
+        for server, bare in specs
+    )

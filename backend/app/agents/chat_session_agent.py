@@ -61,6 +61,7 @@ class ChatSessionAgent(BaseAgent):
         self.mcp_manager = mcp_manager
         self.session_output = SessionOutput()
         self.content_block_aggregator = ContentBlocksAggregator()
+        self.content_block_aggregator.set_tool_name_resolver(mcp_manager.get_tool_route)
         self.state_machine = ChatRoundStateMachine()
         self.tool_context_limit_ratio = tool_context_limit_ratio
 
@@ -100,6 +101,9 @@ class ChatSessionAgent(BaseAgent):
         self.think_mode = chat_request.think_mode
         self.session_output.reset()
         self.content_block_aggregator = ContentBlocksAggregator()
+        self.content_block_aggregator.set_tool_name_resolver(
+            self.mcp_manager.get_tool_route
+        )
 
         logger.info("User memories", count=len(user_memories))
 

@@ -13,6 +13,12 @@ from toolz import get
 from app.agents.utils import TavilyResultProcessor
 from app.core.config import settings
 from app.mcp.client import MCPClientManager
+from app.mcp.constants import (
+    SKIP_TOOL_RESULT_COMPACTION_SERVERS,
+    TAVILY_SERVER,
+    WEB_PAGES_EXTRACT_BARE,
+)
+from app.mcp.tool_naming import is_llm_tool
 from app.schemas.llm import ToolResultMessage
 from app.utils.common import normalize_url
 from app.utils.context import set_request_context
@@ -24,11 +30,6 @@ from app.utils.token import TokenCalculator
 
 class ToolExecutor:
     """Execute MCP tools and compact their results."""
-
-    TAVILY_TOOL_NAME = "tavily"
-    WEB_PAGES_EXTRACT = "web_pages_extract"
-    FILE_MCP_SERVER_NAME = "file"
-    SHELL_MCP_SERVER_NAME = "shell"
 
     def __init__(
         self, mcp_manager: MCPClientManager, user_message: str, model_name: str
@@ -93,7 +94,9 @@ class ToolExecutor:
         start_time = get_current_time()
         try:
             arguments = json.loads(tool_call.function.arguments)
-            if tool_name == self.WEB_PAGES_EXTRACT and (urls := get("urls", arguments)):
+            if is_llm_tool(tool_name, TAVILY_SERVER, WEB_PAGES_EXTRACT_BARE) and (
+                urls := get("urls", arguments)
+            ):
                 normalized_urls = {normalize_url(url) for url in urls if url}
                 new_urls = normalized_urls - extracted_urls
                 if not new_urls:
@@ -136,10 +139,7 @@ class ToolExecutor:
                 tool_call_id=tool_call.id,
             )
             server_name = self.mcp_manager.get_server_for_tool(tool_name)
-            skip_compaction = server_name in (
-                self.FILE_MCP_SERVER_NAME,
-                self.SHELL_MCP_SERVER_NAME,
-            )
+            skip_compaction = server_name in SKIP_TOOL_RESULT_COMPACTION_SERVERS
             if skip_compaction:
                 logger.info(
                     "Skipping tool result compaction for agent skills workspace tool",
@@ -147,7 +147,7 @@ class ToolExecutor:
                     tool_call_id=tool_call.id,
                 )
             elif (
-                server_name == self.TAVILY_TOOL_NAME
+                server_name == TAVILY_SERVER
                 and result.structured_content is not None
             ):
                 tool_call_result_message = await self._apply_tavily_compaction(

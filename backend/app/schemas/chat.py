@@ -3,11 +3,19 @@
 import json
 from datetime import datetime
 from enum import Enum
-from typing import Any, Literal, TypeAlias, cast
+from typing import Any, Literal, Self, TypeAlias, cast
 
 from openai.types.chat import ChatCompletionMessageFunctionToolCall
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    TypeAdapter,
+    field_validator,
+    model_validator,
+)
 
+from app.mcp.tool_naming import llm_tool_name
 from app.schemas.llm import ToolMessage, ToolResultMessage, ToolUseMessage
 from app.utils.common import gen_uuid
 from app.utils.date import get_datetime_now
@@ -195,11 +203,34 @@ class ToolUseBlock(BaseModel):
     id: str = Field(..., description="Block ID")
     type: Literal["tool_use"] = "tool_use"
     tool_call_id: str | None = Field(default=None, description="Tool call ID")
-    name: str | None = Field(default=None, description="Tool name")
+    name: str | None = Field(default=None, description="LLM-visible tool name")
+    server_name: str | None = Field(
+        default=None, description="MCP server config key"
+    )
+    mcp_tool_name: str | None = Field(
+        default=None, description="Original MCP tool name (bare)"
+    )
     arguments_text: str = Field(default="", description="Tool arguments text")
     arguments_json: dict[str, Any] | None = Field(
         default=None, description="Parsed tool arguments"
     )
+
+    @model_validator(mode="after")
+    def validate_tool_naming_fields(self) -> Self:
+        if not self.name:
+            return self
+        if not self.server_name or not self.mcp_tool_name:
+            raise ValueError(
+                f"ToolUseBlock {self.id!r}: name 存在时必须同时提供 "
+                "server_name 与 mcp_tool_name"
+            )
+        expected = llm_tool_name(self.server_name, self.mcp_tool_name)
+        if self.name != expected:
+            raise ValueError(
+                f"ToolUseBlock {self.id!r}: name 应为 {expected!r}，"
+                f"实际为 {self.name!r}"
+            )
+        return self
 
 
 class ToolResultBlock(BaseModel):
