@@ -25,6 +25,11 @@
 
 建议流程：先 --dry-run 确认影响范围 → 备份数据库或导出快照 → 正式执行 → --verify-only 复核。
 输出中的 fallback resolutions 表示裸名无法唯一映射时使用了启发式 server 归属，需人工抽查。
+
+历史 LLM 工具名重命名（见 LEGACY_LLM_NAME_REMAP）：
+  - file_load_skill → skill_manager_load_skill
+  - code-exec_execute_code → code_execute_code
+  - code-exec_list_runtimes → code_list_runtimes
 """
 
 from __future__ import annotations
@@ -73,8 +78,17 @@ STATIC_BARE_TOOL_TO_SERVER: dict[str, str] = {
     "get_weather_alerts": "weather",
 }
 
+# 旧 LLM 可见名 → (新 LLM 可见名, server_name, mcp_tool_name)
+LEGACY_LLM_NAME_REMAP: dict[str, tuple[str, str, str]] = {
+    "file_load_skill": ("skill_manager_load_skill", "skill_manager", "load_skill"),
+    "code-exec_execute_code": ("code_execute_code", "code", "execute_code"),
+    "code-exec_list_runtimes": ("code_list_runtimes", "code", "list_runtimes"),
+}
+
 KNOWN_SERVERS = sorted(
-    set(settings.mcp.mcp_servers) | set(STATIC_BARE_TOOL_TO_SERVER.values()),
+    set(settings.mcp.mcp_servers)
+    | set(STATIC_BARE_TOOL_TO_SERVER.values())
+    | {server for _, server, _ in LEGACY_LLM_NAME_REMAP.values()},
     key=len,
     reverse=True,
 )
@@ -123,6 +137,8 @@ def _infer_agent_mode(conversation_messages: list[MessageDb]) -> bool:
             name = raw.get("name") or ""
             if name.startswith("file_") or name in ("read_file", "write_file", "shell"):
                 return True
+            if name in LEGACY_LLM_NAME_REMAP or name.startswith("skill_manager_"):
+                return True
             if name.startswith("shell_") or name == "shell":
                 return True
     return False
@@ -139,8 +155,18 @@ def _process_block(
     if not name:
         return block, False, False
 
-    server_name = block.get("server_name")
-    mcp_tool_name = block.get("mcp_tool_name")
+    if name in LEGACY_LLM_NAME_REMAP:
+        llm_name, remapped_server, remapped_mcp = LEGACY_LLM_NAME_REMAP[name]
+        updated = {
+            **block,
+            "name": llm_name,
+            "server_name": remapped_server,
+            "mcp_tool_name": remapped_mcp,
+        }
+        return updated, True, False
+
+    server_name: str | None = block.get("server_name")
+    mcp_tool_name: str | None = block.get("mcp_tool_name")
     if (
         server_name
         and mcp_tool_name
