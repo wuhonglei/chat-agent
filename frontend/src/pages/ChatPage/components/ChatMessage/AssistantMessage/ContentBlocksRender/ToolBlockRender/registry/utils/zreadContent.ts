@@ -88,7 +88,7 @@ export function findStructureBody(text: string): string {
     const trimmed = line.trim();
     return (
       /[├└]──/.test(trimmed) ||
-      /\/$/.test(trimmed) ||
+      trimmed.endsWith("/") ||
       /^[-*]\s+[\w./-]+\/?$/.test(trimmed) ||
       /^[\w.-]+\/$/.test(trimmed)
     );

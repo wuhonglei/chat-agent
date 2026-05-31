@@ -1,4 +1,4 @@
-import { theme, Typography } from "antd";
+import { Typography } from "antd";
 import React from "react";
 
 import type { ToolRenderContext } from "../types";
@@ -27,9 +27,8 @@ function toGithubRepoUrl(repoName: string): string | null {
   return `https://github.com/${repoName}`;
 }
 
-const ZreadRepoStructureArguments: React.FC<{ renderContext: ToolRenderContext }> = ({ renderContext }) => {
-  const { token } = theme.useToken();
-  const args = renderContext.toolUseBlock.argumentsJson;
+export function renderZreadRepoStructureArguments(ctx: ToolRenderContext): React.ReactNode | null {
+  const args = ctx.toolUseBlock.argumentsJson;
   if (!args) {
     return null;
   }
@@ -43,10 +42,7 @@ const ZreadRepoStructureArguments: React.FC<{ renderContext: ToolRenderContext }
   const githubUrl = toGithubRepoUrl(repoName);
 
   return (
-    <ul
-      className="m-0 w-full list-disc pl-5 text-sm"
-      style={{ color: token.colorTextSecondary }}
-    >
+    <ul className="m-0 w-full list-disc pl-5 text-sm">
       <li>
         <Typography.Text strong>repoName</Typography.Text>
         {": "}
@@ -59,17 +55,14 @@ const ZreadRepoStructureArguments: React.FC<{ renderContext: ToolRenderContext }
         )}
       </li>
       <li>
-        <Typography.Text strong>dirPath</Typography.Text>
+        <Typography.Text strong type="secondary">
+          dirPath
+        </Typography.Text>
         {": "}
-        <Typography.Text code>{dirPath}</Typography.Text>
+        <Typography.Text code type="secondary">
+          {dirPath}
+        </Typography.Text>
       </li>
     </ul>
   );
-};
-
-export function renderZreadRepoStructureArguments(ctx: ToolRenderContext): React.ReactNode | null {
-  if (!ctx.toolUseBlock.argumentsJson) {
-    return null;
-  }
-  return <ZreadRepoStructureArguments renderContext={ctx} />;
-};
+}

@@ -1,4 +1,4 @@
-import { theme, Typography } from "antd";
+import { Typography } from "antd";
 import React from "react";
 
 import type { ToolRenderContext } from "../types";
@@ -29,39 +29,6 @@ function getLanguage(args: Record<string, unknown>): string | null {
   return trimmed || null;
 }
 
-const ZreadSearchDocArguments: React.FC<{ args: Record<string, unknown> }> = ({ args }) => {
-  const { token } = theme.useToken();
-  const query = getQuery(args);
-  const repoName = getRepoName(args);
-  const language = getLanguage(args);
-
-  return (
-    <ul className="m-0 w-full list-disc pl-5 text-sm" style={{ color: token.colorTextSecondary }}>
-      {query ? (
-        <li>
-          <Typography.Text strong>query</Typography.Text>
-          {": "}
-          <Typography.Text code>{query}</Typography.Text>
-        </li>
-      ) : null}
-      {repoName ? (
-        <li>
-          <Typography.Text strong>repoName</Typography.Text>
-          {": "}
-          <Typography.Text code>{repoName}</Typography.Text>
-        </li>
-      ) : null}
-      {language ? (
-        <li>
-          <Typography.Text strong>language</Typography.Text>
-          {": "}
-          <Typography.Text code>{language}</Typography.Text>
-        </li>
-      ) : null}
-    </ul>
-  );
-};
-
 export function renderZreadSearchDocArguments(ctx: ToolRenderContext): React.ReactNode | null {
   const args = parseToolArguments(ctx);
   if (!args) {
@@ -75,5 +42,41 @@ export function renderZreadSearchDocArguments(ctx: ToolRenderContext): React.Rea
     return <></>;
   }
 
-  return <ZreadSearchDocArguments args={args} />;
+  return (
+    <ul className="m-0 w-full list-disc pl-5 text-sm">
+      {query ? (
+        <li>
+          <Typography.Text strong type="secondary">
+            query
+          </Typography.Text>
+          {": "}
+          <Typography.Text code type="secondary">
+            {query}
+          </Typography.Text>
+        </li>
+      ) : null}
+      {repoName ? (
+        <li>
+          <Typography.Text strong type="secondary">
+            repoName
+          </Typography.Text>
+          {": "}
+          <Typography.Text code type="secondary">
+            {repoName}
+          </Typography.Text>
+        </li>
+      ) : null}
+      {language ? (
+        <li>
+          <Typography.Text strong type="secondary">
+            language
+          </Typography.Text>
+          {": "}
+          <Typography.Text code type="secondary">
+            {language}
+          </Typography.Text>
+        </li>
+      ) : null}
+    </ul>
+  );
 }

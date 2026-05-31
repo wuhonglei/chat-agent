@@ -1,3 +1,4 @@
+// oxlint-disable react/only-export-components -- MCP tool icon registry mixes SVG nodes with lookup helpers
 import CodeIcon from "@/assets/svg/mcp-tools/code.svg?react";
 import Context7Icon from "@/assets/svg/mcp-tools/context7.svg?react";
 import EditFileIcon from "@/assets/svg/mcp-tools/edit-file.svg?react";
