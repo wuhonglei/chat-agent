@@ -9,7 +9,7 @@ todos:
     content: 改造 MCPToolGateway（移除 tool_conflicts/_handle_conflict）；注册/暴露带前缀 LLM 名，call_tool/get_tool_info/schema 用 to_mcp_tool_name；同步 client.reload；test_gateway_tool_names.py
     status: pending
   - id: tooluseblock-fields
-    content: ToolUseBlock 必填 server_name/mcp_tool_name；延迟 append 至 name 可解析；enrich 与 SSE 一次带齐三字段；前后端 schema 同步
+    content: ToolUseBlock 必填 server_name/mcp_tool_name（有 name 时同刻 enrich）；保持现有首 delta append；enrich 与 SSE 同步三字段；前后端 schema 同步
     status: pending
   - id: agents-prompts
     content: 更新 tool_call_policy、tool_executor（含 WEB_PAGES_EXTRACT 等裸名比较）、tavily_result_processor、prompts、has_tool_been_called；统一 is_llm_tool
@@ -141,18 +141,21 @@ await client.call_tool(mcp_name, args, ...)
 
 | 字段 | Schema 类型 | 写入时机 |
 |------|-------------|----------|
-| `name` | 可选（与现有一致） | 见流式策略 |
-| `server_name` | **必填** `str` | 与 `name` 同一次写入 |
-| `mcp_tool_name` | **必填** `str` | 与 `name` 同一次写入 |
+| `name` | 可选（与现有一致） | 流式 delta 逐步写入 |
+| `server_name` | **必填** `str`（有 `name` 时） | 与 `name` 同一次 enrich |
+| `mcp_tool_name` | **必填** `str`（有 `name` 时） | 与 `name` 同一次 enrich |
 
-**Pydantic / TypeScript 均为必填**（`Field(...)` / 非 optional 属性）。**须先完成 §4 迁移并通过 `--verify-only`**，再部署含必填模型的代码，否则 `normalize_content_blocks` 加载旧消息会失败。
+**Pydantic / TypeScript：** 落库/回放时三字段齐全；流式阶段可先有 block 无 `name`（与现有一致）。**须先完成 §4 迁移并通过 `--verify-only`**，再部署含必填模型的代码，否则 `normalize_content_blocks` 加载旧消息会失败。
 
-**流式写入（满足前端实时渲染 + 必填模型）：**
+**流式写入（保持现有 append 方式）：**
 
-当前实现会在首个 tool delta **无 `name`** 时 `append` 空 `ToolUseBlock`，与必填字段冲突。改为：
+保持当前实现：首个 tool delta 仍可 `append` 仅含 `tool_call_id` / `arguments` 片段的 `ToolUseBlock`（`name` 可为空）。**不**延迟创建 block。
 
-1. **延迟创建 block**：`tool_call index` 在见到非空 `fn.name` 之前只缓存 `tool_call_id` / `arguments` 片段，不 `append`。
-2. **首次具备可解析 LLM 名时** 一次 `append` 完整块（含 `name`、`server_name`、`mcp_tool_name`），并继续对后续 delta 发 `tool_delta`。
+当 `fn.name` 非空（或分片更新）时，**同步 enrich** 三字段：
+
+1. 调用 `resolve_tool_use_fields(llm_name)` 得到 `name`、`server_name`、`mcp_tool_name`。
+2. 写入当前 block，并通过 `tool_delta`（或等价事件）将三字段一并下发前端。
+3. 若 provider 分片下发 `function.name`，在**每次** `fn.name` 更新时重新 enrich（幂等）；最终以完整 LLM 名为准。
 
 ```python
 def resolve_tool_use_fields(llm_name: str) -> tuple[str, str, str]:
@@ -162,12 +165,12 @@ def resolve_tool_use_fields(llm_name: str) -> tuple[str, str, str]:
     return llm_name, server, to_mcp_tool_name(llm_name, server)
 ```
 
-- 首次 `append` 的 `block` payload 已含三字段；后续 `tool_delta` 可只带 `arguments_delta` / `tool_call_id`。
-- 若 provider 分片下发 `function.name`，在**每次** `fn.name` 更新时重新 enrich（幂等）；最终以完整 LLM 名为准。
-- 前端 [`chat.ts`](frontend/src/services/chat.ts) 对 SSE 做 `camelcaseKeys` → `serverName` / `mcpToolName`；[`chatSlice`](frontend/src/store/slices/chatSlice.ts) 在 `tool_delta` 分支合并到 `ToolUseBlock`，ToolBlock 可在参数流式阶段即用 `mcpToolName` 选图标/标题。
-- 扩展 [`ContentBlockEvent`](frontend/src/interfaces/contentBlock.ts)：`append` 的 `ToolUseBlock` 与 `tool_delta` 均携带必填的 `serverName`、`mcpToolName`（首次 append 即齐全）。
+- 首次 `append` 可不含 `name` / `serverName` / `mcpToolName`；**name 就绪后的 enrich** 通过 `tool_delta` 带齐三字段。
+- 后续 `tool_delta` 可只带 `arguments_delta` / `tool_call_id`（三字段已在 enrich 时写入）。
+- 前端 [`chat.ts`](frontend/src/services/chat.ts) 对 SSE 做 `camelcaseKeys` → `serverName` / `mcpToolName`；[`chatSlice`](frontend/src/store/slices/chatSlice.ts) 在 `tool_delta` 分支合并到 `ToolUseBlock`；`name` enrich 后 ToolBlock 即用 `mcpToolName` 选图标/标题。
+- 扩展 [`ContentBlockEvent`](frontend/src/interfaces/contentBlock.ts)：`tool_delta` 在 enrich 时携带 `serverName`、`mcpToolName`（与 `name` 同包）。
 
-**`finalize_round`：** 仅解析 `arguments_json`；**不**写入或修补 `server_name` / `mcp_tool_name`（无防御性 enrich，异常流依赖延迟 append 与必填模型在创建块时已保证三字段齐全）。
+**`finalize_round`：** 解析 `arguments_json`；若 block 已有 `name` 则须已 enrich 三字段（正常流由 `process_tool_call_deltas` 保证）；**不**在 finalize 做防御性补全。
 
 **Aggregator 依赖：** `ContentBlocksAggregator` 构造或 `set_tool_name_resolver(...)` 注入 `get_server_for_tool`（来自 `MCPClientManager.gateway`），由 [`chat_session_agent`](backend/app/agents/chat_session_agent.py) 在会话开始时绑定。
 
@@ -210,7 +213,7 @@ uv run python backend/scripts/backfill_tool_use_block_names.py --verify-only
 
 **回滚：** 脚本支持 `--rollback-from <snapshot.json>`（正式跑前可选导出受影响行的 `content_blocks` 快照）。
 
-**与发版顺序：** ① 在**旧代码仍可读**的环境跑 backfill → `--verify-only` 通过；② 部署含**必填模型 + 延迟 append enrich** 的后端与前端；③ 禁止回滚到未迁移库 + 新 schema 的组合。
+**与发版顺序：** ① 在**旧代码仍可读**的环境跑 backfill → `--verify-only` 通过；② 部署含**必填模型 + name 同步 enrich** 的后端与前端；③ 禁止回滚到未迁移库 + 新 schema 的组合。
 
 **附录：`STATIC_BARE_TOOL_TO_SERVER`（实现时在脚本内维护，单测锁定）**
 
@@ -309,5 +312,5 @@ uv run python backend/scripts/backfill_tool_use_block_names.py --verify-only
 
 1. `tool_executor` / `tool_call_policy` 中除 server 判断外，凡比较**工具裸名**处都要走 `is_llm_tool`，否则会漏掉 `tavily_web_search` 等前缀名。
 2. 流式 `function.name` 若分片到达，enrich 需随 `name` 更新而幂等重算。
-3. 历史数据：先 migrate + verify，再上线必填 schema；流式采用延迟 append，避免空块无法通过校验。
+3. 历史数据：先 migrate + verify，再上线必填 schema；流式保持现有 append，在 `name` 就绪时同步 enrich 三字段。
 4. backfill 主路径：裸 `name`→静态表+agent_mode；改写 `name` 为带前缀 LLM 名；歧义 fallback，不得 `null`。
