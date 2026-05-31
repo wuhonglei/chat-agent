@@ -10,5 +10,5 @@ export { DEFAULT_TOOL_RENDERER_ENTRY, SERVER_TOOL_RENDERERS, TOOL_RENDERER_REGIS
 export { mergeToolRenderer } from "./mergeToolRenderer";
 export { DEFAULT_TOOL_RENDERER, renderDefaultToolResult } from "./defaults";
 export { lookupToolRenderer } from "./lookupToolRenderer";
-export { resolveToolContext, resolveToolRenderer, renderToolResult } from "./resolveToolRenderer";
+export { resolveToolContext, resolveToolRenderer, renderToolResult } from "./resolveToolRenderer.ts";
 export type { ToolRenderContext, ToolRenderer, ToolRendererRegistry } from "./types";

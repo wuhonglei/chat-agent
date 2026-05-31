@@ -8,6 +8,7 @@ import { skillManagerRenderers } from "./servers/skill_manager";
 import { tavilyRenderers } from "./servers/tavily";
 import { timeRenderers } from "./servers/time";
 import { weatherRenderers } from "./servers/weather";
+import { zreadRenderers } from "./servers/zread";
 import type { ToolRenderer } from "./types";
 
 export const DEFAULT_TOOL_RENDERER_ENTRY: ToolRenderer = {
@@ -24,6 +25,7 @@ export const SERVER_TOOL_RENDERERS: Record<string, Record<string, ToolRenderer>>
   context7: context7Renderers,
   weather: weatherRenderers,
   time: timeRenderers,
+  zread: zreadRenderers,
 };
 
 /** @deprecated Use DEFAULT_TOOL_RENDERER_ENTRY + SERVER_TOOL_RENDERERS */
