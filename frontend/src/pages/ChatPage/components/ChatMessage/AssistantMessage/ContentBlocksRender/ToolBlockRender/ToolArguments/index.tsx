@@ -21,16 +21,15 @@ export const ToolArguments: React.FC<ToolArgumentsProps> = ({ renderContext, ren
   const { token } = theme.useToken();
   const [expanded, setExpanded] = useState(false);
   const { toolUseBlock } = renderContext;
+  const { markdown, plain } = useToolArgumentsDisplay(
+    toolUseBlock.argumentsText,
+    toolUseBlock.argumentsJson
+  );
 
   const customArguments = renderer.renderArguments?.(renderContext);
   if (customArguments != null) {
     return <>{customArguments}</>;
   }
-
-  const { markdown, plain } = useToolArgumentsDisplay(
-    toolUseBlock.argumentsText,
-    toolUseBlock.argumentsJson
-  );
 
   if (markdown) {
     return (

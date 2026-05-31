@@ -24,8 +24,6 @@ export const ToolBlockRender: React.FC<Props> = ({ toolUseBlock, toolResultBlock
     [mcpToolName, serverName]
   );
 
-  console.info('renderer', renderer)
-
   const renderContext: ToolRenderContext = useMemo(
     () => ({
       serverName,
