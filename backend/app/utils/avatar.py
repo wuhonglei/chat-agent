@@ -62,6 +62,8 @@ def avatar_filename_from_storage(value: str) -> str:
 def avatar_local_path(filename: str) -> Path:
     safe_name = _canonical_avatar_filename(filename)
     base_dir = Path(settings.storage.avatar_dir).resolve()
+    # codeql[py/path-injection]: safe_name 仅由 UUID+扩展名正则捕获组重建，不含路径分隔符；
+    # resolve 后须落在 avatar_dir 内（relative_to 校验），可防御路径遍历。
     candidate = (base_dir / safe_name).resolve()
     try:
         candidate.relative_to(base_dir)

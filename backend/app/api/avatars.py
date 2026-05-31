@@ -35,9 +35,11 @@ async def get_avatar(filename: str) -> FileResponse:
         path = avatar_local_path(filename)
     except InvalidAvatarError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    # codeql[py/path-injection]: path 来自 avatar_local_path，已做文件名规范化与目录边界校验。
     if not path.is_file():
         raise HTTPException(status_code=404, detail="文件不存在")
     safe_name = path.name
+    # codeql[py/path-injection]: 仅读取 avatar_dir 内已通过校验的本地文件。
     return FileResponse(
         path=str(path),
         media_type=media_type_for_avatar(safe_name),
