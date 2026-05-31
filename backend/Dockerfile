@@ -61,6 +61,7 @@ RUN uv export --format requirements.txt --all-packages > /tmp/requirements.txt &
 COPY alembic.ini .
 COPY alembic ./alembic
 COPY app ./app
+COPY scripts ./scripts
 
 # Copy startup script
 COPY start.sh ./start.sh
