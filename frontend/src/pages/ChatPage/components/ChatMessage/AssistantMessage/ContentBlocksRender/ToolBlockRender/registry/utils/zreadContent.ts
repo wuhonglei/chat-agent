@@ -51,37 +51,9 @@ export function stripZreadPreamble(text: string): string {
     .trim();
 }
 
-const STRUCTURE_TIP_PATTERN = /\n+Tip:[\s\S]*$/;
-
-export function formatZreadRepoStructureDisplay(raw: string): {
-  title: string | null;
-  body: string;
-  tip: string | null;
-} | null {
-  let text = unwrapJsonStringLiteral(raw.trim());
-  if (!text) {
-    return null;
-  }
-
-  text = normalizeEscapedNewlines(text);
-
-  let tip: string | null = null;
-  const tipMatch = STRUCTURE_TIP_PATTERN.exec(text);
-  if (tipMatch) {
-    tip = tipMatch[0].trim();
-    text = text.slice(0, tipMatch.index).trim();
-  }
-
-  const titleMatch = /^Directory Structure of ([^\n:]+):?\s*$/im.exec(text.split("\n")[0] ?? "");
-  const title = titleMatch?.[1]?.trim() ?? null;
-
-  const tagged = extractZreadTaggedContent(text);
-  const body = (tagged ?? findStructureBody(stripZreadPreamble(text))).trim();
-  if (!body) {
-    return null;
-  }
-
-  return { title, body, tip };
+export function formatZreadRepoStructureDisplay(raw: string): string | null {
+  const display = findStructureBody(unwrapZreadToolContent(raw)).trim();
+  return display || null;
 }
 
 function extractCodeFence(text: string): string | null {
