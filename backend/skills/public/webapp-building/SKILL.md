@@ -23,7 +23,7 @@ description: Tools for building modern React webapps with TypeScript, Tailwind C
 1. Run `init-webapp.sh` — scaffold project in `/mnt/user-data/workspace/app/`
 2. Edit source under `src/`
 3. `pnpm run build` in the workspace project
-4. Copy `dist/` to `/mnt/user-data/outputs/app-dist/`
+4. Copy `dist/` to `/mnt/user-data/outputs/app-dist/`, then call `present_files`
 
 ## Quick Start
 
@@ -88,7 +88,9 @@ cd /mnt/user-data/workspace/app && pnpm run build 2>&1
 
 ### 4. Deliver
 
-Copy the production build to outputs:
+Copy the production build to outputs, then present it to the user.
+
+**Step A — copy build artifacts**
 
 ```bash
 rm -rf /mnt/user-data/outputs/app-dist
@@ -97,14 +99,29 @@ mkdir -p /mnt/user-data/outputs/app-dist
 cp -r /mnt/user-data/workspace/app/dist/. /mnt/user-data/outputs/app-dist/
 ```
 
-If the user needs the full source repo as a deliverable, zip or copy the workspace project into `outputs/` instead of (or in addition to) `dist/`.
+**Step B — present deliverables (`present_files` tool)**
+
+After the copy succeeds, call the `present_files` tool so the client can show the deliverable and open the project preview panel.
+
+```json
+{
+  "filepaths": ["/mnt/user-data/outputs/app-dist/index.html"]
+}
+```
+
+Rules:
+
+- Only virtual paths under `/mnt/user-data/outputs/` are accepted (not `workspace/` or host paths).
+- Each entry must be an **existing file** (directories are rejected).
+- For a static site, presenting `index.html` is enough; the UI exposes file browsing and zip download.
+- Briefly describe what was built (pages, features) in your reply after presenting.
 
 ## Debugging
 
 1. Fix source files in `workspace/app/src/`
 2. `pnpm run build`
 3. Verify `workspace/app/dist/`
-4. Re-copy to `outputs/app-dist/` and present again
+4. Re-copy to `outputs/app-dist/` and call `present_files` again with `/mnt/user-data/outputs/app-dist/index.html`
 
 ## Maintainer: refresh template dependencies
 
