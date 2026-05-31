@@ -1,7 +1,5 @@
 """用户头像 API（本地上传与读取）。"""
 
-from pathlib import Path
-
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
@@ -11,7 +9,6 @@ from app.utils.auth_deps import require_auth
 from app.utils.avatar import (
     InvalidAvatarError,
     avatar_local_path,
-    is_valid_avatar_filename,
     media_type_for_avatar,
 )
 
@@ -34,16 +31,15 @@ async def upload_avatar(
 @router.get("/{filename}")
 async def get_avatar(filename: str) -> FileResponse:
     """读取本地头像文件（无需登录）。"""
-    if not is_valid_avatar_filename(filename):
-        raise HTTPException(status_code=400, detail="无效的头像文件名")
     try:
         path = avatar_local_path(filename)
     except InvalidAvatarError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     if not path.is_file():
         raise HTTPException(status_code=404, detail="文件不存在")
+    safe_name = path.name
     return FileResponse(
         path=str(path),
-        media_type=media_type_for_avatar(filename),
-        filename=Path(filename).name,
+        media_type=media_type_for_avatar(safe_name),
+        filename=safe_name,
     )

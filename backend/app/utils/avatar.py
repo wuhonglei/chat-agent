@@ -11,8 +11,8 @@ from app.core.config import settings
 AVATAR_URL_PREFIX = "/api/avatars/"
 
 _AVATAR_FILENAME_RE = re.compile(
-    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
-    r"\.(jpg|jpeg|png|gif|webp)$",
+    r"^(?P<uuid>[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})"
+    r"\.(?P<ext>jpg|jpeg|png|gif|webp)$",
     re.IGNORECASE,
 )
 
@@ -32,7 +32,15 @@ class InvalidAvatarError(ValueError):
 
 
 def is_valid_avatar_filename(filename: str) -> bool:
-    return bool(_AVATAR_FILENAME_RE.match(filename))
+    return _AVATAR_FILENAME_RE.fullmatch(filename) is not None
+
+
+def _canonical_avatar_filename(filename: str) -> str:
+    """从正则捕获组重建文件名，避免将用户输入直接拼入路径。"""
+    match = _AVATAR_FILENAME_RE.fullmatch(filename)
+    if match is None:
+        raise InvalidAvatarError(f"无效的头像文件名: {filename}")
+    return f"{match.group('uuid')}.{match.group('ext').lower()}"
 
 
 def avatar_storage_path(filename: str) -> str:
@@ -52,11 +60,9 @@ def avatar_filename_from_storage(value: str) -> str:
 
 
 def avatar_local_path(filename: str) -> Path:
-    if not is_valid_avatar_filename(filename):
-        raise InvalidAvatarError(f"无效的头像文件名: {filename}")
-
+    safe_name = _canonical_avatar_filename(filename)
     base_dir = Path(settings.storage.avatar_dir).resolve()
-    candidate = (base_dir / filename).resolve()
+    candidate = (base_dir / safe_name).resolve()
     try:
         candidate.relative_to(base_dir)
     except ValueError as e:

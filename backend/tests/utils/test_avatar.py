@@ -1,10 +1,13 @@
 """头像工具单元测试。"""
 
+from pathlib import Path
+
 import pytest
 
 from app.utils.avatar import (
     AVATAR_URL_PREFIX,
     InvalidAvatarError,
+    avatar_local_path,
     avatar_filename_from_storage,
     avatar_storage_path,
     filename_from_cos_url,
@@ -64,3 +67,41 @@ def test_is_valid_avatar_filename() -> None:
     assert is_valid_avatar_filename(_VALID_NAME)
     assert not is_valid_avatar_filename("../../../etc/passwd")
     assert not is_valid_avatar_filename("upload.png")
+
+
+def test_avatar_local_path_resolves_under_avatar_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    avatars_root = tmp_path / "avatars"
+    avatars_root.mkdir()
+    (avatars_root / _VALID_NAME).write_bytes(b"png")
+
+    class _Storage:
+        avatar_dir = str(avatars_root)
+
+    class _Settings:
+        storage = _Storage()
+
+    monkeypatch.setattr("app.utils.avatar.settings", _Settings())
+
+    resolved = avatar_local_path(_VALID_NAME)
+    assert resolved.is_file()
+    assert resolved.parent == avatars_root.resolve()
+
+
+def test_avatar_local_path_rejects_path_traversal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    avatars_root = tmp_path / "avatars"
+    avatars_root.mkdir()
+
+    class _Storage:
+        avatar_dir = str(avatars_root)
+
+    class _Settings:
+        storage = _Storage()
+
+    monkeypatch.setattr("app.utils.avatar.settings", _Settings())
+
+    with pytest.raises(InvalidAvatarError):
+        avatar_local_path("../../../etc/passwd")
