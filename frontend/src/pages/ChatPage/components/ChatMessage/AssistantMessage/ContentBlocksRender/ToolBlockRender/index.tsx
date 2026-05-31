@@ -22,12 +22,12 @@ export const ToolBlockRender: React.FC<Props> = ({ toolUseBlock, toolResultBlock
 
   return (
     <Think
-      icon={getToolIcon(displayToolName)}
-      expanded={expanded}
-      blink={isActiveStatus(status)}
-      onExpand={onExpandChange}
-      classNames={{ status: "cursor-pointer" }}
-      title={<ToolBlockTitle rawToolName={displayToolName} status={status} />}
+    expanded={expanded}
+    onExpand={onExpandChange}
+    blink={isActiveStatus(status)}
+    icon={getToolIcon(displayToolName)}
+    classNames={{ status: "cursor-pointer" }}
+    title={<ToolBlockTitle rawToolName={displayToolName} status={status} />}
     >
       <div className="w-full flex flex-col gap-2 py-1">
         <ToolArguments
