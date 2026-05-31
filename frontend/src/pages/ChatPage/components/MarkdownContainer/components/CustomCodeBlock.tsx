@@ -1,4 +1,3 @@
-import { useIsSmallScreen } from "@/hooks";
 import { useBlockPreview } from "@/pages/ChatPage/context/useBlockPreview";
 import { Mermaid } from "@ant-design/x";
 import React, { memo } from "react";
@@ -18,9 +17,8 @@ const CustomCodeBlock = memo(({ inline, className, children }: CustomCodeBlockPr
   const code = String(children).replace(/\n$/, "");
   const language = useLanguage(className, code, inline);
   const blockPreview = useBlockPreview();
-  const isSmallScreen = useIsSmallScreen();
 
-  const codeHeader = useCodeBlockHeader({ isSmallScreen, language, code, blockPreview });
+  const codeHeader = useCodeBlockHeader({ language, code, blockPreview });
 
   if (inline || !language) {
     return <InlineCode>{code}</InlineCode>;

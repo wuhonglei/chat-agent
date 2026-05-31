@@ -1,10 +1,5 @@
-import { isPlainObject, trim } from "lodash-es";
+import { isPlainObject } from "lodash-es";
 import { useMemo } from "react";
-
-export type ExecuteCodeToolArgumentsResult = {
-  code: string;
-  language: string;
-} | null;
 
 export type ToolArgumentsDisplay = {
   markdown: string | null;
@@ -137,44 +132,4 @@ export function useToolArgumentsDisplay(
       plain: argumentsText || "",
     };
   }, [argumentsJson, argumentsText]);
-}
-
-export function useExecuteCodeToolArguments(
-  toolName: string | undefined,
-  argumentsText: string,
-  argumentsJson?: Record<string, unknown>
-): ExecuteCodeToolArgumentsResult {
-  return useMemo(() => {
-    if (toolName !== "execute_code") {
-      return null;
-    }
-
-    const parsedArguments = (() => {
-      if (argumentsJson) {
-        return argumentsJson;
-      }
-      if (!argumentsText) {
-        return null;
-      }
-      try {
-        return JSON.parse(argumentsText) as Record<string, unknown>;
-      } catch {
-        return null;
-      }
-    })();
-
-    if (!parsedArguments) {
-      return null;
-    }
-
-    const code = parsedArguments.code;
-    if (typeof code !== "string" || !code) {
-      return null;
-    }
-    const language = parsedArguments.language;
-    return {
-      code: trim(code),
-      language: typeof language === "string" && language ? language : "python",
-    };
-  }, [argumentsJson, argumentsText, toolName]);
 }

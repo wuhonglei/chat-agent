@@ -48,7 +48,12 @@ async def shell(
         user_id=ctx.user_id,
         conversation_id=ctx.conversation_id,
     )
-    return ToolResult(content=result)
+    structured = (
+        result.structured_content.model_dump(mode="json")
+        if result.structured_content is not None
+        else None
+    )
+    return ToolResult(content=result.content, structured_content=structured)
 
 
 async def initialize_shell_executor(workspace_path: Path) -> None:

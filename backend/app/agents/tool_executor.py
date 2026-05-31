@@ -11,9 +11,11 @@ from openai.types.chat import ChatCompletionMessageFunctionToolCall
 from toolz import get
 
 from app.agents.utils import TavilyResultProcessor
+from app.agents.utils.shell_result_processor import build_shell_display_items
 from app.core.config import settings
 from app.mcp.client import MCPClientManager
 from app.mcp.constants import (
+    SHELL_SERVER,
     SKIP_TOOL_RESULT_COMPACTION_SERVERS,
     TAVILY_SERVER,
     WEB_PAGES_EXTRACT_BARE,
@@ -146,10 +148,7 @@ class ToolExecutor:
                     tool_name=tool_name,
                     tool_call_id=tool_call.id,
                 )
-            elif (
-                server_name == TAVILY_SERVER
-                and result.structured_content is not None
-            ):
+            elif server_name == TAVILY_SERVER and result.structured_content is not None:
                 tool_call_result_message = await self._apply_tavily_compaction(
                     tool_name=tool_name,
                     structured_content=result.structured_content,
@@ -158,6 +157,15 @@ class ToolExecutor:
             else:
                 tool_call_result_message = await self._compact_tool_result_if_needed(
                     tool_call_result_message
+                )
+
+            if server_name == SHELL_SERVER and result.structured_content is not None:
+                tool_call_result_message = tool_call_result_message.model_copy(
+                    update={
+                        "structured_content_for_display": build_shell_display_items(
+                            result.structured_content
+                        )
+                    }
                 )
 
             content = tool_call_result_message.content or ""

@@ -1,46 +1,34 @@
 import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
-import CodeHighlighter from "@/pages/ChatPage/components/MarkdownContainer/components/CodeHighlighter";
 import { theme, Typography } from "antd";
-import React, { useState } from "react";
-import styles from "./index.module.css";
-
-import { useExecuteCodeToolArguments, useToolArgumentsDisplay } from "./hooks";
 import classNames from "classnames";
+import React, { useState } from "react";
+
+import type { ToolRenderContext } from "../registry/types";
+import type { ToolRenderer } from "../registry/types";
+import { useToolArgumentsDisplay } from "./hooks";
+import styles from "./index.module.css";
 
 const { Paragraph } = Typography;
 
 const DEFAULT_ELLIPSIS_ROWS = 10;
 
 export type ToolArgumentsProps = {
-  toolName?: string;
-  argumentsText: string;
-  argumentsJson?: Record<string, unknown>;
-  ellipsisRows?: number;
+  renderContext: ToolRenderContext;
+  renderer: ToolRenderer;
 };
 
-export const ToolArguments: React.FC<ToolArgumentsProps> = ({
-  toolName,
-  argumentsText,
-  argumentsJson,
-  ellipsisRows = DEFAULT_ELLIPSIS_ROWS,
-}) => {
+export const ToolArguments: React.FC<ToolArgumentsProps> = ({ renderContext, renderer }) => {
   const { token } = theme.useToken();
   const [expanded, setExpanded] = useState(false);
+  const { toolUseBlock } = renderContext;
+  const { markdown, plain } = useToolArgumentsDisplay(
+    toolUseBlock.argumentsText,
+    toolUseBlock.argumentsJson
+  );
 
-  const { markdown, plain } = useToolArgumentsDisplay(argumentsText, argumentsJson);
-  const executeCodeArgs = useExecuteCodeToolArguments(toolName, argumentsText, argumentsJson);
-
-  if (executeCodeArgs) {
-    return (
-      <CodeHighlighter
-        lang={executeCodeArgs.language}
-        styles={{
-          code: { width: "100%", overflow: "auto" },
-        }}
-      >
-        {executeCodeArgs.code}
-      </CodeHighlighter>
-    );
+  const customArguments = renderer.renderArguments?.(renderContext);
+  if (customArguments != null) {
+    return <>{customArguments}</>;
   }
 
   if (markdown) {
@@ -59,7 +47,7 @@ export const ToolArguments: React.FC<ToolArgumentsProps> = ({
       type="secondary"
       style={{ marginBottom: 0 }}
       ellipsis={{
-        rows: ellipsisRows,
+        rows: DEFAULT_ELLIPSIS_ROWS,
         expandable: "collapsible",
         expanded,
         symbol: isExpanded => (isExpanded ? "收起" : "展开"),

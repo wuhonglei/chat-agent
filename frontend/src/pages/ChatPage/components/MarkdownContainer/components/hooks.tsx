@@ -7,7 +7,6 @@ import HtmlPreviewHeader from "./HtmlPreviewHeader";
 type UseHtmlPreviewHeaderParams = {
   blockPreview: BlockPreviewContextValue | null;
   code: string;
-  isSmallScreen: boolean;
   language: string;
 };
 
@@ -20,7 +19,6 @@ function isCodeRuntimeLanguage(language: string): language is CodeRuntimeLanguag
 export function useCodeBlockHeader({
   blockPreview,
   code,
-  isSmallScreen,
   language,
 }: UseHtmlPreviewHeaderParams): React.ReactNode | undefined {
   return useMemo(() => {
@@ -35,5 +33,5 @@ export function useCodeBlockHeader({
       return <CodeExecHeader code={code} language={language} openPreview={openPreview} />;
     }
     return;
-  }, [blockPreview, code, isSmallScreen, language]);
+  }, [blockPreview, code, language]);
 }

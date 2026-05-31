@@ -130,7 +130,7 @@ class MCPConfig(BaseModel):
             "tavily": MCPServerEntry(
                 module="app.mcp.mcp_servers.tavily_mcp.server",
             ),
-            "code-exec": MCPServerEntry(
+            "code": MCPServerEntry(
                 module="app.mcp.mcp_servers.code_exec_mcp.server",
             ),
             "file": MCPServerEntry(
@@ -150,7 +150,7 @@ class MCPConfig(BaseModel):
             "time",
             "weather",
             "tavily",
-            "code-exec",
+            "code",
             "context7",
             "zread",
         ],

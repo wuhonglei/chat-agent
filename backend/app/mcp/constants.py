@@ -9,7 +9,7 @@ TAVILY_SERVER = "tavily"
 FILE_SERVER = "file"
 SKILL_MANAGER_SERVER = "skill_manager"
 SHELL_SERVER = "shell"
-CODE_EXEC_SERVER = "code-exec"
+CODE_SERVER = "code"
 
 # --- File MCP bare tools ---
 PRESENT_FILES_BARE = "present_files"

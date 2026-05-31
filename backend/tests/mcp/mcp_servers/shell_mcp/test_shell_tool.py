@@ -329,7 +329,7 @@ async def test_shell_tool_blocks_rm_rf_without_executor(
             conversation_id="ws-1",
         )
 
-    assert "Command blocked" in output
+    assert "Command blocked" in output.content
     mock_execute.assert_not_awaited()
 
 
@@ -364,8 +364,8 @@ async def test_shell_tool_warn_appends_to_output(
             conversation_id="ws-1",
         )
 
-    assert "⚠️" in output
-    assert "pip install requests" in output
+    assert "⚠️" in output.content
+    assert "pip install requests" in output.content
     mock_executor.execute.assert_awaited_once()
 
 
@@ -403,7 +403,7 @@ async def test_shell_tool_allows_vite_without_whitelist(
             conversation_id="ws-1",
         )
 
-    assert "Command blocked" not in output
+    assert "Command blocked" not in output.content
     mock_executor.execute.assert_awaited_once()
 
 
