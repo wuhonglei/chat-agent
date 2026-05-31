@@ -1,4 +1,4 @@
-import CodeExecIcon from "@/assets/svg/mcp-tools/code-exec.svg?react";
+import CodeIcon from "@/assets/svg/mcp-tools/code.svg?react";
 import Context7Icon from "@/assets/svg/mcp-tools/context7.svg?react";
 import EditFileIcon from "@/assets/svg/mcp-tools/edit-file.svg?react";
 import LoadSkillIcon from "@/assets/svg/mcp-tools/load-skill.svg?react";
@@ -26,7 +26,7 @@ const WEATHER_TOOL_NAMES = new Set([
   "get_weather_alerts",
 ]);
 
-const CODE_EXEC_TOOL_NAMES = new Set(["execute_code", "list_runtimes"]);
+const CODE_TOOL_NAMES = new Set(["execute_code", "list_runtimes"]);
 
 const FILE_TOOL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   read_file: ReadFileIcon,
@@ -65,8 +65,8 @@ export function getToolIcon(toolName?: string): React.ReactNode {
     return <WebResearchIcon className={ICON_CLASS_NAME} />;
   }
 
-  if (CODE_EXEC_TOOL_NAMES.has(normalizedToolName)) {
-    return <CodeExecIcon className={ICON_CLASS_NAME} />;
+  if (CODE_TOOL_NAMES.has(normalizedToolName)) {
+    return <CodeIcon className={ICON_CLASS_NAME} />;
   }
 
   if (CONTEXT7_TOOL_NAMES.has(normalizedToolName) || normalizedToolName.includes("context7")) {

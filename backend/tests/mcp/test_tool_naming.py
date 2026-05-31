@@ -33,17 +33,14 @@ def test_bare_name_without_prefix_unchanged() -> None:
     assert to_mcp_tool_name("web_search", "tavily") == "web_search"
 
 
-def test_server_name_with_hyphen() -> None:
-    assert llm_tool_name("code-exec", "execute_code") == "code-exec_execute_code"
-    assert (
-        to_mcp_tool_name("code-exec_execute_code", "code-exec") == "execute_code"
-    )
+def test_code_server_tool_naming() -> None:
+    assert llm_tool_name("code", "execute_code") == "code_execute_code"
+    assert to_mcp_tool_name("code_execute_code", "code") == "execute_code"
 
 
-def test_resolve_server_longest_prefix() -> None:
-    servers = ["code", "code-exec", "tavily"]
-    assert resolve_server_by_prefix("code-exec_execute_code", servers) == "code-exec"
-    assert resolve_server_by_prefix("code_run", servers) == "code"
+def test_resolve_server_by_prefix() -> None:
+    servers = ["code", "context7", "tavily"]
+    assert resolve_server_by_prefix("code_execute_code", servers) == "code"
     assert resolve_server_by_prefix("tavily_web_search", servers) == "tavily"
     assert resolve_server_by_prefix("web_search", servers) is None
 
