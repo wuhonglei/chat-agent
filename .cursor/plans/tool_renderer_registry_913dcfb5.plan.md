@@ -4,19 +4,19 @@ overview: 在保持「每个 tool_use 一个 Think 块、内部 title/args/resul
 todos:
   - id: registry-types
     content: 新增 registry/types.ts、resolveToolRenderer.ts、defaults.ts 与 lookup 优先级逻辑
-    status: pending
+    status: completed
   - id: server-modules
     content: 创建 servers/*.ts，从 toolIcons / ToolArguments / ToolResult 迁移全部特化映射
-    status: pending
+    status: completed
   - id: thin-components
     content: 改造 ToolBlockRender、ToolBlockTitle（来源在前）、ToolArguments、ToolResult 为 registry 薄壳
-    status: pending
+    status: completed
   - id: cleanup
     content: 删除 toolIcons.tsx，精简 ToolArguments/hooks 与 ToolResult/hooks 中的 toolName 分支
-    status: pending
+    status: completed
   - id: tests
     content: 添加 resolveToolRenderer 与 title 格式单元测试
-    status: pending
+    status: completed
 isProject: false
 ---
 
@@ -24,13 +24,13 @@ isProject: false
 
 ## 现状与目标
 
-**现状**：UI 已是「每个工具调用一块」，但特化逻辑分散在三处：
+**现状（已重构）**：特化逻辑已迁入 `ToolBlockRender/registry/`，原 `toolIcons.tsx` 已删除。
 
-| 文件 | 职责 |
+| 原文件 | 迁移去向 |
 |------|------|
-| [`toolIcons.tsx`](frontend/src/pages/ChatPage/components/ChatMessage/AssistantMessage/ContentBlocksRender/ToolBlockRender/toolIcons.tsx) | 按 bare tool name 映射图标 |
-| [`ToolArguments/hooks.tsx`](frontend/src/pages/ChatPage/components/ChatMessage/AssistantMessage/ContentBlocksRender/ToolBlockRender/ToolArguments/hooks.tsx) | `execute_code` 参数 → 代码高亮 |
-| [`ToolResult/index.tsx`](frontend/src/pages/ChatPage/components/ChatMessage/AssistantMessage/ContentBlocksRender/ToolBlockRender/ToolResult/index.tsx) | `web_search` / markdown 工具 / 默认 JSON |
+| ~~`toolIcons.tsx`~~ | `registry/servers/*.ts` + `registry/icons.tsx` |
+| ~~`ToolArguments/hooks.tsx` 中 execute_code~~ | `registry/components/ExecuteCodeArguments.tsx` |
+| ~~`ToolResult/index.tsx` 中 toolName 分支~~ | `registry/servers/*.ts` + `registry/defaults.tsx` |
 
 **目标**：
 
@@ -44,10 +44,11 @@ flowchart TD
   defaultRenderer --> ThinkUI
 ```
 
-**不在本次范围**：
+**不在本次范围（registry 计划边界）**：
 
-- 后端 `structuredContentForDisplay` 扩展（仅迁移现有 `web_search` 用法）
-- Shell 结构化结果与终端 UI：**见独立计划** [shell_structured_display_schema.plan.md](./shell_structured_display_schema.plan.md)（MCP schema、agent 挂载、前端 `ShellToolResult` 均不在 registry 重构内）
+- 后端 `structuredContentForDisplay` 扩展（registry 仅消费现有 `web_search` + shell 已落地 display）
+
+**关联计划（已一并实施）**：[shell_structured_display_schema.plan.md](./shell_structured_display_schema.plan.md) — shell 终端 args/result 已注册于 `registry/servers/shell.tsx`。
 
 ---
 
@@ -116,7 +117,7 @@ export function resolveToolRenderer(
 | `file` | `read_file`, `write_file`, `edit_file`, `search_files`, `present_files` | icon；`read_file` markdown result；读/写/改文件时从 `argumentsJson.file_path`（或 `path`）后缀推断 result / args 高亮语言（复用 `FILE_EXTENSION_LANGUAGE_MAP` / `getLanguageFromPath`） |
 | `code` | `execute_code`, `list_runtimes` | icon + execute_code 参数代码高亮 |
 | `skill_manager` | `load_skill` | icon + markdown result |
-| `shell` | `shell` | icon；result/args 终端风格展示待 [shell 结构化 display 计划](./shell_structured_display_schema.plan.md) 落地后再注册 |
+| `shell` | `shell` | icon + bash 命令 args + `ShellToolResult`（structured display） |
 | `weather` | `search_city`, `get_current_weather`, ... | icon |
 | `context7` | `resolve-library-id`, `query-docs` | icon + markdown result |
 | `time` | `get_current_time` | icon |
@@ -157,9 +158,9 @@ export function resolveToolRenderer(
 - 删除 tool name 硬编码列表；改为 `renderer.renderResult?.(ctx) ?? defaultRenderResult(ctx)`
 - `WebSearchResult.tsx` 保留位置，由 `servers/tavily.ts` import
 
-### 删除 [`toolIcons.tsx`](frontend/src/pages/ChatPage/components/ChatMessage/AssistantMessage/ContentBlocksRender/ToolBlockRender/toolIcons.tsx)
+### 删除 ~~[`toolIcons.tsx`]~~（已完成）
 
-图标定义迁入各 `servers/*.ts`；未注册工具使用 `_default.icon`（`ToolOutlined`）。
+图标定义已迁入各 `servers/*.ts`；未注册工具使用 `DEFAULT_TOOL_RENDERER_ENTRY.icon`（`ToolOutlined`）。
 
 ---
 

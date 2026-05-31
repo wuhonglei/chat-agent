@@ -13,7 +13,9 @@ from app.mcp.mcp_servers.shell_mcp.command_audit import (
 )
 from app.mcp.mcp_servers.shell_mcp.config import shell_config
 from app.mcp.mcp_servers.shell_mcp.executor import SandboxBackendError, ShellExecutor
+from app.mcp.mcp_servers.shell_mcp.models import ShellToolExecuteResult
 from app.sandbox.executor import ExecutionResult
+from app.schemas.shell_display import ShellExecStructuredContent
 from app.vfs.paths import get_paths
 
 
@@ -78,17 +80,19 @@ class ShellTool:
         arguments: dict[str, Any],
         user_id: str,
         conversation_id: str,
-    ) -> str:
+    ) -> ShellToolExecuteResult:
         """Execute shell tool."""
         command = arguments.get("command", "")
         description = arguments.get("description", "")
         timeout = arguments.get("timeout", shell_config.default_timeout_ms)
 
         if not command:
-            return "Error: command is required"
+            return ShellToolExecuteResult(content="Error: command is required")
 
         if not description:
-            return "Error: description is required (5-10 words explaining what the command does)"
+            return ShellToolExecuteResult(
+                content="Error: description is required (5-10 words explaining what the command does)"
+            )
 
         timeout = min(timeout, shell_config.max_timeout_ms)
 
@@ -106,13 +110,13 @@ class ShellTool:
                 )
             )
             reason = audit_result.reason or "security violation detected"
-            return f"Error: Command blocked: {reason}"
+            return ShellToolExecuteResult(content=f"Error: Command blocked: {reason}")
 
         executor, init_error = await self.get_or_create_executor(
             user_id, conversation_id
         )
         if init_error:
-            return f"Error: {init_error}"
+            return ShellToolExecuteResult(content=f"Error: {init_error}")
 
         assert executor is not None
         result = await executor.execute(
@@ -122,6 +126,7 @@ class ShellTool:
         )
 
         output = self._format_output(command, result)
+        structured = self._build_structured_content(result)
 
         if audit_result.verdict == "warn":
             output += format_medium_risk_warning(command)
@@ -139,7 +144,22 @@ class ShellTool:
             )
         )
 
-        return output
+        return ShellToolExecuteResult(content=output, structured_content=structured)
+
+    @staticmethod
+    def _build_structured_content(
+        result: ExecutionResult,
+    ) -> ShellExecStructuredContent:
+        return ShellExecStructuredContent(
+            exit_code=result.return_code,
+            stdout=result.stdout or "",
+            stderr=result.stderr or "",
+            timed_out=result.timed_out,
+            output_truncated=result.output_truncated,
+            blocked=result.blocked,
+            block_reason=result.block_reason,
+            duration_ms=result.duration_ms,
+        )
 
     def _format_output(self, command: str, result: ExecutionResult) -> str:
         """Format execution result as output string."""

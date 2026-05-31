@@ -28,7 +28,7 @@ export interface ToolResultBlock {
   toolUseId: string;
   isError: boolean;
   content?: string;
-  structuredContentForDisplay?: WebSearchDisplayItem[];
+  structuredContentForDisplay?: ToolResultDisplayItem[];
   summary?: string;
 }
 
@@ -122,6 +122,28 @@ export interface WebSearchResultItem {
 export interface WebSearchDisplayItem {
   query?: string;
   results: WebSearchResultItem[];
+}
+
+export interface ShellExecDisplayItem {
+  type: "shell_exec";
+  exitCode: number;
+  stdout?: string;
+  stderr?: string;
+  timedOut?: boolean;
+  outputTruncated?: boolean;
+  blocked?: boolean;
+  blockReason?: string;
+  durationMs?: number;
+}
+
+export type ToolResultDisplayItem = WebSearchDisplayItem | ShellExecDisplayItem;
+
+export function isShellExecDisplayItem(item: ToolResultDisplayItem): item is ShellExecDisplayItem {
+  return "type" in item && item.type === "shell_exec";
+}
+
+export function isWebSearchDisplayItem(item: ToolResultDisplayItem): item is WebSearchDisplayItem {
+  return !("type" in item) && Array.isArray(item.results);
 }
 
 export enum ContentBlockRenderStatus {

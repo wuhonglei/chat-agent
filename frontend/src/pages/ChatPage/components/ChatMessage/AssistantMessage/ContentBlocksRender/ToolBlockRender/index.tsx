@@ -1,13 +1,13 @@
 import { ContentBlockRenderStatus, ToolResultBlock, ToolUseBlock } from "@/interfaces/contentBlock";
-import { displayMcpToolName } from "@/utils/toolNaming";
 import { Think } from "@ant-design/x";
-import React from "react";
+import React, { useMemo } from "react";
 
 import ToolArguments from "./ToolArguments";
 import ToolBlockTitle from "./ToolBlockTitle";
 import ToolResult from "./ToolResult";
 import { useToolBlockExpanded } from "./hooks";
-import { getToolIcon } from "./toolIcons";
+import { resolveToolContext, resolveToolRenderer } from "./registry";
+import type { ToolRenderContext } from "./registry/types";
 import { isActiveStatus } from "./utils";
 
 type Props = {
@@ -18,28 +18,35 @@ type Props = {
 
 export const ToolBlockRender: React.FC<Props> = ({ toolUseBlock, toolResultBlock, status }) => {
   const { expanded, onExpandChange } = useToolBlockExpanded(status);
-  const displayToolName = displayMcpToolName(toolUseBlock);
+  const { serverName, mcpToolName } = resolveToolContext(toolUseBlock);
+  const renderer = useMemo(
+    () => resolveToolRenderer(serverName, mcpToolName),
+    [mcpToolName, serverName]
+  );
+
+  const renderContext: ToolRenderContext = useMemo(
+    () => ({
+      serverName,
+      mcpToolName,
+      toolUseBlock,
+      toolResultBlock,
+      status,
+    }),
+    [mcpToolName, serverName, status, toolResultBlock, toolUseBlock]
+  );
 
   return (
     <Think
-    expanded={expanded}
-    onExpand={onExpandChange}
-    blink={isActiveStatus(status)}
-    icon={getToolIcon(displayToolName)}
-    classNames={{ status: "cursor-pointer" }}
-    title={<ToolBlockTitle rawToolName={displayToolName} status={status} />}
+      expanded={expanded}
+      onExpand={onExpandChange}
+      blink={isActiveStatus(status)}
+      icon={renderer.icon}
+      classNames={{ status: "cursor-pointer" }}
+      title={<ToolBlockTitle serverName={serverName} mcpToolName={mcpToolName} status={status} />}
     >
       <div className="w-full flex flex-col gap-2 py-1">
-        <ToolArguments
-          toolName={displayToolName}
-          argumentsText={toolUseBlock.argumentsText}
-          argumentsJson={toolUseBlock.argumentsJson}
-        />
-        <ToolResult
-          toolName={displayToolName}
-          toolResultBlock={toolResultBlock}
-          toolUseBlock={toolUseBlock}
-        />
+        <ToolArguments renderContext={renderContext} renderer={renderer} />
+        <ToolResult renderContext={renderContext} renderer={renderer} />
       </div>
     </Think>
   );
