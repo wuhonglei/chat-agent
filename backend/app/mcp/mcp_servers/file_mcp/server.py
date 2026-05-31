@@ -13,6 +13,7 @@ from pydantic import Field
 
 from app.mcp.mcp_servers.file_mcp.base import ToolContext
 from app.mcp.mcp_servers.file_mcp.edit_file import EditFileTool
+from app.mcp.mcp_servers.file_mcp.present_files import PresentFilesTool
 from app.mcp.mcp_servers.file_mcp.read_file import ReadFileTool
 from app.mcp.mcp_servers.file_mcp.search_files import SearchFilesTool
 from app.mcp.mcp_servers.file_mcp.write_file import WriteFileTool
@@ -24,6 +25,7 @@ _read_file = ReadFileTool()
 _write_file = WriteFileTool()
 _edit_file = EditFileTool()
 _search_files = SearchFilesTool()
+_present_files = PresentFilesTool()
 
 
 @mcp.tool(name="read_file")
@@ -170,6 +172,37 @@ async def search_files(
         },
         ctx,
     )
+    return ToolResult(
+        content=result.content, structured_content=result.structured_content
+    )
+
+
+@mcp.tool(name="present_files")
+async def present_files(
+    filepaths: list[str] = Field(
+        description=(
+            "List of virtual file paths to present to the user. "
+            "Only paths under /mnt/user-data/outputs/ are allowed."
+        ),
+        min_length=1,
+    ),
+) -> ToolResult:
+    """Make files visible to the user for viewing and rendering in the client interface.
+
+    When to use:
+    - After creating deliverables that should be shown to the user
+    - When presenting multiple related output files at once
+
+    When NOT to use:
+    - When you only need to read file contents for your own processing
+    - For temporary or intermediate files not meant for user viewing
+
+    Notes:
+    - Call this after copying final deliverables to /mnt/user-data/outputs/
+    - Only virtual paths under /mnt/user-data/outputs/ are accepted
+    """
+    ctx = ToolContext()
+    result = await _present_files.execute({"filepaths": filepaths}, ctx)
     return ToolResult(
         content=result.content, structured_content=result.structured_content
     )

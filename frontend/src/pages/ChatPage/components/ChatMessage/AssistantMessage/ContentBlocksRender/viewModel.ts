@@ -9,7 +9,7 @@ import {
 import { displayMcpToolName } from "@/utils/toolNaming";
 
 const START_TEXT_LENGTH_THRESHOLD = 24;
-const PROJECT_PREVIEW_TOOLS = new Set(["write_workspace_file", "write_file"]);
+const PROJECT_PREVIEW_TOOLS = new Set(["present_files"]);
 
 function toolBlockMatchesPreview(block: ToolUseBlock): boolean {
   return PROJECT_PREVIEW_TOOLS.has(displayMcpToolName(block));

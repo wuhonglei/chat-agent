@@ -11,6 +11,9 @@ SKILL_MANAGER_SERVER = "skill_manager"
 SHELL_SERVER = "shell"
 CODE_EXEC_SERVER = "code-exec"
 
+# --- File MCP bare tools ---
+PRESENT_FILES_BARE = "present_files"
+
 # --- Tavily bare tools (agent layer) ---
 WEB_SEARCH_BARE = "web_search"
 WEB_PAGES_EXTRACT_BARE = "web_pages_extract"
