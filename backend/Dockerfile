@@ -62,6 +62,7 @@ COPY alembic.ini .
 COPY alembic ./alembic
 COPY app ./app
 COPY scripts ./scripts
+COPY skills ./skills
 
 # Copy startup script
 COPY start.sh ./start.sh
