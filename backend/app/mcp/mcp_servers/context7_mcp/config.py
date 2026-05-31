@@ -1,18 +1,27 @@
-"""Context7 MCP 配置：主应用内从 settings.mcp.context7 读取，独立运行时从 .env 读取。"""
+"""Context7 MCP 配置：主应用由 registry 注入，独立运行时从 .env 读取。"""
 
-import sys
+from __future__ import annotations
+
 from pathlib import Path
+from typing import Any
 
-from pydantic import Field
+from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from app.schemas.config import MCPCacheConfig
+from app.schemas.config import MCPServerEntry
+
+_config: Context7MCPConfig | None = None
 
 
-class _Settings(BaseSettings):
+class Context7MCPConfig(BaseModel):
     url: str
     headers: dict[str, str]
-    cache_config: MCPCacheConfig = Field(default_factory=MCPCacheConfig)
+
+
+class _StandaloneSettings(BaseSettings):
+    url: str
+    headers: dict[str, str]
+
     model_config = SettingsConfigDict(
         env_file=Path(__file__).parent / ".env",
         env_file_encoding="utf-8",
@@ -22,9 +31,21 @@ class _Settings(BaseSettings):
     )
 
 
-if "app.core.config" in sys.modules:
-    from app.core.config import settings
+def configure(entry: MCPServerEntry) -> None:
+    global _config
+    if not entry.url:
+        raise ValueError("context7 requires url in MCPServerEntry")
+    _config = Context7MCPConfig(url=entry.url, headers=dict(entry.headers))
 
-    config = settings.mcp.context7_mcp
-else:
-    config = _Settings()  # type: ignore[assignment,call-arg]
+
+def get_config() -> Context7MCPConfig:
+    if _config is not None:
+        return _config
+    standalone = _StandaloneSettings()  # type: ignore[call-arg]
+    return Context7MCPConfig(url=standalone.url, headers=dict(standalone.headers))
+
+
+def __getattr__(name: str) -> Any:
+    if name == "config":
+        return get_config()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

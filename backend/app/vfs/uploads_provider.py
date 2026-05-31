@@ -34,12 +34,12 @@ class UploadsProvider:
     async def list_virtual_files(
         self,
         user_id: str,
-        workspace_id: str,
+        conversation_id: str,
         db: object = None,
     ) -> list[VirtualFileEntry]:
         """List virtual files in /uploads/ for current conversation."""
         _ = db
-        upload_dir = get_conversation_upload_dir(user_id, workspace_id)
+        upload_dir = get_conversation_upload_dir(user_id, conversation_id)
         entries: list[VirtualFileEntry] = []
 
         if not upload_dir.is_dir():
@@ -49,7 +49,9 @@ class UploadsProvider:
             if child.name == "derived":
                 continue
             if child.is_file():
-                entries.append(self._entry_from_file(user_id, workspace_id, child.name))
+                entries.append(
+                    self._entry_from_file(user_id, conversation_id, child.name)
+                )
 
         derived_dir = upload_dir / "derived"
         if derived_dir.is_dir():
@@ -57,7 +59,7 @@ class UploadsProvider:
                 if child.is_file() and child.suffix.lower() == ".md":
                     entries.append(
                         self._entry_from_derived(
-                            user_id, workspace_id, child.name, child
+                            user_id, conversation_id, child.name, child
                         )
                     )
 

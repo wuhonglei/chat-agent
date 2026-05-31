@@ -35,3 +35,4 @@ config.yaml
 .mypy_cache
 
 .ruff_cache
+/tests/test/

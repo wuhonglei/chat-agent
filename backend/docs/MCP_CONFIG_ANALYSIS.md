@@ -6,65 +6,134 @@
 
 - MCP 服务从哪里来；
 - 哪些服务是本地 FastMCP，哪些是远程配置；
-- 前端如何拿到 MCP 配置与在线状态；
+- 如何通过配置控制 Server 的启用/禁用；
 - 文档与历史方案的边界。
 
 ## 2. 当前 MCP 服务清单
 
-在 `app/mcp/mcp_client.py` 中，当前注册的服务为：
+由 `settings.mcp.mcp_servers` 配置驱动（默认值见 `app/schemas/config.py` 的 `MCPConfig.mcp_servers`）：
 
-- `time-mcp`（本地 FastMCP）
-- `context7-mcp`（远程配置，来自 `settings.mcp.context7_mcp`）
-- `weather-mcp`（本地 FastMCP）
-- `tavily-mcp`（本地 FastMCP）
-- `code-exec-mcp`（本地 FastMCP）
+| Server 名称 | 传输方式 | 模块路径 | 说明 |
+|---|---|---|---|
+| `time` | fastmcp | `app.mcp.mcp_servers.time_mcp.server` | 时间查询 |
+| `weather` | fastmcp | `app.mcp.mcp_servers.weather_mcp.server` | 天气查询 |
+| `tavily` | fastmcp | `app.mcp.mcp_servers.tavily_mcp.server` | 联网搜索 |
+| `code-exec` | fastmcp | `app.mcp.mcp_servers.code_exec_mcp.server` | 代码执行沙箱 |
+| `file` | fastmcp | `app.mcp.mcp_servers.file_mcp.server` | 文件操作 |
+| `skill_manager` | fastmcp | `app.mcp.mcp_servers.skill_manager_mcp.server` | Agent Skill 加载 |
+| `shell` | fastmcp | `app.mcp.mcp_servers.shell_mcp.server` | Shell 命令执行 |
+| `context7` | http | `url` + `headers`（见 `mcp.mcp_servers`） | Context7 文档检索 |
 
-## 3. 配置来源
+## 3. 配置驱动机制
 
-### 3.1 主配置入口
+### 3.1 核心配置：`mcp.mcp_servers`
+
+`MCPConfig.mcp_servers` 是一个 `dict[str, MCPServerEntry]`，每个 entry 定义：
+
+```python
+class MCPServerEntry(BaseModel):
+    enabled: bool = True                    # 是否启用
+    transport: "fastmcp" | "http" | "stdio" # 传输方式
+    module: str | None                      # fastmcp: Python 模块路径
+    instance: str = "mcp"                   # fastmcp: FastMCP 实例属性名
+    url: str | None                         # http: 远程 URL
+    headers: dict[str, str]                 # http: 请求头
+    command: str | None                     # stdio: 可执行文件
+    args: list[str]                         # stdio: 命令行参数
+    env: dict[str, str]                     # stdio: 环境变量
+```
+
+### 3.2 三种传输方式
+
+| 传输 | 连接方式 | 使用场景 |
+|---|---|---|
+| `fastmcp` | 进程内通信（`FastMCPTransport`） | 本地 Python MCP Server，零网络开销 |
+| `http` | 远程 HTTP（`StreamableHttpTransport`） | 远程 MCP Server |
+| `stdio` | 子进程 stdin/stdout（`StdioTransport`） | 外部 MCP Server（npx、uvx 等） |
+
+`MCPConnectionPool.initialize()` 根据 server 实例类型自动选择传输层：
+- `FastMCP` 实例 → `FastMCPTransport`
+- 字典且含 `url` → `StreamableHttpTransport`
+- 字典且含 `command` → `StdioTransport`
+
+### 3.3 配置来源
 
 - 后端统一配置在 `app/core/config.py` 的 `settings` 中加载；
-- `context7-mcp` 的连接信息通过 `settings.mcp.context7_mcp` 注入到 `mcp_config`；
-- 其余本地 MCP 通过 Python 直接导入 server 实例注册。
+- 优先级（从高到低）：初始化参数 → 环境变量 → .env 文件 → Nacos 配置中心；
+- 环境变量使用 `__` 作为嵌套分隔符，如 `MCP__MCP_SERVERS`。
 
-### 3.2 本地/远程服务的区分
+### 3.4 禁用/启用 Server
 
-`MCPClientManager.initialize()` 根据 server 配置类型自动选择传输层：
+在配置中设置 `enabled: false` 即可禁用某个 Server，无需修改代码：
 
-- `FastMCP` 实例：`FastMCPTransport`
-- 字典且含 `url`：`StreamableHttpTransport`
-- 字典且含 `command`：`StdioTransport`
+```yaml
+# .env 或 Nacos
+MCP__MCP_SERVERS='{"weather-mcp": {"enabled": false}}'
+```
 
-这意味着 `context7-mcp` 可作为远程 HTTP 服务接入，而本地服务走进程内 FastMCP。
+或在 Python 配置中：
+```python
+mcp:
+  mcp_servers:
+    weather-mcp:
+      enabled: false
+```
+
+### 3.5 新增 Server
+
+新增 MCP Server 只需两步：
+
+1. 在 `app/mcp/mcp_servers/<name>/server.py` 创建 FastMCP 实例；
+2. 在 `mcp.mcp_servers` 配置中添加对应条目。
+
+无需修改 `registry.py`、`connection_pool.py` 或其他代码。
 
 ## 4. 运行时管理机制
 
+### 4.1 Nacos 热更新
+
+当 Nacos 推送配置变更时：
+
+1. `reload_settings()` 重建全局 `settings`（含 `settings.mcp`）；
+2. 对比 `mcp.mcp_servers` 的 fingerprint，有变化则调度 `MCPClientManager.reload_async()`；
+3. `reload_async` 会 `cleanup` 连接池 → `registry.reload_from_config()` → 重新 `initialize` → 重建 `tools_map`。
+
+`normal_mode_servers` / `agent_mode_servers` 仅影响请求时从 `settings` 读取的 Server 列表，**不触发** MCP 重连。
+
+应用启动时在 `lifespan` 中调用 `register_mcp_reload_target(loop, manager)` 注册事件循环与单例引用。
+
+### 4.2 核心职责
+
 `MCPClientManager` 的核心职责：
 
-1. 初始化所有 MCP 客户端连接；
+1. 初始化所有 MCP 客户端连接（通过 `MCPConnectionPool`）；
 2. 拉取并缓存工具列表（`tools_by_server`）；
-3. 维护 `tool_name -> server_name` 映射（`tools_map`）；
-4. 根据工具 schema 过滤无效参数后调用工具；
-5. 提供健康检查与前端配置输出。
+3. 维护 `tool_name -> server_name` 映射（`tools_map`，键为 **LLM 可见名** `{server}_{bare}`）；
+4. 根据工具 schema 过滤无效参数后调用工具（`MCPToolGateway`）。
 
-## 5. 前端配置输出
+### 4.3 工具命名双轨
 
-前端通过健康接口获取 `mcp_config_for_fe`（ID、名称、描述、图标、在线状态），该列表同样定义于 `app/mcp/mcp_client.py`。
+| 阶段 | 示例（tavily / web_search） |
+|------|------------------------------|
+| MCP `list_tools` | `web_search` |
+| 暴露给 LLM / `tools_map` | `tavily_web_search` |
+| LLM `tool_call` | `tavily_web_search` |
+| `call_tool` 前剥离 | `web_search` |
 
-在线状态由 `health_check()` 结果回填，供前端展示 MCP 可用性。
+实现见 `app/mcp/tool_naming.py` 与 `MCPToolGateway`。`ToolUseBlock` 持久化 `name`（LLM 名）、`server_name`、`mcp_tool_name`（裸名）。
 
-## 6. 与历史文档差异
+历史消息需运行 `backend/scripts/backfill_tool_use_block_names.py` 迁移。
 
-以下内容属于历史方案或已不适配当前代码，已从“当前实现”口径中剔除：
+## 5. 与历史方案差异
 
-- 依赖 `inject_mcp_env_vars` 作为主加载链路的描述；
-- 与现有 `mcp_client.py` 不一致的 server 列表或初始化顺序假设。
+- **旧方案**：`registry.py` 硬编码 import 所有 Server 实例；
+- **新方案**：`registry.py` 从 `settings.mcp.mcp_servers` 读取配置，通过 `importlib` 动态加载；
+- 行为完全等价，默认配置下加载的 Server 列表不变。
 
-## 7. 建议维护方式
+## 6. 建议维护方式
 
-- 所有“当前实现”类文档应以 `app/mcp/mcp_client.py` 为准；
-- 若新增 MCP 服务，需同步更新：
-  - `mcp_config`；
-  - `mcp_config_for_fe`；
-  - 健康检查与前端展示说明文档；
-- 规划中的配置重构（如统一 schema 字段）建议单独归档为“规划方案”文档，避免与现网说明混淆。
+- Server 列表以 `settings.mcp.mcp_servers` 默认值为准（`app/schemas/config.py`）；
+- 每个 Server 的业务参数（API Key 等）写在 `mcp.mcp_servers.<name>.env`（http 类用 `url`/`headers`）；`MCPRegistry` 加载 server 模块前调用对应 `mcp_servers/*/config.configure(entry)` 注入，各 server 通过 `get_config()` 读取；
+- 若新增 MCP Server，需同步更新：
+  - `MCPConfig.mcp_servers` 默认值；
+  - 对应的 Server 实现模块。

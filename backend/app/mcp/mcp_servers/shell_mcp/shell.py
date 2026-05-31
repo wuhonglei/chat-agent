@@ -7,11 +7,14 @@ from pathlib import Path
 from typing import Any
 
 from app.mcp.mcp_servers.shell_mcp.audit import SandboxAuditEntry, log_audit_entry
+from app.mcp.mcp_servers.shell_mcp.command_audit import (
+    audit_command,
+    format_medium_risk_warning,
+)
 from app.mcp.mcp_servers.shell_mcp.config import shell_config
-from app.mcp.mcp_servers.shell_mcp.executor import ShellExecutor
-from app.mcp.mcp_servers.shell_mcp.policy import policy_engine
+from app.mcp.mcp_servers.shell_mcp.executor import SandboxBackendError, ShellExecutor
 from app.sandbox.executor import ExecutionResult
-from app.utils.workspace import get_workspace_root
+from app.vfs.paths import get_paths
 
 
 class ShellTool:
@@ -25,21 +28,23 @@ class ShellTool:
         self._dict_lock = asyncio.Lock()
 
     async def get_or_create_executor(
-        self, user_id: str, workspace_id: str
+        self, user_id: str, conversation_id: str
     ) -> tuple[ShellExecutor | None, str | None]:
-        """Return a workspace-scoped executor, creating one on first use."""
+        """Return a conversation-scoped executor, creating one on first use."""
         if not (user_id or "").strip():
             return None, "user_id is required for shell execution"
-        if not (workspace_id or "").strip():
-            return None, "workspace_id is required for shell execution"
+        if not (conversation_id or "").strip():
+            return None, "conversation_id is required for shell execution"
 
-        key = (user_id.strip(), workspace_id.strip())
+        key = (user_id.strip(), conversation_id.strip())
         cached = self._executors.get(key)
         if cached is not None:
             return cached, None
 
         try:
-            workspace_path = get_workspace_root(key[0], key[1])
+            paths = get_paths()
+            paths.ensure_conversation_dirs(key[0], key[1])
+            workspace_path = paths.sandbox_work_dir(key[0], key[1]).resolve()
         except ValueError as exc:
             return None, str(exc)
 
@@ -49,7 +54,12 @@ class ShellTool:
                 return cached, None
 
             executor = ShellExecutor()
-            await executor.initialize(workspace_path, user_id=key[0])
+            try:
+                await executor.initialize(
+                    workspace_path, user_id=key[0], conversation_id=key[1]
+                )
+            except SandboxBackendError as exc:
+                return None, str(exc)
             self._executors[key] = executor
             return executor, None
 
@@ -67,7 +77,7 @@ class ShellTool:
         self,
         arguments: dict[str, Any],
         user_id: str,
-        workspace_id: str,
+        conversation_id: str,
     ) -> str:
         """Execute shell tool."""
         command = arguments.get("command", "")
@@ -80,29 +90,27 @@ class ShellTool:
         if not description:
             return "Error: description is required (5-10 words explaining what the command does)"
 
-        # Validate timeout
         timeout = min(timeout, shell_config.max_timeout_ms)
 
-        # Apply policy engine
-        policy_decision = policy_engine.validate_command(command)
+        audit_result = audit_command(command)
 
-        if not policy_decision.allowed:
-            # Log blocked command
-            audit_entry = SandboxAuditEntry(
-                user_id=user_id,
-                workspace_id=workspace_id,
-                command=command,
-                description=description,
-                decision="blocked",
-                block_reason=policy_decision.reason,
+        if audit_result.verdict == "block":
+            log_audit_entry(
+                SandboxAuditEntry(
+                    user_id=user_id,
+                    conversation_id=conversation_id,
+                    command=command,
+                    description=description,
+                    verdict="block",
+                    block_reason=audit_result.reason,
+                )
             )
-            log_audit_entry(audit_entry)
+            reason = audit_result.reason or "security violation detected"
+            return f"Error: Command blocked: {reason}"
 
-            return (
-                f"Error: Command blocked by security policy: {policy_decision.reason}"
-            )
-
-        executor, init_error = await self.get_or_create_executor(user_id, workspace_id)
+        executor, init_error = await self.get_or_create_executor(
+            user_id, conversation_id
+        )
         if init_error:
             return f"Error: {init_error}"
 
@@ -113,21 +121,23 @@ class ShellTool:
             description=description,
         )
 
-        # Build output
         output = self._format_output(command, result)
 
-        # Log execution
-        audit_entry = SandboxAuditEntry(
-            user_id=user_id,
-            workspace_id=workspace_id,
-            command=command,
-            description=description,
-            decision="allowed",
-            return_code=result.return_code,
-            duration_ms=result.duration_ms,
-            output_size=len(output),
+        if audit_result.verdict == "warn":
+            output += format_medium_risk_warning(command)
+
+        log_audit_entry(
+            SandboxAuditEntry(
+                user_id=user_id,
+                conversation_id=conversation_id,
+                command=command,
+                description=description,
+                verdict=audit_result.verdict,
+                return_code=result.return_code,
+                duration_ms=result.duration_ms,
+                output_size=len(output),
+            )
         )
-        log_audit_entry(audit_entry)
 
         return output
 
@@ -158,7 +168,6 @@ class ShellTool:
 
         output = "\n".join(parts)
 
-        # Truncate if needed
         max_chars = shell_config.max_output_chars
         if len(output) > max_chars:
             output = output[:max_chars] + "\n\n[Output truncated by system limit]"

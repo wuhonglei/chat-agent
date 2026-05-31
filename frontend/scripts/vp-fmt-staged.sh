@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# lint-staged 会把匹配到的路径作为参数追加；在调用 vp fmt 前剔除任意路径段下的 .cursor/skills/，
+# lint-staged 会把匹配到的路径作为参数追加；在调用 vp fmt 前剔除 .cursor/skills/ 与 backend/skills/，
 # 避免 fmt.ignorePatterns 把它们全部滤掉后出现「Expected at least one target file」。
 set -euo pipefail
 files=()
 for f in "$@"; do
   [[ "$f" == *".cursor/skills/"* ]] && continue
+  [[ "$f" == *"backend/skills/"* ]] && continue
 
   # lint-staged 默认给的是 repo root 相对路径；本脚本在 frontend 目录下执行，
   # 需要把前缀 frontend/ 规整掉，否则会变成指向不存在的路径，进而触发 vp fmt 报错。

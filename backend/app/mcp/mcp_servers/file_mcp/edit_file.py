@@ -5,13 +5,10 @@ from __future__ import annotations
 from typing import Any
 
 from app.mcp.mcp_servers.file_mcp.base import ToolBase, ToolContext, ToolResult
-from app.mcp.mcp_servers.file_mcp.utils import (
-    ensure_write_quota,
-    get_workspace_root,
-    resolve_virtual_path,
-)
+from app.mcp.mcp_servers.file_mcp.utils import ensure_write_quota, resolve_virtual_path
 from app.utils.logger import logger
 from app.vfs.config import vfs_config
+from app.vfs.paths import get_paths
 from app.vfs.resolver import PathPermission
 
 
@@ -43,15 +40,25 @@ class EditFileTool(ToolBase):
             )
 
         try:
-            # Resolve virtual path - must be under /workspace/
-            if not file_path.startswith(vfs_config.workspace_prefix):
+            writable_prefixes = (
+                vfs_config.workspace_prefix,
+                vfs_config.outputs_prefix,
+                vfs_config.skills_custom_prefix,
+            )
+            if not file_path.startswith(writable_prefixes):
                 return ToolResult(
-                    content=f"Error: Edit operation only allowed under {vfs_config.workspace_prefix}",
+                    content=(
+                        "Error: Edit operation only allowed under "
+                        f"{vfs_config.workspace_prefix}, {vfs_config.outputs_prefix}, "
+                        f"or {vfs_config.skills_custom_prefix}"
+                    ),
                     is_error=True,
                 )
 
+            is_custom_skill = file_path.startswith(vfs_config.skills_custom_prefix)
+
             physical_path = resolve_virtual_path(
-                file_path, ctx.user_id, ctx.workspace_id, PathPermission.READ_WRITE
+                file_path, ctx.user_id, ctx.conversation_id, PathPermission.READ_WRITE
             )
 
             if not physical_path.is_file():
@@ -86,9 +93,13 @@ class EditFileTool(ToolBase):
                 updated_content = content.replace(old_string, new_string, 1)
                 applied_count = 1
 
-            # Check write quota
-            workspace_root = get_workspace_root(ctx.user_id, ctx.workspace_id)
-            ensure_write_quota(workspace_root, physical_path, updated_content)
+            if not is_custom_skill:
+                workspace_root = get_paths().ensure_sandbox_work_dir(
+                    ctx.user_id, ctx.conversation_id
+                )
+                ensure_write_quota(
+                    workspace_root, target=physical_path, content=updated_content
+                )
 
             # Write updated content
             physical_path.write_text(updated_content, encoding="utf-8")

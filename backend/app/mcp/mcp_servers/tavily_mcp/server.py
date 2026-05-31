@@ -11,8 +11,6 @@ from fastmcp import FastMCP
 from pydantic import Field
 from tavily import AsyncTavilyClient
 
-from app.mcp.cache import add_response_caching_if_enabled
-
 from .config import config
 from .models import (
     TavilyCrawlResponse,
@@ -28,8 +26,6 @@ mcp = FastMCP(
     name="Tavily Search MCP Service",
 )
 client = AsyncTavilyClient(api_key=config.tavily_api_key)
-
-add_response_caching_if_enabled(mcp, config.cache_config)
 
 
 @mcp.tool(name="web_search")

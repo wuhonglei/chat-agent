@@ -46,7 +46,7 @@ async def shell(
             "timeout": timeout,
         },
         user_id=ctx.user_id,
-        workspace_id=ctx.workspace_id,
+        conversation_id=ctx.conversation_id,
     )
     return ToolResult(content=result)
 
@@ -55,7 +55,7 @@ async def initialize_shell_executor(workspace_path: Path) -> None:
     """Pre-initialize shell sandbox for an explicit path (tests/scripts only).
 
     Production traffic should rely on lazy init via ShellTool.get_or_create_executor
-    when the shell tool is invoked with user_id and workspace_id from request context.
+    when the shell tool is invoked with user_id and conversation_id from request context.
     """
     await _shell_tool.initialize(workspace_path)
 

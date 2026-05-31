@@ -6,6 +6,7 @@ from typing import Any
 
 from app.mcp.connection_pool import MCPConnectionPool
 from app.mcp.registry import MCPRegistry
+from app.mcp.tool_naming import ToolRoute, llm_tool_name
 from app.utils.logger import logger
 
 _SCHEMA_COMPOSITION_KEYS = frozenset(("oneOf", "allOf", "anyOf", "$ref"))
@@ -14,28 +15,16 @@ _SCHEMA_COMPOSITION_KEYS = frozenset(("oneOf", "allOf", "anyOf", "$ref"))
 class MCPToolGateway:
     """Resolve tool metadata and execute tools through the connection pool."""
 
-    DEFAULT_TOOL_CALL_TIMEOUT_SECONDS = 60
+    TOOL_CALL_TIMEOUT_SECONDS = 60
 
     def __init__(
         self,
         pool: MCPConnectionPool,
         registry: MCPRegistry,
-        *,
-        strict_tool_name_conflict: bool = False,
-        tool_call_timeout_seconds: int = DEFAULT_TOOL_CALL_TIMEOUT_SECONDS,
-        tool_call_timeout_seconds_by_server: dict[str, int] | None = None,
     ) -> None:
         self.pool = pool
         self.registry = registry
-        self.tools_map: dict[str, str] = {}
-        self.tool_conflicts: dict[str, list[str]] = {}
-        self.strict_tool_name_conflict = strict_tool_name_conflict
-        self.tool_call_timeout_seconds = tool_call_timeout_seconds
-        self.tool_call_timeout_seconds_by_server = (
-            dict(tool_call_timeout_seconds_by_server)
-            if tool_call_timeout_seconds_by_server
-            else {}
-        )
+        self.tools_map: dict[str, ToolRoute] = {}
 
     # ------------------------------------------------------------------
     # Index
@@ -43,36 +32,15 @@ class MCPToolGateway:
 
     def rebuild_tool_index(self) -> None:
         self.tools_map.clear()
-        self.tool_conflicts.clear()
         for server_name in self.registry.get_servers():
             if server_name not in self.pool.tools_by_server:
                 continue
             for tool in self.pool.tools_by_server[server_name]:
-                tool_name = tool.name
-                existing = self.tools_map.get(tool_name)
-                if existing and existing != server_name:
-                    self._handle_conflict(tool_name, existing, server_name)
-                    continue
-                self.tools_map[tool_name] = server_name
-
-    def _handle_conflict(self, tool_name: str, existing: str, new_server: str) -> None:
-        conflicts = self.tool_conflicts.setdefault(tool_name, [existing])
-        if new_server not in conflicts:
-            conflicts.append(new_server)
-        logger.warning(
-            "Tool name conflict",
-            tool_name=tool_name,
-            existing_server=existing,
-            new_server=new_server,
-            conflict_policy="raise"
-            if self.strict_tool_name_conflict
-            else "keep_first_server",
-        )
-        if self.strict_tool_name_conflict:
-            raise ValueError(
-                f"Tool name conflict: '{tool_name}' is registered by "
-                f"{', '.join(conflicts)}"
-            )
+                llm_name = llm_tool_name(server_name, tool.name)
+                self.tools_map[llm_name] = ToolRoute(
+                    server_name=server_name,
+                    mcp_tool_name=tool.name,
+                )
 
     # ------------------------------------------------------------------
     # Execute
@@ -84,22 +52,25 @@ class MCPToolGateway:
         self.pool.ensure_initialized()
         if tool_name not in self.tools_map:
             raise ValueError(
-                f"工具 '{tool_name}' 不存在。可用工具: {', '.join(self.tools_map)}"
+                f"工具 '{tool_name}' 不存在。可用工具: {', '.join(sorted(self.tools_map))}"
             )
 
-        server_name = self.tools_map[tool_name]
+        route = self.tools_map[tool_name]
+        server_name = route.server_name
+        mcp_tool_name = route.mcp_tool_name
         client = self.pool.clients[server_name]
         args = dict(arguments or {})
-        schema = self._get_tool_input_schema(tool_name, server_name)
+        schema = self._get_tool_input_schema(mcp_tool_name, server_name)
 
         args, removed, mode = self._filter_arguments(args, schema)
         self._validate_required(tool_name, args, schema)
         warnings = self._build_warnings(tool_name, removed, mode)
 
-        timeout = self._resolve_timeout(server_name)
+        timeout = self.TOOL_CALL_TIMEOUT_SECONDS
         logger.info(
             "Calling tool",
             tool_name=tool_name,
+            mcp_tool_name=mcp_tool_name,
             server_name=server_name,
             schema_mode=mode,
             removed_params_count=len(removed),
@@ -108,11 +79,21 @@ class MCPToolGateway:
             logger.warning("Tool warnings", tool_name=tool_name, warnings=warnings)
         try:
             async with client:
-                result = await client.call_tool(tool_name, args, timeout=timeout)
-            logger.info("Tool executed", tool_name=tool_name, server_name=server_name)
+                result = await client.call_tool(mcp_tool_name, args, timeout=timeout)
+            logger.info(
+                "Tool executed",
+                tool_name=tool_name,
+                mcp_tool_name=mcp_tool_name,
+                server_name=server_name,
+            )
             return result, warnings
         except Exception:
-            logger.error("Tool failed", tool_name=tool_name, server_name=server_name)
+            logger.error(
+                "Tool failed",
+                tool_name=tool_name,
+                mcp_tool_name=mcp_tool_name,
+                server_name=server_name,
+            )
             raise
 
     # ------------------------------------------------------------------
@@ -174,26 +155,23 @@ class MCPToolGateway:
         ]
 
     # ------------------------------------------------------------------
-    # Schema & timeout
+    # Schema
     # ------------------------------------------------------------------
 
-    def _get_tool_input_schema(
-        self, tool_name: str, server_name: str
-    ) -> dict[str, Any] | None:
+    def _get_tool(self, mcp_tool_name: str, server_name: str) -> Any | None:
         tools = self.pool.tools_by_server.get(server_name)
         if not tools:
             return None
-        tool = next((t for t in tools if t.name == tool_name), None)
+        return next((t for t in tools if t.name == mcp_tool_name), None)
+
+    def _get_tool_input_schema(
+        self, mcp_tool_name: str, server_name: str
+    ) -> dict[str, Any] | None:
+        tool = self._get_tool(mcp_tool_name, server_name)
         if not tool:
             return None
         schema = getattr(tool, "inputSchema", None)
         return schema if isinstance(schema, dict) else None
-
-    def _resolve_timeout(self, server_name: str) -> int:
-        timeout = self.tool_call_timeout_seconds_by_server.get(
-            server_name, self.tool_call_timeout_seconds
-        )
-        return timeout if timeout > 0 else self.DEFAULT_TOOL_CALL_TIMEOUT_SECONDS
 
     # ------------------------------------------------------------------
     # Query helpers
@@ -214,17 +192,19 @@ class MCPToolGateway:
             return str(content.text)
         return str(content)
 
-    async def get_tool_info(self, tool_name: str) -> Any | None:
+    def get_tool_route(self, tool_name: str) -> ToolRoute | None:
+        return self.tools_map.get(tool_name)
+
+    def get_tool_info(self, tool_name: str) -> Any | None:
         self.pool.ensure_initialized()
-        server_name = self.tools_map.get(tool_name)
-        if not server_name:
+        route = self.get_tool_route(tool_name)
+        if not route:
             return None
-        async with self.pool.clients[server_name]:
-            tools = await self.pool.clients[server_name].list_tools()
-        return next((t for t in tools if t.name == tool_name), None)
+        return self._get_tool(route.mcp_tool_name, route.server_name)
 
     def get_server_for_tool(self, tool_name: str) -> str | None:
-        return self.tools_map.get(tool_name)
+        route = self.get_tool_route(tool_name)
+        return route.server_name if route else None
 
     def get_tools_for_llm(self, server_names: list[str] | None) -> list[dict[str, Any]]:
         self.pool.ensure_initialized()
@@ -237,7 +217,7 @@ class MCPToolGateway:
             {
                 "type": "function",
                 "function": {
-                    "name": tool.name,
+                    "name": llm_tool_name(server_name, tool.name),
                     "description": tool.description or "",
                     "parameters": getattr(tool, "inputSchema", {}),
                 },

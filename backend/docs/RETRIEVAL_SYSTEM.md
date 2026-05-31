@@ -21,18 +21,21 @@
 
 ### 1.2 当前可用 MCP 服务
 
-当前 `mcp_client.py` 注册并参与工具编排的服务：
+当前由 `MCPRegistry` + `MCPClientManager` 注册并参与工具编排的服务（配置键）：
 
-- `context7-mcp`
-- `weather-mcp`
-- `tavily-mcp`
-- `code-exec-mcp`
-- `time-mcp`
+- `context7`
+- `weather`
+- `tavily`
+- `code-exec`
+- `time`
+- `file` / `shell`（Agent 模式）
 
-### 1.3 与“检索”相关的现网能力
+LLM 可见工具名为 `{server}_{bare}`，例如 `tavily_web_search`；MCP 协议层仍为 `web_search`（见 `app/mcp/tool_naming.py`）。
 
-- 联网检索由 `tavily-mcp` 提供
-- 文档/API 知识检索由 `context7-mcp` 提供
+### 1.3 与「检索」相关的现网能力
+
+- 联网检索由 `tavily` 提供（LLM 工具名如 `tavily_web_search`）
+- 文档/API 知识检索由 `context7` 提供
 - 统一通过聊天流接口触发，不暴露独立检索 REST 端点
 
 ## 2. 当前未落地（仅规划）

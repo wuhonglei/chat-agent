@@ -87,8 +87,7 @@ backend/
 │   └── versions/         # 迁移版本
 ├── tests/                # 测试文件
 ├── data/                 # 数据存储
-│   ├── vectordb/         # 向量数据库存储
-│   └── temp/             # 临时文件
+│   ├── user_data/        # 用户会话工作区、上传与产出（见 app/vfs/paths.py）
 ├── docs/                 # 文档
 ├── pyproject.toml        # 项目依赖配置
 ├── uv.lock              # 依赖锁文件
@@ -203,7 +202,6 @@ make check
 
 以下模块在 `mypy.ini` 中被忽略类型检查错误：
 - `tests.*`
-- `app.mcp.mcp_servers.*.test_server`
 
 ## 测试
 

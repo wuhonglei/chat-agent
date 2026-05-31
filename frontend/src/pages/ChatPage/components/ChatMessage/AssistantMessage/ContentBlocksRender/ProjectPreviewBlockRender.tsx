@@ -31,11 +31,11 @@ const ProjectPreviewBlockRender: React.FC = () => {
             id: createProjectPreviewBlockId(),
             type: "project",
             workspaceId: conversationId,
-            title: "项目结构预览",
+            title: "工作目录预览",
           })
         }
       >
-        预览项目结构
+        预览工作目录
       </Button>
     </div>
   );

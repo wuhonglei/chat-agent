@@ -5,7 +5,7 @@ from typing import Any
 
 from openai.types.chat import ChatCompletionMessageFunctionToolCall
 
-from app.agent_skills import DEFAULT_ALLOWED_SKILL_NAMES, skill_registry
+from app.agent_skills import get_skill_registry
 from app.agents.base import BaseAgent
 from app.agents.chat_session_state import (
     ChatRoundStateMachine,
@@ -18,6 +18,7 @@ from app.agents.utils.tool_call_stream import (
     merge_tool_call_deltas,
     tool_call_acc_to_openai_list,
 )
+from app.core.config import settings
 from app.mcp.client import MCPClientManager
 from app.prompts.prompt_utils import (
     get_system_prompt_for_chat_session,
@@ -60,6 +61,7 @@ class ChatSessionAgent(BaseAgent):
         self.mcp_manager = mcp_manager
         self.session_output = SessionOutput()
         self.content_block_aggregator = ContentBlocksAggregator()
+        self.content_block_aggregator.set_tool_name_resolver(mcp_manager.get_tool_route)
         self.state_machine = ChatRoundStateMachine()
         self.tool_context_limit_ratio = tool_context_limit_ratio
 
@@ -99,11 +101,14 @@ class ChatSessionAgent(BaseAgent):
         self.think_mode = chat_request.think_mode
         self.session_output.reset()
         self.content_block_aggregator = ContentBlocksAggregator()
+        self.content_block_aggregator.set_tool_name_resolver(
+            self.mcp_manager.get_tool_route
+        )
 
         logger.info("User memories", count=len(user_memories))
 
         skill_manifests = (
-            skill_registry.list_manifests(allowed_names=DEFAULT_ALLOWED_SKILL_NAMES)
+            get_skill_registry(user_id).list_manifests()
             if chat_request.agent_mode > 0
             else []
         )
@@ -143,7 +148,7 @@ class ChatSessionAgent(BaseAgent):
         tool_session.reset_for_request(
             user_message_text,
             user_id=user_id,
-            workspace_id=conversation_id,
+            conversation_id=conversation_id,
         )
 
         if not tools:
@@ -151,36 +156,22 @@ class ChatSessionAgent(BaseAgent):
                 messages=base_prompt_messages,
                 tool_session=tool_session,
                 iteration=0,
-                iterations_by_tool={},
             ):
                 yield sse
             return
 
         tools_list = list(tools)
-        max_iterations_by_tool = (
-            tool_session.AGENT_MODE_MAX_ITERATIONS
-            if chat_request.agent_mode > 0
-            else tool_session.MAX_ITERATIONS_BY_TOOL
-        )
         max_total_iterations = (
             tool_session.AGENT_MODE_MAX_ITERATIONS
             if chat_request.agent_mode > 0
             else tool_session.MAX_TOTAL_ITERATIONS
         )
-        iterations_by_tool: dict[str, int] = {
-            t["function"]["name"]: max_iterations_by_tool for t in tools_list
-        }
 
         for iteration in range(max_total_iterations):
             tool_session.apply_iteration_hints(
                 messages=base_prompt_messages,
-                tools=tools_list,
-                iterations_by_tool=iterations_by_tool,
                 tool_guided_user_message=tool_guided_user_message,
                 iteration=iteration,
-            )
-            available_tools, _ = tool_session.get_available_tools(
-                tools_list, iterations_by_tool
             )
             round_prompt_messages = self._build_round_prompt_messages(
                 base_prompt_messages
@@ -189,10 +180,9 @@ class ChatSessionAgent(BaseAgent):
 
             async for sse in self._stream_tool_round_events(
                 round_prompt_messages,
-                available_tools,
+                tools_list,
                 tool_session,
                 iteration,
-                iterations_by_tool,
                 round_state,
             ):
                 yield sse
@@ -213,7 +203,6 @@ class ChatSessionAgent(BaseAgent):
                     messages=base_prompt_messages,
                     tool_session=tool_session,
                     iteration=iteration,
-                    iterations_by_tool=iterations_by_tool,
                 ):
                     yield sse
                 return
@@ -226,7 +215,6 @@ class ChatSessionAgent(BaseAgent):
             messages=base_prompt_messages,
             tool_session=tool_session,
             iteration=max_total_iterations,
-            iterations_by_tool=iterations_by_tool,
         ):
             yield sse
         return
@@ -235,8 +223,8 @@ class ChatSessionAgent(BaseAgent):
         self, chat_request: ChatRequest
     ) -> list[str] | None:
         if chat_request.agent_mode > 0:
-            return list(MCPToolSession.AGENT_MODE_SERVERS)
-        return list(MCPToolSession.NORMAL_MODE_SERVERS)
+            return list(settings.mcp.agent_mode_servers)
+        return list(settings.mcp.normal_mode_servers)
 
     def _build_round_prompt_messages(
         self, base_messages: list[dict[str, Any]]
@@ -276,7 +264,6 @@ class ChatSessionAgent(BaseAgent):
         messages: list[dict[str, Any]],
         tool_session: MCPToolSession,
         iteration: int,
-        iterations_by_tool: dict[str, int],
         final_user_message: str | None = None,
     ) -> AsyncGenerator[str, None]:
         if final_user_message is not None:
@@ -287,7 +274,6 @@ class ChatSessionAgent(BaseAgent):
             [],
             tool_session,
             iteration,
-            iterations_by_tool,
             round_state,
         ):
             yield sse
@@ -300,7 +286,6 @@ class ChatSessionAgent(BaseAgent):
         available_tools: list[dict[str, Any]],
         tool_session: MCPToolSession,
         iteration: int,
-        iterations_by_tool: dict[str, int],
         round_state: RoundState,
     ) -> AsyncGenerator[str, None]:
         self.content_block_aggregator.start_round()
@@ -389,7 +374,6 @@ class ChatSessionAgent(BaseAgent):
         tool_result_messages = await tool_session.execute_tool_calls_parallel(
             tool_calls_fc,
             iteration,
-            iterations_by_tool,
         )
         self.state_machine.begin_finalizing()
         for tool_result_message in tool_result_messages:

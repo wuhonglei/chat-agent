@@ -11,8 +11,7 @@ from sqlmodel import Session
 
 from app.models import ConversationDb
 from app.schemas.chat import AttachmentBlock
-
-_BACKEND_ROOT = Path(__file__).resolve().parents[3]
+from app.vfs.paths import get_paths
 
 MAX_CHAT_ATTACHMENT_BYTES = 10 * 1024 * 1024  # 10 MiB
 CHAT_ATTACHMENT_PREVIEW_PREFIX = "/api/file/preview"
@@ -22,15 +21,15 @@ MARKDOWN_CONTENT_TYPE: Literal["text/markdown"] = "text/markdown"
 _UUID_SEGMENT = (
     r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
 )
-_STORAGE_KEY_V3_TOP_RE = re.compile(
+_STORAGE_KEY_CONV_TOP_RE = re.compile(
     rf"^{_UUID_SEGMENT}/[^/\\]+\.(jpg|jpeg|png|gif|webp|pdf|md)$",
     re.IGNORECASE,
 )
-_STORAGE_KEY_V3_DERIVED_RE = re.compile(
+_STORAGE_KEY_CONV_DERIVED_RE = re.compile(
     rf"^{_UUID_SEGMENT}/derived/[^/\\]+\.md$",
     re.IGNORECASE,
 )
-STORAGE_VERSION = 3
+STORAGE_VERSION = 4
 
 _EXT_TO_MEDIA_TYPE: dict[str, str] = {
     ".jpg": "image/jpeg",
@@ -83,23 +82,10 @@ def build_attachment_preview_url(user_id: str, storage_key: str) -> str:
     return f"{CHAT_ATTACHMENT_PREVIEW_PREFIX}/{user_id}/{storage_key}"
 
 
-def get_user_shared_upload_dir(user_id: str) -> Path:
-    """用户 uploads 根目录（含各会话子目录）。"""
-    safe_user_id = _validate_id(user_id, label="用户 ID")
-    return _BACKEND_ROOT / "data" / "user_data" / safe_user_id / "uploads"
-
-
 def get_conversation_upload_dir(user_id: str, conversation_id: str) -> Path:
     safe_user_id = _validate_id(user_id, label="用户 ID")
     safe_conversation_id = _validate_id(conversation_id, label="会话 ID")
-    path = (
-        _BACKEND_ROOT
-        / "data"
-        / "user_data"
-        / safe_user_id
-        / "uploads"
-        / safe_conversation_id
-    )
+    path = get_paths().sandbox_uploads_dir(safe_user_id, safe_conversation_id)
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -140,34 +126,43 @@ def allocate_unique_display_name(
         counter += 1
 
 
-def _is_v3_storage_key(storage_key: str) -> bool:
+def _is_conversation_storage_key(storage_key: str) -> bool:
     return bool(
-        _STORAGE_KEY_V3_TOP_RE.match(storage_key)
-        or _STORAGE_KEY_V3_DERIVED_RE.match(storage_key)
+        _STORAGE_KEY_CONV_TOP_RE.match(storage_key)
+        or _STORAGE_KEY_CONV_DERIVED_RE.match(storage_key)
     )
 
 
-def _resolve_under_uploads(user_id: str, storage_key: str) -> Path:
-    base = get_user_shared_upload_dir(user_id).resolve()
-    target = (base / storage_key).resolve()
-    if not str(target).startswith(str(base)):
-        raise HTTPException(status_code=404, detail="文件不存在")
-    return target
+def _resolve_conversation_upload_path(user_id: str, storage_key: str) -> Path | None:
+    """Resolve storage_key ``{conversation_id}/...`` on v4 layout."""
+    if not _is_conversation_storage_key(storage_key):
+        return None
+    parts = storage_key.split("/", 1)
+    if len(parts) != 2:
+        return None
+    conversation_id, relative = parts[0], parts[1]
+    safe_user_id = _validate_id(user_id, label="用户 ID")
+    safe_conversation_id = _validate_id(conversation_id, label="会话 ID")
+    candidate = (
+        get_paths().sandbox_uploads_dir(safe_user_id, safe_conversation_id) / relative
+    )
+    resolved = candidate.resolve()
+    if resolved.is_file():
+        return resolved
+    return None
 
 
 def shared_upload_file_path(user_id: str, storage_key: str) -> Path:
-    """校验 v3 storage_key 并返回 uploads 下的磁盘路径。"""
-    if not _is_v3_storage_key(storage_key):
+    """校验 storage_key 并返回磁盘路径。"""
+    path = _resolve_conversation_upload_path(user_id, storage_key)
+    if path is None:
         raise HTTPException(status_code=404, detail="文件不存在")
-    return _resolve_under_uploads(user_id, storage_key)
+    return path
 
 
-def resolve_upload_file_path(user_id: str, storage_key: str) -> Path | None:
-    """校验 v3 storage_key 并返回已存在的 uploads 磁盘路径。"""
-    if not _is_v3_storage_key(storage_key):
-        return None
-    path = _resolve_under_uploads(user_id, storage_key)
-    return path if path.is_file() else None
+def try_resolve_upload_file_path(user_id: str, storage_key: str) -> Path | None:
+    """Return upload path if the file exists, else None (no HTTPException)."""
+    return _resolve_conversation_upload_path(user_id, storage_key)
 
 
 def ensure_conversation_owned(

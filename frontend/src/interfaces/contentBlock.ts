@@ -15,6 +15,8 @@ export interface ToolUseBlock {
   type: "tool_use";
   toolCallId?: string;
   name?: string;
+  serverName?: string;
+  mcpToolName?: string;
   argumentsText: string;
   argumentsJson?: Record<string, unknown>;
 }
@@ -156,6 +158,8 @@ export type ContentBlockEvent =
       argumentsDelta: string;
       toolCallId?: string;
       name?: string;
+      serverName?: string;
+      mcpToolName?: string;
     }
   | { op: "finalize_round" }
   | { op: "done" };

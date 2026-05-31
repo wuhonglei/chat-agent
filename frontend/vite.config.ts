@@ -9,7 +9,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // .env 不会自动进入 process.env；代理目标需 loadEnv。使用与 NODE_ENV 对应的 mode（.env 在任意 mode 下都会加载）
-const env = loadEnv(process.env.NODE_ENV === "production" ? "production" : "development", __dirname, "VITE_");
+const env = loadEnv(
+  process.env.NODE_ENV === "production" ? "production" : "development",
+  __dirname,
+  "VITE_",
+);
 const apiProxyTarget = env.VITE_PROXY_TARGET || "http://localhost:8000";
 const webTitle = env.VITE_WEB_TITLE || "然宝";
 const webTabTitle = env.VITE_WEB_TAB_TITLE || "然宝 - 免费中文 AI 智能助手";
@@ -87,6 +91,7 @@ export default defineConfig({
       "yarn.lock",
       ".agents/**",
       ".cursor/skills/**",
+      "backend/skills/**",
       ".env",
       ".env.local",
       ".env.*.local",
@@ -104,8 +109,8 @@ export default defineConfig({
     ],
   },
   staged: {
-    "*.{ts,tsx,js,jsx}": "vp check --fix",
-    // 经脚本过滤后再 fmt，避免仅暂存 .cursor/skills 下文件时 vp fmt 无目标而失败
+    "*.{ts,tsx,js,jsx}": "bash ./scripts/vp-check-staged.sh",
+    // 经脚本过滤后再 fmt/check，避免仅暂存 skills 目录下文件时 vp 无目标而失败
     "*.{json,css,md}": "bash ./scripts/vp-fmt-staged.sh",
   },
   plugins: [

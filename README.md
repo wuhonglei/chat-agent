@@ -111,7 +111,7 @@ vp dev
 - 认证：`/api/auth/*`
 - 用户：`/api/user/*`
 - 消息：`DELETE /api/message/delete/{message_id}`、`PUT /api/message/feedback/{message_id}`
-- 文件：`POST /api/file/upload_avatar`
+- 头像：`POST /api/avatars/upload`、`GET /api/avatars/{filename}`
 - 代码执行：`POST /api/code/execute`
 - 健康检查：`/api/health`、`/api/health/mcp`、`/api/health/mcp_config`
 

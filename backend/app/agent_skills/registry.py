@@ -3,50 +3,43 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
+from functools import lru_cache
 from pathlib import Path
 
-from app.agent_skills.models import (
+from app.agent_skills.types import (
     AgentSkillDocument,
     AgentSkillManifest,
 )
+from app.vfs.config import vfs_config
+from app.vfs.paths import SKILLS_PUBLIC_DIR, get_paths
 
 _FRONTMATTER_RE = re.compile(
     r"\A---\n(?P<meta>.*?)\n---\n(?P<body>.*)\Z",
     re.DOTALL,
 )
 
-DEFAULT_ALLOWED_SKILL_NAMES = {
-    "frontend-codegen-pipeline",
-    # "frontend-project-templates",
-    "next-best-practices",
-    "shadcn",
-    "tailwind-design-system",
-    "vite",
-}
-
-SKILLS_DIR = Path(__file__).parent / "skills"
-
 
 class AgentSkillRegistry:
     """Central registry for available and loadable skills."""
 
-    def __init__(self, skills_dir: Path | None = None) -> None:
-        base_dir = skills_dir if skills_dir is not None else SKILLS_DIR
-        self.skills_dir = base_dir
-        self._documents = self._load_all()
+    def __init__(self, *, skills_dirs: list[str]) -> None:
+        self._documents = self._load_all(skills_dirs)
 
-    def _load_all(self) -> dict[str, AgentSkillDocument]:
+    def _load_all(self, skills_dirs: list[str]) -> dict[str, AgentSkillDocument]:
         documents: dict[str, AgentSkillDocument] = {}
-        if not self.skills_dir.exists():
-            return documents
 
-        for path in sorted(self.skills_dir.glob("*/SKILL.md")):
-            document = self._load_document(path)
-            documents[document.manifest.name] = document
+        for skills_dir in skills_dirs:
+            root = Path(skills_dir)
+            if not root.exists():
+                continue
+            location_prefix = _location_prefix_for_dir(skills_dir)
+            for path in sorted(root.glob("*/SKILL.md")):
+                document = self._load_document(path, location_prefix=location_prefix)
+                documents[document.manifest.name] = document
+
         return documents
 
-    def _load_document(self, path: Path) -> AgentSkillDocument:
+    def _load_document(self, path: Path, *, location_prefix: str) -> AgentSkillDocument:
         raw_text = path.read_text(encoding="utf-8").strip()
         match = _FRONTMATTER_RE.match(raw_text)
         skill_dir_name = path.parent.name
@@ -61,8 +54,13 @@ class AgentSkillRegistry:
             name = skill_dir_name
             description = self._extract_first_non_empty_line(body)
 
+        location = f"{location_prefix}/{skill_dir_name}/SKILL.md"
         return AgentSkillDocument(
-            manifest=AgentSkillManifest(name=name, description=description),
+            manifest=AgentSkillManifest(
+                name=name,
+                description=description,
+                location=location,
+            ),
             body=body,
         )
 
@@ -87,33 +85,40 @@ class AgentSkillRegistry:
                 return stripped
         return ""
 
-    def list_manifests(
-        self, *, allowed_names: Iterable[str] | None = None
-    ) -> list[AgentSkillManifest]:
-        if allowed_names is None:
-            return sorted(
-                [doc.manifest for doc in self._documents.values()],
-                key=lambda item: item.name,
-            )
-        allowed_set = set(allowed_names)
+    def list_manifests(self) -> list[AgentSkillManifest]:
         return sorted(
-            [
-                doc.manifest
-                for name, doc in self._documents.items()
-                if name in allowed_set
-            ],
+            [doc.manifest for doc in self._documents.values()],
             key=lambda item: item.name,
         )
 
-    def load(
-        self, name: str, *, allowed_names: Iterable[str] | None = None
-    ) -> AgentSkillDocument:
-        if allowed_names is not None and name not in set(allowed_names):
-            raise ValueError(f"Skill '{name}' is not allowed")
+    def load(self, name: str) -> AgentSkillDocument:
         document = self._documents.get(name)
         if document is None:
             raise ValueError(f"Skill '{name}' not found")
         return document
 
 
-skill_registry = AgentSkillRegistry()
+def _skill_dirs_for_user(user_id: str | None) -> list[str]:
+    dirs = [str(SKILLS_PUBLIC_DIR)]
+    if user_id:
+        dirs.append(str(get_paths().user_skills_dir(user_id)))
+    return dirs
+
+
+def _location_prefix_for_dir(skills_dir: str | Path) -> str:
+    """Map a skills root directory to its virtual path prefix by path suffix."""
+    public_prefix = vfs_config.skills_public_prefix.rstrip("/")
+    custom_prefix = vfs_config.skills_custom_prefix.rstrip("/")
+    name = Path(skills_dir).resolve().name
+
+    if name == "public":
+        return public_prefix
+    if name == "skills":
+        return custom_prefix
+    return custom_prefix
+
+
+@lru_cache
+def get_skill_registry(user_id: str | None = None) -> AgentSkillRegistry:
+    """Return a cached registry for *user_id* (``None`` = public skills only)."""
+    return AgentSkillRegistry(skills_dirs=_skill_dirs_for_user(user_id))

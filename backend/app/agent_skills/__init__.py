@@ -1,13 +1,8 @@
 """Agent skills package."""
 
-from app.agent_skills.registry import (
-    DEFAULT_ALLOWED_SKILL_NAMES,
-    AgentSkillRegistry,
-    skill_registry,
-)
+from app.agent_skills.registry import AgentSkillRegistry, get_skill_registry
 
 __all__ = [
     "AgentSkillRegistry",
-    "DEFAULT_ALLOWED_SKILL_NAMES",
-    "skill_registry",
+    "get_skill_registry",
 ]

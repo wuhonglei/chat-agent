@@ -1,4 +1,5 @@
 import { ContentBlockRenderStatus, ToolResultBlock, ToolUseBlock } from "@/interfaces/contentBlock";
+import { displayMcpToolName } from "@/utils/toolNaming";
 import { Think } from "@ant-design/x";
 import React from "react";
 
@@ -17,23 +18,28 @@ type Props = {
 
 export const ToolBlockRender: React.FC<Props> = ({ toolUseBlock, toolResultBlock, status }) => {
   const { expanded, onExpandChange } = useToolBlockExpanded(status);
+  const displayToolName = displayMcpToolName(toolUseBlock);
 
   return (
     <Think
-      icon={getToolIcon(toolUseBlock.name)}
+      icon={getToolIcon(displayToolName)}
       expanded={expanded}
       blink={isActiveStatus(status)}
       onExpand={onExpandChange}
       classNames={{ status: "cursor-pointer" }}
-      title={<ToolBlockTitle rawToolName={toolUseBlock.name} status={status} />}
+      title={<ToolBlockTitle rawToolName={displayToolName} status={status} />}
     >
       <div className="w-full flex flex-col gap-2 py-1">
         <ToolArguments
-          toolName={toolUseBlock.name}
+          toolName={displayToolName}
           argumentsText={toolUseBlock.argumentsText}
           argumentsJson={toolUseBlock.argumentsJson}
         />
-        <ToolResult toolName={toolUseBlock.name} toolResultBlock={toolResultBlock} toolUseBlock={toolUseBlock} />
+        <ToolResult
+          toolName={displayToolName}
+          toolResultBlock={toolResultBlock}
+          toolUseBlock={toolUseBlock}
+        />
       </div>
     </Think>
   );

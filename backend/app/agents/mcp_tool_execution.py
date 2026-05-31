@@ -14,24 +14,7 @@ class MCPToolSession:
     """单次请求内的 MCP 工具状态与执行逻辑。"""
 
     MAX_TOTAL_ITERATIONS = 10
-    MAX_ITERATIONS_BY_TOOL = 5
-    AGENT_MODE_MAX_ITERATIONS = 20
-    NORMAL_MODE_SERVERS = {
-        "time-mcp",
-        "weather-mcp",
-        "tavily-mcp",
-        "code-exec-mcp",
-        "context7-mcp",
-        "zread-mcp",
-    }
-    AGENT_MODE_SERVERS = {
-        "file-mcp",
-        "shell-mcp",
-        "tavily-mcp",
-        "code-exec-mcp",
-        "context7-mcp",
-        "zread-mcp",
-    }
+    AGENT_MODE_MAX_ITERATIONS = 90
 
     def __init__(
         self,
@@ -49,28 +32,19 @@ class MCPToolSession:
         self,
         user_message: str,
         user_id: str | None = None,
-        workspace_id: str | None = None,
+        conversation_id: str | None = None,
     ) -> None:
         self.policy.reset_for_request()
-        self.executor.reset_for_request(user_message, user_id, workspace_id)
-
-    def get_available_tools(
-        self, tools: list[dict[str, Any]], iterations_by_tool: dict[str, int]
-    ) -> tuple[list[dict[str, Any]], list[str]]:
-        return self.policy.get_available_tools(tools, iterations_by_tool)
+        self.executor.reset_for_request(user_message, user_id, conversation_id)
 
     def apply_iteration_hints(
         self,
         messages: list[dict[str, Any]],
-        tools: list[dict[str, Any]],
-        iterations_by_tool: dict[str, int],
         tool_guided_user_message: str,
         iteration: int,
     ) -> None:
         self.policy.apply_iteration_hints(
             messages=messages,
-            tools=tools,
-            iterations_by_tool=iterations_by_tool,
             tool_guided_user_message=tool_guided_user_message,
             iteration=iteration,
         )
@@ -84,12 +58,10 @@ class MCPToolSession:
         self,
         tool_calls: list[ChatCompletionMessageFunctionToolCall],
         current_iteration: int,
-        iterations_by_tool: dict[str, int],
     ) -> list[ToolResultMessage]:
         return await self.executor.execute_tool_calls_parallel(
             tool_calls=tool_calls,
             current_iteration=current_iteration,
-            iterations_by_tool=iterations_by_tool,
             extracted_urls=self.policy.extracted_urls,
             on_arguments_recorded=self.policy.record_tool_arguments,
             on_urls_extracted=self.policy.track_extracted_urls,

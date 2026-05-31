@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from typing import Any
 
+from app.mcp.tool_naming import ToolRoute, resolve_tool_use_fields
 from app.schemas.chat import (
     ContentBlock,
     TextBlock,
@@ -23,6 +25,12 @@ class ContentBlocksAggregator:
         self._current_thinking_block_id: str | None = None
         self._tool_index_to_use_block_id: dict[int, str] = {}
         self._tool_call_to_use_block_id: dict[str, str] = {}
+        self._get_tool_route: Callable[[str], ToolRoute | None] | None = None
+
+    def set_tool_name_resolver(
+        self, get_tool_route: Callable[[str], ToolRoute | None]
+    ) -> None:
+        self._get_tool_route = get_tool_route
 
     def start_round(self) -> None:
         """重置本轮工具调用关联，避免跨轮 index/tool_call_id 串写。"""
@@ -38,6 +46,17 @@ class ContentBlocksAggregator:
             if block.id == block_id:
                 return block
         return None
+
+    def _enrich_tool_use_block(self, block: ToolUseBlock, llm_name: str) -> None:
+        if not self._get_tool_route:
+            block.name = llm_name
+            return
+        name, server_name, mcp_tool_name = resolve_tool_use_fields(
+            llm_name, self._get_tool_route
+        )
+        block.name = name
+        block.server_name = server_name
+        block.mcp_tool_name = mcp_tool_name
 
     def append_thinking_delta(self, delta: str) -> list[dict[str, Any]]:
         events: list[dict[str, Any]] = []
@@ -110,8 +129,13 @@ class ContentBlocksAggregator:
             arguments_delta = ""
             if fn is not None:
                 if getattr(fn, "name", None):
-                    existing_block.name = fn.name
-                    updates["name"] = fn.name
+                    llm_name = fn.name
+                    self._enrich_tool_use_block(existing_block, llm_name)
+                    updates["name"] = existing_block.name
+                    if existing_block.server_name is not None:
+                        updates["server_name"] = existing_block.server_name
+                    if existing_block.mcp_tool_name is not None:
+                        updates["mcp_tool_name"] = existing_block.mcp_tool_name
                 if getattr(fn, "arguments", None):
                     arguments_delta = fn.arguments
                     existing_block.arguments_text += arguments_delta

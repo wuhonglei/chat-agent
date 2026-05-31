@@ -13,6 +13,12 @@ from toolz import get
 from app.agents.utils import TavilyResultProcessor
 from app.core.config import settings
 from app.mcp.client import MCPClientManager
+from app.mcp.constants import (
+    SKIP_TOOL_RESULT_COMPACTION_SERVERS,
+    TAVILY_SERVER,
+    WEB_PAGES_EXTRACT_BARE,
+)
+from app.mcp.tool_naming import is_llm_tool
 from app.schemas.llm import ToolResultMessage
 from app.utils.common import normalize_url
 from app.utils.context import set_request_context
@@ -25,18 +31,13 @@ from app.utils.token import TokenCalculator
 class ToolExecutor:
     """Execute MCP tools and compact their results."""
 
-    TAVILY_TOOL_NAME = "tavily-mcp"
-    WEB_PAGES_EXTRACT = "web_pages_extract"
-    FILE_MCP_SERVER_NAME = "file-mcp"
-    SHELL_MCP_SERVER_NAME = "shell-mcp"
-
     def __init__(
         self, mcp_manager: MCPClientManager, user_message: str, model_name: str
     ) -> None:
         self.mcp_manager = mcp_manager
         self.current_user_message = user_message
         self.current_user_id: str | None = None
-        self.current_workspace_id: str | None = None
+        self.current_conversation_id: str | None = None
         self.tool_result_compression = settings.chat_context.tool_result_compression
         self.compactor = ContextCompactor(
             embedding_model=settings.embedding_model,
@@ -49,21 +50,20 @@ class ToolExecutor:
         self,
         user_message: str,
         user_id: str | None = None,
-        workspace_id: str | None = None,
+        conversation_id: str | None = None,
     ) -> None:
         self.current_user_message = user_message
         self.current_user_id = user_id
-        self.current_workspace_id = workspace_id
+        self.current_conversation_id = conversation_id
 
         # Set contextvars for tools to access
-        set_request_context(user_id=user_id, conversation_id=workspace_id)
+        set_request_context(user_id=user_id, conversation_id=conversation_id)
 
     async def execute_tool_calls_parallel(
         self,
         *,
         tool_calls: list[ChatCompletionMessageFunctionToolCall],
         current_iteration: int,
-        iterations_by_tool: dict[str, int],
         extracted_urls: set[str],
         on_arguments_recorded: Callable[[str, dict[str, Any], str], None],
         on_urls_extracted: Callable[[set[str]], None],
@@ -72,7 +72,6 @@ class ToolExecutor:
             self.execute_single_tool(
                 tool_call=tool_call,
                 current_iteration=current_iteration,
-                iterations_by_tool=iterations_by_tool,
                 extracted_urls=extracted_urls,
                 on_arguments_recorded=on_arguments_recorded,
                 on_urls_extracted=on_urls_extracted,
@@ -87,37 +86,17 @@ class ToolExecutor:
         *,
         tool_call: ChatCompletionMessageFunctionToolCall,
         current_iteration: int,
-        iterations_by_tool: dict[str, int],
         extracted_urls: set[str],
         on_arguments_recorded: Callable[[str, dict[str, Any], str], None],
         on_urls_extracted: Callable[[set[str]], None],
     ) -> ToolResultMessage:
         tool_name = tool_call.function.name
         start_time = get_current_time()
-        if tool_name not in iterations_by_tool:
-            logger.warning(
-                "Tool not found in iterations tracking (unexpected), initializing as exhausted",
-                tool_name=tool_name,
-                iteration=current_iteration + 1,
-            )
-            iterations_by_tool[tool_name] = 0
-        if iterations_by_tool[tool_name] <= 0:
-            logger.info(
-                "Tool max iterations reached, skipping",
-                tool_name=tool_name,
-                iteration=current_iteration + 1,
-            )
-            return ToolResultMessage(
-                role="tool",
-                is_error=True,
-                tool_call_id=tool_call.id,
-                content=f"Tool {tool_name} has hit max iterations, skipping",
-            )
-
-        iterations_by_tool[tool_name] -= 1
         try:
             arguments = json.loads(tool_call.function.arguments)
-            if tool_name == self.WEB_PAGES_EXTRACT and (urls := get("urls", arguments)):
+            if is_llm_tool(tool_name, TAVILY_SERVER, WEB_PAGES_EXTRACT_BARE) and (
+                urls := get("urls", arguments)
+            ):
                 normalized_urls = {normalize_url(url) for url in urls if url}
                 new_urls = normalized_urls - extracted_urls
                 if not new_urls:
@@ -160,10 +139,7 @@ class ToolExecutor:
                 tool_call_id=tool_call.id,
             )
             server_name = self.mcp_manager.get_server_for_tool(tool_name)
-            skip_compaction = server_name in (
-                self.FILE_MCP_SERVER_NAME,
-                self.SHELL_MCP_SERVER_NAME,
-            )
+            skip_compaction = server_name in SKIP_TOOL_RESULT_COMPACTION_SERVERS
             if skip_compaction:
                 logger.info(
                     "Skipping tool result compaction for agent skills workspace tool",
@@ -171,7 +147,7 @@ class ToolExecutor:
                     tool_call_id=tool_call.id,
                 )
             elif (
-                server_name == self.TAVILY_TOOL_NAME
+                server_name == TAVILY_SERVER
                 and result.structured_content is not None
             ):
                 tool_call_result_message = await self._apply_tavily_compaction(

@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import subprocess
-import sys
 from collections.abc import Sequence
 from typing import Any
 
-from app.agent_skills.models import AgentSkillManifest
+from app.agent_skills.types import AgentSkillManifest
+from app.mcp.constants import SKILL_MANAGER_SERVER
+from app.mcp.tool_naming import llm_tool_name
 from app.prompts.system_prompt import (
     default_system_prompt_template,
     system_prompt_for_chat_session_template,
@@ -15,7 +15,6 @@ from app.prompts.system_prompt import (
 )
 from app.prompts.user_prompt import (
     WINDOW_OUT_SUMMARY_MERGE_PROMPT,
-    disabled_tools_message_template,
     gentle_tips_in_web_search_template,
     tool_call_sufficient_info_template,
     user_message_for_default_template,
@@ -29,33 +28,14 @@ from app.utils.date import get_current_datetime_str
 from app.vfs.config import vfs_config
 
 
-def _get_command_version(command: list[str]) -> str:
-    """Get command version output safely."""
-    try:
-        result = subprocess.run(
-            command,
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=2,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return "unavailable"
-
-    output = (result.stdout or result.stderr).strip()
-    if not output:
-        return "unknown"
-    return output.splitlines()[0]
-
-
-def _get_runtime_environment() -> dict[str, str]:
-    """Get runtime environment summary for Agent mode prompts."""
+def _get_agent_mode_prompt_context() -> dict[str, str]:
+    """VFS path prefixes injected into system prompt when agent_mode > 0."""
     return {
         "workspace_prefix": vfs_config.workspace_prefix,
-        "skills_prefix": vfs_config.skills_prefix,
+        "outputs_prefix": vfs_config.outputs_prefix,
         "uploads_prefix": vfs_config.uploads_prefix,
-        "node_version": _get_command_version(["node", "--version"]),
-        "python_version": sys.version.split()[0],
+        "skills_public_prefix": vfs_config.skills_public_prefix,
+        "skills_custom_prefix": vfs_config.skills_custom_prefix,
     }
 
 
@@ -70,10 +50,13 @@ def get_system_prompt_for_chat_session(
     skill_manifests: Sequence[AgentSkillManifest] | None = None,
 ) -> str:
     """Get system prompt for final response generation."""
+    extra = _get_agent_mode_prompt_context() if agent_mode > 0 else {}
+    if agent_mode > 0:
+        extra["load_skill_tool_name"] = llm_tool_name(SKILL_MANAGER_SERVER, "load_skill")
     return system_prompt_for_chat_session_template.render(
         agent_mode=agent_mode,
         skill_manifests=skill_manifests or [],
-        **_get_runtime_environment(),
+        **extra,
     )
 
 
@@ -146,11 +129,6 @@ def get_prompt_for_title(
         user_input, kb_context_blocks
     )
     return system_prompt, user_message_prompt
-
-
-def get_disabled_tools_message(disabled_tools: list[str]) -> str:
-    """Get disabled tools message"""
-    return disabled_tools_message_template.render(disabled_tools=disabled_tools).strip()
 
 
 def get_gentle_tips_in_web_search() -> str:

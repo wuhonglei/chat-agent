@@ -28,7 +28,7 @@ class ReadFileTool(ToolBase):
         try:
             # Resolve virtual path to physical
             physical_path = resolve_virtual_path(
-                file_path, ctx.user_id, ctx.workspace_id, PathPermission.READ_ONLY
+                file_path, ctx.user_id, ctx.conversation_id, PathPermission.READ_ONLY
             )
 
             if not physical_path.is_file():
@@ -49,13 +49,7 @@ class ReadFileTool(ToolBase):
             end_idx = min(total_lines, start_idx + limit)
 
             selected_lines = lines[start_idx:end_idx]
-
-            # Add line numbers (1-based)
-            numbered_lines = []
-            for i, line in enumerate(selected_lines, start=start_idx + 1):
-                numbered_lines.append(f"{i}: {line.rstrip()}")
-
-            result_content = "\n".join(numbered_lines)
+            result_content = "".join(selected_lines)
 
             # Truncate if too long
             result_content, truncated = truncate_content(result_content)

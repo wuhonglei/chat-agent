@@ -1,5 +1,7 @@
 """配置模型定义"""
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -70,158 +72,107 @@ class LLMConfig(BaseModel):
     )
 
 
-class MCPCacheConfig(BaseModel):
-    """单个 MCP 的 tools/call 结果缓存配置"""
+class MCPServerEntry(BaseModel):
+    """单个 MCP Server 的接入配置。
 
-    cache_enabled: bool = Field(
-        default=False,
-        description="是否启用缓存",
+    transport 决定连接方式：
+    - fastmcp：进程内通信，需要 module 指定 Python 模块路径
+    - http：远程 HTTP 通信，需要 url
+    - stdio：子进程通信，需要 command
+    """
+
+    enabled: bool = Field(default=True, description="是否启用该 Server")
+    transport: Literal["fastmcp", "http", "stdio"] = Field(
+        default="fastmcp",
+        description="传输方式：fastmcp（进程内）、http（远程）、stdio（子进程）",
     )
-    cache_dir: str = Field(
-        default="./data/mcp_cache",
-        description="缓存存储目录（DiskStore）",
+    # fastmcp 传输参数
+    module: str | None = Field(
+        default=None,
+        description="Python 模块路径，如 app.mcp.mcp_servers.time_mcp.server（transport=fastmcp 时必填）",
     )
-    call_tool_ttl: int = Field(
-        default=300,
-        description="工具调用缓存 TTL（秒）",
+    instance: str = Field(default="mcp", description="模块中 FastMCP 实例的属性名")
+    # http 传输参数
+    url: str | None = Field(
+        default=None, description="远程 MCP Server URL（transport=http 时必填）"
     )
-    call_tool_excluded: list[str] = Field(
-        default_factory=list,
-        description="不缓存的工具名列表",
+    headers: dict[str, str] = Field(default_factory=dict, description="HTTP 请求头")
+    # stdio 传输参数
+    command: str | None = Field(
+        default=None, description="可执行文件路径（transport=stdio 时必填）"
     )
-
-
-class Context7MCPConfig(BaseModel):
-    """Context7 MCP 配置"""
-
-    url: str = Field(description="Context7 URL")
-    headers: dict[str, str] = Field(description="Context7 Headers")
-    verify_ssl: bool = Field(default=True, description="是否验证 SSL")
-    cache_config: MCPCacheConfig = Field(
-        default_factory=MCPCacheConfig,
-        description="工具调用结果缓存配置",
-    )
-
-
-class ZreadMCPConfig(BaseModel):
-    """Zread MCP 配置（远程 Streamable HTTP）"""
-
-    url: str = Field(description="Zread MCP URL")
-    headers: dict[str, str] = Field(description="Zread MCP 请求头（含 Authorization）")
-    verify_ssl: bool = Field(default=True, description="是否验证 SSL")
-    cache_config: MCPCacheConfig = Field(
-        default_factory=MCPCacheConfig,
-        description="工具调用结果缓存配置",
-    )
-
-
-class WeatherMCPConfig(BaseModel):
-    """Weather MCP 配置"""
-
-    qweather_api_key: str = Field(description="和风天气 API 密钥")
-    qweather_base_url: str = Field(description="和风天气 API 基础地址")
-    qweather_timeout: int = Field(description="和风天气 API 超时时间")
-    cache_config: MCPCacheConfig = Field(
-        default_factory=MCPCacheConfig,
-        description="工具调用结果缓存配置",
-    )
-
-
-class TavilyMCPConfig(BaseModel):
-    """Tavily MCP 配置"""
-
-    tavily_api_key: str = Field(description="Tavily API 密钥")
-    cache_config: MCPCacheConfig = Field(
-        default_factory=MCPCacheConfig,
-        description="工具调用结果缓存配置",
-    )
-
-
-class TimeMCPConfig(BaseModel):
-    """Time MCP 配置"""
-
-    cache_config: MCPCacheConfig = Field(
-        default_factory=MCPCacheConfig,
-        description="工具调用结果缓存配置",
-    )
-
-
-class CodeExecMCPConfig(BaseModel):
-    """Code Exec MCP 配置"""
-
-    cache_config: MCPCacheConfig = Field(
-        default_factory=MCPCacheConfig,
-        description="工具调用结果缓存配置",
-    )
-    piston_base_url: str = Field(
-        ...,
-        description="Piston API 基础地址",
-    )
-
-
-class MCPGatewayConfig(BaseModel):
-    """MCP Tool Gateway 配置"""
-
-    strict_tool_name_conflict: bool = Field(
-        default=False,
-        description="是否在工具重名冲突时抛错并阻止初始化",
-    )
-    call_tool_timeout_seconds: int = Field(
-        default=60,
-        ge=1,
-        description="MCP 工具调用默认超时（秒）",
-    )
-    call_tool_timeout_seconds_by_server: dict[str, int] = Field(
+    args: list[str] = Field(default_factory=list, description="命令行参数")
+    env: dict[str, str] = Field(
         default_factory=dict,
-        description="按 server_name 覆盖工具调用超时（秒）",
+        description="业务参数（fastmcp 进程内 Server）或子进程环境变量（stdio）",
     )
 
 
 class MCPConfig(BaseModel):
-    """MCP 配置"""
+    """MCP 配置。
 
-    context7_mcp: Context7MCPConfig = Field(
-        default_factory=Context7MCPConfig  # type: ignore[arg-type]
-    )
-    zread_mcp: ZreadMCPConfig = Field(
-        default_factory=ZreadMCPConfig  # type: ignore[arg-type]
-    )
-    weather_mcp: WeatherMCPConfig = Field(
-        default_factory=WeatherMCPConfig  # type: ignore[arg-type]
-    )
-    tavily_mcp: TavilyMCPConfig = Field(
-        default_factory=TavilyMCPConfig  # type: ignore[arg-type]
-    )
-    time_mcp: TimeMCPConfig = Field(
-        default_factory=TimeMCPConfig,
-        description="Time MCP 配置",
-    )
-    code_exec_mcp: CodeExecMCPConfig = Field(
-        default_factory=CodeExecMCPConfig,  # type: ignore[arg-type]
-        description="Code Exec MCP 配置",
-    )
-    gateway: MCPGatewayConfig = Field(
-        default_factory=MCPGatewayConfig,
-        description="MCP 网关行为配置",
-    )
+    mcp_servers 字段控制加载哪些 MCP Server 及其传输方式。
+    留空时使用内置默认值（所有本地 Server + context7 远程 Server）。
+    通过设置 enabled: false 可禁用单个 Server，无需删除代码。
+    """
 
-
-class TencentCOSConfig(BaseModel):
-    """腾讯云 COS 存储配置"""
-
-    secret_id: str = Field(..., description="The secret ID of the storage")
-    secret_key: str = Field(..., description="The secret key of the storage")
-    region: str = Field("ap-guangzhou", description="The region of the storage")
-    bucket: str = Field("ai-chat-1258352625", description="The bucket of the storage")
+    mcp_servers: dict[str, MCPServerEntry] = Field(
+        default_factory=lambda: {
+            "time": MCPServerEntry(
+                module="app.mcp.mcp_servers.time_mcp.server",
+            ),
+            "context7": MCPServerEntry(
+                transport="http",
+            ),
+            "weather": MCPServerEntry(
+                module="app.mcp.mcp_servers.weather_mcp.server",
+            ),
+            "tavily": MCPServerEntry(
+                module="app.mcp.mcp_servers.tavily_mcp.server",
+            ),
+            "code-exec": MCPServerEntry(
+                module="app.mcp.mcp_servers.code_exec_mcp.server",
+            ),
+            "file": MCPServerEntry(
+                module="app.mcp.mcp_servers.file_mcp.server",
+            ),
+            "skill_manager": MCPServerEntry(
+                module="app.mcp.mcp_servers.skill_manager_mcp.server",
+            ),
+            "shell": MCPServerEntry(
+                module="app.mcp.mcp_servers.shell_mcp.server",
+            ),
+        },
+        description="MCP Server 接入配置（server_name -> MCPServerEntry）",
+    )
+    normal_mode_servers: list[str] = Field(
+        default_factory=lambda: [
+            "time",
+            "weather",
+            "tavily",
+            "code-exec",
+            "context7",
+            "zread",
+        ],
+        description="普通对话（agent_mode=0）下暴露给 LLM 的 MCP Server 名称列表",
+    )
+    agent_mode_servers: list[str] = Field(
+        default_factory=lambda: [
+            "file",
+            "skill_manager",
+            "shell",
+            "tavily",
+            "context7",
+            "zread",
+        ],
+        description="Agent 模式（agent_mode>0）下暴露给 LLM 的 MCP Server 名称列表",
+    )
 
 
 class StorageConfig(BaseModel):
-    """存储配置"""
+    """存储配置（头像本地目录）"""
 
     avatar_dir: str = "./data/avatars"
-    tencent_cos: TencentCOSConfig = Field(
-        default_factory=TencentCOSConfig  # type: ignore[arg-type]
-    )
 
 
 class JWTConfig(BaseModel):
@@ -441,8 +392,8 @@ class SandboxConfig(BaseModel):
 
     enabled: bool = Field(default=True, description="是否启用沙箱执行")
     backend: str = Field(
-        default="docker",
-        description="沙箱后端：docker 或 local（Docker 不可用时可自动回退 local）",
+        default="local",
+        description="沙箱后端：docker 或 local（backend=docker 时 Docker 不可用将直接失败，不回退）",
     )
     image: str = Field(default="ubuntu:22.04", description="Docker 沙箱镜像")
     cpu_limit: float = Field(default=1.0, description="CPU 限制（核数）")

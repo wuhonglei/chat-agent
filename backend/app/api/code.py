@@ -8,6 +8,7 @@ from pyston import File as PistonFile
 from pyston import PystonClient
 
 from app.core.config import settings
+from app.mcp.constants import CODE_EXEC_SERVER
 from app.mcp.mcp_servers.code_exec_mcp.models import CodeExecResponse, CodeExecStage
 from app.schemas.response import ApiResponse
 
@@ -25,8 +26,9 @@ class CodeExecuteRequest(BaseModel):
 @router.post("/execute", summary="执行代码")
 async def execute_code(body: CodeExecuteRequest) -> ApiResponse[CodeExecResponse]:
     """通过 Piston 在沙箱中执行代码（需使用 print 等方式输出结果）。"""
-    piston_cfg = settings.mcp.code_exec_mcp
-    client = PystonClient(base_url=piston_cfg.piston_base_url)
+    entry = settings.mcp.mcp_servers[CODE_EXEC_SERVER]
+    piston_base_url = entry.env["piston_base_url"]
+    client = PystonClient(base_url=piston_base_url)
     try:
         output = await client.execute(
             language=body.language,

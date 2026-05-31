@@ -1,48 +1,9 @@
-from typing import Any
-
-import httpx
-from mcp.shared._httpx_utils import McpHttpClientFactory
-
+from app.mcp.tool_naming import is_llm_tool
 from app.schemas.llm import (
     ToolMessage,
     ToolResultMessage,
     ToolUseMessage,
 )
-
-
-def create_mcp_http_client_with_ssl_config(
-    verify_ssl: bool = True,
-) -> McpHttpClientFactory:
-    """创建支持 SSL 验证配置的 MCP HTTP 客户端工厂"""
-
-    def factory(
-        headers: dict[str, str] | None = None,
-        timeout: httpx.Timeout | None = None,
-        auth: httpx.Auth | None = None,
-    ) -> httpx.AsyncClient:
-        # 使用 MCP 默认配置，但添加 SSL 验证控制
-        kwargs: dict[str, Any] = {
-            "follow_redirects": True,
-            "verify": verify_ssl,  # 控制 SSL 证书验证
-        }
-
-        # Handle timeout
-        if timeout is None:
-            kwargs["timeout"] = httpx.Timeout(30.0)
-        else:
-            kwargs["timeout"] = timeout
-
-        # Handle headers
-        if headers is not None:
-            kwargs["headers"] = headers
-
-        # Handle authentication
-        if auth is not None:
-            kwargs["auth"] = auth
-
-        return httpx.AsyncClient(**kwargs)
-
-    return factory
 
 
 def extract_tool_call_names(output_messages: list[ToolMessage]) -> list[str]:
@@ -53,7 +14,7 @@ def extract_tool_call_names(output_messages: list[ToolMessage]) -> list[str]:
         output_messages: 工具调用消息列表
 
     Returns:
-        list[str]: 工具名称列表
+        list[str]: 工具名称列表（LLM 可见名，带 server 前缀）
     """
     tool_names = []
     for message in output_messages:
@@ -77,10 +38,17 @@ def count_tool_calls(output_messages: list[ToolMessage]) -> int:
 
 
 def has_tool_been_called(
-    names: list[str], tool_call_messages: list[ToolMessage]
+    specs: list[tuple[str, str]],
+    tool_call_messages: list[ToolMessage],
 ) -> bool:
     """
-    Check if any tool in the list has been called.
+    Check if any tool has been called.
+
+    Each spec is ``(server_name, bare_tool_name)``; matches LLM-prefixed names.
     """
     tool_call_names = extract_tool_call_names(tool_call_messages)
-    return any(tool_name in tool_call_names for tool_name in names)
+    return any(
+        is_llm_tool(name, server, bare)
+        for name in tool_call_names
+        for server, bare in specs
+    )

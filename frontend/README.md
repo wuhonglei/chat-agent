@@ -55,7 +55,7 @@ frontend/
 - 用户：`/api/user/*`
 - 认证：`/api/auth/*`
 - 健康检查：`/api/health*`
-- 文件：`POST /api/file/upload_avatar`、`POST /api/file/upload`
+- 头像：`POST /api/avatars/upload`；文件：`POST /api/file/upload`
 
 ## Chat 内容块与附件（当前实现）
 

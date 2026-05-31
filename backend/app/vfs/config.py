@@ -2,9 +2,23 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from pydantic import BaseModel, Field
+
+from app.vfs.paths import (
+    SKILLS_PUBLIC_DIR,
+    SKILLS_ROOT,
+    USER_DATA_ROOT,
+    VIRTUAL_PATH_PREFIX,
+)
+
+__all__ = [
+    "SKILLS_PUBLIC_DIR",
+    "SKILLS_ROOT",
+    "USER_DATA_ROOT",
+    "VFSConfig",
+    "VIRTUAL_PATH_PREFIX",
+    "vfs_config",
+]
 
 
 class VFSConfig(BaseModel):
@@ -12,13 +26,28 @@ class VFSConfig(BaseModel):
 
     enabled: bool = Field(default=True, description="Enable virtual path mapping")
     workspace_prefix: str = Field(
-        default="/workspace/", description="Virtual path prefix for workspace"
+        default=f"{VIRTUAL_PATH_PREFIX}/workspace/",
+        description="Virtual path prefix for workspace",
     )
     uploads_prefix: str = Field(
-        default="/uploads/", description="Virtual path prefix for uploads"
+        default=f"{VIRTUAL_PATH_PREFIX}/uploads/",
+        description="Virtual path prefix for uploads",
+    )
+    outputs_prefix: str = Field(
+        default=f"{VIRTUAL_PATH_PREFIX}/outputs/",
+        description="Virtual path prefix for outputs",
     )
     skills_prefix: str = Field(
-        default="/skills/", description="Virtual path prefix for skills"
+        default="/mnt/skills/",
+        description="Virtual path prefix for skills",
+    )
+    skills_public_prefix: str = Field(
+        default="/mnt/skills/public/",
+        description="Virtual path prefix for built-in public skills",
+    )
+    skills_custom_prefix: str = Field(
+        default="/mnt/skills/custom/",
+        description="Virtual path prefix for per-user custom skills",
     )
     max_file_size_mb: int = Field(default=100, description="Max single file size in MB")
     max_line_length: int = Field(
@@ -31,8 +60,3 @@ class VFSConfig(BaseModel):
 
 
 vfs_config = VFSConfig()
-
-# Physical paths
-BACKEND_ROOT = Path(__file__).resolve().parents[2]
-USER_DATA_ROOT = BACKEND_ROOT / "data" / "user_data"
-SKILLS_ROOT = BACKEND_ROOT / "app" / "agent_skills" / "skills"

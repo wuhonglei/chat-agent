@@ -110,7 +110,7 @@ export function getHistoryMessageIds<T extends ChatMessage>(limit: number, messa
       isUserRole(message.role) &&
       isAssistantRole(nextMessage.role) &&
       !isEmpty(getMessageTextFromBlocks(nextMessage.contentBlocks)) &&
-      nextMessage.status === MessageStatus.Done
+      nextMessage.status != MessageStatus.Pending
     ) {
       validHistoryIds.push(message.id, nextMessage.id);
       i += 2;

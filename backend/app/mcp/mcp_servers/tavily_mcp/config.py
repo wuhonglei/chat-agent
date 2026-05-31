@@ -1,15 +1,23 @@
-import sys
-from pathlib import Path
+from __future__ import annotations
 
-from pydantic import Field
+from pathlib import Path
+from typing import Any
+
+from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from app.schemas.config import MCPCacheConfig
+from app.mcp.mcp_servers._config_utils import require_env
+from app.schemas.config import MCPServerEntry
+
+_config: TavilyMCPConfig | None = None
 
 
-class _Settings(BaseSettings):
+class TavilyMCPConfig(BaseModel):
     tavily_api_key: str
-    cache_config: MCPCacheConfig = Field(default_factory=MCPCacheConfig)
+
+
+class _StandaloneSettings(BaseSettings):
+    tavily_api_key: str
 
     model_config = SettingsConfigDict(
         env_file=Path(__file__).parent / ".env",
@@ -20,11 +28,21 @@ class _Settings(BaseSettings):
     )
 
 
-# 主应用内直接使用 settings.mcp.tavily_mcp（含 Nacos 下发的 cache_config）；
-# 独立运行时使用本文件 Settings（.env）
-if "app.core.config" in sys.modules:
-    from app.core.config import settings
+def configure(entry: MCPServerEntry) -> None:
+    global _config
+    _config = TavilyMCPConfig(
+        tavily_api_key=require_env(entry.env, "tavily_api_key"),
+    )
 
-    config = settings.mcp.tavily_mcp
-else:
-    config = _Settings()  # type: ignore[assignment,call-arg]
+
+def get_config() -> TavilyMCPConfig:
+    if _config is not None:
+        return _config
+    standalone = _StandaloneSettings()  # type: ignore[call-arg]
+    return TavilyMCPConfig(tavily_api_key=standalone.tavily_api_key)
+
+
+def __getattr__(name: str) -> Any:
+    if name == "config":
+        return get_config()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

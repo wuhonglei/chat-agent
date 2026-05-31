@@ -13,7 +13,7 @@ from app.utils.context import get_request_context
 class ToolContext:
     """Context passed to tool execution.
 
-    Reads user_id and workspace_id from RequestContext set by tool_executor.
+    Reads user_id and conversation_id from RequestContext set by tool_executor.
     """
 
     @property
@@ -21,7 +21,7 @@ class ToolContext:
         return get_request_context().user_id or ""
 
     @property
-    def workspace_id(self) -> str:
+    def conversation_id(self) -> str:
         return get_request_context().conversation_id or ""
 
 

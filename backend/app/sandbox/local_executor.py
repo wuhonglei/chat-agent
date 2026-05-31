@@ -16,8 +16,8 @@ from app.utils.logger import logger
 class LocalSandboxExecutor(SandboxExecutor):
     """Execute commands locally with process group isolation.
 
-    Used as fallback when Docker is not available (development mode).
-    Still applies policy engine filtering before execution.
+    Used when sandbox.backend is set to local (e.g. development without Docker).
+    Command audit and path validation run in shell_mcp before execution.
     """
 
     def __init__(self) -> None:
@@ -48,7 +48,6 @@ class LocalSandboxExecutor(SandboxExecutor):
                 cwd=request.cwd,
                 env={
                     **os.environ,
-                    "HOME": str(self._workspace_path),
                     "TMPDIR": "/tmp",
                     **(request.env or {}),
                 },

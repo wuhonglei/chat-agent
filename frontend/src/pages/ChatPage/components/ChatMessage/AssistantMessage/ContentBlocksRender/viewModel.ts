@@ -6,9 +6,14 @@ import {
   ToolResultBlock,
   ToolUseBlock,
 } from "@/interfaces/contentBlock";
+import { displayMcpToolName } from "@/utils/toolNaming";
 
 const START_TEXT_LENGTH_THRESHOLD = 24;
-const PROJECT_PREVIEW_TOOLS = new Set(["write_workspace_file", "write_file"]);
+const PROJECT_PREVIEW_TOOLS = new Set(["present_files"]);
+
+function toolBlockMatchesPreview(block: ToolUseBlock): boolean {
+  return PROJECT_PREVIEW_TOOLS.has(displayMcpToolName(block));
+}
 
 export type RenderableContentBlock =
   | {
@@ -148,7 +153,7 @@ export function deriveRenderableBlocks(
   }
 
   const shouldShowProjectPreview = sourceBlocks.some(block => {
-    if (block.type !== "tool_use" || !block.name || !PROJECT_PREVIEW_TOOLS.has(block.name)) {
+    if (block.type !== "tool_use" || !toolBlockMatchesPreview(block)) {
       return false;
     }
     const result = byToolUseId.get(block.id) || (block.toolCallId ? byToolCallId.get(block.toolCallId) : undefined);
