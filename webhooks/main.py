@@ -51,6 +51,7 @@ BACKEND_DEPLOY_PATHS = [
     "backend/Dockerfile",
     "backend/pyproject.toml",
     "backend/uv.lock",
+    "backend/scripts",
 ]
 
 # 确保日志目录存在
