@@ -13,6 +13,7 @@ import WebExtractIcon from "@/assets/svg/mcp-tools/web-extract.svg?react";
 import WebResearchIcon from "@/assets/svg/mcp-tools/web-research.svg?react";
 import WebSearchIcon from "@/assets/svg/mcp-tools/web-search.svg?react";
 import WriteFileIcon from "@/assets/svg/mcp-tools/write-file.svg?react";
+import ZreadIcon from "@/assets/svg/mcp-tools/zread.svg?react";
 import { ToolOutlined } from "@ant-design/icons";
 import React from "react";
 
@@ -40,4 +41,5 @@ export {
   WebResearchIcon,
   WebSearchIcon,
   WriteFileIcon,
+  ZreadIcon,
 };
