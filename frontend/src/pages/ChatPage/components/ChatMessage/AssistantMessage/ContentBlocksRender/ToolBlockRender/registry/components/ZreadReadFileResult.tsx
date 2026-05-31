@@ -1,12 +1,10 @@
-import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
 import { Divider } from "antd";
 import React from "react";
 
-import styles from "../../ToolResult/index.module.css";
 import type { ToolRenderContext } from "../types";
+import { getFilePathFromArgs } from "../utils/filePathLanguage";
 import { unwrapZreadToolContent } from "../utils/zreadContent";
-
-const containerStyle = { maxHeight: 480, width: "100%", overflow: "auto" };
+import { FileContentHighlight } from "./FileContentHighlight";
 
 export function renderZreadReadFileResult(ctx: ToolRenderContext): React.ReactNode | null {
   const raw = ctx.toolResultBlock?.content;
@@ -14,17 +12,19 @@ export function renderZreadReadFileResult(ctx: ToolRenderContext): React.ReactNo
     return null;
   }
 
-  const markdown = unwrapZreadToolContent(raw);
-  if (!markdown.trim()) {
+  const content = unwrapZreadToolContent(raw);
+  if (!content.trim()) {
     return null;
   }
+
+  const filePath = getFilePathFromArgs(ctx.toolUseBlock.argumentsJson);
 
   return (
     <>
       <Divider orientation="horizontal" style={{ margin: 0 }} />
-      <MarkdownContainer style={containerStyle} className={styles["x-markdown"]}>
-        {markdown}
-      </MarkdownContainer>
+      <div className="w-full flex flex-col gap-2">
+        <FileContentHighlight filePath={filePath} content={content} />
+      </div>
     </>
   );
 }

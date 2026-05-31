@@ -76,6 +76,7 @@ export const SERVER_TOOL_ICONS: Record<string, Record<string, React.ReactNode>> 
   zread: {
     get_repo_structure: zreadIcon,
     read_file: zreadIcon,
+    search_doc: zreadIcon,
   },
 };
 
