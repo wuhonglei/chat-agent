@@ -320,10 +320,10 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
             onChange={setPreviewMode}
             options={[
               { label: "文件预览", value: "files" },
-              {
-                label: <Tooltip title="项目构建完成后才支持运行预览">运行预览</Tooltip>,
-                value: "app",
-              },
+              // {
+              //   label: <Tooltip title="项目构建完成后才支持运行预览">运行预览</Tooltip>,
+              //   value: "app",
+              // },
             ]}
           />
         </div>
