@@ -13,17 +13,21 @@ from app.utils.logger import logger
 _langfuse_client: Langfuse | None = None
 
 
-def _mask_data(value: Any) -> Any:
-    """递归清洗事件负载，移除 data URL 图片。"""
-    if isinstance(value, dict):
-        return {key: _mask_data(item) for key, item in value.items()}
-    if isinstance(value, list):
-        return [_mask_data(item) for item in value]
-    if isinstance(value, str):
-        lower = value.lower()
+def _mask_data(*, data: Any, **kwargs: Any) -> Any:
+    """递归清洗事件负载，移除 data URL 图片。
+
+    Langfuse MaskFunction 协议要求关键字参数 ``data``（见 langfuse.types.MaskFunction）。
+    """
+    _ = kwargs
+    if isinstance(data, dict):
+        return {key: _mask_data(data=item) for key, item in data.items()}
+    if isinstance(data, list):
+        return [_mask_data(data=item) for item in data]
+    if isinstance(data, str):
+        lower = data.lower()
         if lower.startswith("data:image/") and ";base64," in lower:
             return "[image omitted]"
-    return value
+    return data
 
 
 def _build_langfuse_kwargs(tracing_enabled: bool) -> dict[str, Any]:
