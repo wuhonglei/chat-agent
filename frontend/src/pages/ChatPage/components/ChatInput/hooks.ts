@@ -1,4 +1,4 @@
-import { ChatInputConfig, ChatInputFormValues } from "@/interfaces";
+import { ChatInputConfig, ChatInputFormValues, ChatMessage } from "@/interfaces";
 import { RootState } from "@/store";
 import { useAppSelector } from "@/store/hooks";
 import { AttachmentsProps } from "@ant-design/x";
@@ -7,7 +7,7 @@ import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { GetProp } from "antd";
 import { FormInstance } from "antd/es/form";
 import { isEmpty, isEqual, omit, trim } from "lodash-es";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { ButtonState, names } from "./constant";
 import { areAttachmentsReady } from "./util";
 
@@ -106,4 +106,29 @@ export function useModelImageSupport(modelId: string | undefined): boolean {
   const models = useAppSelector((state: RootState) => state.models.models);
   const selectedModel = models.find(item => item.modelId === modelId);
   return selectedModel?.imageSupport ?? true;
+}
+
+export function useLockedAgentMode(params: {
+  messages: ChatMessage[];
+  isAgentModeLocked: boolean;
+  agentMode: ChatInputFormValues["agentMode"] | undefined;
+  form: FormInstance<ChatInputFormValues>;
+}): ChatInputFormValues["agentMode"] | undefined {
+  const { messages, isAgentModeLocked, agentMode, form } = params;
+  const lockedAgentMode = useMemo(() => {
+    const lastMessage = messages.at(-1);
+    const value = lastMessage?.messageMetadata?.agentMode;
+    return typeof value === "number" ? value : undefined;
+  }, [messages]);
+
+  useEffect(() => {
+    if (!isAgentModeLocked || typeof lockedAgentMode === "undefined" || typeof agentMode === "undefined") {
+      return;
+    }
+    if (agentMode !== lockedAgentMode) {
+      form.setFieldValue(names.agentMode, lockedAgentMode);
+    }
+  }, [agentMode, form, isAgentModeLocked, lockedAgentMode]);
+
+  return lockedAgentMode;
 }
