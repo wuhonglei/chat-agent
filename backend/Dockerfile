@@ -29,7 +29,8 @@ RUN apt-get update && \
     && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" > /etc/apt/sources.list.d/nodesource.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends nodejs \
-    && npm install -g pnpm --registry=https://registry.npmmirror.com \
+    && npm config set registry https://registry.npmmirror.com/ \
+    && npm install -g pnpm \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
