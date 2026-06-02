@@ -53,6 +53,7 @@ dependencies = [
     # Sandbox & Security
     "docker>=7.0.0",
     "bashlex>=0.18",
+    "langfuse>=4.7.1",
 ]
 
 [project.optional-dependencies]

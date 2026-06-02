@@ -4,31 +4,31 @@ overview: "为 chat-agent 后端接入自托管 Langfuse（你已自备实例）
 todos:
   - id: dep-config
     content: uv add langfuse；在 schemas/config.py 新增 LangfuseConfig，在 core/config.py Settings 注册，仅更新 Nacos 配置（不使用 .env）
-    status: pending
+    status: completed
   - id: obs-module
     content: 新建 app/core/observability.py：init(try/except、不 auth_check)/get/shutdown(flush)/is_enabled；注册 mask 函数剔除 base64 图片；提供确定性 trace_id 辅助
-    status: pending
+    status: completed
   - id: lifespan
     content: main.py lifespan 启动 init_langfuse、关闭 shutdown_langfuse(flush)
-    status: pending
+    status: completed
   - id: llm-dropin
     content: llm_service.py 改用 langfuse.openai 的 AsyncOpenAI；call_llm_api 新增 stream_options 参数；主 Agent 两处流式调用传 include_usage=True
-    status: pending
+    status: completed
   - id: trace-root
     content: run_chat_turn 整体包 chat-turn span（覆盖 history摘要/记忆/RAG/流式/落库），确定性 trace_id(seed=assistant_message_id)，update_current_trace 设 session/user/input/metadata/output；处理 stopped(CancelledError) 与 error 分支
-    status: pending
+    status: completed
   - id: tool-span
     content: tool_executor.execute_single_tool 包裹 tool span，成功记 output/metadata，失败记 level=ERROR 做错误分类
-    status: pending
+    status: completed
   - id: llm-error-class
     content: call_llm_api 各 except 分支补充 level=ERROR/status_message 统一错误分类标签
-    status: pending
+    status: completed
   - id: failure-isolation
     content: 全部埋点用 is_enabled() 短路 + try/except 包裹，禁用时 no-op，观测异常绝不冒泡到对话主链路
-    status: pending
+    status: completed
   - id: docs-verify
     content: 新增 langfuse_integration.md（Nacos 配置项+维度约定+定位手册）；嵌套冒烟（工具+标题+多轮）确认 generation/tool span 同 trace；开关回归；make lint
-    status: pending
+    status: completed
 isProject: false
 ---
 

@@ -295,6 +295,7 @@ class ChatSessionAgent(BaseAgent):
             messages=round_prompt_messages,
             tools=available_tools if available_tools else None,
             stream=True,
+            stream_options={"include_usage": True},
             parallel_tool_calls=True,
             extra_body=self.extra_body,
         )

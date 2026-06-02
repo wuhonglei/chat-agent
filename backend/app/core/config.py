@@ -18,6 +18,7 @@ from app.schemas.config import (
     DatabaseConfig,
     EmbeddingModelConfig,
     KbFileRagConfig,
+    LangfuseConfig,
     LLMConfig,
     MCPConfig,
     PdfMarkdownConfig,
@@ -69,6 +70,10 @@ class Settings(BaseSettings):
         description="Shell 沙箱执行配置",
     )
     wechat: WechatConfig = Field(description="微信配置")
+    langfuse: LangfuseConfig = Field(
+        default_factory=LangfuseConfig,
+        description="Langfuse 可观测配置",
+    )
 
     model_config = SettingsConfigDict(
         extra="allow",
@@ -118,7 +123,7 @@ _current_settings: Settings = _build_settings()
 
 
 class _SettingsProxy:
-    """转发到当前 Settings 实例，保证 Nacos 热更新后 `from app.core.config import settings` 仍读到最新值。"""
+    """转发到当前 Settings 实例，保证 Nacos 热更新后导入配置始终读取最新值。"""
 
     __slots__ = ()
 

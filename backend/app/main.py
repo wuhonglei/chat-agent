@@ -26,6 +26,7 @@ from app.api import (
 from app.core.config import settings
 from app.core.db import create_db_and_tables
 from app.core.jwt import initialize_jwt_manager
+from app.core.observability import init_langfuse, shutdown_langfuse
 from app.mcp import get_mcp_manager, register_mcp_reload_target
 from app.middleware import LoggingMiddleware
 from app.middleware.exception_handler import (
@@ -64,12 +65,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.mcp_manager = mcp_manager
     register_mcp_reload_target(asyncio.get_running_loop(), mcp_manager)
 
+    # 初始化 Langfuse 可观测客户端（失败不影响主流程）
+    init_langfuse()
+
     # 初始化 JWT Manager（提前加载密钥文件，避免每次请求时重复读取）
     app.state.jwt_manager = initialize_jwt_manager()
 
     logger.info("Application startup complete")
 
     yield
+    # 刷新 Langfuse 队列，避免进程退出丢事件
+    shutdown_langfuse()
     # 清理 MCP Manager 资源
     app.state.mcp_manager.cleanup()
     logger.info("Application shutting down")
@@ -116,7 +122,11 @@ app.include_router(health.router, prefix="/api/health", tags=["health"])
 app.include_router(file.router, prefix="/api/file", tags=["file"])
 app.include_router(avatars.router, prefix="/api/avatars", tags=["avatars"])
 app.include_router(code.router, prefix="/api/code", tags=["code"])
-app.include_router(user_data.router, prefix="/api/user_data", tags=["user_data"])
+app.include_router(
+    user_data.router,
+    prefix="/api/user_data",
+    tags=["user_data"],
+)
 
 
 @app.get("/")
