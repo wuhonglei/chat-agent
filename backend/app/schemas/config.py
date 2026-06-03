@@ -72,6 +72,23 @@ class LLMConfig(BaseModel):
     )
 
 
+class LangfuseConfig(BaseModel):
+    """Langfuse 可观测配置（自托管）"""
+
+    enabled: bool = Field(default=False, description="是否启用 Langfuse 追踪")
+    host: str = Field(default="", description="Langfuse 服务地址")
+    public_key: str = Field(default="", description="Langfuse Public Key")
+    secret_key: str = Field(default="", description="Langfuse Secret Key")
+    sample_rate: float = Field(
+        default=1.0,
+        ge=0,
+        le=1,
+        description="采样率（0~1）",
+    )
+    debug: bool = Field(default=False, description="是否开启 Langfuse SDK 调试日志")
+    environment: str = Field(default="dev", description="环境标识，如 dev/prod")
+
+
 class MCPServerEntry(BaseModel):
     """单个 MCP Server 的接入配置。
 

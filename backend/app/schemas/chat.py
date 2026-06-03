@@ -204,9 +204,7 @@ class ToolUseBlock(BaseModel):
     type: Literal["tool_use"] = "tool_use"
     tool_call_id: str | None = Field(default=None, description="Tool call ID")
     name: str | None = Field(default=None, description="LLM-visible tool name")
-    server_name: str | None = Field(
-        default=None, description="MCP server config key"
-    )
+    server_name: str | None = Field(default=None, description="MCP server config key")
     mcp_tool_name: str | None = Field(
         default=None, description="Original MCP tool name (bare)"
     )

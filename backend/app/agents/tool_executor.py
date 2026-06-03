@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 from collections.abc import Callable
 from typing import Any
@@ -13,6 +14,7 @@ from toolz import get
 from app.agents.utils import TavilyResultProcessor
 from app.agents.utils.shell_result_processor import build_shell_display_items
 from app.core.config import settings
+from app.core.observability import get_langfuse, is_enabled
 from app.mcp.client import MCPClientManager
 from app.mcp.constants import (
     SHELL_SERVER,
@@ -94,101 +96,151 @@ class ToolExecutor:
     ) -> ToolResultMessage:
         tool_name = tool_call.function.name
         start_time = get_current_time()
+        trace_enabled = is_enabled()
+        langfuse_client = get_langfuse()
+        tool_span_ctx: Any = contextlib.nullcontext(None)
+        if trace_enabled and langfuse_client is not None:
+            try:
+                tool_span_ctx = langfuse_client.start_as_current_observation(
+                    as_type="tool",
+                    name=tool_name,
+                    input=tool_call.function.arguments,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Failed to start tool observation span",
+                    tool_name=tool_name,
+                    error=exc,
+                    error_type=type(exc).__name__,
+                )
         try:
-            arguments = json.loads(tool_call.function.arguments)
-            if is_llm_tool(tool_name, TAVILY_SERVER, WEB_PAGES_EXTRACT_BARE) and (
-                urls := get("urls", arguments)
-            ):
-                normalized_urls = {normalize_url(url) for url in urls if url}
-                new_urls = normalized_urls - extracted_urls
-                if not new_urls:
+            with tool_span_ctx as tool_span:
+                arguments = json.loads(tool_call.function.arguments)
+                if is_llm_tool(tool_name, TAVILY_SERVER, WEB_PAGES_EXTRACT_BARE) and (
+                    urls := get("urls", arguments)
+                ):
+                    normalized_urls = {normalize_url(url) for url in urls if url}
+                    new_urls = normalized_urls - extracted_urls
+                    if not new_urls:
+                        logger.info(
+                            "All URLs already extracted, skipping web_pages_extract",
+                            urls=urls,
+                            iteration=current_iteration + 1,
+                        )
+                        return ToolResultMessage(
+                            role="tool",
+                            is_error=False,
+                            tool_call_id=tool_call.id,
+                            content="⚠️ 提示：这些 URL 已经在之前的调用中提取过了。请检查历史工具调用结果，如果已获得足够信息，请停止继续调用工具，并直接给出最终回答。",
+                        )
+                    on_urls_extracted(new_urls)
+                    arguments["urls"] = new_urls
                     logger.info(
-                        "All URLs already extracted, skipping web_pages_extract",
-                        urls=urls,
+                        "Filtered URLs for web_pages_extract",
+                        original_count=len(urls),
+                        new_count=len(new_urls),
                         iteration=current_iteration + 1,
                     )
-                    return ToolResultMessage(
-                        role="tool",
-                        is_error=False,
-                        tool_call_id=tool_call.id,
-                        content="⚠️ 提示：这些 URL 已经在之前的调用中提取过了。请检查历史工具调用结果，如果已获得足够信息，请停止继续调用工具，并直接给出最终回答。",
-                    )
-                on_urls_extracted(new_urls)
-                arguments["urls"] = new_urls
-                logger.info(
-                    "Filtered URLs for web_pages_extract",
-                    original_count=len(urls),
-                    new_count=len(new_urls),
-                    iteration=current_iteration + 1,
-                )
 
-            on_arguments_recorded(tool_name, arguments, tool_call.id)
-            logger.info(
-                "Calling MCP tool",
-                tool_name=tool_name,
-                tool_call_id=tool_call.id,
-                iteration=current_iteration + 1,
-                arguments=arguments,
-            )
-            result, call_warnings = await self.mcp_manager.call_tool(
-                tool_name, arguments
-            )
-            content = self.mcp_manager.format_mcp_result(result)
-            tool_call_result_message = ToolResultMessage(
-                role="tool",
-                content=content,
-                is_error=len(content or "") == 0,
-                tool_call_id=tool_call.id,
-            )
-            server_name = self.mcp_manager.get_server_for_tool(tool_name)
-            skip_compaction = server_name in SKIP_TOOL_RESULT_COMPACTION_SERVERS
-            if skip_compaction:
+                on_arguments_recorded(tool_name, arguments, tool_call.id)
                 logger.info(
-                    "Skipping tool result compaction for agent skills workspace tool",
+                    "Calling MCP tool",
                     tool_name=tool_name,
                     tool_call_id=tool_call.id,
+                    iteration=current_iteration + 1,
+                    arguments=arguments,
                 )
-            elif server_name == TAVILY_SERVER and result.structured_content is not None:
-                tool_call_result_message = await self._apply_tavily_compaction(
-                    tool_name=tool_name,
-                    structured_content=result.structured_content,
-                    tool_call_result_message=tool_call_result_message,
+                result, call_warnings = await self.mcp_manager.call_tool(
+                    tool_name, arguments
                 )
-            else:
-                tool_call_result_message = await self._compact_tool_result_if_needed(
-                    tool_call_result_message
+                content = self.mcp_manager.format_mcp_result(result)
+                tool_call_result_message = ToolResultMessage(
+                    role="tool",
+                    content=content,
+                    is_error=len(content or "") == 0,
+                    tool_call_id=tool_call.id,
                 )
-
-            if server_name == SHELL_SERVER and result.structured_content is not None:
-                tool_call_result_message = tool_call_result_message.model_copy(
-                    update={
-                        "structured_content_for_display": build_shell_display_items(
-                            result.structured_content
+                server_name = self.mcp_manager.get_server_for_tool(tool_name)
+                skip_compaction = server_name in SKIP_TOOL_RESULT_COMPACTION_SERVERS
+                if skip_compaction:
+                    logger.info(
+                        "Skipping tool result compaction for agent skills workspace tool",
+                        tool_name=tool_name,
+                        tool_call_id=tool_call.id,
+                    )
+                elif (
+                    server_name == TAVILY_SERVER
+                    and result.structured_content is not None
+                ):
+                    tool_call_result_message = await self._apply_tavily_compaction(
+                        tool_name=tool_name,
+                        structured_content=result.structured_content,
+                        tool_call_result_message=tool_call_result_message,
+                    )
+                else:
+                    tool_call_result_message = (
+                        await self._compact_tool_result_if_needed(
+                            tool_call_result_message
                         )
-                    }
-                )
+                    )
 
-            content = tool_call_result_message.content or ""
-            warning_msg = self._build_tool_warning_message(tool_name, call_warnings)
-            if warning_msg:
-                content = warning_msg + content
-                tool_call_result_message.content = content
+                if (
+                    server_name == SHELL_SERVER
+                    and result.structured_content is not None
+                ):
+                    tool_call_result_message = tool_call_result_message.model_copy(
+                        update={
+                            "structured_content_for_display": build_shell_display_items(
+                                result.structured_content
+                            )
+                        }
+                    )
+
+                content = tool_call_result_message.content or ""
+                warning_msg = self._build_tool_warning_message(tool_name, call_warnings)
+                if warning_msg:
+                    content = warning_msg + content
+                    tool_call_result_message.content = content
+                    logger.info(
+                        "Added tool warnings to tool result",
+                        tool_name=tool_name,
+                        warnings=call_warnings,
+                    )
                 logger.info(
-                    "Added tool warnings to tool result",
+                    "MCP tool result received",
                     tool_name=tool_name,
-                    warnings=call_warnings,
+                    tool_call_id=tool_call.id,
+                    duration=get_time_duration(start_time),
+                    content_length=len(content) if content else 0,
+                    content=content[:200] + "..." + content[-200:]
+                    if len(content) > 400
+                    else content,
                 )
-            logger.info(
-                "MCP tool result received",
-                tool_name=tool_name,
-                tool_call_id=tool_call.id,
-                duration=get_time_duration(start_time),
-                content_length=len(content) if content else 0,
-                content=content[:200] + "..." + content[-200:]
-                if len(content) > 400
-                else content,
-            )
-            return tool_call_result_message
+                if (
+                    trace_enabled
+                    and langfuse_client is not None
+                    and tool_span is not None
+                ):
+                    try:
+                        tool_span.update(
+                            output=content,
+                            metadata={
+                                "tool_name": tool_name,
+                                "server_name": server_name,
+                                "iteration": current_iteration + 1,
+                                "tool_call_id": tool_call.id,
+                                "conversation_id": self.current_conversation_id,
+                                "user_id": self.current_user_id,
+                            },
+                        )
+                    except Exception as exc:
+                        logger.warning(
+                            "Failed to update tool observation span",
+                            tool_name=tool_name,
+                            error=exc,
+                            error_type=type(exc).__name__,
+                        )
+                return tool_call_result_message
         except Exception as exc:
             tool_call_result_message = ToolResultMessage(
                 role="tool",
@@ -205,6 +257,20 @@ class ToolExecutor:
                 duration=get_time_duration(start_time),
                 content_length=len(str(exc)) if str(exc) else 0,
             )
+            if trace_enabled and langfuse_client is not None:
+                try:
+                    langfuse_client.update_current_span(
+                        level="ERROR",
+                        status_message=type(exc).__name__,
+                        output=str(exc),
+                    )
+                except Exception as update_exc:
+                    logger.warning(
+                        "Failed to mark tool observation as error",
+                        tool_name=tool_name,
+                        error=update_exc,
+                        error_type=type(update_exc).__name__,
+                    )
             return tool_call_result_message
 
     async def _apply_tavily_compaction(

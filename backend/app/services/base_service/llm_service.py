@@ -4,17 +4,18 @@ from __future__ import annotations
 
 from typing import Any, Literal, cast, overload
 
+from langfuse.openai import AsyncOpenAI  # type: ignore[attr-defined]
 from openai import (
     APIConnectionError,
     APIError,
     APIStatusError,
-    AsyncOpenAI,
     RateLimitError,
 )
 from openai._streaming import AsyncStream
 from openai.types.chat import ChatCompletion
 from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
 
+from app.core.observability import get_langfuse, is_enabled
 from app.schemas.config import LLMConfig
 from app.utils.logger import logger
 from app.utils.model import get_model_extra_body
@@ -95,6 +96,7 @@ class LLMService:
         tools: list[dict[str, Any]] | None = None,
         parallel_tool_calls: bool | None = None,
         extra_body: dict[str, Any] | None = None,
+        stream_options: dict[str, Any] | None = None,
         max_tokens: int | None = None,
     ) -> ChatCompletion: ...
 
@@ -108,6 +110,7 @@ class LLMService:
         tools: list[dict[str, Any]] | None = None,
         parallel_tool_calls: bool | None = None,
         extra_body: dict[str, Any] | None = None,
+        stream_options: dict[str, Any] | None = None,
         max_tokens: int | None = None,
     ) -> AsyncStream[ChatCompletionChunk]: ...
 
@@ -121,6 +124,7 @@ class LLMService:
         tools: list[dict[str, Any]] | None = None,
         parallel_tool_calls: bool | None = None,
         extra_body: dict[str, Any] | None = None,
+        stream_options: dict[str, Any] | None = None,
         max_tokens: int | None = None,
     ) -> ChatCompletion | AsyncStream[ChatCompletionChunk]: ...
 
@@ -133,6 +137,7 @@ class LLMService:
         tools: list[dict[str, Any]] | None = None,
         parallel_tool_calls: bool | None = None,
         extra_body: dict[str, Any] | None = None,
+        stream_options: dict[str, Any] | None = None,
         max_tokens: int | None = None,
     ) -> ChatCompletion | AsyncStream[ChatCompletionChunk]:
         """
@@ -147,6 +152,7 @@ class LLMService:
             tools: 工具列表（可选）
             parallel_tool_calls: 是否启用并行工具调用（可选）
             extra_body: 额外参数（可选）
+            stream_options: 流式参数（可选，仅 stream=True 时生效）
 
         Returns:
             - 当 stream=False 时，返回 ChatCompletion 对象
@@ -171,6 +177,9 @@ class LLMService:
         if extra_body is not None:
             api_params["extra_body"] = extra_body
 
+        if stream and stream_options is not None:
+            api_params["stream_options"] = stream_options
+
         if max_tokens is not None:
             api_params["max_tokens"] = max_tokens
 
@@ -183,11 +192,31 @@ class LLMService:
         if tools is not None:
             log_context["tools_count"] = len(tools)
 
+        trace_enabled = is_enabled()
+        langfuse_client = get_langfuse()
+
+        def mark_observation_error(error_type: str) -> None:
+            if not trace_enabled or langfuse_client is None:
+                return
+            try:
+                langfuse_client.update_current_span(
+                    level="ERROR",
+                    status_message=error_type,
+                )
+            except Exception as update_exc:
+                logger.warning(
+                    "Failed to update LLM observation error status",
+                    error=update_exc,
+                    error_type=type(update_exc).__name__,
+                    llm_error_type=error_type,
+                )
+
         try:
             logger.info("Calling LLM API", **log_context)
             response = await self._client.chat.completions.create(**api_params)
             return cast(ChatCompletion | AsyncStream[ChatCompletionChunk], response)
         except APIConnectionError as e:
+            mark_observation_error(type(e).__name__)
             logger.error(
                 "Failed to connect to LLM API",
                 error=e,
@@ -197,6 +226,7 @@ class LLMService:
             )
             raise
         except RateLimitError as e:
+            mark_observation_error(type(e).__name__)
             logger.error(
                 "LLM API rate limit exceeded",
                 error=e,
@@ -206,6 +236,7 @@ class LLMService:
             )
             raise
         except APIStatusError as e:
+            mark_observation_error(type(e).__name__)
             logger.error(
                 "LLM API returned an error status",
                 error=e,
@@ -216,6 +247,7 @@ class LLMService:
             )
             raise
         except APIError as e:
+            mark_observation_error(type(e).__name__)
             logger.error(
                 "LLM API error occurred",
                 error=e,
@@ -225,6 +257,7 @@ class LLMService:
             )
             raise
         except Exception as e:
+            mark_observation_error(type(e).__name__)
             logger.error(
                 "Unexpected error during LLM API call",
                 error=e,

@@ -35,7 +35,11 @@ type SelectedFile = {
 
 type PreviewMode = "files" | "app";
 
-const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width, block, onClose }) => {
+const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({
+  width: _width,
+  block,
+  onClose,
+}) => {
   const [previewMode, setPreviewMode] = useState<PreviewMode>("files");
 
   const [treeError, setTreeError] = useState<string | null>(null);
@@ -59,14 +63,14 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
       onBefore: () => {
         setTreeError(null);
       },
-      onSuccess: res => {
+      onSuccess: (res) => {
         setTreeData(normalizeTreeNodes(res.treeData || []));
         setLoadedDirPaths(new Set([""]));
       },
-      onError: error => {
+      onError: (error) => {
         setTreeError(error instanceof Error ? error.message : "文件树加载失败");
       },
-    }
+    },
   );
 
   const { runAsync: runLoadDirTree } = useRequest(
@@ -78,19 +82,21 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
     },
     {
       manual: true,
-      onError: error => {
+      onError: (error) => {
         setTreeError(error instanceof Error ? error.message : "子目录加载失败");
       },
       onSuccess: (res, params) => {
         const dirPath = params[0] || "";
-        setTreeData(prev => replaceDirectoryChildren(prev, dirPath, normalizeTreeNodes(res.treeData || [], dirPath)));
-        setLoadedDirPaths(prev => {
+        setTreeData((prev) =>
+          replaceDirectoryChildren(prev, dirPath, normalizeTreeNodes(res.treeData || [], dirPath)),
+        );
+        setLoadedDirPaths((prev) => {
           const next = new Set(prev);
           next.add(dirPath);
           return next;
         });
       },
-    }
+    },
   );
 
   const refreshTree = useCallback(() => {
@@ -112,7 +118,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
         loadingDirPathsRef.current.delete(dirPath);
       }
     },
-    [loadedDirPaths, runLoadDirTree]
+    [loadedDirPaths, runLoadDirTree],
   );
 
   const { refresh: refreshSelectedFile, loading: loadingFile } = useRequest(
@@ -122,12 +128,14 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
     {
       ready: !!selectedFilePath,
       refreshDeps: [block.workspaceId, selectedFilePath],
-      ...(selectedFilePath ? { cacheKey: `workspace-file-content:${block.workspaceId}:${selectedFilePath}` } : {}),
+      ...(selectedFilePath
+        ? { cacheKey: `workspace-file-content:${block.workspaceId}:${selectedFilePath}` }
+        : {}),
       staleTime: 0,
       onBefore: () => {
         setFileError(null);
       },
-      onSuccess: res => {
+      onSuccess: (res) => {
         setSelectedFile({
           path: res.path,
           title: res.path.split("/").pop() || res.path,
@@ -135,10 +143,10 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
           language: getLanguageFromPath(res.path),
         });
       },
-      onError: error => {
+      onError: (error) => {
         setFileError(error instanceof Error ? error.message : "文件内容加载失败");
       },
-    }
+    },
   );
 
   const { run: runDownloadWorkspaceZip, loading: loadingWorkspaceZip } = useRequest(
@@ -153,10 +161,10 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
     },
     {
       manual: true,
-      onError: error => {
+      onError: (error) => {
         setTreeError(error instanceof Error ? error.message : "下载失败，请稍后重试");
       },
-    }
+    },
   );
 
   useEffect(() => {
@@ -169,7 +177,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
     refreshTree();
   }, [block.id, refreshTree]);
 
-  useEmitter(EventType.WorkspaceTreeRefresh, payload => {
+  useEmitter(EventType.WorkspaceTreeRefresh, (payload) => {
     if (payload.workspaceId === block.workspaceId) {
       refreshTree();
     }
@@ -182,7 +190,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
         void loadDirTreeIfNeeded(path);
       }
     },
-    [loadDirTreeIfNeeded]
+    [loadDirTreeIfNeeded],
   );
 
   const handleFolderClick = useCallback(
@@ -190,7 +198,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
       setFileError(null);
       const alreadyExpanded = expandedPaths.includes(folderPath);
       if (alreadyExpanded) {
-        setExpandedPaths(prev => prev.filter(path => path !== folderPath));
+        setExpandedPaths((prev) => prev.filter((path) => path !== folderPath));
         return;
       }
 
@@ -199,9 +207,9 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
       } catch {
         return;
       }
-      setExpandedPaths(prev => (prev.includes(folderPath) ? prev : [...prev, folderPath]));
+      setExpandedPaths((prev) => (prev.includes(folderPath) ? prev : [...prev, folderPath]));
     },
-    [expandedPaths, loadDirTreeIfNeeded]
+    [expandedPaths, loadDirTreeIfNeeded],
   );
 
   const handleFileClick = useCallback(
@@ -221,7 +229,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
       }
       setSelectedFilePath(filePath);
     },
-    [handleFolderClick, refreshSelectedFile, selectedFilePath, treeData]
+    [handleFolderClick, refreshSelectedFile, selectedFilePath, treeData],
   );
 
   const previewNode = useMemo(() => {
@@ -240,8 +248,11 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
     }
     return (
       <div className="h-full min-h-0 flex flex-col">
-        <Typography.Text type="secondary" className="px-3 py-2 border-b border-(--ant-color-border-secondary)">
-          {selectedFile.path}
+        <Typography.Text
+          type="secondary"
+          className="px-3 py-2 border-b border-(--ant-color-border-secondary)"
+        >
+          {selectedFile.title}
         </Typography.Text>
         <div className="min-h-0 flex-1 overflow-hidden">
           <Editor
@@ -294,7 +305,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
   const handleRefresh = useCallback(() => {
     if (previewMode === "app") {
       setAppPreviewError(null);
-      setAppPreviewReloadKey(prev => prev + 1);
+      setAppPreviewReloadKey((prev) => prev + 1);
       return;
     }
     refreshTree();
@@ -341,7 +352,11 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
           ) : null}
           {previewMode === "app" ? (
             <Tooltip title="在新页面打开">
-              <Button type="text" icon={<ExportOutlined />} onClick={handleOpenAppPreviewInNewPage} />
+              <Button
+                type="text"
+                icon={<ExportOutlined />}
+                onClick={handleOpenAppPreviewInNewPage}
+              />
             </Tooltip>
           ) : null}
           <Button
@@ -374,10 +389,10 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width: _width
             previewTitle={false}
             expandedPaths={expandedPaths}
             onExpandedPathsChange={handleExpandedPathsChange}
-            onFileClick={filePath => {
+            onFileClick={(filePath) => {
               handleFileClick(filePath);
             }}
-            onFolderClick={folderPath => {
+            onFolderClick={(folderPath) => {
               void handleFolderClick(folderPath);
             }}
             previewRender={previewNode}

@@ -1,4 +1,4 @@
-import { useIsSmallScreen } from "@/hooks";
+import { useChatState, useIsSmallScreen } from "@/hooks";
 import { ChatInputFormValues, SendMessageOptions } from "@/interfaces";
 import { type UserAttachmentBlock } from "@/interfaces/contentBlock";
 import { isPlainEnter } from "@/utils";
@@ -10,10 +10,15 @@ import classNames from "classnames";
 import React from "react";
 import ChatInputFooter from "./components/ChatInputFooter";
 import ChatInputSenderHeader from "./components/ChatInputSenderHeader";
+import { sortAttachmentsByImageFirst, withServerAttachmentPreview } from "./components/utils";
 import { names } from "./constant";
 import styles from "./css/index.module.css";
-import { useButtonState, useFormValuesChange, useModelImageSupport } from "./hooks";
-import { sortAttachmentsByImageFirst, withServerAttachmentPreview } from "./components/utils";
+import {
+  useButtonState,
+  useFormValuesChange,
+  useLockedAgentMode,
+  useModelImageSupport,
+} from "./hooks";
 import {
   CHAT_ATTACHMENT_ACCEPT,
   CHAT_ATTACHMENT_ACCEPT_PDF_ONLY,
@@ -51,8 +56,12 @@ const ChatInput: React.FC<ChatInputProps> = ({
 }) => {
   const { message } = App.useApp();
   const content = Form.useWatch(names.content, form);
+  const agentMode = Form.useWatch(names.agentMode, form);
   const modelId = Form.useWatch(names.modelId, form);
-  const [attachmentItems, setAttachmentItems] = React.useState<GetProp<AttachmentsProps, "items">>([]);
+  const { messages } = useChatState(conversationId ?? "");
+  const [attachmentItems, setAttachmentItems] = React.useState<GetProp<AttachmentsProps, "items">>(
+    [],
+  );
   const senderRef = React.useRef<GetRef<typeof Sender>>(null);
   const attachmentsRef = React.useRef<GetRef<typeof Attachments>>(null);
   const ignoreAttachmentChangeRef = React.useRef(false);
@@ -61,15 +70,17 @@ const ChatInput: React.FC<ChatInputProps> = ({
     ignoreAttachmentChangeRef.current = false;
   });
 
-  const handleAttachmentItemsChange = useMemoizedFn((fileList: GetProp<AttachmentsProps, "items">) => {
-    if (ignoreAttachmentChangeRef.current) {
-      return;
-    }
-    const normalizedFileList = fileList.map(file =>
-      withServerAttachmentPreview(file as UploadFile<UserAttachmentBlock>)
-    );
-    setAttachmentItems(sortAttachmentsByImageFirst(normalizedFileList));
-  });
+  const handleAttachmentItemsChange = useMemoizedFn(
+    (fileList: GetProp<AttachmentsProps, "items">) => {
+      if (ignoreAttachmentChangeRef.current) {
+        return;
+      }
+      const normalizedFileList = fileList.map((file) =>
+        withServerAttachmentPreview(file as UploadFile<UserAttachmentBlock>),
+      );
+      setAttachmentItems(sortAttachmentsByImageFirst(normalizedFileList));
+    },
+  );
 
   const resetAttachments = useMemoizedFn(() => {
     ignoreAttachmentChangeRef.current = true;
@@ -82,6 +93,27 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const canUploadImage = useModelImageSupport(modelId);
   const hasImageAttachment = attachmentItemsHasImage(attachmentItems);
   const hasImageContext = hasImageAttachment || hasImageMessage;
+  const isAgentModeLocked = Boolean(conversationId) && messages.length > 0;
+  const lockedAgentMode = useLockedAgentMode({ messages, isAgentModeLocked, agentMode, form });
+
+  const handleValuesChange = useMemoizedFn(
+    (changedFields: Partial<ChatInputFormValues>, allFields: ChatInputFormValues) => {
+      onValuesChange(changedFields, allFields);
+      const hasAgentModeChanged = Object.prototype.hasOwnProperty.call(changedFields, "agentMode");
+      const nextAgentMode = changedFields.agentMode;
+
+      if (
+        !isAgentModeLocked ||
+        !hasAgentModeChanged ||
+        typeof lockedAgentMode === "undefined" ||
+        nextAgentMode === lockedAgentMode
+      ) {
+        return;
+      }
+      form.setFieldValue(names.agentMode, lockedAgentMode);
+      message.warning("首条消息发送后不可切换 Agent 模式");
+    },
+  );
 
   const handleSend = useMemoizedFn(() => {
     const fieldValues = form.getFieldsValue();
@@ -99,7 +131,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
         ...fieldValues,
         content: text,
       },
-      { attachmentBlocks }
+      { attachmentBlocks },
     );
     form.resetFields([names.content]);
     resetAttachments();
@@ -170,7 +202,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           ...style,
         }}
         layout="horizontal"
-        onValuesChange={onValuesChange}
+        onValuesChange={handleValuesChange}
         className={classNames("flex flex-col gap-3", className)}
       >
         <Form.Item name={names.content}>
@@ -202,6 +234,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
               <ChatInputFooter
                 buttonState={buttonState}
                 hasImageContext={hasImageContext}
+                isAgentModeLocked={isAgentModeLocked}
                 onPrimaryClick={handleBtnClick}
                 onOpenAttachmentPicker={openAttachmentPicker}
               />

@@ -1,6 +1,6 @@
+import AgentIcon from "@/assets/svg/AgentIcon.svg?react";
 import SquareIcon from "@/assets/svg/SquareIcon.svg?react";
 import ThinkModeIcon from "@/assets/svg/ThinkModeIcon.svg?react";
-import AgentIcon from "@/assets/svg/AgentIcon.svg?react";
 import CustomButton from "@/components/common/CustomButton";
 import { useIsSmallScreen } from "@/hooks";
 import { ArrowUpOutlined, PaperClipOutlined } from "@ant-design/icons";
@@ -17,6 +17,7 @@ export interface ChatInputFooterProps {
   buttonState: ButtonState;
   onPrimaryClick: () => void;
   hasImageContext: boolean;
+  isAgentModeLocked?: boolean;
 }
 
 const ChatInputFooter: React.FC<ChatInputFooterProps> = ({
@@ -24,6 +25,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = ({
   buttonState,
   onPrimaryClick,
   hasImageContext,
+  isAgentModeLocked = false,
 }) => {
   const isSmallScreen = useIsSmallScreen();
   const size = (isSmallScreen ? "small" : "middle") as SizeType;
@@ -56,8 +58,11 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = ({
           <CustomButton
             size={size}
             bordered={false}
+            disabled={isAgentModeLocked}
             icon={<AgentIcon />}
-            tooltip={isSmallScreen ? undefined : "启用 Agent 模式"}
+            tooltip={
+              isSmallScreen ? undefined : isAgentModeLocked ? "首条消息发送后不可切换 Agent 模式" : "启用 Agent 模式"
+            }
           >
             {isSmallScreen ? "" : "Agent"}
           </CustomButton>
