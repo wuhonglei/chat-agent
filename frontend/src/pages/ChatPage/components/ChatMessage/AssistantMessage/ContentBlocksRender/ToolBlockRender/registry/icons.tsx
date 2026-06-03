@@ -5,6 +5,7 @@ import EditFileIcon from "@/assets/svg/mcp-tools/edit-file.svg?react";
 import LoadSkillIcon from "@/assets/svg/mcp-tools/load-skill.svg?react";
 import PresentFilesIcon from "@/assets/svg/mcp-tools/present-files.svg?react";
 import ReadFileIcon from "@/assets/svg/mcp-tools/read-file.svg?react";
+import RepoStructureIcon from "@/assets/svg/mcp-tools/repo-structure.svg?react";
 import SearchFilesIcon from "@/assets/svg/mcp-tools/search-files.svg?react";
 import ShellIcon from "@/assets/svg/mcp-tools/shell.svg?react";
 import TimeIcon from "@/assets/svg/mcp-tools/time.svg?react";
@@ -14,7 +15,8 @@ import WebExtractIcon from "@/assets/svg/mcp-tools/web-extract.svg?react";
 import WebResearchIcon from "@/assets/svg/mcp-tools/web-research.svg?react";
 import WebSearchIcon from "@/assets/svg/mcp-tools/web-search.svg?react";
 import WriteFileIcon from "@/assets/svg/mcp-tools/write-file.svg?react";
-import ZreadIcon from "@/assets/svg/mcp-tools/zread.svg?react";
+import ZreadReadFileIcon from "@/assets/svg/mcp-tools/zread-read-file.svg?react";
+import ZreadSearchDocIcon from "@/assets/svg/mcp-tools/zread-search-doc.svg?react";
 import { ToolOutlined } from "@ant-design/icons";
 import React from "react";
 
@@ -32,7 +34,6 @@ const shellIcon = renderIcon(ShellIcon);
 const loadSkillIcon = renderIcon(LoadSkillIcon);
 const timeIcon = renderIcon(TimeIcon);
 const weatherIcon = renderIcon(WeatherIcon);
-const zreadIcon = renderIcon(ZreadIcon);
 
 /** MCP tool icons keyed by server name and tool name (matches backend mcp_servers config). */
 export const SERVER_TOOL_ICONS: Record<string, Record<string, React.ReactNode>> = {
@@ -75,16 +76,16 @@ export const SERVER_TOOL_ICONS: Record<string, Record<string, React.ReactNode>> 
     get_current_time: timeIcon,
   },
   zread: {
-    get_repo_structure: zreadIcon,
-    read_file: zreadIcon,
-    search_doc: zreadIcon,
+    get_repo_structure: renderIcon(RepoStructureIcon),
+    read_file: renderIcon(ZreadReadFileIcon),
+    search_doc: renderIcon(ZreadSearchDocIcon),
   },
 };
 
 export function lookupToolIcon(
   serverName: string | undefined,
   mcpToolName: string,
-  fallback: React.ReactNode = DEFAULT_ICON
+  fallback: React.ReactNode = DEFAULT_ICON,
 ): React.ReactNode {
   if (!serverName) {
     return fallback;
