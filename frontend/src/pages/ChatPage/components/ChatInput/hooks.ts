@@ -43,7 +43,8 @@ export function useButtonState(
 const defaultFormValue: ChatInputConfig = {
   thinkMode: false,
   agentMode: 0,
-  modelID: "dashscope/kimi-k2.6",
+  // 首屏不预选模型；/models 返回后由 useFormValuesChange 回退到 models[0]
+  modelID: "",
 };
 
 const selectModels = createSelector(
