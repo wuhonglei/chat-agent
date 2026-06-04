@@ -22,14 +22,14 @@ class MemoryService:
         return self.config.base_url.rstrip("/")
 
     def _mem0_enabled(self) -> bool:
-        return bool(self.config.base_url.strip())
+        return bool(self.config.base_url.strip()) and bool(self.config.api_key.strip())
 
     def _headers(self) -> dict[str, str]:
-        headers: dict[str, str] = {
+        return {
             "Content-Type": "application/json",
             "Accept": "application/json",
+            "X-API-Key": self.config.api_key.strip(),
         }
-        return headers
 
     async def add_memories(
         self,
