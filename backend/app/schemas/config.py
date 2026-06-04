@@ -1,6 +1,6 @@
 """配置模型定义"""
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -45,6 +45,7 @@ class BaseLLMModelConfig(BaseModel):
     api_key: str = Field(description="API 密钥")
     api_base: str = Field(description="API 基础地址")
     model_name: str = Field(description="默认模型名称")
+    context_limit: int = Field(gt=0, description="模型上下文 token 上限")
 
 
 class EmbeddingModelConfig(BaseLLMModelConfig):
@@ -53,22 +54,72 @@ class EmbeddingModelConfig(BaseLLMModelConfig):
     embedding_dimension: int = Field(default=1024, description="Embedding 维度")
 
 
-class SummarizerModelConfig(BaseLLMModelConfig):
-    """摘要生成模型 API 配置"""
-
-    pass
-
-
 class LLMConfig(BaseModel):
-    """LLM 模型 API 配置"""
+    """LLM 模型 API 配置（ModelResolver 解析得到的运行时配置）"""
 
     api_key: str = Field(description="LLM API 密钥")
     api_base: str = Field(description="LLM API 基础地址")
     model_name: str = Field(description="默认模型名称")
+    context_limit: int = Field(gt=0, description="模型上下文 token 上限")
     title: str | None = Field(default=None, description="展示标题（可选）")
     description: str | None = Field(default=None, description="说明文案（可选）")
     image_support: bool = Field(
         default=True, description="是否支持图片输入（多模态视觉）"
+    )
+
+
+ModelCapability = Literal["text", "image"]
+
+
+def _default_capabilities() -> list[ModelCapability]:
+    return ["text"]
+
+
+class ProviderModelMeta(BaseModel):
+    """Provider 下单个模型的元数据"""
+
+    name: str | None = Field(default=None, description="展示标题（可选）")
+    description: str | None = Field(default=None, description="说明文案（可选）")
+    context_limit: int = Field(gt=0, description="模型上下文 token 上限")
+    capabilities: list[ModelCapability] = Field(
+        default_factory=_default_capabilities,
+        description="模型能力：text（文本）、image（图片输入）",
+    )
+
+
+class ProviderConfig(BaseModel):
+    """单个模型供应商配置（同一 base_url / api_key 下的多个模型）"""
+
+    base_url: str = Field(description="供应商 API 基础地址")
+    api_key: str = Field(description="供应商 API 密钥（明文）")
+    options: dict[str, Any] = Field(
+        default_factory=dict,
+        description="客户端可选参数（timeout、max_retries 等，预留）",
+    )
+    models: dict[str, ProviderModelMeta] = Field(
+        description="该供应商下模型（API model_name -> 元数据）"
+    )
+
+
+class ScenarioConfig(BaseModel):
+    """场景模型选择配置"""
+
+    description: str | None = Field(default=None, description="场景说明（可选）")
+    default_model: str = Field(description="默认模型引用（provider/model_name）")
+    alternatives: list[str] = Field(
+        default_factory=list,
+        description="可选模型引用列表（provider/model_name）",
+    )
+
+
+class ModelsConfig(BaseModel):
+    """模型配置（供应商 + 场景两层结构）"""
+
+    providers: dict[str, ProviderConfig] = Field(
+        description="供应商配置（provider_name -> ProviderConfig）"
+    )
+    scenarios: dict[str, ScenarioConfig] = Field(
+        description="场景配置（scenario_name -> ScenarioConfig）"
     )
 
 

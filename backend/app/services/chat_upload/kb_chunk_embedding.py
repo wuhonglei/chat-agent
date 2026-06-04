@@ -78,7 +78,9 @@ async def index_uploaded_text_chunks(
     if not vectors or len(vectors) != len(chunks):
         raise KbFileChunkIndexingError("向量生成失败或向量数量与分块数量不一致")
 
-    token_calculator = TokenCalculator(embedding_service.model_name)
+    token_calculator = TokenCalculator(
+        embedding_service.model_name, settings.embedding_model.context_limit
+    )
     source_token_count = token_calculator.count_tokens(normalized_text)
 
     base_metadata: dict[str, Any] = {

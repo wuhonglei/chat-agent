@@ -7,12 +7,12 @@ interface ModelsState {
   loaded: boolean;
 }
 
-/** 接口返回前占位，与表单默认 modelID「default」一致；fetch 成功后会覆盖 */
+/** 接口返回前占位，与表单默认 modelID 一致；fetch 成功后会覆盖 */
 const defaultModelsPlaceholder: ChatModelItem[] = [
   {
-    modelId: "default",
+    modelId: "dashscope/kimi-k2.6",
     title: "默认模型",
-    description: "默认模型，支持文本和图片输入",
+    description: "默认模型",
     imageSupport: true,
   },
 ];

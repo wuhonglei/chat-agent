@@ -43,7 +43,9 @@ class LLMService:
         )
         self._model_config = llm_config
         self._think_mode = think_mode
-        self._token_calculator = TokenCalculator(llm_config.model_name)
+        self._token_calculator = TokenCalculator(
+            llm_config.model_name, llm_config.context_limit
+        )
         self._model_limit = self._token_calculator.get_max_context_tokens()
 
     @property

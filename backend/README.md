@@ -230,13 +230,13 @@ data: {"type":"<event_type>","data":{...},"seq":1}
 
 ## 模型列表与图片输入约束
 
-前端模型选择来自 `GET /api/chat/models`，该接口从 `settings.model_map` 返回经过脱敏的模型信息：
+前端模型选择来自 `GET /api/chat/models`，该接口返回 `text_generation` 场景（`default_model` + `alternatives`）的脱敏模型信息：
 
-- `model_id`：`model_map` 配置键，聊天请求中的 `model_id` 使用该值
+- `model_id`：模型引用 `provider/model_name`（如 `dashscope/kimi-k2.6`），聊天请求中的 `model_id` 使用该值
 - `title` / `description`：前端展示文案
-- `image_support`：是否支持图片输入
+- `image_support`：是否支持图片输入（由模型 `capabilities` 是否含 `image` 推导）
 
-`model_map` 必须包含 `default`。当聊天请求携带图片块且所选模型 `image_support=false` 时，`POST /api/chat/stream` 会返回 `400 当前模型不支持图片输入`。
+模型配置采用 `models.providers`（按供应商聚合）+ `models.scenarios`（场景选模）两层结构，必须包含 `text_generation` / `title_generation` / `summarization` 场景。聊天请求 `model_id` 为空或无法解析时回退 `text_generation` 的默认模型；当请求携带图片块且所选模型 `image_support=false` 时，`POST /api/chat/stream` 会返回 `400 当前模型不支持图片输入`。
 
 ## Docker 运行
 

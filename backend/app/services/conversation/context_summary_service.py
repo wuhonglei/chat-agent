@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from app.core.config import settings
 from app.prompts.prompt_utils import (
     get_window_out_summary_merge_prompt,
 )
@@ -10,8 +9,8 @@ from app.schemas.chat import (
     ChatMessage,
     collect_text_from_blocks,
 )
-from app.schemas.config import LLMConfig
 from app.services.base_service.llm_service import LLMService
+from app.services.base_service.model_resolver import resolve_scenario
 from app.utils.logger import logger
 
 
@@ -19,12 +18,7 @@ class ContextSummaryService(LLMService):
     """窗口外消息摘要（调用 LLM，继承 LLMService 统一 API 调用）"""
 
     def __init__(self) -> None:
-        cfg = settings.summarizer_model
-        llm_config = LLMConfig(
-            api_key=cfg.api_key,
-            api_base=cfg.api_base,
-            model_name=cfg.model_name,
-        )
+        llm_config = resolve_scenario("summarization")
         super().__init__(llm_config, think_mode=False)
 
     def format_conversation_for_summary(

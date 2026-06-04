@@ -43,7 +43,7 @@ export function useButtonState(
 const defaultFormValue: ChatInputConfig = {
   thinkMode: false,
   agentMode: 0,
-  modelID: "default",
+  modelID: "dashscope/kimi-k2.6",
 };
 
 const selectModels = createSelector(
@@ -62,7 +62,7 @@ export function useFormValuesChange(form: FormInstance<ChatInputFormValues>) {
     if (!modelsLoaded || isEmpty(models)) {
       return;
     }
-    const defaultModelID = "default";
+    const defaultModelID = models[0]?.modelId ?? defaultFormValue.modelID;
     setFormValues(pre => {
       const rawPre = pre || defaultFormValue;
       const currentModelID = rawPre.modelID;

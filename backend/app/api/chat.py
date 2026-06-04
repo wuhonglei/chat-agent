@@ -22,6 +22,11 @@ from app.schemas.chat import (
 )
 from app.schemas.config import LLMConfig
 from app.schemas.response import ApiResponse
+from app.services.base_service.model_resolver import (
+    ModelResolverError,
+    resolve_model_ref,
+    resolve_scenario,
+)
 from app.services.chat import ChatService
 from app.services.chat.stream_relay import StreamRelay
 from app.services.message import MessageDbService
@@ -138,14 +143,16 @@ def _ensure_authorized_assistant_message(
 
 
 def _resolve_llm_config(model_id: str) -> LLMConfig:
-    if model_id == "default":
-        return settings.model_map["default"]
+    """将请求的 model_id（provider/model 引用）解析为 LLMConfig。
 
-    llm_config = settings.model_map.get(model_id)
-    if llm_config is not None:
-        return llm_config
-
-    return settings.model_map["default"]
+    无法解析（空值或未知引用）时回退到 text_generation 场景的默认模型。
+    """
+    if model_id:
+        try:
+            return resolve_model_ref(model_id)
+        except ModelResolverError:
+            logger.warning("无法解析 model_id，回退默认模型", model_id=model_id)
+    return resolve_scenario("text_generation")
 
 
 def _contains_image_block(chat_request: ChatRequest) -> bool:

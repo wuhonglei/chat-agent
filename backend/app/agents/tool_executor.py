@@ -36,7 +36,11 @@ class ToolExecutor:
     """Execute MCP tools and compact their results."""
 
     def __init__(
-        self, mcp_manager: MCPClientManager, user_message: str, model_name: str
+        self,
+        mcp_manager: MCPClientManager,
+        user_message: str,
+        model_name: str,
+        context_limit: int,
     ) -> None:
         self.mcp_manager = mcp_manager
         self.current_user_message = user_message
@@ -47,7 +51,7 @@ class ToolExecutor:
             embedding_model=settings.embedding_model,
             tool_result_compression_config=self.tool_result_compression,
         )
-        self.token_calculator = TokenCalculator(model_name)
+        self.token_calculator = TokenCalculator(model_name, context_limit)
         self.token_threshold: int = self.token_calculator.get_compression_threshold(0.5)
 
     def reset_for_request(

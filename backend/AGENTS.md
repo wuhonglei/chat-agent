@@ -247,16 +247,18 @@ pythonpath = ["."]
 ```python
 class Settings(BaseSettings):
     app: AppConfig                    # 应用基础配置
-    response_model: LLMConfig         # 响应生成模型配置
-    tool_call_model: LLMConfig        # 工具调用模型配置
-    summarizer_model: SummarizerModelConfig  # 摘要模型配置
-    embedding_model: EmbeddingModelConfig    # Embedding 模型配置
+    models: ModelsConfig              # 模型配置（providers + scenarios 两层）
+    embedding_model: EmbeddingModelConfig    # Embedding 模型 API 配置
     mcp: MCPConfig                    # MCP 配置
     storage: StorageConfig            # 存储配置
     security: SecurityConfig          # 安全配置（JWT）
     database: DatabaseConfig          # 数据库配置
     # ...
 ```
+
+模型解析：通过 `app/services/base_service/model_resolver.py` 的 `resolve_model_ref("provider/model")` /
+`resolve_scenario("text_generation"|"title_generation"|"summarization")` 将配置解析为运行时 `LLMConfig`
+（含 `context_limit`，供 `TokenCalculator`）。
 
 ## API 设计规范
 
