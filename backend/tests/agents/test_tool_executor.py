@@ -15,7 +15,7 @@ class _FakeMCPManager:
 
 def test_reset_for_request_sets_contextvars() -> None:
     manager = cast(Any, _FakeMCPManager({}))
-    executor = ToolExecutor(manager, "message", "gpt-4o-mini")
+    executor = ToolExecutor(manager, "message", "gpt-4o-mini", 131072)
 
     from app.utils.context import get_request_context
 
@@ -32,7 +32,7 @@ def test_reset_for_request_sets_contextvars() -> None:
 
 def test_reset_for_request_with_none_values() -> None:
     manager = cast(Any, _FakeMCPManager({}))
-    executor = ToolExecutor(manager, "message", "gpt-4o-mini")
+    executor = ToolExecutor(manager, "message", "gpt-4o-mini", 131072)
 
     from app.utils.context import get_request_context, reset_request_context
 

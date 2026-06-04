@@ -37,7 +37,9 @@ class ContextCompactor:
             model=embedding_model.model_name,
             dashscope_api_key=embedding_model.api_key,
         )
-        self.token_calculator = TokenCalculator(embedding_model.model_name)
+        self.token_calculator = TokenCalculator(
+            embedding_model.model_name, embedding_model.context_limit
+        )
 
     def _split_markdown(self, content: str) -> list[str]:
         cfg = self.tool_result_compression_config

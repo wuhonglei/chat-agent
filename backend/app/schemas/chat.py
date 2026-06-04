@@ -114,8 +114,9 @@ class ChatRequest(BaseModel):
     agent_mode: int = Field(0, description="Agent mode: 0=disabled, 1=enabled")
     think_mode: bool = Field(False, description="Whether to use think mode")
     model_id: str = Field(
-        default="default",
-        description="model_map 配置键，或可与某条 LLM 配置的 model_name 匹配",
+        default="",
+        description="模型引用（provider/model_name，如 dashscope/kimi-k2.6）；"
+        "为空或无法解析时回退 text_generation 场景默认模型",
     )
     client_turn_id: str | None = Field(
         default=None,

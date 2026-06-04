@@ -143,6 +143,7 @@ class ChatSessionAgent(BaseAgent):
             self.mcp_manager,
             user_message_text,
             self.model_config.model_name,
+            self.model_config.context_limit,
             self.tool_round_messages,
         )
         tool_session.reset_for_request(

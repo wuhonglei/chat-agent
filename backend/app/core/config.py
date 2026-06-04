@@ -19,14 +19,13 @@ from app.schemas.config import (
     EmbeddingModelConfig,
     KbFileRagConfig,
     LangfuseConfig,
-    LLMConfig,
     MCPConfig,
+    ModelsConfig,
     PdfMarkdownConfig,
     SandboxConfig,
     SecurityConfig,
     SmsConfig,
     StorageConfig,
-    SummarizerModelConfig,
     WechatConfig,
 )
 from app.utils.logger import logger
@@ -37,14 +36,9 @@ class Settings(BaseSettings):
 
     app: AppConfig = Field(default_factory=AppConfig)
     cors: CORSConfig = Field(default_factory=CORSConfig)
-    model_map: dict[str, LLMConfig] = Field(
-        description="模型映射配置（model_name_key -> LLM 配置，必须包含 default）"
+    models: ModelsConfig = Field(
+        description="模型配置（providers + scenarios 两层结构）"
     )
-    title_model: LLMConfig | None = Field(
-        default=None,
-        description='标题生成模型 API 配置（可选，默认回退 model_map["default"]）',
-    )
-    summarizer_model: SummarizerModelConfig = Field(description="摘要生成模型 API 配置")
     embedding_model: EmbeddingModelConfig = Field(description="Embedding 模型 API 配置")
     mcp: MCPConfig = Field(description="MCP 工具配置")
     storage: StorageConfig = Field(
@@ -82,9 +76,33 @@ class Settings(BaseSettings):
     )
 
     @model_validator(mode="after")
-    def validate_model_map(self) -> "Settings":
-        if "default" not in self.model_map:
-            raise ValueError('model_map 必须包含 "default" 键')
+    def validate_models(self) -> "Settings":
+        models = self.models
+        required_scenarios = ("text_generation", "title_generation", "summarization")
+        for scenario_name in required_scenarios:
+            if scenario_name not in models.scenarios:
+                raise ValueError(f"models.scenarios 必须包含 '{scenario_name}'")
+
+        for scenario_name, scenario in models.scenarios.items():
+            refs = [scenario.default_model, *scenario.alternatives]
+            for ref in refs:
+                provider_name, _, model_key = ref.partition("/")
+                if not provider_name or not model_key:
+                    raise ValueError(
+                        f"models.scenarios.{scenario_name} 模型引用非法: {ref!r}，"
+                        "应为 'provider/model_name'"
+                    )
+                provider = models.providers.get(provider_name)
+                if provider is None:
+                    raise ValueError(
+                        f"models.scenarios.{scenario_name} 引用了不存在的 provider: "
+                        f"{provider_name!r}（ref={ref!r}）"
+                    )
+                if model_key not in provider.models:
+                    raise ValueError(
+                        f"models.scenarios.{scenario_name} 引用了 provider "
+                        f"{provider_name!r} 下不存在的模型: {model_key!r}（ref={ref!r}）"
+                    )
         return self
 
     @classmethod

@@ -7,18 +7,9 @@ interface ModelsState {
   loaded: boolean;
 }
 
-/** 接口返回前占位，与表单默认 modelID「default」一致；fetch 成功后会覆盖 */
-const defaultModelsPlaceholder: ChatModelItem[] = [
-  {
-    modelId: "default",
-    title: "默认模型",
-    description: "默认模型，支持文本和图片输入",
-    imageSupport: true,
-  },
-];
-
+/** 不再硬编码默认模型：首屏 loading 时模型列表为空，等 /models 返回后由 models[0] 作为默认 */
 const initialState: ModelsState = {
-  models: defaultModelsPlaceholder,
+  models: [],
   loaded: false,
 };
 

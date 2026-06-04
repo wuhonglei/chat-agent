@@ -43,7 +43,8 @@ export function useButtonState(
 const defaultFormValue: ChatInputConfig = {
   thinkMode: false,
   agentMode: 0,
-  modelID: "default",
+  // 首屏不预选模型；/models 返回后由 useFormValuesChange 回退到 models[0]
+  modelID: "",
 };
 
 const selectModels = createSelector(
@@ -62,7 +63,7 @@ export function useFormValuesChange(form: FormInstance<ChatInputFormValues>) {
     if (!modelsLoaded || isEmpty(models)) {
       return;
     }
-    const defaultModelID = "default";
+    const defaultModelID = models[0]?.modelId ?? defaultFormValue.modelID;
     setFormValues(pre => {
       const rawPre = pre || defaultFormValue;
       const currentModelID = rawPre.modelID;

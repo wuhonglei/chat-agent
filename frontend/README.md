@@ -122,7 +122,7 @@ frontend/
 
 模型下拉列表由 `GET /api/chat/models` 返回，字段包括：
 
-- `modelId`：聊天请求中的模型 ID
+- `modelId`：聊天请求中的模型 ID，格式为 `provider/model_name`（如 `dashscope/kimi-k2.6`）
 - `title` / `description`：下拉展示文案
 - `imageSupport`：是否允许图片输入
 

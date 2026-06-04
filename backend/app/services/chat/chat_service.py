@@ -10,6 +10,7 @@ from app.schemas.chat import ChatRequest
 from app.schemas.config import ChatContextConfig, LLMConfig
 from app.schemas.user import MemoryListItem, MemorySearchItem
 from app.services.base_service.embedding_service import EmbeddingService
+from app.services.base_service.model_resolver import resolve_scenario
 from app.services.chat.chat_orchestrator import ChatOrchestrator
 from app.services.chat.history_context_service import HistoryContextService
 from app.services.chat.kb_rag_context_service import KbRagContextService
@@ -32,7 +33,9 @@ class ChatService:
         self.chat_context_config = chat_context_config
         self.memory_config = self.chat_context_config.memory_config
         self.memory_service = MemoryService(self.memory_config)
-        token_calculator = TokenCalculator(llm_config.model_name)
+        token_calculator = TokenCalculator(
+            llm_config.model_name, llm_config.context_limit
+        )
 
         self.chat_session_agent = ChatSessionAgent(
             think_mode=think_mode,
@@ -40,7 +43,7 @@ class ChatService:
             mcp_manager=mcp_manager,
             tool_context_limit_ratio=chat_context_config.tool_round_context_limit_ratio,
         )
-        title_llm_config = settings.title_model or settings.model_map["default"]
+        title_llm_config = resolve_scenario("title_generation")
         self.title_generation_agent = TitleGenerationAgent(
             think_mode=False, llm_config=title_llm_config
         )

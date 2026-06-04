@@ -24,33 +24,22 @@ class TokenCalculator:
     # encoding 缓存字典，作为类变量，便于多个 TokenCalculator 实例共享
     _encoding_map: dict[str, tiktoken.Encoding] = {}
 
-    # 常见模型的上下文限制
-    MODEL_LIMITS = {
-        "deepseek-chat": 131072,
-        "deepseek-reasoner": 131072,
-        "qwen-plus": 1000000,
-        "qwen-flash": 1000000,
-        "qwen3.5-flash": 1000000,
-        "qwen3.6-flash": 1000000,
-        "qwen3.6-plus": 1000000,
-        "qwen-turbo": 128000,  # 纯文本模型
-    }
-
-    DEFAULT_LIMIT = 131072  # deepseek 的默认限制
     DEFAULT_ENCODING_NAME = "cl100k_base"
     IMAGE_PATCH_SIZE = 28
     IMAGE_FIXED_TOKEN_OVERHEAD = 2
     # 本地 token 文件目录路径
     LOCAL_TOKEN_DIR = Path(__file__).parent.parent.parent / "data" / "token"
 
-    def __init__(self, model: str):
+    def __init__(self, model: str, context_limit: int):
         """
         初始化 Token 计算器
 
         Args:
             model: 模型名称
+            context_limit: 模型上下文 token 上限（来自模型配置）
         """
         self.model = model
+        self.context_limit = context_limit
         self.encoding = self._get_encoding(model)
 
     @classmethod
@@ -270,25 +259,12 @@ class TokenCalculator:
 
     def get_max_context_tokens(self) -> int:
         """
-        获取模型的最大上下文 token 数量
+        获取模型的最大上下文 token 数量（来自模型配置 context_limit）。
 
         Returns:
             最大上下文 token 数量
         """
-        model_to_check = self.model.lower()
-
-        # 首先尝试精确匹配
-        if model_to_check in self.MODEL_LIMITS:
-            return self.MODEL_LIMITS[model_to_check]
-
-        # 如果没有精确匹配，尝试前缀匹配（支持带版本号的模型名）
-        # 例如：deepseek-chat-v1 会匹配到 deepseek-chat
-        for model_key in self.MODEL_LIMITS:
-            if model_to_check.startswith(model_key):
-                return self.MODEL_LIMITS[model_key]
-
-        # 默认值：131072（deepseek 的默认限制）
-        return self.DEFAULT_LIMIT
+        return self.context_limit
 
     def get_compression_threshold(self, threshold_ratio: float) -> int:
         """

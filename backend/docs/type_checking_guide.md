@@ -102,7 +102,7 @@ ignore_errors = True
 ### 正确的类实例化
 ```python
 # 正确的用法
-calculator = TokenCalculator(model_name)
+calculator = TokenCalculator(model_name, context_limit)
 compressor = GenericCompressor(max_length=1000, token_calculator=calculator)
 ```
 
