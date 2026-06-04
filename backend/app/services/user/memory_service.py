@@ -75,8 +75,8 @@ class MemoryService:
         limit = limit if limit is not None else self.config.search_limit
         body: dict[str, Any] = {
             "query": query,
-            "user_id": user_id,
-            "limit": limit,
+            "filters": {"user_id": user_id},
+            "top_k": limit,
         }
         if threshold is not None:
             body["threshold"] = threshold
