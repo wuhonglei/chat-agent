@@ -22,6 +22,10 @@
 - `removedMessageIds` -> `removed_message_ids`
 - `modelID` -> `model_id`
 
+`modelID` 的值使用后端 `GET /api/chat/models` 返回的 `model_id`，格式为
+`provider/model_name`。若前端传空字符串或后端无法解析该引用，聊天接口会回退到
+`text_generation.default_model`。
+
 ## 2. 为什么这里不再记录组件 schema 传输
 
 仓库当前代码中：
@@ -47,13 +51,25 @@
   "removedMessageIds": [],
   "regenerateTitle": false,
   "thinkMode": true,
-  "modelID": "default"
+  "modelID": "dashscope/kimi-k2.6"
 }
 ```
 
 > 实际发送到后端时会自动转换为 snake_case。
 
-## 4. 常见坑
+## 4. 模型列表加载与缓存
+
+前端模型选择来自 `GET /api/chat/models`。Redux `modelsSlice` 会用
+`localStorage["chat-models-cache-v1"]` 缓存上一次的模型列表，用于刷新页面后立即显示历史已选模型名称。
+
+约束：
+
+- 缓存只用于首屏 hydrate，`loaded` 初始仍为 `false`，接口返回后会覆盖缓存；
+- 接口加载完成后，若当前 `modelID` 为空或不在返回列表中，前端使用 `models[0].modelId` 作为默认值；
+- 隐私模式、配额超限或 JSON 解析失败时会静默降级为空缓存。
+
+## 5. 常见坑
 
 - 直接按旧文档添加 `componentToolsForBackend`，后端不会消费该字段。
 - 调试抓包时看到后端字段名与前端 TS 类型不一致是正常现象（snake_case 转换导致）。
+- 不要再使用旧的 `"default"` 作为模型 ID；需要传后端返回的 `provider/model_name`，或传空值让后端回退默认模型。

@@ -238,6 +238,8 @@ data: {"type":"<event_type>","data":{...},"seq":1}
 
 模型配置采用 `models.providers`（按供应商聚合）+ `models.scenarios`（场景选模）两层结构，必须包含 `text_generation` / `title_generation` / `summarization` 场景。聊天请求 `model_id` 为空或无法解析时回退 `text_generation` 的默认模型；当请求携带图片块且所选模型 `image_support=false` 时，`POST /api/chat/stream` 会返回 `400 当前模型不支持图片输入`。
 
+完整配置样例、解析入口和排障说明见 `docs/MODEL_CONFIG.md`。
+
 ## Docker 运行
 
 通常从项目根目录使用 `docker compose` 启动（同时拉起 postgres / backend / frontend）。

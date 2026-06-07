@@ -18,6 +18,7 @@
 - `图表可视化展示.md`：图表渲染相关说明
 - `nginx-cache-analysis.md`：Nginx 缓存分析
 - `messages表字段精简计划.md`：消息表现网字段、已下线字段与排障核验
+- `agent_observability/langfuse_integration.md`：Langfuse 自托管接入、Trace 维度与故障定位手册
 
 ### 规划方案
 
@@ -32,6 +33,7 @@
 - `用户管理.md`：用户模块说明
 - `COMPONENT_TOOLS_PRD.md`：组件工具接入说明（已对齐当前字段）
 - `MCP_CONFIG_ANALYSIS.md`：MCP 配置与加载机制说明（按当前 `mcp_client`）
+- `MODEL_CONFIG.md`：模型配置层级、`provider/model_name` 解析、模型列表与图片输入约束
 - `RETRIEVAL_SYSTEM.md`：当前检索链路说明（基于 MCP 工具与会话流）
 - `/backend/README.md`：补充聊天附件链路（上传/预览/PDF 转 Markdown）、代码执行 API、聊天 SSE 事件约定
 
@@ -45,6 +47,8 @@
 - `confluence.md`：Confluence 相关历史设计
 - `install_postgresql_mac.md` / `install_postgresql_centos.md`：环境安装参考
 - `生成非对称密钥.md`：密钥生成脚本说明
+- `/docs/model-config-analysis.md`：模型配置层级改造前的历史分析，当前实现以 `/backend/docs/MODEL_CONFIG.md` 为准
+- `/docs/agent_observability/agent_observability_*.md`：Agent 可观测调研/对比报告，操作口径以 `langfuse_integration.md` 为准
 
 ## 前端文档（`/frontend/docs`）
 
