@@ -18,12 +18,13 @@
 - 认证与授权（短信、微信、JWT）
 - 会话与消息管理
 - SSE 流式对话接口
-- MCP 工具接入与组件工具调用
+- MCP 工具接入、普通对话与 Agent 模式工具调用
 - 前后端分离 Web 应用
 
 不在当前范围内或未完整落地：
 - 独立的“知识库管理中心（增删改查、导出下载）”产品化界面
 - 独立 `/api/retrieval/*` 检索开放接口
+- 旧版 `component_tools_for_backend` 组件工具请求字段
 
 ## 2. 功能需求
 
@@ -41,17 +42,26 @@
 
 ### 2.3 AI 问答
 - 支持 `POST /api/chat/stream` 流式输出
-- 支持 think mode、MCP auto mode
-- 支持组件工具条件触发与结构化数据输出
+- 支持 think mode、模型选择与 Agent 模式（`agent_mode=0/1`）
+- 支持按模式暴露不同 MCP 工具集合：普通对话偏信息检索与代码执行，Agent 模式增加文件、技能管理与 Shell 能力
 - 支持会话上下文裁剪与摘要（由后端服务执行）
+- 支持会话附件 KB 上下文注入（服务端生成 `kb_context`，客户端不能直接提交该内容块）
 
 ### 2.4 MCP 工具
 当前内置并由后端统一管理的 MCP 服务：
-- `context7-mcp`
-- `weather-mcp`
-- `tavily-mcp`
-- `code-exec-mcp`
-- `time-mcp`
+- `context7`
+- `weather`
+- `tavily`
+- `code`
+- `time`
+- `file`
+- `skill_manager`
+- `shell`
+
+约束：
+- Server 注册由 `mcp_servers` 配置控制，可按服务设置传输方式与 `enabled`。
+- 普通对话暴露 `normal_mode_servers`；Agent 模式暴露 `agent_mode_servers`。
+- LLM 可见工具名使用 `{server}_{tool}` 前缀，MCP Server 内部工具名保持原始名称。
 
 ### 2.5 用户信息与记忆
 - 获取与更新用户信息
@@ -98,6 +108,9 @@
 
 ### 4.3 聊天与健康检查
 - `POST /api/chat/stream`
+- `POST /api/chat/stream/resume`
+- `POST /api/chat/stream/stop`
+- `GET /api/chat/models`
 - `GET /api/health`
 - `GET /api/health/mcp`
 - `GET /api/health/mcp_config`
@@ -109,6 +122,7 @@
 - `DELETE /api/user/memories/{memory_id}`
 - `POST /api/avatars/upload`
 - `GET /api/avatars/{filename}`
+- `POST /api/file/upload`
 
 ## 5. 非功能性要求
 

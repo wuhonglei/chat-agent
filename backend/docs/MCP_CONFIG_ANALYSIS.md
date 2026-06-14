@@ -18,7 +18,7 @@
 | `time` | fastmcp | `app.mcp.mcp_servers.time_mcp.server` | 时间查询 |
 | `weather` | fastmcp | `app.mcp.mcp_servers.weather_mcp.server` | 天气查询 |
 | `tavily` | fastmcp | `app.mcp.mcp_servers.tavily_mcp.server` | 联网搜索 |
-| `code-exec` | fastmcp | `app.mcp.mcp_servers.code_exec_mcp.server` | 代码执行沙箱 |
+| `code` | fastmcp | `app.mcp.mcp_servers.code_exec_mcp.server` | 代码执行沙箱 |
 | `file` | fastmcp | `app.mcp.mcp_servers.file_mcp.server` | 文件操作 |
 | `skill_manager` | fastmcp | `app.mcp.mcp_servers.skill_manager_mcp.server` | Agent Skill 加载 |
 | `shell` | fastmcp | `app.mcp.mcp_servers.shell_mcp.server` | Shell 命令执行 |
@@ -66,16 +66,16 @@ class MCPServerEntry(BaseModel):
 
 在配置中设置 `enabled: false` 即可禁用某个 Server，无需修改代码：
 
-```yaml
+```bash
 # .env 或 Nacos
-MCP__MCP_SERVERS='{"weather-mcp": {"enabled": false}}'
+MCP__MCP_SERVERS='{"weather": {"enabled": false}}'
 ```
 
 或在 Python 配置中：
 ```python
 mcp:
   mcp_servers:
-    weather-mcp:
+    weather:
       enabled: false
 ```
 

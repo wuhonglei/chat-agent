@@ -1,69 +1,37 @@
-# 组件工具接入说明（当前实现）
+# 组件工具接入说明（历史归档）
 
-> 状态：现网实现。本文档描述 `component_tools_for_backend` 在后端的实际处理链路。
+> 状态：历史文档。本文保留旧版组件工具方案的背景，不再作为当前实现依据。
+> 当前 `ChatRequest` 已无 `component_tools_for_backend` 字段，后端也不再包含 `ComponentToolsAgent` 与 `app/services/component/` 链路。
 
-## 1. 输入协议
+## 当前实现口径
 
-前端通过 `POST /api/chat/stream` 传入 `ChatRequest`，其中组件工具相关字段为：
+现网聊天链路以 `POST /api/chat/stream` 为入口：
 
-- `component_tools_for_backend: list[ComponentToolConfig]`
-- 每个配置包含：
-  - `name`：组件工具名（如 `weather`）
-  - `when_condition`：`and | or`
-  - `when`：触发条件（`mcp_tool_names`、`mcp_tool_call_content`、`user_message`）
+1. `ChatService` 组装 `ChatOrchestrator` 所需依赖。
+2. `ChatOrchestrator.run_chat_turn` 处理历史上下文、用户记忆、附件 KB 上下文与消息持久化。
+3. `ChatSessionAgent.stream_session_events` 在同一个会话消息线程中完成 MCP 工具多轮调用与最终回答。
+4. SSE 以 `content_block` / `content_block_done` / `done` 等事件向前端推送结构化内容。
 
-对应模型位置：
+相关源码：
 
-- `app/schemas/chat.py`：`ChatRequest`、`ComponentToolConfig`、`ComponentToolWhen`
+- `app/schemas/chat.py`：当前 `ChatRequest` 字段定义。
+- `app/services/chat/chat_service.py`：聊天服务门面。
+- `app/services/chat/chat_orchestrator.py`：单轮聊天生命周期编排。
+- `app/agents/chat_session_agent.py`：MCP 工具调用与最终应答的单会话 Agent。
 
-## 2. Schema 获取与缓存
+## 已下线的旧口径
 
-后端使用 `ComponentSchemaService` 获取组件 JSON Schema：
+以下概念属于历史方案，不应在新代码或新文档中继续使用：
 
-- 代码位置：`app/services/component/component_schema_service.py`
-- 默认地址：`settings.component_schema_api_url`（通常为 `/component-schemas/` 静态目录）
-- 获取方式：
-  - `get_schema(name)`：单个获取（含缓存）
-  - `get_schemas(names)`：批量获取
-- 缓存策略：
-  - 类级 `_schema_cache`（进程内缓存）
-  - 非 debug 模式优先命中缓存
-
-## 3. 执行链路（Agent 模式）
-
-当前 `ChatService` 使用多 Agent 串联：
-
-1. `MCPToolsAgent`：先执行 MCP 工具调用
-2. `ComponentToolsAgent`：基于 `component_tools_for_backend` 与 MCP 结果决定是否组装组件工具调用
-3. `ResponseGenerationAgent`：生成最终回答并输出 SSE
-
-关键文件：
-
-- `app/services/chat/chat_service.py`
+- `component_tools_for_backend`
+- `ComponentToolConfig` / `ComponentToolWhen`
+- `ComponentToolsAgent`
+- `component_tool_calls` / `component_tool_calls_duration`
+- `app/services/component/`
 - `app/agents/component_tools_agent.py`
 
-## 4. 与流式响应的关系
+如需了解当前工具调用、工具命名与 MCP 配置，请阅读：
 
-聊天接口为 `POST /api/chat/stream`，返回 `text/event-stream`。
-
-组件工具相关结果会并入 assistant 消息结构中：
-
-- `component_tool_calls`
-- `component_tool_calls_duration`
-- `token_stats`（包含组件工具阶段）
-
-最终在 `done` 事件中汇总耗时与统计字段。
-
-## 5. 与旧方案差异
-
-以下描述不再适用于当前代码：
-
-- `component_tool_names`（已替换为 `component_tools_for_backend`）
-- `app/services/chat_service.py`（路径已拆分为 `app/services/chat/chat_service.py`）
-- 通过单函数 `_call_llm_with_component_tools` 的旧流程描述
-
-## 6. 对接建议
-
-- 前端应传完整 `ComponentToolConfig`，避免只传组件名；
-- 新增组件时，需确保前端 schema 文件可被 `ComponentSchemaService` 访问；
-- 若组件未命中触发条件，不会进入组件工具调用阶段。
+- `backend/docs/MCP_CONFIG_ANALYSIS.md`
+- `backend/docs/RETRIEVAL_SYSTEM.md`
+- `frontend/docs/schema-for-backend-usage.md`

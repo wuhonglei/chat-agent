@@ -6,10 +6,11 @@
 
 - 聊天流式接口：`POST /api/chat/stream`
 - 聊天续流接口：`POST /api/chat/stream/resume`
+- 聊天停止接口：`POST /api/chat/stream/stop`
 - 聊天模型列表：`GET /api/chat/models`
 - 会话管理：创建 / 列表 / 详情 / 更新 / 删除
 - 用户认证：短信登录、微信登录、JWT 鉴权
-- MCP 工具：Context7、天气、联网搜索、代码执行、时间
+- MCP 工具：Context7、天气、联网搜索、代码执行、时间、文件、技能管理、Shell
 - 用户能力：用户信息、用户记忆、头像上传
 
 ## 技术栈
@@ -99,11 +100,12 @@ make test
 ## API 路由（当前实现）
 
 - 认证：`/api/auth/*`
-- 聊天：`/api/chat/stream`、`/api/chat/stream/resume`、`/api/chat/models`
+- 聊天：`/api/chat/stream`、`/api/chat/stream/resume`、`/api/chat/stream/stop`、`/api/chat/models`
 - 会话：`/api/conversation/*`
 - 消息：`/api/message/delete/{message_id}`、`/api/message/feedback/{message_id}`
 - 用户：`/api/user/*`
 - 文件：`/api/file/*`
+- Agent 产物：`/api/user_data/*`
 - 健康：`/api/health/*`
 - 代码执行：`/api/code/*`
 
@@ -112,14 +114,14 @@ make test
 ### 1) 上传与预览接口
 
 - 上传附件：`POST /api/file/upload`（需要登录）
-- 预览附件：`GET /api/file/preview/{user_id}/{filename}`（无需登录）
+- 预览附件：`GET /api/file/preview/{user_id}/{storage_key}`（无需登录）
 
 上传成功后返回 `AttachmentBlock`：
 - 图片返回 `ImageBlock`
 - PDF 返回 `PdfBlock`，并在 `markdown` 中携带同源 Markdown 预览信息
 - Markdown（`.md` / `.markdown` / `text/markdown`）返回独立 `MarkdownBlock`
 
-预览 URL 统一为：`/api/file/preview/{user_id}/{filename}`。
+预览 URL 统一为：`/api/file/preview/{user_id}/{storage_key}`。
 
 ### 2) 文件类型与限制
 
@@ -147,8 +149,8 @@ make test
 
 ### 4) 附件安全约束
 
-- 真实落盘文件名使用 UUID，避免用户可控路径
-- `preview` 仅允许匹配 `uuid + 扩展名` 的文件名（支持 jpg/jpeg/png/gif/webp/pdf/md）
+- 真实落盘路径使用服务端生成的 `storage_key`，避免用户可控路径
+- `preview` 通过 `storage_key` 定位已保存附件，路径解析会限制在用户上传根目录内
 - `user_id` 与路径边界会做校验，非法请求统一返回 404
 - 展示名仅用于 UI，服务端会做安全清洗（去路径、非法字符、长度限制）
 
@@ -173,7 +175,7 @@ make test
 
 服务端通过 Piston 沙箱执行代码，基础地址来自：
 
-- `settings.mcp.mcp_servers["code-exec-mcp"].env["piston_base_url"]`
+- `settings.mcp.mcp_servers["code"].env["piston_base_url"]`
 
 ### 请求示例
 
@@ -212,10 +214,11 @@ data: {"type":"<event_type>","data":{...},"seq":1}
 
 ```json
 {
-  "assistant_message_id": "assistant-message-id",
-  "last_seq": 12
+  "assistant_message_id": "assistant-message-id"
 }
 ```
+
+客户端通过 `Last-Event-ID` 请求头传递已收到的最后一个 SSE `seq`。
 
 当前事件类型：
 

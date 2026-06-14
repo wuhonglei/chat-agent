@@ -30,8 +30,7 @@
 - `logging_guide.md`：结构化日志使用指南
 - `type_checking_guide.md`：类型检查说明
 - `用户管理.md`：用户模块说明
-- `COMPONENT_TOOLS_PRD.md`：组件工具接入说明（已对齐当前字段）
-- `MCP_CONFIG_ANALYSIS.md`：MCP 配置与加载机制说明（按当前 `mcp_client`）
+- `MCP_CONFIG_ANALYSIS.md`：MCP 配置与加载机制说明（按当前 `app/mcp/client.py`）
 - `RETRIEVAL_SYSTEM.md`：当前检索链路说明（基于 MCP 工具与会话流）
 - `/backend/README.md`：补充聊天附件链路（上传/预览/PDF 转 Markdown）、代码执行 API、聊天 SSE 事件约定
 
@@ -43,6 +42,7 @@
 
 - `USER_DATA_DIRECTORIES.md`：外部项目目录约定说明（本项目当前未使用）
 - `confluence.md`：Confluence 相关历史设计
+- `COMPONENT_TOOLS_PRD.md`：旧版组件工具链路说明（当前 `ChatRequest` 已无 `component_tools_for_backend`）
 - `install_postgresql_mac.md` / `install_postgresql_centos.md`：环境安装参考
 - `生成非对称密钥.md`：密钥生成脚本说明
 
