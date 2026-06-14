@@ -372,7 +372,7 @@ docker run -d \
 
 1. **数据库模型变更**：修改 `app/models/` 后，需要生成并执行 Alembic 迁移
 2. **新增 API**：在 `app/api/` 创建路由文件，在 `app/main.py` 注册
-3. **新增 MCP Server**：在 `app/mcp/mcp_servers/` 创建，在 `app/mcp/mcp_client.py` 注册
+3. **新增 MCP Server**：在 `app/mcp/mcp_servers/` 创建实现，并在 `MCPConfig.mcp_servers` 配置中添加条目
 4. **配置变更**：在 `app/schemas/config.py` 定义模型，在 `app/core/config.py` 使用
 5. **Agent 开发**：继承 `BaseAgent`，流式入口优先使用语义化命名（例如 `stream_session_events`）；若需要统一抽象接口，仍遵循 `stream_execute` 约定
 
