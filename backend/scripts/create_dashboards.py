@@ -3,8 +3,12 @@
 通过 Langfuse tRPC API 创建 Dashboard 和 Widget。
 
 用法:
-    python3 create_dashboards.py --prod            # 创建所有 dashboard
+    python3 create_dashboards.py              # 使用 dev nacos 配置
+    python3 create_dashboards.py --prod         # 使用 prod nacos 配置
     python3 create_dashboards.py --prod --dry-run  # 仅预览
+
+    # 也可通过环境变量指定配置文件
+    export NACOS_CONFIG=/path/to/ai-chat-prod@@DEFAULT_GROUP@@
 """
 
 from __future__ import annotations
@@ -17,25 +21,51 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+from dataclasses import dataclass
 from typing import Any, cast
 
 import yaml
 
+PROD_PROJECT_ID = "cmpwh4pcg0002qn07mv4f20af"  # chat-agent-prod
+DEV_PROJECT_ID = "cmpwgw3qg0005t407qhqzomsg"  # chat-agent-dev
+
+DEFAULT_PROJECT_IDS = {
+    True: PROD_PROJECT_ID,
+    False: DEV_PROJECT_ID,
+}
+
+
+@dataclass(frozen=True)
+class LangfuseRuntime:
+    host: str
+    public_key: str
+    secret_key: str
+    project_id: str
+
+
 # ── 从 nacos 配置文件读取 ──────────────────────────────
-NACOS_CONFIG_PATH = os.getenv(
-    "NACOS_CONFIG",
-    os.path.join(
+def _default_nacos_config_path(*, prod: bool) -> str:
+    filename = (
+        "ai-chat-prod@@DEFAULT_GROUP@@" if prod else "ai-chat-dev@@DEFAULT_GROUP@@"
+    )
+    return os.path.join(
         os.path.dirname(__file__),
         "..",
         "nacos-data",
         "config",
-        "ai-chat-dev@@DEFAULT_GROUP@@",
-    ),
-)
+        filename,
+    )
 
 
-def load_nacos_config() -> dict[str, Any]:
-    config_path = os.path.abspath(NACOS_CONFIG_PATH)
+def resolve_nacos_config_path(*, prod: bool) -> str:
+    env_path = os.getenv("NACOS_CONFIG")
+    if env_path:
+        return os.path.abspath(env_path)
+    return os.path.abspath(_default_nacos_config_path(prod=prod))
+
+
+def load_nacos_config(*, prod: bool) -> dict[str, Any]:
+    config_path = resolve_nacos_config_path(prod=prod)
     if not os.path.exists(config_path):
         print(f"ERROR: nacos config not found at {config_path}")
         sys.exit(1)
@@ -44,27 +74,44 @@ def load_nacos_config() -> dict[str, Any]:
     return cast(dict[str, Any], cfg) if isinstance(cfg, dict) else {}
 
 
-_cfg = load_nacos_config()
-_lf = _cfg.get("langfuse", {})
+def load_langfuse_runtime(*, prod: bool) -> LangfuseRuntime:
+    cfg = load_nacos_config(prod=prod)
+    lf = cfg.get("langfuse", {})
 
-LANGFUSE_HOST = _lf.get("host", "")
-LANGFUSE_PUBLIC_KEY = _lf.get("public_key", "")
-LANGFUSE_SECRET_KEY = _lf.get("secret_key", "")
+    public_key = lf.get("public_key", "")
+    secret_key = lf.get("secret_key", "")
+    project_id = lf.get("project_id") or DEFAULT_PROJECT_IDS[prod]
+    if not project_id:
+        print("ERROR: nacos 配置中缺少 langfuse.project_id")
+        sys.exit(1)
 
-PROJECT_ID = "cmpwh4pcg0002qn07mv4f20af"  # chat-agent-prod
+    return LangfuseRuntime(
+        host=lf.get("host", ""),
+        public_key=public_key,
+        secret_key=secret_key,
+        project_id=str(project_id),
+    )
 
 
-def trpc_call(procedure: str, payload: dict[str, Any], *, is_mutation: bool = False) -> dict[str, Any]:
+def trpc_call(
+    langfuse: LangfuseRuntime,
+    procedure: str,
+    payload: dict[str, Any],
+    *,
+    is_mutation: bool = False,
+) -> dict[str, Any]:
     """调用 Langfuse tRPC endpoint。"""
-    url = f"{LANGFUSE_HOST}/api/trpc/{procedure}"
+    url = f"{langfuse.host}/api/trpc/{procedure}"
     if not is_mutation:
-        url += "?" + urllib.parse.urlencode({"batch": 1, "input": json.dumps({"0": payload})})
+        url += "?" + urllib.parse.urlencode(
+            {"batch": 1, "input": json.dumps({"0": payload})}
+        )
 
     headers = {
         "Content-Type": "application/json",
     }
     credentials = base64.b64encode(
-        f"{LANGFUSE_PUBLIC_KEY}:{LANGFUSE_SECRET_KEY}".encode()
+        f"{langfuse.public_key}:{langfuse.secret_key}".encode()
     ).decode()
     headers["Authorization"] = f"Basic {credentials}"
 
@@ -91,6 +138,7 @@ def trpc_call(procedure: str, payload: dict[str, Any], *, is_mutation: bool = Fa
 
 
 def create_widget(
+    langfuse: LangfuseRuntime,
     *,
     name: str,
     description: str,
@@ -104,7 +152,7 @@ def create_widget(
 ) -> dict[str, Any]:
     """创建 Widget。"""
     payload = {
-        "projectId": PROJECT_ID,
+        "projectId": langfuse.project_id,
         "name": name,
         "description": description,
         "view": view,
@@ -115,27 +163,35 @@ def create_widget(
         "chartConfig": chart_config,
         "minVersion": min_version,
     }
-    return trpc_call("dashboardWidgets.create", payload, is_mutation=True)
+    return trpc_call(langfuse, "dashboardWidgets.create", payload, is_mutation=True)
 
 
-def create_dashboard(name: str, description: str) -> dict[str, Any]:
+def create_dashboard(
+    langfuse: LangfuseRuntime, name: str, description: str
+) -> dict[str, Any]:
     """创建 Dashboard。"""
     payload = {
-        "projectId": PROJECT_ID,
+        "projectId": langfuse.project_id,
         "name": name,
         "description": description,
     }
-    return trpc_call("dashboard.createDashboard", payload, is_mutation=True)
+    return trpc_call(langfuse, "dashboard.createDashboard", payload, is_mutation=True)
 
 
-def update_dashboard_definition(dashboard_id: str, widgets: list[dict[str, Any]]) -> dict[str, Any]:
+def update_dashboard_definition(
+    langfuse: LangfuseRuntime,
+    dashboard_id: str,
+    widgets: list[dict[str, Any]],
+) -> dict[str, Any]:
     """更新 Dashboard 定义（添加 widget 布局）。"""
     payload = {
-        "projectId": PROJECT_ID,
+        "projectId": langfuse.project_id,
         "dashboardId": dashboard_id,
         "definition": {"widgets": widgets},
     }
-    return trpc_call("dashboard.updateDashboardDefinition", payload, is_mutation=True)
+    return trpc_call(
+        langfuse, "dashboard.updateDashboardDefinition", payload, is_mutation=True
+    )
 
 
 # ── Widget 定义 ──────────────────────────────────────────
@@ -148,7 +204,12 @@ TOOL_ANALYSIS_WIDGETS: list[dict[str, Any]] = [
         "dimensions": [{"field": "name"}],
         "metrics": [{"measure": "count", "agg": "count"}],
         "filters": [
-            {"column": "type", "operator": "any of", "type": "stringOptions", "value": ["GENERATION", "SPAN", "TOOL"]}
+            {
+                "column": "type",
+                "operator": "any of",
+                "type": "stringOptions",
+                "value": ["GENERATION", "SPAN", "TOOL"],
+            }
         ],
         "chart_type": "HORIZONTAL_BAR",
         "chart_config": {"type": "HORIZONTAL_BAR", "row_limit": 20},
@@ -160,7 +221,12 @@ TOOL_ANALYSIS_WIDGETS: list[dict[str, Any]] = [
         "dimensions": [],
         "metrics": [{"measure": "count", "agg": "count"}],
         "filters": [
-            {"column": "type", "operator": "any of", "type": "stringOptions", "value": ["GENERATION", "SPAN", "TOOL"]}
+            {
+                "column": "type",
+                "operator": "any of",
+                "type": "stringOptions",
+                "value": ["GENERATION", "SPAN", "TOOL"],
+            }
         ],
         "chart_type": "LINE_TIME_SERIES",
         "chart_config": {"type": "LINE_TIME_SERIES"},
@@ -172,7 +238,12 @@ TOOL_ANALYSIS_WIDGETS: list[dict[str, Any]] = [
         "dimensions": [{"field": "name"}],
         "metrics": [{"measure": "latency", "agg": "p95"}],
         "filters": [
-            {"column": "type", "operator": "any of", "type": "stringOptions", "value": ["GENERATION", "SPAN", "TOOL"]}
+            {
+                "column": "type",
+                "operator": "any of",
+                "type": "stringOptions",
+                "value": ["GENERATION", "SPAN", "TOOL"],
+            }
         ],
         "chart_type": "HORIZONTAL_BAR",
         "chart_config": {"type": "HORIZONTAL_BAR", "row_limit": 20},
@@ -197,7 +268,12 @@ QUALITY_MONITORING_WIDGETS: list[dict[str, Any]] = [
         "dimensions": [{"field": "name"}],
         "metrics": [{"measure": "count", "agg": "count"}],
         "filters": [
-            {"column": "name", "operator": "any of", "type": "stringOptions", "value": ["user_feedback"]}
+            {
+                "column": "name",
+                "operator": "any of",
+                "type": "stringOptions",
+                "value": ["user_feedback"],
+            }
         ],
         "chart_type": "PIE",
         "chart_config": {"type": "PIE"},
@@ -209,7 +285,12 @@ QUALITY_MONITORING_WIDGETS: list[dict[str, Any]] = [
         "dimensions": [{"field": "name"}],
         "metrics": [{"measure": "count", "agg": "count"}],
         "filters": [
-            {"column": "name", "operator": "any of", "type": "stringOptions", "value": ["message_status"]}
+            {
+                "column": "name",
+                "operator": "any of",
+                "type": "stringOptions",
+                "value": ["message_status"],
+            }
         ],
         "chart_type": "PIE",
         "chart_config": {"type": "PIE"},
@@ -239,20 +320,25 @@ QUALITY_MONITORING_WIDGETS: list[dict[str, Any]] = [
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="通过 Langfuse API 创建 Dashboard")
-    parser.add_argument("--prod", action="store_true", help="使用 prod project")
+    parser.add_argument(
+        "--prod",
+        action="store_true",
+        help="使用 ai-chat-prod nacos 配置（默认 ai-chat-dev）",
+    )
     parser.add_argument("--dry-run", action="store_true", help="仅预览")
     args = parser.parse_args()
 
-    if not LANGFUSE_PUBLIC_KEY or not LANGFUSE_SECRET_KEY:
-        print("ERROR: Langfuse API keys not found in nacos config")
+    config_path = resolve_nacos_config_path(prod=args.prod)
+    print(f"Using nacos config: {config_path}")
+
+    langfuse = load_langfuse_runtime(prod=args.prod)
+
+    if not langfuse.public_key or not langfuse.secret_key:
+        print("ERROR: nacos 配置中缺少 langfuse.public_key / langfuse.secret_key")
         sys.exit(1)
 
-    if args.prod:
-        global PROJECT_ID
-        PROJECT_ID = "cmpwh4pcg0002qn07mv4f20af"
-
-    print(f"Langfuse Host: {LANGFUSE_HOST}")
-    print(f"Project ID: {PROJECT_ID}")
+    print(f"Langfuse Host: {langfuse.host}")
+    print(f"Project ID: {langfuse.project_id}")
     print()
 
     # ── 创建工具分析 Dashboard ──
@@ -263,13 +349,17 @@ def main() -> None:
     if args.dry_run:
         print("  [DRY-RUN] Would create dashboard '工具分析'")
         for i, w in enumerate(TOOL_ANALYSIS_WIDGETS):
-            print(f"  [DRY-RUN] Widget {i+1}: {w['name']}")
+            print(f"  [DRY-RUN] Widget {i + 1}: {w['name']}")
             print(f"    view={w['view']}, chart={w['chart_type']}")
             print(f"    dimensions={[d['field'] for d in w['dimensions']]}")
-            print(f"    metrics=[{w['metrics'][0]['measure']}:{w['metrics'][0]['agg']}]")
+            print(
+                f"    metrics=[{w['metrics'][0]['measure']}:{w['metrics'][0]['agg']}]"
+            )
     else:
         # 创建 dashboard
-        result = create_dashboard("工具分析", "工具调用分析：次数分布、延迟分布、趋势")
+        result = create_dashboard(
+            langfuse, "工具分析", "工具调用分析：次数分布、延迟分布、趋势"
+        )
         print(f"  Dashboard created: {json.dumps(result, indent=2, default=str)[:300]}")
 
         dashboard_id = result.get("id") or result.get("dashboard", {}).get("id")
@@ -282,6 +372,7 @@ def main() -> None:
         for i, w in enumerate(TOOL_ANALYSIS_WIDGETS):
             print(f"  Creating widget: {w['name']}...")
             widget_result = create_widget(
+                langfuse,
                 name=w["name"],
                 description=w["description"],
                 view=w["view"],
@@ -293,22 +384,24 @@ def main() -> None:
             )
             widget_id = widget_result.get("widget", {}).get("id")
             if widget_id:
-                widget_placements.append({
-                    "type": "widget",
-                    "id": f"placement-{i}",
-                    "widgetId": widget_id,
-                    "x": (i % 2) * 6,
-                    "y": (i // 2) * 4,
-                    "x_size": 6,
-                    "y_size": 4,
-                })
+                widget_placements.append(
+                    {
+                        "type": "widget",
+                        "id": f"placement-{i}",
+                        "widgetId": widget_id,
+                        "x": (i % 2) * 6,
+                        "y": (i // 2) * 4,
+                        "x_size": 6,
+                        "y_size": 4,
+                    }
+                )
                 print(f"    OK: {widget_id}")
             else:
                 print(f"    FAILED: {json.dumps(widget_result, default=str)[:200]}")
 
         # 更新 dashboard definition
         if widget_placements:
-            update_dashboard_definition(dashboard_id, widget_placements)
+            update_dashboard_definition(langfuse, dashboard_id, widget_placements)
             print(f"  Dashboard updated with {len(widget_placements)} widgets")
 
     # ── 创建质量监控 Dashboard ──
@@ -320,12 +413,16 @@ def main() -> None:
     if args.dry_run:
         print("  [DRY-RUN] Would create dashboard '质量监控'")
         for i, w in enumerate(QUALITY_MONITORING_WIDGETS):
-            print(f"  [DRY-RUN] Widget {i+1}: {w['name']}")
+            print(f"  [DRY-RUN] Widget {i + 1}: {w['name']}")
             print(f"    view={w['view']}, chart={w['chart_type']}")
             print(f"    dimensions={[d['field'] for d in w['dimensions']]}")
-            print(f"    metrics=[{w['metrics'][0]['measure']}:{w['metrics'][0]['agg']}]")
+            print(
+                f"    metrics=[{w['metrics'][0]['measure']}:{w['metrics'][0]['agg']}]"
+            )
     else:
-        result = create_dashboard("质量监控", "质量监控：反馈分布、状态分布、Token 用量")
+        result = create_dashboard(
+            langfuse, "质量监控", "质量监控：反馈分布、状态分布、Token 用量"
+        )
         print(f"  Dashboard created: {json.dumps(result, indent=2, default=str)[:300]}")
 
         dashboard_id = result.get("id") or result.get("dashboard", {}).get("id")
@@ -337,6 +434,7 @@ def main() -> None:
         for i, w in enumerate(QUALITY_MONITORING_WIDGETS):
             print(f"  Creating widget: {w['name']}...")
             widget_result = create_widget(
+                langfuse,
                 name=w["name"],
                 description=w["description"],
                 view=w["view"],
@@ -348,21 +446,23 @@ def main() -> None:
             )
             widget_id = widget_result.get("widget", {}).get("id")
             if widget_id:
-                widget_placements.append({
-                    "type": "widget",
-                    "id": f"placement-{i}",
-                    "widgetId": widget_id,
-                    "x": (i % 2) * 6,
-                    "y": (i // 2) * 4,
-                    "x_size": 6,
-                    "y_size": 4,
-                })
+                widget_placements.append(
+                    {
+                        "type": "widget",
+                        "id": f"placement-{i}",
+                        "widgetId": widget_id,
+                        "x": (i % 2) * 6,
+                        "y": (i // 2) * 4,
+                        "x_size": 6,
+                        "y_size": 4,
+                    }
+                )
                 print(f"    OK: {widget_id}")
             else:
                 print(f"    FAILED: {json.dumps(widget_result, default=str)[:200]}")
 
         if widget_placements:
-            update_dashboard_definition(dashboard_id, widget_placements)
+            update_dashboard_definition(langfuse, dashboard_id, widget_placements)
             print(f"  Dashboard updated with {len(widget_placements)} widgets")
 
     print()
