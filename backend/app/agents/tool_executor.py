@@ -14,7 +14,7 @@ from toolz import get
 from app.agents.utils import TavilyResultProcessor
 from app.agents.utils.shell_result_processor import build_shell_display_items
 from app.core.config import settings
-from app.core.observability import get_langfuse, is_enabled
+from app.core.observability import mark_observation_error, observation_span
 from app.mcp.client import MCPClientManager
 from app.mcp.constants import (
     SHELL_SERVER,
@@ -100,25 +100,12 @@ class ToolExecutor:
     ) -> ToolResultMessage:
         tool_name = tool_call.function.name
         start_time = get_current_time()
-        trace_enabled = is_enabled()
-        langfuse_client = get_langfuse()
-        tool_span_ctx: Any = contextlib.nullcontext(None)
-        if trace_enabled and langfuse_client is not None:
+        with observation_span(
+            tool_name,
+            as_type="tool",
+            input=tool_call.function.arguments,
+        ) as tool_span:
             try:
-                tool_span_ctx = langfuse_client.start_as_current_observation(
-                    as_type="tool",
-                    name=tool_name,
-                    input=tool_call.function.arguments,
-                )
-            except Exception as exc:
-                logger.warning(
-                    "Failed to start tool observation span",
-                    tool_name=tool_name,
-                    error=exc,
-                    error_type=type(exc).__name__,
-                )
-        try:
-            with tool_span_ctx as tool_span:
                 arguments = json.loads(tool_call.function.arguments)
                 if is_llm_tool(tool_name, TAVILY_SERVER, WEB_PAGES_EXTRACT_BARE) and (
                     urls := get("urls", arguments)
@@ -220,11 +207,7 @@ class ToolExecutor:
                     if len(content) > 400
                     else content,
                 )
-                if (
-                    trace_enabled
-                    and langfuse_client is not None
-                    and tool_span is not None
-                ):
+                if tool_span is not None:
                     try:
                         tool_span.update(
                             output=content,
@@ -245,37 +228,27 @@ class ToolExecutor:
                             error_type=type(exc).__name__,
                         )
                 return tool_call_result_message
-        except Exception as exc:
-            tool_call_result_message = ToolResultMessage(
-                role="tool",
-                is_error=True,
-                content=str(exc),
-                tool_call_id=tool_call.id,
-            )
-            logger.error(
-                "Failed to call tool",
-                error=exc,
-                tool_name=tool_name,
-                iteration=current_iteration + 1,
-                tool_call_id=tool_call.id,
-                duration=get_time_duration(start_time),
-                content_length=len(str(exc)) if str(exc) else 0,
-            )
-            if trace_enabled and langfuse_client is not None:
-                try:
-                    langfuse_client.update_current_span(
-                        level="ERROR",
-                        status_message=type(exc).__name__,
-                        output=str(exc),
-                    )
-                except Exception as update_exc:
-                    logger.warning(
-                        "Failed to mark tool observation as error",
-                        tool_name=tool_name,
-                        error=update_exc,
-                        error_type=type(update_exc).__name__,
-                    )
-            return tool_call_result_message
+            except Exception as exc:
+                tool_call_result_message = ToolResultMessage(
+                    role="tool",
+                    is_error=True,
+                    content=str(exc),
+                    tool_call_id=tool_call.id,
+                )
+                logger.error(
+                    "Failed to call tool",
+                    error=exc,
+                    tool_name=tool_name,
+                    iteration=current_iteration + 1,
+                    tool_call_id=tool_call.id,
+                    duration=get_time_duration(start_time),
+                    content_length=len(str(exc)) if str(exc) else 0,
+                )
+                mark_observation_error(tool_span, exc)
+                if tool_span is not None:
+                    with contextlib.suppress(Exception):
+                        tool_span.update(output=str(exc))
+                return tool_call_result_message
 
     async def _apply_tavily_compaction(
         self,
