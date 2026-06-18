@@ -68,6 +68,22 @@ langfuse:
 - LLM generation 由 `langfuse.openai.AsyncOpenAI` 自动采集
 - 工具调用在 `ToolExecutor.execute_single_tool` 中显式创建 `tool` observation
 
+### 3.1 子 span 一览
+
+除根 `chat-turn` span 外，以下环节会显式创建可下钻的子 span（通过 `app.core.observability.observation_span`）：
+
+| Span 名 | 位置 | 说明 |
+| --- | --- | --- |
+| `history-prepare` | `ChatOrchestrator.run_chat_turn` | 历史窗口准备；输出 `prepared_count`、`has_window_summary`，窗口外摘要 LLM 作为其子 generation |
+| `kb-rag-build` | `ChatOrchestrator.run_chat_turn` | KB RAG 组装；输出 `block_count` |
+| `memory-search` | `MemoryService.search` | Mem0 检索；输出 `count`、`memory_ids` |
+| `title-generation` | `ChatOrchestrator.generate_title_event` | 标题生成；失败标 `ERROR` 但不影响主流程 |
+| `memory-write` | `MemoryService.add_memories` | 异步记忆写入；通过 `trace_seed=assistant_message_id` 关联回同一 trace |
+| `embedding` | `EmbeddingService` | 用户消息 / 文档向量化；输出 `dimension`、`count` |
+| `tool-result-embedding` | `ContextCompactor.extract_relevant_markdown` | 工具结果相关性压缩的向量化 |
+
+所有子 span 的埋点失败只告警、不阻断主链路；业务异常会在标记 `ERROR` 后按原有逻辑继续抛出或返回。
+
 ## 4. Token 与成本说明
 
 - 流式 LLM 调用使用 `stream_options={"include_usage": true}`，保证末块返回 usage
@@ -99,7 +115,11 @@ langfuse:
 3. 查看 tool observation：
    - `tool_name`、参数、返回内容、`status_message`
 4. 若为中断场景，检查 trace metadata 中 `status=stopped`
-5. 结合 `conversation_id` 查看同 session 的相邻轮次趋势
+5. 若为失败场景（主会话流式异常），根 span `level=ERROR`、`status_message` 为异常类型，
+   metadata 中 `status=failed`，且该轮 **不会**有 done 事件；助手消息落库为 `FAILED`
+6. 展开子 span（`history-prepare` / `kb-rag-build` / `memory-search` / `title-generation`
+   / `embedding`）定位具体失败环节
+7. 结合 `conversation_id` 查看同 session 的相邻轮次趋势
 
 ## 8. 验收清单
 
@@ -107,4 +127,8 @@ langfuse:
 - [ ] 流式 generation 的 token 非空
 - [ ] 图片请求在 trace 中不出现 base64
 - [ ] 人工触发工具异常时，observation 标记 `ERROR`
+- [ ] 主会话流式中途异常时，根 span 为 `ERROR` 且该轮无 done 事件，助手消息落库为 `FAILED`
+- [ ] 记忆检索 / KB RAG 子 span 可展开，含输入输出摘要
+- [ ] 标题生成失败时，`title-generation` span 标记 `ERROR`
+- [ ] `memory-write` 可通过 `assistant_message_id` 派生的 trace_id 关联到同一 trace
 - [ ] Nacos 关闭 `langfuse.enabled` 后，主链路功能正常

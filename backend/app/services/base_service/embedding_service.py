@@ -4,6 +4,7 @@ from typing import TypeVar
 
 from langchain_community.embeddings import DashScopeEmbeddings
 
+from app.core.observability import mark_observation_error, observation_span
 from app.schemas.config import EmbeddingModelConfig
 from app.utils.logger import logger
 
@@ -40,11 +41,19 @@ class EmbeddingService:
         if not text:
             logger.debug("Embedding skipped: empty text")
             return []
-        try:
-            return await self._embeddings.aembed_query(text)
-        except Exception as e:
-            logger.warning("Embedding failed", text_length=len(text), error=e)
-            return []
+        with observation_span(
+            "embedding",
+            input={"model": self._model_name, "text_length": len(text)},
+        ) as span:
+            try:
+                vector = await self._embeddings.aembed_query(text)
+            except Exception as e:
+                mark_observation_error(span, e)
+                logger.warning("Embedding failed", text_length=len(text), error=e)
+                return []
+            if span is not None:
+                span.update(output={"dimension": len(vector), "count": 1})
+            return vector
 
     async def aembed_documents(self, texts: list[str]) -> list[list[float]]:
         """
@@ -60,8 +69,21 @@ class EmbeddingService:
         if not texts:
             logger.debug("Embedding skipped: empty texts")
             return []
-        try:
-            return await self._embeddings.aembed_documents(texts)
-        except Exception as e:
-            logger.warning("Embedding failed", texts_count=len(texts), error=e)
-            return []
+        with observation_span(
+            "embedding",
+            input={"model": self._model_name, "texts_count": len(texts)},
+        ) as span:
+            try:
+                vectors = await self._embeddings.aembed_documents(texts)
+            except Exception as e:
+                mark_observation_error(span, e)
+                logger.warning("Embedding failed", texts_count=len(texts), error=e)
+                return []
+            if span is not None:
+                span.update(
+                    output={
+                        "dimension": len(vectors[0]) if vectors else 0,
+                        "count": len(vectors),
+                    }
+                )
+            return vectors

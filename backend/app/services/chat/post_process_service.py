@@ -50,6 +50,7 @@ class PostProcessService:
         chat_request: ChatRequest,
         assistant_response: AssistantResponse,
         user_id: str,
+        assistant_message_id: str,
     ) -> None:
         user_message_text = extract_user_text(chat_request.content_blocks)
         if not user_message_text:
@@ -72,6 +73,7 @@ class PostProcessService:
                     },
                 ],
                 user_id=user_id,
+                trace_seed=assistant_message_id,
             ),
             name="mem0_add_memories",
         )

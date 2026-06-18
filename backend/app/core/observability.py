@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Any
 
 from langfuse import Langfuse
@@ -108,3 +110,79 @@ def new_trace_id(seed: str) -> str:
     except Exception:
         digest = hashlib.sha256(seed.encode("utf-8")).hexdigest()
         return digest[:32]
+
+
+@contextmanager
+def observation_span(
+    name: str,
+    *,
+    as_type: str = "span",
+    input: Any = None,
+    trace_context: dict[str, Any] | None = None,
+) -> Iterator[Any]:
+    """开启一个 Langfuse observation，未启用时退化为 no-op（yield None）。
+
+    所有埋点异常只告警，不冒泡到业务链路。
+    """
+    if not is_enabled():
+        yield None
+        return
+
+    client = get_langfuse()
+    if client is None:
+        yield None
+        return
+
+    kwargs: dict[str, Any] = {"as_type": as_type, "name": name}
+    if input is not None:
+        kwargs["input"] = input
+    if trace_context is not None:
+        kwargs["trace_context"] = trace_context
+
+    try:
+        cm = client.start_as_current_observation(**kwargs)
+    except Exception as exc:
+        logger.warning(
+            "Failed to start observation span",
+            span_name=name,
+            error=exc,
+            error_type=type(exc).__name__,
+        )
+        yield None
+        return
+
+    try:
+        with cm as span:
+            yield span
+    except Exception:
+        # 业务异常照常向上抛，由调用方决定是否 mark_observation_error。
+        raise
+
+
+def mark_observation_error(span: Any, exc: BaseException) -> None:
+    """将给定 observation 标记为 ERROR；span 为 None 或失败时静默。"""
+    if span is None:
+        return
+    try:
+        span.update(level="ERROR", status_message=type(exc).__name__)
+    except Exception as update_exc:
+        logger.warning(
+            "Failed to mark observation as error",
+            error=update_exc,
+            error_type=type(update_exc).__name__,
+        )
+
+
+def flush_langfuse() -> None:
+    """主动刷盘 Langfuse 缓冲队列；未启用或失败时静默。"""
+    client = get_langfuse()
+    if client is None:
+        return
+    try:
+        client.flush()
+    except Exception as exc:
+        logger.warning(
+            "Langfuse flush failed",
+            error=exc,
+            error_type=type(exc).__name__,
+        )

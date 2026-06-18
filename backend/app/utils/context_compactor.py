@@ -8,6 +8,7 @@ from langchain_core.documents import Document
 from langchain_text_splitters import MarkdownTextSplitter
 from pydantic import BaseModel
 
+from app.core.observability import mark_observation_error, observation_span
 from app.schemas.config import EmbeddingModelConfig, ToolResultCompressionConfig
 from app.utils.token import TokenCalculator
 
@@ -61,34 +62,59 @@ class ContextCompactor:
         if not chunks:
             return content
 
-        documents = [
-            Document(page_content=chunk, metadata={"index": idx})
-            for idx, chunk in enumerate(chunks)
-        ]
-        vector_store = FAISS.from_documents(documents, self.embeddings)
-        results = vector_store.similarity_search_with_score(query, k=len(documents))
+        with observation_span(
+            "tool-result-embedding",
+            input={
+                "model": self.embedding_model.model_name,
+                "query_length": len(query),
+                "chunk_count": len(chunks),
+            },
+        ) as span:
+            try:
+                documents = [
+                    Document(page_content=chunk, metadata={"index": idx})
+                    for idx, chunk in enumerate(chunks)
+                ]
+                vector_store = FAISS.from_documents(documents, self.embeddings)
+                results = vector_store.similarity_search_with_score(
+                    query, k=len(documents)
+                )
+            except Exception as exc:
+                mark_observation_error(span, exc)
+                raise
 
-        if not results:
-            return chunks[0]
+            if not results:
+                if span is not None:
+                    span.update(output={"selected_chunks": 0, "relevance_applied": False})
+                return chunks[0]
 
-        sorted_relevant = sorted(
-            results, key=lambda item: item[1]
-        )  # score 越小相似度越高
-        selected_chunks: list[tuple[int, str]] = []
-        selected_tokens = 0
-        for doc, _score in sorted_relevant:
-            chunk_text = doc.page_content
-            chunk_tokens = self.token_calculator.count_tokens(chunk_text)
-            if selected_tokens + chunk_tokens > threshold_tokens_count:
-                continue
-            selected_chunks.append((doc.metadata["index"], chunk_text))
-            selected_tokens += chunk_tokens
+            sorted_relevant = sorted(
+                results, key=lambda item: item[1]
+            )  # score 越小相似度越高
+            selected_chunks: list[tuple[int, str]] = []
+            selected_tokens = 0
+            for doc, _score in sorted_relevant:
+                chunk_text = doc.page_content
+                chunk_tokens = self.token_calculator.count_tokens(chunk_text)
+                if selected_tokens + chunk_tokens > threshold_tokens_count:
+                    continue
+                selected_chunks.append((doc.metadata["index"], chunk_text))
+                selected_tokens += chunk_tokens
 
-        if not selected_chunks:
-            return chunks[0]
+            if not selected_chunks:
+                if span is not None:
+                    span.update(output={"selected_chunks": 0, "relevance_applied": False})
+                return chunks[0]
 
-        selected_sorted = sorted(selected_chunks, key=lambda item: item[0])
-        return "\n\n".join(item[1] for item in selected_sorted)
+            if span is not None:
+                span.update(
+                    output={
+                        "selected_chunks": len(selected_chunks),
+                        "relevance_applied": True,
+                    }
+                )
+            selected_sorted = sorted(selected_chunks, key=lambda item: item[0])
+            return "\n\n".join(item[1] for item in selected_sorted)
 
     async def compact_markdown_tool_result(
         self,
