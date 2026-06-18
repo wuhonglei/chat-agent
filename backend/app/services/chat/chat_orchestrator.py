@@ -11,7 +11,13 @@ from typing import Any, Protocol, cast
 from langfuse import propagate_attributes
 
 from app.agents import ChatSessionAgent, TitleGenerationAgent
-from app.core.observability import get_langfuse, is_enabled, new_trace_id
+from app.core.observability import (
+    get_langfuse,
+    is_enabled,
+    mark_observation_error,
+    new_trace_id,
+    observation_span,
+)
 from app.protocols.chat_messages import (
     build_ack_event,
     build_done_event,
@@ -30,6 +36,7 @@ from app.schemas.chat import (
     extract_user_text,
 )
 from app.schemas.user import MemorySearchItem
+from app.services.chat.errors import ChatStreamError
 from app.services.chat.history_context_service import HistoryContextService
 from app.services.chat.kb_rag_context_service import KbRagContextService
 from app.services.chat.post_process_service import PostProcessService
@@ -205,6 +212,7 @@ class ChatOrchestrator:
                 duration=total_duration,
             )
             yield build_error_event({"content": str(exc)})
+            raise ChatStreamError(str(exc)) from exc
 
     async def generate_title_event(
         self,
@@ -217,20 +225,32 @@ class ChatOrchestrator:
             "Regenerating conversation title",
             conversation_id=conversation_id,
         )
-        try:
-            title = await self.title_generation_agent.execute(
-                user_message=user_message,
-                kb_context_blocks=kb_context_blocks,
-            )
-        except Exception as exc:
-            logger.error(
-                "Failed to generate title",
-                conversation_id=conversation_id,
-                error=exc,
-                error_type=type(exc).__name__,
-                duration=get_time_duration(title_start_time),
-            )
-            raise
+        with observation_span(
+            "title-generation",
+            input={"conversation_id": conversation_id},
+        ) as title_span:
+            try:
+                title = await self.title_generation_agent.execute(
+                    user_message=user_message,
+                    kb_context_blocks=kb_context_blocks,
+                )
+            except Exception as exc:
+                mark_observation_error(title_span, exc)
+                logger.error(
+                    "Failed to generate title",
+                    conversation_id=conversation_id,
+                    error=exc,
+                    error_type=type(exc).__name__,
+                    duration=get_time_duration(title_start_time),
+                )
+                raise
+            if title_span is not None:
+                title_span.update(
+                    output={
+                        "title": title,
+                        "title_length": len(title) if title else 0,
+                    }
+                )
         logger.info(
             "Title generated",
             conversation_id=conversation_id,
@@ -318,12 +338,33 @@ class ChatOrchestrator:
                                 chat_request.history_ids
                             )
                         )
-                        (
-                            history_summary_before_window,
-                            prepared_history_messages,
-                        ) = await self.history_context_service.prepare_history_messages(
-                            history_messages_from_db, conversation_id
-                        )
+                        with observation_span(
+                            "history-prepare",
+                            input={
+                                "history_ids_count": len(chat_request.history_ids),
+                            },
+                        ) as history_span:
+                            try:
+                                (
+                                    history_summary_before_window,
+                                    prepared_history_messages,
+                                ) = await self.history_context_service.prepare_history_messages(
+                                    history_messages_from_db, conversation_id
+                                )
+                            except Exception as exc:
+                                mark_observation_error(history_span, exc)
+                                raise
+                            if history_span is not None:
+                                history_span.update(
+                                    output={
+                                        "prepared_count": len(
+                                            prepared_history_messages
+                                        ),
+                                        "has_window_summary": bool(
+                                            history_summary_before_window
+                                        ),
+                                    }
+                                )
                         logger.info(
                             "Starting stream message generation",
                             conversation_id=conversation_id,
@@ -355,12 +396,35 @@ class ChatOrchestrator:
                             query=user_message_text,
                             user_id=user_id,
                         )
-                        kb_context_blocks = await self._build_kb_context_blocks(
-                            content_blocks=chat_request.content_blocks,
-                            history_messages=prepared_history_messages,
-                            user_id=user_id,
-                            user_message_text=user_message_text,
-                        )
+                        with observation_span(
+                            "kb-rag-build",
+                            input={
+                                "query": user_message_text,
+                                "candidate_content_ids_count": len(
+                                    collect_attachment_content_ids(
+                                        chat_request.content_blocks
+                                    )
+                                ),
+                            },
+                        ) as kb_span:
+                            try:
+                                kb_context_blocks = (
+                                    await self._build_kb_context_blocks(
+                                        content_blocks=chat_request.content_blocks,
+                                        history_messages=prepared_history_messages,
+                                        user_id=user_id,
+                                        user_message_text=user_message_text,
+                                    )
+                                )
+                            except Exception as exc:
+                                mark_observation_error(kb_span, exc)
+                                raise
+                            if kb_span is not None:
+                                kb_span.update(
+                                    output={
+                                        "block_count": len(kb_context_blocks or []),
+                                    }
+                                )
                         if chat_request.regenerate_title:
                             title_task = asyncio.create_task(
                                 self.generate_title_event(
@@ -414,6 +478,37 @@ class ChatOrchestrator:
                                     conversation_id=conversation_id,
                                 )
                         raise
+                    except ChatStreamError as exc:
+                        # 主会话流式失败：error 事件已下发，这里只做失败收尾——
+                        # 落库 FAILED、trace 标 ERROR，并跳过 done 与记忆写入。
+                        self.chat_session_agent._sync_session_output()
+                        assistant_response = self.collect_assistant_response()
+                        message_service.update_assistant_message(
+                            conversation,
+                            assistant_message,
+                            assistant_response=assistant_response,
+                            status=MessageStatus.FAILED,
+                        )
+                        if (
+                            trace_enabled
+                            and langfuse_client is not None
+                            and root_span is not None
+                        ):
+                            try:
+                                root_span.update(
+                                    level="ERROR",
+                                    status_message=type(exc).__name__,
+                                    output=assistant_response.content,
+                                    metadata={"status": MessageStatus.FAILED.value},
+                                )
+                            except Exception as update_exc:
+                                logger.warning(
+                                    "Failed to update failed trace status",
+                                    error=update_exc,
+                                    error_type=type(update_exc).__name__,
+                                    conversation_id=conversation_id,
+                                )
+                        return
                     finally:
                         if title_task is not None and not title_task.done():
                             title_task.cancel()
@@ -474,6 +569,7 @@ class ChatOrchestrator:
                         chat_request=chat_request,
                         assistant_response=assistant_response,
                         user_id=user_id,
+                        assistant_message_id=assistant_message_id,
                     )
         except Exception as exc:
             logger.error(

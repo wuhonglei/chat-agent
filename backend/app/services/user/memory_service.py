@@ -6,6 +6,11 @@ from typing import Any
 
 import httpx
 
+from app.core.observability import (
+    mark_observation_error,
+    new_trace_id,
+    observation_span,
+)
 from app.schemas.config import MemoryConfig
 from app.schemas.user import MemoryListItem
 from app.utils.logger import logger
@@ -37,8 +42,13 @@ class MemoryService:
         user_id: str,
         run_id: str | None = None,
         metadata: dict[str, Any] | None = None,
+        trace_seed: str | None = None,
     ) -> None:
-        """写入记忆：POST /memories，传入 messages + user_id。"""
+        """写入记忆：POST /memories，传入 messages + user_id。
+
+        ``trace_seed`` 仅用于 Langfuse trace 关联（确定性派生 trace_id），
+        不影响 Mem0 请求体，便于异步写入挂回同一轮对话的 trace。
+        """
         if not self._mem0_enabled():
             return
         url = f"{self._base_url()}/memories"
@@ -50,16 +60,25 @@ class MemoryService:
             body["run_id"] = run_id
         if metadata is not None:
             body["metadata"] = metadata
-        try:
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                resp = await client.post(url, json=body, headers=self._headers())
-                resp.raise_for_status()
-        except httpx.HTTPError as e:
-            logger.warning(
-                "Mem0 add_memories failed",
-                user_id=user_id,
-                error=e,
-            )
+        trace_context = (
+            {"trace_id": new_trace_id(trace_seed)} if trace_seed else None
+        )
+        with observation_span(
+            "memory-write",
+            input={"messages_count": len(messages)},
+            trace_context=trace_context,
+        ) as span:
+            try:
+                async with httpx.AsyncClient(timeout=self._timeout) as client:
+                    resp = await client.post(url, json=body, headers=self._headers())
+                    resp.raise_for_status()
+            except httpx.HTTPError as e:
+                mark_observation_error(span, e)
+                logger.warning(
+                    "Mem0 add_memories failed",
+                    user_id=user_id,
+                    error=e,
+                )
 
     async def search(
         self,
@@ -80,28 +99,41 @@ class MemoryService:
         }
         if threshold is not None:
             body["threshold"] = threshold
-        try:
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                resp = await client.post(url, json=body, headers=self._headers())
-                resp.raise_for_status()
-                data = resp.json()
-        except httpx.HTTPError as e:
-            logger.warning(
-                "Mem0 search failed",
-                user_id=user_id,
-                error=e,
-            )
-            return []
+        with observation_span(
+            "memory-search",
+            input={"query": query, "top_k": limit},
+        ) as span:
+            try:
+                async with httpx.AsyncClient(timeout=self._timeout) as client:
+                    resp = await client.post(url, json=body, headers=self._headers())
+                    resp.raise_for_status()
+                    data = resp.json()
+            except httpx.HTTPError as e:
+                mark_observation_error(span, e)
+                logger.warning(
+                    "Mem0 search failed",
+                    user_id=user_id,
+                    error=e,
+                )
+                return []
 
-        results = data.get("results") if isinstance(data, dict) else []
-        if not isinstance(results, list):
-            return []
-        r: list[MemoryListItem] = [MemoryListItem(**item) for item in results]
-        r.sort(
-            key=lambda x: x.score if x.score is not None else float("-inf"),
-            reverse=True,
-        )
-        return r[:limit]
+            results = data.get("results") if isinstance(data, dict) else []
+            if not isinstance(results, list):
+                return []
+            r: list[MemoryListItem] = [MemoryListItem(**item) for item in results]
+            r.sort(
+                key=lambda x: x.score if x.score is not None else float("-inf"),
+                reverse=True,
+            )
+            r = r[:limit]
+            if span is not None:
+                span.update(
+                    output={
+                        "count": len(r),
+                        "memory_ids": [item.id for item in r],
+                    }
+                )
+            return r
 
     async def get_memories(self, user_id: str) -> list[MemoryListItem]:
         """获取用户记忆列表：GET /memories?user_id=。"""
