@@ -38,8 +38,8 @@
 
 #### 1.1 Agent 核心机制 - 完善错误恢复与状态管理
 
-**现状**：多 Agent 编排和 Tool Calling 已实现
-**差距**：错误恢复（retry/fallback）、状态机设计、Agent harness 的工程细节
+**现状**：单 Agent ReAct 循环 + Tool Calling 已实现（ChatSessionAgent 内部多轮工具调用）
+**差距**：错误恢复（retry/fallback）、Agent harness 的工程细节、面试时能讲清设计权衡
 **行动项**：
 
 - [ ] 梳理 `chat_orchestrator.py` 中的错误处理链路，整理为"错误恢复策略"叙事
@@ -51,9 +51,10 @@
 
 **面试话术模板**：
 ```
-"我们的 Agent 系统采用分层编排架构...MCP Tools Agent 负责外部工具调用，
-当工具超时时会触发 fallback 到缓存结果或降级提示...context_compactor
-采用 token 预算 + 语义摘要的混合策略来管理上下文窗口..."
+"我们的 Agent 系统采用单 Agent ReAct 循环架构...ChatSessionAgent 在一个
+消息线程上多轮调用 LLM + MCP 工具，状态机驱动每轮从 GENERATING 到
+TOOL_CALLING 到 DONE...当工具超时时会触发 fallback 到缓存结果或降级提示...
+context_compactor 采用 token 预算 + 语义摘要的混合策略来管理上下文窗口..."
 ```
 
 #### 1.2 RAG 链路 - 补 Rerank 和量化评估
@@ -89,7 +90,7 @@
 
 ### 阶段二：补齐关键差距（2-3 周）
 
-> 目标：B 级知识点从"有基础"提升到"能讲清楚"
+> 目标：B 级知识点从"有基础"提升到"能讲清楚"，同时补齐 A 级关键差距
 
 #### 2.1 可观测性体系 - 从日志到 Trace
 
@@ -149,28 +150,27 @@
 - [ ] 整理端到端延迟（TTFR）优化措施和效果
 - [ ] 记录智能降级策略：限流时如何降级、错误时如何兜底
 
+#### 2.5 多 Agent 协作 - 设计方案准备（A 级关键差距）
+
+**现状**：项目实际为单 Agent + ReAct 循环（ChatSessionAgent），TitleGenerationAgent 只是独立后台任务无协作。
+**差距**：4/5 JD 提到多 Agent 协作，属于面试高频话题。虽不是"已有能力的量化"，但必须有设计方案才能应对面试追问。
+**行动项**：
+
+- [ ] 研究 LangGraph / CrewAI / AutoGen 的核心概念，理解 DAG 编排、角色分工、共享状态
+- [ ] 设计"如何将现有单 Agent 演进到多 Agent"的方案（面试时用）：
+  - Planner Agent：接收用户请求，拆解为子任务
+  - Executor Agent：执行具体工具调用（复用现有 MCPToolSession）
+  - Reviewer Agent：校验执行结果，决定是否需要重试
+- [ ] 准备"为什么当前选单 Agent 而不是多 Agent"的权衡分析（延迟、复杂度、场景适配）
+- [ ] 了解 Agent 间通信模式：共享消息线程 vs 独立上下文 + 结果传递
+
 ---
 
 ### 阶段三：进阶区分（按需）
 
 > 目标：对高薪岗位（40K+）的加分项做准备
 
-#### 3.1 多 Agent 协作 - 从零设计方案（关键差距）
-
-**现状**：项目实际为单 Agent + ReAct 循环（ChatSessionAgent），TitleGenerationAgent 只是独立后台任务，两者之间无协作。AGENTS.md 中提到的 ComponentToolsAgent/ResponseGenerationAgent 已被移除合并。
-**差距**：4/5 JD 提到多 Agent 协作，这是面试高频话题，需要有设计方案和对比分析
-
-**行动项**：
-
-- [ ] 研究 LangGraph / CrewAI / AutoGen 的核心概念，理解 DAG 编排、角色分工、共享状态
-- [ ] 设计一个"如何将现有单 Agent 演进到多 Agent"的方案（面试时用）：
-  - Planner Agent：接收用户请求，拆解为子任务
-  - Executor Agent：执行具体工具调用（复用现有 MCPToolSession）
-  - Reviewer Agent：校验执行结果，决定是否需要重试
-- [ ] 准备"为什么选单 Agent 而不是多 Agent"的权衡分析（延迟、复杂度、场景适配）
-- [ ] 了解 Agent 间通信模式：共享消息线程 vs 独立上下文 + 结果传递
-
-#### 3.2 MCP 协议深度 - 差异化竞争力
+#### 3.1 MCP 协议深度 - 差异化竞争力
 
 **现状**：项目深度使用 MCP，有 5 个自研 MCP Server
 **行动项**：
@@ -180,7 +180,7 @@
 - [ ] 整理自研 MCP Server 的设计模式：何时用本地、何时用远程
 - [ ] 了解 A2A 协议，准备"Agent 互操作"话题
 
-#### 3.3 工程化部署 - 补 CI/CD 和 K8s
+#### 3.2 工程化部署 - 补 CI/CD 和 K8s
 
 **行动项**：
 
@@ -197,7 +197,7 @@
 
 ### Agent 核心（必问）
 
-1. "介绍一下你的 Agent 系统架构" → 画图 + 讲 4 个 Agent 的分工
+1. "介绍一下你的 Agent 系统架构" → 画图 + 讲单 Agent ReAct 循环 + MCP 工具层 + Orchestrator 流程编排
 2. "Tool Calling 是怎么实现的" → 从 prompt → function schema → 调用 → 结果注入
 3. "遇到工具调用失败怎么办" → retry 策略 → fallback → 降级 → 错误分类
 4. "上下文太长怎么办" → context_compactor 的压缩策略（滑动窗口 + 摘要 + token 预算）
@@ -216,7 +216,7 @@
 
 ### 进阶（高薪岗位）
 
-11. "多个 Agent 之间怎么协调" → 编排层设计 + 上下文传递 + 角色分工
+11. "如果要扩展到多 Agent 会怎么设计" → Planner/Executor/Reviewer 分工 + LangGraph DAG 编排 + 为什么当前选单 Agent
 12. "怎么控制 LLM 调用成本" → 场景路由 + 上下文压缩 + 缓存 + 降级
 13. "评测体系怎么建的" → 场景覆盖 + 自动评分 + 回归机制
 
@@ -245,15 +245,15 @@
 
 ### 一句话定位
 > "我做了一个完整的 AI Agent 对话平台，从 FastAPI 后端到 React 前端，
-> 涵盖了多 Agent 编排、RAG 检索、MCP 工具生态、流式响应等核心能力。"
+> 涵盖了单 Agent ReAct 循环、RAG 检索、MCP 工具生态、流式响应等核心能力。"
 
 ### 三个亮点故事（STAR 格式准备）
 
-1. **多 Agent 编排设计**
-   - S：需要处理不同类型的用户请求（纯对话、工具调用、文件操作）
-   - T：设计一套可扩展的 Agent 编排架构
-   - A：4 个专职 Agent + Orchestrator 编排，职责清晰，独立迭代
-   - R：新工具接入时间从 X 天降到 Y 天，代码可维护性提升
+1. **Agent ReAct 循环与上下文工程**
+   - S：长对话场景下工具调用多轮交互导致 token 暴涨，超出模型上下文窗口
+   - T：设计一套可控的 Agent 多轮工具调用架构
+   - A：ChatSessionAgent 内实现 ReAct 循环（状态机驱动：GENERATING→TOOL_CALLING→FINALIZING→DONE），配合 context_budget 控制（tool_context_limit_ratio=0.8）避免上下文溢出，超限时自动切换为最终应答轮次
+   - R：工具调用轮次可控（普通模式 10 轮、Agent 模式 90 轮），上下文溢出问题解决
 
 2. **MCP 工具生态**
    - S：需要对接多种外部能力（搜索、天气、代码执行、文件操作）
@@ -281,12 +281,12 @@
 ├── 2.1 可观测性接入（Langfuse/OTel）
 ├── 2.2 记忆系统量化
 ├── 2.3 Eval 评测体系搭建
-└── 2.4 成本优化数据量化
+├── 2.4 成本优化数据量化
+└── 2.5 多 Agent 协作设计方案（4/5 JD 提到，项目缺失，准备设计方案）
 
 锦上添花（按需）
-├── 3.1 多 Agent 协作设计方案（4/5 JD 提到，项目实际缺失，优先级应上调）
-├── 3.2 MCP 协议深度 + A2A 了解
-└── 3.3 CI/CD + K8s 部署
+├── 3.1 MCP 协议深度 + A2A 了解
+└── 3.2 CI/CD + K8s 部署
 ```
 
 ---
