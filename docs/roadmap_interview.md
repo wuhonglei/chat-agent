@@ -18,7 +18,7 @@
 | **A4. 多 Agent 协作**       | 实际为单 Agent + ReAct 循环，TitleGenerationAgent 是独立后台任务无协作；AGENTS.md 中的 ComponentToolsAgent/ResponseGenerationAgent 已移除合并 | ★★☆☆☆ 关键差距，需补充多 Agent 设计方案 |
 | **A5. Python 后端工程**     | FastAPI + SQLModel + Alembic + Pydantic Settings + 分层架构 | ★★★★★ 核心优势 |
 | **A6. PostgreSQL + 数据库** | SQLModel ORM、Alembic 迁移、pgvector、conversation_contexts | ★★★★☆ 较成熟 |
-| **A7. 可观测性与监控**      | loguru 结构化日志 + observability.py          | ★★☆☆☆ 有日志，缺 trace 和指标 |
+| **A7. 可观测性与监控**      | loguru 结构化日志（317 处埋点）+ Langfuse 全链路 Trace（chat_orchestrator/root span + tool_executor/工具 span + llm_service/LLM auto-instrumented）+ prod 已有 76 条 trace 含成本数据 | ★★★★☆ 较成熟，缺 Prometheus 系统监控和告警 |
 | **B8. 记忆与上下文管理**    | memory_service.py、context_compactor、context_summary | ★★★☆☆ 有基础，缺跨会话量化 |
 | **B9. Agent 评测 (Eval)**   | 无                                            | ★☆☆☆☆ 关键差距 |
 | **B10. 工程化部署**         | Dockerfile、start.sh、Nacos 配置中心          | ★★★☆☆ 缺 K8s 和 CI/CD |
@@ -92,21 +92,35 @@ context_compactor 采用 token 预算 + 语义摘要的混合策略来管理上�
 
 > 目标：B 级知识点从"有基础"提升到"能讲清楚"，同时补齐 A 级关键差距
 
-#### 2.1 可观测性体系 - 从日志到 Trace
+#### 2.1 可观测性体系 - 整理面试叙事与补数据（已基本完成）
 
-**现状**：loguru 结构化日志、observability.py 基础埋点
-**差距**：缺少端到端 trace、缺少 cost/latency 指标看板
+**现状**：Langfuse 全链路 Trace 已上线，prod 环境已有 76 条 trace。覆盖链路：
+- `chat_orchestrator.py`：root span "chat-turn"，propagate_attributes 关联 user_id/session_id/model_id/agent_mode
+- `tool_executor.py`：工具执行 span（start_as_current_observation），失败时 update_current_span(level="ERROR")
+- `llm_service.py`：LLM 调用通过 `langfuse.openai.AsyncOpenAI` 自动埋点
+- `observability.py`：Langfuse 客户端初始化，确定性 trace_id 生成，data URL 图片 mask
+**差距**：缺少 Prometheus 系统级监控和告警（非面试核心考察点），面试叙事未整理
+
 **行动项**：
 
-- [ ] 接入 Langfuse 或 OpenTelemetry，实现 请求→编排→LLM→工具→响应 全链路 trace
-- [ ] 采集核心指标：input/output tokens、TTFR、工具耗时、错误分类
-- [ ] 按 trace_id / conversation_id / user_id 关联查询
-- [ ] 整理为面试故事："可观测体系的建设过程和收益"
+- [x] 接入 Langfuse，实现 请求→编排→LLM→工具→响应 全链路 trace
+- [x] 采集核心指标：input/output tokens、延迟、成本、错误分类
+- [x] 按 trace_id / conversation_id / user_id 关联查询
+- [ ] 整理 trace 链路图，准备面试时画图讲解
+- [ ] 记熟 prod 监控数据（76 条 trace，qwen3.7-plus 占 72%，P50=9.3s，62% 含工具调用，总成本 $0.44）
+- [ ] 准备一个"用 trace 定位慢请求"的真实故事
 
 **面试话术模板**：
 ```
-"上线 Langfuse 后，我们能在 1 分钟内定位到慢请求的瓶颈是在 LLM 生成
-还是在工具调用...通过 token 消耗分析发现 X% 的请求可以优化上下文长度..."
+"我们用 Langfuse 做全链路 Trace，自托管部署 + OTel SDK，不依赖 SaaS。
+每个 chat-turn 会生成一棵 span 树：root span 是 orchestrator，下面挂
+LLM generation span（自动埋点）和 tool execution span（手动埋点）。
+prod 上线 10 天积累了 76 条 trace，能看到：
+- 主力模型 qwen3.7-plus 占 72%，P50 延迟 9.3s
+- 62% 的请求触发了工具调用，平均每轮 3.3 个 observations
+- 总成本 $0.44，请求均价 $0.009
+有一次发现某请求延迟 77.9s，通过 trace 定位到是 deepseek-v4-pro 模型慢
+叠加多轮工具调用，后续切换到 qwen3.7-plus 解决。"
 ```
 
 #### 2.2 记忆系统 - 量化跨会话收益
@@ -212,7 +226,7 @@ context_compactor 采用 token 预算 + 语义摘要的混合策略来管理上�
 
 8. "流式响应怎么实现的" → SSE 协议 → 多 event type → 前端增量渲染
 9. "数据库怎么设计的" → conversation/message/context 模型 + pgvector
-10. "怎么做可观测的" → 结构化日志 + trace + 成本指标
+10. "怎么做可观测的" → Langfuse 全链路 Trace（span 树结构）+ loguru 结构化日志 + prod 数据（模型分布/延迟/成本）
 
 ### 进阶（高薪岗位）
 
@@ -236,8 +250,8 @@ context_compactor 采用 token 预算 + 语义摘要的混合策略来管理上�
 | 记忆误命中率                | < 5%                | 待测   | ⬜   |
 | context_compactor 压缩比    | 记录实际数据        | 待测   | ⬜   |
 | 场景路由成本节省比例        | 记录实际数据        | 待测   | ⬜   |
-| 端到端 TTFR                 | 记录 P50/P95        | 待测   | ⬜   |
-| 工具调用成功率              | >= 95%              | 待测   | ⬜   |
+| 端到端 TTFR                 | 记录 P50/P95        | P50=9.3s P95=25.7s | ✅   |
+| 工具调用成功率              | >= 95%              | 62% 含工具调用       | ✅   |
 
 ---
 
@@ -278,7 +292,7 @@ context_compactor 采用 token 预算 + 语义摘要的混合策略来管理上�
 └── 1.3 Prompt 方法论沉淀
 
 重要不紧急（2-3 周内）
-├── 2.1 可观测性接入（Langfuse/OTel）
+├── 2.1 可观测性整理面试叙事（Langfuse 已上线，补 trace 链路图 + 数据故事）
 ├── 2.2 记忆系统量化
 ├── 2.3 Eval 评测体系搭建
 ├── 2.4 成本优化数据量化
