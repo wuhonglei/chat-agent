@@ -48,9 +48,14 @@ def _build_langfuse_kwargs(tracing_enabled: bool) -> dict[str, Any]:
 
 def init_langfuse() -> None:
     """初始化 Langfuse 客户端（失败不影响主链路）。"""
+    import os
+
     global _langfuse_client
     if _langfuse_client is not None:
         return
+
+    # 设置 OpenTelemetry service.name，避免默认的 "unknown_service"
+    os.environ.setdefault("OTEL_SERVICE_NAME", "chat-agent-backend")
 
     tracing_enabled = bool(settings.langfuse.enabled)
     try:
