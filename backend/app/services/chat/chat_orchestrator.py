@@ -272,6 +272,7 @@ class ChatOrchestrator:
         conversation_id = chat_request.conversation_id
         trace_enabled = is_enabled()
         langfuse_client = get_langfuse()
+        assistant_response: AssistantResponse | None = None
         try:
             with ExitStack() as trace_stack:
                 root_span: Any = None
@@ -565,12 +566,15 @@ class ChatOrchestrator:
                     )
                     yield build_done_event(done_event_payload)
 
-                    self.post_process_service.schedule_memory_write(
-                        chat_request=chat_request,
-                        assistant_response=assistant_response,
-                        user_id=user_id,
-                        assistant_message_id=assistant_message_id,
-                    )
+            # memory-write 已通过 asyncio.create_task 异步执行，将其移出 chat-turn span，
+            # 避免 Langfuse 子 span 生命周期撑大父 span 的持续时间。
+            if assistant_response is not None:
+                self.post_process_service.schedule_memory_write(
+                    chat_request=chat_request,
+                    assistant_response=assistant_response,
+                    user_id=user_id,
+                    assistant_message_id=assistant_message_id,
+                )
         except Exception as exc:
             logger.error(
                 "Error during stream response generation",

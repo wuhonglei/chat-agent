@@ -50,3 +50,12 @@ service-account*.json
 # 本地/实验目录：不跟踪名为 test 或 tests 的目录（勿忽略 backend/tests/，其为正式单元测试）
 /test/
 webhooks/test/
+
+# scripts/ 下本地生成的 QA 数据集（体积大，由 fetch/extract 脚本生成）
+scripts/live_qa_data*.json
+scripts/first_qa_per_conversation*.json
+scripts/classified_qa_data*.json
+scripts/langfuse_deep_analysis.json
+scripts/*_conversations.json
+scripts/replay_*_results.json
+scripts/classification_report.json
