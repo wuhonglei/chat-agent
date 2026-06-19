@@ -6,11 +6,7 @@ from typing import Any
 
 import httpx
 
-from app.core.observability import (
-    mark_observation_error,
-    new_trace_id,
-    observation_span,
-)
+from app.core.observability import mark_observation_error, observation_span
 from app.schemas.config import MemoryConfig
 from app.schemas.user import MemoryListItem
 from app.utils.logger import logger
@@ -42,12 +38,11 @@ class MemoryService:
         user_id: str,
         run_id: str | None = None,
         metadata: dict[str, Any] | None = None,
-        trace_seed: str | None = None,
     ) -> None:
         """写入记忆：POST /memories，传入 messages + user_id。
 
-        ``trace_seed`` 仅用于 Langfuse trace 关联（确定性派生 trace_id），
-        不影响 Mem0 请求体，便于异步写入挂回同一轮对话的 trace。
+        异步 fire-and-forget 调用，不在 Langfuse 中单独建 trace，避免与 chat-turn
+        共用 trace_id 时产生第二条 root observation。
         """
         if not self._mem0_enabled():
             return
@@ -60,25 +55,16 @@ class MemoryService:
             body["run_id"] = run_id
         if metadata is not None:
             body["metadata"] = metadata
-        trace_context = (
-            {"trace_id": new_trace_id(trace_seed)} if trace_seed else None
-        )
-        with observation_span(
-            "memory-write",
-            input={"messages_count": len(messages)},
-            trace_context=trace_context,
-        ) as span:
-            try:
-                async with httpx.AsyncClient(timeout=self._timeout) as client:
-                    resp = await client.post(url, json=body, headers=self._headers())
-                    resp.raise_for_status()
-            except httpx.HTTPError as e:
-                mark_observation_error(span, e)
-                logger.warning(
-                    "Mem0 add_memories failed",
-                    user_id=user_id,
-                    error=e,
-                )
+        try:
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                resp = await client.post(url, json=body, headers=self._headers())
+                resp.raise_for_status()
+        except httpx.HTTPError as e:
+            logger.warning(
+                "Mem0 add_memories failed",
+                user_id=user_id,
+                error=e,
+            )
 
     async def search(
         self,

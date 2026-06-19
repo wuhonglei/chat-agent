@@ -566,14 +566,13 @@ class ChatOrchestrator:
                     )
                     yield build_done_event(done_event_payload)
 
-            # memory-write 已通过 asyncio.create_task 异步执行，将其移出 chat-turn span，
-            # 避免 Langfuse 子 span 生命周期撑大父 span 的持续时间。
+            # memory-write 通过 asyncio.create_task 异步执行，不在 Langfuse 中单独建 trace，
+            # 避免与 chat-turn 共用 trace_id 时出现两条 traces。
             if assistant_response is not None:
                 self.post_process_service.schedule_memory_write(
                     chat_request=chat_request,
                     assistant_response=assistant_response,
                     user_id=user_id,
-                    assistant_message_id=assistant_message_id,
                 )
         except Exception as exc:
             logger.error(
