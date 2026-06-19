@@ -116,7 +116,7 @@ class MemoryService:
                 span.update(
                     output={
                         "count": len(r),
-                        "memory_ids": [item.id for item in r],
+                        "memories": [item.model_dump(mode="json") for item in r],
                     }
                 )
             return r
