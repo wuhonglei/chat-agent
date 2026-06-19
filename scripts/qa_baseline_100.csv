@@ -1,0 +1,731 @@
+conversation_id,conversation_title,user_id,user_question,user_question_length,assistant_answer_length,tool_calls_count,tool_names,server_names,response_time_ms,category,attachment_type,user_created_at,multimodal_content_blocks
+01ea38b9-ce9f-446e-83ad-248a0bc5c825,面试Agent全栈：简历项目域名是否要放,c7d40833-6b26-4696-828f-a94b9de5b47d,"我想面试 agent 全栈开发，我的个人简历如下，对于第一个项目 chat agent 我是否需要将域名提供出来，因为提供后是否会让用人单位觉得这是一个个人项目，没有技术含量
+
+简历 markdown 内容如下：
+# 吴洪磊｜Agent 全栈工程师
+8年工作经验｜硕士｜33岁｜现居深圳
+手机：+86 18573176806｜邮箱：1017368065@qq.com
+
+## 求职意向
+- 目标岗位：Agent 全栈工程师
+- 期望城市：深圳
+- 求职状态：在职
+
+## 工作经历
+
+### Shopee 跨境电商｜站外广告｜Web 前端 / 全栈开发
+**2021.05 - 至今**
+- 负责 AI 应用平台、运营分析平台、自动化测试平台等多个核心系统建设，覆盖前端主责与后端协作开发。
+- 在多个项目中承担“需求澄清 -> 方案设计 -> 开发联调 -> 上线运维”闭环交付，保障关键版本按期上线。
+- 推动跨端接口契约和工程规范落地，降低联调返工与线上回归风险，提升团队交付确定性。
+
+### 深信服科技股份有限公司｜UEDC｜Web 前端（前端小组长）
+**2018.07 - 2021.04**
+- 负责企业安全产品前端功能开发与团队协作推进，参与用户侧与管理侧核心平台建设。
+- 主导前端开发规范沉淀与复杂需求拆解，提升多人协作场景下的研发效率和交付稳定性。
+
+## 核心技能
+- 前端：React、TypeScript、Redux Toolkit、Ant Design、Vite、TailwindCSS
+- 后端：Python、FastAPI、Node.js、NestJS、SSE、JWT、SQLModel、TypeORM
+- 数据与中间件：PostgreSQL、MySQL、Redis、Kafka
+- Agent/AI 应用：LLM 对话应用、MCP Tool Calling、多轮上下文管理、用户会话记忆、多模态输入（文本/图片/PDF）
+- 自动化与基础设施：Playwright、Docker Compose、Nginx、Linux、Prometheus、Grafana
+- 工程协作：跨团队联调、BFF 契约对齐、质量门禁（ESLint/Stylelint/Husky/Jest）
+
+## 精选项目经历
+
+### Chat Agent 智能对话平台（chat.wuhonglei.cn）｜全栈开发
+**2025.09 - 至今**
+项目简介：独立完成可公网访问的 AI 对话平台，支持流式回复、多轮上下文管理、用户记忆、MCP 工具调用与结构化结果展示，并扩展文本/图片/PDF 多模态输入。
+
+技术栈：React、TypeScript、FastAPI、SSE、PostgreSQL（pgvector）、Docker Compose、Nginx
+- 独立完成系统架构与技术选型，设计会话与消息模型、流式通信链路、鉴权与持久化方案，形成可持续迭代的 Agent 应用底座。
+- 设计并落地上下文管理链路：对窗口外历史问答进行摘要压缩，窗口内仅保留工具调用的结构化关键结果，并在当前轮次工具结果过长时通过 RAG 进行精简，提升多轮问答的一致性与稳定性。
+- 构建 MCP 工具调用结果组件化展示机制，支持工具扩展与结构化输出，降低新增工具能力的接入成本。
+- 独立打通生产部署（容器化、反向代理、证书、域名）与真实登录体系（短信验证码、微信 OAuth），完成从开发到线上可用的全链路交付。
+- 搭建 Docker Compose + Nginx 标准化发布链路：GitHub `main` 合并后由 Webhook 自动触发按需构建，前后端构建耗时由 90 秒降至 30 秒。
+
+### GEO AI 搜索优化平台（Portal + Sampling Tool）｜全栈开发（Sampling Tool 主责）
+**2025.09 - 2026.04**
+项目简介：面向 AI 搜索运营分析与自动化采样治理的一体化平台，覆盖“数据采集 -> 数据分析 -> 运营决策”链路；我主要负责 `sampling_tool` 的稳定性与可恢复性建设，并承担 `portal` 侧关键协作交付。
+
+技术栈：React 18、TypeScript、NestJS、MySQL、Redis、Kafka、Playwright、Prometheus、Grafana
+- 负责 Sampling Tool 自动化交互引擎的平台化改造，统一 ChatGPT 与 Google AI Overview 等多平台采样执行链路。
+- 设计并落地 Kafka 消费治理机制（并发阈值控制、暂停/恢复），提升高并发任务消费稳定性。
+- 建设账号池预占用与反爬恢复策略（节流、冷却、熔断、按失败类型执行差异化重试与代理切换），降低任务与资源状态不一致风险。
+- 搭建 Prometheus/Grafana 可观测体系，持续跟踪成功率、失败原因与耗时分布，缩短异常定位与恢复路径。
+- 同步承担 Portal 核心模块前端交付与 BFF 联调，保障采样数据到运营分析的业务闭环落地。
+- 结果：任务成功率由 60% 提升至 80%（口径：治理前后同平台任务样本对比）。
+
+### AUS 无脚本自动化测试平台｜全栈开发
+**2023.03 - 2025.03**
+项目简介：将“手写脚本”升级为“录制即可回放”的自动化测试平台，围绕录制、回放、调试、报告构建完整闭环，服务多业务团队回归测试。
+
+技术栈：Chrome Extension、TypeScript/JavaScript、Node.js（Koa/WebSocket）、Playwright、MySQL、Redis
+- 负责平台全链路研发，打通采集端、服务端与执行端能力，支撑复杂页面交互的自动化执行。
+- 设计并实现无脚本录制能力，将用户操作结构化为可执行步骤，降低自动化用例构建门槛。
+- 维护执行引擎，建设失败重试、中断控制、实时状态回传与截图定位能力，提升问题排查效率。
+- 针对定位器易失效问题引入 Similo2-JS 相似性定位策略，增强跨版本页面回放稳定性。
+- 结果：自动化用例产出周期由 2 天缩短至 0.5 天（口径：单条中等复杂度用例）。
+- 结果：平台落地 11 个业务项目，累计执行 2万+ 次回归任务，关键流程回归覆盖率提升至 80%（口径：项目上线累计/核心业务流程统计）。
+- 结果：用例通过率提升 90%，问题定位时间缩短 70%（口径：平台治理前后对比）。
+
+### DAP 广告投放中台｜前端开发
+**2021.05 - 2023.03**
+技术栈：React、TypeScript、Ant Design、Redux Toolkit、Axios
+- 负责投放编辑器与批量编辑核心能力开发，推进复杂中后台场景的模块化治理与性能优化。
+- 主导通用批量编辑组件配置化抽象，支持多平台业务快速复用，提升需求交付效率。
+- 结果：通用批量编辑组件在 13+ 业务场景复用（口径：跨平台模块接入数量）。
+
+## 教育经历
+
+### 中南大学
+- 专业：计算机科学与技术
+- 学历：硕士
+- 时间：2015.09 - 2018.06
+
+### 内蒙古农业大学
+- 专业：网络工程
+- 学历：本科
+- 时间：2011.09 - 2015.07
+
+## 个人优势
+- 8 年 Web 前端, 3 年全栈经验，长期负责复杂平台从需求拆解到上线交付，具备端到端 owner 能力。
+- 具备 Agent 应用完整落地经验，独立完成 AI 对话系统的架构设计、前后端开发、部署上线与认证接入。
+- 深度实践上下文工程与工具调用链路，落地多轮会话记忆、SSE 流式响应、MCP 工具结果结构化展示。
+- 在高复杂度平台中持续推进稳定性治理与工程规范建设，兼顾交付速度、质量与可维护性。
+
+## 附加信息
+- 英语能力：CET6
+- 个人主页/作品集：chat.wuhonglei.cn
+- 自我评价：以业务结果为导向，擅长在不确定需求中完成技术抽象与全栈闭环交付，能够在 Agent/AI 应用场景下兼顾创新速度与工程稳定性。",3395,3056,0,,,15,simple_chat,,2026-04-17T11:39:45.629753+00:00,
+11b260d1-afc8-46a1-b668-fb452ae8f407,潜江北站与潜江站的区别,c7d40833-6b26-4696-828f-a94b9de5b47d,潜江北站和潜江站,8,623,0,,,14,simple_chat,,2026-05-06T04:50:58.368000+00:00,
+1e6604b3-c4b5-4b94-b68d-24a1dd062c01,图中两个球一样大吗？,c7d40833-6b26-4696-828f-a94b9de5b47d,图中的两个球一样大吗,10,302,0,,,17,simple_chat,,2026-05-19T09:51:34.701676+00:00,
+61f69ea7-5931-4c3c-a4ea-af0eebef57ed,腋下37度算发烧吗？,c7d40833-6b26-4696-828f-a94b9de5b47d,腋下温度 37 度,9,822,0,,,28,simple_chat,,2026-04-18T15:25:36.446341+00:00,
+8f0ed762-e7e8-496b-a4b6-6258ae077881,Kafka 任务消费并发与账号池控制流程,c7d40833-6b26-4696-828f-a94b9de5b47d,"渲染下面的 flowchart：
+flowchart TD
+    A[Kafka Topic 新任务] --> B[Consumer 拉取消息]
+    B --> C{并发是否超限?}
+
+    C -- 是 --> C1[暂停消费<br/>reason=concurrency]
+    C1 --> C2[等待在跑任务下降]
+    C2 --> C3{并发恢复?}
+    C3 -- 否 --> C2
+    C3 -- 是 --> C4[恢复消费]
+
+    C -- 否 --> D{账号池有可用账号?}
+    D -- 否 --> D1[暂停消费<br/>reason=emptyPool]
+    D1 --> D2[定时探测账号池]
+    D2 --> D3{账号池恢复?}
+    D3 -- 否 --> D2
+    D3 -- 是 --> D4[恢复消费]
+
+    D -- 是 --> E[预占用账号成功后提交 offset]
+    E --> F[执行采样任务]
+
+    F --> G{任务成功?}
+    G -- 否 --> H[错误重试<br/>指数退避 + 抖动]
+    H --> I{达到重试上限/中止条件?}
+    I -- 否 --> F
+    I -- 是 --> J[任务失败落库/上报]
+
+    G -- 是 --> K[任务成功落库/上报]
+    J --> L[释放账号]
+    K --> L
+
+    L --> M[按最近成功率计算冷却时长]
+    M --> N[账号进入冷却池]
+    N --> O[冷却结束回到可用池]",709,2599,0,,,10,simple_chat,,2026-05-06T08:01:27.412945+00:00,
+2cdeefce-0cd4-4515-b921-eb19f9f49ddf,服务端沙箱：E2B与Firecracker微虚拟机解析,c7d40833-6b26-4696-828f-a94b9de5b47d,"解释下面的概念：
+服务端沙箱 (E2B / Firecracker MicroVMs)",43,1568,0,,,13,simple_chat,,2026-05-10T11:44:13.993501+00:00,
+26f036e4-f2e2-45c5-baf9-e504acaf9659,Boss 直聘如何屏蔽猎头职位？,c7d40833-6b26-4696-828f-a94b9de5b47d,boss 直聘进行职位筛选时可以不显示猎头职位吗,24,555,0,,,13,simple_chat,,2026-05-28T01:42:59.375721+00:00,
+97a77067-d607-4de3-bdac-7150b9de4d15,AI 对话系统：记忆元数据是什么？,c7d40833-6b26-4696-828f-a94b9de5b47d,你好呀,3,63,0,,,4,simple_chat,,2026-04-19T08:06:49.404460+00:00,
+577ab9cf-b7e2-4685-bdcd-fd7022489127,LeetCode高效刷题指南：逻辑思维差怎么办？,c7d40833-6b26-4696-828f-a94b9de5b47d,如何高效刷 leetcode，我感觉自己逻辑思维能力很差怎么办,31,2268,0,,,10,simple_chat,,2026-04-15T05:30:11.035987+00:00,
+2dfa3c95-bc61-408d-b747-82433b01dabe,GitLab 大文件体积问题解决方案,c7d40833-6b26-4696-828f-a94b9de5b47d,gitlab 如何解决大文件体积问题,18,2529,0,,,10,simple_chat,,2026-04-23T02:05:03.034962+00:00,
+4790afe3-496f-46ea-8732-fab872525891,Agent 记忆注入：Query 工具自主调用？,c7d40833-6b26-4696-828f-a94b9de5b47d,对于 agent 工具用户记忆注入的方式，是否建议将 query_user_memories(queries: string[]) 作为 tool 方式传给模型，由模型根据当前上下文自主决定是否调用以及如何调用,105,2597,0,,,3,simple_chat,,2026-05-10T15:16:56.598948+00:00,
+ba280745-2ce7-40c7-8cf9-409df7b30f04,微信无法添加好友？修改设置指南,c7d40833-6b26-4696-828f-a94b9de5b47d,微信别人加我显示加不了，要如何修改自己的微信设置,24,745,0,,,23,simple_chat,,2026-04-18T06:31:39.050958+00:00,
+7c046c21-b9c0-412d-96d5-1f2da731bd02,简约风格个人博客首页HTML代码,c7d40833-6b26-4696-828f-a94b9de5b47d,帮我直接生成 html 代码，用于个人博客首页的展示，风格简约,31,8393,0,,,13,simple_chat,,2026-04-21T02:52:43.281886+00:00,
+013f1af2-216c-4f57-84df-438426252b7a,Kafka 分区 offset 是否仅在当前分区有效？,c7d40833-6b26-4696-828f-a94b9de5b47d,kafka partition 分区的 offset 是只在当前分区有效吗,37,1013,0,,,8,simple_chat,,2026-04-29T10:44:28.743499+00:00,
+56ceca67-1ca8-419b-8cb9-216e66cf6641,远程调试与CDP协议的区别,c7d40833-6b26-4696-828f-a94b9de5b47d,remote debugging 和 cdp 协议有什么区别,30,2353,0,,,22,simple_chat,,2026-04-21T10:13:30.671145+00:00,
+3516adc2-e3ee-4b23-b5e2-0ca5e9dda0c3,Nginx 静态资源与 SPA 配置格式化,c7d40833-6b26-4696-828f-a94b9de5b47d,"格式化下面的 Nginx 配置：
+
+```
+# 如果有单独的 assets 目录，可以单独配置
+location ^~ /assets/ {
+    root /data/html/markdown_to_pdf/;
+    expires 30d;
+    add_header Cache-Control ""public, max-age=2592000"";
+    access_log off;
+}
+
+# 静态资源 - 强缓存
+location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+    root /data/html/markdown_to_pdf/;
+    expires 365d;
+    add_header Cache-Control ""public, immutable, max-age=31536000"";
+    access_log off;
+}
+
+# 主应用路由
+location / {
+    root /data/html/markdown_to_pdf/;
+    index index.html index.htm;
+
+    # SPA 路由支持：优先查找文件，不存在则返回 index.html
+    try_files $uri $uri/ /index.html;
+
+    # HTML 文件不缓存
+    if ($request_uri ~* \.html$) {
+        add_header Cache-Control ""no-cache, no-store, must-revalidate"";
+        expires 0;
+    }
+}
+```",768,1012,0,,,17,simple_chat,,2026-04-30T03:58:23.137209+00:00,
+cd3c6423-b872-4ae9-947c-d63f592fe5d5,GEO 内容生产：多智能体架构可行吗？,c7d40833-6b26-4696-828f-a94b9de5b47d,在 GEO 内容生产流程中，有关键词研究，内容生产，流程，是否适合用 multi agent 架构，由顶层 agent 来制定 plan,68,3495,0,,,16,simple_chat,,2026-04-23T05:07:05.312230+00:00,
+9052019d-172b-475f-90b1-c94d371c73d0,交通事故定责前，车主该如何处理？,c7d40833-6b26-4696-828f-a94b9de5b47d,我的机动车和摩托车发生了交通事故，对方摩托车驾驶人受伤不严重，已经去医院检查处理了，交警定责还未出，接下来我应该怎么处理,60,971,0,,,32,simple_chat,,2026-06-07T01:16:14.623679+00:00,
+5bd7dcbe-99b9-48e9-a0f6-d9f221da0f5b,Docker 容器内编辑文本文件命令,c7d40833-6b26-4696-828f-a94b9de5b47d,docker 容器内部，编辑文本文件，使用什么命令,25,921,0,,,16,simple_chat,,2026-04-16T08:11:27.262353+00:00,
+9d7174d2-26f8-435a-94aa-38ae7f173df5,面试：GEO 项目自动化采样与稳定性治理,c7d40833-6b26-4696-828f-a94b9de5b47d,这是我的个人简历，假设你是一位面试官，你问我关于 GEO 项目的问题,34,1014,0,,,15,simple_chat,,2026-04-23T01:15:18.882995+00:00,
+8512de2e-3f1b-4ec5-a166-e73748afe603,Kafka 消息队列清空概念解析,c7d40833-6b26-4696-828f-a94b9de5b47d,Kafka 消息队列的清空是什么概念呢,19,1613,0,,,18,simple_chat,,2026-05-20T08:32:27.355007+00:00,
+ccd682c2-51c1-4d55-8aa9-50254f3f49b2,Nginx 413错误解决方法,c7d40833-6b26-4696-828f-a94b9de5b47d,nginx 返回了 413 Request Entity Too Large,38,1662,0,,,28,simple_chat,,2026-04-11T07:31:41.745276+00:00,
+8d7751f3-2b29-45f1-8eb2-0f4c8269c805,Web AI Chat 应用生成器核心功能总结,c7d40833-6b26-4696-828f-a94b9de5b47d,"帮我总结下面的 prd 核心功能点：
+
+# PRD: Web AI Chat 应用生成器
+
+## 1. 项目信息
+
+| 字段 | 内容 |
+|------|------|
+| **项目名称** | ai_web_app_builder |
+| **编程语言** | TypeScript, Shadcn-ui, Tailwind CSS |
+| **后端服务** | Atoms Cloud |
+| **当前日期** | 2026-05-09 |
+
+## 2. 原始需求
+
+用户希望在一个 Web AI Chat 聊天工具中，实现 Web 应用生成的功能。核心交互模式为：
+
+- **左侧**：AI 聊天对话区，用户通过自然语言描述需求
+- **右侧**：实时代码预览区，展示代码生成过程及最终运行效果
+- 生成的 Web 应用可能包含前端和后端
+- 参考产品：Atoms 平台、Bolt.new、v0.dev、Lovable 等
+
+---
+
+## 3. 产品目标
+
+1. **降低 Web 应用开发门槛**：让非技术用户也能通过自然语言对话快速生成可运行的 Web 应用，无需编写代码
+2. **提供实时可视化开发体验**：用户在描述需求的同时，能在右侧实时看到代码生成过程和应用预览效果，形成即时反馈闭环
+3. **支持全栈应用生成与部署**：不仅限于前端 UI 组件，还支持后端逻辑、数据库、API 等全栈能力，并提供一键部署
+
+---
+
+## 4. 用户故事
+
+| 编号 | 用户故事 |
+|------|---------|
+| US-1 | 作为一名**产品经理**，我希望通过描述产品需求就能生成一个可交互的原型应用，以便快速验证产品想法并与团队沟通 |
+| US-2 | 作为一名**前端开发者**，我希望通过对话快速生成 UI 组件和页面布局，并在右侧实时预览效果，以便加速开发流程 |
+| US-3 | 作为一名**创业者**，我希望能通过描述业务逻辑生成包含前后端的完整 MVP 应用，以便快速验证商业模式 |
+| US-4 | 作为一名**设计师**，我希望上传设计稿后 AI 能自动生成对应的前端代码，并在预览区实时展示效果，以便快速将设计转化为可交互页面 |
+| US-5 | 作为一名**学生/初学者**，我希望通过自然语言描述就能生成 Web 应用，并能查看生成的代码学习编程，以便降低学习门槛 |
+
+---
+
+## 5. 竞品分析
+
+### 5.1 竞品概览
+
+| 竞品 | 定位 | 优势 | 劣势 |
+|------|------|------|------|
+| **Bolt.new** | 浏览器内全栈 AI 开发环境 | WebContainers 技术实现浏览器内 Node.js 运行；实时预览；支持多框架（Next.js, React, Vue 等）；6个月达到 $40M ARR | 后端能力有限；数据库支持不足；复杂项目生成质量不稳定 |
+| **v0.dev** | AI UI 组件生成器 | 生成高质量 React/Tailwind 组件；与 Vercel 生态深度集成；迭代式对话优化 | 仅支持前端组件，无后端/数据库/认证；只能部署到 Vercel |
+| **Lovable** | 全栈 MVP 构建器 | 内置 Supabase 集成；一键部署；GitHub 导出；2个月达到 $20M ARR | 定制化程度有限；复杂业务逻辑支持不足；价格较高 |
+| **Replit Agent** | 云端 AI IDE | 多语言支持；完整 IDE 体验；协作开发；内置部署 | 学习曲线较陡；AI 生成质量不如专注型产品；性能受限于云端 |
+| **Cursor** | AI 代码编辑器 | 强大的代码补全和编辑能力；支持多种 LLM；本地运行性能好 | 需要本地安装；非 Web 应用；无内置预览和部署 |
+| **Atoms** | AI 团队协作开发平台 | 多 Agent 协作；App Viewer 实时预览；Atoms Cloud 后端；多 LLM 支持 | 生态相对较新；社区规模较小 |
+| **本产品 (AI Web App Builder)** | Web AI Chat 全栈应用生成器 | 对话式交互 + 实时预览；全栈生成能力；代码过程可视化；灵活的后端集成 | 新产品，需要验证市场接受度 |
+
+### 5.2 竞品象限图
+
+```mermaid
+quadrantChart
+    title ""AI Web 应用生成器竞品分析""
+    x-axis ""低全栈能力"" --> ""高全栈能力""
+    y-axis ""低易用性"" --> ""高易用性""
+    quadrant-1 ""领先者""
+    quadrant-2 ""易用但受限""
+    quadrant-3 ""需改进""
+    quadrant-4 ""功能强但复杂""
+    ""Bolt.new"": [0.55, 0.80]
+    ""v0.dev"": [0.25, 0.85]
+    ""Lovable"": [0.70, 0.75]
+    ""Replit Agent"": [0.65, 0.45]
+    ""Cursor"": [0.60, 0.35]
+    ""Atoms"": [0.75, 0.70]
+    ""本产品"": [0.80, 0.82]
+```
+
+---
+
+## 6. 需求分析
+
+### 6.1 整体架构
+
+本产品采用前后端分离架构，核心模块包括：
+
+- **前端应用**：基于 React + TypeScript + Shadcn-ui + Tailwind CSS 构建
+- **后端服务**：基于 Atoms Cloud 提供 API、数据库、认证等服务
+- **AI 服务层**：调用 LLM 进行代码生成、对话理解、需求分析
+- **代码沙箱**：在浏览器端安全运行生成的代码并提供实时预览
+
+### 6.2 核心功能模块
+
+#### 6.2.1 AI 聊天对话模块（左侧面板）
+
+- 支持多轮对话，用户通过自然语言描述应用需求
+- 支持上传图片（设计稿/截图）作为参考
+- AI 理解需求后，自动拆解为开发任务
+- 显示 AI 的思考过程和执行步骤
+- 支持对话历史管理（新建/切换/删除对话）
+- 支持对生成结果进行迭代修改（""把按钮颜色改为蓝色""）
+
+#### 6.2.2 代码预览模块（右侧面板）
+
+- **代码编辑器视图**：实时展示 AI 生成的代码文件，支持语法高亮
+- **应用预览视图**：在沙箱中运行生成的代码，展示最终效果
+- **文件树**：展示项目的文件结构
+- **控制台**：显示运行日志和错误信息
+- 支持在代码编辑器和应用预览之间切换
+- 支持代码生成过程的流式展示（逐行/逐块出现）
+
+#### 6.2.3 代码沙箱引擎
+
+- 在浏览器端安全执行生成的前端代码（HTML/CSS/JS/React）
+- 支持后端代码的远程执行和 API 代理
+- 隔离运行环境，防止恶意代码影响宿主页面
+- 支持热更新，代码变更后自动刷新预览
+
+#### 6.2.4 项目管理模块
+
+- 项目列表和历史记录
+- 版本管理（支持回退到之前的版本）
+- 项目导出（下载源代码 ZIP 包）
+- 一键部署到公网
+
+#### 6.2.5 用户系统
+
+- 用户注册/登录（邮箱、第三方 OAuth）
+- 用户配额管理（免费/付费计划）
+- 项目分享（公开/私有链接）
+
+---
+
+## 7. 需求池
+
+| 编号 | 需求描述 | 优先级 |
+|------|---------|--------|
+| R-01 | 实现左侧 AI 聊天对话界面，支持多轮对话、Markdown 渲染、代码块高亮 | P0 |
+| R-02 | 实现右侧代码预览面板，包含代码编辑器视图和应用预览视图的切换 | P0 |
+| R-03 | 集成 LLM API（使用 claude-opus-4.6）进行代码生成，支持流式输出 | P0 |
+| R-04 | 实现浏览器端代码沙箱，安全运行生成的前端代码并实时预览 | P0 |
+| R-05 | 实现左右面板的可拖拽分割布局，支持响应式适配 | P0 |
+| R-06 | 实现代码生成过程的流式展示（代码逐行出现的动画效果） | P0 |
+| R-07 | 实现文件树组件，展示生成项目的文件结构 | P1 |
+| R-08 | 实现用户注册/登录系统（Atoms Cloud Auth） | P1 |
+| R-09 | 实现对话历史管理（新建/切换/删除/重命名对话） | P1 |
+| R-10 | 支持上传图片作为需求描述的参考（设计稿转代码） | P1 |
+| R-11 | 实现代码编辑器（基于 Monaco Editor），支持用户手动修改代码 | P1 |
+| R-12 | 实现控制台面板，显示运行日志和错误信息 | P1 |
+| R-13 | 实现项目版本管理，支持版本回退和分支 | P1 |
+| R-14 | 实现项目导出功能（下载 ZIP 源代码包） | P1 |
+| R-15 | 实现一键部署功能，将生成的应用部署到公网 | P2 |
+| R-16 | 实现项目分享功能（公开/私有链接） | P2 |
+| R-17 | 支持后端代码生成（API 路由、数据库操作） | P2 |
+| R-18 | 实现用户配额和计费系统 | P2 |
+| R-19 | 支持多种前端框架模板（React、Vue、Svelte） | P2 |
+| R-20 | 实现 AI 对话中的需求确认和澄清机制 | P2 |
+
+---
+
+## 8. UI 设计草案
+
+### 8.1 整体布局
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  Logo   项目名称                          用户头像  设置  部署  分享  │
+├──────────────────────┬──────────────────────────────────────────────┤
+│                      │  ┌──────────────────────────────────────┐   │
+│   对话历史列表        │  │  [设计] [代码] [预览] [控制台]        │   │
+│   ─────────────      │  ├──────────────────────────────────────┤   │
+│   ● 时钟显示应用      │  │                                      │   │
+│   ● 待办事项应用      │  │                                      │   │
+│   ● 博客系统         │  │        代码预览 / 应用预览区域          │   │
+│                      │  │                                      │   │
+│   ─────────────      │  │                                      │   │
+│                      │  │                                      │   │
+│   AI 对话区域        │  │                                      │   │
+│                      │  │                                      │   │
+│   👤 我想做一个      │  │                                      │   │
+│   时钟显示应用       │  │                                      │   │
+│                      │  │                                      │   │
+│   🤖 好的，我来帮    │  │                                      │   │
+│   你生成一个时钟     │  │                                      │   │
+│   显示应用...        │  │                                      │   │
+│                      │  │                                      │   │
+│   ⊙ 已处理 1 步     │  │                                      │   │
+│                      │  ├──────────────────────────────────────┤   │
+│   ─────────────      │  │  文件树: index.html │ style.css │ ...│   │
+│  ┌────────────────┐  │  └──────────────────────────────────────┘   │
+│  │ 描述你的需求... │  │                                            │
+│  │            📎 ▶ │  │                                            │
+│  └────────────────┘  │                                            │
+├──────────────────────┴──────────────────────────────────────────────┤
+│  版本 1: 时钟显示应用已完成                              ◀ Remix ▶  │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 8.2 关键页面说明
+
+#### 页面一：主工作区（核心页面）
+
+- **左侧面板**（约 40% 宽度）：
+  - 顶部：对话历史侧边栏（可折叠）
+  - 中部：AI 对话消息流（支持 Markdown、代码块、步骤展示）
+  - 底部：输入框（支持文本输入、图片上传、发送按钮）
+
+- **右侧面板**（约 60% 宽度）：
+  - 顶部 Tab 栏：设计 / 代码 / 预览 / 控制台
+  - 主区域：根据选中 Tab 展示对应内容
+  - 底部：文件树导航栏
+
+- **分割线**：可拖拽调整左右面板比例
+
+#### 页面二：登录/注册页
+
+- 简洁的居中卡片式布局
+- 支持邮箱注册/登录
+- 第三方 OAuth 登录按钮（Google、GitHub）
+
+#### 页面三：项目列表页
+
+- 网格/列表视图展示用户的所有项目
+- 每个项目卡片显示：项目名、缩略图、最后修改时间
+- 支持新建项目、搜索、排序、删除
+
+### 8.3 交互流程
+
+```
+用户输入需求 → AI 分析需求 → 生成代码（流式输出）
+                                    ↓
+                            右侧代码编辑器实时显示代码
+                                    ↓
+                            代码沙箱自动运行
+                                    ↓
+                            右侧预览区展示应用效果
+                                    ↓
+                    用户可继续对话迭代 或 部署/导出
+```
+
+---
+
+## 9. 技术方案要点
+
+### 9.1 代码沙箱方案
+
+推荐使用 **Sandpack**（by CodeSandbox）或 **iframe + postMessage** 方案：
+
+- **Sandpack**：成熟的浏览器端代码沙箱，支持 React、Vue 等框架，提供代码编辑器和预览组件
+- **iframe 沙箱**：将生成的代码注入到隔离的 iframe 中运行，通过 postMessage 通信
+- 对于后端代码，通过 Atoms Cloud Edge Functions 执行
+
+### 9.2 AI 代码生成
+
+- 使用 **claude-opus-4.6** 作为主要代码生成模型（代码专家/多模态/高质量）
+- 采用流式输出（SSE），实现代码逐行生成的视觉效果
+- Prompt 工程：设计结构化的系统提示词，确保生成代码的质量和一致性
+
+### 9.3 前端技术栈
+
+- React 18 + TypeScript
+- Shadcn-ui 组件库
+- Tailwind CSS 样式
+- Monaco Editor 代码编辑器
+- Sandpack 代码沙箱
+- Zustand 状态管理
+
+### 9.4 后端服务（Atoms Cloud）
+
+- Auth：用户认证
+- Database：项目数据、对话历史存储
+- Edge Functions：AI API 代理、代码执行
+- File Storage：用户上传的图片和项目文件
+
+---
+
+## 10. 开放问题
+
+| 编号 | 问题 | 影响范围 |
+|------|------|---------|
+| Q-1 | 代码沙箱是否需要支持完整的 Node.js 运行时（如 WebContainers），还是仅支持前端代码的浏览器端运行？ | 技术架构、开发成本 |
+| Q-2 | 后端代码生成的范围和深度如何界定？是否需要支持数据库 Schema 自动创建？ | 功能范围、AI 提示词设计 |
+| Q-3 | 免费用户的 AI 调用配额如何设定？每日/每月限制多少次对话？ | 商业模式、成本控制 |
+| Q-4 | 是否需要支持多人协作编辑同一个项目？ | 技术复杂度、产品定位 |
+| Q-5 | 部署目标平台有哪些？是否仅支持 Atoms 平台部署，还是需要支持 Vercel/Netlify 等？ | 部署架构、第三方集成 |
+| Q-6 | 生成的代码是否需要支持版本对比（diff view）？ | UI 复杂度、用户体验 |
+
+---
+
+## 11. 里程碑规划
+
+| 阶段 | 时间 | 目标 |
+|------|------|------|
+| **MVP（v0.1）** | 第 1-4 周 | 核心对话 + 前端代码生成 + 实时预览 |
+| **v0.2** | 第 5-8 周 | 用户系统 + 对话历史 + 文件管理 + 代码编辑器 |
+| **v0.3** | 第 9-12 周 | 后端代码生成 + 部署 + 项目导出 + 版本管理 |
+| **v1.0** | 第 13-16 周 | 图片上传转代码 + 多框架支持 + 计费系统 + 性能优化 |",8307,1477,0,,,25,simple_chat,,2026-05-11T06:27:04.463245+00:00,
+98eb7afc-42f2-4b2e-b6f3-65d1aaddbc38,武汉飞三亚夜航，3岁宝宝友好吗？,c7d40833-6b26-4696-828f-a94b9de5b47d,乘坐晚上的航班 ，武汉至三亚，3 个小时，晚上 10 点到目的地，对 3 岁小孩是否友好,44,682,0,,,103,simple_chat,,2026-06-10T15:20:45.204269+00:00,
+d1ce59d9-ebc4-4ed5-869f-3b27d5736215,3 岁龙凤胎哥哥打人如何引导？,c7d40833-6b26-4696-828f-a94b9de5b47d,3 岁的龙凤胎儿女，儿子有时候会打女儿，要如何引导,25,1460,0,,,14,simple_chat,,2026-04-17T03:17:42.990347+00:00,
+d5897f37-2305-4dd5-aa42-b0fc9fa666ff,AI编码与手工编码的平衡之道,c7d40833-6b26-4696-828f-a94b9de5b47d,如何处理好 ai 编码 与 手工编码的界限,21,1341,0,,,374,simple_chat,,2026-04-10T10:59:28.984630+00:00,
+bb0ad5ce-5909-4d54-af21-5645fffba0a5,Python sorted 函数详解,c7d40833-6b26-4696-828f-a94b9de5b47d,Python 的 sorted 函数,18,2396,0,,,17,simple_chat,,2026-05-13T12:55:09.410977+00:00,
+5bfbe9ab-4877-4725-b79f-54e19c593940,3000 人企业 ChatAgent 性能指标建议,c7d40833-6b26-4696-828f-a94b9de5b47d,我目前在开发企业内部的 chat agent 通用聊天助手，后台架构是 fastapi，企业人数是 3000 人，进行性能测试时需要满足怎样的性能指标,75,2136,0,,,13,simple_chat,,2026-05-27T13:45:42.696886+00:00,
+f57cb5a5-0083-4f5f-89d1-f4c908066b6c,多模态 API 图文块参数要求,c7d40833-6b26-4696-828f-a94b9de5b47d,"在多模态（文本、图片）模型 api 调用时，text_block, img_block 是否有要求或偏好
+
+
+client = OpenAI(
+    # 如果没有配置环境变量，请用阿里云百炼API Key替换：api_key=""sk-xxx""
+    api_key=os.getenv(""DASHSCOPE_API_KEY"", ""sk-8789ec370aa64588b5c8389df2b8661d""),
+    base_url=""https://dashscope.aliyuncs.com/compatible-mode/v1  "",
+)
+text_block = {'type': ""text"", 'text': ""解释该图片""}
+img_block1 = {'type': ""image_url"", 'image_url': {'url': 'https://chat.wuhonglei.cn/api/file/image/preview/c7d40833-6b26-4696-828f-a94b9de5b47d/66f996f3-ba5a-47c7-a1ee-c729dc0801c3.jpg  '}}
+img_block2 = {'type': ""image_url"", 'image_url': {'url': 'https://chat.wuhonglei.cn/api/file/image/preview/c7d40833-6b26-4696-828f-a94b9de5b47d/637bf562-ca2f-4b77-8038-88cd1631d8cd.jpg  '}}
+img_block3 = {'type': ""image_url"", 'image_url': {'url': 'https://chat.wuhonglei.cn/api/file/image/preview/c7d40833-6b26-4696-828f-a94b9de5b47d/a45c6c9b-3576-4297-b73f-10dd451eb074.jpg  '}}
+
+messages = [
+  {""role"": ""user"", ""content"": [text_block, img_block1, img_block2, img_block3]}
+]
+
+start_time = time.time()
+response = client.chat.completions.create(
+    model=""qwen3.5-plus"",  # 您可以按需更换为其它深度思考模型
+    messages=messages,
+    extra_body={""enable_thinking"": False},
+    stream=False
+)
+end_time = time.time()
+print(f""Time taken: {end_time - start_time} seconds"")
+print(response.choices[0].message.content)",1305,1565,0,,,9,simple_chat,,2026-04-14T02:41:51.339839+00:00,
+fd72ed88-532d-466d-91b1-9f395dccfa2a,1个月冲刺Agent开发岗：简历评估与LeetCode备考指南,c7d40833-6b26-4696-828f-a94b9de5b47d,"我打算在 1 个月内找到工作，我想要寻找 agent 开发相关的岗位，我的简历见附件。
+另外：我上传了 2 个图片，描述了 2 家公司对 agent 开发岗位的要求。
+请帮我制定准备要点，同步帮我指定 leetcode 100 的刷题准备（我对leetcode有些畏惧，刷题时没有思路）",143,5453,0,,,6,simple_chat,,2026-04-20T06:35:56.261498+00:00,
+83c600fb-087b-4368-9441-08f927613750,达坂城在哪里？,c7d40833-6b26-4696-828f-a94b9de5b47d,达坂城是哪里,6,487,0,,,11,simple_chat,,2026-06-02T12:37:00.887883+00:00,
+7658e0c6-ba28-4e67-8aa6-89b23d29bc15,Vite 项目初始化命令详解,c7d40833-6b26-4696-828f-a94b9de5b47d,"解释该命令的含义：
+npx --yes create-vite@latest vite-tmp --template react-ts --no-interactive && cp -r vite-tmp/\* vite-tmp/.\* . 2>/dev/null; rm -rf vite-tmp",149,1474,0,,,16,simple_chat,,2026-05-12T09:25:01.809958+00:00,
+76432c82-8c1e-492f-bfb6-709d44b1f66e,Docker 启动的 Backend 服务访问方式,c7d40833-6b26-4696-828f-a94b9de5b47d,"如何进入 backend 应用：
+➜  30776aac-303e-4cf9-a557-44a379bf089f git:(main) ✗ docker-compose ps
+NAME                  IMAGE                    COMMAND                  SERVICE    CREATED       STATUS                 PORTS
+chat-agent-backend    chat-agent-backend       ""/app/start.sh""          backend    2 hours ago   Up 2 hours (healthy)   0.0.0.0:8000->8000/tcp, :::8000->8000/tcp
+chat-agent-frontend   chat-agent-frontend      ""/docker-entrypoint.…""   frontend   2 hours ago   Up 2 hours             80/tcp, 0.0.0.0:3000->3000/tcp, :::3000->3000/tcp
+chat-agent-postgres   pgvector/pgvector:pg18   ""docker-entrypoint.s…""   postgres   6 weeks ago   Up 6 weeks (healthy)   0.0.0.0:5432->5432/tcp, :::5432->5432/tcp",707,774,0,,,6,simple_chat,,2026-05-12T12:41:46.747423+00:00,
+5986281c-5636-44ec-a525-943c3b94067c,收到 OpenAI 封号邮件：服务被停用,c7d40833-6b26-4696-828f-a94b9de5b47d,"收到 chatgpt 的下面邮件：
+
+OpenAI's terms and policies restrict the use of our services in a number of areas. We have identified activity in ChatGPT that is not permitted under our policies.
+We are deactivating your access to our services immediately for the account associated with the email bwibfwno42490@outlook.com (User ID: user-z3jNq37Xa2WIRmwZM2nMKVgu).
+If you have questions or think there has been an error, you can use the button below to initiate an appeal.",460,1023,0,,,9,simple_chat,,2026-04-24T07:58:28.973435+00:00,
+1e521c31-dc5f-4f8e-b915-b58fa28e7e7f,如何重命名 Git 分支,c7d40833-6b26-4696-828f-a94b9de5b47d,如何重命名 git 分支,12,1028,0,,,20,simple_chat,,2026-04-15T06:05:24.776334+00:00,
+b3622f4e-ccfd-4494-bb8f-e06b599ec510,CSS中的has选择器使用方法,c7d40833-6b26-4696-828f-a94b9de5b47d,css has 选择器,11,1574,0,,,5,simple_chat,,2026-04-10T11:27:05.650103+00:00,
+c818bcf2-6e65-4382-b4ba-3363dae82362,Agent 开发：工具调用失败如何处理,c7d40833-6b26-4696-828f-a94b9de5b47d,agent 开发面试中，对于工具调用失败，要如何处理,26,2443,0,,,50,simple_chat,,2026-04-22T13:07:30.028246+00:00,
+6c0f11ab-d01a-4fb1-811b-1cfda19e8a83,如何在 backend 容器中执行命令,c7d40833-6b26-4696-828f-a94b9de5b47d,"VM-24-3-ubuntu% docker-compose ls
+NAME                STATUS              CONFIG FILES
+chat-agent          running(3)          /home/ubuntu/chat-agent/docker-compose.yml
+promtail            running(1)          /home/ubuntu/promtail/docker-compose.yml
+
+services:
+  postgres:
+    # 使用 pgvector 官方预构建镜像
+    image: pgvector/pgvector:pg18
+    container_name: chat-agent-postgres
+    ports:
+      - ""5432:5432""
+    environment:
+      POSTGRES_DB: ${PG_DB}
+      POSTGRES_USER: ${PG_USER_NAME}
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+      POSTGRES_INITDB_ARGS: ""--encoding=UTF-8 --lc-collate=C --lc-ctype=C""
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./backend/init-db:/docker-entrypoint-initdb.d
+    networks:
+      - chat-agent-network
+    restart: unless-stopped
+    healthcheck:
+      test: [""CMD-SHELL"", ""pg_isready -U $${PG_USER_NAME} -d $${PG_DB}""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: chat-agent-backend
+    environment:
+      DATABASE__HOST: postgres
+    env_file:
+      - .env
+    ports:
+      - ""8000:8000""
+    volumes:
+      - ./backend/data:/app/data
+      - ./backend/logs:/app/logs
+    networks:
+      - chat-agent-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      # 使用 127.0.0.1：避免容器内 localhost 优先解析到 ::1，而服务仅监听 IPv4(0.0.0.0) 时 curl 连接失败
+      test: [""CMD"", ""curl"", ""-f"", ""http://127.0.0.1:8000/""]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+      # start.sh 最多等库 60s + 迁移 + 多 worker 冷启动（lifespan/MCP），需大于 compose 默认等待窗口
+      start_period: 120s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: chat-agent-frontend
+    ports:
+      - ""3000:3000""
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - chat-agent-network
+    restart: unless-stopped
+
+networks:
+  chat-agent-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+
+请问要如何进入 backend 执行命令",2082,1054,0,,,195,simple_chat,,2026-05-17T14:56:46.354015+00:00,
+df9f62b4-e9bc-42f6-beb8-e2c85e9f64ad,Nginx Proxy Manager 413错误解决,c7d40833-6b26-4696-828f-a94b9de5b47d,Nginx Proxy Manager 管理的网站，返回了 413 Request Entity Too Large,58,1179,0,,,9,simple_chat,,2026-04-11T07:29:15.652110+00:00,
+3636f1dc-eb6d-4ff1-93c0-28ac54083fd8,现代前端 SSE 连接方案解析,c7d40833-6b26-4696-828f-a94b9de5b47d,现代前端进行 sse 连接使用的方案是怎样的,22,5557,0,,,16,simple_chat,,2026-05-07T08:22:57.560899+00:00,
+6691d466-febf-4b84-9182-b6c782ebd84d,AI 执行 npm 命令为何超时失败？,c7d40833-6b26-4696-828f-a94b9de5b47d,"为什么让 ai 执行 bash 命令：npm create vite@latest . -- --template react-ts 2>&1
+会超时失败",77,1768,0,,,17,simple_chat,,2026-05-12T05:03:47.154829+00:00,
+63446d48-b59a-4c5a-836f-f1d7d67d4a75,Gmail与Google账号是同一概念吗？,c7d40833-6b26-4696-828f-a94b9de5b47d,gmail 账号和 google 账号是一个概念吗,25,770,0,,,15,simple_chat,,2026-04-09T03:20:44.442928+00:00,
+256cbbfd-c439-4697-a3f0-c0a1f95a6dbd,什么是多 Agent 架构？,c7d40833-6b26-4696-828f-a94b9de5b47d,什么是多 agent 架构,13,1744,0,,,8,simple_chat,,2026-04-22T04:14:02.555561+00:00,
+051ab65e-13f1-4646-b044-f51b1ea3ce99,我的核心技能有哪些？,c7d40833-6b26-4696-828f-a94b9de5b47d,你有什么技能,6,767,0,,,24,simple_chat,,2026-05-31T15:30:58.412331+00:00,
+03f8db52-5e55-4a26-98a8-e3d0ba4f7788,Mem0 是什么系统？,c7d40833-6b26-4696-828f-a94b9de5b47d,mem0 是什么系统,10,576,0,,,14,simple_chat,,2026-04-09T10:54:20.989305+00:00,
+f6c4ae5b-1321-4b45-b80d-ae37d720ff6e,如何使用 pm2 查看应用日志,c7d40833-6b26-4696-828f-a94b9de5b47d,如何使用 pm2 查看应用日志,15,816,0,,,6,simple_chat,,2026-04-15T10:44:48.916536+00:00,
+917005e8-b00a-4187-8199-177138921285,Mac 开源终端推荐,c7d40833-6b26-4696-828f-a94b9de5b47d,Mac 上有没有好用的开源终端推荐,17,1268,0,,,23,simple_chat,,2026-05-13T02:03:10.457649+00:00,
+0dd2a9d8-3407-4cd8-b04c-59e3a629a54b,HTML 代码打印 localStorage user_id,c7d40833-6b26-4696-828f-a94b9de5b47d,帮我直接生成一个 html 代码，代码的 script 脚本中打印当前的 localStorage.getItem('user_id'),68,980,0,,,18,simple_chat,,2026-05-09T09:06:47.736375+00:00,
+a905e2a9-f016-4b4a-98e6-c26f029f108c,pnpm 安装方法指南,c7d40833-6b26-4696-828f-a94b9de5b47d,如何安装 pnpm,9,914,0,,,9,simple_chat,,2026-05-12T12:52:35.214558+00:00,
+dac62475-5cf3-43aa-8105-927dd5e39168,JS Base64 解码字符串示例,c7d40833-6b26-4696-828f-a94b9de5b47d,如何使用 base64 解码字符串，给出 js 示例,26,1226,0,,,5,simple_chat,,2026-04-17T02:55:09.655444+00:00,
+44404a00-ddec-44a9-b38d-7168fc8603c7,任务量从 100 变 300，增长是 3 倍吗？,c7d40833-6b26-4696-828f-a94b9de5b47d,当任务量由 100 变为 300时，是否增长了 3 倍,27,230,0,,,5,simple_chat,,2026-05-06T08:37:08.903629+00:00,
+029ed268-3199-4dd0-9572-a037ddded36f,查询topic_id=17的prompt,c7d40833-6b26-4696-828f-a94b9de5b47d,这是表的结构，帮我查询 topic_id = 17 的所有 prompt,36,458,0,,,31,simple_chat,,2026-04-22T02:24:12.275672+00:00,
+7d7532a6-035a-475e-b36b-e1a07022abe7,Ngrok 隧道工作原理详解,c7d40833-6b26-4696-828f-a94b9de5b47d,Ngrok 隧道的原理是什么,14,1833,0,,,7,simple_chat,,2026-05-22T08:03:21.724720+00:00,
+97fee95d-34c2-4747-84b4-475ed5276b61,凤启新程：毕业典礼环境布置方案,f34a3faf-0955-44ba-8c3d-4074431daf4b,结合上文档主题，设计一份毕业典礼环境布置方案,22,3534,0,,,3,simple_chat,,2026-04-13T06:18:20.173328+00:00,
+89641512-d66e-413e-b4a5-9c7e105433f9,MinIO 文件存储是什么？,c7d40833-6b26-4696-828f-a94b9de5b47d,MinIO 文件存储是什么意思,15,1407,0,,,17,simple_chat,,2026-05-09T08:41:16.631073+00:00,
+35fcc48f-03da-4cd4-90fc-09a3dc416ac8,23个Outlook邮箱统计及重复检查,c7d40833-6b26-4696-828f-a94b9de5b47d,"统计邮箱数量，以及是否有重复：
+- [fojezncr020@outlook.com](mailto:fojezncr020@outlook.com) 被禁用
+- [yednvg63@outlook.com](mailto:yednvg63@outlook.com) 被禁用
+- [scwjrv91@outlook.com](mailto:scwjrv91@outlook.com) 可用
+- [tjnaprr0506@outlook.com](mailto:tjnaprr0506@outlook.com) 被禁用
+- [ttzyzuf7096@outlook.com](mailto:ttzyzuf7096@outlook.com) 可用
+- [lklghcyut9821@outlook.com](mailto:lklghcyut9821@outlook.com) 被禁用
+- [hqpbxd39310@outlook.com](mailto:hqpbxd39310@outlook.com) 可用
+- [ojtnihzr8978@outlook.com](mailto:ojtnihzr8978@outlook.com) 可用
+- [cfbzxep67244@outlook.com](mailto:cfbzxep67244@outlook.com) 被禁用
+- [acofyjfg4309@outlook.com](mailto:acofyjfg4309@outlook.com) 可用
+- [rhxehdkml45@outlook.com](mailto:rhxehdkml45@outlook.com) 被禁用
+- [waoxbbwkv633@outlook.com](mailto:waoxbbwkv633@outlook.com) 可用
+- [dsgsbvfn53183@outlook.com](mailto:dsgsbvfn53183@outlook.com) 可用
+- [ceczku73@outlook.com](mailto:ceczku73@outlook.com) 可用
+- [khksjuj54@outlook.com](mailto:khksjuj54@outlook.com) 已禁用
+- [skqndt62@outlook.com](mailto:skqndt62@outlook.com) 已禁用
+- [crfuwk8442@outlook.com](mailto:crfuwk8442@outlook.com) 已禁用
+- [edyvvkltt413@outlook.com](mailto:edyvvkltt413@outlook.com) 可用
+- [dacwkuwav77@outlook.com](mailto:dacwkuwav77@outlook.com) 已禁用
+- [oqakzkcj2023@outlook.com](mailto:oqakzkcj2023@outlook.com) 可用
+- [hanafhotj13559@outlook.com](mailto:hanafhotj13559@outlook.com) 已禁用
+- [gjgcte18@outlook.com](mailto:gjgcte18@outlook.com) 已禁用
+- [ulywlfp39771@outlook.com](mailto:ulywlfp39771@outlook.com) 已禁用",1469,786,0,,,20,simple_chat,,2026-04-24T08:28:47.807475+00:00,
+0d3225b4-4c63-441e-a73e-a3a1e5a55632,记录龙凤胎吴似然与吴似锦,c7d40833-6b26-4696-828f-a94b9de5b47d,"我有一对龙凤胎，出生于 2023 年 3 月 2 日
+女儿名字叫：吴似然
+儿子名字叫：吴似锦
+
+帮我将上面的内容添加为用户记忆",63,180,0,,,3,simple_chat,,2026-06-04T16:06:49.310225+00:00,
+99c99e13-223d-4482-8b69-8c6436293344,去越南旅游免签吗？,c7d40833-6b26-4696-828f-a94b9de5b47d,去越南是否免签,7,656,0,,,15,simple_chat,,2026-05-25T05:25:06.634547+00:00,
+69f5ae35-0ccd-4ce0-a19c-2c40dbc80605,Floyd 环检测算法详解,c7d40833-6b26-4696-828f-a94b9de5b47d,Floyd 环检测,9,1727,0,,,619,simple_chat,,2026-04-26T07:18:20.012461+00:00,
+bdf582d1-9284-4882-9e93-b26ac674fc0b,今日AI新闻速递,c7d40833-6b26-4696-828f-a94b9de5b47d,帮我查下今日 ai 新闻,12,1034,1,tavily_web_search,tavily,35,single_tool,,2026-04-18T03:16:23.879784+00:00,
+3a48a97b-897b-4ab2-aa29-7b23c7d99780,三亚成俄罗斯游客新宠，原因大揭秘,c7d40833-6b26-4696-828f-a94b9de5b47d,三亚旅游很多俄罗斯人，帮我分析原因,17,1314,1,tavily_web_search,tavily,7,single_tool,,2026-06-15T15:25:36.763508+00:00,
+b92785bc-dd5b-4e5e-ba11-6cc2e2db12c0,DeepSeek最新进展更新,c7d40833-6b26-4696-828f-a94b9de5b47d,帮我查下 deepseek 最新进展,18,1196,1,tavily_web_search,tavily,22,single_tool,,2026-04-08T11:08:28.428619+00:00,
+fafdde8b-6b82-4837-930a-65c1579493de,DeepSeek Agent 是什么？,c7d40833-6b26-4696-828f-a94b9de5b47d,deepseek agent 是什么,18,1097,1,tavily_web_search,tavily,3,single_tool,,2026-05-10T14:18:31.976779+00:00,
+a59fca57-6c0e-4348-a54e-3f25ff686b66,v0.dev：AI 驱动的前端生成工具,c7d40833-6b26-4696-828f-a94b9de5b47d,v0.dev 是什么产品,12,1347,1,tavily_web_search,tavily,3,single_tool,,2026-05-10T05:18:00.126658+00:00,
+96053ccd-f57c-46c6-ae6e-30f2b16d1f5a,LLM Wiki 原始与解析文件路径,c7d40833-6b26-4696-828f-a94b9de5b47d,llm wiki 结构中，原始远程和解析后的文件存储路径是怎样的,32,2710,1,tavily_web_search,tavily,7,single_tool,,2026-05-17T10:53:17.428337+00:00,
+04a6e143-f48e-4e64-a8a3-29af9e3cf55d,危险关系在哪个 APP 播放,c7d40833-6b26-4696-828f-a94b9de5b47d,危险关系在什么 app 播放,14,382,1,tavily_web_search,tavily,9,single_tool,,2026-04-13T05:03:48.583523+00:00,
+ccb9994c-467b-415b-b436-72379f4f1454,深圳租房凭证办理指南,c7d40833-6b26-4696-828f-a94b9de5b47d,深圳租房如何获取房屋租赁凭证,14,2179,1,tavily_web_search,tavily,6,single_tool,,2026-05-19T11:15:17.248184+00:00,
+1a7fc4d7-e1e0-46e4-ac0d-f759f37909a8,深圳北站社会车辆接人停车点,c7d40833-6b26-4696-828f-a94b9de5b47d,深圳北站社会车辆接人在哪里停车,15,1110,1,tavily_web_search,tavily,7,single_tool,,2026-04-25T01:32:48.534711+00:00,
+d1c6f51a-d01d-43cf-80f3-108327442553,本地LLM Wiki产品推荐,c7d40833-6b26-4696-828f-a94b9de5b47d,我想在本地使用 llm wiki，有没有相关产品推荐,26,2356,1,tavily_web_search,tavily,4,single_tool,,2026-05-13T06:49:27.515631+00:00,
+09a63fd4-f41f-403a-9175-a21983942a81,寻找歌曲：都快忘了如何去爱,c7d40833-6b26-4696-828f-a94b9de5b47d,帮我寻找歌曲：都快忘了如何去爱,15,400,1,tavily_web_search,tavily,8,single_tool,,2026-04-23T11:19:55.740727+00:00,
+9e727b66-aa33-4c06-a2ef-a89a9ca89d38,Claude Desktop 中 mcpServers 格式详解,c7d40833-6b26-4696-828f-a94b9de5b47d,Claude Desktop 首创的 mcpServers 格式是怎样的,36,2193,1,tavily_web_search,tavily,354,single_tool,,2026-05-23T07:06:03.363871+00:00,
+55c751c3-cfb7-4dbe-bfcb-aeefc018a347,OpenCode 的 Plan 模式是什么,c7d40833-6b26-4696-828f-a94b9de5b47d,opencode 的 plan 模式是什么,21,1340,1,tavily_web_search,tavily,8,single_tool,,2026-05-18T12:48:36.345343+00:00,
+1d08da26-aa1d-4c1a-bcfb-dcc569cac35a,DigiFinex 公司调研,c7d40833-6b26-4696-828f-a94b9de5b47d,帮我调研下  DigiFinex  公司,20,2647,1,tavily_web_search,tavily,8,single_tool,,2026-04-15T02:37:59.063892+00:00,
+3052f1e0-dba3-4667-8aa7-2ff67fbaeab5,Hermes Agent 工具接入：脚本还是 MCP？,c7d40833-6b26-4696-828f-a94b9de5b47d,对于 Hermes Agent，工具接入方式推荐脚本还是 mcp,32,2207,1,tavily_web_search,tavily,10,single_tool,,2026-05-13T06:45:26.444337+00:00,
+4fcb5331-5a5d-418b-bff8-df28fed13560,今日热点新闻速览,c7d40833-6b26-4696-828f-a94b9de5b47d,今天有什么热点新闻,9,961,1,tavily_web_search,tavily,20,single_tool,,2026-05-13T01:41:49.780333+00:00,
+77aac3d8-0067-4322-9930-551105dd71ca,3 岁宝宝频繁眨眼，需警惕抽动症？,c7d40833-6b26-4696-828f-a94b9de5b47d,"小朋友目前 3 岁，频繁眨眼睛。
+备注：之前 2 至 3 岁期间喜欢咬手指",37,1273,1,tavily_web_search,tavily,19,single_tool,,2026-04-15T01:12:58.068370+00:00,
+18d69869-61c3-4e39-be6a-88f706720a65,提前一小时去三亚机场托运南航行李来得及吗？,c7d40833-6b26-4696-828f-a94b9de5b47d,提前一小时到三亚机场，有行李托运是否来得及，南方航空,26,539,1,tavily_web_search,tavily,140,single_tool,,2026-06-15T14:57:33.742035+00:00,
+31e1fc6f-62d0-43d0-9264-aa97a464fe30,北京三日游：景点美食交通全攻略,c7d40833-6b26-4696-828f-a94b9de5b47d,帮我规划一次北京三日游，包含景点、餐饮和交通,22,2651,1,tavily_web_search,tavily,17,single_tool,,2026-05-16T14:58:44.927963+00:00,
+1053f306-f47f-4d3a-a533-977408ea730b,深圳小众玩法推荐,c7d40833-6b26-4696-828f-a94b9de5b47d,深圳小众游玩方式,8,2363,1,tavily_web_search,tavily,11,single_tool,,2026-05-16T03:00:07.174281+00:00,
+83dd44d0-d590-4f9f-8b4a-ab6561756d73,MinerU 与 PaddleOCR 对比,c7d40833-6b26-4696-828f-a94b9de5b47d,MinerU 和 paddleOCR 的对比,22,2702,1,tavily_web_search,tavily,4,single_tool,,2026-04-12T03:29:01.230522+00:00,
+069af437-22c0-4ea8-97e6-e32e98f392fa,土木工程师：行业下行如何破局？,c7d40833-6b26-4696-828f-a94b9de5b47d,中国现在的房地产市场不景气，那从事土木行业的工程师何去何从,29,2669,1,tavily_web_search,tavily,6,single_tool,,2026-05-10T01:58:49.464902+00:00,
+66425be9-e1ba-4e06-8e15-c2e2244a322b,解方程：(12.7 - x) / x = 0.22,c7d40833-6b26-4696-828f-a94b9de5b47d,"帮我解出下面的 x:
+(12.7 - x) / x = 0.22",32,425,1,code_execute_code,code,21,single_tool,,2026-05-09T08:14:44.802827+00:00,
+092b939c-4919-4793-af2c-c225463dcff1,今年深圳荔枝何时上市？,c7d40833-6b26-4696-828f-a94b9de5b47d,今年深圳荔枝大概什么时候上市,14,586,1,tavily_web_search,tavily,11,single_tool,,2026-04-19T15:28:15.512349+00:00,
+dbfc542b-3539-4368-8dbe-5048ded3128a,2026 年福田深户幼儿入园材料清单,c7d40833-6b26-4696-828f-a94b9de5b47d,"我孩子是深户，2026 年 9 月 3 周岁 入学福田区幼儿园，我也是深户，目前在城中村租房子。
+请帮我列出要准备的材料清单！下面是深圳福田区 2025 年的入学指南：https://m.bendibao.com/show988402.html",122,1476,1,tavily_web_pages_extract,tavily,18,single_tool,,2026-05-19T11:29:09.907902+00:00,
+f85037fc-70ca-4b1f-aa05-af3a35ea758f,StackBlitz WebContainers 能否运行 Next.js？,c7d40833-6b26-4696-828f-a94b9de5b47d,StackBlitz WebContainers 能否在浏览器端运行完整的 next.js 项目(npm run dev),61,2078,1,tavily_web_search,tavily,4,single_tool,,2026-05-10T11:19:40.288814+00:00,
+16ef2012-d491-4487-b94b-efc851a923b3,调研 Lessie AI：重塑人际连接的新基建,c7d40833-6b26-4696-828f-a94b9de5b47d,"帮我调研下这家公司：
+1、Superlinear朝线性（Lessie AI）：一款 People Search AI Agent。与行业中大多数只关注效率的工具不同，Lessie AI 的定位是下一代人机网络基础设施，不仅提供智能协作，更重塑人与人之间的连接；CEO于北川是抖音早期核心成员。",146,1943,1,tavily_web_search,tavily,6,single_tool,,2026-05-27T11:18:52.736676+00:00,
+4ac1a739-0560-441e-9f21-bb2ea3bec200,肯尼亚当前时间查询,c7d40833-6b26-4696-828f-a94b9de5b47d,肯尼亚当前时间,7,646,1,weather_search_city,weather,83,single_tool,,2026-06-08T16:25:51.483464+00:00,
+50043c38-a991-4743-ad96-6be7765ccdde,Hermes Agent 由谁开发？,c7d40833-6b26-4696-828f-a94b9de5b47d,Hermes Agent 是谁开发的,18,618,1,tavily_web_search,tavily,14,single_tool,,2026-05-08T09:06:18.186783+00:00,
+d810e848-b8ce-4fb2-a9da-5f7dfac58c3e,Qwen 模型对比分析,c7d40833-6b26-4696-828f-a94b9de5b47d,"帮我对比下面 3 个模型：
+Qwen-Turbo 和 qwen3.5-flash、qwen-doc-turbo",55,2247,1,tavily_web_search,tavily,19,single_tool,,2026-04-12T06:19:24.965304+00:00,
+bc65869a-94a4-461c-871a-05a1347092d6,Hermes Agent 执行前是否解析技能元数据？,c7d40833-6b26-4696-828f-a94b9de5b47d,当前 Hermes Agent 在进行 skill 执行前，是否会解析 skill 的 metadata 来确认该 skill 使用的环境变量或前置依赖,76,4863,1,tavily_web_search,tavily,16,single_tool,,2026-05-27T06:16:01.215481+00:00,
+4ed70d72-9e2b-4623-a3e8-086fd355bea2,采样与成功数量关系分析,c7d40833-6b26-4696-828f-a94b9de5b47d,"帮我分析下面采样数量和成功数量之间的关系:
+采样数量、成功数量
+3382、126
+5672、133
+48、18",55,771,2,code_execute_code|code_execute_code,code|code,11,multi_tool,,2026-04-10T02:51:51.731900+00:00,
+85b0b9ae-b69b-44d2-a4e3-8fb970cbacb5,Python SciPy 库入门与使用,c7d40833-6b26-4696-828f-a94b9de5b47d,Python scipy,12,1290,2,context7_resolve-library-id|context7_query-docs,context7|context7,15,multi_tool,,2026-04-13T06:01:58.218024+00:00,
+060dd542-bf78-40b4-ac40-585700622f62,React 网页 PDF 预览方案,c7d40833-6b26-4696-828f-a94b9de5b47d,react 网页 pdf 预览方案,17,2970,3,context7_resolve-library-id|context7_query-docs|context7_query-docs,context7|context7|context7,95,multi_tool,,2026-04-14T06:43:18.422973+00:00,
+fac9c557-6fc0-4e31-8d5f-c261cf356ac1,推荐JSON转Markdown嵌套的npm工具,c7d40833-6b26-4696-828f-a94b9de5b47d,"有没有将 json 数据转为 markdown 的 npm 工具，json 示例如下，转为嵌套的 markdown 形式
+{""key1"": [""item1_1"", ""item1_2"", ""item_3""] , ""key2"": ""value2""}
+
+期望的 markdown 形式：
+## key1
+- item1_1
+- item1_2
+- item_3
+
+## key2
+value2",193,1661,3,context7_resolve-library-id|tavily_web_search|code_execute_code,context7|tavily|code,7,multi_tool,,2026-04-15T02:43:38.571957+00:00,
+5166c85d-985f-49b6-b845-fb25f57345ab,多轮对话中 PDF 转 Markdown 的文本处理策略,c7d40833-6b26-4696-828f-a94b9de5b47d,"实现多轮对话的 ai 助手时，对于上传的 pdf 文件，我已经转成了 markdown 格式。
+请问对于短文本和长文本要如何处理
+请问对于历史对话中的文档要如何处理",82,4163,3,context7_resolve-library-id|tavily_web_search|context7_query-docs,context7|tavily|context7,7,multi_tool,,2026-04-16T15:02:58.626001+00:00,
+28395175-b0b7-458e-ad51-60a15938fa99,browser-use 使用视觉还是 DOM+ 视觉定位？,c7d40833-6b26-4696-828f-a94b9de5b47d,browser-use/browser-use 进行网页操作时，元素定位方案使用的是 视觉截图定位还是 dom+视觉混合方案,62,787,2,context7_resolve-library-id|context7_query-docs,context7|context7,21,multi_tool,,2026-04-20T08:22:57.403929+00:00,
+f0bd57a9-c573-4abe-8f2d-6b15d22adaea,20MB分片加密打包ZIP,c7d40833-6b26-4696-828f-a94b9de5b47d,帮我将 zip 进行分片打包，每个包 20MB，并且 zip 压缩包需要包含密码,40,5260,2,code_execute_code|code_execute_code,code|code,5,multi_tool,,2026-04-22T11:21:24.681187+00:00,
+b4a69f47-bf3d-4e38-b92e-06dc5d10704c,调研 Supersonic Brick LLC 公司,c7d40833-6b26-4696-828f-a94b9de5b47d,帮我调研下 Supersonic Brick LLC  公司,30,1571,2,tavily_web_search|tavily_web_pages_extract,tavily|tavily,31,multi_tool,,2026-05-08T04:23:48.811016+00:00,
+0606d0ed-1e8b-49ba-99bb-febc18949803,DeepWisdom 公司调研：Agent 开发岗面试指南,c7d40833-6b26-4696-828f-a94b9de5b47d,帮我调研下 deepwisdom 公司，我想要面试该公司的 agent 开发岗位,40,3444,2,tavily_web_search|tavily_web_pages_extract,tavily|tavily,63,multi_tool,,2026-05-09T06:33:48.871215+00:00,
+71c2517e-f37d-4832-bf5c-a5e09f54fca4,解决协议模式远程验证码配置错误,c7d40833-6b26-4696-828f-a94b9de5b47d,"使用该软件时提示：协议模式未配置可用的远程验证码 provider
+软件的 github 地址：https://github.com/lxf746/any-auto-register",91,1077,2,tavily_web_site_crawl|tavily_web_search,tavily|tavily,9,multi_tool,,2026-05-11T03:45:54.454410+00:00,

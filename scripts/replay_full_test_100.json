@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-06-18T22:45:16.585107",
+  "stats": {
+    "total": 100,
+    "success": 96,
+    "failed": 4,
+    "tool_calls_count": 0,
+    "total_elapsed": 725.1295750141144,
+    "avg_elapsed": 0.13239013178869638,
+    "questions_per_minute": 8.274383236793524
+  },
+  "results": []
+}
