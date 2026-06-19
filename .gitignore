@@ -59,3 +59,6 @@ scripts/langfuse_deep_analysis.json
 scripts/*_conversations.json
 scripts/replay_*_results.json
 scripts/classification_report.json
+
+
+__pycache__

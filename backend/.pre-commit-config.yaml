@@ -1,5 +1,5 @@
-# 跳过 Cursor 技能、backend/skills 等第三方/生成内容（路径相对 git 仓库根目录）
-exclude: '(^|/)(\.cursor/skills/|backend/skills/)'
+# 跳过 Cursor 技能、backend/skills、scripts 等第三方/生成/一次性脚本内容（路径相对 git 仓库根目录）
+exclude: '(^|/)(\.cursor/skills/|backend/skills/|scripts/)'
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -16,7 +16,7 @@ repos:
     hooks:
       - id: ruff
         files: \.py$
-        exclude: ^(tests/|app/mcp/|backend/skills/)
+        exclude: ^(tests/|app/mcp/|backend/skills/|scripts/)
 
   # mypy 类型检查，仅对暂存的 .py 变更文件检查（路径相对于 git 根；在 backend 下执行，故仓库根目录下的 .py 需映射为 ../<path>）
   # 排除 tests 目录
@@ -28,5 +28,5 @@ repos:
         language: system
         types: [python]
         files: \.py$
-        exclude: ^(webhooks/|backend/skills/)
+        exclude: ^(webhooks/|backend/skills/|scripts/)
         pass_filenames: true
