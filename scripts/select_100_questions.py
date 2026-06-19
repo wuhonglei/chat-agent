@@ -101,8 +101,8 @@ def llm_select(category, candidates, target_count, batch_hint=""):
             if len(unique) >= target_count:
                 return unique[:target_count]
             print(f"  [warn] attempt {attempt+1}: got {len(unique)} unique valid indices (raw: {len(nums)}), need {target_count}. Retrying...", file=sys.stderr)
-            # Debug: show raw content
-            print(f"  [debug] raw content: {content[:200]}", file=sys.stderr)
+            # Debug: only log safe metadata, never raw model output
+            print(f"  [debug] response metadata: content_length={len(content)}", file=sys.stderr)
         except Exception as e:
             print(f"  [error] attempt {attempt+1}: {e}", file=sys.stderr)
         time.sleep(2)
