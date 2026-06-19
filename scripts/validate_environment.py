@@ -54,7 +54,7 @@ def test_langfuse_connection(config: dict[str, Any]) -> bool:
     print("=" * 60)
     print(f"Host: {host}")
     print(f"Public Key: {public_key[:20]}..." if public_key else "Public Key: ❌ 缺失")
-    print(f"Secret Key: {secret_key[:20]}..." if secret_key else "Secret Key: ❌ 缺失")
+    print("Secret Key: ✅ 已配置" if secret_key else "Secret Key: ❌ 缺失")
     print(f"Enabled: {enabled}")
 
     if not host or not public_key or not secret_key:
