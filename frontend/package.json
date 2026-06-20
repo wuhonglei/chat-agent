@@ -21,7 +21,7 @@
     "@reduxjs/toolkit": "^2.11.2",
     "aegis-web-sdk": "^1.41.10",
     "ahooks": "^3.9.6",
-    "antd": "^6.3.6",
+    "antd": "^6.4.4",
     "antd-img-crop": "^4.28.0",
     "axios": "^1.13.6",
     "camelcase-keys": "^10.0.2",
