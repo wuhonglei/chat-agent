@@ -31,7 +31,8 @@ client = AsyncTavilyClient(api_key=config.tavily_api_key)
 @mcp.tool(name="web_search")
 async def web_search(
     queries: list[str] = Field(
-        ..., description="要执行的搜索查询列表, 推荐使用 2-3 个查询"
+        ...,
+        description="要执行的搜索查询列表。简单问题使用 1 个 query，复杂/多角度问题使用 2-3 个查询",
     ),
     topic: Literal["general", "news", "finance"] = Field(
         default="general",
@@ -42,13 +43,13 @@ async def web_search(
         description="搜索深度：'advanced'（相关性最佳）、'basic'（均衡）、'fast'（更低延迟）、'ultra-fast'（最低延迟）",
     ),
     chunks_per_source: int = Field(
-        default=3,
+        default=2,
         ge=1,
         le=5,
         description="每个来源返回的相关片段上限（1-5）。仅在 search_depth 为 'advanced' 或 'fast' 时可用",
     ),
     result_per_query: int = Field(
-        default=10,
+        default=5,
         ge=1,
         le=20,
         description="每个查询返回的搜索结果数量（1-20）",
@@ -94,6 +95,14 @@ async def web_search(
     适用于获取最新资讯、新闻以及详细的网页内容分析。
     """
     try:
+        optional_search_params = {
+            "time_range": time_range,
+            "start_date": start_date,
+            "end_date": end_date,
+            "include_domains": include_domains,
+            "exclude_domains": exclude_domains,
+            "country": country,
+        }
         # 并发生起 client.search 请求
         search_tasks = [
             client.search(
@@ -102,13 +111,8 @@ async def web_search(
                 search_depth=search_depth,
                 chunks_per_source=chunks_per_source,
                 max_results=result_per_query,
-                time_range=time_range,
-                start_date=start_date,
-                end_date=end_date,
                 include_favicon=True,
-                include_domains=include_domains,
-                exclude_domains=exclude_domains,
-                country=country,
+                **{k: v for k, v in optional_search_params.items() if v is not None},
             )
             for q in queries
         ]
@@ -121,7 +125,7 @@ async def web_search(
                 data.is_chunked = search_depth in ["advanced", "fast"]
                 # 根据分数过滤搜索结果
                 data.filtered_results, data.ignored_results, data.threshold = (
-                    filter_search_results_by_score(data.results)
+                    filter_search_results_by_score(data.results, result_per_query)
                 )
                 results_list.append(data.model_dump(mode="json"))
             return {"results": results_list}
