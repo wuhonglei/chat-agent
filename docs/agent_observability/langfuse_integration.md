@@ -1,12 +1,19 @@
-# Langfuse 自托管接入说明（Backend）
+# Langfuse 自托管接入与运维手册（Backend）
 
-本文档说明 chat-agent 后端接入 Langfuse（自托管）的配置方式、追踪维度约定与验收方法。
+本文档说明 chat-agent 后端接入 Langfuse（自托管）的配置方式、追踪维度约定、
+数据同步脚本和排障步骤。内容以当前源码为准，重点覆盖：
 
-## 1. 配置方式（仅 Nacos）
+- 运行时埋点：`backend/app/core/observability.py`、
+  `backend/app/services/chat/chat_orchestrator.py`
+- LLM / 工具 / 记忆子 observation：`LLMService`、`ToolExecutor`、`MemoryService`
+- 离线运维脚本：`backend/scripts/sync_feedback_to_langfuse.py`、
+  `backend/scripts/sync_status_to_langfuse.py`、根目录 `scripts/*langfuse*.py`
 
-本项目统一通过 Nacos 下发 Langfuse 配置，不使用 `.env`。
+## 1. 配置方式
 
-配置位置：`backend/nacos-data/config/ai-chat-dev@@DEFAULT_GROUP@@`
+现网约定通过 Nacos 下发 Langfuse 配置。开发环境默认读取：
+`backend/nacos-data/config/ai-chat-dev@@DEFAULT_GROUP@@`；
+生产环境对应 `ai-chat-prod@@DEFAULT_GROUP@@`。
 
 ```yaml
 langfuse:
@@ -28,16 +35,27 @@ langfuse:
 - `debug`: SDK debug 日志
 - `environment`: 环境标签（如 `dev` / `prod`）
 
+### 1.1 启动与关闭
+
+- FastAPI lifespan 在启动时调用 `init_langfuse()`；初始化失败只记录 warning，
+  不阻断应用启动。
+- 关闭时调用 `shutdown_langfuse()`，会尝试 `flush()` 缓冲队列，避免进程退出丢事件。
+- `init_langfuse()` 会设置 `OTEL_SERVICE_NAME=chat-agent-backend`（仅在环境变量未显式设置时）。
+- `enabled=false` 时会以 `tracing_enabled=false` 尝试初始化；无论 client 是否创建成功，
+  业务侧 `observation_span()` 都会退化为 no-op。
+
 ## 2. Trace 维度约定
 
 ### 2.1 粒度
 
-- 每轮对话（一次 `/api/chat/stream`）一条 trace
+- 每轮对话（一次 `POST /api/chat/stream`）一条 trace
 - 使用 `session_id=conversation_id` 聚合同会话多轮
 
 ### 2.2 关键标识
 
-- `trace_id`: 由 `assistant_message_id` 派生（确定性）
+- `trace_id`: 由 `assistant_message_id` 确定性派生：
+  `Langfuse.create_trace_id(seed=assistant_message_id)`；若 SDK 不可用，回退为
+  `sha256(assistant_message_id)[:32]`
 - `session_id`: `conversation_id`
 - `user_id`: JWT 用户 ID
 
@@ -67,6 +85,8 @@ langfuse:
 
 - LLM generation 由 `langfuse.openai.AsyncOpenAI` 自动采集
 - 工具调用在 `ToolExecutor.execute_single_tool` 中显式创建 `tool` observation
+- `LLMService` 在连接失败、限流或 API 状态异常时会把当前 LLM observation 标记为 `ERROR`
+- 失败隔离：所有观测失败只告警，不改变业务响应
 
 ### 3.1 子 span 一览
 
@@ -76,11 +96,13 @@ langfuse:
 | --- | --- | --- |
 | `history-prepare` | `ChatOrchestrator.run_chat_turn` | 历史窗口准备；输出 `prepared_count`、`has_window_summary`，窗口外摘要 LLM 作为其子 generation |
 | `kb-rag-build` | `ChatOrchestrator.run_chat_turn` | KB RAG 组装；输出 `block_count` |
-| `memory-search` | `MemoryService.search` | Mem0 检索；输出 `count`、`memory_ids` |
+| `memory-search` | `MemoryService.search` | Mem0 检索；输出 `count` 与命中的 memory 列表 |
 | `title-generation` | `ChatOrchestrator.generate_title_event` | 标题生成；失败标 `ERROR` 但不影响主流程 |
-| `memory-write` | `MemoryService.add_memories` | 异步记忆写入；通过 `trace_seed=assistant_message_id` 关联回同一 trace |
 | `embedding` | `EmbeddingService` | 用户消息 / 文档向量化；输出 `dimension`、`count` |
 | `tool-result-embedding` | `ContextCompactor.extract_relevant_markdown` | 工具结果相关性压缩的向量化 |
+
+注意：`memory-write` 通过 `asyncio.create_task()` 异步执行，当前不单独创建 Langfuse
+trace，避免与 `chat-turn` 共用 trace ID 时产生第二条 root observation。
 
 所有子 span 的埋点失败只告警、不阻断主链路；业务异常会在标记 `ERROR` 后按原有逻辑继续抛出或返回。
 
@@ -96,7 +118,74 @@ langfuse:
 
 为避免 trace 膨胀，Langfuse mask 会将这类字符串替换为 `[image omitted]`。
 
-## 6. 失败隔离策略
+## 6. Score 同步脚本
+
+后端脚本用于把数据库中的助手消息状态和用户反馈补写到 Langfuse Score。运行前需确认：
+
+1. Nacos 配置存在并包含 `langfuse.host/public_key/secret_key` 与 `database.*`
+2. 目标 Langfuse 中已经有由同一 `assistant_message_id` 派生的 trace
+3. 先执行 `--dry-run` 观察命中量、跳过量和错误量
+
+### 6.1 反馈同步
+
+脚本：`backend/scripts/sync_feedback_to_langfuse.py`
+
+```bash
+cd backend
+python scripts/sync_feedback_to_langfuse.py --dry-run
+python scripts/sync_feedback_to_langfuse.py --prod --dry-run
+python scripts/sync_feedback_to_langfuse.py --prod
+
+# 如需指定配置文件：
+NACOS_CONFIG=/path/to/ai-chat-prod@@DEFAULT_GROUP@@ \
+  python scripts/sync_feedback_to_langfuse.py --dry-run
+```
+
+行为约束：
+
+- 读取 `messages.feedback`，仅同步 `role='assistant'` 且 `feedback.value != 'default'` 的消息
+- `like -> 1.0`，`dislike -> 0.0`，`default` 跳过
+- score 名称为 `user_feedback`
+- comment 包含 `message_id`、`conversation_id`、`feedback_updated_at`、`status`
+- 写入前会查询 Langfuse traces（当前 API limit 为 50），不存在的 trace 会跳过
+
+### 6.2 状态同步
+
+脚本：`backend/scripts/sync_status_to_langfuse.py`
+
+```bash
+cd backend
+python scripts/sync_status_to_langfuse.py --dry-run
+python scripts/sync_status_to_langfuse.py --prod --dry-run
+python scripts/sync_status_to_langfuse.py --prod
+```
+
+行为约束：
+
+- 读取 `role='assistant'` 且 `status in ('done', 'stopped', 'failed')` 的消息
+- `done -> 1.0`，`stopped -> 0.5`，`failed -> 0.0`
+- score 名称为 `message_status`
+- comment 包含 `message_id`、`status`、`updated_at`
+- 写入前会查询 Langfuse traces（当前 API limit 为 100），不存在的 trace 会跳过
+
+### 6.3 历史导入与回放脚本
+
+根目录 `scripts/` 下还有历史数据导入、分析和回放工具：
+
+- `scripts/import_to_langfuse.py`：把 JSON 问答数据导入 Langfuse，trace ID 为
+  `trace_{conversation_id}`，并创建 `response_latency` span、`tool_execution` generation、
+  `response_time_quality` score
+- `scripts/sync_scores_to_langfuse.py`：从数据库读取助手消息状态并写入 `message_status`
+  score，trace ID 为 `trace_{sha256(message_id)[:32]}`
+- `scripts/replay_qa_pairs.py`：通过 HTTP API 重放历史问题，要求通过
+  `--username/--password` 或 `REPLAY_USERNAME/REPLAY_PASSWORD` 提供登录凭证
+
+这些根目录脚本与当前后端运行时 trace ID 规则不完全一致；用于历史迁移或实验分析时，
+需要先在 `--dry-run` / `--help` 下确认目标环境、输入数据和 trace 关联方式。尤其是
+`replay_qa_pairs.py` 当前请求体和路径仍按旧同步聊天接口编写，不应直接作为现网
+`POST /api/chat/stream` 的压测脚本。
+
+## 7. 失败隔离策略
 
 为保证观测不影响主流程：
 
@@ -105,7 +194,7 @@ langfuse:
 - 所有埋点调用均做短路与异常保护，异常不冒泡到业务链路
 - `enabled=false` 时使用 no-op 行为（`tracing_enabled=false`）
 
-## 7. 故障定位手册（10 分钟）
+## 8. 故障定位手册（10 分钟）
 
 当用户反馈某轮对话异常时：
 
@@ -120,8 +209,12 @@ langfuse:
 6. 展开子 span（`history-prepare` / `kb-rag-build` / `memory-search` / `title-generation`
    / `embedding`）定位具体失败环节
 7. 结合 `conversation_id` 查看同 session 的相邻轮次趋势
+8. 如果用户反馈/状态 score 缺失：
+   - 先确认助手消息 ID 对应的 trace 是否存在
+   - 再用 `--dry-run` 执行同步脚本，查看 `No trace in Langfuse` / `Errors` 统计
+   - 检查 `messages.feedback.value` 是否为 `default`（该值会被跳过）
 
-## 8. 验收清单
+## 9. 验收清单
 
 - [ ] 含工具 + 标题生成的请求产生单条 trace，嵌套关系正确
 - [ ] 流式 generation 的 token 非空
@@ -130,5 +223,6 @@ langfuse:
 - [ ] 主会话流式中途异常时，根 span 为 `ERROR` 且该轮无 done 事件，助手消息落库为 `FAILED`
 - [ ] 记忆检索 / KB RAG 子 span 可展开，含输入输出摘要
 - [ ] 标题生成失败时，`title-generation` span 标记 `ERROR`
-- [ ] `memory-write` 可通过 `assistant_message_id` 派生的 trace_id 关联到同一 trace
+- [ ] `sync_feedback_to_langfuse.py --dry-run` 能列出可同步、跳过和缺 trace 的数量
+- [ ] `sync_status_to_langfuse.py --dry-run` 能列出 done/stopped/failed 分布
 - [ ] Nacos 关闭 `langfuse.enabled` 后，主链路功能正常
