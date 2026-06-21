@@ -228,6 +228,7 @@ def format_crawl_results(response: TavilyCrawlResponse) -> tuple[str, str]:
 
 def filter_search_results_by_score(
     results: list[TavilySearchResultItem],
+    result_per_query: int,
     threshold: float = 0.5,
 ) -> tuple[list[TavilySearchResultItem], list[TavilySearchResultItem], float]:
     """
@@ -257,8 +258,12 @@ def filter_search_results_by_score(
     high_score_results, low_score_results = _filter_by_threshold(results, threshold)
     adjusted_threshold = threshold  # 默认使用入参阈值，确保所有分支可返回
 
-    # 如果高分结果数量小于总结果数的一半，动态调整阈值
-    if len(high_score_results) < len(results) / 2 and low_score_results:
+    # 如果高分结果数量小于总结果数的一半，并且小于每个查询结果数的一半，动态调整阈值
+    if (
+        len(high_score_results) < len(results) // 2
+        and len(high_score_results) < result_per_query // 2
+        and low_score_results
+    ):
         first_low_score = low_score_results[0].score
         if first_low_score is not None:
             # 将阈值调整为向下取整到第一位小数（第二位小数置为0）
