@@ -18,6 +18,7 @@
 - `图表可视化展示.md`：图表渲染相关说明
 - `nginx-cache-analysis.md`：Nginx 缓存分析
 - `messages表字段精简计划.md`：消息表现网字段、已下线字段与排障核验
+- `agent_observability/langfuse_integration.md`：Langfuse 自托管接入、trace 约定、score 同步脚本与排障手册
 
 ### 规划方案
 

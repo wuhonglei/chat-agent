@@ -1,5 +1,11 @@
 # 问答对回放工具使用说明
 
+> 当前状态：`scripts/replay_qa_pairs.py` 是历史问答回放脚本，当前仍按旧同步聊天接口编写：
+> 登录 `POST /api/auth/login`、创建对话 `POST /api/conversations`、发送问题 `POST /api/chat`。
+> 现网聊天接口为 `POST /api/chat/stream`，认证与会话接口也已调整为
+> `/api/auth/*`、`/api/conversation/*`。因此该脚本可用于历史实验参考和数据格式复用，
+> 不应直接作为现网流式聊天压测脚本；使用前需先迁移接口路径和请求体。
+
 ## 📋 概述
 
 回放工具通过 API 重新发送历史问答对，可以：
@@ -19,24 +25,27 @@
 curl http://localhost:8000/
 
 # 如果未运行，启动后端服务
-cd /Users/apple/Desktop/code/chat-agent/backend
-python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+cd backend
+make dev
 ```
 
 ### 2. 运行回放脚本
 
 ```bash
 # 回放首次问答数据（前 10 个问题）
+REPLAY_USERNAME=<用户名> REPLAY_PASSWORD=<密码> \
 python scripts/replay_qa_pairs.py \
   --input scripts/first_qa_per_conversation.json \
   --limit 10
 
 # 回放完整问答数据（前 20 个问题）
+REPLAY_USERNAME=<用户名> REPLAY_PASSWORD=<密码> \
 python scripts/replay_qa_pairs.py \
   --input scripts/live_qa_data_final_v3.json \
   --limit 20
 
 # 使用生产环境配置回放
+REPLAY_USERNAME=<用户名> REPLAY_PASSWORD=<密码> \
 python scripts/replay_qa_pairs.py \
   --input scripts/first_qa_per_conversation.json \
   --prod \
@@ -70,8 +79,8 @@ python scripts/replay_qa_pairs.py \
 |------|--------|------|
 | `--input` | 必需 | 输入 JSON 文件路径 |
 | `--api-base` | http://localhost:8000 | API 基础地址 |
-| `--username` | admin | 登录用户名 |
-| `--password` | admin123 | 登录密码 |
+| `--username` | 无 | 登录用户名；也可用 `REPLAY_USERNAME` 环境变量 |
+| `--password` | 无 | 登录密码；也可用 `REPLAY_PASSWORD` 环境变量 |
 | `--user-id` | default_user | 用户 ID |
 | `--batch-size` | 10 | 批次大小 |
 | `--delay` | 2.0 | 问题间延迟秒数 |
@@ -83,6 +92,9 @@ python scripts/replay_qa_pairs.py \
 ---
 
 ## 📊 使用场景
+
+以下示例默认已提前设置 `REPLAY_USERNAME` 和 `REPLAY_PASSWORD`。如果没有设置，
+请在命令中显式传入 `--username` / `--password`。
 
 ### 场景 1: 快速测试（前 10 个问题）
 
