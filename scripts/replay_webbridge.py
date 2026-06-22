@@ -17,7 +17,7 @@ CHAT_URL = "https://chat.wuhonglei.cn/chat"
 CSV_PATH = Path(__file__).parent / "qa_baseline_100.csv"
 SESSION  = "qa-replay"
 
-CFG = {"delay_between": 3, "response_timeout": 60, "poll_interval": 2, "nav_wait": 2}
+CFG = {"delay_between": 5, "response_timeout": 90, "poll_interval": 2, "nav_wait": 2}
 
 
 # ── WebBridge helpers ─────────────────────────────────
