@@ -144,6 +144,10 @@ export default defineConfig({
   resolve: {
     alias: {
       "@rc-component/util/lib": "@rc-component/util/es",
+      // @ant-design/icons 的 ESM 产物却从 icons-svg 的 CJS（lib）目录导入 SVG 定义，
+      // 生产构建（Rolldown）的 CJS→ESM default 互操作会让 icon 变成 undefined（白屏：reading 'name'）。
+      // 重定向到 ESM（es）目录，使用正确的 export default，规避互操作问题。
+      "@ant-design/icons-svg/lib": "@ant-design/icons-svg/es",
       "@": path.resolve(__dirname, "./src"),
     },
   },
