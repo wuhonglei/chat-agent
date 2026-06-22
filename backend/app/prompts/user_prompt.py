@@ -34,10 +34,6 @@ user_message_for_tool_call_template: Template = Template(
 {%- if window_out_summary %}
   <window_out_summary>{{ window_out_summary|e }}</window_out_summary>
 {%- endif %}
-  <rules>
-    <rule>避免重复调用: 不要使用相似查询多次调用 web_search，不要重复提取已提取过的 URL</rule>
-    <rule>检查历史工具调用结果: 在调用工具前，仔细检查历史工具调用结果是否已足够回答问题。如果已获得足够信息，请直接给出最终回答并停止调用更多工具。</rule>
-  </rules>
   {%- if user_memories %}
   <user_memories>
   {%- for memory in user_memories %}
@@ -80,23 +76,13 @@ user_message_for_no_tool_call_template: Template = Template(
 
 gentle_tips_in_web_search_template: Template = Template(
     """
-目前已经调用了 web search 工具，工具返回内容中已经包含了和用户查询相关的片段。
-- 除非你需要完整的网页内容，否则不要再调用 web_pages_extract 工具
+已调用 web_search，返回内容已包含相关片段，无需再调 web_pages_extract（除非需要完整网页内容）。
 """.strip()
 )
 
 tool_call_sufficient_info_template: Template = Template(
     """
-⚠️ 重要提示: 根据历史工具调用结果，你可能已经获得了足够的信息来回答用户问题。
-
-请仔细检查：
-1. 已调用的工具及其返回结果
-2. 这些结果是否已经包含了回答用户问题所需的信息
-3. 如果结果已足够，请直接给出最终回答，并停止调用更多工具
-
-避免不必要的重复调用，特别是：
-- 使用相似查询多次调用 web_search
-- 重复提取已提取过的 URL
+⚠️ 搜索结果可能已足够回答问题。请检查已调用工具及其结果，足够则直接给出最终回答，停止调用更多工具。
 """.strip()
 )
 
