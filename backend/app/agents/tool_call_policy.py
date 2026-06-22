@@ -61,7 +61,7 @@ class ToolCallPolicy:
             [(TAVILY_SERVER, WEB_PAGES_EXTRACT_BARE)], self.tool_round_messages
         ) and (len(self.extracted_urls) >= 3):
             hint_messages.append(
-                f"⚠️ 已提取了 {len(self.extracted_urls)} 个 URL 的内容。如果这些内容已足够回答问题，请停止继续调用工具，并直接给出最终回答。"
+                f"⚠️ 已提取 {len(self.extracted_urls)} 个 URL，内容可能已足够，直接回答。"
             )
         should_continue, stop_reason_message = self.should_continue(None)
         if not should_continue:
@@ -176,22 +176,22 @@ class ToolCallPolicy:
         if web_search_count >= 2:
             return (
                 False,
-                "⚠️ 已执行了 2 次 web_search。对于简单问题，通常一次搜索已足够。如果搜索结果已足够回答问题，请停止继续调用工具，并直接给出最终回答。",
+                f"⚠️ 已执行 {web_search_count} 次搜索，结果可能已足够，直接回答。",
             )
         if web_pages_extract_count >= 2:
             return (
                 False,
-                "⚠️ 已执行了 2 次 web_pages_extract。如果已提取的内容已足够回答问题，请停止继续调用工具，并直接给出最终回答。",
+                f"⚠️ 已执行 {web_pages_extract_count} 次网页提取，内容可能已足够，直接回答。",
             )
         if len(self.extracted_urls) >= 5:
             return (
                 False,
-                f"⚠️ 已提取了 {len(self.extracted_urls)} 个 URL 的内容。如果这些内容已足够回答问题，请停止继续调用工具，并直接给出最终回答。",
+                f"⚠️ 已提取 {len(self.extracted_urls)} 个 URL，内容可能已足够，直接回答。",
             )
         if total_tool_calls >= 6:
             return (
                 False,
-                f"⚠️ 已执行了 {total_tool_calls} 次工具调用。如果已获得足够信息，请停止继续调用工具，并直接给出最终回答。",
+                f"⚠️ 已执行 {total_tool_calls} 次工具调用，信息可能已足够，直接回答。",
             )
         return True, None
 
