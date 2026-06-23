@@ -1,75 +1,75 @@
 # Tavily Search MCP Server
 
-A Model Context Protocol (MCP) server implementation for Tavily Search API, built with FastMCP.
+A Model Context Protocol (MCP) server implementation for the Tavily API, built with FastMCP.
+
+## Tool naming
+
+- MCP 协议层（`list_tools` / 实际 `@mcp.tool(name=...)`）的裸名：`web_search`、`web_pages_extract`、`web_site_crawl`。
+- 暴露给 LLM 的名字为 `{server}_{bare}`，即 `tavily_web_search`、`tavily_web_pages_extract`、`tavily_web_site_crawl`（见 `app/mcp/tool_naming.py`）。
 
 ## Features
 
-This MCP server provides 4 powerful tools for web search and content extraction:
+This MCP server provides 3 tools for web search, content extraction and crawling:
 
-### 1. tavily_search
-A comprehensive web search tool powered by Tavily's AI search engine.
+### 1. web_search (LLM: `tavily_web_search`)
 
-**Key Features:**
-- Real-time web search with basic/advanced depth options
-- Topic filtering (general/news)
-- Time-based filtering (days, time_range, date ranges)
-- Domain inclusion/exclusion
-- Country-specific search boosting
-- Image results with descriptions
-- Raw HTML content extraction
+基于 Tavily AI 搜索引擎的网页搜索，返回实时、相关的网页内容。
 
-### 2. tavily_extract
-Extract and process raw content from specified URLs.
+主要参数：
 
-**Key Features:**
-- Basic and advanced extraction modes
-- Support for multiple URLs
-- Image extraction
-- Markdown or text output format
-- LinkedIn-optimized extraction (use advanced mode)
+- `queries: list[str]` — 搜索查询列表（简单问题 1 个，复杂问题 2-3 个）
+- `topic: "general" | "news" | "finance"` — 搜索类别（默认 `general`）
+- `search_depth: "advanced" | "basic" | "fast" | "ultra-fast"` — 搜索深度（默认 `advanced`）
+- `chunks_per_source: int` — 每个来源的相关片段上限（1-5，默认 2；仅 `advanced`/`fast` 可用）
+- `result_per_query: int` — 每个查询返回结果数（1-20，默认 5）
+- `time_range`、`start_date`、`end_date` — 时间过滤（日期格式 `YYYY-MM-DD`）
+- `include_domains`、`exclude_domains` — 域名包含/排除
+- `country` — 提升特定国家结果（仅 `topic="general"` 可用）
 
-### 3. tavily_crawl
-Structured web crawling starting from a base URL.
+### 2. web_pages_extract (LLM: `tavily_web_pages_extract`)
 
-**Key Features:**
-- Configurable depth and breadth limits
-- Natural language instructions for crawler
-- Regex-based path and domain filtering
-- Internal and external link handling
-- Advanced content extraction with tables and embedded content
+从指定 URL 提取并处理原始内容。
 
-### 4. tavily_map
-Create structured site maps and discover website architecture.
+主要参数：
 
-**Key Features:**
-- Website structure analysis
-- Navigation path discovery
-- Configurable exploration limits
-- Domain and path filtering
-- Content organization insights
+- `urls: list[str]` — 要提取内容的 URL 列表（最多 100 个）
+- `query: str | None` — 用于对提取片段重排的用户意图
+- `extract_depth: "advanced" | "basic"` — 提取深度（默认 `advanced`）
+
+### 3. web_site_crawl (LLM: `tavily_web_site_crawl`)
+
+从基础 URL 开始进行结构化网页爬取，沿内部链接跨页扩展。
+
+主要参数：
+
+- `url: str` — 开始爬取的根 URL
+- `instructions: str | None` — 自然语言爬取指令
+- `max_depth: int` — 最大爬取深度（1-3，默认 1）
+- `max_breadth: int` — 每层最多跟随的链接数（1-50，默认 20）
+- `limit: int` — 处理链接总数上限（1-200，默认 50）
+- `select_paths`、`select_domains`、`exclude_paths`、`exclude_domains` — 正则过滤
+- `allow_external: bool` — 是否包含外部链接（默认 `True`）
+- `extract_depth: "basic" | "advanced"` — 提取深度（默认 `basic`）
 
 ## Installation
 
 ### Prerequisites
 
 - Python 3.10+
-- Tavily API Key (get it from [Tavily](https://app.tavily.com/))
+- Tavily API Key（从 [Tavily](https://app.tavily.com/) 获取）
 
 ### Setup
 
-1. Copy the environment template:
+1. 复制环境变量模板：
+
 ```bash
 cp .env.example .env
 ```
 
-2. Edit `.env` and add your Tavily API key:
+2. 编辑 `.env` 并填入 API key：
+
 ```
 TAVILY_API_KEY=your_actual_api_key_here
-```
-
-3. Install dependencies (if not already installed):
-```bash
-pip install fastmcp httpx pydantic
 ```
 
 ## Usage
@@ -80,9 +80,8 @@ pip install fastmcp httpx pydantic
 python server.py
 ```
 
-The server will start on port 8002 by default.
+默认监听 8002 端口。使用其他端口：
 
-To use a different port:
 ```bash
 python server.py --port 8003
 ```
@@ -95,111 +94,50 @@ python server.py --transport stdio
 
 ## Tool Examples
 
-### Search Example
+> 以下示例以裸名调用，便于说明参数；在 Agent / LLM 侧实际工具名为 `tavily_` 前缀版本。
+
+### web_search
 
 ```python
-# Basic search
-result = tavily_search(
-    query="latest AI developments",
-    max_results=5
+result = web_search(
+    queries=["latest AI developments"],
+    result_per_query=5,
 )
 
-# News search with time filter
-result = tavily_search(
-    query="technology news",
+result = web_search(
+    queries=["technology news"],
     topic="news",
-    days=7,
-    max_results=10
-)
-
-# Country-specific search
-result = tavily_search(
-    query="startup news",
-    country="united states",
-    max_results=5
+    time_range="week",
+    result_per_query=10,
 )
 ```
 
-### Extract Example
+### web_pages_extract
 
 ```python
-# Extract content from URLs
-result = tavily_extract(
+result = web_pages_extract(
     urls=["https://example.com/article"],
     extract_depth="basic",
-    format="markdown"
-)
-
-# Advanced extraction for LinkedIn
-result = tavily_extract(
-    urls=["https://linkedin.com/in/someone"],
-    extract_depth="advanced",
-    format="markdown",
-    include_images=True
 )
 ```
 
-### Crawl Example
+### web_site_crawl
 
 ```python
-# Basic crawl
-result = tavily_crawl(
-    url="https://example.com",
-    max_depth=2,
-    max_breadth=10
-)
-
-# Crawl with instructions and filters
-result = tavily_crawl(
+result = web_site_crawl(
     url="https://docs.example.com",
-    max_depth=3,
     instructions="Only crawl documentation pages",
+    max_depth=3,
     select_paths=["/docs/.*"],
-    format="markdown"
-)
-```
-
-### Map Example
-
-```python
-# Create site map
-result = tavily_map(
-    url="https://example.com",
-    max_depth=2,
-    limit=100
-)
-
-# Map with domain filtering
-result = tavily_map(
-    url="https://docs.example.com",
-    select_domains=["^docs\\.example\\.com$"],
-    allow_external=False
 )
 ```
 
 ## Response Format
 
-All tools return a dictionary with the following structure:
-
-```python
-{
-    "formatted": "Human-readable formatted results",
-    "raw": {
-        # Original API response data
-    }
-}
-```
-
-In case of errors:
-```python
-{
-    "error": "Error message"
-}
-```
+每个工具返回经 Pydantic 校验的结构化结果（见 `models.py` 中的 `TavilySearchResponse`、`TavilyExtractResponse`、`TavilyCrawlResponse`）。出错时直接抛出原始异常，保留异常类型与堆栈。
 
 ## API Documentation
 
-For detailed API documentation, visit:
 - [Tavily Documentation](https://docs.tavily.com/)
 - [Tavily API Reference](https://docs.tavily.com/api-reference)
 

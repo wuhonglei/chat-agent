@@ -15,6 +15,7 @@ from app.schemas.chat import (
     collect_text_from_blocks,
 )
 from app.schemas.llm import ToolResultMessage
+from app.utils.logger import logger
 
 
 class ContentBlocksAggregator:
@@ -51,9 +52,19 @@ class ContentBlocksAggregator:
         if not self._get_tool_route:
             block.name = llm_name
             return
-        name, server_name, mcp_tool_name = resolve_tool_use_fields(
-            llm_name, self._get_tool_route
-        )
+        try:
+            name, server_name, mcp_tool_name = resolve_tool_use_fields(
+                llm_name, self._get_tool_route
+            )
+        except ValueError:
+            # 模型可能产出未知/过时的工具名（如已重命名的工具）。
+            # 此时不应中断整个 SSE 流——仅记录原始名，路由信息留空，
+            # 交由 tool_executor 在执行阶段返回可恢复的错误结果。
+            logger.warning(
+                "Unknown tool name in stream, skip routing", llm_name=llm_name
+            )
+            block.name = llm_name
+            return
         block.name = name
         block.server_name = server_name
         block.mcp_tool_name = mcp_tool_name
