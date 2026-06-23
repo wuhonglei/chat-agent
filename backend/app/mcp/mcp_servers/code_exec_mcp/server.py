@@ -40,7 +40,9 @@ async def execute_code(
     ),
 ) -> ToolResult:
     """
-    Piston 安全沙箱代码执行服务(必须使用 print 输出结果, 否则无法获取结果)
+    Piston 安全沙箱代码执行服务，只支持 python、javascript、typescript 编程语言。
+    适用场景：需要计算、数据处理、文件操作、调用第三方库、验证逻辑等实际运算，不支持直接运行 HTML。
+    必须使用 print 输出结果，否则无法获取结果。
     """
     client = PystonClient(base_url=config.piston_base_url)
     try:
