@@ -387,9 +387,11 @@ class ToolResultCompressionConfig(BaseModel):
 class HistoryWindowConfig(BaseModel):
     """历史消息窗口配置"""
 
-    max_tokens: int = Field(
-        default=32000,
-        description="历史消息 token 预算，超出部分从更早消息起截断",
+    token_ratio: float = Field(
+        default=0.25,
+        gt=0,
+        le=1,
+        description="历史消息 token 预算占模型 context_limit 的比例，超出部分从更早消息起截断",
     )
     max_rounds: int = Field(
         default=5,
