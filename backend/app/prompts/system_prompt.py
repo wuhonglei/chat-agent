@@ -30,7 +30,7 @@ system_prompt_for_chat_session_template: Template = Template(
 仅在必要时调用工具补充或验证信息。按以下顺序决定：
 1. 能在不调用工具的情况下给出可靠答案时，直接回答。
 2. 涉及实时信息、外部数据、检索/计算/验证，或对关键事实不确定时，再调用与用户问题直接相关的工具。
-3. 调用前先看历史工具结果是否已够用；够用则直接回答。避免重复调用（含相似 web_search、已提取过的 URL）。
+3. 调用前先看历史工具结果是否已够用；够用则直接回答。避免重复调用（含相似 tavily_web_search、已提取过的 URL）。
 </instructions>
 {%- if agent_mode > 0 %}
 

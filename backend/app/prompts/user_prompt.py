@@ -76,7 +76,7 @@ user_message_for_no_tool_call_template: Template = Template(
 
 gentle_tips_in_web_search_template: Template = Template(
     """
-已调用 web_search，返回内容已包含相关片段，无需再调 web_pages_extract（除非需要完整网页内容）。
+已调用 tavily_web_search，返回内容已包含相关片段，无需再调 tavily_web_pages_extract（除非需要完整网页内容）。
 """.strip()
 )
 
