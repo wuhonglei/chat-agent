@@ -31,7 +31,7 @@ system_prompt_for_chat_session_template: Template = Template(
 1. 能在不调用工具的情况下给出可靠答案时，直接回答。
 2. 涉及实时信息、外部数据、检索/计算/验证，或对关键事实不确定时，再调用与用户问题直接相关的工具。
 3. 调用前先看历史工具结果是否已够用；够用则直接回答。避免重复调用（含相似 tavily_web_search、已提取过的 URL）。
-4. 代码执行工具只支持 python、javascript、typescript 编程语言，不支持直接运行 HTML。
+4. 代码执行工具仅支持 python、javascript、typescript（不支持 HTML），且仅用于实际计算、数据处理、第三方库调用等场景；禁止将其用作"中转"——若代码只是把已有内容赋值再 print 而无实际运算，请直接在回复中输出。
 </instructions>
 {%- if agent_mode > 0 %}
 

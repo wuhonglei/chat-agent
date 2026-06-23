@@ -38,11 +38,20 @@ async def execute_code(
         default="*",
         description="语言版本，默认使用最新版本（*）",
     ),
+    run_timeout: int = Field(
+        default=3000,
+        description="代码运行阶段的超时时间（毫秒），默认 3000ms",
+    ),
 ) -> ToolResult:
     """
     Piston 安全沙箱代码执行服务，只支持 python、javascript、typescript 编程语言。
     适用场景：需要计算、数据处理、文件操作、调用第三方库、验证逻辑等实际运算，不支持直接运行 HTML。
     必须使用 print 输出结果，否则无法获取结果。
+
+    ⚠️ 沙箱环境限制（违反将导致 SIGKILL）：
+    - 不支持 npm/pip install 等包安装命令
+    - 不支持网络访问（无法调用外部 API）
+    - 若 import 第三方库被 SIGKILL，请改用标准库实现，不要重复尝试相同的 import
     """
     client = PystonClient(base_url=config.piston_base_url)
     try:
@@ -51,6 +60,7 @@ async def execute_code(
             files=[File(code)],
             version=version,
             stdin=stdin,
+            run_timeout=run_timeout,
         )
     finally:
         await client.close_session()
