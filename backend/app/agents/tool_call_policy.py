@@ -13,14 +13,10 @@ from app.mcp.constants import (
     TAVILY_SERVER,
     WEB_PAGES_EXTRACT_BARE,
     WEB_PAGES_EXTRACT_LLM,
-    WEB_SEARCH_BARE,
     WEB_SEARCH_LLM,
 )
 from app.mcp.tool_naming import is_llm_tool
-from app.prompts import (
-    get_gentle_tips_in_web_search,
-    get_tool_call_sufficient_info_message,
-)
+from app.prompts import get_tool_call_sufficient_info_message
 from app.schemas.llm import ToolMessage
 from app.utils.common import normalize_url
 from app.utils.mcp import count_tool_calls, has_tool_been_called
@@ -53,10 +49,12 @@ class ToolCallPolicy:
         iteration: int,
     ) -> None:
         hint_messages: list[str] = []
-        if has_tool_been_called(
-            [(TAVILY_SERVER, WEB_SEARCH_BARE)], self.tool_round_messages
-        ):
-            hint_messages.append(get_gentle_tips_in_web_search())
+        web_search_count = len(self._get_web_search_queries())
+        if web_search_count >= 1 and iteration >= 1:
+            hint_messages.append(
+                "⚠️ 已执行过搜索，请先评估现有搜索结果是否足够回答用户问题。"
+                "如果信息已充分，直接给出回答，不要再次调用工具。"
+            )
         if has_tool_been_called(
             [(TAVILY_SERVER, WEB_PAGES_EXTRACT_BARE)], self.tool_round_messages
         ) and (len(self.extracted_urls) >= 3):
