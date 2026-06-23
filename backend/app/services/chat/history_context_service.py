@@ -130,9 +130,12 @@ class HistoryContextService:
             self.history_window_config.max_rounds,
         )
         compressed_window_messages = self.compress_history_messages(in_window_messages)
+        history_max_tokens = int(
+            self.token_calculator.context_limit * self.history_window_config.token_ratio
+        )
         window_messages_after_truncation = truncate_in_window_by_round_tokens(
             compressed_window_messages,
-            self.history_window_config.max_tokens,
+            history_max_tokens,
             self.token_calculator,
         )
         final_kept_ids = {m.id for m in window_messages_after_truncation}
