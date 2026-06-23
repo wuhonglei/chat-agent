@@ -38,6 +38,10 @@ async def execute_code(
         default="*",
         description="语言版本，默认使用最新版本（*）",
     ),
+    run_timeout: int = Field(
+        default=3000,
+        description="代码运行阶段的超时时间（毫秒），默认 3000ms",
+    ),
 ) -> ToolResult:
     """
     Piston 安全沙箱代码执行服务，只支持 python、javascript、typescript 编程语言。
@@ -51,6 +55,7 @@ async def execute_code(
             files=[File(code)],
             version=version,
             stdin=stdin,
+            run_timeout=run_timeout,
         )
     finally:
         await client.close_session()

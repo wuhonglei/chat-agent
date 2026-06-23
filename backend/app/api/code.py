@@ -35,6 +35,7 @@ async def execute_code(body: CodeExecuteRequest) -> ApiResponse[CodeExecResponse
             files=[PistonFile(body.code)],
             version="*",
             stdin="",
+            run_timeout=30000,
         )
     finally:
         await client.close_session()
