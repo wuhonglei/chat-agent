@@ -106,7 +106,7 @@ context_compactor 采用 token 预算 + 语义摘要的混合策略来管理上�
 - [x] 接入 Langfuse，实现 请求→编排→LLM→工具→响应 全链路 trace
 - [x] 采集核心指标：input/output tokens、延迟、成本、错误分类
 - [x] 按 trace_id / conversation_id / user_id 关联查询
-- [ ] 整理 trace 链路图，准备面试时画图讲解
+- [x] 整理 trace 链路图，准备面试时画图讲解
 - [ ] 记熟 prod 监控数据（76 条 trace，qwen3.7-plus 占 72%，P50=9.3s，62% 含工具调用，总成本 $0.44）
 - [ ] 准备一个"用 trace 定位慢请求"的真实故事
 
