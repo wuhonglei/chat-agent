@@ -58,6 +58,7 @@ def get_system_prompt_for_chat_session(
     return system_prompt_for_chat_session_template.render(
         agent_mode=agent_mode,
         skill_manifests=skill_manifests or [],
+        current_datetime=get_current_datetime_str(),
         **extra,
     )
 
@@ -83,7 +84,6 @@ def get_user_message_for_tool_calls(
         kb_context_blocks=kb_context_blocks or [],
         user_memories=user_memories,
         window_out_summary=window_out_summary,
-        current_datetime=get_current_datetime_str(),
     ).strip()
 
 

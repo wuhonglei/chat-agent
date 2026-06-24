@@ -162,7 +162,6 @@ class ChatOrchestrator:
         history_summary_before_window: str | None,
         history_messages: list[ChatMessage],
         user_id: str,
-        client_ip: str | None,
         user_memories: list[MemorySearchItem] | None = None,
         kb_context_blocks: list[KbContextBlock] | None = None,
     ) -> AsyncGenerator[str, None]:
@@ -175,14 +174,12 @@ class ChatOrchestrator:
                 "Starting chat message stream",
                 user_message_length=len(user_message),
                 history_messages_count=len(history_messages),
-                client_ip=client_ip,
             )
 
             session_start_time = get_current_time()
             async for event in self.chat_session_agent.stream_session_events(
                 chat_request=chat_request,
                 history_messages=history_messages,
-                client_ip=client_ip,
                 history_summary_before_window=history_summary_before_window,
                 conversation_id=chat_request.conversation_id,
                 user_memories=user_memories or [],
@@ -409,13 +406,11 @@ class ChatOrchestrator:
                             },
                         ) as kb_span:
                             try:
-                                kb_context_blocks = (
-                                    await self._build_kb_context_blocks(
-                                        content_blocks=chat_request.content_blocks,
-                                        history_messages=prepared_history_messages,
-                                        user_id=user_id,
-                                        user_message_text=user_message_text,
-                                    )
+                                kb_context_blocks = await self._build_kb_context_blocks(
+                                    content_blocks=chat_request.content_blocks,
+                                    history_messages=prepared_history_messages,
+                                    user_id=user_id,
+                                    user_message_text=user_message_text,
                                 )
                             except Exception as exc:
                                 mark_observation_error(kb_span, exc)
@@ -441,7 +436,6 @@ class ChatOrchestrator:
                                 history_summary_before_window=history_summary_before_window,
                                 history_messages=prepared_history_messages,
                                 user_id=user_id,
-                                client_ip=None,
                                 user_memories=user_memories,
                                 kb_context_blocks=kb_context_blocks,
                             ),

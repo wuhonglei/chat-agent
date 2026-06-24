@@ -91,7 +91,6 @@ class ChatSessionAgent(BaseAgent):
         *,
         chat_request: ChatRequest,
         history_messages: list[ChatMessage],
-        client_ip: str | None,
         history_summary_before_window: str | None,
         conversation_id: str,
         user_memories: list[MemorySearchItem],

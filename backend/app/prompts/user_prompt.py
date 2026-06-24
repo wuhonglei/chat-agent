@@ -47,9 +47,6 @@ user_message_for_tool_call_template: Template = Template(
   {%- endfor %}
   </user_memories>
   {%- endif %}
-  <context>
-    <current_datetime>{{ current_datetime|e }}</current_datetime>
-  </context>
 </tool_call_context>
 """.strip()
 )
