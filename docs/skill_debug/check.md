@@ -57,7 +57,7 @@
 | 5 | newsletter-generation | 内容创作 | ⬜ 待调试 | |
 | 6 | ppt-generation | 内容创作 | ⬜ 待调试 | |
 | 7 | image-generation | 内容创作 | ⬜ 待调试 | |
-| 8 | aihot | 内容创作 | ⬜ 待调试 | |
+| 8 | aihot | 内容创作 | ✅ 通过 | |
 | 9 | webapp-building | 开发与部署 | ⬜ 待调试 | |
 | 10 | vercel-deploy | 开发与部署 | ⬜ 待调试 | |
 | 11 | find-skills | 系统与工具 | ⬜ 待调试 | |
