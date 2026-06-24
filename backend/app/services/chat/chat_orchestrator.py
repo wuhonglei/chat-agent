@@ -406,13 +406,11 @@ class ChatOrchestrator:
                             },
                         ) as kb_span:
                             try:
-                                kb_context_blocks = (
-                                    await self._build_kb_context_blocks(
-                                        content_blocks=chat_request.content_blocks,
-                                        history_messages=prepared_history_messages,
-                                        user_id=user_id,
-                                        user_message_text=user_message_text,
-                                    )
+                                kb_context_blocks = await self._build_kb_context_blocks(
+                                    content_blocks=chat_request.content_blocks,
+                                    history_messages=prepared_history_messages,
+                                    user_id=user_id,
+                                    user_message_text=user_message_text,
                                 )
                             except Exception as exc:
                                 mark_observation_error(kb_span, exc)
