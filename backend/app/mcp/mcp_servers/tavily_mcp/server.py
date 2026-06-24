@@ -43,7 +43,7 @@ async def web_search(
         description="搜索深度：'basic'（推荐，均衡延迟与质量，每条结果返回 NLP 摘要）、'advanced'（最高质量，多片段，2 倍额度）、'fast'（低延迟，多片段）、'ultra-fast'（最低延迟，摘要）",
     ),
     chunks_per_source: int = Field(
-        default=2,
+        default=3,
         ge=1,
         le=5,
         description="每个来源返回的相关片段上限（1-5）。仅在 search_depth 为 'advanced' 或 'fast' 时可用",
