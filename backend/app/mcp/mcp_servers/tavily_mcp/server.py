@@ -39,8 +39,8 @@ async def web_search(
         description="搜索类别：'general'、'news'、'finance'（默认 'general'）",
     ),
     search_depth: Literal["advanced", "basic", "fast", "ultra-fast"] = Field(
-        default="advanced",
-        description="搜索深度：'advanced'（相关性最佳）、'basic'（均衡）、'fast'（更低延迟）、'ultra-fast'（最低延迟）",
+        default="basic",
+        description="搜索深度：'basic'（推荐，均衡延迟与质量，每条结果返回 NLP 摘要）、'advanced'（最高质量，多片段，2 倍额度）、'fast'（低延迟，多片段）、'ultra-fast'（最低延迟，摘要）",
     ),
     chunks_per_source: int = Field(
         default=2,
