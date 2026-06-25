@@ -9,6 +9,7 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 from app.schemas.chat import (
+    AttachmentUploadInfo,
     ChatMessage,
     ContentBlock,
     ImageBlock,
@@ -20,6 +21,7 @@ from app.schemas.chat import (
 )
 from app.services.chat_upload.attachment import try_resolve_upload_file_path
 from app.utils.logger import logger
+from app.vfs.config import vfs_config
 
 _IMAGE_PREVIEW_PATH_PATTERNS = (re.compile(r"^/api/file/preview/([^/]+)/(.+)$"),)
 _IMAGE_ONLY_PLACEHOLDER = "[用户发送了图片]"
@@ -128,6 +130,76 @@ def resolve_storage_key_for_content_id(
         if found is not None:
             return found
     return None
+
+
+def _storage_key_to_virtual_path(storage_key: str | None) -> str | None:
+    """将会话上传 storage_key（{cid}/...）映射为 VFS uploads 虚拟路径。"""
+    if not storage_key:
+        return None
+    parts = storage_key.split("/", 1)
+    if len(parts) != 2 or not parts[1]:
+        return None
+    return f"{vfs_config.uploads_prefix}{parts[1]}"
+
+
+def build_attachment_uploads(
+    content_blocks: list[ContentBlock] | list[dict[str, Any]] | None,
+    history_messages: list[ChatMessage] | None,
+) -> list[AttachmentUploadInfo]:
+    """构建 agent_mode 注入的上传文件清单。
+
+    当前轮 blocks 标记 is_current_turn=True，历史 user 消息标记 False，
+    按 storage_key 去重（当前轮优先）。
+    """
+    uploads: list[AttachmentUploadInfo] = []
+    seen_storage_keys: set[str] = set()
+
+    def _collect(
+        blocks: list[ContentBlock] | list[dict[str, Any]] | None,
+        *,
+        is_current_turn: bool,
+    ) -> None:
+        for block in normalize_content_blocks(blocks):
+            if isinstance(block, PdfBlock):
+                path = _storage_key_to_virtual_path(block.storage_key)
+                readable_path = (
+                    _storage_key_to_virtual_path(block.markdown.storage_key)
+                    if block.markdown is not None
+                    else None
+                )
+            elif isinstance(block, MarkdownBlock):
+                path = _storage_key_to_virtual_path(block.storage_key)
+                readable_path = path
+            elif isinstance(block, ImageBlock):
+                path = _storage_key_to_virtual_path(block.storage_key)
+                readable_path = None
+            else:
+                continue
+
+            if path is None or block.storage_key is None:
+                continue
+            if block.storage_key in seen_storage_keys:
+                continue
+            seen_storage_keys.add(block.storage_key)
+
+            uploads.append(
+                AttachmentUploadInfo(
+                    name=block.name,
+                    path=path,
+                    size=block.size,
+                    readable_path=readable_path,
+                    is_current_turn=is_current_turn,
+                    type=block.type,
+                )
+            )
+
+    _collect(content_blocks, is_current_turn=True)
+    for message in reversed(history_messages or []):
+        if message.role != "user":
+            continue
+        _collect(message.content_blocks, is_current_turn=False)
+
+    return uploads
 
 
 def build_title_user_message_for_llm(

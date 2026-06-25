@@ -304,6 +304,20 @@ class KbContextBlock(BaseModel):
     content: str = Field(default="", description="Knowledge base context content")
 
 
+class AttachmentUploadInfo(BaseModel):
+    """agent_mode 下注入用户消息的上传文件清单条目，供模型用文件工具按需读取。"""
+
+    name: str = Field(..., description="展示用文件名")
+    path: str = Field(..., description="文件虚拟路径，如 /mnt/user-data/uploads/{name}")
+    readable_path: str | None = Field(
+        default=None,
+        description="可读文本路径；PDF 指向 derived Markdown，图片为 None",
+    )
+    size: int = Field(default=0, ge=0, description="落盘文件字节数")
+    is_current_turn: bool = Field(default=False, description="是否为本轮上传")
+    type: str = Field(..., description='文件类型："pdf" | "markdown" | "image"')
+
+
 AttachmentBlock: TypeAlias = ImageBlock | MarkdownBlock | PdfBlock
 
 ContentBlock: TypeAlias = (

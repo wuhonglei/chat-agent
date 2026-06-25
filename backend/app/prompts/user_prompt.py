@@ -20,6 +20,21 @@ _USER_MESSAGE_QUERY_SNIPPET = """
   {%- endfor %}
   </attachment_context>
   {%- endif %}
+  {%- if attachment_uploads %}
+  <attachment_uploads note="以下为本会话已上传文件，可按需读取；readable_path 指向 derived Markdown，图片为 None">
+  {%- for f in attachment_uploads %}
+    <file index="{{ loop.index }}">
+      <name>{{ f.name|e }}</name>
+      <path>{{ f.path|e }}</path>
+      {%- if f.readable_path %}
+      <readable_path>{{ f.readable_path|e }}</readable_path>
+      {%- endif %}
+      <size_bytes>{{ f.size }}</size_bytes>
+      <uploaded_this_turn>{{ 'true' if f.is_current_turn else 'false' }}</uploaded_this_turn>
+    </file>
+  {%- endfor %}
+  </attachment_uploads>
+  {%- endif %}
 </user_message>
 """.strip()
 

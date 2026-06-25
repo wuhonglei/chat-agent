@@ -22,7 +22,7 @@ from app.prompts.user_prompt import (
     user_message_for_reach_tool_call_limit_template,
     user_message_for_tool_call_template,
 )
-from app.schemas.chat import ContentBlock, KbContextBlock
+from app.schemas.chat import AttachmentUploadInfo, ContentBlock, KbContextBlock
 from app.schemas.user import MemorySearchItem
 from app.utils.date import get_current_datetime_str
 from app.vfs.config import vfs_config
@@ -72,17 +72,21 @@ def get_user_message_for_tool_calls(
     kb_context_blocks: list[KbContextBlock] | None = None,
     user_memories: Sequence[MemorySearchItem] | None = None,
     window_out_summary: str | None = None,
+    attachment_uploads: list[AttachmentUploadInfo] | None = None,
 ) -> str:
     """Get user message prompt for tool calls.
 
     kb_context_blocks: 可选，每项建议包含 id、name、content，
     以及可选 created_at（与 user_prompt 模板一致）。
+    attachment_uploads: 可选，agent_mode 下注入的上传文件清单，
+    由模型用文件工具按需读取。
     """
     return user_message_for_tool_call_template.render(
         user_message_text=user_message_text,
         kb_context_blocks=kb_context_blocks or [],
         user_memories=user_memories,
         window_out_summary=window_out_summary,
+        attachment_uploads=attachment_uploads or [],
         current_datetime=get_current_datetime_str(),
     ).strip()
 
