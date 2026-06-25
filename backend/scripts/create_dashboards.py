@@ -234,9 +234,9 @@ TOOL_ANALYSIS_WIDGETS: list[dict[str, Any]] = [
     },
     {
         "name": "工具调用趋势（Server 维度）",
-        "description": "按 MCP Server 分组的工具调用次数趋势",
+        "description": "按 MCP Server tags 分组的工具调用次数趋势",
         "view": "observations",
-        "dimensions": [{"field": "metadata.server_name"}],
+        "dimensions": [{"field": "tags"}],
         "metrics": [{"measure": "count", "agg": "count"}],
         "filters": [
             {
@@ -253,7 +253,7 @@ TOOL_ANALYSIS_WIDGETS: list[dict[str, Any]] = [
         "name": "工具调用趋势（Tool 维度）",
         "description": "按具体工具名称分组的工具调用次数趋势",
         "view": "observations",
-        "dimensions": [{"field": "metadata.tool_name"}],
+        "dimensions": [{"field": "name"}],
         "metrics": [{"measure": "count", "agg": "count"}],
         "filters": [
             {
