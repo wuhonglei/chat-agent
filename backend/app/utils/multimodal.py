@@ -9,6 +9,7 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 from app.schemas.chat import (
+    AttachmentFileInfo,
     AttachmentUploadInfo,
     ChatMessage,
     ContentBlock,
@@ -160,36 +161,37 @@ def build_attachment_uploads(
         is_current_turn: bool,
     ) -> None:
         for block in normalize_content_blocks(blocks):
-            if isinstance(block, PdfBlock):
-                path = _storage_key_to_virtual_path(block.storage_key)
-                readable_path = (
-                    _storage_key_to_virtual_path(block.markdown.storage_key)
-                    if block.markdown is not None
-                    else None
-                )
-            elif isinstance(block, MarkdownBlock):
-                path = _storage_key_to_virtual_path(block.storage_key)
-                readable_path = path
-            elif isinstance(block, ImageBlock):
-                path = _storage_key_to_virtual_path(block.storage_key)
-                readable_path = None
-            else:
+            if not isinstance(block, (PdfBlock, MarkdownBlock, ImageBlock)):
                 continue
 
-            if path is None or block.storage_key is None:
+            virtual_path = _storage_key_to_virtual_path(block.storage_key)
+            if virtual_path is None or block.storage_key is None:
                 continue
             if block.storage_key in seen_storage_keys:
                 continue
             seen_storage_keys.add(block.storage_key)
 
+            markdown: AttachmentFileInfo | None = None
+            if isinstance(block, PdfBlock) and block.markdown is not None:
+                md_virtual_path = _storage_key_to_virtual_path(
+                    block.markdown.storage_key
+                )
+                if md_virtual_path is not None:
+                    markdown = AttachmentFileInfo(
+                        name=block.markdown.name,
+                        type=block.markdown.type,
+                        size=block.markdown.size,
+                        virtual_path=md_virtual_path,
+                    )
+
             uploads.append(
                 AttachmentUploadInfo(
                     name=block.name,
-                    path=path,
-                    size=block.size,
-                    readable_path=readable_path,
-                    is_current_turn=is_current_turn,
                     type=block.type,
+                    size=block.size,
+                    virtual_path=virtual_path,
+                    markdown=markdown,
+                    is_current_turn=is_current_turn,
                 )
             )
 

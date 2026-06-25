@@ -21,16 +21,21 @@ _USER_MESSAGE_QUERY_SNIPPET = """
   </attachment_context>
   {%- endif %}
   {%- if attachment_uploads %}
-  <attachment_uploads note="以下为本会话已上传文件，可按需读取；readable_path 指向 derived Markdown，图片为 None">
+  <attachment_uploads note="以下为本会话已上传文件, markdown 为原始文件派生的可读 Markdown 文件">
   {%- for f in attachment_uploads %}
     <file index="{{ loop.index }}">
       <name>{{ f.name|e }}</name>
-      <path>{{ f.path|e }}</path>
-      {%- if f.readable_path %}
-      <readable_path>{{ f.readable_path|e }}</readable_path>
-      {%- endif %}
+      <type>{{ f.type|e }}</type>
+      <virtual_path>{{ f.virtual_path|e }}</virtual_path>
       <size>{{ f.human_size }}</size>
       <uploaded_this_turn>{{ 'true' if f.is_current_turn else 'false' }}</uploaded_this_turn>
+      {%- if f.markdown %}
+      <markdown>
+        <name>{{ f.markdown.name|e }}</name>
+        <virtual_path>{{ f.markdown.virtual_path|e }}</virtual_path>
+        <size>{{ f.markdown.human_size }}</size>
+      </markdown>
+      {%- endif %}
     </file>
   {%- endfor %}
   </attachment_uploads>

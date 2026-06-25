@@ -27,6 +27,27 @@ def get_file_extension(filename: str) -> str:
     return Path(filename).suffix.lower() if filename else ""
 
 
+def format_human_size(size_bytes: int) -> str:
+    """将字节数格式化为可读形式（B / KB / MB / GB）。
+
+    Examples:
+        >>> format_human_size(0)
+        '0 B'
+        >>> format_human_size(1024)
+        '1.0 KB'
+        >>> format_human_size(12345)
+        '12.1 KB'
+    """
+    size = float(size_bytes)
+    for unit in ("B", "KB", "MB", "GB"):
+        if size < 1024 or unit == "GB":
+            if unit == "B":
+                return f"{int(size)} {unit}"
+            return f"{size:.1f} {unit}"
+        size /= 1024
+    return f"{int(size_bytes)} B"
+
+
 def get_file_name(filename: str) -> str:
     """
     获取文件名

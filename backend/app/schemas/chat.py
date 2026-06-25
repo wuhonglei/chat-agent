@@ -19,6 +19,7 @@ from app.mcp.tool_naming import llm_tool_name
 from app.schemas.llm import ToolMessage, ToolResultMessage, ToolUseMessage
 from app.utils.common import gen_uuid
 from app.utils.date import get_datetime_now
+from app.utils.file import format_human_size
 
 
 class MessageStatus(str, Enum):
@@ -304,30 +305,30 @@ class KbContextBlock(BaseModel):
     content: str = Field(default="", description="Knowledge base context content")
 
 
-class AttachmentUploadInfo(BaseModel):
-    """agent_mode 下注入用户消息的上传文件清单条目，供模型用文件工具按需读取。"""
+class AttachmentFileInfo(BaseModel):
+    """上传文件元信息，供模型用文件工具按需读取。"""
 
     name: str = Field(..., description="展示用文件名")
-    path: str = Field(..., description="文件虚拟路径，如 /mnt/user-data/uploads/{name}")
-    readable_path: str | None = Field(
-        default=None,
-        description="可读文本路径；PDF 指向 derived Markdown，图片为 None",
-    )
-    size: int = Field(default=0, ge=0, description="落盘文件字节数")
-    is_current_turn: bool = Field(default=False, description="是否为本轮上传")
     type: str = Field(..., description='文件类型："pdf" | "markdown" | "image"')
+    size: int = Field(default=0, ge=0, description="落盘文件字节数")
+    virtual_path: str = Field(
+        ..., description="文件虚拟路径，如 /mnt/user-data/uploads/{name}"
+    )
 
     @property
     def human_size(self) -> str:
         """将字节数格式化为可读形式（B / KB / MB / GB）。"""
-        size = float(self.size)
-        for unit in ("B", "KB", "MB", "GB"):
-            if size < 1024 or unit == "GB":
-                if unit == "B":
-                    return f"{int(size)} {unit}"
-                return f"{size:.1f} {unit}"
-            size /= 1024
-        return f"{int(self.size)} B"
+        return format_human_size(self.size)
+
+
+class AttachmentUploadInfo(AttachmentFileInfo):
+    """agent_mode 下注入用户消息的上传文件清单条目。"""
+
+    markdown: AttachmentFileInfo | None = Field(
+        default=None,
+        description="PDF 派生的可读 Markdown 文件；非 PDF 为 None",
+    )
+    is_current_turn: bool = Field(default=False, description="是否为本轮上传")
 
 
 AttachmentBlock: TypeAlias = ImageBlock | MarkdownBlock | PdfBlock
