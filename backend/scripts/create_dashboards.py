@@ -78,8 +78,9 @@ def load_langfuse_runtime(*, prod: bool) -> LangfuseRuntime:
     cfg = load_nacos_config(prod=prod)
     lf = cfg.get("langfuse", {})
 
-    public_key = lf.get("public_key", "")
-    secret_key = lf.get("secret_key", "")
+    # 环境变量优先覆盖（nacos 中 key 可能截断）
+    public_key = os.getenv("LANGFUSE_PUBLIC_KEY") or lf.get("public_key", "")
+    secret_key = os.getenv("LANGFUSE_SECRET_KEY") or lf.get("secret_key", "")
     project_id = lf.get("project_id") or DEFAULT_PROJECT_IDS[prod]
     if not project_id:
         print("ERROR: nacos 配置中缺少 langfuse.project_id")
@@ -219,6 +220,40 @@ TOOL_ANALYSIS_WIDGETS: list[dict[str, Any]] = [
         "description": "按时间统计工具调用次数",
         "view": "observations",
         "dimensions": [],
+        "metrics": [{"measure": "count", "agg": "count"}],
+        "filters": [
+            {
+                "column": "type",
+                "operator": "any of",
+                "type": "stringOptions",
+                "value": ["GENERATION", "SPAN", "TOOL"],
+            }
+        ],
+        "chart_type": "LINE_TIME_SERIES",
+        "chart_config": {"type": "LINE_TIME_SERIES"},
+    },
+    {
+        "name": "工具调用趋势（Server 维度）",
+        "description": "按 MCP Server 分组的工具调用次数趋势",
+        "view": "observations",
+        "dimensions": [{"field": "metadata.server_name"}],
+        "metrics": [{"measure": "count", "agg": "count"}],
+        "filters": [
+            {
+                "column": "type",
+                "operator": "any of",
+                "type": "stringOptions",
+                "value": ["GENERATION", "SPAN", "TOOL"],
+            }
+        ],
+        "chart_type": "LINE_TIME_SERIES",
+        "chart_config": {"type": "LINE_TIME_SERIES"},
+    },
+    {
+        "name": "工具调用趋势（Tool 维度）",
+        "description": "按具体工具名称分组的工具调用次数趋势",
+        "view": "observations",
+        "dimensions": [{"field": "metadata.tool_name"}],
         "metrics": [{"measure": "count", "agg": "count"}],
         "filters": [
             {
