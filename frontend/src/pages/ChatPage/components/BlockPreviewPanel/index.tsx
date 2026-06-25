@@ -6,6 +6,7 @@ import HtmlBlockPreviewPanel from "./HtmlPreview";
 import MarkdownBlockPreviewPanel from "./MarkdownPreview";
 import PdfBlockPreviewPanel from "./PdfPreview";
 import ProjectPreviewPanel from "./ProjectPreview";
+import TextFileBlockPreviewPanel from "./TextFilePreview";
 
 export interface BlockPreviewPanelProps {
   width: number;
@@ -21,6 +22,8 @@ const BlockPreviewPanel: React.FC<BlockPreviewPanelProps> = ({ width, block, onC
       return <ExcelBlockPreviewPanel width={width} block={block} onClose={onClose} />;
     case "markdown":
       return <MarkdownBlockPreviewPanel width={width} block={block} onClose={onClose} />;
+    case "text_file":
+      return <TextFileBlockPreviewPanel width={width} block={block} onClose={onClose} />;
     case "html":
       return <HtmlBlockPreviewPanel width={width} block={block} onClose={onClose} />;
     case "code_exec":

@@ -310,6 +310,14 @@ class ExcelBlock(AttachmentBaseBlock):
     )
 
 
+class TextFileBlock(AttachmentBaseBlock):
+    type: Literal["text_file"] = "text_file"
+    mime: str = Field(
+        default="text/plain",
+        description="MIME type for plain text / code files (e.g. text/csv, text/plain)",
+    )
+
+
 class KbContextBlock(BaseModel):
     id: str = Field(..., description="附件 content_id")
     type: Literal["kb_context"] = "kb_context"
@@ -323,7 +331,8 @@ class AttachmentFileInfo(BaseModel):
 
     name: str = Field(..., description="展示用文件名")
     type: str = Field(
-        ..., description='文件类型："pdf" | "excel" | "markdown" | "image"'
+        ...,
+        description='文件类型："pdf" | "excel" | "markdown" | "image" | "text_file"',
     )
     size: int = Field(default=0, ge=0, description="落盘文件字节数")
     virtual_path: str = Field(
@@ -346,7 +355,9 @@ class AttachmentUploadInfo(AttachmentFileInfo):
     is_current_turn: bool = Field(default=False, description="是否为本轮上传")
 
 
-AttachmentBlock: TypeAlias = ImageBlock | MarkdownBlock | PdfBlock | ExcelBlock
+AttachmentBlock: TypeAlias = (
+    ImageBlock | MarkdownBlock | PdfBlock | ExcelBlock | TextFileBlock
+)
 
 ContentBlock: TypeAlias = (
     TextBlock
@@ -357,6 +368,7 @@ ContentBlock: TypeAlias = (
     | PdfBlock
     | ExcelBlock
     | MarkdownBlock
+    | TextFileBlock
     | KbContextBlock
 )
 _CONTENT_BLOCKS_ADAPTER = TypeAdapter(list[ContentBlock])

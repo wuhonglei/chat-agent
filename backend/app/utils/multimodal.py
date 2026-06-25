@@ -18,6 +18,7 @@ from app.schemas.chat import (
     KbContextBlock,
     MarkdownBlock,
     PdfBlock,
+    TextFileBlock,
     extract_user_text,
     normalize_content_blocks,
 )
@@ -30,6 +31,7 @@ _IMAGE_ONLY_PLACEHOLDER = "[用户发送了图片]"
 _PDF_ONLY_PLACEHOLDER = "[用户发送了 PDF 文件]"
 _EXCEL_ONLY_PLACEHOLDER = "[用户发送了 Excel 文件]"
 _MARKDOWN_ONLY_PLACEHOLDER = "[用户发送了 Markdown 文件]"
+_TEXT_FILE_ONLY_PLACEHOLDER = "[用户发送了文本文件]"
 
 
 def has_image_block(
@@ -68,6 +70,15 @@ def has_markdown_block(
     )
 
 
+def has_text_file_block(
+    content_blocks: list[ContentBlock] | list[dict[str, Any]] | None,
+) -> bool:
+    return any(
+        isinstance(block, TextFileBlock)
+        for block in normalize_content_blocks(content_blocks)
+    )
+
+
 def extract_user_text_with_attachment_placeholder(
     content_blocks: list[ContentBlock] | list[dict[str, Any]] | None,
 ) -> str:
@@ -83,6 +94,8 @@ def extract_user_text_with_attachment_placeholder(
         return _EXCEL_ONLY_PLACEHOLDER
     if has_markdown_block(normalized_blocks):
         return _MARKDOWN_ONLY_PLACEHOLDER
+    if has_text_file_block(normalized_blocks):
+        return _TEXT_FILE_ONLY_PLACEHOLDER
     return ""
 
 
@@ -91,7 +104,7 @@ def collect_attachment_content_ids(
 ) -> set[str]:
     content_ids: set[str] = set()
     for block in normalize_content_blocks(content_blocks):
-        if isinstance(block, MarkdownBlock):
+        if isinstance(block, (MarkdownBlock, TextFileBlock)):
             content_ids.add(block.id)
             continue
         if not isinstance(block, (PdfBlock, ExcelBlock)):
@@ -123,7 +136,10 @@ def resolve_storage_key_for_content_id(
 
     def _lookup(blocks: list[ContentBlock] | list[dict[str, Any]] | None) -> str | None:
         for block in normalize_content_blocks(blocks):
-            if isinstance(block, MarkdownBlock) and block.id == content_id:
+            if (
+                isinstance(block, (MarkdownBlock, TextFileBlock))
+                and block.id == content_id
+            ):
                 return block.storage_key
             if (
                 isinstance(block, (PdfBlock, ExcelBlock))
@@ -174,7 +190,10 @@ def build_attachment_uploads(
         is_current_turn: bool,
     ) -> None:
         for block in normalize_content_blocks(blocks):
-            if not isinstance(block, (PdfBlock, ExcelBlock, MarkdownBlock, ImageBlock)):
+            if not isinstance(
+                block,
+                (PdfBlock, ExcelBlock, MarkdownBlock, ImageBlock, TextFileBlock),
+            ):
                 continue
 
             virtual_path = _storage_key_to_virtual_path(block.storage_key)

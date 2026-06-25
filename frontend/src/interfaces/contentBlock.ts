@@ -95,6 +95,21 @@ export interface ExcelBlock {
   markdown?: MarkdownBlock | null;
 }
 
+/** 纯文本 / 代码文件附件块（csv、txt、py、js 等）；后端按纯文本存储，无 derived markdown */
+export interface TextFileBlock {
+  id: string;
+  type: "text_file";
+  url: string;
+  storageKey?: string;
+  storageVersion?: number;
+  /** 展示用文件名（服务端已安全化）；历史消息可能缺省 */
+  name?: string;
+  /** 落盘文件字节数 */
+  size: number;
+  /** 如 text/csv、text/plain */
+  mime: string;
+}
+
 export interface HtmlBlock {
   id: string;
   type: "html";
@@ -180,11 +195,19 @@ export type ContentBlock =
   | ImageBlock
   | PdfBlock
   | ExcelBlock
-  | MarkdownBlock;
+  | MarkdownBlock
+  | TextFileBlock;
 
-/** 侧栏可预览的内容块（支持 PDF、Excel、HTML、代码运行结果与工作区项目） */
-export type PreviewableBlock = PdfBlock | ExcelBlock | HtmlBlock | CodeExecBlock | ProjectBlock | MarkdownBlock;
-export type UserContentBlock = TextBlock | ImageBlock | PdfBlock | ExcelBlock | MarkdownBlock;
+/** 侧栏可预览的内容块（支持 PDF、Excel、文本/代码、HTML、代码运行结果与工作区项目） */
+export type PreviewableBlock =
+  | PdfBlock
+  | ExcelBlock
+  | HtmlBlock
+  | CodeExecBlock
+  | ProjectBlock
+  | MarkdownBlock
+  | TextFileBlock;
+export type UserContentBlock = TextBlock | ImageBlock | PdfBlock | ExcelBlock | MarkdownBlock | TextFileBlock;
 /** 用户消息中的附件块（图片、PDF 等），不含文本块 */
 export type UserAttachmentBlock = Exclude<UserContentBlock, TextBlock>;
 
@@ -221,7 +244,11 @@ export function hasAttachmentBlocks(blocks: ContentBlock[] | undefined): boolean
 
 export function isUserAttachmentBlock(block: ContentBlock): block is UserAttachmentBlock {
   return (
-    block.type === "image" || block.type === "pdf" || block.type === "excel" || block.type === "markdown"
+    block.type === "image" ||
+    block.type === "pdf" ||
+    block.type === "excel" ||
+    block.type === "markdown" ||
+    block.type === "text_file"
   );
 }
 

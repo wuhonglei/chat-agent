@@ -1,4 +1,4 @@
-import { ExcelBlock, ImageBlock, MarkdownBlock, PdfBlock } from "@/interfaces/contentBlock";
+import { ExcelBlock, ImageBlock, MarkdownBlock, PdfBlock, TextFileBlock } from "@/interfaces/contentBlock";
 
 import { apiClient } from "./base";
 
@@ -16,7 +16,7 @@ export const fileAPI = {
   uploadChatAttachment: async (
     file: File,
     conversationId: string,
-  ): Promise<ImageBlock | PdfBlock | ExcelBlock | MarkdownBlock> => {
+  ): Promise<ImageBlock | PdfBlock | ExcelBlock | MarkdownBlock | TextFileBlock> => {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("conversation_id", conversationId);

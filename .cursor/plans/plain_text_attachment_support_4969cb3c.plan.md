@@ -4,34 +4,34 @@ overview: 为聊天附件新增 .csv/.txt/.py/.js/.css/.tsx/.jsx/.less/.sass 上
 todos:
   - id: backend-save-text
     content: 新增 backend/app/services/chat_upload/text.py 的 save_chat_text（镜像 markdown.py，保留原扩展名，索引原文，无 derived markdown）
-    status: pending
+    status: completed
   - id: backend-dispatch
     content: attachment.py 增加文本扩展集合、分发分支、_STORAGE_KEY_CONV_TOP_RE 与 _EXT_TO_MEDIA_TYPE
-    status: pending
+    status: completed
   - id: backend-schema
     content: schemas/chat.py 新增 TextFileBlock 并加入 AttachmentBlock/ContentBlock 联合及 AttachmentFileInfo 注释
-    status: pending
+    status: completed
   - id: backend-multimodal
     content: multimodal.py 处理 TextFileBlock（ids、storage_key、uploads 清单、占位符）
-    status: pending
+    status: completed
   - id: backend-prompt
     content: system_prompt.py working_directory 说明补充纯文本/代码文件直接读取
-    status: pending
+    status: completed
   - id: frontend-types
     content: contentBlock.ts 新增 TextFileBlock 与联合类型、isUserAttachmentBlock；file.ts 返回类型
-    status: pending
+    status: completed
   - id: frontend-upload
     content: ChatInput util.ts/tooltip 增加文本扩展 accept、校验与文案
-    status: pending
+    status: completed
   - id: frontend-card-route
     content: UserMessageDisplayContent 与 BlockPreviewPanel 增加 text_file 分支
-    status: pending
+    status: completed
   - id: frontend-preview
     content: 新增 TextFilePreview 组件（CSV 表格 + 其余 CodeHighlighter）
-    status: pending
+    status: completed
   - id: verify
     content: 后端 make lint，前端 vp lint/build，并手动验证上传与预览
-    status: pending
+    status: completed
 isProject: false
 ---
 
