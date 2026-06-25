@@ -1,8 +1,11 @@
 import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
 import Editor from "@monaco-editor/react";
-import { Alert, Empty, Spin, Typography } from "antd";
+import { DownloadOutlined } from "@ant-design/icons";
+import { Alert, Button, Empty, Spin, Typography } from "antd";
 import React from "react";
 import PreviewScrollBody from "../PreviewScrollBody";
+import WorkspaceExcelPreview from "./WorkspaceExcelPreview";
+import type { ExcelSheet } from "./hooks";
 import { getMonacoLanguage, isMarkdownPath } from "./utils";
 
 export type SelectedFile = {
@@ -17,6 +20,18 @@ export interface FilePreviewContentProps {
   loadingFile: boolean;
   fileError: string | null;
   selectedFile: SelectedFile | null;
+  excelPreview?: {
+    title: string;
+    sheets: ExcelSheet[] | undefined;
+    loading: boolean;
+    error: string | null;
+  } | null;
+  binaryFile?: {
+    title: string;
+    message: string;
+    downloading: boolean;
+    onDownload: () => void;
+  } | null;
 }
 
 const FilePreviewContent: React.FC<FilePreviewContentProps> = ({
@@ -24,7 +39,39 @@ const FilePreviewContent: React.FC<FilePreviewContentProps> = ({
   loadingFile,
   fileError,
   selectedFile,
+  excelPreview,
+  binaryFile,
 }) => {
+  if (excelPreview) {
+    return (
+      <WorkspaceExcelPreview
+        title={excelPreview.title}
+        sheets={excelPreview.sheets}
+        loading={excelPreview.loading}
+        error={excelPreview.error}
+      />
+    );
+  }
+  if (binaryFile) {
+    return (
+      <div className="h-full min-h-0 flex flex-col">
+        <Typography.Text type="secondary" className="px-3 py-2 border-b border-(--ant-color-border-secondary)">
+          {binaryFile.title}
+        </Typography.Text>
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6">
+          <Alert type="info" showIcon message={binaryFile.message} className="max-w-md" />
+          <Button
+            type="primary"
+            icon={<DownloadOutlined />}
+            loading={binaryFile.downloading}
+            onClick={binaryFile.onDownload}
+          >
+            下载文件
+          </Button>
+        </div>
+      </div>
+    );
+  }
   if (loadingFile) {
     return (
       <div className="h-full w-full flex items-center justify-center">
@@ -44,18 +91,13 @@ const FilePreviewContent: React.FC<FilePreviewContentProps> = ({
 
   return (
     <div className="h-full min-h-0 flex flex-col">
-      <Typography.Text
-        type="secondary"
-        className="px-3 py-2 border-b border-(--ant-color-border-secondary)"
-      >
+      <Typography.Text type="secondary" className="px-3 py-2 border-b border-(--ant-color-border-secondary)">
         {selectedFile.title}
       </Typography.Text>
       {isMarkdown ? (
         <div className="min-h-0 flex-1 overflow-auto">
           <PreviewScrollBody width={layoutWidth}>
-            <MarkdownContainer className="w-full text-base bg-white p-4">
-              {selectedFile.content}
-            </MarkdownContainer>
+            <MarkdownContainer className="w-full text-base bg-white p-4">{selectedFile.content}</MarkdownContainer>
           </PreviewScrollBody>
         </div>
       ) : (

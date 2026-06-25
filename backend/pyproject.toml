@@ -54,6 +54,7 @@ dependencies = [
     "docker>=7.0.0",
     "bashlex>=0.18",
     "langfuse>=4.7.1",
+    "duckdb>=1.5.4",
 ]
 
 [project.optional-dependencies]

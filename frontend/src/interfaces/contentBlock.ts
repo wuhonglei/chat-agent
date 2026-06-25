@@ -141,6 +141,8 @@ export interface ProjectBlock {
   type: "project";
   workspaceId: string;
   title?: string;
+  /** 打开预览时默认选中的文件（会话相对路径，如 outputs/report.md） */
+  selectedFilePath?: string;
 }
 
 export interface WebSearchResultItem {

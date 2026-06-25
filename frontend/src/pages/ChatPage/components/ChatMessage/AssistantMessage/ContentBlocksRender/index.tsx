@@ -30,7 +30,7 @@ const ContentBlocksRender: React.FC<Props> = ({ contentBlocks, isStreaming }) =>
       );
     }
     if (item.type === "project_preview") {
-      return <ProjectPreviewBlockRender key={item.key} />;
+      return <ProjectPreviewBlockRender key={item.key} filepaths={item.filepaths} />;
     }
     return null;
   };

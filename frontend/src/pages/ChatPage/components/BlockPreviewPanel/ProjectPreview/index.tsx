@@ -11,13 +11,20 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { SelectedFile } from "./FilePreviewContent";
 import FilePreviewContent from "./FilePreviewContent";
 import { PROJECT_PREVIEW_DIRECTORY_ICONS } from "./file_icons";
+import { useWorkspaceExcelWorkbook } from "./hooks";
 import {
+  filterEmptyDirectories,
   findNodeByPath,
+  getAncestorDirPaths,
   getLanguageFromPath,
+  getRequestErrorMessage,
   isDirectoryNode,
+  isExcelPath,
+  isNonTextWorkspaceFile,
   isPlaceholderPath,
   normalizeTreeNodes,
   replaceDirectoryChildren,
+  toPathSegments,
 } from "./utils";
 
 export interface ProjectPreviewPanelProps {
@@ -28,11 +35,7 @@ export interface ProjectPreviewPanelProps {
 
 type PreviewMode = "files" | "app";
 
-const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({
-  width,
-  block,
-  onClose,
-}) => {
+const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block, onClose }) => {
   const [previewMode, setPreviewMode] = useState<PreviewMode>("files");
 
   const [treeError, setTreeError] = useState<string | null>(null);
@@ -46,6 +49,13 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
   const [appPreviewError, setAppPreviewError] = useState<string | null>(null);
   const [appPreviewReloadKey, setAppPreviewReloadKey] = useState(0);
+  const revealedForRef = useRef<string | null>(null);
+  const revealingRef = useRef(false);
+
+  const folderSelectedFile = useMemo(
+    () => (selectedFilePath ? toPathSegments(selectedFilePath) : undefined),
+    [selectedFilePath]
+  );
 
   const { run: runLoadRootTree, loading: loadingTree } = useRequest(
     async () => {
@@ -56,14 +66,14 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({
       onBefore: () => {
         setTreeError(null);
       },
-      onSuccess: (res) => {
-        setTreeData(normalizeTreeNodes(res.treeData || []));
+      onSuccess: res => {
+        setTreeData(normalizeTreeNodes(filterEmptyDirectories(res.treeData || [])));
         setLoadedDirPaths(new Set([""]));
       },
-      onError: (error) => {
+      onError: error => {
         setTreeError(error instanceof Error ? error.message : "文件树加载失败");
       },
-    },
+    }
   );
 
   const { runAsync: runLoadDirTree } = useRequest(
@@ -75,21 +85,19 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({
     },
     {
       manual: true,
-      onError: (error) => {
+      onError: error => {
         setTreeError(error instanceof Error ? error.message : "子目录加载失败");
       },
       onSuccess: (res, params) => {
         const dirPath = params[0] || "";
-        setTreeData((prev) =>
-          replaceDirectoryChildren(prev, dirPath, normalizeTreeNodes(res.treeData || [], dirPath)),
-        );
-        setLoadedDirPaths((prev) => {
+        setTreeData(prev => replaceDirectoryChildren(prev, dirPath, normalizeTreeNodes(res.treeData || [], dirPath)));
+        setLoadedDirPaths(prev => {
           const next = new Set(prev);
           next.add(dirPath);
           return next;
         });
       },
-    },
+    }
   );
 
   const refreshTree = useCallback(() => {
@@ -111,24 +119,29 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({
         loadingDirPathsRef.current.delete(dirPath);
       }
     },
-    [loadedDirPaths, runLoadDirTree],
+    [loadedDirPaths, runLoadDirTree]
   );
+
+  const isExcelFile = selectedFilePath ? isExcelPath(selectedFilePath) : false;
+  const isNonTextFile = selectedFilePath ? isNonTextWorkspaceFile(selectedFilePath) : false;
 
   const { refresh: refreshSelectedFile, loading: loadingFile } = useRequest(
     async () => {
-      return await workspaceAPI.getWorkspaceFileContent(block.workspaceId, selectedFilePath!);
+      const path = selectedFilePath!;
+      const content = await workspaceAPI.getWorkspaceFileText(block.workspaceId, path);
+      return { path, content };
     },
     {
-      ready: !!selectedFilePath,
-      refreshDeps: [block.workspaceId, selectedFilePath],
-      ...(selectedFilePath
+      ready: !!selectedFilePath && !isNonTextFile,
+      refreshDeps: [block.workspaceId, selectedFilePath, isNonTextFile],
+      ...(selectedFilePath && !isNonTextFile
         ? { cacheKey: `workspace-file-content:${block.workspaceId}:${selectedFilePath}` }
         : {}),
       staleTime: 0,
       onBefore: () => {
         setFileError(null);
       },
-      onSuccess: (res) => {
+      onSuccess: res => {
         setSelectedFile({
           path: res.path,
           title: res.path.split("/").pop() || res.path,
@@ -136,10 +149,31 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({
           language: getLanguageFromPath(res.path),
         });
       },
-      onError: (error) => {
-        setFileError(error instanceof Error ? error.message : "文件内容加载失败");
+      onError: error => {
+        setFileError(getRequestErrorMessage(error, "文件内容加载失败"));
       },
+    }
+  );
+
+  const {
+    sheets: excelSheets,
+    loading: loadingExcelFile,
+    error: excelFileError,
+    reload: reloadExcelFile,
+  } = useWorkspaceExcelWorkbook(block.workspaceId, selectedFilePath, isExcelFile);
+
+  const { run: runDownloadWorkspaceFile, loading: downloadingWorkspaceFile } = useRequest(
+    async (filePath: string) => {
+      const buffer = await workspaceAPI.getWorkspaceFileBuffer(block.workspaceId, filePath);
+      const blob = new Blob([buffer]);
+      const downloadUrl = URL.createObjectURL(blob);
+      try {
+        await downloadFileByUrl(downloadUrl, filePath.split("/").pop() || "file");
+      } finally {
+        URL.revokeObjectURL(downloadUrl);
+      }
     },
+    { manual: true }
   );
 
   const { run: runDownloadWorkspaceZip, loading: loadingWorkspaceZip } = useRequest(
@@ -154,13 +188,14 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({
     },
     {
       manual: true,
-      onError: (error) => {
+      onError: error => {
         setTreeError(error instanceof Error ? error.message : "下载失败，请稍后重试");
       },
-    },
+    }
   );
-
   useEffect(() => {
+    revealedForRef.current = null;
+    revealingRef.current = false;
     setPreviewMode("files");
     setSelectedFilePath(null);
     setSelectedFile(null);
@@ -170,7 +205,49 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({
     refreshTree();
   }, [block.id, refreshTree]);
 
-  useEmitter(EventType.WorkspaceTreeRefresh, (payload) => {
+  useEffect(() => {
+    const targetPath = block.selectedFilePath;
+    if (!targetPath || loadingTree) {
+      return;
+    }
+
+    const revealKey = `${block.id}:${targetPath}`;
+    if (revealedForRef.current === revealKey || revealingRef.current) {
+      return;
+    }
+
+    const revealSelectedFile = async () => {
+      revealingRef.current = true;
+      try {
+        const ancestorDirs = getAncestorDirPaths(targetPath);
+        for (const dirPath of ancestorDirs) {
+          await loadDirTreeIfNeeded(dirPath);
+        }
+        setExpandedPaths(ancestorDirs);
+        setSelectedFilePath(targetPath);
+        revealedForRef.current = revealKey;
+      } finally {
+        revealingRef.current = false;
+      }
+    };
+
+    void revealSelectedFile();
+  }, [block.id, block.selectedFilePath, loadingTree, loadDirTreeIfNeeded]);
+
+  useEffect(() => {
+    if (!selectedFilePath) {
+      setSelectedFile(null);
+      return;
+    }
+    if (isNonTextFile) {
+      setSelectedFile(null);
+      setFileError(null);
+      return;
+    }
+    void refreshSelectedFile();
+  }, [selectedFilePath, isNonTextFile, refreshSelectedFile]);
+
+  useEmitter(EventType.WorkspaceTreeRefresh, payload => {
     if (payload.workspaceId === block.workspaceId) {
       refreshTree();
     }
@@ -183,7 +260,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({
         void loadDirTreeIfNeeded(path);
       }
     },
-    [loadDirTreeIfNeeded],
+    [loadDirTreeIfNeeded]
   );
 
   const handleFolderClick = useCallback(
@@ -191,7 +268,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({
       setFileError(null);
       const alreadyExpanded = expandedPaths.includes(folderPath);
       if (alreadyExpanded) {
-        setExpandedPaths((prev) => prev.filter((path) => path !== folderPath));
+        setExpandedPaths(prev => prev.filter(path => path !== folderPath));
         return;
       }
 
@@ -200,9 +277,9 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({
       } catch {
         return;
       }
-      setExpandedPaths((prev) => (prev.includes(folderPath) ? prev : [...prev, folderPath]));
+      setExpandedPaths(prev => (prev.includes(folderPath) ? prev : [...prev, folderPath]));
     },
-    [expandedPaths, loadDirTreeIfNeeded],
+    [expandedPaths, loadDirTreeIfNeeded]
   );
 
   const handleFileClick = useCallback(
@@ -217,13 +294,55 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({
         return;
       }
       if (filePath === selectedFilePath) {
+        if (isExcelPath(filePath)) {
+          void reloadExcelFile();
+          return;
+        }
+        if (isNonTextWorkspaceFile(filePath)) {
+          return;
+        }
         void refreshSelectedFile();
         return;
       }
       setSelectedFilePath(filePath);
     },
-    [handleFolderClick, refreshSelectedFile, selectedFilePath, treeData],
+    [handleFolderClick, refreshSelectedFile, reloadExcelFile, selectedFilePath, treeData]
   );
+
+  const selectedFileTitle = selectedFilePath?.split("/").pop() || selectedFilePath || "";
+
+  const excelPreview = useMemo(() => {
+    if (!selectedFilePath || !isExcelFile) {
+      return null;
+    }
+    return {
+      title: selectedFileTitle,
+      sheets: excelSheets,
+      loading: loadingExcelFile,
+      error: excelFileError,
+    };
+  }, [excelFileError, excelSheets, isExcelFile, loadingExcelFile, selectedFilePath, selectedFileTitle]);
+
+  const binaryFilePreview = useMemo(() => {
+    if (!selectedFilePath || !isNonTextFile || isExcelFile) {
+      return null;
+    }
+    return {
+      title: selectedFileTitle,
+      message: "该文件为二进制格式，暂不支持在线预览，可下载后本地查看。",
+      downloading: downloadingWorkspaceFile,
+      onDownload: () => {
+        runDownloadWorkspaceFile(selectedFilePath);
+      },
+    };
+  }, [
+    downloadingWorkspaceFile,
+    isExcelFile,
+    isNonTextFile,
+    runDownloadWorkspaceFile,
+    selectedFilePath,
+    selectedFileTitle,
+  ]);
 
   const previewNode = (
     <FilePreviewContent
@@ -231,6 +350,8 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({
       loadingFile={loadingFile}
       fileError={fileError}
       selectedFile={selectedFile}
+      excelPreview={excelPreview}
+      binaryFile={binaryFilePreview}
     />
   );
 
@@ -265,7 +386,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({
   const handleRefresh = useCallback(() => {
     if (previewMode === "app") {
       setAppPreviewError(null);
-      setAppPreviewReloadKey((prev) => prev + 1);
+      setAppPreviewReloadKey(prev => prev + 1);
       return;
     }
     refreshTree();
@@ -312,11 +433,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({
           ) : null}
           {previewMode === "app" ? (
             <Tooltip title="在新页面打开">
-              <Button
-                type="text"
-                icon={<ExportOutlined />}
-                onClick={handleOpenAppPreviewInNewPage}
-              />
+              <Button type="text" icon={<ExportOutlined />} onClick={handleOpenAppPreviewInNewPage} />
             </Tooltip>
           ) : null}
           <Button
@@ -347,12 +464,13 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({
               directoryTree: { background: "#fff" },
             }}
             previewTitle={false}
+            selectedFile={folderSelectedFile}
             expandedPaths={expandedPaths}
             onExpandedPathsChange={handleExpandedPathsChange}
-            onFileClick={(filePath) => {
+            onFileClick={filePath => {
               handleFileClick(filePath);
             }}
-            onFolderClick={(folderPath) => {
+            onFolderClick={folderPath => {
               void handleFolderClick(folderPath);
             }}
             previewRender={previewNode}
