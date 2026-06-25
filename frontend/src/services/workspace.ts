@@ -20,11 +20,29 @@ export interface WorkspaceFileTreeResponse {
   updatedAt?: string;
 }
 
-export interface WorkspaceFileContentResponse {
-  path: string;
-  content: string;
-  size?: number;
-  updatedAt?: string;
+const WORKSPACE_FILE_LOAD_ERROR = "文件加载失败";
+
+/** 原始文件接口在出错时返回 ApiResponse JSON，按 responseType 解析出后端 msg。 */
+function extractWorkspaceFileError(error: unknown): Error {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data;
+    let msg: string | undefined;
+    if (typeof data === "string") {
+      try {
+        msg = (JSON.parse(data) as { msg?: string }).msg;
+      } catch {
+        // 非 JSON 响应体，忽略
+      }
+    } else if (data instanceof ArrayBuffer) {
+      try {
+        msg = (JSON.parse(new TextDecoder().decode(data)) as { msg?: string }).msg;
+      } catch {
+        // 非 JSON 响应体，忽略
+      }
+    }
+    return new Error(msg || error.message || WORKSPACE_FILE_LOAD_ERROR);
+  }
+  return error instanceof Error ? error : new Error(WORKSPACE_FILE_LOAD_ERROR);
 }
 
 export const workspaceAPI = {
@@ -37,8 +55,29 @@ export const workspaceAPI = {
       params: { path, depth, includeIgnored },
     });
   },
-  getWorkspaceFileContent: async (workspaceId: string, path: string): Promise<WorkspaceFileContentResponse> => {
-    return await apiClient.get(`/user_data/${workspaceId}/file-content`, { params: { path } });
+  getWorkspaceFileText: async (workspaceId: string, path: string): Promise<string> => {
+    try {
+      const response = await axios.get<string>(`/api/user_data/${workspaceId}/file`, {
+        params: { path },
+        responseType: "text",
+        headers: addRequestHeaders({}),
+      });
+      return response.data;
+    } catch (error) {
+      throw extractWorkspaceFileError(error);
+    }
+  },
+  getWorkspaceFileBuffer: async (workspaceId: string, path: string): Promise<ArrayBuffer> => {
+    try {
+      const response = await axios.get<ArrayBuffer>(`/api/user_data/${workspaceId}/file`, {
+        params: { path },
+        responseType: "arraybuffer",
+        headers: addRequestHeaders({}),
+      });
+      return response.data;
+    } catch (error) {
+      throw extractWorkspaceFileError(error);
+    }
   },
   getWorkspacePreviewContent: async (workspaceId: string): Promise<string> => {
     const response = await axios.get<string>(workspaceAPI.getWorkspacePreviewContentUrl(workspaceId), {

@@ -15,7 +15,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 
 from app.schemas.auth import AuthTokenPayload
 from app.schemas.response import ApiResponse
@@ -208,12 +208,12 @@ async def get_workspace_files(
     )
 
 
-@router.get("/{conversation_id}/file-content")
-async def get_workspace_file_content(
+@router.get("/{conversation_id}/file")
+async def get_workspace_file(
     conversation_id: str,
     path: str = Query(..., min_length=1),
     auth_info: AuthTokenPayload = Depends(get_auth_token_info),
-) -> ApiResponse[dict[str, Any]]:
+) -> FileResponse:
     try:
         _, target = resolve_conversation_path(auth_info.user_id, conversation_id, path)
     except ValueError as exc:
@@ -221,19 +221,12 @@ async def get_workspace_file_content(
 
     if not target.exists() or not target.is_file():
         raise HTTPException(status_code=404, detail="文件不存在")
-    if _is_probably_binary(target):
-        raise HTTPException(status_code=400, detail="暂不支持预览二进制文件")
 
-    content = target.read_text(encoding="utf-8", errors="replace")
-    stat = target.stat()
-    return ApiResponse.success(
-        data={
-            "path": path,
-            "content": content,
-            "size": stat.st_size,
-            "updatedAt": _iso_from_timestamp(stat.st_mtime),
-        },
-        msg="获取文件内容成功",
+    mime_type = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
+    return FileResponse(
+        path=str(target),
+        media_type=mime_type,
+        filename=target.name,
     )
 
 

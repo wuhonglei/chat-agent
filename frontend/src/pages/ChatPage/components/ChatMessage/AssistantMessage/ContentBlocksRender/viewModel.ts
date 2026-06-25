@@ -7,6 +7,7 @@ import {
   ToolUseBlock,
 } from "@/interfaces/contentBlock";
 import { displayMcpToolName } from "@/utils/toolNaming";
+import { isEmpty } from 'lodash-es';
 
 const START_TEXT_LENGTH_THRESHOLD = 24;
 const PROJECT_PREVIEW_TOOLS = new Set(["present_files"]);
@@ -38,6 +39,7 @@ export type RenderableContentBlock =
   | {
       key: string;
       type: "project_preview";
+      filepaths: string[];
     };
 
 function isRenderableBlock(block: ContentBlock): block is TextBlock | ThinkingBlock | ToolUseBlock {
@@ -57,10 +59,12 @@ function getTextLikeStatus(
     : ContentBlockRenderStatus.Streaming;
 }
 
-function buildToolResultMaps(blocks: ContentBlock[]): {
+interface ToolResultMaps {
   byToolUseId: Map<string, ToolResultBlock>;
   byToolCallId: Map<string, ToolResultBlock>;
-} {
+}
+
+function buildToolResultMaps(blocks: ContentBlock[]): ToolResultMaps {
   const byToolUseId = new Map<string, ToolResultBlock>();
   const byToolCallId = new Map<string, ToolResultBlock>();
   for (const block of blocks) {
@@ -73,12 +77,32 @@ function buildToolResultMaps(blocks: ContentBlock[]): {
   return { byToolUseId, byToolCallId };
 }
 
+function findToolResult(block: ToolUseBlock, maps: ToolResultMaps): ToolResultBlock | undefined {
+  return maps.byToolUseId.get(block.id) ?? (block.toolCallId ? maps.byToolCallId.get(block.toolCallId) : undefined);
+}
+
+function isSuccessfulPreviewTool(block: ToolUseBlock, maps: ToolResultMaps): boolean {
+  if (!toolBlockMatchesPreview(block)) {
+    return false;
+  }
+  const result = findToolResult(block, maps);
+  return result !== undefined && !result.isError;
+}
+
+function extractPresentedFilepaths(block: ToolUseBlock): string[] {
+  const filepaths = block.argumentsJson?.filepaths;
+  if (!Array.isArray(filepaths)) {
+    return [];
+  }
+  return filepaths.filter((item): item is string => typeof item === "string");
+}
+
 export function deriveRenderableBlocks(
   blocks: ContentBlock[] | undefined,
   isStreaming: boolean
 ): RenderableContentBlock[] {
   const sourceBlocks = blocks || [];
-  const { byToolUseId, byToolCallId } = buildToolResultMaps(sourceBlocks);
+  const toolResultMaps = buildToolResultMaps(sourceBlocks);
   const renderableIndexes = sourceBlocks
     .map((block, index) => ({ block, index }))
     .filter(({ block }) => isRenderableBlock(block))
@@ -129,7 +153,7 @@ export function deriveRenderableBlocks(
       continue;
     }
 
-    const result = byToolUseId.get(block.id) || (block.toolCallId ? byToolCallId.get(block.toolCallId) : undefined);
+    const result = findToolResult(block, toolResultMaps);
     let status: ContentBlockRenderStatus;
     if (result) {
       status = result.isError ? ContentBlockRenderStatus.Error : ContentBlockRenderStatus.Success;
@@ -152,18 +176,17 @@ export function deriveRenderableBlocks(
     });
   }
 
-  const shouldShowProjectPreview = sourceBlocks.some(block => {
-    if (block.type !== "tool_use" || !toolBlockMatchesPreview(block)) {
-      return false;
-    }
-    const result = byToolUseId.get(block.id) || (block.toolCallId ? byToolCallId.get(block.toolCallId) : undefined);
-    return Boolean(result && !result.isError);
-  });
+  const presentedFilepaths = sourceBlocks
+    .filter(
+      (block): block is ToolUseBlock => block.type === "tool_use" && isSuccessfulPreviewTool(block, toolResultMaps)
+    )
+    .flatMap(extractPresentedFilepaths);
 
-  if (shouldShowProjectPreview) {
+  if (!isEmpty( presentedFilepaths)) {
     items.push({
       key: "project_preview",
       type: "project_preview",
+      filepaths: presentedFilepaths,
     });
   }
 
