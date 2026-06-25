@@ -109,3 +109,7 @@ export function getMonacoLanguage(language: string): string {
   }
   return language || "plaintext";
 }
+
+export function isMarkdownPath(path: string): boolean {
+  return getLanguageFromPath(path) === "markdown";
+}

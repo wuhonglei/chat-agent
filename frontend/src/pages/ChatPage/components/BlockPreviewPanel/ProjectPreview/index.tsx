@@ -5,15 +5,15 @@ import { workspaceAPI } from "@/services";
 import { downloadFileByUrl } from "@/utils/file";
 import { CloseOutlined, DownloadOutlined, ExportOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Folder } from "@ant-design/x";
-import Editor from "@monaco-editor/react";
 import { useRequest } from "ahooks";
-import { Alert, Button, Empty, Segmented, Spin, Tooltip, Typography } from "antd";
+import { Alert, Button, Segmented, Spin, Tooltip } from "antd";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { SelectedFile } from "./FilePreviewContent";
+import FilePreviewContent from "./FilePreviewContent";
 import { PROJECT_PREVIEW_DIRECTORY_ICONS } from "./file_icons";
 import {
   findNodeByPath,
   getLanguageFromPath,
-  getMonacoLanguage,
   isDirectoryNode,
   isPlaceholderPath,
   normalizeTreeNodes,
@@ -26,17 +26,10 @@ export interface ProjectPreviewPanelProps {
   onClose: () => void;
 }
 
-type SelectedFile = {
-  path: string;
-  title: string;
-  content: string;
-  language: string;
-};
-
 type PreviewMode = "files" | "app";
 
 const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({
-  width: _width,
+  width,
   block,
   onClose,
 }) => {
@@ -232,47 +225,14 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({
     [handleFolderClick, refreshSelectedFile, selectedFilePath, treeData],
   );
 
-  const previewNode = useMemo(() => {
-    if (loadingFile) {
-      return (
-        <div className="h-full w-full flex items-center justify-center">
-          <Spin />
-        </div>
-      );
-    }
-    if (fileError) {
-      return <Alert type="error" showIcon message={fileError} />;
-    }
-    if (!selectedFile) {
-      return <Empty description="请选择左侧文件查看内容" className="mt-12" />;
-    }
-    return (
-      <div className="h-full min-h-0 flex flex-col">
-        <Typography.Text
-          type="secondary"
-          className="px-3 py-2 border-b border-(--ant-color-border-secondary)"
-        >
-          {selectedFile.title}
-        </Typography.Text>
-        <div className="min-h-0 flex-1 overflow-hidden">
-          <Editor
-            height="100%"
-            language={getMonacoLanguage(selectedFile.language)}
-            value={selectedFile.content}
-            options={{
-              readOnly: true,
-              minimap: { enabled: false },
-              wordWrap: "on",
-              scrollBeyondLastLine: false,
-              automaticLayout: true,
-              renderLineHighlight: "none",
-              padding: { top: 12, bottom: 12 },
-            }}
-          />
-        </div>
-      </div>
-    );
-  }, [fileError, loadingFile, selectedFile]);
+  const previewNode = (
+    <FilePreviewContent
+      width={width}
+      loadingFile={loadingFile}
+      fileError={fileError}
+      selectedFile={selectedFile}
+    />
+  );
 
   const appPreviewNode = useMemo(() => {
     if (appPreviewError) {
