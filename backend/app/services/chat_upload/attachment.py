@@ -17,12 +17,101 @@ MAX_CHAT_ATTACHMENT_BYTES = 10 * 1024 * 1024  # 10 MiB
 CHAT_ATTACHMENT_PREVIEW_PREFIX = "/api/file/preview"
 PDF_CONTENT_TYPE: Literal["application/pdf"] = "application/pdf"
 MARKDOWN_CONTENT_TYPE: Literal["text/markdown"] = "text/markdown"
+EXCEL_CONTENT_TYPE: Literal[
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+# 纯文本 / 代码附件：后端不转 Markdown，按原文落盘并索引。
+# 此集合是唯一事实来源：预览 storage_key 正则与 MIME 推断均由它派生。
+TEXT_FILE_EXTENSIONS: frozenset[str] = frozenset(
+    {
+        # 文本 / 数据
+        ".csv",
+        ".tsv",
+        ".txt",
+        ".log",
+        # Python
+        ".py",
+        # JavaScript / TypeScript
+        ".js",
+        ".mjs",
+        ".cjs",
+        ".jsx",
+        ".ts",
+        ".mts",
+        ".cts",
+        ".tsx",
+        # 前端框架
+        ".vue",
+        ".svelte",
+        # 样式
+        ".css",
+        ".scss",
+        ".less",
+        ".sass",
+        # 标记 / 配置
+        ".xml",
+        ".json",
+        ".jsonc",
+        ".yaml",
+        ".yml",
+        ".toml",
+        ".ini",
+        # Shell / 批处理
+        ".sh",
+        ".bash",
+        ".zsh",
+        ".ps1",
+        ".bat",
+        # 查询 / Schema
+        ".sql",
+        ".graphql",
+        ".gql",
+        ".prisma",
+        ".proto",
+        # 配置
+        ".conf",
+        # 其它语言
+        ".go",
+        ".rs",
+        ".java",
+        ".c",
+        ".cpp",
+        ".h",
+        ".hpp",
+        ".cs",
+        ".rb",
+        ".php",
+        ".kt",
+        ".kts",
+        ".swift",
+        ".dart",
+        ".scala",
+        ".lua",
+        ".r",
+        ".pl",
+        ".ex",
+        ".exs",
+        ".hs",
+        ".clj",
+        ".groovy",
+        ".gradle",
+    }
+)
+
+# 以表格形式预览的分隔值文件（前端走表格视图，其余文本走代码高亮）
+TABLE_TEXT_EXTENSIONS: frozenset[str] = frozenset({".csv", ".tsv"})
 
 _UUID_SEGMENT = (
     r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
 )
+# 图片 / PDF / Markdown / Excel 等非纯文本预览扩展名（不含点）
+_NON_TEXT_PREVIEW_EXTS = ("jpg", "jpeg", "png", "gif", "webp", "pdf", "md", "xlsx")
+_PREVIEW_EXT_ALTERNATION = "|".join(
+    sorted({*_NON_TEXT_PREVIEW_EXTS, *(e.lstrip(".") for e in TEXT_FILE_EXTENSIONS)})
+)
 _STORAGE_KEY_CONV_TOP_RE = re.compile(
-    rf"^{_UUID_SEGMENT}/[^/\\]+\.(jpg|jpeg|png|gif|webp|pdf|md)$",
+    rf"^{_UUID_SEGMENT}/[^/\\]+\.({_PREVIEW_EXT_ALTERNATION})$",
     re.IGNORECASE,
 )
 _STORAGE_KEY_CONV_DERIVED_RE = re.compile(
@@ -31,6 +120,7 @@ _STORAGE_KEY_CONV_DERIVED_RE = re.compile(
 )
 STORAGE_VERSION = 4
 
+# 仅列出非 text/plain 的特殊类型；其余纯文本 / 代码扩展统一回退 text/plain
 _EXT_TO_MEDIA_TYPE: dict[str, str] = {
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
@@ -39,6 +129,9 @@ _EXT_TO_MEDIA_TYPE: dict[str, str] = {
     ".webp": "image/webp",
     ".pdf": PDF_CONTENT_TYPE,
     ".md": "text/markdown",
+    ".xlsx": EXCEL_CONTENT_TYPE,
+    ".csv": "text/csv",
+    ".tsv": "text/tab-separated-values",
 }
 
 _STEM_SAFE_RE = re.compile(r"[^\w\-. \u0080-\uFFFF]+", re.UNICODE)
@@ -183,6 +276,8 @@ def media_type_for_preview(filename: str) -> str:
     for suf, mt in _EXT_TO_MEDIA_TYPE.items():
         if lower.endswith(suf):
             return mt
+    if Path(lower).suffix in TEXT_FILE_EXTENSIONS:
+        return "text/plain"
     return "application/octet-stream"
 
 
@@ -193,9 +288,11 @@ async def save_chat_attachment(
     conversation_id: str,
     db: Session | None = None,
 ) -> AttachmentBlock:
+    from app.services.chat_upload.excel import save_chat_excel
     from app.services.chat_upload.image import save_chat_image
     from app.services.chat_upload.markdown import save_chat_markdown
     from app.services.chat_upload.pdf import save_chat_pdf
+    from app.services.chat_upload.text import save_chat_text
 
     if not (conversation_id or "").strip():
         raise HTTPException(status_code=400, detail="conversation_id 为必填项")
@@ -210,8 +307,22 @@ async def save_chat_attachment(
             conversation_id=conversation_id,
             db=db,
         )
+    if content_type == EXCEL_CONTENT_TYPE or raw_filename.endswith(".xlsx"):
+        return await save_chat_excel(
+            user_id=user_id,
+            file=file,
+            conversation_id=conversation_id,
+            db=db,
+        )
     if raw_filename.endswith(".md") or raw_filename.endswith(".markdown"):
         return await save_chat_markdown(
+            user_id=user_id,
+            file=file,
+            conversation_id=conversation_id,
+            db=db,
+        )
+    if Path(raw_filename).suffix in TEXT_FILE_EXTENSIONS:
+        return await save_chat_text(
             user_id=user_id,
             file=file,
             conversation_id=conversation_id,

@@ -27,6 +27,7 @@ from app.protocols.chat_messages import (
 )
 from app.schemas.chat import (
     AssistantResponse,
+    AttachmentUploadInfo,
     ChatMessage,
     ChatRequest,
     ContentBlock,
@@ -43,6 +44,7 @@ from app.services.chat.post_process_service import PostProcessService
 from app.services.message import MessageDbService
 from app.utils.logger import logger
 from app.utils.multimodal import (
+    build_attachment_uploads,
     collect_attachment_content_ids,
     collect_attachment_content_ids_from_history_messages,
     extract_user_text_with_attachment_placeholder,
@@ -164,6 +166,7 @@ class ChatOrchestrator:
         user_id: str,
         user_memories: list[MemorySearchItem] | None = None,
         kb_context_blocks: list[KbContextBlock] | None = None,
+        attachment_uploads: list[AttachmentUploadInfo] | None = None,
     ) -> AsyncGenerator[str, None]:
         logger.debug("user_memories", user_memories=user_memories)
 
@@ -185,6 +188,7 @@ class ChatOrchestrator:
                 user_memories=user_memories or [],
                 user_id=user_id,
                 kb_context_blocks=kb_context_blocks,
+                attachment_uploads=attachment_uploads,
             ):
                 yield event
             session_duration = get_time_duration(session_start_time)
@@ -394,33 +398,44 @@ class ChatOrchestrator:
                             query=user_message_text,
                             user_id=user_id,
                         )
-                        with observation_span(
-                            "kb-rag-build",
-                            input={
-                                "query": user_message_text,
-                                "candidate_content_ids_count": len(
-                                    collect_attachment_content_ids(
-                                        chat_request.content_blocks
+                        kb_context_blocks = None
+                        attachment_uploads: list[AttachmentUploadInfo] | None = None
+                        if chat_request.agent_mode > 0:
+                            # agent_mode 不走 RAG，改为列出上传文件供模型用文件工具按需读取。
+                            attachment_uploads = build_attachment_uploads(
+                                chat_request.content_blocks,
+                                prepared_history_messages,
+                            )
+                        else:
+                            with observation_span(
+                                "kb-rag-build",
+                                input={
+                                    "query": user_message_text,
+                                    "candidate_content_ids_count": len(
+                                        collect_attachment_content_ids(
+                                            chat_request.content_blocks
+                                        )
+                                    ),
+                                },
+                            ) as kb_span:
+                                try:
+                                    kb_context_blocks = (
+                                        await self._build_kb_context_blocks(
+                                            content_blocks=chat_request.content_blocks,
+                                            history_messages=prepared_history_messages,
+                                            user_id=user_id,
+                                            user_message_text=user_message_text,
+                                        )
                                     )
-                                ),
-                            },
-                        ) as kb_span:
-                            try:
-                                kb_context_blocks = await self._build_kb_context_blocks(
-                                    content_blocks=chat_request.content_blocks,
-                                    history_messages=prepared_history_messages,
-                                    user_id=user_id,
-                                    user_message_text=user_message_text,
-                                )
-                            except Exception as exc:
-                                mark_observation_error(kb_span, exc)
-                                raise
-                            if kb_span is not None:
-                                kb_span.update(
-                                    output={
-                                        "block_count": len(kb_context_blocks or []),
-                                    }
-                                )
+                                except Exception as exc:
+                                    mark_observation_error(kb_span, exc)
+                                    raise
+                                if kb_span is not None:
+                                    kb_span.update(
+                                        output={
+                                            "block_count": len(kb_context_blocks or []),
+                                        }
+                                    )
                         if chat_request.regenerate_title:
                             title_task = asyncio.create_task(
                                 self.generate_title_event(
@@ -438,6 +453,7 @@ class ChatOrchestrator:
                                 user_id=user_id,
                                 user_memories=user_memories,
                                 kb_context_blocks=kb_context_blocks,
+                                attachment_uploads=attachment_uploads,
                             ),
                             title_task,
                             conversation_id=conversation_id,

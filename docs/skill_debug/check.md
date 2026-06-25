@@ -60,6 +60,6 @@
 | 8 | aihot | 内容创作 | ✅ 通过 | |
 | 9 | webapp-building | 开发与部署 | ⬜ 待调试 | |
 | 10 | vercel-deploy | 开发与部署 | ⬜ 待调试 | |
-| 11 | find-skills | 系统与工具 | ⬜ 待调试 | |
-| 12 | skill-creator | 系统与工具 | ⬜ 待调试 | |
+| 11 | find-skills | 系统与工具 | ✅ 通过 | |
+| 12 | skill-creator | 系统与工具 | ✅ 通过 | |
 | 13 | surprise-me | 系统与工具 | ⬜ 待调试 | |

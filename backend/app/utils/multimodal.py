@@ -9,22 +9,29 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 from app.schemas.chat import (
+    AttachmentFileInfo,
+    AttachmentUploadInfo,
     ChatMessage,
     ContentBlock,
+    ExcelBlock,
     ImageBlock,
     KbContextBlock,
     MarkdownBlock,
     PdfBlock,
+    TextFileBlock,
     extract_user_text,
     normalize_content_blocks,
 )
 from app.services.chat_upload.attachment import try_resolve_upload_file_path
 from app.utils.logger import logger
+from app.vfs.config import vfs_config
 
 _IMAGE_PREVIEW_PATH_PATTERNS = (re.compile(r"^/api/file/preview/([^/]+)/(.+)$"),)
 _IMAGE_ONLY_PLACEHOLDER = "[用户发送了图片]"
 _PDF_ONLY_PLACEHOLDER = "[用户发送了 PDF 文件]"
+_EXCEL_ONLY_PLACEHOLDER = "[用户发送了 Excel 文件]"
 _MARKDOWN_ONLY_PLACEHOLDER = "[用户发送了 Markdown 文件]"
+_TEXT_FILE_ONLY_PLACEHOLDER = "[用户发送了文本文件]"
 
 
 def has_image_block(
@@ -45,11 +52,29 @@ def has_pdf_block(
     )
 
 
+def has_excel_block(
+    content_blocks: list[ContentBlock] | list[dict[str, Any]] | None,
+) -> bool:
+    return any(
+        isinstance(block, ExcelBlock)
+        for block in normalize_content_blocks(content_blocks)
+    )
+
+
 def has_markdown_block(
     content_blocks: list[ContentBlock] | list[dict[str, Any]] | None,
 ) -> bool:
     return any(
         isinstance(block, MarkdownBlock)
+        for block in normalize_content_blocks(content_blocks)
+    )
+
+
+def has_text_file_block(
+    content_blocks: list[ContentBlock] | list[dict[str, Any]] | None,
+) -> bool:
+    return any(
+        isinstance(block, TextFileBlock)
         for block in normalize_content_blocks(content_blocks)
     )
 
@@ -65,8 +90,12 @@ def extract_user_text_with_attachment_placeholder(
         return _IMAGE_ONLY_PLACEHOLDER
     if has_pdf_block(normalized_blocks):
         return _PDF_ONLY_PLACEHOLDER
+    if has_excel_block(normalized_blocks):
+        return _EXCEL_ONLY_PLACEHOLDER
     if has_markdown_block(normalized_blocks):
         return _MARKDOWN_ONLY_PLACEHOLDER
+    if has_text_file_block(normalized_blocks):
+        return _TEXT_FILE_ONLY_PLACEHOLDER
     return ""
 
 
@@ -75,10 +104,10 @@ def collect_attachment_content_ids(
 ) -> set[str]:
     content_ids: set[str] = set()
     for block in normalize_content_blocks(content_blocks):
-        if isinstance(block, MarkdownBlock):
+        if isinstance(block, (MarkdownBlock, TextFileBlock)):
             content_ids.add(block.id)
             continue
-        if not isinstance(block, PdfBlock):
+        if not isinstance(block, (PdfBlock, ExcelBlock)):
             continue
         content_ids.add(block.id)
         if block.markdown is not None and block.markdown.id:
@@ -107,10 +136,13 @@ def resolve_storage_key_for_content_id(
 
     def _lookup(blocks: list[ContentBlock] | list[dict[str, Any]] | None) -> str | None:
         for block in normalize_content_blocks(blocks):
-            if isinstance(block, MarkdownBlock) and block.id == content_id:
+            if (
+                isinstance(block, (MarkdownBlock, TextFileBlock))
+                and block.id == content_id
+            ):
                 return block.storage_key
             if (
-                isinstance(block, PdfBlock)
+                isinstance(block, (PdfBlock, ExcelBlock))
                 and block.markdown is not None
                 and block.markdown.id == content_id
             ):
@@ -128,6 +160,80 @@ def resolve_storage_key_for_content_id(
         if found is not None:
             return found
     return None
+
+
+def _storage_key_to_virtual_path(storage_key: str | None) -> str | None:
+    """将会话上传 storage_key（{cid}/...）映射为 VFS uploads 虚拟路径。"""
+    if not storage_key:
+        return None
+    parts = storage_key.split("/", 1)
+    if len(parts) != 2 or not parts[1]:
+        return None
+    return f"{vfs_config.uploads_prefix}{parts[1]}"
+
+
+def build_attachment_uploads(
+    content_blocks: list[ContentBlock] | list[dict[str, Any]] | None,
+    history_messages: list[ChatMessage] | None,
+) -> list[AttachmentUploadInfo]:
+    """构建 agent_mode 注入的上传文件清单。
+
+    当前轮 blocks 标记 is_current_turn=True，历史 user 消息标记 False，
+    按 storage_key 去重（当前轮优先）。
+    """
+    uploads: list[AttachmentUploadInfo] = []
+    seen_storage_keys: set[str] = set()
+
+    def _collect(
+        blocks: list[ContentBlock] | list[dict[str, Any]] | None,
+        *,
+        is_current_turn: bool,
+    ) -> None:
+        for block in normalize_content_blocks(blocks):
+            if not isinstance(
+                block,
+                (PdfBlock, ExcelBlock, MarkdownBlock, ImageBlock, TextFileBlock),
+            ):
+                continue
+
+            virtual_path = _storage_key_to_virtual_path(block.storage_key)
+            if virtual_path is None or block.storage_key is None:
+                continue
+            if block.storage_key in seen_storage_keys:
+                continue
+            seen_storage_keys.add(block.storage_key)
+
+            markdown: AttachmentFileInfo | None = None
+            if isinstance(block, (PdfBlock, ExcelBlock)) and block.markdown is not None:
+                md_virtual_path = _storage_key_to_virtual_path(
+                    block.markdown.storage_key
+                )
+                if md_virtual_path is not None:
+                    markdown = AttachmentFileInfo(
+                        name=block.markdown.name,
+                        type=block.markdown.type,
+                        size=block.markdown.size,
+                        virtual_path=md_virtual_path,
+                    )
+
+            uploads.append(
+                AttachmentUploadInfo(
+                    name=block.name,
+                    type=block.type,
+                    size=block.size,
+                    virtual_path=virtual_path,
+                    markdown=markdown,
+                    is_current_turn=is_current_turn,
+                )
+            )
+
+    _collect(content_blocks, is_current_turn=True)
+    for message in reversed(history_messages or []):
+        if message.role != "user":
+            continue
+        _collect(message.content_blocks, is_current_turn=False)
+
+    return uploads
 
 
 def build_title_user_message_for_llm(

@@ -19,6 +19,7 @@ from app.mcp.tool_naming import llm_tool_name
 from app.schemas.llm import ToolMessage, ToolResultMessage, ToolUseMessage
 from app.utils.common import gen_uuid
 from app.utils.date import get_datetime_now
+from app.utils.file import format_human_size
 
 
 class MessageStatus(str, Enum):
@@ -296,6 +297,27 @@ class PdfBlock(AttachmentBaseBlock):
     )
 
 
+class ExcelBlock(AttachmentBaseBlock):
+    type: Literal["excel"] = "excel"
+    mime: Literal[
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    ] = Field(
+        default="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        description="MIME type for Excel (.xlsx)",
+    )
+    markdown: MarkdownBlock | None = Field(
+        default=None, description="Markdown block"
+    )
+
+
+class TextFileBlock(AttachmentBaseBlock):
+    type: Literal["text_file"] = "text_file"
+    mime: str = Field(
+        default="text/plain",
+        description="MIME type for plain text / code files (e.g. text/csv, text/plain)",
+    )
+
+
 class KbContextBlock(BaseModel):
     id: str = Field(..., description="附件 content_id")
     type: Literal["kb_context"] = "kb_context"
@@ -304,7 +326,38 @@ class KbContextBlock(BaseModel):
     content: str = Field(default="", description="Knowledge base context content")
 
 
-AttachmentBlock: TypeAlias = ImageBlock | MarkdownBlock | PdfBlock
+class AttachmentFileInfo(BaseModel):
+    """上传文件元信息，供模型用文件工具按需读取。"""
+
+    name: str = Field(..., description="展示用文件名")
+    type: str = Field(
+        ...,
+        description='文件类型："pdf" | "excel" | "markdown" | "image" | "text_file"',
+    )
+    size: int = Field(default=0, ge=0, description="落盘文件字节数")
+    virtual_path: str = Field(
+        ..., description="文件虚拟路径，如 /mnt/user-data/uploads/{name}"
+    )
+
+    @property
+    def human_size(self) -> str:
+        """将字节数格式化为可读形式（B / KB / MB / GB）。"""
+        return format_human_size(self.size)
+
+
+class AttachmentUploadInfo(AttachmentFileInfo):
+    """agent_mode 下注入用户消息的上传文件清单条目。"""
+
+    markdown: AttachmentFileInfo | None = Field(
+        default=None,
+        description="PDF/Excel 派生的可读 Markdown 文件；其它类型为 None",
+    )
+    is_current_turn: bool = Field(default=False, description="是否为本轮上传")
+
+
+AttachmentBlock: TypeAlias = (
+    ImageBlock | MarkdownBlock | PdfBlock | ExcelBlock | TextFileBlock
+)
 
 ContentBlock: TypeAlias = (
     TextBlock
@@ -313,7 +366,9 @@ ContentBlock: TypeAlias = (
     | ToolResultBlock
     | ImageBlock
     | PdfBlock
+    | ExcelBlock
     | MarkdownBlock
+    | TextFileBlock
     | KbContextBlock
 )
 _CONTENT_BLOCKS_ADAPTER = TypeAdapter(list[ContentBlock])

@@ -30,6 +30,7 @@ from app.protocols.chat_messages import (
     format_tool_call_messages_for_llm,
 )
 from app.schemas.chat import (
+    AttachmentUploadInfo,
     ChatMessage,
     ChatRequest,
     ContentBlock,
@@ -96,6 +97,7 @@ class ChatSessionAgent(BaseAgent):
         user_memories: list[MemorySearchItem],
         user_id: str,
         kb_context_blocks: list[KbContextBlock] | None = None,
+        attachment_uploads: list[AttachmentUploadInfo] | None = None,
     ) -> AsyncGenerator[str, None]:
         self.think_mode = chat_request.think_mode
         self.session_output.reset()
@@ -128,6 +130,7 @@ class ChatSessionAgent(BaseAgent):
             kb_context_blocks=kb_context_blocks,
             user_memories=user_memories,
             window_out_summary=history_summary_before_window,
+            attachment_uploads=attachment_uploads,
         )
         user_message_content = build_user_content_for_llm(
             chat_request.content_blocks,
@@ -168,11 +171,12 @@ class ChatSessionAgent(BaseAgent):
         )
 
         for iteration in range(max_total_iterations):
-            tool_session.apply_iteration_hints(
-                messages=base_prompt_messages,
-                tool_guided_user_message=tool_guided_user_message,
-                iteration=iteration,
-            )
+            if chat_request.agent_mode == 0:
+                tool_session.apply_iteration_hints(
+                    messages=base_prompt_messages,
+                    tool_guided_user_message=tool_guided_user_message,
+                    iteration=iteration,
+                )
             round_prompt_messages = self._build_round_prompt_messages(
                 base_prompt_messages
             )

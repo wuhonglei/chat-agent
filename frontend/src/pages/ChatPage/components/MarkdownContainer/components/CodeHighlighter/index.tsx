@@ -6,11 +6,12 @@ import React from "react";
 import CustomHeader from "../CustomHeader";
 import { useCodeFold } from "./hooks";
 import styles from "./index.module.css";
+import { isNull } from 'lodash-es';
 
 type Props = CodeHighlighterProps & {
-  header?: React.ReactNode;
+  header?: React.ReactNode | null;
   /** 限制代码区域最大高度；超出时默认出现纵向滚动条，底部可展开为完整高度 */
-  maxHeight?: number | string;
+  maxHeight?: number | string | null;
 };
 
 const CodeHighlighter = ({
@@ -44,7 +45,10 @@ const CodeHighlighter = ({
     highlightProps: {},
     prismLightMode: false,
   };
-  if (header) {
+
+  if(isNull(header)) {
+    props.header = <></>;
+  } else if (header) {
     props.header = <CustomHeader>{header}</CustomHeader>;
   }
 

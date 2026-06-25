@@ -1,5 +1,6 @@
 import type { CodeHighlighterProps } from "@ant-design/x";
 import classNames from "classnames";
+import { isNil } from 'lodash-es';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 export const CODE_SCROLL_AREA_CLASS = "chat-code-highlighter-code-area";
@@ -9,7 +10,7 @@ export function toCssLength(value: number | string): string {
 }
 
 type UseCodeFoldOptions = {
-  maxHeight?: number | string;
+  maxHeight?: number | string | null;
   codeContent: ReactNode;
   classNamesProp?: CodeHighlighterProps["classNames"];
   stylesProp?: CodeHighlighterProps["styles"];
@@ -20,7 +21,7 @@ export function useCodeFold({ maxHeight, codeContent, classNamesProp, stylesProp
   const [expanded, setExpanded] = useState(false);
   const [overflowing, setOverflowing] = useState(false);
 
-  const maxHeightCss = maxHeight !== undefined ? toCssLength(maxHeight) : undefined;
+  const maxHeightCss = isNil( maxHeight) ? undefined : toCssLength(maxHeight);
 
   const mergedClassNames = useMemo(
     () => ({
