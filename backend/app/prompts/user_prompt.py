@@ -29,7 +29,7 @@ _USER_MESSAGE_QUERY_SNIPPET = """
       {%- if f.readable_path %}
       <readable_path>{{ f.readable_path|e }}</readable_path>
       {%- endif %}
-      <size_bytes>{{ f.size }}</size_bytes>
+      <size>{{ f.human_size }}</size>
       <uploaded_this_turn>{{ 'true' if f.is_current_turn else 'false' }}</uploaded_this_turn>
     </file>
   {%- endfor %}

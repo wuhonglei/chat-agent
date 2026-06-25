@@ -317,6 +317,18 @@ class AttachmentUploadInfo(BaseModel):
     is_current_turn: bool = Field(default=False, description="是否为本轮上传")
     type: str = Field(..., description='文件类型："pdf" | "markdown" | "image"')
 
+    @property
+    def human_size(self) -> str:
+        """将字节数格式化为可读形式（B / KB / MB / GB）。"""
+        size = float(self.size)
+        for unit in ("B", "KB", "MB", "GB"):
+            if size < 1024 or unit == "GB":
+                if unit == "B":
+                    return f"{int(size)} {unit}"
+                return f"{size:.1f} {unit}"
+            size /= 1024
+        return f"{int(self.size)} B"
+
 
 AttachmentBlock: TypeAlias = ImageBlock | MarkdownBlock | PdfBlock
 
