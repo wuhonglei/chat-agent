@@ -219,6 +219,7 @@ class ToolExecutor:
                                 "conversation_id": self.current_conversation_id,
                                 "user_id": self.current_user_id,
                             },
+                            tags=[f"server:{server_name}"],
                         )
                     except Exception as exc:
                         logger.warning(
