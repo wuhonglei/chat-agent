@@ -50,10 +50,10 @@
 
 | # | 技能 | 分类 | 状态 | 备注 |
 |---|------|------|------|------|
-| 1 | data-analysis | 数据与分析 | ⬜ 待调试 | |
-| 2 | chart-visualization | 数据与分析 | ⬜ 待调试 | |
-| 3 | consulting-analysis | 数据与分析 | ⬜ 待调试 | |
-| 4 | deep-research | 数据与分析 | ⬜ 待调试 | |
+| 1 | data-analysis | 数据与分析 | ✅ 通过 | |
+| 2 | chart-visualization | 数据与分析 | ✅ 通过 | |
+| 3 | consulting-analysis | 数据与分析 | ✅ 通过 | |
+| 4 | deep-research | 数据与分析 | ✅ 通过 | |
 | 5 | newsletter-generation | 内容创作 | ⬜ 待调试 | |
 | 6 | ppt-generation | 内容创作 | ⬜ 待调试 | |
 | 7 | image-generation | 内容创作 | ⬜ 待调试 | |
