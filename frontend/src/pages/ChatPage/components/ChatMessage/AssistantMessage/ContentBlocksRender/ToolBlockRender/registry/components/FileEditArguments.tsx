@@ -3,7 +3,7 @@ import React from "react";
 import type { ToolRenderContext } from "../types";
 import { getFilePathFromArgs } from "../utils/filePathLanguage";
 import { parseToolArguments } from "../utils/parseToolArguments";
-import { FileContentHighlight } from "./FileContentHighlight";
+import { FileDiffView } from "./FileDiffView";
 
 export function renderEditFileArguments(ctx: ToolRenderContext): React.ReactNode | null {
   const args = parseToolArguments(ctx);
@@ -12,20 +12,20 @@ export function renderEditFileArguments(ctx: ToolRenderContext): React.ReactNode
   }
 
   const filePath = getFilePathFromArgs(args);
-  const oldString = args.old_string;
-  const newString = args.new_string;
+  const oldString = args.oldString;
+  const newString = args.newString;
   if (typeof oldString !== "string" || !oldString || typeof newString !== "string") {
     return null;
   }
 
-  const replaceAll = args.replace_all === true;
-  const fileHeader = filePath && replaceAll ? `${filePath} · replace_all` : filePath;
-  const oldHeader = fileHeader ? `${fileHeader} · old` : "old_string";
+  const replaceAll = args.replaceAll === true;
 
   return (
-    <div className="w-full flex flex-col gap-2">
-      <FileContentHighlight filePath={filePath} content={oldString} header={oldHeader} />
-      <FileContentHighlight filePath={filePath} content={newString} header="new_string" />
-    </div>
+    <FileDiffView
+      filePath={filePath}
+      oldString={oldString}
+      newString={newString}
+      replaceAll={replaceAll}
+    />
   );
 }
