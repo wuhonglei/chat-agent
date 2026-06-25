@@ -297,6 +297,19 @@ class PdfBlock(AttachmentBaseBlock):
     )
 
 
+class ExcelBlock(AttachmentBaseBlock):
+    type: Literal["excel"] = "excel"
+    mime: Literal[
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    ] = Field(
+        default="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        description="MIME type for Excel (.xlsx)",
+    )
+    markdown: MarkdownBlock | None = Field(
+        default=None, description="Markdown block"
+    )
+
+
 class KbContextBlock(BaseModel):
     id: str = Field(..., description="附件 content_id")
     type: Literal["kb_context"] = "kb_context"
@@ -309,7 +322,9 @@ class AttachmentFileInfo(BaseModel):
     """上传文件元信息，供模型用文件工具按需读取。"""
 
     name: str = Field(..., description="展示用文件名")
-    type: str = Field(..., description='文件类型："pdf" | "markdown" | "image"')
+    type: str = Field(
+        ..., description='文件类型："pdf" | "excel" | "markdown" | "image"'
+    )
     size: int = Field(default=0, ge=0, description="落盘文件字节数")
     virtual_path: str = Field(
         ..., description="文件虚拟路径，如 /mnt/user-data/uploads/{name}"
@@ -326,12 +341,12 @@ class AttachmentUploadInfo(AttachmentFileInfo):
 
     markdown: AttachmentFileInfo | None = Field(
         default=None,
-        description="PDF 派生的可读 Markdown 文件；非 PDF 为 None",
+        description="PDF/Excel 派生的可读 Markdown 文件；其它类型为 None",
     )
     is_current_turn: bool = Field(default=False, description="是否为本轮上传")
 
 
-AttachmentBlock: TypeAlias = ImageBlock | MarkdownBlock | PdfBlock
+AttachmentBlock: TypeAlias = ImageBlock | MarkdownBlock | PdfBlock | ExcelBlock
 
 ContentBlock: TypeAlias = (
     TextBlock
@@ -340,6 +355,7 @@ ContentBlock: TypeAlias = (
     | ToolResultBlock
     | ImageBlock
     | PdfBlock
+    | ExcelBlock
     | MarkdownBlock
     | KbContextBlock
 )

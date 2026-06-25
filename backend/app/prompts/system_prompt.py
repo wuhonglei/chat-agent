@@ -62,8 +62,8 @@ system_prompt_for_chat_session_template: Template = Template(
 </skill_system>
 
 <working_directory existed="true">
-- 用户上传：`{{ uploads_prefix.rstrip('/') }}` — 用户上传的原始文件（图片、PDF 等）
-  - PDF 会自动生成只读 Markdown：`{{ uploads_prefix.rstrip('/') }}/derived/{与 PDF 同名的 stem}.md`；分析 PDF 内容时优先读取该路径
+- 用户上传：`{{ uploads_prefix.rstrip('/') }}` — 用户上传的原始文件（图片、PDF、Excel 等）
+  - PDF / Excel 会自动生成只读 Markdown：`{{ uploads_prefix.rstrip('/') }}/derived/{与原文件同名的 stem}.md`；分析 PDF / Excel 内容时优先读取该路径
 - 用户工作区：`{{ workspace_prefix.rstrip('/') }}` — 临时文件的工作目录
 - 输出文件：`{{ outputs_prefix.rstrip('/') }}` — 最终交付物必须保存在此目录
 

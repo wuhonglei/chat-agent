@@ -52,6 +52,19 @@ function attachmentToFileCardItem(
           window.open(block.url, "_blank", "noopener,noreferrer");
         },
       };
+    case "excel":
+      return {
+        key: block.id,
+        name: block.name?.trim() || "spreadsheet.xlsx",
+        byte: block.size,
+        onClick: () => {
+          if (onPreviewBlock) {
+            onPreviewBlock(block);
+            return;
+          }
+          window.open(block.url, "_blank", "noopener,noreferrer");
+        },
+      };
     case "markdown":
       return {
         key: block.id,

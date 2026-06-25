@@ -13,6 +13,7 @@ from app.schemas.chat import (
     AttachmentUploadInfo,
     ChatMessage,
     ContentBlock,
+    ExcelBlock,
     ImageBlock,
     KbContextBlock,
     MarkdownBlock,
@@ -27,6 +28,7 @@ from app.vfs.config import vfs_config
 _IMAGE_PREVIEW_PATH_PATTERNS = (re.compile(r"^/api/file/preview/([^/]+)/(.+)$"),)
 _IMAGE_ONLY_PLACEHOLDER = "[用户发送了图片]"
 _PDF_ONLY_PLACEHOLDER = "[用户发送了 PDF 文件]"
+_EXCEL_ONLY_PLACEHOLDER = "[用户发送了 Excel 文件]"
 _MARKDOWN_ONLY_PLACEHOLDER = "[用户发送了 Markdown 文件]"
 
 
@@ -44,6 +46,15 @@ def has_pdf_block(
 ) -> bool:
     return any(
         isinstance(block, PdfBlock)
+        for block in normalize_content_blocks(content_blocks)
+    )
+
+
+def has_excel_block(
+    content_blocks: list[ContentBlock] | list[dict[str, Any]] | None,
+) -> bool:
+    return any(
+        isinstance(block, ExcelBlock)
         for block in normalize_content_blocks(content_blocks)
     )
 
@@ -68,6 +79,8 @@ def extract_user_text_with_attachment_placeholder(
         return _IMAGE_ONLY_PLACEHOLDER
     if has_pdf_block(normalized_blocks):
         return _PDF_ONLY_PLACEHOLDER
+    if has_excel_block(normalized_blocks):
+        return _EXCEL_ONLY_PLACEHOLDER
     if has_markdown_block(normalized_blocks):
         return _MARKDOWN_ONLY_PLACEHOLDER
     return ""
@@ -81,7 +94,7 @@ def collect_attachment_content_ids(
         if isinstance(block, MarkdownBlock):
             content_ids.add(block.id)
             continue
-        if not isinstance(block, PdfBlock):
+        if not isinstance(block, (PdfBlock, ExcelBlock)):
             continue
         content_ids.add(block.id)
         if block.markdown is not None and block.markdown.id:
@@ -113,7 +126,7 @@ def resolve_storage_key_for_content_id(
             if isinstance(block, MarkdownBlock) and block.id == content_id:
                 return block.storage_key
             if (
-                isinstance(block, PdfBlock)
+                isinstance(block, (PdfBlock, ExcelBlock))
                 and block.markdown is not None
                 and block.markdown.id == content_id
             ):
@@ -161,7 +174,7 @@ def build_attachment_uploads(
         is_current_turn: bool,
     ) -> None:
         for block in normalize_content_blocks(blocks):
-            if not isinstance(block, (PdfBlock, MarkdownBlock, ImageBlock)):
+            if not isinstance(block, (PdfBlock, ExcelBlock, MarkdownBlock, ImageBlock)):
                 continue
 
             virtual_path = _storage_key_to_virtual_path(block.storage_key)
@@ -172,7 +185,7 @@ def build_attachment_uploads(
             seen_storage_keys.add(block.storage_key)
 
             markdown: AttachmentFileInfo | None = None
-            if isinstance(block, PdfBlock) and block.markdown is not None:
+            if isinstance(block, (PdfBlock, ExcelBlock)) and block.markdown is not None:
                 md_virtual_path = _storage_key_to_virtual_path(
                     block.markdown.storage_key
                 )

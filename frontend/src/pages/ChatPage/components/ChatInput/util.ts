@@ -6,11 +6,13 @@ import { ButtonState } from "./constant";
 
 export const MAX_CHAT_ATTACHMENTS = 5;
 export const MAX_CHAT_ATTACHMENT_BYTES = 10 * 1024 * 1024;
-export const CHAT_ATTACHMENT_ACCEPT = "image/*,.pdf,application/pdf,.md,.markdown,text/markdown";
-export const CHAT_ATTACHMENT_ACCEPT_PDF_ONLY = ".pdf,application/pdf";
+export const EXCEL_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+export const CHAT_ATTACHMENT_ACCEPT = `image/*,.pdf,application/pdf,.xlsx,${EXCEL_CONTENT_TYPE},.md,.markdown,text/markdown`;
+export const CHAT_ATTACHMENT_ACCEPT_PDF_ONLY = `.pdf,application/pdf,.xlsx,${EXCEL_CONTENT_TYPE}`;
 
 const IMAGE_EXT_RE = /\.(jpe?g|png|gif|webp)$/i;
 const PDF_EXT_RE = /\.pdf$/i;
+const EXCEL_EXT_RE = /\.xlsx$/i;
 const MARKDOWN_EXT_RE = /\.(md|markdown)$/i;
 
 export function isImageFile(file: Pick<File, "type" | "name">) {
@@ -51,6 +53,9 @@ export function isSupportedChatAttachment(file: File) {
   if (fileType === "application/pdf" || PDF_EXT_RE.test(file.name.toLowerCase())) {
     return true;
   }
+  if (fileType === EXCEL_CONTENT_TYPE || EXCEL_EXT_RE.test(file.name.toLowerCase())) {
+    return true;
+  }
   return MARKDOWN_EXT_RE.test(file.name.toLowerCase()) || fileType === "text/markdown";
 }
 
@@ -59,7 +64,7 @@ export function getChatAttachmentValidationError(file: File, currentCount: numbe
     return `最多上传 ${MAX_CHAT_ATTACHMENTS} 个附件`;
   }
   if (!isSupportedChatAttachment(file)) {
-    return "仅支持 JPEG、PNG、GIF、WebP 图片、PDF 和 Markdown";
+    return "仅支持 JPEG、PNG、GIF、WebP 图片、PDF、Excel(.xlsx) 和 Markdown";
   }
   if (file.size > MAX_CHAT_ATTACHMENT_BYTES) {
     return "单个附件不能超过 10MB";

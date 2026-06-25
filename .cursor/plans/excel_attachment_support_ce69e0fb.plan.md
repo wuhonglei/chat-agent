@@ -4,40 +4,40 @@ overview: 为聊天附件增加 Excel (.xlsx) 支持，后端用 MarkItDown 转 
 todos:
   - id: backend-dep
     content: pyproject.toml 将 markitdown[pdf] 改为 markitdown[pdf,xlsx]
-    status: pending
+    status: completed
   - id: backend-converter
     content: 新增 excel_markdown_converter.py (MarkItDown 转 Markdown)
-    status: pending
+    status: completed
   - id: backend-save
     content: 新增 excel.py save_chat_excel，镜像 pdf.py
-    status: pending
+    status: completed
   - id: backend-schema
     content: schemas/chat.py 新增 ExcelBlock 并加入联合类型
-    status: pending
+    status: completed
   - id: backend-dispatch
     content: attachment.py 增加 xlsx 分发、storage_key 正则与 MIME 映射
-    status: pending
+    status: completed
   - id: backend-multimodal
     content: multimodal.py 处理 ExcelBlock
-    status: pending
+    status: completed
   - id: backend-prompt-vfs
     content: system_prompt.py 与 uploads_provider.py 补充 Excel
-    status: pending
+    status: completed
   - id: frontend-dep-types
     content: vp add xlsx；contentBlock.ts 新增 ExcelBlock 与联合类型
-    status: pending
+    status: completed
   - id: frontend-upload
     content: file.ts、util.ts、tooltip 增加 xlsx 支持
-    status: pending
+    status: completed
   - id: frontend-card-route
     content: UserMessageDisplayContent 与 BlockPreviewPanel 增加 excel 分支
-    status: pending
+    status: completed
   - id: frontend-preview
     content: 新增 ExcelPreview 组件（SheetJS 表格 + Markdown 切换）
-    status: pending
+    status: completed
   - id: verify
     content: 后端 make lint、前端 vp lint/build 并手动验证
-    status: pending
+    status: completed
 isProject: false
 ---
 
