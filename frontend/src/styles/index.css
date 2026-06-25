@@ -18,3 +18,15 @@
 :root {
   overflow: hidden;
 }
+
+/* 文件预览左侧目录树：@ant-design/x 的节点容器只设了 display:flex 未设 align-items，
+   导致文件图标与文件名未垂直居中；自定义 SVG 图标按基线对齐也会偏下。此处统一居中。 */
+.ant-folder .ant-tree-treenode .ant-tree-node-content-wrapper {
+  align-items: center;
+}
+
+.ant-folder .ant-tree-treenode .ant-tree-iconEle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
