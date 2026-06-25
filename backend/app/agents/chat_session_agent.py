@@ -168,11 +168,12 @@ class ChatSessionAgent(BaseAgent):
         )
 
         for iteration in range(max_total_iterations):
-            tool_session.apply_iteration_hints(
-                messages=base_prompt_messages,
-                tool_guided_user_message=tool_guided_user_message,
-                iteration=iteration,
-            )
+            if chat_request.agent_mode == 0:
+                tool_session.apply_iteration_hints(
+                    messages=base_prompt_messages,
+                    tool_guided_user_message=tool_guided_user_message,
+                    iteration=iteration,
+                )
             round_prompt_messages = self._build_round_prompt_messages(
                 base_prompt_messages
             )
