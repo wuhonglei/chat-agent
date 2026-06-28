@@ -250,7 +250,8 @@ class AttachmentBaseBlock(BaseModel):
     id: str = Field(..., description="Block ID")
     url: str = Field(..., description="Preview URL path (e.g. /api/file/preview/...)")
     storage_key: str | None = Field(
-        default=None, description="Relative storage key under shared/uploads"
+        default=None,
+        description="Conversation-scoped storage key, e.g. {conversation_id}/{display_name}",
     )
     storage_version: int | None = Field(
         default=None, description="Storage schema version"

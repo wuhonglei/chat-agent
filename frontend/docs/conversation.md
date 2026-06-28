@@ -47,7 +47,7 @@ data: {"type":"ack","data":{...},"seq":1}
 1. `JSON.parse(event.data)`
 2. `camelcaseKeys(..., { deep: true })`
 
-因此后端蛇形字段（例如 `updated_at`、`last_seq`）会变为前端驼峰字段（`updatedAt`、`lastSeq`）。`seq` 由后端 `StreamRelay` 注入，用于续流时记录最后已消费事件。
+因此后端蛇形字段（例如 `updated_at`、`message_metadata`）会变为前端驼峰字段（`updatedAt`、`messageMetadata`）。`seq` 由后端 `StreamRelay` 注入；前端记录最近消费的 `seq`，续流时通过 `Last-Event-ID` 请求头传回后端。
 
 ### 3.2 事件类型（按典型时序）
 

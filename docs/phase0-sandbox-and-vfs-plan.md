@@ -286,34 +286,38 @@ MappingContext：
 class MappingContext:
     user_id: str
     workspace_id: str                     # = conversation_id
-    db: AsyncSession                      # 用于 /uploads/ 查询
+    db: AsyncSession | None = None        # 当前 /uploads/ 列表不依赖 DB
 ```
 
 ### B3. /uploads/ 虚拟文件提供者
 
 **文件**：`backend/app/vfs/uploads_provider.py`
 
-基于 `conversation_attachments` 表提供 `/uploads/` 虚拟文件列表。
+> 当前实现说明（2026-06）：`conversation_attachments` / `attachment_files` 表已在上传存储 v3/v4 演进中移除；附件元数据以 `messages.content_blocks` + 会话 uploads 目录为准。`UploadsProvider` 通过扫描 `data/user_data/{uid}/conversations/{conv}/uploads/` 提供 `/mnt/user-data/uploads/` 虚拟文件列表，不再 JOIN 数据库表。
 
-查询逻辑：
-```sql
-SELECT af.display_name, af.storage_key, af.mime, af.size, af.kind
-FROM conversation_attachments ca
-JOIN attachment_files af ON ca.attachment_file_id = af.id
-WHERE ca.conversation_id = :workspace_id AND ca.user_id = :user_id
-ORDER BY ca.created_at ASC
+扫描规则：
+```text
+uploads/
+  report.pdf        -> /mnt/user-data/uploads/report.pdf
+  data.csv          -> /mnt/user-data/uploads/data.csv
+  derived/
+    report.md       -> /mnt/user-data/uploads/derived/report.md
 ```
 
-同名文件处理（追加序号）：
+- 顶层普通文件按文件名排序返回，`derived/` 目录本身不作为条目返回。
+- `derived/*.md` 作为只读 Markdown 派生文件返回。
+- `storage_key` 由会话 ID 与展示名组成：`{conversation_id}/{display_name}` 或 `{conversation_id}/derived/{stem}.md`。
+- `mime` 通过 `media_type_for_preview()` 按扩展名推断。
+
+同名文件处理（上传时追加序号）：
 ```
-conversation_attachments 按 created_at ASC 遍历：
   report.pdf → report.pdf
   report.pdf → report(1).pdf
   report.pdf → report(2).pdf
 ```
 
 安全约束：
-- 只能访问当前会话 `conversation_attachments` 中已挂载的文件
+- 只能访问当前用户、当前会话 uploads 目录内的文件
 - `display_name` 校验：拒绝 `/`、`..`、`\`、空字节、控制字符
 - 只读权限，不允许通过虚拟路径写入/删除
 

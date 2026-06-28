@@ -19,10 +19,14 @@
 - `nginx-cache-analysis.md`：Nginx 缓存分析
 - `messages表字段精简计划.md`：消息表现网字段、已下线字段与排障核验
 - `agent_observability/langfuse_integration.md`：Langfuse 自托管接入、trace 约定、score 同步脚本与排障手册
+- `/backend/README.md`：聊天附件链路（图片/PDF/Excel/Markdown/文本文件）、v4 上传存储、普通模式 RAG 与 Agent 模式文件读取、代码执行 API、聊天 SSE 事件约定
+- `/frontend/README.md`：Chat 内容块/附件约束、侧栏预览矩阵、文件 diff 展示、SSE 事件约定
 
 ### 规划方案
 
 - `conversation-management-requirements.md`：会话管理需求（现网实现 + 规划项混合）
+- `phase0-sandbox-and-vfs-plan.md`：Sandbox/VFS 规划与阶段性落地记录；其中 uploads provider 已按当前实现补充为文件系统扫描
+- `agent-mode-switch-plan.md`：Agent 模式开关历史改造计划；开头包含当前实现差异摘要，不作为逐步改造清单执行
 
 ## 后端文档（`/backend/docs`）
 
@@ -34,7 +38,6 @@
 - `COMPONENT_TOOLS_PRD.md`：组件工具接入说明（已对齐当前字段）
 - `MCP_CONFIG_ANALYSIS.md`：MCP 配置与加载机制说明（按当前 `mcp_client`）
 - `RETRIEVAL_SYSTEM.md`：当前检索链路说明（基于 MCP 工具与会话流）
-- `/backend/README.md`：补充聊天附件链路（上传/预览/PDF 转 Markdown）、代码执行 API、聊天 SSE 事件约定
 
 ### 规划方案
 
@@ -54,7 +57,6 @@
 - `conversation.md`：会话路由、状态和接口说明（对齐 `/api/conversation/*`）
 - `schema-for-backend-usage.md`：前端聊天请求体字段与后端消费说明
 - `conversion_cache.md`、`scroll-properties-explanation.md`、`aegis-埋点分析.md`
-- `/frontend/README.md`：补充 Chat 内容块/附件约束、预览行为、SSE 事件约定
 
 ### 历史文档
 

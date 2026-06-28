@@ -27,7 +27,7 @@ async def upload_chat_attachment(
     db: Session = Depends(get_db),
     auth_info: AuthTokenPayload = Depends(get_auth_token_info),
 ) -> ApiResponse[AttachmentBlock]:
-    """上传聊天附件（需登录）；保存至 shared/uploads 并挂载到会话。"""
+    """上传聊天附件（需登录）；保存至当前会话 uploads 目录。"""
     block = await save_chat_attachment(
         user_id=auth_info.user_id,
         file=file,
