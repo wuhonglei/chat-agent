@@ -85,7 +85,9 @@ class ContextCompactor:
 
             if not results:
                 if span is not None:
-                    span.update(output={"selected_chunks": 0, "relevance_applied": False})
+                    span.update(
+                        output={"selected_chunks": 0, "relevance_applied": False}
+                    )
                 return chunks[0]
 
             sorted_relevant = sorted(
@@ -103,7 +105,9 @@ class ContextCompactor:
 
             if not selected_chunks:
                 if span is not None:
-                    span.update(output={"selected_chunks": 0, "relevance_applied": False})
+                    span.update(
+                        output={"selected_chunks": 0, "relevance_applied": False}
+                    )
                 return chunks[0]
 
             if span is not None:
