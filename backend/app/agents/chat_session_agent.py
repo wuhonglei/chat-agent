@@ -367,7 +367,6 @@ class ChatSessionAgent(BaseAgent):
         tool_calls_fc: list[ChatCompletionMessageFunctionToolCall] = merged_tool_calls
         self.state_machine.begin_tool_calling()
         yield build_content_block_event(self.content_block_aggregator.finalize_round())
-        tool_session.should_continue_rounds(tool_calls_fc)
 
         assistant_tool_use_message = tool_session.build_tool_use_message(
             tool_calls_fc,
