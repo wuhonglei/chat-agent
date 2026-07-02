@@ -283,6 +283,15 @@ class DatabaseConfig(BaseModel):
     password: str = Field(description="PostgreSQL 数据库密码")
 
 
+class RedisConfig(BaseModel):
+    """Redis 服务连接配置"""
+
+    host: str = Field(description="Redis 主机")
+    port: int = Field(description="Redis 端口")
+    username: str = Field(description="Redis ACL 用户名")
+    password: str = Field(description="Redis 密码")
+
+
 class PdfMarkdownConfig(BaseModel):
     """PDF 转 Markdown 配置"""
 
