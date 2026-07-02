@@ -159,4 +159,3 @@ class SmsVerificationEntry(BaseModel):
 
     code: str = Field(..., description="Verification code")
     phone: str = Field(..., description="Phone number")
-    expires_at: float = Field(..., description="Expires at")
