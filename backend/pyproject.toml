@@ -16,6 +16,7 @@ dependencies = [
     "tavily-python>=0.7.23", # Web search
     # Storage & Cache
     "aiofiles>=23.2.0",
+    "redis>=5.0.0",
     # HTTP & Async
     "httpx>=0.25.0",
     # Utils
