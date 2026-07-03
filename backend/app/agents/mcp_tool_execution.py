@@ -52,11 +52,6 @@ class MCPToolSession:
             iteration=iteration,
         )
 
-    def should_continue_rounds(
-        self, tool_calls: list[ChatCompletionMessageFunctionToolCall] | None
-    ) -> tuple[bool, str | None]:
-        return self.policy.should_continue(tool_calls)
-
     async def execute_tool_calls_parallel(
         self,
         tool_calls: list[ChatCompletionMessageFunctionToolCall],

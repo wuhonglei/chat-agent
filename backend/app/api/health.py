@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter
 
+from app.core.redis import ping_redis
 from app.schemas.response import ApiResponse
 
 router = APIRouter()
@@ -10,4 +11,8 @@ router = APIRouter()
 @router.get("")
 async def health_check() -> ApiResponse[dict[str, str]]:
     """Basic health check"""
-    return ApiResponse.success(data={"status": "healthy"}, msg="健康检查成功")
+    redis_status = "ok" if await ping_redis() else "unavailable"
+    return ApiResponse.success(
+        data={"status": "healthy", "redis": redis_status},
+        msg="健康检查成功",
+    )
