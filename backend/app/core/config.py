@@ -20,8 +20,8 @@ from app.schemas.config import (
     KbFileRagConfig,
     LangfuseConfig,
     MCPConfig,
+    MinerUConfig,
     ModelsConfig,
-    PdfMarkdownConfig,
     RedisConfig,
     SandboxConfig,
     SecurityConfig,
@@ -50,9 +50,9 @@ class Settings(BaseSettings):
     sms: SmsConfig = Field(description="腾讯云短信配置")
     database: DatabaseConfig = Field(description="PostgreSQL 数据库配置")
     redis: RedisConfig = Field(description="Redis 服务连接配置")
-    pdf_markdown: PdfMarkdownConfig = Field(
-        default_factory=PdfMarkdownConfig,
-        description="PDF 转 Markdown 配置",
+    mineru: MinerUConfig = Field(
+        default_factory=MinerUConfig,
+        description="MinerU SaaS 文档转 Markdown 配置",
     )
     chat_context: ChatContextConfig = Field(
         default_factory=ChatContextConfig, description="对话上下文配置"

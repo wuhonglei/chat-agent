@@ -116,7 +116,7 @@ make test
 
 上传成功后返回 `AttachmentBlock`：
 - 图片返回 `ImageBlock`
-- PDF 返回 `PdfBlock`，并在 `markdown` 中携带同源 Markdown 预览信息
+- PDF / Excel / Word / PowerPoint 分别返回 `PdfBlock` / `ExcelBlock` / `DocxBlock` / `PptxBlock`，并在 `markdown` 中携带同源 Markdown 预览信息
 - Markdown（`.md` / `.markdown` / `text/markdown`）返回独立 `MarkdownBlock`
 
 预览 URL 统一为：`/api/file/preview/{user_id}/{filename}`。
@@ -126,29 +126,34 @@ make test
 - 单文件大小上限：`10MB`
 - 图片：`JPEG / PNG / GIF / WebP`
 - PDF：`application/pdf`
+- Excel：`.xlsx`
+- Word：`.docx`
+- PowerPoint：`.pptx`
 - Markdown：`.md` / `.markdown` / `text/markdown`，内容必须是 UTF-8 文本
 - 图片会在服务端按最长边 `2048px` 等比缩放（超限时），并重新编码后落盘
-- PDF 会先校验文件头（`%PDF-`），再执行 PDF -> Markdown 转换
-- Markdown 按内容 SHA-256 命名落盘；同内容重复上传会复用已有文件
+- PDF 校验文件头 `%PDF-`；xlsx/docx/pptx 校验 OOXML 魔数 `PK\x03\x04`，再执行 MinerU -> Markdown 转换
 
-### 3) PDF -> Markdown 转换策略
+### 3) 文档 -> Markdown 转换策略
 
-`PdfMarkdownConverter` 按 PDF 类型分流：
+`MinerUMarkdownConverter` 通过 MinerU SaaS（`mineru.net`）批量解析接口统一转换 PDF、Excel、Word、PowerPoint：
 
-1. 文本型 PDF：`MarkItDown` 直接转换
-2. 扫描型 PDF：调用 `PP-StructureV3` 服务转换
+1. 申请预签名上传 URL
+2. PUT 上传本地文件
+3. 轮询任务状态
+4. 下载结果 ZIP，写入 `derived/{stem}.md`，图片合并到 `derived/images/`
 
-关键配置位于 `settings.pdf_markdown`：
-- `scan_text_threshold`
-- `detect_pages`
-- `pp_structure_api_url`
-- `pp_structure_token`
+关键配置位于 `settings.mineru`（Nacos `mineru` 对象）：
+- `enabled`
+- `api_url`
+- `api_key`
+- `model_version`
+- `poll_interval_seconds`
 - `poll_timeout_seconds`
 
 ### 4) 附件安全约束
 
 - 真实落盘文件名使用 UUID，避免用户可控路径
-- `preview` 仅允许匹配 `uuid + 扩展名` 的文件名（支持 jpg/jpeg/png/gif/webp/pdf/md）
+- `preview` 允许会话根文件（含 pdf/xlsx/docx/pptx）、`derived/*.md` 与 `derived/images/*`（jpg/jpeg/png/gif/webp）
 - `user_id` 与路径边界会做校验，非法请求统一返回 404
 - 展示名仅用于 UI，服务端会做安全清洗（去路径、非法字符、长度限制）
 
@@ -156,8 +161,8 @@ make test
 
 - `400 仅支持 ...`：文件类型不在允许列表
 - `400 ...不能超过 10MB`：超出大小限制
-- `400 PDF 文件无效或已损坏`：文件头校验失败
-- `502 PDF 转 Markdown 失败`：检查 `PDF_MARKDOWN__PP_STRUCTURE_TOKEN`、外部服务可用性和超时配置
+- `400 PDF/Word/PowerPoint 文件无效或已损坏`：文件头校验失败
+- `502 MinerU 转换失败`：检查 Nacos `mineru.api_key`、外部服务可用性和轮询超时配置
 
 ---
 

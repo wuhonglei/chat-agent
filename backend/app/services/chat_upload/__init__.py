@@ -12,17 +12,19 @@ from app.services.chat_upload.attachment import (
     shared_upload_file_path,
     try_resolve_upload_file_path,
 )
+from app.services.chat_upload.docx import save_chat_docx
 from app.services.chat_upload.image import save_chat_image
 from app.services.chat_upload.kb_chunk_embedding import (
     KbFileChunkIndexingError,
     index_uploaded_text_chunks,
 )
 from app.services.chat_upload.markdown import save_chat_markdown
-from app.services.chat_upload.pdf import save_chat_pdf
-from app.services.chat_upload.pdf_markdown_converter import (
-    PdfMarkdownConversionError,
-    PdfMarkdownConverter,
+from app.services.chat_upload.mineru_markdown_converter import (
+    MinerUMarkdownConversionError,
+    MinerUMarkdownConverter,
 )
+from app.services.chat_upload.pdf import save_chat_pdf
+from app.services.chat_upload.pptx import save_chat_pptx
 
 __all__ = [
     "MARKDOWN_CONTENT_TYPE",
@@ -35,11 +37,13 @@ __all__ = [
     "save_chat_attachment",
     "shared_upload_file_path",
     "try_resolve_upload_file_path",
+    "save_chat_docx",
     "save_chat_image",
     "save_chat_markdown",
     "save_chat_pdf",
+    "save_chat_pptx",
     "KbFileChunkIndexingError",
     "index_uploaded_text_chunks",
-    "PdfMarkdownConversionError",
-    "PdfMarkdownConverter",
+    "MinerUMarkdownConversionError",
+    "MinerUMarkdownConverter",
 ]

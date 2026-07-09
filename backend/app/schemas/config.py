@@ -292,37 +292,31 @@ class RedisConfig(BaseModel):
     password: str = Field(description="Redis 密码")
 
 
-class PdfMarkdownConfig(BaseModel):
-    """PDF 转 Markdown 配置"""
+class MinerUConfig(BaseModel):
+    """MinerU SaaS 文档转 Markdown 配置"""
 
-    enabled: bool = Field(default=True, description="是否启用 PDF 自动转 Markdown")
-    scan_text_threshold: int = Field(
-        default=50,
-        ge=0,
-        description="扫描型判定阈值：前 N 页文字总长度小于该值视为扫描型",
+    enabled: bool = Field(default=True, description="是否启用 MinerU 自动转 Markdown")
+    api_url: str = Field(
+        default="https://mineru.net",
+        description="MinerU API 地址",
     )
-    detect_pages: int = Field(
-        default=3,
-        ge=1,
-        description="PDF 类型检测时读取的页数",
-    )
-    pp_structure_api_url: str = Field(
-        default="https://b5ad76r2h7wfk3g3.aistudio-app.com/layout-parsing",
-        description="PP-StructureV3 服务地址",
-    )
-    pp_structure_token: str = Field(
+    api_key: str = Field(
         default="",
-        description="PP-StructureV3 服务 token（从 Nacos 注入）",
+        description="MinerU API Bearer Token（从 Nacos 注入）",
+    )
+    model_version: str = Field(
+        default="vlm",
+        description="MinerU 模型版本：pipeline / vlm / MinerU-HTML",
     )
     poll_interval_seconds: float = Field(
         default=3.0,
         gt=0,
-        description="预留配置：轮询间隔（秒）",
+        description="任务状态轮询间隔（秒）",
     )
     poll_timeout_seconds: float = Field(
-        default=180.0,
+        default=300.0,
         gt=0,
-        description="PP-StructureV3 请求超时（秒）",
+        description="任务轮询总超时（秒）",
     )
 
 

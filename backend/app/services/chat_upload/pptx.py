@@ -1,4 +1,4 @@
-"""聊天附件上传：Excel (.xlsx) 处理服务。"""
+"""聊天附件上传：PowerPoint (.pptx) 处理服务。"""
 
 from __future__ import annotations
 
@@ -9,10 +9,10 @@ from pathlib import Path
 from fastapi import HTTPException, UploadFile
 from sqlmodel import Session
 
-from app.schemas.chat import ExcelBlock, MarkdownBlock
+from app.schemas.chat import MarkdownBlock, PptxBlock
 from app.services.chat_upload.attachment import (
-    EXCEL_CONTENT_TYPE,
     MAX_CHAT_ATTACHMENT_BYTES,
+    PPTX_CONTENT_TYPE,
     STORAGE_VERSION,
     allocate_unique_display_name,
     build_attachment_preview_url,
@@ -32,26 +32,26 @@ from app.services.chat_upload.mineru_markdown_converter import (
 )
 from app.utils.logger import logger
 
-# xlsx 是 zip 容器，魔数为 PK\x03\x04
-_XLSX_MAGIC = b"PK\x03\x04"
+# pptx 是 zip 容器，魔数为 PK\x03\x04
+_OOXML_MAGIC = b"PK\x03\x04"
 
 
-def _excel_sha256_hex(data: bytes) -> str:
+def _pptx_sha256_hex(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def _build_excel_block(
+def _build_pptx_block(
     *,
     content_hash: str,
     user_id: str,
-    excel_display_name: str,
-    excel_storage_key: str,
+    pptx_display_name: str,
+    pptx_storage_key: str,
     md_storage_key: str,
-    excel_size: int,
+    pptx_size: int,
     markdown_size: int,
-) -> ExcelBlock:
-    markdown_display_name = f"{Path(excel_display_name).stem}.md"
-    excel_url = build_attachment_preview_url(user_id, excel_storage_key)
+) -> PptxBlock:
+    markdown_display_name = f"{Path(pptx_display_name).stem}.md"
+    pptx_url = build_attachment_preview_url(user_id, pptx_storage_key)
     markdown_url = build_attachment_preview_url(user_id, md_storage_key)
     markdown_block = MarkdownBlock(
         id=content_hash,
@@ -60,25 +60,25 @@ def _build_excel_block(
         storage_key=md_storage_key,
         storage_version=STORAGE_VERSION,
         derived_from_id=content_hash,
-        derived_kind="excel_to_markdown",
+        derived_kind="pptx_to_markdown",
         name=markdown_display_name,
         size=markdown_size,
         mime="text/markdown",
     )
-    return ExcelBlock(
+    return PptxBlock(
         id=content_hash,
-        type="excel",
-        url=excel_url,
-        storage_key=excel_storage_key,
+        type="pptx",
+        url=pptx_url,
+        storage_key=pptx_storage_key,
         storage_version=STORAGE_VERSION,
-        name=excel_display_name,
-        size=excel_size,
-        mime=EXCEL_CONTENT_TYPE,
+        name=pptx_display_name,
+        size=pptx_size,
+        mime=PPTX_CONTENT_TYPE,
         markdown=markdown_block,
     )
 
 
-async def _index_excel_markdown_or_raise(
+async def _index_pptx_markdown_or_raise(
     *,
     user_id: str,
     content_id: str,
@@ -91,7 +91,7 @@ async def _index_excel_markdown_or_raise(
         markdown_text = await asyncio.to_thread(md_path.read_text, encoding="utf-8")
     except OSError as exc:
         logger.error(
-            "Chat excel markdown read failed before embedding",
+            "Chat pptx markdown read failed before embedding",
             user_id=user_id,
             content_id=content_id,
             md_path=str(md_path),
@@ -105,64 +105,64 @@ async def _index_excel_markdown_or_raise(
             content_id=content_id,
             text=markdown_text,
             file_name=file_name,
-            source_kind="excel",
+            source_kind="pptx",
             text_format="markdown",
             original_size_bytes=original_size_bytes,
             processed_size_bytes=processed_size_bytes,
         )
     except KbFileChunkIndexingError as exc:
         logger.error(
-            "Chat excel embedding indexing failed",
+            "Chat pptx embedding indexing failed",
             user_id=user_id,
             content_id=content_id,
             md_path=str(md_path),
             error=exc,
         )
         raise HTTPException(
-            status_code=502, detail=f"Excel 分块向量入库失败：{exc}"
+            status_code=502, detail=f"PowerPoint 分块向量入库失败：{exc}"
         ) from exc
 
 
-async def save_chat_excel(
+async def save_chat_pptx(
     *,
     user_id: str,
     file: UploadFile,
     conversation_id: str,
     db: Session | None = None,
-) -> ExcelBlock:
-    """保存上传 Excel (.xlsx) 至会话 uploads 目录，并生成 derived Markdown。"""
+) -> PptxBlock:
+    """保存上传 PowerPoint (.pptx) 至会话 uploads 目录，并生成 derived Markdown。"""
     ensure_conversation_owned(db, user_id=user_id, conversation_id=conversation_id)
 
     content_type = (file.content_type or "").lower()
     raw_filename = (file.filename or "").lower()
-    if content_type != EXCEL_CONTENT_TYPE and not raw_filename.endswith(".xlsx"):
-        raise HTTPException(status_code=400, detail="仅支持 .xlsx 文件")
+    if content_type != PPTX_CONTENT_TYPE and not raw_filename.endswith(".pptx"):
+        raise HTTPException(status_code=400, detail="仅支持 .pptx 文件")
 
     chunk = await file.read(MAX_CHAT_ATTACHMENT_BYTES + 1)
     if len(chunk) > MAX_CHAT_ATTACHMENT_BYTES:
-        raise HTTPException(status_code=400, detail="Excel 大小不能超过 10MB")
-    if not chunk.startswith(_XLSX_MAGIC):
-        raise HTTPException(status_code=400, detail="Excel 文件无效或已损坏")
+        raise HTTPException(status_code=400, detail="PowerPoint 大小不能超过 10MB")
+    if not chunk.startswith(_OOXML_MAGIC):
+        raise HTTPException(status_code=400, detail="PowerPoint 文件无效或已损坏")
 
-    content_hash = _excel_sha256_hex(chunk)
-    excel_display_name = sanitize_upload_display_name(
+    content_hash = _pptx_sha256_hex(chunk)
+    pptx_display_name = sanitize_upload_display_name(
         file.filename,
-        ext=".xlsx",
-        default_stem="spreadsheet",
+        ext=".pptx",
+        default_stem="presentation",
     )
-    excel_display_name = allocate_unique_display_name(
-        user_id, conversation_id, excel_display_name
+    pptx_display_name = allocate_unique_display_name(
+        user_id, conversation_id, pptx_display_name
     )
-    excel_storage_key = build_conversation_storage_key(
-        conversation_id, excel_display_name
+    pptx_storage_key = build_conversation_storage_key(
+        conversation_id, pptx_display_name
     )
     md_storage_key = build_derived_markdown_storage_key(
-        conversation_id, excel_display_name
+        conversation_id, pptx_display_name
     )
 
     upload_dir = get_conversation_upload_dir(user_id, conversation_id)
-    dest: Path = upload_dir / excel_display_name
-    md_path = upload_dir / "derived" / f"{Path(excel_display_name).stem}.md"
+    dest: Path = upload_dir / pptx_display_name
+    md_path = upload_dir / "derived" / f"{Path(pptx_display_name).stem}.md"
     images_dir = upload_dir / "derived" / "images"
     md_path.parent.mkdir(parents=True, exist_ok=True)
     images_dir.mkdir(parents=True, exist_ok=True)
@@ -176,9 +176,9 @@ async def save_chat_excel(
         )
     except MinerUMarkdownConversionError as exc:
         logger.error(
-            "Chat excel markdown conversion failed",
+            "Chat pptx markdown conversion failed",
             user_id=user_id,
-            storage_key=excel_storage_key,
+            storage_key=pptx_storage_key,
             error=exc,
         )
         raise HTTPException(
@@ -187,31 +187,31 @@ async def save_chat_excel(
         ) from exc
 
     markdown_size = md_path.stat().st_size
-    excel_size = dest.stat().st_size
-    await _index_excel_markdown_or_raise(
+    pptx_size = dest.stat().st_size
+    await _index_pptx_markdown_or_raise(
         user_id=user_id,
         content_id=content_hash,
         md_path=md_path,
-        file_name=excel_display_name,
-        original_size_bytes=excel_size,
+        file_name=pptx_display_name,
+        original_size_bytes=pptx_size,
         processed_size_bytes=markdown_size,
     )
 
     logger.info(
-        "Chat excel saved",
+        "Chat pptx saved",
         user_id=user_id,
         conversation_id=conversation_id,
-        storage_key=excel_storage_key,
-        bytes=excel_size,
+        storage_key=pptx_storage_key,
+        bytes=pptx_size,
         markdown_storage_key=md_storage_key,
         markdown_bytes=markdown_size,
     )
-    return _build_excel_block(
+    return _build_pptx_block(
         content_hash=content_hash,
         user_id=user_id,
-        excel_display_name=excel_display_name,
-        excel_storage_key=excel_storage_key,
+        pptx_display_name=pptx_display_name,
+        pptx_storage_key=pptx_storage_key,
         md_storage_key=md_storage_key,
-        excel_size=excel_size,
+        pptx_size=pptx_size,
         markdown_size=markdown_size,
     )
