@@ -20,6 +20,12 @@ MARKDOWN_CONTENT_TYPE: Literal["text/markdown"] = "text/markdown"
 EXCEL_CONTENT_TYPE: Literal[
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 ] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+DOCX_CONTENT_TYPE: Literal[
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+] = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+PPTX_CONTENT_TYPE: Literal[
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+] = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
 
 # 纯文本 / 代码附件：后端不转 Markdown，按原文落盘并索引。
 # 此集合是唯一事实来源：预览 storage_key 正则与 MIME 推断均由它派生。
@@ -106,7 +112,18 @@ _UUID_SEGMENT = (
     r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
 )
 # 图片 / PDF / Markdown / Excel 等非纯文本预览扩展名（不含点）
-_NON_TEXT_PREVIEW_EXTS = ("jpg", "jpeg", "png", "gif", "webp", "pdf", "md", "xlsx")
+_NON_TEXT_PREVIEW_EXTS = (
+    "jpg",
+    "jpeg",
+    "png",
+    "gif",
+    "webp",
+    "pdf",
+    "md",
+    "xlsx",
+    "docx",
+    "pptx",
+)
 _PREVIEW_EXT_ALTERNATION = "|".join(
     sorted({*_NON_TEXT_PREVIEW_EXTS, *(e.lstrip(".") for e in TEXT_FILE_EXTENSIONS)})
 )
@@ -134,6 +151,8 @@ _EXT_TO_MEDIA_TYPE: dict[str, str] = {
     ".pdf": PDF_CONTENT_TYPE,
     ".md": "text/markdown",
     ".xlsx": EXCEL_CONTENT_TYPE,
+    ".docx": DOCX_CONTENT_TYPE,
+    ".pptx": PPTX_CONTENT_TYPE,
     ".csv": "text/csv",
     ".tsv": "text/tab-separated-values",
 }
@@ -293,10 +312,12 @@ async def save_chat_attachment(
     conversation_id: str,
     db: Session | None = None,
 ) -> AttachmentBlock:
+    from app.services.chat_upload.docx import save_chat_docx
     from app.services.chat_upload.excel import save_chat_excel
     from app.services.chat_upload.image import save_chat_image
     from app.services.chat_upload.markdown import save_chat_markdown
     from app.services.chat_upload.pdf import save_chat_pdf
+    from app.services.chat_upload.pptx import save_chat_pptx
     from app.services.chat_upload.text import save_chat_text
 
     if not (conversation_id or "").strip():
@@ -314,6 +335,20 @@ async def save_chat_attachment(
         )
     if content_type == EXCEL_CONTENT_TYPE or raw_filename.endswith(".xlsx"):
         return await save_chat_excel(
+            user_id=user_id,
+            file=file,
+            conversation_id=conversation_id,
+            db=db,
+        )
+    if content_type == DOCX_CONTENT_TYPE or raw_filename.endswith(".docx"):
+        return await save_chat_docx(
+            user_id=user_id,
+            file=file,
+            conversation_id=conversation_id,
+            db=db,
+        )
+    if content_type == PPTX_CONTENT_TYPE or raw_filename.endswith(".pptx"):
+        return await save_chat_pptx(
             user_id=user_id,
             file=file,
             conversation_id=conversation_id,

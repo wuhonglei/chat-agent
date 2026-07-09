@@ -1,4 +1,12 @@
-import { ExcelBlock, ImageBlock, MarkdownBlock, PdfBlock, TextFileBlock } from "@/interfaces/contentBlock";
+import {
+  DocxBlock,
+  ExcelBlock,
+  ImageBlock,
+  MarkdownBlock,
+  PdfBlock,
+  PptxBlock,
+  TextFileBlock,
+} from "@/interfaces/contentBlock";
 
 import { apiClient } from "./base";
 
@@ -16,7 +24,7 @@ export const fileAPI = {
   uploadChatAttachment: async (
     file: File,
     conversationId: string,
-  ): Promise<ImageBlock | PdfBlock | ExcelBlock | MarkdownBlock | TextFileBlock> => {
+  ): Promise<ImageBlock | PdfBlock | ExcelBlock | DocxBlock | PptxBlock | MarkdownBlock | TextFileBlock> => {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("conversation_id", conversationId);
@@ -24,7 +32,7 @@ export const fileAPI = {
       headers: {
         "Content-Type": "multipart/form-data",
       },
-      timeout: 180000, // 3 minutes
+      timeout: 300000, // 5 minutes（MinerU 轮询可能较久）
     });
   },
 };

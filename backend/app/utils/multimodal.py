@@ -13,11 +13,13 @@ from app.schemas.chat import (
     AttachmentUploadInfo,
     ChatMessage,
     ContentBlock,
+    DocxBlock,
     ExcelBlock,
     ImageBlock,
     KbContextBlock,
     MarkdownBlock,
     PdfBlock,
+    PptxBlock,
     TextFileBlock,
     extract_user_text,
     normalize_content_blocks,
@@ -30,8 +32,12 @@ _IMAGE_PREVIEW_PATH_PATTERNS = (re.compile(r"^/api/file/preview/([^/]+)/(.+)$"),
 _IMAGE_ONLY_PLACEHOLDER = "[用户发送了图片]"
 _PDF_ONLY_PLACEHOLDER = "[用户发送了 PDF 文件]"
 _EXCEL_ONLY_PLACEHOLDER = "[用户发送了 Excel 文件]"
+_DOCX_ONLY_PLACEHOLDER = "[用户发送了 Word 文件]"
+_PPTX_ONLY_PLACEHOLDER = "[用户发送了 PowerPoint 文件]"
 _MARKDOWN_ONLY_PLACEHOLDER = "[用户发送了 Markdown 文件]"
 _TEXT_FILE_ONLY_PLACEHOLDER = "[用户发送了文本文件]"
+
+_MINERU_DERIVED_BLOCKS = (PdfBlock, ExcelBlock, DocxBlock, PptxBlock)
 
 
 def has_image_block(
@@ -57,6 +63,24 @@ def has_excel_block(
 ) -> bool:
     return any(
         isinstance(block, ExcelBlock)
+        for block in normalize_content_blocks(content_blocks)
+    )
+
+
+def has_docx_block(
+    content_blocks: list[ContentBlock] | list[dict[str, Any]] | None,
+) -> bool:
+    return any(
+        isinstance(block, DocxBlock)
+        for block in normalize_content_blocks(content_blocks)
+    )
+
+
+def has_pptx_block(
+    content_blocks: list[ContentBlock] | list[dict[str, Any]] | None,
+) -> bool:
+    return any(
+        isinstance(block, PptxBlock)
         for block in normalize_content_blocks(content_blocks)
     )
 
@@ -92,6 +116,10 @@ def extract_user_text_with_attachment_placeholder(
         return _PDF_ONLY_PLACEHOLDER
     if has_excel_block(normalized_blocks):
         return _EXCEL_ONLY_PLACEHOLDER
+    if has_docx_block(normalized_blocks):
+        return _DOCX_ONLY_PLACEHOLDER
+    if has_pptx_block(normalized_blocks):
+        return _PPTX_ONLY_PLACEHOLDER
     if has_markdown_block(normalized_blocks):
         return _MARKDOWN_ONLY_PLACEHOLDER
     if has_text_file_block(normalized_blocks):
@@ -107,7 +135,7 @@ def collect_attachment_content_ids(
         if isinstance(block, (MarkdownBlock, TextFileBlock)):
             content_ids.add(block.id)
             continue
-        if not isinstance(block, (PdfBlock, ExcelBlock)):
+        if not isinstance(block, _MINERU_DERIVED_BLOCKS):
             continue
         content_ids.add(block.id)
         if block.markdown is not None and block.markdown.id:
@@ -142,7 +170,7 @@ def resolve_storage_key_for_content_id(
             ):
                 return block.storage_key
             if (
-                isinstance(block, (PdfBlock, ExcelBlock))
+                isinstance(block, _MINERU_DERIVED_BLOCKS)
                 and block.markdown is not None
                 and block.markdown.id == content_id
             ):
@@ -192,7 +220,15 @@ def build_attachment_uploads(
         for block in normalize_content_blocks(blocks):
             if not isinstance(
                 block,
-                (PdfBlock, ExcelBlock, MarkdownBlock, ImageBlock, TextFileBlock),
+                (
+                    PdfBlock,
+                    ExcelBlock,
+                    DocxBlock,
+                    PptxBlock,
+                    MarkdownBlock,
+                    ImageBlock,
+                    TextFileBlock,
+                ),
             ):
                 continue
 
@@ -204,7 +240,7 @@ def build_attachment_uploads(
             seen_storage_keys.add(block.storage_key)
 
             markdown: AttachmentFileInfo | None = None
-            if isinstance(block, (PdfBlock, ExcelBlock)) and block.markdown is not None:
+            if isinstance(block, _MINERU_DERIVED_BLOCKS) and block.markdown is not None:
                 md_virtual_path = _storage_key_to_virtual_path(
                     block.markdown.storage_key
                 )

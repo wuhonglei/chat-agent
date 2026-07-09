@@ -305,9 +305,29 @@ class ExcelBlock(AttachmentBaseBlock):
         default="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         description="MIME type for Excel (.xlsx)",
     )
-    markdown: MarkdownBlock | None = Field(
-        default=None, description="Markdown block"
+    markdown: MarkdownBlock | None = Field(default=None, description="Markdown block")
+
+
+class DocxBlock(AttachmentBaseBlock):
+    type: Literal["docx"] = "docx"
+    mime: Literal[
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ] = Field(
+        default="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        description="MIME type for Word (.docx)",
     )
+    markdown: MarkdownBlock | None = Field(default=None, description="Markdown block")
+
+
+class PptxBlock(AttachmentBaseBlock):
+    type: Literal["pptx"] = "pptx"
+    mime: Literal[
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    ] = Field(
+        default="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        description="MIME type for PowerPoint (.pptx)",
+    )
+    markdown: MarkdownBlock | None = Field(default=None, description="Markdown block")
 
 
 class TextFileBlock(AttachmentBaseBlock):
@@ -332,7 +352,7 @@ class AttachmentFileInfo(BaseModel):
     name: str = Field(..., description="展示用文件名")
     type: str = Field(
         ...,
-        description='文件类型："pdf" | "excel" | "markdown" | "image" | "text_file"',
+        description='文件类型："pdf" | "excel" | "docx" | "pptx" | "markdown" | "image" | "text_file"',
     )
     size: int = Field(default=0, ge=0, description="落盘文件字节数")
     virtual_path: str = Field(
@@ -350,13 +370,19 @@ class AttachmentUploadInfo(AttachmentFileInfo):
 
     markdown: AttachmentFileInfo | None = Field(
         default=None,
-        description="PDF/Excel 派生的可读 Markdown 文件；其它类型为 None",
+        description="PDF/Excel/Word/PowerPoint 派生的可读 Markdown 文件；其它类型为 None",
     )
     is_current_turn: bool = Field(default=False, description="是否为本轮上传")
 
 
 AttachmentBlock: TypeAlias = (
-    ImageBlock | MarkdownBlock | PdfBlock | ExcelBlock | TextFileBlock
+    ImageBlock
+    | MarkdownBlock
+    | PdfBlock
+    | ExcelBlock
+    | DocxBlock
+    | PptxBlock
+    | TextFileBlock
 )
 
 ContentBlock: TypeAlias = (
@@ -367,6 +393,8 @@ ContentBlock: TypeAlias = (
     | ImageBlock
     | PdfBlock
     | ExcelBlock
+    | DocxBlock
+    | PptxBlock
     | MarkdownBlock
     | TextFileBlock
     | KbContextBlock

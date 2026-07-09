@@ -1,4 +1,4 @@
-"""MinerU SaaS: PDF/Excel -> Markdown 转换（通过 mineru.net 云端 API）。"""
+"""MinerU SaaS: PDF/Excel/Word/PowerPoint -> Markdown 转换（通过 mineru.net 云端 API）。"""
 
 from __future__ import annotations
 

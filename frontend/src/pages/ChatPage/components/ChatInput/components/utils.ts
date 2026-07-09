@@ -3,7 +3,8 @@ import { AttachmentsProps } from "@ant-design/x";
 import { GetProp, type UploadFile } from "antd";
 import { ButtonState } from "../constant";
 
-export const CHAT_ATTACHMENT_TOOLTIP = "支持图片、PDF、Excel、Markdown 及文本/代码文件，单文件不超过 10MB，最多 5 个附件";
+export const CHAT_ATTACHMENT_TOOLTIP =
+  "支持图片、PDF、Excel、Word、PowerPoint、Markdown 及文本/代码文件，单文件不超过 10MB，最多 5 个附件";
 
 export function withServerAttachmentPreview(file: UploadFile<UserAttachmentBlock>): UploadFile<UserAttachmentBlock> {
   if (file.status !== "done" || file.response == null) {

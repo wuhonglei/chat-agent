@@ -65,6 +65,32 @@ function attachmentToFileCardItem(
           window.open(block.url, "_blank", "noopener,noreferrer");
         },
       };
+    case "docx":
+      return {
+        key: block.id,
+        name: block.name?.trim() || "document.docx",
+        byte: block.size,
+        onClick: () => {
+          if (onPreviewBlock) {
+            onPreviewBlock(block);
+            return;
+          }
+          window.open(block.url, "_blank", "noopener,noreferrer");
+        },
+      };
+    case "pptx":
+      return {
+        key: block.id,
+        name: block.name?.trim() || "presentation.pptx",
+        byte: block.size,
+        onClick: () => {
+          if (onPreviewBlock) {
+            onPreviewBlock(block);
+            return;
+          }
+          window.open(block.url, "_blank", "noopener,noreferrer");
+        },
+      };
     case "markdown":
       return {
         key: block.id,
