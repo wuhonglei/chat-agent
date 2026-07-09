@@ -118,6 +118,10 @@ _STORAGE_KEY_CONV_DERIVED_RE = re.compile(
     rf"^{_UUID_SEGMENT}/derived/[^/\\]+\.md$",
     re.IGNORECASE,
 )
+_STORAGE_KEY_CONV_DERIVED_IMAGE_RE = re.compile(
+    rf"^{_UUID_SEGMENT}/derived/images/[^/\\]+\.(jpg|jpeg|png|gif|webp)$",
+    re.IGNORECASE,
+)
 STORAGE_VERSION = 4
 
 # 仅列出非 text/plain 的特殊类型；其余纯文本 / 代码扩展统一回退 text/plain
@@ -223,6 +227,7 @@ def _is_conversation_storage_key(storage_key: str) -> bool:
     return bool(
         _STORAGE_KEY_CONV_TOP_RE.match(storage_key)
         or _STORAGE_KEY_CONV_DERIVED_RE.match(storage_key)
+        or _STORAGE_KEY_CONV_DERIVED_IMAGE_RE.match(storage_key)
     )
 
 

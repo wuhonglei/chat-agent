@@ -18,11 +18,11 @@ from app.services.chat_upload.kb_chunk_embedding import (
     index_uploaded_text_chunks,
 )
 from app.services.chat_upload.markdown import save_chat_markdown
-from app.services.chat_upload.pdf import save_chat_pdf
-from app.services.chat_upload.pdf_markdown_converter import (
-    PdfMarkdownConversionError,
-    PdfMarkdownConverter,
+from app.services.chat_upload.mineru_markdown_converter import (
+    MinerUMarkdownConversionError,
+    MinerUMarkdownConverter,
 )
+from app.services.chat_upload.pdf import save_chat_pdf
 
 __all__ = [
     "MARKDOWN_CONTENT_TYPE",
@@ -40,6 +40,6 @@ __all__ = [
     "save_chat_pdf",
     "KbFileChunkIndexingError",
     "index_uploaded_text_chunks",
-    "PdfMarkdownConversionError",
-    "PdfMarkdownConverter",
+    "MinerUMarkdownConversionError",
+    "MinerUMarkdownConverter",
 ]

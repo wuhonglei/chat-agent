@@ -22,13 +22,13 @@ from app.services.chat_upload.attachment import (
     get_conversation_upload_dir,
     sanitize_upload_display_name,
 )
-from app.services.chat_upload.excel_markdown_converter import (
-    ExcelMarkdownConversionError,
-    ExcelMarkdownConverter,
-)
 from app.services.chat_upload.kb_chunk_embedding import (
     KbFileChunkIndexingError,
     index_uploaded_text_chunks,
+)
+from app.services.chat_upload.mineru_markdown_converter import (
+    MinerUMarkdownConversionError,
+    MinerUMarkdownConverter,
 )
 from app.utils.logger import logger
 
@@ -163,15 +163,18 @@ async def save_chat_excel(
     upload_dir = get_conversation_upload_dir(user_id, conversation_id)
     dest: Path = upload_dir / excel_display_name
     md_path = upload_dir / "derived" / f"{Path(excel_display_name).stem}.md"
+    images_dir = upload_dir / "derived" / "images"
     md_path.parent.mkdir(parents=True, exist_ok=True)
+    images_dir.mkdir(parents=True, exist_ok=True)
 
     await asyncio.to_thread(dest.write_bytes, chunk)
 
-    converter = ExcelMarkdownConverter()
+    converter = MinerUMarkdownConverter()
     try:
-        markdown = await asyncio.to_thread(converter.convert_excel_to_markdown, dest)
-        await asyncio.to_thread(converter.save_markdown, markdown, md_path)
-    except ExcelMarkdownConversionError as exc:
+        await converter.convert_to_markdown(
+            dest, md_path=md_path, images_dir=images_dir
+        )
+    except MinerUMarkdownConversionError as exc:
         logger.error(
             "Chat excel markdown conversion failed",
             user_id=user_id,
@@ -180,7 +183,7 @@ async def save_chat_excel(
         )
         raise HTTPException(
             status_code=502,
-            detail=f"Excel 转 Markdown 失败：{exc}",
+            detail=f"MinerU 转换失败：{exc}",
         ) from exc
 
     markdown_size = md_path.stat().st_size
