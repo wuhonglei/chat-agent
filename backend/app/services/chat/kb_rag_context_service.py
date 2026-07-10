@@ -1,9 +1,8 @@
-"""会话内文档 RAG：检索并组装注入到用户侧提示词的 KB 上下文。"""
+"""会话内文档 RAG：按当前轮附件逐文件决定全文注入或按需检索。"""
 
 from __future__ import annotations
 
 import asyncio
-import re
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -13,12 +12,20 @@ from sqlalchemy import bindparam, text
 
 from app.core.db import engine
 from app.models.kb_file_chunk_embedding_db import EMBEDDING_DIMENSION
-from app.schemas.chat import ChatMessage, ContentBlock, KbContextBlock
+from app.schemas.chat import ContentBlock, KbContextBlock
 from app.schemas.config import KbFileRagConfig
 from app.services.chat_upload.attachment import try_resolve_upload_file_path
+from app.services.chat_upload.kb_chunk_embedding import (
+    KbFileChunkIndexingError,
+    ensure_uploaded_text_chunks_indexed,
+)
+from app.services.chat_upload.token_size import count_attachment_token_size
 from app.utils.date import get_relative_time_diff
 from app.utils.logger import logger
-from app.utils.multimodal import resolve_storage_key_for_content_id
+from app.utils.multimodal import (
+    RagEligibleAttachment,
+    iter_rag_eligible_attachments,
+)
 
 
 @dataclass(frozen=True)
@@ -35,42 +42,110 @@ class QueryEmbeddingProvider(Protocol):
 
 
 class KbRagContextService:
-    """基于会话内附件 content_id 集合构建 KB 上下文。"""
+    """基于当前轮附件构建 KB 上下文（短文档全文 / 大文档按需 RAG）。"""
 
     def __init__(
         self, rag_config: KbFileRagConfig, embedding_service: QueryEmbeddingProvider
     ):
         self.rag_config = rag_config
         self.embedding_service = embedding_service
-        self._force_keyword_patterns = [
-            re.compile(pattern, re.IGNORECASE)
-            for pattern in rag_config.force_rag_keyword_patterns
-            if pattern.strip()
-        ]
 
-    async def build_context_block_content(
+    async def build_context_blocks_for_current_turn(
         self,
         *,
         user_id: str,
         query_text: str,
-        candidate_content_ids: set[str],
-        current_turn_has_attachment: bool,
-        content_blocks: list[ContentBlock] | None = None,
-        history_messages: list[ChatMessage] | None = None,
+        content_blocks: list[ContentBlock],
     ) -> list[KbContextBlock] | None:
         clean_query = query_text.strip()
         if not clean_query:
             return None
-        if not candidate_content_ids:
+
+        attachments = list(iter_rag_eligible_attachments(content_blocks))
+        if not attachments:
             return None
 
-        query_vector = await self.embedding_service.aembed_query(clean_query)
+        context_blocks: list[KbContextBlock] = []
+        for attachment in attachments:
+            try:
+                block = await self._build_block_for_attachment(
+                    user_id=user_id,
+                    query_text=clean_query,
+                    attachment=attachment,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Skip attachment KB context due to error",
+                    user_id=user_id,
+                    content_id=attachment.content_id,
+                    error=exc,
+                    error_type=type(exc).__name__,
+                )
+                continue
+            if block is not None:
+                context_blocks.append(block)
+
+        return context_blocks or None
+
+    async def _build_block_for_attachment(
+        self,
+        *,
+        user_id: str,
+        query_text: str,
+        attachment: RagEligibleAttachment,
+    ) -> KbContextBlock | None:
+        file_text = self._read_attachment_text(user_id, attachment)
+        if file_text is None:
+            return None
+
+        token_size = attachment.token_size
+        if token_size is None:
+            token_size = count_attachment_token_size(file_text)
+            logger.info(
+                "Lazy-counted attachment token_size",
+                content_id=attachment.content_id,
+                token_size=token_size,
+            )
+
+        if token_size <= self.rag_config.short_doc_max_tokens:
+            return KbContextBlock(
+                id=attachment.content_id,
+                name=attachment.name,
+                created_at=None,
+                content=file_text,
+            )
+
+        try:
+            await ensure_uploaded_text_chunks_indexed(
+                user_id=user_id,
+                content_id=attachment.content_id,
+                text=file_text,
+                file_name=attachment.name,
+                source_kind=attachment.source_kind,
+                text_format=attachment.text_format,
+                original_size_bytes=attachment.original_size_bytes,
+                processed_size_bytes=attachment.processed_size_bytes,
+            )
+        except KbFileChunkIndexingError as exc:
+            logger.warning(
+                "Skip large attachment RAG: indexing failed",
+                user_id=user_id,
+                content_id=attachment.content_id,
+                error=exc,
+            )
+            return None
+
+        query_vector = await self.embedding_service.aembed_query(query_text)
         if not query_vector:
-            logger.info("Skip KB RAG: query embedding is empty")
+            logger.info(
+                "Skip large attachment RAG: query embedding is empty",
+                content_id=attachment.content_id,
+            )
             return None
         if len(query_vector) != EMBEDDING_DIMENSION:
             logger.warning(
-                "Skip KB RAG: embedding dimension mismatch",
+                "Skip large attachment RAG: embedding dimension mismatch",
+                content_id=attachment.content_id,
                 actual_dimension=len(query_vector),
                 expected_dimension=EMBEDDING_DIMENSION,
             )
@@ -79,44 +154,79 @@ class KbRagContextService:
         chunks = await asyncio.to_thread(
             self._search_top_k_chunks,
             user_id,
-            sorted(candidate_content_ids),
+            [attachment.content_id],
             query_vector,
             self.rag_config.retrieval_top_k,
         )
         if not chunks:
             logger.info(
-                "Skip KB RAG: no matched chunks",
-                candidate_files=len(candidate_content_ids),
+                "Skip large attachment RAG: no matched chunks",
+                content_id=attachment.content_id,
             )
             return None
 
-        top_similarity = 1 - chunks[0].distance
-        force_rag = current_turn_has_attachment or self._contains_force_keyword(
-            clean_query
-        )
-        if top_similarity < self.rag_config.relevance_score_threshold and not force_rag:
-            logger.info(
-                "Skip KB RAG: top similarity below threshold",
-                top_similarity=top_similarity,
-                threshold=self.rag_config.relevance_score_threshold,
+        return self._chunks_to_context_block(attachment, chunks)
+
+    def _read_attachment_text(
+        self,
+        user_id: str,
+        attachment: RagEligibleAttachment,
+    ) -> str | None:
+        if not attachment.storage_key:
+            logger.warning(
+                "Attachment storage_key missing",
+                user_id=user_id,
+                content_id=attachment.content_id,
             )
             return None
-
-        context_blocks = await asyncio.to_thread(
-            self._assemble_context_text,
-            user_id,
-            chunks,
-            content_blocks or [],
-            history_messages or [],
+        path: Path | None = try_resolve_upload_file_path(
+            user_id, attachment.storage_key
         )
-        if not context_blocks:
-            logger.info("Skip KB RAG: assembled context is empty")
+        if path is None:
+            logger.warning(
+                "Attachment file missing on disk",
+                user_id=user_id,
+                content_id=attachment.content_id,
+                storage_key=attachment.storage_key,
+            )
             return None
-        return context_blocks
+        try:
+            content = path.read_text(encoding="utf-8").strip()
+        except OSError as exc:
+            logger.warning(
+                "Attachment file read failed",
+                user_id=user_id,
+                content_id=attachment.content_id,
+                path=str(path),
+                error=exc,
+            )
+            return None
+        return content or None
 
-    def _contains_force_keyword(self, query_text: str) -> bool:
-        return any(
-            pattern.search(query_text) for pattern in self._force_keyword_patterns
+    def _chunks_to_context_block(
+        self,
+        attachment: RagEligibleAttachment,
+        chunks: list[RetrievedChunk],
+    ) -> KbContextBlock | None:
+        first_metadata = chunks[0].metadata_json
+        file_name = str(first_metadata.get("file_name") or attachment.name)
+        created_at_datetime = self._extract_created_at(first_metadata)
+        created_at = get_relative_time_diff(created_at_datetime)
+
+        unique_chunks: dict[int, str] = {}
+        for chunk in sorted(chunks, key=lambda item: item.chunk_idx):
+            if chunk.chunk_idx not in unique_chunks:
+                unique_chunks[chunk.chunk_idx] = chunk.chunk_content.strip()
+        merged_chunk_text = "\n\n".join(
+            chunk_text for chunk_text in unique_chunks.values() if chunk_text
+        ).strip()
+        if not merged_chunk_text:
+            return None
+        return KbContextBlock(
+            id=attachment.content_id,
+            name=file_name,
+            created_at=created_at,
+            content=merged_chunk_text,
         )
 
     def _search_top_k_chunks(
@@ -166,112 +276,6 @@ class KbRagContextService:
             )
             for row in rows
         ]
-
-    def _assemble_context_text(
-        self,
-        user_id: str,
-        chunks: list[RetrievedChunk],
-        content_blocks: list[ContentBlock],
-        history_messages: list[ChatMessage],
-    ) -> list[KbContextBlock]:
-        grouped_chunks: dict[str, list[RetrievedChunk]] = {}
-        ordered_content_ids: list[str] = []
-        for chunk in chunks:
-            if chunk.content_id not in grouped_chunks:
-                grouped_chunks[chunk.content_id] = []
-                ordered_content_ids.append(chunk.content_id)
-            grouped_chunks[chunk.content_id].append(chunk)
-
-        context_blocks: list[KbContextBlock] = []
-        for content_id in ordered_content_ids:
-            file_chunks = grouped_chunks[content_id]
-            first_metadata = file_chunks[0].metadata_json
-            file_name = str(first_metadata.get("file_name") or f"{content_id}.md")
-            source_token_count = int(first_metadata.get("source_token_count") or 0)
-            created_at_datetime = self._extract_created_at(first_metadata)
-            created_at = get_relative_time_diff(created_at_datetime)
-
-            full_text: str | None = None
-            if source_token_count <= self.rag_config.short_doc_max_tokens:
-                full_text = self._read_full_markdown_text(
-                    user_id,
-                    content_id,
-                    content_blocks=content_blocks,
-                    history_messages=history_messages,
-                )
-
-            if full_text:
-                context_blocks.append(
-                    KbContextBlock(
-                        id=content_id,
-                        name=file_name,
-                        created_at=created_at,
-                        content=full_text,
-                    )
-                )
-                continue
-
-            unique_chunks: dict[int, str] = {}
-            for chunk in sorted(file_chunks, key=lambda item: item.chunk_idx):
-                if chunk.chunk_idx not in unique_chunks:
-                    unique_chunks[chunk.chunk_idx] = chunk.chunk_content.strip()
-            merged_chunk_text = "\n\n".join(
-                text for text in unique_chunks.values() if text
-            ).strip()
-            if merged_chunk_text:
-                context_blocks.append(
-                    KbContextBlock(
-                        id=content_id,
-                        name=file_name,
-                        created_at=created_at,
-                        content=merged_chunk_text,
-                    )
-                )
-
-        return context_blocks
-
-    def _read_full_markdown_text(
-        self,
-        user_id: str,
-        content_id: str,
-        *,
-        content_blocks: list[ContentBlock],
-        history_messages: list[ChatMessage],
-    ) -> str | None:
-        storage_key = resolve_storage_key_for_content_id(
-            content_id,
-            content_blocks=content_blocks,
-            history_messages=history_messages,
-        )
-        if storage_key is None:
-            logger.warning(
-                "KB RAG full markdown storage_key missing, fallback to chunks",
-                user_id=user_id,
-                content_id=content_id,
-            )
-            return None
-
-        markdown_path: Path | None = try_resolve_upload_file_path(user_id, storage_key)
-        if markdown_path is None:
-            logger.warning(
-                "KB RAG full markdown missing, fallback to chunks",
-                user_id=user_id,
-                content_id=content_id,
-                storage_key=storage_key,
-            )
-            return None
-        try:
-            content = markdown_path.read_text(encoding="utf-8").strip()
-        except OSError as exc:
-            logger.warning(
-                "KB RAG full markdown read failed, fallback to chunks",
-                user_id=user_id,
-                content_id=content_id,
-                markdown_path=str(markdown_path),
-                error=exc,
-            )
-            return None
-        return content or None
 
     @staticmethod
     def _extract_created_at(metadata: dict[str, Any]) -> datetime | None:

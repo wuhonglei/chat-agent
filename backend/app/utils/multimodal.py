@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import base64
 import re
+from collections.abc import Iterator
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlparse
@@ -38,6 +40,74 @@ _MARKDOWN_ONLY_PLACEHOLDER = "[用户发送了 Markdown 文件]"
 _TEXT_FILE_ONLY_PLACEHOLDER = "[用户发送了文本文件]"
 
 _MINERU_DERIVED_BLOCKS = (PdfBlock, ExcelBlock, DocxBlock, PptxBlock)
+
+
+@dataclass(frozen=True)
+class RagEligibleAttachment:
+    """当前轮可用于 RAG / 全文注入的附件元信息。"""
+
+    content_id: str
+    name: str
+    storage_key: str | None
+    token_size: int | None
+    source_kind: str
+    text_format: str
+    original_size_bytes: int
+    processed_size_bytes: int
+
+
+def iter_rag_eligible_attachments(
+    content_blocks: list[ContentBlock] | list[dict[str, Any]] | None,
+) -> Iterator[RagEligibleAttachment]:
+    """遍历当前轮 content_blocks，产出可注入上下文的文本附件。
+
+    覆盖独立 Markdown / TextFile，以及 PDF/Excel/Docx/Pptx 的派生 markdown。
+    跳过 ImageBlock。
+    """
+    for block in normalize_content_blocks(content_blocks):
+        if isinstance(block, MarkdownBlock):
+            if block.derived_from_id:
+                # 嵌套 markdown 由父块统一产出，避免重复。
+                continue
+            yield RagEligibleAttachment(
+                content_id=block.id,
+                name=block.name or f"{block.id}.md",
+                storage_key=block.storage_key,
+                token_size=block.token_size,
+                source_kind="markdown",
+                text_format="markdown",
+                original_size_bytes=block.size,
+                processed_size_bytes=block.size,
+            )
+            continue
+        if isinstance(block, TextFileBlock):
+            yield RagEligibleAttachment(
+                content_id=block.id,
+                name=block.name or f"{block.id}.txt",
+                storage_key=block.storage_key,
+                token_size=block.token_size,
+                source_kind="text",
+                text_format="text",
+                original_size_bytes=block.size,
+                processed_size_bytes=block.size,
+            )
+            continue
+        if not isinstance(block, _MINERU_DERIVED_BLOCKS):
+            continue
+        markdown = block.markdown
+        if markdown is None or not markdown.id:
+            continue
+        source_kind = block.type
+        yield RagEligibleAttachment(
+            content_id=markdown.id,
+            name=markdown.name or block.name or f"{markdown.id}.md",
+            storage_key=markdown.storage_key,
+            token_size=markdown.token_size,
+            source_kind=source_kind,
+            text_format="markdown",
+            original_size_bytes=block.size,
+            processed_size_bytes=markdown.size,
+        )
 
 
 def has_image_block(

@@ -158,7 +158,20 @@ make test
 - `user_id` 与路径边界会做校验，非法请求统一返回 404
 - 展示名仅用于 UI，服务端会做安全清洗（去路径、非法字符、长度限制）
 
-### 5) 常见排障
+### 5) 附件 token_size 与按需 RAG（agent_mode=0）
+
+上传阶段：
+
+- 文档转 Markdown / 文本落盘后，计算并写入 `token_size`（派生 md 写在 `markdown.token_size`）
+- **不再**在上传时做分块 embedding
+
+问答阶段（仅 `agent_mode=0`，且只看**当前轮** `content_blocks`）：
+
+- `token_size <= short_doc_max_tokens`：直接注入完整 md/文本
+- `token_size > short_doc_max_tokens`：若 DB 尚无向量则按需分块 embedding，再对该附件做 Top-K 检索
+- 历史消息中的附件不参与本轮 RAG；`agent_mode>0` 改为注入 `attachment_uploads` 清单，由文件工具按需读取
+
+### 6) 常见排障
 
 - `400 仅支持 ...`：文件类型不在允许列表
 - `400 ...不能超过 10MB`：超出大小限制

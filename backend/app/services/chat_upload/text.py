@@ -22,10 +22,7 @@ from app.services.chat_upload.attachment import (
     media_type_for_preview,
     sanitize_upload_display_name,
 )
-from app.services.chat_upload.kb_chunk_embedding import (
-    KbFileChunkIndexingError,
-    index_uploaded_text_chunks,
-)
+from app.services.chat_upload.token_size import count_attachment_token_size
 from app.utils.logger import logger
 
 
@@ -48,7 +45,7 @@ async def save_chat_text(
     conversation_id: str,
     db: Session | None = None,
 ) -> TextFileBlock:
-    """保存上传的纯文本 / 代码文件至会话 uploads 目录，并按纯文本入向量库。"""
+    """保存上传的纯文本 / 代码文件至会话 uploads 目录。"""
     ensure_conversation_owned(db, user_id=user_id, conversation_id=conversation_id)
 
     raw_filename = (file.filename or "").lower()
@@ -78,28 +75,7 @@ async def save_chat_text(
     dest = upload_dir / display_name
     await asyncio.to_thread(dest.write_bytes, chunk)
 
-    try:
-        await index_uploaded_text_chunks(
-            user_id=user_id,
-            content_id=content_hash,
-            text=text,
-            file_name=display_name,
-            source_kind="text",
-            text_format="text",
-            original_size_bytes=len(chunk),
-            processed_size_bytes=len(chunk),
-        )
-    except KbFileChunkIndexingError as exc:
-        logger.error(
-            "Chat text embedding indexing failed",
-            user_id=user_id,
-            content_id=content_hash,
-            storage_key=storage_key,
-            error=exc,
-        )
-        raise HTTPException(
-            status_code=502, detail=f"文本分块向量入库失败：{exc}"
-        ) from exc
+    token_size = count_attachment_token_size(text)
 
     logger.info(
         "Chat text file saved",
@@ -107,6 +83,7 @@ async def save_chat_text(
         conversation_id=conversation_id,
         storage_key=storage_key,
         bytes=len(chunk),
+        token_size=token_size,
     )
     url = build_attachment_preview_url(user_id, storage_key)
     return TextFileBlock(
@@ -117,5 +94,6 @@ async def save_chat_text(
         storage_version=STORAGE_VERSION,
         name=display_name,
         size=len(chunk),
+        token_size=token_size,
         mime=media_type_for_preview(display_name),
     )

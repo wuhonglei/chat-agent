@@ -59,6 +59,8 @@ export interface MarkdownBlock {
   name?: string;
   /** 落盘文件字节数 */
   size: number;
+  /** 附件文本 token 数（上传时计算；历史数据可能缺省） */
+  tokenSize?: number;
   /** 固定为 text/markdown */
   mime: "text/markdown";
 }
@@ -138,6 +140,8 @@ export interface TextFileBlock {
   name?: string;
   /** 落盘文件字节数 */
   size: number;
+  /** 附件文本 token 数（上传时计算；历史数据可能缺省） */
+  tokenSize?: number;
   /** 如 text/csv、text/plain */
   mime: string;
 }

@@ -30,6 +30,19 @@ def _split_markdown_text(
     return [chunk.strip() for chunk in splitter.split_text(text) if chunk.strip()]
 
 
+def has_chunk_embeddings(*, user_id: str, content_id: str) -> bool:
+    """判断指定附件是否已写入分块向量。"""
+    user_id_column = cast(Any, KbFileChunkEmbeddingDb.user_id)
+    content_id_column = cast(Any, KbFileChunkEmbeddingDb.content_id)
+    with Session(engine) as session:
+        existing = session.exec(
+            select(KbFileChunkEmbeddingDb)
+            .where(user_id_column == user_id, content_id_column == content_id)
+            .limit(1)
+        ).first()
+    return existing is not None
+
+
 async def index_uploaded_text_chunks(
     *,
     user_id: str,
@@ -41,27 +54,22 @@ async def index_uploaded_text_chunks(
     original_size_bytes: int,
     processed_size_bytes: int,
 ) -> int:
-    """对上传文件文本分块并写入 kb_file_chunk_embeddings。"""
+    """对上传文件文本分块并写入 kb_file_chunk_embeddings。
+
+    若已存在同 user_id + content_id 的索引则跳过。
+    """
     normalized_text = text.strip()
     if not normalized_text:
         raise KbFileChunkIndexingError("转换后的文本为空，无法生成向量")
 
-    user_id_column = cast(Any, KbFileChunkEmbeddingDb.user_id)
-    content_id_column = cast(Any, KbFileChunkEmbeddingDb.content_id)
-    with Session(engine) as session:
-        existing = session.exec(
-            select(KbFileChunkEmbeddingDb)
-            .where(user_id_column == user_id, content_id_column == content_id)
-            .limit(1)
-        ).first()
-        if existing is not None:
-            logger.info(
-                "KB file chunks indexing skipped",
-                user_id=user_id,
-                content_id=content_id,
-                embedding_skipped=True,
-            )
-            return 0
+    if has_chunk_embeddings(user_id=user_id, content_id=content_id):
+        logger.info(
+            "KB file chunks indexing skipped",
+            user_id=user_id,
+            content_id=content_id,
+            embedding_skipped=True,
+        )
+        return 0
 
     rag_cfg = settings.kb_file_rag
     chunks = await asyncio.to_thread(
@@ -122,3 +130,38 @@ async def index_uploaded_text_chunks(
         text_format=text_format,
     )
     return len(chunks)
+
+
+async def ensure_uploaded_text_chunks_indexed(
+    *,
+    user_id: str,
+    content_id: str,
+    text: str,
+    file_name: str,
+    source_kind: str,
+    text_format: str,
+    original_size_bytes: int,
+    processed_size_bytes: int,
+) -> int:
+    """确保附件已完成分块向量索引；已存在则跳过。
+
+    Returns:
+        新写入的分块数；已存在时返回 0。
+    """
+    if has_chunk_embeddings(user_id=user_id, content_id=content_id):
+        logger.info(
+            "KB file chunks already indexed",
+            user_id=user_id,
+            content_id=content_id,
+        )
+        return 0
+    return await index_uploaded_text_chunks(
+        user_id=user_id,
+        content_id=content_id,
+        text=text,
+        file_name=file_name,
+        source_kind=source_kind,
+        text_format=text_format,
+        original_size_bytes=original_size_bytes,
+        processed_size_bytes=processed_size_bytes,
+    )

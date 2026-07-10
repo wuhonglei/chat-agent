@@ -265,6 +265,11 @@ class AttachmentBaseBlock(BaseModel):
         ge=0,
         description="落盘文件字节数（经缩放/重编码等处理后的实际大小）",
     )
+    token_size: int | None = Field(
+        default=None,
+        ge=0,
+        description="附件文本 token 数（上传时计算；历史数据可能缺省）",
+    )
 
 
 class ImageBlock(AttachmentBaseBlock):
