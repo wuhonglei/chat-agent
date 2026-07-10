@@ -1,9 +1,9 @@
-import { FileOutlined } from "@ant-design/icons";
 import { isPlainEnter } from "@/utils";
 import { Sender, Suggestion, type SenderProps } from "@ant-design/x";
 import { useMemoizedFn } from "ahooks";
 import type { GetRef } from "antd";
 import React from "react";
+import { getProjectPreviewFileIcon } from "../../BlockPreviewPanel/ProjectPreview/file_icons";
 import styles from "../css/index.module.css";
 import type { MentionSelectResult, MentionTriggerInfo } from "../hooks/useAttachmentMention";
 
@@ -175,7 +175,7 @@ const ChatInputSender = React.forwardRef<GetRef<typeof Sender>, ChatInputSenderP
             activeIndexRef.current = 0;
             return list.map(item => ({
               ...item,
-              icon: <FileOutlined />,
+              icon: getProjectPreviewFileIcon(item.label),
             }));
           }}
           onSelect={handleSelect}

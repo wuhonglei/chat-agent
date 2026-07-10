@@ -5,4 +5,20 @@
 
 .mentionPopup {
   max-width: 320px;
+  font-size: 12px;
+}
+
+.mentionPopup :global(.ant-suggestion-item) {
+  align-items: center;
+}
+
+.mentionPopup :global(.ant-suggestion-item-icon) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.mentionPopup :global(.ant-suggestion-item-icon svg) {
+  display: block;
 }
