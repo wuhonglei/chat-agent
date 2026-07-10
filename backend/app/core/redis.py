@@ -69,7 +69,9 @@ async def close_redis() -> None:
 def get_redis() -> Redis:
     """获取进程内共享 Redis 客户端。"""
     if _redis_client is None:
-        raise RuntimeError("Redis client not initialized; call init_redis() during startup")
+        raise RuntimeError(
+            "Redis client not initialized; call init_redis() during startup"
+        )
     return _redis_client
 
 
