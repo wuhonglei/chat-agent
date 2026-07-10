@@ -12,6 +12,11 @@ const EMPTY_SLOT_CONFIG: NonNullable<SenderProps["slotConfig"]> = [];
 
 type SuggestionOption = { value: string; label: string };
 
+function normalizeEditorValue(value: string): string {
+  // contenteditable 常把空格写成 NBSP，与 Form 中的普通空格对齐，避免误触发回写清空
+  return value.replace(/\u00a0/g, " ");
+}
+
 export interface ChatInputSenderProps extends Omit<SenderProps, "onChange" | "value" | "slotConfig"> {
   value?: string;
   onChange?: (value: string) => void;
@@ -43,7 +48,8 @@ const ChatInputSender = React.forwardRef<GetRef<typeof Sender>, ChatInputSenderP
     const senderRef = React.useRef<GetRef<typeof Sender>>(null);
     const onTriggerRef = React.useRef<(info: MentionTriggerInfo | false) => void>(() => {});
     const suppressMentionTriggerRef = React.useRef(false);
-    const lastEmittedValueRef = React.useRef(value ?? "");
+    const suppressValueChangeRef = React.useRef(false);
+    const lastEmittedValueRef = React.useRef(normalizeEditorValue(value ?? ""));
     const suggestionOpenRef = React.useRef(false);
     const suggestionItemsRef = React.useRef<SuggestionOption[]>([]);
     const activeIndexRef = React.useRef(0);
@@ -58,8 +64,12 @@ const ChatInputSender = React.forwardRef<GetRef<typeof Sender>, ChatInputSenderP
     });
 
     const syncFormValue = useMemoizedFn((nextValue: string) => {
-      lastEmittedValueRef.current = nextValue;
-      onChange?.(nextValue);
+      if (suppressValueChangeRef.current) {
+        return;
+      }
+      const normalized = normalizeEditorValue(nextValue);
+      lastEmittedValueRef.current = normalized;
+      onChange?.(normalized);
     });
 
     const closeMentionPanel = useMemoizedFn(() => {
@@ -71,21 +81,28 @@ const ChatInputSender = React.forwardRef<GetRef<typeof Sender>, ChatInputSenderP
       }, 0);
     });
 
-    // 词槽模式下 value 无效；外部（如欢迎页 Prompts）写入 Form 时需同步到 Sender
+    // 词槽模式下 value 无效；仅在外部（如欢迎页 Prompts）写入 Form 时同步到 Sender
     React.useEffect(() => {
-      const nextValue = value ?? "";
+      const nextValue = normalizeEditorValue(value ?? "");
       if (nextValue === lastEmittedValueRef.current) {
         return;
       }
-      lastEmittedValueRef.current = nextValue;
       const sender = senderRef.current;
       if (!sender) {
+        lastEmittedValueRef.current = nextValue;
         return;
       }
+
+      suppressValueChangeRef.current = true;
+      lastEmittedValueRef.current = nextValue;
       sender.clear();
       if (nextValue) {
         sender.insert([{ type: "text", value: nextValue }]);
       }
+      // clear/insert 会异步触发 onChange，延后解除抑制
+      window.setTimeout(() => {
+        suppressValueChangeRef.current = false;
+      }, 0);
     }, [value]);
 
     const handleSelect = useMemoizedFn((blockId: string) => {
@@ -115,6 +132,12 @@ const ChatInputSender = React.forwardRef<GetRef<typeof Sender>, ChatInputSenderP
           onSuggestionKeyDown?: (event: React.KeyboardEvent) => void;
         }
       ) => {
+        // 空格应正常输入；面板展开时也勿交给 Cascader 处理
+        if (event.key === " " || event.code === "Space") {
+          event.stopPropagation();
+          return;
+        }
+
         const items = suggestionItemsRef.current;
         if (suggestionOpenRef.current && items.length > 0) {
           if (event.key === "ArrowDown") {
