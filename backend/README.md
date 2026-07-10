@@ -18,6 +18,7 @@
 - FastAPI + Uvicorn
 - SQLModel + Alembic
 - PostgreSQL（pgvector）
+- Redis（SSE 续传缓冲 + turn 幂等）
 - fastmcp
 - OpenAI 兼容模型调用
 
@@ -210,16 +211,17 @@ curl -X POST "http://localhost:8000/api/code/execute" \
 SSE 数据格式统一为：
 
 ```text
-data: {"type":"<event_type>","data":{...},"seq":1}
+id: 1
+data: {"type":"<event_type>","data":{...}}
 ```
 
-`seq` 由服务端内存中的 `StreamRelay` 注入，用于 `POST /api/chat/stream/resume` 断线续流。续流请求体为：
+`id` 由 Redis 版 `StreamRelay` 分配（1-based），客户端通过请求头 `Last-Event-ID` 续传。续流请求示例：
 
-```json
-{
-  "assistant_message_id": "assistant-message-id",
-  "last_seq": 12
-}
+```http
+POST /api/chat/stream/resume
+Last-Event-ID: 12
+
+{"assistant_message_id":"assistant-message-id"}
 ```
 
 当前事件类型：
@@ -231,7 +233,7 @@ data: {"type":"<event_type>","data":{...},"seq":1}
 - `done`：本轮结束（包含内容长度、推理长度、工具调用次数、更新时间）
 - `error`：本轮失败
 
-续流缓冲仅在当前进程和活动流生命周期内有效；生成完成或进程重启后，续流接口会返回空 SSE。
+续流缓冲与 `client_turn_id` 幂等缓存均存储在 Redis，可跨 worker 共享；依赖 Redis TTL（活跃默认 2h，close 后默认 30min）。多 worker 部署需保证 Redis 可达。`stop` 仍限启动 producer 的进程。
 
 ## 模型列表与图片输入约束
 

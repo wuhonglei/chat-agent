@@ -3,7 +3,6 @@
 import asyncio
 import contextlib
 from collections.abc import AsyncGenerator, Callable
-from dataclasses import dataclass
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException
@@ -29,6 +28,10 @@ from app.services.base_service.model_resolver import (
 )
 from app.services.chat import ChatService
 from app.services.chat.stream_relay import StreamRelay
+from app.services.chat.turn_idempotency_store import (
+    IdempotentTurn,
+    TurnIdempotencyStore,
+)
 from app.services.message import MessageDbService
 from app.utils.auth_deps import get_auth_token_info
 from app.utils.logger import logger
@@ -37,14 +40,7 @@ router = APIRouter()
 _BACKGROUND_TASKS: set[asyncio.Task[None]] = set()
 _STREAM_RELAY = StreamRelay()
 _STREAM_PRODUCER_TASKS: dict[str, asyncio.Task[None]] = {}
-_TURN_IDEMPOTENCY_LOCK = asyncio.Lock()
-_TURN_IDEMPOTENCY_CACHE: dict[tuple[str, str, str], "_IdempotentTurn"] = {}
-
-
-@dataclass(frozen=True)
-class _IdempotentTurn:
-    user_message_id: str
-    assistant_message_id: str
+_TURN_IDEMPOTENCY_STORE = TurnIdempotencyStore()
 
 
 async def _run_producer(
@@ -180,6 +176,26 @@ def _idempotency_key(
     return (user_id, conversation_id, client_turn_id)
 
 
+async def _create_chat_turn(
+    *,
+    conversation_id: str,
+    content_blocks: Any,
+    user_metadata: dict[str, Any],
+    removed_message_ids: Any,
+) -> IdempotentTurn:
+    with MessageDbService() as message_service:
+        db_created_messages = message_service.create_chat_messages(
+            conversation_id=conversation_id,
+            content_blocks=content_blocks,
+            user_metadata=user_metadata,
+            removed_message_ids=removed_message_ids,
+        )
+    return IdempotentTurn(
+        user_message_id=db_created_messages.user_message_id,
+        assistant_message_id=db_created_messages.assistant_message_id,
+    )
+
+
 @router.post("/stream")
 async def stream_chat(
     chat_request: ChatRequest,
@@ -210,31 +226,24 @@ async def stream_chat(
         conversation_id=chat_request.conversation_id,
         client_turn_id=chat_request.client_turn_id,
     )
-    created_messages: _IdempotentTurn
-    is_idempotent_hit = False
-    async with _TURN_IDEMPOTENCY_LOCK:
-        cached_turn = (
-            _TURN_IDEMPOTENCY_CACHE.get(idempotency_key)
-            if idempotency_key is not None
-            else None
+
+    async def _create() -> IdempotentTurn:
+        return await _create_chat_turn(
+            conversation_id=chat_request.conversation_id,
+            content_blocks=chat_request.content_blocks,
+            user_metadata=user_metadata,
+            removed_message_ids=chat_request.removed_message_ids,
         )
-        if cached_turn is not None:
-            created_messages = cached_turn
-            is_idempotent_hit = True
-        else:
-            with MessageDbService() as message_service:
-                db_created_messages = message_service.create_chat_messages(
-                    conversation_id=chat_request.conversation_id,
-                    content_blocks=chat_request.content_blocks,
-                    user_metadata=user_metadata,
-                    removed_message_ids=chat_request.removed_message_ids,
-                )
-            created_messages = _IdempotentTurn(
-                user_message_id=db_created_messages.user_message_id,
-                assistant_message_id=db_created_messages.assistant_message_id,
-            )
-            if idempotency_key is not None:
-                _TURN_IDEMPOTENCY_CACHE[idempotency_key] = created_messages
+
+    if idempotency_key is not None:
+        created_messages, is_idempotent_hit = await _TURN_IDEMPOTENCY_STORE.resolve_turn(
+            idempotency_key,
+            create_fn=_create,
+        )
+    else:
+        created_messages = await _create()
+        is_idempotent_hit = False
+
     logger.info(
         "Messages resolved",
         conversation_id=chat_request.conversation_id,

@@ -65,6 +65,7 @@ dev = [
     "pre-commit>=3.6.0",
     "ipython>=8.0.0",
     "python-dotenv>=1.0.0",
+    "fakeredis[lua]>=2.26.0",
 ]
 
 [build-system]

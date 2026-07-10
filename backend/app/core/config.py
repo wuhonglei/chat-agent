@@ -14,6 +14,7 @@ from app.core.nacos.config import NacosConfigSettingsSource
 from app.schemas.config import (
     AppConfig,
     ChatContextConfig,
+    ChatStreamConfig,
     CORSConfig,
     DatabaseConfig,
     EmbeddingModelConfig,
@@ -50,6 +51,10 @@ class Settings(BaseSettings):
     sms: SmsConfig = Field(description="腾讯云短信配置")
     database: DatabaseConfig = Field(description="PostgreSQL 数据库配置")
     redis: RedisConfig = Field(description="Redis 服务连接配置")
+    chat_stream: ChatStreamConfig = Field(
+        default_factory=ChatStreamConfig,
+        description="SSE 断点续传与 turn 幂等配置",
+    )
     mineru: MinerUConfig = Field(
         default_factory=MinerUConfig,
         description="MinerU SaaS 文档转 Markdown 配置",

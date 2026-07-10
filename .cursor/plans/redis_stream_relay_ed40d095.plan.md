@@ -4,22 +4,22 @@ overview: 将 SSE 断点续传的内存 StreamRelay 替换为 Redis Stream，并
 todos:
   - id: config
     content: 在 schemas/config.py + Settings 增加 sse_stream_ttl/block 与 turn_idempotency_ttl 配置项（不含 maxlen）
-    status: pending
+    status: completed
   - id: redis-relay
     content: 重写 stream_relay.py：Redis Stream + meta Hash + Lua append + XRANGE/XREAD iter_resume
-    status: pending
+    status: completed
   - id: turn-idempotency
     content: 新增 turn_idempotency_store.py，chat.py 移除 _TURN_IDEMPOTENCY_CACHE/LOCK，接入 Redis SET NX 幂等
-    status: pending
+    status: completed
   - id: chat-verify
     content: 验证 chat.py 幂等命中 + relay 续传路径在 Redis 版行为一致
-    status: pending
+    status: completed
   - id: tests
     content: 新增 test_stream_relay.py + test_turn_idempotency_store.py（fakeredis）
-    status: pending
+    status: completed
   - id: docs
     content: 更新 docs/会话管理.md 与 backend/README.md 说明 Redis Stream relay 与 turn 幂等
-    status: pending
+    status: completed
 isProject: false
 ---
 
