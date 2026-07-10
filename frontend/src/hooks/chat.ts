@@ -755,6 +755,7 @@ export const useCachedRequest = (conversationId: string, conversationInfo: Conve
       sendMessage(conversationState.values, {
         createdBy: conversationState.createdBy,
         attachmentBlocks: conversationState.attachmentBlocks,
+        mentionedBlocks: conversationState.mentionedBlocks,
       });
     }
   }, [conversationState, sendMessage, clearCacheData]);

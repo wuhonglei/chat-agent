@@ -5,11 +5,11 @@ import { useMemoizedFn } from "ahooks";
 import type { GetProp } from "antd";
 import { useMemo, useState } from "react";
 import {
-  applyMentionToText,
+  buildMentionTagSlot,
   collectMentionableAttachments,
   filterMentionableByQuery,
   getActiveMention,
-  getAttachmentDisplayName,
+  getMentionReplaceCharacters,
   toSuggestionItems,
 } from "../attachmentMention";
 import { getAttachmentBlocks } from "../util";
@@ -20,6 +20,12 @@ export interface UseAttachmentMentionOptions {
 }
 
 export type MentionTriggerInfo = { query: string };
+
+export interface MentionSelectResult {
+  block: UserAttachmentBlock;
+  tagSlot: ReturnType<typeof buildMentionTagSlot>;
+  replaceCharacters: string;
+}
 
 export function useAttachmentMention({ messages, attachmentItems }: UseAttachmentMentionOptions) {
   const [mentionedBlocks, setMentionedBlocks] = useState<UserAttachmentBlock[]>([]);
@@ -55,22 +61,22 @@ export function useAttachmentMention({ messages, attachmentItems }: UseAttachmen
     }
   );
 
-  const handleMentionSelect = useMemoizedFn(
-    (blockId: string, currentValue: string, onChange: ((value: string) => void) | undefined) => {
-      const block = mentionableAttachments.find(item => item.id === blockId);
-      if (!block) {
-        return;
-      }
-      const active = getActiveMention(currentValue);
-      if (!active) {
-        return;
-      }
-      const displayName = getAttachmentDisplayName(block);
-      const nextValue = applyMentionToText(currentValue, active.atIndex, active.query, displayName);
-      onChange?.(nextValue);
-      setMentionedBlocks(prev => (prev.some(item => item.id === block.id) ? prev : [...prev, block]));
+  const handleMentionSelect = useMemoizedFn((blockId: string, currentValue: string): MentionSelectResult | null => {
+    const block = mentionableAttachments.find(item => item.id === blockId);
+    if (!block) {
+      return null;
     }
-  );
+    const active = getActiveMention(currentValue);
+    if (!active) {
+      return null;
+    }
+    setMentionedBlocks(prev => (prev.some(item => item.id === block.id) ? prev : [...prev, block]));
+    return {
+      block,
+      tagSlot: buildMentionTagSlot(block),
+      replaceCharacters: getMentionReplaceCharacters(active.query),
+    };
+  });
 
   const resetMentionedBlocks = useMemoizedFn(() => {
     setMentionedBlocks([]);

@@ -100,6 +100,30 @@ export function toSuggestionItems(
   }));
 }
 
+export function getMentionReplaceCharacters(query: string): string {
+  return `@${query}`;
+}
+
+export function buildMentionTagSlot(block: UserAttachmentBlock): {
+  type: "tag";
+  key: string;
+  props: { label: string; value: string };
+  formatResult: () => string;
+} {
+  const displayName = getAttachmentDisplayName(block);
+  const mentionLabel = `@${displayName}`;
+  return {
+    type: "tag",
+    key: `mention_${block.id}_${Date.now()}`,
+    props: {
+      label: mentionLabel,
+      value: block.id,
+    },
+    // 末尾空格避免 onChange 后再次被识别为进行中的 @mention
+    formatResult: () => `${mentionLabel} `,
+  };
+}
+
 export function applyMentionToText(
   text: string,
   atIndex: number,

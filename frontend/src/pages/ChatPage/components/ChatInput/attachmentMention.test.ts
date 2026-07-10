@@ -4,10 +4,12 @@ import type { UserAttachmentBlock } from "@/interfaces/contentBlock";
 import { describe, expect, it } from "vite-plus/test";
 import {
   applyMentionToText,
+  buildMentionTagSlot,
   collectMentionableAttachments,
   filterMentionableByQuery,
   getActiveMention,
   getAttachmentDisplayName,
+  getMentionReplaceCharacters,
   isMentionableAttachment,
 } from "./attachmentMention";
 
@@ -99,6 +101,24 @@ describe("filterMentionableByQuery", () => {
     const attachments = [makePdf("a", "Report.pdf"), makePdf("b", "notes.md")];
     expect(filterMentionableByQuery(attachments, "rep").map(item => item.id)).toEqual(["a"]);
     expect(filterMentionableByQuery(attachments, "").map(item => item.id)).toEqual(["a", "b"]);
+  });
+});
+
+describe("buildMentionTagSlot", () => {
+  it("builds a tag slot with @displayName label and formatResult", () => {
+    const slot = buildMentionTagSlot(makePdf("p1", "report.pdf"));
+    expect(slot.type).toBe("tag");
+    expect(slot.props.label).toBe("@report.pdf");
+    expect(slot.props.value).toBe("p1");
+    expect(slot.formatResult()).toBe("@report.pdf ");
+    expect(slot.key.startsWith("mention_p1_")).toBe(true);
+  });
+});
+
+describe("getMentionReplaceCharacters", () => {
+  it("prefixes query with @", () => {
+    expect(getMentionReplaceCharacters("rep")).toBe("@rep");
+    expect(getMentionReplaceCharacters("")).toBe("@");
   });
 });
 

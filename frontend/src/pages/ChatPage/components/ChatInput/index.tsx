@@ -147,6 +147,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
         mentionedBlocks: mentionedBlocks.length > 0 ? mentionedBlocks : undefined,
       }
     );
+    senderRef.current?.clear();
     form.resetFields([names.content]);
     resetAttachments();
     resetMentionedBlocks();
