@@ -306,7 +306,7 @@ class ChatStreamConfig(BaseModel):
         description="流 close 后 TTL（秒）",
     )
     sse_stream_xread_block_ms: int = Field(
-        default=5000,
+        default=1000,
         gt=0,
         description="XREAD BLOCK 超时（毫秒）",
     )

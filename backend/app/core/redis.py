@@ -24,16 +24,25 @@ def _build_redis_url() -> str:
     return f"redis://{userinfo}{cfg.host}:{cfg.port}/0"
 
 
+def _redis_socket_timeout_seconds() -> float:
+    """Read timeout must exceed SSE XREAD BLOCK duration (redis-py default is ~5s)."""
+    block_seconds = settings.chat_stream.sse_stream_xread_block_ms / 1000.0
+    return block_seconds + 5.0
+
+
 async def init_redis() -> Redis:
     """创建连接池并在启动时探测连通性。"""
     global _redis_pool, _redis_client
     if _redis_client is not None:
         return _redis_client
 
+    socket_timeout = _redis_socket_timeout_seconds()
     _redis_pool = ConnectionPool.from_url(
         _build_redis_url(),
         decode_responses=True,
         max_connections=20,
+        socket_connect_timeout=5.0,
+        socket_timeout=socket_timeout,
     )
     _redis_client = Redis.from_pool(_redis_pool)
     await _redis_client.ping()
