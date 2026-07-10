@@ -53,11 +53,16 @@ export function useAttachmentMention({ messages, attachmentItems }: UseAttachmen
         return;
       }
       const active = getActiveMention(nextValue);
-      if (active) {
-        onTrigger({ query: active.query });
-      } else {
+      if (!active) {
         onTrigger(false);
+        return;
       }
+      // 无匹配项时不打开面板，避免 Cascader 空态把弹层拉成触发器全宽
+      if (filterMentionableByQuery(mentionableAttachments, active.query).length === 0) {
+        onTrigger(false);
+        return;
+      }
+      onTrigger({ query: active.query });
     }
   );
 

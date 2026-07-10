@@ -4,7 +4,10 @@
 }
 
 .mentionPopup {
-  max-width: 320px;
+  /* Cascader 空态会给弹层设 min-width=触发器宽度，需同时压住 */
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: 320px !important;
   font-size: 12px;
 }
 

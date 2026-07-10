@@ -204,7 +204,7 @@ const ChatInputSender = React.forwardRef<GetRef<typeof Sender>, ChatInputSenderP
           }}
           onSelect={handleSelect}
           classNames={{ popup: styles.mentionPopup }}
-          styles={{ popup: { maxWidth: 320 } }}
+          styles={{ popup: { width: "auto", minWidth: 0, maxWidth: 320 } }}
           getPopupContainer={() => rootRef.current ?? document.body}
         >
           {({ onTrigger, onKeyDown: onSuggestionKeyDown, open }) => {
