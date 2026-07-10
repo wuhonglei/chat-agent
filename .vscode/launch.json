@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug FastAPI",
+      "name": "Backend: Debug FastAPI",
       "type": "debugpy",
       "request": "launch",
       "module": "uvicorn",
@@ -17,19 +17,19 @@
         "8000",
         "--proxy-headers"
       ],
-      "cwd": "${workspaceFolder}",
+      "cwd": "${workspaceFolder}/backend",
       "jinja": true,
       "justMyCode": false,
       "subProcess": true,
-      "python": "${workspaceFolder}/.venv/bin/python",
+      "python": "${workspaceFolder}/backend/.venv/bin/python",
       "env": {
-        "PYTHONPATH": "${workspaceFolder}",
+        "PYTHONPATH": "${workspaceFolder}/backend",
         "APP__DEBUG": "1"
       },
-      "envFile": "${workspaceFolder}/.env"
+      "envFile": "${workspaceFolder}/backend/.env"
     },
     {
-      "name": "Debug FastAPI (no reload)",
+      "name": "Backend: Debug FastAPI (no reload)",
       "type": "debugpy",
       "request": "launch",
       "module": "uvicorn",
@@ -41,74 +41,74 @@
         "8000",
         "--proxy-headers"
       ],
-      "cwd": "${workspaceFolder}",
+      "cwd": "${workspaceFolder}/backend",
       "jinja": true,
       "justMyCode": false,
-      "python": "${workspaceFolder}/.venv/bin/python",
+      "python": "${workspaceFolder}/backend/.venv/bin/python",
       "env": {
-        "PYTHONPATH": "${workspaceFolder}",
+        "PYTHONPATH": "${workspaceFolder}/backend",
         "APP__DEBUG": "1"
       },
-      "envFile": "${workspaceFolder}/.env"
+      "envFile": "${workspaceFolder}/backend/.env"
     },
     {
-      "name": "Python: Current File",
+      "name": "Backend: Python Current File",
       "type": "debugpy",
       "request": "launch",
       "program": "${file}",
       "console": "integratedTerminal",
-      "cwd": "${workspaceFolder}",
+      "cwd": "${workspaceFolder}/backend",
       "justMyCode": false,
-      "python": "${workspaceFolder}/.venv/bin/python",
+      "python": "${workspaceFolder}/backend/.venv/bin/python",
       "env": {
-        "PYTHONPATH": "${workspaceFolder}"
+        "PYTHONPATH": "${workspaceFolder}/backend"
       },
-      "envFile": "${workspaceFolder}/.env"
+      "envFile": "${workspaceFolder}/backend/.env"
     },
     {
-      "name": "Debug Pytest",
+      "name": "Backend: Debug Pytest",
       "type": "debugpy",
       "request": "launch",
       "module": "pytest",
       "args": ["-v", "--ignore=tests/mcp_demo"],
       "console": "integratedTerminal",
-      "cwd": "${workspaceFolder}",
+      "cwd": "${workspaceFolder}/backend",
       "justMyCode": false,
-      "python": "${workspaceFolder}/.venv/bin/python",
+      "python": "${workspaceFolder}/backend/.venv/bin/python",
       "env": {
-        "PYTHONPATH": "${workspaceFolder}"
+        "PYTHONPATH": "${workspaceFolder}/backend"
       },
-      "envFile": "${workspaceFolder}/.env"
+      "envFile": "${workspaceFolder}/backend/.env"
     },
     {
-      "name": "Debug Pytest (Current File)",
+      "name": "Backend: Debug Pytest (Current File)",
       "type": "debugpy",
       "request": "launch",
       "module": "pytest",
       "args": ["${relativeFile}", "-v"],
       "console": "integratedTerminal",
-      "cwd": "${workspaceFolder}",
+      "cwd": "${workspaceFolder}/backend",
       "justMyCode": false,
-      "python": "${workspaceFolder}/.venv/bin/python",
+      "python": "${workspaceFolder}/backend/.venv/bin/python",
       "env": {
-        "PYTHONPATH": "${workspaceFolder}"
+        "PYTHONPATH": "${workspaceFolder}/backend"
       },
-      "envFile": "${workspaceFolder}/.env"
+      "envFile": "${workspaceFolder}/backend/.env"
     },
     {
-      "name": "Alembic Migrate",
+      "name": "Backend: Alembic Migrate",
       "type": "debugpy",
       "request": "launch",
       "module": "alembic",
       "args": ["upgrade", "head"],
       "console": "integratedTerminal",
-      "cwd": "${workspaceFolder}",
+      "cwd": "${workspaceFolder}/backend",
       "justMyCode": false,
-      "python": "${workspaceFolder}/.venv/bin/python",
+      "python": "${workspaceFolder}/backend/.venv/bin/python",
       "env": {
-        "PYTHONPATH": "${workspaceFolder}"
+        "PYTHONPATH": "${workspaceFolder}/backend"
       },
-      "envFile": "${workspaceFolder}/.env"
+      "envFile": "${workspaceFolder}/backend/.env"
     }
   ]
 }
