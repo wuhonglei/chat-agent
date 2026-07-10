@@ -310,6 +310,11 @@ class ChatStreamConfig(BaseModel):
         gt=0,
         description="XREAD BLOCK 超时（毫秒）",
     )
+    sse_stream_cancel_poll_ms: int = Field(
+        default=300,
+        gt=0,
+        description="Producer 轮询 Redis status=stopped 间隔（毫秒）",
+    )
     turn_idempotency_ttl_seconds: int = Field(
         default=7200,
         gt=0,

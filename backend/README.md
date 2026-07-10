@@ -233,7 +233,7 @@ Last-Event-ID: 12
 - `done`：本轮结束（包含内容长度、推理长度、工具调用次数、更新时间）
 - `error`：本轮失败
 
-续流缓冲与 `client_turn_id` 幂等缓存均存储在 Redis，可跨 worker 共享；依赖 Redis TTL（活跃默认 2h，close 后默认 30min）。多 worker 部署需保证 Redis 可达。`stop` 仍限启动 producer 的进程。
+续流缓冲与 `client_turn_id` 幂等缓存均存储在 Redis，可跨 worker 共享；依赖 Redis TTL（活跃默认 2h，close 后默认 30min）。多 worker 部署需保证 Redis 可达。`stop` 通过 Redis meta `status=stopped` 跨 worker 生效（同 worker 仍有本地 task cancel 快路径）。
 
 ## 模型列表与图片输入约束
 

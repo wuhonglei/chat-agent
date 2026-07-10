@@ -43,18 +43,39 @@ _STREAM_PRODUCER_TASKS: dict[str, asyncio.Task[None]] = {}
 _TURN_IDEMPOTENCY_STORE = TurnIdempotencyStore()
 
 
+async def _poll_cancel(stream_id: str, poll_ms: int) -> None:
+    """Poll Redis meta status=stopped and cancel the local producer task."""
+    while True:
+        await asyncio.sleep(poll_ms / 1000)
+        if await _STREAM_RELAY.is_stop_requested(stream_id):
+            producer = _STREAM_PRODUCER_TASKS.get(stream_id)
+            if producer and not producer.done():
+                producer.cancel()
+            return
+
+
 async def _run_producer(
     event_stream: AsyncGenerator[str, None],
     stream_id: str,
     log_ctx: dict[str, Any],
 ) -> None:
+    poll_ms = settings.chat_stream.sse_stream_cancel_poll_ms
+    poll_task = asyncio.create_task(
+        _poll_cancel(stream_id, poll_ms),
+        name=f"chat_cancel_poll_{stream_id}",
+    )
+    final_status = MessageStatus.DONE
     try:
         async for event in event_stream:
+            if await _STREAM_RELAY.is_stop_requested(stream_id):
+                raise asyncio.CancelledError()
             await _STREAM_RELAY.append(stream_id, event)
     except asyncio.CancelledError:
+        final_status = MessageStatus.STOPPED
         logger.info("Background chat producer cancelled", **log_ctx)
         raise
     except Exception as exc:
+        final_status = MessageStatus.FAILED
         logger.error(
             "Background chat producer failed",
             error=exc,
@@ -63,7 +84,10 @@ async def _run_producer(
         )
         await _STREAM_RELAY.append(stream_id, build_error_event({"content": str(exc)}))
     finally:
-        await _STREAM_RELAY.close(stream_id)
+        poll_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await poll_task
+        await _STREAM_RELAY.close(stream_id, final_status=final_status)
         with contextlib.suppress(Exception):
             await event_stream.aclose()
 
@@ -346,23 +370,26 @@ async def stop_chat_stream(
         auth_info=auth_info,
     )
 
+    # Cross-worker signal: any worker can mark Redis meta status=stopped
+    await _STREAM_RELAY.request_stop(request.assistant_message_id)
+
+    # Same-worker fast-path
     producer_task = _STREAM_PRODUCER_TASKS.get(request.assistant_message_id)
     if producer_task and not producer_task.done():
         producer_task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await producer_task
 
+    # DB fallback: only if still PENDING after producer may have finished
     with MessageDbService() as message_service:
-        assistant_message = message_service.get_message(request.assistant_message_id)
-        if assistant_message is None:
+        refreshed = message_service.get_message(request.assistant_message_id)
+        if refreshed is None:
             return ApiResponse.success(data={"stopped": True}, msg="流式响应已停止")
-        if assistant_message.status == MessageStatus.PENDING:
-            conversation = message_service.get_conversation(
-                assistant_message.conversation_id
-            )
+        if refreshed.status == MessageStatus.PENDING:
+            conversation = message_service.get_conversation(refreshed.conversation_id)
             message_service.update_assistant_message_status(
                 conversation,
-                assistant_message,
+                refreshed,
                 status=MessageStatus.STOPPED,
             )
 

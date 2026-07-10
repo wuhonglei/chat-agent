@@ -11,11 +11,17 @@ from redis.exceptions import ResponseError
 
 from app.core.config import settings
 from app.core.redis import get_redis
+from app.schemas.chat import MessageStatus
 
 _APPEND_SCRIPT = """
 -- KEYS[1]=stream, KEYS[2]=meta, KEYS[3]=seq
 -- ARGV[1]=payload, ARGV[2]=ttl
-if redis.call('HGET', KEYS[2], 'closed') == '1' then
+local status = redis.call('HGET', KEYS[2], 'status')
+if status and status ~= 'pending' then
+  return tonumber(redis.call('GET', KEYS[3]) or '0')
+end
+-- Legacy fallback: keys that only have closed field
+if not status and redis.call('HGET', KEYS[2], 'closed') == '1' then
   return tonumber(redis.call('GET', KEYS[3]) or '0')
 end
 local event_id = redis.call('INCR', KEYS[3])
@@ -26,6 +32,28 @@ redis.call('EXPIRE', KEYS[1], ARGV[2])
 redis.call('EXPIRE', KEYS[2], ARGV[2])
 redis.call('EXPIRE', KEYS[3], ARGV[2])
 return event_id
+"""
+
+_REQUEST_STOP_SCRIPT = """
+-- KEYS[1]=meta
+-- ARGV[1]=ttl
+if redis.call('EXISTS', KEYS[1]) == 0 then
+  return 0
+end
+local status = redis.call('HGET', KEYS[1], 'status')
+if not status then
+  -- Legacy: treat closed=1 as terminal
+  if redis.call('HGET', KEYS[1], 'closed') == '1' then
+    return 0
+  end
+  status = 'pending'
+end
+if status ~= 'pending' then
+  return 0
+end
+redis.call('HSET', KEYS[1], 'status', 'stopped')
+redis.call('EXPIRE', KEYS[1], ARGV[1])
+return 1
 """
 
 
@@ -88,6 +116,20 @@ def _coerce_xread_results(raw: object) -> list[tuple[str, dict[str, str]]]:
     return entries
 
 
+def _parse_status(raw: object, closed: object = None) -> MessageStatus:
+    """Parse meta status with legacy ``closed`` fallback."""
+    status_str = _as_str(raw)
+    if status_str:
+        try:
+            return MessageStatus(status_str)
+        except ValueError:
+            return MessageStatus.PENDING
+    # Legacy keys that only have closed field
+    if _as_str(closed) == "1":
+        return MessageStatus.DONE
+    return MessageStatus.PENDING
+
+
 class StreamRelay:
     """Redis Stream relay for resumable SSE streams."""
 
@@ -117,6 +159,7 @@ class StreamRelay:
             else cfg.sse_stream_xread_block_ms
         )
         self._append_script: Any | None = None
+        self._request_stop_script: Any | None = None
 
     def _redis(self) -> Redis:
         return get_redis()
@@ -129,6 +172,14 @@ class StreamRelay:
 
     def _seq_key(self, stream_id: str) -> str:
         return f"{self.SEQ_KEY_PREFIX}{stream_id}"
+
+    async def _read_status(self, meta_key: str) -> MessageStatus | None:
+        redis = self._redis()
+        if await redis.exists(meta_key) == 0:
+            return None
+        raw = await redis.hget(meta_key, "status")
+        closed = await redis.hget(meta_key, "closed")
+        return _parse_status(raw, closed)
 
     async def _eval_append(
         self, stream_key: str, meta_key: str, seq_key: str, payload: str, ttl: int
@@ -149,8 +200,8 @@ class StreamRelay:
         seq_key = self._seq_key(stream_id)
         created = await redis.hsetnx(
             meta_key,
-            "closed",
-            "0",
+            "status",
+            MessageStatus.PENDING.value,
         )
         if created:
             await redis.hset(
@@ -174,27 +225,55 @@ class StreamRelay:
         )
         return event_id
 
-    async def close(self, stream_id: str) -> None:
+    async def close(
+        self,
+        stream_id: str,
+        *,
+        final_status: MessageStatus = MessageStatus.DONE,
+    ) -> None:
+        """Mark stream terminal. Preserves ``stopped``; only pending → final_status."""
+        if final_status == MessageStatus.PENDING:
+            raise ValueError("final_status must be a terminal MessageStatus")
         redis = self._redis()
         meta_key = self._meta_key(stream_id)
         stream_key = self._stream_key(stream_id)
         seq_key = self._seq_key(stream_id)
-        if await redis.exists(meta_key) == 0:
+        current = await self._read_status(meta_key)
+        if current is None:
             return
-        await redis.hset(meta_key, "closed", "1")
+        if current == MessageStatus.PENDING:
+            await redis.hset(meta_key, "status", final_status.value)
+        # stopped / done / failed: keep existing status (idempotent)
         await redis.expire(meta_key, self._closed_ttl_seconds)
         await redis.expire(stream_key, self._closed_ttl_seconds)
         await redis.expire(seq_key, self._closed_ttl_seconds)
 
+    async def get_status(self, stream_id: str) -> MessageStatus | None:
+        return await self._read_status(self._meta_key(stream_id))
+
+    async def request_stop(self, stream_id: str) -> bool:
+        """CAS pending → stopped. Returns True if transition applied."""
+        redis = self._redis()
+        if self._request_stop_script is None:
+            self._request_stop_script = redis.register_script(_REQUEST_STOP_SCRIPT)
+        result = await self._request_stop_script(
+            keys=[self._meta_key(stream_id)],
+            args=[self._ttl_seconds],
+        )
+        return int(result) == 1
+
+    async def is_stop_requested(self, stream_id: str) -> bool:
+        return await self.get_status(stream_id) == MessageStatus.STOPPED
+
     async def has_stream(self, stream_id: str) -> bool:
         redis = self._redis()
         meta_key = self._meta_key(stream_id)
-        if await redis.exists(meta_key) == 0:
+        status = await self._read_status(meta_key)
+        if status is None:
             return False
-        closed = await redis.hget(meta_key, "closed")
-        if closed != "1":
+        if status == MessageStatus.PENDING:
             return True
-        # Closed but still within TTL: allow resume to replay remaining events.
+        # Terminal but still within TTL: allow resume to replay remaining events.
         stream_key = self._stream_key(stream_id)
         return await redis.exists(stream_key) == 1
 
@@ -226,7 +305,7 @@ class StreamRelay:
             cursor_event_id = event_id
 
         while True:
-            closed = await redis.hget(meta_key, "closed")
+            status = await self._read_status(meta_key)
             xread_id = f"{cursor_event_id}-0" if cursor_event_id > 0 else "0-0"
             try:
                 results = await redis.xread(
@@ -247,8 +326,8 @@ class StreamRelay:
                     cursor_event_id = event_id
                 continue
 
-            if closed == "1":
-                # Re-check once for late arrivals after close.
+            if status is not None and status != MessageStatus.PENDING:
+                # Re-check once for late arrivals after terminal status.
                 try:
                     late_raw = await redis.xrange(
                         stream_key,
