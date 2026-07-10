@@ -123,6 +123,10 @@ class ChatRequest(BaseModel):
         default=None,
         description="Client-generated idempotency key for one user turn",
     )
+    mentioned_blocks: list["AttachmentBlock"] = Field(
+        default_factory=list,
+        description="通过 @ 引用的附件块（不并入 content_blocks）",
+    )
 
     @field_validator("content_blocks", mode="before")
     @classmethod

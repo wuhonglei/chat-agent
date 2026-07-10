@@ -412,7 +412,10 @@ class ChatOrchestrator:
                                 try:
                                     kb_context_blocks = (
                                         await self._build_kb_context_blocks(
-                                            content_blocks=chat_request.content_blocks,
+                                            content_blocks=[
+                                                *chat_request.content_blocks,
+                                                *chat_request.mentioned_blocks,
+                                            ],
                                             user_id=user_id,
                                             user_message_text=user_message_text,
                                         )
