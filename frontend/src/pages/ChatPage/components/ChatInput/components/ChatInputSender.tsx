@@ -1,4 +1,5 @@
 import { FileOutlined } from "@ant-design/icons";
+import { isPlainEnter } from "@/utils";
 import { Sender, Suggestion, type SenderProps } from "@ant-design/x";
 import { useMemoizedFn } from "ahooks";
 import type { GetRef } from "antd";
@@ -9,11 +10,13 @@ import type { MentionSelectResult, MentionTriggerInfo } from "../hooks/useAttach
 /** 稳定空数组，开启词槽模式且避免父组件重渲染时丢失 runtime insert 的 tags */
 const EMPTY_SLOT_CONFIG: NonNullable<SenderProps["slotConfig"]> = [];
 
+type SuggestionOption = { value: string; label: string };
+
 export interface ChatInputSenderProps extends Omit<SenderProps, "onChange" | "value" | "slotConfig"> {
   value?: string;
   onChange?: (value: string) => void;
   hasMentionableAttachments: boolean;
-  getSuggestionItems: (query: string) => Array<{ value: string; label: string }>;
+  getSuggestionItems: (query: string) => SuggestionOption[];
   onContentChangeWithMention: (
     nextValue: string,
     onChange: ((value: string) => void) | undefined,
@@ -41,6 +44,9 @@ const ChatInputSender = React.forwardRef<GetRef<typeof Sender>, ChatInputSenderP
     const onTriggerRef = React.useRef<(info: MentionTriggerInfo | false) => void>(() => {});
     const suppressMentionTriggerRef = React.useRef(false);
     const lastEmittedValueRef = React.useRef(value ?? "");
+    const suggestionOpenRef = React.useRef(false);
+    const suggestionItemsRef = React.useRef<SuggestionOption[]>([]);
+    const activeIndexRef = React.useRef(0);
 
     const setSenderRef = useMemoizedFn((instance: GetRef<typeof Sender> | null) => {
       senderRef.current = instance;
@@ -102,6 +108,41 @@ const ChatInputSender = React.forwardRef<GetRef<typeof Sender>, ChatInputSenderP
       };
     });
 
+    const handleSenderKeyDown = useMemoizedFn(
+      (
+        event: React.KeyboardEvent,
+        options?: {
+          onSuggestionKeyDown?: (event: React.KeyboardEvent) => void;
+        }
+      ) => {
+        const items = suggestionItemsRef.current;
+        if (suggestionOpenRef.current && items.length > 0) {
+          if (event.key === "ArrowDown") {
+            activeIndexRef.current = (activeIndexRef.current + 1) % items.length;
+            options?.onSuggestionKeyDown?.(event);
+            return;
+          }
+          if (event.key === "ArrowUp") {
+            activeIndexRef.current = (activeIndexRef.current - 1 + items.length) % items.length;
+            options?.onSuggestionKeyDown?.(event);
+            return;
+          }
+          if (isPlainEnter(event)) {
+            // 面板展开时回车选中当前高亮项，不发送消息
+            event.preventDefault();
+            const activeItem = items[activeIndexRef.current] ?? items[0];
+            if (activeItem) {
+              handleSelect(activeItem.value);
+            }
+            return;
+          }
+        }
+
+        options?.onSuggestionKeyDown?.(event);
+        onKeyDown?.(event);
+      }
+    );
+
     const renderSender = (options?: {
       onTrigger?: (info: MentionTriggerInfo | false) => void;
       onSuggestionKeyDown?: (event: React.KeyboardEvent) => void;
@@ -117,10 +158,7 @@ const ChatInputSender = React.forwardRef<GetRef<typeof Sender>, ChatInputSenderP
           }
           syncFormValue(nextValue);
         }}
-        onKeyDown={event => {
-          options?.onSuggestionKeyDown?.(event);
-          onKeyDown?.(event);
-        }}
+        onKeyDown={event => handleSenderKeyDown(event, options)}
       />
     );
 
@@ -131,19 +169,23 @@ const ChatInputSender = React.forwardRef<GetRef<typeof Sender>, ChatInputSenderP
     return (
       <div ref={rootRef}>
         <Suggestion
-          items={info =>
-            getSuggestionItems(info?.query ?? "").map(item => ({
+          items={info => {
+            const list = getSuggestionItems(info?.query ?? "");
+            suggestionItemsRef.current = list;
+            activeIndexRef.current = 0;
+            return list.map(item => ({
               ...item,
               icon: <FileOutlined />,
-            }))
-          }
+            }));
+          }}
           onSelect={handleSelect}
           classNames={{ popup: styles.mentionPopup }}
           styles={{ popup: { maxWidth: 320 } }}
           getPopupContainer={() => rootRef.current ?? document.body}
         >
-          {({ onTrigger, onKeyDown: onSuggestionKeyDown }) => {
+          {({ onTrigger, onKeyDown: onSuggestionKeyDown, open }) => {
             onTriggerRef.current = onTrigger;
+            suggestionOpenRef.current = open;
             return renderSender({ onTrigger, onSuggestionKeyDown });
           }}
         </Suggestion>
