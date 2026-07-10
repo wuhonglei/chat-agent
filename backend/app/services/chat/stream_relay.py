@@ -39,12 +39,20 @@ def _parse_event_id(entry_id: str) -> int:
     return int(entry_id.split("-", 1)[0])
 
 
-def _as_str(value: bytes | str | None) -> str:
+def _as_str(value: object) -> str:
     if value is None:
         return ""
     if isinstance(value, bytes):
         return value.decode()
-    return value
+    if isinstance(value, str):
+        return value
+    return str(value)
+
+
+def _coerce_pair(raw: object) -> tuple[object, object] | None:
+    if isinstance(raw, (list, tuple)) and len(raw) == 2:
+        return raw[0], raw[1]
+    return None
 
 
 def _coerce_stream_entries(raw: object) -> list[tuple[str, dict[str, str]]]:
@@ -52,9 +60,10 @@ def _coerce_stream_entries(raw: object) -> list[tuple[str, dict[str, str]]]:
         return []
     entries: list[tuple[str, dict[str, str]]] = []
     for item in raw:
-        if not isinstance(item, tuple) or len(item) != 2:
+        pair = _coerce_pair(item)
+        if pair is None:
             continue
-        entry_id, fields = item
+        entry_id, fields = pair
         if not isinstance(fields, dict):
             continue
         entries.append(
@@ -71,9 +80,10 @@ def _coerce_xread_results(raw: object) -> list[tuple[str, dict[str, str]]]:
         return []
     entries: list[tuple[str, dict[str, str]]] = []
     for item in raw:
-        if not isinstance(item, tuple) or len(item) != 2:
+        pair = _coerce_pair(item)
+        if pair is None:
             continue
-        _stream_name, stream_entries = item
+        _stream_name, stream_entries = pair
         entries.extend(_coerce_stream_entries(stream_entries))
     return entries
 
