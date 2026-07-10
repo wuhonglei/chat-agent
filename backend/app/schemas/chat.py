@@ -123,6 +123,10 @@ class ChatRequest(BaseModel):
         default=None,
         description="Client-generated idempotency key for one user turn",
     )
+    mentioned_blocks: list["AttachmentBlock"] = Field(
+        default_factory=list,
+        description="通过 @ 引用的附件块（不并入 content_blocks）",
+    )
 
     @field_validator("content_blocks", mode="before")
     @classmethod
@@ -264,6 +268,11 @@ class AttachmentBaseBlock(BaseModel):
         ...,
         ge=0,
         description="落盘文件字节数（经缩放/重编码等处理后的实际大小）",
+    )
+    token_size: int | None = Field(
+        default=None,
+        ge=0,
+        description="附件文本 token 数（上传时计算；历史数据可能缺省）",
     )
 
 

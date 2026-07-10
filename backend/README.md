@@ -18,6 +18,7 @@
 - FastAPI + Uvicorn
 - SQLModel + Alembic
 - PostgreSQL（pgvector）
+- Redis（SSE 续传缓冲 + turn 幂等）
 - fastmcp
 - OpenAI 兼容模型调用
 
@@ -157,7 +158,20 @@ make test
 - `user_id` 与路径边界会做校验，非法请求统一返回 404
 - 展示名仅用于 UI，服务端会做安全清洗（去路径、非法字符、长度限制）
 
-### 5) 常见排障
+### 5) 附件 token_size 与按需 RAG（agent_mode=0）
+
+上传阶段：
+
+- 文档转 Markdown / 文本落盘后，计算并写入 `token_size`（派生 md 写在 `markdown.token_size`）
+- **不再**在上传时做分块 embedding
+
+问答阶段（仅 `agent_mode=0`，且只看**当前轮** `content_blocks`）：
+
+- `token_size <= short_doc_max_tokens`：直接注入完整 md/文本
+- `token_size > short_doc_max_tokens`：若 DB 尚无向量则按需分块 embedding，再对该附件做 Top-K 检索
+- 历史消息中的附件不参与本轮 RAG；`agent_mode>0` 改为注入 `attachment_uploads` 清单，由文件工具按需读取
+
+### 6) 常见排障
 
 - `400 仅支持 ...`：文件类型不在允许列表
 - `400 ...不能超过 10MB`：超出大小限制
@@ -210,16 +224,17 @@ curl -X POST "http://localhost:8000/api/code/execute" \
 SSE 数据格式统一为：
 
 ```text
-data: {"type":"<event_type>","data":{...},"seq":1}
+id: 1
+data: {"type":"<event_type>","data":{...}}
 ```
 
-`seq` 由服务端内存中的 `StreamRelay` 注入，用于 `POST /api/chat/stream/resume` 断线续流。续流请求体为：
+`id` 由 Redis 版 `StreamRelay` 分配（1-based），客户端通过请求头 `Last-Event-ID` 续传。续流请求示例：
 
-```json
-{
-  "assistant_message_id": "assistant-message-id",
-  "last_seq": 12
-}
+```http
+POST /api/chat/stream/resume
+Last-Event-ID: 12
+
+{"assistant_message_id":"assistant-message-id"}
 ```
 
 当前事件类型：
@@ -231,7 +246,7 @@ data: {"type":"<event_type>","data":{...},"seq":1}
 - `done`：本轮结束（包含内容长度、推理长度、工具调用次数、更新时间）
 - `error`：本轮失败
 
-续流缓冲仅在当前进程和活动流生命周期内有效；生成完成或进程重启后，续流接口会返回空 SSE。
+续流缓冲与 `client_turn_id` 幂等缓存均存储在 Redis，可跨 worker 共享；依赖 Redis TTL（活跃默认 2h，close 后默认 30min）。多 worker 部署需保证 Redis 可达。`stop` 通过 Redis meta `status=stopped` 跨 worker 生效（同 worker 仍有本地 task cancel 快路径）。
 
 ## 模型列表与图片输入约束
 

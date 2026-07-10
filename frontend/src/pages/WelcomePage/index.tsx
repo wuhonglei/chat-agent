@@ -75,6 +75,7 @@ export default function EmptyChatPage() {
       isNewConversation: true,
       values,
       attachmentBlocks: options?.attachmentBlocks,
+      mentionedBlocks: options?.mentionedBlocks,
       createdBy: TitleCreatedBy.Default,
       insertAt: Date.now(),
     };

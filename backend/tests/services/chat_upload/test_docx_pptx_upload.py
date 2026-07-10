@@ -49,11 +49,7 @@ async def test_save_chat_docx_success(
         "convert_to_markdown",
         fake_convert,
     )
-    monkeypatch.setattr(
-        docx_mod,
-        "index_uploaded_text_chunks",
-        AsyncMock(return_value=None),
-    )
+    monkeypatch.setattr(docx_mod, "count_attachment_token_size", lambda _text: 42)
 
     file = _fake_upload(
         filename="report.docx",
@@ -70,6 +66,7 @@ async def test_save_chat_docx_success(
     assert block.name == "report.docx"
     assert block.markdown is not None
     assert block.markdown.derived_kind == "docx_to_markdown"
+    assert block.markdown.token_size == 42
     assert (upload_dir / "report.docx").is_file()
     assert (upload_dir / "derived" / "report.md").is_file()
 
@@ -119,11 +116,7 @@ async def test_save_chat_pptx_success(
         "convert_to_markdown",
         fake_convert,
     )
-    monkeypatch.setattr(
-        pptx_mod,
-        "index_uploaded_text_chunks",
-        AsyncMock(return_value=None),
-    )
+    monkeypatch.setattr(pptx_mod, "count_attachment_token_size", lambda _text: 99)
 
     file = _fake_upload(
         filename="deck.pptx",
@@ -139,6 +132,7 @@ async def test_save_chat_pptx_success(
     assert block.type == "pptx"
     assert block.markdown is not None
     assert block.markdown.derived_kind == "pptx_to_markdown"
+    assert block.markdown.token_size == 99
     assert (upload_dir / "deck.pptx").is_file()
 
 

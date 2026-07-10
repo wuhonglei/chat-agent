@@ -16,6 +16,8 @@ from app.services.chat_upload.docx import save_chat_docx
 from app.services.chat_upload.image import save_chat_image
 from app.services.chat_upload.kb_chunk_embedding import (
     KbFileChunkIndexingError,
+    ensure_uploaded_text_chunks_indexed,
+    has_chunk_embeddings,
     index_uploaded_text_chunks,
 )
 from app.services.chat_upload.markdown import save_chat_markdown
@@ -43,6 +45,8 @@ __all__ = [
     "save_chat_pdf",
     "save_chat_pptx",
     "KbFileChunkIndexingError",
+    "ensure_uploaded_text_chunks_indexed",
+    "has_chunk_embeddings",
     "index_uploaded_text_chunks",
     "MinerUMarkdownConversionError",
     "MinerUMarkdownConverter",

@@ -292,6 +292,46 @@ class RedisConfig(BaseModel):
     password: str = Field(description="Redis 密码")
 
 
+class ChatStreamConfig(BaseModel):
+    """SSE 断点续传（Redis Stream）与 turn 幂等相关配置"""
+
+    sse_stream_ttl_seconds: int = Field(
+        default=7200,
+        gt=0,
+        description="活跃 SSE 流 TTL（stream/meta/seq 同步过期，秒）",
+    )
+    sse_stream_closed_ttl_seconds: int = Field(
+        default=1800,
+        gt=0,
+        description="流 close 后 TTL（秒）",
+    )
+    sse_stream_xread_block_ms: int = Field(
+        default=1000,
+        gt=0,
+        description="XREAD BLOCK 超时（毫秒）",
+    )
+    sse_stream_cancel_poll_ms: int = Field(
+        default=1000,
+        gt=0,
+        description="Producer 轮询 Redis status=stopped 间隔（毫秒）",
+    )
+    turn_idempotency_ttl_seconds: int = Field(
+        default=7200,
+        gt=0,
+        description="client_turn_id 幂等记录 TTL（秒）",
+    )
+    turn_idempotency_pending_ttl_seconds: int = Field(
+        default=60,
+        gt=0,
+        description="幂等 reserve 占位 TTL（秒）",
+    )
+    turn_idempotency_wait_timeout_seconds: float = Field(
+        default=5.0,
+        gt=0,
+        description="loser 等待 winner 写回幂等记录的超时（秒）",
+    )
+
+
 class MinerUConfig(BaseModel):
     """MinerU SaaS 文档转 Markdown 配置"""
 
@@ -338,24 +378,10 @@ class KbFileRagConfig(BaseModel):
         ge=1,
         description="会话 RAG 检索 Top-K",
     )
-    relevance_score_threshold: float = Field(
-        default=0.65,
-        ge=0,
-        le=1,
-        description="会话 RAG 相关性阈值（基于 1-distance）",
-    )
     short_doc_max_tokens: int = Field(
         default=10000,
         ge=1,
         description="判定短文档的 token 阈值；短文档可注入全文",
-    )
-    force_rag_keyword_patterns: list[str] = Field(
-        default_factory=lambda: [
-            r"根据(文档|附件|材料)",
-            r"(附件|文档|材料)里",
-            r"(上传|附件).*(总结|归纳|提取|翻译|解释|回答)",
-        ],
-        description="命中后强制走 RAG（跳过分数门控）",
     )
 
 

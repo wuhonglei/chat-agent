@@ -19,10 +19,7 @@ from app.services.chat_upload.attachment import (
     get_conversation_upload_dir,
     sanitize_upload_display_name,
 )
-from app.services.chat_upload.kb_chunk_embedding import (
-    KbFileChunkIndexingError,
-    index_uploaded_text_chunks,
-)
+from app.services.chat_upload.token_size import count_attachment_token_size
 from app.utils.logger import logger
 
 _TEXT_MARKDOWN_CONTENT_TYPES = {
@@ -59,7 +56,7 @@ async def save_chat_markdown(
         raise HTTPException(status_code=400, detail="Markdown 文件大小不能超过 10MB")
 
     try:
-        chunk.decode("utf-8")
+        markdown_text = chunk.decode("utf-8")
     except UnicodeDecodeError as exc:
         raise HTTPException(
             status_code=400, detail="Markdown 文件编码无效，请使用 UTF-8 编码"
@@ -78,29 +75,7 @@ async def save_chat_markdown(
     dest = upload_dir / display_name
     await asyncio.to_thread(dest.write_bytes, chunk)
 
-    markdown_text = chunk.decode("utf-8")
-    try:
-        await index_uploaded_text_chunks(
-            user_id=user_id,
-            content_id=content_hash,
-            text=markdown_text,
-            file_name=display_name,
-            source_kind="markdown",
-            text_format="markdown",
-            original_size_bytes=len(chunk),
-            processed_size_bytes=len(chunk),
-        )
-    except KbFileChunkIndexingError as exc:
-        logger.error(
-            "Chat markdown embedding indexing failed",
-            user_id=user_id,
-            content_id=content_hash,
-            storage_key=storage_key,
-            error=exc,
-        )
-        raise HTTPException(
-            status_code=502, detail=f"Markdown 分块向量入库失败：{exc}"
-        ) from exc
+    token_size = count_attachment_token_size(markdown_text)
 
     logger.info(
         "Chat markdown saved",
@@ -108,6 +83,7 @@ async def save_chat_markdown(
         conversation_id=conversation_id,
         storage_key=storage_key,
         bytes=len(chunk),
+        token_size=token_size,
     )
     url = build_attachment_preview_url(user_id, storage_key)
     return MarkdownBlock(
@@ -118,5 +94,6 @@ async def save_chat_markdown(
         storage_version=STORAGE_VERSION,
         name=display_name,
         size=len(chunk),
+        token_size=token_size,
         mime="text/markdown",
     )

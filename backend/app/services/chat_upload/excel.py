@@ -22,14 +22,11 @@ from app.services.chat_upload.attachment import (
     get_conversation_upload_dir,
     sanitize_upload_display_name,
 )
-from app.services.chat_upload.kb_chunk_embedding import (
-    KbFileChunkIndexingError,
-    index_uploaded_text_chunks,
-)
 from app.services.chat_upload.mineru_markdown_converter import (
     MinerUMarkdownConversionError,
     MinerUMarkdownConverter,
 )
+from app.services.chat_upload.token_size import count_attachment_token_size
 from app.utils.logger import logger
 
 # xlsx 是 zip 容器，魔数为 PK\x03\x04
@@ -49,6 +46,7 @@ def _build_excel_block(
     md_storage_key: str,
     excel_size: int,
     markdown_size: int,
+    markdown_token_size: int,
 ) -> ExcelBlock:
     markdown_display_name = f"{Path(excel_display_name).stem}.md"
     excel_url = build_attachment_preview_url(user_id, excel_storage_key)
@@ -63,6 +61,7 @@ def _build_excel_block(
         derived_kind="excel_to_markdown",
         name=markdown_display_name,
         size=markdown_size,
+        token_size=markdown_token_size,
         mime="text/markdown",
     )
     return ExcelBlock(
@@ -76,51 +75,6 @@ def _build_excel_block(
         mime=EXCEL_CONTENT_TYPE,
         markdown=markdown_block,
     )
-
-
-async def _index_excel_markdown_or_raise(
-    *,
-    user_id: str,
-    content_id: str,
-    md_path: Path,
-    file_name: str,
-    original_size_bytes: int,
-    processed_size_bytes: int,
-) -> None:
-    try:
-        markdown_text = await asyncio.to_thread(md_path.read_text, encoding="utf-8")
-    except OSError as exc:
-        logger.error(
-            "Chat excel markdown read failed before embedding",
-            user_id=user_id,
-            content_id=content_id,
-            md_path=str(md_path),
-            error=exc,
-        )
-        raise HTTPException(status_code=502, detail="读取 Markdown 文件失败") from exc
-
-    try:
-        await index_uploaded_text_chunks(
-            user_id=user_id,
-            content_id=content_id,
-            text=markdown_text,
-            file_name=file_name,
-            source_kind="excel",
-            text_format="markdown",
-            original_size_bytes=original_size_bytes,
-            processed_size_bytes=processed_size_bytes,
-        )
-    except KbFileChunkIndexingError as exc:
-        logger.error(
-            "Chat excel embedding indexing failed",
-            user_id=user_id,
-            content_id=content_id,
-            md_path=str(md_path),
-            error=exc,
-        )
-        raise HTTPException(
-            status_code=502, detail=f"Excel 分块向量入库失败：{exc}"
-        ) from exc
 
 
 async def save_chat_excel(
@@ -186,16 +140,21 @@ async def save_chat_excel(
             detail=f"MinerU 转换失败：{exc}",
         ) from exc
 
+    try:
+        markdown_text = await asyncio.to_thread(md_path.read_text, encoding="utf-8")
+    except OSError as exc:
+        logger.error(
+            "Chat excel markdown read failed after conversion",
+            user_id=user_id,
+            content_id=content_hash,
+            md_path=str(md_path),
+            error=exc,
+        )
+        raise HTTPException(status_code=502, detail="读取 Markdown 文件失败") from exc
+
     markdown_size = md_path.stat().st_size
     excel_size = dest.stat().st_size
-    await _index_excel_markdown_or_raise(
-        user_id=user_id,
-        content_id=content_hash,
-        md_path=md_path,
-        file_name=excel_display_name,
-        original_size_bytes=excel_size,
-        processed_size_bytes=markdown_size,
-    )
+    markdown_token_size = count_attachment_token_size(markdown_text)
 
     logger.info(
         "Chat excel saved",
@@ -205,6 +164,7 @@ async def save_chat_excel(
         bytes=excel_size,
         markdown_storage_key=md_storage_key,
         markdown_bytes=markdown_size,
+        token_size=markdown_token_size,
     )
     return _build_excel_block(
         content_hash=content_hash,
@@ -214,4 +174,5 @@ async def save_chat_excel(
         md_storage_key=md_storage_key,
         excel_size=excel_size,
         markdown_size=markdown_size,
+        markdown_token_size=markdown_token_size,
     )

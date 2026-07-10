@@ -68,7 +68,7 @@ def _build_orchestrator(*, raise_in_stream: bool) -> tuple[ChatOrchestrator, Any
     post_process.schedule_memory_write = MagicMock()
 
     kb_service = MagicMock()
-    kb_service.build_context_block_content = AsyncMock(return_value=None)
+    kb_service.build_context_blocks_for_current_turn = AsyncMock(return_value=None)
 
     orch = ChatOrchestrator(
         chat_session_agent=agent,
