@@ -132,7 +132,8 @@ const ChatInputSender = React.forwardRef<GetRef<typeof Sender>, ChatInputSenderP
           onSuggestionKeyDown?: (event: React.KeyboardEvent) => void;
         }
       ) => {
-        // 空格应正常输入；面板展开时也勿交给 Cascader 处理
+        // Suggestion 基于 Cascader：非可编辑模式下空格会 preventDefault（ARIA combobox），
+        // 事件冒泡到 Cascader 根节点后无法输入空格，需拦截冒泡。
         if (event.key === " " || event.code === "Space") {
           event.stopPropagation();
           return;
