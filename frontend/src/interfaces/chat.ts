@@ -91,6 +91,8 @@ export interface ChatRequest extends ChatInputConfig {
   historyIds: string[];
   regenerateTitle: boolean;
   removedMessageIds: string[];
+  /** 通过 @ 引用的历史/当前轮附件（不并入 content_blocks） */
+  mentionedBlocks?: UserAttachmentBlock[];
 }
 
 export interface ChatModelItem {
@@ -110,6 +112,8 @@ export interface SendMessageOptions {
   createdBy?: TitleCreatedBy;
   /** 与 Attachments 派生并列：重发时从历史消息的 contentBlocks 带入（图片、PDF 等） */
   attachmentBlocks?: UserAttachmentBlock[];
+  /** 通过 @ 引用的附件块，独立于本轮上传的 attachmentBlocks */
+  mentionedBlocks?: UserAttachmentBlock[];
 }
 
 export type StreamResumePhase = "streaming" | "closed" | "done" | "error";

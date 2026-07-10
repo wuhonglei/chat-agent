@@ -2,3 +2,7 @@
   /* focus 时，组件默认的 border-width: 2px; 这里重置为 1px */
   border-width: 1px;
 }
+
+.mentionPopup {
+  max-width: 320px;
+}

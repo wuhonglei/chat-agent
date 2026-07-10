@@ -501,7 +501,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
 
   const sendMessage = useMemoizedFn(
     async (values: ChatInputFormValues, options?: SendMessageOptions): Promise<void> => {
-      const { index, createdBy, attachmentBlocks } = options || {};
+      const { index, createdBy, attachmentBlocks, mentionedBlocks } = options || {};
       const { content, ...requestConfig } = values;
       const normalizedValues: ChatInputFormValues = {
         ...values,
@@ -587,6 +587,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
             regenerateTitle,
             removedMessageIds,
             conversationId,
+            mentionedBlocks,
           },
           handleInitialStreamMessage,
           handleStreamError,
