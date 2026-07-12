@@ -42,7 +42,7 @@ conversations/{conversation_id}/
   outputs/     # Final deliverables
 ```
 
-Agent virtual paths (not disk directory names): `/mnt/user-data/workspace/`, `/mnt/user-data/uploads/`, `/mnt/user-data/outputs/`, `/mnt/skills/public/` (built-in, read-only), `/mnt/skills/custom/` (per-user, read-write). Path helpers live in `app/vfs/paths.py`. Alembic revision `b4c5d6e7f8a9` migrates v3 `workspaces/{conv}` and `uploads/{conv}` into the layout above.
+Agent virtual paths (not disk directory names): `/mnt/user-data/workspace/`, `/mnt/user-data/uploads/`, `/mnt/user-data/outputs/`, `/mnt/skills/public/` (built-in, read-only), `/mnt/skills/custom/` (per-user, read-write). Path helpers live in `app/vfs/paths.py`; operational details for VFS, file/shell MCP, and sandbox backends live in `backend/docs/VFS_AND_SANDBOX.md`. Alembic revision `b4c5d6e7f8a9` migrates v3 `workspaces/{conv}` and `uploads/{conv}` into the layout above.
 
 ### Running tests
 

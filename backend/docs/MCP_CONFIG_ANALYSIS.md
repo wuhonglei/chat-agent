@@ -18,7 +18,7 @@
 | `time` | fastmcp | `app.mcp.mcp_servers.time_mcp.server` | 时间查询 |
 | `weather` | fastmcp | `app.mcp.mcp_servers.weather_mcp.server` | 天气查询 |
 | `tavily` | fastmcp | `app.mcp.mcp_servers.tavily_mcp.server` | 联网搜索 |
-| `code-exec` | fastmcp | `app.mcp.mcp_servers.code_exec_mcp.server` | 代码执行沙箱 |
+| `code` | fastmcp | `app.mcp.mcp_servers.code_exec_mcp.server` | 代码执行沙箱 |
 | `file` | fastmcp | `app.mcp.mcp_servers.file_mcp.server` | 文件操作 |
 | `skill_manager` | fastmcp | `app.mcp.mcp_servers.skill_manager_mcp.server` | Agent Skill 加载 |
 | `shell` | fastmcp | `app.mcp.mcp_servers.shell_mcp.server` | Shell 命令执行 |
@@ -102,7 +102,20 @@ mcp:
 
 应用启动时在 `lifespan` 中调用 `register_mcp_reload_target(loop, manager)` 注册事件循环与单例引用。
 
-### 4.2 核心职责
+### 4.2 普通模式与 Agent 模式
+
+`ChatRequest.agent_mode` 决定本轮请求暴露哪组 MCP Server：
+
+| 模式 | 默认 Server 列表 | 说明 |
+|---|---|---|
+| 普通对话（`agent_mode=0`） | `time`、`weather`、`tavily`、`code`、`context7`、`zread` | 面向问答与轻量工具调用 |
+| Agent 模式（`agent_mode>0`） | `file`、`skill_manager`、`shell`、`tavily`、`context7`、`zread` | 面向文件读写、技能管理与沙箱命令执行 |
+
+这些列表只控制 LLM 可见工具集合；Server 是否真正可用仍取决于
+`mcp.mcp_servers` 中是否配置并启用对应项。Agent 模式的虚拟文件系统、`file`
+/ `shell` MCP 工具与沙箱约束见 `VFS_AND_SANDBOX.md`。
+
+### 4.3 核心职责
 
 `MCPClientManager` 的核心职责：
 
@@ -111,7 +124,7 @@ mcp:
 3. 维护 `tool_name -> server_name` 映射（`tools_map`，键为 **LLM 可见名** `{server}_{bare}`）；
 4. 根据工具 schema 过滤无效参数后调用工具（`MCPToolGateway`）。
 
-### 4.3 工具命名双轨
+### 4.4 工具命名双轨
 
 | 阶段 | 示例（tavily / web_search） |
 |------|------------------------------|
