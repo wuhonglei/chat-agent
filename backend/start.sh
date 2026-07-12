@@ -50,8 +50,8 @@ echo "=========================================="
 echo "Starting application server..."
 echo "=========================================="
 
-# 临时止血：固定单 worker，避免短信验证码进程内缓存跨 worker 丢失
-WORKERS=1
+# Gunicorn workers = 2 * CPU 核数（验证码已迁移到 Redis，可安全多 worker）
+WORKERS=$(( $(nproc) * 2 ))
 
 # 启动 Gunicorn 应用服务器
 exec gunicorn app.main:app -w $WORKERS -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
