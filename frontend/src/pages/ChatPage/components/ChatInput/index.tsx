@@ -240,6 +240,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
               />
             }
             suffix={false}
+            // SlotTextArea 在 submitType=enter 时会拦截回车并清除 <br>；移动端改为 shiftEnter 以允许换行
+            submitType={isSmallScreen ? "shiftEnter" : "enter"}
             onPasteFile={handlePasteFile}
             onKeyDown={handlePressEnter}
             placeholder="发送消息"

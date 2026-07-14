@@ -163,7 +163,8 @@ const ChatInputSender = React.forwardRef<GetRef<typeof Sender>, ChatInputSenderP
         }
 
         options?.onSuggestionKeyDown?.(event);
-        onKeyDown?.(event);
+        // 必须回传返回值：Sender 以 `false` 跳过 Enter 提交并允许换行
+        return onKeyDown?.(event);
       }
     );
 
