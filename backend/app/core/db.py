@@ -20,8 +20,8 @@ SQLALCHEMY_DATABASE_URL = f"postgresql://{settings.database.username}:{settings.
 # json_serializer：PostgreSQL JSON 列写入时保留中文等非 ASCII，不转成 \uXXXX
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
-    pool_size=20,  # 连接池大小
-    max_overflow=30,  # 最大溢出连接数
+    pool_size=5,  # 连接池大小（需配合 worker 数量，总连接数 = workers * pool_size）
+    max_overflow=7,  # 最大溢出连接数（workers * (pool_size + max_overflow) < PG max_connections）
     pool_pre_ping=True,  # 连接前检查连接是否有效
     pool_recycle=300,  # 连接回收时间（秒），避免长时间空闲被服务端关闭
     json_serializer=json_dumps_utf8,
