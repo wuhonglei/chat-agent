@@ -1,6 +1,6 @@
 # Chat Agent QPS 性能测试报告
 
-**测试时间**: 2026-07-12 ~ 2026-07-15
+**测试时间**: 2026-07-12 ~ 2026-07-15（含 CDN 架构优化）
 **测试目标**: https://chat.wuhonglei.cn
 **测试工具**: Apache Bench (ab)
 
@@ -18,16 +18,20 @@
 ### 1.2 请求链路架构
 
 ```
+当前架构（CDN 直连）：
 浏览器 (深圳)
     │
-    ▼ 网络 RTT ~5-10ms
-公共服务 (nginx proxy manager, 广州, 6Mbps)
+    ▼ HTTPS (CDN 边缘 TLS 终止)
+CDN 边缘节点（腾讯云 CDN）
     │
-    ▼ 内网/公网 RTT ~1-5ms
+    ▼ HTTP 回源
 业务应用 (nginx, 广州, 5Mbps)
     │
     ▼ 本地
 Gunicorn (8 workers) → FastAPI → PostgreSQL
+
+CNAME: chat.wuhonglei.cn.cdn.dnsv1.com
+源站: 134.175.182.235:3000 (HTTP)
 ```
 
 ### 1.3 软件环境
@@ -456,6 +460,7 @@ QPS: 500-800（HTTPS）
 | 优化连接池配置 | 解决连接数爆炸问题 |
 | PG max_connections 调至 200 | messages 接口 QPS 提升 14.6 倍 |
 | 对话列表接口添加游标分页 | 深度分页性能稳定，架构更优 |
+| **CDN 直连业务应用** | **QPS 从 113 提升至 531-825（+370%~630%）** |
 
 ### 9.2 后续可优化
 
