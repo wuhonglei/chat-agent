@@ -139,35 +139,34 @@ export function useHideSidebar() {
 
 const CONVERSATION_PAGE_LIMIT = 20;
 
-/** 对话列表无限滚动：使用 offset/limit 分页，初始 offset=0，limit=20 */
+/** 对话列表无限滚动：游标分页，首页不传 cursor，后续传 nextCursor */
 export function useConversationInfiniteScroll(containerRef: RefObject<HTMLDivElement | null>) {
   const dispatch = useAppDispatch();
   const conversations = useAppSelector(state => state.conversation.conversations);
 
-  const { loadingMore, noMore, data } = useInfiniteScroll<
+  const { loadingMore, noMore } = useInfiniteScroll<
     Omit<ConversationListResponse, "conversations"> & {
       list: ConversationInfo[];
     }
   >(
     async (lastData?) => {
-      const offset = lastData ? lastData.offset + lastData.limit : 0;
-      // 防止快速滚动时多次触发导致 offset 超过 total
-      if (lastData && offset >= lastData.total) {
+      if (lastData && !lastData.hasMore) {
         return lastData;
       }
-      const res = await dispatch(loadConversations({ offset, limit: CONVERSATION_PAGE_LIMIT })).unwrap();
+      const cursor = lastData?.nextCursor ?? undefined;
+      const res = await dispatch(
+        loadConversations({ cursor, limit: CONVERSATION_PAGE_LIMIT })
+      ).unwrap();
       return {
         list: res.conversations,
-        total: res.total,
-        offset: res.offset,
+        nextCursor: res.nextCursor,
+        hasMore: res.hasMore,
         limit: res.limit,
       };
     },
     {
       target: () => containerRef.current ?? undefined,
-      isNoMore: data => {
-        return !data || conversations.length >= data.total;
-      },
+      isNoMore: scrollData => !scrollData?.hasMore,
       threshold: 5,
       reloadDeps: [],
     }
@@ -175,7 +174,7 @@ export function useConversationInfiniteScroll(containerRef: RefObject<HTMLDivEle
 
   return {
     loadingMore,
-    noMore: !loadingMore && noMore && data && data.total > 0,
+    noMore: !loadingMore && noMore && conversations.length > 0,
   };
 }
 

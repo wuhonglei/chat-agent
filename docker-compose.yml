@@ -10,6 +10,11 @@ services:
       POSTGRES_USER: ${PG_USER_NAME}
       POSTGRES_PASSWORD: ${PG_PASSWORD}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    # 压测建议：8 workers × 12 连接 = 96，默认 100 余量不足；调至 200
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=200"
     volumes:
       - postgres_data:/var/lib/postgresql
       - ./backend/init-db:/docker-entrypoint-initdb.d

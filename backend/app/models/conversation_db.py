@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime
+from sqlalchemy import DateTime, Index, desc
 from sqlmodel import Field, SQLModel
 
 from app.schemas.conversation import CreatedBy
@@ -12,6 +12,15 @@ class ConversationDb(SQLModel, table=True):
     """对话模型"""
 
     __tablename__ = "conversations"
+    __table_args__ = (
+        Index(
+            "ix_conversations_user_active_last_msg",
+            "user_id",
+            "is_active",
+            desc("last_message_created_at"),
+            desc("id"),
+        ),
+    )
 
     id: str = Field(
         default_factory=gen_uuid, primary_key=True, index=True, max_length=36

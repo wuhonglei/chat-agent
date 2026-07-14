@@ -3,7 +3,7 @@
 import shutil
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 
 from app.core.db import get_db
@@ -11,12 +11,14 @@ from app.schemas.auth import AuthTokenPayload
 from app.schemas.conversation import (
     ConversationInfo,
     ConversationListRequest,
+    ConversationListResponse,
     RegisterConversationRequest,
     UpdateConversationRequest,
 )
 from app.schemas.response import ApiResponse
 from app.services.conversation import ConversationDbService
 from app.utils.auth_deps import get_auth_token_info, require_auth
+from app.utils.cursor import InvalidCursorError
 from app.utils.logger import logger
 from app.vfs.paths import get_paths
 
@@ -87,18 +89,15 @@ async def get_conversations(
     request: ConversationListRequest = Depends(),
     db: Session = Depends(get_db),
     token_info: AuthTokenPayload = Depends(get_auth_token_info),
-) -> ApiResponse[dict[str, Any]]:
-    """分页获取对话列表。"""
+) -> ApiResponse[ConversationListResponse]:
+    """游标分页获取对话列表。"""
     service = ConversationDbService(db)
-    total, conversations = service.get_conversations_paginated(
-        token_info.user_id, offset=request.offset, limit=request.limit
-    )
-    data = {
-        "total": total,
-        "offset": request.offset,
-        "limit": request.limit,
-        "conversations": conversations,
-    }
+    try:
+        data = service.get_conversations_paginated(
+            token_info.user_id, cursor=request.cursor, limit=request.limit
+        )
+    except InvalidCursorError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return ApiResponse.success(data=data, msg="获取对话列表成功")
 
 

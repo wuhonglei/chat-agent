@@ -36,21 +36,23 @@ class RegisterConversationRequest(BaseModel):
 
 
 class ConversationListRequest(BaseModel):
-    """对话列表查询请求（分页）"""
+    """对话列表查询请求（游标分页）"""
 
-    offset: int = Field(0, ge=0, description="偏移量")
+    cursor: str | None = Field(None, description="游标，首页不传")
     limit: int = Field(20, ge=1, le=100, description="每页数量")
 
 
 class ConversationListResponse(BaseModel):
     """Conversation list response model"""
 
-    total: int = Field(..., description="Total number of conversations")
-    offset: int = Field(..., description="Offset for pagination")
-    limit: int = Field(..., description="Limit for pagination")
     conversations: list[ConversationInfo] = Field(
         ..., description="List of conversations"
     )
+    next_cursor: str | None = Field(
+        None, description="下一页游标，末页为 null"
+    )
+    has_more: bool = Field(..., description="是否还有更多数据")
+    limit: int = Field(..., description="本页 limit")
 
 
 class ConversationDetailResponse(ConversationInfo):
