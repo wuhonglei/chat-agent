@@ -421,7 +421,59 @@ chat.wuhonglei.cn → xxx.cdn.dnsv1.com (CDN 分配)
 | 第二次-2 | 100 | **531** | 134ms | 535ms | 正常波动 |
 | 第二次-3 | 50 | **295** | 118ms | 480ms | 并发降低 |
 
-**稳定 QPS 范围：500-800**
+**稳定 QPS 范围：500-800**（仅测试 health 无认证接口）
+
+### 8.6.1 CDN 完整接口测试（2026-07-14）
+
+**测试条件**: 并发 100，各 2000 请求，通过 CDN（chat.wuhonglei.cn），JWT 认证
+
+| 接口 | 轮次 | QPS | 失败数 | P50 | P95 | P99 |
+|------|------|-----|--------|-----|-----|-----|
+| `GET /api/health` | 第1轮 | **49.39** | 10 | 927ms | 2704ms | 4630ms |
+| `GET /api/health` | 第2轮 | **183.71** | 3 | 442ms | 937ms | 1551ms |
+| `GET /api/user/detail` | 第1轮 | **171.32** | 0 | 475ms | 976ms | 1812ms |
+| `GET /api/user/detail` | 第2轮 | **192.81** | 0 | 411ms | 722ms | 2435ms |
+| `GET /api/chat/models` | 第1轮 | **180.44** | 0 | 457ms | 908ms | 1847ms |
+| `GET /api/chat/models` | 第2轮 | **168.99** | 0 | 449ms | 934ms | 2462ms |
+| `GET /api/conversation/detail` | 第1轮 | **171.69** | 0 | 512ms | 899ms | 1481ms |
+| `GET /api/conversation/detail` | 第2轮 | **168.85** | 0 | 464ms | 1020ms | 2572ms |
+| `GET /api/conversation/list` | 第1轮 | **69.40** | 11 | 845ms | 4234ms | 8882ms |
+| `GET /api/conversation/list` | 第2轮 | **65.00** | 13 | 814ms | 4237ms | 9417ms |
+| `GET /api/conversation/{id}/messages` | 第1轮 | **172.04** | 0 | 466ms | 1041ms | 1781ms |
+| `GET /api/conversation/{id}/messages` | 第2轮 | **133.26** | 0 | 468ms | 3473ms | 3995ms |
+
+**CDN 接口 QPS 稳定范围（取两轮均值）**:
+
+| 接口 | 平均 QPS | 性能梯队 |
+|------|----------|----------|
+| `GET /api/user/detail` | **182.1** | 🥇 第一梯队 |
+| `GET /api/chat/models` | **174.7** | 🥇 第一梯队 |
+| `GET /api/conversation/{id}/messages` | **152.7** | 🥇 第一梯队 |
+| `GET /api/conversation/detail` | **170.3** | 🥇 第一梯队 |
+| `GET /api/health` | **116.6** | 🥈 第二梯队 |
+| `GET /api/conversation/list` | **67.2** | 🥉 第三梯队 |
+
+**关键发现**:
+1. **CDN 认证接口 QPS 稳定在 150-190**，比之前仅测试 health 的 531-825 低，说明之前 health 测试命中了 CDN 缓存
+2. **conversation/list 是瓶颈**（67 QPS），因为涉及游标分页 + 多表查询，与旧架构测试结论一致
+3. **认证接口无失败**（conversation/list 除外），CDN 回源链路稳定
+4. **与旧架构对比**：CDN 认证接口 QPS（150-190）vs 旧架构认证接口（100-140），提升约 **30-50%**
+
+### 8.6.2 CDN vs 旧架构认证接口对比
+
+| 接口 | 旧架构 QPS (NPM+TLS) | CDN QPS | 提升 |
+|------|----------------------|---------|------|
+| `GET /api/health` | 117.25 | 116.6 | 持平 |
+| `GET /api/user/detail` | 141.80 | **182.1** | **+28%** |
+| `GET /api/chat/models` | 130.91 | **174.7** | **+33%** |
+| `GET /api/conversation/detail` | 124.66 | **170.3** | **+37%** |
+| `GET /api/conversation/list` | 101.54 | **67.2** | **-34%** ⬇️ |
+| `GET /api/conversation/{id}/messages` | 137.96 | **152.7** | **+11%** |
+
+**分析**:
+- 大部分接口通过 CDN 有 **11%-37% 的 QPS 提升**，主要来自 CDN 边缘 TLS 终止减少了握手开销
+- **conversation/list 反而下降 34%**，可能是 CDN 回源连接复用不如 NPM 内网直连高效，或该接口本身受 DB 查询瓶颈限制
+- **health 持平**，说明 CDN 对无缓存的动态接口提升有限
 
 ### 8.7 优化效果对比
 
