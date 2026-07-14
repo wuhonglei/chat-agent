@@ -168,7 +168,7 @@ Workers: 4 × 2 = 8
 |--------|------|----------|
 | P1 | 消息表添加 `(conversation_id, created_at)` 索引 | 查询提速 |
 | P1 | Redis 缓存热点对话的消息列表 | 减少 DB 压力 |
-| P2 | 对话列表接口添加游标分页（代替 offset） | 大 offset 下性能稳定 |
+| P2 | 对话列表接口(/api/conversation/list)添加游标分页（代替 offset） | 大 offset 下性能稳定 |
 | P2 | 消息列表只返回摘要，详情按需加载 | 减少传输量 |
 | P3 | 考虑 PgBouncer | 多服务连接复用 |
 

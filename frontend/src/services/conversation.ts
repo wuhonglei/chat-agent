@@ -25,8 +25,11 @@ export const conversationAPI = {
     return await apiClient.put(`/conversation/activate/${conversationId}`);
   },
 
-  // 获取对话列表
-  getConversations: async (params?: { limit?: number; offset?: number }): Promise<ConversationListResponse> => {
+  // 获取对话列表（游标分页）
+  getConversations: async (params?: {
+    limit?: number;
+    cursor?: string | null;
+  }): Promise<ConversationListResponse> => {
     return await apiClient.get("/conversation/list", { params });
   },
 
