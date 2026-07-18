@@ -1,6 +1,5 @@
 """文件服务"""
 
-import uuid
 from pathlib import Path
 
 from fastapi import UploadFile
@@ -10,6 +9,7 @@ from app.utils.avatar import (
     assert_allowed_upload_extension,
     avatar_storage_path,
 )
+from app.utils.common import gen_uuid
 from app.utils.file import get_file_extension, write_file_async
 from app.utils.logger import logger
 
@@ -31,7 +31,7 @@ class FileService:
         file_ext = get_file_extension(file.filename or "")
         assert_allowed_upload_extension(file_ext)
 
-        filename = f"{uuid.uuid4()}{file_ext}"
+        filename = f"{gen_uuid()}{file_ext}"
         avatar_dir = Path(settings.storage.avatar_dir)
         avatar_dir.mkdir(parents=True, exist_ok=True)
         dest = avatar_dir / filename

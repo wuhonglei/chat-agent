@@ -1,4 +1,3 @@
-import uuid
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -6,6 +5,7 @@ from pathlib import Path
 import aiofiles
 from fastapi import UploadFile
 
+from app.utils.common import gen_uuid
 from app.utils.logger import logger
 
 
@@ -132,7 +132,7 @@ class TempFileManager:
 
     def _generate_file_path(self) -> Path:
         """生成唯一的文件路径"""
-        file_id = str(uuid.uuid4())
+        file_id = gen_uuid()
         file_name = (
             f"{self.prefix}{file_id}{self.file_extension}"
             if self.prefix

@@ -1,11 +1,11 @@
 import asyncio
-import uuid
 from collections.abc import Awaitable, Callable
 from functools import wraps
 from typing import Any, ParamSpec, TypeVar, cast
 
 import json_repair
 from fastapi.encoders import jsonable_encoder
+from uuid6 import uuid7
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -83,8 +83,8 @@ def pick_fields(dict_data: dict[str, Any], field_names: list[str]) -> dict[str, 
 
 
 def gen_uuid() -> str:
-    """Generate a new UUID string"""
-    return str(uuid.uuid4())
+    """Generate a new UUIDv7 string."""
+    return str(uuid7())
 
 
 def normalize_url(url: str) -> str:

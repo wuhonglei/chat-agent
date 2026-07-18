@@ -4,16 +4,16 @@ overview: 将应用层 ID 生成从 UUIDv4 切换为 UUIDv7：通过 uuid6 库�
 todos:
   - id: add-uuid6-dep
     content: 在 backend/pyproject.toml 添加 uuid6 依赖并用 uv sync
-    status: in_progress
+    status: completed
   - id: impl-uuid7
     content: 在 common.py 用 uuid6.uuid7 改写 gen_uuid
-    status: pending
+    status: completed
   - id: converge-callers
     content: file_service / file TempFile / sms_service 改为 gen_uuid()
-    status: pending
+    status: completed
   - id: verify
     content: 跑 lint，抽检 version nibble 为 7
-    status: pending
+    status: completed
 isProject: false
 ---
 

@@ -5,7 +5,6 @@
 
 import asyncio
 import random
-import uuid
 
 from fastapi import HTTPException
 from sqlmodel import Session
@@ -15,6 +14,7 @@ from app.models import UserDb
 from app.schemas.auth import SendSmsRequest, SendSmsResponse, SmsLoginRequest
 from app.services.auth.sms_verification_store import SmsVerificationStore
 from app.services.user import UserDbService
+from app.utils.common import gen_uuid
 from app.utils.logger import logger
 from app.utils.sms import format_phone_e164, send_sms_sync
 
@@ -43,7 +43,7 @@ class SmsService:
         """
         phone = send_sms_request.phone_number.strip()
         code = "".join(random.choices("0123456789", k=6))
-        verification_id = str(uuid.uuid4())
+        verification_id = gen_uuid()
         try:
             await _store.save(verification_id, code=code, phone=phone)
         except Exception as e:
