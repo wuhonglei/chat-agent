@@ -19,6 +19,7 @@
 - 会话与消息管理
 - SSE 流式对话接口
 - MCP 工具接入与组件工具调用
+- 聊天附件上传、预览、RAG 检索与 Agent 模式按需读取
 - 前后端分离 Web 应用
 
 不在当前范围内或未完整落地：
@@ -41,17 +42,26 @@
 
 ### 2.3 AI 问答
 - 支持 `POST /api/chat/stream` 流式输出
-- 支持 think mode、MCP auto mode
+- 支持 think mode、Agent mode
 - 支持组件工具条件触发与结构化数据输出
 - 支持会话上下文裁剪与摘要（由后端服务执行）
+- 支持图片、PDF、Excel、Markdown、纯文本/代码文件作为用户消息附件
+- 普通模式下，文本类附件（含 PDF / Excel 派生 Markdown）通过附件 RAG 注入 `<attachment_context>`
+- Agent 模式下，后端注入 `<attachment_uploads>` 文件清单，模型通过 file MCP 按需读取 `/mnt/user-data/uploads/...`
 
 ### 2.4 MCP 工具
 当前内置并由后端统一管理的 MCP 服务：
-- `context7-mcp`
-- `weather-mcp`
-- `tavily-mcp`
-- `code-exec-mcp`
-- `time-mcp`
+- `context7`
+- `weather`
+- `tavily`
+- `code`
+- `time`
+- `file`
+- `shell`
+- `skill_manager`
+- `zread`（可通过配置接入）
+
+普通对话与 Agent 模式暴露给模型的服务列表分别由 `normal_mode_servers`、`agent_mode_servers` 配置控制。
 
 ### 2.5 用户信息与记忆
 - 获取与更新用户信息
@@ -109,6 +119,8 @@
 - `DELETE /api/user/memories/{memory_id}`
 - `POST /api/avatars/upload`
 - `GET /api/avatars/{filename}`
+- `POST /api/file/upload`
+- `GET /api/file/preview/{user_id}/{storage_key}`
 
 ## 5. 非功能性要求
 

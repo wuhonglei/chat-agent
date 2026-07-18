@@ -1,5 +1,16 @@
 # Agent 模式开关改造计划
 
+> 文档状态：历史改造计划 + 当前实现差异说明。下方“需求总结/执行顺序”保留当时改造背景，不应作为现网行为的唯一依据。
+
+## 当前实现摘要（2026-06）
+
+- 请求字段仍为 `agent_mode: int`，`0` 表示普通对话，`>0` 表示 Agent 模式。
+- MCP Server 暴露列表由 `backend/app/schemas/config.py` 的 `normal_mode_servers` 与 `agent_mode_servers` 控制；默认 Agent 模式包含 `file`、`skill_manager`、`shell`、`tavily`、`context7`、`zread`，并非只启用 file/shell。
+- Agent 模式系统提示词使用 `<skill_system>` 与 `<working_directory>`，虚拟目录包括 `/mnt/user-data/workspace/`、`/mnt/user-data/uploads/`、`/mnt/user-data/outputs/`、`/mnt/skills/public/`、`/mnt/skills/custom/`。
+- 上传附件在普通模式走 RAG：后端构建 `<attachment_context>` 注入检索片段。
+- 上传附件在 Agent 模式不走 RAG：后端构建 `<attachment_uploads>` 清单，列出本会话上传文件的 `name/type/virtual_path/size/uploaded_this_turn`；PDF / Excel 额外提供派生 Markdown 的 `virtual_path`，供模型用 file MCP 按需读取。
+- 附件虚拟路径来自 `storage_key` 的会话相对部分：`{conversation_id}/report.pdf` 对应 `/mnt/user-data/uploads/report.pdf`，`{conversation_id}/derived/report.md` 对应 `/mnt/user-data/uploads/derived/report.md`。
+
 ## 一、需求总结
 
 | 项目 | 当前值 | 目标值 |
@@ -146,19 +157,10 @@ max_total_iterations = (
 )
 ```
 
-**修改点 4：MCP 服务器过滤**（第 237-241 行）
+**修改点 4：MCP 服务器暴露列表**（当前实现见 `backend/app/schemas/config.py`）
 ```python
-AGENT_MODE_MCP_SERVERS = {"file-mcp", "shell-mcp"}
-
-def _resolve_request_mcp_servers(
-    self, chat_request: ChatRequest
-) -> list[str] | None:
-    all_servers = list(self.mcp_manager.registry.get_servers())
-    if chat_request.agent_mode > 0:
-        # Agent 模式下只启用 file-mcp 和 shell-mcp
-        return [s for s in all_servers if s in self.AGENT_MODE_MCP_SERVERS]
-    # 非 Agent 模式返回所有服务器
-    return all_servers
+normal_mode_servers = ["time", "weather", "tavily", "code", "context7", "zread"]
+agent_mode_servers = ["file", "skill_manager", "shell", "tavily", "context7", "zread"]
 ```
 
 ### 3. 系统提示词模板
@@ -166,32 +168,26 @@ def _resolve_request_mcp_servers(
 **文件**: `backend/app/prompts/system_prompt.py`
 
 ```python
-# 第 37-62 行
 {%- if agent_mode > 0 %}
-<agent_mode>
-当前回合启用了 Agent 模式。
-
-<skill_manifest>
+<skill_system>
+内置技能：`{{ skills_public_prefix.rstrip('/') }}/`
+用户自定义技能：`{{ skills_custom_prefix.rstrip('/') }}`
+<available_skills>
 {%- for skill in skill_manifests %}
-- {{ skill.name }}: {{ skill.description }}
+  <skill>
+    <name>{{ skill.name }}</name>
+    <description>{{ skill.description }}</description>
+    <location>{{ skill.location }}</location>
+  </skill>
 {%- endfor %}
-</skill_manifest>
+</available_skills>
+</skill_system>
 
-<execution_rules>
-1. 当任务涉及前后端代码生成时，先调用 load_skill 读取对应技能，再执行文件工具。
-2. 前端代码生成流程优先参考技能 `frontend-codegen-pipeline` 的执行流程。
-3. 所有文件操作都必须限制在 skills_dir、workspace_dir 目录内，不得尝试访问其它路径。
-</execution_rules>
-
-<runtime_environment>
-- system_type: {{ system_type }}
-- node_version: {{ node_version }}
-- python_version: {{ python_version }}
-- skills_dir: {{ skills_dir }}
-- skill_dir: {{ skills_dir }}/<skill_name>
-- workspace_dir: {{ workspace_dir }}
-</runtime_environment>
-</agent_mode>
+<working_directory existed="true">
+- 用户上传：`{{ uploads_prefix.rstrip('/') }}`
+- 用户工作区：`{{ workspace_prefix.rstrip('/') }}`
+- 输出文件：`{{ outputs_prefix.rstrip('/') }}`
+</working_directory>
 {%- endif %}
 ```
 
@@ -200,20 +196,17 @@ def _resolve_request_mcp_servers(
 **文件**: `backend/app/prompts/prompt_utils.py`
 
 ```python
-# 第 72-86 行
 def get_system_prompt_for_chat_session(
     *,
     agent_mode: int = 0,
     skill_manifests: Sequence[AgentSkillManifest] | None = None,
-    user_id: str,
-    workspace_id: str,
 ) -> str:
     """Get system prompt for final response generation."""
-    runtime_environment = _get_runtime_environment(user_id, workspace_id)
+    extra = _get_agent_mode_prompt_context() if agent_mode > 0 else {}
     return system_prompt_for_chat_session_template.render(
         agent_mode=agent_mode,
         skill_manifests=skill_manifests or [],
-        **runtime_environment,
+        **extra,
     )
 ```
 
@@ -226,7 +219,8 @@ def get_system_prompt_for_chat_session(
 | localStorage 兼容性 | 字段名从 `websiteBuildMode` 改为 `agentMode`，类型从 boolean 改为 number。旧数据会被忽略，使用新默认值 `0` |
 | 消息元数据 | 存储在 `message_metadata` JSON 字段中，无需数据库迁移 |
 | API 兼容性 | 前端发送 `agent_mode: 0/1`，后端接收 `agent_mode: int` |
-| MCP 服务器 | Agent 模式下只启用 file-mcp 和 shell-mcp，其他 MCP 服务（如 tavily、weather）不可用 |
+| MCP 服务器 | Agent 模式暴露列表由 `agent_mode_servers` 配置控制；默认包含 file / skill_manager / shell / tavily / context7 / zread |
+| 附件上下文 | 普通模式使用附件 RAG；Agent 模式注入 `<attachment_uploads>` 并由模型按需读取虚拟路径 |
 
 ---
 
@@ -239,8 +233,9 @@ def get_system_prompt_for_chat_session(
 - [ ] 欢迎页根据 agentMode 显示/隐藏提示卡片
 
 ### 后端验证
-- [ ] Agent 模式下，系统提示词包含 `<agent_mode>` 块
-- [ ] Agent 模式下，只返回 file-mcp 和 shell-mcp 工具
+- [ ] Agent 模式下，系统提示词包含 `<skill_system>` 与 `<working_directory>` 块
+- [ ] Agent 模式下，按 `agent_mode_servers` 返回 MCP 工具
+- [ ] Agent 模式下，上传附件以 `<attachment_uploads>` 注入，PDF / Excel 优先暴露 derived Markdown 虚拟路径
 - [ ] Agent 模式下，最大迭代次数为 20
 - [ ] 非 Agent 模式下，行为与之前一致
 
