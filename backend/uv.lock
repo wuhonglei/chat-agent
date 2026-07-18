@@ -736,6 +736,7 @@ dependencies = [
     { name = "aiopyston" },
     { name = "alembic" },
     { name = "bashlex" },
+    { name = "cachetools" },
     { name = "cryptography" },
     { name = "dashscope" },
     { name = "docker" },
@@ -790,6 +791,7 @@ dev = [
 [package.dev-dependencies]
 dev = [
     { name = "types-aiofiles" },
+    { name = "types-cachetools" },
     { name = "types-pyyaml" },
     { name = "types-requests" },
 ]
@@ -800,6 +802,7 @@ requires-dist = [
     { name = "aiopyston", specifier = ">=1.2.1" },
     { name = "alembic", specifier = ">=1.13.1" },
     { name = "bashlex", specifier = ">=0.18" },
+    { name = "cachetools", specifier = ">=5.3.0" },
     { name = "cryptography", specifier = ">=46.0.7" },
     { name = "dashscope", specifier = ">=1.25.16" },
     { name = "docker", specifier = ">=7.0.0" },
@@ -850,6 +853,7 @@ provides-extras = ["dev"]
 [package.metadata.requires-dev]
 dev = [
     { name = "types-aiofiles", specifier = ">=24.1.0" },
+    { name = "types-cachetools", specifier = ">=5.5.0" },
     { name = "types-pyyaml", specifier = ">=6.0.12" },
     { name = "types-requests", specifier = ">=2.32.4.20260107" },
 ]
@@ -5107,6 +5111,15 @@ source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }
 sdist = { url = "https://mirrors.aliyun.com/pypi/packages/84/6c/6d23908a8217e36704aa9c79d99a620f2fdd388b66a4b7f72fbc6b6ff6c6/types_aiofiles-25.1.0.20251011.tar.gz", hash = "sha256:1c2b8ab260cb3cd40c15f9d10efdc05a6e1e6b02899304d80dfa0410e028d3ff" }
 wheels = [
     { url = "https://mirrors.aliyun.com/pypi/packages/71/0f/76917bab27e270bb6c32addd5968d69e558e5b6f7fb4ac4cbfa282996a96/types_aiofiles-25.1.0.20251011-py3-none-any.whl", hash = "sha256:8ff8de7f9d42739d8f0dadcceeb781ce27cd8d8c4152d4a7c52f6b20edb8149c" },
+]
+
+[[package]]
+name = "types-cachetools"
+version = "7.0.0.20260713"
+source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }
+sdist = { url = "https://mirrors.aliyun.com/pypi/packages/34/64/66d7efdb36ecf6826aca5415e59fe2df96e97d24157147e53acfbe8dda11/types_cachetools-7.0.0.20260713.tar.gz", hash = "sha256:f1acf079e9c66a81e096a897ef0b261a82117cf856834e37b4bd0c9a116a076a" }
+wheels = [
+    { url = "https://mirrors.aliyun.com/pypi/packages/0e/c7/d3525c9dbdc1be7786bad46655ef051b6e7993f656d304719ec40079c91c/types_cachetools-7.0.0.20260713-py3-none-any.whl", hash = "sha256:6db9bcc7a3840d39e91c04117d85a9d0937eacc9d14d12a873e2b01a2d24a71d" },
 ]
 
 [[package]]

@@ -10,6 +10,7 @@ from pydantic_settings import (
     SettingsConfigDict,
 )
 
+from app.core.local_cache import l1_delete
 from app.core.nacos.config import NacosConfigSettingsSource
 from app.schemas.config import (
     AppConfig,
@@ -161,6 +162,7 @@ def reload_settings() -> None:
     global _current_settings
     with _settings_reload_lock:
         _current_settings = _build_settings()
+    l1_delete("models")
     logger.info("Settings 已重新加载（Nacos 或手动 reload_settings）")
     try:
         from app.mcp.reload import on_settings_reloaded

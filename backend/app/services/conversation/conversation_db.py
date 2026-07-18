@@ -7,6 +7,19 @@ from typing import Any, cast
 from sqlalchemy import and_, or_
 from sqlmodel import Session, select
 
+from app.core.cache import (
+    CONVERSATION_DETAIL_TTL_SECONDS,
+    CONVERSATION_LIST_TTL_SECONDS,
+    MAX_CACHE_VALUE_BYTES,
+    MESSAGES_TTL_SECONDS,
+    conversation_detail_key,
+    conversation_list_key,
+    get_owned_cache_response,
+    l2_get,
+    l2_set,
+    messages_key,
+    owned_cache_envelope,
+)
 from app.models import ConversationDb, MessageDb
 from app.schemas.chat import ChatMessage, dump_content_block_payloads
 from app.schemas.conversation import (
@@ -154,6 +167,32 @@ class ConversationDbService(DbService):
             limit=limit,
         )
 
+    async def get_or_load_conversations_paginated(
+        self,
+        user_id: str,
+        *,
+        cursor: str | None = None,
+        limit: int = 20,
+    ) -> ConversationListResponse:
+        """Load a cursor page from Redis, falling back to PostgreSQL."""
+        key = conversation_list_key(user_id, cursor, limit)
+        cached = await l2_get(key, namespace="conv_list")
+        if cached is not None:
+            return ConversationListResponse.model_validate(cached)
+
+        data = self.get_conversations_paginated(
+            user_id,
+            cursor=cursor,
+            limit=limit,
+        )
+        await l2_set(
+            key,
+            data.model_dump(mode="json"),
+            namespace="conv_list",
+            ttl=CONVERSATION_LIST_TTL_SECONDS,
+        )
+        return data
+
     def get_conversation(self, conversation_id: str) -> ConversationDb | None:
         """获取对话"""
         db = self._ensure_db()
@@ -170,6 +209,32 @@ class ConversationDbService(DbService):
             self.conversation_to_dict(conversation)
         )
         return conversation_info
+
+    async def get_or_load_conversation_info(
+        self,
+        conversation_id: str,
+        user_id: str,
+    ) -> ConversationInfo | None:
+        """Load conversation detail while enforcing ownership on every path."""
+        key = conversation_detail_key(conversation_id)
+        cached = await l2_get(key, namespace="conv")
+        if cached is not None:
+            response = get_owned_cache_response(cached, user_id)
+            if response is None:
+                return None
+            return ConversationInfo.model_validate(response)
+
+        conversation = self.get_conversation(conversation_id)
+        if conversation is None or conversation.user_id != user_id:
+            return None
+        data = ConversationInfo.model_validate(self.conversation_to_dict(conversation))
+        await l2_set(
+            key,
+            owned_cache_envelope(user_id, data.model_dump(mode="json")),
+            namespace="conv",
+            ttl=CONVERSATION_DETAIL_TTL_SECONDS,
+        )
+        return data
 
     def activate_conversation(self, conversation: ConversationDb) -> ConversationInfo:
         """激活草稿会话，使其出现在会话列表中。"""
@@ -204,6 +269,42 @@ class ConversationDbService(DbService):
             )
             chat_messages.append(chat_message_payload)
         return chat_messages
+
+    async def get_or_load_messages(
+        self,
+        conversation_id: str,
+        user_id: str,
+        *,
+        omit_tool_result_content_and_summary_when_structured: bool = False,
+    ) -> dict[str, Any] | None:
+        """Load the complete message response while enforcing ownership."""
+        key = messages_key(conversation_id)
+        cached = await l2_get(key, namespace="msg")
+        if cached is not None:
+            response = get_owned_cache_response(cached, user_id)
+            return response if isinstance(response, dict) else None
+
+        conversation = self.get_conversation(conversation_id)
+        if conversation is None or conversation.user_id != user_id:
+            return None
+        chat_messages = self.get_messages(
+            conversation_id,
+            omit_tool_result_content_and_summary_when_structured=omit_tool_result_content_and_summary_when_structured,
+        )
+        data = {
+            "total": len(chat_messages),
+            "offset": 0,
+            "limit": len(chat_messages),
+            "messages": chat_messages,
+        }
+        await l2_set(
+            key,
+            owned_cache_envelope(user_id, data),
+            namespace="msg",
+            ttl=MESSAGES_TTL_SECONDS,
+            max_bytes=MAX_CACHE_VALUE_BYTES,
+        )
+        return data
 
     def update_conversation(
         self, conversation: ConversationDb, request: UpdateConversationRequest
