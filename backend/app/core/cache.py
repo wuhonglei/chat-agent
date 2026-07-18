@@ -25,16 +25,6 @@ def user_detail_key(user_id: str) -> str:
     return f"cache:user:{user_id}"
 
 
-def conversation_detail_key(conversation_id: str) -> str:
-    return f"cache:conv:{conversation_id}"
-
-
-def conversation_list_key(user_id: str, cursor: str | None, limit: int) -> str:
-    return f"cache:conv_list:{user_id}:{cursor or ''}:{limit}"
-
-
-def messages_key(conversation_id: str) -> str:
-    return f"cache:msg:{conversation_id}"
 
 
 def owned_cache_envelope(owner_user_id: str, response: Any) -> OwnedCacheEnvelope:
@@ -158,31 +148,19 @@ async def invalidate_user(user_id: str) -> None:
 
 
 async def invalidate_conversation_list(user_id: str) -> None:
-    await l2_delete_pattern(
-        f"cache:conv_list:{user_id}:*",
-        namespace="conv_list",
-    )
+    """No-op: L2 cache for conversation list removed."""
 
 
 async def invalidate_conversation(conversation_id: str, user_id: str) -> None:
-    await asyncio.gather(
-        l2_delete(
-            conversation_detail_key(conversation_id),
-            namespace="conv",
-        ),
-        invalidate_conversation_list(user_id),
-    )
+    """No-op: L2 cache for conversation detail removed."""
 
 
 async def invalidate_messages(conversation_id: str) -> None:
-    await l2_delete(messages_key(conversation_id), namespace="msg")
+    """No-op: L2 cache for messages removed."""
 
 
 async def invalidate_conversation_state(
     conversation_id: str,
     user_id: str,
 ) -> None:
-    await asyncio.gather(
-        invalidate_conversation(conversation_id, user_id),
-        invalidate_messages(conversation_id),
-    )
+    """No-op: L2 cache for conversation/messages removed."""
