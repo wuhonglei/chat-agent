@@ -4,10 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import Any, TypedDict
+from collections.abc import Awaitable
+from typing import Any, TypedDict, TypeVar
 
+from app.core.config import settings
 from app.core.redis import get_redis
 from app.utils.logger import logger
+
+T = TypeVar("T")
 
 
 class OwnedCacheEnvelope(TypedDict):
@@ -56,13 +60,25 @@ def _cache_error(operation: str, namespace: str, exc: Exception) -> None:
     )
 
 
+async def _with_cache_timeout(awaitable: Awaitable[T]) -> T:
+    """Bound a Redis call so cache paths fail fast under pool pressure.
+
+    Shared pool ``socket_timeout`` is sized for SSE XREAD BLOCK; cache ops use
+    a shorter asyncio budget and must not wait that long when connections queue.
+    """
+    return await asyncio.wait_for(
+        awaitable,
+        timeout=settings.cache.operation_timeout_seconds,
+    )
+
+
 async def l2_get(key: str, *, namespace: str) -> Any | None:
     try:
-        raw = await get_redis().get(key)
+        raw = await _with_cache_timeout(get_redis().get(key))
         value = None if raw is None else json.loads(raw)
     except Exception as exc:
         _cache_error("get", namespace, exc)
-        raise
+        return None
     logger.debug(
         "cache_hit" if value is not None else "cache_miss",
         cache_level="l2",
@@ -89,26 +105,26 @@ async def l2_set(
         )
         return False
     try:
-        await get_redis().set(key, raw, ex=ttl)
+        await _with_cache_timeout(get_redis().set(key, raw, ex=ttl))
     except Exception as exc:
         _cache_error("set", namespace, exc)
-        raise
+        return False
     return True
 
 
 async def l2_delete(key: str, *, namespace: str) -> int:
     try:
-        deleted = await get_redis().unlink(key)
+        deleted = await _with_cache_timeout(get_redis().unlink(key))
     except Exception as exc:
         _cache_error("unlink", namespace, exc)
-        raise
+        return 0
     logger.info(
         "cache_invalidate",
         cache_level="l2",
         cache_namespace=namespace,
         deleted=deleted,
     )
-    return deleted
+    return int(deleted or 0)
 
 
 async def l2_delete_pattern(pattern: str, *, namespace: str) -> int:
@@ -121,13 +137,13 @@ async def l2_delete_pattern(pattern: str, *, namespace: str) -> int:
             batch.append(key)
             if len(batch) < 100:
                 continue
-            deleted += await redis.unlink(*batch)
+            deleted += int(await _with_cache_timeout(redis.unlink(*batch)) or 0)
             batch.clear()
         if batch:
-            deleted += await redis.unlink(*batch)
+            deleted += int(await _with_cache_timeout(redis.unlink(*batch)) or 0)
     except Exception as exc:
         _cache_error("scan_unlink", namespace, exc)
-        raise
+        return 0
     logger.info(
         "cache_invalidate",
         cache_level="l2",

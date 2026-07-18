@@ -290,6 +290,16 @@ class RedisConfig(BaseModel):
     port: int = Field(description="Redis 端口")
     username: str = Field(description="Redis ACL 用户名")
     password: str = Field(description="Redis 密码")
+    max_connections: int = Field(
+        default=50,
+        gt=0,
+        description="异步连接池最大连接数",
+    )
+    socket_connect_timeout_seconds: float = Field(
+        default=5.0,
+        gt=0,
+        description="连接建立超时（秒）",
+    )
 
 
 class CacheConfig(BaseModel):
@@ -319,6 +329,11 @@ class CacheConfig(BaseModel):
         default=512 * 1024,
         gt=0,
         description="单条缓存值最大字节数，超限跳过写入",
+    )
+    operation_timeout_seconds: float = Field(
+        default=0.5,
+        gt=0,
+        description="L2 GET/SET/UNLINK 单次操作超时（秒），短于 SSE XREAD socket_timeout",
     )
 
 
