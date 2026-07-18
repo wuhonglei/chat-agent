@@ -25,7 +25,11 @@ def _build_redis_url() -> str:
 
 
 def _redis_socket_timeout_seconds() -> float:
-    """Read timeout must exceed SSE XREAD BLOCK duration (redis-py default is ~5s)."""
+    """Read timeout must exceed SSE XREAD BLOCK duration (redis-py default is ~5s).
+
+    Cache L2 ops use a shorter asyncio.wait_for budget (see CacheConfig), so they
+    fail fast without inheriting this SSE-oriented socket timeout.
+    """
     block_seconds = settings.chat_stream.sse_stream_xread_block_ms / 1000.0
     return block_seconds + 5.0
 
@@ -36,21 +40,24 @@ async def init_redis() -> Redis:
     if _redis_client is not None:
         return _redis_client
 
+    cfg = settings.redis
     socket_timeout = _redis_socket_timeout_seconds()
     _redis_pool = ConnectionPool.from_url(
         _build_redis_url(),
         decode_responses=True,
-        max_connections=20,
-        socket_connect_timeout=5.0,
+        max_connections=cfg.max_connections,
+        socket_connect_timeout=cfg.socket_connect_timeout_seconds,
         socket_timeout=socket_timeout,
     )
     _redis_client = Redis.from_pool(_redis_pool)
     await _redis_client.ping()
     logger.info(
         "Redis connected",
-        host=settings.redis.host,
-        port=settings.redis.port,
-        username=settings.redis.username,
+        host=cfg.host,
+        port=cfg.port,
+        username=cfg.username,
+        max_connections=cfg.max_connections,
+        socket_timeout=socket_timeout,
     )
     return _redis_client
 

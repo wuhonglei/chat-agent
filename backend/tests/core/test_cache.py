@@ -96,17 +96,41 @@ async def test_l2_delete_pattern_uses_prefix(
 
 
 @pytest.mark.asyncio
-async def test_l2_errors_are_logged_and_reraised() -> None:
+async def test_l2_errors_are_logged_and_fail_open() -> None:
     redis = MagicMock()
     redis.get = AsyncMock(side_effect=RuntimeError("redis unavailable"))
     with (
         patch("app.core.cache.get_redis", return_value=redis),
         patch("app.core.cache.logger.error") as log_error,
-        pytest.raises(RuntimeError, match="redis unavailable"),
     ):
-        await l2_get("cache:test", namespace="test")
+        assert await l2_get("cache:test", namespace="test") is None
 
     log_error.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_l2_get_times_out_fail_open(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "app.core.cache.settings.cache.operation_timeout_seconds",
+        0.01,
+    )
+
+    async def slow_get(_key: str) -> str:
+        await asyncio.sleep(1)
+        return '{"ok": true}'
+
+    redis = MagicMock()
+    redis.get = slow_get
+    with (
+        patch("app.core.cache.get_redis", return_value=redis),
+        patch("app.core.cache.logger.error") as log_error,
+    ):
+        assert await l2_get("cache:test", namespace="test") is None
+
+    log_error.assert_called_once()
+    assert log_error.call_args.kwargs["error_type"] == "TimeoutError"
 
 
 def test_key_normalization_and_owned_envelope() -> None:
