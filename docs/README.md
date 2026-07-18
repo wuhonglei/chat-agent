@@ -33,6 +33,7 @@
 - `用户管理.md`：用户模块说明
 - `COMPONENT_TOOLS_PRD.md`：组件工具接入说明（已对齐当前字段）
 - `MCP_CONFIG_ANALYSIS.md`：MCP 配置与加载机制说明（按当前 `mcp_client`）
+- `VFS_AND_SANDBOX.md`：Agent 模式虚拟文件系统、file/shell MCP、沙箱执行与排障手册
 - `RETRIEVAL_SYSTEM.md`：当前检索链路说明（基于 MCP 工具与会话流）
 - `/backend/README.md`：补充聊天附件链路（上传/预览/PDF 转 Markdown）、代码执行 API、聊天 SSE 事件约定
 
