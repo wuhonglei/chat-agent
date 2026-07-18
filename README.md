@@ -8,6 +8,7 @@
 - 会话管理：创建、分页查询、编辑、删除、加载历史消息
 - 用户认证：短信登录、微信登录、JWT 鉴权
 - MCP 工具：Context7、天气、联网搜索、代码执行、时间
+- 聊天附件：支持图片、PDF、Excel、Markdown、纯文本/代码文件上传、预览与检索
 - 完整前端应用生成：可基于需求自动生成可运行的前端应用骨架与页面代码
 
 ## 界面预览
@@ -44,7 +45,7 @@
 
 #### 友好用户交互能力
 
-支持 PDF 预览、HTML 预览与代码执行，覆盖常见对话交互场景。
+支持 PDF / Excel / Markdown / 文本代码预览、HTML 预览、代码执行与文件编辑 diff 展示，覆盖常见对话交互场景。
 
 ![PDF 预览](docs/imgs/pdf_preview.png)
 
@@ -112,6 +113,7 @@ vp dev
 - 用户：`/api/user/*`
 - 消息：`DELETE /api/message/delete/{message_id}`、`PUT /api/message/feedback/{message_id}`
 - 头像：`POST /api/avatars/upload`、`GET /api/avatars/{filename}`
+- 文件：`POST /api/file/upload`、`GET /api/file/preview/{user_id}/{storage_key}`
 - 代码执行：`POST /api/code/execute`
 - 健康检查：`/api/health`、`/api/health/mcp`、`/api/health/mcp_config`
 
