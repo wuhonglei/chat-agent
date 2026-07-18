@@ -20,7 +20,7 @@ This MCP server provides 3 tools for web search, content extraction and crawling
 - `queries: list[str]` — 搜索查询列表（简单问题 1 个，复杂问题 2-3 个）
 - `topic: "general" | "news" | "finance"` — 搜索类别（默认 `general`）
 - `search_depth: "advanced" | "basic" | "fast" | "ultra-fast"` — 搜索深度（默认 `advanced`）
-- `chunks_per_source: int` — 每个来源的相关片段上限（1-5，默认 2；仅 `advanced`/`fast` 可用）
+- `chunks_per_source: int` — 每个来源的相关片段上限（1-5，默认 3；仅 `advanced`/`fast` 可用）
 - `result_per_query: int` — 每个查询返回结果数（1-20，默认 5）
 - `time_range`、`start_date`、`end_date` — 时间过滤（日期格式 `YYYY-MM-DD`）
 - `include_domains`、`exclude_domains` — 域名包含/排除

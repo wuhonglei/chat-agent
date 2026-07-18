@@ -66,7 +66,9 @@ frontend/
 - `text`：文本块
 - `image`：图片附件块
 - `pdf`：PDF 附件块
+- `excel`：Excel 附件块（`.xlsx`）
 - `markdown`：Markdown 附件块
+- `text_file`：纯文本 / 代码附件块
 
 发送时会先写入文本块，再按上传顺序追加附件块（`buildUserContentBlocks`）。
 
@@ -74,11 +76,13 @@ frontend/
 
 `ChatInput` 当前约束（`src/pages/ChatPage/components/ChatInput/util.ts`）：
 
-- 支持类型：图片（JPEG/PNG/GIF/WebP）、PDF 和 Markdown（`.md` / `.markdown` / `text/markdown`）
+- 支持类型：图片（JPEG/PNG/GIF/WebP）、PDF、Excel（`.xlsx`）、Markdown（`.md` / `.markdown` / `text/markdown`）和纯文本 / 代码文件
+- 纯文本 / 代码扩展名由 `TEXT_FILE_ACCEPT` 维护，覆盖 `.csv`、`.tsv`、`.txt`、`.log`、`.py`、`.js`、`.ts`、`.tsx`、`.vue`、`.sql`、`.go` 等常见格式
 - 单文件大小：不超过 `10MB`
 - 单次消息附件数量：最多 `5` 个
 - 上传接口：`POST /api/file/upload`（`src/services/file.ts`）
 - 上传超时：`180000ms`（3 分钟）
+- 当当前模型不支持图片输入时，点击打开文件选择器的 accept 会收窄为 PDF 与 Excel（`CHAT_ATTACHMENT_ACCEPT_PDF_ONLY`）；粘贴/拖拽路径会额外拦截图片
 
 ### 附件预览行为
 
@@ -86,14 +90,28 @@ frontend/
 - PDF：
   - 小屏设备点击后直接下载
   - 非小屏优先在右侧 `BlockPreviewPanel` 打开 PDF 预览
-- Markdown：作为独立 `MarkdownBlock` 打开右侧预览；PDF 转写出的 Markdown 也复用同一块结构
+- Excel：右侧预览默认使用 SheetJS 渲染多 sheet 表格；若后端返回派生 Markdown，可在表格 / Markdown 间切换
+- Markdown：作为独立 `MarkdownBlock` 打开右侧预览；PDF / Excel 转写出的 Markdown 也复用同一块结构
+- 纯文本 / 代码文件：`.csv` / `.tsv` 以表格预览，其它文本/代码通过 `CodeHighlighter` 按扩展名高亮
 - HTML：在代码块头部点击“预览”后，使用侧栏 iframe 的 `srcDoc` 预览；当前 iframe 未设置 `sandbox`
+- 工作区项目：`ProjectPreview` 支持浏览 agent 工作区文件，工作区内 Excel 预览与聊天 Excel 附件预览分离
+
+`PreviewableBlock` 当前覆盖 `pdf | excel | markdown | text_file | html | code_exec | project`，入口为 `src/pages/ChatPage/components/BlockPreviewPanel/index.tsx`。
+
+### 文件工具结果展示
+
+`file` MCP 的 `edit_file` 工具参数会在消息中渲染行级 diff（`FileDiffView`）：
+
+- 使用 LCS 计算逐行新增 / 删除 / 上下文
+- 当 `(oldLines + 1) * (newLines + 1) > 4_000_000` 时退化为“整段删除 + 整段新增”，避免浏览器内存压力
+- `replaceAll` 参数会在 diff 头部显示为标签
 
 相关实现：
 
 - `src/pages/ChatPage/components/ChatMessage/UserMessage/components/UserMessageDisplayContent.tsx`
 - `src/pages/ChatPage/components/BlockPreviewPanel/*`
 - `src/pages/ChatPage/components/MarkdownContainer/components/HtmlPreviewHeader.tsx`
+- `src/pages/ChatPage/components/ChatMessage/AssistantMessage/ContentBlocksRender/ToolBlockRender/registry/components/FileDiffView.tsx`
 
 ## SSE 事件约定（`/api/chat/stream`）
 

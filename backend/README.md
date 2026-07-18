@@ -113,14 +113,22 @@ make test
 ### 1) 上传与预览接口
 
 - 上传附件：`POST /api/file/upload`（需要登录）
-- 预览附件：`GET /api/file/preview/{user_id}/{filename}`（无需登录）
+- 预览附件：`GET /api/file/preview/{user_id}/{storage_key}`（无需登录；依赖 `storage_key` 不可猜测）
 
 上传成功后返回 `AttachmentBlock`：
 - 图片返回 `ImageBlock`
 - PDF / Excel / Word / PowerPoint 分别返回 `PdfBlock` / `ExcelBlock` / `DocxBlock` / `PptxBlock`，并在 `markdown` 中携带同源 Markdown 预览信息
 - Markdown（`.md` / `.markdown` / `text/markdown`）返回独立 `MarkdownBlock`
+- 纯文本 / 代码文件返回 `TextFileBlock`
 
-预览 URL 统一为：`/api/file/preview/{user_id}/{filename}`。
+预览 URL 统一为：`/api/file/preview/{user_id}/{storage_key}`。当前 `storage_key` 使用会话级 v4 布局：
+
+```text
+{conversation_id}/{display_name}
+{conversation_id}/derived/{stem}.md
+```
+
+真实落盘位置位于 `data/user_data/{user_id}/conversations/{conversation_id}/uploads/`，其中 `derived/` 保存 PDF / Excel 转出的 Markdown。
 
 ### 2) 文件类型与限制
 
@@ -131,6 +139,7 @@ make test
 - Word：`.docx`
 - PowerPoint：`.pptx`
 - Markdown：`.md` / `.markdown` / `text/markdown`，内容必须是 UTF-8 文本
+- 纯文本 / 代码文件：支持 `.csv`、`.tsv`、`.txt`、`.log`、`.py`、`.js`、`.ts`、`.tsx`、`.vue`、`.sql`、`.go` 等扩展名，内容必须是 UTF-8
 - 图片会在服务端按最长边 `2048px` 等比缩放（超限时），并重新编码后落盘
 - PDF 校验文件头 `%PDF-`；xlsx/docx/pptx 校验 OOXML 魔数 `PK\x03\x04`，再执行 MinerU -> Markdown 转换
 
@@ -173,7 +182,12 @@ make test
 
 ### 6) 常见排障
 
-- `400 仅支持 ...`：文件类型不在允许列表
+- `agent_mode=0`：后端从当前轮附件（若有）或历史用户消息附件收集 `content_id`，通过 `KbRagContextService` 构建 `<attachment_context>`。
+- `agent_mode>0`：后端跳过附件 RAG，改为在用户提示词中注入 `<attachment_uploads>` 清单，包含 `name`、`type`、`virtual_path`、`size`、`uploaded_this_turn`。PDF / Excel 还会附带派生 Markdown 的 `virtual_path`，模型可用 file MCP 按需读取 `/mnt/user-data/uploads/...`。
+
+### 6) 常见排障
+
+- `400 仅支持 ...` / `不支持的文本文件类型`：文件类型不在允许列表
 - `400 ...不能超过 10MB`：超出大小限制
 - `400 PDF/Word/PowerPoint 文件无效或已损坏`：文件头校验失败
 - `502 MinerU 转换失败`：检查 Nacos `mineru.api_key`、外部服务可用性和轮询超时配置
@@ -236,6 +250,8 @@ Last-Event-ID: 12
 
 {"assistant_message_id":"assistant-message-id"}
 ```
+
+客户端通过 `Last-Event-ID` 请求头传递最近消费的 `seq`。
 
 当前事件类型：
 
