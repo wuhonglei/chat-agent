@@ -41,7 +41,7 @@ import {
 import { useEffect, useMemo, useRef, type RefObject } from "react";
 
 import { db } from "@/indexDB";
-import { MessageFeedbackValue, MessageStatus, TitleCreatedBy } from "@/interfaces";
+import { MessageFeedbackDetails, MessageFeedbackValue, MessageStatus, TitleCreatedBy } from "@/interfaces";
 import { buildUserContentBlocks, getMessageTextFromBlocks, isUserAttachmentBlock } from "@/interfaces/contentBlock";
 import {
   buildTempAssistantMessage,
@@ -78,7 +78,11 @@ export interface UseChatMessageReturn {
   deleteUserMessage: (messageId: string) => Promise<void>;
   reSendMessage: (index: number, message: ChatMessage, formData: ChatInputConfig) => Promise<void>;
   sendMessage: (values: ChatInputFormValues, options?: SendMessageOptions) => Promise<void>;
-  updateMessageFeedback: (messageId: string, value: MessageFeedbackValue) => Promise<void>;
+  updateMessageFeedback: (
+    messageId: string,
+    value: MessageFeedbackValue,
+    details?: MessageFeedbackDetails
+  ) => Promise<void>;
 }
 
 export const useChatState = (conversationId: string) => {
@@ -321,42 +325,46 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
     }
   });
 
-  const updateMessageFeedback = useMemoizedFn(async (messageId: string, value: MessageFeedbackValue): Promise<void> => {
-    if (isStreaming) {
-      return;
-    }
-    try {
-      const updatedFeedback = await chatAPI.updateMessageFeedback(messageId, value);
-      const targetMessage = messages.find(item => item.id === messageId);
-      if (!targetMessage) {
+  const updateMessageFeedback = useMemoizedFn(
+    async (messageId: string, value: MessageFeedbackValue, details?: MessageFeedbackDetails): Promise<void> => {
+      if (isStreaming) {
         return;
       }
-      dispatch(
-        replaceMessageById({
+      try {
+        const updatedFeedback = await chatAPI.updateMessageFeedback(messageId, value, details);
+        const targetMessage = messages.find(item => item.id === messageId);
+        if (!targetMessage) {
+          return;
+        }
+        dispatch(
+          replaceMessageById({
+            conversationId,
+            messageId,
+            data: {
+              ...targetMessage,
+              feedback: updatedFeedback,
+            },
+          })
+        );
+        dispatch(
+          updateConversationModifiedTime({
+            conversationId,
+            lastMessageUpdatedAt: updatedFeedback.updatedAt,
+          })
+        );
+      } catch (error) {
+        reportError("updateMessageFeedback", {
+          error,
           conversationId,
           messageId,
-          data: {
-            ...targetMessage,
-            feedback: updatedFeedback,
-          },
-        })
-      );
-      dispatch(
-        updateConversationModifiedTime({
-          conversationId,
-          lastMessageUpdatedAt: updatedFeedback.updatedAt,
-        })
-      );
-    } catch (error) {
-      reportError("updateMessageFeedback", {
-        error,
-        conversationId,
-        messageId,
-        value,
-      });
-      message.error("反馈更新失败");
+          value,
+          details,
+        });
+        message.error("反馈更新失败");
+        throw error;
+      }
     }
-  });
+  );
 
   const handleStreamPayload = useMemoizedFn(
     (

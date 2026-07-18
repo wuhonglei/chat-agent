@@ -13,6 +13,8 @@ def default_feedback_payload() -> dict[str, Any]:
     return {
         "value": "default",
         "updated_at": None,
+        "reasons": [],
+        "comment": None,
     }
 
 
@@ -62,5 +64,5 @@ class MessageDb(SQLModel, table=True):
     feedback: dict[str, Any] | None = Field(
         default_factory=default_feedback_payload,
         sa_type=SQLJSON,
-        description="消息反馈（value、updated_at）",
+        description="消息反馈（value、updated_at、reasons、comment）",
     )

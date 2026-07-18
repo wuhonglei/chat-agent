@@ -20,6 +20,12 @@ class UpdateMessageFeedbackRequest(BaseModel):
     """更新消息反馈请求"""
 
     value: MessageFeedbackValue = Field(..., description="反馈值")
+    reasons: list[str] | None = Field(
+        default=None, description="反馈理由标签（多选）；省略则保留已有值"
+    )
+    comment: str | None = Field(
+        default=None, description="自由文本反馈；省略则保留已有值"
+    )
 
 
 @router.delete("/delete/{message_id}")
@@ -60,10 +66,34 @@ async def update_message_feedback(
         raise HTTPException(status_code=400, detail="仅助手消息支持反馈")
 
     now = get_datetime_now()
-    message.feedback = {
-        "value": request.value.value,
-        "updated_at": now.isoformat(),
-    }
+    existing = message.feedback if isinstance(message.feedback, dict) else {}
+
+    if request.value == MessageFeedbackValue.DEFAULT:
+        feedback_payload: dict[str, object] = {
+            "value": request.value.value,
+            "updated_at": now.isoformat(),
+            "reasons": [],
+            "comment": None,
+        }
+    else:
+        reasons = (
+            request.reasons
+            if request.reasons is not None
+            else existing.get("reasons", [])
+        )
+        comment = (
+            request.comment
+            if request.comment is not None
+            else existing.get("comment")
+        )
+        feedback_payload = {
+            "value": request.value.value,
+            "updated_at": now.isoformat(),
+            "reasons": reasons if isinstance(reasons, list) else [],
+            "comment": comment if isinstance(comment, str) else None,
+        }
+
+    message.feedback = feedback_payload
     message.updated_at = now
     db.add(message)
 
