@@ -3,11 +3,11 @@ from __future__ import annotations
 from sqlmodel import Session, select
 
 from app.core.cache import (
-    USER_DETAIL_TTL_SECONDS,
     l2_get,
     l2_set,
     user_detail_key,
 )
+from app.core.config import settings
 from app.models import UserDb
 from app.schemas.auth import SigninResponse, WeChatUserInfoResponse
 from app.schemas.user import UpdateUserInfo
@@ -52,7 +52,7 @@ class UserDbService(DbService):
             key,
             user.model_dump(mode="json"),
             namespace="user",
-            ttl=USER_DETAIL_TTL_SECONDS,
+            ttl=settings.cache.user_detail_ttl_seconds,
         )
         return user
 

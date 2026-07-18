@@ -8,10 +8,6 @@ from sqlalchemy import and_, or_
 from sqlmodel import Session, select
 
 from app.core.cache import (
-    CONVERSATION_DETAIL_TTL_SECONDS,
-    CONVERSATION_LIST_TTL_SECONDS,
-    MAX_CACHE_VALUE_BYTES,
-    MESSAGES_TTL_SECONDS,
     conversation_detail_key,
     conversation_list_key,
     get_owned_cache_response,
@@ -20,6 +16,7 @@ from app.core.cache import (
     messages_key,
     owned_cache_envelope,
 )
+from app.core.config import settings
 from app.models import ConversationDb, MessageDb
 from app.schemas.chat import ChatMessage, dump_content_block_payloads
 from app.schemas.conversation import (
@@ -189,7 +186,7 @@ class ConversationDbService(DbService):
             key,
             data.model_dump(mode="json"),
             namespace="conv_list",
-            ttl=CONVERSATION_LIST_TTL_SECONDS,
+            ttl=settings.cache.conversation_list_ttl_seconds,
         )
         return data
 
@@ -232,7 +229,7 @@ class ConversationDbService(DbService):
             key,
             owned_cache_envelope(user_id, data.model_dump(mode="json")),
             namespace="conv",
-            ttl=CONVERSATION_DETAIL_TTL_SECONDS,
+            ttl=settings.cache.conversation_detail_ttl_seconds,
         )
         return data
 
@@ -301,8 +298,8 @@ class ConversationDbService(DbService):
             key,
             owned_cache_envelope(user_id, data),
             namespace="msg",
-            ttl=MESSAGES_TTL_SECONDS,
-            max_bytes=MAX_CACHE_VALUE_BYTES,
+            ttl=settings.cache.messages_ttl_seconds,
+            max_bytes=settings.cache.max_value_bytes,
         )
         return data
 

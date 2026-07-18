@@ -9,12 +9,6 @@ from typing import Any, TypedDict
 from app.core.redis import get_redis
 from app.utils.logger import logger
 
-USER_DETAIL_TTL_SECONDS = 60
-CONVERSATION_DETAIL_TTL_SECONDS = 30
-CONVERSATION_LIST_TTL_SECONDS = 10
-MESSAGES_TTL_SECONDS = 15
-MAX_CACHE_VALUE_BYTES = 512 * 1024
-
 
 class OwnedCacheEnvelope(TypedDict):
     """Cache payload carrying the owner separately from the API response."""
