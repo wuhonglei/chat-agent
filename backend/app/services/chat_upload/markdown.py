@@ -19,7 +19,10 @@ from app.services.chat_upload.attachment import (
     get_conversation_upload_dir,
     sanitize_upload_display_name,
 )
-from app.services.chat_upload.token_size import count_attachment_token_size
+from app.services.chat_upload.token_size import (
+    count_attachment_lines,
+    count_attachment_token_size,
+)
 from app.utils.logger import logger
 
 _TEXT_MARKDOWN_CONTENT_TYPES = {
@@ -76,6 +79,7 @@ async def save_chat_markdown(
     await asyncio.to_thread(dest.write_bytes, chunk)
 
     token_size = count_attachment_token_size(markdown_text)
+    lines_count = count_attachment_lines(markdown_text)
 
     logger.info(
         "Chat markdown saved",
@@ -84,6 +88,7 @@ async def save_chat_markdown(
         storage_key=storage_key,
         bytes=len(chunk),
         token_size=token_size,
+        lines_count=lines_count,
     )
     url = build_attachment_preview_url(user_id, storage_key)
     return MarkdownBlock(
@@ -95,5 +100,6 @@ async def save_chat_markdown(
         name=display_name,
         size=len(chunk),
         token_size=token_size,
+        lines_count=lines_count,
         mime="text/markdown",
     )
