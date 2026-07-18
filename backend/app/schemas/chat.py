@@ -376,6 +376,11 @@ class AttachmentFileInfo(BaseModel):
         description='文件类型："pdf" | "excel" | "docx" | "pptx" | "markdown" | "image" | "text_file"',
     )
     size: int = Field(default=0, ge=0, description="落盘文件字节数")
+    token_size: int | None = Field(
+        default=None,
+        ge=0,
+        description="附件文本 token 数（文本类型有值；历史数据可能缺省）",
+    )
     lines_count: int | None = Field(
         default=None,
         ge=0,
