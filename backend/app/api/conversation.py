@@ -99,7 +99,7 @@ async def get_conversations(
     """游标分页获取对话列表。"""
     service = ConversationDbService(db)
     try:
-        data = await service.get_or_load_conversations_paginated(
+        data = service.get_conversations_paginated(
             token_info.user_id, cursor=request.cursor, limit=request.limit
         )
     except InvalidCursorError as exc:
@@ -115,13 +115,19 @@ async def get_messages(
 ) -> ApiResponse[dict[str, Any]]:
     """Get messages by conversation ID"""
     service = ConversationDbService(db)
-    data = await service.get_or_load_messages(
+    if not service.get_conversation(conversation_id):
+        return ApiResponse.error(code=404, msg="会话不存在")
+
+    chat_messages = service.get_messages(
         conversation_id,
-        token_info.user_id,
         omit_tool_result_content_and_summary_when_structured=True,
     )
-    if data is None:
-        return ApiResponse.error(code=404, msg="会话不存在")
+    data = {
+        "total": len(chat_messages),
+        "offset": 0,
+        "limit": len(chat_messages),
+        "messages": chat_messages,
+    }
     return ApiResponse.success(data=data, msg="获取消息列表成功")
 
 
@@ -133,13 +139,13 @@ async def get_conversation(
 ) -> ApiResponse[ConversationInfo]:
     """Get a conversation by ID"""
     service = ConversationDbService(db)
-    conversation_info = await service.get_or_load_conversation_info(
-        conversation_id,
-        token_info.user_id,
-    )
-    if not conversation_info:
+    conversation = service.get_conversation(conversation_id)
+    if not conversation or conversation.user_id != token_info.user_id:
         return ApiResponse.error(code=404, msg="会话不存在")
 
+    conversation_info = ConversationInfo.model_validate(
+        service.conversation_to_dict(conversation)
+    )
     return ApiResponse.success(data=conversation_info, msg="获取对话详情成功")
 
 
