@@ -26,7 +26,7 @@ _USER_MESSAGE_QUERY_SNIPPET = """
       <name>{{ f.name|e }}</name>
       <type>{{ f.type|e }}</type>
       <virtual_path>{{ f.virtual_path|e }}</virtual_path>
-      <size>{{ f.human_size }}</size>
+      <file_size>{{ f.human_size }}</file_size>
       {%- if f.token_size is not none %}
       <token_size>{{ f.token_size }}</token_size>
       {%- endif %}
@@ -38,7 +38,7 @@ _USER_MESSAGE_QUERY_SNIPPET = """
       <markdown>
         <name>{{ f.markdown.name|e }}</name>
         <virtual_path>{{ f.markdown.virtual_path|e }}</virtual_path>
-        <size>{{ f.markdown.human_size }}</size>
+        <file_size>{{ f.markdown.human_size }}</file_size>
         {%- if f.markdown.token_size is not none %}
         <token_size>{{ f.markdown.token_size }}</token_size>
         {%- endif %}
