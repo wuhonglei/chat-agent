@@ -21,7 +21,7 @@ def default_feedback_payload() -> dict[str, Any]:
 class MessageDb(SQLModel, table=True):
     """消息模型"""
 
-    __tablename__ = "messages"
+    __tablename__ = "messages"  # pyright: ignore[reportAssignmentType]
 
     id: str = Field(
         default_factory=gen_uuid, primary_key=True, index=True, max_length=36
