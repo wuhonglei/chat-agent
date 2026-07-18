@@ -62,7 +62,7 @@ async def l2_get(key: str, *, namespace: str) -> Any | None:
         value = None if raw is None else json.loads(raw)
     except Exception as exc:
         _cache_error("get", namespace, exc)
-        raise
+        return None
     logger.debug(
         "cache_hit" if value is not None else "cache_miss",
         cache_level="l2",
@@ -92,7 +92,7 @@ async def l2_set(
         await get_redis().set(key, raw, ex=ttl)
     except Exception as exc:
         _cache_error("set", namespace, exc)
-        raise
+        return False
     return True
 
 
@@ -101,7 +101,7 @@ async def l2_delete(key: str, *, namespace: str) -> int:
         deleted = await get_redis().unlink(key)
     except Exception as exc:
         _cache_error("unlink", namespace, exc)
-        raise
+        return 0
     logger.info(
         "cache_invalidate",
         cache_level="l2",
@@ -127,7 +127,7 @@ async def l2_delete_pattern(pattern: str, *, namespace: str) -> int:
             deleted += await redis.unlink(*batch)
     except Exception as exc:
         _cache_error("scan_unlink", namespace, exc)
-        raise
+        return 0
     logger.info(
         "cache_invalidate",
         cache_level="l2",
