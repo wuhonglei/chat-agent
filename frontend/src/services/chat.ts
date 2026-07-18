@@ -6,6 +6,7 @@ import {
   ChatModelItem,
   ChatRequest,
   MessageFeedback,
+  MessageFeedbackDetails,
   MessageFeedbackValue,
   StreamMessage,
 } from "@/interfaces";
@@ -118,8 +119,15 @@ export const chatAPI = {
     await apiClient.delete(`/message/delete/${messageId}`);
   },
 
-  updateMessageFeedback: async (messageId: string, value: MessageFeedbackValue): Promise<MessageFeedback> => {
-    return await apiClient.put(`/message/feedback/${messageId}`, { value });
+  updateMessageFeedback: async (
+    messageId: string,
+    value: MessageFeedbackValue,
+    details?: MessageFeedbackDetails
+  ): Promise<MessageFeedback> => {
+    return await apiClient.put(`/message/feedback/${messageId}`, {
+      value,
+      ...details,
+    });
   },
 
   getChatModels: async (): Promise<ChatModelItem[]> => {

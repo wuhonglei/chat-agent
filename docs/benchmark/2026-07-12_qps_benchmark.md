@@ -540,6 +540,59 @@ chat.wuhonglei.cn → xxx.cdn.dnsv1.com (CDN 分配)
 4. **messages 接口波动大**: 公网第1轮 92 QPS vs 第2轮 143 QPS，可能受服务器瞬时负载影响
 5. **所有接口失败数归零**: 带宽升级后公网直连不再有超时失败
 
+### 8.6.5 缓存方案实施后测试（2026-07-18）
+
+**测试条件**: 并发 100，各 2000 请求，间隔 3-5 秒
+
+#### CDN 测试结果（两轮均值）
+
+| 接口 | QPS | Non-2xx | 对比缓存前 |
+|------|-----|---------|-----------|
+| `GET /api/health` | **221.5** | 0 | 116.6 → **+90%** ✅ |
+| `GET /api/user/detail` | **208.9** | 0 | 182.1 → **+15%** ✅ |
+| `GET /api/chat/models` | **212.0** | 0 | 174.7 → **+21%** ✅ |
+| `GET /api/conversation/detail` | **71.8** | 0 | 170.3 → **-58%** ⬇️ |
+| `GET /api/conversation/list` | **91.3** | 34 | 67.2 → QPS+36% 但有少量 Non-2xx |
+| `GET /api/conversation/{id}/messages` | **53.5** | 38 | 152.7 → **-65%** ⬇️ |
+
+#### 公网直连测试结果（两轮均值）
+
+| 接口 | QPS | Non-2xx | 对比缓存前 |
+|------|-----|---------|-----------|
+| `GET /api/health` | **179.8** | 0 | 194.4 → 持平 |
+| `GET /api/user/detail` | **167.5** | 0 | 199.7 → -16% |
+| `GET /api/chat/models` | **195.9** | 0 | 180.8 → +8% |
+| `GET /api/conversation/detail` | **177.8** | 0 | 189.1 → -6% |
+| `GET /api/conversation/list` | **72.0** | 34 | 157.9 → **-54%** ⬇️ |
+| `GET /api/conversation/{id}/messages` | **65.8** | 38 | 117.6 → **-44%** ⬇️ |
+
+#### 缓存效果总结
+
+**成功的缓存**（L1 内存）:
+| 接口 | CDN QPS 提升 | 结论 |
+|------|-------------|------|
+| `health` | 116.6 → 221.5 (+90%) | L1 消除 Redis PING，效果显著 |
+| `chat/models` | 174.7 → 212.0 (+21%) | L1 消除配置读取，效果明显 |
+| `user/detail` | 182.1 → 208.9 (+15%) | L1+L2 减少 DB 查询，有效 |
+
+**失败的缓存**（L2 Redis）:
+| 接口 | 问题 | Loki 日志确认 |
+|------|------|-------------|
+| `conversation/detail` | QPS 下降 58%，Redis 开销 > PG 主键查询 | cache_l2_error (TimeoutError) |
+| `conversation/list` | QPS 下降 54%，Gunicorn WORKER TIMEOUT | cache_l2_error + WORKER TIMEOUT |
+| `messages` | QPS 下降 65%，Gunicorn WORKER TIMEOUT | cache_l2_error + WORKER TIMEOUT |
+
+**根因分析（Loki 日志确认）**:
+1. **Redis 连接池超时**: `cache_l2_error` → `TimeoutError: Timeout reading from 1.12.53.9:6380`
+   - `operation_timeout_seconds=0.5s` 已生效（降级返回 None，不再 500）
+   - 但高并发下 0.5s 内仍无法获取连接，缓存全部 miss
+2. **Gunicorn WORKER TIMEOUT**: `[CRITICAL] WORKER TIMEOUT (pid:xxx)`
+   - 缓存操作 + DB 查询叠加，部分请求超过 Gunicorn 默认 30s timeout
+3. **conversation/detail 缓存开销 > 收益**: PG 主键查询 ~1ms，Redis 往返 + JSON 序列化反而更慢
+4. **messages 数据量大**: 序列化大 JSON 到 Redis 开销显著
+
+**结论**: L1 内存缓存效果好；L2 Redis 缓存对 conversation/list 和 messages 在当前架构下收益为负，建议移除或仅保留 L1
+
 ### 8.7 优化效果对比
 
 | 架构 | QPS | P50 | P99 | 提升 |

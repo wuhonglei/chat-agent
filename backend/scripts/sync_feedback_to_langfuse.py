@@ -247,6 +247,8 @@ def main() -> None:
                     "conversation_id": msg["conversation_id"],
                     "feedback_updated_at": updated_at,
                     "status": msg["status"],
+                    "reasons": feedback.get("reasons") or [],
+                    "comment": feedback.get("comment"),
                 },
                 default=str,
             )

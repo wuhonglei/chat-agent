@@ -1,5 +1,5 @@
 import { useChatState } from "@/hooks";
-import { ChatMessage as ChatMessageType, MessageFeedbackValue } from "@/interfaces";
+import { ChatMessage as ChatMessageType, MessageFeedbackDetails, MessageFeedbackValue } from "@/interfaces";
 import type { PreviewableBlock } from "@/interfaces/contentBlock";
 import classNames from "classnames";
 import React, { useRef } from "react";
@@ -15,7 +15,11 @@ interface ChatMessageListProps {
   className?: string;
   onEditMessage: (index: number, content: string) => void;
   onDeleteMessage: (messageId: string) => void | Promise<void>;
-  onUpdateMessageFeedback: (messageId: string, value: MessageFeedbackValue) => Promise<void>;
+  onUpdateMessageFeedback: (
+    messageId: string,
+    value: MessageFeedbackValue,
+    details?: MessageFeedbackDetails
+  ) => Promise<void>;
   onReSend: (index: number, message: ChatMessageType) => void;
   onPreviewBlock: (block: PreviewableBlock) => void;
 }

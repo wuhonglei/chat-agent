@@ -13,13 +13,15 @@ def default_feedback_payload() -> dict[str, Any]:
     return {
         "value": "default",
         "updated_at": None,
+        "reasons": [],
+        "comment": None,
     }
 
 
 class MessageDb(SQLModel, table=True):
     """消息模型"""
 
-    __tablename__ = "messages"
+    __tablename__ = "messages"  # pyright: ignore[reportAssignmentType]
 
     id: str = Field(
         default_factory=gen_uuid, primary_key=True, index=True, max_length=36
@@ -62,5 +64,5 @@ class MessageDb(SQLModel, table=True):
     feedback: dict[str, Any] | None = Field(
         default_factory=default_feedback_payload,
         sa_type=SQLJSON,
-        description="消息反馈（value、updated_at）",
+        description="消息反馈（value、updated_at、reasons、comment）",
     )

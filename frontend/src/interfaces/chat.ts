@@ -18,9 +18,16 @@ export enum MessageStatus {
 
 export type MessageFeedbackValue = "default" | "like" | "dislike";
 
+export interface MessageFeedbackDetails {
+  reasons?: string[];
+  comment?: string;
+}
+
 export interface MessageFeedback {
   value: MessageFeedbackValue;
   updatedAt: string;
+  reasons?: string[];
+  comment?: string | null;
 }
 
 export interface SearchSourceMetaData {

@@ -48,6 +48,12 @@ class MessageFeedback(BaseModel):
     updated_at: datetime | None = Field(
         default=None, description="Feedback updated timestamp"
     )
+    reasons: list[str] = Field(
+        default_factory=list, description="Selected feedback reason tags"
+    )
+    comment: str | None = Field(
+        default=None, description="Optional free-text feedback comment"
+    )
 
 
 class ChatMessageRequestItem(BaseModel):
