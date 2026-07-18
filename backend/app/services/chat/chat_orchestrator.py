@@ -11,6 +11,7 @@ from typing import Any, Protocol, cast
 from langfuse import propagate_attributes
 
 from app.agents import ChatSessionAgent, TitleGenerationAgent
+from app.core.cache import invalidate_conversation_state
 from app.core.observability import (
     get_langfuse,
     is_enabled,
@@ -464,6 +465,10 @@ class ChatOrchestrator:
                             assistant_response=assistant_response,
                             status=MessageStatus.STOPPED,
                         )
+                        await invalidate_conversation_state(
+                            conversation_id,
+                            user_id,
+                        )
                         if (
                             trace_enabled
                             and langfuse_client is not None
@@ -492,6 +497,10 @@ class ChatOrchestrator:
                             assistant_message,
                             assistant_response=assistant_response,
                             status=MessageStatus.FAILED,
+                        )
+                        await invalidate_conversation_state(
+                            conversation_id,
+                            user_id,
                         )
                         if (
                             trace_enabled
@@ -533,6 +542,10 @@ class ChatOrchestrator:
                             assistant_message_id=assistant_message_id,
                             assistant_response=assistant_response,
                         )
+                    )
+                    await invalidate_conversation_state(
+                        conversation_id,
+                        user_id,
                     )
                     logger.info(
                         "Assistant message updated",

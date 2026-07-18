@@ -5,6 +5,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 
+from app.core.cache import invalidate_user
 from app.core.config import settings
 from app.core.db import get_db
 from app.models import UserDb
@@ -28,7 +29,7 @@ async def get_user_detail(
 ) -> ApiResponse[UserDb]:
     """获取用户信息"""
     user_service = UserDbService(db)
-    user = user_service.get_user(token_info.user_id)
+    user = await user_service.get_or_load_user_detail(token_info.user_id)
     if not user:
         raise HTTPException(status_code=401, detail="用户不存在")
     return ApiResponse.success(data=user)
@@ -48,6 +49,8 @@ async def update_user_info(
         raise HTTPException(status_code=400, detail=str(e)) from e
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
+    db.commit()
+    await invalidate_user(token_info.user_id)
     return ApiResponse.success(data=user)
 
 

@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import StreamingResponse
 
 from app.api.deps import get_mcp_manager
+from app.core.cache import invalidate_conversation_state
 from app.core.config import settings
 from app.mcp.client import MCPClientManager
 from app.protocols.chat_messages import build_error_event
@@ -162,6 +163,17 @@ def _ensure_authorized_assistant_message(
             raise HTTPException(status_code=403, detail="无权访问该消息")
 
 
+def _ensure_owned_conversation(
+    *,
+    conversation_id: str,
+    auth_info: AuthTokenPayload,
+) -> None:
+    with MessageDbService() as message_service:
+        conversation = message_service.get_conversation(conversation_id)
+        if conversation is None or conversation.user_id != auth_info.user_id:
+            raise HTTPException(status_code=404, detail="会话不存在")
+
+
 def _resolve_llm_config(model_id: str) -> LLMConfig:
     """将请求的 model_id（provider/model 引用）解析为 LLMConfig。
 
@@ -203,17 +215,23 @@ def _idempotency_key(
 async def _create_chat_turn(
     *,
     conversation_id: str,
+    user_id: str,
     content_blocks: Any,
     user_metadata: dict[str, Any],
     removed_message_ids: Any,
 ) -> IdempotentTurn:
-    with MessageDbService() as message_service:
-        db_created_messages = message_service.create_chat_messages(
-            conversation_id=conversation_id,
-            content_blocks=content_blocks,
-            user_metadata=user_metadata,
-            removed_message_ids=removed_message_ids,
-        )
+    try:
+        with MessageDbService() as message_service:
+            db_created_messages = message_service.create_chat_messages(
+                conversation_id=conversation_id,
+                content_blocks=content_blocks,
+                user_metadata=user_metadata,
+                removed_message_ids=removed_message_ids,
+            )
+    finally:
+        # create_chat_messages commits user/assistant messages separately. Always
+        # invalidate in case the second write fails after the first one committed.
+        await invalidate_conversation_state(conversation_id, user_id)
     return IdempotentTurn(
         user_message_id=db_created_messages.user_message_id,
         assistant_message_id=db_created_messages.assistant_message_id,
@@ -237,6 +255,10 @@ async def stream_chat(
         conversation_id=chat_request.conversation_id,
         user_id=auth_info.user_id,
     )
+    _ensure_owned_conversation(
+        conversation_id=chat_request.conversation_id,
+        auth_info=auth_info,
+    )
     llm_config = _resolve_llm_config(chat_request.model_id)
     if _contains_image_block(chat_request) and not llm_config.image_support:
         raise HTTPException(status_code=400, detail="当前模型不支持图片输入")
@@ -254,13 +276,17 @@ async def stream_chat(
     async def _create() -> IdempotentTurn:
         return await _create_chat_turn(
             conversation_id=chat_request.conversation_id,
+            user_id=auth_info.user_id,
             content_blocks=chat_request.content_blocks,
             user_metadata=user_metadata,
             removed_message_ids=chat_request.removed_message_ids,
         )
 
     if idempotency_key is not None:
-        created_messages, is_idempotent_hit = await _TURN_IDEMPOTENCY_STORE.resolve_turn(
+        (
+            created_messages,
+            is_idempotent_hit,
+        ) = await _TURN_IDEMPOTENCY_STORE.resolve_turn(
             idempotency_key,
             create_fn=_create,
         )
@@ -381,6 +407,7 @@ async def stop_chat_stream(
             await producer_task
 
     # DB fallback: only if still PENDING after producer may have finished
+    invalidation_target: tuple[str, str] | None = None
     with MessageDbService() as message_service:
         refreshed = message_service.get_message(request.assistant_message_id)
         if refreshed is None:
@@ -392,6 +419,10 @@ async def stop_chat_stream(
                 refreshed,
                 status=MessageStatus.STOPPED,
             )
+            invalidation_target = (conversation.id, auth_info.user_id)
+
+    if invalidation_target is not None:
+        await invalidate_conversation_state(*invalidation_target)
 
     logger.info(
         "Chat stream stopped by user",

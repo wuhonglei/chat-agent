@@ -292,6 +292,36 @@ class RedisConfig(BaseModel):
     password: str = Field(description="Redis 密码")
 
 
+class CacheConfig(BaseModel):
+    """业务 L2（Redis）Cache-Aside 策略配置"""
+
+    user_detail_ttl_seconds: int = Field(
+        default=60,
+        gt=0,
+        description="用户详情缓存 TTL（秒）",
+    )
+    conversation_detail_ttl_seconds: int = Field(
+        default=30,
+        gt=0,
+        description="会话详情缓存 TTL（秒）",
+    )
+    conversation_list_ttl_seconds: int = Field(
+        default=10,
+        gt=0,
+        description="会话列表缓存 TTL（秒）",
+    )
+    messages_ttl_seconds: int = Field(
+        default=15,
+        gt=0,
+        description="消息列表缓存 TTL（秒）",
+    )
+    max_value_bytes: int = Field(
+        default=512 * 1024,
+        gt=0,
+        description="单条缓存值最大字节数，超限跳过写入",
+    )
+
+
 class ChatStreamConfig(BaseModel):
     """SSE 断点续传（Redis Stream）与 turn 幂等相关配置"""
 

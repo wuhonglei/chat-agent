@@ -2,6 +2,12 @@ from __future__ import annotations
 
 from sqlmodel import Session, select
 
+from app.core.cache import (
+    l2_get,
+    l2_set,
+    user_detail_key,
+)
+from app.core.config import settings
 from app.models import UserDb
 from app.schemas.auth import SigninResponse, WeChatUserInfoResponse
 from app.schemas.user import UpdateUserInfo
@@ -27,6 +33,27 @@ class UserDbService(DbService):
         """获取用户"""
         db = self._ensure_db()
         user = db.get(UserDb, user_id)
+        return user
+
+    async def get_or_load_user_detail(self, user_id: str) -> UserDb | None:
+        """Load user detail from Redis, falling back to PostgreSQL."""
+        key = user_detail_key(user_id)
+        cached = await l2_get(key, namespace="user")
+        if cached is not None:
+            payload = dict(cached)
+            for optional_field in ("email", "phone", "sub"):
+                payload.setdefault(optional_field, None)
+            return UserDb.model_validate(payload)
+
+        user = self.get_user(user_id)
+        if user is None:
+            return None
+        await l2_set(
+            key,
+            user.model_dump(mode="json"),
+            namespace="user",
+            ttl=settings.cache.user_detail_ttl_seconds,
+        )
         return user
 
     def create_user(self, user: UserDb) -> UserDb:

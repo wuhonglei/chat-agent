@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
+from app.core.local_cache import l1_get, l1_set
 from app.schemas.auth import AuthTokenPayload
 from app.schemas.response import ApiResponse
 from app.services.base_service.model_resolver import list_text_generation_models
@@ -25,6 +26,10 @@ async def list_models(
     _auth: AuthTokenPayload = Depends(get_auth_token_info),
 ) -> ApiResponse[list[ModelConfigForFe]]:
     _ = _auth
+    cached = l1_get("models", "global")
+    if cached is not None:
+        return ApiResponse.success(data=cached, msg="获取模型配置成功")
+
     model_list = [
         ModelConfigForFe(
             model_id=model_id,
@@ -34,4 +39,5 @@ async def list_models(
         )
         for model_id, model_config in list_text_generation_models()
     ]
+    l1_set("models", "global", model_list)
     return ApiResponse.success(data=model_list, msg="获取模型配置成功")

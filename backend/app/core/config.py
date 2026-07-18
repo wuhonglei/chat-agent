@@ -10,9 +10,11 @@ from pydantic_settings import (
     SettingsConfigDict,
 )
 
+from app.core.local_cache import l1_delete
 from app.core.nacos.config import NacosConfigSettingsSource
 from app.schemas.config import (
     AppConfig,
+    CacheConfig,
     ChatContextConfig,
     ChatStreamConfig,
     CORSConfig,
@@ -51,6 +53,10 @@ class Settings(BaseSettings):
     sms: SmsConfig = Field(description="腾讯云短信配置")
     database: DatabaseConfig = Field(description="PostgreSQL 数据库配置")
     redis: RedisConfig = Field(description="Redis 服务连接配置")
+    cache: CacheConfig = Field(
+        default_factory=CacheConfig,
+        description="业务 L2（Redis）Cache-Aside 策略配置",
+    )
     chat_stream: ChatStreamConfig = Field(
         default_factory=ChatStreamConfig,
         description="SSE 断点续传与 turn 幂等配置",
@@ -161,6 +167,7 @@ def reload_settings() -> None:
     global _current_settings
     with _settings_reload_lock:
         _current_settings = _build_settings()
+    l1_delete("models")
     logger.info("Settings 已重新加载（Nacos 或手动 reload_settings）")
     try:
         from app.mcp.reload import on_settings_reloaded
