@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Turn 幂等机制 — 流程图</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'JetBrains Mono', monospace; background: #020617; min-height: 100vh; padding: 2rem; color: white; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .header { margin-bottom: 2rem; }
+    .header-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem; }
+    .pulse-dot { width: 12px; height: 12px; background: #fb7185; border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.025em; }
+    .subtitle { color: #94a3b8; font-size: 0.875rem; margin-left: 1.75rem; }
+    .diagram-container { background: rgba(15, 23, 42, 0.5); border-radius: 1rem; border: 1px solid #1e293b; padding: 1.5rem; overflow-x: auto; }
+    svg { width: 100%; min-width: 1100px; display: block; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1rem; margin-top: 2rem; }
+    .card { background: rgba(15, 23, 42, 0.5); border-radius: 0.75rem; border: 1px solid #1e293b; padding: 1.25rem; }
+    .card-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .card-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .card-dot.cyan { background: #22d3ee; } .card-dot.emerald { background: #34d399; } .card-dot.rose { background: #fb7185; }
+    .card-dot.amber { background: #fbbf24; } .card-dot.violet { background: #a78bfa; }
+    .card h3 { font-size: 0.875rem; font-weight: 600; }
+    .card ul { list-style: none; color: #94a3b8; font-size: 0.75rem; }
+    .card li { margin-bottom: 0.375rem; }
+    .footer { text-align: center; margin-top: 1.5rem; color: #475569; font-size: 0.75rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="header-row">
+        <div class="pulse-dot"></div>
+        <h1>Turn 幂等机制 — 作用流程</h1>
+      </div>
+      <p class="subtitle">解决"同一请求重复发送导致重复创建消息"的问题 · SET NX 分布式锁</p>
+    </div>
+
+    <div class="diagram-container">
+      <svg viewBox="0 0 1100 1000">
+        <defs>
+          <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#64748b"/>
+          </marker>
+          <marker id="arrow-cyan" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#22d3ee"/>
+          </marker>
+          <marker id="arrow-emerald" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#34d399"/>
+          </marker>
+          <marker id="arrow-rose" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#fb7185"/>
+          </marker>
+          <marker id="arrow-amber" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#fbbf24"/>
+          </marker>
+          <marker id="arrow-violet" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#a78bfa"/>
+          </marker>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+          </pattern>
+        </defs>
+
+        <rect width="100%" height="100%" fill="url(#grid)"/>
+
+        <!-- ================================================================ -->
+        <!--  问题描述                                                          -->
+        <!-- ================================================================ -->
+        <rect x="330" y="20" width="440" height="70" rx="10" fill="rgba(136, 19, 55, 0.15)" stroke="#fb7185" stroke-width="1.5"/>
+        <text x="550" y="45" fill="#fb7185" font-size="12" font-weight="700" text-anchor="middle">⚠ 问题：网络重试 / 用户双击导致同一请求发送两次</text>
+        <text x="550" y="65" fill="#94a3b8" font-size="10" text-anchor="middle">没有幂等保护 → 创建两套消息 → 用户看到两条重复回复</text>
+        <text x="550" y="82" fill="#94a3b8" font-size="9" text-anchor="middle">多 Worker 部署时，两次请求可能打到不同进程，内存锁无法解决</text>
+
+        <!-- ================================================================ -->
+        <!--  流程图主体                                                        -->
+        <!-- ================================================================ -->
+
+        <!-- 前端：生成 client_turn_id -->
+        <rect x="370" y="120" width="360" height="50" rx="8" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="550" y="142" fill="white" font-size="11" font-weight="600" text-anchor="middle">前端：生成 client_turn_id (UUID)</text>
+        <text x="550" y="158" fill="#94a3b8" font-size="9" text-anchor="middle">同一"发送动作"的所有重试共享同一个 id</text>
+
+        <!-- 箭头 -->
+        <line x1="550" y1="170" x2="550" y2="200" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arrow-cyan)"/>
+        <text x="565" y="190" fill="#22d3ee" font-size="8">POST /chat/stream</text>
+
+        <!-- 请求 A 和 B 并行 -->
+        <line x1="550" y1="200" x2="350" y2="230" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arrow-cyan)"/>
+        <line x1="550" y1="200" x2="750" y2="230" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arrow-cyan)"/>
+        <text x="430" y="218" fill="#22d3ee" font-size="8">Worker 1</text>
+        <text x="660" y="218" fill="#22d3ee" font-size="8">Worker 2</text>
+
+        <!-- 请求 A -->
+        <rect x="230" y="232" width="240" height="44" rx="6" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="350" y="250" fill="white" font-size="10" font-weight="600" text-anchor="middle">请求 A（首次）</text>
+        <text x="350" y="266" fill="#94a3b8" font-size="8" text-anchor="middle">client_turn_id = "abc-123"</text>
+
+        <!-- 请求 B -->
+        <rect x="630" y="232" width="240" height="44" rx="6" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="750" y="250" fill="white" font-size="10" font-weight="600" text-anchor="middle">请求 B（重试）</text>
+        <text x="750" y="266" fill="#94a3b8" font-size="8" text-anchor="middle">client_turn_id = "abc-123"（相同）</text>
+
+        <!-- 箭头到 SET NX -->
+        <line x1="350" y1="276" x2="350" y2="320" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arrow-cyan)"/>
+        <line x1="750" y1="276" x2="750" y2="320" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arrow-cyan)"/>
+
+        <!-- Redis Key -->
+        <rect x="360" y="322" width="380" height="40" rx="8" fill="rgba(251, 146, 60, 0.15)" stroke="#fb923c" stroke-width="1.5"/>
+        <text x="550" y="340" fill="#fb923c" font-size="10" font-weight="600" text-anchor="middle">Redis Key: chat:turn:{user_id}:{conversation_id}:{client_turn_id}</text>
+        <text x="550" y="354" fill="#94a3b8" font-size="8" text-anchor="middle">SET NX "pending" · TTL=60s（防死锁）</text>
+
+        <!-- 箭头: A → SET NX -->
+        <line x1="350" y1="310" x2="460" y2="320" stroke="#fb923c" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+        <!-- 箭头: B → SET NX -->
+        <line x1="750" y1="310" x2="640" y2="320" stroke="#fb923c" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+
+        <!-- ================================================================ -->
+        <!--  左侧路径：请求 A（成功）                                           -->
+        <!-- ================================================================ -->
+
+        <!-- SET NX 成功 -->
+        <rect x="120" y="390" width="220" height="50" rx="8" fill="rgba(52, 211, 153, 0.15)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="230" y="410" fill="#34d399" font-size="11" font-weight="700" text-anchor="middle">✓ SET NX 成功</text>
+        <text x="230" y="426" fill="#94a3b8" font-size="9" text-anchor="middle">返回 True → 当前 worker 获得锁</text>
+
+        <!-- 箭头 -->
+        <line x1="350" y1="362" x2="230" y2="388" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrow-emerald)"/>
+
+        <!-- 创建消息 -->
+        <rect x="120" y="460" width="220" height="50" rx="8" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="230" y="480" fill="white" font-size="10" font-weight="600" text-anchor="middle">创建用户消息 + 助手消息</text>
+        <text x="230" y="496" fill="#94a3b8" font-size="8" text-anchor="middle">create_chat_messages() → PG 写入</text>
+
+        <line x1="230" y1="440" x2="230" y2="458" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrow-emerald)"/>
+
+        <!-- 写回 result -->
+        <rect x="120" y="530" width="220" height="50" rx="8" fill="rgba(251, 146, 60, 0.2)" stroke="#fb923c" stroke-width="1.5"/>
+        <text x="230" y="548" fill="white" font-size="10" font-weight="600" text-anchor="middle">写回 Redis result</text>
+        <text x="230" y="566" fill="#94a3b8" font-size="8" text-anchor="middle">SET key = {user_msg_id, assistant_msg_id}</text>
+        <text x="230" y="576" fill="#94a3b8" font-size="8" text-anchor="middle">TTL = 7200s</text>
+
+        <line x1="230" y1="510" x2="230" y2="528" stroke="#fb923c" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+
+        <!-- 开始流式生成 -->
+        <rect x="120" y="600" width="220" height="44" rx="8" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="230" y="618" fill="white" font-size="10" font-weight="600" text-anchor="middle">启动 Producer Task</text>
+        <text x="230" y="636" fill="#94a3b8" font-size="8" text-anchor="middle">LLM 流式生成 → Redis Stream</text>
+
+        <line x1="230" y1="580" x2="230" y2="598" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrow-emerald)"/>
+
+        <!-- ================================================================ -->
+        <!--  右侧路径：请求 B（复用）                                           -->
+        <!-- ================================================================ -->
+
+        <!-- SET NX 失败 -->
+        <rect x="760" y="390" width="220" height="50" rx="8" fill="rgba(136, 19, 55, 0.15)" stroke="#fb7185" stroke-width="1.5"/>
+        <text x="870" y="410" fill="#fb7185" font-size="11" font-weight="700" text-anchor="middle">✗ SET NX 失败</text>
+        <text x="870" y="426" fill="#94a3b8" font-size="9" text-anchor="middle">返回 False → 锁已被 A 持有</text>
+
+        <line x1="750" y1="362" x2="870" y2="388" stroke="#fb7185" stroke-width="1.5" marker-end="url(#arrow-rose)"/>
+
+        <!-- GET 轮询 -->
+        <rect x="760" y="460" width="220" height="50" rx="8" fill="rgba(136, 19, 55, 0.15)" stroke="#fb7185" stroke-width="1.5"/>
+        <text x="870" y="480" fill="white" font-size="10" font-weight="600" text-anchor="middle">GET 轮询等待</text>
+        <text x="870" y="496" fill="#94a3b8" font-size="8" text-anchor="middle">每 100ms 检查一次 · 超时 5s 返回 503</text>
+
+        <line x1="870" y1="440" x2="870" y2="458" stroke="#fb7185" stroke-width="1.5" marker-end="url(#arrow-rose)"/>
+
+        <!-- 等待分支 -->
+        <text x="870" y="525" fill="#94a3b8" font-size="9" text-anchor="middle">GET key</text>
+        <line x1="870" y1="510" x2="870" y2="540" stroke="#fb7185" stroke-width="1" stroke-dasharray="4,4"/>
+
+        <!-- 值为 pending -->
+        <rect x="760" y="542" width="100" height="30" rx="4" fill="rgba(136, 19, 55, 0.1)" stroke="#fb7185" stroke-width="1" stroke-dasharray="3,3"/>
+        <text x="810" y="560" fill="#fb7185" font-size="8" text-anchor="middle">"pending" → 继续轮询</text>
+
+        <!-- 值为 result -->
+        <rect x="880" y="542" width="100" height="30" rx="4" fill="rgba(52, 211, 153, 0.15)" stroke="#34d399" stroke-width="1"/>
+        <text x="930" y="555" fill="#34d399" font-size="8" text-anchor="middle">result JSON</text>
+        <text x="930" y="565" fill="#34d399" font-size="8" text-anchor="middle">→ 解析并复用</text>
+
+        <!-- 拿到 result -->
+        <rect x="760" y="600" width="220" height="44" rx="8" fill="rgba(76, 29, 149, 0.3)" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="870" y="618" fill="white" font-size="10" font-weight="600" text-anchor="middle">复用 A 的消息 ID</text>
+        <text x="870" y="636" fill="#94a3b8" font-size="8" text-anchor="middle">is_idempotent_hit = True → 直接续传流</text>
+
+        <line x1="930" y1="572" x2="870" y2="598" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrow-violet)"/>
+        <line x1="810" y1="572" x2="810" y2="590" stroke="#fb7185" stroke-width="1" stroke-dasharray="3,3"/>
+        <line x1="810" y1="590" x2="870" y2="590" stroke="#fb7185" stroke-width="1" stroke-dasharray="3,3"/>
+        <line x1="870" y1="590" x2="870" y2="598" stroke="#fb7185" stroke-width="1" marker-end="url(#arrow)"/>
+
+        <!-- ================================================================ -->
+        <!--  Redis 状态流转                                                    -->
+        <!-- ================================================================ -->
+        <rect x="380" y="680" width="340" height="120" rx="10" fill="rgba(251, 146, 60, 0.08)" stroke="#fb923c" stroke-width="1.5"/>
+        <text x="550" y="700" fill="#fb923c" font-size="11" font-weight="700" text-anchor="middle">Redis Key 状态流转</text>
+
+        <!-- 状态框 -->
+        <rect x="400" y="714" width="80" height="28" rx="4" fill="rgba(251, 146, 60, 0.2)" stroke="#fb923c" stroke-width="1"/>
+        <text x="440" y="732" fill="#fb923c" font-size="9" text-anchor="middle">不存在</text>
+
+        <line x1="480" y1="728" x2="500" y2="728" stroke="#fb923c" stroke-width="1" marker-end="url(#arrow-orange)"/>
+        <text x="490" y="722" fill="#fb923c" font-size="7">SET NX</text>
+
+        <rect x="502" y="714" width="80" height="28" rx="4" fill="rgba(136, 19, 55, 0.2)" stroke="#fb7185" stroke-width="1"/>
+        <text x="542" y="732" fill="#fb7185" font-size="9" text-anchor="middle">"pending"</text>
+        <text x="542" y="746" fill="#94a3b8" font-size="7" text-anchor="middle">TTL=60s</text>
+
+        <line x1="582" y1="728" x2="602" y2="728" stroke="#fb923c" stroke-width="1" marker-end="url(#arrow-orange)"/>
+        <text x="592" y="722" fill="#fb923c" font-size="7">save()</text>
+
+        <rect x="604" y="714" width="100" height="28" rx="4" fill="rgba(52, 211, 153, 0.2)" stroke="#34d399" stroke-width="1"/>
+        <text x="654" y="732" fill="#34d399" font-size="9" text-anchor="middle">{msg_ids}</text>
+        <text x="654" y="746" fill="#94a3b8" font-size="7" text-anchor="middle">TTL=7200s</text>
+
+        <!-- 异常释放 -->
+        <line x1="542" y1="742" x2="542" y2="770" stroke="#fb7185" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#arrow)"/>
+        <text x="560" y="762" fill="#fb7185" font-size="7">异常时 DELETE</text>
+        <text x="542" y="786" fill="#94a3b8" font-size="8" text-anchor="middle">防死锁：create_fn 失败时主动释放 pending</text>
+
+        <!-- ================================================================ -->
+        <!--  多 Worker 场景说明                                                 -->
+        <!-- ================================================================ -->
+        <rect x="40" y="830" width="1020" height="150" rx="10" fill="rgba(30, 41, 59, 0.3)" stroke="#1e293b" stroke-width="1"/>
+        <text x="56" y="850" fill="white" font-size="11" font-weight="600">为什么需要 Redis 而不是内存锁？</text>
+
+        <!-- 内存锁（错误方案） -->
+        <rect x="60" y="864" width="460" height="100" rx="8" fill="rgba(136, 19, 55, 0.1)" stroke="#fb7185" stroke-width="1" stroke-dasharray="4,4"/>
+        <text x="72" y="882" fill="#fb7185" font-size="9" font-weight="600">✗ 内存锁（进程内）</text>
+        <text x="72" y="900" fill="#94a3b8" font-size="8">Worker 1 (请求 A) → 内存锁 ✓ → 创建消息</text>
+        <text x="72" y="916" fill="#94a3b8" font-size="8">Worker 2 (请求 B) → 内存锁 ✗（看不到 Worker 1 的锁）→ 又创建了一套消息</text>
+        <text x="72" y="936" fill="#fb7185" font-size="8" font-weight="600">结果：两个 Worker 各自创建消息 → 重复！</text>
+        <text x="72" y="952" fill="#94a3b8" font-size="7">根本原因：多 Worker 是独立进程，内存不共享</text>
+
+        <!-- Redis 锁（正确方案） -->
+        <rect x="540" y="864" width="500" height="100" rx="8" fill="rgba(52, 211, 153, 0.1)" stroke="#34d399" stroke-width="1" stroke-dasharray="4,4"/>
+        <text x="552" y="882" fill="#34d399" font-size="9" font-weight="600">✓ Redis SET NX（分布式）</text>
+        <text x="552" y="900" fill="#94a3b8" font-size="8">Worker 1 (请求 A) → Redis SET NX ✓ → 创建消息 → 写回 result</text>
+        <text x="552" y="916" fill="#94a3b8" font-size="8">Worker 2 (请求 B) → Redis SET NX ✗ → GET 轮询 → 拿到 result → 复用</text>
+        <text x="552" y="936" fill="#34d399" font-size="8" font-weight="600">结果：只有一个 Worker 创建消息 → 去重成功！</text>
+        <text x="552" y="952" fill="#94a3b8" font-size="7">优势：Redis 是共享状态层，所有 Worker 都能看到同一个 key</text>
+      </svg>
+    </div>
+
+    <!-- Info Cards -->
+    <div class="cards">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot amber"></div>
+          <h3>核心机制：SET NX 竞争锁</h3>
+        </div>
+        <ul>
+          <li>• <b style="color:#fb923c">SET NX</b> = Set if Not eXists，原子操作</li>
+          <li>• 多个 Worker 同时 SET NX 同一个 key，只有一个成功</li>
+          <li>• 成功者（winner）负责创建消息，失败者（loser）等待</li>
+          <li>• loser 每 100ms GET 一次，直到拿到 winner 写回的 result</li>
+          <li>• 超时 5s 返回 503，前端可重试</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot rose"></div>
+          <h3>防死锁设计</h3>
+        </div>
+        <ul>
+          <li>• pending 值 TTL = 60s，即使 winner 崩溃也能自动释放</li>
+          <li>• winner 的 create_fn 异常时，主动 DELETE key 释放锁</li>
+          <li>• loser 发现 key 消失（pending 过期），重新尝试 SET NX</li>
+          <li>• result 值 TTL = 7200s，足够覆盖续传窗口</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot emerald"></div>
+          <h3>前端配合</h3>
+        </div>
+        <ul>
+          <li>• 前端生成 client_turn_id (UUID)，同一发送动作共享</li>
+          <li>• 网络重试时自动带上同一个 id</li>
+          <li>• 收到 idempotent_hit 响应后，直接续传已有流</li>
+          <li>• 无需用户感知，透明去重</li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="footer">Chat Agent · Turn 幂等机制 · Redis SET NX 分布式锁 · 面试版</p>
+  </div>
+</body>
+</html>
