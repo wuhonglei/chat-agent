@@ -283,37 +283,125 @@ class DatabaseConfig(BaseModel):
     password: str = Field(description="PostgreSQL 数据库密码")
 
 
-class PdfMarkdownConfig(BaseModel):
-    """PDF 转 Markdown 配置"""
+class RedisConfig(BaseModel):
+    """Redis 服务连接配置"""
 
-    enabled: bool = Field(default=True, description="是否启用 PDF 自动转 Markdown")
-    scan_text_threshold: int = Field(
+    host: str = Field(description="Redis 主机")
+    port: int = Field(description="Redis 端口")
+    username: str = Field(description="Redis ACL 用户名")
+    password: str = Field(description="Redis 密码")
+    max_connections: int = Field(
         default=50,
-        ge=0,
-        description="扫描型判定阈值：前 N 页文字总长度小于该值视为扫描型",
+        gt=0,
+        description="异步连接池最大连接数",
     )
-    detect_pages: int = Field(
-        default=3,
-        ge=1,
-        description="PDF 类型检测时读取的页数",
+    socket_connect_timeout_seconds: float = Field(
+        default=5.0,
+        gt=0,
+        description="连接建立超时（秒）",
     )
-    pp_structure_api_url: str = Field(
-        default="https://b5ad76r2h7wfk3g3.aistudio-app.com/layout-parsing",
-        description="PP-StructureV3 服务地址",
+
+
+class CacheConfig(BaseModel):
+    """业务 L2（Redis）Cache-Aside 策略配置"""
+
+    user_detail_ttl_seconds: int = Field(
+        default=60,
+        gt=0,
+        description="用户详情缓存 TTL（秒）",
     )
-    pp_structure_token: str = Field(
+    conversation_detail_ttl_seconds: int = Field(
+        default=30,
+        gt=0,
+        description="会话详情缓存 TTL（秒）",
+    )
+    conversation_list_ttl_seconds: int = Field(
+        default=10,
+        gt=0,
+        description="会话列表缓存 TTL（秒）",
+    )
+    messages_ttl_seconds: int = Field(
+        default=15,
+        gt=0,
+        description="消息列表缓存 TTL（秒）",
+    )
+    max_value_bytes: int = Field(
+        default=512 * 1024,
+        gt=0,
+        description="单条缓存值最大字节数，超限跳过写入",
+    )
+    operation_timeout_seconds: float = Field(
+        default=0.5,
+        gt=0,
+        description="L2 GET/SET/UNLINK 单次操作超时（秒），短于 SSE XREAD socket_timeout",
+    )
+
+
+class ChatStreamConfig(BaseModel):
+    """SSE 断点续传（Redis Stream）与 turn 幂等相关配置"""
+
+    sse_stream_ttl_seconds: int = Field(
+        default=7200,
+        gt=0,
+        description="活跃 SSE 流 TTL（stream/meta/seq 同步过期，秒）",
+    )
+    sse_stream_closed_ttl_seconds: int = Field(
+        default=1800,
+        gt=0,
+        description="流 close 后 TTL（秒）",
+    )
+    sse_stream_xread_block_ms: int = Field(
+        default=1000,
+        gt=0,
+        description="XREAD BLOCK 超时（毫秒）",
+    )
+    sse_stream_cancel_poll_ms: int = Field(
+        default=1000,
+        gt=0,
+        description="Producer 轮询 Redis status=stopped 间隔（毫秒）",
+    )
+    turn_idempotency_ttl_seconds: int = Field(
+        default=7200,
+        gt=0,
+        description="client_turn_id 幂等记录 TTL（秒）",
+    )
+    turn_idempotency_pending_ttl_seconds: int = Field(
+        default=60,
+        gt=0,
+        description="幂等 reserve 占位 TTL（秒）",
+    )
+    turn_idempotency_wait_timeout_seconds: float = Field(
+        default=5.0,
+        gt=0,
+        description="loser 等待 winner 写回幂等记录的超时（秒）",
+    )
+
+
+class MinerUConfig(BaseModel):
+    """MinerU SaaS 文档转 Markdown 配置"""
+
+    enabled: bool = Field(default=True, description="是否启用 MinerU 自动转 Markdown")
+    api_url: str = Field(
+        default="https://mineru.net",
+        description="MinerU API 地址",
+    )
+    api_key: str = Field(
         default="",
-        description="PP-StructureV3 服务 token（从 Nacos 注入）",
+        description="MinerU API Bearer Token（从 Nacos 注入）",
+    )
+    model_version: str = Field(
+        default="vlm",
+        description="MinerU 模型版本：pipeline / vlm / MinerU-HTML",
     )
     poll_interval_seconds: float = Field(
         default=3.0,
         gt=0,
-        description="预留配置：轮询间隔（秒）",
+        description="任务状态轮询间隔（秒）",
     )
     poll_timeout_seconds: float = Field(
-        default=180.0,
+        default=300.0,
         gt=0,
-        description="PP-StructureV3 请求超时（秒）",
+        description="任务轮询总超时（秒）",
     )
 
 
@@ -335,24 +423,10 @@ class KbFileRagConfig(BaseModel):
         ge=1,
         description="会话 RAG 检索 Top-K",
     )
-    relevance_score_threshold: float = Field(
-        default=0.65,
-        ge=0,
-        le=1,
-        description="会话 RAG 相关性阈值（基于 1-distance）",
-    )
     short_doc_max_tokens: int = Field(
         default=10000,
         ge=1,
         description="判定短文档的 token 阈值；短文档可注入全文",
-    )
-    force_rag_keyword_patterns: list[str] = Field(
-        default_factory=lambda: [
-            r"根据(文档|附件|材料)",
-            r"(附件|文档|材料)里",
-            r"(上传|附件).*(总结|归纳|提取|翻译|解释|回答)",
-        ],
-        description="命中后强制走 RAG（跳过分数门控）",
     )
 
 

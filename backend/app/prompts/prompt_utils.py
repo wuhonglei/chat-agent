@@ -76,7 +76,7 @@ def get_user_message_for_tool_calls(
 ) -> str:
     """Get user message prompt for tool calls.
 
-    kb_context_blocks: 可选，每项建议包含 id、name、content，
+    kb_context_blocks: 可选，每项建议包含 name、content，
     以及可选 created_at（与 user_prompt 模板一致）。
     attachment_uploads: 可选，agent_mode 下注入的上传文件清单，
     由模型用文件工具按需读取。

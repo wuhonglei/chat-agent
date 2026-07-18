@@ -18,6 +18,7 @@
 - FastAPI + Uvicorn
 - SQLModel + Alembic
 - PostgreSQL（pgvector）
+- Redis（SSE 续传缓冲 + turn 幂等）
 - fastmcp
 - OpenAI 兼容模型调用
 
@@ -116,8 +117,7 @@ make test
 
 上传成功后返回 `AttachmentBlock`：
 - 图片返回 `ImageBlock`
-- PDF 返回 `PdfBlock`，并在 `markdown` 中携带同源 Markdown 预览信息
-- Excel（`.xlsx`）返回 `ExcelBlock`，并在 `markdown` 中携带同源 Markdown 预览信息
+- PDF / Excel / Word / PowerPoint 分别返回 `PdfBlock` / `ExcelBlock` / `DocxBlock` / `PptxBlock`，并在 `markdown` 中携带同源 Markdown 预览信息
 - Markdown（`.md` / `.markdown` / `text/markdown`）返回独立 `MarkdownBlock`
 - 纯文本 / 代码文件返回 `TextFileBlock`
 
@@ -135,39 +135,52 @@ make test
 - 单文件大小上限：`10MB`
 - 图片：`JPEG / PNG / GIF / WebP`
 - PDF：`application/pdf`
-- Excel：仅支持 `.xlsx`，文件头需符合 zip 容器魔数（`PK\x03\x04`）
+- Excel：`.xlsx`
+- Word：`.docx`
+- PowerPoint：`.pptx`
 - Markdown：`.md` / `.markdown` / `text/markdown`，内容必须是 UTF-8 文本
 - 纯文本 / 代码文件：支持 `.csv`、`.tsv`、`.txt`、`.log`、`.py`、`.js`、`.ts`、`.tsx`、`.vue`、`.sql`、`.go` 等扩展名，内容必须是 UTF-8
 - 图片会在服务端按最长边 `2048px` 等比缩放（超限时），并重新编码后落盘
-- PDF 会先校验文件头（`%PDF-`），再执行 PDF -> Markdown 转换
-- Excel 会先校验 `.xlsx`，再执行 Excel -> Markdown 转换
-- Markdown 与纯文本 / 代码文件会按文本内容入向量索引；纯文本 / 代码文件不生成派生 Markdown
-- 同名文件会在展示名后追加 `(1)`、`(2)` 等序号，避免覆盖当前会话已有文件
+- PDF 校验文件头 `%PDF-`；xlsx/docx/pptx 校验 OOXML 魔数 `PK\x03\x04`，再执行 MinerU -> Markdown 转换
 
-### 3) PDF / Excel -> Markdown 转换策略
+### 3) 文档 -> Markdown 转换策略
 
-`PdfMarkdownConverter` 按 PDF 类型分流：
+`MinerUMarkdownConverter` 通过 MinerU SaaS（`mineru.net`）批量解析接口统一转换 PDF、Excel、Word、PowerPoint：
 
-1. 文本型 PDF：`MarkItDown` 直接转换
-2. 扫描型 PDF：调用 `PP-StructureV3` 服务转换
+1. 申请预签名上传 URL
+2. PUT 上传本地文件
+3. 轮询任务状态
+4. 下载结果 ZIP，写入 `derived/{stem}.md`，图片合并到 `derived/images/`
 
-Excel 使用 `ExcelMarkdownConverter` 将 `.xlsx` 转为同名 stem 的 Markdown（例如 `sales.xlsx` -> `derived/sales.md`），用于预览切换和 RAG 分块。
-
-关键配置位于 `settings.pdf_markdown`：
-- `scan_text_threshold`
-- `detect_pages`
-- `pp_structure_api_url`
-- `pp_structure_token`
+关键配置位于 `settings.mineru`（Nacos `mineru` 对象）：
+- `enabled`
+- `api_url`
+- `api_key`
+- `model_version`
+- `poll_interval_seconds`
 - `poll_timeout_seconds`
 
 ### 4) 附件安全约束
 
-- `conversation_id` 必填，上传时会校验该会话归属当前登录用户
-- `preview` 仅解析 `{conversation_id}/...` 或 `{conversation_id}/derived/*.md` 形式的 storage key
-- `user_id`、`conversation_id` 与路径边界会做校验，非法请求统一返回 404
-- 展示名会在服务端安全清洗（去路径、非法字符、控制字符、长度限制）后参与落盘与预览
+- 真实落盘文件名使用 UUID，避免用户可控路径
+- `preview` 允许会话根文件（含 pdf/xlsx/docx/pptx）、`derived/*.md` 与 `derived/images/*`（jpg/jpeg/png/gif/webp）
+- `user_id` 与路径边界会做校验，非法请求统一返回 404
+- 展示名仅用于 UI，服务端会做安全清洗（去路径、非法字符、长度限制）
 
-### 5) 普通模式与 Agent 模式的附件消费
+### 5) 附件 token_size 与按需 RAG（agent_mode=0）
+
+上传阶段：
+
+- 文档转 Markdown / 文本落盘后，计算并写入 `token_size`（派生 md 写在 `markdown.token_size`）
+- **不再**在上传时做分块 embedding
+
+问答阶段（仅 `agent_mode=0`，且只看**当前轮** `content_blocks`）：
+
+- `token_size <= short_doc_max_tokens`：直接注入完整 md/文本
+- `token_size > short_doc_max_tokens`：若 DB 尚无向量则按需分块 embedding，再对该附件做 Top-K 检索
+- 历史消息中的附件不参与本轮 RAG；`agent_mode>0` 改为注入 `attachment_uploads` 清单，由文件工具按需读取
+
+### 6) 常见排障
 
 - `agent_mode=0`：后端从当前轮附件（若有）或历史用户消息附件收集 `content_id`，通过 `KbRagContextService` 构建 `<attachment_context>`。
 - `agent_mode>0`：后端跳过附件 RAG，改为在用户提示词中注入 `<attachment_uploads>` 清单，包含 `name`、`type`、`virtual_path`、`size`、`uploaded_this_turn`。PDF / Excel 还会附带派生 Markdown 的 `virtual_path`，模型可用 file MCP 按需读取 `/mnt/user-data/uploads/...`。
@@ -176,11 +189,8 @@ Excel 使用 `ExcelMarkdownConverter` 将 `.xlsx` 转为同名 stem 的 Markdown
 
 - `400 仅支持 ...` / `不支持的文本文件类型`：文件类型不在允许列表
 - `400 ...不能超过 10MB`：超出大小限制
-- `400 PDF 文件无效或已损坏`：文件头校验失败
-- `400 Excel 文件无效或已损坏`：`.xlsx` 文件头校验失败
-- `400 文件编码无效，请使用 UTF-8 编码`：文本 / 代码文件不是 UTF-8
-- `502 PDF 转 Markdown 失败`：检查 `PDF_MARKDOWN__PP_STRUCTURE_TOKEN`、外部服务可用性和超时配置
-- `502 Excel 转 Markdown 失败`：检查 `markitdown` 转换依赖和文件内容是否可解析
+- `400 PDF/Word/PowerPoint 文件无效或已损坏`：文件头校验失败
+- `502 MinerU 转换失败`：检查 Nacos `mineru.api_key`、外部服务可用性和轮询超时配置
 
 ---
 
@@ -228,15 +238,17 @@ curl -X POST "http://localhost:8000/api/code/execute" \
 SSE 数据格式统一为：
 
 ```text
-data: {"type":"<event_type>","data":{...},"seq":1}
+id: 1
+data: {"type":"<event_type>","data":{...}}
 ```
 
-`seq` 由服务端内存中的 `StreamRelay` 注入，用于 `POST /api/chat/stream/resume` 断线续流。续流请求体为：
+`id` 由 Redis 版 `StreamRelay` 分配（1-based），客户端通过请求头 `Last-Event-ID` 续传。续流请求示例：
 
-```json
-{
-  "assistant_message_id": "assistant-message-id"
-}
+```http
+POST /api/chat/stream/resume
+Last-Event-ID: 12
+
+{"assistant_message_id":"assistant-message-id"}
 ```
 
 客户端通过 `Last-Event-ID` 请求头传递最近消费的 `seq`。
@@ -250,7 +262,7 @@ data: {"type":"<event_type>","data":{...},"seq":1}
 - `done`：本轮结束（包含内容长度、推理长度、工具调用次数、更新时间）
 - `error`：本轮失败
 
-续流缓冲仅在当前进程和活动流生命周期内有效；生成完成或进程重启后，续流接口会返回空 SSE。
+续流缓冲与 `client_turn_id` 幂等缓存均存储在 Redis，可跨 worker 共享；依赖 Redis TTL（活跃默认 2h，close 后默认 30min）。多 worker 部署需保证 Redis 可达。`stop` 通过 Redis meta `status=stopped` 跨 worker 生效（同 worker 仍有本地 task cancel 快路径）。
 
 ## 模型列表与图片输入约束
 

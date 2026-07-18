@@ -178,6 +178,38 @@ def mark_observation_error(span: Any, exc: BaseException) -> None:
         )
 
 
+def score_observation(
+    span: Any,
+    *,
+    name: str,
+    value: bool | float | str,
+    data_type: str = "BOOLEAN",
+    comment: str | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> None:
+    """给 observation 打分；span 为 None 或失败时静默。"""
+    if span is None:
+        return
+    try:
+        kwargs: dict[str, Any] = {
+            "name": name,
+            "value": value,
+            "data_type": data_type,
+        }
+        if comment is not None:
+            kwargs["comment"] = comment
+        if metadata is not None:
+            kwargs["metadata"] = metadata
+        span.score(**kwargs)
+    except Exception as score_exc:
+        logger.warning(
+            "Failed to score observation",
+            score_name=name,
+            error=score_exc,
+            error_type=type(score_exc).__name__,
+        )
+
+
 def flush_langfuse() -> None:
     """主动刷盘 Langfuse 缓冲队列；未启用或失败时静默。"""
     client = get_langfuse()

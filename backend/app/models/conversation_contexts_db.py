@@ -33,6 +33,9 @@ class ConversationContextDb(SQLModel, table=True):
     )
     updated_at: datetime = Field(
         default_factory=lambda: get_datetime_now(),
-        sa_column_kwargs={"onupdate": get_datetime_now},
-        sa_type=DateTime(timezone=True),
+        sa_column=Column(
+            DateTime(timezone=True),
+            nullable=False,
+            onupdate=get_datetime_now,
+        ),
     )

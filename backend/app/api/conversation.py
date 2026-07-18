@@ -3,20 +3,27 @@
 import shutil
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 
+from app.core.cache import (
+    invalidate_conversation,
+    invalidate_conversation_list,
+    invalidate_conversation_state,
+)
 from app.core.db import get_db
 from app.schemas.auth import AuthTokenPayload
 from app.schemas.conversation import (
     ConversationInfo,
     ConversationListRequest,
+    ConversationListResponse,
     RegisterConversationRequest,
     UpdateConversationRequest,
 )
 from app.schemas.response import ApiResponse
 from app.services.conversation import ConversationDbService
-from app.utils.auth_deps import get_auth_token_info, require_auth
+from app.utils.auth_deps import get_auth_token_info
+from app.utils.cursor import InvalidCursorError
 from app.utils.logger import logger
 from app.vfs.paths import get_paths
 
@@ -74,6 +81,7 @@ async def register_conversation(
     conversation_info = service.register_conversation(
         title=request.title, user_id=token_info.user_id, is_active=request.is_active
     )
+    await invalidate_conversation_list(token_info.user_id)
     logger.info(
         "Conversation registered for chat stream",
         conversation_id=conversation_info.id,
@@ -87,18 +95,15 @@ async def get_conversations(
     request: ConversationListRequest = Depends(),
     db: Session = Depends(get_db),
     token_info: AuthTokenPayload = Depends(get_auth_token_info),
-) -> ApiResponse[dict[str, Any]]:
-    """分页获取对话列表。"""
+) -> ApiResponse[ConversationListResponse]:
+    """游标分页获取对话列表。"""
     service = ConversationDbService(db)
-    total, conversations = service.get_conversations_paginated(
-        token_info.user_id, offset=request.offset, limit=request.limit
-    )
-    data = {
-        "total": total,
-        "offset": request.offset,
-        "limit": request.limit,
-        "conversations": conversations,
-    }
+    try:
+        data = await service.get_or_load_conversations_paginated(
+            token_info.user_id, cursor=request.cursor, limit=request.limit
+        )
+    except InvalidCursorError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return ApiResponse.success(data=data, msg="获取对话列表成功")
 
 
@@ -106,23 +111,17 @@ async def get_conversations(
 async def get_messages(
     conversation_id: str,
     db: Session = Depends(get_db),
-    _auth: None = Depends(require_auth),
+    token_info: AuthTokenPayload = Depends(get_auth_token_info),
 ) -> ApiResponse[dict[str, Any]]:
     """Get messages by conversation ID"""
     service = ConversationDbService(db)
-    if not service.get_conversation(conversation_id):
-        return ApiResponse.error(code=404, msg="会话不存在")
-
-    chat_messages = service.get_messages(
+    data = await service.get_or_load_messages(
         conversation_id,
+        token_info.user_id,
         omit_tool_result_content_and_summary_when_structured=True,
     )
-    data = {
-        "total": len(chat_messages),
-        "offset": 0,
-        "limit": len(chat_messages),
-        "messages": chat_messages,
-    }
+    if data is None:
+        return ApiResponse.error(code=404, msg="会话不存在")
     return ApiResponse.success(data=data, msg="获取消息列表成功")
 
 
@@ -130,11 +129,14 @@ async def get_messages(
 async def get_conversation(
     conversation_id: str,
     db: Session = Depends(get_db),
-    _auth: None = Depends(require_auth),
+    token_info: AuthTokenPayload = Depends(get_auth_token_info),
 ) -> ApiResponse[ConversationInfo]:
     """Get a conversation by ID"""
     service = ConversationDbService(db)
-    conversation_info = service.get_conversation_info(conversation_id)
+    conversation_info = await service.get_or_load_conversation_info(
+        conversation_id,
+        token_info.user_id,
+    )
     if not conversation_info:
         return ApiResponse.error(code=404, msg="会话不存在")
 
@@ -146,14 +148,16 @@ async def update_conversation(
     conversation_id: str,
     request: UpdateConversationRequest,
     db: Session = Depends(get_db),
-    _auth: None = Depends(require_auth),
+    token_info: AuthTokenPayload = Depends(get_auth_token_info),
 ) -> ApiResponse[ConversationInfo]:
     """Update a conversation by ID"""
     service = ConversationDbService(db)
     conversation = service.get_conversation(conversation_id)
-    if not conversation:
+    if not conversation or conversation.user_id != token_info.user_id:
         return ApiResponse.error(code=404, msg="会话不存在")
     conversation_info = service.update_conversation(conversation, request)
+    db.commit()
+    await invalidate_conversation(conversation_id, token_info.user_id)
     return ApiResponse.success(data=conversation_info, msg="更新对话成功")
 
 
@@ -169,6 +173,8 @@ async def activate_conversation(
     if not conversation or conversation.user_id != token_info.user_id:
         return ApiResponse.error(code=404, msg="会话不存在")
     conversation_info = service.activate_conversation(conversation)
+    db.commit()
+    await invalidate_conversation(conversation_id, token_info.user_id)
     return ApiResponse.success(data=conversation_info, msg="会话已激活")
 
 
@@ -176,13 +182,16 @@ async def activate_conversation(
 async def delete_conversation(
     conversation_id: str,
     db: Session = Depends(get_db),
-    _auth: None = Depends(require_auth),
+    token_info: AuthTokenPayload = Depends(get_auth_token_info),
 ) -> ApiResponse[str]:
     """Delete a conversation by ID"""
     service = ConversationDbService(db)
     conversation = service.get_conversation(conversation_id)
-    if not conversation:
+    if not conversation or conversation.user_id != token_info.user_id:
         return ApiResponse.error(code=404, msg="会话不存在")
     _delete_conversation_workspace(conversation.user_id, conversation.id)
     service.delete_conversation(conversation)
-    return ApiResponse.success(data=conversation.id, msg="删除对话成功")
+    deleted_id = conversation.id
+    db.commit()
+    await invalidate_conversation_state(deleted_id, token_info.user_id)
+    return ApiResponse.success(data=deleted_id, msg="删除对话成功")

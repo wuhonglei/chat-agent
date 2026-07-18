@@ -27,6 +27,7 @@ from app.core.config import settings
 from app.core.db import create_db_and_tables
 from app.core.jwt import initialize_jwt_manager
 from app.core.observability import init_langfuse, shutdown_langfuse
+from app.core.redis import close_redis, init_redis
 from app.mcp import get_mcp_manager, register_mcp_reload_target
 from app.middleware import LoggingMiddleware
 from app.middleware.exception_handler import (
@@ -71,11 +72,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # 初始化 JWT Manager（提前加载密钥文件，避免每次请求时重复读取）
     app.state.jwt_manager = initialize_jwt_manager()
 
+    # 初始化 Redis 连接池
+    app.state.redis = await init_redis()
+
     logger.info("Application startup complete")
 
     yield
     # 刷新 Langfuse 队列，避免进程退出丢事件
     shutdown_langfuse()
+    await close_redis()
     # 清理 MCP Manager 资源
     app.state.mcp_manager.cleanup()
     logger.info("Application shutting down")

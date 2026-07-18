@@ -18,9 +18,16 @@ export enum MessageStatus {
 
 export type MessageFeedbackValue = "default" | "like" | "dislike";
 
+export interface MessageFeedbackDetails {
+  reasons?: string[];
+  comment?: string;
+}
+
 export interface MessageFeedback {
   value: MessageFeedbackValue;
   updatedAt: string;
+  reasons?: string[];
+  comment?: string | null;
 }
 
 export interface SearchSourceMetaData {
@@ -80,6 +87,7 @@ export type NewConversationCache =
       values: ChatInputFormValues;
       /** 欢迎页等场景下与 values 一并缓存，供跳转后首条消息使用（可 JSON 序列化） */
       attachmentBlocks?: UserAttachmentBlock[];
+      mentionedBlocks?: UserAttachmentBlock[];
       createdBy: TitleCreatedBy;
       insertAt: number; // 时间戳 ms (Date.now() 生成)
     };
@@ -91,6 +99,8 @@ export interface ChatRequest extends ChatInputConfig {
   historyIds: string[];
   regenerateTitle: boolean;
   removedMessageIds: string[];
+  /** 通过 @ 引用的历史/当前轮附件（不并入 content_blocks） */
+  mentionedBlocks?: UserAttachmentBlock[];
 }
 
 export interface ChatModelItem {
@@ -110,6 +120,8 @@ export interface SendMessageOptions {
   createdBy?: TitleCreatedBy;
   /** 与 Attachments 派生并列：重发时从历史消息的 contentBlocks 带入（图片、PDF 等） */
   attachmentBlocks?: UserAttachmentBlock[];
+  /** 通过 @ 引用的附件块，独立于本轮上传的 attachmentBlocks */
+  mentionedBlocks?: UserAttachmentBlock[];
 }
 
 export type StreamResumePhase = "streaming" | "closed" | "done" | "error";

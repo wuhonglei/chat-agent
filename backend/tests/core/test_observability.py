@@ -103,6 +103,47 @@ def test_mark_observation_error_swallows_update_failure() -> None:
     observability.mark_observation_error(_FakeSpan(), ValueError("bad"))
 
 
+def test_score_observation_handles_none() -> None:
+    observability.score_observation(
+        None, name="tool_success", value=True, data_type="BOOLEAN"
+    )
+
+
+def test_score_observation_writes_boolean_score() -> None:
+    captured: dict[str, Any] = {}
+
+    class _FakeSpan:
+        def score(self, **kwargs: Any) -> None:
+            captured.update(kwargs)
+
+    observability.score_observation(
+        _FakeSpan(),
+        name="tool_success",
+        value=False,
+        data_type="BOOLEAN",
+        comment="empty_result",
+        metadata={"error_type": "empty_result"},
+    )
+
+    assert captured == {
+        "name": "tool_success",
+        "value": False,
+        "data_type": "BOOLEAN",
+        "comment": "empty_result",
+        "metadata": {"error_type": "empty_result"},
+    }
+
+
+def test_score_observation_swallows_score_failure() -> None:
+    class _FakeSpan:
+        def score(self, **kwargs: Any) -> None:
+            raise RuntimeError("score failed")
+
+    observability.score_observation(
+        _FakeSpan(), name="tool_success", value=True, data_type="BOOLEAN"
+    )
+
+
 def test_flush_langfuse_noop_when_client_missing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

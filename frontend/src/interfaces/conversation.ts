@@ -26,10 +26,10 @@ export interface CreateConversationRequest {
 }
 
 export interface ConversationListResponse {
-  total: number;
-  offset: number;
-  limit: number;
   conversations: ConversationInfo[];
+  nextCursor: string | null;
+  hasMore: boolean;
+  limit: number;
 }
 
 export interface UpdateConversationRequest {

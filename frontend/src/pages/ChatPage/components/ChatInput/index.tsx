@@ -9,6 +9,7 @@ import { App, ConfigProvider, Form, FormInstance, GetProp, GetRef } from "antd";
 import classNames from "classnames";
 import React from "react";
 import ChatInputFooter from "./components/ChatInputFooter";
+import ChatInputSender from "./components/ChatInputSender";
 import ChatInputSenderHeader from "./components/ChatInputSenderHeader";
 import { sortAttachmentsByImageFirst, withServerAttachmentPreview } from "./components/utils";
 import { names } from "./constant";
@@ -19,6 +20,7 @@ import {
   useLockedAgentMode,
   useModelImageSupport,
 } from "./hooks";
+import { useAttachmentMention } from "./hooks/useAttachmentMention";
 import {
   CHAT_ATTACHMENT_ACCEPT,
   CHAT_ATTACHMENT_ACCEPT_PDF_ONLY,
@@ -60,11 +62,20 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const modelId = Form.useWatch(names.modelId, form);
   const { messages } = useChatState(conversationId ?? "");
   const [attachmentItems, setAttachmentItems] = React.useState<GetProp<AttachmentsProps, "items">>(
-    [],
+    []
   );
   const senderRef = React.useRef<GetRef<typeof Sender>>(null);
   const attachmentsRef = React.useRef<GetRef<typeof Attachments>>(null);
   const ignoreAttachmentChangeRef = React.useRef(false);
+
+  const {
+    mentionedBlocks,
+    mentionableAttachments,
+    getSuggestionItems,
+    handleContentChange,
+    handleMentionSelect,
+    resetMentionedBlocks,
+  } = useAttachmentMention({ messages, attachmentItems });
 
   const enableAttachmentChange = useMemoizedFn(() => {
     ignoreAttachmentChangeRef.current = false;
@@ -75,11 +86,11 @@ const ChatInput: React.FC<ChatInputProps> = ({
       if (ignoreAttachmentChangeRef.current) {
         return;
       }
-      const normalizedFileList = fileList.map((file) =>
-        withServerAttachmentPreview(file as UploadFile<UserAttachmentBlock>),
+      const normalizedFileList = fileList.map(file =>
+        withServerAttachmentPreview(file as UploadFile<UserAttachmentBlock>)
       );
       setAttachmentItems(sortAttachmentsByImageFirst(normalizedFileList));
-    },
+    }
   );
 
   const resetAttachments = useMemoizedFn(() => {
@@ -112,7 +123,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
       }
       form.setFieldValue(names.agentMode, lockedAgentMode);
       message.warning("首条消息发送后不可切换 Agent 模式");
-    },
+    }
   );
 
   const handleSend = useMemoizedFn(() => {
@@ -131,10 +142,15 @@ const ChatInput: React.FC<ChatInputProps> = ({
         ...fieldValues,
         content: text,
       },
-      { attachmentBlocks },
+      {
+        attachmentBlocks,
+        mentionedBlocks: mentionedBlocks.length > 0 ? mentionedBlocks : undefined,
+      }
     );
+    senderRef.current?.clear();
     form.resetFields([names.content]);
     resetAttachments();
+    resetMentionedBlocks();
   });
 
   const handlePressEnter = useMemoizedFn((event: React.KeyboardEvent<Element>) => {
@@ -206,8 +222,12 @@ const ChatInput: React.FC<ChatInputProps> = ({
         className={classNames("flex flex-col gap-3", className)}
       >
         <Form.Item name={names.content}>
-          <Sender
+          <ChatInputSender
             ref={senderRef}
+            hasMentionableAttachments={mentionableAttachments.length > 0}
+            getSuggestionItems={getSuggestionItems}
+            onContentChangeWithMention={handleContentChange}
+            onMentionSelect={handleMentionSelect}
             header={
               <ChatInputSenderHeader
                 conversationId={conversationId}
@@ -220,6 +240,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
               />
             }
             suffix={false}
+            // SlotTextArea 在 submitType=enter 时会拦截回车并清除 <br>；移动端改为 shiftEnter 以允许换行
+            submitType={isSmallScreen ? "shiftEnter" : "enter"}
             onPasteFile={handlePasteFile}
             onKeyDown={handlePressEnter}
             placeholder="发送消息"

@@ -84,7 +84,14 @@ langfuse:
 其中：
 
 - LLM generation 由 `langfuse.openai.AsyncOpenAI` 自动采集
-- 工具调用在 `ToolExecutor.execute_single_tool` 中显式创建 `tool` observation
+- 工具调用在 `ToolExecutor.execute_single_tool` 中显式创建 `tool` observation，
+  并在 observation 上写入 BOOLEAN score `tool_success`：
+  - 默认：非空结果为成功；空结果 `false` + `error_type=empty_result`
+  - `shell`：以 `structured_content.exit_code == 0` 为成功；`blocked` /
+    `timed_out` / 非 0 退出码为失败
+  - `code`：以 `run.code == 0` 为成功；编译非 0 / 运行非 0 / `signal` 为失败
+  - 异常路径：`false` + 异常类名，并标记 observation `ERROR`
+  成功率 KPI 以 score 为准。
 - `LLMService` 在连接失败、限流或 API 状态异常时会把当前 LLM observation 标记为 `ERROR`
 - 失败隔离：所有观测失败只告警，不改变业务响应
 
@@ -203,6 +210,7 @@ python scripts/sync_status_to_langfuse.py --prod
    - 延迟、finish reason、token usage、错误类型
 3. 查看 tool observation：
    - `tool_name`、参数、返回内容、`status_message`
+   - Scores 中的 `tool_success`（BOOLEAN）及失败时的 `error_type`
 4. 若为中断场景，检查 trace metadata 中 `status=stopped`
 5. 若为失败场景（主会话流式异常），根 span `level=ERROR`、`status_message` 为异常类型，
    metadata 中 `status=failed`，且该轮 **不会**有 done 事件；助手消息落库为 `FAILED`
@@ -219,7 +227,8 @@ python scripts/sync_status_to_langfuse.py --prod
 - [ ] 含工具 + 标题生成的请求产生单条 trace，嵌套关系正确
 - [ ] 流式 generation 的 token 非空
 - [ ] 图片请求在 trace 中不出现 base64
-- [ ] 人工触发工具异常时，observation 标记 `ERROR`
+- [ ] 人工触发工具异常时，observation 标记 `ERROR`，且 `tool_success=false`
+- [ ] 正常工具调用产生 `tool_success=true`；空结果产生 `tool_success=false`
 - [ ] 主会话流式中途异常时，根 span 为 `ERROR` 且该轮无 done 事件，助手消息落库为 `FAILED`
 - [ ] 记忆检索 / KB RAG 子 span 可展开，含输入输出摘要
 - [ ] 标题生成失败时，`title-generation` span 标记 `ERROR`

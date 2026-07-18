@@ -1,0 +1,114 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Backend: Debug FastAPI",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "app.main:app",
+        "--reload",
+        "--reload-dir",
+        "app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+        "--proxy-headers"
+      ],
+      "cwd": "${workspaceFolder}/backend",
+      "jinja": true,
+      "justMyCode": false,
+      "subProcess": true,
+      "python": "${workspaceFolder}/backend/.venv/bin/python",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/backend",
+        "APP__DEBUG": "1"
+      },
+      "envFile": "${workspaceFolder}/backend/.env"
+    },
+    {
+      "name": "Backend: Debug FastAPI (no reload)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "app.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+        "--proxy-headers"
+      ],
+      "cwd": "${workspaceFolder}/backend",
+      "jinja": true,
+      "justMyCode": false,
+      "python": "${workspaceFolder}/backend/.venv/bin/python",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/backend",
+        "APP__DEBUG": "1"
+      },
+      "envFile": "${workspaceFolder}/backend/.env"
+    },
+    {
+      "name": "Backend: Python Current File",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/backend",
+      "justMyCode": false,
+      "python": "${workspaceFolder}/backend/.venv/bin/python",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/backend"
+      },
+      "envFile": "${workspaceFolder}/backend/.env"
+    },
+    {
+      "name": "Backend: Debug Pytest",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["-v", "--ignore=tests/mcp_demo"],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/backend",
+      "justMyCode": false,
+      "python": "${workspaceFolder}/backend/.venv/bin/python",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/backend"
+      },
+      "envFile": "${workspaceFolder}/backend/.env"
+    },
+    {
+      "name": "Backend: Debug Pytest (Current File)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["${relativeFile}", "-v"],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/backend",
+      "justMyCode": false,
+      "python": "${workspaceFolder}/backend/.venv/bin/python",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/backend"
+      },
+      "envFile": "${workspaceFolder}/backend/.env"
+    },
+    {
+      "name": "Backend: Alembic Migrate",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "alembic",
+      "args": ["upgrade", "head"],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/backend",
+      "justMyCode": false,
+      "python": "${workspaceFolder}/backend/.venv/bin/python",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/backend"
+      },
+      "envFile": "${workspaceFolder}/backend/.env"
+    }
+  ]
+}

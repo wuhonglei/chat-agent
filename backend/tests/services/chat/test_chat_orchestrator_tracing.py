@@ -47,9 +47,7 @@ class _FakeAgent:
     def _sync_session_output(self) -> None:
         return None
 
-    async def stream_session_events(
-        self, **kwargs: Any
-    ) -> AsyncGenerator[str, None]:
+    async def stream_session_events(self, **kwargs: Any) -> AsyncGenerator[str, None]:
         if self._raise_in_stream:
             raise RuntimeError("llm boom")
         yield "data: chunk\n\n"
@@ -68,7 +66,7 @@ def _build_orchestrator(*, raise_in_stream: bool) -> tuple[ChatOrchestrator, Any
     post_process.schedule_memory_write = MagicMock()
 
     kb_service = MagicMock()
-    kb_service.build_context_block_content = AsyncMock(return_value=None)
+    kb_service.build_context_blocks_for_current_turn = AsyncMock(return_value=None)
 
     orch = ChatOrchestrator(
         chat_session_agent=agent,
@@ -80,7 +78,7 @@ def _build_orchestrator(*, raise_in_stream: bool) -> tuple[ChatOrchestrator, Any
     return orch, post_process
 
 
-def _patch_common(monkeypatch: pytest.MonkeyPatch) -> Any:
+def _patch_common(monkeypatch: pytest.MonkeyPatch) -> tuple[Any, AsyncMock]:
     """禁用 Langfuse 并替换 MessageDbService，返回可断言的 message_service。"""
     monkeypatch.setattr(orchestrator_module, "is_enabled", lambda: False)
     monkeypatch.setattr(orchestrator_module, "get_langfuse", lambda: None)
@@ -101,7 +99,13 @@ def _patch_common(monkeypatch: pytest.MonkeyPatch) -> Any:
         yield message_service
 
     monkeypatch.setattr(orchestrator_module, "MessageDbService", _fake_db)
-    return message_service
+    invalidate = AsyncMock()
+    monkeypatch.setattr(
+        orchestrator_module,
+        "invalidate_conversation_state",
+        invalidate,
+    )
+    return message_service, invalidate
 
 
 def _chat_request() -> ChatRequest:
@@ -117,7 +121,7 @@ def _chat_request() -> ChatRequest:
 async def test_stream_failure_marks_failed_and_skips_done(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    message_service = _patch_common(monkeypatch)
+    message_service, invalidate = _patch_common(monkeypatch)
     orch, post_process = _build_orchestrator(raise_in_stream=True)
 
     events: list[str] = []
@@ -141,6 +145,7 @@ async def test_stream_failure_marks_failed_and_skips_done(
         if call.kwargs.get("status") == MessageStatus.FAILED
     ]
     assert len(failed_calls) == 1
+    invalidate.assert_awaited_once_with("conv-1", "user-1")
 
     # 失败路径不触发记忆写入与最终持久化
     post_process.schedule_memory_write.assert_not_called()
@@ -151,7 +156,7 @@ async def test_stream_failure_marks_failed_and_skips_done(
 async def test_stream_success_emits_done(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    message_service = _patch_common(monkeypatch)
+    message_service, invalidate = _patch_common(monkeypatch)
     orch, post_process = _build_orchestrator(raise_in_stream=False)
 
     events: list[str] = []
@@ -168,6 +173,7 @@ async def test_stream_success_emits_done(
     assert not any('"type": "error"' in e for e in events)
     post_process.persist_final_assistant_message.assert_called_once()
     post_process.schedule_memory_write.assert_called_once()
+    invalidate.assert_awaited_once_with("conv-1", "user-1")
     # 成功路径不应将消息标为 FAILED
     failed_calls = [
         call

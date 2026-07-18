@@ -10,7 +10,6 @@ _USER_MESSAGE_QUERY_SNIPPET = """
   <attachment_context>
   {%- for attachment in kb_context_blocks %}
     <attachment index="{{ loop.index }}">
-      <id>{{ attachment.id|e }}</id>
       <name>{{ attachment.name|e }}</name>
       {%- if attachment.created_at %}
       <created_at>{{ attachment.created_at|e }}</created_at>
@@ -67,9 +66,7 @@ user_message_for_tool_call_template: Template = Template(
   {%- endfor %}
   </user_memories>
   {%- endif %}
-  <context>
-    <current_datetime>{{ current_datetime|e }}</current_datetime>
-  </context>
+  <current_datetime>{{ current_datetime|e }}</current_datetime>
 </tool_call_context>
 """.strip()
 )

@@ -154,3 +154,16 @@ export const PROJECT_PREVIEW_DIRECTORY_ICONS = {
   zip: makeSvgIcon(icon_zip),
   zsh: makeSvgIcon(icon_console),
 } as const;
+
+type ProjectPreviewIconKey = keyof typeof PROJECT_PREVIEW_DIRECTORY_ICONS;
+
+/** 按文件名扩展名解析预览图标；未知类型回退为通用文件图标 */
+export function getProjectPreviewFileIcon(fileName: string): ReactNode {
+  const baseName = fileName.trim().split(/[/\\]/).pop() || fileName;
+  const dotIndex = baseName.lastIndexOf(".");
+  const ext = (dotIndex >= 0 ? baseName.slice(dotIndex + 1) : baseName).toLowerCase();
+  if (ext && ext in PROJECT_PREVIEW_DIRECTORY_ICONS) {
+    return PROJECT_PREVIEW_DIRECTORY_ICONS[ext as ProjectPreviewIconKey];
+  }
+  return PROJECT_PREVIEW_DIRECTORY_ICONS.file;
+}

@@ -1,4 +1,9 @@
-import { ChatMessage as ChatMessageType, MessageFeedbackValue, MessageStatus } from "@/interfaces";
+import {
+  ChatMessage as ChatMessageType,
+  MessageFeedbackDetails,
+  MessageFeedbackValue,
+  MessageStatus,
+} from "@/interfaces";
 import { Bubble } from "@ant-design/x";
 import React from "react";
 import AssistantOperation from "../components/AssistantOperation";
@@ -12,7 +17,7 @@ interface AssistantMessageProps {
   isLoading: boolean;
   onReSend: () => void;
   onDeleteMessage: () => void | Promise<void>;
-  onUpdateMessageFeedback: (value: MessageFeedbackValue) => Promise<void>;
+  onUpdateMessageFeedback: (value: MessageFeedbackValue, details?: MessageFeedbackDetails) => Promise<void>;
 }
 
 const AssistantMessage: React.FC<AssistantMessageProps> = ({

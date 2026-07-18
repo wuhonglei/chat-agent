@@ -5,7 +5,6 @@
 
 import asyncio
 import random
-import time
 import uuid
 
 from fastapi import HTTPException
@@ -13,19 +12,14 @@ from sqlmodel import Session
 
 from app.core.config import settings
 from app.models import UserDb
-from app.schemas.auth import (
-    SendSmsRequest,
-    SendSmsResponse,
-    SmsLoginRequest,
-    SmsVerificationEntry,
-)
+from app.schemas.auth import SendSmsRequest, SendSmsResponse, SmsLoginRequest
+from app.services.auth.sms_verification_store import SmsVerificationStore
 from app.services.user import UserDbService
 from app.utils.logger import logger
 from app.utils.sms import format_phone_e164, send_sms_sync
 
-# 验证码缓存：key=verification_id, value={"code", "phone", "expires_at"}
-_verification_cache: dict[str, SmsVerificationEntry] = {}
-VERIFICATION_TTL = 300  # 秒
+_store = SmsVerificationStore()
+VERIFICATION_TTL = SmsVerificationStore.TTL_SECONDS
 
 
 class SmsService:
@@ -35,7 +29,7 @@ class SmsService:
     async def send_sms(
         send_sms_request: SendSmsRequest, db: Session
     ) -> SendSmsResponse:
-        """发送短信验证码（腾讯云短信 SDK + 6 位验证码 + 进程内缓存）
+        """发送短信验证码（腾讯云短信 SDK + 6 位验证码 + Redis 缓存）
 
         Args:
             send_sms_request: 包含 phone_number
@@ -50,18 +44,27 @@ class SmsService:
         phone = send_sms_request.phone_number.strip()
         code = "".join(random.choices("0123456789", k=6))
         verification_id = str(uuid.uuid4())
-        now = time.time()
-        _verification_cache[verification_id] = SmsVerificationEntry(
-            code=code,
-            phone=phone,
-            expires_at=now + VERIFICATION_TTL,
-        )
+        try:
+            await _store.save(verification_id, code=code, phone=phone)
+        except Exception as e:
+            logger.error("验证码写入 Redis 失败", error=e, exc_info=True)
+            raise HTTPException(
+                status_code=503,
+                detail="验证码服务暂不可用",
+            ) from e
+
         phone_e164 = format_phone_e164(phone)
         try:
             await asyncio.to_thread(send_sms_sync, phone_e164, code, settings.sms)
         except Exception as e:  # noqa: BLE001
-            if verification_id in _verification_cache:
-                del _verification_cache[verification_id]
+            try:
+                await _store.delete(verification_id)
+            except Exception as delete_error:
+                logger.error(
+                    "验证码回滚 Redis 失败",
+                    error=delete_error,
+                    exc_info=True,
+                )
             if (
                 type(e).__name__ == "TencentCloudSDKException"
                 and "PhoneNumberThirtySecondLimit" in str(e)
@@ -93,16 +96,22 @@ class SmsService:
             UserDb 供 auth 直接写 JWT
         """
         vid = sms_login_request.verification_id
-        if vid not in _verification_cache:
+        try:
+            entry = await _store.get(vid)
+        except Exception as e:
+            logger.error("验证码读取 Redis 失败", error=e, exc_info=True)
+            raise HTTPException(
+                status_code=503,
+                detail="验证码服务暂不可用",
+            ) from e
+
+        if entry is None:
             raise HTTPException(status_code=400, detail="验证码已过期或无效")
-        entry = _verification_cache[vid]
-        if time.time() > entry.expires_at:
-            del _verification_cache[vid]
-            raise HTTPException(status_code=400, detail="验证码已过期")
         if entry.code != sms_login_request.verification_code:
             raise HTTPException(status_code=400, detail="验证码错误")
         if entry.phone != sms_login_request.phone_number:
             raise HTTPException(status_code=400, detail="手机号不匹配")
-        del _verification_cache[vid]
+
+        await _store.delete(vid)
         user = UserDbService(db).get_or_create_user_by_phone(entry.phone)
         return user

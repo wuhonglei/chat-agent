@@ -5,6 +5,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlmodel import Session
 
+from app.core.cache import invalidate_user
 from app.core.db import get_db
 from app.core.jwt import JWTManager, get_jwt_manager
 from app.models import UserDb
@@ -45,6 +46,8 @@ async def sms_login(
     """短信登录（自建验证 + 本系统用户，直接签发 JWT）"""
     user = await SmsService.sms_login(sms_login_request, db)
     if user is not None:
+        db.commit()
+        await invalidate_user(user.id)
         secret_token_info = jwt_manager.get_payload_with_expiration(
             {
                 "user_id": user.id,
@@ -61,12 +64,14 @@ async def sms_login(
 @router.post("/logout")
 async def logout(
     request: Request,
+    db: Session = Depends(get_db),
     jwt_manager: JWTManager = Depends(get_jwt_manager),
 ) -> ApiResponse[None]:
     """登出（短信用户已无 Cloudbase access_token，不再调用 SmsService.signout）"""
     token_info = await get_auth_token_info(request, jwt_manager)
-    with UserDbService() as user_service:
-        user_service.update_user_last_logout(token_info.user_id)
+    UserDbService(db).update_user_last_logout(token_info.user_id)
+    db.commit()
+    await invalidate_user(token_info.user_id)
     return ApiResponse.success(data=None)
 
 
@@ -115,6 +120,8 @@ async def wechat_callback(
     user = user_service.get_or_create_user_by_openid(
         token_data.openid, wechat_user_info
     )
+    db.commit()
+    await invalidate_user(user.id)
 
     # 生成 JWT token
     secret_token_info = jwt_manager.get_payload_with_expiration(

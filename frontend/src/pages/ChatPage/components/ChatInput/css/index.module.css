@@ -2,3 +2,26 @@
   /* focus 时，组件默认的 border-width: 2px; 这里重置为 1px */
   border-width: 1px;
 }
+
+.mentionPopup {
+  /* Cascader 空态会给弹层设 min-width=触发器宽度，需同时压住 */
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: 320px !important;
+  font-size: 12px;
+}
+
+.mentionPopup :global(.ant-suggestion-item) {
+  align-items: center;
+}
+
+.mentionPopup :global(.ant-suggestion-item-icon) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.mentionPopup :global(.ant-suggestion-item-icon svg) {
+  display: block;
+}

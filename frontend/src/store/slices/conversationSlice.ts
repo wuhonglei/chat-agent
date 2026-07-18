@@ -10,8 +10,8 @@ interface ConversationState {
 
   // 当前对话信息
   conversationInfo: ConversationInfo | null;
-  total: number;
-  offset: number;
+  nextCursor: string | null;
+  hasMore: boolean;
   limit: number;
 }
 
@@ -19,8 +19,8 @@ const initialState: ConversationState = {
   conversations: [],
   conversationsLoaded: false,
   conversationInfo: null,
-  total: 0,
-  offset: 0,
+  nextCursor: null,
+  hasMore: true,
   limit: 50,
 };
 
@@ -51,11 +51,11 @@ export const deleteConversation = createAsyncThunk(
 );
 
 /**
- * 加载对话列表
+ * 加载对话列表（游标分页）
  */
 export const loadConversations = createAsyncThunk(
   "conversation/loadConversations",
-  async (params?: { limit?: number; offset?: number }) => {
+  async (params?: { limit?: number; cursor?: string | null }) => {
     return await conversationAPI.getConversations(params);
   }
 );
@@ -202,18 +202,19 @@ const conversationSlice = createSlice({
       publishConversationHelper(state, action.payload);
     });
 
-    // loadConversations：offset=0 时替换列表，offset>0 时追加（用于滚动加载更多）
+    // loadConversations：无 cursor 时替换列表，有 cursor 时追加（滚动加载更多）
     builder.addCase(loadConversations.fulfilled, (state, action) => {
-      const { conversations, total, offset, limit } = action.payload;
-      if (offset === 0) {
+      const { conversations, nextCursor, hasMore, limit } = action.payload;
+      const cursor = action.meta.arg?.cursor;
+      if (!cursor) {
         state.conversations = conversations;
         state.conversationsLoaded = true;
       } else {
-        // 追加新对话，并去重（因为新创建的对话会直接添加到列表最前面，导致后续请求的分页和首次有偏差，出现重复内容）
+        // 追加并去重（新会话置顶可能导致分页与首屏重叠）
         state.conversations = uniqBy([...state.conversations, ...conversations], "id");
       }
-      state.total = total;
-      state.offset = offset;
+      state.nextCursor = nextCursor;
+      state.hasMore = hasMore;
       state.limit = limit;
     });
 

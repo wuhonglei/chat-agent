@@ -11,6 +11,7 @@ from typing import Any, Protocol, cast
 from langfuse import propagate_attributes
 
 from app.agents import ChatSessionAgent, TitleGenerationAgent
+from app.core.cache import invalidate_conversation_state
 from app.core.observability import (
     get_langfuse,
     is_enabled,
@@ -45,8 +46,6 @@ from app.services.message import MessageDbService
 from app.utils.logger import logger
 from app.utils.multimodal import (
     build_attachment_uploads,
-    collect_attachment_content_ids,
-    collect_attachment_content_ids_from_history_messages,
     extract_user_text_with_attachment_placeholder,
 )
 from app.utils.time import get_current_time, get_time_duration
@@ -409,20 +408,15 @@ class ChatOrchestrator:
                         else:
                             with observation_span(
                                 "kb-rag-build",
-                                input={
-                                    "query": user_message_text,
-                                    "candidate_content_ids_count": len(
-                                        collect_attachment_content_ids(
-                                            chat_request.content_blocks
-                                        )
-                                    ),
-                                },
+                                input={"query": user_message_text},
                             ) as kb_span:
                                 try:
                                     kb_context_blocks = (
                                         await self._build_kb_context_blocks(
-                                            content_blocks=chat_request.content_blocks,
-                                            history_messages=prepared_history_messages,
+                                            content_blocks=[
+                                                *chat_request.content_blocks,
+                                                *chat_request.mentioned_blocks,
+                                            ],
                                             user_id=user_id,
                                             user_message_text=user_message_text,
                                         )
@@ -471,6 +465,10 @@ class ChatOrchestrator:
                             assistant_response=assistant_response,
                             status=MessageStatus.STOPPED,
                         )
+                        await invalidate_conversation_state(
+                            conversation_id,
+                            user_id,
+                        )
                         if (
                             trace_enabled
                             and langfuse_client is not None
@@ -499,6 +497,10 @@ class ChatOrchestrator:
                             assistant_message,
                             assistant_response=assistant_response,
                             status=MessageStatus.FAILED,
+                        )
+                        await invalidate_conversation_state(
+                            conversation_id,
+                            user_id,
                         )
                         if (
                             trace_enabled
@@ -540,6 +542,10 @@ class ChatOrchestrator:
                             assistant_message_id=assistant_message_id,
                             assistant_response=assistant_response,
                         )
+                    )
+                    await invalidate_conversation_state(
+                        conversation_id,
+                        user_id,
                     )
                     logger.info(
                         "Assistant message updated",
@@ -619,24 +625,11 @@ class ChatOrchestrator:
         self,
         *,
         content_blocks: list[ContentBlock],
-        history_messages: list[ChatMessage],
         user_id: str,
         user_message_text: str,
     ) -> list[KbContextBlock] | None:
-        current_turn_content_ids = collect_attachment_content_ids(content_blocks)
-        current_turn_has_attachment = bool(current_turn_content_ids)
-        if current_turn_has_attachment:
-            # 当前轮已上传附件时，优先绑定本轮附件，避免历史附件干扰检索。
-            candidate_content_ids = current_turn_content_ids
-        else:
-            candidate_content_ids = (
-                collect_attachment_content_ids_from_history_messages(history_messages)
-            )
-        return await self.kb_rag_context_service.build_context_block_content(
+        return await self.kb_rag_context_service.build_context_blocks_for_current_turn(
             user_id=user_id,
             query_text=user_message_text,
-            candidate_content_ids=candidate_content_ids,
-            current_turn_has_attachment=current_turn_has_attachment,
             content_blocks=content_blocks,
-            history_messages=history_messages,
         )

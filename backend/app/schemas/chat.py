@@ -48,6 +48,12 @@ class MessageFeedback(BaseModel):
     updated_at: datetime | None = Field(
         default=None, description="Feedback updated timestamp"
     )
+    reasons: list[str] = Field(
+        default_factory=list, description="Selected feedback reason tags"
+    )
+    comment: str | None = Field(
+        default=None, description="Optional free-text feedback comment"
+    )
 
 
 class ChatMessageRequestItem(BaseModel):
@@ -122,6 +128,10 @@ class ChatRequest(BaseModel):
     client_turn_id: str | None = Field(
         default=None,
         description="Client-generated idempotency key for one user turn",
+    )
+    mentioned_blocks: list["AttachmentBlock"] = Field(
+        default_factory=list,
+        description="通过 @ 引用的附件块（不并入 content_blocks）",
     )
 
     @field_validator("content_blocks", mode="before")
@@ -266,6 +276,11 @@ class AttachmentBaseBlock(BaseModel):
         ge=0,
         description="落盘文件字节数（经缩放/重编码等处理后的实际大小）",
     )
+    token_size: int | None = Field(
+        default=None,
+        ge=0,
+        description="附件文本 token 数（上传时计算；历史数据可能缺省）",
+    )
 
 
 class ImageBlock(AttachmentBaseBlock):
@@ -306,9 +321,29 @@ class ExcelBlock(AttachmentBaseBlock):
         default="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         description="MIME type for Excel (.xlsx)",
     )
-    markdown: MarkdownBlock | None = Field(
-        default=None, description="Markdown block"
+    markdown: MarkdownBlock | None = Field(default=None, description="Markdown block")
+
+
+class DocxBlock(AttachmentBaseBlock):
+    type: Literal["docx"] = "docx"
+    mime: Literal[
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ] = Field(
+        default="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        description="MIME type for Word (.docx)",
     )
+    markdown: MarkdownBlock | None = Field(default=None, description="Markdown block")
+
+
+class PptxBlock(AttachmentBaseBlock):
+    type: Literal["pptx"] = "pptx"
+    mime: Literal[
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    ] = Field(
+        default="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        description="MIME type for PowerPoint (.pptx)",
+    )
+    markdown: MarkdownBlock | None = Field(default=None, description="Markdown block")
 
 
 class TextFileBlock(AttachmentBaseBlock):
@@ -333,7 +368,7 @@ class AttachmentFileInfo(BaseModel):
     name: str = Field(..., description="展示用文件名")
     type: str = Field(
         ...,
-        description='文件类型："pdf" | "excel" | "markdown" | "image" | "text_file"',
+        description='文件类型："pdf" | "excel" | "docx" | "pptx" | "markdown" | "image" | "text_file"',
     )
     size: int = Field(default=0, ge=0, description="落盘文件字节数")
     virtual_path: str = Field(
@@ -351,13 +386,19 @@ class AttachmentUploadInfo(AttachmentFileInfo):
 
     markdown: AttachmentFileInfo | None = Field(
         default=None,
-        description="PDF/Excel 派生的可读 Markdown 文件；其它类型为 None",
+        description="PDF/Excel/Word/PowerPoint 派生的可读 Markdown 文件；其它类型为 None",
     )
     is_current_turn: bool = Field(default=False, description="是否为本轮上传")
 
 
 AttachmentBlock: TypeAlias = (
-    ImageBlock | MarkdownBlock | PdfBlock | ExcelBlock | TextFileBlock
+    ImageBlock
+    | MarkdownBlock
+    | PdfBlock
+    | ExcelBlock
+    | DocxBlock
+    | PptxBlock
+    | TextFileBlock
 )
 
 ContentBlock: TypeAlias = (
@@ -368,6 +409,8 @@ ContentBlock: TypeAlias = (
     | ImageBlock
     | PdfBlock
     | ExcelBlock
+    | DocxBlock
+    | PptxBlock
     | MarkdownBlock
     | TextFileBlock
     | KbContextBlock

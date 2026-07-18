@@ -14,9 +14,14 @@ from toolz import get
 from app.agents.utils import TavilyResultProcessor
 from app.agents.utils.shell_result_processor import build_shell_display_items
 from app.core.config import settings
-from app.core.observability import mark_observation_error, observation_span
+from app.core.observability import (
+    mark_observation_error,
+    observation_span,
+    score_observation,
+)
 from app.mcp.client import MCPClientManager
 from app.mcp.constants import (
+    CODE_SERVER,
     SHELL_SERVER,
     SKIP_TOOL_RESULT_COMPACTION_SERVERS,
     TAVILY_SERVER,
@@ -118,12 +123,18 @@ class ToolExecutor:
                             urls=urls,
                             iteration=current_iteration + 1,
                         )
-                        return ToolResultMessage(
+                        skip_message = ToolResultMessage(
                             role="tool",
                             is_error=False,
                             tool_call_id=tool_call.id,
                             content="⚠️ 提示：这些 URL 已经在之前的调用中提取过了。请检查历史工具调用结果，如果已获得足够信息，请停止继续调用工具，并直接给出最终回答。",
                         )
+                        self._score_tool_success(
+                            tool_span,
+                            success=True,
+                            error_type=None,
+                        )
+                        return skip_message
                     on_urls_extracted(new_urls)
                     arguments["urls"] = new_urls
                     logger.info(
@@ -197,12 +208,24 @@ class ToolExecutor:
                         tool_name=tool_name,
                         warnings=call_warnings,
                     )
+                success, error_type, outcome_meta = self._resolve_tool_outcome(
+                    server_name=server_name,
+                    content=content,
+                    structured_content=result.structured_content
+                    if isinstance(result.structured_content, dict)
+                    else None,
+                )
+                tool_call_result_message = tool_call_result_message.model_copy(
+                    update={"is_error": not success}
+                )
                 logger.info(
                     "MCP tool result received",
                     tool_name=tool_name,
                     tool_call_id=tool_call.id,
                     duration=get_time_duration(start_time),
                     content_length=len(content) if content else 0,
+                    is_error=not success,
+                    error_type=error_type,
                     content=content[:200] + "..." + content[-200:]
                     if len(content) > 400
                     else content,
@@ -218,6 +241,8 @@ class ToolExecutor:
                                 "tool_call_id": tool_call.id,
                                 "conversation_id": self.current_conversation_id,
                                 "user_id": self.current_user_id,
+                                "is_error": not success,
+                                **outcome_meta,
                             },
                             tags=[f"server:{server_name}"],
                         )
@@ -228,6 +253,12 @@ class ToolExecutor:
                             error=exc,
                             error_type=type(exc).__name__,
                         )
+                self._score_tool_success(
+                    tool_span,
+                    success=success,
+                    error_type=error_type,
+                    metadata_extra=outcome_meta or None,
+                )
                 return tool_call_result_message
             except Exception as exc:
                 tool_call_result_message = ToolResultMessage(
@@ -249,7 +280,119 @@ class ToolExecutor:
                 if tool_span is not None:
                     with contextlib.suppress(Exception):
                         tool_span.update(output=str(exc))
+                self._score_tool_success(
+                    tool_span,
+                    success=False,
+                    error_type=type(exc).__name__,
+                )
                 return tool_call_result_message
+
+    @staticmethod
+    def _resolve_tool_outcome(
+        *,
+        server_name: str | None,
+        content: str,
+        structured_content: dict[str, Any] | None,
+    ) -> tuple[bool, str | None, dict[str, Any]]:
+        """按 server 语义判定工具是否成功。
+
+        shell / code 以退出码为准；其它 server 仍以空结果为失败。
+        返回 ``(success, error_type, metadata)``。
+        """
+        if server_name == SHELL_SERVER:
+            return ToolExecutor._resolve_shell_outcome(content, structured_content)
+        if server_name == CODE_SERVER:
+            return ToolExecutor._resolve_code_outcome(content, structured_content)
+        if not content:
+            return False, "empty_result", {}
+        return True, None, {}
+
+    @staticmethod
+    def _resolve_shell_outcome(
+        content: str,
+        structured_content: dict[str, Any] | None,
+    ) -> tuple[bool, str | None, dict[str, Any]]:
+        if structured_content is not None:
+            meta: dict[str, Any] = {}
+            exit_code = structured_content.get("exit_code")
+            if exit_code is not None:
+                meta["exit_code"] = exit_code
+            if structured_content.get("blocked"):
+                return False, "blocked", meta
+            if structured_content.get("timed_out"):
+                return False, "timed_out", meta
+            if exit_code is None:
+                return False, "missing_exit_code", meta
+            if exit_code != 0:
+                return False, "non_zero_exit", meta
+            return True, None, meta
+
+        lowered = content.lower()
+        if content.startswith("Error:") or "command blocked" in lowered:
+            error_type = "blocked" if "blocked" in lowered else "execution_error"
+            return False, error_type, {}
+        if not content:
+            return False, "empty_result", {}
+        return True, None, {}
+
+    @staticmethod
+    def _resolve_code_outcome(
+        content: str,
+        structured_content: dict[str, Any] | None,
+    ) -> tuple[bool, str | None, dict[str, Any]]:
+        if structured_content is not None:
+            meta: dict[str, Any] = {}
+            compile_stage = structured_content.get("compile")
+            if isinstance(compile_stage, dict):
+                compile_code = compile_stage.get("code")
+                if compile_code is not None:
+                    meta["compile_code"] = compile_code
+                if compile_code is not None and compile_code != 0:
+                    return False, "compile_failed", meta
+
+            run_stage = structured_content.get("run")
+            if not isinstance(run_stage, dict):
+                return False, "missing_run_stage", meta
+            run_code = run_stage.get("code")
+            if run_code is not None:
+                meta["exit_code"] = run_code
+            if run_stage.get("signal"):
+                meta["signal"] = run_stage.get("signal")
+                return False, "signal", meta
+            if run_code is None:
+                return False, "missing_exit_code", meta
+            if run_code != 0:
+                return False, "non_zero_exit", meta
+            return True, None, meta
+
+        if not content:
+            return False, "empty_result", {}
+        return True, None, {}
+
+    @staticmethod
+    def _score_tool_success(
+        tool_span: Any,
+        *,
+        success: bool,
+        error_type: str | None,
+        metadata_extra: dict[str, Any] | None = None,
+    ) -> None:
+        """在 tool observation 上写入 BOOLEAN score ``tool_success``。"""
+        metadata: dict[str, Any] | None = None
+        if error_type or metadata_extra:
+            metadata = {}
+            if error_type:
+                metadata["error_type"] = error_type
+            if metadata_extra:
+                metadata.update(metadata_extra)
+        score_observation(
+            tool_span,
+            name="tool_success",
+            value=success,
+            data_type="BOOLEAN",
+            comment=error_type,
+            metadata=metadata,
+        )
 
     async def _apply_tavily_compaction(
         self,
