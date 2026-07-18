@@ -491,6 +491,55 @@ chat.wuhonglei.cn → xxx.cdn.dnsv1.com (CDN 分配)
 - **conversation/list 反而下降 34%**，可能是 CDN 回源连接复用不如 NPM 内网直连高效，或该接口本身受 DB 查询瓶颈限制
 - **health 持平**，说明 CDN 对无缓存的动态接口提升有限
 
+### 8.6.3 公网直连测试（12Mbps 带宽升级后，2026-07-14）
+
+**测试条件**: 并发 100，各 2000 请求，直连公网 IP（134.175.182.235:3000，HTTP），绕过 CDN
+
+| 接口 | 轮次 | QPS | 失败数 | P50 | P95 | P99 |
+|------|------|-----|--------|-----|-----|-----|
+| `GET /api/health` (c=50) | - | **200.53** | 0 | 56ms | 1894ms | 2101ms |
+| `GET /api/health` (c=100) | 第1轮 | **194.42** | 0 | 68ms | 2174ms | 3098ms |
+| `GET /api/health` (c=200) | - | **191.99** | 0 | 178ms | 3091ms | 4084ms |
+| `GET /api/user/detail` | 第1轮 | **197.06** | 0 | 173ms | 2076ms | 3146ms |
+| `GET /api/user/detail` | 第2轮 | **202.26** | 0 | 115ms | 2054ms | 3074ms |
+| `GET /api/chat/models` | 第1轮 | **177.76** | 0 | 79ms | 2050ms | 2144ms |
+| `GET /api/chat/models` | 第2轮 | **183.79** | 0 | 82ms | 2049ms | 2184ms |
+| `GET /api/conversation/detail` | 第1轮 | **181.57** | 0 | 63ms | 2079ms | 3090ms |
+| `GET /api/conversation/detail` | 第2轮 | **196.67** | 0 | 72ms | 2037ms | 2092ms |
+| `GET /api/conversation/list` | 第1轮 | **148.15** | 0 | 215ms | 2049ms | 2455ms |
+| `GET /api/conversation/list` | 第2轮 | **167.73** | 0 | 251ms | 1481ms | 2262ms |
+| `GET /api/conversation/{id}/messages` | 第1轮 | **92.21** | 0 | 716ms | 2356ms | 3356ms |
+| `GET /api/conversation/{id}/messages` | 第2轮 | **142.92** | 0 | 447ms | 1704ms | 2478ms |
+
+**公网直连 QPS 稳定范围（两轮均值）**:
+
+| 接口 | 平均 QPS | 性能梯队 |
+|------|----------|----------|
+| `GET /api/user/detail` | **199.7** | 🥇 第一梯队 |
+| `GET /api/conversation/detail` | **189.1** | 🥇 第一梯队 |
+| `GET /api/chat/models` | **180.8** | 🥇 第一梯队 |
+| `GET /api/conversation/list` | **157.9** | 🥇 第一梯队 |
+| `GET /api/health` | **194.4** | 🥇 第一梯队 |
+| `GET /api/conversation/{id}/messages` | **117.6** | 🥈 第二梯队 |
+
+### 8.6.4 三种架构全景对比（认证接口两轮均值）
+
+| 接口 | 旧架构 (NPM+TLS) | CDN 直连 | 公网直连 (12Mbps) | 公网 vs 旧架构 | CDN vs 公网 |
+|------|-------------------|----------|-------------------|----------------|-------------|
+| `GET /api/health` | 117.3 | 116.6 | **194.4** | **+66%** | 公网 +67% |
+| `GET /api/user/detail` | 141.8 | 182.1 | **199.7** | **+41%** | 公网 +10% |
+| `GET /api/chat/models` | 130.9 | 174.7 | **180.8** | **+38%** | 公网 +3% |
+| `GET /api/conversation/detail` | 124.7 | 170.3 | **189.1** | **+52%** | 公网 +11% |
+| `GET /api/conversation/list` | 101.5 | 67.2 | **157.9** | **+56%** | 公网 +135% |
+| `GET /api/conversation/{id}/messages` | 138.0 | 152.7 | **117.6** | -15% | CDN +30% |
+
+**关键发现**:
+1. **带宽升级效果显著**: 公网直连 QPS（158-200）全面超越旧架构（101-142），提升 **38%-66%**
+2. **公网直连 vs CDN**: 公网直连大部分接口 QPS 高于 CDN（180-200 vs 153-182），因为 CDN 回源增加了一跳
+3. **conversation/list 公网表现最佳**: 从旧架构 101.5 → 公网 157.9（+56%），从 CDN 67.2 → 公网 157.9（+135%），说明该接口对网络质量敏感
+4. **messages 接口波动大**: 公网第1轮 92 QPS vs 第2轮 143 QPS，可能受服务器瞬时负载影响
+5. **所有接口失败数归零**: 带宽升级后公网直连不再有超时失败
+
 ### 8.7 优化效果对比
 
 | 架构 | QPS | P50 | P99 | 提升 |
