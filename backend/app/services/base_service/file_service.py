@@ -1,8 +1,9 @@
 """文件服务"""
 
-import uuid
+import hashlib
 from pathlib import Path
 
+import aiofiles
 from fastapi import UploadFile
 
 from app.core.config import settings
@@ -10,7 +11,7 @@ from app.utils.avatar import (
     assert_allowed_upload_extension,
     avatar_storage_path,
 )
-from app.utils.file import get_file_extension, write_file_async
+from app.utils.file import get_file_extension
 from app.utils.logger import logger
 
 
@@ -31,7 +32,9 @@ class FileService:
         file_ext = get_file_extension(file.filename or "")
         assert_allowed_upload_extension(file_ext)
 
-        filename = f"{uuid.uuid4()}{file_ext}"
+        content = await file.read()
+        content_hash = hashlib.sha256(content).hexdigest()
+        filename = f"{content_hash}{file_ext}"
         avatar_dir = Path(settings.storage.avatar_dir)
         avatar_dir.mkdir(parents=True, exist_ok=True)
         dest = avatar_dir / filename
@@ -44,7 +47,8 @@ class FileService:
             dest=str(dest),
         )
 
-        await write_file_async(str(dest), file)
+        async with aiofiles.open(dest, "wb") as f:
+            await f.write(content)
         storage_path = avatar_storage_path(filename)
         logger.info("Avatar saved locally", storage_path=storage_path)
         return storage_path

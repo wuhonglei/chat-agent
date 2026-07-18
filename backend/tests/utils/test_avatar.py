@@ -7,8 +7,8 @@ import pytest
 from app.utils.avatar import (
     AVATAR_URL_PREFIX,
     InvalidAvatarError,
-    avatar_local_path,
     avatar_filename_from_storage,
+    avatar_local_path,
     avatar_storage_path,
     filename_from_cos_url,
     is_cos_avatar_url,
@@ -17,15 +17,24 @@ from app.utils.avatar import (
 )
 
 _VALID_NAME = "3f2a1b4c-8d9e-4f5a-b6c7-1234567890ab.png"
+_VALID_SHA256_NAME = (
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855.png"
+)
 
 
 def test_avatar_storage_path() -> None:
     assert avatar_storage_path(_VALID_NAME) == f"{AVATAR_URL_PREFIX}{_VALID_NAME}"
+    assert (
+        avatar_storage_path(_VALID_SHA256_NAME)
+        == f"{AVATAR_URL_PREFIX}{_VALID_SHA256_NAME}"
+    )
 
 
 def test_avatar_filename_from_storage() -> None:
     path = avatar_storage_path(_VALID_NAME)
     assert avatar_filename_from_storage(path) == _VALID_NAME
+    sha_path = avatar_storage_path(_VALID_SHA256_NAME)
+    assert avatar_filename_from_storage(sha_path) == _VALID_SHA256_NAME
 
 
 def test_is_cos_avatar_url() -> None:
@@ -65,8 +74,10 @@ def test_normalize_avatar_for_storage() -> None:
 
 def test_is_valid_avatar_filename() -> None:
     assert is_valid_avatar_filename(_VALID_NAME)
+    assert is_valid_avatar_filename(_VALID_SHA256_NAME)
     assert not is_valid_avatar_filename("../../../etc/passwd")
     assert not is_valid_avatar_filename("upload.png")
+    assert not is_valid_avatar_filename("abc123.png")
 
 
 def test_avatar_local_path_resolves_under_avatar_dir(

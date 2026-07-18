@@ -10,8 +10,12 @@ from app.core.config import settings
 
 AVATAR_URL_PREFIX = "/api/avatars/"
 
+# stem: 新上传为 SHA-256 hex；历史数据可能仍为 UUID
 _AVATAR_FILENAME_RE = re.compile(
-    r"^(?P<uuid>[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})"
+    r"^(?P<stem>"
+    r"(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})"
+    r"|[0-9a-fA-F]{64}"
+    r")"
     r"\.(?P<ext>jpg|jpeg|png|gif|webp)$",
     re.IGNORECASE,
 )
@@ -40,7 +44,7 @@ def _canonical_avatar_filename(filename: str) -> str:
     match = _AVATAR_FILENAME_RE.fullmatch(filename)
     if match is None:
         raise InvalidAvatarError(f"无效的头像文件名: {filename}")
-    return f"{match.group('uuid')}.{match.group('ext').lower()}"
+    return f"{match.group('stem')}.{match.group('ext').lower()}"
 
 
 def avatar_storage_path(filename: str) -> str:
@@ -62,7 +66,7 @@ def avatar_filename_from_storage(value: str) -> str:
 def avatar_local_path(filename: str) -> Path:
     safe_name = _canonical_avatar_filename(filename)
     base_dir = Path(settings.storage.avatar_dir).resolve()
-    # codeql[py/path-injection]: safe_name 仅由 UUID+扩展名正则捕获组重建，不含路径分隔符；
+    # codeql[py/path-injection]: safe_name 仅由 SHA-256/UUID+扩展名正则捕获组重建，不含路径分隔符；
     # resolve 后须落在 avatar_dir 内（relative_to 校验），可防御路径遍历。
     candidate = (base_dir / safe_name).resolve()
     try:
