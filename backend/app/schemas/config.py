@@ -419,7 +419,7 @@ class KbFileRagConfig(BaseModel):
         description="上传文件分块重叠（字符）",
     )
     retrieval_top_k: int = Field(
-        default=6,
+        default=8,
         ge=1,
         description="会话 RAG 检索 Top-K",
     )
