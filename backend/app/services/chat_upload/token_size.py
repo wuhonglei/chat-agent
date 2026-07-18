@@ -1,4 +1,4 @@
-"""附件文本 token 计数（与 embedding 索引使用同一 tokenizer）。"""
+"""附件文本 token / 行数计数（与 embedding 索引使用同一 tokenizer）。"""
 
 from __future__ import annotations
 
@@ -17,3 +17,10 @@ def count_attachment_token_size(text: str) -> int:
         embedding_service.model_name, settings.embedding_model.context_limit
     )
     return calculator.count_tokens(normalized)
+
+
+def count_attachment_lines(text: str) -> int:
+    """按 splitlines 计算文本行数（空文本为 0）。"""
+    if not text:
+        return 0
+    return len(text.splitlines())

@@ -22,7 +22,10 @@ from app.services.chat_upload.attachment import (
     media_type_for_preview,
     sanitize_upload_display_name,
 )
-from app.services.chat_upload.token_size import count_attachment_token_size
+from app.services.chat_upload.token_size import (
+    count_attachment_lines,
+    count_attachment_token_size,
+)
 from app.utils.logger import logger
 
 
@@ -76,6 +79,7 @@ async def save_chat_text(
     await asyncio.to_thread(dest.write_bytes, chunk)
 
     token_size = count_attachment_token_size(text)
+    lines_count = count_attachment_lines(text)
 
     logger.info(
         "Chat text file saved",
@@ -84,6 +88,7 @@ async def save_chat_text(
         storage_key=storage_key,
         bytes=len(chunk),
         token_size=token_size,
+        lines_count=lines_count,
     )
     url = build_attachment_preview_url(user_id, storage_key)
     return TextFileBlock(
@@ -95,5 +100,6 @@ async def save_chat_text(
         name=display_name,
         size=len(chunk),
         token_size=token_size,
+        lines_count=lines_count,
         mime=media_type_for_preview(display_name),
     )

@@ -27,12 +27,18 @@ _USER_MESSAGE_QUERY_SNIPPET = """
       <type>{{ f.type|e }}</type>
       <virtual_path>{{ f.virtual_path|e }}</virtual_path>
       <size>{{ f.human_size }}</size>
+      {%- if f.lines_count is not none %}
+      <lines_count>{{ f.lines_count }}</lines_count>
+      {%- endif %}
       <uploaded_this_turn>{{ 'true' if f.is_current_turn else 'false' }}</uploaded_this_turn>
       {%- if f.markdown %}
       <markdown>
         <name>{{ f.markdown.name|e }}</name>
         <virtual_path>{{ f.markdown.virtual_path|e }}</virtual_path>
         <size>{{ f.markdown.human_size }}</size>
+        {%- if f.markdown.lines_count is not none %}
+        <lines_count>{{ f.markdown.lines_count }}</lines_count>
+        {%- endif %}
       </markdown>
       {%- endif %}
     </file>

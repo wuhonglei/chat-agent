@@ -26,7 +26,10 @@ from app.services.chat_upload.mineru_markdown_converter import (
     MinerUMarkdownConversionError,
     MinerUMarkdownConverter,
 )
-from app.services.chat_upload.token_size import count_attachment_token_size
+from app.services.chat_upload.token_size import (
+    count_attachment_lines,
+    count_attachment_token_size,
+)
 from app.utils.logger import logger
 
 # docx 是 zip 容器，魔数为 PK\x03\x04
@@ -47,6 +50,7 @@ def _build_docx_block(
     docx_size: int,
     markdown_size: int,
     markdown_token_size: int,
+    markdown_lines_count: int,
 ) -> DocxBlock:
     markdown_display_name = f"{Path(docx_display_name).stem}.md"
     docx_url = build_attachment_preview_url(user_id, docx_storage_key)
@@ -62,6 +66,7 @@ def _build_docx_block(
         name=markdown_display_name,
         size=markdown_size,
         token_size=markdown_token_size,
+        lines_count=markdown_lines_count,
         mime="text/markdown",
     )
     return DocxBlock(
@@ -155,6 +160,7 @@ async def save_chat_docx(
     markdown_size = md_path.stat().st_size
     docx_size = dest.stat().st_size
     markdown_token_size = count_attachment_token_size(markdown_text)
+    markdown_lines_count = count_attachment_lines(markdown_text)
 
     logger.info(
         "Chat docx saved",
@@ -165,6 +171,7 @@ async def save_chat_docx(
         markdown_storage_key=md_storage_key,
         markdown_bytes=markdown_size,
         token_size=markdown_token_size,
+        lines_count=markdown_lines_count,
     )
     return _build_docx_block(
         content_hash=content_hash,
@@ -175,4 +182,5 @@ async def save_chat_docx(
         docx_size=docx_size,
         markdown_size=markdown_size,
         markdown_token_size=markdown_token_size,
+        markdown_lines_count=markdown_lines_count,
     )

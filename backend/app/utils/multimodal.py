@@ -319,6 +319,7 @@ def build_attachment_uploads(
                         name=block.markdown.name,
                         type=block.markdown.type,
                         size=block.markdown.size,
+                        lines_count=block.markdown.lines_count,
                         virtual_path=md_virtual_path,
                     )
 
@@ -327,6 +328,7 @@ def build_attachment_uploads(
                     name=block.name,
                     type=block.type,
                     size=block.size,
+                    lines_count=block.lines_count,
                     virtual_path=virtual_path,
                     markdown=markdown,
                     is_current_turn=is_current_turn,

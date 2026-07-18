@@ -26,7 +26,10 @@ from app.services.chat_upload.mineru_markdown_converter import (
     MinerUMarkdownConversionError,
     MinerUMarkdownConverter,
 )
-from app.services.chat_upload.token_size import count_attachment_token_size
+from app.services.chat_upload.token_size import (
+    count_attachment_lines,
+    count_attachment_token_size,
+)
 from app.utils.logger import logger
 
 
@@ -44,6 +47,7 @@ def _build_pdf_block(
     pdf_size: int,
     markdown_size: int,
     markdown_token_size: int,
+    markdown_lines_count: int,
 ) -> PdfBlock:
     markdown_display_name = f"{Path(pdf_display_name).stem}.md"
     pdf_url = build_attachment_preview_url(user_id, pdf_storage_key)
@@ -59,6 +63,7 @@ def _build_pdf_block(
         name=markdown_display_name,
         size=markdown_size,
         token_size=markdown_token_size,
+        lines_count=markdown_lines_count,
         mime="text/markdown",
     )
     return PdfBlock(
@@ -149,6 +154,7 @@ async def save_chat_pdf(
     markdown_size = md_path.stat().st_size
     pdf_size = dest.stat().st_size
     markdown_token_size = count_attachment_token_size(markdown_text)
+    markdown_lines_count = count_attachment_lines(markdown_text)
 
     logger.info(
         "Chat pdf saved",
@@ -159,6 +165,7 @@ async def save_chat_pdf(
         markdown_storage_key=md_storage_key,
         markdown_bytes=markdown_size,
         token_size=markdown_token_size,
+        lines_count=markdown_lines_count,
     )
     return _build_pdf_block(
         content_hash=content_hash,
@@ -169,4 +176,5 @@ async def save_chat_pdf(
         pdf_size=pdf_size,
         markdown_size=markdown_size,
         markdown_token_size=markdown_token_size,
+        markdown_lines_count=markdown_lines_count,
     )
