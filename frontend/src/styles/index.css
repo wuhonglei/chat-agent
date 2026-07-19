@@ -15,7 +15,11 @@
   --color-fill-content: rgba(0, 0, 0, 0.04);
 }
 
-:root {
+/* 页面滚动由内部容器承担；body 也需 hidden，否则 Modal 打开时
+   @rc-component/portal 只注入 overflow-y:hidden，按 CSS 规范 overflow-x
+   会从 visible 计算为 auto，从而在 body 上出现横向滚动条。 */
+:root,
+body {
   overflow: hidden;
 }
 

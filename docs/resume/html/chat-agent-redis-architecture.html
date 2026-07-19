@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat Agent — Redis 应用架构图</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'JetBrains Mono', monospace; background: #020617; min-height: 100vh; padding: 2rem; color: white; }
+    .container { max-width: 1300px; margin: 0 auto; }
+    .header { margin-bottom: 2rem; }
+    .header-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem; }
+    .pulse-dot { width: 12px; height: 12px; background: #fb923c; border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.025em; }
+    .subtitle { color: #94a3b8; font-size: 0.875rem; margin-left: 1.75rem; }
+    .diagram-container { background: rgba(15, 23, 42, 0.5); border-radius: 1rem; border: 1px solid #1e293b; padding: 1.5rem; overflow-x: auto; }
+    svg { width: 100%; min-width: 1100px; display: block; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin-top: 2rem; }
+    .card { background: rgba(15, 23, 42, 0.5); border-radius: 0.75rem; border: 1px solid #1e293b; padding: 1.25rem; }
+    .card-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .card-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .card-dot.cyan { background: #22d3ee; } .card-dot.emerald { background: #34d399; } .card-dot.violet { background: #a78bfa; }
+    .card-dot.amber { background: #fbbf24; } .card-dot.rose { background: #fb7185; } .card-dot.orange { background: #fb923c; }
+    .card h3 { font-size: 0.875rem; font-weight: 600; }
+    .card ul { list-style: none; color: #94a3b8; font-size: 0.75rem; }
+    .card li { margin-bottom: 0.375rem; }
+    .footer { text-align: center; margin-top: 1.5rem; color: #475569; font-size: 0.75rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="header-row">
+        <div class="pulse-dot"></div>
+        <h1>Chat Agent — Redis 应用架构</h1>
+      </div>
+      <p class="subtitle">4 大场景 · SSE 流式暂存 / Turn 幂等 / SMS 验证码 / L2 缓存 · 面试版</p>
+    </div>
+
+    <div class="diagram-container">
+      <svg viewBox="0 0 1200 820">
+        <defs>
+          <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#64748b"/>
+          </marker>
+          <marker id="arrow-orange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#fb923c"/>
+          </marker>
+          <marker id="arrow-cyan" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#22d3ee"/>
+          </marker>
+          <marker id="arrow-emerald" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#34d399"/>
+          </marker>
+          <marker id="arrow-violet" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#a78bfa"/>
+          </marker>
+          <marker id="arrow-rose" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#fb7185"/>
+          </marker>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+          </pattern>
+        </defs>
+
+        <rect width="100%" height="100%" fill="url(#grid)"/>
+
+        <!-- ================================================================ -->
+        <!--  中央：Redis 实例                                                  -->
+        <!-- ================================================================ -->
+        <rect x="420" y="340" width="360" height="180" rx="12" fill="rgba(251, 146, 60, 0.12)" stroke="#fb923c" stroke-width="2"/>
+        <text x="600" y="365" fill="#fb923c" font-size="14" font-weight="700" text-anchor="middle">Redis</text>
+        <text x="600" y="382" fill="#94a3b8" font-size="9" text-anchor="middle">1.12.53.9:6380 · redis.asyncio · decode_responses=True</text>
+
+        <!-- Redis 内部分区 -->
+        <!-- Stream -->
+        <rect x="440" y="400" width="150" height="50" rx="6" fill="rgba(251, 146, 60, 0.2)" stroke="#fb923c" stroke-width="1.5"/>
+        <text x="515" y="420" fill="white" font-size="10" font-weight="600" text-anchor="middle">Redis Stream</text>
+        <text x="515" y="434" fill="#94a3b8" font-size="8" text-anchor="middle">XADD / XRANGE / XREAD</text>
+        <text x="515" y="446" fill="#fb923c" font-size="7" text-anchor="middle">chat:sse:stream:{id}</text>
+
+        <!-- Hash -->
+        <rect x="610" y="400" width="150" height="50" rx="6" fill="rgba(251, 146, 60, 0.2)" stroke="#fb923c" stroke-width="1.5"/>
+        <text x="685" y="420" fill="white" font-size="10" font-weight="600" text-anchor="middle">Redis Hash</text>
+        <text x="685" y="434" fill="#94a3b8" font-size="8" text-anchor="middle">HSET / HGET</text>
+        <text x="685" y="446" fill="#fb923c" font-size="7" text-anchor="middle">chat:sse:meta:{id}</text>
+
+        <!-- String -->
+        <rect x="440" y="460" width="150" height="50" rx="6" fill="rgba(251, 146, 60, 0.2)" stroke="#fb923c" stroke-width="1.5"/>
+        <text x="515" y="480" fill="white" font-size="10" font-weight="600" text-anchor="middle">Redis String</text>
+        <text x="515" y="494" fill="#94a3b8" font-size="8" text-anchor="middle">SET NX / GET / INCR</text>
+        <text x="515" y="506" fill="#fb923c" font-size="7" text-anchor="middle">chat:turn:* / sms:verify:*</text>
+
+        <!-- L2 Cache String -->
+        <rect x="610" y="460" width="150" height="50" rx="6" fill="rgba(251, 146, 60, 0.2)" stroke="#fb923c" stroke-width="1.5"/>
+        <text x="685" y="480" fill="white" font-size="10" font-weight="600" text-anchor="middle">Redis String</text>
+        <text x="685" y="494" fill="#94a3b8" font-size="8" text-anchor="middle">GET / SET / UNLINK</text>
+        <text x="685" y="506" fill="#fb923c" font-size="7" text-anchor="middle">cache:user:{uid}</text>
+
+        <!-- ================================================================ -->
+        <!--  场景 ①：SSE Stream Relay（左上）                                   -->
+        <!-- ================================================================ -->
+        <rect x="20" y="20" width="380" height="300" rx="12" fill="rgba(251, 146, 60, 0.06)" stroke="#fb923c" stroke-width="1" stroke-dasharray="8,4"/>
+        <text x="32" y="42" fill="#fb923c" font-size="11" font-weight="600">场景 ① SSE Stream Relay</text>
+        <text x="32" y="56" fill="#94a3b8" font-size="8">Producer-Consumer 解耦 · 断连续传 · 跨 Worker</text>
+
+        <!-- LLM Producer -->
+        <rect x="40" y="72" width="160" height="44" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="120" y="90" fill="white" font-size="10" font-weight="600" text-anchor="middle">LLM Provider</text>
+        <text x="120" y="104" fill="#94a3b8" font-size="8" text-anchor="middle">stream_chat_events()</text>
+
+        <!-- Producer Task -->
+        <rect x="40" y="130" width="160" height="44" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="120" y="148" fill="white" font-size="10" font-weight="600" text-anchor="middle">Producer Task</text>
+        <text x="120" y="162" fill="#94a3b8" font-size="8" text-anchor="middle">_run_producer() → append()</text>
+
+        <!-- Consumer / SSE Response -->
+        <rect x="40" y="210" width="160" height="44" rx="6" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="120" y="228" fill="white" font-size="10" font-weight="600" text-anchor="middle">Consumer (SSE)</text>
+        <text x="120" y="242" fill="#94a3b8" font-size="8" text-anchor="middle">_drain_stream() → iter_resume()</text>
+
+        <!-- Resume Consumer -->
+        <rect x="40" y="268" width="160" height="40" rx="6" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="120" y="286" fill="white" font-size="10" font-weight="600" text-anchor="middle">Resume Consumer</text>
+        <text x="120" y="300" fill="#94a3b8" font-size="8" text-anchor="middle">POST /stream/resume + Last-Event-ID</text>
+
+        <!-- 三个 key 标注 -->
+        <rect x="220" y="72" width="170" height="80" rx="6" fill="rgba(251, 146, 60, 0.1)" stroke="#fb923c" stroke-width="1" stroke-dasharray="4,4"/>
+        <text x="305" y="90" fill="#fb923c" font-size="9" font-weight="600" text-anchor="middle">3 个 Key 组合</text>
+        <text x="305" y="108" fill="#94a3b8" font-size="8" text-anchor="middle">stream:{id} — 事件数据</text>
+        <text x="305" y="122" fill="#94a3b8" font-size="8" text-anchor="middle">meta:{id}  — 状态/进度</text>
+        <text x="305" y="136" fill="#94a3b8" font-size="8" text-anchor="middle">seq:{id}   — 自增序列号</text>
+
+        <!-- TTL 标注 -->
+        <rect x="220" y="162" width="170" height="60" rx="6" fill="rgba(251, 146, 60, 0.1)" stroke="#fb923c" stroke-width="1" stroke-dasharray="4,4"/>
+        <text x="305" y="180" fill="#fb923c" font-size="9" font-weight="600" text-anchor="middle">TTL 策略</text>
+        <text x="305" y="198" fill="#94a3b8" font-size="8" text-anchor="middle">活跃中：7200s (2h)</text>
+        <text x="305" y="212" fill="#94a3b8" font-size="8" text-anchor="middle">关闭后：1800s (30min) · 支持续传</text>
+
+        <!-- Lua 脚本标注 -->
+        <rect x="220" y="232" width="170" height="60" rx="6" fill="rgba(251, 146, 60, 0.1)" stroke="#fb923c" stroke-width="1" stroke-dasharray="4,4"/>
+        <text x="305" y="250" fill="#fb923c" font-size="9" font-weight="600" text-anchor="middle">Lua 原子操作</text>
+        <text x="305" y="268" fill="#94a3b8" font-size="8" text-anchor="middle">append: 检查状态 → INCR → XADD</text>
+        <text x="305" y="282" fill="#94a3b8" font-size="8" text-anchor="middle">stop: CAS pending → stopped</text>
+
+        <!-- 箭头: LLM → Producer -->
+        <line x1="120" y1="116" x2="120" y2="128" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrow-emerald)"/>
+        <!-- 箭头: Producer → Redis -->
+        <line x1="200" y1="152" x2="418" y2="420" stroke="#fb923c" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+        <text x="290" y="270" fill="#fb923c" font-size="8">XADD</text>
+        <!-- 箭头: Redis → Consumer -->
+        <line x1="418" y1="440" x2="200" y2="232" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arrow-cyan)"/>
+        <text x="290" y="340" fill="#22d3ee" font-size="8">XRANGE + XREAD</text>
+        <!-- 箭头: Redis → Resume -->
+        <line x1="418" y1="460" x2="200" y2="288" stroke="#22d3ee" stroke-width="1" stroke-dasharray="4,4" marker-end="url(#arrow-cyan)"/>
+        <text x="280" y="385" fill="#22d3ee" font-size="7">断连续传</text>
+
+        <!-- ================================================================ -->
+        <!--  场景 ②：Turn 幂等（右上）                                          -->
+        <!-- ================================================================ -->
+        <rect x="800" y="20" width="380" height="150" rx="12" fill="rgba(136, 19, 55, 0.06)" stroke="#fb7185" stroke-width="1" stroke-dasharray="8,4"/>
+        <text x="812" y="42" fill="#fb7185" font-size="11" font-weight="600">场景 ② Turn 幂等</text>
+        <text x="812" y="56" fill="#94a3b8" font-size="8">SET NX 占位 · 多 Worker 竞争 · 防重复建消息</text>
+
+        <!-- Request A -->
+        <rect x="820" y="72" width="110" height="36" rx="6" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="875" y="88" fill="white" font-size="10" font-weight="600" text-anchor="middle">请求 A</text>
+        <text x="875" y="100" fill="#94a3b8" font-size="8" text-anchor="middle">Worker 1</text>
+
+        <!-- Request B -->
+        <rect x="950" y="72" width="110" height="36" rx="6" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="1005" y="88" fill="white" font-size="10" font-weight="600" text-anchor="middle">请求 B</text>
+        <text x="1005" y="100" fill="#94a3b8" font-size="8" text-anchor="middle">Worker 2</text>
+
+        <!-- SET NX -->
+        <rect x="850" y="122" width="200" height="36" rx="6" fill="rgba(136, 19, 55, 0.3)" stroke="#fb7185" stroke-width="1.5"/>
+        <text x="950" y="138" fill="white" font-size="10" font-weight="600" text-anchor="middle">SET NX "pending" → 占位成功</text>
+        <text x="950" y="152" fill="#94a3b8" font-size="8" text-anchor="middle">TTL: pending=60s · result=7200s</text>
+
+        <!-- 箭头: A/B → SET NX -->
+        <line x1="875" y1="108" x2="920" y2="120" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arrow-cyan)"/>
+        <line x1="1005" y1="108" x2="980" y2="120" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arrow-cyan)"/>
+
+        <!-- 箭头: SET NX → Redis -->
+        <line x1="850" y1="140" x2="782" y2="430" stroke="#fb7185" stroke-width="1.5" marker-end="url(#arrow-rose)"/>
+        <text x="800" y="280" fill="#fb7185" font-size="8">chat:turn:{uid}:{cid}:{tid}</text>
+
+        <!-- ================================================================ -->
+        <!--  场景 ③：SMS 验证码（右中）                                          -->
+        <!-- ================================================================ -->
+        <rect x="800" y="190" width="380" height="130" rx="12" fill="rgba(251, 191, 36, 0.06)" stroke="#fbbf24" stroke-width="1" stroke-dasharray="8,4"/>
+        <text x="812" y="212" fill="#fbbf24" font-size="11" font-weight="600">场景 ③ SMS 验证码</text>
+        <text x="812" y="226" fill="#94a3b8" font-size="8">短信登录 · 验证码暂存 · 5 分钟过期</text>
+
+        <!-- SMS Flow -->
+        <rect x="820" y="240" width="100" height="36" rx="6" fill="rgba(30, 41, 59, 0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="870" y="256" fill="white" font-size="10" font-weight="600" text-anchor="middle">发送验证码</text>
+        <text x="870" y="268" fill="#94a3b8" font-size="8" text-anchor="middle">SMS API</text>
+
+        <line x1="920" y1="258" x2="960" y2="258" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+        <rect x="962" y="240" width="200" height="36" rx="6" fill="rgba(251, 191, 36, 0.2)" stroke="#fbbf24" stroke-width="1.5"/>
+        <text x="1062" y="256" fill="white" font-size="10" font-weight="600" text-anchor="middle">sms:verify:{id}</text>
+        <text x="1062" y="268" fill="#94a3b8" font-size="8" text-anchor="middle">code + phone · TTL=300s</text>
+
+        <rect x="820" y="286" width="100" height="28" rx="6" fill="rgba(30, 41, 59, 0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="870" y="304" fill="white" font-size="10" font-weight="600" text-anchor="middle">验证登录</text>
+
+        <line x1="920" y1="300" x2="960" y2="270" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrow)"/>
+        <line x1="962" y1="265" x2="962" y2="258" stroke="#fbbf24" stroke-width="1" stroke-dasharray="3,3"/>
+
+        <!-- 箭头 → Redis -->
+        <line x1="1062" y1="276" x2="782" y2="470" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+        <!-- ================================================================ -->
+        <!--  场景 ④：L2 用户缓存（右下）                                        -->
+        <!-- ================================================================ -->
+        <rect x="800" y="340" width="380" height="140" rx="12" fill="rgba(76, 29, 149, 0.06)" stroke="#a78bfa" stroke-width="1" stroke-dasharray="8,4"/>
+        <text x="812" y="362" fill="#a78bfa" font-size="11" font-weight="600">场景 ④ L2 用户缓存</text>
+        <text x="812" y="376" fill="#94a3b8" font-size="8">Cache-Aside · 唯一存活的业务缓存</text>
+
+        <!-- User Detail -->
+        <rect x="820" y="390" width="160" height="36" rx="6" fill="rgba(76, 29, 149, 0.3)" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="900" y="406" fill="white" font-size="10" font-weight="600" text-anchor="middle">get_or_load_user_detail()</text>
+        <text x="900" y="418" fill="#94a3b8" font-size="8" text-anchor="middle">Cache-Aside: L2 miss → PG → L2 set</text>
+
+        <rect x="820" y="436" width="340" height="36" rx="6" fill="rgba(76, 29, 149, 0.15)" stroke="#a78bfa" stroke-width="1" stroke-dasharray="4,4"/>
+        <text x="990" y="452" fill="#a78bfa" font-size="9" font-weight="600" text-anchor="middle">会话列表 / 详情 / 消息列表缓存已移除（收益为负）</text>
+        <text x="990" y="464" fill="#94a3b8" font-size="8" text-anchor="middle">数据体积极小(P50=7KB) · PG 查询 0.07ms · 缓存反而更慢</text>
+
+        <!-- 箭头 → Redis -->
+        <line x1="820" y1="408" x2="782" y2="490" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrow-violet)"/>
+
+        <!-- ================================================================ -->
+        <!--  底部：已移除缓存（灰色）                                            -->
+        <!-- ================================================================ -->
+        <rect x="800" y="500" width="380" height="100" rx="12" fill="rgba(30, 41, 59, 0.2)" stroke="#475569" stroke-width="1" stroke-dasharray="4,4"/>
+        <text x="812" y="520" fill="#475569" font-size="10" font-weight="600">已移除（no-op）</text>
+        <text x="812" y="538" fill="#475569" font-size="8">• invalidate_conversation_list — 会话列表缓存</text>
+        <text x="812" y="552" fill="#475569" font-size="8">• invalidate_conversation — 会话详情缓存</text>
+        <text x="812" y="566" fill="#475569" font-size="8">• invalidate_messages — 消息列表缓存</text>
+        <text x="812" y="580" fill="#475569" font-size="8">• invalidate_conversation_state — 会话状态缓存</text>
+        <text x="990" y="594" fill="#475569" font-size="7" text-anchor="middle">原因：数据体积极小(P50=7KB) + 高频写(每次发消息失效) + PG 查询 0.07ms</text>
+
+        <!-- ================================================================ -->
+        <!--  连接池配置                                                        -->
+        <!-- ================================================================ -->
+        <rect x="20" y="340" width="380" height="120" rx="12" fill="rgba(30, 41, 59, 0.3)" stroke="#1e293b" stroke-width="1"/>
+        <text x="32" y="360" fill="white" font-size="10" font-weight="600">连接池配置</text>
+        <text x="32" y="378" fill="#94a3b8" font-size="8">• redis.asyncio.ConnectionPool — 异步连接池</text>
+        <text x="32" y="394" fill="#94a3b8" font-size="8">• socket_timeout = xread_block_ms/1000 + 5s</text>
+        <text x="32" y="410" fill="#94a3b8" font-size="8">  └ SSE XREAD BLOCK 需要长连接，socket_timeout 必须大于 block 时间</text>
+        <text x="32" y="426" fill="#94a3b8" font-size="8">• Cache L2 ops 用 asyncio.wait_for 短超时，不继承 SSE 长超时</text>
+        <text x="32" y="442" fill="#94a3b8" font-size="8">• decode_responses=True — 自动 bytes→str，避免手动 decode</text>
+
+        <!-- ================================================================ -->
+        <!--  底部总结                                                          -->
+        <!-- ================================================================ -->
+        <rect x="20" y="480" width="380" height="310" rx="12" fill="rgba(30, 41, 59, 0.3)" stroke="#1e293b" stroke-width="1"/>
+        <text x="32" y="500" fill="white" font-size="10" font-weight="600">Redis 在本项目中的演进</text>
+
+        <rect x="40" y="516" width="340" height="50" rx="6" fill="rgba(251, 146, 60, 0.1)" stroke="#fb923c" stroke-width="1"/>
+        <text x="52" y="534" fill="#fb923c" font-size="9" font-weight="600">阶段一：SSE Stream Relay</text>
+        <text x="52" y="548" fill="#94a3b8" font-size="8">核心价值 — 解决多 Worker 流式解耦、断连续传、用户停止</text>
+        <text x="52" y="560" fill="#94a3b8" font-size="8">Stream + Hash + Lua 原子操作</text>
+
+        <rect x="40" y="576" width="340" height="50" rx="6" fill="rgba(136, 19, 55, 0.1)" stroke="#fb7185" stroke-width="1"/>
+        <text x="52" y="594" fill="#fb7185" font-size="9" font-weight="600">阶段二：Turn 幂等 + SMS</text>
+        <text x="52" y="608" fill="#94a3b8" font-size="8">SET NX 竞争锁 — 多 Worker 共享幂等状态</text>
+        <text x="52" y="620" fill="#94a3b8" font-size="8">验证码暂存 — 短 TTL，用完即删</text>
+
+        <rect x="40" y="636" width="340" height="50" rx="6" fill="rgba(76, 29, 149, 0.1)" stroke="#a78bfa" stroke-width="1"/>
+        <text x="52" y="654" fill="#a78bfa" font-size="9" font-weight="600">阶段三：L2 缓存（尝试 → 回退）</text>
+        <text x="52" y="668" fill="#94a3b8" font-size="8">尝试缓存会话列表/详情/消息 → 压测收益为负 → 全部移除</text>
+        <text x="52" y="680" fill="#94a3b8" font-size="8">仅保留用户详情缓存（低频写、跨接口复用）</text>
+
+        <rect x="40" y="696" width="340" height="40" rx="6" fill="rgba(251, 146, 60, 0.05)" stroke="#1e293b" stroke-width="1"/>
+        <text x="52" y="714" fill="#94a3b8" font-size="9" font-weight="600">经验总结</text>
+        <text x="52" y="728" fill="#94a3b8" font-size="8">缓存不是银弹 · 小数据+高频写 = PG 索引直查更快</text>
+
+        <!-- ================================================================ -->
+        <!--  LEGEND                                                            -->
+        <!-- ================================================================ -->
+        <text x="20" y="800" fill="white" font-size="9" font-weight="600">Legend</text>
+
+        <rect x="80" y="790" width="14" height="8" rx="2" fill="rgba(251, 146, 60, 0.2)" stroke="#fb923c" stroke-width="1"/>
+        <text x="100" y="797" fill="#94a3b8" font-size="7">SSE Stream Relay</text>
+
+        <rect x="200" y="790" width="14" height="8" rx="2" fill="rgba(136, 19, 55, 0.3)" stroke="#fb7185" stroke-width="1"/>
+        <text x="220" y="797" fill="#94a3b8" font-size="7">Turn 幂等</text>
+
+        <rect x="300" y="790" width="14" height="8" rx="2" fill="rgba(251, 191, 36, 0.2)" stroke="#fbbf24" stroke-width="1"/>
+        <text x="320" y="797" fill="#94a3b8" font-size="7">SMS 验证码</text>
+
+        <rect x="420" y="790" width="14" height="8" rx="2" fill="rgba(76, 29, 149, 0.3)" stroke="#a78bfa" stroke-width="1"/>
+        <text x="440" y="797" fill="#94a3b8" font-size="7">L2 缓存</text>
+
+        <rect x="530" y="790" width="14" height="8" rx="2" fill="rgba(30, 41, 59, 0.3)" stroke="#475569" stroke-width="1"/>
+        <text x="550" y="797" fill="#94a3b8" font-size="7">已移除</text>
+      </svg>
+    </div>
+
+    <!-- Info Cards -->
+    <div class="cards">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot orange"></div>
+          <h3>SSE Stream Relay — 核心价值</h3>
+        </div>
+        <ul>
+          <li>• Redis Stream (XADD/XREAD) 解耦 Producer/Consumer</li>
+          <li>• 每个 event 带自增 id，断连后 xrange 补漏 + xread 等新</li>
+          <li>• Lua 脚本原子操作：append 检查状态 + stop CAS 竞争</li>
+          <li>• close 后 TTL 缩短至 30min，支持窗口内续传</li>
+          <li>• 跨 Worker 停止：meta status=stopped → Producer cancel</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot rose"></div>
+          <h3>Turn 幂等 — SET NX 竞争锁</h3>
+        </div>
+        <ul>
+          <li>• 网络重试可能导致同一消息重复创建</li>
+          <li>• SET NX "pending" 抢锁 → 成功者建消息 → 写回 result</li>
+          <li>• 失败者 GET 轮询等待 result，超时 5s 返回 503</li>
+          <li>• pending TTL=60s（防死锁），result TTL=7200s</li>
+          <li>• 异常时主动释放 pending，避免其他请求长时间阻塞</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot violet"></div>
+          <h3>L2 缓存 — 回退的教训</h3>
+        </div>
+        <ul>
+          <li>• 会话列表 P50=7KB，PG 查询 0.07ms（有覆盖索引）</li>
+          <li>• Redis GET 往返 ~0.3ms + JSON 反序列化 > 直查 PG</li>
+          <li>• 每次发消息失效（高频写），命中率极低</li>
+          <li>• 仅保留用户详情缓存（低频写、体积极小、跨接口复用）</li>
+          <li>• 结论：小数据 + 高频写 → 缓存收益为负</li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="footer">Chat Agent · Redis 应用架构 · redis.asyncio + pgvector · 面试版</p>
+  </div>
+</body>
+</html>
