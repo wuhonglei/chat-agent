@@ -82,6 +82,7 @@ export default function FeedbackDetailModal({ open, type, submitting = false, on
       width={560}
       destroyOnHidden
       styles={{
+        wrapper: { overflow: "hidden" },
         body: { paddingTop: 8 },
       }}
     >
