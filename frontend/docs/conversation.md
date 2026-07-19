@@ -32,6 +32,40 @@
 - 停止流式聊天：`POST /api/chat/stream/stop`
 - 模型列表：`GET /api/chat/models`
 
+### 2.1 会话列表分页
+
+`conversationAPI.getConversations()` 接受 `limit` 和不透明的 `cursor`。首页不传
+`cursor`，后续请求传上一页响应的 `nextCursor`：
+
+```ts
+const firstPage = await conversationAPI.getConversations({ limit: 20 });
+const nextPage = await conversationAPI.getConversations({
+  limit: firstPage.limit,
+  cursor: firstPage.nextCursor,
+});
+```
+
+后端响应的 `next_cursor`、`has_more` 会由 `apiClient` 转成 `nextCursor`、
+`hasMore`。`loadConversations` 在无 cursor 时替换 Redux 列表，在有 cursor 时
+追加并按会话 ID 去重；侧栏通过 `useConversationInfiniteScroll` 在
+`hasMore=true` 时继续加载。游标由后端生成，前端不得解析、修改或替换为旧的
+`offset` 参数。
+
+### 2.2 助手消息反馈
+
+`chatAPI.updateMessageFeedback(messageId, value, details)` 支持 `like`、
+`dislike` 和 `default`。`details` 可传多选理由与自由文本：
+
+```ts
+await chatAPI.updateMessageFeedback(messageId, "dislike", {
+  reasons: ["回答不准确", "没有解决问题"],
+  comment: "引用的版本已经过期",
+});
+```
+
+后端对 `like` / `dislike` 采用部分更新语义：省略 `reasons` 或 `comment` 会保留
+已有值；`value="default"` 会同时清空理由与评论。
+
 ## 3. SSE 协议与前端处理
 
 ### 3.1 后端消息格式
