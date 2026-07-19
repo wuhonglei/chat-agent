@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>剪辑 Agent — 从素材到成品的完整链路（面试版）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#020617;color:#e2e8f0;font-family:'JetBrains Mono',monospace;min-height:100vh;padding:32px}
+  .header{text-align:center;margin-bottom:24px}
+  .header h1{font-size:22px;font-weight:700;color:#f1f5f9;display:flex;align-items:center;justify-content:center;gap:10px}
+  .header h1 .dot{width:10px;height:10px;border-radius:50%;background:#22d3ee;animation:pulse 2s infinite}
+  .header .sub{font-size:11px;color:#94a3b8;margin-top:6px;max-width:900px;margin-left:auto;margin-right:auto;line-height:1.6}
+  @keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 6px #22d3ee}50%{opacity:.5;box-shadow:0 0 2px #22d3ee}}
+  .diagram-card{background:rgba(15,23,42,.85);border:1px solid #1e293b;border-radius:14px;padding:20px;margin:0 auto 20px;max-width:1400px;overflow-x:auto}
+  .cards{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;max-width:1400px;margin:0 auto}
+  .card{background:rgba(15,23,42,.7);border:1px solid #1e293b;border-radius:10px;padding:14px}
+  .card .card-header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .card .card-dot{width:8px;height:8px;border-radius:50%}
+  .card .card-dot.cyan{background:#22d3ee}.card .card-dot.emerald{background:#34d399}
+  .card .card-dot.violet{background:#a78bfa}.card .card-dot.amber{background:#fbbf24}
+  .card .card-dot.rose{background:#fb7185}.card .card-dot.orange{background:#fb923c}
+  .card h3{font-size:11px;font-weight:600;color:#f1f5f9}
+  .card ul{list-style:none;font-size:9px;color:#94a3b8;line-height:1.7}
+  .card ul li::before{content:"• ";color:#64748b}
+  .footer{text-align:center;margin-top:16px;font-size:9px;color:#475569}
+  .section-label{font-size:9px;fill:#64748b;font-weight:600;letter-spacing:1px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1><span class="dot"></span>剪辑 Agent 完整链路（面试版·架构推演）</h1>
+  <p class="sub">
+    用户上传素材 → 多模态理解 → 意图解析 → Plan-and-Execute 步骤规划 → 工具编排（剪辑/特效/字幕/音频）→ 质量评估 → 输出成品<br>
+    基于 Agent 架构通用模式 + 视频创作领域特点推演，非特定产品内部实现
+  </p>
+</div>
+
+<div class="diagram-card">
+<svg viewBox="0 0 1360 920" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace">
+<defs>
+  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+  </pattern>
+  <marker id="a-cyan" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#22d3ee"/>
+  </marker>
+  <marker id="a-emerald" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#34d399"/>
+  </marker>
+  <marker id="a-violet" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#a78bfa"/>
+  </marker>
+  <marker id="a-amber" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#fbbf24"/>
+  </marker>
+  <marker id="a-rose" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#fb7185"/>
+  </marker>
+  <marker id="a-orange" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#fb923c"/>
+  </marker>
+  <marker id="a-slate" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#94a3b8"/>
+  </marker>
+</defs>
+
+<!-- background -->
+<rect width="1360" height="920" fill="#020617"/>
+<rect width="1360" height="920" fill="url(#grid)"/>
+
+<!-- ================================================================ -->
+<!-- ① 素材输入与预处理 -->
+<!-- ================================================================ -->
+<g>
+  <rect x="20" y="60" width="175" height="320" rx="8" fill="#0f172a"/>
+  <rect x="20" y="60" width="175" height="320" rx="8" fill="rgba(8,51,68,0.35)" stroke="#22d3ee" stroke-width="1.5"/>
+  <text x="107" y="82" text-anchor="middle" font-size="11" fill="#22d3ee" font-weight="700">① 素材输入</text>
+  <text x="107" y="96" text-anchor="middle" font-size="7" fill="#64748b">用户上传 + 预处理管线</text>
+
+  <rect x="30" y="108" width="155" height="30" rx="4" fill="rgba(8,51,68,0.3)" stroke="#22d3ee" stroke-width="0.8"/>
+  <text x="107" y="123" text-anchor="middle" font-size="8" fill="#22d3ee" font-weight="500">视频文件上传</text>
+  <text x="107" y="134" text-anchor="middle" font-size="7" fill="#94a3b8">分片上传 + 断点续传 (TUS)</text>
+
+  <rect x="30" y="146" width="155" height="30" rx="4" fill="rgba(8,51,68,0.3)" stroke="#22d3ee" stroke-width="0.8"/>
+  <text x="107" y="161" text-anchor="middle" font-size="8" fill="#22d3ee" font-weight="500">关键帧提取</text>
+  <text x="107" y="172" text-anchor="middle" font-size="7" fill="#94a3b8">FFmpeg scene detect + 抽帧</text>
+
+  <rect x="30" y="184" width="155" height="30" rx="4" fill="rgba(8,51,68,0.3)" stroke="#22d3ee" stroke-width="0.8"/>
+  <text x="107" y="199" text-anchor="middle" font-size="8" fill="#22d3ee" font-weight="500">音频分离 (Demucs)</text>
+  <text x="107" y="210" text-anchor="middle" font-size="7" fill="#94a3b8">人声 / BGM / 音效 三轨分离</text>
+
+  <rect x="30" y="222" width="155" height="30" rx="4" fill="rgba(8,51,68,0.3)" stroke="#22d3ee" stroke-width="0.8"/>
+  <text x="107" y="237" text-anchor="middle" font-size="8" fill="#22d3ee" font-weight="500">ASR 语音识别</text>
+  <text x="107" y="248" text-anchor="middle" font-size="7" fill="#94a3b8">Whisper-large → 时间戳字幕</text>
+
+  <rect x="30" y="260" width="155" height="30" rx="4" fill="rgba(8,51,68,0.3)" stroke="#22d3ee" stroke-width="0.8"/>
+  <text x="107" y="275" text-anchor="middle" font-size="8" fill="#22d3ee" font-weight="500">场景标签 / 分类</text>
+  <text x="107" y="286" text-anchor="middle" font-size="7" fill="#94a3b8">VLM 多模态打标 (Qwen-VL)</text>
+
+  <rect x="30" y="298" width="155" height="30" rx="4" fill="rgba(8,51,68,0.3)" stroke="#22d3ee" stroke-width="0.8"/>
+  <text x="107" y="313" text-anchor="middle" font-size="8" fill="#22d3ee" font-weight="500">元数据提取</text>
+  <text x="107" y="324" text-anchor="middle" font-size="7" fill="#94a3b8">分辨率/帧率/时长/编码</text>
+
+  <rect x="30" y="336" width="155" height="36" rx="4" fill="rgba(8,51,68,0.25)" stroke="#22d3ee" stroke-width="0.6" stroke-dasharray="3,2"/>
+  <text x="107" y="353" text-anchor="middle" font-size="7" fill="#64748b">输出: 结构化素材描述 (JSON)</text>
+  <text x="107" y="365" text-anchor="middle" font-size="7" fill="#64748b">frames[] + audio_tracks[] + asr[]</text>
+</g>
+
+<!-- ================================================================ -->
+<!-- ② 多模态理解 & 意图解析 -->
+<!-- ================================================================ -->
+<g>
+  <rect x="240" y="60" width="185" height="200" rx="8" fill="#0f172a"/>
+  <rect x="240" y="60" width="185" height="200" rx="8" fill="rgba(6,78,59,0.35)" stroke="#34d399" stroke-width="1.5"/>
+  <text x="332" y="82" text-anchor="middle" font-size="11" fill="#34d399" font-weight="700">② 意图理解</text>
+  <text x="332" y="96" text-anchor="middle" font-size="7" fill="#64748b">多模态 VLM + NLU</text>
+
+  <rect x="252" y="108" width="161" height="36" rx="4" fill="rgba(6,78,59,0.25)" stroke="#34d399" stroke-width="0.8"/>
+  <text x="332" y="123" text-anchor="middle" font-size="8" fill="#34d399" font-weight="500">视觉语义理解</text>
+  <text x="332" y="134" text-anchor="middle" font-size="7" fill="#94a3b8">VLM: 关键帧→场景描述/物体/情绪</text>
+
+  <rect x="252" y="152" width="161" height="36" rx="4" fill="rgba(6,78,59,0.25)" stroke="#34d399" stroke-width="0.8"/>
+  <text x="332" y="167" text-anchor="middle" font-size="8" fill="#34d399" font-weight="500">用户意图解析</text>
+  <text x="332" y="178" text-anchor="middle" font-size="7" fill="#94a3b8">LLM: 自然语言→结构化意图 JSON</text>
+
+  <rect x="252" y="196" width="161" height="50" rx="4" fill="rgba(6,78,59,0.2)" stroke="#34d399" stroke-width="0.6" stroke-dasharray="3,2"/>
+  <text x="332" y="212" text-anchor="middle" font-size="7" fill="#34d399">意图示例:</text>
+  <text x="332" y="224" text-anchor="middle" font-size="7" fill="#94a3b8">{style:"vlog", target:30s,</text>
+  <text x="332" y="236" text-anchor="middle" font-size="7" fill="#94a3b8"> mood:"轻松", highlights:["开头"]}</text>
+</g>
+
+<!-- 素材→意图 -->
+<line x1="195" y1="200" x2="238" y2="160" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#a-cyan)"/>
+
+<!-- ================================================================ -->
+<!-- ③ Plan-and-Execute 步骤规划（核心大框） -->
+<!-- ================================================================ -->
+<g>
+  <rect x="240" y="290" width="185" height="260" rx="8" fill="#0f172a"/>
+  <rect x="240" y="290" width="185" height="260" rx="8" fill="rgba(251,146,60,0.15)" stroke="#fb923c" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <text x="332" y="312" text-anchor="middle" font-size="11" fill="#fb923c" font-weight="700">③ 步骤规划</text>
+  <text x="332" y="326" text-anchor="middle" font-size="7" fill="#64748b">Plan-and-Execute Agent</text>
+
+  <!-- Planner -->
+  <rect x="252" y="338" width="161" height="50" rx="4" fill="rgba(251,146,60,0.15)" stroke="#fb923c" stroke-width="1"/>
+  <text x="332" y="355" text-anchor="middle" font-size="8" fill="#fb923c" font-weight="600">Planner (LLM)</text>
+  <text x="332" y="368" text-anchor="middle" font-size="7" fill="#94a3b8">输入: 素材描述 + 用户意图</text>
+  <text x="332" y="379" text-anchor="middle" font-size="7" fill="#94a3b8">输出: DAG 编辑步骤 JSON</text>
+
+  <!-- 计划示例 -->
+  <rect x="252" y="396" width="161" height="70" rx="4" fill="rgba(251,146,60,0.08)" stroke="#fb923c" stroke-width="0.6" stroke-dasharray="3,2"/>
+  <text x="332" y="410" text-anchor="middle" font-size="7" fill="#fb923c">生成计划示例:</text>
+  <text x="332" y="423" text-anchor="middle" font-size="7" fill="#94a3b8">1. trim(0:05-0:35) 裁剪</text>
+  <text x="332" y="435" text-anchor="middle" font-size="7" fill="#94a3b8">2. stabilize() 防抖</text>
+  <text x="332" y="447" text-anchor="middle" font-size="7" fill="#94a3b8">3. add_subtitles(asr) 字幕</text>
+  <text x="332" y="459" text-anchor="middle" font-size="7" fill="#94a3b8">4. color_grade("清新") 调色</text>
+
+  <!-- Re-planner -->
+  <rect x="252" y="476" width="161" height="36" rx="4" fill="rgba(251,146,60,0.15)" stroke="#fb923c" stroke-width="0.8"/>
+  <text x="332" y="493" text-anchor="middle" font-size="8" fill="#fb923c" font-weight="500">Re-Planner (自愈)</text>
+  <text x="332" y="505" text-anchor="middle" font-size="7" fill="#94a3b8">步骤失败→重新规划剩余路径</text>
+</g>
+
+<!-- 意图→规划 -->
+<line x1="332" y1="260" x2="332" y2="288" stroke="#34d399" stroke-width="1.5" marker-end="url(#a-emerald)"/>
+
+<!-- ================================================================ -->
+<!-- ④ 工具执行层（大框，5个子工具） -->
+<!-- ================================================================ -->
+<g>
+  <rect x="480" y="60" width="310" height="490" rx="8" fill="#0f172a"/>
+  <rect x="480" y="60" width="310" height="490" rx="8" fill="rgba(136,19,55,0.15)" stroke="#fb7185" stroke-width="1.5"/>
+  <text x="635" y="82" text-anchor="middle" font-size="11" fill="#fb7185" font-weight="700">④ 工具执行层</text>
+  <text x="635" y="96" text-anchor="middle" font-size="7" fill="#64748b">ToolExecutor: 逐步骤调度</text>
+
+  <!-- 工具1: 视频剪辑 -->
+  <rect x="495" y="108" width="280" height="56" rx="5" fill="rgba(136,19,55,0.2)" stroke="#fb7185" stroke-width="1"/>
+  <text x="510" y="125" font-size="9" fill="#fb7185" font-weight="600">🎬 视频剪辑引擎</text>
+  <text x="510" y="140" font-size="7" fill="#94a3b8">FFmpeg: trim / concat / split / reframe / speed</text>
+  <text x="510" y="153" font-size="7" fill="#94a3b8">多轨 timeline 编辑 (MoviePy / 自研 DSL)</text>
+
+  <!-- 工具2: 音频处理 -->
+  <rect x="495" y="172" width="280" height="56" rx="5" fill="rgba(136,19,55,0.2)" stroke="#fb7185" stroke-width="1"/>
+  <text x="510" y="189" font-size="9" fill="#fb7185" font-weight="600">🎵 音频处理</text>
+  <text x="510" y="204" font-size="7" fill="#94a3b8">Demucs 分轨 → 人声增益 / BGM 替换 / 混音</text>
+  <text x="510" y="217" font-size="7" fill="#94a3b8">音频淡入淡出 / 音量归一化 (FFmpeg loudnorm)</text>
+
+  <!-- 工具3: 字幕生成 -->
+  <rect x="495" y="236" width="280" height="56" rx="5" fill="rgba(136,19,55,0.2)" stroke="#fb7185" stroke-width="1"/>
+  <text x="510" y="253" font-size="9" fill="#fb7185" font-weight="600">💬 字幕生成</text>
+  <text x="510" y="268" font-size="7" fill="#94a3b8">ASR 时间戳 → SRT/ASS 烧录 (FFmpeg subtitles)</text>
+  <text x="510" y="281" font-size="7" fill="#94a3b8">样式引擎: 字体/描边/动画 (Pillow + CSS Motion)</text>
+
+  <!-- 工具4: 特效 & 转场 -->
+  <rect x="495" y="300" width="280" height="56" rx="5" fill="rgba(136,19,55,0.2)" stroke="#fb7185" stroke-width="1"/>
+  <text x="510" y="317" font-size="9" fill="#fb7185" font-weight="600">✨ 特效 & 转场</text>
+  <text x="510" y="332" font-size="7" fill="#94a3b8">滤镜 (color_grade / sharpen / LUT)</text>
+  <text x="510" y="345" font-size="7" fill="#94a3b8">转场 (fade / dissolve / zoom) + 动态贴纸/蒙版</text>
+
+  <!-- 工具5: 调色 & 画面增强 -->
+  <rect x="495" y="364" width="280" height="56" rx="5" fill="rgba(136,19,55,0.2)" stroke="#fb7185" stroke-width="1"/>
+  <text x="510" y="381" font-size="9" fill="#fb7185" font-weight="600">🎨 调色 & 增强</text>
+  <text x="510" y="396" font-size="7" fill="#94a3b8">LUT 风格迁移 / 自动白平衡 / HDR→SDR</text>
+  <text x="510" y="409" font-size="7" fill="#94a3b8">超分 (Real-ESRGAN) / 插帧 (RIFE)</text>
+
+  <!-- 调度引擎标注 -->
+  <rect x="495" y="430" width="280" height="40" rx="4" fill="rgba(136,19,55,0.1)" stroke="#fb7185" stroke-width="0.6" stroke-dasharray="3,2"/>
+  <text x="635" y="448" text-anchor="middle" font-size="8" fill="#fb7185" font-weight="500">DAG 调度引擎</text>
+  <text x="635" y="462" text-anchor="middle" font-size="7" fill="#94a3b8">拓扑排序 → 并行无依赖步骤 → 序列化有依赖步骤</text>
+
+  <!-- 工具注册表标注 -->
+  <rect x="495" y="478" width="280" height="26" rx="4" fill="rgba(136,19,55,0.08)" stroke="#fb7185" stroke-width="0.6" stroke-dasharray="3,2"/>
+  <text x="635" y="496" text-anchor="middle" font-size="7" fill="#64748b">Tool Registry: JSON Schema 参数校验 + 权限控制</text>
+</g>
+
+<!-- 规划→工具 -->
+<line x1="425" y1="400" x2="493" y2="305" stroke="#fb923c" stroke-width="1.5" marker-end="url(#a-orange)"/>
+<text x="450" y="345" font-size="7" fill="#fb923c" transform="rotate(-35 450 345)">step.execute()</text>
+
+<!-- ================================================================ -->
+<!-- ⑤ 质量评估 & 自愈 -->
+<!-- ================================================================ -->
+<g>
+  <rect x="840" y="60" width="185" height="200" rx="8" fill="#0f172a"/>
+  <rect x="840" y="60" width="185" height="200" rx="8" fill="rgba(76,29,149,0.3)" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="932" y="82" text-anchor="middle" font-size="11" fill="#a78bfa" font-weight="700">⑤ 质量评估</text>
+  <text x="932" y="96" text-anchor="middle" font-size="7" fill="#64748b">自动化 QA Gate</text>
+
+  <rect x="855" y="108" width="155" height="30" rx="4" fill="rgba(76,29,149,0.2)" stroke="#a78bfa" stroke-width="0.8"/>
+  <text x="932" y="123" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="500">视觉连贯性检查</text>
+  <text x="932" y="134" text-anchor="middle" font-size="7" fill="#94a3b8">CLIP 相似度 / 跳帧检测</text>
+
+  <rect x="855" y="146" width="155" height="30" rx="4" fill="rgba(76,29,149,0.2)" stroke="#a78bfa" stroke-width="0.8"/>
+  <text x="932" y="161" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="500">音画同步校验</text>
+  <text x="932" y="172" text-anchor="middle" font-size="7" fill="#94a3b8">ASR 时间戳 vs 音频波形对齐</text>
+
+  <rect x="855" y="184" width="155" height="30" rx="4" fill="rgba(76,29,149,0.2)" stroke="#a78bfa" stroke-width="0.8"/>
+  <text x="932" y="199" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="500">LLM 评审打分</text>
+  <text x="932" y="210" text-anchor="middle" font-size="7" fill="#94a3b8">VLM 审美评分 → 不合格 Re-Plan</text>
+
+  <rect x="855" y="222" width="155" height="30" rx="4" fill="rgba(76,29,149,0.15)" stroke="#a78bfa" stroke-width="0.6" stroke-dasharray="3,2"/>
+  <text x="932" y="237" text-anchor="middle" font-size="7" fill="#a78bfa">反馈回路: 评估结果→Re-Planner</text>
+  <text x="932" y="248" text-anchor="middle" font-size="7" fill="#94a3b8">max_replan=2 防无限循环</text>
+</g>
+
+<!-- 工具→评估 -->
+<line x1="790" y1="200" x2="838" y2="160" stroke="#fb7185" stroke-width="1.5" marker-end="url(#a-rose)"/>
+
+<!-- 评估→Re-Planner 回路 -->
+<path d="M 855 250 L 810 250 Q 800 250 800 260 L 800 510 Q 800 520 790 520 L 430 520 Q 420 520 420 510 L 420 510 Q 420 500 425 500" fill="none" stroke="#fb7185" stroke-width="1" stroke-dasharray="5,3" marker-end="url(#a-rose)"/>
+<text x="620" y="516" text-anchor="middle" font-size="7" fill="#fb7185">评估不合格 → Re-Plan</text>
+
+<!-- ================================================================ -->
+<!-- ⑥ 输出渲染 -->
+<!-- ================================================================ -->
+<g>
+  <rect x="840" y="290" width="185" height="130" rx="8" fill="#0f172a"/>
+  <rect x="840" y="290" width="185" height="130" rx="8" fill="rgba(8,51,68,0.35)" stroke="#22d3ee" stroke-width="1.5"/>
+  <text x="932" y="312" text-anchor="middle" font-size="11" fill="#22d3ee" font-weight="700">⑥ 输出渲染</text>
+
+  <rect x="855" y="324" width="155" height="30" rx="4" fill="rgba(8,51,68,0.25)" stroke="#22d3ee" stroke-width="0.8"/>
+  <text x="932" y="339" text-anchor="middle" font-size="8" fill="#22d3ee" font-weight="500">Timeline 合成</text>
+  <text x="932" y="350" text-anchor="middle" font-size="7" fill="#94a3b8">多轨合并 → 最终编码 (H.264/H.265)</text>
+
+  <rect x="855" y="362" width="155" height="30" rx="4" fill="rgba(8,51,68,0.25)" stroke="#22d3ee" stroke-width="0.8"/>
+  <text x="932" y="377" text-anchor="middle" font-size="8" fill="#22d3ee" font-weight="500">多码率输出</text>
+  <text x="932" y="388" text-anchor="middle" font-size="7" fill="#94a3b8">1080p/720p + 封面帧提取</text>
+
+  <rect x="855" y="396" width="155" height="18" rx="3" fill="rgba(8,51,68,0.15)" stroke="#22d3ee" stroke-width="0.6" stroke-dasharray="3,2"/>
+  <text x="932" y="409" text-anchor="middle" font-size="7" fill="#64748b">CDN 分发 + 预签名下载链接</text>
+</g>
+
+<!-- 评估→输出 -->
+<line x1="932" y1="260" x2="932" y2="288" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#a-violet)"/>
+
+<!-- ================================================================ -->
+<!-- ⑦ 用户交互 & 反馈 -->
+<!-- ================================================================ -->
+<g>
+  <rect x="840" y="450" width="185" height="100" rx="8" fill="#0f172a"/>
+  <rect x="840" y="450" width="185" height="100" rx="8" fill="rgba(30,41,59,0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="932" y="472" text-anchor="middle" font-size="11" fill="#94a3b8" font-weight="700">⑦ 用户反馈</text>
+
+  <rect x="855" y="484" width="155" height="26" rx="4" fill="rgba(30,41,59,0.4)" stroke="#94a3b8" stroke-width="0.8"/>
+  <text x="932" y="502" text-anchor="middle" font-size="8" fill="#94a3b8">预览播放 + 编辑指令微调</text>
+
+  <rect x="855" y="516" width="155" height="26" rx="4" fill="rgba(30,41,59,0.4)" stroke="#94a3b8" stroke-width="0.8"/>
+  <text x="932" y="534" text-anchor="middle" font-size="8" fill="#94a3b8">"把第三秒的字幕改大一点"</text>
+</g>
+
+<!-- 输出→反馈 -->
+<line x1="932" y1="420" x2="932" y2="448" stroke="#94a3b8" stroke-width="1" marker-end="url(#a-slate)"/>
+<!-- 反馈→规划回路 -->
+<path d="M 855 500 L 800 500 Q 790 500 790 510 L 790 530 Q 790 540 780 540 L 430 540 Q 420 540 420 530 L 420 520" fill="none" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#a-slate)"/>
+<text x="620" y="536" text-anchor="middle" font-size="7" fill="#94a3b8">用户微调 → 局部 Re-Plan</text>
+
+<!-- ================================================================ -->
+<!-- 底部: 基础设施 -->
+<!-- ================================================================ -->
+<g>
+  <rect x="20" y="610" width="1005" height="55" rx="6" fill="#0f172a"/>
+  <rect x="20" y="610" width="1005" height="55" rx="6" fill="rgba(76,29,149,0.12)" stroke="#a78bfa" stroke-width="0.8"/>
+
+  <text x="68" y="635" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="600">GPU 集群</text>
+  <text x="68" y="649" text-anchor="middle" font-size="7" fill="#94a3b8">A100 推理</text>
+
+  <text x="200" y="635" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="600">对象存储</text>
+  <text x="200" y="649" text-anchor="middle" font-size="7" fill="#94a3b8">S3 / COS 素材+成品</text>
+
+  <text x="350" y="635" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="600">任务队列</text>
+  <text x="350" y="649" text-anchor="middle" font-size="7" fill="#94a3b8">Celery / BullMQ 异步编排</text>
+
+  <text x="500" y="635" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="600">消息总线</text>
+  <text x="500" y="649" text-anchor="middle" font-size="7" fill="#94a3b8">Redis Pub/Sub 进度推送</text>
+
+  <text x="640" y="635" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="600">数据库</text>
+  <text x="640" y="649" text-anchor="middle" font-size="7" fill="#94a3b8">PostgreSQL 项目元数据</text>
+
+  <text x="780" y="635" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="600">可观测</text>
+  <text x="780" y="649" text-anchor="middle" font-size="7" fill="#94a3b8">Langfuse Trace + Prometheus</text>
+
+  <text x="940" y="635" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="600">缓存</text>
+  <text x="940" y="649" text-anchor="middle" font-size="7" fill="#94a3b8">Redis 中间产物缓存</text>
+</g>
+
+<!-- 连接线到基础设施 -->
+<line x1="107" y1="380" x2="107" y2="608" stroke="#a78bfa" stroke-width="1" stroke-dasharray="3,3"/>
+<line x1="635" y1="550" x2="500" y2="608" stroke="#a78bfa" stroke-width="1" stroke-dasharray="3,3"/>
+<line x1="932" y1="550" x2="780" y2="608" stroke="#a78bfa" stroke-width="1" stroke-dasharray="3,3"/>
+
+<!-- ================================================================ -->
+<!-- LEGEND -->
+<!-- ================================================================ -->
+<g transform="translate(1060, 60)">
+  <text x="0" y="0" font-size="9" fill="#64748b" font-weight="600">LEGEND</text>
+
+  <rect x="0" y="10" width="10" height="10" rx="2" fill="rgba(8,51,68,0.4)" stroke="#22d3ee" stroke-width="1"/>
+  <text x="16" y="19" font-size="8" fill="#94a3b8">素材输入 / 输出渲染</text>
+
+  <rect x="0" y="26" width="10" height="10" rx="2" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1"/>
+  <text x="16" y="35" font-size="8" fill="#94a3b8">意图理解 (VLM + NLU)</text>
+
+  <rect x="0" y="42" width="10" height="10" rx="2" fill="rgba(251,146,60,0.3)" stroke="#fb923c" stroke-width="1"/>
+  <text x="16" y="51" font-size="8" fill="#94a3b8">Plan-and-Execute 规划</text>
+
+  <rect x="0" y="58" width="10" height="10" rx="2" fill="rgba(136,19,55,0.3)" stroke="#fb7185" stroke-width="1"/>
+  <text x="16" y="67" font-size="8" fill="#94a3b8">工具执行 (剪辑/特效/字幕)</text>
+
+  <rect x="0" y="74" width="10" height="10" rx="2" fill="rgba(76,29,149,0.3)" stroke="#a78bfa" stroke-width="1"/>
+  <text x="16" y="83" font-size="8" fill="#94a3b8">质量评估 / 基础设施</text>
+
+  <line x1="0" y1="94" x2="10" y2="94" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3,3"/>
+  <text x="16" y="97" font-size="8" fill="#94a3b8">反馈回路 (Re-Plan)</text>
+</g>
+
+<!-- ================================================================ -->
+<!-- 设计思路标注 (右侧) -->
+<!-- ================================================================ -->
+<g transform="translate(1060, 180)">
+  <text x="0" y="0" font-size="9" fill="#64748b" font-weight="600">设计思路</text>
+  <text x="0" y="16" font-size="7.5" fill="#fb923c">Plan-and-Execute vs ReAct</text>
+  <text x="0" y="28" font-size="7" fill="#94a3b8">视频剪辑需要全局规划，不适合</text>
+  <text x="0" y="39" font-size="7" fill="#94a3b8">逐步边想边做的 ReAct 模式</text>
+
+  <text x="0" y="58" font-size="7.5" fill="#fb923c">DAG vs 线性步骤</text>
+  <text x="0" y="70" font-size="7" fill="#94a3b8">调色和字幕可并行，裁剪必须</text>
+  <text x="0" y="81" font-size="7" fill="#94a3b8">先于转场 → DAG 拓扑排序</text>
+
+  <text x="0" y="100" font-size="7.5" fill="#fb923c">自愈机制</text>
+  <text x="0" y="112" font-size="7" fill="#94a3b8">FFmpeg 可能失败 → 降级策略</text>
+  <text x="0" y="123" font-size="7" fill="#94a3b8">Re-Planner 重排剩余步骤</text>
+
+  <text x="0" y="142" font-size="7.5" fill="#fb923c">工具抽象</text>
+  <text x="0" y="154" font-size="7" fill="#94a3b8">每个工具 = JSON Schema + execute()</text>
+  <text x="0" y="165" font-size="7" fill="#94a3b8">可扩展: 新增风格迁移只需</text>
+  <text x="0" y="176" font-size="7" fill="#94a3b8">注册新 Tool + Schema</text>
+</g>
+
+</svg>
+</div>
+
+<!-- Summary Cards -->
+<div class="cards">
+  <div class="card">
+    <div class="card-header"><div class="card-dot cyan"></div><h3>素材预处理</h3></div>
+    <ul>
+      <li>FFmpeg scene detect 关键帧提取</li>
+      <li>Demucs 音频三轨分离</li>
+      <li>Whisper ASR 带时间戳字幕</li>
+      <li>VLM 多模态场景打标</li>
+    </ul>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-dot emerald"></div><h3>意图理解</h3></div>
+    <ul>
+      <li>VLM 理解视觉内容</li>
+      <li>LLM 解析用户编辑意图</li>
+      <li>结构化输出: style/target/mood</li>
+      <li>少样本 Prompt + 输出校验</li>
+    </ul>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-dot orange"></div><h3>Plan-and-Execute</h3></div>
+    <ul>
+      <li>Planner 生成 DAG 编辑步骤</li>
+      <li>拓扑排序: 无依赖步骤并行</li>
+      <li>Re-Planner 自愈: 失败后重排</li>
+      <li>用户微调: 局部 Re-Plan</li>
+    </ul>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-dot rose"></div><h3>工具编排</h3></div>
+    <ul>
+      <li>FFmpeg 剪辑/转场/编码</li>
+      <li>字幕引擎: SRT/ASS 烧录</li>
+      <li>特效: LUT/滤镜/动态贴纸</li>
+      <li>超分 Real-ESRGAN / 插帧 RIFE</li>
+    </ul>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-dot violet"></div><h3>质量保障</h3></div>
+    <ul>
+      <li>CLIP 视觉连贯性检测</li>
+      <li>音画同步校验</li>
+      <li>VLM 审美评分 Gate</li>
+      <li>max_replan=2 防无限循环</li>
+    </ul>
+  </div>
+</div>
+
+<div class="footer">Video Editing Agent — Interview Architecture Derivation — 剪映 Agent 岗位面试参考</div>
+
+</body>
+</html>
