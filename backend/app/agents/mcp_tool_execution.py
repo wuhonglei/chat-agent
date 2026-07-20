@@ -40,6 +40,10 @@ class MCPToolSession:
         self.policy.reset_for_request()
         self.executor.reset_for_request(user_message, user_id, conversation_id)
 
+    @property
+    def guardrail_halted(self) -> bool:
+        return self.executor.guardrail.halted
+
     def apply_iteration_hints(
         self,
         messages: list[dict[str, Any]],
