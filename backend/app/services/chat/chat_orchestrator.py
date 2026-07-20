@@ -38,6 +38,7 @@ from app.schemas.chat import (
     extract_user_text,
 )
 from app.schemas.user import MemorySearchItem
+from app.services.base_service.llm_error_handling import LLMCallError
 from app.services.chat.errors import ChatStreamError
 from app.services.chat.history_context_service import HistoryContextService
 from app.services.chat.kb_rag_context_service import KbRagContextService
@@ -206,11 +207,15 @@ class ChatOrchestrator:
 
         except Exception as exc:
             total_duration = get_time_duration(start_time)
-            logger.error(
-                "Failed to stream message",
-                error=exc,
-                duration=total_duration,
-            )
+            log_kwargs: dict[str, Any] = {
+                "error": exc,
+                "duration": total_duration,
+                "error_type": type(exc).__name__,
+            }
+            if isinstance(exc, LLMCallError):
+                log_kwargs["reason"] = exc.reason
+                log_kwargs["detail"] = exc.detail
+            logger.error("Failed to stream message", **log_kwargs)
             yield build_error_event({"content": str(exc)})
             raise ChatStreamError(str(exc)) from exc
 
@@ -591,12 +596,15 @@ class ChatOrchestrator:
                     user_id=user_id,
                 )
         except Exception as exc:
-            logger.error(
-                "Error during stream response generation",
-                conversation_id=conversation_id,
-                error=exc,
-                error_type=type(exc).__name__,
-            )
+            log_kwargs: dict[str, Any] = {
+                "conversation_id": conversation_id,
+                "error": exc,
+                "error_type": type(exc).__name__,
+            }
+            if isinstance(exc, LLMCallError):
+                log_kwargs["reason"] = exc.reason
+                log_kwargs["detail"] = exc.detail
+            logger.error("Error during stream response generation", **log_kwargs)
             if trace_enabled and langfuse_client is not None:
                 try:
                     langfuse_client.update_current_span(

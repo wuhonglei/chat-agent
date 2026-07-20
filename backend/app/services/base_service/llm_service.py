@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any, Literal, cast, overload
 
 from langfuse.openai import AsyncOpenAI  # type: ignore[attr-defined]
@@ -15,8 +16,18 @@ from openai._streaming import AsyncStream
 from openai.types.chat import ChatCompletion
 from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
 
+from app.core.config import settings
 from app.core.observability import get_langfuse, is_enabled
 from app.schemas.config import LLMConfig
+from app.services.base_service.llm_error_handling import (
+    LLMCallError,
+    build_circuit_open_error,
+    build_llm_call_error,
+    build_retry_delay_ms,
+    classify_error,
+    counts_toward_circuit,
+    get_circuit_breaker,
+)
 from app.utils.logger import logger
 from app.utils.model import get_model_extra_body
 from app.utils.token import TokenCalculator
@@ -40,6 +51,7 @@ class LLMService:
         self._client = AsyncOpenAI(
             api_key=llm_config.api_key,
             base_url=llm_config.api_base,
+            max_retries=0,
         )
         self._model_config = llm_config
         self._think_mode = think_mode
@@ -143,7 +155,10 @@ class LLMService:
         max_tokens: int | None = None,
     ) -> ChatCompletion | AsyncStream[ChatCompletionChunk]:
         """
-        调用 LLM API 的统一方法，包含错误处理。
+        调用 LLM API 的统一方法，包含错误分类、重试与熔断。
+
+        重试仅覆盖 ``chat.completions.create`` 建连阶段；拿到 stream 后
+        的 chunk 消费失败不在此重试。
 
         Args:
             model: 模型名称
@@ -161,8 +176,8 @@ class LLMService:
             - 当 stream=True 时，返回 AsyncStream[ChatCompletionChunk] 异步迭代器
 
         Raises:
-            APIError: 各种 API 相关错误
-            Exception: 其他未预期的错误
+            LLMCallError: 建连失败且不可重试/重试耗尽/熔断打开
+            asyncio.CancelledError: 调用被取消
         """
         api_params: dict[str, Any] = {
             "model": model,
@@ -194,6 +209,12 @@ class LLMService:
         if tools is not None:
             log_context["tools_count"] = len(tools)
 
+        reliability = settings.llm_reliability
+        breaker = get_circuit_breaker(self._model_config.api_base, reliability)
+
+        if breaker.is_open():
+            raise build_circuit_open_error()
+
         trace_enabled = is_enabled()
         langfuse_client = get_langfuse()
 
@@ -213,58 +234,112 @@ class LLMService:
                     llm_error_type=error_type,
                 )
 
-        try:
-            logger.info("Calling LLM API", **log_context)
-            response = await self._client.chat.completions.create(**api_params)
-            return cast(ChatCompletion | AsyncStream[ChatCompletionChunk], response)
-        except APIConnectionError as e:
-            mark_observation_error(type(e).__name__)
+        max_attempts = reliability.retry_max_attempts
+        attempt = 1
+        while True:
+            try:
+                logger.info(
+                    "Calling LLM API",
+                    attempt=attempt,
+                    max_attempts=max_attempts,
+                    **log_context,
+                )
+                response = await self._client.chat.completions.create(**api_params)
+                breaker.record_success()
+                return cast(ChatCompletion | AsyncStream[ChatCompletionChunk], response)
+            except asyncio.CancelledError:
+                breaker.release_probe()
+                raise
+            except Exception as e:
+                mark_observation_error(type(e).__name__)
+                retriable, reason = classify_error(e)
+                self._log_llm_exception(e, log_context)
+
+                if retriable and attempt < max_attempts:
+                    wait_ms = build_retry_delay_ms(
+                        attempt,
+                        e,
+                        base_delay_ms=reliability.retry_base_delay_ms,
+                        cap_delay_ms=reliability.retry_cap_delay_ms,
+                    )
+                    logger.warning(
+                        "Transient LLM error; retrying",
+                        attempt=attempt,
+                        max_attempts=max_attempts,
+                        wait_ms=wait_ms,
+                        reason=reason,
+                        error=e,
+                        error_type=type(e).__name__,
+                        **log_context,
+                    )
+                    await asyncio.sleep(wait_ms / 1000)
+                    attempt += 1
+                    continue
+
+                if counts_toward_circuit(reason):
+                    breaker.record_failure()
+                else:
+                    breaker.release_probe()
+
+                raise build_llm_call_error(e, reason) from e
+
+    @staticmethod
+    def _log_llm_exception(
+        exc: Exception,
+        log_context: dict[str, Any],
+    ) -> None:
+        if isinstance(exc, APIConnectionError):
             logger.error(
                 "Failed to connect to LLM API",
-                error=e,
-                error_type=type(e).__name__,
+                error=exc,
+                error_type=type(exc).__name__,
                 **log_context,
                 exc_info=True,
             )
-            raise
-        except RateLimitError as e:
-            mark_observation_error(type(e).__name__)
+            return
+        if isinstance(exc, RateLimitError):
             logger.error(
                 "LLM API rate limit exceeded",
-                error=e,
-                error_type=type(e).__name__,
+                error=exc,
+                error_type=type(exc).__name__,
                 **log_context,
                 exc_info=True,
             )
-            raise
-        except APIStatusError as e:
-            mark_observation_error(type(e).__name__)
+            return
+        if isinstance(exc, APIStatusError):
             logger.error(
                 "LLM API returned an error status",
-                error=e,
-                error_type=type(e).__name__,
-                status_code=getattr(e, "status_code", None),
+                error=exc,
+                error_type=type(exc).__name__,
+                status_code=getattr(exc, "status_code", None),
                 **log_context,
                 exc_info=True,
             )
-            raise
-        except APIError as e:
-            mark_observation_error(type(e).__name__)
+            return
+        if isinstance(exc, APIError):
             logger.error(
                 "LLM API error occurred",
-                error=e,
-                error_type=type(e).__name__,
+                error=exc,
+                error_type=type(exc).__name__,
                 **log_context,
                 exc_info=True,
             )
-            raise
-        except Exception as e:
-            mark_observation_error(type(e).__name__)
+            return
+        if isinstance(exc, LLMCallError):
             logger.error(
-                "Unexpected error during LLM API call",
-                error=e,
-                error_type=type(e).__name__,
+                "LLM call error",
+                error=exc,
+                error_type=type(exc).__name__,
+                reason=exc.reason,
+                detail=exc.detail,
                 **log_context,
                 exc_info=True,
             )
-            raise
+            return
+        logger.error(
+            "Unexpected error during LLM API call",
+            error=exc,
+            error_type=type(exc).__name__,
+            **log_context,
+            exc_info=True,
+        )

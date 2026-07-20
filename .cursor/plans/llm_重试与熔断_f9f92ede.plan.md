@@ -4,19 +4,19 @@ overview: 在 llm_service 层加入错误分类、有限次重试（含 Retry-Af
 todos:
   - id: config
     content: 新增 LLMReliabilityConfig 并挂到 Settings
-    status: pending
+    status: completed
   - id: error-module
     content: 实现 llm_error_handling.py（分类/退避/熔断/LLMCallError）
-    status: pending
+    status: completed
   - id: wire-llm-service
     content: 改造 call_llm_api：max_retries=0 + 重试循环 + 熔断
-    status: pending
+    status: completed
   - id: orchestrator-log
     content: orchestrator 错误日志补充 reason/detail（保持 SSE 兼容）
-    status: pending
+    status: completed
   - id: tests
     content: 补充 classify/retry/circuit/call_llm_api 单测
-    status: pending
+    status: completed
 isProject: false
 ---
 
