@@ -302,10 +302,11 @@ class ToolExecutor:
                 )
                 return tool_call_result_message
             except Exception as exc:
+                error_content, error_type = self._format_tool_exception(exc)
                 tool_call_result_message = ToolResultMessage(
                     role="tool",
                     is_error=True,
-                    content=str(exc),
+                    content=error_content,
                     tool_call_id=tool_call.id,
                 )
                 logger.error(
@@ -315,18 +316,53 @@ class ToolExecutor:
                     iteration=current_iteration + 1,
                     tool_call_id=tool_call.id,
                     duration=get_time_duration(start_time),
-                    content_length=len(str(exc)) if str(exc) else 0,
+                    content_length=len(error_content),
+                    error_type=error_type,
                 )
                 mark_observation_error(tool_span, exc)
                 if tool_span is not None:
                     with contextlib.suppress(Exception):
-                        tool_span.update(output=str(exc))
+                        tool_span.update(output=error_content)
                 self._score_tool_success(
                     tool_span,
                     success=False,
-                    error_type=type(exc).__name__,
+                    error_type=error_type,
                 )
                 return tool_call_result_message
+
+    @staticmethod
+    def _format_tool_exception(exc: BaseException) -> tuple[str, str]:
+        """将工具异常归一化为 (content, error_type)。"""
+        if ToolExecutor._is_timeout_error(exc):
+            return (
+                "⏱️ 工具调用超时，请稍后重试或换一种方式完成任务。",
+                "timeout",
+            )
+        return str(exc) or type(exc).__name__, type(exc).__name__
+
+    @staticmethod
+    def _is_timeout_error(exc: BaseException) -> bool:
+        """识别 TimeoutError、httpx 超时，以及 MCP/包装层带 timed out 语义的异常。"""
+        timeout_type_names = {
+            "TimeoutException",
+            "ReadTimeout",
+            "WriteTimeout",
+            "ConnectTimeout",
+            "PoolTimeout",
+        }
+        seen: set[int] = set()
+        current: BaseException | None = exc
+        while current is not None and id(current) not in seen:
+            seen.add(id(current))
+            if isinstance(current, TimeoutError):
+                return True
+            if type(current).__name__ in timeout_type_names:
+                return True
+            message = str(current).lower()
+            if "timed out" in message or "timeout exceeded" in message:
+                return True
+            current = current.__cause__ or current.__context__
+        return False
 
     @staticmethod
     def _resolve_tool_outcome(
