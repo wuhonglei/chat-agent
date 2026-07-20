@@ -26,7 +26,24 @@ isProject: false
 
 - **做**：错误分类、最多 3 次重试、指数退避 + Retry-After、进程级 LLM Circuit Breaker、中文友好错误上抛到现有 SSE `error`。
 - **不做**：AgentMiddleware 洋葱链、工具层改造、SSE `llm_retry` 事件与前端展示（后续可选）。
-- **流式边界**：只重试 [`call_llm_api`](backend/app/services/base_service/llm_service.py) 内 `chat.completions.create` 建连失败；`async for chunk` 中途断流不在本轮重试（避免半包重复与过长死等）。
+## 重试时机（明确边界）
+
+重试发生在 **`call_llm_api` 内部、拿到返回值之前**，与是否 `stream=True` 无关：
+
+| 阶段 | 代码位置 | 会不会重试 |
+|------|----------|------------|
+| A. 建连 / 创建 completion | `await client.chat.completions.create(...)` 抛错（429、503、连接失败等） | **会**（可重试类错误，最多 3 次） |
+| B. 已拿到 stream，正在读 chunk | [`streaming_llm.py`](backend/app/agents/utils/streaming_llm.py) 的 `async for chunk in response` | **不会**（本轮方案不做） |
+| C. 非流式整包返回 | `stream=False` 时 `create` 本身失败 | **会**（与 A 同一路径） |
+
+因此：**流式任务「进行中」（前端已开始收到 reasoning/content）时不会自动重试**。若中途断流，异常从消费层上抛，走现有 SSE `error` + 友好文案（若被包装为 `LLMCallError` 则仅限于仍在 `call_llm_api` 内抛出的错误；chunk 循环内的异常保持现状上抛）。
+
+原因：中途重试会导致已推给前端的半包与新请求内容重复/错乱，且长输出场景会叠加重试等待。中途断流恢复留给后续（P2：特殊预算或会话级续写）。
+
+用户体感：
+
+- 建连阶段 429/503：后端静默 sleep 再试，成功则用户无感知（本轮不做 `llm_retry` SSE，前端不会显示「正在重试」）。
+- 建连耗尽或中途断流：直接 SSE `error`，对话该轮失败。
 
 ## 现状与目标行为
 
@@ -34,8 +51,10 @@ isProject: false
 flowchart TD
   call[call_llm_api] --> cb{Circuit open?}
   cb -->|yes| failFast[raise LLMCallError circuit_open]
-  cb -->|no| attempt[create completions]
-  attempt -->|success| ok[record_success return]
+  cb -->|no| attempt["create completions 建连"]
+  attempt -->|success| returnStream[返回 response 或 ChatCompletion]
+  returnStream --> consumer["调用方 async for chunk / 读结果"]
+  consumer -->|中途断流| noRetry[本轮不重试 上抛 error]
   attempt -->|CancelledError| reRaise[re-raise]
   attempt -->|exc| classify[_classify_error]
   classify -->|retriable and attempts left| wait[sleep Retry-After or backoff]
