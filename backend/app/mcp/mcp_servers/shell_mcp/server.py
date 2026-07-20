@@ -10,7 +10,7 @@ from typing import Annotated
 
 from fastmcp import FastMCP
 from fastmcp.tools.tool import ToolResult
-from pydantic import Field
+from pydantic import BeforeValidator, Field
 
 from app.mcp.mcp_servers.file_mcp.base import ToolContext
 from app.mcp.mcp_servers.shell_mcp.shell import ShellTool
@@ -21,15 +21,25 @@ mcp = FastMCP(name="Shell MCP Service")
 _shell_tool = ShellTool()
 
 
+def _coerce_timeout(value: object) -> object:
+    """Accept numeric strings from LLM tool calls (e.g. '30000')."""
+    if isinstance(value, bool):
+        raise TypeError("timeout must be an integer")
+    if isinstance(value, str):
+        return int(value.strip())
+    return value
+
+
 @mcp.tool(name="shell")
 async def shell(
     command: str = Field(description="The shell command to execute."),
     timeout: Annotated[
         int,
+        BeforeValidator(_coerce_timeout),
         Field(
             ge=1,
             le=60000,
-            description="Optional timeout for command execution (in milliseconds, max: 600000)",
+            description="Optional timeout for command execution (in milliseconds, max: 60000)",
         ),
     ] = 30000,
 ) -> ToolResult:

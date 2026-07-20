@@ -83,10 +83,17 @@ class ShellTool:
     ) -> ShellToolExecuteResult:
         """Execute shell tool."""
         command = arguments.get("command", "")
-        timeout = arguments.get("timeout", shell_config.default_timeout_ms)
+        raw_timeout = arguments.get("timeout", shell_config.default_timeout_ms)
 
         if not command:
             return ShellToolExecuteResult(content="Error: command is required")
+
+        try:
+            timeout = int(raw_timeout)
+        except (TypeError, ValueError):
+            return ShellToolExecuteResult(
+                content=f"Error: invalid timeout value: {raw_timeout!r}"
+            )
 
         timeout = min(timeout, shell_config.max_timeout_ms)
 
