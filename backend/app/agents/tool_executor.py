@@ -40,6 +40,8 @@ from app.utils.token import TokenCalculator
 class ToolExecutor:
     """Execute MCP tools and compact their results."""
 
+    OVERALL_TIMEOUT_SECONDS = 90
+
     def __init__(
         self,
         mcp_manager: MCPClientManager,
@@ -81,18 +83,57 @@ class ToolExecutor:
         on_arguments_recorded: Callable[[str, dict[str, Any], str], None],
         on_urls_extracted: Callable[[set[str]], None],
     ) -> list[ToolResultMessage]:
+        active_calls = [tc for tc in tool_calls if tc is not None]
         tasks = [
-            self.execute_single_tool(
-                tool_call=tool_call,
-                current_iteration=current_iteration,
-                extracted_urls=extracted_urls,
-                on_arguments_recorded=on_arguments_recorded,
-                on_urls_extracted=on_urls_extracted,
+            asyncio.ensure_future(
+                self.execute_single_tool(
+                    tool_call=tool_call,
+                    current_iteration=current_iteration,
+                    extracted_urls=extracted_urls,
+                    on_arguments_recorded=on_arguments_recorded,
+                    on_urls_extracted=on_urls_extracted,
+                )
             )
-            for tool_call in tool_calls
-            if tool_call is not None
+            for tool_call in active_calls
         ]
-        return await asyncio.gather(*tasks)
+        try:
+            return list(
+                await asyncio.wait_for(
+                    asyncio.gather(*tasks),
+                    timeout=self.OVERALL_TIMEOUT_SECONDS,
+                )
+            )
+        except asyncio.TimeoutError:
+            logger.warning(
+                "Parallel tool execution overall timeout",
+                timeout=self.OVERALL_TIMEOUT_SECONDS,
+                total_calls=len(tasks),
+                iteration=current_iteration + 1,
+            )
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+            # 等待取消落地，避免 done()/cancelled() 竞态
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+            # 按 active_calls 原始顺序返回：已完成取结果，其余返回超时错误
+            timeout_content = (
+                f"⏱️ 工具调用整体超时（超过 {self.OVERALL_TIMEOUT_SECONDS} 秒）"
+            )
+            results: list[ToolResultMessage] = []
+            for tool_call, task in zip(active_calls, tasks, strict=True):
+                if task.done() and not task.cancelled() and task.exception() is None:
+                    results.append(task.result())
+                else:
+                    results.append(
+                        ToolResultMessage(
+                            role="tool",
+                            is_error=True,
+                            content=timeout_content,
+                            tool_call_id=tool_call.id,
+                        )
+                    )
+            return results
 
     async def execute_single_tool(
         self,
