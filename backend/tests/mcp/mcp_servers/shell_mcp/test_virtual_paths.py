@@ -129,6 +129,18 @@ def test_validate_allows_cd_skills(mappings: dict[str, str]) -> None:
     )
 
 
+def test_validate_allows_js_import_alias_in_command(
+    mappings: dict[str, str],
+) -> None:
+    """JS/TS aliases like "@/*" must not be treated as absolute paths."""
+    validate_local_command_paths(
+        f'cd {vfs_config.workspace_prefix.rstrip("/")} && '
+        'npx create-next-app@latest personal-blog --typescript --tailwind '
+        '--app --no-src-dir --import-alias "@/*" --yes',
+        mappings,
+    )
+
+
 def test_mask_paths_in_output(path_layout: tuple[Paths, str, str]) -> None:
     paths, user_id, conversation_id = path_layout
     workspace = str(paths.sandbox_work_dir(user_id, conversation_id).resolve())

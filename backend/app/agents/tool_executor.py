@@ -296,6 +296,7 @@ class ToolExecutor:
                     structured_content=result.structured_content
                     if isinstance(result.structured_content, dict)
                     else None,
+                    is_error=bool(getattr(result, "is_error", False)),
                 )
                 tool_call_result_message = tool_call_result_message.model_copy(
                     update={"is_error": not success}
@@ -438,12 +439,16 @@ class ToolExecutor:
         server_name: str | None,
         content: str,
         structured_content: dict[str, Any] | None,
+        is_error: bool = False,
     ) -> tuple[bool, str | None, dict[str, Any]]:
         """按 server 语义判定工具是否成功。
 
         shell / code 以退出码为准；其它 server 仍以空结果为失败。
+        MCP ``isError`` / client ``is_error`` 优先视为失败。
         返回 ``(success, error_type, metadata)``。
         """
+        if is_error:
+            return False, "tool_reported_error", {}
         if server_name == SHELL_SERVER:
             return ToolExecutor._resolve_shell_outcome(content, structured_content)
         if server_name == CODE_SERVER:

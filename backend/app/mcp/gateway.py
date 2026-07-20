@@ -83,7 +83,9 @@ class MCPToolGateway:
             logger.warning("Tool warnings", tool_name=tool_name, warnings=warnings)
         try:
             async with client:
-                result = await client.call_tool(mcp_tool_name, args, timeout=timeout)
+                result = await client.call_tool(
+                    mcp_tool_name, args, timeout=timeout, raise_on_error=False
+                )
             logger.info(
                 "Tool executed",
                 tool_name=tool_name,

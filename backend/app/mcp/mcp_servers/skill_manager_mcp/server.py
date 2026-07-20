@@ -9,7 +9,7 @@ from fastmcp import FastMCP
 from fastmcp.tools.tool import ToolResult
 from pydantic import Field
 
-from app.mcp.mcp_servers.file_mcp.base import ToolContext
+from app.mcp.mcp_servers.file_mcp.base import ToolContext, to_fastmcp_tool_result
 from app.mcp.mcp_servers.skill_manager_mcp.load_skill import LoadSkillTool
 
 mcp = FastMCP(name="Skill Manager MCP Service")
@@ -24,6 +24,4 @@ async def load_skill(
     """Load a skill document by name. Returns the skill's markdown content."""
     ctx = ToolContext()
     result = await _load_skill.execute({"name": name}, ctx)
-    return ToolResult(
-        content=result.content, structured_content=result.structured_content
-    )
+    return to_fastmcp_tool_result(result)
