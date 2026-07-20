@@ -7,6 +7,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import StreamingResponse
+from redis.exceptions import ConnectionError as RedisConnectionError
+from redis.exceptions import TimeoutError as RedisTimeoutError
 
 from app.api.deps import get_mcp_manager
 from app.core.cache import invalidate_conversation_state
@@ -42,13 +44,24 @@ _BACKGROUND_TASKS: set[asyncio.Task[None]] = set()
 _STREAM_RELAY = StreamRelay()
 _STREAM_PRODUCER_TASKS: dict[str, asyncio.Task[None]] = {}
 _TURN_IDEMPOTENCY_STORE = TurnIdempotencyStore()
+_REDIS_TRANSIENT_ERRORS = (RedisTimeoutError, RedisConnectionError)
 
 
 async def _poll_cancel(stream_id: str, poll_ms: int) -> None:
     """Poll Redis meta status=stopped and cancel the local producer task."""
     while True:
         await asyncio.sleep(poll_ms / 1000)
-        if await _STREAM_RELAY.is_stop_requested(stream_id):
+        try:
+            stop_requested = await _STREAM_RELAY.is_stop_requested(stream_id)
+        except _REDIS_TRANSIENT_ERRORS as exc:
+            logger.warning(
+                "SSE cancel poll Redis transient error",
+                stream_id=stream_id,
+                error=exc,
+                error_type=type(exc).__name__,
+            )
+            continue
+        if stop_requested:
             producer = _STREAM_PRODUCER_TASKS.get(stream_id)
             if producer and not producer.done():
                 producer.cancel()
@@ -68,7 +81,17 @@ async def _run_producer(
     final_status = MessageStatus.DONE
     try:
         async for event in event_stream:
-            if await _STREAM_RELAY.is_stop_requested(stream_id):
+            try:
+                stop_requested = await _STREAM_RELAY.is_stop_requested(stream_id)
+            except _REDIS_TRANSIENT_ERRORS as exc:
+                logger.warning(
+                    "SSE producer stop check Redis transient error",
+                    error=exc,
+                    error_type=type(exc).__name__,
+                    **log_ctx,
+                )
+                stop_requested = False
+            if stop_requested:
                 raise asyncio.CancelledError()
             await _STREAM_RELAY.append(stream_id, event)
     except asyncio.CancelledError:
@@ -83,12 +106,16 @@ async def _run_producer(
             error_type=type(exc).__name__,
             **log_ctx,
         )
-        await _STREAM_RELAY.append(stream_id, build_error_event({"content": str(exc)}))
+        with contextlib.suppress(Exception):
+            await _STREAM_RELAY.append(
+                stream_id, build_error_event({"content": str(exc)})
+            )
     finally:
         poll_task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
+        with contextlib.suppress(asyncio.CancelledError, Exception):
             await poll_task
-        await _STREAM_RELAY.close(stream_id, final_status=final_status)
+        with contextlib.suppress(Exception):
+            await _STREAM_RELAY.close(stream_id, final_status=final_status)
         with contextlib.suppress(Exception):
             await event_stream.aclose()
 
@@ -106,6 +133,17 @@ async def _drain_stream(
             yield event
     except asyncio.CancelledError:
         logger.info("SSE consumer disconnected, producer continues", **log_ctx)
+        return
+    except _REDIS_TRANSIENT_ERRORS as exc:
+        logger.error(
+            "SSE consumer Redis unavailable",
+            error=exc,
+            error_type=type(exc).__name__,
+            **log_ctx,
+        )
+        yield build_error_event(
+            {"content": "流中继暂时不可用，请稍后重试或刷新页面继续"}
+        )
         return
 
 
