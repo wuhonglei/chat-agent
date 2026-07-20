@@ -1,438 +1,734 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>剪辑 Agent — 从素材到成品的完整链路（面试版）</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<title>智能剪辑 Agent 架构推演 · Plan-Execute + DAG</title>
 <style>
-  *{margin:0;padding:0;box-sizing:border-box}
-  body{background:#020617;color:#e2e8f0;font-family:'JetBrains Mono',monospace;min-height:100vh;padding:32px}
-  .header{text-align:center;margin-bottom:24px}
-  .header h1{font-size:22px;font-weight:700;color:#f1f5f9;display:flex;align-items:center;justify-content:center;gap:10px}
-  .header h1 .dot{width:10px;height:10px;border-radius:50%;background:#22d3ee;animation:pulse 2s infinite}
-  .header .sub{font-size:11px;color:#94a3b8;margin-top:6px;max-width:900px;margin-left:auto;margin-right:auto;line-height:1.6}
-  @keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 6px #22d3ee}50%{opacity:.5;box-shadow:0 0 2px #22d3ee}}
-  .diagram-card{background:rgba(15,23,42,.85);border:1px solid #1e293b;border-radius:14px;padding:20px;margin:0 auto 20px;max-width:1400px;overflow-x:auto}
-  .cards{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;max-width:1400px;margin:0 auto}
-  .card{background:rgba(15,23,42,.7);border:1px solid #1e293b;border-radius:10px;padding:14px}
-  .card .card-header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-  .card .card-dot{width:8px;height:8px;border-radius:50%}
-  .card .card-dot.cyan{background:#22d3ee}.card .card-dot.emerald{background:#34d399}
-  .card .card-dot.violet{background:#a78bfa}.card .card-dot.amber{background:#fbbf24}
-  .card .card-dot.rose{background:#fb7185}.card .card-dot.orange{background:#fb923c}
-  .card h3{font-size:11px;font-weight:600;color:#f1f5f9}
-  .card ul{list-style:none;font-size:9px;color:#94a3b8;line-height:1.7}
-  .card ul li::before{content:"• ";color:#64748b}
-  .footer{text-align:center;margin-top:16px;font-size:9px;color:#475569}
-  .section-label{font-size:9px;fill:#64748b;font-weight:600;letter-spacing:1px}
+:root{
+  --bg:#f5f6fb; --ink:#1b1d2a; --muted:#5d6174; --faint:#8a8fa3;
+  --brand:#5850d6; --brand-soft:#efedfd; --card:#ffffff; --line:#e5e7f2;
+  --blue:#2f7df6; --blue-soft:#e9f2fe; --green:#0ea47a; --green-soft:#e5f7f0;
+  --orange:#e8821e; --orange-soft:#fdf1e3; --red:#e05252; --red-soft:#fdeaea;
+  --purple:#8b5cf6; --purple-soft:#f2edfd;
+  --code-bg:#171a26; --code-ink:#dbe2f4;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Segoe UI",sans-serif;line-height:1.75;font-size:15px}
+.layout{display:flex;max-width:1440px;margin:0 auto}
+nav{position:sticky;top:0;height:100vh;width:248px;flex-shrink:0;padding:28px 18px;border-right:1px solid var(--line);background:#fbfbff;overflow-y:auto}
+nav .nav-title{font-size:12px;color:var(--faint);letter-spacing:2px;margin-bottom:12px;font-weight:600}
+nav a{display:block;color:var(--muted);text-decoration:none;font-size:13.5px;padding:7px 12px;border-radius:8px;margin-bottom:2px;border-left:2px solid transparent;transition:all .15s}
+nav a:hover{background:var(--brand-soft);color:var(--brand)}
+nav a.active{color:var(--brand);background:var(--brand-soft);border-left-color:var(--brand);font-weight:600}
+main{flex:1;min-width:0;padding:0 44px 80px}
+.hero{padding:56px 0 36px;border-bottom:1px solid var(--line);margin-bottom:36px}
+.hero .kicker{display:inline-block;font-size:12.5px;color:var(--brand);background:var(--brand-soft);border:1px solid #d9d4f8;padding:3px 12px;border-radius:99px;font-weight:600;letter-spacing:1px}
+.hero h1{font-size:32px;line-height:1.35;margin:16px 0 10px;font-weight:800;letter-spacing:-.5px}
+.hero h1 .grad{background:linear-gradient(100deg,#5850d6,#8b5cf6 55%,#2f7df6);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{color:var(--muted);max-width:760px;font-size:15.5px}
+.hero .tags{margin-top:16px;display:flex;flex-wrap:wrap;gap:8px}
+.hero .tag{font-size:12px;color:var(--muted);background:#fff;border:1px solid var(--line);padding:3px 10px;border-radius:6px}
+section{margin-bottom:52px;scroll-margin-top:24px}
+h2{font-size:22px;font-weight:800;margin-bottom:6px;display:flex;align-items:center;gap:10px}
+h2 .num{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;background:var(--brand);color:#fff;font-size:14px;font-weight:700;flex-shrink:0}
+.sub{color:var(--muted);font-size:14px;margin-bottom:20px}
+h3{font-size:16.5px;font-weight:700;margin:26px 0 10px}
+p{margin-bottom:12px}
+ul,ol{margin:0 0 14px 22px}
+li{margin-bottom:6px}
+strong{color:#12142a}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 24px;margin-bottom:16px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.mini{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.mini h4{font-size:14px;font-weight:700;margin-bottom:6px}
+.mini p,.mini li{font-size:13.5px;color:var(--muted)}
+.callout{border-left:3px solid var(--brand);background:var(--brand-soft);border-radius:0 12px 12px 0;padding:14px 18px;margin:16px 0}
+.callout .co-title{font-weight:700;color:var(--brand);font-size:13.5px;margin-bottom:4px}
+.callout p{font-size:14px;color:#3d3a6b;margin-bottom:6px}
+.callout.warn{border-left-color:var(--orange);background:var(--orange-soft)}
+.callout.warn .co-title{color:var(--orange)}
+.callout.warn p{color:#7a4d15}
+pre{background:var(--code-bg);color:var(--code-ink);border-radius:12px;padding:18px 20px;overflow-x:auto;font-family:"SF Mono",Menlo,Consolas,"Courier New",monospace;font-size:12.5px;line-height:1.7;margin:14px 0}
+pre .c{color:#6b7394}
+pre .k{color:#8ab4ff}
+pre .s{color:#9ece8a}
+pre .n{color:#e0a56b}
+code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:.92em;background:#eceef6;color:#4a3fb5;padding:1px 6px;border-radius:5px}
+pre code{background:none;color:inherit;padding:0}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px;background:#fff;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+th{background:#f0f1f9;text-align:left;padding:10px 14px;font-weight:700;font-size:13px;color:#3a3d52;border-bottom:1px solid var(--line)}
+td{padding:10px 14px;border-bottom:1px solid var(--line);color:#3a3d52;vertical-align:top}
+tr:last-child td{border-bottom:none}
+.pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px;vertical-align:middle}
+.pill.b{background:var(--blue-soft);color:var(--blue)}
+.pill.g{background:var(--green-soft);color:var(--green)}
+.pill.o{background:var(--orange-soft);color:var(--orange)}
+.pill.r{background:var(--red-soft);color:var(--red)}
+.pill.p{background:var(--purple-soft);color:var(--purple)}
+.pill.brand{background:var(--brand-soft);color:var(--brand)}
+/* 链路 chevron */
+.flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:0;margin:18px 0}
+.flow .step{position:relative;background:#fff;border:1px solid var(--line);padding:14px 30px 14px 18px;margin-right:18px;border-radius:10px;clip-path:polygon(0 0,calc(100% - 14px) 0,100% 50%,calc(100% - 14px) 100%,0 100%);min-width:150px}
+.flow .step:last-child{clip-path:none;border-radius:10px}
+.flow .step .t{font-weight:700;font-size:13.5px}
+.flow .step .d{font-size:11.5px;color:var(--faint)}
+.svg-wrap{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;overflow-x:auto;margin:14px 0}
+.svg-wrap svg{display:block;min-width:720px;width:100%;height:auto}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px;font-size:12.5px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:12px;height:12px;border-radius:4px;display:inline-block}
+details{background:#fff;border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden}
+details summary{cursor:pointer;padding:14px 18px;font-weight:700;font-size:14.5px;list-style:none;display:flex;align-items:center;gap:10px;user-select:none}
+details summary::-webkit-details-marker{display:none}
+details summary::before{content:"Q";display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:7px;background:var(--brand);color:#fff;font-size:12px;flex-shrink:0}
+details summary:hover{background:#fafaff}
+details .a-body{padding:0 18px 16px 50px;color:#3a3d52;font-size:14px}
+details .a-body p{margin-bottom:8px}
+details[open]{border-color:#c9c4f0;box-shadow:0 4px 18px rgba(88,80,214,.08)}
+footer{border-top:1px solid var(--line);padding:26px 0;color:var(--faint);font-size:13px;text-align:center}
+@media (max-width:960px){nav{display:none}main{padding:0 20px 60px}.grid2,.grid3{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-
-<div class="header">
-  <h1><span class="dot"></span>剪辑 Agent 完整链路（面试版·架构推演）</h1>
-  <p class="sub">
-    用户上传素材 → 多模态理解 → 意图解析 → Plan-and-Execute 步骤规划 → 工具编排（剪辑/特效/字幕/音频）→ 质量评估 → 输出成品<br>
-    基于 Agent 架构通用模式 + 视频创作领域特点推演，非特定产品内部实现
-  </p>
-</div>
-
-<div class="diagram-card">
-<svg viewBox="0 0 1360 920" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace">
-<defs>
-  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
-  </pattern>
-  <marker id="a-cyan" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-    <polygon points="0 0, 8 3, 0 6" fill="#22d3ee"/>
-  </marker>
-  <marker id="a-emerald" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-    <polygon points="0 0, 8 3, 0 6" fill="#34d399"/>
-  </marker>
-  <marker id="a-violet" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-    <polygon points="0 0, 8 3, 0 6" fill="#a78bfa"/>
-  </marker>
-  <marker id="a-amber" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-    <polygon points="0 0, 8 3, 0 6" fill="#fbbf24"/>
-  </marker>
-  <marker id="a-rose" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-    <polygon points="0 0, 8 3, 0 6" fill="#fb7185"/>
-  </marker>
-  <marker id="a-orange" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-    <polygon points="0 0, 8 3, 0 6" fill="#fb923c"/>
-  </marker>
-  <marker id="a-slate" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-    <polygon points="0 0, 8 3, 0 6" fill="#94a3b8"/>
-  </marker>
-</defs>
-
-<!-- background -->
-<rect width="1360" height="920" fill="#020617"/>
-<rect width="1360" height="920" fill="url(#grid)"/>
-
-<!-- ================================================================ -->
-<!-- ① 素材输入与预处理 -->
-<!-- ================================================================ -->
-<g>
-  <rect x="20" y="60" width="175" height="320" rx="8" fill="#0f172a"/>
-  <rect x="20" y="60" width="175" height="320" rx="8" fill="rgba(8,51,68,0.35)" stroke="#22d3ee" stroke-width="1.5"/>
-  <text x="107" y="82" text-anchor="middle" font-size="11" fill="#22d3ee" font-weight="700">① 素材输入</text>
-  <text x="107" y="96" text-anchor="middle" font-size="7" fill="#64748b">用户上传 + 预处理管线</text>
-
-  <rect x="30" y="108" width="155" height="30" rx="4" fill="rgba(8,51,68,0.3)" stroke="#22d3ee" stroke-width="0.8"/>
-  <text x="107" y="123" text-anchor="middle" font-size="8" fill="#22d3ee" font-weight="500">视频文件上传</text>
-  <text x="107" y="134" text-anchor="middle" font-size="7" fill="#94a3b8">分片上传 + 断点续传 (TUS)</text>
-
-  <rect x="30" y="146" width="155" height="30" rx="4" fill="rgba(8,51,68,0.3)" stroke="#22d3ee" stroke-width="0.8"/>
-  <text x="107" y="161" text-anchor="middle" font-size="8" fill="#22d3ee" font-weight="500">关键帧提取</text>
-  <text x="107" y="172" text-anchor="middle" font-size="7" fill="#94a3b8">FFmpeg scene detect + 抽帧</text>
-
-  <rect x="30" y="184" width="155" height="30" rx="4" fill="rgba(8,51,68,0.3)" stroke="#22d3ee" stroke-width="0.8"/>
-  <text x="107" y="199" text-anchor="middle" font-size="8" fill="#22d3ee" font-weight="500">音频分离 (Demucs)</text>
-  <text x="107" y="210" text-anchor="middle" font-size="7" fill="#94a3b8">人声 / BGM / 音效 三轨分离</text>
-
-  <rect x="30" y="222" width="155" height="30" rx="4" fill="rgba(8,51,68,0.3)" stroke="#22d3ee" stroke-width="0.8"/>
-  <text x="107" y="237" text-anchor="middle" font-size="8" fill="#22d3ee" font-weight="500">ASR 语音识别</text>
-  <text x="107" y="248" text-anchor="middle" font-size="7" fill="#94a3b8">Whisper-large → 时间戳字幕</text>
-
-  <rect x="30" y="260" width="155" height="30" rx="4" fill="rgba(8,51,68,0.3)" stroke="#22d3ee" stroke-width="0.8"/>
-  <text x="107" y="275" text-anchor="middle" font-size="8" fill="#22d3ee" font-weight="500">场景标签 / 分类</text>
-  <text x="107" y="286" text-anchor="middle" font-size="7" fill="#94a3b8">VLM 多模态打标 (Qwen-VL)</text>
-
-  <rect x="30" y="298" width="155" height="30" rx="4" fill="rgba(8,51,68,0.3)" stroke="#22d3ee" stroke-width="0.8"/>
-  <text x="107" y="313" text-anchor="middle" font-size="8" fill="#22d3ee" font-weight="500">元数据提取</text>
-  <text x="107" y="324" text-anchor="middle" font-size="7" fill="#94a3b8">分辨率/帧率/时长/编码</text>
-
-  <rect x="30" y="336" width="155" height="36" rx="4" fill="rgba(8,51,68,0.25)" stroke="#22d3ee" stroke-width="0.6" stroke-dasharray="3,2"/>
-  <text x="107" y="353" text-anchor="middle" font-size="7" fill="#64748b">输出: 结构化素材描述 (JSON)</text>
-  <text x="107" y="365" text-anchor="middle" font-size="7" fill="#64748b">frames[] + audio_tracks[] + asr[]</text>
-</g>
-
-<!-- ================================================================ -->
-<!-- ② 多模态理解 & 意图解析 -->
-<!-- ================================================================ -->
-<g>
-  <rect x="240" y="60" width="185" height="200" rx="8" fill="#0f172a"/>
-  <rect x="240" y="60" width="185" height="200" rx="8" fill="rgba(6,78,59,0.35)" stroke="#34d399" stroke-width="1.5"/>
-  <text x="332" y="82" text-anchor="middle" font-size="11" fill="#34d399" font-weight="700">② 意图理解</text>
-  <text x="332" y="96" text-anchor="middle" font-size="7" fill="#64748b">多模态 VLM + NLU</text>
-
-  <rect x="252" y="108" width="161" height="36" rx="4" fill="rgba(6,78,59,0.25)" stroke="#34d399" stroke-width="0.8"/>
-  <text x="332" y="123" text-anchor="middle" font-size="8" fill="#34d399" font-weight="500">视觉语义理解</text>
-  <text x="332" y="134" text-anchor="middle" font-size="7" fill="#94a3b8">VLM: 关键帧→场景描述/物体/情绪</text>
-
-  <rect x="252" y="152" width="161" height="36" rx="4" fill="rgba(6,78,59,0.25)" stroke="#34d399" stroke-width="0.8"/>
-  <text x="332" y="167" text-anchor="middle" font-size="8" fill="#34d399" font-weight="500">用户意图解析</text>
-  <text x="332" y="178" text-anchor="middle" font-size="7" fill="#94a3b8">LLM: 自然语言→结构化意图 JSON</text>
-
-  <rect x="252" y="196" width="161" height="50" rx="4" fill="rgba(6,78,59,0.2)" stroke="#34d399" stroke-width="0.6" stroke-dasharray="3,2"/>
-  <text x="332" y="212" text-anchor="middle" font-size="7" fill="#34d399">意图示例:</text>
-  <text x="332" y="224" text-anchor="middle" font-size="7" fill="#94a3b8">{style:"vlog", target:30s,</text>
-  <text x="332" y="236" text-anchor="middle" font-size="7" fill="#94a3b8"> mood:"轻松", highlights:["开头"]}</text>
-</g>
-
-<!-- 素材→意图 -->
-<line x1="195" y1="200" x2="238" y2="160" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#a-cyan)"/>
-
-<!-- ================================================================ -->
-<!-- ③ Plan-and-Execute 步骤规划（核心大框） -->
-<!-- ================================================================ -->
-<g>
-  <rect x="240" y="290" width="185" height="260" rx="8" fill="#0f172a"/>
-  <rect x="240" y="290" width="185" height="260" rx="8" fill="rgba(251,146,60,0.15)" stroke="#fb923c" stroke-width="1.5" stroke-dasharray="6,3"/>
-  <text x="332" y="312" text-anchor="middle" font-size="11" fill="#fb923c" font-weight="700">③ 步骤规划</text>
-  <text x="332" y="326" text-anchor="middle" font-size="7" fill="#64748b">Plan-and-Execute Agent</text>
-
-  <!-- Planner -->
-  <rect x="252" y="338" width="161" height="50" rx="4" fill="rgba(251,146,60,0.15)" stroke="#fb923c" stroke-width="1"/>
-  <text x="332" y="355" text-anchor="middle" font-size="8" fill="#fb923c" font-weight="600">Planner (LLM)</text>
-  <text x="332" y="368" text-anchor="middle" font-size="7" fill="#94a3b8">输入: 素材描述 + 用户意图</text>
-  <text x="332" y="379" text-anchor="middle" font-size="7" fill="#94a3b8">输出: DAG 编辑步骤 JSON</text>
-
-  <!-- 计划示例 -->
-  <rect x="252" y="396" width="161" height="70" rx="4" fill="rgba(251,146,60,0.08)" stroke="#fb923c" stroke-width="0.6" stroke-dasharray="3,2"/>
-  <text x="332" y="410" text-anchor="middle" font-size="7" fill="#fb923c">生成计划示例:</text>
-  <text x="332" y="423" text-anchor="middle" font-size="7" fill="#94a3b8">1. trim(0:05-0:35) 裁剪</text>
-  <text x="332" y="435" text-anchor="middle" font-size="7" fill="#94a3b8">2. stabilize() 防抖</text>
-  <text x="332" y="447" text-anchor="middle" font-size="7" fill="#94a3b8">3. add_subtitles(asr) 字幕</text>
-  <text x="332" y="459" text-anchor="middle" font-size="7" fill="#94a3b8">4. color_grade("清新") 调色</text>
-
-  <!-- Re-planner -->
-  <rect x="252" y="476" width="161" height="36" rx="4" fill="rgba(251,146,60,0.15)" stroke="#fb923c" stroke-width="0.8"/>
-  <text x="332" y="493" text-anchor="middle" font-size="8" fill="#fb923c" font-weight="500">Re-Planner (自愈)</text>
-  <text x="332" y="505" text-anchor="middle" font-size="7" fill="#94a3b8">步骤失败→重新规划剩余路径</text>
-</g>
-
-<!-- 意图→规划 -->
-<line x1="332" y1="260" x2="332" y2="288" stroke="#34d399" stroke-width="1.5" marker-end="url(#a-emerald)"/>
-
-<!-- ================================================================ -->
-<!-- ④ 工具执行层（大框，5个子工具） -->
-<!-- ================================================================ -->
-<g>
-  <rect x="480" y="60" width="310" height="490" rx="8" fill="#0f172a"/>
-  <rect x="480" y="60" width="310" height="490" rx="8" fill="rgba(136,19,55,0.15)" stroke="#fb7185" stroke-width="1.5"/>
-  <text x="635" y="82" text-anchor="middle" font-size="11" fill="#fb7185" font-weight="700">④ 工具执行层</text>
-  <text x="635" y="96" text-anchor="middle" font-size="7" fill="#64748b">ToolExecutor: 逐步骤调度</text>
-
-  <!-- 工具1: 视频剪辑 -->
-  <rect x="495" y="108" width="280" height="56" rx="5" fill="rgba(136,19,55,0.2)" stroke="#fb7185" stroke-width="1"/>
-  <text x="510" y="125" font-size="9" fill="#fb7185" font-weight="600">🎬 视频剪辑引擎</text>
-  <text x="510" y="140" font-size="7" fill="#94a3b8">FFmpeg: trim / concat / split / reframe / speed</text>
-  <text x="510" y="153" font-size="7" fill="#94a3b8">多轨 timeline 编辑 (MoviePy / 自研 DSL)</text>
-
-  <!-- 工具2: 音频处理 -->
-  <rect x="495" y="172" width="280" height="56" rx="5" fill="rgba(136,19,55,0.2)" stroke="#fb7185" stroke-width="1"/>
-  <text x="510" y="189" font-size="9" fill="#fb7185" font-weight="600">🎵 音频处理</text>
-  <text x="510" y="204" font-size="7" fill="#94a3b8">Demucs 分轨 → 人声增益 / BGM 替换 / 混音</text>
-  <text x="510" y="217" font-size="7" fill="#94a3b8">音频淡入淡出 / 音量归一化 (FFmpeg loudnorm)</text>
-
-  <!-- 工具3: 字幕生成 -->
-  <rect x="495" y="236" width="280" height="56" rx="5" fill="rgba(136,19,55,0.2)" stroke="#fb7185" stroke-width="1"/>
-  <text x="510" y="253" font-size="9" fill="#fb7185" font-weight="600">💬 字幕生成</text>
-  <text x="510" y="268" font-size="7" fill="#94a3b8">ASR 时间戳 → SRT/ASS 烧录 (FFmpeg subtitles)</text>
-  <text x="510" y="281" font-size="7" fill="#94a3b8">样式引擎: 字体/描边/动画 (Pillow + CSS Motion)</text>
-
-  <!-- 工具4: 特效 & 转场 -->
-  <rect x="495" y="300" width="280" height="56" rx="5" fill="rgba(136,19,55,0.2)" stroke="#fb7185" stroke-width="1"/>
-  <text x="510" y="317" font-size="9" fill="#fb7185" font-weight="600">✨ 特效 & 转场</text>
-  <text x="510" y="332" font-size="7" fill="#94a3b8">滤镜 (color_grade / sharpen / LUT)</text>
-  <text x="510" y="345" font-size="7" fill="#94a3b8">转场 (fade / dissolve / zoom) + 动态贴纸/蒙版</text>
-
-  <!-- 工具5: 调色 & 画面增强 -->
-  <rect x="495" y="364" width="280" height="56" rx="5" fill="rgba(136,19,55,0.2)" stroke="#fb7185" stroke-width="1"/>
-  <text x="510" y="381" font-size="9" fill="#fb7185" font-weight="600">🎨 调色 & 增强</text>
-  <text x="510" y="396" font-size="7" fill="#94a3b8">LUT 风格迁移 / 自动白平衡 / HDR→SDR</text>
-  <text x="510" y="409" font-size="7" fill="#94a3b8">超分 (Real-ESRGAN) / 插帧 (RIFE)</text>
-
-  <!-- 调度引擎标注 -->
-  <rect x="495" y="430" width="280" height="40" rx="4" fill="rgba(136,19,55,0.1)" stroke="#fb7185" stroke-width="0.6" stroke-dasharray="3,2"/>
-  <text x="635" y="448" text-anchor="middle" font-size="8" fill="#fb7185" font-weight="500">DAG 调度引擎</text>
-  <text x="635" y="462" text-anchor="middle" font-size="7" fill="#94a3b8">拓扑排序 → 并行无依赖步骤 → 序列化有依赖步骤</text>
-
-  <!-- 工具注册表标注 -->
-  <rect x="495" y="478" width="280" height="26" rx="4" fill="rgba(136,19,55,0.08)" stroke="#fb7185" stroke-width="0.6" stroke-dasharray="3,2"/>
-  <text x="635" y="496" text-anchor="middle" font-size="7" fill="#64748b">Tool Registry: JSON Schema 参数校验 + 权限控制</text>
-</g>
-
-<!-- 规划→工具 -->
-<line x1="425" y1="400" x2="493" y2="305" stroke="#fb923c" stroke-width="1.5" marker-end="url(#a-orange)"/>
-<text x="450" y="345" font-size="7" fill="#fb923c" transform="rotate(-35 450 345)">step.execute()</text>
-
-<!-- ================================================================ -->
-<!-- ⑤ 质量评估 & 自愈 -->
-<!-- ================================================================ -->
-<g>
-  <rect x="840" y="60" width="185" height="200" rx="8" fill="#0f172a"/>
-  <rect x="840" y="60" width="185" height="200" rx="8" fill="rgba(76,29,149,0.3)" stroke="#a78bfa" stroke-width="1.5"/>
-  <text x="932" y="82" text-anchor="middle" font-size="11" fill="#a78bfa" font-weight="700">⑤ 质量评估</text>
-  <text x="932" y="96" text-anchor="middle" font-size="7" fill="#64748b">自动化 QA Gate</text>
-
-  <rect x="855" y="108" width="155" height="30" rx="4" fill="rgba(76,29,149,0.2)" stroke="#a78bfa" stroke-width="0.8"/>
-  <text x="932" y="123" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="500">视觉连贯性检查</text>
-  <text x="932" y="134" text-anchor="middle" font-size="7" fill="#94a3b8">CLIP 相似度 / 跳帧检测</text>
-
-  <rect x="855" y="146" width="155" height="30" rx="4" fill="rgba(76,29,149,0.2)" stroke="#a78bfa" stroke-width="0.8"/>
-  <text x="932" y="161" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="500">音画同步校验</text>
-  <text x="932" y="172" text-anchor="middle" font-size="7" fill="#94a3b8">ASR 时间戳 vs 音频波形对齐</text>
-
-  <rect x="855" y="184" width="155" height="30" rx="4" fill="rgba(76,29,149,0.2)" stroke="#a78bfa" stroke-width="0.8"/>
-  <text x="932" y="199" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="500">LLM 评审打分</text>
-  <text x="932" y="210" text-anchor="middle" font-size="7" fill="#94a3b8">VLM 审美评分 → 不合格 Re-Plan</text>
-
-  <rect x="855" y="222" width="155" height="30" rx="4" fill="rgba(76,29,149,0.15)" stroke="#a78bfa" stroke-width="0.6" stroke-dasharray="3,2"/>
-  <text x="932" y="237" text-anchor="middle" font-size="7" fill="#a78bfa">反馈回路: 评估结果→Re-Planner</text>
-  <text x="932" y="248" text-anchor="middle" font-size="7" fill="#94a3b8">max_replan=2 防无限循环</text>
-</g>
-
-<!-- 工具→评估 -->
-<line x1="790" y1="200" x2="838" y2="160" stroke="#fb7185" stroke-width="1.5" marker-end="url(#a-rose)"/>
-
-<!-- 评估→Re-Planner 回路 -->
-<path d="M 855 250 L 810 250 Q 800 250 800 260 L 800 510 Q 800 520 790 520 L 430 520 Q 420 520 420 510 L 420 510 Q 420 500 425 500" fill="none" stroke="#fb7185" stroke-width="1" stroke-dasharray="5,3" marker-end="url(#a-rose)"/>
-<text x="620" y="516" text-anchor="middle" font-size="7" fill="#fb7185">评估不合格 → Re-Plan</text>
-
-<!-- ================================================================ -->
-<!-- ⑥ 输出渲染 -->
-<!-- ================================================================ -->
-<g>
-  <rect x="840" y="290" width="185" height="130" rx="8" fill="#0f172a"/>
-  <rect x="840" y="290" width="185" height="130" rx="8" fill="rgba(8,51,68,0.35)" stroke="#22d3ee" stroke-width="1.5"/>
-  <text x="932" y="312" text-anchor="middle" font-size="11" fill="#22d3ee" font-weight="700">⑥ 输出渲染</text>
-
-  <rect x="855" y="324" width="155" height="30" rx="4" fill="rgba(8,51,68,0.25)" stroke="#22d3ee" stroke-width="0.8"/>
-  <text x="932" y="339" text-anchor="middle" font-size="8" fill="#22d3ee" font-weight="500">Timeline 合成</text>
-  <text x="932" y="350" text-anchor="middle" font-size="7" fill="#94a3b8">多轨合并 → 最终编码 (H.264/H.265)</text>
-
-  <rect x="855" y="362" width="155" height="30" rx="4" fill="rgba(8,51,68,0.25)" stroke="#22d3ee" stroke-width="0.8"/>
-  <text x="932" y="377" text-anchor="middle" font-size="8" fill="#22d3ee" font-weight="500">多码率输出</text>
-  <text x="932" y="388" text-anchor="middle" font-size="7" fill="#94a3b8">1080p/720p + 封面帧提取</text>
-
-  <rect x="855" y="396" width="155" height="18" rx="3" fill="rgba(8,51,68,0.15)" stroke="#22d3ee" stroke-width="0.6" stroke-dasharray="3,2"/>
-  <text x="932" y="409" text-anchor="middle" font-size="7" fill="#64748b">CDN 分发 + 预签名下载链接</text>
-</g>
-
-<!-- 评估→输出 -->
-<line x1="932" y1="260" x2="932" y2="288" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#a-violet)"/>
-
-<!-- ================================================================ -->
-<!-- ⑦ 用户交互 & 反馈 -->
-<!-- ================================================================ -->
-<g>
-  <rect x="840" y="450" width="185" height="100" rx="8" fill="#0f172a"/>
-  <rect x="840" y="450" width="185" height="100" rx="8" fill="rgba(30,41,59,0.5)" stroke="#94a3b8" stroke-width="1.5"/>
-  <text x="932" y="472" text-anchor="middle" font-size="11" fill="#94a3b8" font-weight="700">⑦ 用户反馈</text>
-
-  <rect x="855" y="484" width="155" height="26" rx="4" fill="rgba(30,41,59,0.4)" stroke="#94a3b8" stroke-width="0.8"/>
-  <text x="932" y="502" text-anchor="middle" font-size="8" fill="#94a3b8">预览播放 + 编辑指令微调</text>
-
-  <rect x="855" y="516" width="155" height="26" rx="4" fill="rgba(30,41,59,0.4)" stroke="#94a3b8" stroke-width="0.8"/>
-  <text x="932" y="534" text-anchor="middle" font-size="8" fill="#94a3b8">"把第三秒的字幕改大一点"</text>
-</g>
-
-<!-- 输出→反馈 -->
-<line x1="932" y1="420" x2="932" y2="448" stroke="#94a3b8" stroke-width="1" marker-end="url(#a-slate)"/>
-<!-- 反馈→规划回路 -->
-<path d="M 855 500 L 800 500 Q 790 500 790 510 L 790 530 Q 790 540 780 540 L 430 540 Q 420 540 420 530 L 420 520" fill="none" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#a-slate)"/>
-<text x="620" y="536" text-anchor="middle" font-size="7" fill="#94a3b8">用户微调 → 局部 Re-Plan</text>
-
-<!-- ================================================================ -->
-<!-- 底部: 基础设施 -->
-<!-- ================================================================ -->
-<g>
-  <rect x="20" y="610" width="1005" height="55" rx="6" fill="#0f172a"/>
-  <rect x="20" y="610" width="1005" height="55" rx="6" fill="rgba(76,29,149,0.12)" stroke="#a78bfa" stroke-width="0.8"/>
-
-  <text x="68" y="635" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="600">GPU 集群</text>
-  <text x="68" y="649" text-anchor="middle" font-size="7" fill="#94a3b8">A100 推理</text>
-
-  <text x="200" y="635" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="600">对象存储</text>
-  <text x="200" y="649" text-anchor="middle" font-size="7" fill="#94a3b8">S3 / COS 素材+成品</text>
-
-  <text x="350" y="635" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="600">任务队列</text>
-  <text x="350" y="649" text-anchor="middle" font-size="7" fill="#94a3b8">Celery / BullMQ 异步编排</text>
-
-  <text x="500" y="635" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="600">消息总线</text>
-  <text x="500" y="649" text-anchor="middle" font-size="7" fill="#94a3b8">Redis Pub/Sub 进度推送</text>
-
-  <text x="640" y="635" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="600">数据库</text>
-  <text x="640" y="649" text-anchor="middle" font-size="7" fill="#94a3b8">PostgreSQL 项目元数据</text>
-
-  <text x="780" y="635" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="600">可观测</text>
-  <text x="780" y="649" text-anchor="middle" font-size="7" fill="#94a3b8">Langfuse Trace + Prometheus</text>
-
-  <text x="940" y="635" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="600">缓存</text>
-  <text x="940" y="649" text-anchor="middle" font-size="7" fill="#94a3b8">Redis 中间产物缓存</text>
-</g>
-
-<!-- 连接线到基础设施 -->
-<line x1="107" y1="380" x2="107" y2="608" stroke="#a78bfa" stroke-width="1" stroke-dasharray="3,3"/>
-<line x1="635" y1="550" x2="500" y2="608" stroke="#a78bfa" stroke-width="1" stroke-dasharray="3,3"/>
-<line x1="932" y1="550" x2="780" y2="608" stroke="#a78bfa" stroke-width="1" stroke-dasharray="3,3"/>
-
-<!-- ================================================================ -->
-<!-- LEGEND -->
-<!-- ================================================================ -->
-<g transform="translate(1060, 60)">
-  <text x="0" y="0" font-size="9" fill="#64748b" font-weight="600">LEGEND</text>
-
-  <rect x="0" y="10" width="10" height="10" rx="2" fill="rgba(8,51,68,0.4)" stroke="#22d3ee" stroke-width="1"/>
-  <text x="16" y="19" font-size="8" fill="#94a3b8">素材输入 / 输出渲染</text>
-
-  <rect x="0" y="26" width="10" height="10" rx="2" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1"/>
-  <text x="16" y="35" font-size="8" fill="#94a3b8">意图理解 (VLM + NLU)</text>
-
-  <rect x="0" y="42" width="10" height="10" rx="2" fill="rgba(251,146,60,0.3)" stroke="#fb923c" stroke-width="1"/>
-  <text x="16" y="51" font-size="8" fill="#94a3b8">Plan-and-Execute 规划</text>
-
-  <rect x="0" y="58" width="10" height="10" rx="2" fill="rgba(136,19,55,0.3)" stroke="#fb7185" stroke-width="1"/>
-  <text x="16" y="67" font-size="8" fill="#94a3b8">工具执行 (剪辑/特效/字幕)</text>
-
-  <rect x="0" y="74" width="10" height="10" rx="2" fill="rgba(76,29,149,0.3)" stroke="#a78bfa" stroke-width="1"/>
-  <text x="16" y="83" font-size="8" fill="#94a3b8">质量评估 / 基础设施</text>
-
-  <line x1="0" y1="94" x2="10" y2="94" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3,3"/>
-  <text x="16" y="97" font-size="8" fill="#94a3b8">反馈回路 (Re-Plan)</text>
-</g>
-
-<!-- ================================================================ -->
-<!-- 设计思路标注 (右侧) -->
-<!-- ================================================================ -->
-<g transform="translate(1060, 180)">
-  <text x="0" y="0" font-size="9" fill="#64748b" font-weight="600">设计思路</text>
-  <text x="0" y="16" font-size="7.5" fill="#fb923c">Plan-and-Execute vs ReAct</text>
-  <text x="0" y="28" font-size="7" fill="#94a3b8">视频剪辑需要全局规划，不适合</text>
-  <text x="0" y="39" font-size="7" fill="#94a3b8">逐步边想边做的 ReAct 模式</text>
-
-  <text x="0" y="58" font-size="7.5" fill="#fb923c">DAG vs 线性步骤</text>
-  <text x="0" y="70" font-size="7" fill="#94a3b8">调色和字幕可并行，裁剪必须</text>
-  <text x="0" y="81" font-size="7" fill="#94a3b8">先于转场 → DAG 拓扑排序</text>
-
-  <text x="0" y="100" font-size="7.5" fill="#fb923c">自愈机制</text>
-  <text x="0" y="112" font-size="7" fill="#94a3b8">FFmpeg 可能失败 → 降级策略</text>
-  <text x="0" y="123" font-size="7" fill="#94a3b8">Re-Planner 重排剩余步骤</text>
-
-  <text x="0" y="142" font-size="7.5" fill="#fb923c">工具抽象</text>
-  <text x="0" y="154" font-size="7" fill="#94a3b8">每个工具 = JSON Schema + execute()</text>
-  <text x="0" y="165" font-size="7" fill="#94a3b8">可扩展: 新增风格迁移只需</text>
-  <text x="0" y="176" font-size="7" fill="#94a3b8">注册新 Tool + Schema</text>
-</g>
-
-</svg>
-</div>
-
-<!-- Summary Cards -->
-<div class="cards">
-  <div class="card">
-    <div class="card-header"><div class="card-dot cyan"></div><h3>素材预处理</h3></div>
-    <ul>
-      <li>FFmpeg scene detect 关键帧提取</li>
-      <li>Demucs 音频三轨分离</li>
-      <li>Whisper ASR 带时间戳字幕</li>
-      <li>VLM 多模态场景打标</li>
-    </ul>
-  </div>
-  <div class="card">
-    <div class="card-header"><div class="card-dot emerald"></div><h3>意图理解</h3></div>
-    <ul>
-      <li>VLM 理解视觉内容</li>
-      <li>LLM 解析用户编辑意图</li>
-      <li>结构化输出: style/target/mood</li>
-      <li>少样本 Prompt + 输出校验</li>
-    </ul>
-  </div>
-  <div class="card">
-    <div class="card-header"><div class="card-dot orange"></div><h3>Plan-and-Execute</h3></div>
-    <ul>
-      <li>Planner 生成 DAG 编辑步骤</li>
-      <li>拓扑排序: 无依赖步骤并行</li>
-      <li>Re-Planner 自愈: 失败后重排</li>
-      <li>用户微调: 局部 Re-Plan</li>
-    </ul>
-  </div>
-  <div class="card">
-    <div class="card-header"><div class="card-dot rose"></div><h3>工具编排</h3></div>
-    <ul>
-      <li>FFmpeg 剪辑/转场/编码</li>
-      <li>字幕引擎: SRT/ASS 烧录</li>
-      <li>特效: LUT/滤镜/动态贴纸</li>
-      <li>超分 Real-ESRGAN / 插帧 RIFE</li>
-    </ul>
-  </div>
-  <div class="card">
-    <div class="card-header"><div class="card-dot violet"></div><h3>质量保障</h3></div>
-    <ul>
-      <li>CLIP 视觉连贯性检测</li>
-      <li>音画同步校验</li>
-      <li>VLM 审美评分 Gate</li>
-      <li>max_replan=2 防无限循环</li>
-    </ul>
+<div class="layout">
+<nav>
+  <div class="nav-title">目录 · CONTENTS</div>
+  <a href="#s1">1 · 需求拆解与约束</a>
+  <a href="#s2">2 · 端到端链路总览</a>
+  <a href="#s3">3 · Plan-Execute 主架构</a>
+  <a href="#s4">4 · 意图理解:结构化 Brief</a>
+  <a href="#s5">5 · 素材理解:VideoIndex</a>
+  <a href="#s6">6 · Planner:Plan 即 DAG</a>
+  <a href="#s7">7 · 执行 DAG 全景图</a>
+  <a href="#s8">8 · Executor:DAG 调度</a>
+  <a href="#s9">9 · 工具层与产物协议</a>
+  <a href="#s10">10 · Replanner 与容错</a>
+  <a href="#s11">11 · 观测、成本与扩展</a>
+  <a href="#s12">12 · 面试高频追问</a>
+</nav>
+<main>
+<div class="hero">
+  <span class="kicker">面试架构推演 · AI VIDEO EDITING AGENT</span>
+  <h1>智能剪辑 Agent:<span class="grad">Plan-Execute 架构</span>与剪辑 DAG 设计</h1>
+  <p>链路:用户上传视频素材 → Agent 理解意图 → 规划剪辑步骤 → 调用剪辑 / 特效 / 字幕工具 → 输出成品。本文以「无实际项目经验也能讲清楚」为目标,给出一套完整的架构推演:为什么选 Plan-Execute 而非纯 ReAct、Plan 如何表达为 DAG、Executor 如何调度、失败如何局部重规划,以及面试官最可能追问的 14 个问题。</p>
+  <div class="tags">
+    <span class="tag">Plan-Execute</span><span class="tag">DAG 调度</span><span class="tag">多模态理解</span><span class="tag">工具调用</span><span class="tag">Replan</span><span class="tag">Artifact 管理</span><span class="tag">Human-in-the-loop</span>
   </div>
 </div>
 
-<div class="footer">Video Editing Agent — Interview Architecture Derivation — 剪映 Agent 岗位面试参考</div>
+<section id="s1">
+  <h2><span class="num">1</span>需求拆解与约束</h2>
+  <p class="sub">面试第一步永远是先把问题定义清楚:输入输出是什么、约束是什么、难点在哪里。这一步决定了架构选型的论据。</p>
+  <div class="grid2">
+    <div class="mini">
+      <h4>输入 / 输出</h4>
+      <p><b>输入:</b>① 原始素材(一段或多段视频、图片、音频);② 自然语言意图,如「把这条 40 分钟的直播录像剪成 3 条 60 秒带货短视频,加字幕和热门 BGM」。</p>
+      <p><b>输出:</b>符合平台规格(9:16 / 16:9、码率、时长)的成片,附带可解释的「剪辑说明」(用了哪些片段、为什么选)。</p>
+    </div>
+    <div class="mini">
+      <h4>核心约束</h4>
+      <ul>
+        <li><b>确定性:</b>同一输入应得到稳定可复现的结果(工程上可重放);</li>
+        <li><b>长耗时:</b>转码/渲染是分钟级 IO+GPU 任务,不能同步阻塞;</li>
+        <li><b>可中断恢复:</b>失败后可从断点续跑,而不是整条链路重来;</li>
+        <li><b>质量兜底:</b>输出前必须有机器质检 + 可选人工确认。</li>
+      </ul>
+    </div>
+  </div>
+  <div class="mini" style="margin-top:14px">
+    <h4>难点分析(架构设计的出发点)</h4>
+    <ul>
+      <li><b>意图模糊:</b>「剪得精彩一点」没有客观标准 → 需要先把自然语言编译成结构化、可校验的剪辑需求(Creative Brief);</li>
+      <li><b>素材无结构:</b>模型无法直接「看」40 分钟视频做规划 → 需要先做素材理解,建出带时间轴的语义索引(VideoIndex);</li>
+      <li><b>步骤间有依赖:</b>字幕必须先有转写、混音必须在合成前 → 步骤天然构成 DAG,而不是线性链;</li>
+      <li><b>LLM 不擅长精确剪辑:</b>「第 12.4s 到 18.7s 切一刀」这类操作必须交给确定性工具(FFmpeg 封装),LLM 只做决策、不做执行。</li>
+    </ul>
+  </div>
+  <div class="callout">
+    <div class="co-title">面试话术</div>
+    <p>「我把这个系统拆成两个世界:<b>决策世界</b>由 LLM 负责——理解意图、选片段、定风格,这是模糊推理问题;<b>执行世界</b>由确定性工具负责——剪切、转码、烧字幕,这是精确工程问题。架构的核心就是把两个世界解耦:LLM 产出一份可校验、可重放的执行计划(DAG),执行器忠实调度工具完成它。」</p>
+  </div>
+</section>
 
+<section id="s2">
+  <h2><span class="num">2</span>端到端链路总览</h2>
+  <p class="sub">六个阶段,前两个是「感知」,中间两个是「决策」,后两个是「执行与交付」。</p>
+  <div class="flow">
+    <div class="step"><div class="t">① 素材接入</div><div class="d">上传 / 转码 / 抽帧</div></div>
+    <div class="step"><div class="t">② 意图理解</div><div class="d">NL → Creative Brief</div></div>
+    <div class="step"><div class="t">③ 素材理解</div><div class="d">建 VideoIndex</div></div>
+    <div class="step"><div class="t">④ Plan 生成</div><div class="d">LLM 产出剪辑 DAG</div></div>
+    <div class="step"><div class="t">⑤ DAG 执行</div><div class="d">调度工具 / 产物流转</div></div>
+    <div class="step"><div class="t">⑥ 质检交付</div><div class="d">QC / 导出 / 人审</div></div>
+  </div>
+  <p>其中 ②③ 是<b>可以并行启动</b>的(用户输入意图的同时后台开始分析素材),④ 依赖 ②③ 的产物,⑤ 内部是一个 DAG 的拓扑执行,⑥ 不通过则回到 ④ 触发重规划——这个「<b>执行 → 校验 → 必要时重规划</b>」的闭环,就是 Plan-Execute 模式的本体。</p>
+</section>
+<section id="s3">
+  <h2><span class="num">3</span>Plan-Execute 主架构</h2>
+  <p class="sub">选型论证:为什么不用大家最熟悉的 ReAct(边想边做),而用 Plan-Execute(先规划、后执行、可重规划)。</p>
+  <div class="card">
+    <svg viewBox="0 0 1150 340" style="width:100%;height:auto;display:block" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L8,4.5 L0,9 z" fill="#9aa0b8"/></marker>
+        <marker id="arO" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L8,4.5 L0,9 z" fill="#e8821e"/></marker>
+        <marker id="arG" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L8,4.5 L0,9 z" fill="#0ea47a"/></marker>
+      </defs>
+      <!-- main flow nodes -->
+      <g font-family="inherit">
+        <rect x="20" y="60" width="180" height="64" rx="12" fill="#f2edfd" stroke="#8b5cf6" stroke-width="1.6"/>
+        <text x="110" y="86" text-anchor="middle" font-size="13.5" font-weight="700" fill="#5b21b6">输入</text>
+        <text x="110" y="106" text-anchor="middle" font-size="11" fill="#7c6bb0">意图 Brief + VideoIndex</text>
+
+        <rect x="250" y="60" width="180" height="64" rx="12" fill="#efedfd" stroke="#5850d6" stroke-width="1.8"/>
+        <text x="340" y="86" text-anchor="middle" font-size="13.5" font-weight="700" fill="#3f39a8">Planner 规划器</text>
+        <text x="110" y="0" font-size="0">.</text>
+        <text x="340" y="106" text-anchor="middle" font-size="11" fill="#6a64b8">LLM + 约束校验 → 产出 Plan</text>
+
+        <rect x="480" y="60" width="180" height="64" rx="12" fill="#efedfd" stroke="#5850d6" stroke-width="1.8"/>
+        <text x="570" y="86" text-anchor="middle" font-size="13.5" font-weight="700" fill="#3f39a8">ExecutionPlan(DAG)</text>
+        <text x="570" y="106" text-anchor="middle" font-size="11" fill="#6a64b8">节点 = 工具调用,边 = 依赖</text>
+
+        <rect x="710" y="60" width="180" height="64" rx="12" fill="#e9f2fe" stroke="#2f7df6" stroke-width="1.8"/>
+        <text x="800" y="86" text-anchor="middle" font-size="13.5" font-weight="700" fill="#1d5fc4">Executor 执行器</text>
+        <text x="800" y="106" text-anchor="middle" font-size="11" fill="#5b84c4">拓扑排序 · 按层并发调度</text>
+
+        <rect x="940" y="60" width="180" height="64" rx="12" fill="#fdf1e3" stroke="#e8821e" stroke-width="1.8"/>
+        <text x="1030" y="86" text-anchor="middle" font-size="13.5" font-weight="700" fill="#b4630f">Verifier 结果校验</text>
+        <text x="1030" y="106" text-anchor="middle" font-size="11" fill="#c08a4a">规则 QC + VLM 打分</text>
+
+        <rect x="940" y="240" width="180" height="60" rx="12" fill="#e5f7f0" stroke="#0ea47a" stroke-width="1.8"/>
+        <text x="1030" y="266" text-anchor="middle" font-size="13.5" font-weight="700" fill="#0a7a5a">成品输出</text>
+        <text x="1030" y="285" text-anchor="middle" font-size="11" fill="#4b9c84">多规格导出 + 剪辑说明</text>
+
+        <rect x="480" y="240" width="180" height="60" rx="12" fill="#fdeaea" stroke="#e05252" stroke-width="1.6"/>
+        <text x="570" y="266" text-anchor="middle" font-size="13.5" font-weight="700" fill="#b03a3a">Replanner 重规划器</text>
+        <text x="570" y="285" text-anchor="middle" font-size="11" fill="#c07a7a">失败归因 → 局部/全局重规划</text>
+
+        <!-- dashed side boxes -->
+        <rect x="260" y="168" width="160" height="50" rx="10" fill="#ffffff" stroke="#8b5cf6" stroke-width="1.2" stroke-dasharray="5 4"/>
+        <text x="340" y="189" text-anchor="middle" font-size="12" font-weight="700" fill="#5b21b6">Human-in-the-loop</text>
+        <text x="340" y="206" text-anchor="middle" font-size="10.5" fill="#8a7cc4">Brief / Plan 确认点</text>
+
+        <rect x="710" y="240" width="180" height="60" rx="10" fill="#ffffff" stroke="#2f7df6" stroke-width="1.2" stroke-dasharray="5 4"/>
+        <text x="800" y="266" text-anchor="middle" font-size="12" font-weight="700" fill="#1d5fc4">工具层 + Artifact Store</text>
+        <text x="800" y="285" text-anchor="middle" font-size="10.5" fill="#7ba0cf">剪辑/特效/字幕工具 · 产物 · 状态</text>
+      </g>
+      <!-- edges -->
+      <g fill="none" stroke="#9aa0b8" stroke-width="1.6">
+        <path d="M200 92 L246 92" marker-end="url(#ar)"/>
+        <path d="M430 92 L476 92" marker-end="url(#ar)"/>
+        <path d="M660 92 L706 92" marker-end="url(#ar)"/>
+        <path d="M890 92 L936 92" marker-end="url(#ar)"/>
+        <path d="M1030 124 L1030 236" stroke="#0ea47a" marker-end="url(#arG)"/>
+        <path d="M1000 124 C 1000 200, 800 252, 664 266" stroke="#e8821e" marker-end="url(#arO)"/>
+        <path d="M480 262 C 340 244, 332 180, 336 128" stroke="#e8821e" marker-end="url(#arO)"/>
+      </g>
+      <g font-size="11" font-weight="700">
+        <text x="1042" y="185" fill="#0ea47a">通过</text>
+        <text x="880" y="230" fill="#e8821e">未通过 / 不达标</text>
+        <text x="196" y="252" fill="#e8821e">修正 Plan 后重入</text>
+      </g>
+      <path d="M340 124 L340 164" stroke="#8b5cf6" stroke-width="1.2" stroke-dasharray="4 4" fill="none" marker-end="url(#ar)"/>
+      <path d="M800 124 L800 236" stroke="#2f7df6" stroke-width="1.2" stroke-dasharray="4 4" fill="none" marker-end="url(#ar)"/>
+    </svg>
+    <div class="legend">
+      <span><i style="background:#8b5cf6"></i>感知输入</span>
+      <span><i style="background:#5850d6"></i>规划(决策世界 · LLM)</span>
+      <span><i style="background:#2f7df6"></i>执行(工程世界 · 确定性)</span>
+      <span><i style="background:#e8821e"></i>校验与反馈环</span>
+      <span><i style="background:#0ea47a"></i>交付</span>
+      <span><i style="background:#e05252"></i>重规划</span>
+    </div>
+  </div>
+
+  <h3>三个角色 + 一条反馈环</h3>
+  <table>
+    <tr><th style="width:140px">角色</th><th>职责</th><th style="width:320px">关键设计</th></tr>
+    <tr><td><span class="pill brand">Planner</span></td><td>读入 Creative Brief + VideoIndex,一次性产出<b>完整执行计划</b>(DAG 形式的 JSON DSL),不直接碰工具。</td><td>结构化输出(JSON Schema 强约束)+ 静态校验 + few-shot;规划失败直接拒绝并反问,不硬猜。</td></tr>
+    <tr><td><span class="pill b">Executor</span></td><td>对 DAG 做拓扑排序,按层并发调度工具,管理中间产物(Artifact)流转与节点状态。</td><td>确定性代码,不含 LLM;支持断点续跑、重试、超时、资源(GPU)配额。</td></tr>
+    <tr><td><span class="pill r">Replanner</span></td><td>消费 Executor / Verifier 的失败报告,归因后决定:<b>重试、换参局部重规划、还是全局重规划</b>。</td><td>只允许修改失败节点的下游子图,已成功的中间产物全部复用。</td></tr>
+  </table>
+
+  <div class="callout warn">
+    <div class="co-title">高频追问预埋:为什么不用纯 ReAct?</div>
+    <p>① <b>成本与延迟</b>:ReAct 每一步都要 LLM 在环,渲染类任务动辄几十步,token 与延迟不可控;Plan-Execute 只在规划和重规划时调 LLM(本链路 2~3 次)。② <b>不可并发</b>:ReAct 是串行链,而剪辑里字幕、调色、BGM 天然可并行,DAG 调度能吃掉这部分并发红利。③ <b>不可重放</b>:ReAct 轨迹是模型即兴产物,出错无法断点恢复;Plan 是显式数据,可持久化、可审计、可 diff。④ <b>难校验</b>:Plan 可以先做静态检查(依赖环、时间码越界、素材是否存在)再执行,ReAct 只能边错边改。<b>结论:感知/决策用 LLM,编排用数据(Plan),执行用代码——ReAct 退化为单个决策节点内部的可选实现。</b></p>
+  </div>
+</section>
+
+<section id="s4">
+  <h2><span class="num">4</span>意图理解:把自然语言编译成 Creative Brief</h2>
+  <p class="sub">LLM 在这一步只做一件事:信息抽取 + 槽位填充,产出结构化 Brief。缺失关键信息就反问,而不是脑补。</p>
+  <div class="grid2">
+    <div>
+      <p>用户说:「把这条直播录像剪成 3 条 60 秒抖音带货视频,节奏快一点,加字幕和热门 BGM,突出价格优惠。」</p>
+      <p>意图理解器(LLM + JSON Schema 约束解码)将其编译为右图的 <code>CreativeBrief</code>。所有「模糊词」都被落到可执行的数值槽位:「节奏快」→ <code>avg_shot_len ≤ 1.8s</code>、「突出价格」→ 高光规则中提升价格相关片段权重。</p>
+      <div class="callout">
+        <div class="co-title">设计要点</div>
+        <p>① Brief 是后续 Planner 的<b>唯一事实来源</b>,字段都有默认值与合法范围;② 设置<b>确认点</b>(Human-in-the-loop):Brief 生成后给用户看摘要,「3 条 × 60s、快节奏、带货风」,用户确认后才进入规划——廉价的一步,挡住大部分意图偏差。</p>
+      </div>
+    </div>
+    <div>
+<pre><code>{
+  <span class="k">"task"</span>: <span class="s">"highlight_recut"</span>,          <span class="c">// 任务类型:高光再剪辑</span>
+  <span class="k">"deliverables"</span>: {
+    <span class="k">"count"</span>: <span class="n">3</span>,
+    <span class="k">"duration_sec"</span>: [<span class="n">55</span>, <span class="n">65</span>],
+    <span class="k">"aspect_ratio"</span>: <span class="s">"9:16"</span>,
+    <span class="k">"platform"</span>: <span class="s">"douyin"</span>
+  },
+  <span class="k">"style"</span>: {
+    <span class="k">"pace"</span>: <span class="s">"fast"</span>,                 <span class="c">// → avg_shot_len ≤ 1.8s</span>
+    <span class="k">"tone"</span>: <span class="s">"promotional"</span>,
+    <span class="k">"subtitle"</span>: { <span class="k">"enabled"</span>: <span class="k">true</span>, <span class="k">"lang"</span>: <span class="s">"zh"</span>, <span class="k">"style"</span>: <span class="s">"karaoke_bold"</span> }
+  },
+  <span class="k">"highlight_rules"</span>: [
+    { <span class="k">"type"</span>: <span class="s">"keyword"</span>, <span class="k">"keywords"</span>: [<span class="s">"价格"</span>,<span class="s">"优惠"</span>,<span class="s">"秒杀"</span>], <span class="k">"weight"</span>: <span class="n">2.0</span> },
+    { <span class="k">"type"</span>: <span class="s">"audio_energy"</span>, <span class="k">"weight"</span>: <span class="n">1.0</span> }   <span class="c">// 主播情绪高点</span>
+  ],
+  <span class="k">"bgm"</span>: { <span class="k">"source"</span>: <span class="s">"trending_lib"</span>, <span class="k">"ducking"</span>: <span class="k">true</span> },
+  <span class="k">"constraints"</span>: { <span class="k">"max_gpu_min"</span>: <span class="n">20</span>, <span class="k">"need_human_review"</span>: <span class="k">true</span> }
+}</code></pre>
+    </div>
+  </div>
+</section>
+
+<section id="s5">
+  <h2><span class="num">5</span>素材理解:先建索引,再谈规划</h2>
+  <p class="sub">核心论点:LLM 规划时不看视频,只看 VideoIndex——一份带时间码的多模态摘要。索引的粒度决定规划的上限。</p>
+  <table>
+    <tr><th style="width:180px">分析通道</th><th>产出</th><th style="width:260px">实现选型(可讲)</th></tr>
+    <tr><td><span class="pill b">镜头分割</span></td><td>镜头表:scenes[],每镜 in/out 时间码、关键帧</td><td>直方图/深度特征边界检测(如 TransNetV2 思路)</td></tr>
+    <tr><td><span class="pill b">ASR 转写</span></td><td>带词级时间戳的 transcript,说话人分离</td><td>Whisper 系;词级对齐用于字幕断句</td></tr>
+    <tr><td><span class="pill b">画面理解</span></td><td>每镜 caption、物体/人脸/商品标签、OCR 文本</td><td>抽 1~2 帧/镜 → VLM 打标;OCR 识别价格贴片</td></tr>
+    <tr><td><span class="pill b">音频特征</span></td><td>能量曲线、情绪点、静音段、BGM 区段</td><td>响度/基频特征,规则即可,不上大模型</td></tr>
+    <tr><td><span class="pill p">语义索引</span></td><td>每镜 embedding 入向量库,支持「找出现价格表的镜头」式检索</td><td>CLIP 类图文向量 + BM25 双路</td></tr>
+  </table>
+  <div class="mini">
+    <h4>VideoIndex 的数据形态(简化)</h4>
+<pre><code>{
+  <span class="k">"asset_id"</span>: <span class="s">"live_0629.mp4"</span>, <span class="k">"duration"</span>: <span class="n">2413.6</span>, <span class="k">"fps"</span>: <span class="n">30</span>,
+  <span class="k">"scenes"</span>: [
+    { <span class="k">"sid"</span>: <span class="n">42</span>, <span class="k">"in"</span>: <span class="n">612.4</span>, <span class="k">"out"</span>: <span class="n">641.8</span>,
+      <span class="k">"caption"</span>: <span class="s">"主播举起商品展示价格牌"</span>,
+      <span class="k">"ocr"</span>: [<span class="s">"¥99 限时"</span>], <span class="k">"asr"</span>: <span class="s">"这个价格今天直播间只要九十九"</span>,
+      <span class="k">"energy"</span>: <span class="n">0.87</span>, <span class="k">"tags"</span>: [<span class="s">"product"</span>,<span class="s">"price_board"</span>] }
+  ],
+  <span class="k">"transcript"</span>: [ { <span class="k">"w"</span>: <span class="s">"这个"</span>, <span class="k">"in"</span>: <span class="n">612.40</span>, <span class="k">"out"</span>: <span class="n">612.72</span> } ]
+}</code></pre>
+  </div>
+  <div class="callout">
+    <div class="co-title">面试话术</div>
+    <p>「素材理解是<b>一次性成本、多次复用</b>:建索引花 5 分钟,但用户之后说『再来一版抒情的』时,Planner 直接复用索引重新规划,秒级出新 Plan。这就是把感知层和决策层解耦的复利。」</p>
+  </div>
+</section>
+
+<section id="s6">
+  <h2><span class="num">6</span>Planner:Plan 即 DAG</h2>
+  <p class="sub">Planner 的输出不是散文,而是一份 JSON DSL——节点是工具调用、边是数据依赖。它同时是「计划」「契约」和「可持久化的中间表示」。</p>
+  <div class="grid2">
+    <div>
+<pre><code>{
+  <span class="k">"plan_id"</span>: <span class="s">"pln_7f2a"</span>, <span class="k">"version"</span>: <span class="n">3</span>,
+  <span class="k">"nodes"</span>: [
+    { <span class="k">"id"</span>: <span class="s">"select"</span>,  <span class="k">"tool"</span>: <span class="s">"clip_selector"</span>,
+      <span class="k">"params"</span>: { <span class="k">"rules"</span>: <span class="s">"$brief.highlight_rules"</span>, <span class="k">"top_n"</span>: <span class="n">12</span> } },
+    { <span class="k">"id"</span>: <span class="s">"roughcut"</span>, <span class="k">"tool"</span>: <span class="s">"ffmpeg.concat"</span>,
+      <span class="k">"params"</span>: { <span class="k">"clips"</span>: <span class="s">"$select.output.clips"</span>, <span class="k">"max_shot"</span>: <span class="n">1.8</span> } },
+    { <span class="k">"id"</span>: <span class="s">"subtl"</span>,   <span class="k">"tool"</span>: <span class="s">"subtitle.timeline"</span>,
+      <span class="k">"params"</span>: { <span class="k">"asr"</span>: <span class="s">"$index.transcript"</span>, <span class="k">"clips"</span>: <span class="s">"$select.output.clips"</span> } },
+    { <span class="k">"id"</span>: <span class="s">"burnin"</span>,  <span class="k">"tool"</span>: <span class="s">"subtitle.burn"</span>,
+      <span class="k">"params"</span>: { <span class="k">"video"</span>: <span class="s">"$roughcut.output"</span>, <span class="k">"srt"</span>: <span class="s">"$subtl.output"</span>,
+                  <span class="k">"style"</span>: <span class="s">"$brief.style.subtitle.style"</span> } },
+    { <span class="k">"id"</span>: <span class="s">"qc"</span>,      <span class="k">"tool"</span>: <span class="s">"qc.check"</span>,
+      <span class="k">"params"</span>: { <span class="k">"video"</span>: <span class="s">"$compose.output"</span>, <span class="k">"rules"</span>: [<span class="s">"av_sync"</span>,<span class="s">"blackframe"</span>] } }
+  ],
+  <span class="k">"edges"</span>: [
+    [<span class="s">"select"</span>,<span class="s">"roughcut"</span>], [<span class="s">"select"</span>,<span class="s">"subtl"</span>],
+    [<span class="s">"roughcut"</span>,<span class="s">"burnin"</span>], [<span class="s">"subtl"</span>,<span class="s">"burnin"</span>]
+  ]
+}</code></pre>
+    </div>
+    <div>
+      <h3 style="margin-top:0">四层防护,治「LLM 输出不可靠」</h3>
+      <ul>
+        <li><b>① Schema 层:</b>JSON Schema 约束解码(function calling / guided decoding),语法层面保证可解析、字段齐全、枚举合法;</li>
+        <li><b>② 静态校验层:</b>确定性代码检查——DAG 无环(拓扑可排序)、<code>$ref</code> 引用存在、时间码不越界、工具名在注册表内、参数类型匹配;</li>
+        <li><b>③ 语义护栏层:</b>用少量规则兜底,如「成片时长必须落在 brief.duration_sec 区间」「所选片段总时长 ≥ 成片时长」;违规则打回 Planner 并附错误信息(self-correction);</li>
+        <li><b>④ 模板兜底层:</b>对高频任务(高光再剪、口播切片)预置<b>参数化 Plan 模板</b>,LLM 只填槽位——把生成问题降级为抽取问题,成功率接近 100%;自由任务才走全量生成。</li>
+      </ul>
+      <div class="callout">
+        <div class="co-title">关键认知</div>
+        <p>信任不是来自「模型很强」,而是来自「<b>错误在执行前能被拦住</b>」。静态校验不过 → 错误信息回喂 Planner 重出,最多 N 轮 → 仍不过则请求人审。这是把 LLM 放进生产系统的通用范式。</p>
+      </div>
+    </div>
+  </div>
+</section>
+<section id="s7">
+  <h2><span class="num">7</span>执行 DAG 全景图</h2>
+  <p class="sub">以「直播录像 → 3 条带货短视频」为例的完整剪辑 DAG。两条子链(画面链 / 声音链)在「终合成」汇合,质检挂在最后——这是典型的<b>分叉-汇合(fork-join)</b>结构。</p>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 1380 470" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arw" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L8,4.5 L0,9 z" fill="#9aa0b8"/></marker>
+        <marker id="arwB" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L8,4.5 L0,9 z" fill="#2f7df6"/></marker>
+        <marker id="arwG" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L8,4.5 L0,9 z" fill="#0ea47a"/></marker>
+      </defs>
+      <!-- ===== edges ===== -->
+      <g fill="none" stroke-width="1.8">
+        <path d="M180 145 C 215 130, 220 84, 250 84" stroke="#9aa0b8" marker-end="url(#arw)"/>
+        <path d="M180 195 C 215 205, 220 214, 250 214" stroke="#9aa0b8" marker-end="url(#arw)"/>
+        <path d="M420 84 L 480 84" stroke="#9aa0b8" marker-end="url(#arw)"/>
+        <path d="M350 113 C 430 165, 480 160, 565 185" stroke="#9aa0b8" marker-end="url(#arw)"/>
+        <path d="M650 84 L 710 84" stroke="#2f7df6" marker-end="url(#arwB)"/>
+        <path d="M600 113 C 670 165, 730 160, 795 185" stroke="#0ea47a" marker-end="url(#arwG)"/>
+        <path d="M420 225 C 520 268, 640 272, 780 272 L 950 272 C 1010 272, 1025 230, 1025 175 L 1025 113" stroke="#9aa0b8" marker-end="url(#arw)"/>
+        <path d="M650 214 L 710 214" stroke="#0ea47a" marker-end="url(#arwG)"/>
+        <path d="M880 84 L 940 84" stroke="#2f7df6" marker-end="url(#arwB)"/>
+        <path d="M880 214 C 980 190, 1070 130, 1170 100" stroke="#0ea47a" marker-end="url(#arwG)"/>
+        <path d="M1110 84 L 1170 84" stroke="#2f7df6" marker-end="url(#arwB)"/>
+        <path d="M1255 113 L 1255 200" stroke="#9aa0b8" marker-end="url(#arw)"/>
+        <path d="M1255 258 L 1255 345" stroke="#9aa0b8" marker-end="url(#arw)"/>
+      </g>
+      <!-- edge labels -->
+      <g font-size="10.5" fill="#8a8fa3" font-weight="600">
+        <text x="196" y="102">镜头表/标签</text>
+        <text x="192" y="232">transcript</text>
+        <text x="432" y="76">EDL 选段单</text>
+        <text x="438" y="150">情绪/节奏画像</text>
+        <text x="660" y="76">粗剪.mp4</text>
+        <text x="664" y="146">原声轨</text>
+        <text x="560" y="266">subtitle.srt</text>
+        <text x="660" y="206">bgm.mp3</text>
+        <text x="890" y="76">调色后画面</text>
+        <text x="960" y="150">mix.wav</text>
+        <text x="1120" y="76">无声成片</text>
+        <text x="1264" y="160">final_master</text>
+        <text x="1264" y="305">质检报告</text>
+      </g>
+      <!-- ===== nodes ===== -->
+      <g font-family="inherit">
+        <!-- VideoIndex -->
+        <rect x="20" y="120" width="160" height="100" rx="12" fill="#f2edfd" stroke="#8b5cf6" stroke-width="1.8"/>
+        <text x="100" y="152" text-anchor="middle" font-size="13.5" font-weight="800" fill="#5b21b6">VideoIndex</text>
+        <text x="100" y="170" text-anchor="middle" font-size="10.5" fill="#7c6bb0">素材语义索引</text>
+        <text x="100" y="188" text-anchor="middle" font-size="10" fill="#9a8fc8">镜头表 · ASR · OCR · 能量</text>
+        <text x="100" y="204" text-anchor="middle" font-size="10" fill="#9a8fc8">(感知产物,LLM 的输入)</text>
+        <!-- N1 -->
+        <rect x="250" y="55" width="170" height="58" rx="12" fill="#efedfd" stroke="#5850d6" stroke-width="1.8"/>
+        <text x="335" y="80" text-anchor="middle" font-size="13.5" font-weight="800" fill="#3f39a8">N1 高光片段选择</text>
+        <text x="335" y="99" text-anchor="middle" font-size="10.5" fill="#6a64b8">LLM 打分 + 规则 → EDL</text>
+        <!-- N3 -->
+        <rect x="250" y="185" width="170" height="58" rx="12" fill="#efedfd" stroke="#5850d6" stroke-width="1.8"/>
+        <text x="335" y="210" text-anchor="middle" font-size="13.5" font-weight="800" fill="#3f39a8">N3 字幕时间轴</text>
+        <text x="335" y="229" text-anchor="middle" font-size="10.5" fill="#6a64b8">词级对齐 · 断句 · 生成 SRT</text>
+        <!-- N2 -->
+        <rect x="480" y="55" width="170" height="58" rx="12" fill="#e9f2fe" stroke="#2f7df6" stroke-width="1.8"/>
+        <text x="565" y="80" text-anchor="middle" font-size="13.5" font-weight="800" fill="#1d5fc4">N2 粗剪拼接</text>
+        <text x="565" y="99" text-anchor="middle" font-size="10.5" fill="#5b84c4">cut / concat · 去静音</text>
+        <!-- N5 -->
+        <rect x="480" y="185" width="170" height="58" rx="12" fill="#e5f7f0" stroke="#0ea47a" stroke-width="1.8"/>
+        <text x="565" y="210" text-anchor="middle" font-size="13.5" font-weight="800" fill="#0a7a5a">N5 BGM 匹配</text>
+        <text x="565" y="229" text-anchor="middle" font-size="10.5" fill="#4b9c84">情绪/节奏检索曲库</text>
+        <!-- N7 -->
+        <rect x="710" y="55" width="170" height="58" rx="12" fill="#e9f2fe" stroke="#2f7df6" stroke-width="1.8"/>
+        <text x="795" y="80" text-anchor="middle" font-size="13.5" font-weight="800" fill="#1d5fc4">N7 调色 · 转场特效</text>
+        <text x="795" y="99" text-anchor="middle" font-size="10.5" fill="#5b84c4">LUT / filter / transition</text>
+        <!-- N6 -->
+        <rect x="710" y="185" width="170" height="58" rx="12" fill="#e5f7f0" stroke="#0ea47a" stroke-width="1.8"/>
+        <text x="795" y="210" text-anchor="middle" font-size="13.5" font-weight="800" fill="#0a7a5a">N6 混音 · 响度</text>
+        <text x="795" y="229" text-anchor="middle" font-size="10.5" fill="#4b9c84">ducking · 归一 -14 LUFS</text>
+        <!-- N4 -->
+        <rect x="940" y="55" width="170" height="58" rx="12" fill="#e9f2fe" stroke="#2f7df6" stroke-width="1.8"/>
+        <text x="1025" y="80" text-anchor="middle" font-size="13.5" font-weight="800" fill="#1d5fc4">N4 字幕烧录</text>
+        <text x="1025" y="99" text-anchor="middle" font-size="10.5" fill="#5b84c4">样式渲染 burn-in</text>
+        <!-- N9 -->
+        <rect x="1170" y="55" width="170" height="58" rx="12" fill="#fdf1e3" stroke="#e8821e" stroke-width="1.8"/>
+        <text x="1255" y="80" text-anchor="middle" font-size="13.5" font-weight="800" fill="#b4630f">N9 终合成</text>
+        <text x="1255" y="99" text-anchor="middle" font-size="10.5" fill="#c08a4a">画面 + 混音合流</text>
+        <!-- N10 -->
+        <rect x="1170" y="200" width="170" height="58" rx="12" fill="#fdeaea" stroke="#e05252" stroke-width="1.8"/>
+        <text x="1255" y="225" text-anchor="middle" font-size="13.5" font-weight="800" fill="#b03a3a">N10 智能质检</text>
+        <text x="1255" y="244" text-anchor="middle" font-size="10.5" fill="#c07a7a">黑帧/音画同步/VLM 评分</text>
+        <!-- N11 -->
+        <rect x="1170" y="345" width="170" height="58" rx="12" fill="#fdf1e3" stroke="#e8821e" stroke-width="1.8"/>
+        <text x="1255" y="370" text-anchor="middle" font-size="13.5" font-weight="800" fill="#b4630f">N11 多规格导出</text>
+        <text x="1255" y="389" text-anchor="middle" font-size="10.5" fill="#c08a4a">9:16 / 16:9 · 分码率</text>
+      </g>
+    </svg>
+    <div class="legend">
+      <span><i style="background:#8b5cf6"></i>感知产物</span>
+      <span><i style="background:#5850d6"></i>决策节点(LLM 参与)</span>
+      <span><i style="background:#2f7df6"></i>画面链(确定性工具)</span>
+      <span><i style="background:#0ea47a"></i>声音链(确定性工具)</span>
+      <span><i style="background:#e8821e"></i>合成 / 交付</span>
+      <span><i style="background:#e05252"></i>质检(可触发 Replan)</span>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="mini">
+      <h4>拓扑分层(Executor 的并发依据)</h4>
+      <table style="margin:8px 0 0">
+        <tr><th>层</th><th>节点</th><th>说明</th></tr>
+        <tr><td>L1</td><td>N1 高光选择 ∥ N3 字幕时间轴</td><td>互不依赖,并行启动</td></tr>
+        <tr><td>L2</td><td>N2 粗剪 ∥ N5 BGM 匹配</td><td>N2 等 N1;N5 等 N1</td></tr>
+        <tr><td>L3</td><td>N7 调色 ∥ N6 混音</td><td>N6 等 N2+N5</td></tr>
+        <tr><td>L4</td><td>N4 字幕烧录</td><td>等 N7+N3(汇合点)</td></tr>
+        <tr><td>L5~L7</td><td>N9 合成 → N10 质检 → N11 导出</td><td>串行收尾</td></tr>
+      </table>
+    </div>
+    <div class="mini">
+      <h4>这张图能讲出的三个加分点</h4>
+      <ul>
+        <li><b>汇合点设计:</b>N4、N9 是 fork-join 的 join 点,Executor 必须支持「多入边全部就绪才触发」——不是简单队列能搞定的;</li>
+        <li><b>关键路径:</b>N1→N2→N7→N4→N9→N10→N11,约占总时长 85%;声音链是非关键路径,调度器可让 GPU 优先供给关键路径节点;</li>
+        <li><b>重规划局部性:</b>若 N10 报「字幕样式溢出」,只需重跑 N4 子树(N4→N9→N10),N2/N7 的产物直接复用——省 70% 重算。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="s8">
+  <h2><span class="num">8</span>Executor:DAG 调度器</h2>
+  <p class="sub">Executor 是确定性代码,不含模型。核心循环:找就绪节点 → 派发执行 → 落产物 → 推进状态 → 失败转 Replan。</p>
+<pre><code><span class="k">class</span> DagExecutor:
+    <span class="k">def</span> run(plan):
+        state = PlanState.load(plan.plan_id)          <span class="c"># 断点恢复:已 SUCCESS 的节点直接跳过</span>
+        <span class="k">while</span> not state.all_terminal():
+            ready = topo_ready_nodes(plan, state)      <span class="c"># 入边全部 SUCCESS 的 PENDING 节点</span>
+            <span class="k">for</span> node <span class="k">in</span> schedule(ready, key=critical_path_first):  <span class="c"># 关键路径优先 + GPU 配额</span>
+                <span class="k">if</span> node.id <span class="k">in</span> plan.human_gates:       <span class="c"># 人审节点:挂起等确认(如粗剪确认)</span>
+                    state.mark(node, WAITING_HUMAN); <span class="k">continue</span>
+                submit(node, to=tool_router(node))     <span class="c"># 按工具类型路由到 CPU/GPU/LLM 队列</span>
+            ev = event_queue.poll(timeout=HEARTBEAT)   <span class="c"># 事件驱动:完成/失败/进度</span>
+            <span class="k">if</span> ev.type == SUCCESS:
+                artifact_store.put(ev.node_id, ev.output_uri, meta=ev.meta)  <span class="c"># 产物注册(含血缘)</span>
+                state.mark(ev.node_id, SUCCESS)
+            <span class="k">elif</span> ev.type == FAILED:
+                policy = retry_policy(ev.error)        <span class="c"># 瞬时错误:指数退避重试 ≤3 次</span>
+                <span class="k">if</span> policy.exhausted:
+                    report = FailureReport(ev.node_id, ev.error, trace=state.trace)
+                    <span class="k">return</span> replanner.handle(report)  <span class="c"># 移交重规划器,附完整上下文</span>
+            <span class="k">elif</span> ev.type == TIMEOUT:
+                cancel(ev.node_id); <span class="k">return</span> replanner.handle(timeout_report(ev))
+        <span class="k">return</span> artifact_store.get(plan.sink_node)</code></pre>
+  <div class="grid3">
+    <div class="mini"><h4>幂等与重放</h4><p>每个节点的输出路径由 <code>hash(plan_id, node_id, params)</code> 决定:同参数重跑直接命中缓存产物,天然支持断点续跑与「换参数重规划」的差异化复用。</p></div>
+    <div class="mini"><h4>资源调度</h4><p>渲染/烧录是 GPU 任务,转写/LLM 是 API 任务,调度器按队列分类限速;长任务用心跳 + 检查点,进程崩溃后可从最近检查点恢复。</p></div>
+    <div class="mini"><h4>事件溯源</h4><p>所有状态迁移写事件流(Kafka / 本地 WAL),Plan 的当前状态是事件重放的结果——审计、回放、埋点统计(哪类节点最爱失败)都来自它。</p></div>
+  </div>
+</section>
+
+<section id="s9">
+  <h2><span class="num">9</span>工具层与产物协议</h2>
+  <p class="sub">工具层的两条铁律:<b>工具不读文件路径之外的「隐式状态」</b>、<b>一切输入输出都是注册的 Artifact</b>。这样 DAG 才可在任意机器上重放。</p>
+  <div class="grid2">
+    <div>
+      <h3 style="margin-top:0">统一工具协议(Tool Contract)</h3>
+<pre><code>{
+  <span class="k">"tool"</span>: <span class="s">"subtitle.burn"</span>,
+  <span class="k">"schema"</span>: { <span class="k">"in"</span>: { <span class="k">"video"</span>: <span class="s">"artifact:video"</span>, <span class="k">"srt"</span>: <span class="s">"artifact:text"</span>, <span class="k">"style"</span>: <span class="s">"enum"</span> },
+              <span class="k">"out"</span>: { <span class="k">"video"</span>: <span class="s">"artifact:video"</span> } },
+  <span class="k">"runtime"</span>: { <span class="k">"queue"</span>: <span class="s">"gpu"</span>, <span class="k">"timeout"</span>: <span class="n">600</span>, <span class="k">"idempotent"</span>: <span class="k">true</span> },
+  <span class="k">"impl"</span>: <span class="s">"ffmpeg -i {video} -vf subtitles={srt}:force_style=... "</span>
+}</code></pre>
+      <p>Planner 只能引用注册表内的工具与字段;Executor 在执行前把 <code>$ref</code> 解析为真实产物 URI。<b>工具对 LLM 是黑盒 API,对工程是确定性函数</b>。</p>
+    </div>
+    <div>
+      <h3 style="margin-top:0">工具注册表(示例裁剪)</h3>
+      <table>
+        <tr><th>工具</th><th>类型</th><th>队列</th></tr>
+        <tr><td><code>ffmpeg.cut / concat / compose</code></td><td><span class="pill b">画面</span></td><td>CPU/GPU</td></tr>
+        <tr><td><code>effect.lut / transition / sticker</code></td><td><span class="pill b">画面</span></td><td>GPU</td></tr>
+        <tr><td><code>subtitle.timeline / burn</code></td><td><span class="pill brand">字幕</span></td><td>CPU</td></tr>
+        <tr><td><code>audio.mix / loudnorm</code></td><td><span class="pill g">声音</span></td><td>CPU</td></tr>
+        <tr><td><code>clip_selector / bgm_search</code></td><td><span class="pill p">决策</span></td><td>LLM/检索</td></tr>
+        <tr><td><code>qc.check(规则+ VLM)</code></td><td><span class="pill r">质检</span></td><td>混合</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="callout">
+    <div class="co-title">Artifact Store 的血缘价值</div>
+    <p>每个产物记录 <code>{由哪个节点、哪个 plan 版本、什么参数、哪些上游产物}</code> 生成。收益:① 重规划时精准判断哪些产物可复用;② 成片可追溯——「这条字幕为什么错了」能一路追到 ASR 的原始转写;③ 质检报告与成片版本绑定,支撑线上质量看板。</p>
+  </div>
+</section>
+<section id="s10">
+  <h2><span class="num">10</span>Replanner:失败归因与局部重规划</h2>
+  <p class="sub">Plan-Execute 的灵魂在「Re」。不是所有失败都值得惊动 LLM——先按失败类型分级,能工程解决的不上模型。</p>
+  <table>
+    <tr><th style="width:170px">失败类型</th><th>例子</th><th>策略</th><th style="width:200px">重跑范围</th></tr>
+    <tr><td><span class="pill b">瞬时错误</span></td><td>网络抖动、GPU OOM 偶发、限流</td><td>指数退避重试(≤3 次),不改动 Plan</td><td>单节点</td></tr>
+    <tr><td><span class="pill brand">参数错误</span></td><td>字号过大导致字幕溢出、转场时长超过相邻镜头</td><td>Replanner 只调失败节点参数(规则或 LLM 小改)</td><td>失败节点 + 下游子图</td></tr>
+    <tr><td><span class="pill o">结构错误</span></td><td>QC 连续不通过:选段与 Brief 目标不符、混音盖过人声</td><td>LLM 重新生成<b>受影响子图</b>(如重选 BGM、重选片段),上游产物复用</td><td>子图替换</td></tr>
+    <tr><td><span class="pill r">需求冲突</span></td><td>素材只有 50s 有效内容却要剪 60s、素材与意图不匹配</td><td>全局重规划或升级人审,附「冲突说明」让用户改 Brief</td><td>整 Plan / 回到用户</td></tr>
+  </table>
+  <div class="grid2">
+    <div class="mini">
+      <h4>子图替换怎么做到「只重跑必要的」</h4>
+      <p>① 由失败节点沿出边求<b>受影响闭包</b>;② 闭包内节点标记 STALE,产物作废;③ 闭包外的 SUCCESS 产物全部保留;④ Replanner 生成的新子图做<b>接口对齐校验</b>(输入类型/时间基准必须与原图一致)后缝合进原 Plan,<code>version + 1</code> 重入 Executor。</p>
+    </div>
+    <div class="mini">
+      <h4>防死循环</h4>
+      <p>给每个 Plan 设 <code>replan_budget</code>(如 ≤3 次、重算成本 ≤ 原始 50%);预算耗尽或同一节点失败两次即升级人审。<b>止损本身就是一种架构能力</b>——线上系统不能允许 Agent 无限自我纠正。</p>
+    </div>
+  </div>
+</section>
+
+<section id="s11">
+  <h2><span class="num">11</span>观测、成本与扩展</h2>
+  <div class="grid3">
+    <div class="mini">
+      <h4>成本控制</h4>
+      <ul>
+        <li>LLM 调用仅 2~3 次/任务:Brief 抽取、Plan 生成、(可选)Replan——<b>感知全部用小模型/规则</b>;</li>
+        <li>模型分级:Brief/校验用 7B 级,Plan 生成用旗舰模型;</li>
+        <li>产物缓存:同素材 + 同参数命中 Artifact 缓存,二次创作(换风格)零重渲染成本只发生在差异子图。</li>
+      </ul>
+    </div>
+    <div class="mini">
+      <h4>质量评估(怎么知道剪得好)</h4>
+      <ul>
+        <li><b>规则 QC:</b>音画同步漂移、黑帧/静帧、响度、时长合规、字幕越界;</li>
+        <li><b>模型 QC:</b>VLM 抽帧打分(构图、字幕可读性)、ASR 回检成片音轨;</li>
+        <li><b>业务指标:</b>一次通过率(first-pass yield)、平均 Replan 次数、人审修改率——这些就是面试里该报的「北极星」。</li>
+      </ul>
+    </div>
+    <div class="mini">
+      <h4>向多 Agent 演进</h4>
+      <ul>
+        <li>按工种拆:<b>编导 Agent</b>(Brief+选段)、<b>剪辑 Agent</b>(画面链)、<b>包装 Agent</b>(字幕/特效)、<b>审片 Agent</b>(QC);</li>
+        <li>单 Agent 的 Planner 退化为「总编导」,各工种 Agent 持有自己的子 DAG;</li>
+        <li>但<b>协议不变</b>:Agent 间仍用 Plan/Artifact 通信——先单机跑通,再拆服务。</li>
+      </ul>
+    </div>
+  </div>
+  <div class="callout">
+    <div class="co-title">面试收尾话术(30 秒总结)</div>
+    <p>「这套设计的本质是<b>分层解耦</b>:感知层把视频变成数据(VideoIndex),决策层把意图变成计划(CreativeBrief → Plan/DAG),执行层把计划变成产物(Executor + 工具协议),反馈层把产物质量变回计划修正(Verifier → Replanner)。LLM 只出现在它擅长的模糊推理位置,一切确定性的东西都交给代码——所以它可重放、可断点恢复、可局部重规划,也能讲清楚每一分钱花在哪儿。」</p>
+  </div>
+</section>
+
+<section id="s12">
+  <h2><span class="num">12</span>面试高频追问 Q&A</h2>
+  <p class="sub">点击展开。每一条都按「先结论、再给机制、最后给数字感」的方式回答。</p>
+
+  <details open>
+    <summary>什么场景下 ReAct 搞不定、必须用 Plan-Execute?你的项目为什么选 ReAct?</summary>
+    <div class="a-body">
+      <p><b>答题关键:不要踩一捧一,证明你理解两者的适用边界——选哪个都有论据。</b>一句话分界:当任务「步骤多、可并行、失败代价高、要求可复现」时,ReAct 的四个基因缺陷会同时爆发。</p>
+      <table>
+        <tr><th style="width:150px">场景特征</th><th>ReAct 为什么崩</th><th style="width:300px">剪辑链路的对应点</th></tr>
+        <tr><td><b>长程任务</b>(几十步+)</td><td>上下文越堆越长,早期决策被挤出窗口,后期动作漂移;每步一次 LLM 调用,token 与延迟线性爆炸</td><td>剪辑链路 10+ 节点,ReAct 要 30~50 次模型调用,Plan-Execute 只要 2~3 次</td></tr>
+        <tr><td><b>步骤可并行</b></td><td>严格串行的 thought→action→observation 链,物理上无法表达「字幕和调色同时做」</td><td>字幕时间轴、BGM、调色互不依赖,串行白扔 40% 延迟</td></tr>
+        <tr><td><b>失败代价高</b></td><td>轨迹是模型即兴产物,第 20 步挂了无法「只重跑 18~20 步」,只能整条重来</td><td>烧字幕样式错了只需重跑 N4 子树;重放轨迹 = 全片重渲</td></tr>
+        <tr><td><b>执行前需校验</b></td><td>边做边错边改,没有「整体计划」可供静态检查</td><td>Plan 可先查依赖环、时间码越界、工具是否存在</td></tr>
+      </table>
+      <p>本质差异:<b>ReAct 的计划是隐式的(藏在模型脑子里),Plan-Execute 的计划是显式的(可持久化、可 diff、可审计的数据)</b>。</p>
+      <p><b>而我的对话式 Agent 平台选 ReAct,是用同一把尺子量出来的</b>:① 对话是<b>短视域任务</b>,3~8 步收敛,上下文压力到不了临界点;② <b>强交互弱结构</b>,用户每轮都可能改方向,ReAct 每步可被打断纠偏,Plan-Execute 改需求等于作废整份 Plan;③ <b>延迟敏感</b>,ReAct 首步动作一个 RTT 就出去,流式 thought 还能当加载动画;④ 对话任务下一步依赖上一步观察,<b>本来就是串行数据依赖</b>,DAG 调度没有并行红利可吃。</p>
+      <p><b>收口</b>:「ReAct 和 Plan-Execute 不是替代关系,是任务时域的分界:交互式、短程、探索性任务用 ReAct;批处理式、长程、结构化任务用 Plan-Execute。成熟系统里两者嵌套——我的对话平台遇到重度任务(如一键生成网页)时,也是把重活摘出来走预定义 workflow,而不是硬让 ReAct 跑五十轮。」</p>
+    </div>
+  </details>
+  <details>
+    <summary>用户说「剪成 30s 短片并加字幕」,Agent 怎么规划?失败一步怎么局部重试?</summary>
+    <div class="a-body">
+      <p><b>① 意图编译:</b>LLM 做槽位填充产出 Brief(duration ∈ [28,32]s、subtitle=on)。<b>加分点:缺槽不脑补</b>——「30s 从 40 分钟里选什么内容?什么比例?」要么走默认高光策略,要么反问一句,Agent 要知道什么时候不该自作主张。</p>
+      <p><b>② 生成 Plan:</b>基于已建好的 VideoIndex(一次性成本)产出 DAG——N1 高光选段(产出 EDL,约束总时长 28~32s)∥ N2 字幕时间轴(词级 transcript 断句出 SRT)→ N3 粗剪等 N1、N4 字幕烧录等 N2+N3(汇合点)→ N5 质检(音画同步/时长/字幕越界)→ N6 导出。</p>
+      <p><b>③ 局部重试(题眼,按失败类型分四层,最忌讳一句「重新跑一遍」):</b></p>
+      <ul>
+        <li><b>L1 瞬时错误(FFmpeg OOM、上传超时):</b>指数退避重试 ≤3 次,节点幂等(输出路径 = hash(plan_id, node_id, params))重跑无脏数据——<b>完全不惊动 LLM</b>;</li>
+        <li><b>L2 参数错误(字幕超出安全框):</b>Replanner 只改 N4 参数(字号/每行字数),N4→N5→N6 标记 STALE 重跑,N1/N2/N3 产物全部复用,重算成本仅 ~30%;</li>
+        <li><b>L3 结构错误(成片只有 24s 不达标):</b>沿 N1 出边求<b>受影响闭包</b>(含 N2,选段变了 SRT 也要重算)→ 闭包外产物保留 → LLM 重新生成选段子图(放宽阈值/补次优片段)→ <b>接口对齐校验</b>后缝合,plan.version+1 重入 Executor;</li>
+        <li><b>L4 需求冲突(素材有效内容仅 20s):</b>重试解决不了,附冲突说明回到用户:「建议放宽到 20s,或允许循环/慢放补时长」。</li>
+      </ul>
+      <p><b>兜底:</b>replan_budget(重规划 ≤3 次、重算成本 ≤ 原始 50%),同一节点失败两次升级人审。<b>收口:「局部重试的本质是——Plan 是数据、产物有血缘、失败可归因,所以系统能精确算出最小重跑集合;四层策略只有 L3 需要 LLM,其余全是确定性工程,这就是成本和稳定性的来源。」</b></p>
+    </div>
+  </details>
+  <details>
+    <summary>如果素材理解错了(比如 ASR 转错、镜头分错),下游不是全错了吗?</summary>
+    <div class="a-body">
+      <p>会,所以感知层要有<b>置信度</b>:每条 transcript、每个镜头边界都带 score。Planner 在高光选择时对低置信片段降权;QC 阶段用「成片音轨回检 ASR」与索引交叉验证,不一致则触发感知层局部重建(只重跑对应时间段的分析)。另外关键设计是<b>索引可增量更新</b>:重跑某段 ASR 不影响其它镜头。</p>
+    </div>
+  </details>
+  <details>
+    <summary>LLM 生成 Plan 时幻觉了一个不存在的工具怎么办?</summary>
+    <div class="a-body">
+      <p>三层拦截:① 约束解码时工具名走枚举,语法层面就生成不出表外工具;② 静态校验查注册表,命中幻觉工具则把「可用工具清单 + 错误信息」回喂重出;③ 高频任务走参数化模板,LLM 只填槽不选工具。真正兜底的是:<b>Plan 不过静态校验就不允许执行</b>,幻觉只能造成重试,不能造成事故。</p>
+    </div>
+  </details>
+  <details>
+    <summary>用户中途改需求(「不要 3 条了,要 1 条 3 分钟的」)怎么处理?</summary>
+    <div class="a-body">
+      <p>把「改需求」建模为 Brief 的 diff,而不是新任务:① Brief diff → 受影响的 Plan 节点集合(如选段数量、时长约束变了 → select 节点参数变);② 未受影响的产物(素材索引、已完成与 diff 无关的节点)全部复用;③ 等价于一次「用户触发的局部重规划」。这也是为什么 Plan 必须是显式数据——diff 一个 DAG 远比 diff 一段 ReAct 轨迹容易。</p>
+    </div>
+  </details>
+  <details>
+    <summary>执行时间这么长(分钟级),用户就干等着吗?</summary>
+    <div class="a-body">
+      <p>① 全异步:提交即返回 plan_id,前端轮询/WebSocket 推节点进度(DAG 图本身就是最好的进度可视化——直接复用第 7 节那张图染状态色);② 分级交付:先出低码率预览版(快编管线,30s 内),确认后再跑高质量渲染;③ 人审节点(粗剪确认)天然打断等待,把等待变成交互。</p>
+    </div>
+  </details>
+  <details>
+    <summary>并发度怎么控制?100 个用户同时提交呢?</summary>
+    <div class="a-body">
+      <p>Executor 不直接执行,只向<b>分类队列</b>(CPU / GPU / LLM-API)投递,各队列按 worker 池和消费速率限流;单 Plan 内并发度由拓扑分层决定(本例最多 2 路),再叠加租户级配额防止单用户打爆 GPU 池。优先级用「关键路径优先 + 预览版插队」,避免短任务被长任务饿死。</p>
+    </div>
+  </details>
+  <details>
+    <summary>「精彩片段选择」这种主观决策,怎么保证质量?</summary>
+    <div class="a-body">
+      <p>不承认它纯主观,把它拆成<b>可量化的代理信号加权</b>:关键词命中(价格/卖点)、音频能量峰值、语速变化、画面运动幅度、VLM 构图分。LLM 的角色是「根据 Brief 调权重 + 从 top-N 候选里做最终取舍并给出理由」。同时保留人审点和 A/B:线上用点击率/完播率回流校准权重——这是推荐系统的思路搬到剪辑上。</p>
+    </div>
+  </details>
+  <details>
+    <summary>为什么 QC 要同时用规则和 VLM?只用一个不行吗?</summary>
+    <div class="a-body">
+      <p>两类错误正交:规则擅长<b>客观硬伤</b>(音画漂移 300ms、响度超标、黑帧)——便宜、确定、可解释,但不理解「美」;VLM 擅长<b>语义问题</b>(字幕压住人脸、构图歪斜、贴纸违和)——但有幻觉、成本高。所以规则做硬门禁(不通过必 Replan),VLM 做软评分(低于阈值触发人审)。成本上,VLM 只抽关键帧而非全片。</p>
+    </div>
+  </details>
+  <details>
+    <summary>这套架构里最有风险的地方是什么?(压力题)</summary>
+    <div class="a-body">
+      <p>讲真话说两个:① <b>Planner 的 Plan 质量</b>——它决定了 DAG 结构本身对不对,缓解手段是模板兜底 + 静态校验 + 人审门禁,但「创意好不好」仍依赖模型能力,所以要留人审;② <b>索引粒度与成本的矛盾</b>——镜头级索引够不够用、要不要秒级/帧级,直接决定感知成本翻倍与否,工程上按任务类型分级建索引(快剪用粗索引,精剪再补细粒度)。承认边界、给出权衡,比声称「都能解决」更像做过系统的人。</p>
+    </div>
+  </details>
+  <details>
+    <summary>和直接调一个「视频生成大模型」端到端出片相比,优势是什么?</summary>
+    <div class="a-body">
+      <p>① <b>可控可编辑</b>:每个中间产物可单独替换(换 BGM 不用重生成全片);② <b>保真</b>:素材是用户真实内容,不能允许生成模型「重画」商品和口型——剪辑是组合问题不是生成问题;③ <b>成本</b>:端到端视频生成按时长计费,成本高 1~2 个数量级;④ <b>可审计</b>:每个决策有迹可循。生成模型在本架构里的正确位置是<b>工具层的一员</b>(如生成转场动画、补帧),而不是取代管线。</p>
+    </div>
+  </details>
+  <details>
+    <summary>Plan 存哪里?长任务做到一半服务重启怎么办?</summary>
+    <div class="a-body">
+      <p>Plan(JSON)+ 事件流持久化到存储(MySQL/对象存储),节点状态由事件溯源重建;Worker 崩溃后,心跳超时的节点重新入队,幂等产物路径保证重跑不产生脏数据;调度器重启时 replay 事件流恢复全部在途 Plan 状态。<b>核心思想:内存里没有不可丢失的东西</b>。</p>
+    </div>
+  </details>
+  <details>
+    <summary>没有真实项目,怎么让面试官相信你能落地?</summary>
+    <div class="a-body">
+      <p>① 讲<b>取舍</b>不讲名词:为什么 Plan-Execute 而不是 ReAct、为什么索引先行、为什么 LLM 不进执行路径——每个选择都有被否决的备选方案;② 讲<b>失败模式</b>:幻觉工具、时长冲突、子图重跑、防死循环——没踩过坑的人讲不出失败清单;③ 讲<b>数字感</b>:LLM 调用次数、关键路径占比、缓存命中率、replan 预算;④ 主动给演示:现场画出第 7 节那张 DAG,然后指着图讲 fork-join 和局部重规划。</p>
+    </div>
+  </details>
+</section>
+
+<footer>
+  智能剪辑 Agent 架构推演 · Plan-Execute + DAG · 面试自用稿<br>
+  核心公式:感知层建索引 → 决策层出 Plan → 执行层跑 DAG → 反馈层做 Replan
+</footer>
+</main>
+</div>
+<script>
+// 目录高亮
+const links=[...document.querySelectorAll('nav a')];
+const secs=links.map(a=>document.querySelector(a.getAttribute('href')));
+const io=new IntersectionObserver(es=>{
+  es.forEach(e=>{ if(e.isIntersecting){
+    links.forEach(l=>l.classList.toggle('active', l.getAttribute('href')==='#'+e.target.id));
+  }});
+},{rootMargin:'-20% 0px -70% 0px'});
+secs.forEach(s=>s&&io.observe(s));
+</script>
 </body>
 </html>
