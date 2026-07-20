@@ -11,6 +11,11 @@ from typing import Any
 from openai.types.chat import ChatCompletionMessageFunctionToolCall
 from toolz import get
 
+from app.agents.tool_batch_planner import plan_tool_batch_segments
+from app.agents.tool_call_guardrail import (
+    GuardrailDecisionKind,
+    ToolCallGuardrail,
+)
 from app.agents.utils import TavilyResultProcessor
 from app.agents.utils.shell_result_processor import build_shell_display_items
 from app.core.config import settings
@@ -27,6 +32,7 @@ from app.mcp.constants import (
     TAVILY_SERVER,
     WEB_PAGES_EXTRACT_BARE,
 )
+from app.mcp.errors import ToolArgumentValidationError
 from app.mcp.tool_naming import is_llm_tool
 from app.schemas.llm import ToolResultMessage
 from app.utils.common import normalize_url
@@ -60,6 +66,7 @@ class ToolExecutor:
         )
         self.token_calculator = TokenCalculator(model_name, context_limit)
         self.token_threshold: int = self.token_calculator.get_compression_threshold(0.5)
+        self.guardrail = ToolCallGuardrail()
 
     def reset_for_request(
         self,
@@ -70,6 +77,7 @@ class ToolExecutor:
         self.current_user_message = user_message
         self.current_user_id = user_id
         self.current_conversation_id = conversation_id
+        self.guardrail.reset()
 
         # Set contextvars for tools to access
         set_request_context(user_id=user_id, conversation_id=conversation_id)
@@ -84,56 +92,64 @@ class ToolExecutor:
         on_urls_extracted: Callable[[set[str]], None],
     ) -> list[ToolResultMessage]:
         active_calls = [tc for tc in tool_calls if tc is not None]
-        tasks = [
-            asyncio.ensure_future(
-                self.execute_single_tool(
-                    tool_call=tool_call,
-                    current_iteration=current_iteration,
-                    extracted_urls=extracted_urls,
-                    on_arguments_recorded=on_arguments_recorded,
-                    on_urls_extracted=on_urls_extracted,
-                )
-            )
-            for tool_call in active_calls
-        ]
+        segments = plan_tool_batch_segments(active_calls)
+        results_by_id: dict[str, ToolResultMessage] = {}
+        timeout_content = (
+            f"⏱️ 工具调用整体超时（超过 {self.OVERALL_TIMEOUT_SECONDS} 秒）"
+        )
+
+        async def _run_all_segments() -> None:
+            for segment in segments:
+                if self.guardrail.halted:
+                    for tool_call in segment:
+                        results_by_id[tool_call.id] = ToolResultMessage(
+                            role="tool",
+                            is_error=True,
+                            content=self.guardrail.synthetic_halt_message(
+                                tool_call.function.name
+                            ),
+                            tool_call_id=tool_call.id,
+                        )
+                    continue
+
+                tasks = [
+                    asyncio.ensure_future(
+                        self.execute_single_tool(
+                            tool_call=tool_call,
+                            current_iteration=current_iteration,
+                            extracted_urls=extracted_urls,
+                            on_arguments_recorded=on_arguments_recorded,
+                            on_urls_extracted=on_urls_extracted,
+                        )
+                    )
+                    for tool_call in segment
+                ]
+                segment_results = list(await asyncio.gather(*tasks))
+                for tool_call, result in zip(segment, segment_results, strict=True):
+                    results_by_id[tool_call.id] = result
+
         try:
-            return list(
-                await asyncio.wait_for(
-                    asyncio.gather(*tasks),
-                    timeout=self.OVERALL_TIMEOUT_SECONDS,
-                )
+            await asyncio.wait_for(
+                _run_all_segments(),
+                timeout=self.OVERALL_TIMEOUT_SECONDS,
             )
         except asyncio.TimeoutError:
             logger.warning(
                 "Parallel tool execution overall timeout",
                 timeout=self.OVERALL_TIMEOUT_SECONDS,
-                total_calls=len(tasks),
+                total_calls=len(active_calls),
                 iteration=current_iteration + 1,
             )
-            for task in tasks:
-                if not task.done():
-                    task.cancel()
-            # 等待取消落地，避免 done()/cancelled() 竞态
-            await asyncio.gather(*tasks, return_exceptions=True)
-
-            # 按 active_calls 原始顺序返回：已完成取结果，其余返回超时错误
-            timeout_content = (
-                f"⏱️ 工具调用整体超时（超过 {self.OVERALL_TIMEOUT_SECONDS} 秒）"
-            )
-            results: list[ToolResultMessage] = []
-            for tool_call, task in zip(active_calls, tasks, strict=True):
-                if task.done() and not task.cancelled() and task.exception() is None:
-                    results.append(task.result())
-                else:
-                    results.append(
-                        ToolResultMessage(
-                            role="tool",
-                            is_error=True,
-                            content=timeout_content,
-                            tool_call_id=tool_call.id,
-                        )
+            for tool_call in active_calls:
+                if tool_call.id not in results_by_id:
+                    results_by_id[tool_call.id] = ToolResultMessage(
+                        role="tool",
+                        is_error=True,
+                        content=timeout_content,
+                        tool_call_id=tool_call.id,
                     )
-            return results
+
+        return [results_by_id[tc.id] for tc in active_calls]
 
     async def execute_single_tool(
         self,
@@ -184,6 +200,31 @@ class ToolExecutor:
                         new_count=len(new_urls),
                         iteration=current_iteration + 1,
                     )
+
+                decision = self.guardrail.before_call(tool_name, arguments)
+                if decision.kind in (
+                    GuardrailDecisionKind.BLOCK,
+                    GuardrailDecisionKind.HALT,
+                ):
+                    blocked_message = ToolResultMessage(
+                        role="tool",
+                        is_error=True,
+                        tool_call_id=tool_call.id,
+                        content=decision.message,
+                    )
+                    logger.warning(
+                        "Tool call blocked by guardrail",
+                        tool_name=tool_name,
+                        tool_call_id=tool_call.id,
+                        decision=decision.kind.value,
+                        iteration=current_iteration + 1,
+                    )
+                    self._score_tool_success(
+                        tool_span,
+                        success=False,
+                        error_type=decision.kind.value,
+                    )
+                    return blocked_message
 
                 on_arguments_recorded(tool_name, arguments, tool_call.id)
                 logger.info(
@@ -255,10 +296,22 @@ class ToolExecutor:
                     structured_content=result.structured_content
                     if isinstance(result.structured_content, dict)
                     else None,
+                    is_error=bool(getattr(result, "is_error", False)),
                 )
                 tool_call_result_message = tool_call_result_message.model_copy(
                     update={"is_error": not success}
                 )
+                guardrail_suffix = self.guardrail.record_outcome(
+                    tool_name=tool_name,
+                    arguments=arguments,
+                    success=success,
+                    content=content,
+                )
+                if guardrail_suffix:
+                    content = content + guardrail_suffix
+                    tool_call_result_message = tool_call_result_message.model_copy(
+                        update={"content": content}
+                    )
                 logger.info(
                     "MCP tool result received",
                     tool_name=tool_name,
@@ -303,6 +356,20 @@ class ToolExecutor:
                 return tool_call_result_message
             except Exception as exc:
                 error_content, error_type = self._format_tool_exception(exc)
+                try:
+                    failed_arguments = json.loads(tool_call.function.arguments)
+                    if not isinstance(failed_arguments, dict):
+                        failed_arguments = {}
+                except (json.JSONDecodeError, TypeError):
+                    failed_arguments = {}
+                guardrail_suffix = self.guardrail.record_outcome(
+                    tool_name=tool_name,
+                    arguments=failed_arguments,
+                    success=False,
+                    content=error_content,
+                )
+                if guardrail_suffix:
+                    error_content = error_content + guardrail_suffix
                 tool_call_result_message = ToolResultMessage(
                     role="tool",
                     is_error=True,
@@ -338,6 +405,8 @@ class ToolExecutor:
                 "⏱️ 工具调用超时，请稍后重试或换一种方式完成任务。",
                 "timeout",
             )
+        if isinstance(exc, ToolArgumentValidationError):
+            return str(exc), "argument_validation_error"
         return str(exc) or type(exc).__name__, type(exc).__name__
 
     @staticmethod
@@ -370,12 +439,16 @@ class ToolExecutor:
         server_name: str | None,
         content: str,
         structured_content: dict[str, Any] | None,
+        is_error: bool = False,
     ) -> tuple[bool, str | None, dict[str, Any]]:
         """按 server 语义判定工具是否成功。
 
         shell / code 以退出码为准；其它 server 仍以空结果为失败。
+        MCP ``isError`` / client ``is_error`` 优先视为失败。
         返回 ``(success, error_type, metadata)``。
         """
+        if is_error:
+            return False, "tool_reported_error", {}
         if server_name == SHELL_SERVER:
             return ToolExecutor._resolve_shell_outcome(content, structured_content)
         if server_name == CODE_SERVER:

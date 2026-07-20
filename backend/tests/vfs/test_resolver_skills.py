@@ -66,3 +66,38 @@ def test_resolve_custom_rejects_traversal(resolver: PathResolver) -> None:
             "user-1",
             "conv-1",
         )
+
+
+def test_resolve_mount_root_without_trailing_slash(
+    paths: Paths, resolver: PathResolver
+) -> None:
+    paths.ensure_conversation_dirs("user-1", "conv-1")
+    physical, permission = resolver.resolve_virtual_to_physical(
+        vfs_config.workspace_prefix.rstrip("/"),
+        "user-1",
+        "conv-1",
+    )
+    assert permission == PathPermission.READ_WRITE
+    assert physical == paths.sandbox_work_dir("user-1", "conv-1").resolve()
+
+
+def test_resolve_mount_root_with_trailing_slash(
+    paths: Paths, resolver: PathResolver
+) -> None:
+    paths.ensure_conversation_dirs("user-1", "conv-1")
+    physical, permission = resolver.resolve_virtual_to_physical(
+        vfs_config.workspace_prefix,
+        "user-1",
+        "conv-1",
+    )
+    assert permission == PathPermission.READ_WRITE
+    assert physical == paths.sandbox_work_dir("user-1", "conv-1").resolve()
+
+
+def test_resolve_rejects_prefix_without_boundary(resolver: PathResolver) -> None:
+    with pytest.raises(ValueError, match="Invalid virtual path prefix"):
+        resolver.resolve_virtual_to_physical(
+            f"{vfs_config.workspace_prefix.rstrip('/')}foo",
+            "user-1",
+            "conv-1",
+        )

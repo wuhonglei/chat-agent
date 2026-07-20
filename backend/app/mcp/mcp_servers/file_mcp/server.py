@@ -11,7 +11,7 @@ from fastmcp import FastMCP
 from fastmcp.tools.tool import ToolResult
 from pydantic import Field
 
-from app.mcp.mcp_servers.file_mcp.base import ToolContext
+from app.mcp.mcp_servers.file_mcp.base import ToolContext, to_fastmcp_tool_result
 from app.mcp.mcp_servers.file_mcp.edit_file import EditFileTool
 from app.mcp.mcp_servers.file_mcp.present_files import PresentFilesTool
 from app.mcp.mcp_servers.file_mcp.read_file import ReadFileTool
@@ -55,9 +55,7 @@ async def read_file(
         {"file_path": file_path, "offset": offset, "limit": limit},
         ctx,
     )
-    return ToolResult(
-        content=result.content, structured_content=result.structured_content
-    )
+    return to_fastmcp_tool_result(result)
 
 
 @mcp.tool(name="write_file")
@@ -79,9 +77,7 @@ async def write_file(
         {"file_path": file_path, "content": content, "append": append},
         ctx,
     )
-    return ToolResult(
-        content=result.content, structured_content=result.structured_content
-    )
+    return to_fastmcp_tool_result(result)
 
 
 @mcp.tool(name="edit_file")
@@ -107,9 +103,7 @@ async def edit_file(
         },
         ctx,
     )
-    return ToolResult(
-        content=result.content, structured_content=result.structured_content
-    )
+    return to_fastmcp_tool_result(result)
 
 
 @mcp.tool(name="search_files")
@@ -172,9 +166,7 @@ async def search_files(
         },
         ctx,
     )
-    return ToolResult(
-        content=result.content, structured_content=result.structured_content
-    )
+    return to_fastmcp_tool_result(result)
 
 
 @mcp.tool(name="present_files")
@@ -203,6 +195,4 @@ async def present_files(
     """
     ctx = ToolContext()
     result = await _present_files.execute({"filepaths": filepaths}, ctx)
-    return ToolResult(
-        content=result.content, structured_content=result.structured_content
-    )
+    return to_fastmcp_tool_result(result)

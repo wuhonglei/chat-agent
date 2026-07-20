@@ -22,7 +22,7 @@ from app.vfs.paths import get_paths
 class ShellTool:
     """Execute shell commands in sandbox."""
 
-    name = "shell"
+    name = "exec"
     description = "Execute shell commands in a sandboxed environment with proper security measures."
 
     def __init__(self) -> None:
@@ -83,15 +83,16 @@ class ShellTool:
     ) -> ShellToolExecuteResult:
         """Execute shell tool."""
         command = arguments.get("command", "")
-        description = arguments.get("description", "")
-        timeout = arguments.get("timeout", shell_config.default_timeout_ms)
+        raw_timeout = arguments.get("timeout", shell_config.default_timeout_ms)
 
         if not command:
             return ShellToolExecuteResult(content="Error: command is required")
 
-        if not description:
+        try:
+            timeout = int(raw_timeout)
+        except (TypeError, ValueError):
             return ShellToolExecuteResult(
-                content="Error: description is required (5-10 words explaining what the command does)"
+                content=f"Error: invalid timeout value: {raw_timeout!r}"
             )
 
         timeout = min(timeout, shell_config.max_timeout_ms)
@@ -104,7 +105,6 @@ class ShellTool:
                     user_id=user_id,
                     conversation_id=conversation_id,
                     command=command,
-                    description=description,
                     verdict="block",
                     block_reason=audit_result.reason,
                 )
@@ -122,7 +122,6 @@ class ShellTool:
         result = await executor.execute(
             command=command,
             timeout=timeout,
-            description=description,
         )
 
         output = self._format_output(command, result)
@@ -136,7 +135,6 @@ class ShellTool:
                 user_id=user_id,
                 conversation_id=conversation_id,
                 command=command,
-                description=description,
                 verdict=audit_result.verdict,
                 return_code=result.return_code,
                 duration_ms=result.duration_ms,

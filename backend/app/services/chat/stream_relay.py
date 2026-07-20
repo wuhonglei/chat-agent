@@ -2,16 +2,24 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 from typing import Any
 
 from redis.asyncio import Redis
+from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import ResponseError
+from redis.exceptions import TimeoutError as RedisTimeoutError
 
 from app.core.config import settings
 from app.core.redis import get_redis
 from app.schemas.chat import MessageStatus
+from app.utils.logger import logger
+
+# Socket / network blips during XREAD BLOCK must not tear down the SSE response.
+_TRANSIENT_REDIS_ERRORS = (RedisTimeoutError, RedisConnectionError)
+_MAX_XREAD_TRANSIENT_FAILURES = 3
 
 _APPEND_SCRIPT = """
 -- KEYS[1]=stream, KEYS[2]=meta, KEYS[3]=seq
@@ -284,8 +292,17 @@ class StreamRelay:
         stream_key = self._stream_key(stream_id)
         meta_key = self._meta_key(stream_id)
 
-        if await redis.exists(meta_key) == 0:
-            return
+        try:
+            if await redis.exists(meta_key) == 0:
+                return
+        except _TRANSIENT_REDIS_ERRORS as exc:
+            logger.warning(
+                "SSE resume aborted: Redis unavailable on meta exists",
+                stream_id=stream_id,
+                error=exc,
+                error_type=type(exc).__name__,
+            )
+            raise
 
         cursor_event_id = max(last_event_id, 0)
         # Exclusive lower bound: entries with id > last_event_id
@@ -295,6 +312,14 @@ class StreamRelay:
             replay_raw = await redis.xrange(stream_key, min=min_id, max="+")
         except ResponseError:
             replay_raw = None
+        except _TRANSIENT_REDIS_ERRORS as exc:
+            logger.warning(
+                "SSE resume aborted: Redis unavailable on xrange replay",
+                stream_id=stream_id,
+                error=exc,
+                error_type=type(exc).__name__,
+            )
+            raise
 
         for entry_id, fields in _coerce_stream_entries(replay_raw):
             event_id = _parse_event_id(entry_id)
@@ -304,17 +329,34 @@ class StreamRelay:
             yield _wrap_sse_event_with_id(payload, event_id)
             cursor_event_id = event_id
 
+        transient_failures = 0
         while True:
-            status = await self._read_status(meta_key)
-            xread_id = f"{cursor_event_id}-0" if cursor_event_id > 0 else "0-0"
             try:
-                results = await redis.xread(
-                    {stream_key: xread_id},
-                    block=self._xread_block_ms,
-                    count=50,
+                status = await self._read_status(meta_key)
+                xread_id = f"{cursor_event_id}-0" if cursor_event_id > 0 else "0-0"
+                try:
+                    results = await redis.xread(
+                        {stream_key: xread_id},
+                        block=self._xread_block_ms,
+                        count=50,
+                    )
+                except ResponseError:
+                    results = None
+                transient_failures = 0
+            except _TRANSIENT_REDIS_ERRORS as exc:
+                transient_failures += 1
+                logger.warning(
+                    "SSE XREAD transient Redis error",
+                    stream_id=stream_id,
+                    attempt=transient_failures,
+                    max_attempts=_MAX_XREAD_TRANSIENT_FAILURES,
+                    error=exc,
+                    error_type=type(exc).__name__,
                 )
-            except ResponseError:
-                results = None
+                if transient_failures >= _MAX_XREAD_TRANSIENT_FAILURES:
+                    raise
+                await asyncio.sleep(min(0.5 * transient_failures, 2.0))
+                continue
 
             if results:
                 for entry_id, fields in _coerce_xread_results(results):
@@ -336,6 +378,14 @@ class StreamRelay:
                     )
                 except ResponseError:
                     late_raw = None
+                except _TRANSIENT_REDIS_ERRORS as exc:
+                    logger.warning(
+                        "SSE resume aborted: Redis unavailable on late xrange",
+                        stream_id=stream_id,
+                        error=exc,
+                        error_type=type(exc).__name__,
+                    )
+                    raise
                 late_entries = _coerce_stream_entries(late_raw)
                 if not late_entries:
                     return
@@ -348,5 +398,20 @@ class StreamRelay:
                     cursor_event_id = event_id
                 return
 
-            if await redis.exists(meta_key) == 0:
-                return
+            try:
+                if await redis.exists(meta_key) == 0:
+                    return
+            except _TRANSIENT_REDIS_ERRORS as exc:
+                transient_failures += 1
+                logger.warning(
+                    "SSE meta exists transient Redis error",
+                    stream_id=stream_id,
+                    attempt=transient_failures,
+                    max_attempts=_MAX_XREAD_TRANSIENT_FAILURES,
+                    error=exc,
+                    error_type=type(exc).__name__,
+                )
+                if transient_failures >= _MAX_XREAD_TRANSIENT_FAILURES:
+                    raise
+                await asyncio.sleep(min(0.5 * transient_failures, 2.0))
+                continue

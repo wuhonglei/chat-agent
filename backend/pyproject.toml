@@ -40,6 +40,7 @@ dependencies = [
     "gunicorn>=23.0.0",
     "fastmcp>=3.1.0",
     "json-repair>=0.56.0", # 解析/修复 LLM 返回的畸形 JSON
+    "jsonschema>=4.22", # MCP tool inputSchema 参数校验
     "toolz>=1.1.0",
     "langchain-community>=0.4.1",
     "faiss-cpu>=1.13.2",

@@ -3,7 +3,7 @@ import { renderShellToolResult } from "../components/ShellToolResult";
 import type { ToolRendererRegistry } from "../types";
 
 export const shellRenderers: ToolRendererRegistry[string] = {
-  shell: {
+  exec: {
     renderArguments: renderShellCommandArguments,
     renderResult: ctx => renderShellToolResult(ctx) ?? null,
   },

@@ -15,7 +15,12 @@ const ToolResult: React.FC<ToolResultProps> = ({ renderContext, renderer }) => {
     return null;
   }
 
+  // isError（如 shell 非 0 退出）仍可能带 structuredContentForDisplay，优先走工具专用渲染
   if (toolResultBlock.isError) {
+    const custom = renderer.renderResult?.(renderContext);
+    if (custom != null) {
+      return <>{custom}</>;
+    }
     return (
       <div className="w-full flex items-start gap-2">
         <div className="whitespace-nowrap">tool call error.</div>

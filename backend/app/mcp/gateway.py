@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
+from jsonschema import Draft202012Validator
+from jsonschema.exceptions import SchemaError, ValidationError
+
 from app.mcp.connection_pool import MCPConnectionPool
+from app.mcp.errors import ToolArgumentValidationError
 from app.mcp.registry import MCPRegistry
 from app.mcp.tool_naming import ToolRoute, llm_tool_name
 from app.utils.logger import logger
@@ -63,7 +67,7 @@ class MCPToolGateway:
         schema = self._get_tool_input_schema(mcp_tool_name, server_name)
 
         args, removed, mode = self._filter_arguments(args, schema)
-        self._validate_required(tool_name, args, schema)
+        self._validate_against_schema(tool_name, args, schema)
         warnings = self._build_warnings(tool_name, removed, mode)
 
         timeout = self.TOOL_CALL_TIMEOUT_SECONDS
@@ -79,7 +83,9 @@ class MCPToolGateway:
             logger.warning("Tool warnings", tool_name=tool_name, warnings=warnings)
         try:
             async with client:
-                result = await client.call_tool(mcp_tool_name, args, timeout=timeout)
+                result = await client.call_tool(
+                    mcp_tool_name, args, timeout=timeout, raise_on_error=False
+                )
             logger.info(
                 "Tool executed",
                 tool_name=tool_name,
@@ -122,19 +128,50 @@ class MCPToolGateway:
         return filtered, removed, "strict_whitelist"
 
     @staticmethod
-    def _validate_required(
+    def _validate_against_schema(
         tool_name: str, arguments: dict[str, Any], schema: dict[str, Any] | None
     ) -> None:
         if not schema:
             return
-        required = schema.get("required")
-        if not isinstance(required, list):
+        if schema.get("type") not in (None, "object"):
             return
-        missing = sorted(
-            f for f in required if isinstance(f, str) and f not in arguments
+        has_properties = isinstance(schema.get("properties"), dict)
+        has_required = isinstance(schema.get("required"), list)
+        if not has_properties and not has_required:
+            return
+        try:
+            validator = Draft202012Validator(schema)
+            errors = sorted(
+                validator.iter_errors(arguments), key=lambda e: list(e.path)
+            )
+        except SchemaError as exc:
+            logger.warning(
+                "Skipping tool schema validation due to invalid schema",
+                tool_name=tool_name,
+                error=str(exc),
+            )
+            return
+        except Exception as exc:
+            logger.warning(
+                "Skipping tool schema validation due to schema error",
+                tool_name=tool_name,
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
+            return
+
+        if not errors:
+            return
+        details = "; ".join(
+            MCPToolGateway._format_validation_error(err) for err in errors[:5]
         )
-        if missing:
-            raise ValueError(f"工具 '{tool_name}' 缺少必填参数: {', '.join(missing)}")
+        raise ToolArgumentValidationError(f"工具 '{tool_name}' 参数校验失败: {details}")
+
+    @staticmethod
+    def _format_validation_error(error: ValidationError) -> str:
+        path = ".".join(str(part) for part in error.absolute_path)
+        location = path or "(root)"
+        return f"{location}: {error.message}"
 
     @staticmethod
     def _build_warnings(

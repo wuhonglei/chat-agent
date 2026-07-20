@@ -12,7 +12,8 @@ from app.vfs.paths import SKILLS_PUBLIC_DIR, VIRTUAL_PATH_PREFIX, get_paths
 
 PathMappings = dict[str, str]
 
-_ABSOLUTE_PATH_PATTERN = re.compile(r"(?<![:\w])(?<!:/)/(?:[^\s\"'`;&|<>()]+)")
+# Exclude @/ (JS/TS import aliases like "@/*") — not filesystem absolute paths.
+_ABSOLUTE_PATH_PATTERN = re.compile(r"(?<![:\w@])(?<!:/)/(?:[^\s\"'`;&|<>()]+)")
 _FILE_URL_PATTERN = re.compile(r"\bfile://\S+", re.IGNORECASE)
 _URL_WITH_SCHEME_PATTERN = re.compile(r"^[a-z][a-z0-9+.-]*://", re.IGNORECASE)
 _URL_IN_COMMAND_PATTERN = re.compile(

@@ -56,7 +56,7 @@ export const SERVER_TOOL_ICONS: Record<string, Record<string, React.ReactNode>> 
     list_runtimes: codeIcon,
   },
   shell: {
-    shell: shellIcon,
+    exec: shellIcon,
   },
   skill_manager: {
     load_skill: loadSkillIcon,

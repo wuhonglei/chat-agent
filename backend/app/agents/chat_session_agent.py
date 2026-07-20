@@ -196,6 +196,19 @@ class ChatSessionAgent(BaseAgent):
                 yield build_content_block_done_event()
                 return
 
+            if tool_session.guardrail_halted:
+                logger.info(
+                    "Tool call guardrail halted, switching to final answer round",
+                    iteration=iteration + 1,
+                )
+                async for sse in self._stream_final_round_events(
+                    messages=base_prompt_messages,
+                    tool_session=tool_session,
+                    iteration=iteration,
+                ):
+                    yield sse
+                return
+
             if self._check_round_context_budget(
                 self._build_round_prompt_messages(base_prompt_messages)
             )[0]:
