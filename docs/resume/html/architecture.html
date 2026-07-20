@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chat Agent 后端架构（面试版）</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --text-muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --orange: #d29922;
+    --purple: #bc8cff;
+    --pink: #f778ba;
+    --red: #f85149;
+    --cyan: #39d2c0;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 40px 20px;
+  }
+  .container { max-width: 960px; margin: 0 auto; }
+
+  h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 8px;
+  }
+  .subtitle {
+    color: var(--text-muted);
+    font-size: 1rem;
+    margin-bottom: 40px;
+  }
+
+  /* Section */
+  .section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px 32px;
+    margin-bottom: 24px;
+  }
+  .section-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title .icon { font-size: 1.1rem; }
+
+  /* Tech stack table */
+  .tech-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92rem;
+  }
+  .tech-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .tech-table td:first-child {
+    color: var(--green);
+    font-weight: 600;
+    white-space: nowrap;
+    width: 130px;
+  }
+  .tech-table tr:last-child td { border-bottom: none; }
+
+  /* Layer blocks */
+  .layer {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 22px;
+    margin-bottom: 14px;
+  }
+  .layer:last-child { margin-bottom: 0; }
+  .layer-header {
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .layer-header .tag {
+    font-size: 0.72rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+  .tag-api { background: rgba(88,166,255,0.15); color: var(--accent); }
+  .tag-agent { background: rgba(188,140,255,0.15); color: var(--purple); }
+  .tag-service { background: rgba(63,185,80,0.15); color: var(--green); }
+  .tag-mcp { background: rgba(247,120,186,0.15); color: var(--pink); }
+  .tag-core { background: rgba(210,153,34,0.15); color: var(--orange); }
+  .tag-vfs { background: rgba(57,210,192,0.15); color: var(--cyan); }
+
+  .layer-items {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 6px 16px;
+    font-size: 0.88rem;
+  }
+  .layer-items li { color: var(--text-muted); }
+  .layer-items li strong { color: var(--text); font-weight: 500; }
+  .layer-items li .file { color: var(--text-muted); font-size: 0.8rem; }
+
+  /* Flow */
+  .flow-steps {
+    list-style: none;
+    counter-reset: step;
+    font-size: 0.92rem;
+  }
+  .flow-steps li {
+    counter-increment: step;
+    padding: 10px 0 10px 44px;
+    position: relative;
+    border-left: 2px solid var(--border);
+    margin-left: 16px;
+  }
+  .flow-steps li:last-child { border-left: 2px solid transparent; }
+  .flow-steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: -14px;
+    top: 10px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--bg);
+    font-size: 0.78rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .flow-steps li strong { color: var(--green); }
+  .flow-steps li .detail { color: var(--text-muted); font-size: 0.85rem; display: block; margin-top: 2px; }
+
+  /* Highlights */
+  .highlights {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+  }
+  .highlight-item {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+  }
+  .highlight-item h4 {
+    font-size: 0.92rem;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .highlight-item p {
+    font-size: 0.84rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+  .hl-blue h4 { color: var(--accent); }
+  .hl-green h4 { color: var(--green); }
+  .hl-purple h4 { color: var(--purple); }
+  .hl-orange h4 { color: var(--orange); }
+  .hl-pink h4 { color: var(--pink); }
+  .hl-cyan h4 { color: var(--cyan); }
+  .hl-red h4 { color: var(--red); }
+
+  /* Code / inline */
+  code {
+    background: rgba(110,118,129,0.15);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+    color: var(--orange);
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <h1>Chat Agent 后端架构</h1>
+  <p class="subtitle">面试版 &mdash; 全栈 AI 对话平台后端技术架构总览</p>
+
+  <!-- Tech Stack -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🛠</span> 技术栈</div>
+    <table class="tech-table">
+      <tr><td>框架</td><td>FastAPI + Uvicorn / Gunicorn</td></tr>
+      <tr><td>语言</td><td>Python 3.10+</td></tr>
+      <tr><td>数据库</td><td>PostgreSQL + pgvector + SQLModel ORM + Alembic 迁移</td></tr>
+      <tr><td>缓存</td><td>Redis &mdash; SSE Stream Relay + Turn 幂等去重（SET NX）</td></tr>
+      <tr><td>LLM</td><td>DeepSeek / OpenAI 兼容 API（多 Provider + 场景化解析）</td></tr>
+      <tr><td>工具协议</td><td>MCP (Model Context Protocol) &mdash; fastmcp</td></tr>
+      <tr><td>可观测</td><td>Langfuse（trace / generation / 工具调用全链路追踪）</td></tr>
+      <tr><td>配置中心</td><td>Nacos（支持热更新，不可达时降级到 env / 空配置）</td></tr>
+      <tr><td>对象存储</td><td>腾讯云 COS</td></tr>
+    </table>
+  </div>
+
+  <!-- Layered Architecture -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🏗</span> 分层架构</div>
+
+    <div class="layer">
+      <div class="layer-header">
+        API 层 <span class="tag tag-api">app/api/</span>
+      </div>
+      <ul class="layer-items">
+        <li><strong>auth.py</strong> &mdash; 认证（JWT RSA，短信验证码）</li>
+        <li><strong>chat.py</strong> &mdash; 核心对话流式接口（SSE）</li>
+        <li><strong>conversation.py</strong> &mdash; 会话 CRUD</li>
+        <li><strong>message.py</strong> &mdash; 消息管理</li>
+        <li><strong>file.py</strong> &mdash; 文件上传（PDF/DOCX/PPTX/Excel/图片）</li>
+        <li><strong>code.py</strong> &mdash; 代码执行</li>
+        <li><strong>user_data.py</strong> &mdash; VFS 用户数据</li>
+        <li><strong>health.py</strong> &mdash; 健康检查</li>
+      </ul>
+    </div>
+
+    <div class="layer">
+      <div class="layer-header">
+        Agent 层 <span class="tag tag-agent">app/agents/</span>
+      </div>
+      <ul class="layer-items">
+        <li><strong>chat_session_agent.py</strong> &mdash; 会话级 Agent（入口，编排整个流程）</li>
+        <li><strong>tool_executor.py</strong> &mdash; 工具执行器</li>
+        <li><strong>mcp_tool_execution.py</strong> &mdash; MCP 工具调用</li>
+        <li><strong>tool_call_policy.py</strong> &mdash; 工具调用策略（控制调用轮次 / 终止条件）</li>
+      </ul>
+    </div>
+
+    <div class="layer">
+      <div class="layer-header">
+        服务层 <span class="tag tag-service">app/services/</span> &mdash; 按领域分包
+      </div>
+      <ul class="layer-items">
+        <li><strong>chat/</strong> &mdash; 对话核心（编排器、流式中继、RAG 上下文、幂等存储）</li>
+        <li><strong>conversation/</strong> &mdash; 会话 DB 操作 + 上下文摘要</li>
+        <li><strong>message/</strong> &mdash; 消息持久化</li>
+        <li><strong>user/</strong> &mdash; 用户管理 + Mem0 记忆服务</li>
+        <li><strong>auth/</strong> &mdash; 短信验证、验证码存储</li>
+        <li><strong>chat_upload/</strong> &mdash; 文件解析（PDF→Markdown via MinerU）</li>
+        <li><strong>base_service/</strong> &mdash; 模型解析器（provider/model → LLMConfig）</li>
+      </ul>
+    </div>
+
+    <div class="layer">
+      <div class="layer-header">
+        MCP 层 <span class="tag tag-mcp">app/mcp/</span>
+      </div>
+      <ul class="layer-items">
+        <li><strong>mcp_client.py</strong> &mdash; MCPClientManager（统一管理多 Server 连接）</li>
+        <li><strong>cache.py</strong> &mdash; 工具结果缓存</li>
+        <li><strong>tavily_mcp</strong> &mdash; 联网搜索</li>
+        <li><strong>weather_mcp</strong> &mdash; 天气查询</li>
+        <li><strong>code_exec_mcp</strong> &mdash; 代码执行沙箱（Piston，stdlib only）</li>
+        <li><strong>time_mcp</strong> &mdash; 时间服务</li>
+        <li><strong>context7_mcp</strong> &mdash; 文档检索</li>
+      </ul>
+    </div>
+
+    <div class="layer">
+      <div class="layer-header">
+        基础设施层 <span class="tag tag-core">app/core/</span>
+      </div>
+      <ul class="layer-items">
+        <li><strong>config.py</strong> &mdash; Pydantic Settings 分层配置</li>
+        <li><strong>db.py</strong> &mdash; PostgreSQL 连接池（pool_size=5）</li>
+        <li><strong>redis.py</strong> &mdash; Redis 连接池</li>
+        <li><strong>jwt.py</strong> &mdash; JWT RSA 密钥管理</li>
+        <li><strong>observability.py</strong> &mdash; Langfuse 初始化</li>
+        <li><strong>cache.py</strong> &mdash; 本地 L1 缓存（错误降级不 raise）</li>
+      </ul>
+    </div>
+
+    <div class="layer">
+      <div class="layer-header">
+        VFS 层 <span class="tag tag-vfs">app/vfs/</span> &mdash; 虚拟文件系统
+      </div>
+      <ul class="layer-items">
+        <li><strong>paths.py</strong> &mdash; 路径映射（<code>/mnt/user-data/workspace/</code> 等虚拟路径）</li>
+        <li><strong>resolver.py</strong> &mdash; 路径解析</li>
+        <li><strong>mapper.py</strong> &mdash; 磁盘映射</li>
+        <li><strong>uploads_provider.py</strong> &mdash; 上传文件提供</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Core Flow -->
+  <div class="section">
+    <div class="section-title"><span class="icon">⚡</span> 核心请求流程（SSE 流式对话）</div>
+    <ol class="flow-steps">
+      <li>
+        <strong>Client → POST /api/chat/stream</strong>
+        <span class="detail">前端发起流式对话请求，携带 JWT Token</span>
+      </li>
+      <li>
+        <strong>JWT 认证 → Turn 幂等检查</strong>
+        <span class="detail">Redis SET NX 防止重复提交同一轮对话</span>
+      </li>
+      <li>
+        <strong>chat_session_agent 编排</strong>
+        <span class="detail">入口 Agent，协调以下子步骤：</span>
+      </li>
+      <li>
+        <strong>history_context_service + context_compactor</strong>
+        <span class="detail">加载历史消息，压缩过长上下文以适配 LLM context window</span>
+      </li>
+      <li>
+        <strong>kb_rag_context_service</strong>
+        <span class="detail">pgvector 向量相似度检索，注入相关知识片段</span>
+      </li>
+      <li>
+        <strong>MCP Tools Agent</strong>
+        <span class="detail">调用外部工具（搜索 / 天气 / 代码执行），支持多轮工具调用</span>
+      </li>
+      <li>
+        <strong>Response Agent → 流式生成回复</strong>
+        <span class="detail">SSE delta 事件逐 token 推送到前端</span>
+      </li>
+      <li>
+        <strong>stream_relay + Redis Pub/Sub</strong>
+        <span class="detail">通过 Redis 解耦 Agent 生成和客户端消费，支持断线重连</span>
+      </li>
+      <li>
+        <strong>Langfuse 记录 trace / generation / tool span</strong>
+        <span class="detail">全链路可观测，支持延迟分析和质量监控</span>
+      </li>
+      <li>
+        <strong>Title Agent（异步）</strong>
+        <span class="detail">异步生成会话标题，不阻塞主响应流程</span>
+      </li>
+    </ol>
+  </div>
+
+  <!-- Key Highlights -->
+  <div class="section">
+    <div class="section-title"><span class="icon">💡</span> 关键设计亮点（面试展开点）</div>
+    <div class="highlights">
+      <div class="highlight-item hl-pink">
+        <h4>1. MCP 工具架构</h4>
+        <p>标准化工具协议，支持本地 / HTTP / Stdio 三种传输方式。Nacos 热更新 MCP 配置，工具结果缓存减少重复调用。</p>
+      </div>
+      <div class="highlight-item hl-green">
+        <h4>2. RAG 检索优化</h4>
+        <p>pgvector 向量检索 + 惰性索引（上传时不索引，检索时按需 embedding）。MarkdownTextSplitter + bge-m3，317 条测试集系统性调优。</p>
+      </div>
+      <div class="highlight-item hl-blue">
+        <h4>3. SSE 流式 + Redis 中继</h4>
+        <p>stream_relay 通过 Redis Pub/Sub 解耦 Agent 生成和客户端消费，支持断线重连，保证消息不丢失。</p>
+      </div>
+      <div class="highlight-item hl-orange">
+        <h4>4. Turn 幂等</h4>
+        <p>Redis SET NX 防止重复提交同一轮对话，避免重复 LLM 调用和消息写入。</p>
+      </div>
+      <div class="highlight-item hl-purple">
+        <h4>5. 分层配置</h4>
+        <p>Nacos → env var → 默认值，Nacos 不可达时优雅降级。支持 Nacos 热更新 MCP 和模型配置。</p>
+      </div>
+      <div class="highlight-item hl-cyan">
+        <h4>6. Langfuse 全链路可观测</h4>
+        <p>每次 LLM 调用 / 工具调用都有 trace / span，支持延迟分析、token 消耗统计和质量监控。</p>
+      </div>
+      <div class="highlight-item hl-red">
+        <h4>7. VFS 虚拟文件系统</h4>
+        <p>统一路径映射，Agent 通过虚拟路径访问用户数据，隔离不同会话的 workspace / uploads / outputs。</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

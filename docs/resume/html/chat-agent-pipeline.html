@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chat Agent — 完整链路架构图（面试版）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#020617;color:#e2e8f0;font-family:'JetBrains Mono',monospace;min-height:100vh;padding:32px}
+  .header{text-align:center;margin-bottom:28px}
+  .header h1{font-size:22px;font-weight:700;color:#f1f5f9;display:flex;align-items:center;justify-content:center;gap:10px}
+  .header h1 .dot{width:10px;height:10px;border-radius:50%;background:#22d3ee;animation:pulse 2s infinite}
+  .header .sub{font-size:11px;color:#94a3b8;margin-top:6px}
+  @keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 6px #22d3ee}50%{opacity:.5;box-shadow:0 0 2px #22d3ee}}
+  .diagram-card{background:rgba(15,23,42,.85);border:1px solid #1e293b;border-radius:14px;padding:24px;margin:0 auto 24px;max-width:1360px;overflow-x:auto}
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;max-width:1360px;margin:0 auto}
+  .card{background:rgba(15,23,42,.7);border:1px solid #1e293b;border-radius:10px;padding:16px}
+  .card .card-header{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .card .card-dot{width:8px;height:8px;border-radius:50%}
+  .card .card-dot.cyan{background:#22d3ee}.card .card-dot.emerald{background:#34d399}
+  .card .card-dot.violet{background:#a78bfa}.card .card-dot.amber{background:#fbbf24}
+  .card h3{font-size:12px;font-weight:600;color:#f1f5f9}
+  .card ul{list-style:none;font-size:10px;color:#94a3b8;line-height:1.8}
+  .card ul li::before{content:"• ";color:#64748b}
+  .footer{text-align:center;margin-top:20px;font-size:9px;color:#475569}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1><span class="dot"></span>Chat Agent 完整链路架构（面试版）</h1>
+  <p class="sub">用户消息 → 上下文组装 → LLM 调用 → 工具执行 → 流式输出 &nbsp;|&nbsp; 每环节标注技术选型</p>
+</div>
+
+<div class="diagram-card">
+<svg viewBox="0 0 1320 870" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace">
+<defs>
+  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+  </pattern>
+  <!-- arrowheads -->
+  <marker id="arr-cyan" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#22d3ee"/>
+  </marker>
+  <marker id="arr-emerald" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#34d399"/>
+  </marker>
+  <marker id="arr-violet" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#a78bfa"/>
+  </marker>
+  <marker id="arr-amber" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#fbbf24"/>
+  </marker>
+  <marker id="arr-rose" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#fb7185"/>
+  </marker>
+  <marker id="arr-slate" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#94a3b8"/>
+  </marker>
+</defs>
+
+<!-- background -->
+<rect width="1320" height="870" fill="#020617"/>
+<rect width="1320" height="870" fill="url(#grid)"/>
+
+<!-- ============================================================ -->
+<!-- STEP 0: 用户输入 (最左侧) -->
+<!-- ============================================================ -->
+<g>
+  <rect x="20" y="100" width="140" height="80" rx="6" fill="#0f172a"/>
+  <rect x="20" y="100" width="140" height="80" rx="6" fill="rgba(8,51,68,0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+  <text x="90" y="130" text-anchor="middle" font-size="11" fill="#22d3ee" font-weight="600">① 用户输入</text>
+  <text x="90" y="148" text-anchor="middle" font-size="8" fill="#94a3b8">React + Vite+</text>
+  <text x="90" y="160" text-anchor="middle" font-size="8" fill="#94a3b8">POST /api/chat</text>
+  <text x="90" y="172" text-anchor="middle" font-size="7" fill="#64748b">SSE 长连接</text>
+</g>
+
+<!-- ============================================================ -->
+<!-- STEP 1: API 网关层 -->
+<!-- ============================================================ -->
+<g>
+  <rect x="220" y="80" width="160" height="120" rx="6" fill="#0f172a"/>
+  <rect x="220" y="80" width="160" height="120" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1.5"/>
+  <text x="300" y="105" text-anchor="middle" font-size="11" fill="#34d399" font-weight="600">② API 网关层</text>
+  <text x="300" y="123" text-anchor="middle" font-size="8" fill="#94a3b8">FastAPI + Uvicorn</text>
+  <text x="300" y="140" text-anchor="middle" font-size="8" fill="#94a3b8">JWT 鉴权 (RSA)</text>
+  <text x="300" y="155" text-anchor="middle" font-size="8" fill="#94a3b8">幂等校验 (Redis SET NX)</text>
+  <text x="300" y="170" text-anchor="middle" font-size="8" fill="#94a3b8">Model Resolver</text>
+  <text x="300" y="185" text-anchor="middle" font-size="7" fill="#64748b">chat.py → TurnIdempotencyStore</text>
+</g>
+
+<!-- arrow 0→1 -->
+<line x1="160" y1="140" x2="218" y2="140" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arr-cyan)"/>
+
+<!-- ============================================================ -->
+<!-- STEP 2: 上下文组装 (核心，大框) -->
+<!-- ============================================================ -->
+<g>
+  <rect x="440" y="40" width="280" height="350" rx="8" fill="#0f172a"/>
+  <rect x="440" y="40" width="280" height="350" rx="8" fill="rgba(76,29,149,0.15)" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <text x="580" y="65" text-anchor="middle" font-size="12" fill="#a78bfa" font-weight="700">③ 上下文组装 (Context Assembly)</text>
+  <text x="580" y="80" text-anchor="middle" font-size="8" fill="#64748b">ChatOrchestrator.run_chat_turn()</text>
+
+  <!-- 子模块: History -->
+  <rect x="460" y="95" width="240" height="44" rx="4" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1"/>
+  <text x="580" y="113" text-anchor="middle" font-size="9" fill="#34d399" font-weight="500">HistoryContextService</text>
+  <text x="580" y="128" text-anchor="middle" font-size="7" fill="#94a3b8">滑动窗口 + 摘要压缩 (context_compactor)</text>
+
+  <!-- 子模块: RAG (expanded: 短文档 vs 长文档) -->
+  <rect x="460" y="150" width="240" height="90" rx="4" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1"/>
+  <text x="580" y="168" text-anchor="middle" font-size="9" fill="#34d399" font-weight="500">KbRagContextService</text>
+
+  <!-- 短文档分支 -->
+  <rect x="470" y="178" width="106" height="26" rx="3" fill="rgba(16,185,129,0.12)" stroke="#10b981" stroke-width="0.8"/>
+  <text x="523" y="191" text-anchor="middle" font-size="7.5" fill="#10b981" font-weight="500">短文档 (≤阈值)</text>
+  <text x="523" y="200" text-anchor="middle" font-size="7" fill="#94a3b8">全文注入 Prompt</text>
+
+  <!-- 长文档分支 -->
+  <rect x="584" y="178" width="106" height="26" rx="3" fill="rgba(251,146,60,0.12)" stroke="#fb923c" stroke-width="0.8"/>
+  <text x="637" y="191" text-anchor="middle" font-size="7.5" fill="#fb923c" font-weight="500">长文档 (>阈值)</text>
+  <text x="637" y="200" text-anchor="middle" font-size="7" fill="#94a3b8">向量 ⇔ Top-K</text>
+
+  <!-- 惰性索引标注 -->
+  <text x="580" y="232" text-anchor="middle" font-size="7" fill="#64748b">惰性索引: 首次检索时才 ensure_indexed</text>
+
+  <!-- 子模块: Memory -->
+  <rect x="460" y="252" width="240" height="44" rx="4" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1"/>
+  <text x="580" y="270" text-anchor="middle" font-size="9" fill="#34d399" font-weight="500">MemorySearch (Mem0)</text>
+  <text x="580" y="285" text-anchor="middle" font-size="7" fill="#94a3b8">用户长期记忆检索</text>
+
+  <!-- 子模块: Prompt -->
+  <rect x="460" y="307" width="240" height="44" rx="4" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1"/>
+  <text x="580" y="325" text-anchor="middle" font-size="9" fill="#34d399" font-weight="500">System Prompt 组装</text>
+  <text x="580" y="340" text-anchor="middle" font-size="7" fill="#94a3b8">prompt_utils + 模板渲染 (Jinja2 风格)</text>
+</g>
+
+<!-- arrow 1→2 -->
+<line x1="380" y1="140" x2="438" y2="190" stroke="#34d399" stroke-width="1.5" marker-end="url(#arr-emerald)"/>
+
+<!-- 外部数据源（右下角标注） -->
+<g>
+  <rect x="445" y="400" width="80" height="28" rx="4" fill="rgba(76,29,149,0.3)" stroke="#a78bfa" stroke-width="1"/>
+  <text x="485" y="419" text-anchor="middle" font-size="7" fill="#a78bfa">PostgreSQL</text>
+</g>
+<g>
+  <rect x="540" y="400" width="80" height="28" rx="4" fill="rgba(76,29,149,0.3)" stroke="#a78bfa" stroke-width="1"/>
+  <text x="580" y="419" text-anchor="middle" font-size="7" fill="#a78bfa">pgvector</text>
+</g>
+<g>
+  <rect x="635" y="400" width="80" height="28" rx="4" fill="rgba(76,29,149,0.3)" stroke="#a78bfa" stroke-width="1"/>
+  <text x="675" y="419" text-anchor="middle" font-size="7" fill="#a78bfa">Mem0 API</text>
+</g>
+<line x1="485" y1="400" x2="520" y2="351" stroke="#a78bfa" stroke-width="1" stroke-dasharray="3,3"/>
+<line x1="580" y1="400" x2="580" y2="240" stroke="#a78bfa" stroke-width="1" stroke-dasharray="3,3"/>
+<line x1="675" y1="400" x2="640" y2="296" stroke="#a78bfa" stroke-width="1" stroke-dasharray="3,3"/>
+
+<!-- ============================================================ -->
+<!-- STEP 3: LLM 调用 (Agent Loop) -->
+<!-- ============================================================ -->
+<g>
+  <rect x="780" y="80" width="200" height="160" rx="6" fill="#0f172a"/>
+  <rect x="780" y="80" width="200" height="160" rx="6" fill="rgba(120,53,15,0.3)" stroke="#fbbf24" stroke-width="1.5"/>
+  <text x="880" y="105" text-anchor="middle" font-size="11" fill="#fbbf24" font-weight="600">④ Agent 循环</text>
+  <text x="880" y="120" text-anchor="middle" font-size="8" fill="#64748b">ChatSessionAgent</text>
+
+  <rect x="795" y="132" width="170" height="32" rx="4" fill="rgba(251,146,60,0.15)" stroke="#fb923c" stroke-width="1"/>
+  <text x="880" y="148" text-anchor="middle" font-size="9" fill="#fb923c" font-weight="500">stream_chat() 流式推理</text>
+  <text x="880" y="159" text-anchor="middle" font-size="7" fill="#94a3b8">OpenAI 兼容 API + 流式 delta</text>
+
+  <rect x="795" y="172" width="170" height="32" rx="4" fill="rgba(251,146,60,0.15)" stroke="#fb923c" stroke-width="1"/>
+  <text x="880" y="188" text-anchor="middle" font-size="9" fill="#fb923c" font-weight="500">Tool Call 判断 + 循环</text>
+  <text x="880" y="199" text-anchor="middle" font-size="7" fill="#94a3b8">max_rounds 防无限循环</text>
+</g>
+
+<!-- arrow 2→3 -->
+<line x1="720" y1="190" x2="778" y2="160" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arr-violet)"/>
+
+<!-- LLM Provider -->
+<g>
+  <rect x="810" y="30" width="140" height="30" rx="4" fill="rgba(120,53,15,0.4)" stroke="#fbbf24" stroke-width="1"/>
+  <text x="880" y="50" text-anchor="middle" font-size="9" fill="#fbbf24">DeepSeek / OpenAI</text>
+</g>
+<line x1="880" y1="80" x2="880" y2="60" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arr-amber)"/>
+
+<!-- ============================================================ -->
+<!-- STEP 4: 工具执行 -->
+<!-- ============================================================ -->
+<g>
+  <rect x="780" y="280" width="200" height="140" rx="6" fill="#0f172a"/>
+  <rect x="780" y="280" width="200" height="140" rx="6" fill="rgba(136,19,55,0.3)" stroke="#fb7185" stroke-width="1.5"/>
+  <text x="880" y="305" text-anchor="middle" font-size="11" fill="#fb7185" font-weight="600">⑤ 工具执行</text>
+  <text x="880" y="320" text-anchor="middle" font-size="8" fill="#64748b">MCPToolSession + MCPClientManager</text>
+
+  <rect x="795" y="332" width="170" height="26" rx="4" fill="rgba(136,19,55,0.2)" stroke="#fb7185" stroke-width="1"/>
+  <text x="880" y="350" text-anchor="middle" font-size="8" fill="#fb7185">Tavily MCP (联网搜索)</text>
+
+  <rect x="795" y="364" width="170" height="26" rx="4" fill="rgba(136,19,55,0.2)" stroke="#fb7185" stroke-width="1"/>
+  <text x="880" y="382" text-anchor="middle" font-size="8" fill="#fb7185">Weather / Code Exec / Time</text>
+
+  <rect x="795" y="396" width="170" height="18" rx="3" fill="rgba(136,19,55,0.15)" stroke="#fb7185" stroke-width="0.8"/>
+  <text x="880" y="409" text-anchor="middle" font-size="7" fill="#94a3b8">Stdio / StreamableHttp 传输</text>
+</g>
+
+<!-- 双向箭头: Agent ↔ 工具 -->
+<line x1="850" y1="240" x2="850" y2="278" stroke="#fb7185" stroke-width="1.5" marker-end="url(#arr-rose)"/>
+<line x1="910" y1="278" x2="910" y2="242" stroke="#fbbf24" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arr-amber)"/>
+
+<!-- 工具结果回注标注 -->
+<text x="925" y="263" font-size="7" fill="#94a3b8">tool_result → messages</text>
+
+<!-- MCP Servers 外部 -->
+<rect x="1010" y="310" width="90" height="26" rx="4" fill="rgba(136,19,55,0.2)" stroke="#fb7185" stroke-width="0.8"/>
+<text x="1055" y="328" text-anchor="middle" font-size="7" fill="#fb7185">fastmcp 本地</text>
+<rect x="1010" y="345" width="90" height="26" rx="4" fill="rgba(136,19,55,0.2)" stroke="#fb7185" stroke-width="0.8"/>
+<text x="1055" y="363" text-anchor="middle" font-size="7" fill="#fb7185">Stdio 子进程</text>
+<line x1="980" y1="350" x2="1008" y2="340" stroke="#fb7185" stroke-width="1" stroke-dasharray="3,3"/>
+
+<!-- ============================================================ -->
+<!-- STEP 5: 流式输出 -->
+<!-- ============================================================ -->
+<g>
+  <rect x="1040" y="80" width="200" height="160" rx="6" fill="#0f172a"/>
+  <rect x="1040" y="80" width="200" height="160" rx="6" fill="rgba(8,51,68,0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+  <text x="1140" y="105" text-anchor="middle" font-size="11" fill="#22d3ee" font-weight="600">⑥ 流式输出</text>
+
+  <rect x="1055" y="118" width="170" height="30" rx="4" fill="rgba(8,51,68,0.3)" stroke="#22d3ee" stroke-width="1"/>
+  <text x="1140" y="133" text-anchor="middle" font-size="9" fill="#22d3ee" font-weight="500">StreamRelay</text>
+  <text x="1140" y="144" text-anchor="middle" font-size="7" fill="#94a3b8">Redis Stream 多 Worker 缓冲</text>
+
+  <rect x="1055" y="156" width="170" height="30" rx="4" fill="rgba(8,51,68,0.3)" stroke="#22d3ee" stroke-width="1"/>
+  <text x="1140" y="171" text-anchor="middle" font-size="9" fill="#22d3ee" font-weight="500">SSE 事件流</text>
+  <text x="1140" y="182" text-anchor="middle" font-size="7" fill="#94a3b8">ack → delta → tool_* → done</text>
+
+  <rect x="1055" y="194" width="170" height="30" rx="4" fill="rgba(8,51,68,0.3)" stroke="#22d3ee" stroke-width="1"/>
+  <text x="1140" y="209" text-anchor="middle" font-size="9" fill="#22d3ee" font-weight="500">Langfuse 可观测</text>
+  <text x="1140" y="220" text-anchor="middle" font-size="7" fill="#94a3b8">Trace → Span → Generation</text>
+</g>
+
+<!-- arrow 3→5 (主链路) -->
+<line x1="980" y1="160" x2="1038" y2="160" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arr-cyan)"/>
+
+<!-- ============================================================ -->
+<!-- STEP 6: 前端渲染（最右侧） -->
+<!-- ============================================================ -->
+<g>
+  <rect x="1040" y="280" width="200" height="70" rx="6" fill="#0f172a"/>
+  <rect x="1040" y="280" width="200" height="70" rx="6" fill="rgba(8,51,68,0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+  <text x="1140" y="305" text-anchor="middle" font-size="11" fill="#22d3ee" font-weight="600">⑦ 前端渲染</text>
+  <text x="1140" y="322" text-anchor="middle" font-size="8" fill="#94a3b8">EventSource (SSE)</text>
+  <text x="1140" y="337" text-anchor="middle" font-size="8" fill="#94a3b8">Markdown + 代码高亮 + 组件</text>
+</g>
+
+<line x1="1140" y1="240" x2="1140" y2="278" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arr-cyan)"/>
+
+<!-- ============================================================ -->
+<!-- 并行任务: 标题生成 -->
+<!-- ============================================================ -->
+<g>
+  <rect x="780" y="460" width="200" height="50" rx="6" fill="#0f172a"/>
+  <rect x="780" y="460" width="200" height="50" rx="6" fill="rgba(251,146,60,0.2)" stroke="#fb923c" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <text x="880" y="482" text-anchor="middle" font-size="10" fill="#fb923c" font-weight="500">⑧ 标题生成 (并行)</text>
+  <text x="880" y="498" text-anchor="middle" font-size="7" fill="#94a3b8">TitleGenerationAgent (asyncio.Task)</text>
+</g>
+<line x1="880" y1="420" x2="880" y2="458" stroke="#fb923c" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arr-amber)"/>
+
+<!-- ============================================================ -->
+<!-- 底部: 数据持久化层 -->
+<!-- ============================================================ -->
+<g>
+  <rect x="220" y="510" width="480" height="60" rx="6" fill="#0f172a"/>
+  <rect x="220" y="510" width="480" height="60" rx="6" fill="rgba(76,29,149,0.2)" stroke="#a78bfa" stroke-width="1"/>
+  <text x="460" y="535" text-anchor="middle" font-size="10" fill="#a78bfa" font-weight="600">数据持久化</text>
+  <text x="320" y="553" text-anchor="middle" font-size="8" fill="#94a3b8">PostgreSQL (SQLModel)</text>
+  <text x="460" y="553" text-anchor="middle" font-size="8" fill="#94a3b8">Redis (SSE + 幂等 + 缓存)</text>
+  <text x="600" y="553" text-anchor="middle" font-size="8" fill="#94a3b8">Langfuse (Trace 存储)</text>
+</g>
+
+<!-- 持久化连接线 -->
+<line x1="580" y1="390" x2="460" y2="508" stroke="#a78bfa" stroke-width="1" stroke-dasharray="3,3"/>
+<line x1="880" y1="240" x2="600" y2="510" stroke="#a78bfa" stroke-width="1" stroke-dasharray="3,3"/>
+
+<!-- ============================================================ -->
+<!-- 关键标注 -->
+<!-- ============================================================ -->
+
+<!-- Token 计算标注 -->
+<rect x="460" y="590" width="240" height="28" rx="4" fill="rgba(251,146,60,0.15)" stroke="#fb923c" stroke-width="0.8"/>
+<text x="580" y="609" text-anchor="middle" font-size="8" fill="#fb923c">TokenCalculator: tiktoken 计数 + 上下文窗口裁剪</text>
+
+<!-- 停止信号 -->
+<rect x="1040" y="400" width="200" height="35" rx="4" fill="rgba(136,19,55,0.2)" stroke="#fb7185" stroke-width="0.8"/>
+<text x="1140" y="414" text-anchor="middle" font-size="8" fill="#fb7185">Stop 机制</text>
+<text x="1140" y="428" text-anchor="middle" font-size="7" fill="#94a3b8">Redis HSET status=stopped → 轮询取消</text>
+
+<!-- ============================================================ -->
+<!-- LEGEND -->
+<!-- ============================================================ -->
+<g transform="translate(20, 620)">
+  <text x="0" y="0" font-size="9" fill="#64748b" font-weight="600">LEGEND</text>
+
+  <rect x="0" y="10" width="10" height="10" rx="2" fill="rgba(8,51,68,0.4)" stroke="#22d3ee" stroke-width="1"/>
+  <text x="16" y="19" font-size="8" fill="#94a3b8">前端 / 流式输出 (React, SSE, StreamRelay)</text>
+
+  <rect x="0" y="26" width="10" height="10" rx="2" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1"/>
+  <text x="16" y="35" font-size="8" fill="#94a3b8">上下文组装 (History, RAG 纯向量, Memory, Prompt)</text>
+
+  <rect x="0" y="42" width="10" height="10" rx="2" fill="rgba(120,53,15,0.3)" stroke="#fbbf24" stroke-width="1"/>
+  <text x="16" y="51" font-size="8" fill="#94a3b8">LLM 推理 (OpenAI 兼容, DeepSeek)</text>
+
+  <rect x="0" y="58" width="10" height="10" rx="2" fill="rgba(136,19,55,0.3)" stroke="#fb7185" stroke-width="1"/>
+  <text x="16" y="67" font-size="8" fill="#94a3b8">MCP 工具 (Tavily, Weather, CodeExec)</text>
+
+  <rect x="0" y="74" width="10" height="10" rx="2" fill="rgba(76,29,149,0.3)" stroke="#a78bfa" stroke-width="1"/>
+  <text x="16" y="83" font-size="8" fill="#94a3b8">存储层 (PostgreSQL, pgvector, Redis, Langfuse)</text>
+
+  <line x1="420" y1="15" x2="450" y2="15" stroke="#94a3b8" stroke-width="1" marker-end="url(#arr-slate)"/>
+  <text x="456" y="19" font-size="8" fill="#94a3b8">同步数据流</text>
+
+  <line x1="420" y1="31" x2="450" y2="31" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3,3"/>
+  <text x="456" y="35" font-size="8" fill="#94a3b8">异步 / 事件驱动</text>
+
+  <line x1="420" y1="47" x2="450" y2="47" stroke="#fb7185" stroke-width="1" stroke-dasharray="3,3"/>
+  <text x="456" y="51" font-size="8" fill="#94a3b8">停止/取消信号</text>
+</g>
+
+</svg>
+</div>
+
+<!-- Summary Cards -->
+<div class="cards">
+  <div class="card">
+    <div class="card-header"><div class="card-dot cyan"></div><h3>流式架构</h3></div>
+    <ul>
+      <li>SSE (Server-Sent Events) 全链路流式</li>
+      <li>Redis Stream 多 Worker 缓冲 + 断线恢复</li>
+      <li>EventSource 前端逐字渲染</li>
+      <li>Langfuse propagate_attributes 全链路追踪</li>
+    </ul>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-dot emerald"></div><h3>上下文管理</h3></div>
+    <ul>
+      <li>滑动窗口 + 自动摘要压缩历史</li>
+      <li>pgvector 余弦距离 Top-K 纯向量检索</li>
+      <li>Mem0 用户长期记忆</li>
+      <li>tiktoken TokenCalculator 控制窗口</li>
+    </ul>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-dot amber"></div><h3>Agent 循环</h3></div>
+    <ul>
+      <li>单 Agent 多轮工具调用 (max_rounds)</li>
+      <li>MCP 协议统一工具接入</li>
+      <li>tool_call → tool_result 消息回注</li>
+      <li>Title Generation 异步并行</li>
+    </ul>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-dot violet"></div><h3>工程保障</h3></div>
+    <ul>
+      <li>JWT RSA 鉴权 + 幂等去重</li>
+      <li>Redis SET NX 防重复提交</li>
+      <li>Langfuse Trace/Span 可观测</li>
+      <li>Graceful Stop (Redis 轮询取消)</li>
+    </ul>
+  </div>
+</div>
+
+<div class="footer">Chat Agent Architecture — Interview Reference — wuhonglei/chat-agent</div>
+
+</body>
+</html>
