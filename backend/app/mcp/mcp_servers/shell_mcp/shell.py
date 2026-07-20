@@ -83,16 +83,10 @@ class ShellTool:
     ) -> ShellToolExecuteResult:
         """Execute shell tool."""
         command = arguments.get("command", "")
-        description = arguments.get("description", "")
         timeout = arguments.get("timeout", shell_config.default_timeout_ms)
 
         if not command:
             return ShellToolExecuteResult(content="Error: command is required")
-
-        if not description:
-            return ShellToolExecuteResult(
-                content="Error: description is required (5-10 words explaining what the command does)"
-            )
 
         timeout = min(timeout, shell_config.max_timeout_ms)
 
@@ -104,7 +98,6 @@ class ShellTool:
                     user_id=user_id,
                     conversation_id=conversation_id,
                     command=command,
-                    description=description,
                     verdict="block",
                     block_reason=audit_result.reason,
                 )
@@ -122,7 +115,6 @@ class ShellTool:
         result = await executor.execute(
             command=command,
             timeout=timeout,
-            description=description,
         )
 
         output = self._format_output(command, result)
@@ -136,7 +128,6 @@ class ShellTool:
                 user_id=user_id,
                 conversation_id=conversation_id,
                 command=command,
-                description=description,
                 verdict=audit_result.verdict,
                 return_code=result.return_code,
                 duration_ms=result.duration_ms,

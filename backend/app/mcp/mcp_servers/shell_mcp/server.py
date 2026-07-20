@@ -24,14 +24,11 @@ _shell_tool = ShellTool()
 @mcp.tool(name="shell")
 async def shell(
     command: str = Field(description="The shell command to execute."),
-    description: str = Field(
-        description="Clear, concise summary (5-10 words) of what this command does."
-    ),
     timeout: Annotated[
         int,
         Field(
             ge=1,
-            le=600000,
+            le=60000,
             description="Optional timeout for command execution (in milliseconds, max: 600000)",
         ),
     ] = 30000,
@@ -42,7 +39,6 @@ async def shell(
     result = await _shell_tool.execute(
         {
             "command": command,
-            "description": description,
             "timeout": timeout,
         },
         user_id=ctx.user_id,
