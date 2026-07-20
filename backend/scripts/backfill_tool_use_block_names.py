@@ -30,6 +30,7 @@
   - file_load_skill → skill_manager_load_skill
   - code-exec_execute_code → code_execute_code
   - code-exec_list_runtimes → code_list_runtimes
+  - shell_shell → shell_exec
 """
 
 from __future__ import annotations
@@ -66,6 +67,7 @@ STATIC_BARE_TOOL_TO_SERVER: dict[str, str] = {
     "search_files": "file",
     "load_skill": "skill_manager",
     "shell": "shell",
+    "exec": "shell",
     "execute_code": "code",
     "list_runtimes": "code",
     "resolve-library-id": "context7",
@@ -83,6 +85,7 @@ LEGACY_LLM_NAME_REMAP: dict[str, tuple[str, str, str]] = {
     "file_load_skill": ("skill_manager_load_skill", "skill_manager", "load_skill"),
     "code-exec_execute_code": ("code_execute_code", "code", "execute_code"),
     "code-exec_list_runtimes": ("code_list_runtimes", "code", "list_runtimes"),
+    "shell_shell": ("shell_exec", "shell", "exec"),
 }
 
 KNOWN_SERVERS = sorted(

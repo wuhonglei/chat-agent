@@ -21,7 +21,7 @@ SEARCH_FILES_BARE = "search_files"
 PRESENT_FILES_BARE = "present_files"
 
 # --- Shell / code bare tools ---
-SHELL_BARE = "shell"
+SHELL_BARE = "exec"
 EXECUTE_CODE_BARE = "execute_code"
 LIST_RUNTIMES_BARE = "list_runtimes"
 

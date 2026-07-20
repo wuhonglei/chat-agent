@@ -22,7 +22,7 @@ from app.vfs.paths import get_paths
 class ShellTool:
     """Execute shell commands in sandbox."""
 
-    name = "shell"
+    name = "exec"
     description = "Execute shell commands in a sandboxed environment with proper security measures."
 
     def __init__(self) -> None:

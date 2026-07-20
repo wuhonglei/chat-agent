@@ -53,7 +53,7 @@ def main():
             "tool_types": {
                 "tavily_search": "网页搜索（tavily_web_search）",
                 "web_pages_extract": "网页抓取（tavily_web_pages_extract）",
-                "shell": "Shell 执行（shell_shell）",
+                "shell": "Shell 执行（shell_exec）",
                 "file_operations": "文件操作（file_*）",
                 "mcp_server": "其他 MCP Server（context7, zread, code 等）",
                 "no_tool": "无工具调用",

@@ -172,7 +172,7 @@ async def test_execute_single_tool_scores_shell_by_exit_code(
     shell_call = ChatCompletionMessageFunctionToolCall(
         id="call_shell",
         type="function",
-        function=Function(name="shell_shell", arguments='{"command":"false"}'),
+        function=Function(name="shell_exec", arguments='{"command":"false"}'),
     )
 
     manager = MagicMock()

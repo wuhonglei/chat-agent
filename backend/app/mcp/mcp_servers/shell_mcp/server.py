@@ -30,7 +30,7 @@ def _coerce_timeout(value: object) -> object:
     return value
 
 
-@mcp.tool(name="shell")
+@mcp.tool(name="exec")
 async def shell(
     command: str = Field(description="The shell command to execute."),
     timeout: Annotated[

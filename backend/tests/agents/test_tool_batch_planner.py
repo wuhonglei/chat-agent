@@ -77,7 +77,7 @@ def test_shell_joins_current_group_without_breaking() -> None:
             '{"file_path":"/mnt/user-data/workspace/a.txt","content":"1"}',
             "c1",
         ),
-        _tc("shell_shell", '{"command":"ls","description":"list files"}', "c2"),
+        _tc("shell_exec", '{"command":"ls","description":"list files"}', "c2"),
         _tc(
             "file_read_file",
             '{"file_path":"/mnt/user-data/workspace/b.txt"}',
