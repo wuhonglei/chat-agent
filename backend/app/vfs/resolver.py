@@ -50,6 +50,20 @@ class PathPermission(Enum):
     FORBIDDEN = "forbidden"
 
 
+def match_virtual_prefix(path: str, prefix: str) -> str | None:
+    """Return relative part if *path* is under *prefix*; None if no match.
+
+    Accepts both ``/mnt/.../workspace`` and ``/mnt/.../workspace/`` as the
+    mount root (aligned with shell virtual-path handling).
+    """
+    root = prefix.rstrip("/")
+    if path == root or path == prefix:
+        return ""
+    if path.startswith(f"{root}/"):
+        return path[len(root) + 1 :]
+    return None
+
+
 class PathResolver:
     """Resolve virtual paths to physical paths with security checks."""
 
@@ -65,29 +79,47 @@ class PathResolver:
         virtual_path = virtual_path.strip()
         paths = get_paths()
 
-        if virtual_path.startswith(vfs_config.workspace_prefix):
+        if (
+            relative_part := match_virtual_prefix(
+                virtual_path, vfs_config.workspace_prefix
+            )
+        ) is not None:
             base_dir = paths.sandbox_work_dir(user_id, conversation_id)
-            relative_part = virtual_path[len(vfs_config.workspace_prefix) :]
             permission = PathPermission.READ_WRITE
-        elif virtual_path.startswith(vfs_config.uploads_prefix):
+        elif (
+            relative_part := match_virtual_prefix(
+                virtual_path, vfs_config.uploads_prefix
+            )
+        ) is not None:
             base_dir = paths.sandbox_uploads_dir(user_id, conversation_id)
-            relative_part = virtual_path[len(vfs_config.uploads_prefix) :]
             permission = PathPermission.READ_ONLY
-        elif virtual_path.startswith(vfs_config.outputs_prefix):
+        elif (
+            relative_part := match_virtual_prefix(
+                virtual_path, vfs_config.outputs_prefix
+            )
+        ) is not None:
             base_dir = paths.sandbox_outputs_dir(user_id, conversation_id)
-            relative_part = virtual_path[len(vfs_config.outputs_prefix) :]
             permission = PathPermission.READ_WRITE
-        elif virtual_path.startswith(vfs_config.skills_custom_prefix):
+        elif (
+            relative_part := match_virtual_prefix(
+                virtual_path, vfs_config.skills_custom_prefix
+            )
+        ) is not None:
             base_dir = paths.user_skills_dir(user_id)
-            relative_part = virtual_path[len(vfs_config.skills_custom_prefix) :]
             permission = PathPermission.READ_WRITE
-        elif virtual_path.startswith(vfs_config.skills_public_prefix):
+        elif (
+            relative_part := match_virtual_prefix(
+                virtual_path, vfs_config.skills_public_prefix
+            )
+        ) is not None:
             base_dir = SKILLS_PUBLIC_DIR
-            relative_part = virtual_path[len(vfs_config.skills_public_prefix) :]
             permission = PathPermission.READ_ONLY
-        elif virtual_path.startswith(vfs_config.skills_prefix):
+        elif (
+            relative_part := match_virtual_prefix(
+                virtual_path, vfs_config.skills_prefix
+            )
+        ) is not None:
             base_dir = SKILLS_ROOT
-            relative_part = virtual_path[len(vfs_config.skills_prefix) :]
             permission = PathPermission.READ_ONLY
         else:
             raise ValueError(
