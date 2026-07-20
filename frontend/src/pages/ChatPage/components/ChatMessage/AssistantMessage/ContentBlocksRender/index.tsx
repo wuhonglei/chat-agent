@@ -49,7 +49,7 @@ const ContentBlocksRender: React.FC<Props> = ({ contentBlocks, isStreaming }) =>
           items={[
             {
               key: "collapsed-process-blocks",
-              label: "查看过程",
+              label: "查看详情",
               children: <div className="flex flex-col gap-2">{collapsedBlocks.map(renderBlock)}</div>,
             },
           ]}
