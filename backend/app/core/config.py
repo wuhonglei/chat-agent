@@ -22,6 +22,7 @@ from app.schemas.config import (
     EmbeddingModelConfig,
     KbFileRagConfig,
     LangfuseConfig,
+    LLMReliabilityConfig,
     MCPConfig,
     MinerUConfig,
     ModelsConfig,
@@ -80,6 +81,10 @@ class Settings(BaseSettings):
     langfuse: LangfuseConfig = Field(
         default_factory=LangfuseConfig,
         description="Langfuse 可观测配置",
+    )
+    llm_reliability: LLMReliabilityConfig = Field(
+        default_factory=LLMReliabilityConfig,
+        description="LLM 调用重试与熔断配置",
     )
 
     model_config = SettingsConfigDict(

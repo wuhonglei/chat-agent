@@ -140,6 +140,36 @@ class LangfuseConfig(BaseModel):
     environment: str = Field(default="dev", description="环境标识，如 dev/prod")
 
 
+class LLMReliabilityConfig(BaseModel):
+    """LLM 调用重试与熔断配置（仅作用于 create 建连阶段）"""
+
+    retry_max_attempts: int = Field(
+        default=3,
+        ge=1,
+        description="最大尝试次数（含首次）",
+    )
+    retry_base_delay_ms: int = Field(
+        default=1000,
+        ge=0,
+        description="指数退避基础延迟（毫秒）",
+    )
+    retry_cap_delay_ms: int = Field(
+        default=8000,
+        ge=0,
+        description="指数退避最大延迟（毫秒）",
+    )
+    circuit_failure_threshold: int = Field(
+        default=5,
+        ge=1,
+        description="连续 transient/busy 失败多少次后打开熔断",
+    )
+    circuit_recovery_timeout_sec: int = Field(
+        default=30,
+        ge=1,
+        description="熔断打开后冷却秒数，到期进入 half-open 探针",
+    )
+
+
 class MCPServerEntry(BaseModel):
     """单个 MCP Server 的接入配置。
 
