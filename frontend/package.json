@@ -26,7 +26,7 @@
     "axios": "^1.13.6",
     "camelcase-keys": "^10.0.2",
     "classnames": "^2.5.1",
-    "dayjs": "^1.11.19",
+    "dayjs": "^1.11.21",
     "dexie": "^4.4.4",
     "docx-preview": "^0.4.0",
     "highlight.js": "^11.11.1",
