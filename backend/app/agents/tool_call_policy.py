@@ -28,6 +28,16 @@ class ToolCallPolicy:
     """Manage tool iteration limits and duplicate-call heuristics."""
 
     QUERY_SIMILARITY_THRESHOLD = 0.7
+    URL_OVERLAP_THRESHOLD = 0.7
+    MIN_WEB_SEARCH_FOR_HINT = 1
+    MIN_WEB_SEARCH_FOR_SIMILARITY_STOP = 1
+    MAX_WEB_SEARCH_COUNT = 2
+    MIN_WEB_PAGES_EXTRACT_FOR_OVERLAP_STOP = 1
+    MAX_WEB_PAGES_EXTRACT_COUNT = 2
+    EXTRACTED_URLS_HINT_THRESHOLD = 3
+    MAX_EXTRACTED_URLS = 5
+    MAX_TOTAL_TOOL_CALLS = 6
+    MIN_ITERATION_FOR_HINT = 1
 
     def __init__(self, tool_round_messages: list[ToolMessage]) -> None:
         self.tool_round_messages = tool_round_messages
@@ -50,14 +60,17 @@ class ToolCallPolicy:
     ) -> None:
         hint_messages: list[str] = []
         web_search_count = len(self._get_web_search_queries())
-        if web_search_count >= 1 and iteration >= 1:
+        if (
+            web_search_count >= self.MIN_WEB_SEARCH_FOR_HINT
+            and iteration >= self.MIN_ITERATION_FOR_HINT
+        ):
             hint_messages.append(
                 "⚠️ 已执行过搜索，请先评估现有搜索结果是否足够回答用户问题。"
                 "如果信息已充分，直接给出回答，不要再次调用工具。"
             )
         if has_tool_been_called(
             [(TAVILY_SERVER, WEB_PAGES_EXTRACT_BARE)], self.tool_round_messages
-        ) and (len(self.extracted_urls) >= 3):
+        ) and (len(self.extracted_urls) >= self.EXTRACTED_URLS_HINT_THRESHOLD):
             hint_messages.append(
                 f"⚠️ 已提取 {len(self.extracted_urls)} 个 URL，内容可能已足够，直接回答。"
             )
@@ -65,7 +78,7 @@ class ToolCallPolicy:
         if not should_continue:
             if stop_reason_message:
                 hint_messages.append(stop_reason_message)
-            if iteration >= 1:
+            if iteration >= self.MIN_ITERATION_FOR_HINT:
                 hint_messages.append(get_tool_call_sufficient_info_message())
         if hint_messages:
             hints_text = "\n".join(hint_messages)
@@ -179,7 +192,10 @@ class ToolCallPolicy:
                     query_texts.extend(str(q) for q in queries if q)
                 for query_text in query_texts:
                     is_similar, similarity = self._check_query_similarity(query_text)
-                    if is_similar and web_search_count >= 1:
+                    if (
+                        is_similar
+                        and web_search_count >= self.MIN_WEB_SEARCH_FOR_SIMILARITY_STOP
+                    ):
                         return (
                             False,
                             f"⚠️ 当前查询与历史查询相似度很高（{similarity:.1%}）。如果之前的搜索结果已足够回答问题，请停止继续调用工具，并直接给出最终回答。",
@@ -193,27 +209,31 @@ class ToolCallPolicy:
                     url_texts.extend(str(u) for u in urls if u)
                 if url_texts:
                     overlap_ratio, extracted_count = self._check_url_overlap(url_texts)
-                    if overlap_ratio > 0.7 and web_pages_extract_count >= 1:
+                    if (
+                        overlap_ratio > self.URL_OVERLAP_THRESHOLD
+                        and web_pages_extract_count
+                        >= self.MIN_WEB_PAGES_EXTRACT_FOR_OVERLAP_STOP
+                    ):
                         return (
                             False,
                             f"⚠️ 当前 URL 列表中有 {extracted_count} 个 URL 已在之前提取过（重叠率 {overlap_ratio:.1%}）。如果已获得足够信息，请停止继续调用工具，并直接给出最终回答。",
                         )
-        if web_search_count >= 2:
+        if web_search_count >= self.MAX_WEB_SEARCH_COUNT:
             return (
                 False,
                 f"⚠️ 已执行 {web_search_count} 次搜索，结果可能已足够，直接回答。",
             )
-        if web_pages_extract_count >= 2:
+        if web_pages_extract_count >= self.MAX_WEB_PAGES_EXTRACT_COUNT:
             return (
                 False,
                 f"⚠️ 已执行 {web_pages_extract_count} 次网页提取，内容可能已足够，直接回答。",
             )
-        if len(self.extracted_urls) >= 5:
+        if len(self.extracted_urls) >= self.MAX_EXTRACTED_URLS:
             return (
                 False,
                 f"⚠️ 已提取 {len(self.extracted_urls)} 个 URL，内容可能已足够，直接回答。",
             )
-        if total_tool_calls >= 6:
+        if total_tool_calls >= self.MAX_TOTAL_TOOL_CALLS:
             return (
                 False,
                 f"⚠️ 已执行 {total_tool_calls} 次工具调用，信息可能已足够，直接回答。",
