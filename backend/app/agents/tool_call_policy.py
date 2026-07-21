@@ -96,6 +96,18 @@ class ToolCallPolicy:
         return queries
 
     def _check_query_similarity(self, new_query: str) -> tuple[bool, float]:
+        """检查新查询与历史网页搜索查询的相似度。
+
+        遍历已记录的 web search queries，取与 ``new_query`` 的最高相似度；
+        当最高相似度超过 ``QUERY_SIMILARITY_THRESHOLD`` 时判定为相似。
+
+        Args:
+            new_query: 待检查的新搜索查询文本。
+
+        Returns:
+            ``(is_similar, max_similarity)``：是否超过相似度阈值，以及历史查询中的最高相似度（0–1）。
+            若尚无历史查询，返回 ``(False, 0.0)``。
+        """
         web_search_queries = self._get_web_search_queries()
         if not web_search_queries:
             return False, 0.0
