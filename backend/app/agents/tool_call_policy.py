@@ -176,8 +176,11 @@ class ToolCallPolicy:
                 [WEB_PAGES_EXTRACT_LLM], tool_arguments_by_name, []
             ):
                 urls = get_in(["arguments", "urls"], call_info)
-                if urls:
-                    overlap_ratio, extracted_count = self._check_url_overlap(urls)
+                url_texts: list[str] = []
+                if isinstance(urls, list):
+                    url_texts.extend(str(u) for u in urls if u)
+                if url_texts:
+                    overlap_ratio, extracted_count = self._check_url_overlap(url_texts)
                     if overlap_ratio > 0.7 and web_pages_extract_count >= 1:
                         return (
                             False,
