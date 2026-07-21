@@ -28,6 +28,16 @@ class ToolCallPolicy:
     """Manage tool iteration limits and duplicate-call heuristics."""
 
     QUERY_SIMILARITY_THRESHOLD = 0.7
+    URL_OVERLAP_THRESHOLD = 0.7
+    MIN_WEB_SEARCH_FOR_HINT = 1
+    MIN_WEB_SEARCH_FOR_SIMILARITY_STOP = 1
+    MAX_WEB_SEARCH_COUNT = 2
+    MIN_WEB_PAGES_EXTRACT_FOR_OVERLAP_STOP = 1
+    MAX_WEB_PAGES_EXTRACT_COUNT = 2
+    EXTRACTED_URLS_HINT_THRESHOLD = 3
+    MAX_EXTRACTED_URLS = 5
+    MAX_TOTAL_TOOL_CALLS = 6
+    MIN_ITERATION_FOR_HINT = 1
 
     def __init__(self, tool_round_messages: list[ToolMessage]) -> None:
         self.tool_round_messages = tool_round_messages
@@ -50,14 +60,17 @@ class ToolCallPolicy:
     ) -> None:
         hint_messages: list[str] = []
         web_search_count = len(self._get_web_search_queries())
-        if web_search_count >= 1 and iteration >= 1:
+        if (
+            web_search_count >= self.MIN_WEB_SEARCH_FOR_HINT
+            and iteration >= self.MIN_ITERATION_FOR_HINT
+        ):
             hint_messages.append(
                 "⚠️ 已执行过搜索，请先评估现有搜索结果是否足够回答用户问题。"
                 "如果信息已充分，直接给出回答，不要再次调用工具。"
             )
         if has_tool_been_called(
             [(TAVILY_SERVER, WEB_PAGES_EXTRACT_BARE)], self.tool_round_messages
-        ) and (len(self.extracted_urls) >= 3):
+        ) and (len(self.extracted_urls) >= self.EXTRACTED_URLS_HINT_THRESHOLD):
             hint_messages.append(
                 f"⚠️ 已提取 {len(self.extracted_urls)} 个 URL，内容可能已足够，直接回答。"
             )
@@ -65,7 +78,7 @@ class ToolCallPolicy:
         if not should_continue:
             if stop_reason_message:
                 hint_messages.append(stop_reason_message)
-            if iteration >= 1:
+            if iteration >= self.MIN_ITERATION_FOR_HINT:
                 hint_messages.append(get_tool_call_sufficient_info_message())
         if hint_messages:
             hints_text = "\n".join(hint_messages)
@@ -96,6 +109,18 @@ class ToolCallPolicy:
         return queries
 
     def _check_query_similarity(self, new_query: str) -> tuple[bool, float]:
+        """检查新查询与历史网页搜索查询的相似度。
+
+        遍历已记录的 web search queries，取与 ``new_query`` 的最高相似度；
+        当最高相似度超过 ``QUERY_SIMILARITY_THRESHOLD`` 时判定为相似。
+
+        Args:
+            new_query: 待检查的新搜索查询文本。
+
+        Returns:
+            ``(is_similar, max_similarity)``：是否超过相似度阈值，以及历史查询中的最高相似度（0–1）。
+            若尚无历史查询，返回 ``(False, 0.0)``。
+        """
         web_search_queries = self._get_web_search_queries()
         if not web_search_queries:
             return False, 0.0
@@ -109,6 +134,18 @@ class ToolCallPolicy:
         return is_similar, max_similarity
 
     def _check_url_overlap(self, urls: list[str]) -> tuple[float, int]:
+        """检查待提取 URL 与已提取 URL 的重叠程度。
+
+        将 ``urls`` 规范化后与 ``self.extracted_urls`` 求交集，计算重叠比例与重叠数量。
+        用于判断当前网页提取请求是否在重复提取已处理过的页面。
+
+        Args:
+            urls: 待检查的 URL 列表。
+
+        Returns:
+            ``(overlap_ratio, extracted_count)``：重叠比例（0–1），以及已提取过的 URL 数量。
+            若 ``urls`` 为空，返回 ``(0.0, 0)``。
+        """
         if not urls:
             return 0.0, 0
         normalized_urls = {normalize_url(url) for url in urls if url}
@@ -155,7 +192,10 @@ class ToolCallPolicy:
                     query_texts.extend(str(q) for q in queries if q)
                 for query_text in query_texts:
                     is_similar, similarity = self._check_query_similarity(query_text)
-                    if is_similar and web_search_count >= 1:
+                    if (
+                        is_similar
+                        and web_search_count >= self.MIN_WEB_SEARCH_FOR_SIMILARITY_STOP
+                    ):
                         return (
                             False,
                             f"⚠️ 当前查询与历史查询相似度很高（{similarity:.1%}）。如果之前的搜索结果已足够回答问题，请停止继续调用工具，并直接给出最终回答。",
@@ -164,29 +204,36 @@ class ToolCallPolicy:
                 [WEB_PAGES_EXTRACT_LLM], tool_arguments_by_name, []
             ):
                 urls = get_in(["arguments", "urls"], call_info)
-                if urls:
-                    overlap_ratio, extracted_count = self._check_url_overlap(urls)
-                    if overlap_ratio > 0.7 and web_pages_extract_count >= 1:
+                url_texts: list[str] = []
+                if isinstance(urls, list):
+                    url_texts.extend(str(u) for u in urls if u)
+                if url_texts:
+                    overlap_ratio, extracted_count = self._check_url_overlap(url_texts)
+                    if (
+                        overlap_ratio > self.URL_OVERLAP_THRESHOLD
+                        and web_pages_extract_count
+                        >= self.MIN_WEB_PAGES_EXTRACT_FOR_OVERLAP_STOP
+                    ):
                         return (
                             False,
                             f"⚠️ 当前 URL 列表中有 {extracted_count} 个 URL 已在之前提取过（重叠率 {overlap_ratio:.1%}）。如果已获得足够信息，请停止继续调用工具，并直接给出最终回答。",
                         )
-        if web_search_count >= 2:
+        if web_search_count >= self.MAX_WEB_SEARCH_COUNT:
             return (
                 False,
                 f"⚠️ 已执行 {web_search_count} 次搜索，结果可能已足够，直接回答。",
             )
-        if web_pages_extract_count >= 2:
+        if web_pages_extract_count >= self.MAX_WEB_PAGES_EXTRACT_COUNT:
             return (
                 False,
                 f"⚠️ 已执行 {web_pages_extract_count} 次网页提取，内容可能已足够，直接回答。",
             )
-        if len(self.extracted_urls) >= 5:
+        if len(self.extracted_urls) >= self.MAX_EXTRACTED_URLS:
             return (
                 False,
                 f"⚠️ 已提取 {len(self.extracted_urls)} 个 URL，内容可能已足够，直接回答。",
             )
-        if total_tool_calls >= 6:
+        if total_tool_calls >= self.MAX_TOTAL_TOOL_CALLS:
             return (
                 False,
                 f"⚠️ 已执行 {total_tool_calls} 次工具调用，信息可能已足够，直接回答。",
