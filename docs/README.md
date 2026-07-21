@@ -15,6 +15,7 @@
 - `requirements.md`：当前版本需求范围与功能边界
 - `认证流程.md`：短信/微信登录与 JWT 鉴权流程
 - `会话管理.md`：会话、消息、聊天 SSE 与断线续流协议
+- `cache_design.md`：L1/L2 缓存现网范围、fail-open 行为、配置与排障
 - `图表可视化展示.md`：图表渲染相关说明
 - `nginx-cache-analysis.md`：Nginx 缓存分析
 - `messages表字段精简计划.md`：消息表现网字段、已下线字段与排障核验
