@@ -38,6 +38,23 @@
   .flow .danger-hl { color: var(--danger); font-weight: 600; }
   .callout { background: rgba(52,211,153,.06); border: 1px solid rgba(52,211,153,.2); border-radius: 8px; padding: 1rem 1.2rem; margin: 1rem 0; font-size: .88rem; }
   .callout strong { color: var(--green); }
+  .callout-warn { background: rgba(245,158,11,.06); border: 1px solid rgba(245,158,11,.2); border-radius: 8px; padding: 1rem 1.2rem; margin: 1rem 0; font-size: .88rem; }
+  .callout-warn strong { color: var(--warn); }
+  .layer-purple { border-left: 4px solid var(--purple); }
+  .tag-purple { background: rgba(167,139,250,.15); color: var(--purple); }
+  .tag-blue { background: rgba(96,165,250,.15); color: var(--accent); }
+  .parallel-diagram { background: #13151d; border: 1px solid var(--border); border-radius: 8px; padding: 1.4rem; margin: 1rem 0; font-family: 'JetBrains Mono', monospace; font-size: .78rem; line-height: 1.9; white-space: pre; overflow-x: auto; color: var(--dim); }
+  .parallel-diagram .ok { color: var(--green); }
+  .parallel-diagram .fail { color: var(--danger); }
+  .parallel-diagram .arrow { color: var(--dim); }
+  .parallel-diagram .label { color: var(--accent); font-weight: 600; }
+  .retry-timeline { position: relative; padding-left: 2rem; margin: .8rem 0; }
+  .retry-timeline::before { content: ''; position: absolute: left:.7rem; top:0; bottom:0; width:2px; background: var(--border); }
+  .retry-step { position: relative; padding: .35rem 0; font-size: .84rem; }
+  .retry-step::before { content: ''; position: absolute; left: -2rem; top: .65rem; width: 8px; height: 8px; border-radius: 50%; border: 2px solid var(--border); background: var(--bg); }
+  .retry-step.warn::before { border-color: var(--warn); background: rgba(245,158,11,.2); }
+  .retry-step.block::before { border-color: var(--danger); background: rgba(239,68,68,.25); }
+  .retry-step code { font-size: .78rem; }
   .file-ref { font-size: .78rem; color: var(--dim); margin-top: .3rem; }
   ul { padding-left: 1.4rem; margin: .5rem 0; }
   li { margin: .3rem 0; font-size: .9rem; }
@@ -146,6 +163,104 @@
                        ▼
                <span class="hl">强制最终回答（不再调用工具）</span></div>
 
+<!-- ======================== 并行工具失败处理 ======================== -->
+<h2>并行工具调用：一个失败了怎么办？</h2>
+
+<div class="layer layer-purple">
+<h2><span class="tag tag-purple">Deep Dive</span> 三工具并行，其中一个失败的完整链路</h2>
+
+<h3>核心结论</h3>
+<p><strong>不重试，失败结果直接喂回 LLM，由 LLM 自主决策下一步。</strong>工具失败原因千差万别（参数错误/权限不足/服务不可用），盲目重试不如让 LLM 根据上下文判断。</p>
+
+<h3>执行流程</h3>
+<p class="file-ref">tool_executor.py:85-152 · tool_batch_planner.py:67+</p>
+
+<div class="parallel-diagram"><span class="label">LLM 返回 3 个 tool_calls: [A, B, C]</span>
+       │
+       ▼
+<span class="label">plan_tool_batch_segments()</span>              <span class="arrow">← 按文件路径冲突拆分 segment</span>
+  无路径冲突 → 同一 segment（并行执行）
+       │
+       ▼
+<span class="label">asyncio.gather(*tasks)</span>                  <span class="arrow">← 三个协程同时跑</span>
+  ┌────────┼────────┐
+  ▼        ▼        ▼
+<span class="ok">✓ A 成功</span>  <span class="fail">✗ B 失败</span>  <span class="ok">✓ C 成功</span>    <span class="arrow">← B 的异常被 try/except 捕获</span>
+  │        │        │                  <span class="arrow">   转为 ToolResultMessage(is_error=True)</span>
+  └────────┼────────┘                  <span class="arrow">   gather 永远不抛异常</span>
+           ▼
+<span class="label">三个 ToolResultMessage 全部追加到 tool_round_messages</span>
+  A: {<span class="ok">is_error=False</span>, content="结果..."}
+  B: {<span class="fail">is_error=True</span>,  content="Error: xxx"}   <span class="arrow">← guardrail 追加 ⚠️ 警告</span>
+  C: {<span class="ok">is_error=False</span>, content="结果..."}
+           │
+           ▼
+<span class="label">下一轮 iteration</span>: 全部结果作为 tool messages 喂回 LLM
+  LLM 看到 B 失败 → <span class="ok">自主决定：重试 / 换工具 / 忽略 / 直接回答</span></div>
+
+<h3>关键设计点</h3>
+
+<table>
+  <tr><th>设计决策</th><th>实现</th><th>原因</th></tr>
+  <tr>
+    <td><strong>无工具级自动重试</strong></td>
+    <td><code>execute_single_tool</code> 无 retry 循环</td>
+    <td>工具失败原因多样，盲目重试大概率仍失败；交给 LLM 判断更智能</td>
+  </tr>
+  <tr>
+    <td><strong>失败不阻塞其他工具</strong></td>
+    <td>每个协程内部 try/except → <code>is_error=True</code></td>
+    <td>asyncio.gather 不因单个协程异常而取消其他协程</td>
+  </tr>
+  <tr>
+    <td><strong>guardrail 事后记账</strong></td>
+    <td><code>record_outcome(success=False)</code> 递增计数器</td>
+    <td>失败的 tool result 追加 ⚠️ 警告，引导 LLM 换策略</td>
+  </tr>
+  <tr>
+    <td><strong>失败结果原样返回 LLM</strong></td>
+    <td>三个结果全部 append 到 <code>tool_round_messages</code></td>
+    <td>LLM 看到 2 成功 1 失败，自主决定是否值得重试</td>
+  </tr>
+</table>
+
+<h3>如果 LLM 坚持重试同一个失败工具</h3>
+<p class="file-ref">tool_call_guardrail.py:73-112 · before_call() + record_outcome()</p>
+<p>guardrail 按签名（SHA256(tool_name + sorted_args)）计数，渐进式惩罚:</p>
+
+<div class="retry-timeline">
+  <div class="retry-step">第 1 次失败: <code>exact_count=1, same_tool_count=1</code> → 无警告</div>
+  <div class="retry-step warn">第 2 次失败: <code>exact_count=2 ≥ warn_after(2)</code> → ⚠️ "请更换策略，避免原样重试"</div>
+  <div class="retry-step warn">第 3 次失败: <code>same_tool_count=3 ≥ warn_after(3)</code> → ⚠️ "工具已连续失败 3 次" + 恢复建议</div>
+  <div class="retry-step warn">第 4 次失败: <code>exact_count=4</code> → ⚠️ 警告继续</div>
+  <div class="retry-step block">第 5 次失败: <code>exact_count=5 ≥ block_after(5)</code> → 🛑 BLOCK（同参数阻断，不执行）</div>
+  <div class="retry-step warn">第 6-7 次: LLM 换参数重试 → <code>same_tool_count=6-7</code> → ⚠️ 警告升级</div>
+  <div class="retry-step block">第 8 次失败: <code>same_tool_count=8 ≥ halt_after(8)</code> → 🛑 HALT（全部工具停摆）→ 强制最终回答</div>
+</div>
+
+<h3>LLM API 调用本身的重试（区别于工具重试）</h3>
+<p class="file-ref">llm_service.py:237-284</p>
+<p>LLM API 的 429/503/超时有独立重试机制，与工具调用无关:</p>
+<pre><code><span class="kw">max_attempts</span> = reliability.retry_max_attempts
+<span class="kw">while</span> True:
+    <span class="kw">try</span>:
+        response = <span class="kw">await</span> self._client.chat.completions.create(**api_params)
+        breaker.record_success()
+        <span class="kw">return</span> response
+    <span class="kw">except</span> Exception <span class="kw">as</span> e:
+        retriable, reason = classify_error(e)       <span class="comment"># 429/503→可重试, quota/auth→不可重试</span>
+        <span class="kw">if</span> retriable <span class="kw">and</span> attempt &lt; max_attempts:
+            <span class="kw">await</span> asyncio.sleep(wait_ms / 1000)     <span class="comment"># 指数退避</span>
+            attempt += 1; <span class="kw">continue</span>
+        <span class="kw">if</span> counts_toward_circuit(reason):
+            breaker.record_failure()                 <span class="comment"># 累计到进程级熔断器</span>
+        <span class="kw">raise</span> build_llm_call_error(e, reason)</code></pre>
+
+<div class="callout-warn">
+<strong>追问预判：</strong>"为什么不在工具层做自动重试？" → 工具失败的语义太丰富——参数错误重试 N 次还是错，权限不足重试也没用，只有网络超时值得重试。而 LLM 有上下文，能判断"这个失败是否值得重试"。所以我们把决策权给 LLM，guardrail 只负责兜底防失控。
+</div>
+</div>
+
 <!-- ======================== 设计哲学 ======================== -->
 <div class="layer layer-summary">
 <h2><span class="tag tag-green">设计哲学</span> 总结</h2>
@@ -154,10 +269,12 @@
   <li><strong>硬约束是最后安全网</strong>：三层互不依赖，从轮次、上下文、工具错误三个维度独立兜底</li>
   <li><strong>渐进式惩罚</strong>：warn → block → halt，给 LLM 充分的自我纠正机会</li>
   <li><strong>成功即重置</strong>：计数器在成功时 pop 清零，不惩罚正常调用链路</li>
+  <li><strong>并行失败不阻塞</strong>：三个工具并行，一个失败不影响另外两个；失败结果原样返回 LLM 由其自主决策</li>
+  <li><strong>工具层无自动重试</strong>：把决策权交给有上下文的 LLM，guardrail 只负责兜底防失控</li>
 </ul>
 
 <div class="callout">
-<strong>面试话术:</strong> "我们采用双层治理——软引导先用动态提示让 LLM 自主收敛，硬约束兜底确保不会无限循环。三层硬约束分别从轮次、上下文、工具错误三个维度兜底，互不依赖。"
+<strong>面试话术:</strong> "我们采用双层治理——软引导先用动态提示让 LLM 自主收敛，硬约束兜底确保不会无限循环。三层硬约束分别从轮次、上下文、工具错误三个维度兜底，互不依赖。并行工具调用场景下，失败结果原样返回 LLM，由 LLM 根据上下文决定重试还是换策略——因为工具失败的语义太丰富，自动重试不如 LLM 判断智能。"
 </div>
 </div>
 
