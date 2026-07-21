@@ -121,6 +121,18 @@ class ToolCallPolicy:
         return is_similar, max_similarity
 
     def _check_url_overlap(self, urls: list[str]) -> tuple[float, int]:
+        """检查待提取 URL 与已提取 URL 的重叠程度。
+
+        将 ``urls`` 规范化后与 ``self.extracted_urls`` 求交集，计算重叠比例与重叠数量。
+        用于判断当前网页提取请求是否在重复提取已处理过的页面。
+
+        Args:
+            urls: 待检查的 URL 列表。
+
+        Returns:
+            ``(overlap_ratio, extracted_count)``：重叠比例（0–1），以及已提取过的 URL 数量。
+            若 ``urls`` 为空，返回 ``(0.0, 0)``。
+        """
         if not urls:
             return 0.0, 0
         normalized_urls = {normalize_url(url) for url in urls if url}
