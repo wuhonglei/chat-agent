@@ -19,7 +19,7 @@
     "@microsoft/fetch-event-source": "^2.0.1",
     "@monaco-editor/react": "^4.7.0",
     "@reduxjs/toolkit": "^2.12.0",
-    "aegis-web-sdk": "^1.41.13",
+    "aegis-web-sdk": "^1.41.14",
     "ahooks": "^3.9.7",
     "antd": "^6.4.4",
     "antd-img-crop": "^4.30.0",
