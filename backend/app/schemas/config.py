@@ -498,7 +498,7 @@ class HistoryWindowConfig(BaseModel):
         description="历史消息 token 预算占模型 context_limit 的比例，超出部分从更早消息起截断",
     )
     max_rounds: int = Field(
-        default=5,
+        default=20,
         description="历史最多保留轮数（一轮 = 一条 user + 对应 assistant 及其中 tool）",
     )
 
