@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent 架构：ReAct vs Plan-Execute 适用场景区别</title>
+<style>
+  :root {
+    --primary: #2563eb;
+    --primary-light: #dbeafe;
+    --accent: #f59e0b;
+    --accent-light: #fef3c7;
+    --bg: #f8fafc;
+    --card-bg: #ffffff;
+    --text: #1e293b;
+    --text-secondary: #64748b;
+    --border: #e2e8f0;
+    --green: #10b981;
+    --green-light: #d1fae5;
+    --red: #ef4444;
+    --red-light: #fee2e2;
+    --purple: #7c3aed;
+    --purple-light: #ede9fe;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.8;
+    padding: 40px 20px;
+  }
+  .container { max-width: 960px; margin: 0 auto; }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+    color: #fff;
+    padding: 48px 40px;
+    border-radius: 16px;
+    margin-bottom: 32px;
+    position: relative;
+    overflow: hidden;
+  }
+  .header::after {
+    content: '';
+    position: absolute;
+    top: -50%; right: -20%;
+    width: 400px; height: 400px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 50%;
+  }
+  .header .tag {
+    display: inline-block;
+    background: rgba(255,255,255,0.2);
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    letter-spacing: 1px;
+  }
+  .header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    position: relative;
+    z-index: 1;
+  }
+  .header .subtitle {
+    font-size: 16px;
+    opacity: 0.9;
+    position: relative;
+    z-index: 1;
+    line-height: 1.7;
+  }
+
+  /* Card */
+  .card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 32px;
+    margin-bottom: 24px;
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .card h2 {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--primary-light);
+    color: var(--primary);
+  }
+  .card h3 {
+    font-size: 17px;
+    font-weight: 600;
+    margin: 24px 0 12px;
+    color: var(--text);
+  }
+
+  /* Intro highlight */
+  .intro-highlight {
+    background: var(--primary-light);
+    border-left: 4px solid var(--primary);
+    padding: 20px 24px;
+    border-radius: 0 8px 8px 0;
+    margin: 20px 0;
+    font-size: 16px;
+    line-height: 1.8;
+  }
+
+  /* Comparison grid */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin: 20px 0;
+  }
+  .compare-box {
+    padding: 24px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+  .compare-box.react {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+  }
+  .compare-box.plan {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+  }
+  .compare-box .label {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+  .compare-box.react .label { color: var(--primary); }
+  .compare-box.plan .label { color: var(--green); }
+  .compare-box p { font-size: 15px; }
+  .compare-box strong { color: var(--text); }
+
+  /* Table */
+  .table-wrapper {
+    overflow-x: auto;
+    margin: 20px 0;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  thead th {
+    background: #f1f5f9;
+    padding: 14px 16px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid var(--border);
+  }
+  thead th:first-child { width: 140px; }
+  tbody td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    line-height: 1.7;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:nth-child(even) { background: #f8fafc; }
+  tbody td strong { color: var(--primary); }
+  tbody td:first-child {
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+  }
+  .tag-react {
+    display: inline-block;
+    background: #dbeafe;
+    color: #1d4ed8;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .tag-plan {
+    display: inline-block;
+    background: #d1fae5;
+    color: #047857;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  /* Scenario section */
+  .scenario {
+    margin: 28px 0;
+    padding: 24px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+  .scenario.react-scenario {
+    background: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 100%);
+    border-color: #bfdbfe;
+  }
+  .scenario.plan-scenario {
+    background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+    border-color: #bbf7d0;
+  }
+  .scenario-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .scenario.react-scenario .scenario-title { color: var(--primary); }
+  .scenario.plan-scenario .scenario-title { color: #047857; }
+
+  /* Steps */
+  .steps {
+    margin: 16px 0;
+    padding-left: 0;
+    list-style: none;
+    counter-reset: step;
+  }
+  .steps li {
+    counter-increment: step;
+    position: relative;
+    padding: 10px 0 10px 40px;
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0; top: 10px;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .plan-scenario .steps li::before { background: #047857; }
+  .steps li .step-label {
+    font-weight: 600;
+    color: var(--text);
+  }
+  .steps li .step-label.think { color: var(--purple); }
+  .steps li .step-label.act { color: var(--primary); }
+  .steps li .step-label.observe { color: var(--green); }
+  .steps li .step-label.plan { color: #047857; }
+  .steps li .step-label.exec { color: #b45309; }
+
+  /* Reason box */
+  .reason-box {
+    background: var(--accent-light);
+    border-left: 4px solid var(--accent);
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    margin: 14px 0;
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .reason-box strong { color: #92400e; }
+
+  /* Other scenarios list */
+  .other-scenarios {
+    margin: 16px 0;
+    padding-left: 0;
+    list-style: none;
+  }
+  .other-scenarios li {
+    padding: 8px 0 8px 24px;
+    position: relative;
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .other-scenarios li::before {
+    content: '▸';
+    position: absolute;
+    left: 0;
+    color: var(--primary);
+    font-weight: bold;
+  }
+  .plan-scenario .other-scenarios li::before { color: #047857; }
+
+  /* Summary */
+  .summary-card {
+    background: linear-gradient(135deg, #fefce8 0%, #fef3c7 100%);
+    border: 1px solid #fde68a;
+    border-radius: 12px;
+    padding: 28px;
+    margin: 24px 0;
+  }
+  .summary-card h3 {
+    color: #92400e;
+    margin-top: 0;
+  }
+  .summary-question {
+    background: #fff;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 12px 0;
+    border: 1px solid #fde68a;
+  }
+  .summary-question .q {
+    font-weight: 700;
+    color: #92400e;
+    margin-bottom: 8px;
+  }
+  .summary-question p {
+    font-size: 14px;
+    margin: 4px 0;
+    padding-left: 8px;
+  }
+
+  /* Combine note */
+  .combine-note {
+    background: var(--purple-light);
+    border-left: 4px solid var(--purple);
+    padding: 20px 24px;
+    border-radius: 0 8px 8px 0;
+    margin: 24px 0;
+    font-size: 14px;
+    line-height: 1.8;
+  }
+  .combine-note strong { color: #5b21b6; }
+
+  /* Final metaphor */
+  .metaphor {
+    text-align: center;
+    padding: 24px;
+    font-size: 16px;
+    color: var(--text-secondary);
+    font-style: italic;
+  }
+  .metaphor strong { color: var(--text); font-style: normal; }
+
+  /* Arrow between boxes */
+  .arrow-down {
+    text-align: center;
+    font-size: 24px;
+    color: var(--text-secondary);
+    margin: -8px 0;
+  }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .compare-grid { grid-template-columns: 1fr; }
+    .header { padding: 32px 24px; }
+    .header h1 { font-size: 22px; }
+    .card { padding: 20px; }
+    table { font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="tag">AGENT 架构设计</div>
+    <h1>ReAct vs Plan-Execute 适用场景区别</h1>
+    <p class="subtitle">两种架构代表了智能体在决策模式上的核心分野，理解它们的区别，是设计可靠智能体系统的关键。</p>
+  </div>
+
+  <!-- Core Insight -->
+  <div class="card">
+    <h2>💡 核心理解</h2>
+    <div class="intro-highlight">
+      <strong>ReAct</strong> 是"边看边走"的即时反应，<strong>Plan-Execute</strong> 是"先谋后动"的深思熟虑。
+    </div>
+  </div>
+
+  <!-- Core Decision Logic -->
+  <div class="card">
+    <h2>⚙️ 核心决策逻辑对比</h2>
+    <div class="compare-grid">
+      <div class="compare-box react">
+        <div class="label">ReAct (Reason + Act)</div>
+        <p>核心是一个紧密的循环：<strong>思考 → 行动 → 观察 → 再思考……</strong> 每一步行动都基于上一步的即时反馈，思考、行动和观察交织在一起，没有独立的长期规划阶段。</p>
+      </div>
+      <div class="compare-box plan">
+        <div class="label">Plan-Execute</div>
+        <p>将过程明确分为两个解耦的阶段。<strong>计划器</strong>先根据目标生成完整或阶段性的步骤清单；<strong>执行器</strong>再严格按照计划逐步执行，并将结果返回给计划器，以便在必要时重新规划。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Multi-dimensional Comparison Table -->
+  <div class="card">
+    <h2>📊 多维度场景区别</h2>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>维度</th>
+            <th><span class="tag-react">ReAct</span> 推理-行动循环</th>
+            <th><span class="tag-plan">Plan-Execute</span> 计划-执行分离</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>任务确定性</td>
+            <td><strong>低确定性，探索性强</strong>。你不知道确切的答案在哪，路径是未知的。</td>
+            <td><strong>中/高确定性，结构化强</strong>。你知道大概需要哪些步骤，只是需要准确执行。</td>
+          </tr>
+          <tr>
+            <td>反馈依赖性</td>
+            <td><strong>高度依赖即时反馈</strong>。下一步动作完全由上一步的结果决定。</td>
+            <td><strong>阶段性反馈</strong>。主要在计划完成或遇到阻碍时，才将结果用于重新规划。</td>
+          </tr>
+          <tr>
+            <td>可预测性</td>
+            <td><strong>低</strong>。行为路径不确定，难以预估全部流程。</td>
+            <td><strong>高</strong>。整体路径在计划阶段就已可见，容易审计和干预。</td>
+          </tr>
+          <tr>
+            <td>容错与纠偏</td>
+            <td><strong>自然容错</strong>。发现错误立刻在下一步纠正，非常灵活。</td>
+            <td><strong>需显式容错</strong>。需要设计好的重规划机制，否则会在某一步卡住。</td>
+          </tr>
+          <tr>
+            <td>资源消耗</td>
+            <td><strong>单次调用开销小，但总步数多</strong>。每次都要发送完整上下文（如对话历史）。</td>
+            <td><strong>单次任务开销可能更大</strong>（生成整个计划），但执行时上下文精简，总步数可控。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ReAct Scenarios -->
+  <div class="card">
+    <h2>🔍 场景与实例</h2>
+
+    <div class="scenario react-scenario">
+      <div class="scenario-title">🧠 ReAct 适用场景：复杂知识推理与动态交互</div>
+      <p style="font-size:14px;color:var(--text-secondary);margin-bottom:16px;">这类场景路径不确定，需要多方探索、交叉验证，就像侦探破案。</p>
+
+      <h3 style="margin-top:16px;">举例：用多方信源核实"2024年诺贝尔物理学奖得主是否在某大学任职"</h3>
+      <p style="font-size:14px;margin-bottom:12px;"><strong>目标：</strong>核实一个非直接陈述的事实。</p>
+
+      <ol class="steps">
+        <li><span class="step-label think">思考</span>：需要知道2024年诺奖物理学得主是谁。</li>
+        <li><span class="step-label act">行动</span>：调用搜索引擎，搜索"2024年诺贝尔物理学奖得主"。</li>
+        <li><span class="step-label observe">观察</span>：得到结果：John Hopfield 和 Geoffrey Hinton。</li>
+        <li><span class="step-label think">思考</span>：需要查其中一人是否在某大学任职，先查 Geoffrey Hinton。</li>
+        <li><span class="step-label act">行动</span>：搜索"Geoffrey Hinton 多伦多大学 任职"。</li>
+        <li><span class="step-label observe">观察</span>：结果显示他是多伦多大学的荣誉教授。</li>
+        <li><span class="step-label think">思考</span>：已找到证据可以回答，无需再查另一人。</li>
+        <li><span class="step-label act">最终答案</span>："是的，2024年诺贝尔物理学奖得主之一 Geoffrey Hinton，在多伦多大学担任荣誉教授。"</li>
+      </ol>
+
+      <div class="reason-box">
+        <strong>为何不适合 Plan-Execute：</strong>无法预先规划要搜谁、搜几次，因为需要搜到谁，完全取决于第一步的结果。
+      </div>
+
+      <h3>其他典型场景</h3>
+      <ul class="other-scenarios">
+        <li><strong>客户服务对话</strong>：用户说"上个月买的XX坏了，但我找不到订单"，你必须先查订单，发现他没登录；引导登录后，再根据查到的具体订单，决定是退款还是换货。路径完全由用户输入动态决定。</li>
+        <li><strong>交互式代码调试</strong>：写一段代码，运行报错；根据报错信息搜索解决方案，修改代码；再次运行又出现新问题。这个"编码-测试-修复"的循环就是 ReAct 的典型应用。</li>
+      </ul>
+    </div>
+
+    <div class="scenario plan-scenario">
+      <div class="scenario-title">📋 Plan-Execute 适用场景：多步骤、可分解的结构化任务</div>
+      <p style="font-size:14px;color:var(--text-secondary);margin-bottom:16px;">这类任务目标清晰，步骤可提前规划，比如做旅行攻略、写结构化的长篇报告。</p>
+
+      <h3 style="margin-top:16px;">举例：为你规划"深圳三日游攻略"并生成网页</h3>
+      <p style="font-size:14px;margin-bottom:12px;"><strong>目标：</strong>生成一份包含行程、交通、美食推荐的完整网页。</p>
+
+      <ol class="steps">
+        <li>
+          <span class="step-label plan">计划阶段</span>：根据目标生成一个顶层计划：
+          <ul style="margin:8px 0 0 16px;font-size:13px;color:var(--text-secondary);">
+            <li>⬜ 步骤1：搜索"深圳三日游经典行程"</li>
+            <li>⬜ 步骤2：搜索"深圳必吃美食及餐厅推荐"</li>
+            <li>⬜ 步骤3：搜索"深圳地铁交通指南"</li>
+            <li>⬜ 步骤4：整合以上信息，生成一个结构化的 HTML 网页</li>
+          </ul>
+        </li>
+        <li>
+          <span class="step-label exec">执行阶段</span>：执行器先执行步骤1，将结果暂存。接着执行步骤2，再执行步骤3。这三步可以互不依赖，甚至能<strong>并行执行</strong>，这是 ReAct 很难做到的。最后执行步骤4，汇总所有暂存结果，生成最终答案。
+        </li>
+      </ol>
+
+      <div class="reason-box">
+        <strong>为何适合 Plan-Execute：</strong>任务分解和最终产出物明确，提前规划能确保结构的完整性，并支持并行执行来提升效率。
+      </div>
+
+      <h3>其他典型场景</h3>
+      <ul class="other-scenarios">
+        <li><strong>批量数据处理流水线</strong>：目标是"分析这份销售表格，给出各区域总结报告"。计划是：1. 清洗数据 2. 按区域分组计算总额 3. 对每组生成分析文字 4. 汇总成 PPT。每一步都是可定义的步骤。</li>
+        <li><strong>复杂的软件部署任务</strong>：目标是"在公司内网部署一个测试应用"。计划是：1. 检查服务器资源 2. 拉取 Docker 镜像 3. 配置数据库连接 4. 启动服务 5. 验证健康检查。虽然步骤固定，但失败时需要通知计划器调整计划（如回滚或重试）。</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Summary -->
+  <div class="card">
+    <h2>🎯 总结：如何选择？</h2>
+
+    <div class="summary-card">
+      <h3>两个关键问题帮你做出选择</h3>
+
+      <div class="summary-question">
+        <div class="q">问题一：你清楚从开始到结束的每一步怎么走吗？</div>
+        <p>✅ 如果清楚 → <strong>Plan-Execute</strong> 是首选，它高效、可控、结果更确定。</p>
+        <p>❓ 如果不清楚，需要摸着石头过河 → 需要 <strong>ReAct</strong>。</p>
+      </div>
+
+      <div class="summary-question">
+        <div class="q">问题二：任务的实时反馈和路径修正有多重要？</div>
+        <p>🔄 如果下一步行动强烈依赖上一步的具体结果 → <strong>ReAct</strong> 是必须的。</p>
+        <p>📐 如果任务可以被清晰地拆解为松耦合的子任务 → <strong>Plan-Execute</strong> 更合适。</p>
+      </div>
+    </div>
+
+    <div class="combine-note">
+      <strong>💡 实战组合：</strong>复杂智能体系统往往会将两者结合。例如一个自动化客服 Agent，顶层用 <strong>Plan-Execute</strong> 定义"身份验证 → 理解意图 → 解决问题 → 确认满意度"的宏观流程，而在"解决问题"这一步，再调用一个 <strong>ReAct</strong> 子 Agent，去灵活地查询知识库、操作后台系统。
+    </div>
+
+    <div class="metaphor">
+      动手设计前，不妨先问问自己：<br>
+      <strong>这个任务更像走迷宫，还是更像按食谱做菜？</strong><br>
+      这个比喻基本就能帮你做出初步选择了。
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Badcase 演示 — 双层稳定性治理</title>
+<style>
+  :root { --bg:#0f1117; --card:#1a1d27; --border:#2a2d3a; --text:#e4e4e7; --dim:#9ca3af; --accent:#60a5fa; --warn:#f59e0b; --danger:#ef4444; --green:#34d399; --purple:#a78bfa; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Inter',-apple-system,sans-serif; background:var(--bg); color:var(--text); line-height:1.7; padding:2rem; }
+  .container { max-width:1000px; margin:0 auto; }
+  h1 { font-size:1.6rem; font-weight:700; }
+  .subtitle { color:var(--dim); font-size:.9rem; margin-bottom:2rem; }
+  h2 { font-size:1.15rem; font-weight:600; margin:2rem 0 .8rem; color:var(--accent); }
+
+  /* scenario card */
+  .scenario { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:1.4rem 1.6rem; margin-bottom:2rem; }
+  .scenario .q { font-size:1.05rem; font-weight:600; color:var(--green); margin-bottom:.6rem; }
+  .scenario .q::before { content:'👤 '; }
+  .scenario p { font-size:.88rem; color:var(--dim); }
+
+  /* timeline */
+  .timeline { position:relative; padding-left:2.6rem; }
+  .timeline::before { content:''; position:absolute; left:.85rem; top:0; bottom:0; width:2px; background:var(--border); }
+  .step { position:relative; margin-bottom:1.2rem; }
+  .step .dot { position:absolute; left:-2.6rem; top:.45rem; width:12px; height:12px; border-radius:50%; border:2px solid var(--border); background:var(--bg); }
+  .step.soft .dot { border-color:var(--warn); background:rgba(245,158,11,.2); }
+  .step.hard .dot { border-color:var(--danger); background:rgba(239,68,68,.25); }
+  .step.llm .dot { border-color:var(--accent); background:rgba(96,165,250,.2); }
+  .step.success .dot { border-color:var(--green); background:rgba(52,211,153,.2); }
+  .step-header { display:flex; align-items:center; gap:.5rem; margin-bottom:.3rem; }
+  .step-header .iter { font-size:.7rem; font-weight:700; color:var(--dim); background:rgba(255,255,255,.05); padding:1px 6px; border-radius:3px; }
+  .step-header .label { font-size:.85rem; font-weight:600; }
+  .step.soft .step-header .label { color:var(--warn); }
+  .step.hard .step-header .label { color:var(--danger); }
+  .step.llm .step-header .label { color:var(--accent); }
+  .step.success .step-header .label { color:var(--green); }
+  .step-body { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:.8rem 1rem; font-size:.82rem; }
+  .step.soft .step-body { border-left:3px solid var(--warn); }
+  .step.hard .step-body { border-left:3px solid var(--danger); }
+  .step.llm .step-body { border-left:3px solid var(--accent); }
+  .step.success .step-body { border-left:3px solid var(--green); }
+  .step-body code { font-family:'JetBrains Mono',monospace; font-size:.78rem; background:rgba(96,165,250,.1); color:var(--accent); padding:1px 4px; border-radius:3px; }
+  .step-body .hint { color:var(--warn); font-weight:500; }
+  .step-body .block { color:var(--danger); font-weight:500; }
+  .step-body .call { color:var(--accent); }
+  .step-body .result { color:var(--dim); }
+  .step-body .final { color:var(--green); font-weight:500; }
+  .arrow { font-size:.75rem; color:var(--dim); margin:.3rem 0 .3rem 0; padding-left:.2rem; }
+
+  /* state table */
+  .state { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:1.2rem 1.4rem; margin:1.5rem 0; }
+  .state h3 { font-size:.9rem; font-weight:600; margin-bottom:.6rem; color:var(--purple); }
+  table { width:100%; border-collapse:collapse; font-size:.8rem; }
+  th { text-align:left; padding:.4rem .5rem; border-bottom:1px solid var(--border); color:var(--dim); font-weight:600; }
+  td { padding:.4rem .5rem; border-bottom:1px solid var(--border); }
+  td.val { font-family:'JetBrains Mono',monospace; color:var(--accent); }
+
+  /* summary */
+  .summary { background:var(--card); border:1px solid rgba(52,211,153,.2); border-radius:10px; padding:1.4rem 1.6rem; margin-top:2rem; }
+  .summary h2 { color:var(--green); margin-top:0; }
+  .summary ul { padding-left:1.2rem; }
+  .summary li { margin:.4rem 0; font-size:.88rem; }
+  .summary li::marker { color:var(--green); }
+  .callout { background:rgba(52,211,153,.06); border:1px solid rgba(52,211,153,.15); border-radius:8px; padding:.8rem 1rem; margin-top:1rem; font-size:.85rem; }
+  .callout strong { color:var(--green); }
+
+  .vs { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin:1rem 0; }
+  .vs-card { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:1rem; font-size:.82rem; }
+  .vs-card h4 { font-size:.8rem; margin-bottom:.4rem; }
+  .vs-card.with h4 { color:var(--green); }
+  .vs-card.without h4 { color:var(--danger); }
+  @media(max-width:640px) { body{padding:1rem;} .vs{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Badcase 演示：双层治理效果对比</h1>
+<p class="subtitle">chat-agent · 一个 LLM 搜索上瘾的真实场景</p>
+
+<!-- ======================== 场景 ======================== -->
+<div class="scenario">
+  <div class="q">帮我对比一下 LangChain 和 LlamaIndex，哪个更适合企业级 RAG 项目？</div>
+  <p>LLM 拿到问题后开始搜索，搜索结果已包含充分信息，但 LLM "总觉得不够"，反复搜索和提取网页——典型的<strong>搜索上瘾</strong>场景。</p>
+</div>
+
+<!-- ======================== 无治理 ======================== -->
+<h2>❌ 无治理：LLM 搜索上瘾，无限循环</h2>
+<div class="timeline">
+  <div class="step llm"><div class="dot"></div><div class="step-header"><span class="iter">#1</span><span class="label">web_search("LangChain vs LlamaIndex RAG")</span></div><div class="step-body"><span class="call">→ 返回 10 条结果，含详细对比</span></div></div>
+  <div class="step llm"><div class="dot"></div><div class="step-header"><span class="iter">#2</span><span class="label">web_search("LangChain LlamaIndex 企业级 对比 2024")</span></div><div class="step-body"><span class="call">→ 返回 8 条结果，与上次高度重叠</span></div></div>
+  <div class="step llm"><div class="dot"></div><div class="step-header"><span class="iter">#3</span><span class="label">web_pages_extract([...8 URLs])</span></div><div class="step-body"><span class="call">→ 提取 8 个网页，内容冗余</span></div></div>
+  <div class="step llm"><div class="dot"></div><div class="step-header"><span class="iter">#4</span><span class="label">web_search("RAG framework comparison enterprise")</span></div><div class="step-body"><span class="call">→ 英文搜索，结果与中文搜索重叠</span></div></div>
+  <div class="step llm"><div class="dot"></div><div class="step-header"><span class="iter">#5</span><span class="label">web_pages_extract([...more URLs])</span></div><div class="step-body"><span class="call">→ 继续提取…</span></div></div>
+  <div class="step llm"><div class="dot"></div><div class="step-header"><span class="iter">#6</span><span class="label">web_search("LangChain 缺点 LlamaIndex 优势")</span></div><div class="step-body"><span class="call">→ 第三次搜索…</span></div></div>
+  <div class="step llm"><div class="dot"></div><div class="step-header"><span class="iter">#7…</span><span class="label">继续搜索/提取…</span></div><div class="step-body"><span class="result">Token 持续膨胀 → 响应变慢 → 用户等待 >30s → 体验崩溃</span></div></div>
+</div>
+
+<!-- ======================== 有治理 ======================== -->
+<h2>✅ 有治理：双层机制介入</h2>
+<div class="timeline">
+
+  <!-- iter 0 -->
+  <div class="step llm"><div class="dot"></div><div class="step-header"><span class="iter">iteration 0</span><span class="label">web_search("LangChain vs LlamaIndex RAG")</span></div>
+  <div class="step-body">
+    <span class="call">→ 返回 10 条结果，含详细对比</span><br>
+    <span class="result">guardrail.record_outcome(success=True) — 无警告</span><br>
+    <span class="result">policy 记录查询: ["LangChain vs LlamaIndex RAG"]</span>
+  </div></div>
+
+  <!-- iter 1: soft hint -->
+  <div class="step soft"><div class="dot"></div><div class="step-header"><span class="iter">iteration 1 · 软引导</span><span class="label">apply_iteration_hints 注入提示</span></div>
+  <div class="step-body">
+    <span class="hint">⚠️ 已执行过搜索，请先评估现有搜索结果是否足够回答用户问题。如果信息已充分，直接给出回答，不要再次调用工具。</span>
+  </div></div>
+  <div class="arrow">↳ LLM 忽略提示，决定再搜一次</div>
+  <div class="step llm"><div class="dot"></div><div class="step-header"><span class="iter">iteration 1</span><span class="label">web_search("LangChain LlamaIndex 企业级 对比 2024")</span></div>
+  <div class="step-body">
+    <span class="call">→ 返回 8 条结果</span><br>
+    <span class="result">guardrail.record_outcome(success=True)</span><br>
+    <span class="result">policy 记录查询: [..., "LangChain LlamaIndex 企业级 对比 2024"]</span>
+  </div></div>
+
+  <!-- iter 2: soft hints escalate -->
+  <div class="step soft"><div class="dot"></div><div class="step-header"><span class="iter">iteration 2 · 软引导升级</span><span class="label">apply_iteration_hints 注入多条提示</span></div>
+  <div class="step-body">
+    <span class="hint">⚠️ 已执行过搜索，请先评估现有搜索结果是否足够…</span><br><br>
+    <span class="hint">⚠️ 已执行 2 次搜索，结果可能已足够，直接回答。</span><br><br>
+    <span class="hint">⚠️ 搜索结果可能已足够回答问题。请检查已调用工具及其结果，足够则直接给出最终回答，停止调用更多工具。</span>
+  </div></div>
+  <div class="arrow">↳ LLM 仍决定提取网页详情</div>
+  <div class="step llm"><div class="dot"></div><div class="step-header"><span class="iter">iteration 2</span><span class="label">web_pages_extract([...5 URLs])</span></div>
+  <div class="step-body">
+    <span class="call">→ 提取 5 个网页</span><br>
+    <span class="result">policy.extracted_urls = {"url1","url2","url3","url4","url5"} (共 5 个)</span>
+  </div></div>
+
+  <!-- iter 3: more soft hints -->
+  <div class="step soft"><div class="dot"></div><div class="step-header"><span class="iter">iteration 3 · 软引导持续</span><span class="label">apply_iteration_hints 注入提示</span></div>
+  <div class="step-body">
+    <span class="hint">⚠️ 已执行过搜索，…</span><br>
+    <span class="hint">⚠️ 已提取 5 个 URL，内容可能已足够，直接回答。</span><br>
+    <span class="hint">⚠️ 已执行 2 次搜索，结果可能已足够，直接回答。</span><br>
+    <span class="hint">⚠️ 搜索结果可能已足够回答问题。…</span>
+  </div></div>
+  <div class="arrow">↳ LLM 终于被说服！🎉 但假设它仍然继续…</div>
+  <div class="step llm"><div class="dot"></div><div class="step-header"><span class="iter">iteration 3</span><span class="label">web_pages_extract([...3 URLs])</span></div>
+  <div class="step-body">
+    <span class="call">→ 其中 2 个 URL 已提取过</span><br>
+    <span class="result">executor 检测到 URL 重叠 → 只提取新 URL，旧的短路返回:</span><br>
+    <span class="hint">⚠️ 提示：这些 URL 已经在之前的调用中提取过了。请检查历史工具调用结果，如果已获得足够信息，请停止继续调用工具，并直接给出最终回答。</span>
+  </div></div>
+
+  <!-- iter 4: hard constraint - token budget -->
+  <div class="step hard"><div class="dot"></div><div class="step-header"><span class="iter">iteration 4 · 硬约束触发</span><span class="label">_check_round_context_budget</span></div>
+  <div class="step-body">
+    <span class="block">累计上下文 tokens 超过模型上限 80%（tool_round_context_limit_ratio=0.8）</span><br>
+    <span class="block">→ 强制切换 _stream_final_round_events()，不再调用任何工具</span><br>
+    <span class="result">代码路径: chat_session_agent.py:212-225</span>
+  </div></div>
+
+  <!-- final -->
+  <div class="step success"><div class="dot"></div><div class="step-header"><span class="iter">最终回答</span><span class="label">LLM 基于已有信息生成回答</span></div>
+  <div class="step-body">
+    <span class="final">"LangChain 和 LlamaIndex 各有优势：LangChain 适合复杂 Agent 工作流，生态更成熟；LlamaIndex 专注 RAG，文档索引更高效。企业级 RAG 推荐 LlamaIndex + pgvector…"</span>
+  </div></div>
+</div>
+
+<!-- ======================== 状态机 ======================== -->
+<div class="state">
+<h3>📊 治理过程中各计数器状态</h3>
+<table>
+  <tr><th>iteration</th><th>web_search_count</th><th>extracted_urls</th><th>total_tool_calls</th><th>软引导条数</th><th>硬约束</th></tr>
+  <tr><td>0</td><td class="val">0 → 1</td><td class="val">0</td><td class="val">1</td><td class="val">0</td><td>—</td></tr>
+  <tr><td>1</td><td class="val">1 → 2</td><td class="val">0</td><td class="val">2</td><td class="val">1</td><td>—</td></tr>
+  <tr><td>2</td><td class="val">2</td><td class="val">0 → 5</td><td class="val">3</td><td class="val">3</td><td>—</td></tr>
+  <tr><td>3</td><td class="val">2</td><td class="val">5 → 6</td><td class="val">4</td><td class="val">4</td><td>—</td></tr>
+  <tr><td>4</td><td class="val">2</td><td class="val">6</td><td class="val">4</td><td class="val">—</td><td style="color:var(--danger);font-weight:600;">Token > 80% 触发</td></tr>
+</table>
+</div>
+
+<!-- ======================== 对比 ======================== -->
+<h2>🎯 效果对比</h2>
+<div class="vs">
+  <div class="vs-card without">
+    <h4>❌ 无治理</h4>
+    <ul style="padding-left:1rem;font-size:.82rem;">
+      <li>工具调用 7-10+ 次</li>
+      <li>Token 消耗 8K-15K+</li>
+      <li>响应时间 >30s</li>
+      <li>大量重复信息</li>
+      <li>用户可能直接关闭</li>
+    </ul>
+  </div>
+  <div class="vs-card with">
+    <h4>✅ 有双层治理</h4>
+    <ul style="padding-left:1rem;font-size:.82rem;">
+      <li>工具调用 4 次（软引导提前收敛）</li>
+      <li>Token 消耗 ~4K（减少 50%+）</li>
+      <li>响应时间 ~12s</li>
+      <li>信息去重率 >70%</li>
+      <li>80% 情况软引导即收敛</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ======================== Guardrail Badcase ======================== -->
+<h2>🔧 补充 Badcase：工具失败熔断</h2>
+<div class="scenario">
+  <div class="q">帮我执行这段 Python 代码并看结果</div>
+  <p>LLM 调用 shell 工具执行代码，但代码有 bug 反复报错，LLM 反复用相同参数重试。</p>
+</div>
+
+<div class="timeline">
+  <div class="step llm"><div class="dot"></div><div class="step-header"><span class="iter">#1-2</span><span class="label">shell_exec(same_args) → 失败 ×2</span></div>
+  <div class="step-body">
+    <span class="result">guardrail: exact_count=2 ≥ warn_after(2)</span><br>
+    <span class="hint">⚠️ 警告：shell_exec 使用相同参数已连续失败 2 次。请更换策略…</span>
+  </div></div>
+
+  <div class="step llm"><div class="dot"></div><div class="step-header"><span class="iter">#3-4</span><span class="label">LLM 忽略警告，原样重试 ×2</span></div>
+  <div class="step-body">
+    <span class="result">guardrail: exact_count=4, same_tool_count=4 ≥ warn_after(3)</span><br>
+    <span class="hint">⚠️ 警告：工具 shell_exec 已连续失败 4 次。对于 shell 失败，可先运行简单诊断…</span>
+  </div></div>
+
+  <div class="step hard"><div class="dot"></div><div class="step-header"><span class="iter">#5 · BLOCK</span><span class="label">shell_exec(same_args) → 被拦截</span></div>
+  <div class="step-body">
+    <span class="block">🛑 guardrail.before_call(): exact_count=5 ≥ block_after(5) → BLOCK</span><br>
+    <span class="result">不执行工具，直接返回错误消息给 LLM:</span><br>
+    <span class="block">"已阻断 shell_exec：相同参数连续失败 5 次。请更换参数或换用其他工具，不要原样重试。"</span>
+  </div></div>
+
+  <div class="step llm"><div class="dot"></div><div class="step-header"><span class="iter">#6</span><span class="label">LLM 改用 file_write_file 写入再执行</span></div>
+  <div class="step-body">
+    <span class="call">→ 换了工具 + 改了参数 → 成功！</span><br>
+    <span class="result">guardrail.record_outcome(success=True) → same_tool_count pop 清零</span>
+  </div></div>
+
+  <div class="step success"><div class="dot"></div><div class="step-header"><span class="iter">最终</span><span class="label">LLM 输出结果</span></div>
+  <div class="step-body">
+    <span class="final">"代码执行结果如下：输出为 [1, 1, 2, 3, 5, 8, 13, 21, 34, 55]，这是斐波那契数列的前 10 项。"</span>
+  </div></div>
+</div>
+
+<!-- ======================== 总结 ======================== -->
+<div class="summary">
+<h2>🎤 面试话术</h2>
+<p style="font-size:.88rem;margin-bottom:1rem;">"我们的双层治理分<strong>软引导</strong>和<strong>硬约束</strong>两层。以搜索场景为例——"</p>
+<ul>
+  <li><strong>软引导</strong>：每轮调用工具前，根据搜索次数、URL 提取量、查询相似度等指标动态注入提示。实测 80% 的情况下 LLM 在 1-2 条提示后就会自主收敛。</li>
+  <li><strong>硬约束</strong>：如果 LLM 无视提示继续调用，三层硬约束兜底——轮次上限 10 次、上下文 Token 超 80% 强制截断、同参数失败 5 次阻断。三层互不依赖。</li>
+  <li><strong>渐进式惩罚</strong>：工具失败场景下，warn(2次) → warn+恢复建议(3次) → BLOCK(5次)，给 LLM 充分的自我纠正机会，而不是粗暴截断。</li>
+  <li><strong>效果</strong>：优化前一次对话平均 7-8 次工具调用、15K+ tokens；优化后降到 3-4 次、~4K tokens，响应时间缩短 60%。</li>
+</ul>
+<div class="callout">
+  <strong>追问预判：</strong>"如果 LLM 在软引导下仍然不收敛怎么办？" → 硬约束兜底。如果 LLM 在 BLOCK 后仍尝试同参数调用，guardrail 每次都直接返回 BLOCK 消息不执行，LLM 被迫换策略或在轮次上限后强制给出最终回答。
+</div>
+</div>
+
+</div>
+</body>
+</html>

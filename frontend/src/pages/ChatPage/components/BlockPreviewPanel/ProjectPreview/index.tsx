@@ -11,7 +11,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { SelectedFile } from "./FilePreviewContent";
 import FilePreviewContent from "./FilePreviewContent";
 import { PROJECT_PREVIEW_DIRECTORY_ICONS } from "./file_icons";
-import { useWorkspaceExcelWorkbook } from "./hooks";
+import { useWorkspaceExcelWorkbook, useWorkspaceImagePreview } from "./hooks";
 import {
   filterEmptyDirectories,
   findNodeByPath,
@@ -20,6 +20,7 @@ import {
   getRequestErrorMessage,
   isDirectoryNode,
   isExcelPath,
+  isImagePath,
   isNonTextWorkspaceFile,
   isPlaceholderPath,
   normalizeTreeNodes,
@@ -123,6 +124,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
   );
 
   const isExcelFile = selectedFilePath ? isExcelPath(selectedFilePath) : false;
+  const isImageFile = selectedFilePath ? isImagePath(selectedFilePath) : false;
   const isNonTextFile = selectedFilePath ? isNonTextWorkspaceFile(selectedFilePath) : false;
 
   const { refresh: refreshSelectedFile, loading: loadingFile } = useRequest(
@@ -161,6 +163,13 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
     error: excelFileError,
     reload: reloadExcelFile,
   } = useWorkspaceExcelWorkbook(block.workspaceId, selectedFilePath, isExcelFile);
+
+  const {
+    url: imagePreviewUrl,
+    loading: loadingImageFile,
+    error: imageFileError,
+    reload: reloadImageFile,
+  } = useWorkspaceImagePreview(block.workspaceId, selectedFilePath, isImageFile);
 
   const { run: runDownloadWorkspaceFile, loading: downloadingWorkspaceFile } = useRequest(
     async (filePath: string) => {
@@ -298,6 +307,10 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
           void reloadExcelFile();
           return;
         }
+        if (isImagePath(filePath)) {
+          void reloadImageFile();
+          return;
+        }
         if (isNonTextWorkspaceFile(filePath)) {
           return;
         }
@@ -306,7 +319,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
       }
       setSelectedFilePath(filePath);
     },
-    [handleFolderClick, refreshSelectedFile, reloadExcelFile, selectedFilePath, treeData]
+    [handleFolderClick, refreshSelectedFile, reloadExcelFile, reloadImageFile, selectedFilePath, treeData]
   );
 
   const selectedFileTitle = selectedFilePath?.split("/").pop() || selectedFilePath || "";
@@ -323,8 +336,20 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
     };
   }, [excelFileError, excelSheets, isExcelFile, loadingExcelFile, selectedFilePath, selectedFileTitle]);
 
+  const imagePreview = useMemo(() => {
+    if (!selectedFilePath || !isImageFile) {
+      return null;
+    }
+    return {
+      title: selectedFileTitle,
+      url: imagePreviewUrl,
+      loading: loadingImageFile,
+      error: imageFileError,
+    };
+  }, [imageFileError, imagePreviewUrl, isImageFile, loadingImageFile, selectedFilePath, selectedFileTitle]);
+
   const binaryFilePreview = useMemo(() => {
-    if (!selectedFilePath || !isNonTextFile || isExcelFile) {
+    if (!selectedFilePath || !isNonTextFile || isExcelFile || isImageFile) {
       return null;
     }
     return {
@@ -338,6 +363,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
   }, [
     downloadingWorkspaceFile,
     isExcelFile,
+    isImageFile,
     isNonTextFile,
     runDownloadWorkspaceFile,
     selectedFilePath,
@@ -351,6 +377,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
       fileError={fileError}
       selectedFile={selectedFile}
       excelPreview={excelPreview}
+      imagePreview={imagePreview}
       binaryFile={binaryFilePreview}
     />
   );

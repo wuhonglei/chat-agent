@@ -5,6 +5,7 @@ import { Alert, Button, Empty, Spin, Typography } from "antd";
 import React from "react";
 import PreviewScrollBody from "../PreviewScrollBody";
 import WorkspaceExcelPreview from "./WorkspaceExcelPreview";
+import WorkspaceImagePreview from "./WorkspaceImagePreview";
 import type { ExcelSheet } from "./hooks";
 import { getMonacoLanguage, isMarkdownPath } from "./utils";
 
@@ -26,6 +27,12 @@ export interface FilePreviewContentProps {
     loading: boolean;
     error: string | null;
   } | null;
+  imagePreview?: {
+    title: string;
+    url: string | null;
+    loading: boolean;
+    error: string | null;
+  } | null;
   binaryFile?: {
     title: string;
     message: string;
@@ -40,6 +47,7 @@ const FilePreviewContent: React.FC<FilePreviewContentProps> = ({
   fileError,
   selectedFile,
   excelPreview,
+  imagePreview,
   binaryFile,
 }) => {
   if (excelPreview) {
@@ -49,6 +57,16 @@ const FilePreviewContent: React.FC<FilePreviewContentProps> = ({
         sheets={excelPreview.sheets}
         loading={excelPreview.loading}
         error={excelPreview.error}
+      />
+    );
+  }
+  if (imagePreview) {
+    return (
+      <WorkspaceImagePreview
+        title={imagePreview.title}
+        url={imagePreview.url}
+        loading={imagePreview.loading}
+        error={imagePreview.error}
       />
     );
   }
