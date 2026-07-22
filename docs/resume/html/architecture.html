@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chat Agent 后端架构（面试版）</title>
+<title>Chat Agent 前后端架构（面试版）</title>
 <style>
   :root {
     --bg: #0d1117;
@@ -108,6 +108,11 @@
   .tag-mcp { background: rgba(247,120,186,0.15); color: var(--pink); }
   .tag-core { background: rgba(210,153,34,0.15); color: var(--orange); }
   .tag-vfs { background: rgba(57,210,192,0.15); color: var(--cyan); }
+  .tag-page { background: rgba(88,166,255,0.15); color: var(--accent); }
+  .tag-store { background: rgba(188,140,255,0.15); color: var(--purple); }
+  .tag-svc { background: rgba(63,185,80,0.15); color: var(--green); }
+  .tag-comp { background: rgba(247,120,186,0.15); color: var(--pink); }
+  .tag-hook { background: rgba(210,153,34,0.15); color: var(--orange); }
 
   .layer-items {
     list-style: none;
@@ -197,8 +202,8 @@
 <body>
 <div class="container">
 
-  <h1>Chat Agent 后端架构</h1>
-  <p class="subtitle">面试版 &mdash; 全栈 AI 对话平台后端技术架构总览</p>
+  <h1>Chat Agent 前后端架构</h1>
+  <p class="subtitle">面试版 &mdash; 全栈 AI 对话平台技术架构总览</p>
 
   <!-- Tech Stack -->
   <div class="section">
@@ -383,6 +388,225 @@
       <div class="highlight-item hl-red">
         <h4>7. VFS 虚拟文件系统</h4>
         <p>统一路径映射，Agent 通过虚拟路径访问用户数据，隔离不同会话的 workspace / uploads / outputs。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== FRONTEND ARCHITECTURE ========== -->
+
+  <div style="margin: 48px 0 32px; border-top: 2px solid var(--border); padding-top: 32px;">
+    <h1 style="font-size: 1.8rem;">Chat Agent 前端架构</h1>
+    <p class="subtitle">React 19 + TypeScript + Redux Toolkit 全功能 AI 对话前端</p>
+  </div>
+
+  <!-- Frontend Tech Stack -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🛠</span> 前端技术栈</div>
+    <table class="tech-table">
+      <tr><td>框架</td><td>React 19 + TypeScript 5.9</td></tr>
+      <tr><td>构建</td><td>Vite+ (vp CLI，底层 Rolldown bundler)</td></tr>
+      <tr><td>UI 库</td><td>Ant Design 6 + @ant-design/x (AI Chat 专用组件)</td></tr>
+      <tr><td>状态管理</td><td>Redux Toolkit + react-redux</td></tr>
+      <tr><td>路由</td><td>react-router-dom v7</td></tr>
+      <tr><td>样式</td><td>Tailwind CSS 4 + CSS Modules</td></tr>
+      <tr><td>本地存储</td><td>Dexie (IndexedDB) &mdash; 会话消息离线缓存</td></tr>
+      <tr><td>HTTP</td><td>Axios (自动 snake_case ↔ camelCase 转换)</td></tr>
+      <tr><td>SSE 流式</td><td>@microsoft/fetch-event-source</td></tr>
+      <tr><td>代码编辑</td><td>Monaco Editor + react-syntax-highlighter</td></tr>
+      <tr><td>文件预览</td><td>react-pdf / docx-preview / pptx-preview / xlsx</td></tr>
+      <tr><td>Lint/Format</td><td>Oxlint + Oxfmt (Vite+ 内置)</td></tr>
+    </table>
+  </div>
+
+  <!-- Frontend Layered Architecture -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🏗</span> 前端分层架构</div>
+
+    <div class="layer">
+      <div class="layer-header">
+        入口 &amp; 路由层 <span class="tag tag-page">main.tsx / App.tsx / routes/</span>
+      </div>
+      <ul class="layer-items">
+        <li><strong>main.tsx</strong> &mdash; Redux Provider + XProvider(AntDesignX) + AntdApp</li>
+        <li><strong>App.tsx</strong> &mdash; BrowserRouter + MainLayout + Routes</li>
+        <li><strong>routes/index.tsx</strong> &mdash; 路由表：<code>/chat</code>, <code>/chat/:id</code>, <code>/login</code>, <code>/markdown</code></li>
+      </ul>
+    </div>
+
+    <div class="layer">
+      <div class="layer-header">
+        状态管理层 <span class="tag tag-store">store/</span>
+      </div>
+      <ul class="layer-items">
+        <li><strong>chatSlice</strong> &mdash; 消息列表、contentBlocks、流式状态、StreamResumeContext</li>
+        <li><strong>conversationSlice</strong> &mdash; 会话列表 CRUD、当前会话</li>
+        <li><strong>modelsSlice</strong> &mdash; 可用模型列表</li>
+        <li><strong>userSlice</strong> &mdash; 用户信息、认证状态</li>
+        <li><strong>dbMiddleware</strong> &mdash; 自动持久化到 IndexedDB (Dexie)</li>
+        <li><strong>updateLastMessageTimeMiddleware</strong> &mdash; 更新消息时间戳</li>
+      </ul>
+    </div>
+
+    <div class="layer">
+      <div class="layer-header">
+        API 服务层 <span class="tag tag-svc">services/</span>
+      </div>
+      <ul class="layer-items">
+        <li><strong>base.ts</strong> &mdash; Axios 实例 + 拦截器（snake↔camel、JWT、401 跳转）</li>
+        <li><strong>chat.ts</strong> &mdash; SSE 流式对话 API</li>
+        <li><strong>conversation.ts</strong> &mdash; 会话 CRUD API</li>
+        <li><strong>file.ts</strong> &mdash; 文件上传/下载</li>
+        <li><strong>workspace.ts</strong> &mdash; 工作区文件操作</li>
+        <li><strong>code.ts</strong> &mdash; 代码执行 API</li>
+        <li><strong>user.ts</strong> &mdash; 用户认证 API</li>
+      </ul>
+    </div>
+
+    <div class="layer">
+      <div class="layer-header">
+        页面层 <span class="tag tag-page">pages/</span>
+      </div>
+      <ul class="layer-items">
+        <li><strong>WelcomePage</strong> &mdash; 空聊天首页（会话列表入口）</li>
+        <li><strong>ChatPage</strong> &mdash; 核心聊天页（消息流 + 输入框 + 文件预览）</li>
+        <li><strong>LoginPage</strong> &mdash; 登录（含微信扫码回调）</li>
+        <li><strong>MarkdownPage</strong> &mdash; Markdown 内容查看</li>
+      </ul>
+    </div>
+
+    <div class="layer">
+      <div class="layer-header">
+        ChatPage 组件层 <span class="tag tag-comp">pages/ChatPage/components/</span>
+      </div>
+      <ul class="layer-items">
+        <li><strong>ChatInput</strong> &mdash; 输入框（@提及附件、发送按钮、快捷键）</li>
+        <li><strong>ChatMessageList</strong> &mdash; 消息列表容器</li>
+        <li><strong>UserMessage</strong> &mdash; 用户消息渲染</li>
+        <li><strong>AssistantMessage</strong> &mdash; 助手消息 + ContentBlocksRender</li>
+        <li><strong>ToolBlockRender</strong> &mdash; 工具调用渲染（registry 按 MCP server 注册）</li>
+        <li><strong>BlockPreviewPanel</strong> &mdash; 文件预览（项目/Excel/PPT/Word/文本）</li>
+        <li><strong>MarkdownContainer</strong> &mdash; Markdown 渲染 + 代码高亮</li>
+        <li><strong>AssistantOperation</strong> &mdash; 反馈、复制等操作按钮</li>
+      </ul>
+    </div>
+
+    <div class="layer">
+      <div class="layer-header">
+        Tool 渲染注册表 <span class="tag tag-mcp">ToolBlockRender/registry/servers/</span>
+      </div>
+      <ul class="layer-items">
+        <li><strong>shell.tsx</strong> &mdash; Shell 命令执行渲染</li>
+        <li><strong>file.tsx</strong> &mdash; 文件读写渲染（FileDiffView 差异对比）</li>
+        <li><strong>code.tsx</strong> &mdash; 代码执行结果渲染</li>
+        <li><strong>tavily.tsx</strong> &mdash; 联网搜索结果渲染</li>
+        <li><strong>weather.tsx / time.tsx</strong> &mdash; 天气 / 时间工具渲染</li>
+        <li><strong>context7.tsx / zread.tsx</strong> &mdash; 文档检索 / 仓库分析渲染</li>
+        <li><strong>skill_manager.tsx</strong> &mdash; 技能管理渲染</li>
+      </ul>
+    </div>
+
+    <div class="layer">
+      <div class="layer-header">
+        公共组件 &amp; Hooks <span class="tag tag-comp">components/</span> <span class="tag tag-hook">hooks/</span>
+      </div>
+      <ul class="layer-items">
+        <li><strong>MainLayout</strong> &mdash; 主布局（Sidebar + Header + 内容区）</li>
+        <li><strong>SidebarContent</strong> &mdash; 会话列表侧边栏</li>
+        <li><strong>SettingModal</strong> &mdash; 设置弹窗（模型选择、主题等）</li>
+        <li><strong>useAppInit</strong> &mdash; 应用初始化（加载用户/模型/会话）</li>
+        <li><strong>useMessageInstance</strong> &mdash; 全局 message 实例管理</li>
+        <li><strong>useAttachmentMention</strong> &mdash; @提及附件 hook</li>
+      </ul>
+    </div>
+
+    <div class="layer">
+      <div class="layer-header">
+        类型定义 &amp; 本地存储 <span class="tag tag-store">interfaces/</span> <span class="tag tag-store">indexDB/</span>
+      </div>
+      <ul class="layer-items">
+        <li><strong>chat.ts</strong> &mdash; ChatMessage、ContentBlock、ContentBlockEvent</li>
+        <li><strong>conversation.ts</strong> &mdash; ChatConversationState、StreamResumeContext</li>
+        <li><strong>contentBlock.ts</strong> &mdash; 内容块类型（text/tool_call/code/image）</li>
+        <li><strong>user.ts / auth.ts</strong> &mdash; 用户和认证类型</li>
+        <li><strong>indexDB/index.ts</strong> &mdash; Dexie IndexedDB（会话消息离线缓存）</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Frontend Core Flow -->
+  <div class="section">
+    <div class="section-title"><span class="icon">⚡</span> 前端核心数据流</div>
+    <ol class="flow-steps">
+      <li>
+        <strong>用户输入 → ChatInput 组件</strong>
+        <span class="detail">文本输入 + @提及附件 + 文件上传，通过 ChatInputSender 发送</span>
+      </li>
+      <li>
+        <strong>chatSlice.dispatch → 消息入 Redux Store</strong>
+        <span class="detail">乐观更新：立即将用户消息添加到 messages 数组</span>
+      </li>
+      <li>
+        <strong>services/chat.ts → SSE 流式请求</strong>
+        <span class="detail">fetch-event-source 连接 <code>POST /api/chat/stream</code>，JWT 认证</span>
+      </li>
+      <li>
+        <strong>SSE 事件 → chatSlice 增量更新 contentBlocks</strong>
+        <span class="detail">逐 token / 逐 block 增量拼接，维护 isStreaming 状态</span>
+      </li>
+      <li>
+        <strong>ContentBlocksRender → 动态渲染</strong>
+        <span class="detail">按 block 类型（text/tool_call/code/image）分发到对应渲染器</span>
+      </li>
+      <li>
+        <strong>ToolBlockRender → registry 匹配</strong>
+        <span class="detail">按 MCP server 名查找注册表，渲染工具调用参数和结果（含 diff 对比）</span>
+      </li>
+      <li>
+        <strong>BlockPreviewPanel → 文件预览</strong>
+        <span class="detail">Excel/PPT/Word/项目文件树/文本文件 预览面板</span>
+      </li>
+      <li>
+        <strong>dbMiddleware → IndexedDB 持久化</strong>
+        <span class="detail">Redux 状态变更自动同步到 Dexie IndexedDB，支持离线恢复</span>
+      </li>
+      <li>
+        <strong>StreamResumeContext → 断线重连</strong>
+        <span class="detail">SSE 断线后通过 StreamResumePhase 恢复流式状态，保证消息不丢失</span>
+      </li>
+    </ol>
+  </div>
+
+  <!-- Frontend Highlights -->
+  <div class="section">
+    <div class="section-title"><span class="icon">💡</span> 前端关键设计亮点（面试展开点）</div>
+    <div class="highlights">
+      <div class="highlight-item hl-blue">
+        <h4>1. Content Block 模型</h4>
+        <p>消息内容不是纯文本，而是 <code>contentBlocks[]</code> 数组（text / tool_call / code / image），每种 block 有独立渲染器，支持混合内容和流式增量更新。</p>
+      </div>
+      <div class="highlight-item hl-pink">
+        <h4>2. Tool 渲染注册表</h4>
+        <p>按 MCP server 名注册渲染器（shell / file / code / tavily 等），支持文件差异对比（FileDiffView）、代码高亮、搜索结果卡片等专用渲染。</p>
+      </div>
+      <div class="highlight-item hl-green">
+        <h4>3. SSE 流式 + 断线恢复</h4>
+        <p>fetch-event-source 实现 SSE 流式接收，StreamResumeContext 维护断线恢复状态，支持 reconnect 后继续消费未完成的流。</p>
+      </div>
+      <div class="highlight-item hl-purple">
+        <h4>4. 双层持久化</h4>
+        <p>Redux store 通过 dbMiddleware 自动同步到 IndexedDB (Dexie)，会话消息离线可用。API 层自动做 snake_case ↔ camelCase 转换，对接 Python 后端零摩擦。</p>
+      </div>
+      <div class="highlight-item hl-orange">
+        <h4>5. 文件预览面板</h4>
+        <p>统一 BlockPreviewPanel 支持 Excel (xlsx)、PPT (pptx)、Word (docx)、PDF、项目文件树、文本文件预览，Agent 输出的文件可直接在前端查看。</p>
+      </div>
+      <div class="highlight-item hl-cyan">
+        <h4>6. 构建优化</h4>
+        <p>Rolldown codeSplitting 拆分 vendor(react) / utils(axios,lodash) / ui(simplebar) / components(antd) 等 chunk，减小首屏加载体积。</p>
+      </div>
+      <div class="highlight-item hl-red">
+        <h4>7. API 拦截器链</h4>
+        <p>请求拦截：自动 JWT 注入 + snake_case 转换。响应拦截：camelCase 转换 + code!=0 统一错误处理 + 401 自动跳转登录 + 会话不存在自动跳转。</p>
       </div>
     </div>
   </div>
