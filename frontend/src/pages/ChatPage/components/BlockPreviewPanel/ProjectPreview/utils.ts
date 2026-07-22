@@ -121,15 +121,22 @@ export function isMarkdownPath(path: string): boolean {
 
 const EXCEL_EXTENSIONS = new Set(["xlsx", "xls"]);
 
+const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp", "ico"]);
+
+const IMAGE_MIME_BY_EXT: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+  ico: "image/x-icon",
+};
+
 /** 工作区 file-content 接口不支持的二进制扩展名（按扩展名预判，避免无效请求）。 */
 const NON_TEXT_WORKSPACE_EXTENSIONS = new Set([
   ...EXCEL_EXTENSIONS,
+  ...IMAGE_EXTENSIONS,
   "pdf",
-  "png",
-  "jpg",
-  "jpeg",
-  "gif",
-  "webp",
   "zip",
   "gz",
   "tar",
@@ -142,7 +149,6 @@ const NON_TEXT_WORKSPACE_EXTENSIONS = new Set([
   "mp3",
   "mp4",
   "wav",
-  "ico",
   "woff",
   "woff2",
   "ttf",
@@ -157,6 +163,16 @@ const NON_TEXT_WORKSPACE_EXTENSIONS = new Set([
 export function isExcelPath(path: string): boolean {
   const ext = path.split(".").pop()?.toLowerCase();
   return Boolean(ext && EXCEL_EXTENSIONS.has(ext));
+}
+
+export function isImagePath(path: string): boolean {
+  const ext = path.split(".").pop()?.toLowerCase();
+  return Boolean(ext && IMAGE_EXTENSIONS.has(ext));
+}
+
+export function getImageMimeType(path: string): string {
+  const ext = path.split(".").pop()?.toLowerCase();
+  return (ext && IMAGE_MIME_BY_EXT[ext]) || "application/octet-stream";
 }
 
 export function isNonTextWorkspaceFile(path: string): boolean {
