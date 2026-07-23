@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>五大框架上下文管理方案深度对比</title>
+<title>六大框架上下文管理方案深度对比</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -485,7 +485,7 @@ tbody tr:hover {
       <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
     </svg>
   </button>
-  <div class="header-title">五大框架上下文管理方案深度对比</div>
+  <div class="header-title">六大框架上下文管理方案深度对比</div>
 </header>
 
 <!-- ===== Sidebar ===== -->
@@ -499,12 +499,14 @@ tbody tr:hover {
     <li class="toc-sub"><a href="#sec-2-3">2.3 hermes-agent — 头尾截断+摘要</a></li>
     <li class="toc-sub"><a href="#sec-2-4">2.4 claude-code — 磁盘持久化</a></li>
     <li class="toc-sub"><a href="#sec-2-5">2.5 opencode — 简单头尾截断</a></li>
+    <li class="toc-sub"><a href="#sec-2-6">2.6 codex — 中间截断 + 分层预算</a></li>
     <li><a href="#sec-3">三、单轮结束后：Token 统计与阈值处理</a></li>
     <li class="toc-sub"><a href="#sec-3-1">3.1 chat-agent</a></li>
     <li class="toc-sub"><a href="#sec-3-2">3.2 deer-flow</a></li>
     <li class="toc-sub"><a href="#sec-3-3">3.3 hermes-agent</a></li>
     <li class="toc-sub"><a href="#sec-3-4">3.4 claude-code</a></li>
     <li class="toc-sub"><a href="#sec-3-5">3.5 opencode</a></li>
+    <li class="toc-sub"><a href="#sec-3-6">3.6 codex</a></li>
     <li><a href="#sec-4">四、多轮调用时的历史上下文处理</a></li>
     <li class="toc-sub"><a href="#sec-4-1">4.1 窗口内上下文</a></li>
     <li class="toc-sub"><a href="#sec-4-2">4.2 窗口外上下文</a></li>
@@ -515,6 +517,7 @@ tbody tr:hover {
     <li class="toc-sub"><a href="#sec-5-3">5.3 hermes-agent 的独特之处</a></li>
     <li class="toc-sub"><a href="#sec-5-4">5.4 claude-code 的独特之处</a></li>
     <li class="toc-sub"><a href="#sec-5-5">5.5 opencode 的独特之处</a></li>
+    <li class="toc-sub"><a href="#sec-5-6">5.6 codex 的独特之处</a></li>
     <li><a href="#sec-6">六、关键结论</a></li>
     <li class="toc-sub"><a href="#sec-6-1">6.1 复杂度排序</a></li>
     <li class="toc-sub"><a href="#sec-6-2">6.2 工具结果压缩策略谱系</a></li>
@@ -537,10 +540,10 @@ tbody tr:hover {
 
   <!-- Intro -->
   <div class="fade-section">
-    <h1>五大框架上下文管理方案深度对比</h1>
+    <h1>六大框架上下文管理方案深度对比</h1>
     <blockquote>
-      <strong>研究日期:</strong> 2026-07-22<br>
-      <strong>框架:</strong> chat-agent / deer-flow / hermes-agent / claude-code / opencode
+      <strong>研究日期:</strong> 2026-07-23<br>
+      <strong>框架:</strong> chat-agent / deer-flow / hermes-agent / claude-code / opencode / codex (OpenAI)
     </blockquote>
   </div>
 
@@ -557,6 +560,7 @@ tbody tr:hover {
             <th>hermes-agent</th>
             <th>claude-code</th>
             <th>opencode</th>
+            <th>codex (OpenAI)</th>
           </tr>
         </thead>
         <tbody>
@@ -567,6 +571,7 @@ tbody tr:hover {
             <td>Python (CLI)</td>
             <td>TypeScript (Node)</td>
             <td>Go</td>
+            <td>Rust (codex-rs)</td>
           </tr>
           <tr>
             <td><strong>单轮工具结果压缩</strong></td>
@@ -575,6 +580,7 @@ tbody tr:hover {
             <td>头尾截断 + 摘要替换</td>
             <td>磁盘持久化 + 预览</td>
             <td>头尾截断(前15K+后15K)</td>
+            <td>中间截断(truncate_middle)，每工具独立预算</td>
           </tr>
           <tr>
             <td><strong>token 计数</strong></td>
@@ -583,6 +589,7 @@ tbody tr:hover {
             <td>字符估算 (÷4) + API 返回</td>
             <td>API usage + 字符估算 (÷4)</td>
             <td>仅 API usage 返回</td>
+            <td>API usage 精确值 + 字节估算(÷4) 混合</td>
           </tr>
           <tr>
             <td><strong>阈值触发</strong></td>
@@ -591,6 +598,7 @@ tbody tr:hover {
             <td>50% context → 压缩</td>
             <td>effective_window - 13K → 自动压缩</td>
             <td>95% context → 自动摘要</td>
+            <td>auto_compact_limit → Pre/Mid-Turn 自动压缩</td>
           </tr>
           <tr>
             <td><strong>窗口内历史处理</strong></td>
@@ -599,6 +607,7 @@ tbody tr:hover {
             <td>头保护(3) + 尾保护(≥8消息)</td>
             <td>全量保留直到触发压缩</td>
             <td>全量保留直到触发摘要</td>
+            <td>全量保留直到触发压缩</td>
           </tr>
           <tr>
             <td><strong>窗口外处理</strong></td>
@@ -607,6 +616,7 @@ tbody tr:hover {
             <td>LLM 摘要(头+尾+中间摘要)</td>
             <td>LLM 摘要(9段结构化)</td>
             <td>LLM 摘要(替换历史)</td>
+            <td>LLM 摘要(替换历史) 或 Token Budget 直接重置</td>
           </tr>
           <tr>
             <td><strong>窗口内工具结果</strong></td>
@@ -615,6 +625,7 @@ tbody tr:hover {
             <td>旧工具结果→1行摘要</td>
             <td>时间触发清除 + 预算持久化</td>
             <td>原样保留直到摘要重置</td>
+            <td>写入时一次性截断，后续原样保留</td>
           </tr>
         </tbody>
       </table>
@@ -702,6 +713,26 @@ Token 上限: MAX_TOOL_RESULT_TOKENS = <span class="num">100,000</span> (~400KB)
 Glob/Grep: 最多 100 个结果</pre>
     <blockquote>
       <strong>特点</strong>: 最简单的策略，无语义分析，无磁盘持久化，纯机械截断。
+    </blockquote>
+  </div>
+
+  <div class="fade-section">
+    <h3 id="sec-2-6">2.6 codex (OpenAI) — 中间截断 + 分层预算<a href="#sec-2-6" class="anchor-link">#</a></h3>
+    <p><strong>核心文件:</strong> <code>codex-rs/utils/output-truncation/src/lib.rs</code>, <code>codex-rs/core/src/context_manager/history.rs</code></p>
+    <pre><span class="str">截断时机: 工具结果写入历史时一次性截断（非工具返回后立即截断）</span>
+<span class="str">截断算法: truncate_middle — 保留头部+尾部，中间替换为省略提示</span>
+<span class="str">截断策略: TruncationPolicy::Tokens(n) 或 ::Bytes(n)</span>
+
+<span class="cmt">// process_item 中使用 1.2x 容量系数，为序列化开销留余量</span>
+<span class="kw">let</span> policy_with_serialization_budget = policy * <span class="num">1.2</span>;</pre>
+    <ul>
+      <li><strong>每工具独立预算</strong>: 不同工具可在 <code>tools/context.rs</code> 中定义各自的 <code>TruncationPolicy</code></li>
+      <li><strong>MCP 工具默认限制</strong>: <code>Bytes(1024)</code></li>
+      <li><strong>批量写入</strong>: 一轮采样结束后，<code>drain_in_flight</code> 批量等待所有 in-flight 工具完成，然后逐个写入历史并截断</li>
+      <li><strong>多内容项处理</strong>: <code>truncate_function_output_items_with_policy</code> 按顺序消耗 token 预算，超限的文本项被截断或省略，图片/音频按成本扣减</li>
+    </ul>
+    <blockquote>
+      <strong>特点</strong>: 截断不是逐工具实时触发，而是<strong>批量写入历史时统一处理</strong>。中间截断算法保证头尾信息保留，配合 1.2x 容量系数容忍序列化膨胀。
     </blockquote>
   </div>
 
@@ -795,6 +826,30 @@ tokens := session.CompletionTokens + session.PromptTokens
     </ul>
   </div>
 
+  <div class="fade-section">
+    <h3 id="sec-3-6">3.6 codex (OpenAI)<a href="#sec-3-6" class="anchor-link">#</a></h3>
+    <p><strong>核心文件:</strong> <code>codex-rs/core/src/session/context_window.rs</code>, <code>codex-rs/core/src/context_manager/history.rs</code></p>
+    <pre><span class="cmt">// 双源 token 计数：服务端精确 + 本地估算</span>
+<span class="cmt">// 服务端: API 返回的 TokenUsage（input_tokens, total_tokens）</span>
+<span class="cmt">// 本地: approx_token_count = (byte_count + 3) / 4</span>
+
+<span class="cmt">// 阈值判定 — 两个条件取 OR</span>
+full_context_window_limit_reached = active_context_tokens >= context_window
+token_limit_reached = (auto_compact_scope_tokens >= buffered_limit)
+                    || full_context_window_limit_reached
+
+<span class="cmt">// 两种 scope 模式</span>
+AutoCompactTokenLimitScope::Total       → 整个活跃上下文
+AutoCompactTokenLimitScope::BodyAfterPrefix → 仅计算 prefix 之后增长部分</pre>
+    <ul>
+      <li><strong>混合计数</strong>: 服务端 API 返回精确 <code>TokenUsage</code>，未覆盖的本地追加项用字节÷4 粗估</li>
+      <li><strong>三阶段检查</strong>: ① Pre-Turn（新一轮用户输入前）② Mid-Turn（每次采样后）③ Manual（用户手动触发）</li>
+      <li><strong>Buffered fallback</strong>: auto_compact_limit 外额外预留 fallback buffer，用尽后注入 fallback prompt</li>
+      <li><strong>Token Budget 模式</strong>: 可选功能，压缩时直接重置上下文窗口而非 LLM 摘要</li>
+      <li><strong>模型切换检测</strong>: comp_hash 变化或 context window 缩小时自动触发 Pre-Turn 压缩</li>
+    </ul>
+  </div>
+
   <hr>
 
   <!-- ===== 四、多轮调用 ===== -->
@@ -813,6 +868,7 @@ tokens := session.CompletionTokens + session.PromptTokens
           <tr><td><strong>hermes-agent</strong></td><td>头保护(3条) + 尾保护(≥8条, token 预算)</td><td>尾部按 token 预算向回走，对齐到 tool_call/tool_result 边界</td></tr>
           <tr><td><strong>claude-code</strong></td><td>全量保留直到自动压缩</td><td>按 API round 分组，压缩时保留最近的 round</td></tr>
           <tr><td><strong>opencode</strong></td><td>全量保留直到 95% 阈值</td><td>摘要后 SummaryMessageID 之前的全部丢弃</td></tr>
+          <tr><td><strong>codex</strong></td><td>全量保留直到 auto_compact_limit</td><td>AutoCompactWindow 追踪窗口代际，prefill baseline 从服务端 usage 捕获</td></tr>
         </tbody>
       </table>
     </div>
@@ -831,6 +887,7 @@ tokens := session.CompletionTokens + session.PromptTokens
           <tr><td><strong>hermes-agent</strong></td><td>LLM 摘要</td><td>结构化模板(Goal/Actions/State/Decisions)，迭代更新</td><td>SQLite session 分割（旧 session 标记 <code>compression</code>）</td></tr>
           <tr><td><strong>claude-code</strong></td><td>LLM 摘要</td><td>9 段结构化摘要(Primary Request/Key Concepts/Files/Errors/Pending/Next...) + 转录文件引用</td><td>写入磁盘转录文件，摘要中包含路径</td></tr>
           <tr><td><strong>opencode</strong></td><td>LLM 摘要</td><td>独立摘要模型(可用便宜模型)生成摘要</td><td>SummaryMessageID 存储在 session 记录</td></tr>
+          <tr><td><strong>codex</strong></td><td>LLM 摘要 或 Token Budget 重置</td><td>用户消息 + 摘要替换整个历史；mid-turn 重新注入初始上下文(AGENTS.md等)</td><td>RolloutRecorder 持久化完整 rollout trace</td></tr>
         </tbody>
       </table>
     </div>
@@ -866,6 +923,7 @@ POST_COMPACT_SKILLS_TOKEN_BUDGET = <span class="num">25,000</span>  <span class=
           <tr><td><strong>hermes-agent</strong></td><td>压缩预处理: 旧工具结果→1行摘要 <code>[tool] ran 'cmd' -> exit N, M lines output</code>；MD5 去重；图片→占位符</td></tr>
           <tr><td><strong>claude-code</strong></td><td>时间触发: 60 分钟前的工具结果→<code>[Old tool result content cleared]</code>（保留最近 5 个）；API 层: 180K tokens 触发时清除旧结果</td></tr>
           <tr><td><strong>opencode</strong></td><td>原样保留在历史中，直到 95% 阈值触发整体摘要重置</td></tr>
+          <tr><td><strong>codex</strong></td><td>写入历史时一次性中间截断（1.2x 系数），后续原样保留，不做二次压缩或时间清理</td></tr>
         </tbody>
       </table>
     </div>
@@ -927,6 +985,19 @@ POST_COMPACT_SKILLS_TOKEN_BUDGET = <span class="num">25,000</span>  <span class=
     </ul>
   </div>
 
+  <div class="fade-section">
+    <h3 id="sec-5-6">5.6 codex (OpenAI) 的独特之处<a href="#sec-5-6" class="anchor-link">#</a></h3>
+    <ul>
+      <li><strong>三种压缩模式可切换</strong>: 本地 LLM 摘要 / 远程压缩 API / Token Budget 直接重置，通过 Feature Flag 选择</li>
+      <li><strong>Pre/Mid-Turn 双阶段自动压缩</strong>: Pre-Turn 在用户输入前检查，Mid-Turn 在每次采样后检查，确保工具调用循环中也能及时压缩</li>
+      <li><strong>模型切换自适应</strong>: comp_hash 变化或 context window 缩小时自动触发压缩，保护跨模型会话</li>
+      <li><strong>AutoCompactWindow 代际追踪</strong>: 通过 window_id (UUID v7) 追踪压缩代际，支持 resume/fork 时精确重建历史</li>
+      <li><strong>Rollout 持久化</strong>: 完整对话历史写入 rollout trace，支持会话恢复和历史重建</li>
+      <li><strong>Buffered Fallback</strong>: auto_compact_limit 外预留 buffer，用尽后注入 fallback prompt 提示模型收尾</li>
+      <li><strong>批量工具写入</strong>: 一轮采样中所有工具结果暂存 in_flight 队列，采样结束后统一写入历史并截断</li>
+    </ul>
+  </div>
+
   <hr>
 
   <!-- ===== 六、关键结论 ===== -->
@@ -934,17 +1005,17 @@ POST_COMPACT_SKILLS_TOKEN_BUDGET = <span class="num">25,000</span>  <span class=
     <h2 id="sec-6">六、关键结论<a href="#sec-6" class="anchor-link">#</a></h2>
 
     <h3 id="sec-6-1">6.1 复杂度排序（低→高）<a href="#sec-6-1" class="anchor-link">#</a></h3>
-    <pre>opencode &lt; chat-agent &lt; hermes-agent &lt; deer-flow &lt; claude-code</pre>
+    <pre>opencode &lt; chat-agent &lt; hermes-agent &lt; codex &lt; deer-flow &lt; claude-code</pre>
 
     <h3 id="sec-6-2">6.2 工具结果压缩策略谱系<a href="#sec-6-2" class="anchor-link">#</a></h3>
-    <pre>简单截断 ────────────────────────────── 语义压缩
-opencode    claude-code    hermes-agent    deer-flow    chat-agent
-(头尾截断)  (磁盘持久化)   (摘要+去重)    (外部化+重扫) (FAISS语义筛选)</pre>
+    <pre>简单截断 ──────────────────────────────────── 语义压缩
+opencode    codex    claude-code    hermes-agent    deer-flow    chat-agent
+(头尾截断) (中间截断) (磁盘持久化)   (摘要+去重)    (外部化+重扫) (FAISS语义筛选)</pre>
 
     <h3 id="sec-6-3">6.3 历史管理策略谱系<a href="#sec-6-3" class="anchor-link">#</a></h3>
-    <pre>无管理 ─────────────────────────────── 精细管理
-opencode    claude-code    hermes-agent    chat-agent    deer-flow
-(全量→摘要)  (自动压缩)    (三阶段压缩)  (轮次窗口+摘要) (中间件组合)</pre>
+    <pre>无管理 ──────────────────────────────────── 精细管理
+opencode    claude-code    codex    hermes-agent    chat-agent    deer-flow
+(全量→摘要)  (自动压缩)   (三模式切换) (三阶段压缩)  (轮次窗口+摘要) (中间件组合)</pre>
   </div>
 
   <div class="fade-section">
@@ -962,6 +1033,9 @@ opencode    claude-code    hermes-agent    chat-agent    deer-flow
           <tr><td><strong>确定性替换</strong></td><td>claude-code</td><td>依赖 prompt cache 的生产环境</td></tr>
           <tr><td><strong>时间触发清理</strong></td><td>claude-code</td><td>长时间闲置后的自动清理</td></tr>
           <tr><td><strong>反抖动保护</strong></td><td>hermes-agent</td><td>防止阈值附近反复压缩</td></tr>
+          <tr><td><strong>模型切换自适应压缩</strong></td><td>codex</td><td>跨模型会话自动降级压缩</td></tr>
+          <tr><td><strong>批量工具写入</strong></td><td>codex</td><td>一轮采样结束后统一截断，保证截断一致性</td></tr>
+          <tr><td><strong>三模式压缩切换</strong></td><td>codex</td><td>本地/远程/TokenBudget 按场景选择</td></tr>
           <tr><td><strong>Session 分割</strong></td><td>hermes-agent</td><td>需要保留完整对话历史的审计场景</td></tr>
         </tbody>
       </table>
@@ -1209,7 +1283,7 @@ TOOL_RESULT_KEEP_RECENT = <span class="num">5</span>
 
   <!-- ===== Footer ===== -->
   <footer class="site-footer">
-    <p>生成日期: 2026-07-22 &nbsp;·&nbsp; 五大框架上下文管理方案深度对比</p>
+    <p>生成日期: 2026-07-23 &nbsp;·&nbsp; 六大框架上下文管理方案深度对比</p>
   </footer>
 
 </main>
