@@ -419,7 +419,7 @@ opencode    claude-code    hermes-agent    chat-agent    deer-flow
   - FAISS 语义截断（markdown 工具结果）
   - tiktoken 精确计数
   - 80% 阈值停止工具调用
-  - 5 轮滑动窗口 + 25% token 预算
+  - 20 轮滑动窗口 + 25% token 预算
   - 增量 LLM 摘要
 
 ❌ 存在缺口:
