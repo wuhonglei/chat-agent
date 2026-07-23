@@ -191,6 +191,7 @@ class ToolExecutor:
                             )
                             self._score_tool_success(
                                 tool_span,
+                                tool_name=tool_name,
                                 success=True,
                                 error_type=None,
                             )
@@ -223,6 +224,7 @@ class ToolExecutor:
                     )
                     self._score_tool_success(
                         tool_span,
+                        tool_name=tool_name,
                         success=False,
                         error_type=decision.kind.value,
                     )
@@ -351,6 +353,7 @@ class ToolExecutor:
                         )
                 self._score_tool_success(
                     tool_span,
+                    tool_name=tool_name,
                     success=success,
                     error_type=error_type,
                     metadata_extra=outcome_meta or None,
@@ -399,6 +402,7 @@ class ToolExecutor:
                         tool_span.update(output=error_content)
                 self._score_tool_success(
                     tool_span,
+                    tool_name=tool_name,
                     success=False,
                     error_type=error_type,
                 )
@@ -530,21 +534,30 @@ class ToolExecutor:
     def _score_tool_success(
         tool_span: Any,
         *,
+        tool_name: str,
         success: bool,
         error_type: str | None,
         metadata_extra: dict[str, Any] | None = None,
     ) -> None:
-        """在 tool observation 上写入 BOOLEAN score ``tool_success``。"""
-        metadata: dict[str, Any] | None = None
-        if error_type or metadata_extra:
-            metadata = {}
-            if error_type:
-                metadata["error_type"] = error_type
-            if metadata_extra:
-                metadata.update(metadata_extra)
+        """在 tool observation 上写入 BOOLEAN score ``tool_success`` 及 per-tool score。"""
+        metadata: dict[str, Any] = {"tool_name": tool_name}
+        if error_type:
+            metadata["error_type"] = error_type
+        if metadata_extra:
+            metadata.update(metadata_extra)
+        # 总体成功率 score（现有 dashboard widget 使用）
         score_observation(
             tool_span,
             name="tool_success",
+            value=success,
+            data_type="BOOLEAN",
+            comment=error_type,
+            metadata=metadata,
+        )
+        # Per-tool 成功率 score（name 中编码 tool_name，用于 dashboard 按工具分组）
+        score_observation(
+            tool_span,
+            name=f"tool_success:{tool_name}",
             value=success,
             data_type="BOOLEAN",
             comment=error_type,

@@ -79,6 +79,8 @@ class WriteFileTool(ToolBase):
 
             physical_path.write_text(content, encoding="utf-8")
 
+            written_lines = len(content.splitlines())
+
             logger.info(
                 "File written",
                 file_path=file_path,
@@ -87,7 +89,7 @@ class WriteFileTool(ToolBase):
             )
 
             return ToolResult(
-                content=f"File written: {file_path}",
+                content=f"[write_file] wrote to {file_path} ({written_lines} lines)",
                 structured_content={
                     "path": file_path,
                     "append": append,

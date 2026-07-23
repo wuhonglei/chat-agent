@@ -83,7 +83,14 @@ async def test_execute_single_tool_scores_success(
             "name": "tool_success",
             "value": True,
             "data_type": "BOOLEAN",
-        }
+            "metadata": {"tool_name": "weather_get"},
+        },
+        {
+            "name": "tool_success:weather_get",
+            "value": True,
+            "data_type": "BOOLEAN",
+            "metadata": {"tool_name": "weather_get"},
+        },
     ]
 
 
@@ -133,8 +140,15 @@ async def test_execute_single_tool_scores_empty_result_as_failure(
             "value": False,
             "data_type": "BOOLEAN",
             "comment": "empty_result",
-            "metadata": {"error_type": "empty_result"},
-        }
+            "metadata": {"tool_name": "weather_get", "error_type": "empty_result"},
+        },
+        {
+            "name": "tool_success:weather_get",
+            "value": False,
+            "data_type": "BOOLEAN",
+            "comment": "empty_result",
+            "metadata": {"tool_name": "weather_get", "error_type": "empty_result"},
+        },
     ]
 
 
@@ -199,8 +213,15 @@ async def test_execute_single_tool_scores_shell_by_exit_code(
             "value": False,
             "data_type": "BOOLEAN",
             "comment": "non_zero_exit",
-            "metadata": {"error_type": "non_zero_exit", "exit_code": 1},
-        }
+            "metadata": {"tool_name": "shell_exec", "error_type": "non_zero_exit", "exit_code": 1},
+        },
+        {
+            "name": "tool_success:shell_exec",
+            "value": False,
+            "data_type": "BOOLEAN",
+            "comment": "non_zero_exit",
+            "metadata": {"tool_name": "shell_exec", "error_type": "non_zero_exit", "exit_code": 1},
+        },
     ]
 
 
@@ -244,8 +265,15 @@ async def test_execute_single_tool_scores_exception_as_failure(
             "value": False,
             "data_type": "BOOLEAN",
             "comment": "RuntimeError",
-            "metadata": {"error_type": "RuntimeError"},
-        }
+            "metadata": {"tool_name": "weather_get", "error_type": "RuntimeError"},
+        },
+        {
+            "name": "tool_success:weather_get",
+            "value": False,
+            "data_type": "BOOLEAN",
+            "comment": "RuntimeError",
+            "metadata": {"tool_name": "weather_get", "error_type": "RuntimeError"},
+        },
     ]
 
 
