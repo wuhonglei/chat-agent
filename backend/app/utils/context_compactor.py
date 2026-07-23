@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 from langchain_community.embeddings import DashScopeEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
@@ -75,7 +77,40 @@ class ContextCompactor:
                     Document(page_content=chunk, metadata={"index": idx})
                     for idx, chunk in enumerate(chunks)
                 ]
-                vector_store = FAISS.from_documents(documents, self.embeddings)
+
+                cfg = self.tool_result_compression_config
+                batch_size = cfg.embedding_batch_size
+                max_workers = cfg.embedding_max_workers
+
+                if len(documents) <= batch_size:
+                    vector_store = FAISS.from_documents(documents, self.embeddings)
+                else:
+                    batches = [
+                        documents[i : i + batch_size]
+                        for i in range(0, len(documents), batch_size)
+                    ]
+                    stores: list[FAISS] = []
+
+                    # 并行向量化所有批次
+                    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                        future_to_idx = {
+                            executor.submit(
+                                FAISS.from_documents, batch, self.embeddings
+                            ): idx
+                            for idx, batch in enumerate(batches)
+                        }
+                        # 按顺序收集结果
+                        results_map = {}
+                        for future in as_completed(future_to_idx):
+                            idx = future_to_idx[future]
+                            results_map[idx] = future.result()
+                        stores = [results_map[i] for i in range(len(batches))]
+
+                    # 合并索引
+                    vector_store = stores[0]
+                    for store in stores[1:]:
+                        vector_store.merge_from(store)
+
                 results = vector_store.similarity_search_with_score(
                     query, k=len(documents)
                 )

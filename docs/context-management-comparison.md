@@ -408,10 +408,173 @@ opencode    claude-code    hermes-agent    chat-agent    deer-flow
 ---
 
 
-## 七、chat-agent 可借鉴的改进方案
+## 七、chat-agent 压缩流程结构性缺陷分析（vs hermes-agent）
+
+> 以下从工程实现角度，针对 chat-agent 当前压缩流程的 7 个结构性缺陷做深入分析，
+> 并与 hermes-agent 的对应方案逐一对比。其中第 7.4/7.5/7.6 为此前文档未覆盖的新发现。
+
+### 7.1 窗口内无动态压缩，靠硬截断兜底
+
+**现状:** `history_context_service.py:128-140` 先按轮次切窗口（固定 20 轮），再按 `token_ratio` 截断。截断是按轮次整体丢弃（`truncate_in_window_by_round_tokens`），不是对单条消息做摘要。
+
+**问题:** 如果最近几轮包含大量工具调用结果（如一次网页抓取返回 10K tokens），整个窗口的 token 预算会被少数几条消息吃掉，导致更早的、可能更重要的上下文被整体丢弃。没有对窗口内消息做渐进式压缩。
+
+**hermes-agent 对比:** 用 token 预算（~20K tokens）而非固定消息数划分保护区域，尾部按 token 预算向回走并对齐 tool_call/tool_result 边界，粒度更细。
+
+### 7.2 工具结果压缩是截断而非摘要
+
+**现状:** `history_context_service.py:86-101` 对历史轮的 tool_result 做 token 截断（超过阈值直接砍掉 + `[内容已截断]`），不是语义摘要。工具结果往往是结构化数据（JSON、搜索结果列表），直接截断会丢失关键信息。
+
+**hermes-agent 对比:** `_prune_old_tool_results()` 先用 LLM 做结构化摘要（如 `[terminal] ran 'npm test' -> exit 0, 47 lines output`），再裁剪。保留了语义信息而非机械截断。
+
+> 已在 P0-1/P0-3 中覆盖改进方案。
+
+### 7.3 80% 阈值强制结束是"断裂式"而非"渐进式"
+
+**现状:** `chat_session_agent.py:212-225` 发现 token > 80% 时直接切换到最终回答，但此时模型已累积多轮工具调用上下文。
+
+**问题:**
+- **没有在工具调用过程中做中间压缩**: 每轮工具调用结果原样累积，直到触达阈值才"一刀切"停止
+- **最终回答基于"满载"上下文**: 80% 阈值时剩余 20% 空间要容纳最终回答的输出 tokens，如果模型需要较长回答可能被 max_tokens 截断
+
+**hermes-agent 对比:** 在工具循环中检测到接近阈值时先做一次压缩（裁剪旧 tool output），释放空间后继续工具调用，而非直接终止。三次检查点: ① 轮次序言(preflight) ② 工具结果追加后(pre-API) ③ API 响应后(真实 token)。
+
+> 已在 P0-2 中覆盖改进方案。
+
+### 7.4 ⚠️ 摘要服务缺乏容错和退避机制（新发现）
+
+**现状:** `context_summary_service.py:62-78` 摘要 LLM 调用失败时直接返回旧 summary（或截断文本），没有任何重试或退避:
+
+```python
+except Exception as e:
+    logger.warning("Window-out merge summary LLM call failed", error=e, ...)
+    return normalized_prior_summary[: max_tokens * 2]  # 直接降级，无重试
+```
+
+**缺失项:**
+- **无重试机制**: 网络抖动时一次失败就放弃，下一次请求才会重试
+- **无冷却/去抖**: 如果摘要持续失败（如 API 额度耗尽），每次请求都会白白调用一次摘要 LLM
+- **无降级策略区分**: 临时错误（429 rate limit）和永久错误（auth failure）处理方式相同
+
+**hermes-agent 对比:** 完整的容错体系:
+- **递增冷却**: 失败后 60s → 300s → 900s 递增冷却（`_summary_failure_cooldown_until`）
+- **反抖动**: 连续 2 次压缩节省不到 10% → 停止压缩（`_ineffective_compression_count >= 2`）
+- **Fallback streak**: 连续 2 次 fallback → 暂停自动压缩（`_fallback_compression_streak >= 2`）
+- **错误分类**: auth/quota 错误不重试，rate limit 错误退避重试
+
+**建议:** 在 `context_summary_service.py` 中增加:
+```python
+class ContextSummaryService(LLMService):
+    _failure_cooldown_until: float = 0.0
+    _consecutive_failures: int = 0
+    _BACKOFF_SEQUENCE = [30, 60, 120, 300]  # 递增冷却秒数
+
+    async def summarize_merge(self, prior_summary, messages_to_summarize, max_tokens):
+        if time.time() < self._failure_cooldown_until:
+            return prior_summary  # 冷却期内直接返回旧摘要
+        try:
+            result = await self._do_summarize(...)
+            self._consecutive_failures = 0  # 成功重置
+            return result
+        except Exception:
+            self._consecutive_failures += 1
+            idx = min(self._consecutive_failures - 1, len(self._BACKOFF_SEQUENCE) - 1)
+            self._failure_cooldown_until = time.time() + self._BACKOFF_SEQUENCE[idx]
+            return prior_summary
+```
+
+**改动范围:** `context_summary_service.py`
+**预估工作量:** 1 小时
+
+### 7.5 ⚠️ 增量摘要的 ID 集合比较边界脆弱（新发现）
+
+**现状:** `history_context_service.py:158` 用 ID 集合判断是否需要重新摘要:
+
+```python
+if current_id_set == last_id_set:
+    return stored_summary_before_window, window_messages_after_truncation  # 跳过摘要
+```
+
+**问题场景:**
+1. **消息被编辑（同 ID 内容变化）**: ID 集合不变但摘要已过期，不会触发更新。用户修改了历史消息中的某个回答，摘要仍反映旧内容。
+2. **消息被删除后重新添加（新 ID）**: 整体会被当作全量变化，丢失增量摘要优化。原本只需摘要 1 条新消息，变成摘要全部窗口外消息。
+
+**hermes-agent 对比:** 不依赖 ID 集合比较，而是基于 session 血统 + 消息内容哈希:
+- 每次压缩都基于当前完整消息列表重新计算保护区域
+- 压缩结果写入新 session（session split），不存在"跳过更新"的窗口
+
+**建议:** 在 ID 比较之外增加内容哈希校验:
+```python
+import hashlib
+
+def _messages_content_hash(messages: list[ChatMessage]) -> str:
+    h = hashlib.md5()
+    for m in messages:
+        h.update(f"{m.id}:{m.updated_at or m.created_at}".encode())
+    return h.hexdigest()
+
+# 在 ID 比较处增加哈希校验
+if current_id_set == last_id_set:
+    current_hash = _messages_content_hash(out_of_window_messages)
+    if current_hash == stored_content_hash:
+        return stored_summary_before_window, window_messages_after_truncation
+    # ID 相同但内容变了 → 走全量重新摘要
+```
+
+**改动范围:** `history_context_service.py` + `conversation_contexts` 表（增加 `content_hash` 字段）
+**预估工作量:** 2 小时
+
+### 7.6 ⚠️ 摘要没有"保护头部"语义（新发现）
+
+**现状:** 窗口外的所有消息被平等对待进入摘要。对话开头的用户意图、约束条件、关键背景信息与其他中间消息同等权重。
+
+**问题:** 对话开头往往包含最重要的上下文 — 用户的核心需求、技术约束、项目背景。这些信息在 LLM 摘要中可能被中间的工具调用细节稀释。
+
+**hermes-agent 对比:** 明确的头部保护策略:
+- `protect_first_n=3`: system prompt + 前 3 轮消息**永远不进入压缩区**
+- 尾部按 token 预算保护（~20K tokens）
+- 只有中间部分进入 LLM 摘要
+
+**chat-agent 的特殊情况:** chat-agent 的窗口机制本身就是一种"头部保护" — 最近 20 轮保留原样，更早的才被摘要。但窗口是"保护尾部"而非"保护头部"。真正的头部（对话开头）总是落在窗口外，总是被摘要。
+
+**建议:** 在摘要 prompt 中增加头部信息保护:
+```
+# 在 get_window_out_summary_merge_prompt 中
+## 特别保留
+请在摘要中优先保留以下信息（按重要性排序）:
+1. 用户最初的需求和目标
+2. 用户明确指定的约束条件
+3. 关键技术决策和原因
+4. 未完成的任务和待办事项
+```
+
+**改动范围:** prompt 模板
+**预估工作量:** 30 分钟
+
+### 7.7 固定窗口大小，不随对话复杂度自适应
+
+**现状:** `max_rounds=20` 和 `token_ratio` 是固定配置。但不同对话的"轮"差异巨大 — 一轮可能只有 100 tokens 的简单问答，也可能有 20K tokens 的工具调用。
+
+**hermes-agent 对比:** 用 token 预算而非固定消息数划分保护区域，天然适应不同复杂度的对话。
+
+> 已在 7.1 中覆盖。
+
+### 7.8 缺陷总览
+
+| 编号 | 缺陷 | 严重度 | 文档覆盖 |
+| --- | --- | --- | --- |
+| 7.1 | 窗口内无动态压缩，轮级硬截断 | 中 | P0-2 |
+| 7.2 | 工具结果截断而非摘要 | 中 | P0-1/P0-3 |
+| 7.3 | 80% 阈值断裂式停止，无中间压缩 | 高 | P0-2 |
+| **7.4** | **摘要服务无容错/退避** | **中** | **🆕 新发现** |
+| **7.5** | **增量摘要 ID 比较边界脆弱** | **低** | **🆕 新发现** |
+| **7.6** | **摘要无头部保护语义** | **中** | **🆕 新发现** |
+| 7.7 | 固定窗口不自适应 | 低 | 7.1 |
+
+## 八、chat-agent 可借鉴的改进方案
 
 
-### 7.0 当前能力与缺口总览
+### 8.0 当前能力与缺口总览
 
 
 ```
@@ -434,10 +597,10 @@ opencode    claude-code    hermes-agent    chat-agent    deer-flow
 
 
 
-### 7.1 P0 — 必须修的 3 个问题
+### 8.1 P0 — 必须修的 3 个问题
 
 
-#### P0-1: 非 markdown 工具结果穿透 → 借鉴 claude-code 磁盘持久化
+#### 8.1.1 P0-1: 非 markdown 工具结果穿透 → 借鉴 claude-code 磁盘持久化
 
 
 **问题:**
@@ -480,7 +643,7 @@ def _persist_if_too_large(self, tool_result, tool_call_id):
 **预估工作量:** 半天
 
 
-#### P0-2: 单工具结果超 context 兜底 → 借鉴 hermes-agent 预检查
+#### 8.1.2 P0-2: 单工具结果超 context 兜底 → 借鉴 hermes-agent 预检查
 
 
 **问题:**
@@ -517,7 +680,7 @@ def _enforce_turn_budget(self, tool_round_messages, context_limit):
 **预估工作量:** 2 小时
 
 
-#### P0-3: tool_call 参数压缩 → 借鉴 hermes-agent JSON 截断
+#### 8.1.3 P0-3: tool_call 参数压缩 → 借鉴 hermes-agent JSON 截断
 
 
 **问题:**
@@ -561,10 +724,10 @@ def _truncate_tool_call_args(self, tool_calls, max_arg_len=500):
 
 
 
-### 7.2 P1 — 建议改进的 2 个问题
+### 8.2 P1 — 建议改进的 2 个问题
 
 
-#### P1-1: 长对话摘要质量维护 → 借鉴 claude-code 结构化摘要 + hermes-agent 迭代压缩
+#### 8.2.1 P1-1: 长对话摘要质量维护 → 借鉴 claude-code 结构化摘要 + hermes-agent 迭代压缩
 
 
 **问题:**
@@ -617,7 +780,7 @@ merged = self._merge_summaries(prior_summary, new_messages)
 **预估工作量:** 半天
 
 
-#### P1-2: 工具结果时间触发清理 → 借鉴 claude-code microcompact
+#### 8.2.2 P1-2: 工具结果时间触发清理 → 借鉴 claude-code microcompact
 
 
 **问题:**
@@ -664,20 +827,20 @@ def _cleanup_stale_tool_results(self, messages):
 
 
 
-### 7.3 P2 — 锦上添花
+### 8.3 P2 — 锦上添花
 
 
-#### P2-1: Prompt Cache 保护 → 借鉴 claude-code ContentReplacementState
+#### 8.3.1 P2-1: Prompt Cache 保护 → 借鉴 claude-code ContentReplacementState
 
 仅在使用 Anthropic/Claude API 且开启 prompt caching 时有意义。核心思想：已替换的内容在后续轮次保持字节级一致，避免 cache 前缀失效。当前 chat-agent 用的是 OpenAI 兼容 API，优先级低。
 
-#### P2-2: 反抖动保护 → 借鉴 hermes-agent
+#### 8.3.2 P2-2: 反抖动保护 → 借鉴 hermes-agent
 
 如果 context 在阈值附近波动，可能反复触发摘要。hermes-agent 的方案：连续 2 次压缩后 token 仍超标 → 停止压缩，进入冷却（60s→300s→900s 递增）。实现简单，建议在 `chat_session_agent.py` 的压缩触发处增加计数器。
 
 
 
-### 7.4 改动优先级总表
+### 8.4 改动优先级总表
 
 
 | 优先级 | 编号   | 改动                   | 借鉴来源                   | 改动量   | 影响                          | 文件                                  |
