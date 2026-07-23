@@ -808,7 +808,7 @@ tokens := session.CompletionTokens + session.PromptTokens
           <tr><th>框架</th><th>窗口定义</th><th>保留策略</th></tr>
         </thead>
         <tbody>
-          <tr><td><strong>chat-agent</strong></td><td>最近 5 轮(user+assistant 对)</td><td>轮次计数 + token 预算裁剪(25% context)</td></tr>
+          <tr><td><strong>chat-agent</strong></td><td>最近 20 轮(user+assistant 对)</td><td>轮次计数 + token 预算裁剪(25% context)</td></tr>
           <tr><td><strong>deer-flow</strong></td><td>messages:20 或 tokens/fraction 触发</td><td>二分查找安全切点，不拆分 AI+Tool 配对</td></tr>
           <tr><td><strong>hermes-agent</strong></td><td>头保护(3条) + 尾保护(≥8条, token 预算)</td><td>尾部按 token 预算向回走，对齐到 tool_call/tool_result 边界</td></tr>
           <tr><td><strong>claude-code</strong></td><td>全量保留直到自动压缩</td><td>按 API round 分组，压缩时保留最近的 round</td></tr>
