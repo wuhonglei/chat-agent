@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent 代码执行器选型对比</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #f5f7fa;
+            color: #1a1a2e;
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2.2rem;
+            margin-bottom: 8px;
+            color: #1a1a2e;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #6b7280;
+            font-size: 0.95rem;
+            margin-bottom: 40px;
+        }
+
+        /* 推荐卡片 */
+        .recommendation-banner {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 40px;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .recommendation-banner::before {
+            content: "★";
+            position: absolute;
+            right: 30px;
+            top: 20px;
+            font-size: 80px;
+            opacity: 0.15;
+        }
+
+        .recommendation-banner h2 {
+            font-size: 1.5rem;
+            margin-bottom: 16px;
+        }
+
+        .recommendation-banner .highlight {
+            background: rgba(255,255,255,0.2);
+            padding: 2px 10px;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+
+        .recommendation-banner p {
+            opacity: 0.95;
+            font-size: 0.95rem;
+            line-height: 1.8;
+        }
+
+        /* 对比表格 */
+        .comparison-table {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+            margin-bottom: 40px;
+        }
+
+        .table-header {
+            background: #1a1a2e;
+            color: white;
+            padding: 20px 24px;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #f8fafc;
+            padding: 14px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: #475569;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        td {
+            padding: 14px 16px;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 0.9rem;
+            vertical-align: top;
+        }
+
+        tr:hover {
+            background: #f8fafc;
+        }
+
+        .scheme-name {
+            font-weight: 600;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .badge-recommend {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .badge-open {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .badge-closed {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-partial {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .score {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .star {
+            color: #fbbf24;
+            font-size: 0.85rem;
+        }
+
+        .star-empty {
+            color: #e2e8f0;
+            font-size: 0.85rem;
+        }
+
+        .check {
+            color: #22c55e;
+            font-weight: bold;
+        }
+
+        .cross {
+            color: #ef4444;
+            font-weight: bold;
+        }
+
+        .warn {
+            color: #f59e0b;
+        }
+
+        /* 详细卡片 */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+            border-left: 4px solid #e2e8f0;
+        }
+
+        .card.piston {
+            border-left-color: #22c55e;
+        }
+
+        .card.e2b {
+            border-left-color: #3b82f6;
+        }
+
+        .card.jupyter {
+            border-left-color: #f59e0b;
+        }
+
+        .card.judge0 {
+            border-left-color: #8b5cf6;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .card-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .card-tag {
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .tag-recommend {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .tag-alternative {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .tag-specialized {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .tag-legacy {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .card-section {
+            margin-bottom: 14px;
+        }
+
+        .card-section-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        .card-section-content {
+            font-size: 0.9rem;
+            color: #334155;
+        }
+
+        .pros-cons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .pros, .cons {
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+
+        .pros {
+            background: #f0fdf4;
+        }
+
+        .cons {
+            background: #fef2f2;
+        }
+
+        .pros-title, .cons-title {
+            font-weight: 600;
+            margin-bottom: 6px;
+            font-size: 0.8rem;
+        }
+
+        .pros-title {
+            color: #166534;
+        }
+
+        .cons-title {
+            color: #991b1b;
+        }
+
+        ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        ul li {
+            padding: 2px 0;
+            padding-left: 16px;
+            position: relative;
+        }
+
+        .pros li::before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #22c55e;
+            font-weight: bold;
+        }
+
+        .cons li::before {
+            content: "✗";
+            position: absolute;
+            left: 0;
+            color: #ef4444;
+            font-weight: bold;
+        }
+
+        /* Piston 选型依据 */
+        .piston-analysis {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+            margin-bottom: 40px;
+        }
+
+        .piston-analysis h2 {
+            font-size: 1.4rem;
+            margin-bottom: 24px;
+            color: #1a1a2e;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .piston-analysis h2::before {
+            content: "";
+            display: inline-block;
+            width: 6px;
+            height: 28px;
+            background: linear-gradient(180deg, #22c55e, #16a34a);
+            border-radius: 3px;
+        }
+
+        .reason-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .reason-item {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .reason-item-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 50%;
+            font-size: 0.85rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .reason-item h4 {
+            font-size: 1rem;
+            margin-bottom: 8px;
+            color: #1e293b;
+        }
+
+        .reason-item p {
+            font-size: 0.88rem;
+            color: #64748b;
+            line-height: 1.6;
+        }
+
+        .decision-box {
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            border: 2px solid #22c55e;
+            border-radius: 12px;
+            padding: 24px;
+            margin-top: 24px;
+        }
+
+        .decision-box h3 {
+            color: #166534;
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+        }
+
+        .decision-box p {
+            color: #334155;
+            font-size: 0.9rem;
+            line-height: 1.7;
+        }
+
+        .decision-box strong {
+            color: #166534;
+        }
+
+        /* 混合架构建议 */
+        .hybrid-arch {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+        }
+
+        .hybrid-arch h2 {
+            font-size: 1.4rem;
+            margin-bottom: 24px;
+            color: #1a1a2e;
+        }
+
+        .arch-diagram {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            font-family: "SF Mono", Monaco, monospace;
+            font-size: 0.85rem;
+            line-height: 1.8;
+            color: #334155;
+            overflow-x: auto;
+            white-space: pre;
+        }
+
+        .arch-note {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 16px 20px;
+            border-radius: 0 8px 8px 0;
+            font-size: 0.9rem;
+            color: #92400e;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 30px;
+            color: #94a3b8;
+            font-size: 0.85rem;
+        }
+
+        @media (max-width: 768px) {
+            .cards-grid {
+                grid-template-columns: 1fr;
+            }
+            .reason-grid {
+                grid-template-columns: 1fr;
+            }
+            .pros-cons {
+                grid-template-columns: 1fr;
+            }
+            h1 {
+                font-size: 1.6rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Agent 代码执行器选型对比</h1>
+        <p class="subtitle">面向 Shopee 内部 AI Agent 平台的代码执行方案评估</p>
+
+        <!-- 推荐横幅 -->
+        <div class="recommendation-banner">
+            <h2>推荐方案：<span class="highlight">Piston</span> 作为默认执行引擎</h2>
+            <p>Piston 在安全性、开源可控性、多语言支持、资源效率和运维成本五个维度上均表现优异，<br>最适合作为企业级 Agent 平台的默认代码执行后端。数据科学场景可辅以 Jupyter 作为专用执行层。</p>
+        </div>
+
+        <!-- 综合对比表 -->
+        <div class="comparison-table">
+            <div class="table-header">📊 综合对比矩阵</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 14%">评估维度</th>
+                        <th style="width: 21%">
+                            <span class="scheme-name">
+                                Piston
+                                <span class="badge badge-recommend">推荐</span>
+                            </span>
+                        </th>
+                        <th style="width: 21%">
+                            <span class="scheme-name">
+                                E2B
+                                <span class="badge badge-partial">混合</span>
+                            </span>
+                        </th>
+                        <th style="width: 21%">
+                            <span class="scheme-name">
+                                Jupyter Server
+                                <span class="badge badge-open">开源</span>
+                            </span>
+                        </th>
+                        <th style="width: 21%">
+                            <span class="scheme-name">
+                                Judge0
+                                <span class="badge badge-open">开源</span>
+                            </span>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>开源程度</strong></td>
+                        <td><span class="check">✓</span> 全栈 MIT 开源</td>
+                        <td><span class="warn">△</span> SDK 开源，后端闭源</td>
+                        <td><span class="check">✓</span> BSD 协议开源</td>
+                        <td><span class="check">✓</span> GPL 协议开源</td>
+                    </tr>
+                    <tr>
+                        <td><strong>私有化部署</strong></td>
+                        <td><span class="check">✓</span> 完全自建，代码可控</td>
+                        <td><span class="warn">△</span> 可部署但后端闭源</td>
+                        <td><span class="check">✓</span> 完全自建</td>
+                        <td><span class="check">✓</span> 完全自建</td>
+                    </tr>
+                    <tr>
+                        <td><strong>安全隔离</strong></td>
+                        <td>
+                            <span class="score">
+                                <span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span>
+                            </span><br>
+                            <small>Isolate + chroot + cgroup + 多用户</small>
+                        </td>
+                        <td>
+                            <span class="score">
+                                <span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span>
+                            </span><br>
+                            <small>Firecracker MicroVM（硬件级）</small>
+                        </td>
+                        <td>
+                            <span class="score">
+                                <span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star-empty">★</span><span class="star-empty">★</span>
+                            </span><br>
+                            <small>进程级，需额外容器加固</small>
+                        </td>
+                        <td>
+                            <span class="score">
+                                <span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star-empty">★</span>
+                            </span><br>
+                            <small>Isolate（与 Piston 同源）</small>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>多语言支持</strong></td>
+                        <td><span class="check">✓</span> 70+ 语言，一键安装</td>
+                        <td><span class="cross">✗</span> 有限，依赖模板</td>
+                        <td><span class="warn">△</span> Python/R/Julia/Scala 为主</td>
+                        <td><span class="check">✓</span> 60+ 语言</td>
+                    </tr>
+                    <tr>
+                        <td><strong>启动速度</strong></td>
+                        <td><span class="check">✓</span> 毫秒级</td>
+                        <td><span class="check">✓</span> ~150ms（极快）</td>
+                        <td><span class="cross">✗</span> 秒级（Kernel 启动）</td>
+                        <td><span class="check">✓</span> 毫秒级</td>
+                    </tr>
+                    <tr>
+                        <td><strong>资源占用</strong></td>
+                        <td><span class="check">✓</span> 低（瞬态进程）</td>
+                        <td><span class="check">✓</span> 低（MicroVM）</td>
+                        <td><span class="cross">✗</span> 高（常驻 Kernel）</td>
+                        <td><span class="check">✓</span> 低</td>
+                    </tr>
+                    <tr>
+                        <td><strong>并发扩展</strong></td>
+                        <td><span class="check">✓</span> 无状态，水平扩展简单</td>
+                        <td><span class="check">✓</span> 无状态，水平扩展</td>
+                        <td><span class="cross">✗</span> 复杂（Kernel 管理）</td>
+                        <td><span class="check">✓</span> 无状态</td>
+                    </tr>
+                    <tr>
+                        <td><strong>状态持久化</strong></td>
+                        <td><span class="cross">✗</span> 无状态，每次独立</td>
+                        <td><span class="check">✓</span> 支持 pause/resume</td>
+                        <td><span class="check">✓</span> Session 变量持久化</td>
+                        <td><span class="cross">✗</span> 无状态</td>
+                    </tr>
+                    <tr>
+                        <td><strong>可视化输出</strong></td>
+                        <td><span class="cross">✗</span> 纯文本</td>
+                        <td><span class="warn">△</span> 有限</td>
+                        <td><span class="check">✓</span> 原生支持图表/HTML</td>
+                        <td><span class="cross">✗</span> 纯文本</td>
+                    </tr>
+                    <tr>
+                        <td><strong>运维复杂度</strong></td>
+                        <td><span class="check">✓</span> 低（单 Docker 容器）</td>
+                        <td><span class="cross">✗</span> 高（Nomad + Consul + Terraform）</td>
+                        <td><span class="cross">✗</span> 高（Kernel 生命周期管理）</td>
+                        <td><span class="check">✓</span> 中（Docker Compose）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>macOS 本地测试</strong></td>
+                        <td><span class="check">✓</span> Docker 直接运行</td>
+                        <td><span class="cross">✗</span> 需 Linux VM 或云服务器</td>
+                        <td><span class="check">✓</span> 直接运行</td>
+                        <td><span class="check">✓</span> Docker 直接运行</td>
+                    </tr>
+                    <tr>
+                        <td><strong>GPU 支持</strong></td>
+                        <td><span class="warn">△</span> 可自定义 Docker 镜像</td>
+                        <td><span class="cross">✗</span> 自托管不支持</td>
+                        <td><span class="check">✓</span> 原生支持</td>
+                        <td><span class="cross">✗</span> 不支持</td>
+                    </tr>
+                    <tr>
+                        <td><strong>企业合规</strong></td>
+                        <td><span class="check">✓</span> 完全可控，可审计</td>
+                        <td><span class="warn">△</span> 后端闭源，存在合规风险</td>
+                        <td><span class="check">✓</span> 完全可控</td>
+                        <td><span class="check">✓</span> 完全可控</td>
+                    </tr>
+                    <tr>
+                        <td><strong>月运维成本</strong></td>
+                        <td><span class="check">✓</span> 低（单容器）</td>
+                        <td><span class="cross">✗</span> ~$1,250+（GCP 资源）</td>
+                        <td><span class="warn">△</span> 中（取决于并发规模）</td>
+                        <td><span class="check">✓</span> 低</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 详细方案卡片 -->
+        <div class="cards-grid">
+            <div class="card piston">
+                <div class="card-header">
+                    <span class="card-title">🔧 Piston</span>
+                    <span class="card-tag tag-recommend">强烈推荐</span>
+                </div>
+                <div class="card-section">
+                    <div class="card-section-title">定位</div>
+                    <div class="card-section-content">高性能通用代码执行引擎，专为不可信代码设计</div>
+                </div>
+                <div class="card-section">
+                    <div class="card-section-title">隔离机制</div>
+                    <div class="card-section-content">Isolate（Linux namespaces + chroot + cgroup + 多用户）</div>
+                </div>
+                <div class="card-section">
+                    <div class="card-section-title">部署方式</div>
+                    <div class="card-section-content">Docker 单容器，<code>docker run -p 2000:2000 ghcr.io/engineer-man/piston</code></div>
+                </div>
+                <div class="pros-cons">
+                    <div class="pros">
+                        <div class="pros-title">优势</div>
+                        <ul>
+                            <li>全栈 MIT 开源，完全可控</li>
+                            <li>70+ 语言，一键安装运行时</li>
+                            <li>毫秒级启动，资源瞬态释放</li>
+                            <li>多层安全隔离（网络/进程/文件/内存）</li>
+                            <li>macOS 本地 Docker 直接测试</li>
+                            <li>REST API 简单，无状态易扩展</li>
+                        </ul>
+                    </div>
+                    <div class="cons">
+                        <div class="cons-title">劣势</div>
+                        <ul>
+                            <li>无状态，不支持变量持久化</li>
+                            <li>纯文本输出，无原生可视化</li>
+                            <li>数据科学库需自行预装</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card e2b">
+                <div class="card-header">
+                    <span class="card-title">☁️ E2B</span>
+                    <span class="card-tag tag-alternative">技术先进但闭源</span>
+                </div>
+                <div class="card-section">
+                    <div class="card-section-title">定位</div>
+                    <div class="card-section-content">基于 Firecracker MicroVM 的 AI Agent 沙箱基础设施</div>
+                </div>
+                <div class="card-section">
+                    <div class="card-section-title">隔离机制</div>
+                    <div class="card-section-content">Firecracker MicroVM（硬件级虚拟化）</div>
+                </div>
+                <div class="card-section">
+                    <div class="card-section-title">部署方式</div>
+                    <div class="card-section-content">Terraform + Nomad + Consul（GCP/AWS），后端镜像闭源</div>
+                </div>
+                <div class="pros-cons">
+                    <div class="pros">
+                        <div class="pros-title">优势</div>
+                        <ul>
+                            <li>Firecracker 隔离级别最高</li>
+                            <li>启动极快（~150ms）</li>
+                            <li>支持持久化沙箱（pause/resume）</li>
+                            <li>SDK 体验好（Python/JS）</li>
+                        </ul>
+                    </div>
+                    <div class="cons">
+                        <div class="cons-title">劣势</div>
+                        <ul>
+                            <li>后端服务闭源，无法审计</li>
+                            <li>自托管运维复杂（$1,250+/月）</li>
+                            <li>macOS 无法本地测试</li>
+                            <li>多语言支持有限</li>
+                            <li>Vendor Lock-in 风险</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card jupyter">
+                <div class="card-header">
+                    <span class="card-title">📓 Jupyter Server / Kernel Gateway</span>
+                    <span class="card-tag tag-specialized">数据科学专用</span>
+                </div>
+                <div class="card-section">
+                    <div class="card-section-title">定位</div>
+                    <div class="card-section-content">交互式计算环境，REPL 模式，数据科学首选</div>
+                </div>
+                <div class="card-section">
+                    <div class="card-section-title">隔离机制</div>
+                    <div class="card-section-content">进程级（需额外 Docker/gVisor/Kata 加固）</div>
+                </div>
+                <div class="card-section">
+                    <div class="card-section-title">部署方式</div>
+                    <div class="card-section-content">Jupyter Server / Kernel Gateway + 可选 JupyterHub</div>
+                </div>
+                <div class="pros-cons">
+                    <div class="pros">
+                        <div class="pros-title">优势</div>
+                        <ul>
+                            <li>Session 状态持久化（变量跨轮次保留）</li>
+                            <li>原生可视化（matplotlib/plotly 自动渲染）</li>
+                            <li>数据科学生态成熟（pandas/numpy/ml）</li>
+                            <li>REPL 模式契合 Agent 逐步推理</li>
+                            <li>MCP 生态成熟</li>
+                        </ul>
+                    </div>
+                    <div class="cons">
+                        <div class="cons-title">劣势</div>
+                        <ul>
+                            <li>资源占用高（常驻 Kernel 500MB+）</li>
+                            <li>启动慢（Kernel 秒级启动）</li>
+                            <li>并发扩展复杂（内存线性增长）</li>
+                            <li>安全隔离弱（需额外加固）</li>
+                            <li>多语言支持有限</li>
+                            <li>运维复杂（Kernel 生命周期管理）</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card judge0">
+                <div class="card-header">
+                    <span class="card-title">⚖️ Judge0</span>
+                    <span class="card-tag tag-legacy">判题系统</span>
+                </div>
+                <div class="card-section">
+                    <div class="card-section-title">定位</div>
+                    <div class="card-section-content">在线判题系统（OJ），代码评测</div>
+                </div>
+                <div class="card-section">
+                    <div class="card-section-title">隔离机制</div>
+                    <div class="card-section-content">Isolate（与 Piston 同源）</div>
+                </div>
+                <div class="card-section">
+                    <div class="card-section-title">部署方式</div>
+                    <div class="card-section-content">Docker Compose</div>
+                </div>
+                <div class="pros-cons">
+                    <div class="pros">
+                        <div class="pros-title">优势</div>
+                        <ul>
+                            <li>成熟的 OJ 生态</li>
+                            <li>60+ 语言支持</li>
+                            <li>Isolate 安全隔离</li>
+                            <li>社区版免费</li>
+                        </ul>
+                    </div>
+                    <div class="cons">
+                        <div class="cons-title">劣势</div>
+                        <ul>
+                            <li>GPL 协议（企业商用需注意）</li>
+                            <li>定位偏向判题，非通用执行</li>
+                            <li>交互能力弱</li>
+                            <li>社区活跃度低于 Piston</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Piston 选型依据 -->
+        <div class="piston-analysis">
+            <h2>Piston 选型依据（为什么选它）</h2>
+
+            <div class="reason-grid">
+                <div class="reason-item">
+                    <div class="reason-item-number">1</div>
+                    <h4>全栈开源，企业合规零风险</h4>
+                    <p>MIT 协议，从 API 服务到 Isolate 沙箱全部代码开源。Shopee 作为跨境电商企业，对代码审计和供应链安全有严格要求。Piston 可完全私有化部署，无 Vendor Lock-in，无闭源黑盒。</p>
+                </div>
+
+                <div class="reason-item">
+                    <div class="reason-item-number">2</div>
+                    <h4>多层安全隔离，适合不可信代码</h4>
+                    <p>Isolate 提供 Linux namespaces + chroot + 多用户 + cgroup 的组合隔离。默认禁用网络、限制进程数（256）、文件数（2048）、内存和 CPU 时间。fork 炸弹会被 SIGKILL 直接终止，适合 Agent 执行 LLM 生成的不可信代码。</p>
+                </div>
+
+                <div class="reason-item">
+                    <div class="reason-item-number">3</div>
+                    <h4>70+ 语言，覆盖 Agent 全场景</h4>
+                    <p>LLM 可能生成 Python、JavaScript、Java、Go、Rust、C++ 等任意语言代码。Piston 通过 <code>ppman install</code> 一键安装运行时，版本精确可控。无需为每种语言单独配置环境。</p>
+                </div>
+
+                <div class="reason-item">
+                    <div class="reason-item-number">4</div>
+                    <h4>资源轻量，高并发无压力</h4>
+                    <p>执行进程瞬态启动、用完即销毁，内存快速回收。无状态架构支持水平扩展，单容器即可支撑高并发。相比 Jupyter Kernel 常驻内存（500MB+），Piston 的资源效率高出 10 倍以上。</p>
+                </div>
+
+                <div class="reason-item">
+                    <div class="reason-item-number">5</div>
+                    <h4>运维极简，单容器即服务</h4>
+                    <p><code>docker run -p 2000:2000 ghcr.io/engineer-man/piston</code> 一行命令启动。无需维护 Nomad/Consul 集群，无需管理 Kernel 生命周期。API 纯 REST，无 WebSocket/ZMQ 协议复杂度。</p>
+                </div>
+
+                <div class="reason-item">
+                    <div class="reason-item-number">6</div>
+                    <h4>开发体验友好，本地可测试</h4>
+                    <p>macOS 上 Docker Desktop 直接运行，无需 Linux VM。REST API 简单直观，返回 JSON 包含 stdout/stderr/code/memory/time，无需解析复杂的 Jupyter Msg 协议。</p>
+                </div>
+            </div>
+
+            <div class="decision-box">
+                <h3>🎯 选型决策</h3>
+                <p><strong>默认执行引擎：Piston</strong> — 作为 Agent 平台的通用代码执行后端，覆盖 90% 的场景（商品标题优化、素材生成、网页生成、多语言脚本等）。</p>
+                <p style="margin-top: 10px;"><strong>专用执行层：Jupyter Kernel（加固版）</strong> — 针对数据分析类 Agent（销售数据分析、用户行为可视化、A/B 测试统计），在 gVisor/Kata 容器内运行，限制并发数和资源配额，作为可选后端而非默认。</p>
+                <p style="margin-top: 10px;"><strong>排除项：E2B</strong> — 技术先进但后端闭源，不符合 Shopee 企业合规要求；自托管运维成本过高（$1,250+/月），且 macOS 无法本地测试。</p>
+            </div>
+        </div>
+
+        <!-- 混合架构建议 -->
+        <div class="hybrid-arch">
+            <h2>🏗️ 推荐混合架构</h2>
+
+            <div class="arch-diagram">
+┌─────────────────────────────────────────────────────────────────┐
+│                    Shopee AI Agent 平台                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌─────────────────────┐        ┌─────────────────────────────┐ │
+│  │   Agent 编排层       │        │      代码执行层              │ │
+│  │  (ReAct / MCP)      │───────→│                             │ │
+│  │                     │        │  ┌───────────────────────┐  │ │
+│  │  • 商品标题优化       │        │  │   Piston (默认)       │  │ │
+│  │  • 素材生成          │        │  │   70+ 语言            │  │ │
+│  │  • 网页生成          │        │  │   安全隔离 / 无状态    │  │ │
+│  │  • 多语言脚本        │        │  │   毫秒级 / 低资源      │  │ │
+│  │                     │        │  └───────────────────────┘  │ │
+│  │                     │        │              ↓              │ │
+│  │                     │        │  ┌───────────────────────┐  │ │
+│  │                     │        │  │ Jupyter Kernel (专用)  │  │ │
+│  │                     │        │  │ 数据分析 / 可视化      │  │ │
+│  │                     │        │  │ gVisor/Kata 加固      │  │ │
+│  │                     │        │  │ 限制并发 / 资源配额    │  │ │
+│  │                     │        │  └───────────────────────┘  │ │
+│  └─────────────────────┘        └─────────────────────────────┘ │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  内部基础设施对接层                                       │   │
+│  │  • 内部知识库 (RAG)  • 自有模型  • 个性化 Skills          │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+            </div>
+
+            <div class="arch-note">
+                <strong>架构原则：</strong>Piston 作为默认执行引擎处理 90% 的通用代码执行任务；Jupyter Kernel 仅作为数据分析类 Agent 的可选专用后端，运行在加固容器内并严格限制并发数。两者通过统一的执行调度层对外暴露，Agent 根据任务类型自动路由到合适的执行器。
+            </div>
+        </div>
+
+        <div class="footer">
+            基于 Shopee 内部 AI Agent 平台需求评估 · 2026-07-22
+        </div>
+    </div>
+</body>
+</html>

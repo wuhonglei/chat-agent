@@ -75,7 +75,6 @@ async def test_execute_single_tool_scores_success(
         current_iteration=0,
         extracted_urls=set(),
         on_arguments_recorded=lambda *args: None,
-        on_urls_extracted=lambda urls: None,
     )
 
     assert result.is_error is False
@@ -125,7 +124,6 @@ async def test_execute_single_tool_scores_empty_result_as_failure(
         current_iteration=0,
         extracted_urls=set(),
         on_arguments_recorded=lambda *args: None,
-        on_urls_extracted=lambda urls: None,
     )
 
     assert result.is_error is True
@@ -192,7 +190,6 @@ async def test_execute_single_tool_scores_shell_by_exit_code(
         current_iteration=0,
         extracted_urls=set(),
         on_arguments_recorded=lambda *args: None,
-        on_urls_extracted=lambda urls: None,
     )
 
     assert result.is_error is True
@@ -238,7 +235,6 @@ async def test_execute_single_tool_scores_exception_as_failure(
         current_iteration=0,
         extracted_urls=set(),
         on_arguments_recorded=lambda *args: None,
-        on_urls_extracted=lambda urls: None,
     )
 
     assert result.is_error is True
@@ -251,3 +247,68 @@ async def test_execute_single_tool_scores_exception_as_failure(
             "metadata": {"error_type": "RuntimeError"},
         }
     ]
+
+
+@pytest.mark.asyncio
+async def test_web_pages_extract_passes_urls_as_list_after_filter(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """URL 去重后必须仍是 list，否则 gateway schema 校验会报 not of type array。"""
+    span = _FakeSpan()
+
+    class _FakeCM:
+        def __enter__(self) -> _FakeSpan:
+            return span
+
+        def __exit__(self, *args: Any) -> None:
+            return None
+
+    monkeypatch.setattr(
+        tool_executor_module,
+        "observation_span",
+        lambda *args, **kwargs: _FakeCM(),
+    )
+
+    captured: dict[str, Any] = {}
+
+    async def _capture_call_tool(
+        tool_name: str, arguments: dict[str, Any], **kwargs: Any
+    ) -> tuple[_FakeResult, list[Any]]:
+        del tool_name, kwargs
+        captured["arguments"] = arguments
+        return _FakeResult(), []
+
+    manager = MagicMock()
+    manager.call_tool = AsyncMock(side_effect=_capture_call_tool)
+    manager.format_mcp_result.return_value = "extracted"
+    manager.get_server_for_tool.return_value = "tavily"
+
+    tool_call = ChatCompletionMessageFunctionToolCall(
+        id="call_extract",
+        type="function",
+        function=Function(
+            name="tavily_web_pages_extract",
+            arguments=(
+                '{"urls":["https://example.com/a#frag","https://example.com/b"],'
+                '"extract_depth":"advanced"}'
+            ),
+        ),
+    )
+
+    executor = ToolExecutor(cast(Any, manager), "提取网页", "gpt-4o-mini", 131072)
+    monkeypatch.setattr(
+        executor,
+        "_compact_tool_result_if_needed",
+        AsyncMock(side_effect=lambda msg: msg),
+    )
+
+    result = await executor.execute_single_tool(
+        tool_call=tool_call,
+        current_iteration=0,
+        extracted_urls={"https://example.com/a"},
+        on_arguments_recorded=lambda *args: None,
+    )
+
+    assert result.is_error is False
+    assert isinstance(captured["arguments"]["urls"], list)
+    assert captured["arguments"]["urls"] == ["https://example.com/b"]

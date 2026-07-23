@@ -195,7 +195,6 @@ async def test_executor_blocks_exact_failure_without_calling_mcp(
             current_iteration=0,
             extracted_urls=set(),
             on_arguments_recorded=lambda *a: None,
-            on_urls_extracted=lambda u: None,
         )
 
     assert manager.call_tool.await_count == 5
@@ -205,7 +204,6 @@ async def test_executor_blocks_exact_failure_without_calling_mcp(
         current_iteration=0,
         extracted_urls=set(),
         on_arguments_recorded=lambda *a: None,
-        on_urls_extracted=lambda u: None,
     )
     assert blocked.is_error is True
     assert "已阻断" in (blocked.content or "")
@@ -240,7 +238,6 @@ async def test_executor_skips_remaining_segment_after_halt(
         current_iteration=0,
         extracted_urls=set(),
         on_arguments_recorded=lambda *a: None,
-        on_urls_extracted=lambda u: None,
     )
     assert executor.guardrail.halted is True
     assert manager.call_tool.await_count == 1
@@ -257,7 +254,6 @@ async def test_executor_skips_remaining_segment_after_halt(
         current_iteration=0,
         extracted_urls=set(),
         on_arguments_recorded=lambda *a: None,
-        on_urls_extracted=lambda u: None,
     )
     assert len(results) == 1
     assert results[0].is_error is True

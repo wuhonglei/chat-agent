@@ -88,17 +88,23 @@ class ToolCallPolicy:
             )
 
     def record_tool_arguments(
-        self, tool_name: str, arguments: dict[str, Any], tool_call_id: str
+        self,
+        tool_name: str,
+        arguments: dict[str, Any],
+        tool_call_id: str,
+        success: bool,
     ) -> None:
         self.tool_arguments_history_by_name[tool_name].append(
             {
                 "arguments": arguments,
                 "tool_call_id": tool_call_id,
+                "success": success,
             }
         )
-
-    def track_extracted_urls(self, urls: set[str]) -> None:
-        self.extracted_urls.update(urls)
+        if success and is_llm_tool(tool_name, TAVILY_SERVER, WEB_PAGES_EXTRACT_BARE):
+            urls = arguments.get("urls")
+            if isinstance(urls, (list, set, tuple)):
+                self.extracted_urls.update(normalize_url(url) for url in urls if url)
 
     def _get_web_search_queries(self) -> list[str]:
         queries: list[str] = []
