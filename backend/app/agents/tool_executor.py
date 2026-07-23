@@ -88,8 +88,7 @@ class ToolExecutor:
         tool_calls: list[ChatCompletionMessageFunctionToolCall],
         current_iteration: int,
         extracted_urls: set[str],
-        on_arguments_recorded: Callable[[str, dict[str, Any], str], None],
-        on_urls_extracted: Callable[[set[str]], None],
+        on_arguments_recorded: Callable[[str, dict[str, Any], str, bool], None],
     ) -> list[ToolResultMessage]:
         active_calls = [tc for tc in tool_calls if tc is not None]
         segments = plan_tool_batch_segments(active_calls)
@@ -119,7 +118,6 @@ class ToolExecutor:
                             current_iteration=current_iteration,
                             extracted_urls=extracted_urls,
                             on_arguments_recorded=on_arguments_recorded,
-                            on_urls_extracted=on_urls_extracted,
                         )
                     )
                     for tool_call in segment
@@ -157,8 +155,7 @@ class ToolExecutor:
         tool_call: ChatCompletionMessageFunctionToolCall,
         current_iteration: int,
         extracted_urls: set[str],
-        on_arguments_recorded: Callable[[str, dict[str, Any], str], None],
-        on_urls_extracted: Callable[[set[str]], None],
+        on_arguments_recorded: Callable[[str, dict[str, Any], str, bool], None],
     ) -> ToolResultMessage:
         tool_name = tool_call.function.name
         start_time = get_current_time()
@@ -167,6 +164,7 @@ class ToolExecutor:
             as_type="tool",
             input=tool_call.function.arguments,
         ) as tool_span:
+            tool_call_attempted = False
             try:
                 arguments = json.loads(tool_call.function.arguments)
                 if is_llm_tool(tool_name, TAVILY_SERVER, WEB_PAGES_EXTRACT_BARE) and (
@@ -192,7 +190,6 @@ class ToolExecutor:
                             error_type=None,
                         )
                         return skip_message
-                    on_urls_extracted(new_urls)
                     arguments["urls"] = new_urls
                     logger.info(
                         "Filtered URLs for web_pages_extract",
@@ -226,7 +223,7 @@ class ToolExecutor:
                     )
                     return blocked_message
 
-                on_arguments_recorded(tool_name, arguments, tool_call.id)
+                tool_call_attempted = True
                 logger.info(
                     "Calling MCP tool",
                     tool_name=tool_name,
@@ -353,6 +350,7 @@ class ToolExecutor:
                     error_type=error_type,
                     metadata_extra=outcome_meta or None,
                 )
+                on_arguments_recorded(tool_name, arguments, tool_call.id, success)
                 return tool_call_result_message
             except Exception as exc:
                 error_content, error_type = self._format_tool_exception(exc)
@@ -362,6 +360,10 @@ class ToolExecutor:
                         failed_arguments = {}
                 except (json.JSONDecodeError, TypeError):
                     failed_arguments = {}
+                if tool_call_attempted:
+                    on_arguments_recorded(
+                        tool_name, failed_arguments, tool_call.id, False
+                    )
                 guardrail_suffix = self.guardrail.record_outcome(
                     tool_name=tool_name,
                     arguments=failed_arguments,

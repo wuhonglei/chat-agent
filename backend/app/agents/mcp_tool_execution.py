@@ -66,7 +66,6 @@ class MCPToolSession:
             current_iteration=current_iteration,
             extracted_urls=self.policy.extracted_urls,
             on_arguments_recorded=self.policy.record_tool_arguments,
-            on_urls_extracted=self.policy.track_extracted_urls,
         )
 
     def build_tool_use_message(

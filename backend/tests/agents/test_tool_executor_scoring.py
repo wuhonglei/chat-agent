@@ -75,7 +75,6 @@ async def test_execute_single_tool_scores_success(
         current_iteration=0,
         extracted_urls=set(),
         on_arguments_recorded=lambda *args: None,
-        on_urls_extracted=lambda urls: None,
     )
 
     assert result.is_error is False
@@ -125,7 +124,6 @@ async def test_execute_single_tool_scores_empty_result_as_failure(
         current_iteration=0,
         extracted_urls=set(),
         on_arguments_recorded=lambda *args: None,
-        on_urls_extracted=lambda urls: None,
     )
 
     assert result.is_error is True
@@ -192,7 +190,6 @@ async def test_execute_single_tool_scores_shell_by_exit_code(
         current_iteration=0,
         extracted_urls=set(),
         on_arguments_recorded=lambda *args: None,
-        on_urls_extracted=lambda urls: None,
     )
 
     assert result.is_error is True
@@ -238,7 +235,6 @@ async def test_execute_single_tool_scores_exception_as_failure(
         current_iteration=0,
         extracted_urls=set(),
         on_arguments_recorded=lambda *args: None,
-        on_urls_extracted=lambda urls: None,
     )
 
     assert result.is_error is True
