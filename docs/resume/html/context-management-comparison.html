@@ -206,6 +206,14 @@ h3 {
   scroll-margin-top: calc(var(--header-h) + 24px);
 }
 
+h4 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-top: 28px;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+
 p { margin-bottom: 14px; }
 
 blockquote {
@@ -512,6 +520,12 @@ tbody tr:hover {
     <li class="toc-sub"><a href="#sec-6-2">6.2 工具结果压缩策略谱系</a></li>
     <li class="toc-sub"><a href="#sec-6-3">6.3 历史管理策略谱系</a></li>
     <li class="toc-sub"><a href="#sec-6-4">6.4 可借鉴的设计模式</a></li>
+    <li><a href="#sec-7">七、chat-agent 可借鉴的改进方案</a></li>
+    <li class="toc-sub"><a href="#sec-7-0">7.0 当前能力与缺口总览</a></li>
+    <li class="toc-sub"><a href="#sec-7-1">7.1 P0 — 必须修的 3 个问题</a></li>
+    <li class="toc-sub"><a href="#sec-7-2">7.2 P1 — 建议改进的 2 个问题</a></li>
+    <li class="toc-sub"><a href="#sec-7-3">7.3 P2 — 锦上添花</a></li>
+    <li class="toc-sub"><a href="#sec-7-4">7.4 改动优先级总表</a></li>
   </ul>
 </nav>
 
@@ -952,6 +966,245 @@ opencode    claude-code    hermes-agent    chat-agent    deer-flow
         </tbody>
       </table>
     </div>
+  </div>
+
+  <!-- ===== 七、chat-agent 可借鉴的改进方案 ===== -->
+  <div class="fade-section">
+    <h2 id="sec-7">七、chat-agent 可借鉴的改进方案<a href="#sec-7" class="anchor-link">#</a></h2>
+
+    <h3 id="sec-7-0">7.0 当前能力与缺口总览<a href="#sec-7-0" class="anchor-link">#</a></h3>
+    <pre><span class="str">✅ 已有能力:</span>
+  - FAISS 语义截断（markdown 工具结果）
+  - tiktoken 精确计数
+  - 80% 阈值停止工具调用
+  - 5 轮滑动窗口 + 25% token 预算
+  - 增量 LLM 摘要
+
+<span class="var">❌ 存在缺口:</span>
+  - 非 markdown 工具结果（shell/JSON）无压缩，直接穿透
+  - 单个工具结果超 context 无兜底，可能 API 报错
+  - tool_call 参数（如 write_file 大代码）从不压缩
+  - 长对话增量摘要质量退化，无重压缩机制
+  - 无时间触发的自动清理
+  - 无 prompt cache 保护
+  - 无反抖动保护</pre>
+  </div>
+
+  <div class="fade-section">
+    <h3 id="sec-7-1">7.1 P0 — 必须修的 3 个问题<a href="#sec-7-1" class="anchor-link">#</a></h3>
+
+    <h4>P0-1: 非 markdown 工具结果穿透 → 借鉴 claude-code 磁盘持久化</h4>
+    <p><strong>问题:</strong> <code>shell</code>/<code>file</code> MCP 被排除在压缩之外（<code>mcp/constants.py</code> 的 <code>SKIP_TOOL_RESULT_COMPACTION_SERVERS</code>），50K 的 shell 输出直接塞进 context。非 markdown 的自定义 MCP 工具结果走 FAISS markdown splitter，chunk 质量很差。</p>
+    <p><strong>借鉴: claude-code 的 <code>maybePersistLargeToolResult()</code></strong></p>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr><th>维度</th><th>claude-code 实现</th><th>chat-agent 建议</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>单工具阈值</strong></td><td>50,000 chars</td><td>30,000 chars</td></tr>
+          <tr><td><strong>操作</strong></td><td>写磁盘 → 替换为 2KB 预览 + <code>&lt;persisted-output&gt;</code> 标签</td><td>写磁盘 → 替换为预览 + 文件路径</td></tr>
+          <tr><td><strong>消息级聚合</strong></td><td>200,000 chars（并行工具合计）</td><td>暂不需要，chat-agent 工具串行执行</td></tr>
+          <tr><td><strong>确定性替换</strong></td><td>ContentReplacementState 冻结决策</td><td>暂不需要（无 prompt cache）</td></tr>
+          <tr><td><strong>豁免工具</strong></td><td><code>read_file</code>（防循环）</td><td><code>read_file</code>、<code>read_file_tool</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><strong>建议实现位置:</strong> <code>backend/app/agents/tool_executor.py</code>，在 <code>_compact_tool_result_if_needed</code> 之后增加统一拦截：</p>
+    <pre><span class="cmt"># 伪代码</span>
+MAX_TOOL_RESULT_CHARS = <span class="num">30_000</span>
+PREVIEW_CHARS = <span class="num">2_000</span>
+
+<span class="kw">def</span> <span class="fn">_persist_if_too_large</span>(<span class="var">self</span>, tool_result, tool_call_id):
+    <span class="kw">if</span> <span class="fn">len</span>(tool_result.content) > MAX_TOOL_RESULT_CHARS:
+        path = <span class="str">f"/tmp/chat-agent-results/{tool_call_id}.txt"</span>
+        <span class="fn">write_to_disk</span>(path, tool_result.content)
+        preview = tool_result.content[:PREVIEW_CHARS]
+        tool_result.content = (
+            <span class="str">f"{preview}\n\n"</span>
+            <span class="str">f"[完整输出已保存到 {path}，共 {len(tool_result.content)} 字符，"</span>
+            <span class="str">f"约 {len(tool_result.content) // 4} tokens。"</span>
+            <span class="str">f"需要查看具体内容时可用 read_file 工具读取。]"</span>
+        )
+        tool_result.truncated = <span class="kw">True</span></pre>
+    <p><strong>改动范围:</strong> <code>tool_executor.py</code> + <code>schemas/config.py</code>（新增 <code>ToolResultPersistConfig</code>）<br><strong>预估工作量:</strong> 半天</p>
+
+    <h4>P0-2: 单工具结果超 context 兜底 → 借鉴 hermes-agent 预检查</h4>
+    <p><strong>问题:</strong> 工具结果追加后，只在下一轮 <code>_check_round_context_budget</code> 才检查。如果单个结果 &gt; context，直接 API 报错，无 try/catch。</p>
+    <p><strong>借鉴: hermes-agent 的三层防护</strong></p>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr><th>层级</th><th>hermes-agent</th><th>chat-agent 现状</th><th>建议</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Layer 1</strong></td><td>每个工具内部截断</td><td>✅ 已有</td><td>—</td></tr>
+          <tr><td><strong>Layer 2</strong></td><td>per-result 持久化（<code>maybe_persist_tool_result</code>）</td><td>❌ 缺失（P0-1 解决）</td><td>加</td></tr>
+          <tr><td><strong>Layer 3</strong></td><td>per-turn 聚合预算（<code>enforce_turn_budget</code>）</td><td>❌ 缺失</td><td>加</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><strong>建议实现位置:</strong> <code>backend/app/agents/tool_executor.py</code>，在所有工具执行完毕后：</p>
+    <pre><span class="kw">def</span> <span class="fn">_enforce_turn_budget</span>(<span class="var">self</span>, tool_round_messages, context_limit):
+    total_chars = <span class="fn">sum</span>(<span class="fn">len</span>(m.content) <span class="kw">for</span> m <span class="kw">in</span> tool_round_messages)
+    budget = <span class="fn">int</span>(context_limit * <span class="num">0.5</span>)  <span class="cmt"># 工具轮最多占 50% context</span>
+    <span class="kw">if</span> total_chars > budget:
+        <span class="cmt"># 按大小排序，从最大的开始持久化，直到低于预算</span>
+        sorted_msgs = <span class="fn">sorted</span>(tool_round_messages, key=<span class="kw">lambda</span> m: <span class="fn">len</span>(m.content), reverse=<span class="kw">True</span>)
+        <span class="kw">for</span> msg <span class="kw">in</span> sorted_msgs:
+            <span class="kw">if</span> total_chars <= budget:
+                <span class="kw">break</span>
+            original_len = <span class="fn">len</span>(msg.content)
+            <span class="var">self</span>.<span class="fn">_persist_if_too_large</span>(msg, msg.tool_call_id)  <span class="cmt"># 复用 P0-1 的函数</span>
+            total_chars -= original_len - <span class="fn">len</span>(msg.content)</pre>
+    <p><strong>改动范围:</strong> <code>tool_executor.py</code>（复用 P0-1 的持久化函数）<br><strong>预估工作量:</strong> 2 小时</p>
+
+    <h4>P0-3: tool_call 参数压缩 → 借鉴 hermes-agent JSON 截断</h4>
+    <p><strong>问题:</strong> LLM 生成 <code>write_file(content="50K 代码")</code> 后，参数永久留在 context 中。token 计数虽然覆盖了 <code>tool_calls</code>，但从不压缩。</p>
+    <p><strong>借鉴: hermes-agent 的 <code>_truncate_tool_call_args_json()</code></strong></p>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr><th>维度</th><th>hermes-agent</th><th>chat-agent 建议</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>阈值</strong></td><td>字符串值 &gt; 200 chars</td><td>字符串值 &gt; 500 chars</td></tr>
+          <tr><td><strong>操作</strong></td><td>截断 value，保持 JSON 合法</td><td>同左</td></tr>
+          <tr><td><strong>时机</strong></td><td>压缩预处理阶段（<code>_prune_old_tool_results</code>）</td><td><code>compress_history_messages</code> 中</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><strong>建议实现位置:</strong> <code>backend/app/services/chat/history_context_service.py</code> 的 <code>compress_history_messages</code> 中：</p>
+    <pre><span class="kw">def</span> <span class="fn">_truncate_tool_call_args</span>(<span class="var">self</span>, tool_calls, max_arg_len=<span class="num">500</span>):
+    <span class="str">"""截断 tool_call 中的大参数值，保持 JSON 合法"""</span>
+    <span class="kw">for</span> tc <span class="kw">in</span> tool_calls:
+        <span class="kw">if not</span> tc.<span class="fn">get</span>(<span class="str">"function"</span>, {}).<span class="fn">get</span>(<span class="str">"arguments"</span>):
+            <span class="kw">continue</span>
+        <span class="kw">try</span>:
+            args = json.<span class="fn">loads</span>(tc[<span class="str">"function"</span>][<span class="str">"arguments"</span>])
+        <span class="kw">except</span> (<span class="type">json.JSONDecodeError</span>, <span class="type">TypeError</span>):
+            <span class="kw">continue</span>
+        changed = <span class="kw">False</span>
+        <span class="kw">for</span> k, v <span class="kw">in</span> args.<span class="fn">items</span>():
+            <span class="kw">if</span> <span class="fn">isinstance</span>(v, <span class="type">str</span>) <span class="kw">and</span> <span class="fn">len</span>(v) > max_arg_len:
+                args[k] = v[:<span class="num">200</span>] + <span class="str">f"... [{len(v)} chars, truncated]"</span>
+                changed = <span class="kw">True</span>
+        <span class="kw">if</span> changed:
+            tc[<span class="str">"function"</span>][<span class="str">"arguments"</span>] = json.<span class="fn">dumps</span>(args, ensure_ascii=<span class="kw">False</span>)</pre>
+    <p>仅对<strong>非最新一轮</strong>的历史 tool_call 执行，最新一轮保持完整。</p>
+    <p><strong>改动范围:</strong> <code>history_context_service.py</code><br><strong>预估工作量:</strong> 1 小时</p>
+  </div>
+
+  <div class="fade-section">
+    <h3 id="sec-7-2">7.2 P1 — 建议改进的 2 个问题<a href="#sec-7-2" class="anchor-link">#</a></h3>
+
+    <h4>P1-1: 长对话摘要质量维护 → 借鉴 claude-code 结构化摘要 + hermes-agent 迭代压缩</h4>
+    <p><strong>问题:</strong> 增量摘要持续合并，早期信息被稀释。100+ 轮后摘要变成"什么都提了一句，什么都说不清楚"。<code>summarize_merge</code> 的输入被截断到 <code>model_limit * 0.8</code>，但 prior_summary 本身不截断，可能占满整个输入。</p>
+    <p><strong>借鉴 A: claude-code 的 9 段结构化摘要模板</strong></p>
+    <p>当前 chat-agent 的摘要没有结构约束，LLM 自由输出。建议固定结构：</p>
+    <pre>## 主要需求
+用户的核心目标和诉求
+
+## 已完成工作
+已经解决的问题和交付的内容
+
+## 进行中
+当前正在处理的任务
+
+## 待处理
+用户提出但尚未完成的需求
+
+## 关键决策
+对话中做出的重要技术/方案决策
+
+## 关键上下文
+后续对话可能需要的背景信息</pre>
+    <p><strong>借鉴 B: hermes-agent 的迭代摘要压缩</strong></p>
+    <p>当累积摘要超过预算时，触发"摘要的摘要"：</p>
+    <pre><span class="cmt"># 在 context_summary_service.py 的 summarize_merge 中</span>
+SUMMARY_MAX_TOKENS = <span class="num">1000</span>
+SUMMARY_WARN_RATIO = <span class="num">1.5</span>
+
+prior_tokens = <span class="var">self</span>.token_calculator.<span class="fn">count_tokens</span>(prior_summary)
+<span class="kw">if</span> prior_tokens > SUMMARY_MAX_TOKENS * SUMMARY_WARN_RATIO:
+    <span class="cmt"># 先压缩 prior_summary 本身</span>
+    prior_summary = <span class="var">self</span>.<span class="fn">_compress_summary</span>(prior_summary, SUMMARY_MAX_TOKENS // <span class="num">2</span>)
+<span class="cmt"># 再合并新内容</span>
+merged = <span class="var">self</span>.<span class="fn">_merge_summaries</span>(prior_summary, new_messages)</pre>
+    <p><strong>改动范围:</strong> <code>context_summary_service.py</code> + prompt 模板<br><strong>预估工作量:</strong> 半天</p>
+
+    <h4>P1-2: 工具结果时间触发清理 → 借鉴 claude-code microcompact</h4>
+    <p><strong>问题:</strong> 历史中 60 分钟前的工具结果仍占 context，只靠 <code>message_summary_threshold_tokens</code>（2000 tokens）截断。一个 1900 token 的老工具结果会原样保留。</p>
+    <p><strong>借鉴: claude-code 的时间触发清理</strong></p>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr><th>维度</th><th>claude-code</th><th>chat-agent 建议</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>触发条件</strong></td><td>上次交互 &gt; 60 分钟</td><td>工具结果创建时间 &gt; 60 分钟</td></tr>
+          <tr><td><strong>保留数量</strong></td><td>最近 5 个工具结果完整保留</td><td>最近 5 个</td></tr>
+          <tr><td><strong>清理方式</strong></td><td><code>[Old tool result content cleared]</code></td><td><code>[工具结果已过期清除]</code></td></tr>
+          <tr><td><strong>适用范围</strong></td><td>FileRead, Bash, Grep 等</td><td>所有 ToolResultBlock</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><strong>建议实现位置:</strong> <code>backend/app/services/chat/history_context_service.py</code> 的 <code>compress_history_messages</code> 中增加时间判断：</p>
+    <pre><span class="kw">import</span> time
+
+TOOL_RESULT_MAX_AGE_SECONDS = <span class="num">3600</span>  <span class="cmt"># 60 分钟</span>
+TOOL_RESULT_KEEP_RECENT = <span class="num">5</span>
+
+<span class="kw">def</span> <span class="fn">_cleanup_stale_tool_results</span>(<span class="var">self</span>, messages):
+    <span class="str">"""清理过期的工具结果，保留最近 N 个"""</span>
+    tool_result_indices = []
+    <span class="kw">for</span> i, msg <span class="kw">in</span> <span class="fn">enumerate</span>(messages):
+        <span class="kw">if</span> msg.role == <span class="str">"tool"</span>:
+            tool_result_indices.<span class="fn">append</span>(i)
+
+    <span class="cmt"># 保留最近 N 个</span>
+    stale_indices = tool_result_indices[:-TOOL_RESULT_KEEP_RECENT]
+    <span class="kw">for</span> idx <span class="kw">in</span> stale_indices:
+        msg = messages[idx]
+        age = time.<span class="fn">time</span>() - msg.created_at.<span class="fn">timestamp</span>()
+        <span class="kw">if</span> age > TOOL_RESULT_MAX_AGE_SECONDS <span class="kw">and</span> <span class="fn">len</span>(msg.content) > <span class="num">200</span>:
+            msg.content = <span class="str">"[工具结果已过期清除]"</span>
+            msg.summary = <span class="kw">None</span></pre>
+    <p><strong>改动范围:</strong> <code>history_context_service.py</code><br><strong>预估工作量:</strong> 1 小时</p>
+  </div>
+
+  <div class="fade-section">
+    <h3 id="sec-7-3">7.3 P2 — 锦上添花<a href="#sec-7-3" class="anchor-link">#</a></h3>
+
+    <h4>P2-1: Prompt Cache 保护 → 借鉴 claude-code ContentReplacementState</h4>
+    <p>仅在使用 Anthropic/Claude API 且开启 prompt caching 时有意义。核心思想：已替换的内容在后续轮次保持字节级一致，避免 cache 前缀失效。当前 chat-agent 用的是 OpenAI 兼容 API，优先级低。</p>
+
+    <h4>P2-2: 反抖动保护 → 借鉴 hermes-agent</h4>
+    <p>如果 context 在阈值附近波动，可能反复触发摘要。hermes-agent 的方案：连续 2 次压缩后 token 仍超标 → 停止压缩，进入冷却（60s→300s→900s 递增）。实现简单，建议在 <code>chat_session_agent.py</code> 的压缩触发处增加计数器。</p>
+  </div>
+
+  <div class="fade-section">
+    <h3 id="sec-7-4">7.4 改动优先级总表<a href="#sec-7-4" class="anchor-link">#</a></h3>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr><th>优先级</th><th>编号</th><th>改动</th><th>借鉴来源</th><th>改动量</th><th>影响</th><th>文件</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>P0</strong></td><td>P0-1</td><td>非 markdown 工具结果磁盘持久化</td><td>claude-code</td><td>中（半天）</td><td>防止 50K+ shell 输出撑爆 context</td><td><code>tool_executor.py</code>, <code>config.py</code></td></tr>
+          <tr><td><strong>P0</strong></td><td>P0-2</td><td>per-turn 聚合预算兜底</td><td>hermes-agent</td><td>小（2h）</td><td>防止单结果超 context API 报错</td><td><code>tool_executor.py</code></td></tr>
+          <tr><td><strong>P0</strong></td><td>P0-3</td><td>tool_call 大参数截断</td><td>hermes-agent</td><td>小（1h）</td><td>防止大参数永久占 context</td><td><code>history_context_service.py</code></td></tr>
+          <tr><td><strong>P1</strong></td><td>P1-1</td><td>结构化摘要模板 + 摘要压缩</td><td>claude-code + hermes-agent</td><td>中（半天）</td><td>100+ 轮对话摘要质量维护</td><td><code>context_summary_service.py</code>, prompt</td></tr>
+          <tr><td><strong>P1</strong></td><td>P1-2</td><td>时间触发工具结果清理</td><td>claude-code</td><td>小（1h）</td><td>老工具结果自动释放 context</td><td><code>history_context_service.py</code></td></tr>
+          <tr><td><strong>P2</strong></td><td>P2-1</td><td>Prompt Cache 保护</td><td>claude-code</td><td>大</td><td>降低 API 成本（需 Anthropic）</td><td>多文件</td></tr>
+          <tr><td><strong>P2</strong></td><td>P2-2</td><td>反抖动保护</td><td>hermes-agent</td><td>小（30min）</td><td>防止阈值附近反复压缩</td><td><code>chat_session_agent.py</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <blockquote>
+      <strong>建议实施顺序:</strong> P0-3 → P0-1 → P0-2 → P1-2 → P1-1 → P2-2 → P2-1<br>
+      （从最小改动、最高收益开始）
+    </blockquote>
   </div>
 
   <!-- ===== Footer ===== -->
