@@ -170,33 +170,38 @@ class ToolExecutor:
                 if is_llm_tool(tool_name, TAVILY_SERVER, WEB_PAGES_EXTRACT_BARE) and (
                     urls := get("urls", arguments)
                 ):
-                    normalized_urls = {normalize_url(url) for url in urls if url}
-                    new_urls = normalized_urls - extracted_urls
-                    if not new_urls:
+                    items = [urls] if isinstance(urls, str) else urls
+                    if isinstance(items, (list, tuple)):
+                        # list(...)：差集是 set，直接写入会导致 schema 校验失败
+                        new_urls = list(
+                            {normalize_url(str(u)) for u in items if u}
+                            - extracted_urls
+                        )
+                        if not new_urls:
+                            logger.info(
+                                "All URLs already extracted, skipping web_pages_extract",
+                                urls=urls,
+                                iteration=current_iteration + 1,
+                            )
+                            skip_message = ToolResultMessage(
+                                role="tool",
+                                is_error=False,
+                                tool_call_id=tool_call.id,
+                                content="⚠️ 提示：这些 URL 已经在之前的调用中提取过了。请检查历史工具调用结果，如果已获得足够信息，请停止继续调用工具，并直接给出最终回答。",
+                            )
+                            self._score_tool_success(
+                                tool_span,
+                                success=True,
+                                error_type=None,
+                            )
+                            return skip_message
+                        arguments["urls"] = new_urls
                         logger.info(
-                            "All URLs already extracted, skipping web_pages_extract",
-                            urls=urls,
+                            "Filtered URLs for web_pages_extract",
+                            original_count=len(items),
+                            new_count=len(new_urls),
                             iteration=current_iteration + 1,
                         )
-                        skip_message = ToolResultMessage(
-                            role="tool",
-                            is_error=False,
-                            tool_call_id=tool_call.id,
-                            content="⚠️ 提示：这些 URL 已经在之前的调用中提取过了。请检查历史工具调用结果，如果已获得足够信息，请停止继续调用工具，并直接给出最终回答。",
-                        )
-                        self._score_tool_success(
-                            tool_span,
-                            success=True,
-                            error_type=None,
-                        )
-                        return skip_message
-                    arguments["urls"] = new_urls
-                    logger.info(
-                        "Filtered URLs for web_pages_extract",
-                        original_count=len(urls),
-                        new_count=len(new_urls),
-                        iteration=current_iteration + 1,
-                    )
 
                 decision = self.guardrail.before_call(tool_name, arguments)
                 if decision.kind in (
