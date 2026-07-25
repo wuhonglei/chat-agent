@@ -511,8 +511,13 @@ class ToolResultHardLimitConfig(BaseModel):
     """工具结果硬上限：超阈值后按 agent_mode 落盘预览或头尾截断。"""
 
     enabled: bool = Field(default=True, description="是否启用工具结果硬上限")
+    turn_budget_chars: int = Field(
+        default=80_000,
+        ge=0,
+        description="同轮全部工具结果 content 合计字符上限",
+    )
     max_chars: int = Field(
-        default=30_000,
+        default=1_000,
         ge=0,
         description="单条工具结果默认硬上限（字符）；可被 tool_overrides 覆盖",
     )
@@ -526,17 +531,12 @@ class ToolResultHardLimitConfig(BaseModel):
         ge=0,
         description="落盘预览 / 头尾截断保留的尾部字符数",
     )
-    turn_budget_chars: int = Field(
-        default=80_000,
-        ge=0,
-        description="同轮全部工具结果 content 合计字符上限",
-    )
     persist_subdir: str = Field(
         default=".tool-results",
         description="落盘子目录，相对 conversation workspace/",
     )
     exempt_bare_names: list[str] = Field(
-        default_factory=lambda: ["read_file"],
+        default_factory=lambda: ["read_file", "load_skill"],
         description="Agent 模式下豁免落盘的工具 bare 名（防 persist→read→persist）",
     )
     tool_overrides: dict[str, int] = Field(
