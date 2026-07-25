@@ -478,6 +478,19 @@ class ToolResultCompressionConfig(BaseModel):
         default=2000,
         description="窗口内单条工具消息超过该 token 数时用 summary/截断参与组装",
     )
+    tool_arg_max_chars: int = Field(
+        default=500,
+        gt=0,
+        description=(
+            "窗口内非最新轮 tool_use：整段 arguments_text 超过该字符数时才进入截断"
+            "（对齐 hermes Pass-3 门闩）"
+        ),
+    )
+    tool_arg_keep_chars: int = Field(
+        default=200,
+        gt=0,
+        description=("截断时 JSON 内字符串叶子保留的前缀字符数，后缀为 ...[truncated]"),
+    )
     markdown_chunk_size: int = Field(
         default=1024,
         description="Markdown 分块大小（字符），用于相关性过滤",
@@ -495,6 +508,61 @@ class ToolResultCompressionConfig(BaseModel):
         default=5,
         gt=0,
         description="FAISS 分批向量化时的最大并行线程数",
+    )
+
+
+def _default_tool_result_hard_limit_overrides() -> dict[str, int]:
+    return {
+        "exec": 20_000,
+        "search_files": 20_000,
+        "web_site_crawl": 20_000,
+        "web_pages_extract": 25_000,
+        "load_skill": 0,
+    }
+
+
+class ToolResultHardLimitConfig(BaseModel):
+    """工具结果硬上限：超阈值后按 agent_mode 落盘预览或头尾截断。"""
+
+    enabled: bool = Field(default=True, description="是否启用工具结果硬上限")
+    turn_budget_chars: int = Field(
+        default=80_000,
+        ge=0,
+        description="同轮全部工具结果 content 合计字符上限",
+    )
+    max_chars: int = Field(
+        default=30_000,
+        ge=0,
+        description="单条工具结果默认硬上限（字符）；可被 tool_overrides 覆盖",
+    )
+    preview_head_chars: int = Field(
+        default=2_000,
+        ge=0,
+        description="落盘预览 / 头尾截断保留的头部字符数",
+    )
+    preview_tail_chars: int = Field(
+        default=1_000,
+        ge=0,
+        description="落盘预览 / 头尾截断保留的尾部字符数",
+    )
+    persist_subdir: str = Field(
+        default=".tool-results",
+        description="落盘子目录，相对 conversation workspace/",
+    )
+    exempt_bare_names: list[str] = Field(
+        default_factory=lambda: ["read_file"],
+        description=(
+            "完全跳过硬上限的工具 bare 名（含同轮 force）；"
+            "用于防 persist↔read 循环；体积由工具自身限制（如 read_file 的 limit）"
+        ),
+    )
+    tool_overrides: dict[str, int] = Field(
+        default_factory=_default_tool_result_hard_limit_overrides,
+        description=(
+            "按工具覆盖 max_chars；键可为 LLM 名或 bare 名；"
+            "值为 0 表示关闭该工具的单条硬上限（同轮预算仍可强制处理；"
+            "与 exempt_bare_names 的完全豁免不同）"
+        ),
     )
 
 
@@ -563,6 +631,10 @@ class ChatContextConfig(BaseModel):
     tool_result_compression: ToolResultCompressionConfig = Field(
         default_factory=ToolResultCompressionConfig,
         description="工具结果压缩与摘要",
+    )
+    tool_result_hard_limit: ToolResultHardLimitConfig = Field(
+        default_factory=ToolResultHardLimitConfig,
+        description="工具结果硬上限（落盘预览 / 头尾截断 / 同轮预算）",
     )
     history_window: HistoryWindowConfig = Field(
         default_factory=HistoryWindowConfig,

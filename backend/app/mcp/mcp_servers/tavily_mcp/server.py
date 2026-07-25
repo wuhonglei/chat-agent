@@ -32,7 +32,7 @@ client = AsyncTavilyClient(api_key=config.tavily_api_key)
 async def web_search(
     queries: list[str] = Field(
         ...,
-        description="要执行的搜索查询列表。简单问题使用 1 个 query，复杂/多角度问题使用 2-3 个查询",
+        description="要执行的搜索查询列表(字符串列表)。简单问题使用 1 个查询，复杂/多角度问题使用 2-3 个查询",
     ),
     topic: Literal["general", "news", "finance"] = Field(
         default="general",

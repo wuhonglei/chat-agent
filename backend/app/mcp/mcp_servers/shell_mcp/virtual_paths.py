@@ -12,8 +12,11 @@ from app.vfs.paths import SKILLS_PUBLIC_DIR, VIRTUAL_PATH_PREFIX, get_paths
 
 PathMappings = dict[str, str]
 
-# Exclude @/ (JS/TS import aliases like "@/*") — not filesystem absolute paths.
-_ABSOLUTE_PATH_PATTERN = re.compile(r"(?<![:\w@])(?<!:/)/(?:[^\s\"'`;&|<>()]+)")
+# Absolute paths outside quotes/heredocs. Exclude @/ (JS/TS import aliases) and //
+# (line comments / protocol-relative). Quoted strings and heredoc bodies are skipped
+# in validate_local_command_paths; single-line quoted path args are checked separately.
+_ABSOLUTE_PATH_PATTERN = re.compile(r"(?<![:\w@])(?<!:/)(/(?!/)[^\s\"'`;&|<>()]+)")
+_HEREDOC_OP_PATTERN = re.compile(r"<<-?")
 _FILE_URL_PATTERN = re.compile(r"\bfile://\S+", re.IGNORECASE)
 _URL_WITH_SCHEME_PATTERN = re.compile(r"^[a-z][a-z0-9+.-]*://", re.IGNORECASE)
 _URL_IN_COMMAND_PATTERN = re.compile(
@@ -243,6 +246,185 @@ def _is_in_spans(position: int, spans: list[tuple[int, int]]) -> bool:
     return any(start <= position < end for start, end in spans)
 
 
+def _find_heredoc_body_span(
+    command: str, op_end: int, *, strip_tabs: bool
+) -> tuple[int, int, int] | None:
+    """Parse heredoc after '<<' / '<<-'. Returns (body_start, body_end, scan_end) or None."""
+    n = len(command)
+    j = op_end
+    while j < n and command[j] in " \t":
+        j += 1
+
+    quote: str | None = None
+    if j < n and command[j] in "'\"":
+        quote = command[j]
+        j += 1
+
+    delim_start = j
+    while j < n:
+        ch = command[j]
+        if quote is not None:
+            if ch == quote:
+                break
+            j += 1
+            continue
+        if ch in " \t\r\n\"'\\;&|<>()":
+            break
+        j += 1
+
+    delimiter = command[delim_start:j]
+    if not delimiter:
+        return None
+    if quote is not None:
+        if j >= n or command[j] != quote:
+            return None
+        j += 1
+
+    while j < n and command[j] in " \t":
+        j += 1
+    if j >= n or command[j] not in "\r\n":
+        return None
+    if command[j] == "\r" and j + 1 < n and command[j + 1] == "\n":
+        j += 2
+    else:
+        j += 1
+
+    body_start = j
+    while j <= n:
+        line_start = j
+        while j < n and command[j] not in "\r\n":
+            j += 1
+        line = command[line_start:j]
+        if strip_tabs:
+            line = line.lstrip("\t")
+        if line == delimiter:
+            return body_start, line_start, j
+        if j >= n:
+            break
+        if command[j] == "\r" and j + 1 < n and command[j + 1] == "\n":
+            j += 2
+        else:
+            j += 1
+
+    return body_start, n, n
+
+
+def _shell_literal_content_spans(command: str) -> list[tuple[int, int]]:
+    """Spans of single/double-quoted contents and heredoc bodies (exclusive of quotes/EOF)."""
+    spans: list[tuple[int, int]] = []
+    i = 0
+    n = len(command)
+    while i < n:
+        heredoc = _HEREDOC_OP_PATTERN.match(command, i)
+        if heredoc and not command.startswith("<<<", i):
+            parsed = _find_heredoc_body_span(
+                command, heredoc.end(), strip_tabs=heredoc.group(0) == "<<-"
+            )
+            if parsed is not None:
+                body_start, body_end, scan_end = parsed
+                spans.append((body_start, body_end))
+                i = scan_end if scan_end > heredoc.end() else heredoc.end()
+                continue
+            i = heredoc.end()
+            continue
+
+        ch = command[i]
+        if ch == "'":
+            j = i + 1
+            while j < n and command[j] != "'":
+                j += 1
+            if j < n:
+                spans.append((i + 1, j))
+                i = j + 1
+                continue
+        elif ch == '"':
+            j = i + 1
+            while j < n:
+                if command[j] == "\\":
+                    j += 2
+                    continue
+                if command[j] == '"':
+                    break
+                j += 1
+            if j < n:
+                spans.append((i + 1, j))
+                i = j + 1
+                continue
+        i += 1
+    return spans
+
+
+def _iter_single_line_quoted_strings(
+    command: str,
+) -> list[str]:
+    """Contents of '...' / \"...\" that do not contain newlines (path-arg candidates)."""
+    values: list[str] = []
+    i = 0
+    n = len(command)
+    while i < n:
+        # Skip heredoc bodies so nested quotes inside them are not treated as shell args.
+        heredoc = _HEREDOC_OP_PATTERN.match(command, i)
+        if heredoc and not command.startswith("<<<", i):
+            parsed = _find_heredoc_body_span(
+                command, heredoc.end(), strip_tabs=heredoc.group(0) == "<<-"
+            )
+            if parsed is not None:
+                _, _, scan_end = parsed
+                i = scan_end if scan_end > heredoc.end() else heredoc.end()
+                continue
+            i = heredoc.end()
+            continue
+
+        ch = command[i]
+        if ch == "'":
+            j = i + 1
+            while j < n and command[j] != "'":
+                j += 1
+            if j < n:
+                content = command[i + 1 : j]
+                if "\n" not in content and "\r" not in content:
+                    values.append(content)
+                i = j + 1
+                continue
+        elif ch == '"':
+            j = i + 1
+            chunks: list[str] = []
+            while j < n:
+                if command[j] == "\\":
+                    if j + 1 < n:
+                        chunks.append(command[j + 1])
+                        j += 2
+                        continue
+                    break
+                if command[j] == '"':
+                    break
+                chunks.append(command[j])
+                j += 1
+            if j < n:
+                content = "".join(chunks)
+                if "\n" not in content and "\r" not in content:
+                    values.append(content)
+                i = j + 1
+                continue
+        i += 1
+    return values
+
+
+def _collect_unsafe_absolute_paths(paths: list[str]) -> list[str]:
+    unsafe: list[str] = []
+    for absolute_path in paths:
+        if absolute_path == "/":
+            unsafe.append(absolute_path)
+            continue
+        try:
+            if _is_allowed_absolute_path(absolute_path):
+                continue
+        except LocalCommandPathError:
+            raise
+        unsafe.append(absolute_path)
+    return unsafe
+
+
 def _has_dotdot_path_segment(token: str) -> bool:
     if _is_non_file_url_token(token):
         return False
@@ -423,22 +605,22 @@ def validate_local_command_paths(command: str, mappings: PathMappings) -> None:
 
     _validate_shell_tokens(command)
 
-    unsafe_paths: list[str] = []
-    url_spans = _non_file_url_spans(command)
+    skip_spans = _shell_literal_content_spans(command) + _non_file_url_spans(command)
+    candidate_paths: list[str] = []
     for match in _ABSOLUTE_PATH_PATTERN.finditer(command):
-        if _is_in_spans(match.start(), url_spans):
+        if _is_in_spans(match.start(), skip_spans):
             continue
-        absolute_path = match.group()
-        if absolute_path == "/":
-            unsafe_paths.append(absolute_path)
-            continue
-        try:
-            if _is_allowed_absolute_path(absolute_path):
-                continue
-        except LocalCommandPathError:
-            raise
-        unsafe_paths.append(absolute_path)
+        candidate_paths.append(match.group())
 
+    # Single-line quoted args that are themselves absolute paths (e.g. cat "/etc/passwd").
+    # Multi-line quotes (python -c, inline scripts) are ignored — their interiors were
+    # already excluded from the scan above.
+    for quoted in _iter_single_line_quoted_strings(command):
+        stripped = quoted.strip()
+        if stripped.startswith("/"):
+            candidate_paths.append(stripped)
+
+    unsafe_paths = _collect_unsafe_absolute_paths(candidate_paths)
     if unsafe_paths:
         unsafe = ", ".join(sorted(dict.fromkeys(unsafe_paths)))
         raise LocalCommandPathError(

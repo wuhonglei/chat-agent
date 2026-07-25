@@ -23,11 +23,13 @@ def test_reset_for_request_sets_contextvars() -> None:
         user_message="message",
         user_id="test-user",
         conversation_id="test-conversation",
+        agent_mode=1,
     )
 
     ctx = get_request_context()
     assert ctx.user_id == "test-user"
     assert ctx.conversation_id == "test-conversation"
+    assert executor.current_agent_mode == 1
 
 
 def test_reset_for_request_with_none_values() -> None:

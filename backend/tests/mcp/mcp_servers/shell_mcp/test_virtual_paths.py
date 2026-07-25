@@ -141,6 +141,90 @@ def test_validate_allows_js_import_alias_in_command(
     )
 
 
+def test_validate_allows_double_slash_line_comments_in_heredoc(
+    mappings: dict[str, str],
+) -> None:
+    """TS/JS // comments inside heredoc must not be treated as absolute paths."""
+    workspace = vfs_config.workspace_prefix.rstrip("/")
+    command = f"""cat > {workspace}/types/dashboard.ts << 'EOF'
+// type definitions
+export interface MetricCard {{
+  change: number; // percent change
+  trend: 'up' | 'down' | 'neutral';
+}}
+EOF"""
+    validate_local_command_paths(command, mappings)
+
+
+def test_validate_allows_jsx_closing_tags_in_heredoc(
+    mappings: dict[str, str],
+) -> None:
+    """JSX closing tags like </Card> must not be treated as absolute paths."""
+    workspace = vfs_config.workspace_prefix.rstrip("/")
+    command = f"""cat > {workspace}/components/MetricCards.tsx << 'EOF'
+import {{ Card, CardContent }} from '@/components/ui/card';
+
+export function MetricCards() {{
+  return (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <Card>
+        <CardContent className="p-6">
+          <p className="text-sm">title</p>
+          <span className="text-green-500">1%</span>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}}
+EOF"""
+    validate_local_command_paths(command, mappings)
+
+
+def test_validate_allows_js_template_date_slash_in_python_c(
+    mappings: dict[str, str],
+) -> None:
+    """JS template `${month}/${day}` inside python -c must not look like a path."""
+    workspace = vfs_config.workspace_prefix.rstrip("/")
+    command = (
+        f'cd {workspace}/components && python3 -c "'
+        "content = '''"
+        "return \\`\\${date.getMonth() + 1}/\\${date.getDate()}\\`;"
+        "'''\n"
+        "open('TrendChart.tsx','w').write(content)"
+        '"'
+    )
+    validate_local_command_paths(command, mappings)
+
+
+def test_validate_rejects_quoted_host_absolute_path(
+    mappings: dict[str, str],
+) -> None:
+    """Quoted path args must still be validated (e.g. cat \"/etc/passwd\")."""
+    with pytest.raises(LocalCommandPathError, match="Unsafe absolute paths"):
+        validate_local_command_paths('cat "/etc/passwd"', mappings)
+    with pytest.raises(LocalCommandPathError, match="Unsafe absolute paths"):
+        validate_local_command_paths("cat '/Users/me/secret.txt'", mappings)
+
+
+def test_validate_allows_quoted_virtual_path(mappings: dict[str, str]) -> None:
+    workspace = vfs_config.workspace_prefix.rstrip("/")
+    validate_local_command_paths(f'cat "{workspace}/hello.txt"', mappings)
+
+
+def test_validate_skips_multiline_quoted_script_body(
+    mappings: dict[str, str],
+) -> None:
+    """Multi-line quotes (inline scripts) are not scanned for incidental /tags."""
+    workspace = vfs_config.workspace_prefix.rstrip("/")
+    command = (
+        f"python3 -c \"\n"
+        f"content = '<div><Card></Card></div>'\n"
+        f"open('{workspace}/App.tsx', 'w').write(content)\n"
+        f"\""
+    )
+    validate_local_command_paths(command, mappings)
+
+
 def test_mask_paths_in_output(path_layout: tuple[Paths, str, str]) -> None:
     paths, user_id, conversation_id = path_layout
     workspace = str(paths.sandbox_work_dir(user_id, conversation_id).resolve())

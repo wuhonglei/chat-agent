@@ -41,6 +41,7 @@ from app.utils.context_compactor import ContextCompactor
 from app.utils.logger import logger
 from app.utils.time import get_current_time, get_time_duration
 from app.utils.token import TokenCalculator
+from app.utils.tool_result_hard_limit import apply_hard_limit, enforce_turn_budget
 
 
 class ToolExecutor:
@@ -59,7 +60,9 @@ class ToolExecutor:
         self.current_user_message = user_message
         self.current_user_id: str | None = None
         self.current_conversation_id: str | None = None
+        self.current_agent_mode: int = 0
         self.tool_result_compression = settings.chat_context.tool_result_compression
+        self.tool_result_hard_limit = settings.chat_context.tool_result_hard_limit
         self.compactor = ContextCompactor(
             embedding_model=settings.embedding_model,
             tool_result_compression_config=self.tool_result_compression,
@@ -73,10 +76,12 @@ class ToolExecutor:
         user_message: str,
         user_id: str | None = None,
         conversation_id: str | None = None,
+        agent_mode: int = 0,
     ) -> None:
         self.current_user_message = user_message
         self.current_user_id = user_id
         self.current_conversation_id = conversation_id
+        self.current_agent_mode = agent_mode
         self.guardrail.reset()
 
         # Set contextvars for tools to access
@@ -147,7 +152,18 @@ class ToolExecutor:
                         tool_call_id=tool_call.id,
                     )
 
-        return [results_by_id[tc.id] for tc in active_calls]
+        ordered = [results_by_id[tc.id] for tc in active_calls]
+        tool_name_by_call_id = {
+            tc.id: tc.function.name for tc in active_calls if tc is not None
+        }
+        return enforce_turn_budget(
+            ordered,
+            tool_name_by_call_id=tool_name_by_call_id,
+            agent_mode=self.current_agent_mode,
+            user_id=self.current_user_id,
+            conversation_id=self.current_conversation_id,
+            config=self.tool_result_hard_limit,
+        )
 
     async def execute_single_tool(
         self,
@@ -166,246 +182,370 @@ class ToolExecutor:
         ) as tool_span:
             tool_call_attempted = False
             try:
-                arguments = json.loads(tool_call.function.arguments)
-                if is_llm_tool(tool_name, TAVILY_SERVER, WEB_PAGES_EXTRACT_BARE) and (
-                    urls := get("urls", arguments)
-                ):
-                    items = [urls] if isinstance(urls, str) else urls
-                    if isinstance(items, list | tuple):
-                        # list(...)：差集是 set，直接写入会导致 schema 校验失败
-                        new_urls = list(
-                            {normalize_url(str(u)) for u in items if u} - extracted_urls
-                        )
-                        if not new_urls:
-                            logger.info(
-                                "All URLs already extracted, skipping web_pages_extract",
-                                urls=urls,
-                                iteration=current_iteration + 1,
-                            )
-                            skip_message = ToolResultMessage(
-                                role="tool",
-                                is_error=False,
-                                tool_call_id=tool_call.id,
-                                content="⚠️ 提示：这些 URL 已经在之前的调用中提取过了。请检查历史工具调用结果，如果已获得足够信息，请停止继续调用工具，并直接给出最终回答。",
-                            )
-                            self._score_tool_success(
-                                tool_span,
-                                tool_name=tool_name,
-                                success=True,
-                                error_type=None,
-                            )
-                            return skip_message
-                        arguments["urls"] = new_urls
-                        logger.info(
-                            "Filtered URLs for web_pages_extract",
-                            original_count=len(items),
-                            new_count=len(new_urls),
-                            iteration=current_iteration + 1,
-                        )
+                arguments, short_circuit_message = self._preflight_tool_call(
+                    tool_call=tool_call,
+                    tool_name=tool_name,
+                    extracted_urls=extracted_urls,
+                    current_iteration=current_iteration,
+                    tool_span=tool_span,
+                )
+                if short_circuit_message is not None:
+                    return short_circuit_message
 
-                decision = self.guardrail.before_call(tool_name, arguments)
-                if decision.kind in (
-                    GuardrailDecisionKind.BLOCK,
-                    GuardrailDecisionKind.HALT,
-                ):
-                    blocked_message = ToolResultMessage(
-                        role="tool",
-                        is_error=True,
-                        tool_call_id=tool_call.id,
-                        content=decision.message,
-                    )
-                    logger.warning(
-                        "Tool call blocked by guardrail",
-                        tool_name=tool_name,
-                        tool_call_id=tool_call.id,
-                        decision=decision.kind.value,
+                tool_call_attempted = True
+                (
+                    result,
+                    call_warnings,
+                    message,
+                    server_name,
+                ) = await self._invoke_mcp_tool(
+                    tool_call=tool_call,
+                    tool_name=tool_name,
+                    arguments=arguments,
+                    current_iteration=current_iteration,
+                )
+                message = await self._soft_shape_tool_result(
+                    tool_name=tool_name,
+                    tool_call_id=tool_call.id,
+                    server_name=server_name,
+                    result=result,
+                    message=message,
+                )
+                message, success, error_type, outcome_meta = self._annotate_tool_result(
+                    tool_name=tool_name,
+                    arguments=arguments,
+                    server_name=server_name,
+                    result=result,
+                    call_warnings=call_warnings,
+                    message=message,
+                )
+                self._record_tool_success_observation(
+                    tool_span=tool_span,
+                    tool_name=tool_name,
+                    tool_call_id=tool_call.id,
+                    server_name=server_name,
+                    content=message.content or "",
+                    success=success,
+                    error_type=error_type,
+                    outcome_meta=outcome_meta,
+                    current_iteration=current_iteration,
+                    start_time=start_time,
+                )
+                on_arguments_recorded(tool_name, arguments, tool_call.id, success)
+                return apply_hard_limit(
+                    message,
+                    tool_name=tool_name,
+                    agent_mode=self.current_agent_mode,
+                    user_id=self.current_user_id,
+                    conversation_id=self.current_conversation_id,
+                    config=self.tool_result_hard_limit,
+                )
+            except Exception as exc:
+                return self._handle_tool_failure(
+                    exc=exc,
+                    tool_call=tool_call,
+                    tool_name=tool_name,
+                    tool_span=tool_span,
+                    tool_call_attempted=tool_call_attempted,
+                    current_iteration=current_iteration,
+                    start_time=start_time,
+                    on_arguments_recorded=on_arguments_recorded,
+                )
+
+    def _preflight_tool_call(
+        self,
+        *,
+        tool_call: ChatCompletionMessageFunctionToolCall,
+        tool_name: str,
+        extracted_urls: set[str],
+        current_iteration: int,
+        tool_span: Any,
+    ) -> tuple[dict[str, Any], ToolResultMessage | None]:
+        """Parse args, dedupe web_pages_extract URLs, run guardrail.before_call."""
+        arguments = json.loads(tool_call.function.arguments)
+        if is_llm_tool(tool_name, TAVILY_SERVER, WEB_PAGES_EXTRACT_BARE) and (
+            urls := get("urls", arguments)
+        ):
+            items = [urls] if isinstance(urls, str) else urls
+            if isinstance(items, list | tuple):
+                # list(...)：差集是 set，直接写入会导致 schema 校验失败
+                new_urls = list(
+                    {normalize_url(str(u)) for u in items if u} - extracted_urls
+                )
+                if not new_urls:
+                    logger.info(
+                        "All URLs already extracted, skipping web_pages_extract",
+                        urls=urls,
                         iteration=current_iteration + 1,
+                    )
+                    skip_message = ToolResultMessage(
+                        role="tool",
+                        is_error=False,
+                        tool_call_id=tool_call.id,
+                        content="⚠️ 提示：这些 URL 已经在之前的调用中提取过了。请检查历史工具调用结果，如果已获得足够信息，请停止继续调用工具，并直接给出最终回答。",
                     )
                     self._score_tool_success(
                         tool_span,
                         tool_name=tool_name,
-                        success=False,
-                        error_type=decision.kind.value,
+                        success=True,
+                        error_type=None,
                     )
-                    return blocked_message
-
-                tool_call_attempted = True
+                    return arguments, skip_message
+                arguments["urls"] = new_urls
                 logger.info(
-                    "Calling MCP tool",
-                    tool_name=tool_name,
-                    tool_call_id=tool_call.id,
+                    "Filtered URLs for web_pages_extract",
+                    original_count=len(items),
+                    new_count=len(new_urls),
                     iteration=current_iteration + 1,
-                    arguments=arguments,
                 )
-                result, call_warnings = await self.mcp_manager.call_tool(
-                    tool_name, arguments
-                )
-                content = self.mcp_manager.format_mcp_result(result)
-                tool_call_result_message = ToolResultMessage(
-                    role="tool",
-                    content=content,
-                    is_error=len(content or "") == 0,
-                    tool_call_id=tool_call.id,
-                )
-                server_name = self.mcp_manager.get_server_for_tool(tool_name)
-                skip_compaction = server_name in SKIP_TOOL_RESULT_COMPACTION_SERVERS
-                if skip_compaction:
-                    logger.info(
-                        "Skipping tool result compaction for agent skills workspace tool",
-                        tool_name=tool_name,
-                        tool_call_id=tool_call.id,
-                    )
-                elif (
-                    server_name == TAVILY_SERVER
-                    and result.structured_content is not None
-                ):
-                    tool_call_result_message = await self._apply_tavily_compaction(
-                        tool_name=tool_name,
-                        structured_content=result.structured_content,
-                        tool_call_result_message=tool_call_result_message,
-                    )
-                else:
-                    tool_call_result_message = (
-                        await self._compact_tool_result_if_needed(
-                            tool_call_result_message
-                        )
-                    )
 
-                if (
-                    server_name == SHELL_SERVER
-                    and result.structured_content is not None
-                ):
-                    tool_call_result_message = tool_call_result_message.model_copy(
-                        update={
-                            "structured_content_for_display": build_shell_display_items(
-                                result.structured_content
-                            )
-                        }
-                    )
+        decision = self.guardrail.before_call(tool_name, arguments)
+        if decision.kind in (
+            GuardrailDecisionKind.BLOCK,
+            GuardrailDecisionKind.HALT,
+        ):
+            blocked_message = ToolResultMessage(
+                role="tool",
+                is_error=True,
+                tool_call_id=tool_call.id,
+                content=decision.message,
+            )
+            logger.warning(
+                "Tool call blocked by guardrail",
+                tool_name=tool_name,
+                tool_call_id=tool_call.id,
+                decision=decision.kind.value,
+                iteration=current_iteration + 1,
+            )
+            self._score_tool_success(
+                tool_span,
+                tool_name=tool_name,
+                success=False,
+                error_type=decision.kind.value,
+            )
+            return arguments, blocked_message
 
-                content = tool_call_result_message.content or ""
-                warning_msg = self._build_tool_warning_message(tool_name, call_warnings)
-                if warning_msg:
-                    content = warning_msg + content
-                    tool_call_result_message.content = content
-                    logger.info(
-                        "Added tool warnings to tool result",
-                        tool_name=tool_name,
-                        warnings=call_warnings,
+        return arguments, None
+
+    async def _invoke_mcp_tool(
+        self,
+        *,
+        tool_call: ChatCompletionMessageFunctionToolCall,
+        tool_name: str,
+        arguments: dict[str, Any],
+        current_iteration: int,
+    ) -> tuple[Any, list[Any], ToolResultMessage, str | None]:
+        """Call MCP tool and build the initial ToolResultMessage."""
+        logger.info(
+            "Calling MCP tool",
+            tool_name=tool_name,
+            tool_call_id=tool_call.id,
+            iteration=current_iteration + 1,
+            arguments=arguments,
+        )
+        result, call_warnings = await self.mcp_manager.call_tool(tool_name, arguments)
+        content = self.mcp_manager.format_mcp_result(result)
+        message = ToolResultMessage(
+            role="tool",
+            content=content,
+            is_error=len(content or "") == 0,
+            tool_call_id=tool_call.id,
+        )
+        server_name = self.mcp_manager.get_server_for_tool(tool_name)
+        return result, call_warnings, message, server_name
+
+    async def _soft_shape_tool_result(
+        self,
+        *,
+        tool_name: str,
+        tool_call_id: str,
+        server_name: str | None,
+        result: Any,
+        message: ToolResultMessage,
+    ) -> ToolResultMessage:
+        """Soft compaction (skip / Tavily / FAISS) and shell display shaping."""
+        skip_compaction = server_name in SKIP_TOOL_RESULT_COMPACTION_SERVERS
+        if skip_compaction:
+            logger.info(
+                "Skipping tool result compaction for agent skills workspace tool",
+                tool_name=tool_name,
+                tool_call_id=tool_call_id,
+            )
+        elif server_name == TAVILY_SERVER and result.structured_content is not None:
+            message = await self._apply_tavily_compaction(
+                tool_name=tool_name,
+                structured_content=result.structured_content,
+                tool_call_result_message=message,
+            )
+        else:
+            message = await self._compact_tool_result_if_needed(message)
+
+        if server_name == SHELL_SERVER and result.structured_content is not None:
+            message = message.model_copy(
+                update={
+                    "structured_content_for_display": build_shell_display_items(
+                        result.structured_content
                     )
-                success, error_type, outcome_meta = self._resolve_tool_outcome(
-                    server_name=server_name,
-                    content=content,
-                    structured_content=result.structured_content
-                    if isinstance(result.structured_content, dict)
-                    else None,
-                    is_error=bool(getattr(result, "is_error", False)),
+                }
+            )
+        return message
+
+    def _annotate_tool_result(
+        self,
+        *,
+        tool_name: str,
+        arguments: dict[str, Any],
+        server_name: str | None,
+        result: Any,
+        call_warnings: list[Any],
+        message: ToolResultMessage,
+    ) -> tuple[ToolResultMessage, bool, str | None, dict[str, Any]]:
+        """Attach warnings, resolve outcome, append guardrail suffix."""
+        content = message.content or ""
+        warning_msg = self._build_tool_warning_message(tool_name, call_warnings)
+        if warning_msg:
+            content = warning_msg + content
+            message.content = content
+            logger.info(
+                "Added tool warnings to tool result",
+                tool_name=tool_name,
+                warnings=call_warnings,
+            )
+        success, error_type, outcome_meta = self._resolve_tool_outcome(
+            server_name=server_name,
+            content=content,
+            structured_content=result.structured_content
+            if isinstance(result.structured_content, dict)
+            else None,
+            is_error=bool(getattr(result, "is_error", False)),
+        )
+        message = message.model_copy(update={"is_error": not success})
+        guardrail_suffix = self.guardrail.record_outcome(
+            tool_name=tool_name,
+            arguments=arguments,
+            success=success,
+            content=content,
+        )
+        if guardrail_suffix:
+            content = content + guardrail_suffix
+            message = message.model_copy(update={"content": content})
+        return message, success, error_type, outcome_meta
+
+    def _record_tool_success_observation(
+        self,
+        *,
+        tool_span: Any,
+        tool_name: str,
+        tool_call_id: str,
+        server_name: str | None,
+        content: str,
+        success: bool,
+        error_type: str | None,
+        outcome_meta: dict[str, Any],
+        current_iteration: int,
+        start_time: Any,
+    ) -> None:
+        """Log, update span, and score a successful tool-call path."""
+        logger.info(
+            "MCP tool result received",
+            tool_name=tool_name,
+            tool_call_id=tool_call_id,
+            duration=get_time_duration(start_time),
+            content_length=len(content) if content else 0,
+            is_error=not success,
+            error_type=error_type,
+            content=content[:200] + "..." + content[-200:]
+            if len(content) > 400
+            else content,
+        )
+        if tool_span is not None:
+            try:
+                tool_span.update(
+                    output=content,
+                    metadata={
+                        "tool_name": tool_name,
+                        "server_name": server_name,
+                        "iteration": current_iteration + 1,
+                        "tool_call_id": tool_call_id,
+                        "conversation_id": self.current_conversation_id,
+                        "user_id": self.current_user_id,
+                        "is_error": not success,
+                        **outcome_meta,
+                    },
+                    tags=[f"server:{server_name}"],
                 )
-                tool_call_result_message = tool_call_result_message.model_copy(
-                    update={"is_error": not success}
-                )
-                guardrail_suffix = self.guardrail.record_outcome(
-                    tool_name=tool_name,
-                    arguments=arguments,
-                    success=success,
-                    content=content,
-                )
-                if guardrail_suffix:
-                    content = content + guardrail_suffix
-                    tool_call_result_message = tool_call_result_message.model_copy(
-                        update={"content": content}
-                    )
-                logger.info(
-                    "MCP tool result received",
-                    tool_name=tool_name,
-                    tool_call_id=tool_call.id,
-                    duration=get_time_duration(start_time),
-                    content_length=len(content) if content else 0,
-                    is_error=not success,
-                    error_type=error_type,
-                    content=content[:200] + "..." + content[-200:]
-                    if len(content) > 400
-                    else content,
-                )
-                if tool_span is not None:
-                    try:
-                        tool_span.update(
-                            output=content,
-                            metadata={
-                                "tool_name": tool_name,
-                                "server_name": server_name,
-                                "iteration": current_iteration + 1,
-                                "tool_call_id": tool_call.id,
-                                "conversation_id": self.current_conversation_id,
-                                "user_id": self.current_user_id,
-                                "is_error": not success,
-                                **outcome_meta,
-                            },
-                            tags=[f"server:{server_name}"],
-                        )
-                    except Exception as exc:
-                        logger.warning(
-                            "Failed to update tool observation span",
-                            tool_name=tool_name,
-                            error=exc,
-                            error_type=type(exc).__name__,
-                        )
-                self._score_tool_success(
-                    tool_span,
-                    tool_name=tool_name,
-                    success=success,
-                    error_type=error_type,
-                    metadata_extra=outcome_meta or None,
-                )
-                on_arguments_recorded(tool_name, arguments, tool_call.id, success)
-                return tool_call_result_message
             except Exception as exc:
-                error_content, error_type = self._format_tool_exception(exc)
-                try:
-                    failed_arguments = json.loads(tool_call.function.arguments)
-                    if not isinstance(failed_arguments, dict):
-                        failed_arguments = {}
-                except (json.JSONDecodeError, TypeError):
-                    failed_arguments = {}
-                if tool_call_attempted:
-                    on_arguments_recorded(
-                        tool_name, failed_arguments, tool_call.id, False
-                    )
-                guardrail_suffix = self.guardrail.record_outcome(
+                logger.warning(
+                    "Failed to update tool observation span",
                     tool_name=tool_name,
-                    arguments=failed_arguments,
-                    success=False,
-                    content=error_content,
-                )
-                if guardrail_suffix:
-                    error_content = error_content + guardrail_suffix
-                tool_call_result_message = ToolResultMessage(
-                    role="tool",
-                    is_error=True,
-                    content=error_content,
-                    tool_call_id=tool_call.id,
-                )
-                logger.error(
-                    "Failed to call tool",
                     error=exc,
-                    tool_name=tool_name,
-                    iteration=current_iteration + 1,
-                    tool_call_id=tool_call.id,
-                    duration=get_time_duration(start_time),
-                    content_length=len(error_content),
-                    error_type=error_type,
+                    error_type=type(exc).__name__,
                 )
-                mark_observation_error(tool_span, exc)
-                if tool_span is not None:
-                    with contextlib.suppress(Exception):
-                        tool_span.update(output=error_content)
-                self._score_tool_success(
-                    tool_span,
-                    tool_name=tool_name,
-                    success=False,
-                    error_type=error_type,
-                )
-                return tool_call_result_message
+        self._score_tool_success(
+            tool_span,
+            tool_name=tool_name,
+            success=success,
+            error_type=error_type,
+            metadata_extra=outcome_meta or None,
+        )
+
+    def _handle_tool_failure(
+        self,
+        *,
+        exc: Exception,
+        tool_call: ChatCompletionMessageFunctionToolCall,
+        tool_name: str,
+        tool_span: Any,
+        tool_call_attempted: bool,
+        current_iteration: int,
+        start_time: Any,
+        on_arguments_recorded: Callable[[str, dict[str, Any], str, bool], None],
+    ) -> ToolResultMessage:
+        """Normalize exceptions into an error ToolResultMessage."""
+        error_content, error_type = self._format_tool_exception(exc)
+        try:
+            failed_arguments = json.loads(tool_call.function.arguments)
+            if not isinstance(failed_arguments, dict):
+                failed_arguments = {}
+        except (json.JSONDecodeError, TypeError):
+            failed_arguments = {}
+        if tool_call_attempted:
+            on_arguments_recorded(tool_name, failed_arguments, tool_call.id, False)
+        guardrail_suffix = self.guardrail.record_outcome(
+            tool_name=tool_name,
+            arguments=failed_arguments,
+            success=False,
+            content=error_content,
+        )
+        if guardrail_suffix:
+            error_content = error_content + guardrail_suffix
+        tool_call_result_message = ToolResultMessage(
+            role="tool",
+            is_error=True,
+            content=error_content,
+            tool_call_id=tool_call.id,
+        )
+        logger.error(
+            "Failed to call tool",
+            error=exc,
+            tool_name=tool_name,
+            iteration=current_iteration + 1,
+            tool_call_id=tool_call.id,
+            duration=get_time_duration(start_time),
+            content_length=len(error_content),
+            error_type=error_type,
+        )
+        mark_observation_error(tool_span, exc)
+        if tool_span is not None:
+            with contextlib.suppress(Exception):
+                tool_span.update(output=error_content)
+        self._score_tool_success(
+            tool_span,
+            tool_name=tool_name,
+            success=False,
+            error_type=error_type,
+        )
+        return tool_call_result_message
 
     @staticmethod
     def _format_tool_exception(exc: BaseException) -> tuple[str, str]:

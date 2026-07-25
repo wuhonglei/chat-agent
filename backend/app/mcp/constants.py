@@ -12,6 +12,8 @@ SHELL_SERVER = "shell"
 CODE_SERVER = "code"
 WEATHER_SERVER = "weather"
 TIME_SERVER = "time"
+CONTEXT7_SERVER = "context7"
+ZREAD_SERVER = "zread"
 
 # --- File MCP bare tools ---
 READ_FILE_BARE = "read_file"

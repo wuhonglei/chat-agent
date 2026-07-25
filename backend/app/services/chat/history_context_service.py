@@ -2,7 +2,15 @@
 
 from __future__ import annotations
 
-from app.schemas.chat import ChatMessage, ContentBlock, ToolResultBlock
+import json
+from typing import Any
+
+from app.schemas.chat import (
+    ChatMessage,
+    ContentBlock,
+    ToolResultBlock,
+    ToolUseBlock,
+)
 from app.schemas.config import ChatContextConfig
 from app.services.conversation import (
     ContextSummaryService,
@@ -15,10 +23,73 @@ from app.utils.history_truncate import (
 from app.utils.logger import logger
 from app.utils.token import TokenCalculator
 
+_TOOL_ARG_TRUNCATION_SUFFIX = "...[truncated]"
+
 
 def _truncated_set_ids(truncated_messages: list[ChatMessage]) -> list[str]:
     """当前截断消息的 id 列表（稳定排序），用于写入 last_summarized_message_ids。"""
     return sorted(m.id for m in truncated_messages)
+
+
+def _truncate_tool_call_args_json(args: str, head_chars: int = 200) -> str:
+    """Shrink long string values inside tool-call arguments JSON while
+    preserving JSON validity.
+
+    Aligned with hermes-agent ``_truncate_tool_call_args_json``: parse →
+    recursively shrink string leaves → re-serialize. Invalid JSON is returned
+    unchanged (raw slicing produced broken JSON and provider 400 loops).
+    """
+    try:
+        parsed: Any = json.loads(args)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return args
+
+    def _shrink(obj: Any) -> Any:
+        if isinstance(obj, str):
+            if len(obj) > head_chars:
+                return obj[:head_chars] + _TOOL_ARG_TRUNCATION_SUFFIX
+            return obj
+        if isinstance(obj, dict):
+            return {k: _shrink(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [_shrink(v) for v in obj]
+        return obj
+
+    return json.dumps(_shrink(parsed), ensure_ascii=False)
+
+
+def _truncate_tool_use_arguments(
+    block: ToolUseBlock,
+    *,
+    max_chars: int,
+    keep_chars: int,
+) -> ToolUseBlock:
+    """Truncate oversized tool_use arguments (hermes Pass-3 style).
+
+    Gate on whole ``arguments_text`` length (``max_chars``); then shrink long
+    string leaves to ``keep_chars`` inside parsed JSON.
+    """
+    arguments_text = block.arguments_text or ""
+    if not arguments_text or len(arguments_text) <= max_chars:
+        return block
+
+    new_args_text = _truncate_tool_call_args_json(arguments_text, head_chars=keep_chars)
+    if new_args_text == arguments_text:
+        return block
+
+    try:
+        new_args_json: Any = json.loads(new_args_text)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        new_args_json = None
+
+    return block.model_copy(
+        update={
+            "arguments_text": new_args_text,
+            "arguments_json": new_args_json
+            if isinstance(new_args_json, dict)
+            else None,
+        }
+    )
 
 
 async def _persist_window_out_summary(
@@ -66,7 +137,10 @@ class HistoryContextService:
         if not history_messages:
             return []
 
-        threshold_tokens = self.chat_context_config.tool_result_compression.message_summary_threshold_tokens
+        compression_cfg = self.chat_context_config.tool_result_compression
+        threshold_tokens = compression_cfg.message_summary_threshold_tokens
+        tool_arg_max_chars = compression_cfg.tool_arg_max_chars
+        tool_arg_keep_chars = compression_cfg.tool_arg_keep_chars
         last_round_start = max(0, len(history_messages) - 2)
         processed_messages: list[ChatMessage] = []
 
@@ -77,13 +151,28 @@ class HistoryContextService:
 
             is_latest_tool_round = idx >= last_round_start
             new_blocks: list[ContentBlock] = []
-            has_tool_result = False
+            blocks_changed = False
+
             for block in msg.content_blocks:
+                if isinstance(block, ToolUseBlock):
+                    if is_latest_tool_round:
+                        new_blocks.append(block)
+                        continue
+                    truncated_use = _truncate_tool_use_arguments(
+                        block,
+                        max_chars=tool_arg_max_chars,
+                        keep_chars=tool_arg_keep_chars,
+                    )
+                    if truncated_use is not block:
+                        blocks_changed = True
+                    new_blocks.append(truncated_use)
+                    continue
+
                 if not isinstance(block, ToolResultBlock):
                     new_blocks.append(block)
                     continue
 
-                has_tool_result = True
+                blocks_changed = True
                 effective_content = block.content or ""
                 if not is_latest_tool_round:
                     if block.summary and block.summary.strip():
@@ -94,10 +183,9 @@ class HistoryContextService:
                         )
                         if content_tokens > threshold_tokens:
                             effective_content = (
-                                self.token_calculator.truncate_text_to_tokens(
+                                self.token_calculator.truncate_text_to_tokens_head_tail(
                                     effective_content, threshold_tokens
                                 )
-                                + " [内容已截断]"
                             )
 
                 new_blocks.append(
@@ -110,7 +198,7 @@ class HistoryContextService:
                     )
                 )
 
-            if not has_tool_result:
+            if not blocks_changed:
                 processed_messages.append(msg)
                 continue
 

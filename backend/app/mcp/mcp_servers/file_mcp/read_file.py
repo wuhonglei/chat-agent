@@ -20,7 +20,7 @@ class ReadFileTool(ToolBase):
         """Execute read_file tool."""
         file_path = arguments.get("file_path", "")
         offset = arguments.get("offset", 1)
-        limit = arguments.get("limit", 1000)
+        limit = arguments.get("limit", 2000)
 
         if not file_path:
             return ToolResult(content="Error: file_path is required", is_error=True)
