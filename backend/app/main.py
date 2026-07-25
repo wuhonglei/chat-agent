@@ -105,6 +105,11 @@ app = FastAPI(
 # Prometheus 指标暴露（/metrics 端点）
 Instrumentator().instrument(app).expose(app)
 
+# 自定义进程指标（兼容 multiprocess 模式）
+from app.core.process_metrics import start_process_metrics_collector  # noqa: E402
+
+start_process_metrics_collector()
+
 # 添加日志中间件（必须在路由之前添加）
 # 执行顺序：中间件 → 路由匹配 → 依赖注入 → 路由处理函数 → 依赖清理 → 中间件继续
 app.add_middleware(LoggingMiddleware)
