@@ -504,6 +504,7 @@ def _default_tool_result_hard_limit_overrides() -> dict[str, int]:
         "search_files": 20_000,
         "web_site_crawl": 20_000,
         "web_pages_extract": 25_000,
+        "load_skill": 0,
     }
 
 
@@ -536,7 +537,7 @@ class ToolResultHardLimitConfig(BaseModel):
         description="落盘子目录，相对 conversation workspace/",
     )
     exempt_bare_names: list[str] = Field(
-        default_factory=lambda: ["read_file", "load_skill"],
+        default_factory=lambda: ["read_file"],
         description="Agent 模式下豁免落盘的工具 bare 名（防 persist→read→persist）",
     )
     tool_overrides: dict[str, int] = Field(
