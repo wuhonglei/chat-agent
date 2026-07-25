@@ -159,7 +159,9 @@ def test_override_zero_skips_layer2_unless_force() -> None:
     assert is_hard_limited(forced.content)
 
 
-def test_read_file_exempt_no_persist(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_read_file_fully_exempt_passthrough(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr(
         "app.utils.tool_result_hard_limit.get_paths",
         lambda: type(get_paths())(base_dir=tmp_path),
@@ -173,12 +175,56 @@ def test_read_file_exempt_no_persist(tmp_path: Path, monkeypatch: pytest.MonkeyP
         conversation_id="c1",
         config=_config(max_chars=50),
     )
-    assert is_hard_limited(result.content)
-    assert "full output persisted" not in result.content
-    assert "豁免持久化" in result.content
-    assert "再次调用 read_file" in result.content
+    assert result.content == content
+    assert not is_hard_limited(result.content)
     persist_dir = tmp_path / "u1" / "conversations" / "c1" / "workspace" / ".tool-results"
     assert not persist_dir.exists()
+
+
+def test_read_file_exempt_ignores_force() -> None:
+    content = "R" * 200
+    result = apply_hard_limit(
+        _msg(content),
+        tool_name="file_read_file",
+        agent_mode=0,
+        user_id=None,
+        conversation_id=None,
+        config=_config(max_chars=50),
+        force=True,
+    )
+    assert result.content == content
+    assert not is_hard_limited(result.content)
+
+
+def test_turn_budget_skips_exempt_read_file() -> None:
+    cfg = _config(
+        max_chars=10_000,
+        tool_overrides={},
+        turn_budget_chars=80,
+        preview_head_chars=8,
+        preview_tail_chars=4,
+        exempt_bare_names=["read_file"],
+    )
+    read_content = "R" * 100
+    other_content = "b" * 60
+    messages = [
+        _msg(read_content, tool_call_id="c_read"),
+        _msg(other_content, tool_call_id="c_shell"),
+    ]
+    out = enforce_turn_budget(
+        messages,
+        tool_name_by_call_id={
+            "c_read": "file_read_file",
+            "c_shell": "shell_exec",
+        },
+        agent_mode=0,
+        user_id=None,
+        conversation_id=None,
+        config=cfg,
+    )
+    assert out[0].content == read_content
+    assert not is_hard_limited(out[0].content)
+    assert is_hard_limited(out[1].content)
 
 
 def test_persist_failure_falls_back_to_truncate(

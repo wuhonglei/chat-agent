@@ -62,7 +62,8 @@ def is_hard_limited(content: str) -> bool:
     return _PERSISTED_MARKER in content or _TRUNCATED_MARKER in content
 
 
-def _is_persist_exempt(tool_name: str, config: ToolResultHardLimitConfig) -> bool:
+def _is_budget_exempt(tool_name: str, config: ToolResultHardLimitConfig) -> bool:
+    """Whether tool is fully exempt from hard limit (including force / turn budget)."""
     bare = extract_bare_tool_name(tool_name)
     exempt = set(config.exempt_bare_names)
     return bare in exempt or tool_name in exempt
@@ -93,7 +94,6 @@ def _format_truncated_content(
     *,
     head_chars: int,
     tail_chars: int,
-    can_reread: bool,
 ) -> str:
     head, tail, _ = _build_head_tail_preview(
         content, head_chars=head_chars, tail_chars=tail_chars
@@ -105,13 +105,7 @@ def _format_truncated_content(
         f"\n\n... [{total} chars total, {total_lines} lines, "
         f"{omitted} omitted, {_TRUNCATED_MARKER}] ...\n\n"
     )
-    if can_reread:
-        footer = (
-            f"\n\n[{_TRUNCATED_MARKER}；完整原文未落盘（该工具豁免持久化）。"
-            "需要更多细节时请对原文件路径再次调用 read_file（可用 offset/limit）。]"
-        )
-    else:
-        footer = f"\n\n[{_TRUNCATED_MARKER}，无法回读完整原文]"
+    footer = f"\n\n[{_TRUNCATED_MARKER}，无法回读完整原文]"
     if not tail:
         return head + middle.rstrip() + footer
     return head + middle + tail + footer
@@ -183,6 +177,9 @@ def apply_hard_limit(
     if is_hard_limited(content):
         return message
 
+    if _is_budget_exempt(tool_name, config):
+        return message
+
     if not force:
         max_chars = resolve_max_chars(tool_name, config)
         if max_chars is None:
@@ -190,13 +187,7 @@ def apply_hard_limit(
         if len(content) <= max_chars:
             return message
 
-    persist_exempt = _is_persist_exempt(tool_name, config)
-    can_persist = (
-        agent_mode > 0
-        and bool(user_id)
-        and bool(conversation_id)
-        and not persist_exempt
-    )
+    can_persist = agent_mode > 0 and bool(user_id) and bool(conversation_id)
 
     if can_persist:
         try:
@@ -235,7 +226,6 @@ def apply_hard_limit(
         content,
         head_chars=config.preview_head_chars,
         tail_chars=config.preview_tail_chars,
-        can_reread=persist_exempt and agent_mode > 0,
     )
     logger.info(
         "Tool result truncated due to hard limit",
@@ -244,7 +234,6 @@ def apply_hard_limit(
         original_chars=len(content),
         agent_mode=agent_mode,
         force=force,
-        persist_exempt=persist_exempt,
     )
     return message.model_copy(update={"content": new_content})
 

@@ -538,13 +538,17 @@ class ToolResultHardLimitConfig(BaseModel):
     )
     exempt_bare_names: list[str] = Field(
         default_factory=lambda: ["read_file"],
-        description="Agent 模式下豁免落盘的工具 bare 名（防 persist→read→persist）",
+        description=(
+            "完全跳过硬上限的工具 bare 名（含同轮 force）；"
+            "用于防 persist↔read 循环；体积由工具自身限制（如 read_file 的 limit）"
+        ),
     )
     tool_overrides: dict[str, int] = Field(
         default_factory=_default_tool_result_hard_limit_overrides,
         description=(
             "按工具覆盖 max_chars；键可为 LLM 名或 bare 名；"
-            "值为 0 表示关闭该工具的单条硬上限（同轮预算仍可强制处理）"
+            "值为 0 表示关闭该工具的单条硬上限（同轮预算仍可强制处理；"
+            "与 exempt_bare_names 的完全豁免不同）"
         ),
     )
 
