@@ -45,6 +45,12 @@ echo ""
 echo "Current migration version:"
 uv run alembic current || echo "WARNING: Could not check migration version"
 
+# Prometheus 多进程指标目录（gunicorn --preload 下各 worker 共享）
+export PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus_multiproc
+rm -rf "$PROMETHEUS_MULTIPROC_DIR"
+mkdir -p "$PROMETHEUS_MULTIPROC_DIR"
+echo "✓ Prometheus multiproc dir: $PROMETHEUS_MULTIPROC_DIR"
+
 echo ""
 echo "=========================================="
 echo "Starting application server..."
@@ -54,4 +60,5 @@ echo "=========================================="
 WORKERS=$(( $(nproc) * 2 ))
 
 # 启动 Gunicorn 应用服务器
-exec gunicorn app.main:app -w $WORKERS -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
+# --preload: master 进程预加载 app，确保 prometheus 注册表在 fork 前初始化
+exec gunicorn app.main:app -w $WORKERS -k uvicorn.workers.UvicornWorker --preload --bind 0.0.0.0:8000
