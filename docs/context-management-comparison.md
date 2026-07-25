@@ -1,16 +1,29 @@
 # 六大框架上下文管理方案深度对比
 
+## 源码路径速查 #
+
+| 框架 | 仓库根目录 | 核心源码文件（相对路径） |
+|---|---|---|
+| **chat-agent** | `/Users/apple/Desktop/code/chat-agent` | `backend/app/utils/context_compactor.py` · `backend/app/utils/history_truncate.py` · `backend/app/utils/token.py` · `backend/app/agents/chat_session_agent.py` · `backend/app/agents/tool_executor.py` · `backend/app/agents/utils/tavily_result_processor.py` · `backend/app/services/conversation/context_summary_service.py` · `backend/app/services/chat/history_context_service.py` · `backend/app/models/conversation_contexts_db.py` |
+| **deer-flow** | `/Users/apple/Desktop/code/deer-flow` | `backend/packages/harness/deerflow/agents/middlewares/tool_output_budget_middleware.py` · `backend/packages/harness/deerflow/agents/middlewares/token_budget_middleware.py` · `backend/packages/harness/deerflow/agents/middlewares/token_usage_middleware.py` · `backend/packages/harness/deerflow/agents/middlewares/summarization_middleware.py` |
+| **hermes-agent** | `~/.hermes/hermes-agent` | `agent/context_compressor.py` · `agent/context_engine.py` · `agent/conversation_compression.py` · `agent/model_metadata.py` · `tools/terminal_tool.py` |
+| **claude-code** | `/Users/apple/Desktop/code/claude-code` | `src/utils/toolResultStorage.ts` · `src/constants/toolLimits.ts` · `src/services/compact/autoCompact.ts` · `src/services/compact/compact.ts` · `src/services/compact/microCompact.ts` · `src/services/compact/prompt.ts` · `src/services/compact/grouping.ts` · `src/utils/tokens.ts` · `src/utils/tokenBudget.ts` · `src/utils/truncate.ts` |
+| **opencode** | `/Users/apple/Desktop/code/opencode` | `packages/opencode/src/tool/shell.ts` · `packages/opencode/src/tool/read.ts` · `packages/opencode/src/tool/truncate.ts` · `packages/opencode/src/session/compaction.ts` · `packages/opencode/src/session/overflow.ts` · `packages/opencode/src/session/processor.ts` · `packages/opencode/src/util/token.ts` · `packages/core/src/session/compaction.ts` · `packages/core/src/util/token.ts` |
+| **codex (OpenAI)** | `/Users/apple/Desktop/code/codex` | `codex-rs/utils/output-truncation/src/lib.rs` · `codex-rs/core/src/context_manager/history.rs` · `codex-rs/core/src/session/context_window.rs` · `codex-rs/rollout-trace/src/compaction.rs` · `codex-rs/utils/string/src/truncate.rs` |
+
+> **注意**: opencode 已从 Go 迁移为 TypeScript 项目（Effect + Drizzle）。上述路径均为当前 TypeScript 源码。
+
 ## 一、总览对比表 #
 
 | 维度 | chat-agent | deer-flow | hermes-agent | claude-code | opencode | codex (OpenAI) |
 |---|---|---|---|---|---|---|
-| 语言 | Python (FastAPI) | Python (LangGraph) | Python (CLI) | TypeScript (Node) | Go | Rust (codex-rs) |
-| 单轮工具结果压缩 | FAISS 语义截断 | 磁盘外部化 + 头尾截断 | 头尾截断 + 摘要替换 | 磁盘持久化 + 预览 | 头尾截断(前15K+后15K) | 中间截断(truncate_middle)，每工具独立预算 |
-| token 计数 | tiktoken (cl100k_base) | tiktoken + API usage_metadata | 字符估算 (÷4) + API 返回 | API usage + 字符估算 (÷4) | 仅 API usage 返回 | API usage 精确值 + 字节估算(÷4) 混合 |
-| 阈值触发 | 80% context → 停工具调用 | 硬停 100% (默认关闭) | 50% context → 压缩 | effective_window - 13K → 自动压缩 | 95% context → 自动摘要 | auto_compact_limit → Pre/Mid-Turn 自动压缩 |
+| 语言 | Python (FastAPI) | Python (LangGraph) | Python (CLI) | TypeScript (Node) | TypeScript (Effect) | Rust (codex-rs) |
+| 单轮工具结果压缩 | FAISS 语义截断 | 磁盘外部化 + 头尾截断 | 头尾截断 + 摘要替换 | 磁盘持久化 + 预览 | 磁盘外部化 + 尾部截断 | 中间截断(truncate_middle)，每工具独立预算 |
+| token 计数 | tiktoken (cl100k_base) | tiktoken + API usage_metadata | 字符估算 (÷4) + API 返回 | API usage + 字符估算 (÷4) | API usage + 字符估算 (÷4) 混合 | API usage 精确值 + 字节估算(÷4) 混合 |
+| 阈值触发 | 80% context → 停工具调用 | 硬停 100% (默认关闭) | 50% context → 压缩 | effective_window - 13K → 自动压缩 | input - min(20K, maxOutputTokens) → 自动摘要 | auto_compact_limit → Pre/Mid-Turn 自动压缩 |
 | 窗口内历史处理 | 轮次窗口(20轮) + token 裁剪 | 消息数/token/比例触发摘要 | 头保护(3) + 尾保护(≥8消息) | 全量保留直到触发压缩 | 全量保留直到触发摘要 | 全量保留直到触发压缩 |
 | 窗口外处理 | LLM 摘要(增量合并) | LLM 摘要(删除旧消息) | LLM 摘要(头+尾+中间摘要) | LLM 摘要(9段结构化) | LLM 摘要(替换历史) | LLM 摘要(替换历史) 或 Token Budget 直接重置 |
-| 窗口内工具结果 | 旧轮次: 用 summary 截断 | 历史重扫: 超预算重新截断 | 旧工具结果→1行摘要 | 时间触发清除 + 预算持久化 | 原样保留直到摘要重置 | 写入时一次性截断，后续原样保留 |
+| 窗口内工具结果 | 旧轮次: 用 summary 截断 | 历史重扫: 超预算重新截断 | 旧工具结果→1行摘要 | 时间触发清除 + 预算持久化 | prune: 保留 40K tokens 近期工具输出，旧的标记 compacted | 写入时一次性截断，后续原样保留 |
 
 ## 二、单轮调用：工具返回结果过长时的处理 #
 
@@ -87,19 +100,29 @@ Token 上限: MAX_TOOL_RESULT_TOKENS = 100,000 (~400KB)
 - Microcompact (时间触发) : 超过 60 分钟无交互的工具结果清除为 `[Old tool result content cleared]` ，保留最近 5 个
 - 图片压缩 : `readImageWithTokenBudget()` — 先标准缩放，超 token 预算则激进压缩
 
-### 2.5 opencode — 简单头尾截断 #
+### 2.5 opencode — 磁盘外部化 + 尾部截断 #
 
-核心文件: `internal/llm/tools/bash.go` , `internal/llm/tools/view.go`
+核心文件: `packages/opencode/src/tool/shell.ts` , `packages/opencode/src/tool/read.ts` , `packages/opencode/src/tool/truncate.ts`
 
 ```
-Bash 输出: MAX_OUTPUT_LENGTH = 30,000 chars
-  截断方式: 前 15K + "..." + 后 15K
+Shell 输出截断 (tail-only):
+  限制: maxLines=2000, maxBytes=50KB (来自 Truncate.limits()，可配置)
+  截断方式: tail() — 仅保留尾部，丢弃头部
+  磁盘持久化: 完整输出写入 TRUNCATION_DIR，返回尾部预览 + 文件路径提示
+  Metadata 预览: MAX_METADATA_LENGTH = 30,000 chars (仅 UI 展示用)
 
-文件读取: MAX_READ_SIZE = 250KB, DEFAULT_READ_LIMIT = 2000 行, MAX_LINE_LENGTH = 2000
+文件读取截断:
+  DEFAULT_READ_LIMIT = 2000 行, MAX_LINE_LENGTH = 2000, MAX_BYTES = 50KB
+  截断后同样写入磁盘，返回预览 + offset 提示
+
 Glob/Grep: 最多 100 个结果
 ```
 
-特点: 最简单的策略，无语义分析，无磁盘持久化，纯机械截断。
+- 截断服务 (`truncate.ts`) : 独立 Service，管理 `TRUNCATION_DIR` 下的截断文件，7 天自动清理
+- 配置化 : `tool_output.max_lines` / `tool_output.max_bytes` 可在 opencode config 中覆盖
+- Task 工具提示 : 如果 agent 有 task 工具权限，截断提示会建议委托给 explore agent 处理
+
+特点: 与 deer-flow 类似的磁盘外部化模式。Shell 用尾部截断（保留最新输出），文件读取用头部截断（保留开头）。截断后完整数据持久化到磁盘，模型可通过 Grep/Read 工具重新访问。
 
 ### 2.6 codex (OpenAI) — 中间截断 + 分层预算 #
 
@@ -199,19 +222,28 @@ blockingLimit = effectiveContextWindow - 3,000
 
 ### 3.5 opencode #
 
-核心文件: `internal/tui/tui.go` , `internal/llm/agent/agent.go`
+核心文件: `packages/opencode/src/session/overflow.ts` , `packages/opencode/src/session/compaction.ts` , `packages/core/src/util/token.ts`
 
 ```
-// 仅使用 API 返回的 usage，无客户端 token 计算
-tokens := session.CompletionTokens + session.PromptTokens
-if tokens >= int64(float64(contextWindow) * 0.95) && config.Get().AutoCompact {
-    startCompactSession()
-}
+// 双源 token 计数（与 claude-code 类似）
+// overflow 检查: 使用 API 返回的 usage
+const count = tokens.total || tokens.input + tokens.output
+            + tokens.cache.read + tokens.cache.write
+return count >= usable(input)
+
+// compaction 选择: 使用客户端 chars÷4 估算
+Token.estimate = (input: string) => Math.round(input.length / 4)
+
+// 阈值: usable = input_limit - reserved
+// reserved = min(COMPACTION_BUFFER=20000, maxOutputTokens)
+// maxOutputTokens = min(model.output_limit, OUTPUT_TOKEN_MAX=***)
 ```
 
-- 95% 阈值 : 累计 token 达到 context window 的 95% 时触发自动摘要
-- MaxTokens 上限 : 如果 `maxTokens > ContextWindow/2` ，自动限制为一半
-- 特点 : 最轻量的方案，完全依赖 API 返回值，无客户端估算
+- 动态阈值 : 不是固定百分比。usable = input - min(20K, maxOutputTokens)。200K context 模型 → 180K (90%)；128K → 108K (84%)
+- OUTPUT_TOKEN_MAX : 固定上限 32,000，`maxOutputTokens = min(model.output, 32000)`
+- compaction 可通过 `compaction.auto: false` 关闭
+- compaction 可配置独立 agent 用不同模型（`agents.get("compaction")`）
+- 特点 : overflow 用 API 精确值，compaction 选择用客户端估算，两者分工明确
 
 ### 3.6 codex (OpenAI) #
 
@@ -248,7 +280,7 @@ AutoCompactTokenLimitScope::BodyAfterPrefix → 仅计算 prefix 之后增长部
 | deer-flow | messages:20 或 tokens/fraction 触发 | 二分查找安全切点，不拆分 AI+Tool 配对 |
 | hermes-agent | 头保护(3条) + 尾保护(≥8条, token 预算) | 尾部按 token 预算向回走，对齐到 tool_call/tool_result 边界 |
 | claude-code | 全量保留直到自动压缩 | 按 API round 分组，压缩时保留最近的 round |
-| opencode | 全量保留直到 95% 阈值 | 摘要后 SummaryMessageID 之前的全部丢弃 |
+| opencode | 全量保留直到 overflow | 摘要保留最近 2 轮(tail_turns)，旧消息→结构化 5 段摘要 |
 | codex | 全量保留直到 auto_compact_limit | AutoCompactWindow 追踪窗口代际，prefill baseline 从服务端 usage 捕获 |
 
 ### 4.2 窗口外上下文 #
@@ -259,10 +291,10 @@ AutoCompactTokenLimitScope::BodyAfterPrefix → 仅计算 prefix 之后增长部
 | deer-flow | LLM 摘要 | 删除全部旧消息，插入 summary + 保留尾部 | 无额外持久化 |
 | hermes-agent | LLM 摘要 | 结构化模板(Goal/Actions/State/Decisions)，迭代更新 | SQLite session 分割（旧 session 标记`compression` ） |
 | claude-code | LLM 摘要 | 9 段结构化摘要(Primary Request/Key Concepts/Files/Errors/Pending/Next...) + 转录文件引用 | 写入磁盘转录文件，摘要中包含路径 |
-| opencode | LLM 摘要 | 独立摘要模型(可用便宜模型)生成摘要 | SummaryMessageID 存储在 session 记录 |
+| opencode | LLM 摘要 | 5 段结构化(Objective/Details/State/Next/Files) + 增量合并旧摘要 + 工具输出截断到 2K | compaction message (user role + compaction part) |
 | codex | LLM 摘要 或 Token Budget 重置 | 用户消息 + 摘要替换整个历史；mid-turn 重新注入初始上下文(AGENTS.md等) | RolloutRecorder 持久化完整 rollout trace |
 
-增量摘要（chat-agent 独有）:
+增量摘要（chat-agent、opencode 共有）:
 
 ```
 # 如果已有摘要且只有新消息 → 只摘要增量 → 合并
@@ -296,7 +328,7 @@ POST_COMPACT_SKILLS_TOKEN_BUDGET = 25,000  # 重新注入技能
 | deer-flow | 窗口内保留原样；但`wrap_model_call` 每次调用前重新扫描，超预算的历史工具结果重新截断 |
 | hermes-agent | 压缩预处理: 旧工具结果→1行摘要`[tool] ran 'cmd' -> exit N, M lines output` ；MD5 去重；图片→占位符 |
 | claude-code | 时间触发: 60 分钟前的工具结果→`[Old tool result content cleared]` （保留最近 5 个）；API 层: 180K tokens 触发时清除旧结果 |
-| opencode | 原样保留在历史中，直到 95% 阈值触发整体摘要重置 |
+| opencode | prune 机制: 每轮结束后保留 40K tokens 近期工具输出，旧的标记 compacted；compaction 时工具输出截断到 2K |
 | codex | 写入历史时一次性中间截断（1.2x 系数），后续原样保留，不做二次压缩或时间清理 |
 
 ## 五、架构特色对比 #
@@ -333,9 +365,12 @@ POST_COMPACT_SKILLS_TOKEN_BUDGET = 25,000  # 重新注入技能
 
 ### 5.5 opencode 的独特之处 #
 
-- 最简方案 : 无客户端 token 计数，无分层预算，无中间件
-- 纯摘要重置 : 95% → 摘要 → 清空，一步到位
-- 独立摘要模型 : 可配置更便宜的模型做摘要
+- 磁盘外部化 : 与 deer-flow 类似，截断后完整输出写入 `TRUNCATION_DIR`，7 天自动清理，模型可重新访问
+- 结构化增量摘要 : 5 段模板(Objective/Important Details/Work State/Next Move/Relevant Files)，有旧摘要时增量合并
+- 独立 compaction agent : 可配置更便宜的模型做摘要，与主模型分离
+- Prune 机制 : 独立于 compaction 的工具输出清理，每轮结束后从尾部保留 40K tokens，旧工具输出标记 compacted
+- 尾部保留 : compaction 时保留最近 `tail_turns`(默认 2) 轮，在 `preserve_recent_tokens`(2K-8K) 预算内
+- 双源 token 计数 : overflow 检查用 API 精确值，compaction 选择用 chars÷4 估算
 
 ### 5.6 codex (OpenAI) 的独特之处 #
 
@@ -352,23 +387,23 @@ POST_COMPACT_SKILLS_TOKEN_BUDGET = 25,000  # 重新注入技能
 ### 6.1 复杂度排序（低→高） #
 
 ```
-opencode < chat-agent < hermes-agent < codex < deer-flow < claude-code
+chat-agent < opencode < hermes-agent < codex < deer-flow < claude-code
 ```
 
 ### 6.2 工具结果压缩策略谱系 #
 
 ```
 简单截断 ──────────────────────────────────── 语义压缩
-opencode    codex    claude-code    hermes-agent    deer-flow    chat-agent
-(头尾截断) (中间截断) (磁盘持久化)   (摘要+去重)    (外部化+重扫) (FAISS语义筛选)
+chat-agent   opencode    codex    claude-code    hermes-agent    deer-flow
+(FAISS但有穿透) (磁盘外部化) (中间截断) (磁盘持久化)   (摘要+去重)    (外部化+重扫)
 ```
 
 ### 6.3 历史管理策略谱系 #
 
 ```
 无管理 ──────────────────────────────────── 精细管理
-opencode    claude-code    codex    hermes-agent    chat-agent    deer-flow
-(全量→摘要)  (自动压缩)   (三模式切换) (三阶段压缩)  (轮次窗口+摘要) (中间件组合)
+chat-agent    opencode    claude-code    codex    hermes-agent    deer-flow
+(轮次窗口+摘要) (tail保留+prune) (自动压缩)  (三模式切换) (三阶段压缩)  (中间件组合)
 ```
 
 ### 6.4 可借鉴的设计模式 #
@@ -376,14 +411,16 @@ opencode    claude-code    codex    hermes-agent    chat-agent    deer-flow
 | 模式 | 来源 | 适用场景 |
 |---|---|---|
 | 语义截断 | chat-agent | 工具结果很长但只需部分信息时 |
-| 磁盘外部化 + 重取 | deer-flow, claude-code | 需要保留完整数据但不想占 context |
-| 增量摘要 | chat-agent | 长对话频繁压缩时减少摘要成本 |
+| 磁盘外部化 + 重取 | deer-flow, claude-code, opencode | 需要保留完整数据但不想占 context |
+| 增量摘要 | chat-agent, opencode | 长对话频繁压缩时减少摘要成本 |
 | Skill 救援 | deer-flow | 有频繁加载的参考文档场景 |
 | 确定性替换 | claude-code | 依赖 prompt cache 的生产环境 |
 | 时间触发清理 | claude-code | 长时间闲置后的自动清理 |
 | 反抖动保护 | hermes-agent | 防止阈值附近反复压缩 |
 | 模型切换自适应压缩 | codex | 跨模型会话自动降级压缩 |
 | 批量工具写入 | codex | 一轮采样结束后统一截断，保证截断一致性 |
+| Prune 工具输出 | opencode | 每轮结束后独立清理旧工具输出，与 compaction 解耦 |
+| 结构化增量摘要 | opencode | 5 段模板 + 旧摘要合并，平衡结构化与增量效率 |
 | 三模式压缩切换 | codex | 本地/远程/TokenBudget 按场景选择 |
 | Session 分割 | hermes-agent | 需要保留完整对话历史的审计场景 |
 
