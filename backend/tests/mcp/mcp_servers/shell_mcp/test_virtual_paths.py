@@ -141,6 +141,21 @@ def test_validate_allows_js_import_alias_in_command(
     )
 
 
+def test_validate_allows_double_slash_line_comments_in_heredoc(
+    mappings: dict[str, str],
+) -> None:
+    """TS/JS // comments inside heredoc must not be treated as absolute paths."""
+    workspace = vfs_config.workspace_prefix.rstrip("/")
+    command = f"""cat > {workspace}/types/dashboard.ts << 'EOF'
+// type definitions
+export interface MetricCard {{
+  change: number; // percent change
+  trend: 'up' | 'down' | 'neutral';
+}}
+EOF"""
+    validate_local_command_paths(command, mappings)
+
+
 def test_mask_paths_in_output(path_layout: tuple[Paths, str, str]) -> None:
     paths, user_id, conversation_id = path_layout
     workspace = str(paths.sandbox_work_dir(user_id, conversation_id).resolve())
