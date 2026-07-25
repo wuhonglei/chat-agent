@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import ValidationError
 
 from app.api import (
@@ -91,6 +92,9 @@ app = FastAPI(
     version=settings.app.version,
     lifespan=lifespan,
 )
+
+# Prometheus 指标暴露（/metrics 端点）
+Instrumentator().instrument(app).expose(app)
 
 # 添加日志中间件（必须在路由之前添加）
 # 执行顺序：中间件 → 路由匹配 → 依赖注入 → 路由处理函数 → 依赖清理 → 中间件继续
