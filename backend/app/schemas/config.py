@@ -469,7 +469,7 @@ class ToolResultCompressionConfig(BaseModel):
         default=5000, description="单个工具结果阈值 tokens 数"
     )
     tolerance_tokens: int = Field(
-        default=6000, description="单个工具结果容忍的 tokens 数"
+        default=8000, description="单个工具结果容忍的 tokens 数"
     )
     summary_max_tokens: int = Field(
         default=2000, description="单个工具结果摘要最大 tokens 数"
@@ -479,12 +479,22 @@ class ToolResultCompressionConfig(BaseModel):
         description="窗口内单条工具消息超过该 token 数时用 summary/截断参与组装",
     )
     markdown_chunk_size: int = Field(
-        default=1000,
+        default=1024,
         description="Markdown 分块大小（字符），用于相关性过滤",
     )
     markdown_chunk_overlap: int = Field(
         default=200,
         description="Markdown 分块重叠（字符）",
+    )
+    embedding_batch_size: int = Field(
+        default=10,
+        gt=0,
+        description="FAISS 向量化单批文档数（DashScope 限制每次最多 10 个）",
+    )
+    embedding_max_workers: int = Field(
+        default=5,
+        gt=0,
+        description="FAISS 分批向量化时的最大并行线程数",
     )
 
 

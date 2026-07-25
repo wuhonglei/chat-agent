@@ -1,16 +1,26 @@
 """Main FastAPI application"""
 
 import asyncio
+import os
+import tempfile
 import warnings
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
-from fastapi.exceptions import RequestValidationError
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import ValidationError
+# Prometheus 多进程模式：必须在 import prometheus_client 之前设置
+_prometheus_dir = os.environ.get("PROMETHEUS_MULTIPROC_DIR")
+if not _prometheus_dir:
+    _prometheus_dir = os.path.join(tempfile.gettempdir(), "prometheus_multiproc")
+    os.makedirs(_prometheus_dir, exist_ok=True)
+    os.environ["PROMETHEUS_MULTIPROC_DIR"] = _prometheus_dir
 
-from app.api import (
+from fastapi import FastAPI, HTTPException  # noqa: E402
+from fastapi.exceptions import RequestValidationError  # noqa: E402
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+from prometheus_fastapi_instrumentator import Instrumentator  # noqa: E402
+from pydantic import ValidationError  # noqa: E402
+
+from app.api import (  # noqa: E402
     auth,
     avatars,
     chat,
@@ -23,19 +33,19 @@ from app.api import (
     user,
     user_data,
 )
-from app.core.config import settings
-from app.core.db import create_db_and_tables
-from app.core.jwt import initialize_jwt_manager
-from app.core.observability import init_langfuse, shutdown_langfuse
-from app.core.redis import close_redis, init_redis
-from app.mcp import get_mcp_manager, register_mcp_reload_target
-from app.middleware import LoggingMiddleware
-from app.middleware.exception_handler import (
+from app.core.config import settings  # noqa: E402
+from app.core.db import create_db_and_tables  # noqa: E402
+from app.core.jwt import initialize_jwt_manager  # noqa: E402
+from app.core.observability import init_langfuse, shutdown_langfuse  # noqa: E402
+from app.core.redis import close_redis, init_redis  # noqa: E402
+from app.mcp import get_mcp_manager, register_mcp_reload_target  # noqa: E402
+from app.middleware import LoggingMiddleware  # noqa: E402
+from app.middleware.exception_handler import (  # noqa: E402
     general_exception_handler,
     http_exception_handler,
     validation_exception_handler,
 )
-from app.utils.logger import logger, setup_logger
+from app.utils.logger import logger, setup_logger  # noqa: E402
 
 # 忽略 nacos 库中的 SSL DeprecationWarning
 warnings.filterwarnings(
@@ -91,6 +101,9 @@ app = FastAPI(
     version=settings.app.version,
     lifespan=lifespan,
 )
+
+# Prometheus 指标暴露（/metrics 端点）
+Instrumentator().instrument(app).expose(app)
 
 # 添加日志中间件（必须在路由之前添加）
 # 执行顺序：中间件 → 路由匹配 → 依赖注入 → 路由处理函数 → 依赖清理 → 中间件继续
