@@ -36,9 +36,15 @@ class MCPToolSession:
         user_message: str,
         user_id: str | None = None,
         conversation_id: str | None = None,
+        agent_mode: int = 0,
     ) -> None:
         self.policy.reset_for_request()
-        self.executor.reset_for_request(user_message, user_id, conversation_id)
+        self.executor.reset_for_request(
+            user_message,
+            user_id=user_id,
+            conversation_id=conversation_id,
+            agent_mode=agent_mode,
+        )
 
     @property
     def guardrail_halted(self) -> bool:

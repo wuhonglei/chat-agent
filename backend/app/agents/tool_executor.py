@@ -41,6 +41,7 @@ from app.utils.context_compactor import ContextCompactor
 from app.utils.logger import logger
 from app.utils.time import get_current_time, get_time_duration
 from app.utils.token import TokenCalculator
+from app.utils.tool_result_hard_limit import apply_hard_limit, enforce_turn_budget
 
 
 class ToolExecutor:
@@ -59,7 +60,9 @@ class ToolExecutor:
         self.current_user_message = user_message
         self.current_user_id: str | None = None
         self.current_conversation_id: str | None = None
+        self.current_agent_mode: int = 0
         self.tool_result_compression = settings.chat_context.tool_result_compression
+        self.tool_result_hard_limit = settings.chat_context.tool_result_hard_limit
         self.compactor = ContextCompactor(
             embedding_model=settings.embedding_model,
             tool_result_compression_config=self.tool_result_compression,
@@ -73,10 +76,12 @@ class ToolExecutor:
         user_message: str,
         user_id: str | None = None,
         conversation_id: str | None = None,
+        agent_mode: int = 0,
     ) -> None:
         self.current_user_message = user_message
         self.current_user_id = user_id
         self.current_conversation_id = conversation_id
+        self.current_agent_mode = agent_mode
         self.guardrail.reset()
 
         # Set contextvars for tools to access
@@ -147,7 +152,18 @@ class ToolExecutor:
                         tool_call_id=tool_call.id,
                     )
 
-        return [results_by_id[tc.id] for tc in active_calls]
+        ordered = [results_by_id[tc.id] for tc in active_calls]
+        tool_name_by_call_id = {
+            tc.id: tc.function.name for tc in active_calls if tc is not None
+        }
+        return enforce_turn_budget(
+            ordered,
+            tool_name_by_call_id=tool_name_by_call_id,
+            agent_mode=self.current_agent_mode,
+            user_id=self.current_user_id,
+            conversation_id=self.current_conversation_id,
+            config=self.tool_result_hard_limit,
+        )
 
     async def execute_single_tool(
         self,
@@ -358,7 +374,14 @@ class ToolExecutor:
                     metadata_extra=outcome_meta or None,
                 )
                 on_arguments_recorded(tool_name, arguments, tool_call.id, success)
-                return tool_call_result_message
+                return apply_hard_limit(
+                    tool_call_result_message,
+                    tool_name=tool_name,
+                    agent_mode=self.current_agent_mode,
+                    user_id=self.current_user_id,
+                    conversation_id=self.current_conversation_id,
+                    config=self.tool_result_hard_limit,
+                )
             except Exception as exc:
                 error_content, error_type = self._format_tool_exception(exc)
                 try:

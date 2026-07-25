@@ -152,6 +152,7 @@ class ChatSessionAgent(BaseAgent):
             user_message_text,
             user_id=user_id,
             conversation_id=conversation_id,
+            agent_mode=chat_request.agent_mode,
         )
 
         if not tools:
