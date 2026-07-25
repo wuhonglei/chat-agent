@@ -171,11 +171,10 @@ class ToolExecutor:
                     urls := get("urls", arguments)
                 ):
                     items = [urls] if isinstance(urls, str) else urls
-                    if isinstance(items, (list, tuple)):
+                    if isinstance(items, list | tuple):
                         # list(...)：差集是 set，直接写入会导致 schema 校验失败
                         new_urls = list(
-                            {normalize_url(str(u)) for u in items if u}
-                            - extracted_urls
+                            {normalize_url(str(u)) for u in items if u} - extracted_urls
                         )
                         if not new_urls:
                             logger.info(

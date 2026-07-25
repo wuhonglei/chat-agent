@@ -229,7 +229,7 @@ def format_crawl_results(response: TavilyCrawlResponse) -> tuple[str, str]:
 def filter_search_results_by_score(
     results: list[TavilySearchResultItem],
     result_per_query: int,
-    threshold: float = 0.5,
+    threshold: float = 0.1,
 ) -> tuple[list[TavilySearchResultItem], list[TavilySearchResultItem], float]:
     """
     根据相关性分数过滤搜索结果，优先选择高分结果
