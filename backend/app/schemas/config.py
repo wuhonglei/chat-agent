@@ -478,6 +478,19 @@ class ToolResultCompressionConfig(BaseModel):
         default=2000,
         description="窗口内单条工具消息超过该 token 数时用 summary/截断参与组装",
     )
+    tool_arg_max_chars: int = Field(
+        default=500,
+        gt=0,
+        description=(
+            "窗口内非最新轮 tool_use：整段 arguments_text 超过该字符数时才进入截断"
+            "（对齐 hermes Pass-3 门闩）"
+        ),
+    )
+    tool_arg_keep_chars: int = Field(
+        default=200,
+        gt=0,
+        description=("截断时 JSON 内字符串叶子保留的前缀字符数，后缀为 ...[truncated]"),
+    )
     markdown_chunk_size: int = Field(
         default=1024,
         description="Markdown 分块大小（字符），用于相关性过滤",

@@ -390,3 +390,28 @@ class TokenCalculator:
         if len(token_ids) <= max_tokens:
             return text
         return self.encoding.decode(token_ids[:max_tokens])
+
+    def truncate_text_to_tokens_head_tail(self, text: str, max_tokens: int) -> str:
+        """将文本截断到不超过 max_tokens，保留头部约 60% 与尾部约 40%。"""
+        if not text or max_tokens <= 0:
+            return ""
+        token_ids = self.encoding.encode(text)
+        original_token_count = len(token_ids)
+        if original_token_count <= max_tokens:
+            return text
+
+        marker = f"\n…[中间已省略，共 {original_token_count} tokens]…\n"
+        marker_token_count = len(self.encoding.encode(marker))
+        remaining = max_tokens - marker_token_count
+        if remaining <= 1:
+            return self.truncate_text_to_tokens(text, max_tokens)
+
+        head_budget = max(1, int(remaining * 0.6))
+        tail_budget = remaining - head_budget
+        if tail_budget < 1:
+            head_budget = remaining - 1
+            tail_budget = 1
+
+        head = self.encoding.decode(token_ids[:head_budget])
+        tail = self.encoding.decode(token_ids[-tail_budget:])
+        return f"{head}{marker}{tail}"
