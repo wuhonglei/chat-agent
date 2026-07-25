@@ -68,6 +68,13 @@ def _is_persist_exempt(tool_name: str, config: ToolResultHardLimitConfig) -> boo
     return bare in exempt or tool_name in exempt
 
 
+def _count_lines(content: str) -> int:
+    """Return line count for tool-output previews (empty content → 0)."""
+    if not content:
+        return 0
+    return len(content.splitlines())
+
+
 def _build_head_tail_preview(
     content: str, *, head_chars: int, tail_chars: int
 ) -> tuple[str, str, str]:
@@ -92,9 +99,11 @@ def _format_truncated_content(
         content, head_chars=head_chars, tail_chars=tail_chars
     )
     total = len(content)
+    total_lines = _count_lines(content)
     omitted = max(0, total - len(head) - len(tail))
     middle = (
-        f"\n\n... [{total} chars total, {omitted} omitted, {_TRUNCATED_MARKER}] ...\n\n"
+        f"\n\n... [{total} chars total, {total_lines} lines, "
+        f"{omitted} omitted, {_TRUNCATED_MARKER}] ...\n\n"
     )
     if can_reread:
         footer = (
@@ -119,7 +128,11 @@ def _format_persisted_content(
         content, head_chars=head_chars, tail_chars=tail_chars
     )
     total = len(content)
-    middle = f"\n\n... [{total} chars total, {_PERSISTED_MARKER}] ...\n\n"
+    total_lines = _count_lines(content)
+    middle = (
+        f"\n\n... [{total} chars total, {total_lines} lines, "
+        f"{_PERSISTED_MARKER}] ...\n\n"
+    )
     footer = (
         f"\n\n[完整输出已保存到 {virtual_path}]\n"
         "需要更多细节时请用 read_file 读取该路径（可用 offset/limit）。"

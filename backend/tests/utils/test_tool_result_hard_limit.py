@@ -94,6 +94,7 @@ def test_agent_mode_1_persists_to_workspace(tmp_path: Path, monkeypatch: pytest.
         config=_config(max_chars=50, preview_head_chars=10, preview_tail_chars=9),
     )
     assert "full output persisted" in result.content
+    assert f"{len(content)} chars total, 1 lines" in result.content
     assert "/mnt/user-data/workspace/.tool-results/tc_shell.txt" in result.content
     assert "read_file" in result.content
     physical = (

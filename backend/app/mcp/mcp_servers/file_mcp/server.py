@@ -44,10 +44,10 @@ async def read_file(
         int,
         Field(
             ge=1,
-            le=1000,
+            le=2000,
             description="Number of lines to read (useful for long files)",
         ),
-    ] = 1000,
+    ] = 2000,
 ) -> ToolResult:
     """Reads a file from the workspace filesystem."""
     ctx = ToolContext()
