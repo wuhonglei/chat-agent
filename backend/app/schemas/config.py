@@ -518,7 +518,7 @@ class ToolResultHardLimitConfig(BaseModel):
         description="同轮全部工具结果 content 合计字符上限",
     )
     max_chars: int = Field(
-        default=1_000,
+        default=30_000,
         ge=0,
         description="单条工具结果默认硬上限（字符）；可被 tool_overrides 覆盖",
     )
