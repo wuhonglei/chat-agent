@@ -37,7 +37,7 @@ from app.mcp.tool_naming import is_llm_tool
 from app.schemas.llm import ToolResultMessage
 from app.utils.common import normalize_url
 from app.utils.context import set_request_context
-from app.utils.context_compactor import ContextCompactor
+from app.utils.context_compactor import CompactionResult, ContextCompactor
 from app.utils.logger import logger
 from app.utils.time import get_current_time, get_time_duration
 from app.utils.token import TokenCalculator
@@ -718,7 +718,7 @@ class ToolExecutor:
         )
         compaction = await processor.format_result(tool_name, structured_content)
         return tool_call_result_message.model_copy(
-            update=compaction.model_dump(mode="json")
+            update=self._tool_result_fields_from_compaction(compaction)
         )
 
     async def _compact_tool_result_if_needed(
@@ -733,7 +733,20 @@ class ToolExecutor:
             tolerance_tokens_count=self.tool_result_compression.tolerance_tokens,
             threshold_tokens_count=self.tool_result_compression.threshold_tokens,
         )
-        return tool_message.model_copy(update=compaction.model_dump(mode="json"))
+        return tool_message.model_copy(
+            update=self._tool_result_fields_from_compaction(compaction)
+        )
+
+    @staticmethod
+    def _tool_result_fields_from_compaction(
+        compaction: CompactionResult,
+    ) -> dict[str, Any]:
+        """Only propagate ToolResultMessage fields; drop CompactionResult metrics."""
+        return {
+            "content": compaction.content,
+            "summary": compaction.summary,
+            "structured_content_for_display": compaction.structured_content_for_display,
+        }
 
     @staticmethod
     def _build_tool_warning_message(
