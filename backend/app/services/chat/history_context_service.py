@@ -186,15 +186,19 @@ class HistoryContextService:
     def compress_history_tool_results(
         self, history_messages: list[ChatMessage]
     ) -> list[ChatMessage]:
-        """Step 2: compress all history ToolResultBlocks; truncate all tool_use args."""
+        """Step 2: compress all history ToolResultBlocks; truncate all tool_use args.
+
+        Returns the same list object when nothing was modified.
+        """
         if not history_messages:
-            return []
+            return history_messages
 
         compression_cfg = self.chat_context_config.tool_result_compression
         threshold_tokens = compression_cfg.message_summary_threshold_tokens
         tool_arg_max_chars = compression_cfg.tool_arg_max_chars
         tool_arg_keep_chars = compression_cfg.tool_arg_keep_chars
         processed_messages: list[ChatMessage] = []
+        any_changed = False
 
         for msg in history_messages:
             if msg.role != "assistant":
@@ -249,10 +253,13 @@ class HistoryContextService:
                 processed_messages.append(msg)
                 continue
 
+            any_changed = True
             processed_messages.append(
                 msg.model_copy(update={"content_blocks": new_blocks})
             )
 
+        if not any_changed:
+            return history_messages
         return processed_messages
 
     def compress_tool_round_messages(
