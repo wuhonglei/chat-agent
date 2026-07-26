@@ -75,12 +75,54 @@ async def test_call_tool_strips_prefix_before_mcp(
 
 
 @pytest.mark.asyncio
-async def test_call_tool_rejects_bare_name(
+async def test_call_tool_rejects_ambiguous_bare_name(
     gateway_with_duplicate_bare_names: MCPToolGateway,
 ) -> None:
     gw = gateway_with_duplicate_bare_names
     with pytest.raises(ValueError, match="不存在"):
         await gw.call_tool("search", {})
+
+
+@pytest.mark.asyncio
+async def test_call_tool_accepts_unique_bare_name() -> None:
+    registry = MagicMock()
+    registry.get_servers.return_value = {"file"}
+
+    pool = MagicMock()
+    pool._initialized = True
+    pool.tools_by_server = {"file": [_tool("present_files")]}
+    pool.ensure_initialized = MagicMock()
+
+    gw = MCPToolGateway(pool, registry)
+    gw.rebuild_tool_index()
+
+    client = MagicMock()
+    client.__aenter__ = AsyncMock(return_value=client)
+    client.__aexit__ = AsyncMock(return_value=None)
+    client.call_tool = AsyncMock(return_value="ok")
+    gw.pool.clients = {"file": client}
+
+    result, warnings = await gw.call_tool(
+        "present_files", {"filepaths": ["/mnt/user-data/outputs/a.html"]}
+    )
+    assert result == "ok"
+    assert warnings == []
+    client.call_tool.assert_awaited_once()
+    args, _kwargs = client.call_tool.call_args
+    assert args[0] == "present_files"
+
+
+def test_get_tool_route_unique_bare_name() -> None:
+    registry = MagicMock()
+    registry.get_servers.return_value = {"file"}
+    pool = MagicMock()
+    pool.tools_by_server = {"file": [_tool("present_files")]}
+    gw = MCPToolGateway(pool, registry)
+    gw.rebuild_tool_index()
+
+    route = gw.get_tool_route("present_files")
+    assert route == ToolRoute(server_name="file", mcp_tool_name="present_files")
+    assert gw.get_tool_route("file_present_files") == route
 
 
 @pytest.mark.asyncio

@@ -71,7 +71,7 @@ system_prompt_for_chat_session_template: Template = Template(
 
 **文件管理：**
 - 所有临时工作均在 `{{ workspace_prefix.rstrip('/') }}` 中进行
-- 最终交付物必须复制到 `{{ outputs_prefix.rstrip('/') }}`，完成后调用 `present_files` 工具（参数 `filepaths`，仅 `{{ outputs_prefix.rstrip('/') }}` 虚拟路径）将其呈现给用户
+- 最终交付物必须复制到 `{{ outputs_prefix.rstrip('/') }}`，完成后调用 `{{ present_files_tool_name }}` 工具（参数 `filepaths`，仅 `{{ outputs_prefix.rstrip('/') }}` 虚拟路径）将其呈现给用户
 </working_directory>
 {%- endif %}
 """.strip()

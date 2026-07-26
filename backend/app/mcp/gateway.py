@@ -54,12 +54,12 @@ class MCPToolGateway:
         self, tool_name: str, arguments: dict[str, Any] | None = None
     ) -> tuple[Any, list[dict[str, Any]]]:
         self.pool.ensure_initialized()
-        if tool_name not in self.tools_map:
+        route = self.get_tool_route(tool_name)
+        if route is None:
             raise ValueError(
                 f"工具 '{tool_name}' 不存在。可用工具: {', '.join(sorted(self.tools_map))}"
             )
 
-        route = self.tools_map[tool_name]
         server_name = route.server_name
         mcp_tool_name = route.mcp_tool_name
         client = self.pool.clients[server_name]
@@ -230,7 +230,19 @@ class MCPToolGateway:
         return str(content)
 
     def get_tool_route(self, tool_name: str) -> ToolRoute | None:
-        return self.tools_map.get(tool_name)
+        route = self.tools_map.get(tool_name)
+        if route is not None:
+            return route
+        # Unique bare-name fallback (e.g. present_files → file_present_files).
+        # Skills/prompts may refer to MCP bare names; only resolve when unambiguous.
+        matches = [
+            candidate
+            for candidate in self.tools_map.values()
+            if candidate.mcp_tool_name == tool_name
+        ]
+        if len(matches) == 1:
+            return matches[0]
+        return None
 
     def get_tool_info(self, tool_name: str) -> Any | None:
         self.pool.ensure_initialized()

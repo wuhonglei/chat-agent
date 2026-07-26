@@ -49,8 +49,14 @@ def resolve_tool_use_fields(
     llm_name: str,
     get_tool_route: Callable[[str], ToolRoute | None],
 ) -> tuple[str, str, str]:
-    """Return ``(name, server_name, mcp_tool_name)`` for a ToolUseBlock enrich."""
+    """Return ``(name, server_name, mcp_tool_name)`` for a ToolUseBlock enrich.
+
+    ``name`` is always the canonical LLM-visible name
+    (``{server_name}_{mcp_tool_name}``), even when ``llm_name`` was a bare
+    alias resolved by the gateway.
+    """
     route = get_tool_route(llm_name)
     if not route:
         raise ValueError(f"未知工具名: {llm_name}")
-    return llm_name, route.server_name, route.mcp_tool_name
+    canonical = llm_tool_name(route.server_name, route.mcp_tool_name)
+    return canonical, route.server_name, route.mcp_tool_name

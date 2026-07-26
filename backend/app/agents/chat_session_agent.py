@@ -223,11 +223,6 @@ class ChatSessionAgent(BaseAgent):
                     "switching to final answer round",
                     iteration=iteration + 1,
                 )
-                action, base_prompt_messages = await self.unified_context_guard(
-                    base_prompt_messages=base_prompt_messages,
-                    conversation_id=conversation_id,
-                    allow_stop_tools=False,
-                )
                 async for sse in self._stream_final_round_events(
                     messages=base_prompt_messages,
                     tool_session=tool_session,

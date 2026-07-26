@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from app.agent_skills.types import AgentSkillManifest
-from app.mcp.constants import SKILL_MANAGER_SERVER
+from app.mcp.constants import PRESENT_FILES_LLM, SKILL_MANAGER_SERVER
 from app.mcp.tool_naming import llm_tool_name
 from app.prompts.system_prompt import (
     default_system_prompt_template,
@@ -56,6 +56,7 @@ def get_system_prompt_for_chat_session(
         extra["load_skill_tool_name"] = llm_tool_name(
             SKILL_MANAGER_SERVER, "load_skill"
         )
+        extra["present_files_tool_name"] = PRESENT_FILES_LLM
     return system_prompt_for_chat_session_template.render(
         agent_mode=agent_mode,
         skill_manifests=skill_manifests or [],
