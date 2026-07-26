@@ -38,7 +38,10 @@
 - `用户管理.md`：用户模块说明
 - `COMPONENT_TOOLS_PRD.md`：组件工具接入说明（已对齐当前字段）
 - `MCP_CONFIG_ANALYSIS.md`：MCP 配置与加载机制说明（按当前 `mcp_client`）
-- `VFS_AND_SANDBOX.md`：Agent 模式虚拟文件系统、file/shell MCP、沙箱执行与排障手册
+- `VFS_AND_SANDBOX.md`：Agent 模式虚拟文件系统、file/shell MCP（工具 `exec`）、沙箱执行与排障手册
+- `TOOL_RESULT_AND_CONTEXT.md`：工具结果硬上限、历史窗口剪枝、窗口外摘要与配置排障
+- `LLM_RELIABILITY.md`：LLM 建连重试、错误分类与进程级熔断手册
+- `PROMETHEUS_METRICS.md`：`/metrics` 暴露、Gunicorn multiprocess 目录与自定义进程指标
 - `RETRIEVAL_SYSTEM.md`：当前检索链路说明（基于 MCP 工具与会话流）
 
 ### 规划方案
