@@ -62,3 +62,4 @@ scripts/classification_report.json
 
 
 __pycache__
+.cache_ggshield
