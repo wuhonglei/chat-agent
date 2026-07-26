@@ -229,10 +229,13 @@ class ToolUseBlock(BaseModel):
     def validate_tool_naming_fields(self) -> Self:
         if not self.name:
             return self
+        # 未知/过时工具名可能仅有 name（enrich 阶段无法解析路由），允许落库。
+        if not self.server_name and not self.mcp_tool_name:
+            return self
         if not self.server_name or not self.mcp_tool_name:
             raise ValueError(
                 f"ToolUseBlock {self.id!r}: name 存在时必须同时提供 "
-                "server_name 与 mcp_tool_name"
+                "server_name 与 mcp_tool_name，或二者皆为空"
             )
         expected = llm_tool_name(self.server_name, self.mcp_tool_name)
         if self.name != expected:

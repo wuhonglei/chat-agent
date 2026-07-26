@@ -1,4 +1,4 @@
-"""HistoryContextService.compress_history_messages 单元测试。"""
+"""HistoryContextService.compress_history_tool_results 单元测试。"""
 
 from __future__ import annotations
 
@@ -98,7 +98,8 @@ def _assistant_with_tools(
     )
 
 
-def test_latest_round_tool_result_and_args_kept_intact() -> None:
+def test_all_history_tool_use_args_truncated_and_tool_results_compressed() -> None:
+    """Step 2：所有历史 ToolResult 可压；所有轮 tool_use args 均可截断。"""
     large_content = "RESULT_" + ("x" * 4000)
     large_code = "a" * 2000
     older = _assistant_with_tools(
@@ -130,22 +131,24 @@ def test_latest_round_tool_result_and_args_kept_intact() -> None:
                 tool_call_id="call_2",
                 tool_use_id="u2",
                 content=large_content,
-                summary="should be cleared but content kept",
+                summary="latest summary",
             ),
         ],
     )
     history = [_user("u1"), older, _user("u2"), latest]
-    out = _service().compress_history_messages(history)
+    out = _service(
+        tool_arg_max_chars=500, tool_arg_keep_chars=200
+    ).compress_history_tool_results(history)
 
     latest_out = out[3]
     use_block = latest_out.content_blocks[0]
     result_block = latest_out.content_blocks[1]
     assert isinstance(use_block, ToolUseBlock)
     assert isinstance(result_block, ToolResultBlock)
-    assert use_block.arguments_text == json.dumps(
-        {"path": "b.py", "content": large_code}, ensure_ascii=False
-    )
-    assert result_block.content == large_content
+    args = json.loads(use_block.arguments_text)
+    assert args["path"] == "b.py"
+    assert args["content"] == ("a" * 200) + "...[truncated]"
+    assert result_block.content == "latest summary"
     assert result_block.summary is None
 
 
@@ -167,7 +170,7 @@ def test_older_round_prefers_summary_for_tool_result() -> None:
         [TextBlock(id="t2", text="done")],
     )
     history = [_user("u1"), older, _user("u2"), latest]
-    out = _service().compress_history_messages(history)
+    out = _service().compress_history_tool_results(history)
     result_block = out[1].content_blocks[0]
     assert isinstance(result_block, ToolResultBlock)
     assert result_block.content == "short summary"
@@ -195,7 +198,7 @@ def test_older_round_head_tail_truncates_large_tool_result() -> None:
     history = [_user("u1"), older, _user("u2"), latest]
     calc = _calculator()
     svc = _service(message_summary_threshold_tokens=80)
-    out = svc.compress_history_messages(history)
+    out = svc.compress_history_tool_results(history)
     result_block = out[1].content_blocks[0]
     assert isinstance(result_block, ToolResultBlock)
     assert "中间已省略" in result_block.content
@@ -232,7 +235,7 @@ def test_older_round_truncates_large_tool_use_string_args() -> None:
     history = [_user("u1"), older, _user("u2"), latest]
     out = _service(
         tool_arg_max_chars=500, tool_arg_keep_chars=200
-    ).compress_history_messages(history)
+    ).compress_history_tool_results(history)
 
     use_block = out[1].content_blocks[0]
     assert isinstance(use_block, ToolUseBlock)
@@ -260,7 +263,7 @@ def test_older_round_invalid_json_tool_args_passthrough() -> None:
         [TextBlock(id="t2", text="done")],
     )
     history = [_user("u1"), older, _user("u2"), latest]
-    out = _service(tool_arg_keep_chars=200).compress_history_messages(history)
+    out = _service(tool_arg_keep_chars=200).compress_history_tool_results(history)
     use_block = out[1].content_blocks[0]
     assert isinstance(use_block, ToolUseBlock)
     assert use_block.arguments_text == invalid_args
@@ -291,7 +294,7 @@ def test_older_round_nested_tool_args_are_walked() -> None:
     history = [_user("u1"), older, _user("u2"), latest]
     out = _service(
         tool_arg_max_chars=500, tool_arg_keep_chars=200
-    ).compress_history_messages(history)
+    ).compress_history_tool_results(history)
     use_block = out[1].content_blocks[0]
     assert isinstance(use_block, ToolUseBlock)
     parsed = json.loads(use_block.arguments_text)

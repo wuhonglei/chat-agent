@@ -344,38 +344,18 @@ class ChatOrchestrator:
                                 chat_request.history_ids
                             )
                         )
-                        with observation_span(
-                            "history-prepare",
-                            input={
-                                "history_ids_count": len(chat_request.history_ids),
-                            },
-                        ) as history_span:
-                            try:
-                                (
-                                    history_summary_before_window,
-                                    prepared_history_messages,
-                                ) = await self.history_context_service.prepare_history_messages(
-                                    history_messages_from_db, conversation_id
-                                )
-                            except Exception as exc:
-                                mark_observation_error(history_span, exc)
-                                raise
-                            if history_span is not None:
-                                history_span.update(
-                                    output={
-                                        "prepared_count": len(
-                                            prepared_history_messages
-                                        ),
-                                        "has_window_summary": bool(
-                                            history_summary_before_window
-                                        ),
-                                    }
-                                )
+                        history_summary_before_window = (
+                            self.history_context_service.get_stored_window_summary(
+                                conversation_id
+                            )
+                        )
+                        prepared_history_messages = history_messages_from_db
                         logger.info(
                             "Starting stream message generation",
                             conversation_id=conversation_id,
                             history_ids_count=len(chat_request.history_ids),
                             history_messages_count=len(prepared_history_messages),
+                            has_window_summary=bool(history_summary_before_window),
                         )
 
                         user_message_text = (

@@ -57,7 +57,7 @@ def _build_orchestrator(*, raise_in_stream: bool) -> tuple[ChatOrchestrator, Any
     agent = _FakeAgent(raise_in_stream=raise_in_stream)
 
     history_service = MagicMock()
-    history_service.prepare_history_messages = AsyncMock(return_value=(None, []))
+    history_service.get_stored_window_summary = MagicMock(return_value=None)
 
     post_process = MagicMock()
     post_process.persist_final_assistant_message = MagicMock(

@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from app.agent_skills.types import AgentSkillManifest
-from app.mcp.constants import SKILL_MANAGER_SERVER
+from app.mcp.constants import PRESENT_FILES_LLM, SKILL_MANAGER_SERVER
 from app.mcp.tool_naming import llm_tool_name
 from app.prompts.system_prompt import (
     default_system_prompt_template,
@@ -14,6 +14,7 @@ from app.prompts.system_prompt import (
     system_prompt_for_title_template,
 )
 from app.prompts.user_prompt import (
+    WINDOW_OUT_SUMMARY_COMPRESS_PROMPT,
     WINDOW_OUT_SUMMARY_MERGE_PROMPT,
     gentle_tips_in_web_search_template,
     tool_call_sufficient_info_template,
@@ -55,6 +56,7 @@ def get_system_prompt_for_chat_session(
         extra["load_skill_tool_name"] = llm_tool_name(
             SKILL_MANAGER_SERVER, "load_skill"
         )
+        extra["present_files_tool_name"] = PRESENT_FILES_LLM
     return system_prompt_for_chat_session_template.render(
         agent_mode=agent_mode,
         skill_manifests=skill_manifests or [],
@@ -114,6 +116,17 @@ def get_window_out_summary_merge_prompt(
     return WINDOW_OUT_SUMMARY_MERGE_PROMPT.render(
         prior_summary=prior_summary,
         new_messages_text=new_messages_text,
+        max_tokens_hint=max_tokens,
+    ).strip()
+
+
+def get_window_out_summary_compress_prompt(
+    prior_summary: str,
+    max_tokens: int,
+) -> str:
+    """渲染摘要自压缩 prompt。"""
+    return WINDOW_OUT_SUMMARY_COMPRESS_PROMPT.render(
+        prior_summary=prior_summary,
         max_tokens_hint=max_tokens,
     ).strip()
 

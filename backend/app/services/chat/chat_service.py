@@ -37,19 +37,20 @@ class ChatService:
             llm_config.model_name, llm_config.context_limit
         )
 
+        self.history_context_service = HistoryContextService(
+            chat_context_config=chat_context_config,
+            token_calculator=token_calculator,
+        )
         self.chat_session_agent = ChatSessionAgent(
             think_mode=think_mode,
             llm_config=llm_config,
             mcp_manager=mcp_manager,
-            tool_context_limit_ratio=chat_context_config.tool_round_context_limit_ratio,
+            history_context_service=self.history_context_service,
+            chat_context_config=chat_context_config,
         )
         title_llm_config = resolve_scenario("title_generation")
         self.title_generation_agent = TitleGenerationAgent(
             think_mode=False, llm_config=title_llm_config
-        )
-        self.history_context_service = HistoryContextService(
-            chat_context_config=chat_context_config,
-            token_calculator=token_calculator,
         )
         self.post_process_service = PostProcessService(self.memory_service)
         self.kb_rag_context_service = KbRagContextService(

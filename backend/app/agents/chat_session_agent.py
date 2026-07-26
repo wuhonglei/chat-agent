@@ -1,7 +1,7 @@
 """单会话 Agent：同一 messages 线程上 MCP 工具多轮 + content_blocks 流式应答。"""
 
 from collections.abc import AsyncGenerator
-from typing import Any
+from typing import Any, Literal
 
 from openai.types.chat import ChatCompletionMessageFunctionToolCall
 
@@ -36,9 +36,14 @@ from app.schemas.chat import (
     ContentBlock,
     KbContextBlock,
 )
-from app.schemas.config import LLMConfig
-from app.schemas.llm import ToolMessage
+from app.schemas.config import ChatContextConfig, LLMConfig
+from app.schemas.llm import ToolMessage, ToolResultMessage
 from app.schemas.user import MemorySearchItem
+from app.services.chat.history_context_service import (
+    HistoryContextService,
+    head_tail_truncate_chars,
+    tool_round_compressible_end,
+)
 from app.utils.logger import logger
 from app.utils.message import update_last_user_message
 from app.utils.multimodal import (
@@ -46,6 +51,8 @@ from app.utils.multimodal import (
     extract_user_text_with_attachment_placeholder,
 )
 from app.utils.time import get_current_time, get_time_duration
+
+GuardAction = Literal["ok", "stop_tools"]
 
 
 class ChatSessionAgent(BaseAgent):
@@ -56,15 +63,27 @@ class ChatSessionAgent(BaseAgent):
         think_mode: bool,
         llm_config: LLMConfig,
         mcp_manager: MCPClientManager,
-        tool_context_limit_ratio: float = 0.8,
+        history_context_service: HistoryContextService,
+        chat_context_config: ChatContextConfig | None = None,
     ):
         super().__init__(think_mode, llm_config)
         self.mcp_manager = mcp_manager
+        self.history_context_service = history_context_service
+        self.chat_context_config = chat_context_config or settings.chat_context
         self.session_output = SessionOutput()
         self.content_block_aggregator = ContentBlocksAggregator()
         self.content_block_aggregator.set_tool_name_resolver(mcp_manager.get_tool_route)
         self.state_machine = ChatRoundStateMachine()
-        self.tool_context_limit_ratio = tool_context_limit_ratio
+
+        self._working_history: list[ChatMessage] = []
+        self._window_out_summary: str | None = None
+        self._system_prompt: str = ""
+        self._user_message_text: str = ""
+        self._tool_guided_user_message: str = ""
+        self._user_message_content: str | list[dict[str, Any]] = ""
+        self._kb_context_blocks: list[KbContextBlock] | None = None
+        self._user_memories: list[MemorySearchItem] = []
+        self._attachment_uploads: list[AttachmentUploadInfo] | None = None
 
     @property
     def tool_round_messages(self) -> list[ToolMessage]:
@@ -113,7 +132,7 @@ class ChatSessionAgent(BaseAgent):
             if chat_request.agent_mode > 0
             else []
         )
-        system_prompt = get_system_prompt_for_chat_session(
+        self._system_prompt = get_system_prompt_for_chat_session(
             agent_mode=chat_request.agent_mode,
             skill_manifests=skill_manifests,
         )
@@ -122,40 +141,54 @@ class ChatSessionAgent(BaseAgent):
             server_names,
         )
 
-        user_message_text = extract_user_text_with_attachment_placeholder(
+        self._user_message_text = extract_user_text_with_attachment_placeholder(
             chat_request.content_blocks
         )
-        tool_guided_user_message = get_user_message_for_tool_calls(
-            user_message_text,
+        self._kb_context_blocks = kb_context_blocks
+        self._user_memories = user_memories
+        self._attachment_uploads = attachment_uploads
+        self._working_history = list(history_messages)
+        self._window_out_summary = history_summary_before_window
+
+        self._tool_guided_user_message = get_user_message_for_tool_calls(
+            self._user_message_text,
             kb_context_blocks=kb_context_blocks,
             user_memories=user_memories,
-            window_out_summary=history_summary_before_window,
+            window_out_summary=self._window_out_summary,
             attachment_uploads=attachment_uploads,
         )
-        user_message_content = build_user_content_for_llm(
+        self._user_message_content = build_user_content_for_llm(
             chat_request.content_blocks,
-            leading_text=tool_guided_user_message,
+            leading_text=self._tool_guided_user_message,
             include_text_blocks=False,
         )
         base_prompt_messages = self._compose_messages(
-            system_prompt, history_messages, user_message_content, []
+            self._system_prompt,
+            self._working_history,
+            self._user_message_content,
+            [],
         )
 
         tool_session = MCPToolSession(
             self.mcp_manager,
-            user_message_text,
+            self._user_message_text,
             self.model_config.model_name,
             self.model_config.context_limit,
             self.tool_round_messages,
         )
         tool_session.reset_for_request(
-            user_message_text,
+            self._user_message_text,
             user_id=user_id,
             conversation_id=conversation_id,
             agent_mode=chat_request.agent_mode,
         )
 
         if not tools:
+            action, base_prompt_messages = await self.unified_context_guard(
+                base_prompt_messages=base_prompt_messages,
+                conversation_id=conversation_id,
+                allow_stop_tools=False,
+            )
             async for sse in self._stream_final_round_events(
                 messages=base_prompt_messages,
                 tool_session=tool_session,
@@ -175,9 +208,29 @@ class ChatSessionAgent(BaseAgent):
             if chat_request.agent_mode == 0:
                 tool_session.apply_iteration_hints(
                     messages=base_prompt_messages,
-                    tool_guided_user_message=tool_guided_user_message,
+                    tool_guided_user_message=self._tool_guided_user_message,
                     iteration=iteration,
                 )
+
+            action, base_prompt_messages = await self.unified_context_guard(
+                base_prompt_messages=base_prompt_messages,
+                conversation_id=conversation_id,
+                allow_stop_tools=True,
+            )
+            if action == "stop_tools":
+                logger.info(
+                    "Unified context guard requested stop tools, "
+                    "switching to final answer round",
+                    iteration=iteration + 1,
+                )
+                async for sse in self._stream_final_round_events(
+                    messages=base_prompt_messages,
+                    tool_session=tool_session,
+                    iteration=iteration,
+                ):
+                    yield sse
+                return
+
             round_prompt_messages = self._build_round_prompt_messages(
                 base_prompt_messages
             )
@@ -202,20 +255,10 @@ class ChatSessionAgent(BaseAgent):
                     "Tool call guardrail halted, switching to final answer round",
                     iteration=iteration + 1,
                 )
-                async for sse in self._stream_final_round_events(
-                    messages=base_prompt_messages,
-                    tool_session=tool_session,
-                    iteration=iteration,
-                ):
-                    yield sse
-                return
-
-            if self._check_round_context_budget(
-                self._build_round_prompt_messages(base_prompt_messages)
-            )[0]:
-                logger.info(
-                    "Tool context limit reached, switching to final answer round",
-                    iteration=iteration + 1,
+                action, base_prompt_messages = await self.unified_context_guard(
+                    base_prompt_messages=base_prompt_messages,
+                    conversation_id=conversation_id,
+                    allow_stop_tools=False,
                 )
                 async for sse in self._stream_final_round_events(
                     messages=base_prompt_messages,
@@ -229,6 +272,11 @@ class ChatSessionAgent(BaseAgent):
             "Chat session max tool iterations reached, forcing final answer",
             max_iterations=max_total_iterations,
         )
+        action, base_prompt_messages = await self.unified_context_guard(
+            base_prompt_messages=base_prompt_messages,
+            conversation_id=conversation_id,
+            allow_stop_tools=False,
+        )
         async for sse in self._stream_final_round_events(
             messages=base_prompt_messages,
             tool_session=tool_session,
@@ -236,6 +284,189 @@ class ChatSessionAgent(BaseAgent):
         ):
             yield sse
         return
+
+    async def unified_context_guard(
+        self,
+        *,
+        base_prompt_messages: list[dict[str, Any]],
+        conversation_id: str,
+        allow_stop_tools: bool,
+    ) -> tuple[GuardAction, list[dict[str, Any]]]:
+        """每次 LLM 调用前的统一上下文守卫（分级降级）。"""
+        guard = self.chat_context_config.unified_guard
+        if not guard.enabled:
+            logger.warning(
+                "Unified context guard disabled; relying on L1 hard limit only",
+                conversation_id=conversation_id,
+            )
+            return "ok", base_prompt_messages
+
+        history_svc = self.history_context_service
+        threshold = history_svc.compute_context_threshold(
+            self.model_config.context_limit,
+            self.model_config.max_output_tokens,
+            guard,
+        )
+
+        def _total_tokens(base: list[dict[str, Any]]) -> int:
+            return self.token_calculator.count_messages_tokens(
+                self._build_round_prompt_messages(base)
+            )
+
+        total_tokens = _total_tokens(base_prompt_messages)
+        if total_tokens <= threshold:
+            return "ok", base_prompt_messages
+
+        logger.info(
+            "Unified context guard triggered",
+            conversation_id=conversation_id,
+            total_tokens=total_tokens,
+            threshold=threshold,
+        )
+
+        # Step 2: compress all history tool results
+        compressed_history = history_svc.compress_history_tool_results(
+            self._working_history
+        )
+        if compressed_history is not self._working_history:
+            self._working_history = compressed_history
+            base_prompt_messages = self._compose_messages(
+                self._system_prompt,
+                self._working_history,
+                self._user_message_content,
+                [],
+            )
+            # refresh user content (summary unchanged) — keep multimodal blocks
+            total_tokens = _total_tokens(base_prompt_messages)
+            if total_tokens <= threshold:
+                return "ok", base_prompt_messages
+
+        # Step 3: window out-of-window summary by dynamic token budget
+        system_tokens = self.token_calculator.count_message_tokens(
+            {"role": "system", "content": self._system_prompt}
+        )
+        user_tokens = self.token_calculator.count_message_tokens(
+            {"role": "user", "content": self._user_message_content}
+        )
+        tool_round_tokens = self.token_calculator.count_messages_tokens(
+            format_tool_call_messages_for_llm(
+                self.session_output.tool_round_messages,
+                clear_reasoning_content=False,
+            )
+        )
+        remaining_budget = threshold - system_tokens - user_tokens - tool_round_tokens
+        in_window, out_of_window = history_svc.split_by_remaining_budget(
+            self._working_history, remaining_budget
+        )
+        if out_of_window:
+            summary = await history_svc.generate_window_out_summary(
+                conversation_id=conversation_id,
+                out_of_window_messages=out_of_window,
+                prior_summary=self._window_out_summary,
+            )
+            if summary is not None:
+                self._window_out_summary = summary
+            self._working_history = in_window
+            self._tool_guided_user_message = get_user_message_for_tool_calls(
+                self._user_message_text,
+                kb_context_blocks=self._kb_context_blocks,
+                user_memories=self._user_memories,
+                window_out_summary=self._window_out_summary,
+                attachment_uploads=self._attachment_uploads,
+            )
+            # Preserve multimodal parts from current user message content if list
+            if isinstance(self._user_message_content, list):
+                image_parts = [
+                    p
+                    for p in self._user_message_content
+                    if isinstance(p, dict) and p.get("type") == "image_url"
+                ]
+                self._user_message_content = [
+                    {"type": "text", "text": self._tool_guided_user_message},
+                    *image_parts,
+                ]
+            else:
+                self._user_message_content = self._tool_guided_user_message
+
+            base_prompt_messages = self._compose_messages(
+                self._system_prompt,
+                self._working_history,
+                self._user_message_content,
+                [],
+            )
+            total_tokens = _total_tokens(base_prompt_messages)
+            if total_tokens <= threshold:
+                return "ok", base_prompt_messages
+
+        # Step 4: size-aware compress current-turn older tool results
+        if total_tokens > threshold:
+            total_tokens = self._size_aware_compress_tool_rounds(
+                base_prompt_messages, threshold
+            )
+
+        if total_tokens <= threshold:
+            return "ok", base_prompt_messages
+
+        if allow_stop_tools:
+            logger.warning(
+                "Unified context guard still over threshold after compaction; "
+                "stopping tool calls",
+                conversation_id=conversation_id,
+                total_tokens=total_tokens,
+                threshold=threshold,
+            )
+            return "stop_tools", base_prompt_messages
+
+        return "ok", base_prompt_messages
+
+    def _size_aware_compress_tool_rounds(
+        self,
+        base_prompt_messages: list[dict[str, Any]],
+        threshold: int,
+    ) -> int:
+        """Compress largest tool results one-by-one until under threshold."""
+        guard = self.chat_context_config.unified_guard
+        keep_recent = guard.keep_recent_tool_results
+        threshold_chars = guard.tool_result_compress_threshold_chars
+        keep_head = guard.tool_result_compress_keep_head_chars
+        keep_tail = guard.tool_result_compress_keep_tail_chars
+        messages = self.session_output.tool_round_messages
+        compressible_end = tool_round_compressible_end(messages, keep_recent)
+        if compressible_end <= 0:
+            return self.token_calculator.count_messages_tokens(
+                self._build_round_prompt_messages(base_prompt_messages)
+            )
+
+        candidates: list[int] = []
+        for i in range(compressible_end):
+            msg = messages[i]
+            if (
+                isinstance(msg, ToolResultMessage)
+                and len(msg.content) > threshold_chars
+            ):
+                candidates.append(i)
+        candidates.sort(
+            key=lambda i: len(messages[i].content or ""),
+            reverse=True,
+        )
+
+        total_tokens = self.token_calculator.count_messages_tokens(
+            self._build_round_prompt_messages(base_prompt_messages)
+        )
+        for idx in candidates:
+            msg = messages[idx]
+            if not isinstance(msg, ToolResultMessage):
+                continue
+            truncated = head_tail_truncate_chars(msg.content, keep_head, keep_tail)
+            if truncated == msg.content:
+                continue
+            msg.content = truncated
+            total_tokens = self.token_calculator.count_messages_tokens(
+                self._build_round_prompt_messages(base_prompt_messages)
+            )
+            if total_tokens <= threshold:
+                break
+        return total_tokens
 
     def _resolve_request_mcp_servers(
         self, chat_request: ChatRequest
@@ -252,24 +483,6 @@ class ChatSessionAgent(BaseAgent):
             clear_reasoning_content=False,
         )
         return base_messages + formatted_collected
-
-    def _check_round_context_budget(
-        self, next_round_messages: list[dict[str, Any]]
-    ) -> tuple[bool, int, int]:
-        current_tokens = self.token_calculator.count_messages_tokens(
-            next_round_messages
-        )
-        threshold_tokens = int(self.model_limit * self.tool_context_limit_ratio)
-        is_over_threshold = current_tokens > threshold_tokens
-        if is_over_threshold:
-            logger.warning(
-                "Tool round context budget exceeded",
-                current_tokens=current_tokens,
-                threshold_tokens=threshold_tokens,
-                model_limit=self.model_limit,
-                threshold_ratio=self.tool_context_limit_ratio,
-            )
-        return is_over_threshold, current_tokens, threshold_tokens
 
     def _sync_session_output(self) -> None:
         self.session_output.content_blocks = list(self.content_block_aggregator.blocks)

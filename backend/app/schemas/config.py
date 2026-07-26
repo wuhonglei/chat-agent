@@ -61,6 +61,10 @@ class LLMConfig(BaseModel):
     api_base: str = Field(description="LLM API 基础地址")
     model_name: str = Field(description="默认模型名称")
     context_limit: int = Field(gt=0, description="模型上下文 token 上限")
+    max_output_tokens: int = Field(
+        gt=0,
+        description="模型输出 token 预留（显式配置或按 context_limit 推断）",
+    )
     title: str | None = Field(default=None, description="展示标题（可选）")
     description: str | None = Field(default=None, description="说明文案（可选）")
     image_support: bool = Field(
@@ -81,6 +85,11 @@ class ProviderModelMeta(BaseModel):
     name: str | None = Field(default=None, description="展示标题（可选）")
     description: str | None = Field(default=None, description="说明文案（可选）")
     context_limit: int = Field(gt=0, description="模型上下文 token 上限")
+    max_output_tokens: int | None = Field(
+        default=None,
+        gt=0,
+        description="模型输出 token 上限；为空时按 context_limit 推断",
+    )
     capabilities: list[ModelCapability] = Field(
         default_factory=_default_capabilities,
         description="模型能力：text（文本）、image（图片输入）",
@@ -482,7 +491,7 @@ class ToolResultCompressionConfig(BaseModel):
         default=500,
         gt=0,
         description=(
-            "窗口内非最新轮 tool_use：整段 arguments_text 超过该字符数时才进入截断"
+            "窗口内历史 tool_use：整段 arguments_text 超过该字符数时才进入截断"
             "（对齐 hermes Pass-3 门闩）"
         ),
     )
@@ -566,21 +575,6 @@ class ToolResultHardLimitConfig(BaseModel):
     )
 
 
-class HistoryWindowConfig(BaseModel):
-    """历史消息窗口配置"""
-
-    token_ratio: float = Field(
-        default=0.25,
-        gt=0,
-        le=1,
-        description="历史消息 token 预算占模型 context_limit 的比例，超出部分从更早消息起截断",
-    )
-    max_rounds: int = Field(
-        default=20,
-        description="历史最多保留轮数（一轮 = 一条 user + 对应 assistant 及其中 tool）",
-    )
-
-
 class WindowOutSummaryConfig(BaseModel):
     """窗口外摘要管道配置（截断→摘要→user_context→system 注入）"""
 
@@ -591,6 +585,55 @@ class WindowOutSummaryConfig(BaseModel):
     summary_max_tokens: int = Field(
         default=1000,
         description="窗口外摘要最大 token 数，写入与注入时共用",
+    )
+
+
+class UnifiedContextGuardConfig(BaseModel):
+    """统一上下文守卫：每次 LLM 调用前按总 prompt 分级降级。"""
+
+    enabled: bool = Field(default=True, description="是否启用统一上下文守卫")
+    buffer_tokens: int = Field(
+        default=13000,
+        ge=0,
+        description="安全缓冲 token 数（对齐 claude-code AUTOCOMPACT_BUFFER_TOKENS）",
+    )
+    max_output_tokens: int = Field(
+        default=8192,
+        gt=0,
+        description="输出预留封顶；reserved_output = min(llm.max_output_tokens, 此项)",
+    )
+    keep_recent_tool_results: int = Field(
+        default=2,
+        ge=0,
+        description=(
+            "当前轮 Step 4 压缩时保留的最新工具组数量"
+            "（一组 = 一次 ToolUseMessage + 其后对应 ToolResultMessage）"
+        ),
+    )
+    tool_result_compress_threshold_chars: int = Field(
+        default=1000,
+        ge=0,
+        description="当前轮工具结果超过该字符数时才进入 size-aware 压缩",
+    )
+    tool_result_compress_keep_head_chars: int = Field(
+        default=500,
+        ge=0,
+        description="Step 4 head-tail 保留的头部字符数",
+    )
+    tool_result_compress_keep_tail_chars: int = Field(
+        default=500,
+        ge=0,
+        description="Step 4 head-tail 保留的尾部字符数",
+    )
+    anti_thrash_failure_threshold: int = Field(
+        default=3,
+        ge=1,
+        description="连续摘要失败几次后触发反抖动保护",
+    )
+    anti_thrash_recovery_seconds: int = Field(
+        default=300,
+        ge=0,
+        description="反抖动恢复窗口（秒）",
     )
 
 
@@ -621,12 +664,6 @@ class ChatContextConfig(BaseModel):
     """对话上下文配置（层级结构）"""
 
     enabled: bool = Field(default=True, description="是否启用上下文压缩")
-    tool_round_context_limit_ratio: float = Field(
-        default=0.8,
-        gt=0,
-        le=1,
-        description="多轮工具调用时，累计上下文超过模型上限该比例后停止继续调工具并转最终回答",
-    )
 
     tool_result_compression: ToolResultCompressionConfig = Field(
         default_factory=ToolResultCompressionConfig,
@@ -636,9 +673,9 @@ class ChatContextConfig(BaseModel):
         default_factory=ToolResultHardLimitConfig,
         description="工具结果硬上限（落盘预览 / 头尾截断 / 同轮预算）",
     )
-    history_window: HistoryWindowConfig = Field(
-        default_factory=HistoryWindowConfig,
-        description="历史消息窗口",
+    unified_guard: UnifiedContextGuardConfig = Field(
+        default_factory=UnifiedContextGuardConfig,
+        description="统一上下文守卫（总 prompt 阈值 + 分级降级）",
     )
     window_out_summary: WindowOutSummaryConfig = Field(
         default_factory=WindowOutSummaryConfig,

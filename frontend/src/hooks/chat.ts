@@ -41,8 +41,17 @@ import {
 import { useEffect, useMemo, useRef, type RefObject } from "react";
 
 import { db } from "@/indexDB";
-import { MessageFeedbackDetails, MessageFeedbackValue, MessageStatus, TitleCreatedBy } from "@/interfaces";
-import { buildUserContentBlocks, getMessageTextFromBlocks, isUserAttachmentBlock } from "@/interfaces/contentBlock";
+import {
+  MessageFeedbackDetails,
+  MessageFeedbackValue,
+  MessageStatus,
+  TitleCreatedBy,
+} from "@/interfaces";
+import {
+  buildUserContentBlocks,
+  getMessageTextFromBlocks,
+  isUserAttachmentBlock,
+} from "@/interfaces/contentBlock";
 import {
   buildTempAssistantMessage,
   buildTempUserMessage,
@@ -81,12 +90,12 @@ export interface UseChatMessageReturn {
   updateMessageFeedback: (
     messageId: string,
     value: MessageFeedbackValue,
-    details?: MessageFeedbackDetails
+    details?: MessageFeedbackDetails,
   ) => Promise<void>;
 }
 
 export const useChatState = (conversationId: string) => {
-  return useAppSelector(state => state.chat[conversationId] || DEFAULT_CHAT_STATE);
+  return useAppSelector((state) => state.chat[conversationId] || DEFAULT_CHAT_STATE);
 };
 
 interface TempMessageState {
@@ -108,7 +117,7 @@ interface UseAutoResumeParams {
     payload: StreamMessage,
     mode: "initial" | "resume",
     onDone?: (data: Extract<StreamMessage, { type: "done" }>["data"]) => void,
-    onProtocolError?: (error: Error) => void
+    onProtocolError?: (error: Error) => void,
   ) => void;
   resetState: (conversationId: string) => void;
   dispatch: ReturnType<typeof useAppDispatch>;
@@ -179,9 +188,9 @@ const useAutoResume = ({
                 streamDone = true;
                 resetState(conversationId);
               },
-              error => {
+              (error) => {
                 streamError = error;
-              }
+              },
             );
           },
           (error: Error) => {
@@ -190,7 +199,7 @@ const useAutoResume = ({
           },
           () => {},
           controller,
-          resumeStartLastEventId
+          resumeStartLastEventId,
         );
 
         if (!streamDone && !streamError && !controller.signal.aborted) {
@@ -237,10 +246,17 @@ const useAutoResume = ({
   ]);
 };
 
-const buildStreamResumeContextFromMessages = (messages: ChatMessage[]): StreamResumeContext | null => {
+const buildStreamResumeContextFromMessages = (
+  messages: ChatMessage[],
+): StreamResumeContext | null => {
   const resumableAssistantMessage = [...messages]
     .reverse()
-    .find(item => item.role === "assistant" && item.status === MessageStatus.Pending && !isLocalMessageId(item.id));
+    .find(
+      (item) =>
+        item.role === "assistant" &&
+        item.status === MessageStatus.Pending &&
+        !isLocalMessageId(item.id),
+    );
 
   if (!resumableAssistantMessage) {
     return null;
@@ -256,7 +272,7 @@ const buildStreamResumeContextFromMessages = (messages: ChatMessage[]): StreamRe
 };
 
 export const useChatMessage = (options: UseChatMessageOptions) => {
-  const { conversationId, historyLimit = 100 } = options;
+  const { conversationId, historyLimit = Infinity } = options;
   const dispatch = useAppDispatch();
   const { message } = App.useApp();
   const { messages, isStreaming, streamResumeContext } = useChatState(conversationId);
@@ -276,7 +292,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
     }
   }, [streamResumeContext]);
 
-  const resetState = useMemoizedFn(conversationId => {
+  const resetState = useMemoizedFn((conversationId) => {
     tempMessageRef.current = null;
     streamLastEventIdRef.current = 0;
     autoResumeAttemptedRef.current = null;
@@ -299,7 +315,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
       streamResumeContext?.assistantMessageId ||
       (lastMessage && !isLocalMessageId(lastMessage.id) ? lastMessage.id : undefined);
     if (assistantMessageId) {
-      chatAPI.streamMessageStop({ assistantMessageId }).catch(error => {
+      chatAPI.streamMessageStop({ assistantMessageId }).catch((error) => {
         reportError("abortMessage streamMessageStop", {
           error,
           conversationId,
@@ -326,13 +342,17 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
   });
 
   const updateMessageFeedback = useMemoizedFn(
-    async (messageId: string, value: MessageFeedbackValue, details?: MessageFeedbackDetails): Promise<void> => {
+    async (
+      messageId: string,
+      value: MessageFeedbackValue,
+      details?: MessageFeedbackDetails,
+    ): Promise<void> => {
       if (isStreaming) {
         return;
       }
       try {
         const updatedFeedback = await chatAPI.updateMessageFeedback(messageId, value, details);
-        const targetMessage = messages.find(item => item.id === messageId);
+        const targetMessage = messages.find((item) => item.id === messageId);
         if (!targetMessage) {
           return;
         }
@@ -344,13 +364,13 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
               ...targetMessage,
               feedback: updatedFeedback,
             },
-          })
+          }),
         );
         dispatch(
           updateConversationModifiedTime({
             conversationId,
             lastMessageUpdatedAt: updatedFeedback.updatedAt,
-          })
+          }),
         );
       } catch (error) {
         reportError("updateMessageFeedback", {
@@ -363,7 +383,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
         message.error("反馈更新失败");
         throw error;
       }
-    }
+    },
   );
 
   const handleStreamPayload = useMemoizedFn(
@@ -372,7 +392,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
       payload: StreamMessage,
       mode: "initial" | "resume",
       onDone?: (data: Extract<StreamMessage, { type: "done" }>["data"]) => void,
-      onProtocolError?: (error: Error) => void
+      onProtocolError?: (error: Error) => void,
     ): void => {
       if (payload.lastEventId && payload.lastEventId > streamLastEventIdRef.current) {
         streamLastEventIdRef.current = payload.lastEventId;
@@ -395,7 +415,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
             id,
             title: withDevConversationTitlePrefix(title),
             createdBy: TitleCreatedBy.LLM,
-          })
+          }),
         );
         return;
       }
@@ -413,7 +433,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
                 conversationId,
                 messageId: tempState.userTempId,
                 data,
-              })
+              }),
             );
           } else {
             tempState.assistantServerMessageId = data.id;
@@ -426,21 +446,21 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
                   phase: "streaming",
                   updatedAt: new Date().toISOString(),
                 },
-              })
+              }),
             );
             dispatch(
               replaceMessageById({
                 conversationId,
                 messageId: tempState.assistantTempId,
                 data,
-              })
+              }),
             );
           }
           dispatch(
             updateMessageModifiedTime({
               conversationId,
               data: data.updatedAt,
-            })
+            }),
           );
           return;
         }
@@ -451,13 +471,13 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
               conversationId,
               messageId: data.id,
               data,
-            })
+            }),
           );
           dispatch(
             updateMessageModifiedTime({
               conversationId,
               data: data.updatedAt,
-            })
+            }),
           );
         }
         return;
@@ -476,13 +496,13 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
           updateMessageModifiedTime({
             conversationId,
             data: data.lastMessageUpdatedAt,
-          })
+          }),
         );
         dispatch(
           updateConversationModifiedTime({
             conversationId,
             lastMessageUpdatedAt: data.lastMessageUpdatedAt,
-          })
+          }),
         );
         onDone?.(data);
         return;
@@ -504,7 +524,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
         type,
         conversationId,
       });
-    }
+    },
   );
 
   const sendMessage = useMemoizedFn(
@@ -551,13 +571,13 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
           addMessage({
             conversationId,
             data: buildTempUserMessage(userTempId, normalizedValues, userBlocks),
-          })
+          }),
         );
         dispatch(
           addMessage({
             conversationId,
             data: buildTempAssistantMessage(assistantTempId, userTempId, normalizedValues),
-          })
+          }),
         );
 
         let streamDone = false;
@@ -568,14 +588,14 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
             streamConversationId,
             data,
             "initial",
-            doneData => {
+            (doneData) => {
               streamDone = true;
               resetState(conversationId);
               reportEvent("message_stream_done", doneData);
             },
-            error => {
+            (error) => {
               streamError = error;
-            }
+            },
           );
         };
         const handleStreamError = (error: Error): void => {
@@ -604,7 +624,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
               dispatch(updateStreamResumePhase({ conversationId, data: "closed" }));
             }
           },
-          abortController
+          abortController,
         );
 
         if (!streamDone && !abortController.signal.aborted) {
@@ -622,7 +642,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
         });
         resetState(conversationId);
       }
-    }
+    },
   );
 
   const reSendMessage = useMemoizedFn(
@@ -636,7 +656,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
           {
             index,
             attachmentBlocks: message.contentBlocks.filter(isUserAttachmentBlock),
-          }
+          },
         );
       } else {
         // 如果是助手消息，则重新发送上一个用户消息
@@ -650,10 +670,10 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
           {
             index: newIndex,
             attachmentBlocks: userMessage.contentBlocks.filter(isUserAttachmentBlock),
-          }
+          },
         );
       }
-    }
+    },
   );
 
   useAutoResume({
@@ -712,7 +732,7 @@ export function useNewConversation() {
       }
     },
     // oxlint-disable-next-line react-hooks/exhaustive-deps
-    [conversationId] // 路由变化后，由于渲染同一个 ChatPage 实例，因此需要依赖 conversationId 来主动执行 useMemo
+    [conversationId], // 路由变化后，由于渲染同一个 ChatPage 实例，因此需要依赖 conversationId 来主动执行 useMemo
   );
 
   const setCacheData = useMemoizedFn((data: NewConversationCache) => {
@@ -735,7 +755,7 @@ export function useNewConversation() {
 }
 
 export const useConversationInfo = (conversationId: string) => {
-  const conversationInfo = useAppSelector(state => state.conversation.conversationInfo);
+  const conversationInfo = useAppSelector((state) => state.conversation.conversationInfo);
   const dispatch = useAppDispatch();
   // 页面刷新时，conversationInfo 为空，则获取 conversationInfo
   const empty = isEmpty(conversationInfo);
@@ -747,7 +767,10 @@ export const useConversationInfo = (conversationId: string) => {
   return conversationInfo;
 };
 
-export const useCachedRequest = (conversationId: string, conversationInfo: ConversationInfo | null) => {
+export const useCachedRequest = (
+  conversationId: string,
+  conversationInfo: ConversationInfo | null,
+) => {
   // 页面刷新后清除 isNewConversation 状态
   const { cacheData: conversationState, clearCacheData } = useNewConversation();
   const isNewConversation = conversationState.isNewConversation;
@@ -774,7 +797,7 @@ export const useCachedRequest = (conversationId: string, conversationInfo: Conve
     },
     {
       manual: true,
-      onSuccess: data => {
+      onSuccess: (data) => {
         dispatch(setMessages({ conversationId, data }));
         const rebuiltStreamResumeContext = buildStreamResumeContextFromMessages(data);
         if (rebuiltStreamResumeContext) {
@@ -782,23 +805,24 @@ export const useCachedRequest = (conversationId: string, conversationInfo: Conve
             setStreamResumeContext({
               conversationId,
               data: rebuiltStreamResumeContext,
-            })
+            }),
           );
           return;
         }
         dispatch(clearStreamResumeContext({ conversationId, data: undefined }));
       },
-      onError: error => {
+      onError: (error) => {
         console.info("error", error);
         if ((error as { code?: number }).code === 404) {
           // 删除会话列表中的会话
           dispatch(removeConversationFromList(conversationId));
         }
       },
-    }
+    },
   );
 
-  const hasCachedStreamingMessages = streamResumeContext?.phase === "streaming" && !isEmpty(messages);
+  const hasCachedStreamingMessages =
+    streamResumeContext?.phase === "streaming" && !isEmpty(messages);
 
   useEffect(() => {
     // 排除新对话和没有 conversationId 的情况
@@ -818,7 +842,7 @@ export const useCachedRequest = (conversationId: string, conversationInfo: Conve
 
     db.conversationMessages
       .get(conversationId)
-      .then(data => {
+      .then((data) => {
         const cachedChatState = data?.data;
         // 首次刷新时，conversationInfo 还未获取到，则不加载消息
         if (!lastMessageUpdateAt) {
@@ -828,21 +852,24 @@ export const useCachedRequest = (conversationId: string, conversationInfo: Conve
               setTempMessages({
                 conversationId,
                 data: cachedChatState?.messages as ChatMessage[],
-              })
+              }),
             );
             if (cachedChatState?.streamResumeContext) {
               dispatch(
                 setStreamResumeContext({
                   conversationId,
                   data: cachedChatState.streamResumeContext,
-                })
+                }),
               );
             } else {
               dispatch(clearStreamResumeContext({ conversationId, data: undefined }));
             }
             console.info("use temp messages from indexDB", conversationId);
           } else {
-            console.info("conversationInfo not loaded yet, will load messages later", conversationId);
+            console.info(
+              "conversationInfo not loaded yet, will load messages later",
+              conversationId,
+            );
           }
           return;
         }
@@ -873,14 +900,14 @@ export const useCachedRequest = (conversationId: string, conversationInfo: Conve
             setStreamResumeContext({
               conversationId,
               data: cachedResumeContext,
-            })
+            }),
           );
         } else {
           dispatch(clearStreamResumeContext({ conversationId, data: undefined }));
         }
         console.info("use cached data", conversationId);
       })
-      .catch(error => {
+      .catch((error) => {
         console.info("error getting messages from indexedDB", error);
         loadMessages(conversationId);
       });

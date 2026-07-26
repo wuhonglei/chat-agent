@@ -89,3 +89,17 @@ def test_resolve_tool_use_fields_unknown_raises() -> None:
 
     with pytest.raises(ValueError, match="未知工具名"):
         resolve_tool_use_fields("missing_tool", lambda _n: None)
+
+
+def test_resolve_tool_use_fields_canonicalizes_bare_alias() -> None:
+    from app.mcp.tool_naming import resolve_tool_use_fields
+
+    def lookup(name: str) -> ToolRoute | None:
+        if name in {"present_files", "file_present_files"}:
+            return ToolRoute(server_name="file", mcp_tool_name="present_files")
+        return None
+
+    name, server, mcp = resolve_tool_use_fields("present_files", lookup)
+    assert name == "file_present_files"
+    assert server == "file"
+    assert mcp == "present_files"

@@ -54,3 +54,27 @@ def test_process_tool_call_deltas_unknown_tool_does_not_crash() -> None:
     assert tool_delta["name"] == "tavily_web_crawl"
     assert "server_name" not in tool_delta
     assert "mcp_tool_name" not in tool_delta
+
+
+def test_process_tool_call_deltas_bare_alias_canonicalizes_name() -> None:
+    agg = ContentBlocksAggregator()
+    agg.set_tool_name_resolver(
+        lambda name: ToolRoute(server_name="file", mcp_tool_name="present_files")
+        if name in {"present_files", "file_present_files"}
+        else None
+    )
+
+    delta = SimpleNamespace(
+        index=0,
+        id="call_1",
+        function=SimpleNamespace(
+            name="present_files",
+            arguments='{"filepaths":[]}',
+        ),
+    )
+    agg.process_tool_call_deltas([delta])
+
+    block = agg.blocks[0]
+    assert block.name == "file_present_files"
+    assert block.server_name == "file"
+    assert block.mcp_tool_name == "present_files"
