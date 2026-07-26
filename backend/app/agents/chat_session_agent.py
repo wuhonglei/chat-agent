@@ -381,22 +381,10 @@ class ChatSessionAgent(BaseAgent):
             )
             # Preserve multimodal parts from current user message content if list
             if isinstance(self._user_message_content, list):
-                # Rebuild leading text only: keep non-text parts
-                non_text_parts = [
-                    p
-                    for p in self._user_message_content
-                    if not (
-                        isinstance(p, dict)
-                        and p.get("type") == "text"
-                        and p.get("text") == self._tool_guided_user_message
-                    )
-                ]
-                # Simpler: rebuild from original chat blocks is hard here;
-                # update_last style — replace content with guided text + image parts
                 image_parts = [
                     p
                     for p in self._user_message_content
-                    if isinstance(p, dict) and p.get("type") != "text"
+                    if isinstance(p, dict) and p.get("type") == "image_url"
                 ]
                 self._user_message_content = [
                     {"type": "text", "text": self._tool_guided_user_message},
