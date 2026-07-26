@@ -83,17 +83,8 @@ async def l2_set(
     *,
     namespace: str,
     ttl: int,
-    max_bytes: int | None = None,
 ) -> bool:
     raw = json.dumps(value, ensure_ascii=False, default=str)
-    if max_bytes is not None and len(raw.encode("utf-8")) > max_bytes:
-        logger.info(
-            "cache_skip_oversize",
-            cache_level="l2",
-            cache_namespace=namespace,
-            max_bytes=max_bytes,
-        )
-        return False
     try:
         await _with_cache_timeout(get_redis().set(key, raw, ex=ttl))
     except Exception as exc:
