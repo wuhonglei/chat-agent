@@ -61,7 +61,7 @@
     "baseline-browser-mapping": "^2.9.19",
     "debug": "^4.4.3",
     "globals": "^17.7.0",
-    "postcss": "^8.5.6",
+    "postcss": "^8.5.23",
     "tailwindcss": "^4.1.18",
     "tsx": "^4.23.1",
     "typescript": "^5.9.3",
