@@ -7,6 +7,7 @@ import pytest
 from app.schemas.config import ModelsConfig
 from app.services.base_service.model_resolver import (
     ModelResolverError,
+    infer_max_output_tokens,
     list_text_generation_models,
     resolve_model_ref,
     resolve_scenario,
@@ -25,9 +26,31 @@ def test_resolve_model_ref_builds_llm_config() -> None:
     assert cfg.api_base == "https://dashscope.aliyuncs.com/compatible-mode/v1"
     assert cfg.api_key == "sk-test-qwen"
     assert cfg.context_limit == 128000
+    assert cfg.max_output_tokens == 8192  # inferred from 128K
     assert cfg.title == "Qwen3.7 Plus"
     # capabilities 含 image -> image_support True
     assert cfg.image_support is True
+
+
+def test_infer_max_output_tokens_tiers() -> None:
+    assert infer_max_output_tokens(4_096) == 1_024
+    assert infer_max_output_tokens(8_192) == 2_048
+    assert infer_max_output_tokens(16_384) == 4_096
+    assert infer_max_output_tokens(32_768) == 4_096
+    assert infer_max_output_tokens(65_536) == 8_192
+    assert infer_max_output_tokens(128_000) == 8_192
+    assert infer_max_output_tokens(200_000) == 16_384
+    assert infer_max_output_tokens(262_144) == 16_384
+    assert infer_max_output_tokens(524_288) == 32_768
+    assert infer_max_output_tokens(1_048_576) == 32_768
+    assert infer_max_output_tokens(2_097_152) == 65_536
+
+
+def test_explicit_max_output_tokens_overrides_inference() -> None:
+    raw = _models().model_dump()
+    raw["providers"]["qwen"]["models"]["qwen3.7-plus"]["max_output_tokens"] = 4096
+    cfg = resolve_model_ref("qwen/qwen3.7-plus", ModelsConfig.model_validate(raw))
+    assert cfg.max_output_tokens == 4096
 
 
 def test_resolve_model_ref_text_only_model_has_no_image_support() -> None:

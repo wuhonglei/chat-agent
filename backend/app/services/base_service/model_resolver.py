@@ -18,6 +18,29 @@ class ModelResolverError(ValueError):
     """模型引用无法解析（格式非法、provider/model 不存在等）。"""
 
 
+def infer_max_output_tokens(context_limit: int) -> int:
+    """按上下文窗口档位推测默认输出预留（对齐常见模型能力）。"""
+    if context_limit <= 4_096:
+        return max(512, context_limit // 4)
+    if context_limit <= 8_192:
+        return max(1_024, context_limit // 4)
+    if context_limit <= 16_384:
+        return 4_096
+    if context_limit <= 32_768:
+        return 4_096
+    if context_limit <= 65_536:
+        return 8_192
+    if context_limit <= 131_072:
+        return 8_192
+    if context_limit <= 262_144:
+        return 16_384
+    if context_limit <= 524_288:
+        return 32_768
+    if context_limit <= 1_048_576:
+        return 32_768
+    return 65_536
+
+
 def _resolve_models(models: ModelsConfig | None) -> ModelsConfig:
     if models is not None:
         return models
@@ -37,11 +60,17 @@ def _split_ref(ref: str) -> tuple[str, str]:
 def _build_llm_config(
     provider: ProviderConfig, model_key: str, meta: ProviderModelMeta
 ) -> LLMConfig:
+    max_output_tokens = (
+        meta.max_output_tokens
+        if meta.max_output_tokens is not None
+        else infer_max_output_tokens(meta.context_limit)
+    )
     return LLMConfig(
         api_key=provider.api_key,
         api_base=provider.base_url,
         model_name=model_key,
         context_limit=meta.context_limit,
+        max_output_tokens=max_output_tokens,
         title=meta.name,
         description=meta.description,
         image_support="image" in meta.capabilities,

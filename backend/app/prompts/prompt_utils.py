@@ -14,6 +14,7 @@ from app.prompts.system_prompt import (
     system_prompt_for_title_template,
 )
 from app.prompts.user_prompt import (
+    WINDOW_OUT_SUMMARY_COMPRESS_PROMPT,
     WINDOW_OUT_SUMMARY_MERGE_PROMPT,
     gentle_tips_in_web_search_template,
     tool_call_sufficient_info_template,
@@ -114,6 +115,17 @@ def get_window_out_summary_merge_prompt(
     return WINDOW_OUT_SUMMARY_MERGE_PROMPT.render(
         prior_summary=prior_summary,
         new_messages_text=new_messages_text,
+        max_tokens_hint=max_tokens,
+    ).strip()
+
+
+def get_window_out_summary_compress_prompt(
+    prior_summary: str,
+    max_tokens: int,
+) -> str:
+    """渲染摘要自压缩 prompt。"""
+    return WINDOW_OUT_SUMMARY_COMPRESS_PROMPT.render(
+        prior_summary=prior_summary,
         max_tokens_hint=max_tokens,
     ).strip()
 

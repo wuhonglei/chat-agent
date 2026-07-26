@@ -1,4 +1,4 @@
-"""History windowing and summary helpers for chat streaming."""
+"""History windowing and summary helpers for unified context guard."""
 
 from __future__ import annotations
 
@@ -11,15 +11,14 @@ from app.schemas.chat import (
     ToolResultBlock,
     ToolUseBlock,
 )
-from app.schemas.config import ChatContextConfig
+from app.schemas.config import ChatContextConfig, UnifiedContextGuardConfig
+from app.schemas.llm import ToolMessage, ToolResultMessage, ToolUseMessage
 from app.services.conversation import (
     ContextSummaryService,
     ConversationContextDbService,
 )
-from app.utils.history_truncate import (
-    split_history_by_rounds,
-    truncate_in_window_by_round_tokens,
-)
+from app.utils.date import get_datetime_now
+from app.utils.history_truncate import split_history_by_token_budget
 from app.utils.logger import logger
 from app.utils.token import TokenCalculator
 
@@ -64,11 +63,7 @@ def _truncate_tool_use_arguments(
     max_chars: int,
     keep_chars: int,
 ) -> ToolUseBlock:
-    """Truncate oversized tool_use arguments (hermes Pass-3 style).
-
-    Gate on whole ``arguments_text`` length (``max_chars``); then shrink long
-    string leaves to ``keep_chars`` inside parsed JSON.
-    """
+    """Truncate oversized tool_use arguments (hermes Pass-3 style)."""
     arguments_text = block.arguments_text or ""
     if not arguments_text or len(arguments_text) <= max_chars:
         return block
@@ -90,6 +85,63 @@ def _truncate_tool_use_arguments(
             else None,
         }
     )
+
+
+def head_tail_truncate_chars(text: str, head_chars: int, tail_chars: int) -> str:
+    if head_chars < 0:
+        head_chars = 0
+    if tail_chars < 0:
+        tail_chars = 0
+    keep = head_chars + tail_chars
+    if keep <= 0 or len(text) <= keep:
+        return text
+    marker = "\n...[中间已省略]...\n"
+    return text[:head_chars] + marker + text[-tail_chars:]
+
+
+# 兼容旧内部名
+_head_tail_truncate_chars = head_tail_truncate_chars
+
+
+def tool_round_compressible_end(
+    messages: list[ToolMessage],
+    keep_recent_groups: int,
+) -> int:
+    """Step 4 可压缩区间的右开下标。
+
+    以「一次 ``ToolUseMessage`` + 其后连续 ``ToolResultMessage``」为一组；
+    ``keep_recent_groups`` 保护最新若干组。孤立的连续 result 也自成一组。
+    """
+    if not messages:
+        return 0
+    if keep_recent_groups <= 0:
+        return len(messages)
+
+    group_ends: list[int] = []
+    i = 0
+    n = len(messages)
+    while i < n:
+        msg = messages[i]
+        if isinstance(msg, ToolUseMessage):
+            j = i + 1
+            while j < n and isinstance(messages[j], ToolResultMessage):
+                j += 1
+            group_ends.append(j)
+            i = j
+        elif isinstance(msg, ToolResultMessage):
+            j = i + 1
+            while j < n and isinstance(messages[j], ToolResultMessage):
+                j += 1
+            group_ends.append(j)
+            i = j
+        else:
+            raise TypeError(f"unexpected tool message type: {type(msg)}")
+
+    if keep_recent_groups >= len(group_ends):
+        return 0
+
+    first_kept = len(group_ends) - keep_recent_groups
+    return group_ends[first_kept - 1] if first_kept > 0 else 0
 
 
 async def _persist_window_out_summary(
@@ -119,7 +171,7 @@ async def _persist_window_out_summary(
 
 
 class HistoryContextService:
-    """Prepare history messages for the chat session agent."""
+    """Compression / summary primitives for the unified context guard."""
 
     def __init__(
         self,
@@ -127,13 +179,14 @@ class HistoryContextService:
         token_calculator: TokenCalculator,
     ) -> None:
         self.chat_context_config = chat_context_config
-        self.history_window_config = chat_context_config.history_window
         self.window_out_summary_config = chat_context_config.window_out_summary
+        self.unified_guard = chat_context_config.unified_guard
         self.token_calculator = token_calculator
 
-    def compress_history_messages(
+    def compress_history_tool_results(
         self, history_messages: list[ChatMessage]
     ) -> list[ChatMessage]:
+        """Step 2: compress all history ToolResultBlocks; truncate all tool_use args."""
         if not history_messages:
             return []
 
@@ -141,23 +194,18 @@ class HistoryContextService:
         threshold_tokens = compression_cfg.message_summary_threshold_tokens
         tool_arg_max_chars = compression_cfg.tool_arg_max_chars
         tool_arg_keep_chars = compression_cfg.tool_arg_keep_chars
-        last_round_start = max(0, len(history_messages) - 2)
         processed_messages: list[ChatMessage] = []
 
-        for idx, msg in enumerate(history_messages):
+        for msg in history_messages:
             if msg.role != "assistant":
                 processed_messages.append(msg)
                 continue
 
-            is_latest_tool_round = idx >= last_round_start
             new_blocks: list[ContentBlock] = []
             blocks_changed = False
 
             for block in msg.content_blocks:
                 if isinstance(block, ToolUseBlock):
-                    if is_latest_tool_round:
-                        new_blocks.append(block)
-                        continue
                     truncated_use = _truncate_tool_use_arguments(
                         block,
                         max_chars=tool_arg_max_chars,
@@ -174,19 +222,18 @@ class HistoryContextService:
 
                 blocks_changed = True
                 effective_content = block.content or ""
-                if not is_latest_tool_round:
-                    if block.summary and block.summary.strip():
-                        effective_content = block.summary
-                    else:
-                        content_tokens = self.token_calculator.count_tokens(
-                            effective_content
-                        )
-                        if content_tokens > threshold_tokens:
-                            effective_content = (
-                                self.token_calculator.truncate_text_to_tokens_head_tail(
-                                    effective_content, threshold_tokens
-                                )
+                if block.summary and block.summary.strip():
+                    effective_content = block.summary
+                else:
+                    content_tokens = self.token_calculator.count_tokens(
+                        effective_content
+                    )
+                    if content_tokens > threshold_tokens:
+                        effective_content = (
+                            self.token_calculator.truncate_text_to_tokens_head_tail(
+                                effective_content, threshold_tokens
                             )
+                        )
 
                 new_blocks.append(
                     block.model_copy(
@@ -208,77 +255,191 @@ class HistoryContextService:
 
         return processed_messages
 
-    async def prepare_history_messages(
+    def compress_tool_round_messages(
         self,
-        raw_history: list[ChatMessage],
+        tool_round_messages: list[ToolMessage],
+        *,
+        keep_recent: int | None = None,
+        threshold_chars: int | None = None,
+        keep_head_chars: int | None = None,
+        keep_tail_chars: int | None = None,
+    ) -> bool:
+        """Step 4: size-aware head-tail truncate older tool results in-place.
+
+        Returns True if any message content was modified.
+        """
+        guard = self.unified_guard
+        keep_recent = (
+            keep_recent if keep_recent is not None else guard.keep_recent_tool_results
+        )
+        threshold_chars = (
+            threshold_chars
+            if threshold_chars is not None
+            else guard.tool_result_compress_threshold_chars
+        )
+        keep_head_chars = (
+            keep_head_chars
+            if keep_head_chars is not None
+            else guard.tool_result_compress_keep_head_chars
+        )
+        keep_tail_chars = (
+            keep_tail_chars
+            if keep_tail_chars is not None
+            else guard.tool_result_compress_keep_tail_chars
+        )
+
+        if not tool_round_messages or keep_recent < 0:
+            return False
+
+        compressible_end = tool_round_compressible_end(tool_round_messages, keep_recent)
+        if compressible_end <= 0:
+            return False
+
+        candidates: list[tuple[int, ToolResultMessage]] = []
+        for i in range(compressible_end):
+            msg = tool_round_messages[i]
+            if (
+                isinstance(msg, ToolResultMessage)
+                and len(msg.content) > threshold_chars
+            ):
+                candidates.append((i, msg))
+
+        if not candidates:
+            return False
+
+        candidates.sort(key=lambda item: len(item[1].content), reverse=True)
+        changed = False
+        for _, msg in candidates:
+            truncated = head_tail_truncate_chars(
+                msg.content, keep_head_chars, keep_tail_chars
+            )
+            if truncated != msg.content:
+                msg.content = truncated
+                changed = True
+        return changed
+
+    async def generate_window_out_summary(
+        self,
+        *,
         conversation_id: str,
-    ) -> tuple[str | None, list[ChatMessage]]:
-        _, in_window_messages = split_history_by_rounds(
-            raw_history,
-            self.history_window_config.max_rounds,
+        out_of_window_messages: list[ChatMessage],
+        prior_summary: str | None,
+    ) -> str | None:
+        """Step 3: incremental window-out summary with anti-thrash."""
+        if not self.window_out_summary_config.enabled or not out_of_window_messages:
+            return prior_summary
+
+        return await self._generate_summary_with_guard(
+            conversation_id=conversation_id,
+            out_of_window_messages=out_of_window_messages,
+            prior_summary=prior_summary,
         )
-        compressed_window_messages = self.compress_history_messages(in_window_messages)
-        history_max_tokens = int(
-            self.token_calculator.context_limit * self.history_window_config.token_ratio
+
+    async def _generate_summary_with_guard(
+        self,
+        *,
+        conversation_id: str,
+        out_of_window_messages: list[ChatMessage],
+        prior_summary: str | None,
+    ) -> str | None:
+        guard = self.unified_guard
+        current_ids = _truncated_set_ids(out_of_window_messages)
+        current_id_set = set(current_ids)
+
+        with ConversationContextDbService() as ctx_svc:
+            ctx = ctx_svc.get_conversation_context(conversation_id)
+            stored_summary = (
+                prior_summary
+                if prior_summary is not None
+                else (ctx.summary_before_window if ctx else None)
+            )
+            last_ids: list[str] = (
+                list(ctx.last_summarized_message_ids or []) if ctx else []
+            )
+            failure_count = int(ctx.summary_failure_count or 0) if ctx else 0
+            last_failure_at = ctx.last_summary_failure_at if ctx else None
+
+        last_id_set = set(last_ids)
+        if current_id_set == last_id_set and stored_summary:
+            return stored_summary
+
+        if failure_count >= guard.anti_thrash_failure_threshold and last_failure_at:
+            elapsed = (get_datetime_now() - last_failure_at).total_seconds()
+            if elapsed < guard.anti_thrash_recovery_seconds:
+                logger.info(
+                    "Summary blocked by anti-thrashing",
+                    conversation_id=conversation_id,
+                    remaining=guard.anti_thrash_recovery_seconds - elapsed,
+                )
+                return stored_summary
+            with ConversationContextDbService() as ctx_svc:
+                ctx_svc.reset_summary_failure_count(conversation_id)
+
+        delta_ids = current_id_set - last_id_set
+        summary_max_tokens = self.window_out_summary_config.summary_max_tokens
+        summary_svc = ContextSummaryService()
+        use_incremental_summary = (
+            last_id_set <= current_id_set and bool(delta_ids) and bool(stored_summary)
         )
-        window_messages_after_truncation = truncate_in_window_by_round_tokens(
-            compressed_window_messages,
-            history_max_tokens,
+        messages_to_summarize = out_of_window_messages
+        if use_incremental_summary:
+            messages_to_summarize = [
+                msg for msg in out_of_window_messages if msg.id in delta_ids
+            ]
+
+        try:
+            summary_to_persist = await summary_svc.summarize_merge(
+                stored_summary,
+                messages_to_summarize,
+                max_tokens=summary_max_tokens,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Window-out summary task failed",
+                conversation_id=conversation_id,
+                error=exc,
+            )
+            with ConversationContextDbService() as ctx_svc:
+                ctx_svc.increment_summary_failure_count(conversation_id)
+            return stored_summary
+
+        if not summary_to_persist:
+            with ConversationContextDbService() as ctx_svc:
+                ctx_svc.increment_summary_failure_count(conversation_id)
+            return stored_summary
+
+        with ConversationContextDbService() as ctx_svc:
+            ctx_svc.reset_summary_failure_count(conversation_id)
+
+        persisted = await _persist_window_out_summary(
+            conversation_id=conversation_id,
+            summary=summary_to_persist,
+            message_ids=current_ids,
+        )
+        return persisted or summary_to_persist
+
+    def split_by_remaining_budget(
+        self,
+        history_messages: list[ChatMessage],
+        remaining_budget: int,
+    ) -> tuple[list[ChatMessage], list[ChatMessage]]:
+        """Split history into in-window / out-of-window by remaining token budget."""
+        return split_history_by_token_budget(
+            history_messages,
+            remaining_budget,
             self.token_calculator,
         )
-        final_kept_ids = {m.id for m in window_messages_after_truncation}
-        out_of_window_messages = [m for m in raw_history if m.id not in final_kept_ids]
 
-        window_out_summary = None
-        stored_summary_before_window = None
-        if self.window_out_summary_config.enabled and out_of_window_messages:
-            current_ids = _truncated_set_ids(out_of_window_messages)
-            current_id_set = set(current_ids)
-            with ConversationContextDbService() as ctx_svc:
-                ctx = ctx_svc.get_conversation_context(conversation_id)
-                stored_summary_before_window = (
-                    ctx.summary_before_window if ctx else None
-                )
-                last_ids: list[str] = (
-                    list(ctx.last_summarized_message_ids or []) if ctx else []
-                )
-            last_id_set = set(last_ids)
-            if current_id_set == last_id_set:
-                return stored_summary_before_window, window_messages_after_truncation
+    def get_stored_window_summary(self, conversation_id: str) -> str | None:
+        """Load persisted window-out summary without running compression."""
+        with ConversationContextDbService() as ctx_svc:
+            return ctx_svc.get_conversation_context_summary(conversation_id)
 
-            delta_ids = current_id_set - last_id_set
-            summary_max_tokens = self.window_out_summary_config.summary_max_tokens
-            summary_to_persist: str | None = None
-            summary_svc = ContextSummaryService()
-            use_incremental_summary = (
-                last_id_set <= current_id_set
-                and bool(delta_ids)
-                and ctx is not None
-                and bool(stored_summary_before_window)
-            )
-            messages_to_summarize = out_of_window_messages
-            if use_incremental_summary:
-                messages_to_summarize = [
-                    msg for msg in out_of_window_messages if msg.id in delta_ids
-                ]
-            try:
-                summary_to_persist = await summary_svc.summarize_merge(
-                    stored_summary_before_window,
-                    messages_to_summarize,
-                    max_tokens=summary_max_tokens,
-                )
-            except Exception as exc:
-                logger.warning(
-                    "Window-out summary task failed",
-                    conversation_id=conversation_id,
-                    error=exc,
-                )
-
-            if summary_to_persist:
-                window_out_summary = await _persist_window_out_summary(
-                    conversation_id=conversation_id,
-                    summary=summary_to_persist,
-                    message_ids=current_ids,
-                )
-
-        return window_out_summary, window_messages_after_truncation
+    @staticmethod
+    def compute_context_threshold(
+        context_limit: int,
+        model_max_output_tokens: int,
+        guard: UnifiedContextGuardConfig,
+    ) -> int:
+        reserved_output = min(model_max_output_tokens, guard.max_output_tokens)
+        return max(0, context_limit - reserved_output - guard.buffer_tokens)

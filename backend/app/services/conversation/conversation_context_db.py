@@ -6,6 +6,7 @@ from sqlmodel import select
 
 from app.models import ConversationContextDb
 from app.services.base_service.db_service import DbService
+from app.utils.date import get_datetime_now
 from app.utils.logger import logger
 
 
@@ -70,3 +71,36 @@ class ConversationContextDbService(DbService):
                 return raw
 
         return None
+
+    def increment_summary_failure_count(self, conversation_id: str) -> None:
+        db = self._ensure_db()
+        row = db.exec(
+            select(ConversationContextDb).where(
+                ConversationContextDb.conversation_id == conversation_id,
+            )
+        ).first()
+        if row is None:
+            row = ConversationContextDb(
+                conversation_id=conversation_id,
+                summary_failure_count=1,
+                last_summary_failure_at=get_datetime_now(),
+            )
+        else:
+            row.summary_failure_count = int(row.summary_failure_count or 0) + 1
+            row.last_summary_failure_at = get_datetime_now()
+        db.add(row)
+        db.commit()
+
+    def reset_summary_failure_count(self, conversation_id: str) -> None:
+        db = self._ensure_db()
+        row = db.exec(
+            select(ConversationContextDb).where(
+                ConversationContextDb.conversation_id == conversation_id,
+            )
+        ).first()
+        if row is None:
+            return
+        row.summary_failure_count = 0
+        row.last_summary_failure_at = None
+        db.add(row)
+        db.commit()

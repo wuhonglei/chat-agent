@@ -3,7 +3,7 @@
 from datetime import datetime
 
 from sqlalchemy import JSON as SQLJSON
-from sqlalchemy import Column, DateTime, ForeignKey, String
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
 from sqlmodel import Field, SQLModel
 
 from app.utils.date import get_datetime_now
@@ -12,7 +12,7 @@ from app.utils.date import get_datetime_now
 class ConversationContextDb(SQLModel, table=True):
     """会话级上下文：仅本会话的窗口外摘要"""
 
-    __tablename__ = "conversation_contexts"
+    __tablename__ = "conversation_contexts"  # pyright: ignore[reportAssignmentType]
 
     conversation_id: str = Field(
         sa_column=Column(
@@ -30,6 +30,16 @@ class ConversationContextDb(SQLModel, table=True):
         default=None,
         sa_type=SQLJSON,
         description="上次已摘要的消息 id 列表（JSON 数组）",
+    )
+    summary_failure_count: int = Field(
+        default=0,
+        sa_column=Column(Integer, nullable=False, server_default="0"),
+        description="连续摘要失败次数",
+    )
+    last_summary_failure_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+        description="上次摘要失败时间",
     )
     updated_at: datetime = Field(
         default_factory=lambda: get_datetime_now(),

@@ -208,6 +208,7 @@ def _llm_service() -> LLMService:
             api_base="https://api.example.com/v1",
             model_name="test-model",
             context_limit=8192,
+            max_output_tokens=2048,
         )
     )
 
