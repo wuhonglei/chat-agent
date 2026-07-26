@@ -21,7 +21,7 @@
 | `code` | fastmcp | `app.mcp.mcp_servers.code_exec_mcp.server` | 代码执行沙箱 |
 | `file` | fastmcp | `app.mcp.mcp_servers.file_mcp.server` | 文件操作 |
 | `skill_manager` | fastmcp | `app.mcp.mcp_servers.skill_manager_mcp.server` | Agent Skill 加载 |
-| `shell` | fastmcp | `app.mcp.mcp_servers.shell_mcp.server` | Shell 命令执行 |
+| `shell` | fastmcp | `app.mcp.mcp_servers.shell_mcp.server` | Shell 命令执行（工具 bare 名 `exec`，LLM 侧多为 `shell_exec`） |
 | `context7` | http | `url` + `headers`（见 `mcp.mcp_servers`） | Context7 文档检索 |
 
 ## 3. 配置驱动机制

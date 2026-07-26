@@ -1,18 +1,24 @@
 # VFS 与沙箱执行手册（当前实现）
 
+**最后核对**：2026-07-26
+
 ## 1. 适用范围
 
 本文档说明 Agent 模式下的会话文件系统、虚拟路径映射、`file` / `shell`
 MCP 工具和沙箱执行后端。它面向维护后端、MCP 工具或 Agent 文件能力的开发者。
+
+命名约定：MCP **server 键**仍是 `shell`；工具 **bare 名**是 `exec`；LLM 可见名通常为
+`shell_exec`（见 `app/mcp/constants.py` 的 `SHELL_SERVER` / `SHELL_BARE` / `SHELL_LLM`）。
 
 对应源码：
 
 - 路径布局：`app/vfs/paths.py`
 - 虚拟路径解析与权限：`app/vfs/resolver.py`、`app/vfs/mapper.py`
 - File MCP：`app/mcp/mcp_servers/file_mcp/`
-- Shell MCP：`app/mcp/mcp_servers/shell_mcp/`
+- Shell MCP：`app/mcp/mcp_servers/shell_mcp/`（工具名 `exec`）
 - 沙箱执行器：`app/sandbox/`
 - 配置：`app/schemas/config.py` 的 `MCPConfig`、`SandboxConfig`
+- 工具结果落盘/截断：`docs/TOOL_RESULT_AND_CONTEXT.md`
 
 ## 2. 磁盘目录与虚拟路径
 
@@ -50,7 +56,7 @@ Agent 和 MCP 工具不应暴露磁盘路径，应使用虚拟路径：
 
 | 工具 | 行为 | 关键约束 |
 |---|---|---|
-| `read_file` | 读取虚拟路径文件，支持 `offset`/`limit` 分页 | 只能读已存在文件；返回内容会按系统读取上限截断 |
+| `read_file` | 读取虚拟路径文件，支持 `offset`/`limit` 分页 | 只能读已存在文件；默认 `limit=2000` 行且上限 2000；**豁免**工具结果硬上限（见上下文文档） |
 | `write_file` | 写入或追加文件 | 只能写 `/workspace/`、`/outputs/`、`/skills/custom/`；单次内容默认最多 100000 字符 |
 | `edit_file` | 精确字符串替换 | 默认要求 `old_string` 唯一；多处替换需显式 `replace_all=true` |
 | `search_files` | 用 ripgrep 搜索内容或文件名 | 默认搜索当前会话 `workspace`；返回路径会转换为虚拟路径 |
@@ -77,10 +83,14 @@ Agent 和 MCP 工具不应暴露磁盘路径，应使用虚拟路径：
 }
 ```
 
-## 4. Shell MCP 与沙箱后端
+## 4. Shell MCP（工具 `exec`）与沙箱后端
 
-`shell` server 只在 Agent 模式默认暴露。每个 `(user_id, conversation_id)` 会懒创建
-一个会话级 `ShellExecutor`，工作目录固定为当前会话 workspace。
+`shell` server 只在 Agent 模式默认暴露；LLM 调用的工具名是 `shell_exec`（bare：`exec`）。
+每个 `(user_id, conversation_id)` 会懒创建一个会话级 `ShellExecutor`，工作目录固定为
+当前会话 workspace。
+
+超长命令输出还会受工具结果硬上限约束（默认 `exec` 单条 20000 字符，见
+`TOOL_RESULT_AND_CONTEXT.md`），与下方 `SANDBOX__OUTPUT_LIMIT` 是不同层。
 
 ### 4.1 配置
 
@@ -108,6 +118,10 @@ Shell MCP 自身还限制命令长度和输出展示：
    `/mnt/skills/...` 等允许前缀；
 2. 将虚拟路径替换成宿主机物理路径；
 3. 执行后把 stdout/stderr 中的物理路径再替换回虚拟路径。
+
+路径扫描实现在 `shell_mcp/virtual_paths.py`：会跳过引号串与 **heredoc 正文**
+（`<<` / `<<-`，不含 `<<<`），避免把 heredoc 内嵌路径或注释里的 `//`、JS/TS 的
+`@/` 导入别名误判为宿主机绝对路径。
 
 因此开发和排障时，即使实际运行在本机，也应让 Agent 使用虚拟路径。例如：
 
@@ -151,19 +165,21 @@ local 后端还会阻断常见路径逃逸：
 
 1. 命令是否带 `description`（必填，5-10 个词的用途说明）；
 2. 路径是否使用虚拟前缀；
-3. `agent_mode` 是否大于 0，否则默认不会暴露 `file`/`shell`；
+3. `agent_mode` 是否大于 0，否则默认不会暴露 `file`/`shell`（工具 `exec`）；
 4. Docker 后端是否能连接 daemon；
-5. 产物是否写入 `/mnt/user-data/outputs/` 后再调用 `present_files`。
+5. 产物是否写入 `/mnt/user-data/outputs/` 后再调用 `present_files`；
+6. heredoc/`<<EOF` 场景若路径校验异常，核对 `virtual_paths.py` 是否把正文误扫为绝对路径。
 
 ## 6. 与附件 RAG 的关系
 
 用户上传文件先进入 `uploads/`。普通对话模式会按附件类型走聊天附件链路和
 RAG 上下文注入；Agent 模式则把上传文件作为 `/mnt/user-data/uploads/...`
-虚拟路径提供给工具使用，文件读取、转换和产物生成由 Agent 通过 `file`/`shell`
-工具完成。
+虚拟路径提供给工具使用，文件读取、转换和产物生成由 Agent 通过 `file` 工具与
+`shell_exec` 完成。
 
 这意味着：
 
 - 需要让 LLM 直接操作文件时，应使用 Agent 模式；
 - 需要给用户展示最终结果时，应写入 `outputs/` 并调用 `present_files`；
-- 不要把 `uploads/` 当作可写工作目录，派生文件应写到 `workspace/` 或 `outputs/`。
+- 不要把 `uploads/` 当作可写工作目录，派生文件应写到 `workspace/` 或 `outputs/`；
+- 硬上限落盘文件默认在 `workspace/.tool-results/`，可用 `read_file` 分页回读。
