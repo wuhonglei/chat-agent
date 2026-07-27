@@ -20,10 +20,10 @@
 | 语言 | Python (FastAPI) | Python (LangGraph) | Python (CLI) | TypeScript (Node) | TypeScript (Effect) | Rust (codex-rs) |
 | 单轮工具结果压缩 | FAISS 语义截断 | 磁盘外部化 + 头尾截断 | 头尾截断 + 摘要替换 | 磁盘持久化 + 预览 | 磁盘外部化 + 尾部截断 | 中间截断(truncate_middle)，每工具独立预算 |
 | token 计数 | tiktoken (cl100k_base) | tiktoken + API usage_metadata | 字符估算 (÷4) + API 返回 | API usage + 字符估算 (÷4) | API usage + 字符估算 (÷4) 混合 | API usage 精确值 + 字节估算(÷4) 混合 |
-| 阈值触发 | 80% context → 停工具调用 | 硬停 100% (默认关闭) | 50% context → 压缩 | effective_window - 13K → 自动压缩 | input - min(20K, maxOutputTokens) → 自动摘要 | auto_compact_limit → Pre/Mid-Turn 自动压缩 |
-| 窗口内历史处理 | 轮次窗口(20轮) + token 裁剪 | 消息数/token/比例触发摘要 | 头保护(3) + 尾保护(≥8消息) | 全量保留直到触发压缩 | 全量保留直到触发摘要 | 全量保留直到触发压缩 |
+| 阈值触发 | context_limit - max_output - 13K buffer → 四级渐进降级 | 硬停 100% (默认关闭) | 50% context → 压缩 | effective_window - 13K → 自动压缩 | input - min(20K, maxOutputTokens) → 自动摘要 | auto_compact_limit → Pre/Mid-Turn 自动压缩 |
+| 窗口内历史处理 | token 预算切分(从新到旧累加整轮) | 消息数/token/比例触发摘要 | 头保护(3) + 尾保护(≥8消息) | 全量保留直到触发压缩 | 全量保留直到触发摘要 | 全量保留直到触发压缩 |
 | 窗口外处理 | LLM 摘要(增量合并) | LLM 摘要(删除旧消息) | LLM 摘要(头+尾+中间摘要) | LLM 摘要(9段结构化) | LLM 摘要(替换历史) | LLM 摘要(替换历史) 或 Token Budget 直接重置 |
-| 窗口内工具结果 | 旧轮次: 用 summary 截断 | 历史重扫: 超预算重新截断 | 旧工具结果→1行摘要 | 时间触发清除 + 预算持久化 | prune: 保留 40K tokens 近期工具输出，旧的标记 compacted | 写入时一次性截断，后续原样保留 |
+| 窗口内工具结果 | Step 2: summary 优先/2000 token 截断; Step 4: 最近 2 组保护, 旧组 head-tail 500/500 字符截断 | 历史重扫: 超预算重新截断 | 旧工具结果→1行摘要 | 时间触发清除 + 预算持久化 | prune: 保留 40K tokens 近期工具输出，旧的标记 compacted | 写入时一次性截断，后续原样保留 |
 
 ## 二、单轮调用：工具返回结果过长时的处理 #
 
@@ -44,6 +44,8 @@
 特殊处理: Tavily 搜索结果在 `TavilyResultProcessor` 中逐条调用 `compact_markdown_tool_result()` 压缩。
 
 特点: 唯一使用 语义相关性 而非纯机械截断的框架。保留与用户问题最相关的片段，而非简单的头尾。
+
+> **ContextCompactor vs 统一上下文守卫**: FAISS 语义截断是 **写入时实时压缩**（`ContextCompactor`），在工具结果返回时立即触发（当 result > tolerance_tokens=8000 时）。这与下文 3.1 中的 **统一上下文守卫（unified_context_guard，Steps 2-4）** 正交 — 前者处理单个工具结果过大，后者处理整体 context 超阈值。两者互不依赖，分别在不同阶段生效。
 
 ### 2.2 deer-flow — 两级策略（磁盘外部化 + 头尾截断） #
 
@@ -146,21 +148,42 @@ let policy_with_serialization_budget = policy * 1.2;
 
 ## 三、单轮结束后：Token 统计与阈值处理 #
 
-### 3.1 chat-agent #
+### 3.1 chat-agent — 统一上下文守卫（四级渐进降级） #
 
-核心文件: `backend/app/agents/chat_session_agent.py` , `backend/app/utils/token.py`
+核心文件: `backend/app/agents/chat_session_agent.py`（`unified_context_guard` 方法）
 
 ```
-# 每轮工具调用循环后检查
-def _check_round_context_budget(self, next_round_messages):
-    current_tokens = self.token_calculator.count_messages_tokens(next_round_messages)
-    threshold_tokens = int(self.model_limit * self.tool_context_limit_ratio)  # 0.8
-    return current_tokens > threshold_tokens, current_tokens, threshold_tokens
+# 阈值计算（对齐 claude-code AUTOCOMPACT_BUFFER_TOKENS）
+threshold = context_limit - min(max_output_tokens, 8192) - 13000
 ```
 
-- Token 计数 : tiktoken `cl100k_base` ，支持本地 BPE 文件离线回退
-- 工具轮阈值 : 80% context → 停止工具调用，切换到最终回答
-- 历史 token 预算 : 25% context 分配给历史窗口
+- Token 计数 : tiktoken `cl100k_base`（`TokenCalculator`），支持本地 BPE 文件离线回退
+- 阈值设计 : `context_limit - max_output - 13K buffer`，与 claude-code 的 `effectiveContextWindow - 13000` 对齐
+
+**四级渐进降级流程** :
+
+```
+Step 1: 检查 total_tokens <= threshold → 通过，无需操作
+
+Step 2: 压缩所有历史轮次的工具结果
+  - 优先使用已有 summary（LLM 摘要）
+  - 无 summary 时：2000 token 头尾截断（head 60% / tail 40%）
+
+Step 3: 按剩余预算切分历史消息窗口
+  - 剩余预算 = threshold - system_tokens - user_tokens - tool_rounds_tokens
+  - 从新到旧累加整轮（不拆分 user+assistant 对）
+  - 窗口外消息 → LLM 增量摘要（合并到已有摘要）
+
+Step 4: 按大小压缩当前轮次的工具结果
+  - 保护最近 2 组工具结果不动
+  - 旧组：head-tail 500/500 字符截断
+  - 从最大的结果开始压缩，直到低于阈值
+
+最终: 若仍超阈值 → stop_tools（停止工具调用，切换到最终回答）
+```
+
+- 反抖动保护 : 3 次连续失败 → 进入 300s 恢复窗口（recovery window），期间不再尝试压缩
+- 配置项 : `UnifiedContextGuardConfig`（`backend/app/schemas/config.py`）
 
 ### 3.2 deer-flow #
 
@@ -276,7 +299,7 @@ AutoCompactTokenLimitScope::BodyAfterPrefix → 仅计算 prefix 之后增长部
 
 | 框架 | 窗口定义 | 保留策略 |
 |---|---|---|
-| chat-agent | 最近 20 轮(user+assistant 对) | 轮次计数 + token 预算裁剪(25% context) |
+| chat-agent | token 预算切分(从新到旧累加整轮) | remaining_budget = threshold - system - user - tool_rounds; 整轮累加直到预算耗尽 |
 | deer-flow | messages:20 或 tokens/fraction 触发 | 二分查找安全切点，不拆分 AI+Tool 配对 |
 | hermes-agent | 头保护(3条) + 尾保护(≥8条, token 预算) | 尾部按 token 预算向回走，对齐到 tool_call/tool_result 边界 |
 | claude-code | 全量保留直到自动压缩 | 按 API round 分组，压缩时保留最近的 round |
@@ -303,6 +326,13 @@ if prior_summary and new_messages_only:
     merged = merge_summaries(prior_summary, delta_summary)
 ```
 
+Anti-thrash 保护（chat-agent 独有）:
+
+```
+# 3 次连续摘要失败 → 300s 恢复期
+# 摘要持久化时记录 last_summarized_message_ids 用于增量检测
+```
+
 Skill 救援（deer-flow 独有）:
 
 ```
@@ -324,7 +354,7 @@ POST_COMPACT_SKILLS_TOKEN_BUDGET = 25,000  # 重新注入技能
 
 | 框架 | 处理方式 |
 |---|---|
-| chat-agent | 窗口内旧轮次: 有 summary 则替换 content；无 summary 且 >2000 tokens 则截断 +`[内容已截断]` ；最新工具轮不处理 |
+| chat-agent | Step 2(历史): ToolUseBlock args>500 chars 则 JSON 感知截断(保留 200 chars/string leaf)；ToolResultBlock: 优先用 summary，否则 >2000 tokens → head-tail 60/40 截断。Step 4(当前轮): 保留最近 2 组 ToolUse+ToolResult，更早组 head-tail 500/500 chars 截断(最大优先) |
 | deer-flow | 窗口内保留原样；但`wrap_model_call` 每次调用前重新扫描，超预算的历史工具结果重新截断 |
 | hermes-agent | 压缩预处理: 旧工具结果→1行摘要`[tool] ran 'cmd' -> exit N, M lines output` ；MD5 去重；图片→占位符 |
 | claude-code | 时间触发: 60 分钟前的工具结果→`[Old tool result content cleared]` （保留最近 5 个）；API 层: 180K tokens 触发时清除旧结果 |
@@ -337,7 +367,8 @@ POST_COMPACT_SKILLS_TOKEN_BUDGET = 25,000  # 重新注入技能
 
 - 语义截断 : 唯一使用向量相似度筛选工具结果片段的框架
 - 增量摘要 : 窗口外摘要支持增量合并，避免重复摘要已有内容
-- Token 分区 : 严格划分 — 历史占 25%，工具轮 80% 触发停止
+- 四级渐进降级 : 每次 LLM 调用前统一守卫，按'压缩历史工具结果 → 窗口化+摘要 → 压缩当前轮工具结果 → 停止工具调用'逐级降级
+- JSON 感知参数截断 : tool_use arguments 递归截断字符串叶子，保持 JSON 合法
 
 ### 5.2 deer-flow 的独特之处 #
 
@@ -430,20 +461,20 @@ chat-agent    opencode    claude-code    codex    hermes-agent    deer-flow
 
 ```
 ✅ 已有能力:
-  - FAISS 语义截断（markdown 工具结果）
+  - FAISS 语义截断（markdown 工具结果实时压缩）
   - tiktoken 精确计数
-  - 80% 阈值停止工具调用
-  - 5 轮滑动窗口 + 25% token 预算
-  - 增量 LLM 摘要
+  - 四级渐进式上下文守卫（统一阈值 = context_limit - max_output - 13K buffer）
+  - token 预算切分（从新到旧累加整轮）
+  - 增量 LLM 摘要（含反抖动保护：3 次失败 → 300s 恢复）
+  - tool_call 参数 JSON 感知截断（>500 chars, 保留 200 chars/叶子）
+  - 当前轮工具结果 size-aware 压缩（保留最近 2 组，旧组 head-tail 500/500 字符）
 
 ❌ 存在缺口:
   - 非 markdown 工具结果（shell/JSON）无压缩，直接穿透
   - 单个工具结果超 context 无兜底，可能 API 报错
-  - tool_call 参数（如 write_file 大代码）从不压缩
   - 长对话增量摘要质量退化，无重压缩机制
   - 无时间触发的自动清理
   - 无 prompt cache 保护
-  - 无反抖动保护
 ```
 
 ### 7.1 P0 — 必须修的 3 个问题 #
@@ -520,41 +551,7 @@ def _enforce_turn_budget(self, tool_round_messages, context_limit):
 
 #### P0-3: tool_call 参数压缩 → 借鉴 hermes-agent JSON 截断
 
-问题: LLM 生成 `write_file(content="50K 代码")` 后，参数永久留在 context 中。token 计数虽然覆盖了 `tool_calls` ，但从不压缩。
-
-借鉴: hermes-agent 的 `_truncate_tool_call_args_json()`
-
-| 维度 | hermes-agent | chat-agent 建议 |
-|---|---|---|
-| 阈值 | 字符串值 > 200 chars | 字符串值 > 500 chars |
-| 操作 | 截断 value，保持 JSON 合法 | 同左 |
-| 时机 | 压缩预处理阶段（`_prune_old_tool_results` ） | `compress_history_messages` 中 |
-
-建议实现位置: `backend/app/services/chat/history_context_service.py` 的 `compress_history_messages` 中：
-
-```
-def _truncate_tool_call_args(self, tool_calls, max_arg_len=500):
-    """截断 tool_call 中的大参数值，保持 JSON 合法"""
-    for tc in tool_calls:
-        if not tc.get("function", {}).get("arguments"):
-            continue
-        try:
-            args = json.loads(tc["function"]["arguments"])
-        except (json.JSONDecodeError, TypeError):
-            continue
-        changed = False
-        for k, v in args.items():
-            if isinstance(v, str) and len(v) > max_arg_len:
-                args[k] = v[:200] + f"... [{len(v)} chars, truncated]"
-                changed = True
-        if changed:
-            tc["function"]["arguments"] = json.dumps(args, ensure_ascii=False)
-```
-
-仅对 非最新一轮 的历史 tool_call 执行，最新一轮保持完整。
-
-改动范围: `history_context_service.py`
- 预估工作量: 1 小时
+✅ 已实现: Step 2 中 ToolUseBlock arguments JSON 感知截断 (>500 chars, 保留 200 chars/字符串叶子)。在 `compress_history_messages` 中对非最新一轮的历史 tool_call 执行截断，保持 JSON 合法。
 
 ### 7.2 P1 — 建议改进的 2 个问题 #
 
@@ -655,7 +652,7 @@ def _cleanup_stale_tool_results(self, messages):
 
 #### P2-2: 反抖动保护 → 借鉴 hermes-agent
 
-如果 context 在阈值附近波动，可能反复触发摘要。hermes-agent 的方案：连续 2 次压缩后 token 仍超标 → 停止压缩，进入冷却（60s→300s→900s 递增）。实现简单，建议在 `chat_session_agent.py` 的压缩触发处增加计数器。
+✅ 已实现: `UnifiedContextGuardConfig.anti_thrash_failure_threshold=3`, `anti_thrash_recovery_seconds=300`。连续 3 次压缩失败后停止压缩，进入 300s 恢复期。
 
 ### 7.4 改动优先级总表 #
 
@@ -663,11 +660,10 @@ def _cleanup_stale_tool_results(self, messages):
 |---|---|---|---|---|---|---|
 | P0 | P0-1 | 非 markdown 工具结果磁盘持久化 | claude-code | 中（半天） | 防止 50K+ shell 输出撑爆 context | `tool_executor.py` ,`config.py` |
 | P0 | P0-2 | per-turn 聚合预算兜底 | hermes-agent | 小（2h） | 防止单结果超 context API 报错 | `tool_executor.py` |
-| P0 | P0-3 | tool_call 大参数截断 | hermes-agent | 小（1h） | 防止大参数永久占 context | `history_context_service.py` |
 | P1 | P1-1 | 结构化摘要模板 + 摘要压缩 | claude-code + hermes-agent | 中（半天） | 100+ 轮对话摘要质量维护 | `context_summary_service.py` , prompt |
 | P1 | P1-2 | 时间触发工具结果清理 | claude-code | 小（1h） | 老工具结果自动释放 context | `history_context_service.py` |
 | P2 | P2-1 | Prompt Cache 保护 | claude-code | 大 | 降低 API 成本（需 Anthropic） | 多文件 |
-| P2 | P2-2 | 反抖动保护 | hermes-agent | 小（30min） | 防止阈值附近反复压缩 | `chat_session_agent.py` |
+| P2 | P2-2 | 反抖动保护 | hermes-agent | ✅ 已实现 | UnifiedContextGuardConfig.anti_thrash_failure_threshold=3, anti_thrash_recovery_seconds=300 | `chat_session_agent.py` |
 
-建议实施顺序: P0-3 → P0-1 → P0-2 → P1-2 → P1-1 → P2-2 → P2-1
- （从最小改动、最高收益开始）
+建议实施顺序: P0-1 → P0-2 → P1-2 → P1-1 → P2-1
+ （P0-3 和 P2-2 已实现，从剩余最小改动、最高收益开始）

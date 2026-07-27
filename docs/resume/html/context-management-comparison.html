@@ -1,1182 +1,989 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>六大框架上下文管理方案深度对比</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<style>
-/* ===== Reset & Base ===== */
-*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-
-:root {
-  --bg: #ffffff;
-  --bg-alt: #f8f9fb;
-  --bg-sidebar: #f4f5f7;
-  --text: #1a1a2e;
-  --text-secondary: #555770;
-  --text-muted: #8b8da3;
-  --border: #e2e4ea;
-  --border-light: #eef0f4;
-  --accent: #4f6ef7;
-  --accent-light: #eef1fe;
-  --accent-dark: #3a56d4;
-  --code-bg: #f5f7fa;
-  --code-border: #e6e8ed;
-  --table-head: #f0f2f7;
-  --table-row-alt: #fafbfd;
-  --table-hover: #eef1fe;
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
-  --shadow-lg: 0 8px 30px rgba(0,0,0,0.1);
-  --radius: 8px;
-  --radius-lg: 12px;
-  --sidebar-w: 260px;
-  --header-h: 64px;
-  --font-sans: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
-}
-
-html { scroll-behavior: smooth; scroll-padding-top: calc(var(--header-h) + 24px); }
-
-body {
-  font-family: var(--font-sans);
-  font-size: 15px;
-  line-height: 1.7;
-  color: var(--text);
-  background: var(--bg);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* ===== Header ===== */
-.site-header {
-  position: fixed;
-  top: 0; left: 0; right: 0;
-  height: var(--header-h);
-  background: rgba(255,255,255,0.92);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border-light);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  padding: 0 24px;
-}
-
-.header-title {
-  font-size: 17px;
-  font-weight: 600;
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.header-title span { color: var(--accent); }
-
-/* Hamburger */
-.hamburger {
-  display: none;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 8px;
-  margin-right: 12px;
-  border-radius: 6px;
-  transition: background 0.2s;
-}
-.hamburger:hover { background: var(--bg-alt); }
-.hamburger svg { display: block; }
-
-/* ===== Sidebar ===== */
-.sidebar {
-  position: fixed;
-  top: var(--header-h);
-  left: 0;
-  width: var(--sidebar-w);
-  height: calc(100vh - var(--header-h));
-  background: var(--bg-sidebar);
-  border-right: 1px solid var(--border-light);
-  overflow-y: auto;
-  padding: 20px 0;
-  z-index: 900;
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.sidebar::-webkit-scrollbar { width: 4px; }
-.sidebar::-webkit-scrollbar-track { background: transparent; }
-.sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-
-.toc-title {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-muted);
-  padding: 0 20px 10px;
-}
-
-.toc-list { list-style: none; }
-
-.toc-list li a {
-  display: block;
-  padding: 7px 20px;
-  font-size: 13.5px;
-  color: var(--text-secondary);
-  text-decoration: none;
-  border-left: 3px solid transparent;
-  transition: all 0.2s;
-  line-height: 1.5;
-}
-
-.toc-list li a:hover {
-  color: var(--accent);
-  background: rgba(79, 110, 247, 0.04);
-}
-
-.toc-list li a.active {
-  color: var(--accent);
-  border-left-color: var(--accent);
-  background: var(--accent-light);
-  font-weight: 500;
-}
-
-.toc-list li.toc-sub a {
-  padding-left: 36px;
-  font-size: 13px;
-  color: var(--text-muted);
-}
-
-.toc-list li.toc-sub a.active {
-  color: var(--accent);
-  font-weight: 500;
-}
-
-/* Sidebar overlay */
-.sidebar-overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.3);
-  z-index: 899;
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-
-/* ===== Main Content ===== */
-.main-content {
-  margin-left: var(--sidebar-w);
-  margin-top: var(--header-h);
-  min-height: calc(100vh - var(--header-h));
-  padding: 40px 48px 80px;
-  max-width: 1366px;
-}
-
-/* ===== Typography ===== */
-h1 {
-  font-size: 32px;
-  font-weight: 700;
-  line-height: 1.3;
-  margin-bottom: 16px;
-  color: var(--text);
-  letter-spacing: -0.02em;
-}
-
-h2 {
-  font-size: 24px;
-  font-weight: 700;
-  margin-top: 56px;
-  margin-bottom: 20px;
-  padding-bottom: 10px;
-  border-bottom: 2px solid var(--border);
-  color: var(--text);
-  letter-spacing: -0.01em;
-  scroll-margin-top: calc(var(--header-h) + 24px);
-}
-
-h3 {
-  font-size: 18px;
-  font-weight: 600;
-  margin-top: 36px;
-  margin-bottom: 14px;
-  color: var(--text);
-  scroll-margin-top: calc(var(--header-h) + 24px);
-}
-
-h4 {
-  font-size: 16px;
-  font-weight: 600;
-  margin-top: 28px;
-  margin-bottom: 10px;
-  color: var(--text);
-}
-
-p { margin-bottom: 14px; }
-
-blockquote {
-  border-left: 4px solid var(--accent);
-  background: var(--accent-light);
-  padding: 14px 20px;
-  margin: 18px 0;
-  border-radius: 0 var(--radius) var(--radius) 0;
-  font-size: 14px;
-  color: var(--text-secondary);
-  line-height: 1.65;
-}
-
-blockquote strong { color: var(--text); }
-
-hr {
-  border: none;
-  height: 1px;
-  background: var(--border);
-  margin: 40px 0;
-}
-
-strong { font-weight: 600; }
-em { font-style: italic; }
-
-a {
-  color: var(--accent);
-  text-decoration: none;
-  transition: color 0.2s;
-}
-a:hover { color: var(--accent-dark); text-decoration: underline; }
-
-/* Section anchor links */
-h2 .anchor-link, h3 .anchor-link {
-  opacity: 0;
-  margin-left: 8px;
-  font-size: 0.75em;
-  color: var(--text-muted);
-  transition: opacity 0.2s;
-  text-decoration: none;
-}
-h2:hover .anchor-link, h3:hover .anchor-link { opacity: 1; }
-h2 .anchor-link:hover, h3 .anchor-link:hover { color: var(--accent); text-decoration: none; }
-
-/* ===== Lists ===== */
-ul, ol {
-  margin: 12px 0 18px 24px;
-}
-
-li {
-  margin-bottom: 6px;
-  line-height: 1.65;
-}
-
-li code {
-  background: var(--code-bg);
-  padding: 1px 6px;
-  border-radius: 4px;
-  font-size: 13px;
-  font-family: var(--font-mono);
-  color: #c7254e;
-  border: 1px solid var(--code-border);
-}
-
-/* ===== Code Blocks ===== */
-pre {
-  background: var(--code-bg);
-  border: 1px solid var(--code-border);
-  border-radius: var(--radius);
-  padding: 18px 22px;
-  margin: 16px 0 20px;
-  overflow-x: auto;
-  font-family: var(--font-mono);
-  font-size: 13.5px;
-  line-height: 1.65;
-  color: var(--text);
-  position: relative;
-}
-
-pre code {
-  background: none;
-  border: none;
-  padding: 0;
-  font-size: inherit;
-  color: inherit;
-}
-
-code {
-  font-family: var(--font-mono);
-  font-size: 13px;
-}
-
-/* Language badge */
-pre[data-lang]::before {
-  content: attr(data-lang);
-  position: absolute;
-  top: 8px;
-  right: 12px;
-  font-size: 11px;
-  color: var(--text-muted);
-  font-family: var(--font-sans);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-/* ===== Tables ===== */
-.table-wrapper {
-  overflow-x: auto;
-  margin: 18px 0 24px;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-sm);
-}
-
-.table-wrapper::-webkit-scrollbar { height: 6px; }
-.table-wrapper::-webkit-scrollbar-track { background: var(--bg-alt); border-radius: 0 0 var(--radius) var(--radius); }
-.table-wrapper::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-  line-height: 1.55;
-  white-space: nowrap;
-}
-
-thead th {
-  background: var(--table-head);
-  font-weight: 600;
-  color: var(--text);
-  padding: 12px 16px;
-  text-align: left;
-  border-bottom: 2px solid var(--border);
-  position: sticky;
-  top: 0;
-  z-index: 1;
-}
-
-tbody td {
-  padding: 11px 16px;
-  border-bottom: 1px solid var(--border-light);
-  color: var(--text-secondary);
-  vertical-align: top;
-  white-space: normal;
-  min-width: 120px;
-}
-
-tbody td:first-child {
-  font-weight: 600;
-  color: var(--text);
-  white-space: nowrap;
-  min-width: 100px;
-}
-
-tbody tr:nth-child(even) { background: var(--table-row-alt); }
-
-tbody tr {
-  transition: background 0.15s;
-}
-
-tbody tr:hover {
-  background: var(--table-hover);
-}
-
-/* ===== Syntax Highlighting (Light) ===== */
-.kw { color: #7c3aed; font-weight: 500; }       /* keywords */
-.fn { color: #2563eb; }                           /* functions */
-.str { color: #059669; }                          /* strings */
-.cmt { color: #9ca3af; font-style: italic; }     /* comments */
-.num { color: #d97706; }                          /* numbers */
-.op { color: #6b7280; }                           /* operators */
-.var { color: #dc2626; }                          /* variables/special */
-.type { color: #0891b2; }                         /* types */
-.dec { color: #7c3aed; }                          /* decorators */
-
-/* ===== Fade-in Animation ===== */
-.fade-section {
-  opacity: 0;
-  transform: translateY(20px);
-  transition: opacity 0.6s ease, transform 0.6s ease;
-}
-
-.fade-section.visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-/* ===== Footer ===== */
-.site-footer {
-  margin-top: 60px;
-  padding: 24px 0;
-  border-top: 1px solid var(--border);
-  text-align: center;
-  font-size: 13px;
-  color: var(--text-muted);
-}
-
-.site-footer a { color: var(--accent); }
-
-/* ===== Back to top ===== */
-.back-to-top {
-  position: fixed;
-  bottom: 28px;
-  right: 28px;
-  width: 44px;
-  height: 44px;
-  background: var(--accent);
-  color: white;
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: var(--shadow-md);
-  opacity: 0;
-  transform: translateY(10px);
-  transition: all 0.3s;
-  z-index: 800;
-}
-.back-to-top.show { opacity: 1; transform: translateY(0); }
-.back-to-top:hover { background: var(--accent-dark); box-shadow: var(--shadow-lg); }
-
-/* ===== Responsive ===== */
-@media (max-width: 900px) {
-  .hamburger { display: block; }
-
-  .sidebar {
-    transform: translateX(-100%);
-    width: 280px;
-    box-shadow: var(--shadow-lg);
-  }
-
-  .sidebar.open { transform: translateX(0); }
-
-  .sidebar-overlay.show {
-    display: block;
-    opacity: 1;
-  }
-
-  .main-content {
-    margin-left: 0;
-    padding: 28px 20px 60px;
-  }
-
-  h1 { font-size: 26px; }
-  h2 { font-size: 20px; margin-top: 40px; }
-  h3 { font-size: 16px; margin-top: 28px; }
-
-  table { font-size: 13px; }
-  thead th, tbody td { padding: 9px 12px; }
-  pre { padding: 14px 16px; font-size: 12.5px; }
-}
-
-@media (max-width: 480px) {
-  .main-content { padding: 20px 16px 50px; }
-  h1 { font-size: 22px; }
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>六大框架上下文管理方案深度对比</title>
+    <style>
+        :root {
+            --bg: #f8f9fa;
+            --card-bg: #ffffff;
+            --text: #1a1a2e;
+            --text-secondary: #4a5568;
+            --border: #e2e8f0;
+            --accent: #2563eb;
+            --accent-light: #dbeafe;
+            --success: #059669;
+            --warning: #d97706;
+            --danger: #dc2626;
+            --code-bg: #f1f5f9;
+            --header-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            padding: 0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        header {
+            background: var(--header-bg);
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            border-radius: 0 0 24px 24px;
+            box-shadow: 0 10px 40px rgba(102, 126, 234, 0.2);
+        }
+        header h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.5px;
+        }
+        header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.03);
+            border: 1px solid var(--border);
+        }
+        h2 {
+            font-size: 1.6rem;
+            color: var(--text);
+            margin-bottom: 1.2rem;
+            padding-bottom: 0.6rem;
+            border-bottom: 2px solid var(--accent-light);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        h3 {
+            font-size: 1.25rem;
+            color: var(--accent);
+            margin: 1.5rem 0 0.8rem;
+        }
+        h4 {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            margin: 1.2rem 0 0.6rem;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.95rem;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        th {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            color: var(--text);
+            font-weight: 600;
+            padding: 14px 16px;
+            text-align: left;
+            border-bottom: 2px solid var(--border);
+        }
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+        tr:hover td {
+            background: #f8fafc;
+        }
+        tr:last-child td { border-bottom: none; }
+        code {
+            background: var(--code-bg);
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+            font-size: 0.9em;
+            color: var(--accent);
+        }
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1.5rem;
+            border-radius: 12px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+        pre code {
+            background: transparent;
+            color: inherit;
+            padding: 0;
+            font-size: inherit;
+        }
+        .tag {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-right: 6px;
+        }
+        .tag-python { background: #dbeafe; color: #1e40af; }
+        .tag-ts { background: #fef3c7; color: #92400e; }
+        .tag-rust { background: #fce7f3; color: #9d174d; }
+        .tag-p0 { background: #fee2e2; color: #991b1b; }
+        .tag-p1 { background: #fef3c7; color: #92400e; }
+        .tag-p2 { background: #d1fae5; color: #065f46; }
+        .highlight-box {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            border-left: 4px solid var(--accent);
+            padding: 1.2rem 1.5rem;
+            border-radius: 0 12px 12px 0;
+            margin: 1rem 0;
+        }
+        .warning-box {
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+            border-left: 4px solid var(--warning);
+            padding: 1.2rem 1.5rem;
+            border-radius: 0 12px 12px 0;
+            margin: 1rem 0;
+        }
+        .danger-box {
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            border-left: 4px solid var(--danger);
+            padding: 1.2rem 1.5rem;
+            border-radius: 0 12px 12px 0;
+            margin: 1rem 0;
+        }
+        ul, ol {
+            margin: 0.8rem 0 0.8rem 1.5rem;
+        }
+        li {
+            margin: 0.4rem 0;
+        }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+        .framework-card {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid var(--border);
+        }
+        .framework-card h4 {
+            color: var(--accent);
+            margin-top: 0;
+        }
+        .priority-table th:first-child,
+        .priority-table td:first-child { width: 80px; text-align: center; }
+        .priority-table th:nth-child(2),
+        .priority-table td:nth-child(2) { width: 60px; text-align: center; }
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            .grid-2 { grid-template-columns: 1fr; }
+            header h1 { font-size: 1.6rem; }
+            table { font-size: 0.85rem; }
+            th, td { padding: 8px 10px; }
+        }
+        .toc {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid var(--border);
+            margin-bottom: 2rem;
+        }
+        .toc a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            display: block;
+            padding: 6px 0;
+            border-bottom: 1px solid #f1f5f9;
+            transition: color 0.2s;
+        }
+        .toc a:hover { color: var(--accent); }
+        .toc a:last-child { border-bottom: none; }
+        .spectrum {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 12px;
+        }
+        .spectrum-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        .spectrum-bar {
+            flex: 1;
+            display: flex;
+            gap: 4px;
+        }
+        .spectrum-item {
+            flex: 1;
+            padding: 8px;
+            text-align: center;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        .chart-caption {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+            font-style: italic;
+        }
+    </style>
+<base target="_blank">
 </head>
 <body>
+    <header>
+        <h1>六大框架上下文管理方案深度对比</h1>
+        <p>chat-agent · deer-flow · hermes-agent · claude-code · opencode · codex (OpenAI)</p>
+    </header>
 
-<!-- ===== Header ===== -->
-<header class="site-header">
-  <button class="hamburger" id="hamburgerBtn" aria-label="打开目录">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
-      <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
-    </svg>
-  </button>
-  <div class="header-title">六大框架上下文管理方案深度对比</div>
-</header>
+    <div class="container">
+        <div class="toc">
+            <strong style="font-size: 1.1rem; color: var(--text);">目录</strong>
+            <a href="#overview">一、总览对比表</a>
+            <a href="#pipeline">上下文管理总流程图</a>
+            <a href="#single-round">二、单轮调用：工具返回结果过长时的处理</a>
+            <a href="#token-stats">三、单轮结束后：Token 统计与阈值处理</a>
+            <a href="#multi-round">四、多轮调用时的历史上下文处理</a>
+            <a href="#architecture">五、架构特色对比</a>
+            <a href="#conclusion">六、关键结论</a>
+            <a href="#improvements">七、chat-agent 可借鉴的改进方案</a>
+        </div>
 
-<!-- ===== Sidebar ===== -->
-<nav class="sidebar" id="sidebar">
-  <div class="toc-title">目录导航</div>
-  <ul class="toc-list" id="tocList">
-    <li><a href="#sec-1">一、总览对比表</a></li>
-    <li><a href="#sec-2">二、单轮调用：工具返回结果过长时的处理</a></li>
-    <li class="toc-sub"><a href="#sec-2-1">2.1 chat-agent — FAISS 语义截断</a></li>
-    <li class="toc-sub"><a href="#sec-2-2">2.2 deer-flow — 两级策略</a></li>
-    <li class="toc-sub"><a href="#sec-2-3">2.3 hermes-agent — 头尾截断+摘要</a></li>
-    <li class="toc-sub"><a href="#sec-2-4">2.4 claude-code — 磁盘持久化</a></li>
-    <li class="toc-sub"><a href="#sec-2-5">2.5 opencode — 简单头尾截断</a></li>
-    <li class="toc-sub"><a href="#sec-2-6">2.6 codex — 中间截断 + 分层预算</a></li>
-    <li><a href="#sec-3">三、单轮结束后：Token 统计与阈值处理</a></li>
-    <li class="toc-sub"><a href="#sec-3-1">3.1 chat-agent</a></li>
-    <li class="toc-sub"><a href="#sec-3-2">3.2 deer-flow</a></li>
-    <li class="toc-sub"><a href="#sec-3-3">3.3 hermes-agent</a></li>
-    <li class="toc-sub"><a href="#sec-3-4">3.4 claude-code</a></li>
-    <li class="toc-sub"><a href="#sec-3-5">3.5 opencode</a></li>
-    <li class="toc-sub"><a href="#sec-3-6">3.6 codex</a></li>
-    <li><a href="#sec-4">四、多轮调用时的历史上下文处理</a></li>
-    <li class="toc-sub"><a href="#sec-4-1">4.1 窗口内上下文</a></li>
-    <li class="toc-sub"><a href="#sec-4-2">4.2 窗口外上下文</a></li>
-    <li class="toc-sub"><a href="#sec-4-3">4.3 窗口内的工具调用结果处理</a></li>
-    <li><a href="#sec-5">五、架构特色对比</a></li>
-    <li class="toc-sub"><a href="#sec-5-1">5.1 chat-agent 的独特之处</a></li>
-    <li class="toc-sub"><a href="#sec-5-2">5.2 deer-flow 的独特之处</a></li>
-    <li class="toc-sub"><a href="#sec-5-3">5.3 hermes-agent 的独特之处</a></li>
-    <li class="toc-sub"><a href="#sec-5-4">5.4 claude-code 的独特之处</a></li>
-    <li class="toc-sub"><a href="#sec-5-5">5.5 opencode 的独特之处</a></li>
-    <li class="toc-sub"><a href="#sec-5-6">5.6 codex 的独特之处</a></li>
-    <li><a href="#sec-6">六、关键结论</a></li>
-    <li class="toc-sub"><a href="#sec-6-1">6.1 复杂度排序</a></li>
-    <li class="toc-sub"><a href="#sec-6-2">6.2 工具结果压缩策略谱系</a></li>
-    <li class="toc-sub"><a href="#sec-6-3">6.3 历史管理策略谱系</a></li>
-    <li class="toc-sub"><a href="#sec-6-4">6.4 可借鉴的设计模式</a></li>
-    <li><a href="#sec-7">七、chat-agent 可借鉴的改进方案</a></li>
-    <li class="toc-sub"><a href="#sec-7-0">7.0 当前能力与缺口总览</a></li>
-    <li class="toc-sub"><a href="#sec-7-1">7.1 P0 — 必须修的 3 个问题</a></li>
-    <li class="toc-sub"><a href="#sec-7-2">7.2 P1 — 建议改进的 2 个问题</a></li>
-    <li class="toc-sub"><a href="#sec-7-3">7.3 P2 — 锦上添花</a></li>
-    <li class="toc-sub"><a href="#sec-7-4">7.4 改动优先级总表</a></li>
-  </ul>
-</nav>
+        <div class="card" id="overview">
+            <h2>📋 源码路径速查</h2>
+            <table>
+                <tr>
+                    <th>框架</th>
+                    <th>语言</th>
+                    <th>核心源码文件</th>
+                </tr>
+                <tr>
+                    <td><strong>chat-agent</strong></td>
+                    <td><span class="tag tag-python">Python</span></td>
+                    <td><code>backend/app/utils/context_compactor.py</code> · <code>history_truncate.py</code> · <code>token.py</code> · <code>chat_session_agent.py</code> · <code>tool_executor.py</code></td>
+                </tr>
+                <tr>
+                    <td><strong>deer-flow</strong></td>
+                    <td><span class="tag tag-python">Python</span></td>
+                    <td><code>tool_output_budget_middleware.py</code> · <code>token_budget_middleware.py</code> · <code>summarization_middleware.py</code></td>
+                </tr>
+                <tr>
+                    <td><strong>hermes-agent</strong></td>
+                    <td><span class="tag tag-python">Python</span></td>
+                    <td><code>agent/context_compressor.py</code> · <code>context_engine.py</code> · <code>conversation_compression.py</code></td>
+                </tr>
+                <tr>
+                    <td><strong>claude-code</strong></td>
+                    <td><span class="tag tag-ts">TypeScript</span></td>
+                    <td><code>src/services/compact/autoCompact.ts</code> · <code>compact.ts</code> · <code>toolResultStorage.ts</code> · <code>toolLimits.ts</code></td>
+                </tr>
+                <tr>
+                    <td><strong>opencode</strong></td>
+                    <td><span class="tag tag-ts">TypeScript</span></td>
+                    <td><code>src/session/compaction.ts</code> · <code>overflow.ts</code> · <code>processor.ts</code> · <code>tool/shell.ts</code></td>
+                </tr>
+                <tr>
+                    <td><strong>codex</strong></td>
+                    <td><span class="tag tag-rust">Rust</span></td>
+                    <td><code>codex-rs/core/src/context_manager/history.rs</code> · <code>session/context_window.rs</code> · <code>output-truncation/src/lib.rs</code></td>
+                </tr>
+            </table>
+        </div>
 
-<!-- Sidebar overlay for mobile -->
-<div class="sidebar-overlay" id="sidebarOverlay"></div>
+        <div class="card" id="pipeline">
+            <h2>🔄 上下文管理总流程管道图</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem;">以下管道图展示了从<strong>工具执行</strong>到<strong>LLM 响应</strong>的完整上下文管理流程，六大框架均遵循此主干，但在各阶段采用不同策略。</p>
 
-<!-- ===== Main Content ===== -->
-<main class="main-content">
+            <svg viewBox="0 0 900 180" style="width:100%;max-width:900px;margin:0 auto;display:block;">
+                <defs>
+                    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                        <path d="M0,0 L0,6 L9,3 z" fill="#94a3b8"/>
+                    </marker>
+                    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#dbeafe;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#bfdbfe;stop-opacity:1" />
+                    </linearGradient>
+                    <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#fef3c7;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#fde68a;stop-opacity:1" />
+                    </linearGradient>
+                    <linearGradient id="grad3" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#d1fae5;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#a7f3d0;stop-opacity:1" />
+                    </linearGradient>
+                    <linearGradient id="grad4" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#fce7f3;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#fbcfe8;stop-opacity:1" />
+                    </linearGradient>
+                    <linearGradient id="grad5" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#e0e7ff;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#c7d2fe;stop-opacity:1" />
+                    </linearGradient>
+                    <linearGradient id="grad6" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#d1fae5;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#6ee7b7;stop-opacity:1" />
+                    </linearGradient>
+                </defs>
 
-  <!-- Intro -->
-  <div class="fade-section">
-    <h1>六大框架上下文管理方案深度对比</h1>
-    <blockquote>
-      <strong>研究日期:</strong> 2026-07-23<br>
-      <strong>框架:</strong> chat-agent / deer-flow / hermes-agent / claude-code / opencode / codex (OpenAI)
-    </blockquote>
-  </div>
+                <!-- 阶段 1: 工具执行 -->
+                <rect x="10" y="50" width="120" height="70" rx="10" fill="url(#grad1)" stroke="#3b82f6" stroke-width="2"/>
+                <text x="70" y="78" text-anchor="middle" font-size="12" font-weight="600" fill="#1e40af">① 工具执行</text>
+                <text x="70" y="96" text-anchor="middle" font-size="10" fill="#4a5568">原始输出</text>
+                <text x="70" y="110" text-anchor="middle" font-size="10" fill="#4a5568">50K+ chars</text>
 
-  <!-- ===== 一、总览对比表 ===== -->
-  <div class="fade-section">
-    <h2 id="sec-1">一、总览对比表<a href="#sec-1" class="anchor-link">#</a></h2>
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr>
-            <th>维度</th>
-            <th>chat-agent</th>
-            <th>deer-flow</th>
-            <th>hermes-agent</th>
-            <th>claude-code</th>
-            <th>opencode</th>
-            <th>codex (OpenAI)</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><strong>语言</strong></td>
-            <td>Python (FastAPI)</td>
-            <td>Python (LangGraph)</td>
-            <td>Python (CLI)</td>
-            <td>TypeScript (Node)</td>
-            <td>Go</td>
-            <td>Rust (codex-rs)</td>
-          </tr>
-          <tr>
-            <td><strong>单轮工具结果压缩</strong></td>
-            <td>FAISS 语义截断</td>
-            <td>磁盘外部化 + 头尾截断</td>
-            <td>头尾截断 + 摘要替换</td>
-            <td>磁盘持久化 + 预览</td>
-            <td>头尾截断(前15K+后15K)</td>
-            <td>中间截断(truncate_middle)，每工具独立预算</td>
-          </tr>
-          <tr>
-            <td><strong>token 计数</strong></td>
-            <td>tiktoken (cl100k_base)</td>
-            <td>tiktoken + API usage_metadata</td>
-            <td>字符估算 (÷4) + API 返回</td>
-            <td>API usage + 字符估算 (÷4)</td>
-            <td>仅 API usage 返回</td>
-            <td>API usage 精确值 + 字节估算(÷4) 混合</td>
-          </tr>
-          <tr>
-            <td><strong>阈值触发</strong></td>
-            <td>80% context → 停工具调用</td>
-            <td>硬停 100% (默认关闭)</td>
-            <td>50% context → 压缩</td>
-            <td>effective_window - 13K → 自动压缩</td>
-            <td>95% context → 自动摘要</td>
-            <td>auto_compact_limit → Pre/Mid-Turn 自动压缩</td>
-          </tr>
-          <tr>
-            <td><strong>窗口内历史处理</strong></td>
-            <td>轮次窗口(20轮) + token 裁剪</td>
-            <td>消息数/token/比例触发摘要</td>
-            <td>头保护(3) + 尾保护(≥8消息)</td>
-            <td>全量保留直到触发压缩</td>
-            <td>全量保留直到触发摘要</td>
-            <td>全量保留直到触发压缩</td>
-          </tr>
-          <tr>
-            <td><strong>窗口外处理</strong></td>
-            <td>LLM 摘要(增量合并)</td>
-            <td>LLM 摘要(删除旧消息)</td>
-            <td>LLM 摘要(头+尾+中间摘要)</td>
-            <td>LLM 摘要(9段结构化)</td>
-            <td>LLM 摘要(替换历史)</td>
-            <td>LLM 摘要(替换历史) 或 Token Budget 直接重置</td>
-          </tr>
-          <tr>
-            <td><strong>窗口内工具结果</strong></td>
-            <td>旧轮次: 用 summary 截断</td>
-            <td>历史重扫: 超预算重新截断</td>
-            <td>旧工具结果→1行摘要</td>
-            <td>时间触发清除 + 预算持久化</td>
-            <td>原样保留直到摘要重置</td>
-            <td>写入时一次性截断，后续原样保留</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+                <line x1="130" y1="85" x2="160" y2="85" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)"/>
 
-  <!-- ===== 二、单轮调用 ===== -->
-  <div class="fade-section">
-    <h2 id="sec-2">二、单轮调用：工具返回结果过长时的处理<a href="#sec-2" class="anchor-link">#</a></h2>
+                <!-- 阶段 2: 单轮压缩 -->
+                <rect x="165" y="40" width="130" height="90" rx="10" fill="url(#grad2)" stroke="#d97706" stroke-width="2"/>
+                <text x="230" y="65" text-anchor="middle" font-size="12" font-weight="600" fill="#92400e">② 单轮压缩</text>
+                <text x="230" y="82" text-anchor="middle" font-size="9" fill="#4a5568">FAISS语义 / 头尾</text>
+                <text x="230" y="96" text-anchor="middle" font-size="9" fill="#4a5568">磁盘外部化 / 中间</text>
+                <text x="230" y="110" text-anchor="middle" font-size="9" fill="#4a5568">截断 / 摘要替换</text>
 
-    <h3 id="sec-2-1">2.1 chat-agent — FAISS 语义截断<a href="#sec-2-1" class="anchor-link">#</a></h3>
-    <p><strong>核心文件:</strong> <code>backend/app/utils/context_compactor.py</code></p>
-    <pre><span class="str">策略: 语义相关性过滤</span>
-<span class="str">原理: 将工具结果按 Markdown 切块 → 向量化 → 与用户 query 计算相似度 → 贪心选择 top-K 块直到 token 预算</span></pre>
-    <ul>
-      <li><strong>容错阈值</strong>: tolerance_tokens = 6000（低于此不压缩）</li>
-      <li><strong>目标阈值</strong>: threshold_tokens = 5000</li>
-      <li><strong>chunk_size</strong>: 1000 字符, overlap 200 字符</li>
-      <li><strong>Fallback</strong>: 如果没选中任何 chunk，返回第一个 chunk</li>
-    </ul>
-    <p><strong>特殊处理</strong>: Tavily 搜索结果在 <code>TavilyResultProcessor</code> 中逐条调用 <code>compact_markdown_tool_result()</code> 压缩。</p>
-    <blockquote>
-      <strong>特点</strong>: 唯一使用<strong>语义相关性</strong>而非纯机械截断的框架。保留与用户问题最相关的片段，而非简单的头尾。
-    </blockquote>
-  </div>
+                <line x1="295" y1="85" x2="325" y2="85" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)"/>
 
-  <div class="fade-section">
-    <h3 id="sec-2-2">2.2 deer-flow — 两级策略（磁盘外部化 + 头尾截断）<a href="#sec-2-2" class="anchor-link">#</a></h3>
-    <p><strong>核心文件:</strong> <code>backend/.../tool_output_budget_middleware.py</code></p>
-    <pre><span class="str">Tier 1 — 磁盘外部化 (preferred):</span>
+                <!-- 阶段 3: Token 统计 -->
+                <rect x="330" y="50" width="120" height="70" rx="10" fill="url(#grad3)" stroke="#059669" stroke-width="2"/>
+                <text x="390" y="78" text-anchor="middle" font-size="12" font-weight="600" fill="#065f46">③ Token 统计</text>
+                <text x="390" y="96" text-anchor="middle" font-size="10" fill="#4a5568">tiktoken / API</text>
+                <text x="390" y="110" text-anchor="middle" font-size="10" fill="#4a5568">usage_metadata</text>
+
+                <line x1="450" y1="85" x2="480" y2="85" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)"/>
+
+                <!-- 阶段 4: 阈值检查 -->
+                <rect x="485" y="40" width="130" height="90" rx="10" fill="url(#grad4)" stroke="#db2777" stroke-width="2"/>
+                <text x="550" y="65" text-anchor="middle" font-size="12" font-weight="600" fill="#9d174d">④ 阈值检查</text>
+                <text x="550" y="82" text-anchor="middle" font-size="9" fill="#4a5568">context - output</text>
+                <text x="550" y="96" text-anchor="middle" font-size="9" fill="#4a5568">- 13K buffer</text>
+                <text x="550" y="110" text-anchor="middle" font-size="9" fill="#4a5568">渐进降级 / 硬停</text>
+
+                <!-- 分支: 超阈值 -->
+                <path d="M 550 130 L 550 150 L 230 150 L 230 132" stroke="#dc2626" stroke-width="1.5" fill="none" stroke-dasharray="5,3" marker-end="url(#arrow)"/>
+                <text x="390" y="145" text-anchor="middle" font-size="9" fill="#dc2626">超阈值 → 返回压缩</text>
+
+                <line x1="615" y1="85" x2="645" y2="85" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)"/>
+
+                <!-- 阶段 5: 历史窗口管理 -->
+                <rect x="650" y="40" width="130" height="90" rx="10" fill="url(#grad5)" stroke="#4f46e5" stroke-width="2"/>
+                <text x="715" y="65" text-anchor="middle" font-size="12" font-weight="600" fill="#3730a3">⑤ 历史管理</text>
+                <text x="715" y="82" text-anchor="middle" font-size="9" fill="#4a5568">窗口内: 保留/切分</text>
+                <text x="715" y="96" text-anchor="middle" font-size="9" fill="#4a5568">窗口外: LLM摘要</text>
+                <text x="715" y="110" text-anchor="middle" font-size="9" fill="#4a5568">增量合并 / 结构化</text>
+
+                <line x1="780" y1="85" x2="810" y2="85" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)"/>
+
+                <!-- 阶段 6: LLM 生成 -->
+                <rect x="815" y="50" width="120" height="70" rx="10" fill="url(#grad6)" stroke="#059669" stroke-width="2"/>
+                <text x="875" y="78" text-anchor="middle" font-size="12" font-weight="600" fill="#065f46">⑥ LLM 生成</text>
+                <text x="875" y="96" text-anchor="middle" font-size="10" fill="#4a5568">在预算内</text>
+                <text x="875" y="110" text-anchor="middle" font-size="10" fill="#4a5568">完成响应</text>
+            </svg>
+            <p class="chart-caption">图 1：上下文管理主流程 — 从工具输出到 LLM 响应的 6 阶段管道</p>
+        </div>
+
+        <div class="card" id="overview-table">
+            <h2>📊 总览对比表</h2>
+            <table>
+                <tr>
+                    <th>维度</th>
+                    <th>chat-agent</th>
+                    <th>deer-flow</th>
+                    <th>hermes-agent</th>
+                    <th>claude-code</th>
+                    <th>opencode</th>
+                    <th>codex</th>
+                </tr>
+                <tr>
+                    <td><strong>语言</strong></td>
+                    <td>Python (FastAPI)</td>
+                    <td>Python (LangGraph)</td>
+                    <td>Python (CLI)</td>
+                    <td>TypeScript (Node)</td>
+                    <td>TypeScript (Effect)</td>
+                    <td>Rust (codex-rs)</td>
+                </tr>
+                <tr>
+                    <td><strong>单轮工具结果压缩</strong></td>
+                    <td>FAISS 语义截断</td>
+                    <td>磁盘外部化 + 头尾截断</td>
+                    <td>头尾截断 + 摘要替换</td>
+                    <td>磁盘持久化 + 预览</td>
+                    <td>磁盘外部化 + 尾部截断</td>
+                    <td>中间截断，每工具独立预算</td>
+                </tr>
+                <tr>
+                    <td><strong>Token 计数</strong></td>
+                    <td>tiktoken (cl100k_base)</td>
+                    <td>tiktoken + API usage_metadata</td>
+                    <td>字符估算 (÷4) + API 返回</td>
+                    <td>API usage + 字符估算 (÷4)</td>
+                    <td>API usage + 字符估算 (÷4)</td>
+                    <td>API usage 精确值 + 字节估算(÷4)</td>
+                </tr>
+                <tr>
+                    <td><strong>阈值触发</strong></td>
+                    <td>context_limit - max_output - 13K buffer → 四级渐进降级</td>
+                    <td>硬停 100% (默认关闭)</td>
+                    <td>50% context → 压缩</td>
+                    <td>effective_window - 13K → 自动压缩</td>
+                    <td>input - min(20K, maxOutputTokens) → 自动摘要</td>
+                    <td>auto_compact_limit → Pre/Mid-Turn 自动压缩</td>
+                </tr>
+                <tr>
+                    <td><strong>窗口内历史处理</strong></td>
+                    <td>token 预算切分(从新到旧累加整轮)</td>
+                    <td>消息数/token/比例触发摘要</td>
+                    <td>头保护(3) + 尾保护(≥8消息)</td>
+                    <td>全量保留直到触发压缩</td>
+                    <td>全量保留直到触发摘要</td>
+                    <td>全量保留直到触发压缩</td>
+                </tr>
+                <tr>
+                    <td><strong>窗口外处理</strong></td>
+                    <td>LLM 摘要(增量合并)</td>
+                    <td>LLM 摘要(删除旧消息)</td>
+                    <td>LLM 摘要(头+尾+中间摘要)</td>
+                    <td>LLM 摘要(9段结构化)</td>
+                    <td>LLM 摘要(替换历史)</td>
+                    <td>LLM 摘要(替换历史) 或 Token Budget 直接重置</td>
+                </tr>
+                <tr>
+                    <td><strong>窗口内工具结果</strong></td>
+                    <td>Step 2: summary 优先/2000 token 截断; Step 4: 最近 2 组保护, 旧组 head-tail 500/500 字符截断</td>
+                    <td>历史重扫: 超预算重新截断</td>
+                    <td>旧工具结果→1行摘要</td>
+                    <td>时间触发清除 + 预算持久化</td>
+                    <td>prune: 保留 40K tokens 近期工具输出，旧的标记 compacted</td>
+                    <td>写入时一次性截断，后续原样保留</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="card" id="single-round">
+            <h2>🔧 二、单轮调用：工具返回结果过长时的处理</h2>
+
+            <h3>2.1 chat-agent — FAISS 语义截断</h3>
+            <div class="highlight-box">
+                <strong>策略：</strong>语义相关性过滤<br>
+                <strong>原理：</strong>将工具结果按 Markdown 切块 → 向量化 → 与用户 query 计算相似度 → 贪心选择 top-K 块直到 token 预算
+            </div>
+            <ul>
+                <li>容错阈值: <code>tolerance_tokens = 6000</code>（低于此不压缩）</li>
+                <li>目标阈值: <code>threshold_tokens = 5000</code></li>
+                <li>chunk_size: 1000 字符, overlap 200 字符</li>
+                <li>Fallback: 如果没选中任何 chunk，返回第一个 chunk</li>
+            </ul>
+            <p><strong>特点：</strong>唯一使用 <strong>语义相关性</strong> 而非纯机械截断的框架。保留与用户问题最相关的片段，而非简单的头尾。</p>
+
+            <h3>2.2 deer-flow — 两级策略（磁盘外部化 + 头尾截断）</h3>
+            <pre><code>Tier 1 — 磁盘外部化 (preferred):
   触发: 结果 > 12,000 chars
   操作: 完整内容写入磁盘 .tool-results/，替换为 head(2000) + 文件引用 + tail(1000)
 
-<span class="str">Tier 2 — Fallback 头尾截断:</span>
+Tier 2 — Fallback 头尾截断:
   触发: 磁盘不可用时
-  操作: 截断到 30,000 chars, head(8000) + 省略标记 + tail(3000)</pre>
-    <ul>
-      <li><strong>行边界对齐</strong>: <code>_snap_to_line_boundary()</code> 确保截断在换行处</li>
-      <li><strong>豁免工具</strong>: <code>read_file</code> 不做持久化（防循环）</li>
-      <li><strong>历史重扫</strong>: 每次模型调用前，<code>_patch_model_messages</code> 重新扫描历史中仍超预算的工具结果</li>
-    </ul>
-  </div>
+  操作: 截断到 30,000 chars, head(8000) + 省略标记 + tail(3000)</code></pre>
 
-  <div class="fade-section">
-    <h3 id="sec-2-3">2.3 hermes-agent — 头尾截断 + 工具结果摘要替换<a href="#sec-2-3" class="anchor-link">#</a></h3>
-    <p><strong>核心文件:</strong> <code>tools/terminal_tool.py</code>, <code>agent/context_compressor.py</code></p>
-    <pre><span class="str">终端输出截断:</span>
+            <h3>2.3 hermes-agent — 头尾截断 + 工具结果摘要替换</h3>
+            <pre><code>终端输出截断:
   MAX_OUTPUT_CHARS = 50,000
   head(40%) + 截断通知 + tail(60%)
 
-<span class="str">文件读取截断:</span>
-  MAX_LINES = 2,000, MAX_LINE_LENGTH = 2,000
-  每行: line[:2000] + <span class="str">"..."</span></pre>
-    <p><strong>压缩预处理（无 LLM）:</strong></p>
-    <ul>
-      <li><code>_prune_old_tool_results()</code>: 旧工具结果替换为 1 行摘要，如 <code>[terminal] ran 'npm test' -> exit 0, 47 lines output</code></li>
-      <li><strong>MD5 去重</strong>: 相同工具结果只保留最新</li>
-      <li><strong>工具调用参数截断</strong>: <code>_truncate_tool_call_args_json()</code> — JSON 字符串值 &gt;200 字符时压缩</li>
-      <li><strong>图片替换</strong>: 旧截图替换为 <code>[screenshot removed to save context]</code></li>
-    </ul>
-  </div>
+压缩预处理（无 LLM）:
+  • _prune_old_tool_results(): 旧工具结果替换为 1 行摘要
+  • MD5 去重: 相同工具结果只保留最新
+  • 工具调用参数截断: JSON 字符串值 >200 字符时压缩
+  • 图片替换: 旧截图替换为 [screenshot removed to save context]</code></pre>
 
-  <div class="fade-section">
-    <h3 id="sec-2-4">2.4 claude-code — 磁盘持久化 + 分层预算<a href="#sec-2-4" class="anchor-link">#</a></h3>
-    <p><strong>核心文件:</strong> <code>src/utils/toolResultStorage.ts</code>, <code>src/constants/toolLimits.ts</code></p>
-    <pre>单工具预算: DEFAULT_MAX_RESULT_SIZE_CHARS = <span class="num">50,000</span> chars
-消息级预算: MAX_TOOL_RESULTS_PER_MESSAGE_CHARS = <span class="num">200,000</span> chars
-Token 上限: MAX_TOOL_RESULT_TOKENS = <span class="num">100,000</span> (~400KB)</pre>
-    <ul>
-      <li><strong>持久化</strong>: 超阈值 → 写入 <code>tool-results/&lt;tool_use_id&gt;.txt</code> → 替换为 2KB 预览 + <code>&lt;persisted-output&gt;</code> 标签</li>
-      <li><strong>消息级聚合</strong>: 并行工具结果合计超 200K 时，最大结果优先持久化</li>
-      <li><strong>确定性替换</strong>: <code>ContentReplacementState</code> 确保已替换的结果在后续轮次保持一致（保护 prompt cache）</li>
-      <li><strong>Microcompact (时间触发)</strong>: 超过 60 分钟无交互的工具结果清除为 <code>[Old tool result content cleared]</code>，保留最近 5 个</li>
-      <li><strong>图片压缩</strong>: <code>readImageWithTokenBudget()</code> — 先标准缩放，超 token 预算则激进压缩</li>
-    </ul>
-  </div>
+            <h3>2.4 claude-code — 磁盘持久化 + 分层预算</h3>
+            <ul>
+                <li>单工具预算: <code>DEFAULT_MAX_RESULT_SIZE_CHARS = 50,000</code></li>
+                <li>消息级预算: <code>MAX_TOOL_RESULTS_PER_MESSAGE_CHARS = 200,000</code></li>
+                <li>Token 上限: <code>MAX_TOOL_RESULT_TOKENS = 100,000</code></li>
+                <li>持久化: 超阈值 → 写入 <code>tool-results/&lt;tool_use_id&gt;.txt</code></li>
+                <li>Microcompact (时间触发): 超过 60 分钟无交互的工具结果清除</li>
+            </ul>
 
-  <div class="fade-section">
-    <h3 id="sec-2-5">2.5 opencode — 简单头尾截断<a href="#sec-2-5" class="anchor-link">#</a></h3>
-    <p><strong>核心文件:</strong> <code>internal/llm/tools/bash.go</code>, <code>internal/llm/tools/view.go</code></p>
-    <pre>Bash 输出: MAX_OUTPUT_LENGTH = <span class="num">30,000</span> chars
-  截断方式: 前 15K + <span class="str">"..."</span> + 后 15K
+            <h3>2.5 opencode — 磁盘外部化 + 尾部截断</h3>
+            <div class="warning-box">
+                <strong>特点：</strong>Shell 用尾部截断（保留最新输出），文件读取用头部截断（保留开头）。截断后完整数据持久化到磁盘，模型可通过 Grep/Read 工具重新访问。
+            </div>
 
-文件读取: MAX_READ_SIZE = 250KB, DEFAULT_READ_LIMIT = 2000 行, MAX_LINE_LENGTH = 2000
-Glob/Grep: 最多 100 个结果</pre>
-    <blockquote>
-      <strong>特点</strong>: 最简单的策略，无语义分析，无磁盘持久化，纯机械截断。
-    </blockquote>
-  </div>
+            <h3>2.6 codex (OpenAI) — 中间截断 + 分层预算</h3>
+            <ul>
+                <li>截断算法: <code>truncate_middle</code> — 保留头部+尾部，中间替换为省略提示</li>
+                <li>1.2x 容量系数: 为序列化开销留余量</li>
+                <li>每工具独立预算: 不同工具可在 <code>tools/context.rs</code> 中定义各自的 <code>TruncationPolicy</code></li>
+                <li>MCP 工具默认限制: <code>Bytes(1024)</code></li>
+            </ul>
+        </div>
 
-  <div class="fade-section">
-    <h3 id="sec-2-6">2.6 codex (OpenAI) — 中间截断 + 分层预算<a href="#sec-2-6" class="anchor-link">#</a></h3>
-    <p><strong>核心文件:</strong> <code>codex-rs/utils/output-truncation/src/lib.rs</code>, <code>codex-rs/core/src/context_manager/history.rs</code></p>
-    <pre><span class="str">截断时机: 工具结果写入历史时一次性截断（非工具返回后立即截断）</span>
-<span class="str">截断算法: truncate_middle — 保留头部+尾部，中间替换为省略提示</span>
-<span class="str">截断策略: TruncationPolicy::Tokens(n) 或 ::Bytes(n)</span>
+        <div class="card" id="token-stats">
+            <h2>📈 三、单轮结束后：Token 统计与阈值处理</h2>
 
-<span class="cmt">// process_item 中使用 1.2x 容量系数，为序列化开销留余量</span>
-<span class="kw">let</span> policy_with_serialization_budget = policy * <span class="num">1.2</span>;</pre>
-    <ul>
-      <li><strong>每工具独立预算</strong>: 不同工具可在 <code>tools/context.rs</code> 中定义各自的 <code>TruncationPolicy</code></li>
-      <li><strong>MCP 工具默认限制</strong>: <code>Bytes(1024)</code></li>
-      <li><strong>批量写入</strong>: 一轮采样结束后，<code>drain_in_flight</code> 批量等待所有 in-flight 工具完成，然后逐个写入历史并截断</li>
-      <li><strong>多内容项处理</strong>: <code>truncate_function_output_items_with_policy</code> 按顺序消耗 token 预算，超限的文本项被截断或省略，图片/音频按成本扣减</li>
-    </ul>
-    <blockquote>
-      <strong>特点</strong>: 截断不是逐工具实时触发，而是<strong>批量写入历史时统一处理</strong>。中间截断算法保证头尾信息保留，配合 1.2x 容量系数容忍序列化膨胀。
-    </blockquote>
-  </div>
+            <h3>3.1 chat-agent — 统一上下文守卫（四级渐进降级）</h3>
 
-  <hr>
+            <!-- 漏斗图 -->
+            <svg viewBox="0 0 520 420" style="width:100%;max-width:520px;margin:1.5rem auto;display:block;">
+                <defs>
+                    <linearGradient id="funnel1" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#059669"/>
+                        <stop offset="100%" style="stop-color:#10b981"/>
+                    </linearGradient>
+                    <linearGradient id="funnel2" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#3b82f6"/>
+                        <stop offset="100%" style="stop-color:#60a5fa"/>
+                    </linearGradient>
+                    <linearGradient id="funnel3" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#6366f1"/>
+                        <stop offset="100%" style="stop-color:#818cf8"/>
+                    </linearGradient>
+                    <linearGradient id="funnel4" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#a855f7"/>
+                        <stop offset="100%" style="stop-color:#c084fc"/>
+                    </linearGradient>
+                    <linearGradient id="funnel5" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#dc2626"/>
+                        <stop offset="100%" style="stop-color:#ef4444"/>
+                    </linearGradient>
+                </defs>
 
-  <!-- ===== 三、Token 统计与阈值处理 ===== -->
-  <div class="fade-section">
-    <h2 id="sec-3">三、单轮结束后：Token 统计与阈值处理<a href="#sec-3" class="anchor-link">#</a></h2>
+                <!-- Step 1 -->
+                <polygon points="10,10 510,10 480,70 40,70" fill="url(#funnel1)" opacity="0.95"/>
+                <text x="260" y="38" text-anchor="middle" fill="white" font-size="13" font-weight="bold">Step 1：检查阈值</text>
+                <text x="260" y="55" text-anchor="middle" fill="white" font-size="10">total_tokens ≤ context_limit - max_output - 13K</text>
+                <text x="260" y="90" text-anchor="middle" fill="#059669" font-size="11">✓ 通过 → 无需操作</text>
 
-    <h3 id="sec-3-1">3.1 chat-agent<a href="#sec-3-1" class="anchor-link">#</a></h3>
-    <p><strong>核心文件:</strong> <code>backend/app/agents/chat_session_agent.py</code>, <code>backend/app/utils/token.py</code></p>
-    <pre><span class="cmt"># 每轮工具调用循环后检查</span>
-<span class="kw">def</span> <span class="fn">_check_round_context_budget</span>(<span class="var">self</span>, next_round_messages):
-    current_tokens = <span class="var">self</span>.token_calculator.count_messages_tokens(next_round_messages)
-    threshold_tokens = <span class="fn">int</span>(<span class="var">self</span>.model_limit * <span class="var">self</span>.tool_context_limit_ratio)  <span class="cmt"># 0.8</span>
-    <span class="kw">return</span> current_tokens > threshold_tokens, current_tokens, threshold_tokens</pre>
-    <ul>
-      <li><strong>Token 计数</strong>: tiktoken <code>cl100k_base</code>，支持本地 BPE 文件离线回退</li>
-      <li><strong>工具轮阈值</strong>: 80% context → 停止工具调用，切换到最终回答</li>
-      <li><strong>历史 token 预算</strong>: 25% context 分配给历史窗口</li>
-    </ul>
-  </div>
+                <!-- Step 2 -->
+                <polygon points="40,100 480,100 440,160 80,160" fill="url(#funnel2)" opacity="0.95"/>
+                <text x="260" y="125" text-anchor="middle" fill="white" font-size="12" font-weight="bold">Step 2：压缩历史工具结果</text>
+                <text x="260" y="142" text-anchor="middle" fill="white" font-size="10">优先 summary / 否则 2000 token 头尾截断</text>
 
-  <div class="fade-section">
-    <h3 id="sec-3-2">3.2 deer-flow<a href="#sec-3-2" class="anchor-link">#</a></h3>
-    <p><strong>核心文件:</strong> <code>backend/.../token_budget_middleware.py</code></p>
-    <pre><span class="cmt"># 默认关闭！需手动 enabled=True</span>
-max_tokens = <span class="num">200,000</span>          <span class="cmt"># 总量(input+output)</span>
-warn_threshold = <span class="num">0.8</span>          <span class="cmt"># 80% 软警告</span>
-hard_stop_threshold = <span class="num">1.0</span>     <span class="cmt"># 100% 硬停止</span></pre>
-    <ul>
-      <li><strong>计数方式</strong>: diff-based — 跟踪 <code>_seen_messages</code> 字典，只累加增量避免重复计数</li>
-      <li><strong>软警告</strong>: 注入 <code>HumanMessage(name="budget_warning")</code> 提示模型收尾</li>
-      <li><strong>硬停止</strong>: 剥离 <code>tool_calls</code>，强制 <code>finish_reason="stop"</code></li>
-      <li><strong>子代理 token 合并</strong>: <code>TokenUsageMiddleware</code> 将子代理的 <code>usage_metadata</code> 回溯合并到父消息</li>
-    </ul>
-  </div>
+                <!-- Step 3 -->
+                <polygon points="80,185 440,185 390,245 130,245" fill="url(#funnel3)" opacity="0.95"/>
+                <text x="260" y="210" text-anchor="middle" fill="white" font-size="12" font-weight="bold">Step 3：窗口化 + 增量摘要</text>
+                <text x="260" y="227" text-anchor="middle" fill="white" font-size="10">从新到旧累加整轮，窗口外 → LLM 增量摘要</text>
 
-  <div class="fade-section">
-    <h3 id="sec-3-3">3.3 hermes-agent<a href="#sec-3-3" class="anchor-link">#</a></h3>
-    <p><strong>核心文件:</strong> <code>agent/context_compressor.py</code>, <code>agent/model_metadata.py</code></p>
-    <pre><span class="cmt"># 字符估算 (无 tiktoken)</span>
-<span class="fn">estimate_messages_tokens_rough</span>(): (total_chars + <span class="num">3</span>) // <span class="num">4</span> + image_tokens
-_CHAR_PER_TOKEN = <span class="num">4</span>
-IMAGE_TOKENS = <span class="num">1500</span>  <span class="cmt"># 每张图</span>
+                <!-- Step 4 -->
+                <polygon points="130,270 390,270 340,330 180,330" fill="url(#funnel4)" opacity="0.95"/>
+                <text x="260" y="295" text-anchor="middle" fill="white" font-size="12" font-weight="bold">Step 4：压缩当前轮工具结果</text>
+                <text x="260" y="312" text-anchor="middle" fill="white" font-size="10">保护最近 2 组，旧组 head-tail 500/500 截断</text>
 
-<span class="cmt"># 阈值计算</span>
-threshold = effective_input_budget * threshold_percent  <span class="cmt"># 默认 50%</span>
-effective_input_budget = context_length - max_tokens    <span class="cmt"># 预留输出空间</span>
-MINIMUM_CONTEXT_LENGTH = <span class="num">64</span>K   <span class="cmt"># 最低阈值</span></pre>
-    <ul>
-      <li><strong>三次检查点</strong>: ① 轮次序言(preflight) ② 工具结果追加后(pre-API) ③ API 响应后(真实 token)</li>
-      <li><strong>API 真实值优先</strong>: <code>update_from_response()</code> 使用 API 返回的 <code>prompt_tokens</code></li>
-      <li><strong>反抖动</strong>: 2 次无效压缩后自动停止压缩</li>
-      <li><strong>冷却机制</strong>: 失败后 60s→300s→900s 递增冷却</li>
-    </ul>
-  </div>
+                <!-- Stop -->
+                <polygon points="180,355 340,355 310,405 210,405" fill="url(#funnel5)" opacity="0.95"/>
+                <text x="260" y="378" text-anchor="middle" fill="white" font-size="12" font-weight="bold">最终：停止工具调用</text>
+                <text x="260" y="393" text-anchor="middle" fill="white" font-size="10">stop_tools → 切换到最终回答</text>
 
-  <div class="fade-section">
-    <h3 id="sec-3-4">3.4 claude-code<a href="#sec-3-4" class="anchor-link">#</a></h3>
-    <p><strong>核心文件:</strong> <code>src/services/compact/autoCompact.ts</code>, <code>src/utils/tokens.ts</code></p>
-    <pre><span class="cmt">// token 计数: API usage + 字符估算混合</span>
-<span class="fn">tokenCountWithEstimation</span>():
-  lastAPICallUsage.input_tokens + cache_creation + cache_read + output_tokens
-  + <span class="fn">roughTokenCountEstimationForMessages</span>(new_messages)  <span class="cmt">// ÷4</span>
+                <!-- 侧边标注 -->
+                <text x="15" y="220" text-anchor="middle" fill="#94a3b8" font-size="10" transform="rotate(-90, 15, 220)">压缩强度递增</text>
+            </svg>
+            <p class="chart-caption">图 2：chat-agent 四级渐进降级漏斗 — 从宽松检查到强制停止的 5 层漏斗</p>
 
-<span class="cmt">// 阈值</span>
-effectiveContextWindow = contextWindow - <span class="fn">min</span>(maxOutputTokens, <span class="num">20,000</span>)
-autoCompactThreshold = effectiveContextWindow - <span class="num">13,000</span>  <span class="cmt">// AUTOCOMPACT_BUFFER</span>
-warningThreshold = threshold - <span class="num">20,000</span>
-blockingLimit = effectiveContextWindow - <span class="num">3,000</span></pre>
-    <ul>
-      <li><strong>JSON 特殊处理</strong>: bytesPerToken=2（JSON 比普通文本 token 密度更高）</li>
-      <li><strong>熔断器</strong>: 3 次连续自动压缩失败后停止尝试</li>
-      <li><strong>环境变量覆盖</strong>: <code>CLAUDE_AUTOCOMPACT_PCT_OVERRIDE</code>, <code>CLAUDE_CODE_AUTO_COMPACT_WINDOW</code></li>
-    </ul>
-  </div>
+            <pre><code>threshold = context_limit - min(max_output_tokens, 8192) - 13000
 
-  <div class="fade-section">
-    <h3 id="sec-3-5">3.5 opencode<a href="#sec-3-5" class="anchor-link">#</a></h3>
-    <p><strong>核心文件:</strong> <code>internal/tui/tui.go</code>, <code>internal/llm/agent/agent.go</code></p>
-    <pre><span class="cmt">// 仅使用 API 返回的 usage，无客户端 token 计算</span>
-tokens := session.CompletionTokens + session.PromptTokens
-<span class="kw">if</span> tokens >= <span class="fn">int64</span>(<span class="fn">float64</span>(contextWindow) * <span class="num">0.95</span>) && config.<span class="fn">Get</span>().AutoCompact {
-    <span class="fn">startCompactSession</span>()
-}</pre>
-    <ul>
-      <li><strong>95% 阈值</strong>: 累计 token 达到 context window 的 95% 时触发自动摘要</li>
-      <li><strong>MaxTokens 上限</strong>: 如果 <code>maxTokens &gt; ContextWindow/2</code>，自动限制为一半</li>
-      <li><strong>特点</strong>: 最轻量的方案，完全依赖 API 返回值，无客户端估算</li>
-    </ul>
-  </div>
+Step 1: 检查 total_tokens <= threshold → 通过，无需操作
+Step 2: 压缩所有历史轮次的工具结果（优先 summary，否则 2000 token 头尾截断）
+Step 3: 按剩余预算切分历史消息窗口（从新到旧累加整轮），窗口外 → LLM 增量摘要
+Step 4: 按大小压缩当前轮次的工具结果（保护最近 2 组，旧组 head-tail 500/500 字符截断）
+最终: 若仍超阈值 → stop_tools（停止工具调用，切换到最终回答）</code></pre>
+            <p><strong>反抖动保护：</strong>3 次连续失败 → 进入 300s 恢复窗口</p>
 
-  <div class="fade-section">
-    <h3 id="sec-3-6">3.6 codex (OpenAI)<a href="#sec-3-6" class="anchor-link">#</a></h3>
-    <p><strong>核心文件:</strong> <code>codex-rs/core/src/session/context_window.rs</code>, <code>codex-rs/core/src/context_manager/history.rs</code></p>
-    <pre><span class="cmt">// 双源 token 计数：服务端精确 + 本地估算</span>
-<span class="cmt">// 服务端: API 返回的 TokenUsage（input_tokens, total_tokens）</span>
-<span class="cmt">// 本地: approx_token_count = (byte_count + 3) / 4</span>
+            <h3>3.2 deer-flow</h3>
+            <ul>
+                <li>默认关闭！需手动 <code>enabled=True</code></li>
+                <li><code>max_tokens = 200,000</code>（总量 input+output）</li>
+                <li><code>warn_threshold = 0.8</code>（80% 软警告）</li>
+                <li><code>hard_stop_threshold = 1.0</code>（100% 硬停止）</li>
+                <li>diff-based 计数: 跟踪 <code>_seen_messages</code> 字典，只累加增量</li>
+            </ul>
 
-<span class="cmt">// 阈值判定 — 两个条件取 OR</span>
-full_context_window_limit_reached = active_context_tokens >= context_window
-token_limit_reached = (auto_compact_scope_tokens >= buffered_limit)
-                    || full_context_window_limit_reached
+            <h3>3.3 hermes-agent</h3>
+            <ul>
+                <li>字符估算: <code>(total_chars + 3) // 4 + image_tokens</code></li>
+                <li>阈值: <code>effective_input_budget * 50%</code>（最激进的触发点）</li>
+                <li>三次检查点: ① 轮次序言 ② 工具结果追加后 ③ API 响应后</li>
+                <li>反抖动: 2 次无效压缩后自动停止，冷却时间 60s→300s→900s 递增</li>
+            </ul>
 
-<span class="cmt">// 两种 scope 模式</span>
-AutoCompactTokenLimitScope::Total       → 整个活跃上下文
-AutoCompactTokenLimitScope::BodyAfterPrefix → 仅计算 prefix 之后增长部分</pre>
-    <ul>
-      <li><strong>混合计数</strong>: 服务端 API 返回精确 <code>TokenUsage</code>，未覆盖的本地追加项用字节÷4 粗估</li>
-      <li><strong>三阶段检查</strong>: ① Pre-Turn（新一轮用户输入前）② Mid-Turn（每次采样后）③ Manual（用户手动触发）</li>
-      <li><strong>Buffered fallback</strong>: auto_compact_limit 外额外预留 fallback buffer，用尽后注入 fallback prompt</li>
-      <li><strong>Token Budget 模式</strong>: 可选功能，压缩时直接重置上下文窗口而非 LLM 摘要</li>
-      <li><strong>模型切换检测</strong>: comp_hash 变化或 context window 缩小时自动触发 Pre-Turn 压缩</li>
-    </ul>
-  </div>
+            <h3>3.4 claude-code</h3>
+            <pre><code>effectiveContextWindow = contextWindow - min(maxOutputTokens, 20,000)
+autoCompactThreshold = effectiveContextWindow - 13,000
+warningThreshold = threshold - 20,000
+blockingLimit = effectiveContextWindow - 3,000</code></pre>
+            <ul>
+                <li>JSON 特殊处理: bytesPerToken=2</li>
+                <li>熔断器: 3 次连续自动压缩失败后停止尝试</li>
+            </ul>
 
-  <hr>
+            <h3>3.5 opencode</h3>
+            <div class="highlight-box">
+                <strong>动态阈值：</strong><code>usable = input_limit - min(20K, maxOutputTokens)</code><br>
+                200K context 模型 → 180K (90%)；128K → 108K (84%)
+            </div>
+            <ul>
+                <li>overflow 检查用 API 精确值，compaction 选择用客户端估算</li>
+                <li>可配置独立 compaction agent 用不同模型</li>
+            </ul>
 
-  <!-- ===== 四、多轮调用 ===== -->
-  <div class="fade-section">
-    <h2 id="sec-4">四、多轮调用时的历史上下文处理<a href="#sec-4" class="anchor-link">#</a></h2>
+            <h3>3.6 codex (OpenAI)</h3>
+            <ul>
+                <li>双源 token 计数：服务端 API 精确值 + 本地字节÷4 粗估</li>
+                <li>三阶段检查: ① Pre-Turn ② Mid-Turn ③ Manual</li>
+                <li>Token Budget 模式: 压缩时直接重置上下文窗口而非 LLM 摘要</li>
+                <li>模型切换检测: comp_hash 变化或 context window 缩小时自动触发压缩</li>
+            </ul>
+        </div>
 
-    <h3 id="sec-4-1">4.1 窗口内上下文<a href="#sec-4-1" class="anchor-link">#</a></h3>
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr><th>框架</th><th>窗口定义</th><th>保留策略</th></tr>
-        </thead>
-        <tbody>
-          <tr><td><strong>chat-agent</strong></td><td>最近 20 轮(user+assistant 对)</td><td>轮次计数 + token 预算裁剪(25% context)</td></tr>
-          <tr><td><strong>deer-flow</strong></td><td>messages:20 或 tokens/fraction 触发</td><td>二分查找安全切点，不拆分 AI+Tool 配对</td></tr>
-          <tr><td><strong>hermes-agent</strong></td><td>头保护(3条) + 尾保护(≥8条, token 预算)</td><td>尾部按 token 预算向回走，对齐到 tool_call/tool_result 边界</td></tr>
-          <tr><td><strong>claude-code</strong></td><td>全量保留直到自动压缩</td><td>按 API round 分组，压缩时保留最近的 round</td></tr>
-          <tr><td><strong>opencode</strong></td><td>全量保留直到 95% 阈值</td><td>摘要后 SummaryMessageID 之前的全部丢弃</td></tr>
-          <tr><td><strong>codex</strong></td><td>全量保留直到 auto_compact_limit</td><td>AutoCompactWindow 追踪窗口代际，prefill baseline 从服务端 usage 捕获</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+        <div class="card" id="multi-round">
+            <h2>🔄 四、多轮调用时的历史上下文处理</h2>
 
-  <div class="fade-section">
-    <h3 id="sec-4-2">4.2 窗口外上下文<a href="#sec-4-2" class="anchor-link">#</a></h3>
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr><th>框架</th><th>处理方式</th><th>摘要策略</th><th>持久化</th></tr>
-        </thead>
-        <tbody>
-          <tr><td><strong>chat-agent</strong></td><td>LLM 摘要</td><td>增量合并（只摘要新增部分，合并到已有摘要）</td><td>DB <code>conversation_contexts</code> 表</td></tr>
-          <tr><td><strong>deer-flow</strong></td><td>LLM 摘要</td><td>删除全部旧消息，插入 summary + 保留尾部</td><td>无额外持久化</td></tr>
-          <tr><td><strong>hermes-agent</strong></td><td>LLM 摘要</td><td>结构化模板(Goal/Actions/State/Decisions)，迭代更新</td><td>SQLite session 分割（旧 session 标记 <code>compression</code>）</td></tr>
-          <tr><td><strong>claude-code</strong></td><td>LLM 摘要</td><td>9 段结构化摘要(Primary Request/Key Concepts/Files/Errors/Pending/Next...) + 转录文件引用</td><td>写入磁盘转录文件，摘要中包含路径</td></tr>
-          <tr><td><strong>opencode</strong></td><td>LLM 摘要</td><td>独立摘要模型(可用便宜模型)生成摘要</td><td>SummaryMessageID 存储在 session 记录</td></tr>
-          <tr><td><strong>codex</strong></td><td>LLM 摘要 或 Token Budget 重置</td><td>用户消息 + 摘要替换整个历史；mid-turn 重新注入初始上下文(AGENTS.md等)</td><td>RolloutRecorder 持久化完整 rollout trace</td></tr>
-        </tbody>
-      </table>
-    </div>
+            <!-- 多轮历史管理架构图 -->
+            <svg viewBox="0 0 760 340" style="width:100%;max-width:760px;margin:1.5rem auto;display:block;">
+                <defs>
+                    <linearGradient id="hotGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style="stop-color:#dbeafe"/>
+                        <stop offset="100%" style="stop-color:#bfdbfe"/>
+                    </linearGradient>
+                    <linearGradient id="coldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style="stop-color:#f1f5f9"/>
+                        <stop offset="100%" style="stop-color:#e2e8f0"/>
+                    </linearGradient>
+                    <linearGradient id="filterGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#fcd34d"/>
+                        <stop offset="100%" style="stop-color:#fbbf24"/>
+                    </linearGradient>
+                    <marker id="arr" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L9,3 z" fill="#94a3b8"/>
+                    </marker>
+                </defs>
 
-    <p><strong>增量摘要（chat-agent 独有）:</strong></p>
-    <pre><span class="cmt"># 如果已有摘要且只有新消息 → 只摘要增量 → 合并</span>
-<span class="kw">if</span> prior_summary <span class="kw">and</span> new_messages_only:
-    delta_summary = llm.<span class="fn">summarize</span>(new_messages)
-    merged = <span class="fn">merge_summaries</span>(prior_summary, delta_summary)</pre>
+                <!-- 标题 -->
+                <text x="380" y="25" text-anchor="middle" font-size="14" font-weight="bold" fill="#1e293b">多轮历史上下文管理架构</text>
 
-    <p><strong>Skill 救援（deer-flow 独有）:</strong></p>
-    <pre><span class="cmt"># 从即将被摘要的历史中，抢救最近加载的 skill 文件</span>
-preserve_recent_skill_count = <span class="num">5</span>      <span class="cmt"># 最多救 5 个</span>
-preserve_recent_skill_tokens = <span class="num">25000</span> <span class="cmt"># 总预算 25K</span>
-preserve_recent_skill_tokens_per_skill = <span class="num">5000</span>  <span class="cmt"># 每个 5K</span></pre>
+                <!-- 上方：活跃上下文（窗口内） -->
+                <rect x="50" y="45" width="660" height="110" rx="12" fill="url(#hotGrad)" stroke="#3b82f6" stroke-width="2"/>
+                <text x="380" y="68" text-anchor="middle" font-size="13" font-weight="bold" fill="#1e40af">🟢 活跃上下文（窗口内保留区）</text>
 
-    <p><strong>文件恢复（claude-code 独有）:</strong></p>
-    <pre>POST_COMPACT_MAX_FILES_TO_RESTORE = <span class="num">5</span>
-POST_COMPACT_TOKEN_BUDGET = <span class="num">50,000</span>  <span class="cmt"># 重新注入最近读取的文件</span>
-POST_COMPACT_SKILLS_TOKEN_BUDGET = <span class="num">25,000</span>  <span class="cmt"># 重新注入技能</span></pre>
-  </div>
+                <!-- 窗口内策略标签 -->
+                <rect x="70" y="82" width="120" height="56" rx="8" fill="white" stroke="#93c5fd" stroke-width="1.5"/>
+                <text x="130" y="105" text-anchor="middle" font-size="11" fill="#1e40af" font-weight="600">chat-agent</text>
+                <text x="130" y="122" text-anchor="middle" font-size="9" fill="#4a5568">token 预算切分</text>
+                <text x="130" y="135" text-anchor="middle" font-size="9" fill="#4a5568">从新到旧累加整轮</text>
 
-  <div class="fade-section">
-    <h3 id="sec-4-3">4.3 窗口内的工具调用结果处理<a href="#sec-4-3" class="anchor-link">#</a></h3>
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr><th>框架</th><th>处理方式</th></tr>
-        </thead>
-        <tbody>
-          <tr><td><strong>chat-agent</strong></td><td>窗口内旧轮次: 有 summary 则替换 content；无 summary 且 &gt;2000 tokens 则截断 + <code>[内容已截断]</code>；<strong>最新工具轮不处理</strong></td></tr>
-          <tr><td><strong>deer-flow</strong></td><td>窗口内保留原样；但 <code>wrap_model_call</code> 每次调用前重新扫描，超预算的历史工具结果重新截断</td></tr>
-          <tr><td><strong>hermes-agent</strong></td><td>压缩预处理: 旧工具结果→1行摘要 <code>[tool] ran 'cmd' -> exit N, M lines output</code>；MD5 去重；图片→占位符</td></tr>
-          <tr><td><strong>claude-code</strong></td><td>时间触发: 60 分钟前的工具结果→<code>[Old tool result content cleared]</code>（保留最近 5 个）；API 层: 180K tokens 触发时清除旧结果</td></tr>
-          <tr><td><strong>opencode</strong></td><td>原样保留在历史中，直到 95% 阈值触发整体摘要重置</td></tr>
-          <tr><td><strong>codex</strong></td><td>写入历史时一次性中间截断（1.2x 系数），后续原样保留，不做二次压缩或时间清理</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+                <rect x="210" y="82" width="120" height="56" rx="8" fill="white" stroke="#93c5fd" stroke-width="1.5"/>
+                <text x="270" y="105" text-anchor="middle" font-size="11" fill="#1e40af" font-weight="600">deer-flow</text>
+                <text x="270" y="122" text-anchor="middle" font-size="9" fill="#4a5568">消息数/token</text>
+                <text x="270" y="135" text-anchor="middle" font-size="9" fill="#4a5568">二分查找切点</text>
 
-  <hr>
+                <rect x="350" y="82" width="120" height="56" rx="8" fill="white" stroke="#93c5fd" stroke-width="1.5"/>
+                <text x="410" y="105" text-anchor="middle" font-size="11" fill="#1e40af" font-weight="600">hermes-agent</text>
+                <text x="410" y="122" text-anchor="middle" font-size="9" fill="#4a5568">头保护(3) +</text>
+                <text x="410" y="135" text-anchor="middle" font-size="9" fill="#4a5568">尾保护(≥8)</text>
 
-  <!-- ===== 五、架构特色对比 ===== -->
-  <div class="fade-section">
-    <h2 id="sec-5">五、架构特色对比<a href="#sec-5" class="anchor-link">#</a></h2>
+                <rect x="490" y="82" width="100" height="56" rx="8" fill="white" stroke="#93c5fd" stroke-width="1.5"/>
+                <text x="540" y="105" text-anchor="middle" font-size="11" fill="#1e40af" font-weight="600">claude-code</text>
+                <text x="540" y="122" text-anchor="middle" font-size="9" fill="#4a5568">全量保留</text>
+                <text x="540" y="135" text-anchor="middle" font-size="9" fill="#4a5568">按 round 分组</text>
 
-    <h3 id="sec-5-1">5.1 chat-agent 的独特之处<a href="#sec-5-1" class="anchor-link">#</a></h3>
-    <ul>
-      <li><strong>语义截断</strong>: 唯一使用向量相似度筛选工具结果片段的框架</li>
-      <li><strong>增量摘要</strong>: 窗口外摘要支持增量合并，避免重复摘要已有内容</li>
-      <li><strong>Token 分区</strong>: 严格划分 — 历史占 25%，工具轮 80% 触发停止</li>
-    </ul>
-  </div>
+                <rect x="610" y="82" width="80" height="56" rx="8" fill="white" stroke="#93c5fd" stroke-width="1.5"/>
+                <text x="650" y="105" text-anchor="middle" font-size="11" fill="#1e40af" font-weight="600">opencode</text>
+                <text x="650" y="122" text-anchor="middle" font-size="9" fill="#4a5568">全量保留</text>
+                <text x="650" y="135" text-anchor="middle" font-size="9" fill="#4a5568">tail_turns=2</text>
 
-  <div class="fade-section">
-    <h3 id="sec-5-2">5.2 deer-flow 的独特之处<a href="#sec-5-2" class="anchor-link">#</a></h3>
-    <ul>
-      <li><strong>中间件架构</strong>: 所有逻辑通过 LangChain AgentMiddleware 组合，可插拔</li>
-      <li><strong>磁盘外部化</strong>: 工具结果持久化到文件，模型可通过 read_file 重新获取</li>
-      <li><strong>Skill 救援</strong>: 摘要时抢救最近加载的 skill 文件</li>
-      <li><strong>循环检测</strong>: 窗口大小 20 的工具调用去重，阈值 3 次警告 / 5 次硬停</li>
-      <li><strong>默认关闭</strong>: token budget 和 summarization 默认 disabled</li>
-    </ul>
-  </div>
+                <!-- 过滤器 -->
+                <polygon points="340,160 420,160 380,200" fill="url(#filterGrad)" stroke="#d97706" stroke-width="2"/>
+                <text x="380" y="182" text-anchor="middle" font-size="11" font-weight="bold" fill="#92400e">阈值过滤器</text>
+                <text x="380" y="215" text-anchor="middle" font-size="9" fill="#d97706">超阈值消息下沉 →</text>
 
-  <div class="fade-section">
-    <h3 id="sec-5-3">5.3 hermes-agent 的独特之处<a href="#sec-5-3" class="anchor-link">#</a></h3>
-    <ul>
-      <li><strong>字符估算优先</strong>: 不依赖 tiktoken，用 <code>chars÷4</code> 粗估 + API 真实值校准</li>
-      <li><strong>三阶段压缩</strong>: ① 无 LLM 的工具结果剪枝 ② 边界确定 ③ LLM 摘要</li>
-      <li><strong>Session 分割</strong>: 压缩后 SQLite session 物理分割，保留压缩谱系</li>
-      <li><strong>反抖动机制</strong>: 2 次无效压缩后停止，递增冷却时间</li>
-      <li><strong>50% 阈值</strong>: 最激进的压缩触发点（其他框架 80-95%）</li>
-    </ul>
-  </div>
+                <!-- 箭头向下 -->
+                <line x1="380" y1="200" x2="380" y2="230" stroke="#d97706" stroke-width="2" marker-end="url(#arr)"/>
 
-  <div class="fade-section">
-    <h3 id="sec-5-4">5.4 claude-code 的独特之处<a href="#sec-5-4" class="anchor-link">#</a></h3>
-    <ul>
-      <li><strong>分层预算</strong>: 单工具(50K) → 消息级(200K) → token(100K) 三级防护</li>
-      <li><strong>确定性替换</strong>: ContentReplacementState 冻结决策，保护 prompt cache</li>
-      <li><strong>Microcompact</strong>: 时间触发(60min) + 缓存感知的工具结果清理</li>
-      <li><strong>9 段结构化摘要</strong>: 最详细的摘要模板</li>
-      <li><strong>熔断器 + 环境变量</strong>: 3 次失败熔断，丰富的运行时配置覆盖</li>
-    </ul>
-  </div>
+                <!-- 下方：归档上下文（窗口外） -->
+                <rect x="50" y="235" width="660" height="90" rx="12" fill="url(#coldGrad)" stroke="#94a3b8" stroke-width="2" stroke-dasharray="6,3"/>
+                <text x="380" y="258" text-anchor="middle" font-size="13" font-weight="bold" fill="#475569">⚪ 归档上下文（窗口外摘要区）</text>
 
-  <div class="fade-section">
-    <h3 id="sec-5-5">5.5 opencode 的独特之处<a href="#sec-5-5" class="anchor-link">#</a></h3>
-    <ul>
-      <li><strong>最简方案</strong>: 无客户端 token 计数，无分层预算，无中间件</li>
-      <li><strong>纯摘要重置</strong>: 95% → 摘要 → 清空，一步到位</li>
-      <li><strong>独立摘要模型</strong>: 可配置更便宜的模型做摘要</li>
-    </ul>
-  </div>
+                <!-- 窗口外策略标签 -->
+                <rect x="80" y="270" width="100" height="42" rx="6" fill="white" stroke="#cbd5e1" stroke-width="1"/>
+                <text x="130" y="288" text-anchor="middle" font-size="10" fill="#475569" font-weight="600">chat-agent</text>
+                <text x="130" y="302" text-anchor="middle" font-size="9" fill="#64748b">增量 LLM 摘要</text>
 
-  <div class="fade-section">
-    <h3 id="sec-5-6">5.6 codex (OpenAI) 的独特之处<a href="#sec-5-6" class="anchor-link">#</a></h3>
-    <ul>
-      <li><strong>三种压缩模式可切换</strong>: 本地 LLM 摘要 / 远程压缩 API / Token Budget 直接重置，通过 Feature Flag 选择</li>
-      <li><strong>Pre/Mid-Turn 双阶段自动压缩</strong>: Pre-Turn 在用户输入前检查，Mid-Turn 在每次采样后检查，确保工具调用循环中也能及时压缩</li>
-      <li><strong>模型切换自适应</strong>: comp_hash 变化或 context window 缩小时自动触发压缩，保护跨模型会话</li>
-      <li><strong>AutoCompactWindow 代际追踪</strong>: 通过 window_id (UUID v7) 追踪压缩代际，支持 resume/fork 时精确重建历史</li>
-      <li><strong>Rollout 持久化</strong>: 完整对话历史写入 rollout trace，支持会话恢复和历史重建</li>
-      <li><strong>Buffered Fallback</strong>: auto_compact_limit 外预留 buffer，用尽后注入 fallback prompt 提示模型收尾</li>
-      <li><strong>批量工具写入</strong>: 一轮采样中所有工具结果暂存 in_flight 队列，采样结束后统一写入历史并截断</li>
-    </ul>
-  </div>
+                <rect x="200" y="270" width="100" height="42" rx="6" fill="white" stroke="#cbd5e1" stroke-width="1"/>
+                <text x="250" y="288" text-anchor="middle" font-size="10" fill="#475569" font-weight="600">deer-flow</text>
+                <text x="250" y="302" text-anchor="middle" font-size="9" fill="#64748b">删除旧消息+summary</text>
 
-  <hr>
+                <rect x="320" y="270" width="100" height="42" rx="6" fill="white" stroke="#cbd5e1" stroke-width="1"/>
+                <text x="370" y="288" text-anchor="middle" font-size="10" fill="#475569" font-weight="600">hermes-agent</text>
+                <text x="370" y="302" text-anchor="middle" font-size="9" fill="#64748b">结构化模板摘要</text>
 
-  <!-- ===== 六、关键结论 ===== -->
-  <div class="fade-section">
-    <h2 id="sec-6">六、关键结论<a href="#sec-6" class="anchor-link">#</a></h2>
+                <rect x="440" y="270" width="100" height="42" rx="6" fill="white" stroke="#cbd5e1" stroke-width="1"/>
+                <text x="490" y="288" text-anchor="middle" font-size="10" fill="#475569" font-weight="600">claude-code</text>
+                <text x="490" y="302" text-anchor="middle" font-size="9" fill="#64748b">9段结构化+转录</text>
 
-    <h3 id="sec-6-1">6.1 复杂度排序（低→高）<a href="#sec-6-1" class="anchor-link">#</a></h3>
-    <pre>opencode &lt; chat-agent &lt; hermes-agent &lt; codex &lt; deer-flow &lt; claude-code</pre>
+                <rect x="560" y="270" width="120" height="42" rx="6" fill="white" stroke="#cbd5e1" stroke-width="1"/>
+                <text x="620" y="288" text-anchor="middle" font-size="10" fill="#475569" font-weight="600">opencode / codex</text>
+                <text x="620" y="302" text-anchor="middle" font-size="9" fill="#64748b">5段摘要 / Token Budget</text>
+            </svg>
+            <p class="chart-caption">图 3：多轮历史管理架构 — 活跃上下文（窗口内全量/切分保留）与归档上下文（窗口外 LLM 摘要）的分层设计</p>
 
-    <h3 id="sec-6-2">6.2 工具结果压缩策略谱系<a href="#sec-6-2" class="anchor-link">#</a></h3>
-    <pre>简单截断 ──────────────────────────────────── 语义压缩
-opencode    codex    claude-code    hermes-agent    deer-flow    chat-agent
-(头尾截断) (中间截断) (磁盘持久化)   (摘要+去重)    (外部化+重扫) (FAISS语义筛选)</pre>
+            <h3>4.1 窗口内上下文</h3>
+            <table>
+                <tr><th>框架</th><th>窗口定义</th><th>保留策略</th></tr>
+                <tr><td>chat-agent</td><td>token 预算切分(从新到旧累加整轮)</td><td>remaining_budget = threshold - system - user - tool_rounds; 整轮累加直到预算耗尽</td></tr>
+                <tr><td>deer-flow</td><td>messages:20 或 tokens/fraction 触发</td><td>二分查找安全切点，不拆分 AI+Tool 配对</td></tr>
+                <tr><td>hermes-agent</td><td>头保护(3条) + 尾保护(≥8条, token 预算)</td><td>尾部按 token 预算向回走，对齐到 tool_call/tool_result 边界</td></tr>
+                <tr><td>claude-code</td><td>全量保留直到自动压缩</td><td>按 API round 分组，压缩时保留最近的 round</td></tr>
+                <tr><td>opencode</td><td>全量保留直到 overflow</td><td>摘要保留最近 2 轮(tail_turns)，旧消息→结构化 5 段摘要</td></tr>
+                <tr><td>codex</td><td>全量保留直到 auto_compact_limit</td><td>AutoCompactWindow 追踪窗口代际，prefill baseline 从服务端 usage 捕获</td></tr>
+            </table>
 
-    <h3 id="sec-6-3">6.3 历史管理策略谱系<a href="#sec-6-3" class="anchor-link">#</a></h3>
-    <pre>无管理 ──────────────────────────────────── 精细管理
-opencode    claude-code    codex    hermes-agent    chat-agent    deer-flow
-(全量→摘要)  (自动压缩)   (三模式切换) (三阶段压缩)  (轮次窗口+摘要) (中间件组合)</pre>
-  </div>
+            <h3>4.2 窗口外上下文</h3>
+            <table>
+                <tr><th>框架</th><th>处理方式</th><th>摘要策略</th><th>持久化</th></tr>
+                <tr><td>chat-agent</td><td>LLM 摘要</td><td>增量合并（只摘要新增部分，合并到已有摘要）</td><td>DB <code>conversation_contexts</code> 表</td></tr>
+                <tr><td>deer-flow</td><td>LLM 摘要</td><td>删除全部旧消息，插入 summary + 保留尾部</td><td>无额外持久化</td></tr>
+                <tr><td>hermes-agent</td><td>LLM 摘要</td><td>结构化模板(Goal/Actions/State/Decisions)，迭代更新</td><td>SQLite session 分割</td></tr>
+                <tr><td>claude-code</td><td>LLM 摘要</td><td>9 段结构化摘要 + 转录文件引用</td><td>写入磁盘转录文件</td></tr>
+                <tr><td>opencode</td><td>LLM 摘要</td><td>5 段结构化 + 增量合并旧摘要 + 工具输出截断到 2K</td><td>compaction message</td></tr>
+                <tr><td>codex</td><td>LLM 摘要 或 Token Budget 重置</td><td>用户消息 + 摘要替换整个历史；mid-turn 重新注入初始上下文</td><td>RolloutRecorder 持久化完整 rollout trace</td></tr>
+            </table>
 
-  <div class="fade-section">
-    <h3 id="sec-6-4">6.4 可借鉴的设计模式<a href="#sec-6-4" class="anchor-link">#</a></h3>
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr><th>模式</th><th>来源</th><th>适用场景</th></tr>
-        </thead>
-        <tbody>
-          <tr><td><strong>语义截断</strong></td><td>chat-agent</td><td>工具结果很长但只需部分信息时</td></tr>
-          <tr><td><strong>磁盘外部化 + 重取</strong></td><td>deer-flow, claude-code</td><td>需要保留完整数据但不想占 context</td></tr>
-          <tr><td><strong>增量摘要</strong></td><td>chat-agent</td><td>长对话频繁压缩时减少摘要成本</td></tr>
-          <tr><td><strong>Skill 救援</strong></td><td>deer-flow</td><td>有频繁加载的参考文档场景</td></tr>
-          <tr><td><strong>确定性替换</strong></td><td>claude-code</td><td>依赖 prompt cache 的生产环境</td></tr>
-          <tr><td><strong>时间触发清理</strong></td><td>claude-code</td><td>长时间闲置后的自动清理</td></tr>
-          <tr><td><strong>反抖动保护</strong></td><td>hermes-agent</td><td>防止阈值附近反复压缩</td></tr>
-          <tr><td><strong>模型切换自适应压缩</strong></td><td>codex</td><td>跨模型会话自动降级压缩</td></tr>
-          <tr><td><strong>批量工具写入</strong></td><td>codex</td><td>一轮采样结束后统一截断，保证截断一致性</td></tr>
-          <tr><td><strong>三模式压缩切换</strong></td><td>codex</td><td>本地/远程/TokenBudget 按场景选择</td></tr>
-          <tr><td><strong>Session 分割</strong></td><td>hermes-agent</td><td>需要保留完整对话历史的审计场景</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+            <h3>4.3 窗口内的工具调用结果处理</h3>
+            <table>
+                <tr><th>框架</th><th>处理方式</th></tr>
+                <tr><td>chat-agent</td><td>Step 2(历史): ToolUseBlock args>500 chars 则 JSON 感知截断；ToolResultBlock: 优先用 summary，否则 >2000 tokens → head-tail 60/40 截断。Step 4(当前轮): 保留最近 2 组 ToolUse+ToolResult，更早组 head-tail 500/500 chars 截断(最大优先)</td></tr>
+                <tr><td>deer-flow</td><td>窗口内保留原样；但 wrap_model_call 每次调用前重新扫描，超预算的历史工具结果重新截断</td></tr>
+                <tr><td>hermes-agent</td><td>压缩预处理: 旧工具结果→1行摘要；MD5 去重；图片→占位符</td></tr>
+                <tr><td>claude-code</td><td>时间触发: 60 分钟前的工具结果→[Old tool result content cleared]（保留最近 5 个）；API 层: 180K tokens 触发时清除旧结果</td></tr>
+                <tr><td>opencode</td><td>prune 机制: 每轮结束后保留 40K tokens 近期工具输出，旧的标记 compacted；compaction 时工具输出截断到 2K</td></tr>
+                <tr><td>codex</td><td>写入历史时一次性中间截断（1.2x 系数），后续原样保留，不做二次压缩或时间清理</td></tr>
+            </table>
+        </div>
 
-  <!-- ===== 七、chat-agent 可借鉴的改进方案 ===== -->
-  <div class="fade-section">
-    <h2 id="sec-7">七、chat-agent 可借鉴的改进方案<a href="#sec-7" class="anchor-link">#</a></h2>
+        <div class="card" id="architecture">
+            <h2>🏗️ 五、架构特色对比</h2>
 
-    <h3 id="sec-7-0">7.0 当前能力与缺口总览<a href="#sec-7-0" class="anchor-link">#</a></h3>
-    <pre><span class="str">✅ 已有能力:</span>
-  - FAISS 语义截断（markdown 工具结果）
-  - tiktoken 精确计数
-  - 80% 阈值停止工具调用
-  - 5 轮滑动窗口 + 25% token 预算
-  - 增量 LLM 摘要
+            <div class="grid-2">
+                <div class="framework-card">
+                    <h4>🧠 chat-agent</h4>
+                    <ul>
+                        <li><strong>语义截断</strong>：唯一使用向量相似度筛选工具结果片段</li>
+                        <li><strong>增量摘要</strong>：窗口外摘要支持增量合并</li>
+                        <li><strong>四级渐进降级</strong>：统一守卫，逐级降级</li>
+                        <li><strong>JSON 感知参数截断</strong>：保持 JSON 合法</li>
+                    </ul>
+                </div>
+                <div class="framework-card">
+                    <h4>🦌 deer-flow</h4>
+                    <ul>
+                        <li><strong>中间件架构</strong>：LangChain AgentMiddleware 组合，可插拔</li>
+                        <li><strong>磁盘外部化</strong>：工具结果持久化到文件</li>
+                        <li><strong>Skill 救援</strong>：摘要时抢救最近加载的 skill 文件</li>
+                        <li><strong>默认关闭</strong>：token budget 和 summarization 默认 disabled</li>
+                    </ul>
+                </div>
+                <div class="framework-card">
+                    <h4>⚡ hermes-agent</h4>
+                    <ul>
+                        <li><strong>字符估算优先</strong>：不依赖 tiktoken，chars÷4 粗估</li>
+                        <li><strong>三阶段压缩</strong>：无 LLM 剪枝 → 边界确定 → LLM 摘要</li>
+                        <li><strong>Session 分割</strong>：SQLite 物理分割，保留压缩谱系</li>
+                        <li><strong>50% 阈值</strong>：最激进的压缩触发点</li>
+                    </ul>
+                </div>
+                <div class="framework-card">
+                    <h4>🎩 claude-code</h4>
+                    <ul>
+                        <li><strong>分层预算</strong>：单工具(50K) → 消息级(200K) → token(100K)</li>
+                        <li><strong>确定性替换</strong>：ContentReplacementState 保护 prompt cache</li>
+                        <li><strong>Microcompact</strong>：时间触发(60min) + 缓存感知清理</li>
+                        <li><strong>9 段结构化摘要</strong>：最详细的摘要模板</li>
+                    </ul>
+                </div>
+                <div class="framework-card">
+                    <h4>🔓 opencode</h4>
+                    <ul>
+                        <li><strong>磁盘外部化</strong>：截断后完整输出写入 TRUNCATION_DIR</li>
+                        <li><strong>结构化增量摘要</strong>：5 段模板 + 旧摘要合并</li>
+                        <li><strong>独立 compaction agent</strong>：可配置更便宜的模型</li>
+                        <li><strong>Prune 机制</strong>：独立于 compaction 的工具输出清理</li>
+                    </ul>
+                </div>
+                <div class="framework-card">
+                    <h4>🤖 codex (OpenAI)</h4>
+                    <ul>
+                        <li><strong>三种压缩模式可切换</strong>：本地 LLM / 远程压缩 API / Token Budget 重置</li>
+                        <li><strong>Pre/Mid-Turn 双阶段</strong>：工具调用循环中也能及时压缩</li>
+                        <li><strong>模型切换自适应</strong>：comp_hash 变化自动触发压缩</li>
+                        <li><strong>AutoCompactWindow 代际追踪</strong>：支持 resume/fork</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
 
-<span class="var">❌ 存在缺口:</span>
-  - 非 markdown 工具结果（shell/JSON）无压缩，直接穿透
-  - 单个工具结果超 context 无兜底，可能 API 报错
-  - tool_call 参数（如 write_file 大代码）从不压缩
-  - 长对话增量摘要质量退化，无重压缩机制
-  - 无时间触发的自动清理
-  - 无 prompt cache 保护
-  - 无反抖动保护</pre>
-  </div>
+        <div class="card" id="conclusion">
+            <h2>📌 六、关键结论</h2>
 
-  <div class="fade-section">
-    <h3 id="sec-7-1">7.1 P0 — 必须修的 3 个问题<a href="#sec-7-1" class="anchor-link">#</a></h3>
+            <h3>6.1 复杂度排序（低→高）</h3>
+            <div class="spectrum">
+                <span class="spectrum-label">简单</span>
+                <div class="spectrum-bar">
+                    <div class="spectrum-item" style="background:#dbeafe;color:#1e40af;">chat-agent</div>
+                    <div class="spectrum-item" style="background:#fef3c7;color:#92400e;">opencode</div>
+                    <div class="spectrum-item" style="background:#fce7f3;color:#9d174d;">hermes-agent</div>
+                    <div class="spectrum-item" style="background:#d1fae5;color:#065f46;">codex</div>
+                    <div class="spectrum-item" style="background:#e0e7ff;color:#3730a3;">deer-flow</div>
+                    <div class="spectrum-item" style="background:#fee2e2;color:#991b1b;">claude-code</div>
+                </div>
+                <span class="spectrum-label">复杂</span>
+            </div>
 
-    <h4>P0-1: 非 markdown 工具结果穿透 → 借鉴 claude-code 磁盘持久化</h4>
-    <p><strong>问题:</strong> <code>shell</code>/<code>file</code> MCP 被排除在压缩之外（<code>mcp/constants.py</code> 的 <code>SKIP_TOOL_RESULT_COMPACTION_SERVERS</code>），50K 的 shell 输出直接塞进 context。非 markdown 的自定义 MCP 工具结果走 FAISS markdown splitter，chunk 质量很差。</p>
-    <p><strong>借鉴: claude-code 的 <code>maybePersistLargeToolResult()</code></strong></p>
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr><th>维度</th><th>claude-code 实现</th><th>chat-agent 建议</th></tr>
-        </thead>
-        <tbody>
-          <tr><td><strong>单工具阈值</strong></td><td>50,000 chars</td><td>30,000 chars</td></tr>
-          <tr><td><strong>操作</strong></td><td>写磁盘 → 替换为 2KB 预览 + <code>&lt;persisted-output&gt;</code> 标签</td><td>写磁盘 → 替换为预览 + 文件路径</td></tr>
-          <tr><td><strong>消息级聚合</strong></td><td>200,000 chars（并行工具合计）</td><td>暂不需要，chat-agent 工具串行执行</td></tr>
-          <tr><td><strong>确定性替换</strong></td><td>ContentReplacementState 冻结决策</td><td>暂不需要（无 prompt cache）</td></tr>
-          <tr><td><strong>豁免工具</strong></td><td><code>read_file</code>（防循环）</td><td><code>read_file</code>、<code>read_file_tool</code></td></tr>
-        </tbody>
-      </table>
-    </div>
-    <p><strong>建议实现位置:</strong> <code>backend/app/agents/tool_executor.py</code>，在 <code>_compact_tool_result_if_needed</code> 之后增加统一拦截：</p>
-    <pre><span class="cmt"># 伪代码</span>
-MAX_TOOL_RESULT_CHARS = <span class="num">30_000</span>
-PREVIEW_CHARS = <span class="num">2_000</span>
+            <h3>6.2 可借鉴的设计模式</h3>
+            <table>
+                <tr><th>模式</th><th>来源</th><th>适用场景</th></tr>
+                <tr><td>语义截断</td><td>chat-agent</td><td>工具结果很长但只需部分信息时</td></tr>
+                <tr><td>磁盘外部化 + 重取</td><td>deer-flow, claude-code, opencode</td><td>需要保留完整数据但不想占 context</td></tr>
+                <tr><td>增量摘要</td><td>chat-agent, opencode</td><td>长对话频繁压缩时减少摘要成本</td></tr>
+                <tr><td>Skill 救援</td><td>deer-flow</td><td>有频繁加载的参考文档场景</td></tr>
+                <tr><td>确定性替换</td><td>claude-code</td><td>依赖 prompt cache 的生产环境</td></tr>
+                <tr><td>时间触发清理</td><td>claude-code</td><td>长时间闲置后的自动清理</td></tr>
+                <tr><td>反抖动保护</td><td>hermes-agent</td><td>防止阈值附近反复压缩</td></tr>
+                <tr><td>模型切换自适应压缩</td><td>codex</td><td>跨模型会话自动降级压缩</td></tr>
+                <tr><td>批量工具写入</td><td>codex</td><td>一轮采样结束后统一截断</td></tr>
+                <tr><td>Prune 工具输出</td><td>opencode</td><td>每轮结束后独立清理旧工具输出</td></tr>
+                <tr><td>三模式压缩切换</td><td>codex</td><td>本地/远程/TokenBudget 按场景选择</td></tr>
+                <tr><td>Session 分割</td><td>hermes-agent</td><td>需要保留完整对话历史的审计场景</td></tr>
+            </table>
+        </div>
 
-<span class="kw">def</span> <span class="fn">_persist_if_too_large</span>(<span class="var">self</span>, tool_result, tool_call_id):
-    <span class="kw">if</span> <span class="fn">len</span>(tool_result.content) > MAX_TOOL_RESULT_CHARS:
-        path = <span class="str">f"/tmp/chat-agent-results/{tool_call_id}.txt"</span>
-        <span class="fn">write_to_disk</span>(path, tool_result.content)
+        <div class="card" id="improvements">
+            <h2>🔨 七、chat-agent 可借鉴的改进方案</h2>
+
+            <div class="danger-box">
+                <strong>❌ 当前缺口：</strong>
+                <ul>
+                    <li>非 markdown 工具结果（shell/JSON）无压缩，直接穿透</li>
+                    <li>单个工具结果超 context 无兜底，可能 API 报错</li>
+                    <li>长对话增量摘要质量退化，无重压缩机制</li>
+                    <li>无时间触发的自动清理</li>
+                    <li>无 prompt cache 保护</li>
+                </ul>
+            </div>
+
+            <h3>改动优先级总表</h3>
+            <table class="priority-table">
+                <tr>
+                    <th>优先级</th>
+                    <th>编号</th>
+                    <th>改动</th>
+                    <th>借鉴来源</th>
+                    <th>改动量</th>
+                    <th>影响</th>
+                </tr>
+                <tr>
+                    <td><span class="tag tag-p0">P0</span></td>
+                    <td>P0-1</td>
+                    <td>非 markdown 工具结果磁盘持久化</td>
+                    <td>claude-code</td>
+                    <td>中（半天）</td>
+                    <td>防止 50K+ shell 输出撑爆 context</td>
+                </tr>
+                <tr>
+                    <td><span class="tag tag-p0">P0</span></td>
+                    <td>P0-2</td>
+                    <td>per-turn 聚合预算兜底</td>
+                    <td>hermes-agent</td>
+                    <td>小（2h）</td>
+                    <td>防止单结果超 context API 报错</td>
+                </tr>
+                <tr>
+                    <td><span class="tag tag-p1">P1</span></td>
+                    <td>P1-1</td>
+                    <td>结构化摘要模板 + 摘要压缩</td>
+                    <td>claude-code + hermes-agent</td>
+                    <td>中（半天）</td>
+                    <td>100+ 轮对话摘要质量维护</td>
+                </tr>
+                <tr>
+                    <td><span class="tag tag-p1">P1</span></td>
+                    <td>P1-2</td>
+                    <td>时间触发工具结果清理</td>
+                    <td>claude-code</td>
+                    <td>小（1h）</td>
+                    <td>老工具结果自动释放 context</td>
+                </tr>
+                <tr>
+                    <td><span class="tag tag-p2">P2</span></td>
+                    <td>P2-1</td>
+                    <td>Prompt Cache 保护</td>
+                    <td>claude-code</td>
+                    <td>大</td>
+                    <td>降低 API 成本（需 Anthropic）</td>
+                </tr>
+                <tr>
+                    <td><span class="tag tag-p2">P2</span></td>
+                    <td>P2-2</td>
+                    <td>反抖动保护</td>
+                    <td>hermes-agent</td>
+                    <td>✅ 已实现</td>
+                    <td>UnifiedContextGuardConfig.anti_thrash_failure_threshold=3</td>
+                </tr>
+            </table>
+
+            <div class="highlight-box">
+                <strong>建议实施顺序：</strong>P0-1 → P0-2 → P1-2 → P1-1 → P2-1<br>
+                <em>（P0-3 和 P2-2 已实现，从剩余最小改动、最高收益开始）</em>
+            </div>
+
+            <h3>P0-1: 非 markdown 工具结果磁盘持久化</h3>
+            <p>问题：shell / file MCP 被排除在压缩之外，50K 的 shell 输出直接塞进 context。</p>
+            <pre><code>MAX_TOOL_RESULT_CHARS = 30_000
+PREVIEW_CHARS = 2_000
+
+def _persist_if_too_large(self, tool_result, tool_call_id):
+    if len(tool_result.content) > MAX_TOOL_RESULT_CHARS:
+        path = f"/tmp/chat-agent-results/{tool_call_id}.txt"
+        write_to_disk(path, tool_result.content)
         preview = tool_result.content[:PREVIEW_CHARS]
         tool_result.content = (
-            <span class="str">f"{preview}\n\n"</span>
-            <span class="str">f"[完整输出已保存到 {path}，共 {len(tool_result.content)} 字符，"</span>
-            <span class="str">f"约 {len(tool_result.content) // 4} tokens。"</span>
-            <span class="str">f"需要查看具体内容时可用 read_file 工具读取。]"</span>
-        )
-        tool_result.truncated = <span class="kw">True</span></pre>
-    <p><strong>改动范围:</strong> <code>tool_executor.py</code> + <code>schemas/config.py</code>（新增 <code>ToolResultPersistConfig</code>）<br><strong>预估工作量:</strong> 半天</p>
+            f"{preview}\n\n"
+            f"[完整输出已保存到 {path}，共 {len(tool_result.content)} 字符，"
+            f"约 {len(tool_result.content) // 4} tokens。"
+            f"需要查看具体内容时可用 read_file 工具读取。]"
+        )</code></pre>
 
-    <h4>P0-2: 单工具结果超 context 兜底 → 借鉴 hermes-agent 预检查</h4>
-    <p><strong>问题:</strong> 工具结果追加后，只在下一轮 <code>_check_round_context_budget</code> 才检查。如果单个结果 &gt; context，直接 API 报错，无 try/catch。</p>
-    <p><strong>借鉴: hermes-agent 的三层防护</strong></p>
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr><th>层级</th><th>hermes-agent</th><th>chat-agent 现状</th><th>建议</th></tr>
-        </thead>
-        <tbody>
-          <tr><td><strong>Layer 1</strong></td><td>每个工具内部截断</td><td>✅ 已有</td><td>—</td></tr>
-          <tr><td><strong>Layer 2</strong></td><td>per-result 持久化（<code>maybe_persist_tool_result</code>）</td><td>❌ 缺失（P0-1 解决）</td><td>加</td></tr>
-          <tr><td><strong>Layer 3</strong></td><td>per-turn 聚合预算（<code>enforce_turn_budget</code>）</td><td>❌ 缺失</td><td>加</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <p><strong>建议实现位置:</strong> <code>backend/app/agents/tool_executor.py</code>，在所有工具执行完毕后：</p>
-    <pre><span class="kw">def</span> <span class="fn">_enforce_turn_budget</span>(<span class="var">self</span>, tool_round_messages, context_limit):
-    total_chars = <span class="fn">sum</span>(<span class="fn">len</span>(m.content) <span class="kw">for</span> m <span class="kw">in</span> tool_round_messages)
-    budget = <span class="fn">int</span>(context_limit * <span class="num">0.5</span>)  <span class="cmt"># 工具轮最多占 50% context</span>
-    <span class="kw">if</span> total_chars > budget:
-        <span class="cmt"># 按大小排序，从最大的开始持久化，直到低于预算</span>
-        sorted_msgs = <span class="fn">sorted</span>(tool_round_messages, key=<span class="kw">lambda</span> m: <span class="fn">len</span>(m.content), reverse=<span class="kw">True</span>)
-        <span class="kw">for</span> msg <span class="kw">in</span> sorted_msgs:
-            <span class="kw">if</span> total_chars <= budget:
-                <span class="kw">break</span>
-            original_len = <span class="fn">len</span>(msg.content)
-            <span class="var">self</span>.<span class="fn">_persist_if_too_large</span>(msg, msg.tool_call_id)  <span class="cmt"># 复用 P0-1 的函数</span>
-            total_chars -= original_len - <span class="fn">len</span>(msg.content)</pre>
-    <p><strong>改动范围:</strong> <code>tool_executor.py</code>（复用 P0-1 的持久化函数）<br><strong>预估工作量:</strong> 2 小时</p>
+            <h3>P0-2: per-turn 聚合预算兜底</h3>
+            <pre><code>def _enforce_turn_budget(self, tool_round_messages, context_limit):
+    total_chars = sum(len(m.content) for m in tool_round_messages)
+    budget = int(context_limit * 0.5)  # 工具轮最多占 50% context
+    if total_chars > budget:
+        sorted_msgs = sorted(tool_round_messages,
+                           key=lambda m: len(m.content), reverse=True)
+        for msg in sorted_msgs:
+            if total_chars <= budget:
+                break
+            self._persist_if_too_large(msg, msg.tool_call_id)</code></pre>
 
-    <h4>P0-3: tool_call 参数压缩 → 借鉴 hermes-agent JSON 截断</h4>
-    <p><strong>问题:</strong> LLM 生成 <code>write_file(content="50K 代码")</code> 后，参数永久留在 context 中。token 计数虽然覆盖了 <code>tool_calls</code>，但从不压缩。</p>
-    <p><strong>借鉴: hermes-agent 的 <code>_truncate_tool_call_args_json()</code></strong></p>
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr><th>维度</th><th>hermes-agent</th><th>chat-agent 建议</th></tr>
-        </thead>
-        <tbody>
-          <tr><td><strong>阈值</strong></td><td>字符串值 &gt; 200 chars</td><td>字符串值 &gt; 500 chars</td></tr>
-          <tr><td><strong>操作</strong></td><td>截断 value，保持 JSON 合法</td><td>同左</td></tr>
-          <tr><td><strong>时机</strong></td><td>压缩预处理阶段（<code>_prune_old_tool_results</code>）</td><td><code>compress_history_messages</code> 中</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <p><strong>建议实现位置:</strong> <code>backend/app/services/chat/history_context_service.py</code> 的 <code>compress_history_messages</code> 中：</p>
-    <pre><span class="kw">def</span> <span class="fn">_truncate_tool_call_args</span>(<span class="var">self</span>, tool_calls, max_arg_len=<span class="num">500</span>):
-    <span class="str">"""截断 tool_call 中的大参数值，保持 JSON 合法"""</span>
-    <span class="kw">for</span> tc <span class="kw">in</span> tool_calls:
-        <span class="kw">if not</span> tc.<span class="fn">get</span>(<span class="str">"function"</span>, {}).<span class="fn">get</span>(<span class="str">"arguments"</span>):
-            <span class="kw">continue</span>
-        <span class="kw">try</span>:
-            args = json.<span class="fn">loads</span>(tc[<span class="str">"function"</span>][<span class="str">"arguments"</span>])
-        <span class="kw">except</span> (<span class="type">json.JSONDecodeError</span>, <span class="type">TypeError</span>):
-            <span class="kw">continue</span>
-        changed = <span class="kw">False</span>
-        <span class="kw">for</span> k, v <span class="kw">in</span> args.<span class="fn">items</span>():
-            <span class="kw">if</span> <span class="fn">isinstance</span>(v, <span class="type">str</span>) <span class="kw">and</span> <span class="fn">len</span>(v) > max_arg_len:
-                args[k] = v[:<span class="num">200</span>] + <span class="str">f"... [{len(v)} chars, truncated]"</span>
-                changed = <span class="kw">True</span>
-        <span class="kw">if</span> changed:
-            tc[<span class="str">"function"</span>][<span class="str">"arguments"</span>] = json.<span class="fn">dumps</span>(args, ensure_ascii=<span class="kw">False</span>)</pre>
-    <p>仅对<strong>非最新一轮</strong>的历史 tool_call 执行，最新一轮保持完整。</p>
-    <p><strong>改动范围:</strong> <code>history_context_service.py</code><br><strong>预估工作量:</strong> 1 小时</p>
-  </div>
-
-  <div class="fade-section">
-    <h3 id="sec-7-2">7.2 P1 — 建议改进的 2 个问题<a href="#sec-7-2" class="anchor-link">#</a></h3>
-
-    <h4>P1-1: 长对话摘要质量维护 → 借鉴 claude-code 结构化摘要 + hermes-agent 迭代压缩</h4>
-    <p><strong>问题:</strong> 增量摘要持续合并，早期信息被稀释。100+ 轮后摘要变成"什么都提了一句，什么都说不清楚"。<code>summarize_merge</code> 的输入被截断到 <code>model_limit * 0.8</code>，但 prior_summary 本身不截断，可能占满整个输入。</p>
-    <p><strong>借鉴 A: claude-code 的 9 段结构化摘要模板</strong></p>
-    <p>当前 chat-agent 的摘要没有结构约束，LLM 自由输出。建议固定结构：</p>
-    <pre>## 主要需求
+            <h3>P1-1: 结构化摘要模板</h3>
+            <pre><code>## 主要需求
 用户的核心目标和诉求
 
 ## 已完成工作
@@ -1192,191 +999,26 @@ PREVIEW_CHARS = <span class="num">2_000</span>
 对话中做出的重要技术/方案决策
 
 ## 关键上下文
-后续对话可能需要的背景信息</pre>
-    <p><strong>借鉴 B: hermes-agent 的迭代摘要压缩</strong></p>
-    <p>当累积摘要超过预算时，触发"摘要的摘要"：</p>
-    <pre><span class="cmt"># 在 context_summary_service.py 的 summarize_merge 中</span>
-SUMMARY_MAX_TOKENS = <span class="num">1000</span>
-SUMMARY_WARN_RATIO = <span class="num">1.5</span>
+后续对话可能需要的背景信息</code></pre>
 
-prior_tokens = <span class="var">self</span>.token_calculator.<span class="fn">count_tokens</span>(prior_summary)
-<span class="kw">if</span> prior_tokens > SUMMARY_MAX_TOKENS * SUMMARY_WARN_RATIO:
-    <span class="cmt"># 先压缩 prior_summary 本身</span>
-    prior_summary = <span class="var">self</span>.<span class="fn">_compress_summary</span>(prior_summary, SUMMARY_MAX_TOKENS // <span class="num">2</span>)
-<span class="cmt"># 再合并新内容</span>
-merged = <span class="var">self</span>.<span class="fn">_merge_summaries</span>(prior_summary, new_messages)</pre>
-    <p><strong>改动范围:</strong> <code>context_summary_service.py</code> + prompt 模板<br><strong>预估工作量:</strong> 半天</p>
+            <h3>P1-2: 时间触发工具结果清理</h3>
+            <pre><code>TOOL_RESULT_MAX_AGE_SECONDS = 3600  # 60 分钟
+TOOL_RESULT_KEEP_RECENT = 5
 
-    <h4>P1-2: 工具结果时间触发清理 → 借鉴 claude-code microcompact</h4>
-    <p><strong>问题:</strong> 历史中 60 分钟前的工具结果仍占 context，只靠 <code>message_summary_threshold_tokens</code>（2000 tokens）截断。一个 1900 token 的老工具结果会原样保留。</p>
-    <p><strong>借鉴: claude-code 的时间触发清理</strong></p>
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr><th>维度</th><th>claude-code</th><th>chat-agent 建议</th></tr>
-        </thead>
-        <tbody>
-          <tr><td><strong>触发条件</strong></td><td>上次交互 &gt; 60 分钟</td><td>工具结果创建时间 &gt; 60 分钟</td></tr>
-          <tr><td><strong>保留数量</strong></td><td>最近 5 个工具结果完整保留</td><td>最近 5 个</td></tr>
-          <tr><td><strong>清理方式</strong></td><td><code>[Old tool result content cleared]</code></td><td><code>[工具结果已过期清除]</code></td></tr>
-          <tr><td><strong>适用范围</strong></td><td>FileRead, Bash, Grep 等</td><td>所有 ToolResultBlock</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <p><strong>建议实现位置:</strong> <code>backend/app/services/chat/history_context_service.py</code> 的 <code>compress_history_messages</code> 中增加时间判断：</p>
-    <pre><span class="kw">import</span> time
-
-TOOL_RESULT_MAX_AGE_SECONDS = <span class="num">3600</span>  <span class="cmt"># 60 分钟</span>
-TOOL_RESULT_KEEP_RECENT = <span class="num">5</span>
-
-<span class="kw">def</span> <span class="fn">_cleanup_stale_tool_results</span>(<span class="var">self</span>, messages):
-    <span class="str">"""清理过期的工具结果，保留最近 N 个"""</span>
-    tool_result_indices = []
-    <span class="kw">for</span> i, msg <span class="kw">in</span> <span class="fn">enumerate</span>(messages):
-        <span class="kw">if</span> msg.role == <span class="str">"tool"</span>:
-            tool_result_indices.<span class="fn">append</span>(i)
-
-    <span class="cmt"># 保留最近 N 个</span>
+def _cleanup_stale_tool_results(self, messages):
+    tool_result_indices = [i for i, m in enumerate(messages) if m.role == "tool"]
     stale_indices = tool_result_indices[:-TOOL_RESULT_KEEP_RECENT]
-    <span class="kw">for</span> idx <span class="kw">in</span> stale_indices:
+    for idx in stale_indices:
         msg = messages[idx]
-        age = time.<span class="fn">time</span>() - msg.created_at.<span class="fn">timestamp</span>()
-        <span class="kw">if</span> age > TOOL_RESULT_MAX_AGE_SECONDS <span class="kw">and</span> <span class="fn">len</span>(msg.content) > <span class="num">200</span>:
-            msg.content = <span class="str">"[工具结果已过期清除]"</span>
-            msg.summary = <span class="kw">None</span></pre>
-    <p><strong>改动范围:</strong> <code>history_context_service.py</code><br><strong>预估工作量:</strong> 1 小时</p>
-  </div>
+        age = time.time() - msg.created_at.timestamp()
+        if age > TOOL_RESULT_MAX_AGE_SECONDS and len(msg.content) > 200:
+            msg.content = "[工具结果已过期清除]"
+            msg.summary = None</code></pre>
+        </div>
 
-  <div class="fade-section">
-    <h3 id="sec-7-3">7.3 P2 — 锦上添花<a href="#sec-7-3" class="anchor-link">#</a></h3>
-
-    <h4>P2-1: Prompt Cache 保护 → 借鉴 claude-code ContentReplacementState</h4>
-    <p>仅在使用 Anthropic/Claude API 且开启 prompt caching 时有意义。核心思想：已替换的内容在后续轮次保持字节级一致，避免 cache 前缀失效。当前 chat-agent 用的是 OpenAI 兼容 API，优先级低。</p>
-
-    <h4>P2-2: 反抖动保护 → 借鉴 hermes-agent</h4>
-    <p>如果 context 在阈值附近波动，可能反复触发摘要。hermes-agent 的方案：连续 2 次压缩后 token 仍超标 → 停止压缩，进入冷却（60s→300s→900s 递增）。实现简单，建议在 <code>chat_session_agent.py</code> 的压缩触发处增加计数器。</p>
-  </div>
-
-  <div class="fade-section">
-    <h3 id="sec-7-4">7.4 改动优先级总表<a href="#sec-7-4" class="anchor-link">#</a></h3>
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr><th>优先级</th><th>编号</th><th>改动</th><th>借鉴来源</th><th>改动量</th><th>影响</th><th>文件</th></tr>
-        </thead>
-        <tbody>
-          <tr><td><strong>P0</strong></td><td>P0-1</td><td>非 markdown 工具结果磁盘持久化</td><td>claude-code</td><td>中（半天）</td><td>防止 50K+ shell 输出撑爆 context</td><td><code>tool_executor.py</code>, <code>config.py</code></td></tr>
-          <tr><td><strong>P0</strong></td><td>P0-2</td><td>per-turn 聚合预算兜底</td><td>hermes-agent</td><td>小（2h）</td><td>防止单结果超 context API 报错</td><td><code>tool_executor.py</code></td></tr>
-          <tr><td><strong>P0</strong></td><td>P0-3</td><td>tool_call 大参数截断</td><td>hermes-agent</td><td>小（1h）</td><td>防止大参数永久占 context</td><td><code>history_context_service.py</code></td></tr>
-          <tr><td><strong>P1</strong></td><td>P1-1</td><td>结构化摘要模板 + 摘要压缩</td><td>claude-code + hermes-agent</td><td>中（半天）</td><td>100+ 轮对话摘要质量维护</td><td><code>context_summary_service.py</code>, prompt</td></tr>
-          <tr><td><strong>P1</strong></td><td>P1-2</td><td>时间触发工具结果清理</td><td>claude-code</td><td>小（1h）</td><td>老工具结果自动释放 context</td><td><code>history_context_service.py</code></td></tr>
-          <tr><td><strong>P2</strong></td><td>P2-1</td><td>Prompt Cache 保护</td><td>claude-code</td><td>大</td><td>降低 API 成本（需 Anthropic）</td><td>多文件</td></tr>
-          <tr><td><strong>P2</strong></td><td>P2-2</td><td>反抖动保护</td><td>hermes-agent</td><td>小（30min）</td><td>防止阈值附近反复压缩</td><td><code>chat_session_agent.py</code></td></tr>
-        </tbody>
-      </table>
+        <div style="text-align:center; padding: 2rem; color: var(--text-secondary); font-size: 0.9rem;">
+            <p>📄 基于六大框架上下文管理方案深度对比文档生成</p>
+        </div>
     </div>
-    <blockquote>
-      <strong>建议实施顺序:</strong> P0-3 → P0-1 → P0-2 → P1-2 → P1-1 → P2-2 → P2-1<br>
-      （从最小改动、最高收益开始）
-    </blockquote>
-  </div>
-
-  <!-- ===== Footer ===== -->
-  <footer class="site-footer">
-    <p>生成日期: 2026-07-23 &nbsp;·&nbsp; 六大框架上下文管理方案深度对比</p>
-  </footer>
-
-</main>
-
-<!-- Back to top -->
-<button class="back-to-top" id="backToTop" aria-label="回到顶部">↑</button>
-
-<script>
-// ===== Hamburger Menu =====
-const hamburger = document.getElementById('hamburgerBtn');
-const sidebar = document.getElementById('sidebar');
-const overlay = document.getElementById('sidebarOverlay');
-
-function toggleSidebar() {
-  const open = sidebar.classList.toggle('open');
-  overlay.classList.toggle('show', open);
-  document.body.style.overflow = open ? 'hidden' : '';
-}
-
-hamburger.addEventListener('click', toggleSidebar);
-overlay.addEventListener('click', toggleSidebar);
-
-// Close sidebar when clicking a TOC link on mobile
-document.getElementById('tocList').addEventListener('click', (e) => {
-  if (e.target.tagName === 'A' && window.innerWidth <= 900) {
-    sidebar.classList.remove('open');
-    overlay.classList.remove('show');
-    document.body.style.overflow = '';
-  }
-});
-
-// ===== TOC Active Highlighting =====
-const tocLinks = document.querySelectorAll('.toc-list a');
-const sections = [];
-
-tocLinks.forEach(link => {
-  const id = link.getAttribute('href').slice(1);
-  const el = document.getElementById(id);
-  if (el) sections.push({ id, el, link });
-});
-
-function updateActiveToc() {
-  const scrollY = window.scrollY;
-  const offset = 100;
-  let current = '';
-
-  for (let i = sections.length - 1; i >= 0; i--) {
-    if (sections[i].el.offsetTop - offset <= scrollY) {
-      current = sections[i].id;
-      break;
-    }
-  }
-
-  tocLinks.forEach(link => link.classList.remove('active'));
-  if (current) {
-    const activeLink = document.querySelector(`.toc-list a[href="#${current}"]`);
-    if (activeLink) {
-      activeLink.classList.add('active');
-      // Scroll TOC item into view if needed
-      const sidebarEl = document.getElementById('sidebar');
-      const linkTop = activeLink.offsetTop;
-      const sidebarScroll = sidebarEl.scrollTop;
-      const sidebarH = sidebarEl.clientHeight;
-      if (linkTop < sidebarScroll + 60 || linkTop > sidebarScroll + sidebarH - 60) {
-        sidebarEl.scrollTo({ top: linkTop - sidebarH / 3, behavior: 'smooth' });
-      }
-    }
-  }
-}
-
-window.addEventListener('scroll', updateActiveToc, { passive: true });
-updateActiveToc();
-
-// ===== Scroll-triggered Fade-in =====
-const fadeSections = document.querySelectorAll('.fade-section');
-const fadeObserver = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      entry.target.classList.add('visible');
-      fadeObserver.unobserve(entry.target);
-    }
-  });
-}, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
-
-fadeSections.forEach(sec => fadeObserver.observe(sec));
-
-// ===== Back to Top =====
-const backBtn = document.getElementById('backToTop');
-window.addEventListener('scroll', () => {
-  backBtn.classList.toggle('show', window.scrollY > 400);
-}, { passive: true });
-backBtn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
-</script>
-
 </body>
 </html>

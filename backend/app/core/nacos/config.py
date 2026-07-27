@@ -47,7 +47,14 @@ def _nacos_grpc_config() -> GRPCConfig:
     port_offset = 1000
     if v := os.environ.get("NACOS_GRPC_PORT_OFFSET", "").strip():
         port_offset = int(v, 10)
-    return GRPCConfig(grpc_timeout=timeout_ms, port_offset=port_offset)
+    keep_alive_ms = 180000  # 3分钟，默认60s太频繁导致 too_many_pings
+    if v := os.environ.get("NACOS_GRPC_KEEPALIVE_MS", "").strip():
+        keep_alive_ms = int(v, 10)
+    return GRPCConfig(
+        grpc_timeout=timeout_ms,
+        port_offset=port_offset,
+        max_keep_alive_ms=keep_alive_ms,
+    )
 
 
 class NacosConnectionConfig(BaseSettings):
