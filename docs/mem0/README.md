@@ -18,3 +18,4 @@
 
 - [v1.x 方案](mem0-v1-memory-logic.md) — 两次 LLM 调用，支持 ADD/UPDATE/DELETE，每条 fact 独立检索
 - [v2 方案](mem0-v2-memory-logic.md) — 单次 LLM 调用，ADD-only，三路融合检索，实体链接
+- [v1→v2 升级文档](mem0-v1-to-v2-upgrade.md) — 官方博客、论文、迁移指南汇总
