@@ -12,7 +12,6 @@ import pytest_asyncio
 
 from app.core import local_cache
 from app.core.cache import (
-    conversation_list_key,
     get_owned_cache_response,
     l2_delete_pattern,
     l2_get,
@@ -51,7 +50,7 @@ def test_l1_set_get_delete_and_expiry(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.asyncio
-async def test_l2_round_trip_and_oversize_skip(
+async def test_l2_round_trip(
     fake_redis: fakeredis.aioredis.FakeRedis,
 ) -> None:
     with patch("app.core.cache.get_redis", return_value=fake_redis):
@@ -62,15 +61,6 @@ async def test_l2_round_trip_and_oversize_skip(
             ttl=60,
         )
         assert await l2_get("cache:test", namespace="test") == {"name": "value"}
-
-        assert not await l2_set(
-            "cache:large",
-            {"value": "too large"},
-            namespace="test",
-            ttl=60,
-            max_bytes=1,
-        )
-        assert await fake_redis.exists("cache:large") == 0
 
 
 @pytest.mark.asyncio
@@ -133,8 +123,7 @@ async def test_l2_get_times_out_fail_open(
     assert log_error.call_args.kwargs["error_type"] == "TimeoutError"
 
 
-def test_key_normalization_and_owned_envelope() -> None:
-    assert conversation_list_key("user-1", None, 20) == ("cache:conv_list:user-1::20")
+def test_owned_envelope() -> None:
     envelope = owned_cache_envelope("user-1", {"id": "conv-1"})
     assert get_owned_cache_response(envelope, "user-1") == {"id": "conv-1"}
     assert get_owned_cache_response(envelope, "user-2") is None

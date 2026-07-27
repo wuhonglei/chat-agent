@@ -80,11 +80,6 @@ CACHE__OPERATION_TIMEOUT_SECONDS=0.5
 | `cache.user_detail_ttl_seconds` | `60` | 用户详情 L2 TTL |
 | `cache.operation_timeout_seconds` | `0.5` | 单次 L2 操作超时 |
 
-`CacheConfig` 中的 `conversation_detail_ttl_seconds`、
-`conversation_list_ttl_seconds`、`messages_ttl_seconds` 和
-`max_value_bytes` 是已移除会话 L2 方案遗留的兼容字段，当前业务路径不读取它们。
-修改这些值不会改变会话或消息接口行为。
-
 L1 的 TTL 与容量固定在 `local_cache.py`，目前不能通过 Nacos 或环境变量修改。
 
 ## 4. 可观测性与排障
@@ -95,7 +90,6 @@ L1 的 TTL 与容量固定在 `local_cache.py`，目前不能通过 Nacos 或环
 |------|------|------|
 | `cache_hit` / `cache_miss` | debug | L1/L2 命中或未命中 |
 | `cache_invalidate` | info | L1/L2 删除完成；`deleted=0` 也会记录 |
-| `cache_skip_oversize` | info | 调用方设置 `max_bytes` 且值超限 |
 | `cache_l2_error` | error | Redis 操作异常或超过操作超时 |
 
 `cache_l2_error` 还包含 `cache_operation`、`cache_namespace`、

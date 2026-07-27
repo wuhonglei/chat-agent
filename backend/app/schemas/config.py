@@ -349,26 +349,6 @@ class CacheConfig(BaseModel):
         gt=0,
         description="用户详情缓存 TTL（秒）",
     )
-    conversation_detail_ttl_seconds: int = Field(
-        default=30,
-        gt=0,
-        description="会话详情缓存 TTL（秒）",
-    )
-    conversation_list_ttl_seconds: int = Field(
-        default=10,
-        gt=0,
-        description="会话列表缓存 TTL（秒）",
-    )
-    messages_ttl_seconds: int = Field(
-        default=15,
-        gt=0,
-        description="消息列表缓存 TTL（秒）",
-    )
-    max_value_bytes: int = Field(
-        default=512 * 1024,
-        gt=0,
-        description="单条缓存值最大字节数，超限跳过写入",
-    )
     operation_timeout_seconds: float = Field(
         default=0.5,
         gt=0,

@@ -87,7 +87,11 @@ class MemoryService:
             body["threshold"] = threshold
         with observation_span(
             "memory-search",
-            input={"query": query, "top_k": limit},
+            input={
+                "query": query,
+                "top_k": limit,
+                "threshold": threshold,
+            },
         ) as span:
             try:
                 async with httpx.AsyncClient(timeout=self._timeout) as client:
