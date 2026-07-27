@@ -83,7 +83,7 @@ class TokenCalculator:
         except KeyError:
             # 如果模型无法自动映射，使用默认的 encoding
             # 大多数现代模型（包括 Qwen）使用 cl100k_base
-            logger.warning(
+            logger.debug(
                 f"无法自动映射模型 {model} 到 tokenizer，使用默认 encoding: {self.DEFAULT_ENCODING_NAME}"
             )
             encoding = self._get_encoding_with_fallback(self.DEFAULT_ENCODING_NAME)
