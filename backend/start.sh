@@ -60,5 +60,6 @@ echo "=========================================="
 WORKERS=$(( $(nproc) * 2 ))
 
 # 启动 Gunicorn 应用服务器
-# --preload: master 进程预加载 app，确保 prometheus 注册表在 fork 前初始化
-exec gunicorn app.main:app -w $WORKERS -k uvicorn.workers.UvicornWorker --preload --bind 0.0.0.0:8000
+# 注意：不使用 --preload，因为 gRPC 客户端（Nacos）在 fork 后会导致 SIGSEGV
+# 每个 worker 独立加载 app，避免 fork 时 gRPC 线程状态不一致
+exec gunicorn app.main:app -w $WORKERS -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
