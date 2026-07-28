@@ -527,12 +527,18 @@ class ToolResultHardLimitConfig(BaseModel):
     preview_head_chars: int = Field(
         default=2_000,
         ge=0,
-        description="落盘预览 / 头尾截断保留的头部字符数",
+        description=(
+            "Agent 落盘预览与同轮 force 截断的头部字符数；"
+            "非 Agent 普通截断按 max_chars 按此比例分配头尾"
+        ),
     )
     preview_tail_chars: int = Field(
         default=1_000,
         ge=0,
-        description="落盘预览 / 头尾截断保留的尾部字符数",
+        description=(
+            "Agent 落盘预览与同轮 force 截断的尾部字符数；"
+            "非 Agent 普通截断按 max_chars 按此比例分配头尾"
+        ),
     )
     persist_subdir: str = Field(
         default=".tool-results",

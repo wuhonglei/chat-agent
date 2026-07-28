@@ -7,6 +7,7 @@ import pytest
 from app.schemas.config import ToolResultHardLimitConfig
 from app.schemas.llm import ToolResultMessage
 from app.utils.tool_result_hard_limit import (
+    _allocate_head_tail,
     apply_hard_limit,
     enforce_turn_budget,
     extract_bare_tool_name,
@@ -57,24 +58,38 @@ def test_resolve_max_chars_zero_disables_layer2() -> None:
     assert resolve_max_chars("shell_exec", cfg) is None
 
 
+def test_allocate_head_tail_uses_preview_ratio() -> None:
+    assert _allocate_head_tail(30_000, head_ratio_chars=2_000, tail_ratio_chars=1_000) == (
+        20_000,
+        10_000,
+    )
+    assert _allocate_head_tail(0, head_ratio_chars=2_000, tail_ratio_chars=1_000) == (0, 0)
+    assert _allocate_head_tail(9, head_ratio_chars=0, tail_ratio_chars=0) == (6, 3)
+
+
 def test_agent_mode_0_truncates_without_persist(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "app.utils.tool_result_hard_limit.get_paths",
         lambda: type(get_paths())(base_dir=tmp_path),
     )
     content = "H" * 40 + "M" * 40 + "T" * 40
+    max_chars = 50
     result = apply_hard_limit(
         _msg(content),
         tool_name="tavily_web_search",
         agent_mode=0,
         user_id="u1",
         conversation_id="c1",
-        config=_config(max_chars=50),
+        config=_config(max_chars=max_chars, preview_head_chars=10, preview_tail_chars=5),
     )
     assert is_hard_limited(result.content)
     assert "无法回读完整原文" in result.content
     assert "read_file" not in result.content
     assert "workspace/.tool-results" not in result.content
+    # Non-agent truncate keeps ~max_chars of payload (not preview 10+5).
+    assert result.content.startswith("H" * 33)
+    assert "T" * 17 in result.content
+    assert "M" * 40 not in result.content
     persist_dir = tmp_path / "u1" / "conversations" / "c1" / "workspace" / ".tool-results"
     assert not persist_dir.exists()
 
@@ -245,11 +260,32 @@ def test_persist_failure_falls_back_to_truncate(
         agent_mode=1,
         user_id="u1",
         conversation_id="c1",
-        config=_config(max_chars=50),
+        config=_config(max_chars=50, preview_head_chars=10, preview_tail_chars=5),
     )
     assert is_hard_limited(result.content)
     assert "full output persisted" not in result.content
     assert "无法回读完整原文" in result.content
+    # Persist failure uses the same max_chars retention as non-agent truncate.
+    assert result.content.startswith("Z" * 33)
+    assert result.content.count("Z") >= 50
+
+
+def test_force_truncate_still_uses_preview_sizes() -> None:
+    content = "b" * 200
+    result = apply_hard_limit(
+        _msg(content),
+        tool_name="shell_exec",
+        agent_mode=0,
+        user_id=None,
+        conversation_id=None,
+        config=_config(max_chars=10_000, preview_head_chars=8, preview_tail_chars=4),
+        force=True,
+    )
+    assert is_hard_limited(result.content)
+    assert result.content.startswith("b" * 8)
+    assert "bbbb" in result.content  # tail
+    # Must shrink far below max_chars so turn-budget force remains effective.
+    assert len(result.content) < 200
 
 
 def test_turn_budget_forces_largest() -> None:
