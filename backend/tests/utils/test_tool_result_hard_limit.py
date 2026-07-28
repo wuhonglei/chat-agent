@@ -67,29 +67,24 @@ def test_allocate_head_tail_uses_preview_ratio() -> None:
     assert _allocate_head_tail(9, head_ratio_chars=0, tail_ratio_chars=0) == (6, 3)
 
 
-def test_agent_mode_0_truncates_without_persist(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_agent_mode_0_passthrough_defers_to_guard(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr(
         "app.utils.tool_result_hard_limit.get_paths",
         lambda: type(get_paths())(base_dir=tmp_path),
     )
     content = "H" * 40 + "M" * 40 + "T" * 40
-    max_chars = 50
     result = apply_hard_limit(
         _msg(content),
         tool_name="tavily_web_search",
         agent_mode=0,
         user_id="u1",
         conversation_id="c1",
-        config=_config(max_chars=max_chars, preview_head_chars=10, preview_tail_chars=5),
+        config=_config(max_chars=50),
     )
-    assert is_hard_limited(result.content)
-    assert "无法回读完整原文" in result.content
-    assert "read_file" not in result.content
-    assert "workspace/.tool-results" not in result.content
-    # Non-agent truncate keeps ~max_chars of payload (not preview 10+5).
-    assert result.content.startswith("H" * 33)
-    assert "T" * 17 in result.content
-    assert "M" * 40 not in result.content
+    assert result.content == content
+    assert not is_hard_limited(result.content)
     persist_dir = tmp_path / "u1" / "conversations" / "c1" / "workspace" / ".tool-results"
     assert not persist_dir.exists()
 
@@ -125,20 +120,17 @@ def test_agent_mode_1_persists_to_workspace(tmp_path: Path, monkeypatch: pytest.
     assert physical.read_text(encoding="utf-8") == content
 
 
-def test_tool_overrides_trigger_earlier_for_exec() -> None:
+def test_tool_overrides_trigger_earlier_for_exec(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "app.utils.tool_result_hard_limit.get_paths",
+        lambda: type(get_paths())(base_dir=tmp_path),
+    )
     cfg = _config(max_chars=200, tool_overrides={"exec": 30})
     content = "a" * 50
+    # Non-agent always passthrough regardless of overrides.
     untouched = apply_hard_limit(
-        _msg(content),
-        tool_name="tavily_web_search",
-        agent_mode=0,
-        user_id=None,
-        conversation_id=None,
-        config=cfg,
-    )
-    assert untouched.content == content
-
-    truncated = apply_hard_limit(
         _msg(content),
         tool_name="shell_exec",
         agent_mode=0,
@@ -146,7 +138,18 @@ def test_tool_overrides_trigger_earlier_for_exec() -> None:
         conversation_id=None,
         config=cfg,
     )
-    assert is_hard_limited(truncated.content)
+    assert untouched.content == content
+
+    persisted = apply_hard_limit(
+        _msg(content, tool_call_id="tc_exec"),
+        tool_name="shell_exec",
+        agent_mode=1,
+        user_id="u1",
+        conversation_id="c1",
+        config=cfg,
+    )
+    assert is_hard_limited(persisted.content)
+    assert "full output persisted" in persisted.content
 
 
 def test_override_zero_skips_layer2_unless_force() -> None:
@@ -155,7 +158,7 @@ def test_override_zero_skips_layer2_unless_force() -> None:
     skipped = apply_hard_limit(
         _msg(content),
         tool_name="shell_exec",
-        agent_mode=0,
+        agent_mode=1,
         user_id=None,
         conversation_id=None,
         config=cfg,
@@ -165,7 +168,7 @@ def test_override_zero_skips_layer2_unless_force() -> None:
     forced = apply_hard_limit(
         _msg(content),
         tool_name="shell_exec",
-        agent_mode=0,
+        agent_mode=1,
         user_id=None,
         conversation_id=None,
         config=cfg,
@@ -201,7 +204,7 @@ def test_read_file_exempt_ignores_force() -> None:
     result = apply_hard_limit(
         _msg(content),
         tool_name="file_read_file",
-        agent_mode=0,
+        agent_mode=1,
         user_id=None,
         conversation_id=None,
         config=_config(max_chars=50),
@@ -209,6 +212,30 @@ def test_read_file_exempt_ignores_force() -> None:
     )
     assert result.content == content
     assert not is_hard_limited(result.content)
+
+
+def test_turn_budget_noop_in_non_agent() -> None:
+    cfg = _config(
+        max_chars=10_000,
+        tool_overrides={},
+        turn_budget_chars=80,
+        preview_head_chars=8,
+        preview_tail_chars=4,
+    )
+    messages = [
+        _msg("a" * 50, tool_call_id="c1"),
+        _msg("b" * 60, tool_call_id="c2"),
+    ]
+    out = enforce_turn_budget(
+        messages,
+        tool_name_by_call_id={"c1": "tavily_web_search", "c2": "shell_exec"},
+        agent_mode=0,
+        user_id=None,
+        conversation_id=None,
+        config=cfg,
+    )
+    assert out[0].content == messages[0].content
+    assert out[1].content == messages[1].content
 
 
 def test_turn_budget_skips_exempt_read_file() -> None:
@@ -232,7 +259,7 @@ def test_turn_budget_skips_exempt_read_file() -> None:
             "c_read": "file_read_file",
             "c_shell": "shell_exec",
         },
-        agent_mode=0,
+        agent_mode=1,
         user_id=None,
         conversation_id=None,
         config=cfg,
@@ -265,7 +292,6 @@ def test_persist_failure_falls_back_to_truncate(
     assert is_hard_limited(result.content)
     assert "full output persisted" not in result.content
     assert "无法回读完整原文" in result.content
-    # Persist failure uses the same max_chars retention as non-agent truncate.
     assert result.content.startswith("Z" * 33)
     assert result.content.count("Z") >= 50
 
@@ -275,7 +301,7 @@ def test_force_truncate_still_uses_preview_sizes() -> None:
     result = apply_hard_limit(
         _msg(content),
         tool_name="shell_exec",
-        agent_mode=0,
+        agent_mode=1,
         user_id=None,
         conversation_id=None,
         config=_config(max_chars=10_000, preview_head_chars=8, preview_tail_chars=4),
@@ -284,7 +310,6 @@ def test_force_truncate_still_uses_preview_sizes() -> None:
     assert is_hard_limited(result.content)
     assert result.content.startswith("b" * 8)
     assert "bbbb" in result.content  # tail
-    # Must shrink far below max_chars so turn-budget force remains effective.
     assert len(result.content) < 200
 
 
@@ -303,7 +328,7 @@ def test_turn_budget_forces_largest() -> None:
     out = enforce_turn_budget(
         messages,
         tool_name_by_call_id={"c1": "tavily_web_search", "c2": "shell_exec"},
-        agent_mode=0,
+        agent_mode=1,
         user_id=None,
         conversation_id=None,
         config=cfg,

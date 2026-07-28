@@ -311,7 +311,7 @@ async def test_unified_context_guard_stop_tools_when_still_over(
     monkeypatch.setattr(
         ChatSessionAgent,
         "_size_aware_compress_tool_rounds",
-        lambda self, base, threshold: threshold + 1,
+        lambda self, base, threshold, keep_recent=None: threshold + 1,
     )
     monkeypatch.setattr(
         TokenCalculator,
@@ -346,6 +346,132 @@ async def test_unified_context_guard_stop_tools_when_still_over(
         allow_stop_tools=True,
     )
     assert action == "stop_tools"
+
+
+def test_size_aware_compress_respects_keep_recent_then_zero() -> None:
+    """Step 4: keep_recent protects latest group; keep_recent=0 can shrink it."""
+    guard = UnifiedContextGuardConfig(
+        keep_recent_tool_results=2,
+        tool_result_compress_threshold_chars=100,
+        tool_result_compress_keep_head_chars=20,
+        tool_result_compress_keep_tail_chars=20,
+    )
+    cfg = ChatContextConfig(unified_guard=guard)
+    agent = ChatSessionAgent(
+        think_mode=False,
+        llm_config=_llm(),
+        mcp_manager=MagicMock(),
+        history_context_service=HistoryContextService(cfg, _calc()),
+        chat_context_config=cfg,
+    )
+    tool_call = ChatCompletionMessageFunctionToolCall(
+        id="c1",
+        type="function",
+        function=Function(name="t", arguments="{}"),
+    )
+    recent_content = "RECENT" + ("Y" * 2000)
+    agent.session_output.tool_round_messages = [
+        ToolUseMessage(
+            role="assistant",
+            content=None,
+            reasoning_content=None,
+            tool_calls=[tool_call],
+        ),
+        ToolResultMessage(
+            role="tool",
+            tool_call_id="c1",
+            is_error=False,
+            content=recent_content,
+        ),
+    ]
+    base = [{"role": "user", "content": "hi"}]
+
+    # With default keep_recent=2 and only one group → nothing compressible.
+    tokens_after_keep = agent._size_aware_compress_tool_rounds(base, threshold=1)
+    assert agent.session_output.tool_round_messages[1].content == recent_content  # type: ignore[union-attr]
+    assert tokens_after_keep > 0
+
+    # Escalation keep_recent=0 compresses the latest (only) group.
+    agent._size_aware_compress_tool_rounds(base, threshold=1, keep_recent=0)
+    compressed = agent.session_output.tool_round_messages[1].content  # type: ignore[union-attr]
+    assert compressed != recent_content
+    assert "中间已省略" in compressed
+    assert compressed.startswith("RECENT")
+
+
+@pytest.mark.asyncio
+async def test_unified_context_guard_escalates_keep_recent_to_zero(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When Step 4 with keep_recent still over, guard retries with keep_recent=0."""
+    guard = UnifiedContextGuardConfig(
+        buffer_tokens=100,
+        max_output_tokens=100,
+        keep_recent_tool_results=2,
+        tool_result_compress_threshold_chars=100,
+        tool_result_compress_keep_head_chars=20,
+        tool_result_compress_keep_tail_chars=20,
+    )
+    cfg = ChatContextConfig(
+        unified_guard=guard,
+        window_out_summary=WindowOutSummaryConfig(enabled=False),
+    )
+    history_svc = HistoryContextService(cfg, _calc(limit=500))
+    history_svc.compress_history_tool_results = lambda h: h  # type: ignore[method-assign]
+    history_svc.split_by_remaining_budget = lambda h, b: (h, [])  # type: ignore[method-assign]
+
+    call_keep_recents: list[int | None] = []
+
+    def _fake_compress(
+        self: ChatSessionAgent,
+        base: list[dict[str, Any]],
+        threshold: int,
+        *,
+        keep_recent: int | None = None,
+    ) -> int:
+        call_keep_recents.append(keep_recent)
+        # First pass (default keep_recent) still over; second (0) under.
+        if keep_recent == 0:
+            return threshold
+        return threshold + 1
+
+    monkeypatch.setattr(
+        ChatSessionAgent, "_size_aware_compress_tool_rounds", _fake_compress
+    )
+    monkeypatch.setattr(
+        TokenCalculator,
+        "count_messages_tokens",
+        lambda self, messages: 10_000,
+    )
+    monkeypatch.setattr(
+        TokenCalculator,
+        "count_message_tokens",
+        lambda self, message: 100,
+    )
+
+    agent = ChatSessionAgent(
+        think_mode=False,
+        llm_config=_llm(limit=500, max_out=100),
+        mcp_manager=MagicMock(),
+        history_context_service=history_svc,
+        chat_context_config=cfg,
+    )
+    agent._system_prompt = "sys"
+    agent._working_history = []
+    agent._user_message_content = "hi"
+    agent._user_message_text = "hi"
+    agent._window_out_summary = None
+    agent._kb_context_blocks = None
+    agent._user_memories = []
+    agent._attachment_uploads = None
+    base = agent._compose_messages("sys", [], "hi", [])
+    action, _ = await agent.unified_context_guard(
+        base_prompt_messages=base,
+        conversation_id="conv",
+        allow_stop_tools=True,
+    )
+    assert action == "ok"
+    assert call_keep_recents == [None, 0]
 
 
 @pytest.mark.asyncio
