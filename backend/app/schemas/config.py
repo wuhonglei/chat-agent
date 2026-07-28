@@ -511,33 +511,33 @@ def _default_tool_result_hard_limit_overrides() -> dict[str, int]:
 
 
 class ToolResultHardLimitConfig(BaseModel):
-    """工具结果硬上限：超阈值后按 agent_mode 落盘预览或头尾截断。"""
+    """工具结果硬上限：Agent 超阈值落盘预览；非 Agent 原样放行由统一守卫兜底。"""
 
     enabled: bool = Field(default=True, description="是否启用工具结果硬上限")
     turn_budget_chars: int = Field(
         default=80_000,
         ge=0,
-        description="同轮全部工具结果 content 合计字符上限",
+        description="同轮全部工具结果 content 合计字符上限（仅 Agent 模式）",
     )
     max_chars: int = Field(
         default=30_000,
         ge=0,
-        description="单条工具结果默认硬上限（字符）；可被 tool_overrides 覆盖",
+        description="单条工具结果默认硬上限（字符）；可被 tool_overrides 覆盖；仅 Agent",
     )
     preview_head_chars: int = Field(
         default=2_000,
         ge=0,
         description=(
-            "Agent 落盘预览与同轮 force 截断的头部字符数；"
-            "非 Agent 普通截断按 max_chars 按此比例分配头尾"
+            "Agent 落盘预览与落盘失败/force 截断的头部字符数；"
+            "落盘失败非 force 时亦作 max_chars 头尾分配比例"
         ),
     )
     preview_tail_chars: int = Field(
         default=1_000,
         ge=0,
         description=(
-            "Agent 落盘预览与同轮 force 截断的尾部字符数；"
-            "非 Agent 普通截断按 max_chars 按此比例分配头尾"
+            "Agent 落盘预览与落盘失败/force 截断的尾部字符数；"
+            "落盘失败非 force 时亦作 max_chars 头尾分配比例"
         ),
     )
     persist_subdir: str = Field(

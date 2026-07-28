@@ -398,10 +398,23 @@ class ChatSessionAgent(BaseAgent):
             if total_tokens <= threshold:
                 return "ok", base_prompt_messages
 
-        # Step 4: size-aware compress current-turn older tool results
+        # Step 4: size-aware compress — prefer keep_recent, then escalate to 0
         if total_tokens > threshold:
             total_tokens = self._size_aware_compress_tool_rounds(
-                base_prompt_messages, threshold
+                base_prompt_messages,
+                threshold,
+                keep_recent=guard.keep_recent_tool_results,
+            )
+        if total_tokens > threshold:
+            logger.info(
+                "Unified context guard Step 4 still over threshold; "
+                "escalating keep_recent=0",
+                conversation_id=conversation_id,
+                total_tokens=total_tokens,
+                threshold=threshold,
+            )
+            total_tokens = self._size_aware_compress_tool_rounds(
+                base_prompt_messages, threshold, keep_recent=0
             )
 
         if total_tokens <= threshold:
@@ -423,10 +436,10 @@ class ChatSessionAgent(BaseAgent):
         self,
         base_prompt_messages: list[dict[str, Any]],
         threshold: int,
+        keep_recent: int,
     ) -> int:
         """Compress largest tool results one-by-one until under threshold."""
         guard = self.chat_context_config.unified_guard
-        keep_recent = guard.keep_recent_tool_results
         threshold_chars = guard.tool_result_compress_threshold_chars
         keep_head = guard.tool_result_compress_keep_head_chars
         keep_tail = guard.tool_result_compress_keep_tail_chars

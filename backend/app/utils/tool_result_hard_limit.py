@@ -1,4 +1,4 @@
-"""工具结果硬上限：按 agent_mode 落盘预览或按 max_chars 头尾截断，并做同轮聚合预算。"""
+"""工具结果硬上限：Agent 落盘预览；非 Agent 原样放行，由统一上下文守卫兜底。"""
 
 from __future__ import annotations
 
@@ -115,10 +115,10 @@ def _truncate_head_tail_chars(
     force: bool,
     config: ToolResultHardLimitConfig,
 ) -> tuple[int, int]:
-    """Head/tail for truncate path.
+    """Head/tail for Agent truncate fallback (persist failure / missing ids).
 
-    - Normal over-limit truncate: retain up to ``keep_chars`` (usually max_chars).
-    - ``force`` (turn budget): keep using compact preview sizes so shrink is effective.
+    - Normal over-limit: retain up to ``keep_chars`` (usually max_chars).
+    - ``force`` (turn budget): compact preview sizes so shrink is effective.
     """
     if force or keep_chars is None:
         return config.preview_head_chars, config.preview_tail_chars
@@ -207,7 +207,11 @@ def apply_hard_limit(
     config: ToolResultHardLimitConfig,
     force: bool = False,
 ) -> ToolResultMessage:
-    """Apply per-result hard limit. ``force`` ignores override=0 and max_chars."""
+    """Apply per-result hard limit. ``force`` ignores override=0 and max_chars.
+
+    Non-agent (``agent_mode <= 0``): passthrough — budget is enforced by
+    ``unified_context_guard`` (Step 4 keep_recent then escalate to 0).
+    """
     if not config.enabled:
         return message
 
@@ -220,6 +224,10 @@ def apply_hard_limit(
     if _is_budget_exempt(tool_name, config):
         return message
 
+    # Non-agent: keep full tool output; unified context guard is the backstop.
+    if agent_mode <= 0:
+        return message
+
     max_chars: int | None = None
     if not force:
         max_chars = resolve_max_chars(tool_name, config)
@@ -228,7 +236,7 @@ def apply_hard_limit(
         if len(content) <= max_chars:
             return message
 
-    can_persist = agent_mode > 0 and bool(user_id) and bool(conversation_id)
+    can_persist = bool(user_id) and bool(conversation_id)
 
     if can_persist:
         try:
@@ -295,6 +303,9 @@ def enforce_turn_budget(
 ) -> list[ToolResultMessage]:
     """Shrink largest results until total content chars fit turn budget."""
     if not config.enabled or config.turn_budget_chars <= 0 or not messages:
+        return messages
+    # Non-agent defers aggregation budget to unified context guard.
+    if agent_mode <= 0:
         return messages
 
     updated = list(messages)

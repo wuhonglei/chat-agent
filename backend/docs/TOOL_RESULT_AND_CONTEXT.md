@@ -17,7 +17,7 @@
        Step 1 未超限 → 直接放行
        Step 2 压缩全部历史 ToolResult（+ 全部历史 tool_use args）
        Step 3 动态 token 预算切窗 + 窗口外 LLM 摘要
-       Step 4 size-aware 压缩当前轮旧工具结果
+       Step 4 size-aware 压缩当前轮工具结果（先 keep_recent，仍超则 keep_recent=0）
        Step 5 仍超限 → 停止工具调用，转 final answer
 ```
 
@@ -42,7 +42,7 @@ context_threshold = context_limit - reserved_output - buffer_tokens
 
 ### 2.1 意图
 
-防止单条或同轮并行工具输出把上下文打爆。Agent 模式优先落盘完整原文并返回短预览（可 `read_file` 回读）；普通模式或落盘失败则按 `max_chars` 做头尾截断且不可回读（同轮 `force` 仍用短预览以便压预算）。
+防止单条或同轮并行工具输出把上下文打爆。Agent 模式优先落盘完整原文并返回短预览（可 `read_file` 回读）；落盘失败则按 `max_chars` 头尾截断。非 Agent 模式 L1 **原样放行**，由统一上下文守卫（尤其 Step 4）按总 prompt 预算兜底。
 
 ### 2.2 调用点与边界
 
@@ -58,9 +58,10 @@ context_threshold = context_limit - reserved_output - buffer_tokens
 | `enabled=false` | 原样返回 |
 | bare 名在 `exempt_bare_names`（默认 `read_file`） | 完全跳过，含同轮 `force` |
 | `tool_overrides[tool]=0` | 跳过单条阈值；同轮预算仍可 `force` |
+| `agent_mode <= 0` | 原样返回（含同轮 turn budget）；由统一守卫兜底 |
 | `agent_mode > 0` 且有 `user_id`/`conversation_id` | 超阈值 → 写入 workspace，返回 `preview_*` 预览 + 虚拟路径 |
-| 否则或落盘失败（非 force） | 超阈值 → 按 `max_chars` 比例头尾截断，标注「无法回读完整原文」 |
-| 否则或落盘失败（force） | 同轮预算强制压缩 → 仍用 `preview_*` 短截断 |
+| Agent 落盘失败（非 force） | 超阈值 → 按 `max_chars` 比例头尾截断，标注「无法回读完整原文」 |
+| Agent 落盘失败或缺 id（force） | 同轮预算强制压缩 → 用 `preview_*` 短截断 |
 
 落盘路径：
 
@@ -76,9 +77,9 @@ context_threshold = context_limit - reserved_output - buffer_tokens
 | 字段 | 默认 | 说明 |
 |------|-----:|------|
 | `enabled` | `true` | 总开关 |
-| `max_chars` | `30000` | 单条默认上限（字符） |
-| `turn_budget_chars` | `80000` | 同轮全部 tool content 合计上限；`0` 关闭预算 |
-| `preview_head_chars` / `preview_tail_chars` | `2000` / `1000` | Agent 落盘预览与 force 截断头尾；非 Agent 普通截断作比例权重 |
+| `max_chars` | `30000` | 单条默认上限（字符）；仅 Agent |
+| `turn_budget_chars` | `80000` | 同轮全部 tool content 合计上限；仅 Agent；`0` 关闭 |
+| `preview_head_chars` / `preview_tail_chars` | `2000` / `1000` | Agent 落盘预览与截断回退头尾 |
 | `persist_subdir` | `.tool-results` | 相对 workspace |
 | `exempt_bare_names` | `["read_file"]` | 全量豁免，防 persist↔read 循环 |
 | `tool_overrides` | 见下 | 覆盖单条阈值 |
@@ -116,9 +117,12 @@ in_window, out_of_window = split_history_by_token_budget(history, remaining_budg
 
 ### 3.3 Step 4：当前轮 size-aware 压缩
 
-将 `tool_round_messages` 按「一次 `ToolUseMessage` + 其后连续 `ToolResultMessage`」分组，保留最新 `keep_recent` 组；对其余组中 `len(content) > tool_result_compress_threshold_chars` 的 `ToolResultMessage`，按大小降序 head-tail（默认各 500 字符），达标即停。
+将 `tool_round_messages` 按「一次 `ToolUseMessage` + 其后连续 `ToolResultMessage`」分组：
 
-与 L1 `max_chars` **不冲突**：L1 是写入上限；本项是总预算仍超时的二次压缩门闩。
+1. **先**保留最新 `keep_recent`（默认 2）组，只压缩更旧组中超 `tool_result_compress_threshold_chars` 的结果（按大小降序 head-tail，默认各 500 字符），压到阈值即停。
+2. **若仍超限**，再以 `keep_recent=0` 重跑，允许压缩本轮全部（含最新）大结果。
+
+非 Agent 依赖本步兜底单条超大工具输出（L1 已放行）。与 Agent L1 `max_chars` **不冲突**：L1 是写入/落盘上限；本项是总预算仍超时的二次压缩门闩。
 
 ### 3.4 Step 5
 
