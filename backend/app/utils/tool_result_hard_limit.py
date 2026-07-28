@@ -1,4 +1,4 @@
-"""工具结果硬上限：按 agent_mode 落盘预览或头尾截断，并做同轮聚合预算。"""
+"""工具结果硬上限：按 agent_mode 落盘预览或按 max_chars 头尾截断，并做同轮聚合预算。"""
 
 from __future__ import annotations
 
@@ -87,6 +87,46 @@ def _build_head_tail_preview(
     head = content[:head_n]
     tail = content[-tail_n:] if tail_n else ""
     return head, tail, content
+
+
+def _allocate_head_tail(
+    keep_chars: int,
+    *,
+    head_ratio_chars: int,
+    tail_ratio_chars: int,
+) -> tuple[int, int]:
+    """Split ``keep_chars`` into head/tail using preview sizes as ratio weights."""
+    if keep_chars <= 0:
+        return 0, 0
+    ratio_total = head_ratio_chars + tail_ratio_chars
+    if ratio_total <= 0:
+        head = (keep_chars * 2) // 3
+        return head, keep_chars - head
+    head = (keep_chars * head_ratio_chars) // ratio_total
+    if head == 0 and head_ratio_chars > 0:
+        head = 1
+    tail = keep_chars - head
+    return head, tail
+
+
+def _truncate_head_tail_chars(
+    *,
+    keep_chars: int | None,
+    force: bool,
+    config: ToolResultHardLimitConfig,
+) -> tuple[int, int]:
+    """Head/tail for truncate path.
+
+    - Normal over-limit truncate: retain up to ``keep_chars`` (usually max_chars).
+    - ``force`` (turn budget): keep using compact preview sizes so shrink is effective.
+    """
+    if force or keep_chars is None:
+        return config.preview_head_chars, config.preview_tail_chars
+    return _allocate_head_tail(
+        keep_chars,
+        head_ratio_chars=config.preview_head_chars,
+        tail_ratio_chars=config.preview_tail_chars,
+    )
 
 
 def _format_truncated_content(
@@ -180,6 +220,7 @@ def apply_hard_limit(
     if _is_budget_exempt(tool_name, config):
         return message
 
+    max_chars: int | None = None
     if not force:
         max_chars = resolve_max_chars(tool_name, config)
         if max_chars is None:
@@ -222,10 +263,15 @@ def apply_hard_limit(
                 error_type=type(exc).__name__,
             )
 
+    head_chars, tail_chars = _truncate_head_tail_chars(
+        keep_chars=max_chars,
+        force=force,
+        config=config,
+    )
     new_content = _format_truncated_content(
         content,
-        head_chars=config.preview_head_chars,
-        tail_chars=config.preview_tail_chars,
+        head_chars=head_chars,
+        tail_chars=tail_chars,
     )
     logger.info(
         "Tool result truncated due to hard limit",

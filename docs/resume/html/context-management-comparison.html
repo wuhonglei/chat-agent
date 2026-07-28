@@ -487,9 +487,9 @@
                 <strong>原理：</strong>将工具结果按 Markdown 切块 → 向量化 → 与用户 query 计算相似度 → 贪心选择 top-K 块直到 token 预算
             </div>
             <ul>
-                <li>容错阈值: <code>tolerance_tokens = 6000</code>（低于此不压缩）</li>
+                <li>容错阈值: <code>tolerance_tokens = 8000</code>（低于此不压缩）</li>
                 <li>目标阈值: <code>threshold_tokens = 5000</code></li>
-                <li>chunk_size: 1000 字符, overlap 200 字符</li>
+                <li>chunk_size: 1024 字符, overlap 200 字符</li>
                 <li>Fallback: 如果没选中任何 chunk，返回第一个 chunk</li>
             </ul>
             <p><strong>特点：</strong>唯一使用 <strong>语义相关性</strong> 而非纯机械截断的框架。保留与用户问题最相关的片段，而非简单的头尾。</p>

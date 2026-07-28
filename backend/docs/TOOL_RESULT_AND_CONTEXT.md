@@ -42,7 +42,7 @@ context_threshold = context_limit - reserved_output - buffer_tokens
 
 ### 2.1 意图
 
-防止单条或同轮并行工具输出把上下文打爆。Agent 模式优先落盘完整原文并返回头尾预览；普通模式或落盘失败则头尾截断且不可回读。
+防止单条或同轮并行工具输出把上下文打爆。Agent 模式优先落盘完整原文并返回短预览（可 `read_file` 回读）；普通模式或落盘失败则按 `max_chars` 做头尾截断且不可回读（同轮 `force` 仍用短预览以便压预算）。
 
 ### 2.2 调用点与边界
 
@@ -58,8 +58,9 @@ context_threshold = context_limit - reserved_output - buffer_tokens
 | `enabled=false` | 原样返回 |
 | bare 名在 `exempt_bare_names`（默认 `read_file`） | 完全跳过，含同轮 `force` |
 | `tool_overrides[tool]=0` | 跳过单条阈值；同轮预算仍可 `force` |
-| `agent_mode > 0` 且有 `user_id`/`conversation_id` | 超阈值 → 写入 workspace，返回预览 + 虚拟路径 |
-| 否则或落盘失败 | 超阈值 → 头尾截断，标注「无法回读完整原文」 |
+| `agent_mode > 0` 且有 `user_id`/`conversation_id` | 超阈值 → 写入 workspace，返回 `preview_*` 预览 + 虚拟路径 |
+| 否则或落盘失败（非 force） | 超阈值 → 按 `max_chars` 比例头尾截断，标注「无法回读完整原文」 |
+| 否则或落盘失败（force） | 同轮预算强制压缩 → 仍用 `preview_*` 短截断 |
 
 落盘路径：
 
@@ -77,7 +78,7 @@ context_threshold = context_limit - reserved_output - buffer_tokens
 | `enabled` | `true` | 总开关 |
 | `max_chars` | `30000` | 单条默认上限（字符） |
 | `turn_budget_chars` | `80000` | 同轮全部 tool content 合计上限；`0` 关闭预算 |
-| `preview_head_chars` / `preview_tail_chars` | `2000` / `1000` | 预览/截断保留头尾 |
+| `preview_head_chars` / `preview_tail_chars` | `2000` / `1000` | Agent 落盘预览与 force 截断头尾；非 Agent 普通截断作比例权重 |
 | `persist_subdir` | `.tool-results` | 相对 workspace |
 | `exempt_bare_names` | `["read_file"]` | 全量豁免，防 persist↔read 循环 |
 | `tool_overrides` | 见下 | 覆盖单条阈值 |
