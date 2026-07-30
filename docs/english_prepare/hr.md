@@ -67,3 +67,16 @@ Finally, a significant part of my week is spent on cross-functional collaboratio
 One significant challenge was dealing with unstable Agent behaviors in our production environment, such as infinite loops. To solve this, I didn't just patch the code; I dived into SOTA frameworks to see how they handle state transitions. By adopting their checkpointing logic, we significantly improved the system's reliability.
 
 Another challenge is making technical trade-offs. For instance, when designing a RAG pipeline, we had three options varying in latency and accuracy. Instead of picking the most 'advanced' one, I evaluated them based on our business goal of fast user feedback. We chose a lighter model that boosted response speed by 30%, which ultimately drove higher user engagement.
+
+
+## 5. team collaboration（misalignment with Product or Ops teams）
+### 5.1 key points
+- Anchor on shared business objectives. Start by revisiting the original user requirements to ensure both sides are aligned on the ultimate value we're delivering to the customer.
+- Bridge the gap with analogies and business impact. Instead of diving into jargon, I explain how a technical constraint (like 'context window') directly affects their goals (like 'response speed' or 'user satisfaction'). I use simple analogies to make complex terms relatable.
+
+### 5.2 details
+When I encounter misalignment with Product or Ops teams, my first step is to anchor on our shared goals. I always go back to the original user requirements to remind everyone that we're all working towards the same business success.
+
+Then, instead of using heavy technical jargon, I focus on translating technical concepts into business impact. For example, if I need to explain why an Agent needs 'context management,' I’d use an analogy: 'It’s like a human conversation—if we remember too much irrelevant history, we get confused.'
+
+By connecting technical terms to outcomes they care about, like faster response times or higher accuracy, we can usually reach a consensus quickly.
