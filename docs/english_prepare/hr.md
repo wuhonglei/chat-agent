@@ -107,3 +107,64 @@ First, it’s about domain alignment. With 5 years of hands-on e-commerce experi
 Second, I’m very excited by Zalando’s dual business model. What really caught my attention is how you combine being a top fashion retailer with providing logistics and tech infrastructure to other partners through initiatives like Connected Retail.
 
 To me, this sets Zalando apart from pure-play e-commerce companies. It shows that you’re not just selling products, but also powering the entire industry. I’m eager to bring my Agent development expertise to help optimize these complex workflows.
+
+## 8. Salary Expectations
+### 8.1 key points
+- Current Package: My current annual total package is around 600k RMB, with a monthly base of 42k.
+- Expectation: I’m looking for a 10-15% increase on my total package, which aligns with the market rate for this role and my experience level.
+- Flexibility: However, I’m open to discussing the overall structure (base, bonus, and benefits) as I value the long-term growth and culture at Zalando.
+
+### 8.2 details
+Regarding salary expectations, my current annual total package at Shopee is around 600K RMB, with a monthly base of 42K RMB.
+
+For this role, I’m expecting a 10% to 15% increase on my total package. I believe this reflects the market value for an Agent Developer with my level of expertise and e-commerce domain knowledge.
+
+That said, I’m quite flexible and open to discussing the overall package structure, including base salary, performance bonuses, and other benefits. My primary motivation is joining Zalando and contributing to your AI initiatives, so I’m confident we can reach a mutually agreeable number.
+
+## 9. Career History / Walk me through your resume
+### 9.1 key points
+- Educational Background: Master’s degree in CS from Central South University (2018), providing a solid theoretical foundation.
+- Early Career (Sangfor - 3 years): Started as a Frontend Engineer and Team Lead. Key takeaway: Developed strong user-centric thinking and leadership skills by managing a 5-person team.
+- Shopee Phase 1 (First 2 years - Ads Platform): Transitioned into Full-stack development. Built the ads delivery platform, gaining deep insights into high-concurrency e-commerce systems.
+- Shopee Phase 2 (Next 2 years - Infra & Testing): Shifted focus to backend infrastructure. Developed the E2E test platform and GEO platform, mastering Node.js, automation, and system stability.
+- Shopee Phase 3 (Recent 1 year - AI Agent): Moved to what I love most: AI Agent Backend. Led the architecture of the internal AI assistant, focusing on ReAct loops, RAG, and scalable backend services.
+
+### 9.2 details
+Sure, I’d be happy to walk you through my career journey.
+
+I graduated with my Master’s degree in Computer Science in 2018. My first role was at Sangfor Technologies, where I spent 3 years as a Frontend Engineer and eventually became a Team Lead for a 5-person group. This experience taught me how to lead a team and always keep the end-user in mind.
+
+In 2021, I joined Shopee to dive deeper into the e-commerce world. For the first two years, I worked on the Ads Delivery Platform. Although I started with frontend, I quickly expanded into full-stack development to better understand the entire data flow.
+
+Over the next two years, I shifted my focus toward backend infrastructure and automation. I built an E2E testing platform and a GEO search optimization platform. This period was crucial for me because it strengthened my skills in Node.js, system stability, and handling complex backend logic.
+
+Most recently, in the past year, I’ve moved to what I love most: AI Agent Development. I led the backend architecture for Shopee’s internal AI Assistant, where I designed the ReAct loop engine and RAG pipelines. This role allowed me to combine my 8 years of engineering experience with my interest in AI, which is exactly why I’m so excited about this Agent Backend role at Zalando.
+
+## 10. Zalando Connected Retail
+### 10.1 key points
+- Integration of Physical Stores: It connects local physical stores to Zalando’s online platform, allowing them to display real-time local inventory.
+- Store-Based Fulfillment: When a customer buys an item, it is shipped directly from the nearby store using standard couriers (like DHL/Hermes), rather than from a central warehouse.
+- Win-Win Value: This reduces delivery time for customers and helps partners sell their existing stock faster, while Zalando expands its product range without holding extra inventory.
+
+### 10.2 details
+To me, Zalando Connected Retail is a brilliant example of your B2B infrastructure innovation.
+
+Essentially, it integrates physical retail stores directly into Zalando’s online platform. This allows local shops to show their real-time inventory to millions of online users.
+
+When a customer places an order, the item is shipped directly from the nearby store using standard logistics, instead of coming from a central warehouse.
+
+This model creates a win-win situation: customers get faster delivery, and partners can clear their local stock more efficiently. It shows how Zalando is leveraging technology to bridge the gap between offline and online retail.
+
+## 11. Zalando Fulfillment Solutions (ZFS)
+### 11.1 key points
+- End-to-End Logistics Infrastructure: ZFS provides third-party brands with access to Zalando’s pan-European warehousing, cross-border fulfillment, and unified returns processing — even if they sell exclusively on their own websites.
+- Empowering the Fashion Ecosystem: It allows brands to focus on product design and marketing while leveraging Zalando’s logistics scale. This creates a "third-win": brands get efficiency, customers get fast/standardized service, and Zalando strengthens its role as the industry’s operating system (ZEOS).
+
+### 11.2 details
+Another key part of Zalando's B2B strategy is Zalando Fulfillment Solutions (ZFS).
+
+What I find most impressive is that ZFS offers end-to-end logistics — including pan-European warehousing and unified returns processing — to third-party brands, even if they don't sell on Zalando’s marketplace at all. For example, a brand can sell exclusively on its own website but still use Zalando’s warehouses for fulfillment.
+
+This empowers brands to focus on what they do best: design and marketing. Meanwhile, customers benefit from standardized, high-quality delivery and support.
+
+To me, this perfectly illustrates how Zalando is evolving into a 'Fashion Industry Operating System' (ZEOS), creating a win-win-win situation for the platform, the brands, and the customers.
