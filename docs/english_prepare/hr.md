@@ -80,3 +80,16 @@ When I encounter misalignment with Product or Ops teams, my first step is to anc
 Then, instead of using heavy technical jargon, I focus on translating technical concepts into business impact. For example, if I need to explain why an Agent needs 'context management,' I’d use an analogy: 'It’s like a human conversation—if we remember too much irrelevant history, we get confused.'
 
 By connecting technical terms to outcomes they care about, like faster response times or higher accuracy, we can usually reach a consensus quickly.
+
+
+## 6. Reason for resignation（leaving current job）
+### 6.1 key points
+- Seeking New Growth Platform: Seeking a new technical challenge after 5 years. I’ve grown significantly at Shopee, but I’m now looking for a new environment where I can apply my Agent expertise at a different scale and continue my professional evolution.
+- Strategic Shift & Role Alignment: Misalignment with recent strategic shifts. Shopee ai platform group recently launched a unified AI desktop assistant, which overlapped with my project. As a result, my role shifted back toward traditional backend maintenance. Since my passion and core strength lie in innovative Agent development, I decided to seek a role that allows me to stay at the forefront of AI application engineering.
+
+### 6.2 details
+I’ve had a wonderful 5-year journey at Shopee. However, I feel it’s the right time to seek a new technical challenge.
+
+More specifically, the Shopee AI Platform Group recently launched a unified desktop AI assistant. Since there was significant functional overlap with the internal platform I was building, leadership decided to consolidate resources into that unified solution. Consequently, my role shifted back toward traditional backend maintenance.
+
+While I respect this strategic decision, my true passion is in building innovative Agent systems. I want to stay at the forefront of AI application engineering, which is why I’m so excited about the opportunity at Zalando.
