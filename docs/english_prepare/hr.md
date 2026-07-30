@@ -25,3 +25,45 @@ So yeah, that's a quick overview of my background. Happy to dive into any detail
 **Biggest weaknesses:**
 - Public Speaking: Occasionally feel nervous presenting to large groups. -> Action: Leading weekly tech shares to build confidence.
 - Technical Depth vs. Speed: Tend to over-research details early on. -> Action: Adopting time-boxing to balance depth with MVP delivery.
+
+### 2.2 details
+**Greatest strengths:**
+My greatest strength is end-to-end ownership. I don't just write code; I take full responsibility for the system's journey, from architectural design to production-grade deployment.
+
+I also excel at complex problem solving. For instance, I'm skilled at debugging intricate ReAct loops and optimizing LLM latency to ensure a smooth user experience.
+
+Lastly, I’m driven by continuous learning. I proactively master emerging AI technologies to drive innovation and stay ahead in this fast-evolving field.
+
+**Weaknesses**
+Regarding areas for improvement, one challenge I’ve faced is public speaking. I occasionally feel nervous when presenting to large groups. To overcome this, I’ve started leading weekly tech shares within my team, which has significantly built my confidence.
+
+Another area is balancing technical depth with speed. In the past, I tended to over-research details early on. Now, I adopt time-boxing for my research phases. This helps me strike a better balance between deep technical exploration and timely MVP delivery.
+
+
+## 3. daily work/weekly work/job responsibilities
+### 3.1 key points
+- Architecture & Design: Designing ReAct loops, defining tool interfaces, and planning system scalability.
+- Core Development: Implementing Agent logic, integrating LLM APIs, and building RAG pipelines.
+- Optimization & Observability: Tuning prompt performance, reducing latency, and setting up logging/tracing for production stability.
+- Cross-functional Collaboration: Aligning with Product/Ops teams on requirements and explaining technical constraints.
+
+### 3.2 details
+In my current role at Shopee, my work revolves around four key areas.
+
+First, I focus on architectural design, where I define how our Agents interact with various tools and manage context windows.
+
+Second, I handle the core implementation, specifically building RAG pipelines and optimizing prompt engineering to ensure high-quality responses.
+
+Third, I place a heavy emphasis on production stability. I’ve set up observability dashboards to track Agent latency and error rates, which allows us to iterate quickly.
+
+Finally, a significant part of my week is spent on cross-functional collaboration. I work closely with product managers to translate their requirements into feasible technical solutions, ensuring our Agents truly solve user problems.
+
+## 4. Challenges & Solutions
+### 4.1 key points
+- Technical Problems: Encountered unpredictable Agent behaviors (e.g., infinite loops or tool misuse) in production.
+- Technical Trade-offs: Needed to choose between multiple solutions (A, B, C) for a new feature, each with different advantages and disadvantages (e.g., speed vs. accuracy vs. cost).
+
+### 4.2 details
+One significant challenge was dealing with unstable Agent behaviors in our production environment, such as infinite loops. To solve this, I didn't just patch the code; I dived into SOTA frameworks to see how they handle state transitions. By adopting their checkpointing logic, we significantly improved the system's reliability.
+
+Another challenge is making technical trade-offs. For instance, when designing a RAG pipeline, we had three options varying in latency and accuracy. Instead of picking the most 'advanced' one, I evaluated them based on our business goal of fast user feedback. We chose a lighter model that boosted response speed by 30%, which ultimately drove higher user engagement.
