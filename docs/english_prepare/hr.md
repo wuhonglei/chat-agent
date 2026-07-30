@@ -93,3 +93,16 @@ I’ve had a wonderful 5-year journey at Shopee. However, I feel it’s the righ
 More specifically, the Shopee AI Platform Group recently launched a unified desktop AI assistant. Since there was significant functional overlap with the internal platform I was building, leadership decided to consolidate resources into that unified solution. Consequently, my role shifted back toward traditional backend maintenance.
 
 While I respect this strategic decision, my true passion is in building innovative Agent systems. I want to stay at the forefront of AI application engineering, which is why I’m so excited about the opportunity at Zalando.
+
+## 7. why you want to work at zalando (motivation)
+### 7.1 key points
+- Deep E-commerce Domain Expertise: With 5 years of e-commerce experience at Shopee, I'm confident I can get up to speed quickly and make an impact.
+- Zalando's dual business model: What excites me is zalando dual business model: being a top fashion retailer while also providing logistics and tech infrastructure to other partners. This sets Zalando apart from pure-play e-commerce companies.
+### 7.2 details
+My motivation to join Zalando comes from two main aspects.
+
+First, it’s about domain alignment. With 5 years of hands-on e-commerce experience at Shopee, I’ve developed a deep understanding of high-traffic retail scenarios. This means I can get up to speed quickly and start making an impact from day one.
+
+Second, I’m genuinely excited by Zalando’s dual business model. What really caught my attention is how you combine being a top fashion retailer with providing logistics and tech infrastructure to other partners through initiatives like Connected Retail.
+
+To me, this sets Zalando apart from pure-play e-commerce companies. It shows that you’re not just selling products, but also powering the entire industry. I’m eager to bring my Agent development expertise to help optimize these complex workflows.
