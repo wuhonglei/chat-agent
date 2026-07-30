@@ -10,11 +10,19 @@ import type { MentionSelectResult, MentionTriggerInfo } from "../hooks/useAttach
 /** 稳定空数组，开启词槽模式且避免父组件重渲染时丢失 runtime insert 的 tags */
 const EMPTY_SLOT_CONFIG: NonNullable<SenderProps["slotConfig"]> = [];
 
+/** contenteditable + pre-wrap 下，末尾单独 \n 不产生可视换行，需用 ZWSP 占住新行 */
+const NEWLINE_ZWSP = "\n\u200B";
+
 type SuggestionOption = { value: string; label: string };
 
 function normalizeEditorValue(value: string): string {
   // contenteditable 常把空格写成 NBSP，与 Form 中的普通空格对齐，避免误触发回写清空
   return value.replace(/\u00a0/g, " ");
+}
+
+/** 回写 Form / 比较受控值时去掉换行锚点，避免 sync effect 清掉 DOM 中的 ZWSP */
+function toFormEditorValue(value: string): string {
+  return normalizeEditorValue(value).replace(/\u200B/g, "");
 }
 
 /** 保留换行，仅清理零宽字符与统一换行符（SlotTextArea.getCleanedText 会删掉全部 \n） */
@@ -60,7 +68,7 @@ const ChatInputSender = React.forwardRef<GetRef<typeof Sender>, ChatInputSenderP
     const onTriggerRef = React.useRef<(info: MentionTriggerInfo | false) => void>(() => {});
     const suppressMentionTriggerRef = React.useRef(false);
     const suppressValueChangeRef = React.useRef(false);
-    const lastEmittedValueRef = React.useRef(normalizeEditorValue(value ?? ""));
+    const lastEmittedValueRef = React.useRef(toFormEditorValue(value ?? ""));
     const suggestionOpenRef = React.useRef(false);
     const suggestionItemsRef = React.useRef<SuggestionOption[]>([]);
     const activeIndexRef = React.useRef(0);
@@ -78,9 +86,9 @@ const ChatInputSender = React.forwardRef<GetRef<typeof Sender>, ChatInputSenderP
       if (suppressValueChangeRef.current) {
         return;
       }
-      const normalized = normalizeEditorValue(nextValue);
-      lastEmittedValueRef.current = normalized;
-      onChange?.(normalized);
+      const forForm = toFormEditorValue(nextValue);
+      lastEmittedValueRef.current = forForm;
+      onChange?.(forForm);
     });
 
     const closeMentionPanel = useMemoizedFn(() => {
@@ -94,7 +102,7 @@ const ChatInputSender = React.forwardRef<GetRef<typeof Sender>, ChatInputSenderP
 
     // 词槽模式下 value 无效；仅在外部（如欢迎页 Prompts）写入 Form 时同步到 Sender
     React.useEffect(() => {
-      const nextValue = normalizeEditorValue(value ?? "");
+      const nextValue = toFormEditorValue(value ?? "");
       if (nextValue === lastEmittedValueRef.current) {
         return;
       }
@@ -152,11 +160,12 @@ const ChatInputSender = React.forwardRef<GetRef<typeof Sender>, ChatInputSenderP
 
         // Cascader 会对 Enter preventDefault（甚至打开下拉）；SlotTextArea 在
         // submitType=enter 时还会清掉 <br>。有可 @ 附件时无法 Shift+Enter 换行。
-        // 输入区为 pre-wrap，插入 \n 可保留换行且不被 removeSpecificBRs 清除。
+        // 输入区为 pre-wrap，插入 \n 可保留换行且不被 removeSpecificBRs 清除；
+        // 末尾补 ZWSP，否则第一次 Shift+Enter 看不见换行（需按两次）。
         if (event.key === "Enter" && event.shiftKey) {
           event.preventDefault();
           event.stopPropagation();
-          senderRef.current?.insert?.([{ type: "text", value: "\n" }], "cursor");
+          senderRef.current?.insert?.([{ type: "text", value: NEWLINE_ZWSP }], "cursor");
           return false;
         }
 
