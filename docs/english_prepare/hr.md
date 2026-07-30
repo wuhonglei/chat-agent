@@ -98,11 +98,12 @@ While I respect this strategic decision, my true passion is in building innovati
 ### 7.1 key points
 - Deep E-commerce Domain Expertise: With 5 years of e-commerce experience at Shopee, I'm confident I can get up to speed quickly and make an impact.
 - Zalando's dual business model: What excites me is zalando dual business model: being a top fashion retailer while also providing logistics and tech infrastructure to other partners. This sets Zalando apart from pure-play e-commerce companies.
+
 ### 7.2 details
 My motivation to join Zalando comes from two main aspects.
 
 First, it’s about domain alignment. With 5 years of hands-on e-commerce experience at Shopee, I’ve developed a deep understanding of high-traffic retail scenarios. This means I can get up to speed quickly and start making an impact from day one.
 
-Second, I’m genuinely excited by Zalando’s dual business model. What really caught my attention is how you combine being a top fashion retailer with providing logistics and tech infrastructure to other partners through initiatives like Connected Retail.
+Second, I’m very excited by Zalando’s dual business model. What really caught my attention is how you combine being a top fashion retailer with providing logistics and tech infrastructure to other partners through initiatives like Connected Retail.
 
 To me, this sets Zalando apart from pure-play e-commerce companies. It shows that you’re not just selling products, but also powering the entire industry. I’m eager to bring my Agent development expertise to help optimize these complex workflows.
