@@ -2,9 +2,9 @@
 
 ## 1. self-introduction
 ### 1.1 key points
-- [ ] 8 years total, last 3 years AI/Backend
-- [ ] Shopee e-commerce background → directly relevant to Zalando
-- [ ] End-to-end ownership: architecture → production → monitoring
+- 8 years total, last 3 years AI/Backend
+- Shopee e-commerce background → directly relevant to Zalando
+- End-to-end ownership: architecture → production → monitoring
 
 ### 1.2 details
 Hello, my name is Wu Hong Lei. I'm a senior engineer with 8 years of development experience, and the last 3 years have been focused on AI and backend systems.
@@ -14,3 +14,14 @@ At Shopee — one of the largest e-commerce platforms in Southeast Asia — I bu
 I think this background is a strong fit for Zalando. Both are large-scale e-commerce companies dealing with high traffic, complex data pipelines, and the challenge of applying AI to real business scenarios. My experience building AI systems in an e-commerce context — understanding how teams actually use these tools day to day — is something I can bring directly to this role.
 
 So yeah, that's a quick overview of my background. Happy to dive into any details.
+
+## 2. greatest strengths and biggest weaknesses
+### 2.1 key points
+**Greatest strengths:**
+- End-to-end Ownership: Ability to take ideas from architecture to production.
+- Complex Problem Solving: Skilled in debugging complex ReAct loops and optimizing LLM latency.
+- Continuous Learning: Always seeking new challenges and technologies to stay ahead.
+
+**Biggest weaknesses:**
+- Public Speaking: Occasionally feel nervous presenting to large groups. -> Action: Leading weekly tech shares to build confidence.
+- Technical Depth vs. Speed: Tend to over-research details early on. -> Action: Adopting time-boxing to balance depth with MVP delivery.
