@@ -80,7 +80,7 @@ chat-turn (root span)
 
 | 指标 | 计算方式 | 数据源 | 告警阈值建议 |
 |------|----------|--------|-------------|
-| **端到端延迟 P50/P95/P99** | trace duration 百分位 | Langfuse trace | P95 > 30s 告警 |
+| **端到端延迟 P50/P95/P99** | trace duration 百分位（覆盖 run_chat_turn 全程：DB 读取 + memory search + RAG + LLM 迭代 + tool 执行 + 消息落库；不含 API 层 JWT 鉴权/请求校验/消息创建，约差 50-100ms） | Langfuse trace | P95 > 30s 告警 |
 | **单次任务 Token 消耗** | generation usage 汇总 | Langfuse generation | > 10k token 标记 |
 | **工具调用延迟分布** | tool span duration | Langfuse span | 单次 > 30s 告警 |
 | **LLM 调用延迟** | generation span duration | Langfuse span | P95 > 15s 告警 |
