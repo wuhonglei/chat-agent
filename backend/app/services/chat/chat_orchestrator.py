@@ -19,6 +19,7 @@ from app.core.observability import (
     new_trace_id,
     observation_span,
 )
+from app.evaluators.rule_evaluator import build_tool_whitelist, evaluate_and_score
 from app.protocols.chat_messages import (
     build_ack_event,
     build_done_event,
@@ -536,6 +537,16 @@ class ChatOrchestrator:
                         "Assistant message updated",
                         conversation_id=conversation_id,
                         assistant_message_id=assistant_message_id,
+                    )
+                    mcp_manager = getattr(self.chat_session_agent, "mcp_manager", None)
+                    tools_map = mcp_manager.tools_map if mcp_manager is not None else {}
+                    evaluate_and_score(
+                        span=root_span,
+                        assistant_response=assistant_response,
+                        agent_mode=chat_request.agent_mode,
+                        tool_whitelist=build_tool_whitelist(
+                            chat_request.agent_mode, tools_map
+                        ),
                     )
                     if (
                         trace_enabled
