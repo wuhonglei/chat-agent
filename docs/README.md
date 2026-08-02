@@ -14,7 +14,7 @@
 
 - `requirements.md`：当前版本需求范围与功能边界
 - `认证流程.md`：短信/微信登录与 JWT 鉴权流程
-- `会话管理.md`：会话、消息、聊天 SSE 与断线续流协议
+- `会话管理.md`：会话、消息、聊天 SSE、断线续流与 Nginx 长连接超时约定
 - `cache_design.md`：L1/L2 缓存现网范围、fail-open 行为、配置与排障
 - `图表可视化展示.md`：图表渲染相关说明
 - `nginx-cache-analysis.md`：Nginx 缓存分析
@@ -35,13 +35,13 @@
 
 - `logging_guide.md`：结构化日志使用指南
 - `type_checking_guide.md`：类型检查说明
-- `用户管理.md`：用户模块说明
+- `用户管理.md`：用户模块、短信 Redis 鉴权与 Mem0 记忆集成（含 `search_threshold`）
 - `COMPONENT_TOOLS_PRD.md`：组件工具接入说明（已对齐当前字段）
-- `MCP_CONFIG_ANALYSIS.md`：MCP 配置与加载机制说明（按当前 `mcp_client`）
+- `MCP_CONFIG_ANALYSIS.md`：MCP 配置与加载机制、工具命名双轨与唯一 bare 别名回退
 - `VFS_AND_SANDBOX.md`：Agent 模式虚拟文件系统、file/shell MCP（工具 `exec`）、沙箱执行与排障手册
-- `TOOL_RESULT_AND_CONTEXT.md`：工具结果硬上限、历史窗口剪枝、窗口外摘要与配置排障
+- `TOOL_RESULT_AND_CONTEXT.md`：工具结果硬上限、统一上下文守卫、窗口外摘要与配置排障
 - `LLM_RELIABILITY.md`：LLM 建连重试、错误分类与进程级熔断手册
-- `PROMETHEUS_METRICS.md`：`/metrics` 暴露、Gunicorn multiprocess 目录与自定义进程指标
+- `PROMETHEUS_METRICS.md`：`/metrics` 暴露、无 `--preload` 的 Gunicorn multiprocess 约定与自定义进程指标
 - `RETRIEVAL_SYSTEM.md`：当前检索链路说明（基于 MCP 工具与会话流）
 
 ### 规划方案

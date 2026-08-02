@@ -1,6 +1,6 @@
 # 工具结果硬上限与统一上下文守卫
 
-**最后核对**：2026-07-26
+**最后核对**：2026-08-02
 
 对话热路径上的上下文治理：
 
@@ -59,9 +59,9 @@ context_threshold = context_limit - reserved_output - buffer_tokens
 | bare 名在 `exempt_bare_names`（默认 `read_file`） | 完全跳过，含同轮 `force` |
 | `tool_overrides[tool]=0` | 跳过单条阈值；同轮预算仍可 `force` |
 | `agent_mode <= 0` | 原样返回（含同轮 turn budget）；由统一守卫兜底 |
-| `agent_mode > 0` 且有 `user_id`/`conversation_id` | 超阈值 → 写入 workspace，返回 `preview_*` 预览 + 虚拟路径 |
-| Agent 落盘失败（非 force） | 超阈值 → 按 `max_chars` 比例头尾截断，标注「无法回读完整原文」 |
-| Agent 落盘失败或缺 id（force） | 同轮预算强制压缩 → 用 `preview_*` 短截断 |
+| `agent_mode > 0` 且有 `user_id`/`conversation_id` | 超阈值 → 写入 workspace，返回 `preview_head/tail` 预览 + 虚拟路径 |
+| Agent 落盘失败（非 force） | 超阈值 → 在 `max_chars` 预算内按 `preview_head:preview_tail` **比例**分配头尾后截断，标注「无法回读完整原文」 |
+| Agent 落盘失败或缺 id（force） | 同轮预算强制压缩 → 直接使用 `preview_head_chars` / `preview_tail_chars` 短截断（不再按 `max_chars` 放大） |
 
 落盘路径：
 
