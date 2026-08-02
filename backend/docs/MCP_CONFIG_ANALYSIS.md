@@ -24,6 +24,8 @@
 | `shell` | fastmcp | `app.mcp.mcp_servers.shell_mcp.server` | Shell 命令执行（工具 bare 名 `exec`，LLM 侧多为 `shell_exec`） |
 | `context7` | http | `url` + `headers`（见 `mcp.mcp_servers`） | Context7 文档检索 |
 
+说明：`normal_mode_servers` / `agent_mode_servers` 默认列表含 `zread`，但内置 `mcp_servers` **不含** `zread` entry。未在 Nacos/环境配置中补充 `zread` 时，该名称只会出现在模式列表里，不会建立连接或暴露工具。
+
 ## 3. 配置驱动机制
 
 ### 3.1 核心配置：`mcp.mcp_servers`
@@ -134,6 +136,18 @@ mcp:
 | `call_tool` 前剥离 | `web_search` |
 
 实现见 `app/mcp/tool_naming.py` 与 `MCPToolGateway`。`ToolUseBlock` 持久化 `name`（LLM 名）、`server_name`、`mcp_tool_name`（裸名）。
+
+#### 唯一 bare 名别名回退
+
+`MCPToolGateway.get_tool_route` 解析顺序：
+
+1. 精确匹配 LLM 可见名（`{server}_{bare}`），例如 `file_present_files`；
+2. 若未命中，则按 **MCP bare 名** 在 `tools_map` 中查找；**仅当恰好唯一**时回退成功（如 `present_files` → `file` / `present_files`）；
+3. bare 名跨 Server 冲突（多个候选）或完全未知 → 解析失败。
+
+用途：技能/提示词可写短名；流式 enrich 与持久化仍会通过 `resolve_tool_use_fields` 写成规范 LLM 名，避免历史消息里留下歧义短名。
+
+相关单测：`tests/mcp/test_gateway_tool_names.py`、`tests/mcp/test_tool_naming.py`。
 
 历史消息需运行 `backend/scripts/backfill_tool_use_block_names.py` 迁移。
 

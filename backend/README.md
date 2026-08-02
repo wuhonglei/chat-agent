@@ -61,6 +61,8 @@ cp .env.example .env
 ```
 
 > 可选：若使用 Nacos，按 `.env` 配置连接信息；若本地直连数据库，建议设置 `DATABASE__HOST=localhost`。
+>
+> Nacos gRPC 相关环境变量（可选）：`NACOS_GRPC_TIMEOUT_MS`（默认 5000）、`NACOS_GRPC_PORT_OFFSET`（默认 1000）、`NACOS_GRPC_KEEPALIVE_MS`（默认 180000，过短易触发 `too_many_pings`）。生产启动见 `start.sh`：**不要**对 Gunicorn 使用 `--preload`（与 Nacos gRPC 不兼容）。
 
 ### 3) 启动开发服务
 
