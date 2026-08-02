@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.2",
-    "@ant-design/x": "^2.8.0",
+    "@ant-design/x": "^2.9.0",
     "@ant-design/x-markdown": "^2.8.0",
     "@microsoft/fetch-event-source": "^2.0.1",
     "@monaco-editor/react": "^4.7.0",
