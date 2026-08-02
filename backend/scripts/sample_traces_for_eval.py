@@ -9,8 +9,8 @@
 """
 
 import json
-import subprocess
 import random
+import subprocess
 from collections import Counter
 from pathlib import Path
 
@@ -21,8 +21,8 @@ LANGFUSE_SECRET_KEY = "sk-lf-fabdfda1-7803-4442-9908-065963106875"
 AUTH = f"{LANGFUSE_PUBLIC_KEY}:{LANGFUSE_SECRET_KEY}"
 
 # ── 采样参数 ────────────────────────────────────────────────────
-TARGET_SAMPLE_SIZE = 150          # 目标采样条数
-PAGE_SIZE = 50                    # API 每页条数
+TARGET_SAMPLE_SIZE = 150  # 目标采样条数
+PAGE_SIZE = 50  # API 每页条数
 RANDOM_SEED = 42
 
 # ── 输出目录 ────────────────────────────────────────────────────
@@ -35,10 +35,20 @@ def fetch_all_traces() -> list[dict]:
     page = 1
     while True:
         result = subprocess.run(
-            ["curl", "-s", "-u", AUTH,
-             f"{LANGFUSE_HOST}/api/public/traces?limit={PAGE_SIZE}&page={page}",
-             "--connect-timeout", "10", "--max-time", "20"],
-            capture_output=True, text=True, timeout=25,
+            [
+                "curl",
+                "-s",
+                "-u",
+                AUTH,
+                f"{LANGFUSE_HOST}/api/public/traces?limit={PAGE_SIZE}&page={page}",
+                "--connect-timeout",
+                "10",
+                "--max-time",
+                "20",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=25,
         )
         data = json.loads(result.stdout)
         traces = data.get("data", [])
@@ -61,17 +71,30 @@ def classify_trace(t: dict) -> str:
     latency = t.get("latency", 0)
 
     if agent_mode == 1:
-        return "agent_mode"           # Agent 工具调用
+        return "agent_mode"  # Agent 工具调用
     if has_scores:
-        return "already_scored"       # 已有评分
+        return "already_scored"  # 已有评分
     if latency and latency > 50:
-        return "high_latency"         # 高延迟（>50s）
-    return "normal"                   # 普通问答
+        return "high_latency"  # 高延迟（>50s）
+    return "normal"  # 普通问答
 
 
 def stratified_sample(traces: list[dict], target: int) -> list[dict]:
     """分层采样：各桶按比例分配，确保覆盖所有场景。"""
     random.seed(RANDOM_SEED)
+
+    # 只保留每个 session 的第一条（按 timestamp 升序）
+    from collections import defaultdict as _ddict
+
+    _sessions: dict[str, list[dict]] = _ddict(list)
+    for t in traces:
+        _sessions[t.get("sessionId", "unknown")].append(t)
+    first_msg_ids = set()
+    for _sid, _trs in _sessions.items():
+        _trs.sort(key=lambda t: t.get("timestamp", ""))
+        if _trs:
+            first_msg_ids.add(_trs[0]["id"])
+    traces = [t for t in traces if t["id"] in first_msg_ids]
 
     # 分桶
     buckets: dict[str, list[dict]] = {}
@@ -79,7 +102,7 @@ def stratified_sample(traces: list[dict], target: int) -> list[dict]:
         bucket = classify_trace(t)
         buckets.setdefault(bucket, []).append(t)
 
-    print(f"\n  Buckets:")
+    print("\n  Buckets:")
     samples = []
     for name, items in sorted(buckets.items()):
         # 每个桶至少取 5 条，其余按比例
@@ -102,11 +125,55 @@ def stratified_sample(traces: list[dict], target: int) -> list[dict]:
     return samples[:target]
 
 
+def fetch_attachment_context(trace_id: str) -> str | None:
+    """从 trace 的 LLM observation input 中提取 <attachment_context>。"""
+    try:
+        result = subprocess.run(
+            ["curl", "-s", "-u", AUTH,
+             f"{LANGFUSE_HOST}/api/public/observations?traceId={trace_id}&limit=20",
+             "--connect-timeout", "10", "--max-time", "15"],
+            capture_output=True, text=True, timeout=20,
+        )
+        data = json.loads(result.stdout)
+        for obs in data.get("data", []):
+            if obs.get("type") != "GENERATION":
+                continue
+            inp = json.dumps(obs.get("input", {}), ensure_ascii=False, default=str)
+            # 提取 <attachment_context>...</attachment_context>
+            start = inp.find("<attachment_context>")
+            end = inp.find("</attachment_context>")
+            if start != -1 and end != -1:
+                return inp[start:end + len("</attachment_context>")]
+    except Exception:
+        pass
+    return None
+
+
 def build_eval_item(trace: dict) -> dict | None:
     """将 trace 转换为评估集条目。无效 trace 返回 None。"""
-    # 过滤无效 trace：无输出 / 输出为空
+    # 过滤无效 trace：无输出 / 输出为空 / input 不是字符串 / 含图片
     output = trace.get("output")
     if not output or not str(output).strip():
+        return None
+    query = trace.get("input")
+    if not isinstance(query, str) or not query.strip():
+        return None
+    _IMG_KW = [
+        "图中",
+        "图片",
+        "截图",
+        "图一",
+        "图二",
+        "图三",
+        "这张",
+        "图像",
+        "照片",
+        "看图",
+        "图片里",
+        "附件",
+        "简历见",
+    ]
+    if any(kw in query for kw in _IMG_KW):
         return None
 
     meta = trace.get("metadata") or {}
@@ -115,8 +182,9 @@ def build_eval_item(trace: dict) -> dict | None:
         "session_id": trace.get("sessionId"),
         "user_id": trace.get("userId"),
         "timestamp": trace.get("timestamp"),
-        "query": trace.get("input", ""),
+        "query": query,
         "answer": str(output),
+        "context": fetch_attachment_context(trace["id"]),
         "model_id": meta.get("model_id", "unknown"),
         "agent_mode": meta.get("agent_mode", 0),
         "latency_s": trace.get("latency"),
@@ -125,11 +193,11 @@ def build_eval_item(trace: dict) -> dict | None:
         "langfuse_url": f"{LANGFUSE_HOST}{trace.get('htmlPath', '')}",
         # 以下字段待人工标注
         "annotation": {
-            "ground_truth_points": [],   # 标准答案要点（待填）
-            "scene_tag": "",             # 场景标签：rag / tool / chat / qa
-            "correctness_score": None,   # 1-5
+            "ground_truth_points": [],  # 标准答案要点（待填）
+            "scene_tag": "",  # 场景标签：rag / tool / chat / qa
+            "correctness_score": None,  # 1-5
             "completeness_score": None,  # 1-5
-            "notes": "",                 # 标注备注
+            "notes": "",  # 标注备注
         },
     }
 
@@ -146,7 +214,9 @@ def main():
     print(f"\n  Final sample size: {len(sampled)}")
 
     print("\nStep 3: Building eval items...")
-    eval_items = [item for item in (build_eval_item(t) for t in sampled) if item is not None]
+    eval_items = [
+        item for item in (build_eval_item(t) for t in sampled) if item is not None
+    ]
 
     # 统计
     stats = {
@@ -189,7 +259,7 @@ def main():
     print(f"  Stats: {stats_path}")
 
     print(f"\nDone! {len(eval_items)} samples ready for annotation.")
-    print(f"Next: open eval_samples.json, fill in 'annotation' fields for each item.")
+    print("Next: open eval_samples.json, fill in 'annotation' fields for each item.")
 
 
 if __name__ == "__main__":
