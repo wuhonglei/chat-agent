@@ -21,7 +21,7 @@ LANGFUSE_SECRET_KEY = "sk-lf-fabdfda1-7803-4442-9908-065963106875"
 AUTH = f"{LANGFUSE_PUBLIC_KEY}:{LANGFUSE_SECRET_KEY}"
 
 # ── 采样参数 ────────────────────────────────────────────────────
-TARGET_SAMPLE_SIZE = 150  # 目标采样条数
+TARGET_SAMPLE_SIZE = 300  # 目标采样条数
 PAGE_SIZE = 50  # API 每页条数
 RANDOM_SEED = 42
 
@@ -120,6 +120,16 @@ def stratified_sample(traces: list[dict], target: int) -> list[dict]:
         extra = min(target - len(samples), len(remaining))
         samples.extend(random.sample(remaining, extra))
         print(f"    normal (补充): +{extra}")
+
+    # 按 query 文本去重，保留第一条
+    seen_queries = set()
+    deduped = []
+    for s in samples:
+        q = str(s.get('input', ''))
+        if q and q not in seen_queries:
+            seen_queries.add(q)
+            deduped.append(s)
+    samples = deduped
 
     random.shuffle(samples)
     return samples[:target]
