@@ -102,8 +102,13 @@ def stratified_sample(traces: list[dict], target: int) -> list[dict]:
     return samples[:target]
 
 
-def build_eval_item(trace: dict) -> dict:
-    """将 trace 转换为评估集条目。"""
+def build_eval_item(trace: dict) -> dict | None:
+    """将 trace 转换为评估集条目。无效 trace 返回 None。"""
+    # 过滤无效 trace：无输出 / 输出为空
+    output = trace.get("output")
+    if not output or not str(output).strip():
+        return None
+
     meta = trace.get("metadata") or {}
     return {
         "trace_id": trace["id"],
@@ -111,7 +116,7 @@ def build_eval_item(trace: dict) -> dict:
         "user_id": trace.get("userId"),
         "timestamp": trace.get("timestamp"),
         "query": trace.get("input", ""),
-        "answer": trace.get("output", ""),
+        "answer": str(output),
         "model_id": meta.get("model_id", "unknown"),
         "agent_mode": meta.get("agent_mode", 0),
         "latency_s": trace.get("latency"),
@@ -141,7 +146,7 @@ def main():
     print(f"\n  Final sample size: {len(sampled)}")
 
     print("\nStep 3: Building eval items...")
-    eval_items = [build_eval_item(t) for t in sampled]
+    eval_items = [item for item in (build_eval_item(t) for t in sampled) if item is not None]
 
     # 统计
     stats = {
