@@ -58,7 +58,7 @@
 | 指标名               | 分值类型      | 判定逻辑                                | 阈值           | 适用范围     | 优先级 |
 | -------------------- | ------------- | --------------------------------------- | -------------- | ------------ | ------ |
 | empty_answer         | 布尔          | 回答内容 strip 后长度 == 0              | false = 合格   | 全部         | P0     |
-| response_truncated   | 布尔          | finish_reason == "length"               | false = 合格   | 全部         | P0     |
+| response_truncated   | 布尔          | finish_reason == "length"               | false = 合格   | 全部         | P2(暂缓) |
 | tool_whitelist_ok    | 布尔          | 调用工具集合 ⊆ 场景白名单               | true = 合格    | Agent 模式   | P0     |
 | latency_e2e          | 数值（秒）    | Trace 时间戳差值                        | p95 < 8s       | 全部         | P0     |
 | input_tokens         | 数值          | Langfuse span 的 usage 字段             | < 8000         | 单轮         | P0     |
@@ -90,18 +90,27 @@
 回答正常完成              false           false                正常评估
 ```
 
-中断原因不同，Trace 里的信号和处理方式不同：
+**用户主动取消**是最常见的中断场景，但不需要 response_truncated 指标——数据库已有 `MessageStatus.STOPPED` 标记，评估系统直接过滤：
+
+```python
+# 只评估正常完成的消息，排除用户取消
+messages = [m for m in messages if m.status == "done"]
+```
+
+**LLM 截断**（finish_reason == "length"）当前不常见，且 finish_reason 未持久化到 DB，优先级降为 P2。等线上数据证明截断是高频问题后再补充（需先在 chat_session_agent.py 中记录 finish_reason）。
+
+中断原因分类：
 
 ```
 中断原因                  Trace 里的信号                      处理
 ────────────────────────────────────────────────────────────────────────
-用户主动取消               SSE 连接提前关闭，无 end event      标记 user_cancelled，不评分
-模型触发 max_tokens        finish_reason == "length"          标记 truncated，送裁判评完整性
+用户主动取消               message.status == "stopped"        评估时直接过滤，不算质量问题
+模型触发 max_tokens        finish_reason == "length"(未存储)   P2 暂缓，需补充持久化
 服务端异常                 span status == "ERROR"             标记 error，直接判 0
 网络中断                   Trace 无收尾 span                  标记 incomplete，人工复核
 ```
 
-三层逐级深入：先看有没有（empty_answer），再看截没截（response_truncated），最后看全不全（answer_completeness）。
+三层逐级深入：先看有没有（empty_answer），再看截没截（response_truncated，暂缓），最后看全不全（answer_completeness）。
 
 ---
 
