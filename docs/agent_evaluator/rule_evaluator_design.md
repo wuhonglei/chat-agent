@@ -1,7 +1,8 @@
 # Rule Evaluator 实时规则评估器 — 落地方案
 
-> 目标：每轮问答结束后同步执行 3 个 P0 规则指标，写入 Langfuse score + Prometheus counter
+> 目标：每轮问答结束后同步执行 3 个 P0 规则指标，写入 Langfuse score
 > 延迟要求：< 10ms，不阻塞用户请求
+> 前置条件：Langfuse 升级至 v4+（自托管版支持 Monitors & Alerts）
 
 ---
 
@@ -13,12 +14,12 @@
 | tool_whitelist_ok  | 布尔     | 调用工具组合名 ⊆ 场景白名单                  | true = 合格 | agent_mode=0 不应出现任何工具调用 |
 | tool_call_count    | 数值     | `ToolUseBlock` 计数                         | <= 5       | 单轮工具调用过多可能是死循环      |
 
-**不在实时链路中处理的 P0 指标**（Langfuse 已自动记录，离线脚本回查）：
+**不在实时链路中处理的 P0 指标**（Langfuse 已自动记录，Monitors 告警或离线回查）：
 
 | 指标名         | 原因                                                          |
 | -------------- | ------------------------------------------------------------- |
-| latency_e2e    | Langfuse trace 的 `start_time` / `end_time` 已记录，离线计算即可 |
-| input_tokens   | `langfuse.openai.AsyncOpenAI` 自动记录 generation span 的 usage，离线查询即可 |
+| latency_e2e    | Langfuse trace 的 `start_time` / `end_time` 已记录，Monitors 可设 p95 < 8s 告警 |
+| input_tokens   | `langfuse.openai.AsyncOpenAI` 自动记录 generation span 的 usage，Monitors 可设 < 8000 告警 |
 
 ---
 
@@ -133,9 +134,7 @@ tool_count = sum(1 for block in content_blocks if isinstance(block, ToolUseBlock
 
 ---
 
-## 四、双写：Langfuse + Prometheus
-
-### 4.1 Langfuse score
+## 四、Langfuse Score 写入
 
 复用已有基础设施 `app/core/observability.py:score_observation()`：
 
@@ -165,66 +164,74 @@ score_observation(
 
 score 挂在 root_span（`chat-turn` span）上，Langfuse UI 中展开该 trace 即可看到。
 
-### 4.2 Prometheus counter
+---
 
-```python
-from prometheus_client import Counter
+## 五、Langfuse Monitors & Alerts 配置
 
-# 全局 Counter，放在 eval_metrics.py 中
-EVAL_RESULTS = Counter(
-    "chat_eval_rule_total",
-    "Rule evaluator results per metric",
-    ["metric", "result"],  # metric=empty_answer, result=pass/fail
-)
-```
+升级 Langfuse v4 后，在 Langfuse UI 中配置 Monitors 实现自动告警。
 
-每次评估后递增：
+### 5.1 Boolean Score Monitors
 
-```python
-EVAL_RESULTS.labels(metric="empty_answer", result="pass" if is_non_empty else "fail").inc()
-EVAL_RESULTS.labels(metric="tool_whitelist_ok", result="pass" if ok else "fail").inc()
-EVAL_RESULTS.labels(metric="tool_call_count", result="pass" if count <= 5 else "fail").inc()
-```
+| Monitor 名称         | 数据源        | 指标              | 警告阈值       | 告警阈值       |
+| -------------------- | ------------- | ----------------- | -------------- | -------------- |
+| empty_answer_rate    | Scores (boolean) | avg(empty_answer) | < 0.98        | < 0.95         |
+| tool_whitelist_rate  | Scores (boolean) | avg(tool_whitelist_ok) | < 0.99   | < 0.97         |
 
-Grafana 面板查询示例：
+Boolean score 的 avg 值 = true 的占比，即通过率。
 
-```promql
-# empty_answer 失败率（最近 1h）
-rate(chat_eval_rule_total{metric="empty_answer", result="fail"}[1h])
-/
-rate(chat_eval_rule_total{metric="empty_answer"}[1h])
+### 5.2 Numeric Score Monitors
 
-# tool_call_count 超标率
-rate(chat_eval_rule_total{metric="tool_call_count", result="fail"}[1h])
-```
+| Monitor 名称         | 数据源        | 指标              | 警告阈值       | 告警阈值       |
+| -------------------- | ------------- | ----------------- | -------------- | -------------- |
+| tool_call_count_p95  | Scores (numeric) | p95(tool_call_count) | > 4         | > 5            |
+| latency_e2e_p95      | Observations  | p95(latency)      | > 6s           | > 8s           |
+| input_tokens_avg     | Observations  | avg(input_tokens)  | > 6000        | > 8000         |
+
+### 5.3 告警通知渠道
+
+Langfuse v4 Monitors 支持以下通知方式：
+
+| 渠道        | 配置方式                                           | 适用场景       |
+| ----------- | -------------------------------------------------- | -------------- |
+| Slack       | Langfuse Settings → Integrations → Slack           | 团队即时通知   |
+| Webhook     | Langfuse Settings → Integrations → Webhook URL     | 自定义系统对接 |
+| GitHub Actions | Langfuse Settings → Integrations → GitHub       | CI/CD 流程联动 |
+
+建议：Slack 作为主告警渠道，Webhook 备用（可对接飞书/企微等）。
+
+### 5.4 Score Analytics
+
+Langfuse v4 的 Score Analytics 面板（Dashboards 页面）：
+
+- Trend Over Time：跟踪各指标随时间的变化趋势
+- Distribution：查看 score 值的分布情况
+- Compare：对比两个 score 的关联性（如 empty_answer vs tool_whitelist_ok）
+- 统计摘要：count、mean、standard deviation
+
+无需额外配置，score 写入后自动出现在 Analytics 面板中。
 
 ---
 
-## 五、代码结构
+## 六、代码结构
 
-### 5.1 新增文件
+### 6.1 新增文件
 
 ```
 backend/app/evaluators/
 ├── __init__.py
-├── rule_evaluator.py      # 评估逻辑
-└── eval_metrics.py        # Prometheus 指标定义
+└── rule_evaluator.py      # 评估逻辑（仅写 Langfuse score）
 ```
 
-### 5.2 rule_evaluator.py 模块设计
+### 6.2 rule_evaluator.py 模块设计
 
 ```python
-"""实时规则评估器：每轮问答结束后同步执行，写 Langfuse score + Prometheus counter。"""
+"""实时规则评估器：每轮问答结束后同步执行，写 Langfuse score。"""
 
 from __future__ import annotations
 
-import time
 from typing import Any
 
 from app.core.observability import score_observation
-from app.evaluators.eval_metrics import EVAL_RESULTS
-from app.mcp.constants import MUTATING_LLM_TOOLS  # 复用已有工具集合
-from app.mcp.tool_naming import llm_tool_name
 from app.schemas.chat import AssistantResponse, ToolUseBlock, count_tool_use_blocks
 from app.utils.logger import logger
 
@@ -239,7 +246,7 @@ def evaluate_and_score(
     agent_mode: int,
     tool_whitelist: set[str],
 ) -> None:
-    """入口函数：计算 P0 指标，写 Langfuse + Prometheus。失败只告警不冒泡。"""
+    """入口函数：计算 P0 指标，写 Langfuse score。失败只告警不冒泡。"""
     try:
         _do_evaluate(
             span=span,
@@ -251,17 +258,26 @@ def evaluate_and_score(
         logger.warning("Rule evaluator failed", error=exc, error_type=type(exc).__name__)
 
 
-def _do_evaluate(...) -> None:
+def _do_evaluate(
+    *,
+    span: Any,
+    assistant_response: AssistantResponse,
+    agent_mode: int,
+    tool_whitelist: set[str],
+) -> None:
     content = assistant_response.content
     content_blocks = assistant_response.content_blocks
 
     # --- empty_answer ---
     is_non_empty = len(content.strip()) > 0
     score_observation(span, name="empty_answer", value=is_non_empty)
-    EVAL_RESULTS.labels(metric="empty_answer", result="pass" if is_non_empty else "fail").inc()
 
     # --- tool_whitelist_ok ---
-    called_tools = {block.name for block in content_blocks if isinstance(block, ToolUseBlock) and block.name}
+    called_tools = {
+        block.name
+        for block in content_blocks
+        if isinstance(block, ToolUseBlock) and block.name
+    }
     if agent_mode <= 0:
         whitelist_ok = len(called_tools) == 0
     else:
@@ -272,34 +288,17 @@ def _do_evaluate(...) -> None:
         value=whitelist_ok,
         comment=f"called={called_tools}" if not whitelist_ok else None,
     )
-    EVAL_RESULTS.labels(metric="tool_whitelist_ok", result="pass" if whitelist_ok else "fail").inc()
 
     # --- tool_call_count ---
     tool_count = count_tool_use_blocks(content_blocks)
-    count_ok = tool_count <= TOOL_CALL_COUNT_THRESHOLD
     score_observation(span, name="tool_call_count", value=tool_count, data_type="NUMERIC")
-    EVAL_RESULTS.labels(metric="tool_call_count", result="pass" if count_ok else "fail").inc()
-```
-
-### 5.3 eval_metrics.py 模块设计
-
-```python
-"""Prometheus 指标定义：规则评估器结果。"""
-
-from prometheus_client import Counter
-
-EVAL_RESULTS = Counter(
-    "chat_eval_rule_total",
-    "Rule evaluator results per metric",
-    ["metric", "result"],
-)
 ```
 
 ---
 
-## 六、插入点：chat_orchestrator.py
+## 七、插入点：chat_orchestrator.py
 
-### 6.1 修改位置
+### 7.1 修改位置
 
 `app/services/chat/chat_orchestrator.py` 的 `run_chat_turn` 方法，正常结束路径（line 522-553）：
 
@@ -324,7 +323,7 @@ if trace_enabled and langfuse_client is not None and root_span is not None:
     root_span.update(output=assistant_response.content)
 ```
 
-### 6.2 白名单缓存
+### 7.2 白名单缓存
 
 `ChatOrchestrator` 初始化时预计算白名单，避免每轮重复构建：
 
@@ -346,32 +345,36 @@ class ChatOrchestrator:
 
 ---
 
-## 七、失败与边界处理
+## 八、失败与边界处理
 
 | 场景                      | 处理方式                                               |
 | ------------------------- | ------------------------------------------------------ |
 | 评估函数抛异常             | `logger.warning` 记录，不影响主链路（SSE 流正常返回） |
 | Langfuse 未启用           | `score_observation` 内部已处理（span=None 时 no-op）   |
-| Prometheus 未初始化       | Counter 在模块 import 时创建，始终可用                 |
 | content_blocks 为空列表   | tool_whitelist_ok=True, tool_call_count=0              |
 | ToolUseBlock.name 为 None | 视为未知工具，不加入 called_tools 集合                 |
 
 ---
 
-## 八、Grafana Dashboard 面板
+## 九、升级前置条件
 
-新增 Dashboard：**Chat Agent - Rule Evaluator**
+本方案依赖 Langfuse v4 的 Monitors & Alerts 功能。
 
-| 面板            | 类型    | PromQL                                                                 |
-| --------------- | ------- | ---------------------------------------------------------------------- |
-| empty_answer 率 | Stat    | `rate(chat_eval_rule_total{metric="empty_answer",result="fail"}[1h])`  |
-| tool_whitelist 率 | Stat  | `rate(chat_eval_rule_total{metric="tool_whitelist_ok",result="fail"}[1h])` |
-| tool_count 超标率 | Stat  | `rate(chat_eval_rule_total{metric="tool_call_count",result="fail"}[1h])`   |
-| 各指标通过趋势 | Time Series | `sum by (metric) (rate(chat_eval_rule_total{result="pass"}[5m]))`    |
+| 检查项                | 当前状态        | 目标状态         |
+| --------------------- | --------------- | ---------------- |
+| Langfuse 版本         | v3.214.0        | v4.2.0+          |
+| Python SDK 版本       | 需确认          | 兼容 v4 的最新版 |
+| Monitors & Alerts     | 不可用（v3）    | v4 自托管版支持  |
+| Score Analytics       | 不可用（v3）    | v4 支持          |
+
+升级完成后：
+1. 在 Langfuse UI 中配置 Monitors（见第五节）
+2. 部署 rule_evaluator 代码
+3. 观察 1-2 周，确认阈值合理后调整 Monitors 配置
 
 ---
 
-## 九、后续扩展（不在本次范围）
+## 十、后续扩展（不在本次范围）
 
 1. **离线评估脚本**：从 Langfuse API 拉取 latency_e2e、input_tokens，计算 p95 并写 score
 2. **P1 指标接入**：answer_completeness / answer_correctness（LLM-as-Judge，异步 worker）
