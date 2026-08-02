@@ -1,6 +1,6 @@
 # Prometheus 指标（当前实现）
 
-**最后核对**：2026-07-26
+**最后核对**：2026-08-02
 
 本文档说明后端如何暴露 Prometheus 指标、多进程（Gunicorn）模式下的目录约定，以及自定义进程 CPU/内存指标。
 
@@ -24,17 +24,20 @@ rm -rf "$PROMETHEUS_MULTIPROC_DIR"
 mkdir -p "$PROMETHEUS_MULTIPROC_DIR"
 ```
 
-并以 `--preload` 启动，确保 master 预加载 app、指标注册表在 fork 前初始化：
+workers 数：`WORKERS=$(( $(nproc) * 2 ))`。启动命令**不使用** `--preload`：
 
 ```bash
-gunicorn app.main:app -w $WORKERS -k uvicorn.workers.UvicornWorker --preload --bind 0.0.0.0:8000
+gunicorn app.main:app -w $WORKERS -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
 ```
+
+原因：Nacos 使用 gRPC 客户端；master `--preload` 后再 fork worker 会导致 gRPC 线程状态不一致并触发 **SIGSEGV**。因此每个 worker 独立加载 `app.main`，并在进程内自行初始化 `PROMETHEUS_MULTIPROC_DIR` 与指标注册表。
 
 约束：
 
 - 每次进程组启动应清空 multiproc 目录，避免遗留 `.db` 文件污染聚合；
 - 不要在多个无关进程组之间共享同一 `PROMETHEUS_MULTIPROC_DIR`；
-- scrape `/metrics` 时由 multiprocess collector 聚合各 worker 写入的文件。
+- scrape `/metrics` 时由 multiprocess collector 聚合各 worker 写入的文件；
+- **不要**为「优化冷启动」擅自加回 `--preload`，除非已验证 Nacos/gRPC 在 fork 后安全。
 
 ## 3. 自定义进程指标
 
