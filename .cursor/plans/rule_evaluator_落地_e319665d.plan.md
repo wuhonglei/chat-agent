@@ -4,16 +4,16 @@ overview: 按设计文档实现实时规则评估器：每轮问答成功结束�
 todos:
   - id: add-rule-evaluator
     content: 新增 app/evaluators/rule_evaluator.py（build_tool_whitelist + evaluate_and_score）
-    status: pending
+    status: completed
   - id: wire-orchestrator
     content: 在 chat_orchestrator 成功路径插入 evaluate_and_score
-    status: pending
+    status: completed
   - id: add-unit-tests
     content: 新增 tests/evaluators/test_rule_evaluator.py 覆盖三指标与边界
-    status: pending
+    status: completed
   - id: sync-design-doc
     content: 修正设计文档：mode=0 白名单、API、empty_answer→valid_answer
-    status: pending
+    status: completed
 isProject: false
 ---
 
