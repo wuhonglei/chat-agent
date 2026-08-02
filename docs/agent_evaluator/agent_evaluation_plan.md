@@ -66,8 +66,8 @@
 
 | 指标名                 | 分值类型    | 判定逻辑                      | 阈值         | 适用范围       | 优先级 |
 | ------------------- | ------- | ------------------------- | ---------- | ---------- | --- |
-| empty_answer        | 布尔      | 回答内容 strip 后长度 == 0       | false = 合格 | 全部         | P0  |
-| tool_whitelist_ok   | 布尔      | 调用工具集合 ⊆ 场景白名单            | true = 合格  | Agent 模式   | P0  |
+| valid_answer        | 布尔      | 回答内容 strip 后长度 > 0        | true = 合格  | 全部         | P0  |
+| tool_whitelist_ok   | 布尔      | 调用工具集合 ⊆ 场景白名单            | true = 合格  | 全部         | P0  |
 | latency_e2e         | 数值（秒）   | Trace 时间戳差值               | p95 < 8s   | 全部         | P0  |
 | input_tokens        | 数值      | Langfuse span 的 usage 字段  | < 8000     | 单轮         | P0  |
 | tool_call_count     | 数值      | Trace 中 tool span 计数      | <= 5       | 单轮         | P0  |
@@ -87,9 +87,9 @@
 3. 阈值从真实数据定——先跑一遍线上 Trace 看分布，取 p90/p95 做初始阈值
 4. 适用范围写清楚——RAG 问答和纯闲聊的指标不同，别一刀切
 
-### empty_answer 说明
+### valid_answer 说明
 
-回答完全为空（strip 后长度 == 0）直接判 0。用户主动取消不算 empty_answer——数据库已有 `MessageStatus.STOPPED` 标记，评估系统直接过滤：
+回答非空（strip 后长度 > 0）记 `true`（合格）；完全为空记 `false`。用户主动取消不算进评估——数据库已有 `MessageStatus.STOPPED` 标记，评估系统直接过滤：
 
 ```python
 # 只评估正常完成的消息，排除用户取消
@@ -106,7 +106,7 @@ messages = [m for m in messages if m.status == "done"]
 网络中断                   Trace 无收尾 span                  标记 incomplete，人工复核
 ```
 
-评估层次：先看有没有（empty_answer），再看全不全（answer_completeness）。
+评估层次：先看有没有（valid_answer），再看全不全（answer_completeness）。
 
 ---
 
