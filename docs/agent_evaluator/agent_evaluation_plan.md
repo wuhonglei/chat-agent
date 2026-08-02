@@ -45,7 +45,6 @@
 
 | 检查项     | 定义                          | 检查方式            |
 | ---------- | ----------------------------- | ------------------- |
-| 引用标注   | RAG 回答是否携带来源引用       | 规则：正则匹配      |
 | 结构化格式 | 工具返回是否按约定格式呈现     | 规则：格式校验      |
 | 步骤编号   | 多步骤回答是否有清晰编号       | 规则：正则匹配      |
 | 必要字段   | 特定场景下的必要信息是否齐全   | 规则：场景化校验    |
@@ -61,7 +60,6 @@
 | empty_answer         | 布尔          | 回答内容 strip 后长度 == 0              | false = 合格   | 全部         | P0     |
 | response_truncated   | 布尔          | finish_reason == "length"               | false = 合格   | 全部         | P0     |
 | tool_whitelist_ok    | 布尔          | 调用工具集合 ⊆ 场景白名单               | true = 合格    | Agent 模式   | P0     |
-| has_citation         | 布尔          | 回答包含引用标记                        | true = 合格    | RAG 问答     | P0     |
 | latency_e2e          | 数值（秒）    | Trace 时间戳差值                        | p95 < 8s       | 全部         | P0     |
 | input_tokens         | 数值          | Langfuse span 的 usage 字段             | < 8000         | 单轮         | P0     |
 | tool_call_count      | 数值          | Trace 中 tool span 计数                 | <= 5           | 单轮         | P0     |
