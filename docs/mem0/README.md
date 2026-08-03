@@ -20,3 +20,4 @@
 - [v2 方案](mem0-v2-memory-logic.md) — 单次 LLM 调用，ADD-only，三路融合检索，实体链接
 - [v1→v2 升级文档](mem0-v1-to-v2-upgrade.md) — 官方博客、论文、迁移指南汇总
 - [Platform 增值方案](mem0-platform-decay-and-temporal.md) — Memory Decay 与 Temporal Reasoning 实现原理（OSS 未实现）
+- [碎片堆积问题分析与解决方案](mem0-fragmentation-analysis.md) — 基于 1000 条实际记忆的重复/冲突/碎片化分析，四层防线方案
