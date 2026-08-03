@@ -86,7 +86,7 @@ async def web_search(
     ),
     country: str | None = Field(
         default=None,
-        description="提升特定国家的搜索结果，仅当 topic 为 'general' 可用。国家名需为小写英文, 例如 china",
+        description="提升特定国家的搜索结果，仅当 topic 为 'general' 可用。国家名需为小写全称, 例如 china、america",
     ),
 ) -> dict[str, Any]:
     """
