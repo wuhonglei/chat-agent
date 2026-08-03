@@ -237,33 +237,37 @@ const ChatInputSender = React.forwardRef<GetRef<typeof Sender>, ChatInputSenderP
       />
     );
 
+    // 始终挂载 Suggestion，避免 hasMentionableAttachments 从 false→true（附件上传成功）
+    // 时切换树结构 remount 非受控 Sender，导致输入框文本被清空。
     return (
       <div ref={rootRef} onPasteCapture={handlePasteCapture}>
-        {hasMentionableAttachments ? (
-          <Suggestion
-            items={(info) => {
-              const list = getSuggestionItems(info?.query ?? "");
-              suggestionItemsRef.current = list;
-              activeIndexRef.current = 0;
-              return list.map((item) => ({
-                ...item,
-                icon: getProjectPreviewFileIcon(item.label),
-              }));
-            }}
-            onSelect={handleSelect}
-            classNames={{ popup: styles.mentionPopup }}
-            styles={{ popup: { width: "auto", minWidth: 0, maxWidth: 320 } }}
-            getPopupContainer={() => rootRef.current ?? document.body}
-          >
-            {({ onTrigger, onKeyDown: onSuggestionKeyDown, open }) => {
-              onTriggerRef.current = onTrigger;
-              suggestionOpenRef.current = open;
-              return renderSender({ onTrigger, onSuggestionKeyDown });
-            }}
-          </Suggestion>
-        ) : (
-          renderSender()
-        )}
+        <Suggestion
+          items={(info) => {
+            if (!hasMentionableAttachments) {
+              suggestionItemsRef.current = [];
+              return [];
+            }
+            const list = getSuggestionItems(info?.query ?? "");
+            suggestionItemsRef.current = list;
+            activeIndexRef.current = 0;
+            return list.map((item) => ({
+              ...item,
+              icon: getProjectPreviewFileIcon(item.label),
+            }));
+          }}
+          onSelect={handleSelect}
+          classNames={{ popup: styles.mentionPopup }}
+          styles={{ popup: { width: "auto", minWidth: 0, maxWidth: 320 } }}
+          getPopupContainer={() => rootRef.current ?? document.body}
+        >
+          {({ onTrigger, onKeyDown: onSuggestionKeyDown, open }) => {
+            onTriggerRef.current = onTrigger;
+            suggestionOpenRef.current = hasMentionableAttachments && open;
+            return renderSender(
+              hasMentionableAttachments ? { onTrigger, onSuggestionKeyDown } : undefined,
+            );
+          }}
+        </Suggestion>
       </div>
     );
   },
