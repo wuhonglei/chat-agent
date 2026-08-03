@@ -92,8 +92,17 @@ SYSTEM_STEP1 = """你是一个评估集标注助手。根据用户的问题，�
 
 SYSTEM_STEP2 = """你是一个回答质量评估器。根据用户问题、标准要点、模型回答，打两个分。
 
+## 重要规则
+
+1. 如果输入中包含【参考资料/工具返回内容】，这些内容是从知识库、搜索引擎、用户附件中获取的真实数据。模型回答是基于这些参考资料生成的。评分时必须以参考资料为事实依据，不要用你自身的知识判断事实性。
+2. 如果参考资料中确认了某个信息（如日期、金额、名称），模型回答中包含该信息就是正确的，不是虚构。
+3. 只有当模型回答中的信息既不在参考资料中，也无法从参考资料推导出来时，才能判定为「虚构」。
+
+## 评分标准
+
 correctness_score（准确性，1-5）：回答中说的内容是否正确
   5=完全正确 4=基本正确有小瑕疵 3=部分正确有明显错误 2=大部分错误 1=完全错误
+  注意：有参考资料时，以参考资料为准判断正确性；无参考资料时，以常识和逻辑判断。
 
 completeness_score（完整性，1-5）：回答是否覆盖了标准要点
   5=覆盖率>=90% 4=覆盖率>=70% 3=覆盖率>=50% 2=覆盖率<50% 1=几乎未覆盖
@@ -123,11 +132,14 @@ def annotate_one(api_key: str, item: dict) -> dict:
     except (json.JSONDecodeError, ValueError):
         ground_truth_points = [points_raw.strip()]
 
-    # Step 2: 对比打分
+    # Step 2: 对比打分（如果有 context，传给裁判作为参照）
+    context = item.get("context", "")
+    context_section = f"\n\n【参考资料/工具返回内容】\n{context[:6000]}" if context else ""
     score_input = (
         f"【用户问题】{query}\n\n【标准要点】\n"
         + "\n".join(f"- {p}" for p in ground_truth_points)
-        + f"\n\n【模型回答】\n{answer[:3000]}"
+        + context_section
+        + f"\n\n【模型回答】\n{answer[:4000]}"
     )
     score_raw = call_llm(api_key, SYSTEM_STEP2, score_input)
     try:

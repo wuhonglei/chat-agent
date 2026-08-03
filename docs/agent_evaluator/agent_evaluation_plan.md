@@ -401,3 +401,64 @@ backend/scripts/sample_traces_for_eval.py
 ```
 
 从 Langfuse 拉取全量 Trace，按 agent_mode / 延迟 / 是否已有评分分层采样，输出到 `data/eval_set/v1.0/`。
+
+### 追问检测：两个指标分开定义
+
+两种追问模式的信号强度不同，拆为两个独立指标：
+
+```
+指标名                  定义                                阈值      信号强度
+──────────────────────────────────────────────────────────────────────────────
+user_quick_follow_up    助手回复后 <30s 内用户又发消息         固定 30s   强（明确不满意）
+user_follow_up          助手回复后用户追问（动态阈值）         动态       弱（可能只是想深入）
+```
+
+**user_quick_follow_up（强信号，优先关注）**
+
+用户连回答都没看完就重新提问，说明回答在「第一印象」层面就失败了（太长、格式乱、开头就不对）。
+
+- 阈值：固定 30 秒
+- 计算：gap = 用户下一条 created_at - 助手本条 updated_at
+- 条件：助手 status=done 之后才开始计时
+- 优化方向：控制回答长度、优化开头段落、改善格式
+
+**user_follow_up（弱信号，辅助参考）**
+
+用户读完回答后追问补充，可能是回答不完整，也可能只是想深入聊。
+
+- 阈值：动态，按回答长度计算
+- 计算逻辑：
+
+```python
+def is_follow_up(gap_seconds, answer_length):
+    # 基础阅读时间：按 400 字/分钟估算
+    reading_time = answer_length / 400 * 60  # 秒
+    # 阈值 = 阅读时间 + 10 秒缓冲
+    threshold = reading_time + 10
+    # 上限 5 分钟
+    threshold = min(threshold, 300)
+    return gap_seconds <= threshold
+```
+
+- 动态阈值对照表：
+
+```
+回答长度    阅读时间    阈值
+──────────────────────────
+200 字      30 秒       40 秒
+1000 字     2.5 分钟    2.6 分钟
+3000 字     7.5 分钟    5 分钟（封顶）
+```
+
+- 优化方向：补充信息、提升完整性
+
+**时间取值（两个指标共用）：**
+
+- 追问间隔 = 用户下一条消息 created_at - 助手本条消息 updated_at
+- 只在助手 status=done 之后才开始计时（排除助手还在生成时用户就发新消息的情况）
+- 数据来源：数据库 messages 表，非 Langfuse Trace
+
+**实际使用优先级：**
+
+1. 优先看 `user_quick_follow_up`（<30s），这是该优化的直接线索
+2. `user_follow_up` 作为辅助，观察读完后追问的趋势
