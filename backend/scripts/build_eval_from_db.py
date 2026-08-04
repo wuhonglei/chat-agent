@@ -54,7 +54,9 @@ def fetch_derived_markdown(url: str) -> str | None:
     try:
         r = subprocess.run(
             ["curl", "-s", "--connect-timeout", "10", "--max-time", "30", full_url],
-            capture_output=True, text=True, timeout=35,
+            capture_output=True,
+            text=True,
+            timeout=35,
         )
         if r.returncode == 0 and r.stdout.strip():
             return r.stdout
@@ -68,7 +70,7 @@ def extract_attachment_context(blocks: list[dict]) -> str | None:
     parts = []
     for block in blocks:
         btype = block.get("type", "")
-        if btype == "text" or btype == "tool_result":
+        if btype in ("text", "tool_result", "image"):
             continue
         name = block.get("name", "")
         size = block.get("size", 0)
@@ -76,7 +78,11 @@ def extract_attachment_context(blocks: list[dict]) -> str | None:
         md = block.get("markdown")
 
         # 描述性元数据
-        desc_lines = [f"文件名: {name}", f"类型: {btype} ({mime})", f"大小: {size} bytes"]
+        desc_lines = [
+            f"文件名: {name}",
+            f"类型: {btype} ({mime})",
+            f"大小: {size} bytes",
+        ]
         if md:
             md_name = md.get("name", "")
             md_size = md.get("size", 0)
@@ -134,9 +140,10 @@ def build_eval_from_db():
         if not messages:
             continue
 
-        # 提取 user query（第一条 user 消息的 text）
+        # 提取首条 user query
         query = None
-        for role, blocks, created_at, status in messages:
+        first_user_idx = None
+        for i, (role, blocks, created_at, status) in enumerate(messages):
             if role != "user" or not blocks:
                 continue
             for block in blocks:
@@ -144,15 +151,15 @@ def build_eval_from_db():
                     query = block.get("text", "").strip()
                     break
             if query:
+                first_user_idx = i
                 break
 
-        if not query:
+        if not query or first_user_idx is None:
             continue
 
-        # 提取 assistant answer（最后一条 assistant 消息的最后一个 text block）
-        # 一条 assistant 消息可能有多个 text block：中间轮（搜索中...）+ 最终回答
+        # 提取首条 assistant answer（紧跟首条 user 之后的第一条 assistant）
         answer = None
-        for role, blocks, created_at, status in reversed(messages):
+        for role, blocks, created_at, status in messages[first_user_idx + 1 :]:
             if role != "assistant" or not blocks:
                 continue
             # 取最后一个 text block（最终回答）
@@ -168,9 +175,9 @@ def build_eval_from_db():
         if not answer:
             continue
 
-        # 提取 tool_result 作为 context
+        # 提取首条 assistant 的 tool_result 作为 context
         context_parts = []
-        for role, blocks, created_at, status in messages:
+        for role, blocks, created_at, status in messages[first_user_idx + 1 :]:
             if role != "assistant" or not blocks:
                 continue
             for block in blocks:
@@ -178,15 +185,14 @@ def build_eval_from_db():
                     content = block.get("content", "")
                     if content:
                         context_parts.append(f"<tool>\n{content[:3000]}\n</tool>")
+            break  # 只取首条 assistant 的 tool_result
 
-        # 提取用户附件 context（pdf/xlsx/docx 等派生 markdown）
-        for role, blocks, created_at, status in messages:
-            if role != "user" or not blocks:
-                continue
-            att_ctx = extract_attachment_context(blocks)
+        # 提取首条 user 的附件 context（pdf/xlsx/docx 等派生 markdown）
+        first_user_blocks = messages[first_user_idx][1]
+        if first_user_blocks:
+            att_ctx = extract_attachment_context(first_user_blocks)
             if att_ctx:
                 context_parts.append(att_ctx)
-                break  # 只取第一条用户消息的附件
 
         # 应用过滤
         if any(kw in query for kw in IMG_KW):

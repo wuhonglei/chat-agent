@@ -63,7 +63,7 @@ def extract_attachment_context(blocks: list[dict]) -> str | None:
     parts = []
     for block in blocks:
         btype = block.get("type", "")
-        if btype == "text" or btype == "tool_result":
+        if btype in ("text", "tool_result", "image"):
             continue
         name = block.get("name", "")
         size = block.get("size", 0)
@@ -99,13 +99,27 @@ def extract_attachment_context(blocks: list[dict]) -> str | None:
 
 
 def extract_context_from_messages(conversation_id: str, session) -> str | None:
-    """从 messages 表的 content_blocks 中提取工具返回内容。"""
+    """从 messages 表的 content_blocks 中提取首条问答的工具返回内容。"""
     stmt = select(MessageDb).where(MessageDb.conversation_id == conversation_id)
     msgs = session.exec(stmt).all()
 
+    # 找到首条 user 消息
+    first_user = None
+    first_user_idx = None
+    for i, m in enumerate(msgs):
+        if m.role == "user" and m.content_blocks:
+            first_user = m
+            first_user_idx = i
+            break
+
+    if first_user is None:
+        return None
+
     context_parts = []
-    for m in msgs:
-        if not m.content_blocks:
+
+    # 提取首条 assistant 的 tool_result
+    for m in msgs[first_user_idx + 1 :]:
+        if m.role != "assistant" or not m.content_blocks:
             continue
         for block in m.content_blocks:
             if block.get("type") != "tool_result":
@@ -113,19 +127,15 @@ def extract_context_from_messages(conversation_id: str, session) -> str | None:
             content = block.get("content", "")
             if not content:
                 continue
-            # 截断过长的输出
             max_len = 3000
             truncated = content[:max_len] + ("..." if len(content) > max_len else "")
             context_parts.append(f"<tool>\n{truncated}\n</tool>")
+        break  # 只取首条 assistant
 
-    # 提取用户附件 context（pdf/xlsx/docx 等派生 markdown）
-    for m in msgs:
-        if m.role != "user" or not m.content_blocks:
-            continue
-        att_ctx = extract_attachment_context(m.content_blocks)
-        if att_ctx:
-            context_parts.append(att_ctx)
-            break
+    # 提取首条 user 的附件 context
+    att_ctx = extract_attachment_context(first_user.content_blocks)
+    if att_ctx:
+        context_parts.append(att_ctx)
 
     if not context_parts:
         return None

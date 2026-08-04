@@ -272,10 +272,11 @@ const SearchModal: React.FC<Props> = ({ open, onClose }) => {
                 {history.map((item) => (
                   <Tag
                     key={item}
+                    title={item}
                     className="cursor-pointer m-0 px-3 py-1 rounded-full border-0 bg-gray-100 hover:bg-gray-200"
                     onClick={() => handleSelectHistory(item)}
                   >
-                    {item}
+                    {item.length > 10 ? `${item.slice(0, 10)}…` : item}
                   </Tag>
                 ))}
               </div>
