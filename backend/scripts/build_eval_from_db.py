@@ -232,11 +232,10 @@ def build_eval_from_db():
             deduped.append(item)
     print(f"After dedup: {len(deduped)}")
 
-    # 4. 优先采样有 context 的，确保比例均衡
+    # 4. 优先采样有 context 的，按 55:45 比例（接近真实分布 55.4%）
     with_ctx = [x for x in deduped if x.get("context")]
     without_ctx = [x for x in deduped if not x.get("context")]
-    # 有 context 的尽量全取，剩余从无 context 中补
-    ctx_take = min(len(with_ctx), TARGET_SIZE // 2)  # 至少一半有 context
+    ctx_take = min(len(with_ctx), round(TARGET_SIZE * 0.55))  # 66
     remain = TARGET_SIZE - ctx_take
     final = with_ctx[:ctx_take] + without_ctx[:remain]
     print(f"Final: {len(final)}")
