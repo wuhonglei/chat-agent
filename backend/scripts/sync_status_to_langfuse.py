@@ -29,7 +29,9 @@ from psycopg2.extras import RealDictCursor
 
 # ── 从 nacos 配置文件读取 ──────────────────────────────
 def _default_nacos_config_path(*, prod: bool) -> str:
-    filename = "ai-chat-prod@@DEFAULT_GROUP@@" if prod else "ai-chat-dev@@DEFAULT_GROUP@@"
+    filename = (
+        "ai-chat-prod@@DEFAULT_GROUP@@" if prod else "ai-chat-dev@@DEFAULT_GROUP@@"
+    )
     return os.path.join(
         os.path.dirname(__file__),
         "..",
@@ -56,6 +58,7 @@ def load_nacos_config(*, prod: bool) -> dict[str, Any]:
         cfg = yaml.safe_load(f)
     return cast(dict[str, Any], cfg) if isinstance(cfg, dict) else {}
 
+
 # status -> score value 映射
 STATUS_SCORE_MAP = {
     "done": 1.0,
@@ -65,8 +68,14 @@ STATUS_SCORE_MAP = {
 
 
 def make_trace_id(seed: str) -> str:
-    digest = hashlib.sha256(seed.encode("utf-8")).hexdigest()
-    return digest[:32]
+    """与后端 new_trace_id(assistant_message_id) 保持一致。"""
+    try:
+        from langfuse import Langfuse
+
+        return Langfuse.create_trace_id(seed=seed)
+    except Exception:
+        digest = hashlib.sha256(seed.encode("utf-8")).hexdigest()
+        return digest[:32]
 
 
 def fetch_assistant_messages(conn: psycopg2.extensions.connection) -> list[Any]:
@@ -87,7 +96,6 @@ def fetch_assistant_messages(conn: psycopg2.extensions.connection) -> list[Any]:
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute(query)
         return cast(list[Any], cur.fetchall())
-
 
 
 def fetch_langfuse_trace_ids(
@@ -112,6 +120,7 @@ def fetch_langfuse_trace_ids(
         print(f"WARNING: Failed to fetch Langfuse traces: {e}")
 
     return trace_ids
+
 
 def create_langfuse_score(
     *,
@@ -147,7 +156,9 @@ def create_langfuse_score(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Sync messages.status to Langfuse Score")
+    parser = argparse.ArgumentParser(
+        description="Sync messages.status to Langfuse Score"
+    )
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument(
         "--prod",
@@ -222,7 +233,9 @@ def main() -> None:
             stats[status] += 1
 
             if args.dry_run:
-                print(f"  [DRY-RUN] trace={trace_id} status={status} value={score_value}")
+                print(
+                    f"  [DRY-RUN] trace={trace_id} status={status} value={score_value}"
+                )
                 success_count += 1
                 continue
 
@@ -233,11 +246,13 @@ def main() -> None:
                 trace_id=trace_id,
                 name="message_status",
                 value=score_value,
-                comment=json.dumps({
-                    "message_id": msg["message_id"],
-                    "status": status,
-                    "updated_at": str(msg["updated_at"]),
-                }),
+                comment=json.dumps(
+                    {
+                        "message_id": msg["message_id"],
+                        "status": status,
+                        "updated_at": str(msg["updated_at"]),
+                    }
+                ),
             )
 
             if "error" in result:
@@ -246,7 +261,9 @@ def main() -> None:
             else:
                 success_count += 1
 
-        print(f"\nStats: done={stats['done']}, stopped={stats['stopped']}, failed={stats['failed']}")
+        print(
+            f"\nStats: done={stats['done']}, stopped={stats['stopped']}, failed={stats['failed']}"
+        )
         print(f"No trace in Langfuse: {no_trace_count}")
         print(f"Synced: {success_count}, Errors: {error_count}")
 
