@@ -5,6 +5,7 @@
 """
 
 import json
+import subprocess
 from pathlib import Path
 
 from sqlalchemy import text
@@ -14,6 +15,11 @@ from app.core.db import get_db
 OUTPUT_DIR = Path(__file__).resolve().parent.parent / "data" / "eval_set" / "v1.0"
 TARGET_USER = "c7d40833-6b26-4696-828f-a94b9de5b47d"
 TARGET_SIZE = 120  # 目标采样量
+API_BASE = "https://chat.wuhonglei.cn"
+
+# 附件类型集合（非 text / tool_result 的 block 类型）
+ATTACHMENT_TYPES = {"pdf", "image", "xlsx", "docx", "pptx", "markdown", "text_file"}
+
 
 # 过滤关键词
 IMG_KW = [
@@ -40,6 +46,59 @@ FILTER_KW = [
     "如何使用 pm2 查看应用日志",
     "我最近在用 hermes agent 吗",
 ]
+
+
+def fetch_derived_markdown(url: str) -> str | None:
+    """通过 API 获取附件派生的 markdown 内容。"""
+    full_url = f"{API_BASE}{url}"
+    try:
+        r = subprocess.run(
+            ["curl", "-s", "--connect-timeout", "10", "--max-time", "30", full_url],
+            capture_output=True, text=True, timeout=35,
+        )
+        if r.returncode == 0 and r.stdout.strip():
+            return r.stdout
+    except Exception:
+        pass
+    return None
+
+
+def extract_attachment_context(blocks: list[dict]) -> str | None:
+    """从用户消息的 content_blocks 中提取附件 context。"""
+    parts = []
+    for block in blocks:
+        btype = block.get("type", "")
+        if btype == "text" or btype == "tool_result":
+            continue
+        name = block.get("name", "")
+        size = block.get("size", 0)
+        mime = block.get("mime", "")
+        md = block.get("markdown")
+
+        # 描述性元数据
+        desc_lines = [f"文件名: {name}", f"类型: {btype} ({mime})", f"大小: {size} bytes"]
+        if md:
+            md_name = md.get("name", "")
+            md_size = md.get("size", 0)
+            md_tokens = md.get("token_size")
+            md_lines = md.get("lines_count")
+            desc_lines.append(
+                f"派生 Markdown: {md_name} ({md_size} bytes"
+                + (f", {md_tokens} tokens" if md_tokens else "")
+                + (f", {md_lines} lines" if md_lines else "")
+                + ")"
+            )
+        parts.append("\n".join(desc_lines))
+
+        # 尝试获取 markdown 完整内容
+        if md and md.get("url"):
+            content = fetch_derived_markdown(md["url"])
+            if content:
+                parts.append(content)
+
+    if not parts:
+        return None
+    return "<attachment>\n" + "\n\n".join(parts) + "\n</attachment>"
 
 
 def build_eval_from_db():
@@ -118,7 +177,16 @@ def build_eval_from_db():
                 if block.get("type") == "tool_result":
                     content = block.get("content", "")
                     if content:
-                        context_parts.append(content[:3000])
+                        context_parts.append(f"<tool>\n{content[:3000]}\n</tool>")
+
+        # 提取用户附件 context（pdf/xlsx/docx 等派生 markdown）
+        for role, blocks, created_at, status in messages:
+            if role != "user" or not blocks:
+                continue
+            att_ctx = extract_attachment_context(blocks)
+            if att_ctx:
+                context_parts.append(att_ctx)
+                break  # 只取第一条用户消息的附件
 
         # 应用过滤
         if any(kw in query for kw in IMG_KW):
