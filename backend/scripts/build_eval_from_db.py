@@ -158,18 +158,24 @@ def build_eval_from_db():
         # 提取首条 user query
         query = None
         first_user_idx = None
+        has_image = False
         for i, (role, blocks, created_at, status) in enumerate(messages):
             if role != "user" or not blocks:
                 continue
             for block in blocks:
                 if block.get("type") == "text":
                     query = block.get("text", "").strip()
-                    break
+                elif block.get("type") == "image":
+                    has_image = True
             if query:
                 first_user_idx = i
                 break
 
         if not query or first_user_idx is None:
+            continue
+
+        # 跳过首条消息含图片的 case
+        if has_image:
             continue
 
         # 提取首条 assistant answer（紧跟首条 user 之后的第一条 assistant）
