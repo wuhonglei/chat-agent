@@ -202,7 +202,7 @@ def collect_attachment_content_ids(
 ) -> set[str]:
     content_ids: set[str] = set()
     for block in normalize_content_blocks(content_blocks):
-        if isinstance(block, (MarkdownBlock, TextFileBlock)):
+        if isinstance(block, MarkdownBlock | TextFileBlock):
             content_ids.add(block.id)
             continue
         if not isinstance(block, _MINERU_DERIVED_BLOCKS):
@@ -235,7 +235,7 @@ def resolve_storage_key_for_content_id(
     def _lookup(blocks: list[ContentBlock] | list[dict[str, Any]] | None) -> str | None:
         for block in normalize_content_blocks(blocks):
             if (
-                isinstance(block, (MarkdownBlock, TextFileBlock))
+                isinstance(block, MarkdownBlock | TextFileBlock)
                 and block.id == content_id
             ):
                 return block.storage_key
@@ -290,15 +290,13 @@ def build_attachment_uploads(
         for block in normalize_content_blocks(blocks):
             if not isinstance(
                 block,
-                (
-                    PdfBlock,
-                    ExcelBlock,
-                    DocxBlock,
-                    PptxBlock,
-                    MarkdownBlock,
-                    ImageBlock,
-                    TextFileBlock,
-                ),
+                PdfBlock
+                | ExcelBlock
+                | DocxBlock
+                | PptxBlock
+                | MarkdownBlock
+                | ImageBlock
+                | TextFileBlock,
             ):
                 continue
 

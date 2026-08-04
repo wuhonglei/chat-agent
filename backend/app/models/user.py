@@ -10,7 +10,7 @@ from app.utils.date import get_datetime_now
 class UserDb(SQLModel, table=True):
     """用户模型"""
 
-    __tablename__ = "users"
+    __tablename__ = "users"  # pyright: ignore[reportAssignmentType]
 
     id: str = Field(
         default_factory=gen_uuid, primary_key=True, index=True, max_length=36
