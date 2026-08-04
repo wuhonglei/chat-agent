@@ -47,6 +47,21 @@ FILTER_KW = [
     "我最近在用 hermes agent 吗",
 ]
 
+# 纯记忆依赖关键词（answer 开头或前 200 字符内出现表示主要依赖记忆，无 context 时应跳过）
+MEMORY_HEAD_KW = [
+    "根据我的记录",
+    "根据记忆",
+    "根据记忆中的信息",
+    "根据记忆信息",
+    "从记忆中",
+    "我记录了",
+]
+MEMORY_FALLBACK_KW = [
+    "根据记忆",
+    "根据记忆中的信息",
+    "根据记忆信息",
+]
+
 
 def fetch_derived_markdown(url: str) -> str | None:
     """通过 API 获取附件派生的 markdown 内容。"""
@@ -201,6 +216,14 @@ def build_eval_from_db():
             continue
         if len(query) < 5:
             continue
+
+        # 过滤纯记忆依赖的 case（无 context 且 answer 前 200 字符内引用记忆）
+        if not context_parts:
+            head = answer[:200]
+            if any(answer.startswith(kw) for kw in MEMORY_HEAD_KW):
+                continue
+            if any(kw in head for kw in MEMORY_FALLBACK_KW):
+                continue
 
         eval_items.append(
             {
