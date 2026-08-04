@@ -90,15 +90,19 @@ def build_eval_from_db():
         if not query:
             continue
 
-        # 提取 assistant answer（最后一条 assistant 消息的 text）
+        # 提取 assistant answer（最后一条 assistant 消息的最后一个 text block）
+        # 一条 assistant 消息可能有多个 text block：中间轮（搜索中...）+ 最终回答
         answer = None
         for role, blocks, created_at, status in reversed(messages):
             if role != "assistant" or not blocks:
                 continue
-            for block in blocks:
+            # 取最后一个 text block（最终回答）
+            for block in reversed(blocks):
                 if block.get("type") == "text":
-                    answer = block.get("text", "").strip()
-                    break
+                    txt = block.get("text", "").strip()
+                    if txt and len(txt) > 10:  # 过滤掉极短的中间轮
+                        answer = txt
+                        break
             if answer:
                 break
 
@@ -120,6 +124,8 @@ def build_eval_from_db():
         if any(kw in query for kw in IMG_KW):
             continue
         if any(kw in query for kw in FILTER_KW):
+            continue
+        if len(query) < 5:
             continue
 
         eval_items.append(
