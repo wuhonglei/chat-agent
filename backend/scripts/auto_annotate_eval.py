@@ -134,7 +134,7 @@ def annotate_one(api_key: str, item: dict) -> dict:
 
     # Step 2: 对比打分（如果有 context，传给裁判作为参照）
     context = item.get("context", "")
-    context_section = f"\n\n【参考资料/工具返回内容】\n{context[:6000]}" if context else ""
+    context_section = f"\n\n【参考资料/工具返回内容】\n{context}" if context else ""
     score_input = (
         f"【用户问题】{query}\n\n【标准要点】\n"
         + "\n".join(f"- {p}" for p in ground_truth_points)
