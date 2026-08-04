@@ -160,23 +160,28 @@ def format_extract_results(response: TavilyExtractResponse) -> tuple[str, str]:
     is_chunked = response.is_chunked
 
     # Format successful extraction results
-    description = f"{len(response.results)} 个网页提取结果如下:"
-    output.append(description)
-    summary.append(description)
-    for index, result in enumerate(response.results, start=1):
-        item_lines: list[str] = [f"\n第 {index} 个提取结果的详细信息如下:"]
-        item_lines.append(f"标题: {clean_invisible_chars(result.title or '')}")
-        item_lines.append(f"URL: {result.url}")
-        summary.append("\n".join(item_lines))
-        raw_content = clean_invisible_chars(result.raw_content or "")
-        if raw_content:
-            if is_chunked:
-                chunks = raw_content.split("[...]")
-                for i, chunk in enumerate(chunks, start=1):
-                    item_lines.append(f"相关内容 {i}: {chunk}")
-            else:
-                item_lines.append(f"提取内容: {raw_content}")
-        output.append("\n".join(item_lines))
+    if response.results:
+        description = f"{len(response.results)} 个网页提取结果如下:"
+        output.append(description)
+        summary.append(description)
+        for index, result in enumerate(response.results, start=1):
+            item_lines: list[str] = [f"\n第 {index} 个提取结果的详细信息如下:"]
+            item_lines.append(f"标题: {clean_invisible_chars(result.title or '')}")
+            item_lines.append(f"URL: {result.url}")
+            summary.append("\n".join(item_lines))
+            raw_content = clean_invisible_chars(result.raw_content or "")
+            if raw_content:
+                if is_chunked:
+                    chunks = raw_content.split("[...]")
+                    for i, chunk in enumerate(chunks, start=1):
+                        item_lines.append(f"相关内容 {i}: {chunk}")
+                else:
+                    item_lines.append(f"提取内容: {raw_content}")
+            output.append("\n".join(item_lines))
+    else:
+        description = "未提取到任何网页内容"
+        output.append(description)
+        summary.append(description)
 
     if response.failed_results:
         description = f"\n{len(response.failed_results)} 个网页提取失败的URL:"
