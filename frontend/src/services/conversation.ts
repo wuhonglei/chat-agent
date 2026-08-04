@@ -2,6 +2,7 @@ import {
   ConversationDetailResponse,
   ConversationInfo,
   ConversationListResponse,
+  ConversationSearchResponse,
   CreateConversationRequest,
   UpdateConversationRequest,
 } from "@/interfaces";
@@ -31,6 +32,15 @@ export const conversationAPI = {
     cursor?: string | null;
   }): Promise<ConversationListResponse> => {
     return await apiClient.get("/conversation/list", { params });
+  },
+
+  // 搜索对话（标题 + 消息正文）
+  searchConversations: async (params: {
+    q: string;
+    limit?: number;
+    cursor?: string | null;
+  }): Promise<ConversationSearchResponse> => {
+    return await apiClient.get("/conversation/search", { params });
   },
 
   // 更新对话信息

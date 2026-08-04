@@ -39,3 +39,20 @@ export interface UpdateConversationRequest {
 }
 
 export type ConversationDetailResponse = ConversationInfo;
+
+export type ConversationSearchMatchType = "title" | "user" | "assistant";
+
+export interface ConversationSearchItem {
+  id: string;
+  title: string;
+  matchType: ConversationSearchMatchType;
+  snippet: string;
+  updatedAt: string;
+}
+
+export interface ConversationSearchResponse {
+  conversations: ConversationSearchItem[];
+  nextCursor: string | null;
+  hasMore: boolean;
+  limit: number;
+}
