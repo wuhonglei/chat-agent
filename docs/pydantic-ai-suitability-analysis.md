@@ -1,35 +1,10 @@
 # chat-agent 是否适合使用 pydantic-ai
 
-## 结论：不适合（修正版）
-
-> **勘误**：初版认为 pydantic-ai 不支持 MCP，经核实 pydantic-ai 已原生支持 MCP
-> （`MCP` capability / `MCPToolset` / `MCPServerTool`），支持 URL、FastMCP、Stdio 等多种传输方式。
-> 因此"工具体系不兼容"不再成立，以下保留其余两个维度的分析。
+## 结论：不适合
 
 ---
 
-## ~~一、工具体系不兼容 — MCP vs Function Calling~~（已不成立）
-
-pydantic-ai 提供了完整的 MCP 支持：
-
-- `MCP` capability：一行代码接入 MCP server，支持 URL/FastMCP/本地脚本
-- `MCPToolset`：低级 API，可跨 agent 共享 MCP server
-- `MCPServerTool`：原生 MCP 透传，无需本地执行
-
-```python
-from pydantic_ai import Agent
-from pydantic_ai.capabilities import MCP
-
-agent = Agent('openai:gpt-5.2', capabilities=[
-    MCP(url='https://mcp.example.com/api'),
-])
-```
-
-项目现有的 MCP Server（Tavily/文件/Shell/代码执行等）理论上可以直接复用。
-
----
-
-## 二、编排逻辑深度定制 — 框架抽象层会成为障碍（仍然成立）
+## 一、编排逻辑深度定制 — 框架抽象层会成为障碍
 
 项目有大量自研的编排策略，分布在 6+ 个模块中：
 
@@ -52,7 +27,7 @@ pydantic-ai 的 `Agent.run()` 把 tool loop 内化了 —— 框架自动处理"
 
 ---
 
-## 三、基础设施已自建 — 重复建设无收益（仍然成立）
+## 二、基础设施已自建 — 重复建设无收益
 
 pydantic-ai 的核心卖点：
 
@@ -78,6 +53,6 @@ pydantic-ai 的核心卖点：
 
 ---
 
-## 修正后的总结
+## 一句话总结
 
-chat-agent 的核心价值在于深度定制的编排策略（guardrail/policy/batch/compaction），这些恰好是 pydantic-ai 抽象层会遮蔽而非增强的部分。MCP 兼容性已不再是障碍，但编排复杂度和基础设施重叠仍然使迁移成本远大于收益。
+chat-agent 的核心价值在于深度定制的编排策略（guardrail/policy/batch/compaction），这些恰好是 pydantic-ai 抽象层会遮蔽而非增强的部分。迁移成本远大于收益，属于"用框架约束架构"而非"用框架加速开发"。
