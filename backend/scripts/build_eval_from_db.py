@@ -5,6 +5,7 @@
 """
 
 import json
+import subprocess
 from pathlib import Path
 
 from sqlalchemy import text
@@ -14,6 +15,11 @@ from app.core.db import get_db
 OUTPUT_DIR = Path(__file__).resolve().parent.parent / "data" / "eval_set" / "v1.0"
 TARGET_USER = "c7d40833-6b26-4696-828f-a94b9de5b47d"
 TARGET_SIZE = 120  # 目标采样量
+API_BASE = "https://chat.wuhonglei.cn"
+
+# 附件类型集合（非 text / tool_result 的 block 类型）
+ATTACHMENT_TYPES = {"pdf", "image", "xlsx", "docx", "pptx", "markdown", "text_file"}
+
 
 # 过滤关键词
 IMG_KW = [
@@ -40,6 +46,80 @@ FILTER_KW = [
     "如何使用 pm2 查看应用日志",
     "我最近在用 hermes agent 吗",
 ]
+
+# 纯记忆依赖关键词（answer 开头或前 200 字符内出现表示主要依赖记忆，无 context 时应跳过）
+MEMORY_HEAD_KW = [
+    "根据我的记录",
+    "根据记忆",
+    "根据记忆中的信息",
+    "根据记忆信息",
+    "从记忆中",
+    "我记录了",
+]
+MEMORY_FALLBACK_KW = [
+    "根据记忆",
+    "根据记忆中的信息",
+    "根据记忆信息",
+]
+
+
+def fetch_derived_markdown(url: str) -> str | None:
+    """通过 API 获取附件派生的 markdown 内容。"""
+    full_url = f"{API_BASE}{url}"
+    try:
+        r = subprocess.run(
+            ["curl", "-s", "--connect-timeout", "10", "--max-time", "30", full_url],
+            capture_output=True,
+            text=True,
+            timeout=35,
+        )
+        if r.returncode == 0 and r.stdout.strip():
+            return r.stdout
+    except Exception:
+        pass
+    return None
+
+
+def extract_attachment_context(blocks: list[dict]) -> str | None:
+    """从用户消息的 content_blocks 中提取附件 context。"""
+    parts = []
+    for block in blocks:
+        btype = block.get("type", "")
+        if btype in ("text", "tool_result", "image"):
+            continue
+        name = block.get("name", "")
+        size = block.get("size", 0)
+        mime = block.get("mime", "")
+        md = block.get("markdown")
+
+        # 描述性元数据
+        desc_lines = [
+            f"文件名: {name}",
+            f"类型: {btype} ({mime})",
+            f"大小: {size} bytes",
+        ]
+        if md:
+            md_name = md.get("name", "")
+            md_size = md.get("size", 0)
+            md_tokens = md.get("token_size")
+            md_lines = md.get("lines_count")
+            desc_lines.append(
+                f"派生 Markdown: {md_name} ({md_size} bytes"
+                + (f", {md_tokens} tokens" if md_tokens else "")
+                + (f", {md_lines} lines" if md_lines else "")
+                + ")"
+            )
+        parts.append("\n".join(desc_lines))
+
+        # 尝试获取 markdown 完整内容
+        if md and md.get("url"):
+            content = fetch_derived_markdown(md["url"])
+            if content:
+                parts.append(content)
+
+    if not parts:
+        return None
+    return "<attachment>\n" + "\n\n".join(parts) + "\n</attachment>"
 
 
 def build_eval_from_db():
@@ -75,25 +155,32 @@ def build_eval_from_db():
         if not messages:
             continue
 
-        # 提取 user query（第一条 user 消息的 text）
+        # 提取首条 user query
         query = None
-        for role, blocks, created_at, status in messages:
+        first_user_idx = None
+        has_image = False
+        for i, (role, blocks, created_at, status) in enumerate(messages):
             if role != "user" or not blocks:
                 continue
             for block in blocks:
                 if block.get("type") == "text":
                     query = block.get("text", "").strip()
-                    break
+                elif block.get("type") == "image":
+                    has_image = True
             if query:
+                first_user_idx = i
                 break
 
-        if not query:
+        if not query or first_user_idx is None:
             continue
 
-        # 提取 assistant answer（最后一条 assistant 消息的最后一个 text block）
-        # 一条 assistant 消息可能有多个 text block：中间轮（搜索中...）+ 最终回答
+        # 跳过首条消息含图片的 case
+        if has_image:
+            continue
+
+        # 提取首条 assistant answer（紧跟首条 user 之后的第一条 assistant）
         answer = None
-        for role, blocks, created_at, status in reversed(messages):
+        for role, blocks, created_at, status in messages[first_user_idx + 1 :]:
             if role != "assistant" or not blocks:
                 continue
             # 取最后一个 text block（最终回答）
@@ -109,16 +196,24 @@ def build_eval_from_db():
         if not answer:
             continue
 
-        # 提取 tool_result 作为 context
+        # 提取首条 assistant 的 tool_result 作为 context
         context_parts = []
-        for role, blocks, created_at, status in messages:
+        for role, blocks, created_at, status in messages[first_user_idx + 1 :]:
             if role != "assistant" or not blocks:
                 continue
             for block in blocks:
                 if block.get("type") == "tool_result":
                     content = block.get("content", "")
                     if content:
-                        context_parts.append(content[:3000])
+                        context_parts.append(f"<tool>\n{content[:3000]}\n</tool>")
+            break  # 只取首条 assistant 的 tool_result
+
+        # 提取首条 user 的附件 context（pdf/xlsx/docx 等派生 markdown）
+        first_user_blocks = messages[first_user_idx][1]
+        if first_user_blocks:
+            att_ctx = extract_attachment_context(first_user_blocks)
+            if att_ctx:
+                context_parts.append(att_ctx)
 
         # 应用过滤
         if any(kw in query for kw in IMG_KW):
@@ -127,6 +222,14 @@ def build_eval_from_db():
             continue
         if len(query) < 5:
             continue
+
+        # 过滤纯记忆依赖的 case（无 context 且 answer 前 200 字符内引用记忆）
+        if not context_parts:
+            head = answer[:200]
+            if any(answer.startswith(kw) for kw in MEMORY_HEAD_KW):
+                continue
+            if any(kw in head for kw in MEMORY_FALLBACK_KW):
+                continue
 
         eval_items.append(
             {
@@ -164,11 +267,10 @@ def build_eval_from_db():
             deduped.append(item)
     print(f"After dedup: {len(deduped)}")
 
-    # 4. 优先采样有 context 的，确保比例均衡
+    # 4. 优先采样有 context 的，按 55:45 比例（接近真实分布 55.4%）
     with_ctx = [x for x in deduped if x.get("context")]
     without_ctx = [x for x in deduped if not x.get("context")]
-    # 有 context 的尽量全取，剩余从无 context 中补
-    ctx_take = min(len(with_ctx), TARGET_SIZE // 2)  # 至少一半有 context
+    ctx_take = min(len(with_ctx), round(TARGET_SIZE * 0.55))  # 66
     remain = TARGET_SIZE - ctx_take
     final = with_ctx[:ctx_take] + without_ctx[:remain]
     print(f"Final: {len(final)}")

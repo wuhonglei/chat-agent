@@ -757,14 +757,14 @@ export function useNewConversation() {
 export const useConversationInfo = (conversationId: string) => {
   const conversationInfo = useAppSelector((state) => state.conversation.conversationInfo);
   const dispatch = useAppDispatch();
-  // 页面刷新时，conversationInfo 为空，则获取 conversationInfo
-  const empty = isEmpty(conversationInfo);
+  // 空（刷新）或与 URL id 不一致（搜索跳到未加载会话）时拉取详情
+  const matched = conversationInfo?.id === conversationId;
   useEffect(() => {
-    if (empty && conversationId) {
-      dispatch(getConversationDetail(conversationId));
-    }
-  }, [conversationId, empty, dispatch]);
-  return conversationInfo;
+    if (!conversationId || matched) return;
+    dispatch(getConversationDetail(conversationId));
+  }, [conversationId, matched, dispatch]);
+  // 未匹配时返回 null，避免 ChatPage 继续使用上一个会话的 id/标题
+  return matched ? conversationInfo : null;
 };
 
 export const useCachedRequest = (

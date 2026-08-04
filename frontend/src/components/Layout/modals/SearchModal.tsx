@@ -5,7 +5,12 @@ import {
 } from "@/interfaces";
 import { conversationAPI } from "@/services/conversation";
 import { isPlainEnter } from "@/utils/chat";
-import { addSearchHistory, clearSearchHistory, getSearchHistory } from "@/utils/searchHistory";
+import {
+  addSearchHistory,
+  clearSearchHistory,
+  getSearchHistory,
+  removeSearchHistory,
+} from "@/utils/searchHistory";
 import { CloseOutlined, CommentOutlined, SearchOutlined } from "@ant-design/icons";
 import { useDebounceFn, useInfiniteScroll, useMemoizedFn } from "ahooks";
 import { Button, Empty, Input, Modal, Spin, Tag } from "antd";
@@ -189,6 +194,10 @@ const SearchModal: React.FC<Props> = ({ open, onClose }) => {
     setHistory([]);
   };
 
+  const handleRemoveHistory = (keyword: string) => {
+    setHistory(removeSearchHistory(keyword));
+  };
+
   const handleSelectResult = (item: ConversationSearchItem) => {
     if (query.trim()) {
       setHistory(addSearchHistory(query.trim()));
@@ -272,10 +281,17 @@ const SearchModal: React.FC<Props> = ({ open, onClose }) => {
                 {history.map((item) => (
                   <Tag
                     key={item}
+                    title={item}
+                    closable
                     className="cursor-pointer m-0 px-3 py-1 rounded-full border-0 bg-gray-100 hover:bg-gray-200"
                     onClick={() => handleSelectHistory(item)}
+                    onClose={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleRemoveHistory(item);
+                    }}
                   >
-                    {item}
+                    {item.length > 10 ? `${item.slice(0, 10)}…` : item}
                   </Tag>
                 ))}
               </div>

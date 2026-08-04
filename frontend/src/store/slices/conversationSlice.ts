@@ -139,9 +139,10 @@ const conversationSlice = createSlice({
       const conversation = state.conversations.find(conv => conv.id === id);
       if (conversation) {
         setCurrentConversationHelper(state, conversation);
+      } else if (state.conversationInfo?.id !== id) {
+        // 懒加载列表尚未包含该会话：清空以免展示错误会话，由 useConversationInfo 拉取详情
+        setCurrentConversationHelper(state, null);
       }
-      // 如果找不到对话，保持现有的 conversationInfo 不变
-      // 让 useConversationInfo hook 来处理获取详情的逻辑
     },
 
     // 添加对话到列表最前面
@@ -238,7 +239,11 @@ const conversationSlice = createSlice({
 
     builder.addCase(getConversationDetail.fulfilled, (state, action) => {
       const conversation = action.payload;
-      updateConversationInListHelper(state, conversation);
+      const index = updateConversationInListHelper(state, conversation);
+      // 搜索跳转等场景：列表未加载到该会话时补到顶部，便于侧边栏高亮
+      if (index === -1) {
+        prependConversationToListHelper(state, conversation);
+      }
       // 直接更新当前对话信息，因为这是获取当前会话详情的操作
       setCurrentConversationHelper(state, conversation);
     });

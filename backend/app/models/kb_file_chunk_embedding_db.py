@@ -17,7 +17,7 @@ EMBEDDING_DIMENSION = 1024
 class KbFileChunkEmbeddingDb(SQLModel, table=True):
     """知识库文件分块向量表"""
 
-    __tablename__ = "kb_file_chunk_embeddings"
+    __tablename__ = "kb_file_chunk_embeddings"  # pyright: ignore[reportAssignmentType]
 
     id: str = Field(
         default_factory=gen_uuid, primary_key=True, index=True, max_length=36
