@@ -7,3 +7,4 @@ export * from "./file";
 export * from "./location";
 export * from "./login";
 export * from "./message";
+export * from "./searchHistory";

@@ -4,14 +4,22 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-from sqlalchemy import and_, or_
+from sqlalchemy import String, and_, or_
+from sqlalchemy import cast as sa_cast
 from sqlmodel import Session, select
 
 from app.models import ConversationDb, MessageDb
-from app.schemas.chat import ChatMessage, dump_content_block_payloads
+from app.schemas.chat import (
+    ChatMessage,
+    collect_content_from_block_payloads,
+    dump_content_block_payloads,
+)
 from app.schemas.conversation import (
     ConversationInfo,
     ConversationListResponse,
+    ConversationSearchItem,
+    ConversationSearchMatchType,
+    ConversationSearchResponse,
     CreatedBy,
     UpdateConversationRequest,
 )
@@ -22,6 +30,32 @@ from app.utils.cursor import (
 )
 from app.utils.date import get_datetime_now
 from app.utils.logger import logger
+
+_SNIPPET_CONTEXT_CHARS = 40
+
+
+def _escape_like_pattern(value: str) -> str:
+    """Escape ILIKE/LIKE wildcards in user input."""
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def _build_snippet(text: str, keyword: str) -> str:
+    """截取关键词前后约 40 字作为展示片段。"""
+    if not text:
+        return ""
+    lowered = text.lower()
+    key = keyword.lower()
+    idx = lowered.find(key)
+    if idx < 0:
+        snippet = text[: _SNIPPET_CONTEXT_CHARS * 2]
+        return snippet + ("…" if len(text) > len(snippet) else "")
+
+    start = max(0, idx - _SNIPPET_CONTEXT_CHARS)
+    end = min(len(text), idx + len(keyword) + _SNIPPET_CONTEXT_CHARS)
+    snippet = text[start:end]
+    prefix = "…" if start > 0 else ""
+    suffix = "…" if end < len(text) else ""
+    return f"{prefix}{snippet}{suffix}"
 
 
 class ConversationDbService(DbService):
@@ -154,6 +188,165 @@ class ConversationDbService(DbService):
             limit=limit,
         )
 
+    def search_conversations(
+        self,
+        user_id: str,
+        *,
+        q: str,
+        cursor: str | None = None,
+        limit: int = 20,
+    ) -> ConversationSearchResponse:
+        """按标题与消息正文（user/assistant）搜索会话。
+
+        MVP：ILIKE 模糊匹配；按 conversation 去重；title 命中优先。
+        非法 cursor 会抛出 InvalidCursorError。
+        """
+        keyword = q.strip()
+        if not keyword:
+            return ConversationSearchResponse(
+                conversations=[],
+                next_cursor=None,
+                has_more=False,
+                limit=limit,
+            )
+
+        db = self._ensure_db()
+        last_message_created_at_column = cast(
+            Any, ConversationDb.last_message_created_at
+        )
+        id_column = cast(Any, ConversationDb.id)
+        title_column = cast(Any, ConversationDb.title)
+        role_column = cast(Any, MessageDb.role)
+        pattern = f"%{_escape_like_pattern(keyword)}%"
+        content_text = sa_cast(cast(Any, MessageDb.content_blocks), String)
+
+        message_match_exists = (
+            select(MessageDb.id)
+            .where(MessageDb.conversation_id == ConversationDb.id)
+            .where(role_column.in_(["user", "assistant"]))
+            .where(MessageDb.status == "done")
+            .where(content_text.ilike(pattern, escape="\\"))
+            .exists()
+        )
+
+        data_stmt = (
+            select(ConversationDb)
+            .where(ConversationDb.user_id == user_id)
+            .where(ConversationDb.is_active)
+            .where(
+                or_(
+                    title_column.ilike(pattern, escape="\\"),
+                    message_match_exists,
+                )
+            )
+        )
+        if cursor:
+            cursor_values = decode_conversation_cursor(cursor)
+            data_stmt = data_stmt.where(
+                or_(
+                    last_message_created_at_column
+                    < cursor_values.last_message_created_at,
+                    and_(
+                        last_message_created_at_column
+                        == cursor_values.last_message_created_at,
+                        id_column < cursor_values.id,
+                    ),
+                )
+            )
+
+        data_stmt = data_stmt.order_by(
+            last_message_created_at_column.desc(),
+            id_column.desc(),
+        ).limit(limit + 1)
+
+        conversations = list(db.exec(data_stmt).all())
+        has_more = len(conversations) > limit
+        page_rows = conversations[:limit]
+
+        items: list[ConversationSearchItem] = []
+        for conv in page_rows:
+            items.append(
+                self._build_search_item(conv, keyword=keyword, pattern=pattern)
+            )
+
+        next_cursor: str | None = None
+        if has_more and page_rows:
+            last = page_rows[-1]
+            next_cursor = encode_conversation_cursor(
+                last.last_message_created_at, last.id
+            )
+
+        logger.debug(
+            "Search conversations",
+            keyword=keyword,
+            limit=limit,
+            returned=len(items),
+            has_more=has_more,
+        )
+        return ConversationSearchResponse(
+            conversations=items,
+            next_cursor=next_cursor,
+            has_more=has_more,
+            limit=limit,
+        )
+
+    def _build_search_item(
+        self,
+        conversation: ConversationDb,
+        *,
+        keyword: str,
+        pattern: str,
+    ) -> ConversationSearchItem:
+        """为单条会话构建搜索结果（title 优先，否则最早匹配消息）。"""
+        updated_at = (
+            conversation.last_message_created_at or conversation.updated_at
+        ).isoformat()
+
+        if keyword.lower() in conversation.title.lower():
+            return ConversationSearchItem(
+                id=conversation.id,
+                title=conversation.title,
+                match_type=ConversationSearchMatchType.TITLE,
+                snippet="",
+                updated_at=updated_at,
+            )
+
+        db = self._ensure_db()
+        content_text = sa_cast(cast(Any, MessageDb.content_blocks), String)
+        created_at_column = cast(Any, MessageDb.created_at)
+        role_column = cast(Any, MessageDb.role)
+        message = db.exec(
+            select(MessageDb)
+            .where(MessageDb.conversation_id == conversation.id)
+            .where(role_column.in_(["user", "assistant"]))
+            .where(MessageDb.status == "done")
+            .where(content_text.ilike(pattern, escape="\\"))
+            .order_by(created_at_column.asc())
+            .limit(1)
+        ).first()
+
+        if message is None:
+            return ConversationSearchItem(
+                id=conversation.id,
+                title=conversation.title,
+                match_type=ConversationSearchMatchType.TITLE,
+                snippet="",
+                updated_at=updated_at,
+            )
+
+        text = collect_content_from_block_payloads(message.content_blocks)
+        match_type = (
+            ConversationSearchMatchType.USER
+            if message.role == "user"
+            else ConversationSearchMatchType.ASSISTANT
+        )
+        return ConversationSearchItem(
+            id=conversation.id,
+            title=conversation.title,
+            match_type=match_type,
+            snippet=_build_snippet(text, keyword),
+            updated_at=updated_at,
+        )
 
     def get_conversation(self, conversation_id: str) -> ConversationDb | None:
         """获取对话"""
@@ -171,7 +364,6 @@ class ConversationDbService(DbService):
             self.conversation_to_dict(conversation)
         )
         return conversation_info
-
 
     def activate_conversation(self, conversation: ConversationDb) -> ConversationInfo:
         """激活草稿会话，使其出现在会话列表中。"""
@@ -206,7 +398,6 @@ class ConversationDbService(DbService):
             )
             chat_messages.append(chat_message_payload)
         return chat_messages
-
 
     def update_conversation(
         self, conversation: ConversationDb, request: UpdateConversationRequest

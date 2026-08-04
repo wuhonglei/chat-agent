@@ -48,9 +48,7 @@ class ConversationListResponse(BaseModel):
     conversations: list[ConversationInfo] = Field(
         ..., description="List of conversations"
     )
-    next_cursor: str | None = Field(
-        None, description="下一页游标，末页为 null"
-    )
+    next_cursor: str | None = Field(None, description="下一页游标，末页为 null")
     has_more: bool = Field(..., description="是否还有更多数据")
     limit: int = Field(..., description="本页 limit")
 
@@ -69,3 +67,42 @@ class UpdateConversationRequest(BaseModel):
     id: str = Field(..., description="Conversation ID")
     title: str = Field(..., description="New conversation title")
     created_by: CreatedBy = Field(..., description="Conversation created by")
+
+
+class ConversationSearchMatchType(str, Enum):
+    """搜索命中类型"""
+
+    TITLE = "title"
+    USER = "user"
+    ASSISTANT = "assistant"
+
+
+class ConversationSearchRequest(BaseModel):
+    """会话搜索请求（游标分页）"""
+
+    q: str = Field(..., min_length=1, max_length=200, description="搜索关键词")
+    cursor: str | None = Field(None, description="游标，首页不传")
+    limit: int = Field(20, ge=1, le=100, description="每页数量")
+
+
+class ConversationSearchItem(BaseModel):
+    """单条会话搜索结果"""
+
+    id: str = Field(..., description="Conversation ID")
+    title: str = Field(..., description="Conversation title")
+    match_type: ConversationSearchMatchType = Field(
+        ..., description="命中类型：title / user / assistant"
+    )
+    snippet: str = Field("", description="命中片段（title 命中可为空）")
+    updated_at: str = Field(
+        ..., description="用于展示的时间（优先 last_message_created_at）"
+    )
+
+
+class ConversationSearchResponse(BaseModel):
+    """会话搜索响应"""
+
+    conversations: list[ConversationSearchItem] = Field(..., description="搜索结果列表")
+    next_cursor: str | None = Field(None, description="下一页游标，末页为 null")
+    has_more: bool = Field(..., description="是否还有更多数据")
+    limit: int = Field(..., description="本页 limit")

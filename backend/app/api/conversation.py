@@ -17,6 +17,8 @@ from app.schemas.conversation import (
     ConversationInfo,
     ConversationListRequest,
     ConversationListResponse,
+    ConversationSearchRequest,
+    ConversationSearchResponse,
     RegisterConversationRequest,
     UpdateConversationRequest,
 )
@@ -105,6 +107,26 @@ async def get_conversations(
     except InvalidCursorError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return ApiResponse.success(data=data, msg="获取对话列表成功")
+
+
+@router.get("/search")
+async def search_conversations(
+    request: ConversationSearchRequest = Depends(),
+    db: Session = Depends(get_db),
+    token_info: AuthTokenPayload = Depends(get_auth_token_info),
+) -> ApiResponse[ConversationSearchResponse]:
+    """按标题与消息正文搜索会话。"""
+    service = ConversationDbService(db)
+    try:
+        data = service.search_conversations(
+            token_info.user_id,
+            q=request.q,
+            cursor=request.cursor,
+            limit=request.limit,
+        )
+    except InvalidCursorError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return ApiResponse.success(data=data, msg="搜索对话成功")
 
 
 @router.get("/{conversation_id}/messages")
