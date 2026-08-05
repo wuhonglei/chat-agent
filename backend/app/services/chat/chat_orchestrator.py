@@ -540,7 +540,7 @@ class ChatOrchestrator:
                     )
                     mcp_manager = getattr(self.chat_session_agent, "mcp_manager", None)
                     tools_map = mcp_manager.tools_map if mcp_manager is not None else {}
-                    evaluate_and_score(
+                    rule_scores = evaluate_and_score(
                         span=root_span,
                         assistant_response=assistant_response,
                         agent_mode=chat_request.agent_mode,
@@ -548,6 +548,21 @@ class ChatOrchestrator:
                             chat_request.agent_mode, tools_map
                         ),
                     )
+                    # 规则评估失败时自动入队 bad case（fire-and-forget）
+                    if rule_scores and (
+                        not rule_scores.get("valid_answer", True)
+                        or not rule_scores.get("tool_whitelist_ok", True)
+                    ):
+                        asyncio.create_task(
+                            _enqueue_rule_fail_bad_case(
+                                message_id=assistant_message_id,
+                                conversation_id=conversation_id,
+                                user_id=user_id,
+                                query=user_message_text,
+                                answer=assistant_response.content,
+                                rule_scores=rule_scores,
+                            )
+                        )
                     if (
                         trace_enabled
                         and langfuse_client is not None
@@ -631,4 +646,41 @@ class ChatOrchestrator:
             user_id=user_id,
             query_text=user_message_text,
             content_blocks=content_blocks,
+        )
+
+
+async def _enqueue_rule_fail_bad_case(
+    *,
+    message_id: str,
+    conversation_id: str,
+    user_id: str,
+    query: str,
+    answer: str,
+    rule_scores: dict[str, Any],
+) -> None:
+    """Fire-and-forget: 将规则评估失败的样本加入 bad case 复核队列。"""
+    try:
+        from sqlmodel import Session
+
+        from app.core.db import engine
+        from app.schemas.eval import BadCaseSource
+        from app.services.eval.bad_case_service import BadCaseService
+
+        with Session(engine) as db:
+            service = BadCaseService(db)
+            service.enqueue(
+                source=BadCaseSource.RULE_FAIL,
+                message_id=message_id,
+                conversation_id=conversation_id,
+                user_id=user_id,
+                query=query,
+                answer=answer,
+                rule_scores=rule_scores,
+            )
+            db.commit()
+    except Exception as exc:
+        logger.warning(
+            "Failed to enqueue bad case from rule evaluator",
+            error=exc,
+            error_type=type(exc).__name__,
         )

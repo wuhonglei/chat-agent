@@ -28,42 +28,51 @@ export default function AssistantOperation(props: Props) {
   const textContent = getMessageTextFromBlocks(message.contentBlocks);
   const currentFeedback = message.feedback?.value || "default";
   const [modalType, setModalType] = useState<FeedbackModalType | null>(null);
+  const [pendingFeedback, setPendingFeedback] = useState<FeedbackModalType | null>(null);
   const [submittingDetail, setSubmittingDetail] = useState(false);
+  const displayFeedback = pendingFeedback ?? currentFeedback;
 
   const handleFeedbackChange = useMemoizedFn(async (value: MessageFeedbackValue) => {
+    if (value === "like" || value === "dislike") {
+      // 先展示选中态并弹窗，确认后再统一发送 feedback
+      setPendingFeedback(value);
+      setModalType(value);
+      return;
+    }
+    setPendingFeedback(null);
+    setModalType(null);
     try {
       await onFeedback(value);
     } catch {
-      return;
-    }
-    if (value === "like" || value === "dislike") {
-      setModalType(value);
-    } else {
-      setModalType(null);
+      // 错误已在 onFeedback 中提示
     }
   });
 
   const handleCloseModal = useMemoizedFn(() => {
     setModalType(null);
+    setPendingFeedback(null);
   });
 
-  const handleSubmitDetail = useMemoizedFn(async (payload: { reasons: string[]; comment: string }) => {
-    if (!modalType) {
-      return;
-    }
-    setSubmittingDetail(true);
-    try {
-      await onFeedback(modalType, {
-        reasons: payload.reasons,
-        comment: payload.comment,
-      });
-      setModalType(null);
-    } catch {
-      // 错误已在 onFeedback 中提示，保留弹窗便于重试
-    } finally {
-      setSubmittingDetail(false);
-    }
-  });
+  const handleSubmitDetail = useMemoizedFn(
+    async (payload: { reasons: string[]; comment: string }) => {
+      if (!modalType) {
+        return;
+      }
+      setSubmittingDetail(true);
+      try {
+        await onFeedback(modalType, {
+          reasons: payload.reasons,
+          comment: payload.comment,
+        });
+        setModalType(null);
+        setPendingFeedback(null);
+      } catch {
+        // 错误已在 onFeedback 中提示，保留弹窗便于重试
+      } finally {
+        setSubmittingDetail(false);
+      }
+    },
+  );
 
   return (
     <div className={classNames("w-full flex items-center gap-2 transition duration-300")}>
@@ -73,7 +82,10 @@ export default function AssistantOperation(props: Props) {
       <Tooltip title="重新发送">
         <Button type="text" icon={<RedoOutlined />} onClick={onReSend} />
       </Tooltip>
-      <Actions.Feedback value={currentFeedback} onChange={value => void handleFeedbackChange(value)} />
+      <Actions.Feedback
+        value={displayFeedback}
+        onChange={(value) => void handleFeedbackChange(value)}
+      />
       {showDelete ? (
         <Popconfirm title="确定删除这条消息？" okText="删除" cancelText="取消" onConfirm={onDelete}>
           <Button size="small" type="text" danger icon={<DeleteOutlined />} />

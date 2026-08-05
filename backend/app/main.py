@@ -26,6 +26,7 @@ from app.api import (  # noqa: E402
     chat,
     code,
     conversation,
+    eval,
     file,
     health,
     message,
@@ -150,6 +151,7 @@ app.include_router(
     prefix="/api/user_data",
     tags=["user_data"],
 )
+app.include_router(eval.router, prefix="/api/eval", tags=["eval"])
 
 
 @app.get("/")

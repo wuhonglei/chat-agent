@@ -34,7 +34,9 @@ if _env_path.exists():
             if _k and _k not in os.environ:
                 os.environ[_k] = _v
 
-DASHSCOPE_API_BASE = os.environ.get("DASHSCOPE_API_BASE", "https://dashscope.aliyuncs.com/compatible-mode/v1")
+DASHSCOPE_API_BASE = os.environ.get(
+    "DASHSCOPE_API_BASE", "https://dashscope.aliyuncs.com/compatible-mode/v1"
+)
 DASHSCOPE_MODEL = os.environ.get("DASHSCOPE_MODEL", "qwen3.8-max")
 
 LF_PUBLIC_KEY = os.environ["LANGFUSE_PUBLIC_KEY"]
@@ -73,7 +75,9 @@ scene_tag（场景标签）：qa=知识问答 rag=检索回答 tool=工具调用
 def get_api_key() -> str:
     key = os.environ.get("DASHSCOPE_API_KEY")
     if not key:
-        raise RuntimeError("未找到 DASHSCOPE_API_KEY，请设置环境变量或写入 backend/.env")
+        raise RuntimeError(
+            "未找到 DASHSCOPE_API_KEY，请设置环境变量或写入 backend/.env"
+        )
     return key
 
 
