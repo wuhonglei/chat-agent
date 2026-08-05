@@ -580,6 +580,8 @@ class ChatOrchestrator:
                             )
 
                     done_event_payload = {
+                        "conversation_id": conversation_id,
+                        "assistant_message_id": assistant_message_id,
                         "content_length": len(assistant_response.content),
                         "reasoning_length": len(assistant_response.reasoning),
                         "tool_calls_length": count_tool_use_blocks(
