@@ -252,6 +252,10 @@ class ToolResultBlock(BaseModel):
     tool_call_id: str = Field(..., description="Tool call ID")
     tool_use_id: str = Field(..., description="Referenced tool_use block ID")
     is_error: bool = Field(default=False, description="Tool result error status")
+    error_source: str | None = Field(
+        default=None,
+        description="错误来源: tool_error / guardrail_block / guardrail_halt",
+    )
     content: str = Field(default="", description="Tool result content")
     structured_content_for_display: list[dict[str, Any]] | None = Field(
         default=None, description="供前端展示的轻量结构化工具结果"
@@ -560,6 +564,7 @@ def tool_messages_from_content_blocks(
                     role="tool",
                     tool_call_id=block.tool_call_id,
                     is_error=block.is_error,
+                    error_source=block.error_source,
                     content=block.content,
                     structured_content_for_display=block.structured_content_for_display,
                     summary=block.summary,

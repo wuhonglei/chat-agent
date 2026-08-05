@@ -20,6 +20,7 @@ repos:
 
   # mypy 类型检查，仅对暂存的 .py 变更文件检查（路径相对于 git 根；在 backend 下执行，故仓库根目录下的 .py 需映射为 ../<path>）
   # 排除 tests 目录
+  # require_serial: mypy 增量缓存在 SQLite；并行分批会 database is locked → INTERNAL ERROR
   - repo: local
     hooks:
       - id: mypy
@@ -30,3 +31,4 @@ repos:
         files: \.py$
         exclude: ^(webhooks/|backend/skills/|scripts/)
         pass_filenames: true
+        require_serial: true

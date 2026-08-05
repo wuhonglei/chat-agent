@@ -194,6 +194,7 @@ class ContentBlocksAggregator:
             tool_call_id=tool_result.tool_call_id,
             tool_use_id=tool_use_id,
             is_error=tool_result.is_error,
+            error_source=getattr(tool_result, "error_source", None),
             content=tool_result.content or "",
             structured_content_for_display=tool_result.structured_content_for_display,
             summary=tool_result.summary,

@@ -17,7 +17,7 @@ import httpx
 # ── 配置 ────────────────────────────────────────────────────────
 API_BASE = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 API_KEY_ENV = "DASHSCOPE_API_KEY"  # 从环境变量读取
-MODEL = "qwen-plus"  # 便宜够用
+MODEL = "qwen-max"
 
 EVAL_PATH = (
     Path(__file__).resolve().parent.parent
@@ -97,6 +97,7 @@ SYSTEM_STEP2 = """你是一个回答质量评估器。根据用户问题、标�
 1. 如果输入中包含【参考资料/工具返回内容】，这些内容是从知识库、搜索引擎、用户附件中获取的真实数据。模型回答是基于这些参考资料生成的。评分时必须以参考资料为事实依据，不要用你自身的知识判断事实性。
 2. 如果参考资料中确认了某个信息（如日期、金额、名称），模型回答中包含该信息就是正确的，不是虚构。
 3. 只有当模型回答中的信息既不在参考资料中，也无法从参考资料推导出来时，才能判定为「虚构」。
+4. **重要**：逐字核对专有名词，不得基于相似性推断。例如「深圳大学图书馆北馆」和「深圳图书馆北馆」是不同场所，地址不同。
 
 ## 评分标准
 
@@ -134,7 +135,7 @@ def annotate_one(api_key: str, item: dict) -> dict:
 
     # Step 2: 对比打分（如果有 context，传给裁判作为参照）
     context = item.get("context", "")
-    context_section = f"\n\n【参考资料/工具返回内容】\n{context[:6000]}" if context else ""
+    context_section = f"\n\n【参考资料/工具返回内容】\n{context}" if context else ""
     score_input = (
         f"【用户问题】{query}\n\n【标准要点】\n"
         + "\n".join(f"- {p}" for p in ground_truth_points)

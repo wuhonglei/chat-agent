@@ -16,6 +16,10 @@ class ToolResultMessage(BaseModel):
     tool_call_id: str
     is_error: bool
     content: str
+    error_source: str | None = Field(
+        default=None,
+        description="错误来源: tool_error / guardrail_block / guardrail_halt",
+    )
     structured_content_for_display: list[dict[str, Any]] | None = Field(
         default=None,
         description="前端展示使用的轻量结构化结果；存在时 SSE 可省略 content",

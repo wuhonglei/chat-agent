@@ -68,8 +68,12 @@ FEEDBACK_SCORE_MAP = {
 
 def make_trace_id(seed: str) -> str:
     """与后端 new_trace_id(assistant_message_id) 保持一致。"""
-    digest = hashlib.sha256(seed.encode("utf-8")).hexdigest()
-    return digest[:32]
+    try:
+        from langfuse import Langfuse
+        return Langfuse.create_trace_id(seed=seed)
+    except Exception:
+        digest = hashlib.sha256(seed.encode("utf-8")).hexdigest()
+        return digest[:32]
 
 
 def fetch_feedback_messages(conn: psycopg2.extensions.connection) -> list[Any]:

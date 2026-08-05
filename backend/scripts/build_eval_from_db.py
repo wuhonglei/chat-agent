@@ -205,7 +205,7 @@ def build_eval_from_db():
                 if block.get("type") == "tool_result":
                     content = block.get("content", "")
                     if content:
-                        context_parts.append(f"<tool>\n{content[:3000]}\n</tool>")
+                        context_parts.append(f"<tool>\n{content}\n</tool>")
             break  # 只取首条 assistant 的 tool_result
 
         # 提取首条 user 的附件 context（pdf/xlsx/docx 等派生 markdown）
@@ -221,6 +221,8 @@ def build_eval_from_db():
         if any(kw in query for kw in FILTER_KW):
             continue
         if len(query) < 5:
+            continue
+        if "天气" in query:
             continue
 
         # 过滤纯记忆依赖的 case（无 context 且 answer 前 200 字符内引用记忆）
