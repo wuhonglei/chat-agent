@@ -126,6 +126,47 @@ def extract_attachments_from_item(item_input: dict) -> list[dict]:
     return _parse_attachments(user_content)
 
 
+def extract_memories_from_item(item_input: dict) -> list[dict]:
+    """从 dataset item 提取 user_memories，返回 MemorySearchItem 格式列表。"""
+    user_content = _get_user_content(item_input)
+    return _parse_memories(user_content)
+
+
+def _parse_memories(user_content: str) -> list[dict]:
+    """从 XML 解析 <user_memories>，返回 MemorySearchItem dict 列表。"""
+    import uuid
+
+    memories: list[dict] = []
+    mem_match = re.search(
+        r"<user_memories>(.*?)</user_memories>", user_content, re.DOTALL
+    )
+    if not mem_match:
+        return memories
+
+    for item in re.finditer(
+        r"<memory_item>(.*?)</memory_item>", mem_match.group(1), re.DOTALL
+    ):
+        block = item.group(1)
+        memory = _xml_text(block, "memory")
+        if not memory:
+            continue
+        memories.append(
+            {
+                "id": uuid.uuid4().hex[:16],
+                "memory": memory,
+                "created_at": _xml_text(block, "created_at") or None,
+                "relevance": _xml_text(block, "relevance") or "低",
+            }
+        )
+    return memories
+
+
+def _xml_text(xml_str: str, tag: str) -> str:
+    """从 XML 字符串中提取指定 tag 的文本。"""
+    match = re.search(rf"<{tag}>(.*?)</{tag}>", xml_str, re.DOTALL)
+    return match.group(1).strip() if match else ""
+
+
 def _get_user_content(item_input: dict) -> str:
     """获取 user message 的 content。"""
     messages = item_input.get("messages", [])
@@ -334,13 +375,14 @@ def replay_query(
     query: str,
     attachments: list[dict] | None = None,
     uploaded_files: list[dict] | None = None,
+    memories: list[dict] | None = None,
     agent_mode: int = 0,
     timeout: float = 120,
 ) -> str:
     """发送 query 到 chat/stream API，等 done 事件后从 DB 获取完整回答。
 
-    流程：发请求 → 监听 done 事件拿 assistant_message_id → 查 DB 拿 content_blocks。
-    比拼接 delta 更可靠，且能获取完整结构化内容（含工具调用结果）。
+    Args:
+        memories: MemorySearchItem 格式列表，直接传入 payload.memories。
     """
     import time as _time
 
@@ -349,12 +391,14 @@ def replay_query(
     else:
         content_blocks = build_content_blocks(query, attachments or [])
 
-    payload = {
+    payload: dict = {
         "content_blocks": content_blocks,
         "conversation_id": conversation_id,
         "agent_mode": agent_mode,
         "history_ids": [],
     }
+    if memories:
+        payload["memories"] = memories
 
     try:
         with httpx.stream(

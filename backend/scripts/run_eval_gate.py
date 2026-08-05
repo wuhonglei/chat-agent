@@ -76,6 +76,7 @@ def _make_replay_task(base_url: str, token: str):
         cleanup_conversation,
         create_conversation,
         extract_attachments_from_item,
+        extract_memories_from_item,
         extract_query_from_item,
         replay_query,
         upload_file,
@@ -110,6 +111,7 @@ def _make_replay_task(base_url: str, token: str):
 
         # 提取附件信息
         attachments = extract_attachments_from_item(item_input)
+        memories = extract_memories_from_item(item_input)
 
         # 创建临时会话
         conv_id = create_conversation(
@@ -142,6 +144,7 @@ def _make_replay_task(base_url: str, token: str):
                 query,
                 attachments=attachments,
                 uploaded_files=uploaded_files or None,
+                memories=memories or None,
             )
             return answer or "[ERROR] empty response"
         finally:
