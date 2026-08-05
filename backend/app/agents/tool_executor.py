@@ -109,6 +109,7 @@ class ToolExecutor:
                         results_by_id[tool_call.id] = ToolResultMessage(
                             role="tool",
                             is_error=True,
+                            error_source="guardrail_halt",
                             content=self.guardrail.synthetic_halt_message(
                                 tool_call.function.name
                             ),
@@ -148,6 +149,7 @@ class ToolExecutor:
                     results_by_id[tool_call.id] = ToolResultMessage(
                         role="tool",
                         is_error=True,
+                        error_source="timeout",
                         content=timeout_content,
                         tool_call_id=tool_call.id,
                     )
@@ -304,11 +306,17 @@ class ToolExecutor:
             GuardrailDecisionKind.BLOCK,
             GuardrailDecisionKind.HALT,
         ):
+            error_source = (
+                "guardrail_halt"
+                if decision.kind == GuardrailDecisionKind.HALT
+                else "guardrail_block"
+            )
             blocked_message = ToolResultMessage(
                 role="tool",
                 is_error=True,
                 tool_call_id=tool_call.id,
                 content=decision.message,
+                error_source=error_source,
             )
             logger.warning(
                 "Tool call blocked by guardrail",
@@ -522,6 +530,7 @@ class ToolExecutor:
         tool_call_result_message = ToolResultMessage(
             role="tool",
             is_error=True,
+            error_source="tool_error",
             content=error_content,
             tool_call_id=tool_call.id,
         )

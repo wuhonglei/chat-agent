@@ -552,6 +552,7 @@ class ChatOrchestrator:
                     if rule_scores and (
                         not rule_scores.get("valid_answer", True)
                         or not rule_scores.get("tool_whitelist_ok", True)
+                        or rule_scores.get("tool_loop_detected", False)
                     ):
                         asyncio.create_task(
                             _enqueue_rule_fail_bad_case(

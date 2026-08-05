@@ -7,7 +7,13 @@ from typing import Any
 from app.core.config import settings
 from app.core.observability import score_observation
 from app.mcp.tool_naming import ToolRoute
-from app.schemas.chat import AssistantResponse, ToolUseBlock, count_tool_use_blocks
+from app.schemas.chat import (
+    AssistantResponse,
+    TextBlock,
+    ToolResultBlock,
+    ToolUseBlock,
+    count_tool_use_blocks,
+)
 from app.utils.logger import logger
 
 
@@ -36,7 +42,13 @@ def evaluate_and_score(
 
     返回值示例::
 
-        {"valid_answer": True, "tool_whitelist_ok": True, "tool_call_count": 2}
+        {
+            "valid_answer": True,
+            "tool_whitelist_ok": True,
+            "tool_call_count": 2,
+            "tool_loop_detected": False,
+            "guardrail_error_count": 0,
+        }
 
     ``agent_mode`` 由调用方用于构建 ``tool_whitelist``；评估逻辑本身只依赖白名单集合。
     失败只告警不冒泡，返回空 dict。
@@ -68,7 +80,10 @@ def _do_evaluate(
     scores: dict[str, Any] = {}
 
     # --- valid_answer ---
-    is_valid = len(content.strip()) > 0
+    # 检查最后一个 block 是否为非空 TextBlock（模型最终回复）
+    # 而非拼接所有 TextBlock（中间轮文本输出会误判）
+    last_block = content_blocks[-1] if content_blocks else None
+    is_valid = isinstance(last_block, TextBlock) and len(last_block.text.strip()) > 0
     score_observation(span, name="valid_answer", value=is_valid)
     scores["valid_answer"] = is_valid
 
@@ -96,5 +111,18 @@ def _do_evaluate(
         span, name="tool_call_count", value=tool_count, data_type="NUMERIC"
     )
     scores["tool_call_count"] = tool_count
+
+    # --- tool_loop_detected ---
+    guardrail_error_count = sum(
+        1
+        for block in content_blocks
+        if isinstance(block, ToolResultBlock)
+        and block.is_error
+        and block.error_source in ("guardrail_block", "guardrail_halt")
+    )
+    loop_detected = guardrail_error_count > 0
+    score_observation(span, name="tool_loop_detected", value=loop_detected)
+    scores["tool_loop_detected"] = loop_detected
+    scores["guardrail_error_count"] = guardrail_error_count
 
     return scores
