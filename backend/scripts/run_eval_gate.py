@@ -58,6 +58,8 @@ from scripts.run_judge_eval import (  # noqa: E402
     completeness_evaluator,
     correctness_evaluator,
     judge_task,
+    push_replay_context,
+    push_replay_judge_query,
 )
 
 # ── 默认阈值（基于 baseline-v1-annot-fix 实验）──
@@ -76,6 +78,7 @@ def _make_replay_task(base_url: str, token: str):
         cleanup_conversation,
         create_conversation,
         extract_attachments_from_item,
+        extract_context_from_blocks,
         extract_memories_from_item,
         extract_query_from_item,
         replay_query,
@@ -137,7 +140,7 @@ def _make_replay_task(base_url: str, token: str):
                     return f"[ERROR] file not found: {att['name']}"
 
             # 调 API 重新生成
-            answer = replay_query(
+            answer, resp_blocks = replay_query(
                 base_url,
                 token,
                 conv_id,
@@ -146,10 +149,36 @@ def _make_replay_task(base_url: str, token: str):
                 uploaded_files=uploaded_files or None,
                 memories=memories or None,
             )
+            # 提取真实 context 和完整 query 推入裁判队列
+            if resp_blocks:
+                ctx_xml = extract_context_from_blocks(resp_blocks)
+                if ctx_xml:
+                    push_replay_context(ctx_xml)
+
+            # 构造裁判用的完整 query（含 memories + attachments 信息）
+            judge_query = _build_judge_query(query, memories, attachments)
+            push_replay_judge_query(judge_query)
+
             return answer or "[ERROR] empty response"
         finally:
             # 清理临时会话
             cleanup_conversation(base_url, token, conv_id)
+
+
+def _build_judge_query(
+    query: str,
+    memories: list[dict] | None,
+    attachments: list[dict] | None,
+) -> str:
+    """构造裁判用的完整 query，拼接 memories 和 attachments 信息。"""
+    parts = [query]
+    if memories:
+        mem_lines = "\n".join(f"- {m['memory']}" for m in memories)
+        parts.append(f"<user_memories>\n{mem_lines}\n</user_memories>")
+    if attachments:
+        att_lines = "\n".join(f"- {a['name']} ({a['type']})" for a in attachments)
+        parts.append(f"<attachments>\n{att_lines}\n</attachments>")
+    return "\n\n".join(parts)
 
     return replay_task
 

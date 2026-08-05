@@ -378,11 +378,11 @@ def replay_query(
     memories: list[dict] | None = None,
     agent_mode: int = 0,
     timeout: float = 120,
-) -> str:
+) -> tuple[str, list[dict]]:
     """发送 query 到 chat/stream API，等 done 事件后从 DB 获取完整回答。
 
-    Args:
-        memories: MemorySearchItem 格式列表，直接传入 payload.memories。
+    Returns:
+        (answer_text, content_blocks) — answer_text 为最终文本，content_blocks 为完整结构。
     """
     import time as _time
 
@@ -409,7 +409,7 @@ def replay_query(
             timeout=timeout,
         ) as response:
             if response.status_code != 200:
-                return f"[ERROR] HTTP {response.status_code}"
+                return f"[ERROR] HTTP {response.status_code}", []
 
             for line in response.iter_lines():
                 if not line or not line.startswith("data: "):
@@ -420,32 +420,31 @@ def replay_query(
                 try:
                     event = json.loads(data_str)
                     event_type = event.get("type", "")
-                    event_data = event.get("data", {})
-                    if event_type == "done":
-                        assistant_message_id = event_data.get("assistant_message_id")
-                        break
-                    elif event_type == "error":
-                        # error 事件也可能携带 conversation_id，继续查 DB
+                    if event_type in ("done", "error"):
                         break
                 except json.JSONDecodeError:
                     continue
 
     except httpx.TimeoutException:
-        return f"[ERROR] Timeout after {timeout}s"
+        return f"[ERROR] Timeout after {timeout}s", []
     except Exception as exc:
-        return f"[ERROR] {type(exc).__name__}: {exc}"
+        return f"[ERROR] {type(exc).__name__}: {exc}", []
 
     # 等待 DB 写入完成
     _time.sleep(1)
 
-    # 取最后一条助手消息（done 事件正常时就是刚生成的那条）
-    return _fetch_last_assistant_answer(base_url, token, conversation_id)
+    # 取最后一条助手消息的文本和 content_blocks
+    return _fetch_last_assistant_blocks(base_url, token, conversation_id)
 
 
-def _fetch_last_assistant_answer(
+def _fetch_last_assistant_blocks(
     base_url: str, token: str, conversation_id: str
-) -> str:
-    """从会话消息列表中获取最后一条助手回答。"""
+) -> tuple[str, list[dict]]:
+    """从会话消息列表中获取最后一条助手回答的文本和完整 content_blocks。
+
+    Returns:
+        (answer_text, content_blocks) — 失败时 answer_text 为 "[ERROR] ..."。
+    """
     try:
         r = httpx.get(
             f"{base_url}/api/conversation/{conversation_id}/messages",
@@ -453,19 +452,36 @@ def _fetch_last_assistant_answer(
             timeout=10,
         )
         if r.status_code != 200:
-            return f"[ERROR] messages API HTTP {r.status_code}"
+            return f"[ERROR] messages API HTTP {r.status_code}", []
 
         data = r.json()
         messages = data.get("data", {}).get("messages", [])
 
-        # 找最后一条 assistant 消息
         for msg in reversed(messages):
             if msg.get("role") == "assistant":
-                return _extract_text_from_blocks(msg.get("content_blocks", []))
+                blocks = msg.get("content_blocks", [])
+                return _extract_text_from_blocks(blocks), blocks
 
-        return "[ERROR] no assistant message found"
+        return "[ERROR] no assistant message found", []
     except Exception as exc:
-        return f"[ERROR] fetch last answer: {exc}"
+        return f"[ERROR] fetch last answer: {exc}", []
+
+
+def extract_context_from_blocks(blocks: list[dict]) -> str:
+    """从 content_blocks 中提取 ToolResultBlock 内容，构造裁判用的 context XML。"""
+    parts = []
+    for block in blocks:
+        if isinstance(block, dict) and block.get("type") == "tool_result":
+            content = block.get("content", "")
+            if content and content.strip():
+                parts.append(content.strip())
+    if not parts:
+        return ""
+    xml_parts = ["<参考资料>"]
+    for i, part in enumerate(parts, 1):
+        xml_parts.append(f"<来源_{i}>\n{part}\n</来源_{i}>")
+    xml_parts.append("</参考资料>")
+    return "\n".join(xml_parts)
 
 
 def _extract_text_from_blocks(blocks: list[dict]) -> str:
