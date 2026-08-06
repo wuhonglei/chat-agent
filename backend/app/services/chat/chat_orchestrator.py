@@ -386,6 +386,16 @@ class ChatOrchestrator:
                                 query=user_message_text,
                                 user_id=user_id,
                             )
+                        # 将 user_memories 写入 user message metadata（供 eval replay 提取）
+                        if user_memories:
+                            message_service.update_user_message_metadata(
+                                user_message_id,
+                                {
+                                    "user_memories": [
+                                        m.model_dump() for m in user_memories
+                                    ]
+                                },
+                            )
                         kb_context_blocks = None
                         attachment_uploads: list[AttachmentUploadInfo] | None = None
                         if chat_request.agent_mode > 0:
