@@ -53,10 +53,12 @@ if _env_path.exists():
 from langfuse import Langfuse  # noqa: E402
 from langfuse.experiment import ExperimentItem  # noqa: E402
 
+import scripts.run_judge_eval as _judge_mod  # noqa: E402
 from scripts.run_judge_eval import (  # noqa: E402
     DATASET_NAME,
     completeness_evaluator,
     correctness_evaluator,
+    get_api_key,
     judge_task,
     push_replay_context,
     push_replay_judge_query,
@@ -107,7 +109,7 @@ def _make_replay_task(base_url: str, token: str):
 
     def replay_task(*, item: ExperimentItem, **kwargs) -> str:
         """replay task: 调 API 重新生成回答（含附件上传）。"""
-        item_input = item["input"] if isinstance(item["input"], dict) else {}  # type: ignore[index]
+        item_input = item.input if isinstance(item.input, dict) else {}
         query = extract_query_from_item(item_input)
         if not query:
             return "[ERROR] no query found"
@@ -118,7 +120,7 @@ def _make_replay_task(base_url: str, token: str):
 
         # 创建临时会话
         conv_id = create_conversation(
-            base_url, token, title=f"eval-replay-{item['id']}"
+            base_url, token, title=f"eval-replay-{getattr(item, 'id', id(item))}"
         )  # type: ignore[index]
         if not conv_id:
             return "[ERROR] failed to create conversation"
@@ -164,6 +166,8 @@ def _make_replay_task(base_url: str, token: str):
             # 清理临时会话
             cleanup_conversation(base_url, token, conv_id)
 
+    return replay_task
+
 
 def _build_judge_query(
     query: str,
@@ -180,14 +184,13 @@ def _build_judge_query(
         parts.append(f"<attachments>\n{att_lines}\n</attachments>")
     return "\n\n".join(parts)
 
-    return replay_task
-
 
 def run_eval(
     *,
     replay: bool = False,
     base_url: str = DEFAULT_BASE_URL,
     token: str = "",
+    limit: int | None = None,
 ) -> dict:
     """跑评估实验，返回 {run_name, avg_correctness, avg_completeness, item_count}。"""
     client = Langfuse(
@@ -204,6 +207,9 @@ def run_eval(
     total = len(dataset.items)
     print(f"Dataset: {DATASET_NAME} ({total} items)")
 
+    # 初始化裁判 API key
+    _judge_mod._api_key = get_api_key()
+
     if replay:
         if not token:
             token = os.environ.get("EVAL_GATE_TOKEN", "")
@@ -217,14 +223,29 @@ def run_eval(
     else:
         task = judge_task
 
-    result = dataset.run_experiment(
-        name=run_name,
-        description=f"CI eval gate ({total} items, mode={mode})",
-        task=task,
-        evaluators=[correctness_evaluator, completeness_evaluator],
-        max_concurrency=3,
-        metadata={"purpose": "ci_gate", "mode": mode, "dataset": DATASET_NAME},
-    )
+    items = dataset.items
+    if limit:
+        items = items[:limit]
+        print(f"Limit: {limit}/{total} items")
+        result = client.run_experiment(
+            name=DATASET_NAME,
+            run_name=run_name,
+            description=f"CI eval gate ({len(items)}/{total} items, mode={mode})",
+            data=items,
+            task=task,
+            evaluators=[correctness_evaluator, completeness_evaluator],
+            max_concurrency=3,
+            metadata={"purpose": "ci_gate", "mode": mode, "dataset": DATASET_NAME},
+        )
+    else:
+        result = dataset.run_experiment(
+            name=run_name,
+            description=f"CI eval gate ({total} items, mode={mode})",
+            task=task,
+            evaluators=[correctness_evaluator, completeness_evaluator],
+            max_concurrency=3,
+            metadata={"purpose": "ci_gate", "mode": mode, "dataset": DATASET_NAME},
+        )
 
     # 计算平均分
     score_sums: dict[str, float] = defaultdict(float)
@@ -328,6 +349,12 @@ def main() -> None:
         help="JWT 测试 token（replay 模式必需，也可设 EVAL_GATE_TOKEN 环境变量）",
     )
     parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="只跑前 N 条（默认全量）",
+    )
+    parser.add_argument(
         "--base-url",
         type=str,
         default=DEFAULT_BASE_URL,
@@ -376,6 +403,7 @@ def main() -> None:
             replay=args.replay,
             base_url=args.base_url,
             token=args.token or "",
+            limit=args.limit,
         )
     except Exception as exc:
         print(f"\n❌ ERROR: {exc}", file=sys.stderr)
