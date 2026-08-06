@@ -637,11 +637,11 @@ class MemoryConfig(BaseModel):
         description="Mem0 API 密钥，通过请求头 X-API-Key 发送；留空则禁用记忆 HTTP 调用",
     )
     search_limit: int = Field(
-        default=10,
+        default=5,
         description="搜索记忆条数上限",
     )
     search_threshold: float = Field(
-        default=0.5,
+        default=0.1,
         description="搜索记忆阈值",
     )
 
