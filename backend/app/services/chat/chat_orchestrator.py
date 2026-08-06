@@ -594,7 +594,6 @@ class ChatOrchestrator:
                     }
                     logger.info(
                         "Sending done message",
-                        conversation_id=conversation_id,
                         **done_event_payload,
                     )
                     yield build_done_event(done_event_payload)
