@@ -190,6 +190,32 @@ def call_judge(api_key: str, user_prompt: str) -> dict:
 
 _api_key: str | None = None
 _judge_cache: dict[str, dict] = {}  # key: item id, value: judge result
+_replay_context_queue: list[str] = []  # replay context 队列（task 存，evaluator 取）
+_replay_judge_query_queue: list[str] = []  # replay judge query 队列
+
+
+def push_replay_context(context_xml: str) -> None:
+    """replay 模式：replay_task 存入当前 item 的真实 context。"""
+    _replay_context_queue.append(context_xml)
+
+
+def pop_replay_context() -> str | None:
+    """replay 模式：evaluator 取出当前 item 的真实 context。"""
+    if _replay_context_queue:
+        return _replay_context_queue.pop(0)
+    return None
+
+
+def push_replay_judge_query(query: str) -> None:
+    """replay 模式：存入拼接了 memories/attachments 的完整 query。"""
+    _replay_judge_query_queue.append(query)
+
+
+def pop_replay_judge_query() -> str | None:
+    """replay 模式：evaluator 取出完整 query。"""
+    if _replay_judge_query_queue:
+        return _replay_judge_query_queue.pop(0)
+    return None
 
 
 def judge_task(*, item: ExperimentItem, **kwargs) -> str:
@@ -206,6 +232,14 @@ def _get_judge_result(input_data, metadata, output) -> dict:
     query, context_xml = extract_messages_for_judge(item_input)
     if not query:
         return {"error": "no query found"}
+
+    # replay 模式：优先使用 replay 的真实 query 和 context
+    replay_q = pop_replay_judge_query()
+    if replay_q:
+        query = replay_q
+    replay_ctx = pop_replay_context()
+    if replay_ctx:
+        context_xml = replay_ctx
 
     cache_key = f"{query[:100]}|{output[:100]}"
     if cache_key in _judge_cache:

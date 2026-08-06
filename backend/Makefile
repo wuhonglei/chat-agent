@@ -1,4 +1,4 @@
-.PHONY: format lint check install dev start stop clean help migrate
+.PHONY: format lint check install dev start stop clean help migrate eval-gate
 
 # Default target
 help:
@@ -74,3 +74,11 @@ clean:
 
 # All checks (format, lint, type check)
 all: format lint check
+
+# CI eval gate: run eval set, fail if scores drop below thresholds
+eval-gate:
+	uv run python scripts/run_eval_gate.py
+
+# CI eval gate (replay mode): regenerate answers via real API, then judge
+eval-gate-replay:
+	uv run python scripts/run_eval_gate.py --replay

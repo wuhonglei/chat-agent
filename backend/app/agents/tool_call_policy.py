@@ -103,7 +103,7 @@ class ToolCallPolicy:
         )
         if success and is_llm_tool(tool_name, TAVILY_SERVER, WEB_PAGES_EXTRACT_BARE):
             urls = arguments.get("urls")
-            if isinstance(urls, (list, set, tuple)):
+            if isinstance(urls, list | set | tuple):
                 self.extracted_urls.update(normalize_url(url) for url in urls if url)
 
     def _get_web_search_queries(self) -> list[str]:

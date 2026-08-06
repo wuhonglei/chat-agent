@@ -18,6 +18,7 @@ class MemoryService:
     def __init__(self, config: MemoryConfig) -> None:
         self.config = config
         self._timeout = 30.0
+        self._search_timeout = 5.0
 
     def _base_url(self) -> str:
         return self.config.base_url.rstrip("/")
@@ -94,7 +95,7 @@ class MemoryService:
             },
         ) as span:
             try:
-                async with httpx.AsyncClient(timeout=self._timeout) as client:
+                async with httpx.AsyncClient(timeout=self._search_timeout) as client:
                     resp = await client.post(url, json=body, headers=self._headers())
                     resp.raise_for_status()
                     data = resp.json()

@@ -379,10 +379,13 @@ class ChatOrchestrator:
                                     conversation_id=conversation_id,
                                 )
 
-                        user_memories = await memory_search(
-                            query=user_message_text,
-                            user_id=user_id,
-                        )
+                        if chat_request.memories is not None:
+                            user_memories = chat_request.memories
+                        else:
+                            user_memories = await memory_search(
+                                query=user_message_text,
+                                user_id=user_id,
+                            )
                         kb_context_blocks = None
                         attachment_uploads: list[AttachmentUploadInfo] | None = None
                         if chat_request.agent_mode > 0:
@@ -580,6 +583,8 @@ class ChatOrchestrator:
                             )
 
                     done_event_payload = {
+                        "conversation_id": conversation_id,
+                        "assistant_message_id": assistant_message_id,
                         "content_length": len(assistant_response.content),
                         "reasoning_length": len(assistant_response.reasoning),
                         "tool_calls_length": count_tool_use_blocks(

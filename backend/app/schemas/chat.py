@@ -17,6 +17,7 @@ from pydantic import (
 
 from app.mcp.tool_naming import llm_tool_name
 from app.schemas.llm import ToolMessage, ToolResultMessage, ToolUseMessage
+from app.schemas.user import MemorySearchItem
 from app.utils.common import gen_uuid
 from app.utils.date import get_datetime_now
 from app.utils.file import format_human_size
@@ -132,6 +133,10 @@ class ChatRequest(BaseModel):
     mentioned_blocks: list["AttachmentBlock"] = Field(
         default_factory=list,
         description="通过 @ 引用的附件块（不并入 content_blocks）",
+    )
+    memories: list[MemorySearchItem] | None = Field(
+        default=None,
+        description="预注入的用户记忆；提供时跳过服务端 memory_search",
     )
 
     @field_validator("content_blocks", mode="before")
