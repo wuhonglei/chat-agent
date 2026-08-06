@@ -182,6 +182,7 @@ def _build_judge_query(
     if attachments:
         att_lines = "\n".join(f"- {a['name']} ({a['type']})" for a in attachments)
         parts.append(f"<attachments>\n{att_lines}\n</attachments>")
+    parts.append(f"<current_time>{time.strftime('%Y-%m-%d %H:%M')}</current_time>")
     return "\n\n".join(parts)
 
 
