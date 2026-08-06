@@ -3,7 +3,7 @@
 import shutil
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
 
 from app.core.cache import (
@@ -132,6 +132,7 @@ async def search_conversations(
 @router.get("/{conversation_id}/messages")
 async def get_messages(
     conversation_id: str,
+    full_content: bool = Query(False, description="返回完整的 tool_result content（eval 用）"),
     db: Session = Depends(get_db),
     token_info: AuthTokenPayload = Depends(get_auth_token_info),
 ) -> ApiResponse[dict[str, Any]]:
@@ -142,7 +143,7 @@ async def get_messages(
 
     chat_messages = service.get_messages(
         conversation_id,
-        omit_tool_result_content_and_summary_when_structured=True,
+        omit_tool_result_content_and_summary_when_structured=not full_content,
     )
     data = {
         "total": len(chat_messages),

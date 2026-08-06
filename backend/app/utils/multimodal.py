@@ -100,7 +100,7 @@ def iter_rag_eligible_attachments(
         source_kind = block.type
         yield RagEligibleAttachment(
             content_id=markdown.id,
-            name=markdown.name or block.name or f"{markdown.id}.md",
+            name=block.name or markdown.name or f"{markdown.id}.md",
             storage_key=markdown.storage_key,
             token_size=markdown.token_size,
             source_kind=source_kind,

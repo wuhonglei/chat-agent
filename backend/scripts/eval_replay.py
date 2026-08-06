@@ -448,6 +448,7 @@ def _fetch_last_assistant_blocks(
     try:
         r = httpx.get(
             f"{base_url}/api/conversation/{conversation_id}/messages",
+            params={"full_content": "true"},
             headers=_get_auth_headers(token),
             timeout=10,
         )

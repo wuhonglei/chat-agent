@@ -354,4 +354,5 @@ async def test_pdf_nested_markdown_is_eligible(
         content_blocks=[pdf],
     )
     assert result is not None
+    assert result[0].name == "a.pdf"
     assert result[0].content == "pdf markdown"
