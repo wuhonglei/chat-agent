@@ -468,6 +468,34 @@ def _fetch_last_assistant_blocks(
         return f"[ERROR] fetch last answer: {exc}", []
 
 
+def fetch_user_memories_from_metadata(
+    base_url: str, token: str, conversation_id: str
+) -> list[dict]:
+    """从会话的 user message message_metadata 中提取 user_memories。"""
+    try:
+        r = httpx.get(
+            f"{base_url}/api/conversation/{conversation_id}/messages",
+            headers=_get_auth_headers(token),
+            timeout=10,
+        )
+        if r.status_code != 200:
+            return []
+
+        data = r.json()
+        messages = data.get("data", {}).get("messages", [])
+
+        for msg in messages:
+            if msg.get("role") == "user":
+                meta = msg.get("message_metadata", {})
+                memories = meta.get("user_memories", [])
+                if memories:
+                    return memories
+                break
+    except Exception:
+        pass
+    return []
+
+
 def extract_context_from_blocks(blocks: list[dict]) -> str:
     """从 content_blocks 中提取 ToolResultBlock 内容，构造裁判用的 context XML。"""
     parts = []

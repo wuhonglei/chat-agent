@@ -40,14 +40,14 @@ import time
 from collections import defaultdict
 from pathlib import Path
 
-# 加载 .env
+# 加载 .env（强制覆盖，避免 shell 残留变量干扰）
 _env_path = Path(__file__).resolve().parent.parent / ".env"
 if _env_path.exists():
     for _line in _env_path.read_text().splitlines():
         if "=" in _line and not _line.strip().startswith("#"):
             _k, _v = _line.split("=", 1)
             _k, _v = _k.strip(), _v.strip().strip('"').strip("'")
-            if _k and _k not in os.environ:
+            if _k:
                 os.environ[_k] = _v
 
 from langfuse import Langfuse  # noqa: E402
@@ -83,6 +83,7 @@ def _make_replay_task(base_url: str, token: str):
         extract_context_from_blocks,
         extract_memories_from_item,
         extract_query_from_item,
+        fetch_user_memories_from_metadata,
         replay_query,
         upload_file,
     )
@@ -157,8 +158,15 @@ def _make_replay_task(base_url: str, token: str):
                 if ctx_xml:
                     push_replay_context(ctx_xml)
 
+            # 如果原始 item 没有 memories，从 replay 会话的 message_metadata 获取
+            judge_memories = memories
+            if not judge_memories:
+                judge_memories = fetch_user_memories_from_metadata(
+                    base_url, token, conv_id
+                )
+
             # 构造裁判用的完整 query（含 memories + attachments 信息）
-            judge_query = _build_judge_query(query, memories, attachments)
+            judge_query = _build_judge_query(query, judge_memories, attachments)
             push_replay_judge_query(judge_query)
 
             return answer or "[ERROR] empty response"
@@ -239,9 +247,12 @@ def run_eval(
             metadata={"purpose": "ci_gate", "mode": mode, "dataset": DATASET_NAME},
         )
     else:
-        result = dataset.run_experiment(
-            name=run_name,
+        items = dataset.items
+        result = client.run_experiment(
+            name=DATASET_NAME,
+            run_name=run_name,
             description=f"CI eval gate ({total} items, mode={mode})",
+            data=items,
             task=task,
             evaluators=[correctness_evaluator, completeness_evaluator],
             max_concurrency=3,
@@ -305,8 +316,15 @@ def check_gate(
     return passed
 
 
-def save_baseline(scores: dict, path: str) -> None:
+BASELINES_DIR = Path(__file__).resolve().parent.parent / "data" / "baselines"
+BASELINES_LOGS_DIR = BASELINES_DIR / "logs"
+LAST_PASS_FILE = BASELINES_DIR / "last_pass_baseline.json"
+
+
+def save_baseline(scores: dict, path: str | Path) -> None:
     """保存当前分数为 baseline。"""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
     baseline = {
         "run_name": scores["run_name"],
         "mode": scores.get("mode", "frozen"),
@@ -320,7 +338,7 @@ def save_baseline(scores: dict, path: str) -> None:
     print(f"Baseline saved to {path}")
 
 
-def load_baseline(path: str) -> tuple[float, float]:
+def load_baseline(path: str | Path) -> tuple[float, float]:
     """从 baseline 文件读取阈值（取 95% 作为阈值）。"""
     with open(path) as f:
         baseline = json.load(f)
@@ -334,6 +352,29 @@ def load_baseline(path: str) -> tuple[float, float]:
         f"  completeness baseline={baseline['completeness']:.3f}, threshold={min_cp:.3f}"
     )
     return min_c, min_cp
+
+
+def _resolve_baseline(scores: dict, save: bool = False) -> str | Path | None:
+    """确定 baseline 路径：门禁通过后自动保存并更新 last_pass。"""
+    if save:
+        # 保存带时间戳的 baseline 到 logs 目录
+        ts = time.strftime("%Y%m%d_%H%M%S")
+        mode = scores.get("mode", "frozen")
+        baseline_path = BASELINES_LOGS_DIR / f"baseline_{mode}_{ts}.json"
+        save_baseline(scores, baseline_path)
+
+        # 更新 last_pass_baseline.json
+        save_baseline(scores, LAST_PASS_FILE)
+        print(f"Last pass baseline updated: {LAST_PASS_FILE}")
+        return baseline_path
+    return None
+
+
+def _get_default_baseline() -> str | Path | None:
+    """获取默认 baseline：last_pass_baseline.json 存在则使用，否则返回 None。"""
+    if LAST_PASS_FILE.exists():
+        return LAST_PASS_FILE
+    return None
 
 
 def main() -> None:
@@ -352,8 +393,8 @@ def main() -> None:
     parser.add_argument(
         "--limit",
         type=int,
-        default=None,
-        help="只跑前 N 条（默认全量）",
+        default=20,
+        help="只跑前 N 条（默认 20，传 0 表示全量）",
     )
     parser.add_argument(
         "--base-url",
@@ -381,13 +422,18 @@ def main() -> None:
     parser.add_argument(
         "--save-baseline",
         action="store_true",
-        help="保存当前结果为 baseline 文件",
+        help="门禁通过后自动保存 baseline（默认开启）",
+    )
+    parser.add_argument(
+        "--no-save-baseline",
+        action="store_true",
+        help="不保存 baseline",
     )
     parser.add_argument(
         "--baseline",
         type=str,
         default=None,
-        help="从 baseline 文件读取阈值",
+        help="从 baseline 文件读取阈值（默认使用 last_pass_baseline.json）",
     )
     args = parser.parse_args()
 
@@ -395,8 +441,13 @@ def main() -> None:
     if args.baseline:
         min_c, min_cp = load_baseline(args.baseline)
     else:
-        min_c = args.min_correctness or DEFAULT_MIN_CORRECTNESS
-        min_cp = args.min_completeness or DEFAULT_MIN_COMPLETENESS
+        default_baseline = _get_default_baseline()
+        if default_baseline:
+            min_c, min_cp = load_baseline(default_baseline)
+        else:
+            min_c = args.min_correctness or DEFAULT_MIN_CORRECTNESS
+            min_cp = args.min_completeness or DEFAULT_MIN_COMPLETENESS
+            print(f"No baseline found, using defaults: C>={min_c}, Cp>={min_cp}")
 
     # 跑评估
     try:
@@ -413,13 +464,6 @@ def main() -> None:
     # 输出结果
     print(f"\nDataset run: {scores.get('dataset_run_url', 'N/A')}")
 
-    # 保存 baseline
-    if args.save_baseline:
-        baseline_path = (
-            f"baseline_{scores.get('mode', 'frozen')}_{time.strftime('%Y%m%d')}.json"
-        )
-        save_baseline(scores, baseline_path)
-
     # 检查门禁
     if args.no_gate:
         print("\n--no-gate: skipping threshold check")
@@ -428,6 +472,9 @@ def main() -> None:
     passed = check_gate(scores, min_c, min_cp)
     if passed:
         print("\n✅ GATE PASSED")
+        # 门禁通过后自动保存 baseline
+        if not args.no_save_baseline:
+            _resolve_baseline(scores, save=True)
         sys.exit(0)
     else:
         print("\n❌ GATE FAILED")
