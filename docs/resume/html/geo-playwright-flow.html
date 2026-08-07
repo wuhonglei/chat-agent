@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GEO Playwright 采集流程</title>
+<style>
+  :root {
+    --bg: #f8f9fa;
+    --card: #ffffff;
+    --border: #e0e0e0;
+    --text: #1a1a2e;
+    --text-secondary: #555;
+    --accent: #4361ee;
+    --accent-light: #e8ecff;
+    --green: #2d9c5a;
+    --green-light: #e6f7ed;
+    --orange: #e67e22;
+    --orange-light: #fef3e2;
+    --red: #d63031;
+    --red-light: #fdecea;
+    --purple: #7c3aed;
+    --purple-light: #f0e6ff;
+    --cyan: #0891b2;
+    --cyan-light: #e0f7fa;
+    --gray-light: #f1f3f5;
+    --shadow: 0 1px 3px rgba(0,0,0,.08);
+    --shadow-lg: 0 4px 12px rgba(0,0,0,.1);
+    --radius: 10px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 32px 24px 60px;
+  }
+  .container { max-width: 960px; margin: 0 auto; }
+  h1 {
+    text-align: center;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--accent);
+  }
+  .subtitle {
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 15px;
+    margin-bottom: 40px;
+  }
+
+  /* timeline */
+  .timeline { position: relative; padding-left: 36px; }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px; top: 0; bottom: 0;
+    width: 3px;
+    background: linear-gradient(to bottom, var(--accent), var(--green));
+    border-radius: 2px;
+  }
+  .phase {
+    position: relative;
+    margin-bottom: 28px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px 24px;
+    transition: box-shadow .2s;
+  }
+  .phase:hover { box-shadow: var(--shadow-lg); }
+  .phase::before {
+    content: '';
+    position: absolute;
+    left: -29px; top: 24px;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    border: 3px solid var(--accent);
+    background: var(--card);
+    z-index: 1;
+  }
+  .phase[data-color="green"]::before  { border-color: var(--green); }
+  .phase[data-color="orange"]::before { border-color: var(--orange); }
+  .phase[data-color="purple"]::before { border-color: var(--purple); }
+  .phase[data-color="cyan"]::before   { border-color: var(--cyan); }
+  .phase[data-color="red"]::before    { border-color: var(--red); }
+
+  .phase-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .phase-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .phase-num.c-accent { background: var(--accent); }
+  .phase-num.c-green  { background: var(--green); }
+  .phase-num.c-orange { background: var(--orange); }
+  .phase-num.c-purple { background: var(--purple); }
+  .phase-num.c-cyan   { background: var(--cyan); }
+  .phase-num.c-red    { background: var(--red); }
+
+  .phase-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .phase-file {
+    font-size: 12px;
+    color: var(--text-secondary);
+    background: var(--gray-light);
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-left: auto;
+    white-space: nowrap;
+    font-family: "SF Mono", "Fira Code", monospace;
+  }
+  .phase-body { font-size: 14px; color: var(--text-secondary); }
+  .phase-body ul { list-style: none; padding: 0; }
+  .phase-body li {
+    position: relative;
+    padding-left: 18px;
+    margin-bottom: 6px;
+  }
+  .phase-body li::before {
+    content: '▸';
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 1px 7px;
+    border-radius: 4px;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+  .tag-accent { background: var(--accent-light); color: var(--accent); }
+  .tag-green  { background: var(--green-light);  color: var(--green); }
+  .tag-orange { background: var(--orange-light); color: var(--orange); }
+  .tag-red    { background: var(--red-light);    color: var(--red); }
+  .tag-purple { background: var(--purple-light); color: var(--purple); }
+  .tag-cyan   { background: var(--cyan-light);   color: var(--cyan); }
+
+  /* detail grid */
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 12px;
+  }
+  .detail-card {
+    background: var(--gray-light);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+  .detail-card h4 {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+  .detail-card p {
+    color: var(--text-secondary);
+    font-size: 12.5px;
+    line-height: 1.5;
+  }
+
+  /* footer */
+  .footer {
+    text-align: center;
+    margin-top: 40px;
+    color: #aaa;
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>GEO Playwright 采集流程</h1>
+  <p class="subtitle">从 Kafka 消费消息开始，至结果上传 GeoServer 结束</p>
+
+  <div class="timeline">
+
+    <!-- Phase 1 -->
+    <div class="phase" data-color="accent">
+      <div class="phase-header">
+        <span class="phase-num c-accent">1</span>
+        <span class="phase-title">Kafka 消息到达 &amp; 解析</span>
+        <span class="phase-file">KafkaConsumerService.ts</span>
+      </div>
+      <div class="phase-body">
+        <ul>
+          <li>应用启动时 <code>app.ts</code> 调用 <code>kafkaConsumerService.startConsumer()</code></li>
+          <li>Consumer 订阅 Topic，<code>eachBatch</code> 回调逐条解析 JSON → <code>TaskMessage</code></li>
+          <li><span class="tag tag-accent">校验</span> <code>validateTask()</code> 检查 id / prompt / taskStatus / aiPlatform 合法性</li>
+          <li>解析或校验失败 → 直接提交 offset 跳过，避免死循环</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Phase 2 -->
+    <div class="phase" data-color="orange">
+      <div class="phase-header">
+        <span class="phase-num c-orange">2</span>
+        <span class="phase-title">并发控制 &amp; 账号池检查</span>
+        <span class="phase-file">KafkaConsumerService.ts</span>
+      </div>
+      <div class="phase-body">
+        <ul>
+          <li><span class="tag tag-orange">并发</span> <code>MAX_CONCURRENT_TASKS = 1</code>，超限则 <code>pauseConsumption('concurrency')</code></li>
+          <li><span class="tag tag-orange">账号池</span> <code>redisServer.getFreeAccountCount()</code> 检查可用账号数</li>
+          <li>账号不足 → <code>pauseConsumption('emptyPool')</code>，每 5 秒轮询等待恢复</li>
+          <li>两种暂停原因独立管理，全部清除后才恢复消费</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Phase 3 -->
+    <div class="phase" data-color="purple">
+      <div class="phase-header">
+        <span class="phase-num c-purple">3</span>
+        <span class="phase-title">预占用账号 &amp; 提交 Offset</span>
+        <span class="phase-file">KafkaConsumerService.ts</span>
+      </div>
+      <div class="phase-body">
+        <ul>
+          <li><code>acquireSamplingAccount(task)</code> 从 Redis 原子获取账号（含 storageState / proxyPort）</li>
+          <li>预占用成功后才 <code>resolveOffset + commitOffsets</code>，保证 offset 不会先于取号提交</li>
+          <li>取号失败 → 移除任务、暂停消费、等待账号池恢复</li>
+          <li><span class="tag tag-cyan">Fire-and-forget</span> 提交后台执行，不阻塞下一条消息</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Phase 4 -->
+    <div class="phase" data-color="cyan">
+      <div class="phase-header">
+        <span class="phase-num c-cyan">4</span>
+        <span class="phase-title">通知 GeoServer → Processing</span>
+        <span class="phase-file">KafkaConsumerService.ts → GeoServerService.ts</span>
+      </div>
+      <div class="phase-body">
+        <ul>
+          <li><code>geoServerService.processingTask(taskId)</code> 更新任务状态为 Processing</li>
+          <li>失败仅记录日志，不中断主流程</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Phase 5 -->
+    <div class="phase" data-color="accent">
+      <div class="phase-header">
+        <span class="phase-num c-accent">5</span>
+        <span class="phase-title">Executor 执行（含重试）</span>
+        <span class="phase-file">executor.ts</span>
+      </div>
+      <div class="phase-body">
+        <ul>
+          <li><code>Executor.execute(task, { prefetchedAccount })</code></li>
+          <li>默认 <span class="tag tag-accent">3 次重试</span>，每次 <span class="tag tag-accent">5 分钟超时</span></li>
+          <li>第 2 次起随机切换代理端口</li>
+          <li><span class="tag tag-red">提前终止</span> <code>AccountLoginExpiredError</code> / <code>NoWebSearchError</code></li>
+        </ul>
+        <div class="detail-grid">
+          <div class="detail-card">
+            <h4>单次尝试流程（runOneAttempt）</h4>
+            <p>initialize → setAcquiredAccount → createBrowserContext → initializePage → performAIInteraction → collectData → markSuccess → cleanup</p>
+          </div>
+          <div class="detail-card">
+            <h4>超时保护</h4>
+            <p><code>Promise.race</code> 包裹整个尝试，超时抛出 <code>任务执行超时</code>，触发重试或放弃</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phase 5a -->
+    <div class="phase" data-color="accent">
+      <div class="phase-header">
+        <span class="phase-num c-accent">5a</span>
+        <span class="phase-title">创建浏览器上下文</span>
+        <span class="phase-file">contextManager.ts</span>
+      </div>
+      <div class="phase-body">
+        <ul>
+          <li><code>contextManager.createContext({ storageState, proxyPort, region, headless })</code></li>
+          <li>注入账号 Cookie（storageState）、代理、区域配置</li>
+          <li>Playwright 浏览器实例由 BrowserManager 管理，Context 隔离</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Phase 5b -->
+    <div class="phase" data-color="accent">
+      <div class="phase-header">
+        <span class="phase-num c-accent">5b</span>
+        <span class="phase-title">打开平台页面 &amp; 登录检查</span>
+        <span class="phase-file">createSamplingPlatformPage.ts / ChatGPTPage.ts / GoogleAIOverviewPage.ts</span>
+      </div>
+      <div class="phase-body">
+        <ul>
+          <li><code>createSamplingPlatformPage(aiPlatform, page)</code> 按平台创建页面对象</li>
+          <li><code>platformPage.open()</code> 导航到目标平台</li>
+          <li><span class="tag tag-red">登录失效</span> → Redis 标记过期 + SeaTalk 告警 + 抛 <code>AccountLoginExpiredError</code> 终止重试</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Phase 5c -->
+    <div class="phase" data-color="accent">
+      <div class="phase-header">
+        <span class="phase-num c-accent">5c</span>
+        <span class="phase-title">AI 交互 &amp; 数据采集</span>
+        <span class="phase-file">ChatGPTPage.ts / GoogleAIOverviewPage.ts</span>
+      </div>
+      <div class="phase-body">
+        <ul>
+          <li><code>performInteraction(prompt)</code> — 输入 prompt，等待 AI 完成回复</li>
+          <li><code>collectData()</code> — 提取 <code>markdownContent / rawData / productData / citedSources</code></li>
+          <li><span class="tag tag-red">无引用</span> citationCount = 0 → 抛 <code>NoWebSearchError</code> 终止重试</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Phase 6 -->
+    <div class="phase" data-color="green">
+      <div class="phase-header">
+        <span class="phase-num c-green">6</span>
+        <span class="phase-title">Cleanup — 截图上传 &amp; 资源回收</span>
+        <span class="phase-file">executor.ts</span>
+      </div>
+      <div class="phase-body">
+        <ul>
+          <li><code>platformPage.uploadImage(ossService)</code> — 截图上传 OSS，URL 写入结果</li>
+          <li>成功时回写 <code>storageState</code> 到 Redis（Cookie 刷新）</li>
+          <li><code>contextManager.closeContext()</code> — 关闭浏览器上下文</li>
+          <li>记录耗时、截图哈希、数据摘要等日志</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Phase 7 -->
+    <div class="phase" data-color="green">
+      <div class="phase-header">
+        <span class="phase-num c-green">7</span>
+        <span class="phase-title">上传结果到 GeoServer</span>
+        <span class="phase-file">KafkaConsumerService.ts → GeoServerService.ts</span>
+      </div>
+      <div class="phase-body">
+        <ul>
+          <li><code>geoServerService.uploadTaskResult(result)</code></li>
+          <li>上传内容：<code>TaskReportRequest</code>（含 markdownContent / rawData / productData / citedSources / screenshotUrl / metadata / duration）</li>
+          <li>失败仅记录日志，不影响后续流程</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Phase 8 -->
+    <div class="phase" data-color="green">
+      <div class="phase-header">
+        <span class="phase-num c-green">8</span>
+        <span class="phase-title">释放账号 &amp; 恢复消费</span>
+        <span class="phase-file">KafkaConsumerService.ts</span>
+      </div>
+      <div class="phase-body">
+        <ul>
+          <li><code>finally</code> 块中 <code>releaseSamplingAccount(accountKey)</code> — 无论成败都释放账号回池</li>
+          <li><code>taskManager.removeRunningTask()</code> — 移除运行中任务计数</li>
+          <li><code>checkAndResumeConsuming()</code> — 并发数恢复后移除 <code>concurrency</code> 暂停原因，尝试恢复消费</li>
+        </ul>
+      </div>
+    </div>
+
+  </div><!-- /timeline -->
+
+  <p class="footer">sampling-tool · GEO Playwright 采集流程</p>
+</div>
+</body>
+</html>

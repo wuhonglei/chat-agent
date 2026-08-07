@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Camoufox 指纹伪装方案全景</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --surface: #f8f9fb;
+    --border: #e2e6ec;
+    --text: #1a1d23;
+    --text-secondary: #5a6270;
+    --accent: #2563eb;
+    --accent-light: #eff6ff;
+    --green: #16a34a;
+    --green-bg: #f0fdf4;
+    --orange: #ea580c;
+    --orange-bg: #fff7ed;
+    --purple: #7c3aed;
+    --purple-bg: #f5f3ff;
+    --red: #dc2626;
+    --red-bg: #fef2f2;
+    --cyan: #0891b2;
+    --cyan-bg: #ecfeff;
+    --pink: #db2777;
+    --pink-bg: #fdf2f8;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 40px 24px 80px;
+  }
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--text);
+  }
+  .subtitle {
+    font-size: 15px;
+    color: var(--text-secondary);
+    margin-bottom: 40px;
+    line-height: 1.6;
+  }
+
+  /* Architecture overview */
+  .arch-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px 28px;
+    margin-bottom: 36px;
+  }
+  .arch-box h2 {
+    font-size: 17px;
+    font-weight: 600;
+    margin-bottom: 14px;
+    color: var(--accent);
+  }
+  .arch-flow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-size: 13.5px;
+  }
+  .arch-node {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .arch-arrow { color: var(--text-secondary); font-size: 18px; }
+  .arch-note {
+    margin-top: 12px;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  /* Section headers */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 36px 0 16px;
+  }
+  .section-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  .section-header h2 {
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  /* Card grid */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 14px;
+    margin-bottom: 8px;
+  }
+  .card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 20px;
+    transition: box-shadow 0.15s;
+  }
+  .card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+  .card-title {
+    font-size: 14.5px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-body {
+    font-size: 13.5px;
+    color: var(--text-secondary);
+    line-height: 1.65;
+  }
+  .card-body ul { padding-left: 16px; margin: 4px 0; }
+  .card-body li { margin-bottom: 3px; }
+  .tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 4px;
+    letter-spacing: 0.3px;
+  }
+  .tag-patch { background: var(--accent-light); color: var(--accent); }
+  .tag-cpp { background: var(--green-bg); color: var(--green); }
+  .tag-js { background: var(--orange-bg); color: var(--orange); }
+  .tag-file { background: var(--purple-bg); color: var(--purple); }
+  .tag-infra { background: var(--cyan-bg); color: var(--cyan); }
+
+  /* Comparison table */
+  .comparison-wrap {
+    overflow-x: auto;
+    margin: 20px 0 36px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+  }
+  th {
+    background: var(--surface);
+    font-weight: 600;
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  td {
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface); }
+  .check { color: var(--green); font-weight: 600; }
+  .cross { color: var(--red); }
+  .partial { color: var(--orange); }
+
+  /* Footer */
+  .footer {
+    margin-top: 48px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Camoufox 指纹伪装方案全景</h1>
+<p class="subtitle">
+  Camoufox 是 Firefox 的反检测分支，所有指纹伪装均在 <strong>C++ / Juggler 内核层</strong>实现，通过 <code>CAMOU_CONFIG</code> 环境变量注入 JSON 配置，JavaScript 侧完全无痕。
+  共 <strong>34 个 patch</strong>，覆盖浏览器 API、渲染引擎、网络栈、媒体子系统。
+</p>
+
+<!-- Architecture -->
+<div class="arch-box">
+  <h2>架构总览</h2>
+  <div class="arch-flow">
+    <span class="arch-node">CAMOU_CONFIG (JSON)</span>
+    <span class="arch-arrow">→</span>
+    <span class="arch-node">MaskConfig.hpp (解析层)</span>
+    <span class="arch-arrow">→</span>
+    <span class="arch-node">patches/*.patch (注入点)</span>
+    <span class="arch-arrow">→</span>
+    <span class="arch-node">Firefox C++ API 返回伪装值</span>
+  </div>
+  <p class="arch-note">
+    MaskConfig.hpp 统一从 CAMOU_CONFIG 环境变量读取 JSON，提供 GetString / GetUint32 / GetDouble / GetBool / GetStringList 等类型安全接口。
+    各 patch 在 Firefox 的 DOM、Media、Net、GFX 模块中插入读取逻辑，替换真实指纹后返回给 JS 层。
+    <br>分块机制：长 JSON 拆为 CAMOU_CONFIG_1, _2, ... (Linux 每块 32KB，Windows 2KB)，C++ 端按序拼接后解析。
+  </p>
+</div>
+
+<!-- 1. Browser Identity -->
+<div class="section-header">
+  <div class="section-icon" style="background:var(--accent-light);color:var(--accent);">🌐</div>
+  <h2>浏览器身份伪装</h2>
+</div>
+<div class="card-grid">
+  <div class="card">
+    <div class="card-title">Navigator 属性 <span class="tag tag-patch">navigator-spoofing.patch</span></div>
+    <div class="card-body">
+      <ul>
+        <li><code>navigator.userAgent</code> / <code>platform</code> / <code>oscpu</code></li>
+        <li><code>navigator.hardwareConcurrency</code> (CPU 核心数)</li>
+        <li>每个 BrowsingContext 独立配置，支持多标签不同身份</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">HTTP 请求头 <span class="tag tag-patch">network-patches.patch</span></div>
+    <div class="card-body">
+      <ul>
+        <li>User-Agent / Accept / Accept-Language 同步伪装</li>
+        <li>修改 <code>nsHttpHandler</code> 层，与 navigator 值一致</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">语言 / Locale <span class="tag tag-patch">locale-spoofing.patch</span></div>
+    <div class="card-body">
+      <ul>
+        <li><code>navigator.language</code> / <code>languages</code></li>
+        <li>Accept-Language HTTP 头</li>
+        <li>支持 <code>locale:language</code> + <code>locale:region</code> 分别设置</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">时区 <span class="tag tag-patch">timezone-spoofing.patch</span></div>
+    <div class="card-body">
+      <ul>
+        <li><code>Date</code> / <code>Intl.DateTimeFormat</code> 返回伪装时区</li>
+        <li>修改 <code>TimezoneManager</code>，Worker 进程也可读取</li>
+        <li>Fallback 到 CAMOU_CONFIG 的 <code>timezone</code> 字段</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">地理位置 <span class="tag tag-patch">geolocation-spoofing.patch</span></div>
+    <div class="card-body">
+      <ul>
+        <li>伪造 <code>GeolocationPosition</code> 的经纬度</li>
+        <li>修改 <code>dom/geolocation/Geolocation.cpp</code></li>
+        <li>配置项：<code>geolocation:latitude</code> / <code>geolocation:longitude</code></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- 2. Screen & Window -->
+<div class="section-header">
+  <div class="section-icon" style="background:var(--green-bg);color:var(--green);">🖥️</div>
+  <h2>屏幕与窗口伪装</h2>
+</div>
+<div class="card-grid">
+  <div class="card">
+    <div class="card-title">屏幕参数 <span class="tag tag-patch">screen-spoofing.patch</span></div>
+    <div class="card-body">
+      <ul>
+        <li><code>screen.width/height</code> / <code>availWidth/availHeight</code></li>
+        <li><code>colorDepth</code> / <code>pixelDepth</code></li>
+        <li>修改 <code>nsScreen.cpp</code> 的 <code>GetDeviceContext</code></li>
+      </ul>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">窗口尺寸 <span class="tag tag-patch">fingerprint-injection.patch</span></div>
+    <div class="card-body">
+      <ul>
+        <li><code>window.innerWidth/innerHeight</code></li>
+        <li><code>outerWidth/outerHeight</code></li>
+        <li><code>screenX/screenY</code> / <code>document.body.client*</code></li>
+      </ul>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">指针类型 <span class="tag tag-patch">force-default-pointer.patch</span></div>
+    <div class="card-body">
+      <ul>
+        <li>强制 <code>pointer: coarse</code>，不暴露触控/笔输入</li>
+        <li>修改 <code>nsMediaFeatures.cpp</code> 的 <code>GetPointerCapabilities</code></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- 3. Rendering / Canvas / WebGL -->
+<div class="section-header">
+  <div class="section-icon" style="background:var(--purple-bg);color:var(--purple);">🎨</div>
+  <h2>渲染与图形指纹伪装</h2>
+</div>
+<div class="card-grid">
+  <div class="card">
+    <div class="card-title">WebGL 参数 <span class="tag tag-patch">webgl-spoofing.patch</span></div>
+    <div class="card-body">
+      <ul>
+        <li><code>getParameter()</code> 全量伪装 (vendor/renderer/extensions)</li>
+        <li><code>getShaderPrecisionFormat()</code> 精度伪装</li>
+        <li><code>getContextAttributes()</code> 属性伪装</li>
+        <li>WebGL1 / WebGL2 独立配置</li>
+        <li>Per-context 管理：WebGLParamsManager</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">字体列表 <span class="tag tag-patch">font-list-spoofing.patch</span></div>
+    <div class="card-body">
+      <ul>
+        <li>伪造 <code>document.fonts</code> 可枚举字体集合</li>
+        <li>FontListManager：Per-context 字体白名单</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">字体加载劫持 <span class="tag tag-patch">font-hijacker.patch</span></div>
+    <div class="card-body">
+      <ul>
+        <li>修改 <code>gfxPlatformFontList</code>，仅返回配置字体子集</li>
+        <li>防止通过字体度量 (glyph width/height) 推断 OS</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">字体间距随机化 <span class="tag tag-patch">anti-font-fingerprinting.patch</span></div>
+    <div class="card-body">
+      <ul>
+        <li>FontSpacingSeedManager：注入随机 seed 修改字形间距</li>
+        <li>同一 seed → 同一结果（确定性，不跳变）</li>
+        <li>Worker 进程 fallback 到 <code>fonts:spacing_seed</code></li>
+      </ul>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">系统 UI 字体 <span class="tag tag-patch">system-ui-font-spoofing.patch</span></div>
+    <div class="card-body">
+      <ul>
+        <li><code>system-ui</code> CSS 关键字映射到伪装 OS 对应字体</li>
+        <li>修改 <code>gfxPlatformFontList::GetSystemUIFontFamily</code></li>
+      </ul>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">CSS2 系统字体 <span class="tag tag-patch">font-system-fonts-css2.patch</span></div>
+    <div class="card-body">
+      <ul>
+        <li>menu / button / caption 等 CSS2 系统字体关键字伪装</li>
+        <li>根据 <code>navigator.platform</code> 动态选择对应 OS 字体族</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">CSS 动画控制 <span class="tag tag-patch">no-css-animations.patch</span></div>
+    <div class="card-body">
+      <ul>
+        <li>可禁用动画（<code>disableInstantAnimations</code>），防止动画时间侧信道</li>
+        <li>修改 <code>AnimationEffect::GetComputedTimingAt</code></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- 4. Media / Audio -->
+<div class="section-header">
+  <div class="section-icon" style="background:var(--orange-bg);color:var(--orange);">🎵</div>
+  <h2>媒体与音频指纹伪装</h2>
+</div>
+<div class="card-grid">
+  <div class="card">
+    <div class="card-title">AudioContext 采样率 <span class="tag tag-patch">audio-context-spoofing.patch</span></div>
+    <div class="card-body">
+      <ul>
+        <li>伪造 <code>AudioContext.sampleRate</code></li>
+        <li>修改 <code>CubebUtils::PreferredSampleRate</code></li>
+        <li>配置项：<code>AudioContext:sampleRate</code></li>
+      </ul>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">音频指纹噪声 <span class="tag tag-patch">audio-fingerprint-manager.patch</span></div>
+    <div class="card-body">
+      <ul>
+        <li>AudioFingerprintManager：基于 seed 的 LCG 确定性噪声注入</li>
+        <li>0.8% 方差 + 非线性多项式调整，比 Brave 的 0.1-0.2% 更抗逆向</li>
+        <li>同时处理 float 和 uint8 音频数据</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">媒体设备数量 <span class="tag tag-patch">media-device-spoofing.patch</span></div>
+    <div class="card-body">
+      <ul>
+        <li>伪造 <code>navigator.mediaDevices.enumerateDevices()</code></li>
+        <li>摄像头 / 麦克风 / 扬声器数量独立配置</li>
+        <li>可完全禁用媒体设备枚举</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">语音合成 <span class="tag tag-patch">voice-spoofing.patch</span> <span class="tag tag-patch">speech-voices-spoofing.patch</span></div>
+    <div class="card-body">
+      <ul>
+        <li>伪造 <code>SpeechSynthesis.getVoices()</code> 返回列表</li>
+        <li>SpeechVoicesManager：Per-context 语音白名单</li>
+        <li>配置项：<code>voices</code> 数组（lang/name/voiceUri/isDefault/isLocalService）</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- 5. Network / WebRTC -->
+<div class="section-header">
+  <div class="section-icon" style="background:var(--red-bg);color:var(--red);">🔒</div>
+  <h2>网络与通信伪装</h2>
+</div>
+<div class="card-grid">
+  <div class="card">
+    <div class="card-title">WebRTC IP 泄露防护 <span class="tag tag-patch">webrtc-ip-spoofing.patch</span></div>
+    <div class="card-body">
+      <ul>
+        <li>WebRTCIPManager：伪造 ICE candidate 中的 IPv4 / IPv6</li>
+        <li>Per-context 独立 IP，支持多标签不同出口</li>
+        <li>修改后自动 disable 函数，防止二次调用暴露真实 IP</li>
+        <li>配置项：<code>webrtc:ipv4</code> / <code>webrtc:ipv6</code></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- 6. Anti-Detection Infrastructure -->
+<div class="section-header">
+  <div class="section-icon" style="background:var(--cyan-bg);color:var(--cyan);">🛡️</div>
+  <h2>反检测基础设施</h2>
+</div>
+<div class="card-grid">
+  <div class="card">
+    <div class="card-title">Shadow DOM Bypass <span class="tag tag-patch">shadow-root-bypass.patch</span></div>
+    <div class="card-body">
+      <ul>
+        <li>修改 <code>Element.webidl</code>，自动化脚本可穿透 Shadow Root</li>
+        <li>防止网站用 Shadow DOM 隐藏检测元素</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">跨进程配置分发 <span class="tag tag-patch">cross-process-storage.patch</span></div>
+    <div class="card-body">
+      <ul>
+        <li>RoverfoxStorageManager：跨 content process 的配置存储</li>
+        <li>Worker 进程也能读取 CAMOU_CONFIG</li>
+        <li>修改 <code>ContentParent.cpp</code> IPC 通道</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">ChromeUtils 桥接 <span class="tag tag-patch">chromeutil.patch</span></div>
+    <div class="card-body">
+      <ul>
+        <li>暴露 <code>camouGetString</code> / <code>camouGetBool</code> / <code>camouDebug</code> 给 JS</li>
+        <li>Chrome 层可读取 C++ 侧配置</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">全局样式控制 <span class="tag tag-patch">global-style-sheets.patch</span></div>
+    <div class="card-body">
+      <ul>
+        <li>可禁用浏览器主题（<code>disableTheming</code>），消除主题指纹</li>
+        <li>修改 <code>GlobalStyleSheetCache</code></li>
+      </ul>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">配置加载 <span class="tag tag-patch">config.patch</span></div>
+    <div class="card-body">
+      <ul>
+        <li><code>camoufox.cfg</code> 文件集成到构建</li>
+        <li>浏览器启动时自动加载配置</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- Comparison Table -->
+<div class="section-header">
+  <div class="section-icon" style="background:var(--pink-bg);color:var(--pink);">📊</div>
+  <h2>与其他方案对比</h2>
+</div>
+<div class="comparison-wrap">
+<table>
+  <thead>
+    <tr>
+      <th>维度</th>
+      <th>Camoufox (C++ Patch)</th>
+      <th>puppeteer-extra-stealth (JS 注入)</th>
+      <th>Firefox RFP (about:config)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>伪装层级</td>
+      <td><span class="check">C++ / DOM 内核</span></td>
+      <td><span class="partial">JS 页面层 override</span></td>
+      <td><span class="check">C++ 内核</span></td>
+    </tr>
+    <tr>
+      <td>页面侧可检测性</td>
+      <td><span class="check">不可检测（无 override 痕迹）</span></td>
+      <td><span class="cross">可通过 toString() 检测</span></td>
+      <td><span class="check">不可检测</span></td>
+    </tr>
+    <tr>
+      <td>WebGL 伪装</td>
+      <td><span class="check">全量（vendor/renderer/params/shader）</span></td>
+      <td><span class="cross">不支持</span></td>
+      <td><span class="partial">仅报告通用值</span></td>
+    </tr>
+    <tr>
+      <td>音频指纹</td>
+      <td><span class="check">采样率 + 确定性噪声注入</span></td>
+      <td><span class="cross">不支持</span></td>
+      <td><span class="partial">仅禁用 AudioContext</span></td>
+    </tr>
+    <tr>
+      <td>字体伪装</td>
+      <td><span class="check">列表 + 加载劫持 + 间距随机化</span></td>
+      <td><span class="cross">不支持</span></td>
+      <td><span class="partial">限制字体枚举</span></td>
+    </tr>
+    <tr>
+      <td>WebRTC IP</td>
+      <td><span class="check">Per-context 伪造 IPv4/IPv6</span></td>
+      <td><span class="cross">不支持</span></td>
+      <td><span class="partial">禁用 mDNS</span></td>
+    </tr>
+    <tr>
+      <td>多身份隔离</td>
+      <td><span class="check">Per-BrowsingContext 独立配置</span></td>
+      <td><span class="cross">全局生效</span></td>
+      <td><span class="cross">全局生效</span></td>
+    </tr>
+    <tr>
+      <td>配置注入方式</td>
+      <td>CAMOU_CONFIG 环境变量（JSON）</td>
+      <td>JS 脚本注入</td>
+      <td>about:config pref</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<!-- Config injection -->
+<div class="arch-box">
+  <h2>配置注入机制</h2>
+  <div class="card-body" style="font-size:13.5px;color:var(--text-secondary);line-height:1.7;">
+    <p><strong>环境变量分块：</strong>Python 库将 JSON 按 32KB (Linux) / 2KB (Windows) 拆分为 <code>CAMOU_CONFIG_1</code>, <code>CAMOU_CONFIG_2</code>, ...，C++ 端按序拼接后解析。若无分块变量，fallback 读单一 <code>CAMOU_CONFIG</code>。</p>
+    <p style="margin-top:8px;"><strong>直接启动：</strong>支持在 shell 中 <code>CAMOU_CONFIG='{...}' ./camoufox-bin</code> 直接传值。</p>
+    <p style="margin-top:8px;"><strong>Python 库：</strong>通过 Playwright 的 <code>env</code> 参数传递，会替换整个进程环境，shell 环境变量被覆盖。</p>
+    <p style="margin-top:8px;"><strong>配置文件：</strong><code>camoufox.cfg</code> 随构建打包，启动时自动加载。</p>
+  </div>
+</div>
+
+<div class="footer">
+  Camoufox 指纹伪装方案分析 · 基于 patches/ 和 additions/camoucfg/ 源码 · 2026-08
+</div>
+
+</div>
+</body>
+</html>
