@@ -202,6 +202,30 @@ class BadCaseService(DbService):
             by_attribution=by_attribution,
         )
 
+    def update_judge_scores(
+        self,
+        *,
+        message_id: str,
+        source: BadCaseSource,
+        judge_scores: dict[str, Any],
+    ) -> BadCaseItemDb | None:
+        """回写裁判分数到已有 bad case（如 thumb_down 补评）。"""
+        if not message_id:
+            return None
+        db = self._ensure_db()
+        item = db.exec(
+            select(BadCaseItemDb).where(
+                BadCaseItemDb.message_id == message_id,
+                BadCaseItemDb.source == source.value,
+            )
+        ).first()
+        if not item:
+            return None
+        item.judge_scores = judge_scores
+        db.add(item)
+        db.flush()
+        return item
+
     def dismiss_by_message(self, message_id: str) -> int:
         """取消点踩时，将该 message 的 pending 状态的 thumb_down case 标记为 dismissed。返回处理条数。"""
         db = self._ensure_db()

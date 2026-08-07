@@ -583,7 +583,10 @@ class ChatOrchestrator:
                         and root_span is not None
                     ):
                         try:
-                            root_span.update(output=assistant_response.content)
+                            root_span.update(
+                                output=assistant_response.content,
+                                metadata={"status": MessageStatus.DONE.value},
+                            )
                         except Exception as exc:
                             logger.warning(
                                 "Failed to update Langfuse root span output",

@@ -70,6 +70,32 @@ services:
       - chat-agent-network
     restart: unless-stopped
 
+  evaluator:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: chat-agent-evaluator
+    command: ["uv", "run", "python", "-m", "eval_worker.main"]
+    environment:
+      DATABASE__HOST: postgres
+      APP__DEBUG: "0"
+      EVAL_WORKER__ENABLED: "true"
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    networks:
+      - chat-agent-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+
 networks:
   chat-agent-network:
     driver: bridge

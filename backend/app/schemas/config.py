@@ -705,3 +705,36 @@ class WechatConfig(BaseModel):
 
     app_id: str = Field(..., description="微信开放平台 AppID")
     app_secret: str = Field(..., description="微信开放平台 AppSecret")
+
+
+class EvalWorkerConfig(BaseModel):
+    """评估 Worker 配置"""
+
+    enabled: bool = Field(default=False, description="是否启用评估 worker")
+    schedule_cron: str = Field(
+        default="0 3 * * *",
+        description="定时任务 cron 表达式",
+    )
+    judge_model_scenario: str = Field(
+        default="summarization",
+        description="裁判模型使用的 scenario（从 ModelsConfig 解析）",
+    )
+    judge_concurrency: int = Field(default=5, description="裁判并发数")
+    judge_timeout_s: float = Field(
+        default=60.0, description="单条裁判调用超时（秒）"
+    )
+    judge_low_score_threshold: int = Field(
+        default=3, description="低分阈值（低于此分入 bad case 队列）"
+    )
+    sample_rate_high: float = Field(default=0.40, description="高风险采样比例")
+    sample_rate_medium: float = Field(default=0.15, description="中风险采样比例")
+    sample_rate_low: float = Field(default=0.05, description="低风险采样比例")
+    quick_follow_up_threshold_s: int = Field(
+        default=30, description="快速追问阈值（秒）"
+    )
+    high_latency_threshold_s: float = Field(
+        default=30.0, description="高延迟特殊采样阈值（秒）"
+    )
+    lookback_hours: int = Field(
+        default=24, description="拉取最近 N 小时的 Trace"
+    )

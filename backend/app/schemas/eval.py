@@ -103,3 +103,22 @@ class BadCaseStatsResponse(BaseModel):
     by_status: dict[str, int]
     by_source: dict[str, int]
     by_attribution: dict[str, int]
+
+
+class EvalRunLogResponse(BaseModel):
+    """评估运行日志响应"""
+
+    id: str
+    run_type: str
+    started_at: datetime
+    finished_at: datetime | None
+    status: str
+    total_traces: int
+    after_dedup: int
+    candidate_pool: int
+    sampled_count: int
+    sample_breakdown: dict[str, Any]
+    judge_success: int
+    judge_failed: int
+    low_score_count: int
+    error_message: str | None

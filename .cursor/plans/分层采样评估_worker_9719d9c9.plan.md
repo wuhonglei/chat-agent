@@ -4,28 +4,28 @@ overview: 按 batch_eval_worker_design.md 方案 A 落地独立评估 Worker：�
 todos:
   - id: eval-run-log
     content: 新增 EvalRunLog 模型 + Alembic 迁移 + schema
-    status: in_progress
+    status: completed
   - id: called-tools-meta
     content: rule_evaluator 写入 called_tools；成功路径写 metadata.status=done
-    status: pending
+    status: completed
   - id: sampler
     content: 实现 sampler.py（方案 A 特殊信号）+ 单元测试
-    status: pending
+    status: completed
   - id: judge
     content: 实现 judge_evaluator.py + 解析单测
-    status: pending
+    status: completed
   - id: batch-service
     content: 实现 BatchEvalService：Langfuse 拉 Trace（规则分完成门槛）+ bad_case join + 编排
-    status: pending
+    status: completed
   - id: worker-script-config
     content: eval_worker 入口、run_batch_eval 脚本、EvalWorkerConfig、apscheduler 依赖
-    status: pending
+    status: completed
   - id: docker-compose
     content: docker-compose 增加 evaluator 服务
-    status: pending
+    status: completed
   - id: verify
     content: 单测 + dry-run/小窗口联调验证
-    status: pending
+    status: completed
 isProject: false
 ---
 
