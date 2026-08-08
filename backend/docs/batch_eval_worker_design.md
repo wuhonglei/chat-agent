@@ -1002,12 +1002,12 @@ from app.utils.logger import logger
 # ── LLM 调用器 ──────────────────────────────────────────────
 # 使用项目已有的 LLM 基础设施调裁判模型
 async def judge_llm_caller(messages: list[dict]) -> str:
-    """裁判模型调用器。使用配置中的 summarization 场景模型。"""
+    """裁判模型调用器。使用配置中的 judge 场景模型。"""
     from openai import AsyncOpenAI
 
     from app.services.base_service.model_resolver import resolve_scenario
 
-    llm_config = resolve_scenario("summarization")
+    llm_config = resolve_scenario("judge")
     client = AsyncOpenAI(
         api_key=llm_config.api_key,
         base_url=llm_config.api_base,
@@ -1136,8 +1136,8 @@ class EvalWorkerConfig(BaseModel):
         description="定时任务 cron 表达式",
     )
     judge_model_scenario: str = Field(
-        default="summarization",
-        description="裁判模型使用的 scenario（从 ModelsConfig 解析）",
+        default="judge",
+        description="裁判模型使用的 scenario（models.scenarios.judge）",
     )
     judge_concurrency: int = Field(default=5, description="裁判并发数")
     judge_low_score_threshold: int = Field(

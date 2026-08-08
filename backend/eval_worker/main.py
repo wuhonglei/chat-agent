@@ -18,7 +18,7 @@ from eval_worker.config import get_eval_worker_config
 
 
 async def judge_llm_caller(messages: list[dict[str, str]]) -> str:
-    """裁判模型调用器。使用配置中的 scenario 模型。"""
+    """裁判模型调用器。使用配置中的 judge scenario 模型。"""
     cfg = get_eval_worker_config()
     llm_config = resolve_scenario(cfg.judge_model_scenario)
     client = AsyncOpenAI(

@@ -716,13 +716,11 @@ class EvalWorkerConfig(BaseModel):
         description="定时任务 cron 表达式",
     )
     judge_model_scenario: str = Field(
-        default="summarization",
-        description="裁判模型使用的 scenario（从 ModelsConfig 解析）",
+        default="judge",
+        description="裁判模型使用的 scenario（models.scenarios.judge）",
     )
     judge_concurrency: int = Field(default=5, description="裁判并发数")
-    judge_timeout_s: float = Field(
-        default=60.0, description="单条裁判调用超时（秒）"
-    )
+    judge_timeout_s: float = Field(default=60.0, description="单条裁判调用超时（秒）")
     judge_low_score_threshold: int = Field(
         default=3, description="低分阈值（低于此分入 bad case 队列）"
     )
@@ -735,6 +733,4 @@ class EvalWorkerConfig(BaseModel):
     high_latency_threshold_s: float = Field(
         default=30.0, description="高延迟特殊采样阈值（秒）"
     )
-    lookback_hours: int = Field(
-        default=24, description="拉取最近 N 小时的 Trace"
-    )
+    lookback_hours: int = Field(default=24, description="拉取最近 N 小时的 Trace")
