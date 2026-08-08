@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, cast
 
 import httpx
 from sqlmodel import Session, select
@@ -29,11 +29,11 @@ CHAT_TURN_OBSERVATION_NAME = "chat-turn"
 
 def _trace_to_dict(trace: Any) -> dict[str, Any]:
     if isinstance(trace, dict):
-        return trace
+        return cast(dict[str, Any], trace)
     if hasattr(trace, "model_dump"):
-        return trace.model_dump()
+        return cast(dict[str, Any], trace.model_dump())
     if hasattr(trace, "dict"):
-        return trace.dict()
+        return cast(dict[str, Any], trace.dict())
     return dict(trace)
 
 
@@ -437,10 +437,9 @@ class BatchEvalService:
 
         if message_ids:
             with Session(engine) as db:
+                message_id_column = cast(Any, BadCaseItemDb.message_id)
                 rows = db.exec(
-                    select(BadCaseItemDb).where(
-                        BadCaseItemDb.message_id.in_(message_ids)  # type: ignore[attr-defined]
-                    )
+                    select(BadCaseItemDb).where(message_id_column.in_(message_ids))
                 ).all()
                 for row in rows:
                     mid = row.message_id or ""
