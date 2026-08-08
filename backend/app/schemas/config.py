@@ -710,9 +710,9 @@ class WechatConfig(BaseModel):
 class EvalWorkerConfig(BaseModel):
     """评估 Worker 配置"""
 
-    enabled: bool = Field(default=False, description="是否启用评估 worker")
+    enabled: bool = Field(default=True, description="是否启用评估 worker")
     schedule_cron: str = Field(
-        default="0 3 * * *",
+        default="0 17 * * *",
         description="定时任务 cron 表达式",
     )
     judge_model_scenario: str = Field(
