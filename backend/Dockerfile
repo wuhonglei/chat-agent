@@ -1,5 +1,5 @@
 # Python 3.12：依赖 wheel 成熟稳定，与本地/CI 常用运行时一致
-FROM python:3.12-slim
+FROM python:3.13-slim
 
 # Set working directory
 WORKDIR /app
