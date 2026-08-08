@@ -57,7 +57,7 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@types/react-syntax-highlighter": "^15.5.13",
-    "@vitejs/plugin-react": "^6.0.3",
+    "@vitejs/plugin-react": "^6.0.5",
     "baseline-browser-mapping": "^2.11.6",
     "debug": "^4.4.3",
     "globals": "^17.8.0",
