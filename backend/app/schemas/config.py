@@ -637,11 +637,11 @@ class MemoryConfig(BaseModel):
         description="Mem0 API 密钥，通过请求头 X-API-Key 发送；留空则禁用记忆 HTTP 调用",
     )
     search_limit: int = Field(
-        default=10,
+        default=5,
         description="搜索记忆条数上限",
     )
     search_threshold: float = Field(
-        default=0.5,
+        default=0.1,
         description="搜索记忆阈值",
     )
 
@@ -705,3 +705,32 @@ class WechatConfig(BaseModel):
 
     app_id: str = Field(..., description="微信开放平台 AppID")
     app_secret: str = Field(..., description="微信开放平台 AppSecret")
+
+
+class EvalWorkerConfig(BaseModel):
+    """评估 Worker 配置"""
+
+    enabled: bool = Field(default=True, description="是否启用评估 worker")
+    schedule_cron: str = Field(
+        default="0 17 * * *",
+        description="定时任务 cron 表达式",
+    )
+    judge_model_scenario: str = Field(
+        default="judge",
+        description="裁判模型使用的 scenario（models.scenarios.judge）",
+    )
+    judge_concurrency: int = Field(default=5, description="裁判并发数")
+    judge_timeout_s: float = Field(default=60.0, description="单条裁判调用超时（秒）")
+    judge_low_score_threshold: int = Field(
+        default=3, description="低分阈值（低于此分入 bad case 队列）"
+    )
+    sample_rate_high: float = Field(default=0.40, description="高风险采样比例")
+    sample_rate_medium: float = Field(default=0.15, description="中风险采样比例")
+    sample_rate_low: float = Field(default=0.05, description="低风险采样比例")
+    quick_follow_up_threshold_s: int = Field(
+        default=30, description="快速追问阈值（秒）"
+    )
+    high_latency_threshold_s: float = Field(
+        default=30.0, description="高延迟特殊采样阈值（秒）"
+    )
+    lookback_hours: int = Field(default=24, description="拉取最近 N 小时的 Trace")

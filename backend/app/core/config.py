@@ -20,6 +20,7 @@ from app.schemas.config import (
     CORSConfig,
     DatabaseConfig,
     EmbeddingModelConfig,
+    EvalWorkerConfig,
     KbFileRagConfig,
     LangfuseConfig,
     LLMReliabilityConfig,
@@ -85,6 +86,10 @@ class Settings(BaseSettings):
     llm_reliability: LLMReliabilityConfig = Field(
         default_factory=LLMReliabilityConfig,
         description="LLM 调用重试与熔断配置",
+    )
+    eval_worker: EvalWorkerConfig = Field(
+        default_factory=EvalWorkerConfig,
+        description="分层采样评估 Worker 配置",
     )
 
     model_config = SettingsConfigDict(

@@ -31,7 +31,7 @@ if _env_path.exists():
         if "=" in _line and not _line.strip().startswith("#"):
             _k, _v = _line.split("=", 1)
             _k, _v = _k.strip(), _v.strip().strip('"').strip("'")
-            if _k and _k not in os.environ:
+            if _k:
                 os.environ[_k] = _v
 
 DASHSCOPE_API_BASE = os.environ.get(

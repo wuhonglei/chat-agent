@@ -60,7 +60,7 @@ def test_resolve_model_ref_text_only_model_has_no_image_support() -> None:
 
 def test_resolve_scenario_uses_default_model() -> None:
     cfg = resolve_scenario("title_generation", _models())
-    assert cfg.model_name == "qwen3.7-max"
+    assert cfg.model_name == "qwen3.8-max"
 
 
 def test_list_text_generation_models_dedupes_and_preserves_order() -> None:

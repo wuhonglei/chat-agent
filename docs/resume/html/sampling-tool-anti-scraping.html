@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>采样工具反爬手段总结</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --card-bg: #f8f9fb;
+    --border: #e2e6ec;
+    --text: #1a1a2e;
+    --text-secondary: #555770;
+    --accent: #2563eb;
+    --accent-light: #eff4ff;
+    --green: #16a34a;
+    --green-bg: #ecfdf5;
+    --orange: #d97706;
+    --orange-bg: #fffbeb;
+    --red: #dc2626;
+    --red-bg: #fef2f2;
+    --purple: #7c3aed;
+    --purple-bg: #f5f3ff;
+    --cyan: #0891b2;
+    --cyan-bg: #ecfeff;
+    --pink: #db2777;
+    --pink-bg: #fdf2f8;
+    --slate: #475569;
+    --slate-bg: #f1f5f9;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 40px 20px;
+  }
+  .container { max-width: 920px; margin: 0 auto; }
+
+  .header {
+    text-align: center;
+    margin-bottom: 48px;
+    padding-bottom: 32px;
+    border-bottom: 2px solid var(--border);
+  }
+  .header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+  .header .subtitle { font-size: 15px; color: var(--text-secondary); }
+  .header .badge {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 3px 12px;
+    border-radius: 20px;
+    margin-bottom: 12px;
+  }
+
+  /* Section cards */
+  .section {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    margin-bottom: 20px;
+    transition: box-shadow 0.2s;
+  }
+  .section:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .section-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .section-title { font-size: 17px; font-weight: 700; }
+  .section-body { padding-left: 48px; font-size: 15px; }
+  .section-body p { margin-bottom: 8px; }
+  .section-body strong { color: var(--text); }
+
+  /* Color themes */
+  .section--fingerprint .section-icon { background: var(--accent-light); color: var(--accent); }
+  .section--fingerprint .section-title { color: var(--accent); }
+  .section--fingerprint { border-left: 3px solid var(--accent); }
+
+  .section--proxy .section-icon { background: var(--green-bg); color: var(--green); }
+  .section--proxy .section-title { color: var(--green); }
+  .section--proxy { border-left: 3px solid var(--green); }
+
+  .section--account .section-icon { background: var(--purple-bg); color: var(--purple); }
+  .section--account .section-title { color: var(--purple); }
+  .section--account { border-left: 3px solid var(--purple); }
+
+  .section--browser .section-icon { background: var(--orange-bg); color: var(--orange); }
+  .section--browser .section-title { color: var(--orange); }
+  .section--browser { border-left: 3px solid var(--orange); }
+
+  .section--captcha .section-icon { background: var(--red-bg); color: var(--red); }
+  .section--captcha .section-title { color: var(--red); }
+  .section--captcha { border-left: 3px solid var(--red); }
+
+  .section--cache .section-icon { background: var(--cyan-bg); color: var(--cyan); }
+  .section--cache .section-title { color: var(--cyan); }
+  .section--cache { border-left: 3px solid var(--cyan); }
+
+  .section--flow .section-icon { background: var(--pink-bg); color: var(--pink); }
+  .section--flow .section-title { color: var(--pink); }
+  .section--flow { border-left: 3px solid var(--pink); }
+
+  .section--retry .section-icon { background: var(--slate-bg); color: var(--slate); }
+  .section--retry .section-title { color: var(--slate); }
+  .section--retry { border-left: 3px solid var(--slate); }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 14px;
+  }
+  th, td {
+    padding: 8px 12px;
+    text-align: left;
+    border: 1px solid var(--border);
+  }
+  th {
+    background: #f1f5f9;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+  td { background: #fff; }
+  tr:hover td { background: #fafbfd; }
+
+  /* Code */
+  code {
+    font-family: "SF Mono", "Fira Code", Menlo, monospace;
+    font-size: 12.5px;
+    background: #f1f3f5;
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: var(--text);
+  }
+
+  /* Sub-section */
+  .sub { margin-top: 16px; }
+  .sub-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px dashed #ddd;
+  }
+
+  /* Inline list */
+  .tag-list { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+  .tag {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: 12px;
+    background: #f1f5f9;
+    color: var(--text-secondary);
+    border: 1px solid #e2e8f0;
+  }
+
+  /* Architecture flow */
+  .flow {
+    background: linear-gradient(135deg, #f0f4ff 0%, #f5f3ff 100%);
+    border: 1px solid #c7d2fe;
+    border-radius: 10px;
+    padding: 24px;
+    margin-top: 36px;
+  }
+  .flow h3 { font-size: 16px; font-weight: 700; color: var(--accent); margin-bottom: 16px; }
+  .flow-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+    font-size: 14px;
+  }
+  .flow-num {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .flow-detail { color: var(--text-secondary); font-size: 13px; margin-left: 36px; margin-top: -4px; margin-bottom: 8px; }
+
+  .footer {
+    text-align: center;
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    color: #999;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <span class="badge">Anti-Scraping</span>
+    <h1>采样工具反爬手段总结</h1>
+    <div class="subtitle">sampling-tool · 浏览器指纹 / 代理 / 账号管理 / 反检测对抗 · 源码级梳理</div>
+  </div>
+
+  <!-- 1. 设备指纹 -->
+  <div class="section section--fingerprint">
+    <div class="section-header">
+      <div class="section-icon">🖥</div>
+      <div class="section-title">一、浏览器设备指纹伪装</div>
+    </div>
+    <div class="section-body">
+
+      <div class="sub">
+        <div class="sub-title">1.1 动态 DeviceProfile 生成器</div>
+        <p>源码: <code>src/shared/utils/deviceProfile.ts</code></p>
+        <p>每次创建浏览器上下文时，随机构造一组<strong>内部一致</strong>的设备配置，确保 UA / platform / screen / hardware 属性相互匹配。</p>
+        <table>
+          <tr><th>属性</th><th>生成策略</th></tr>
+          <tr><td>操作系统</td><td>Windows 10/11 (70%)、macOS (25%)、Linux (5%)，按权重采样</td></tr>
+          <tr><td>Chrome 版本</td><td>131-136，按真实发布分布加权（133/134 占主导）</td></tr>
+          <tr><td>User-Agent</td><td>根据平台动态拼接，macOS 随机 6 个大版本，Windows 随机 NT 10.0/11.0，build 号随机</td></tr>
+          <tr><td>屏幕分辨率</td><td>Mac 7 种（1440×900 ~ 2560×1440）、Windows 6 种、Linux 4 种</td></tr>
+          <tr><td>CPU 核数</td><td>4/8/12/16 核，按真实分布加权</td></tr>
+          <tr><td>内存</td><td>8/16/32GB，Mac 偏向 16GB，Windows/Linux 偏向 8-16GB</td></tr>
+          <tr><td>maxTouchPoints</td><td>桌面设备统一为 0</td></tr>
+        </table>
+      </div>
+
+      <div class="sub">
+        <div class="sub-title">1.2 反检测注入脚本</div>
+        <p>源码: <code>src/infrastructure/browser/libs/anti-detection.js</code></p>
+        <p>通过 <code>context.addInitScript({ path, arg: deviceProfile })</code> 在每个页面加载前注入，参考 undetected-chromedriver。接收 DeviceProfile 参数，所有属性从 profile 读取。</p>
+
+        <p style="margin-top:12px"><strong>Navigator 属性覆盖</strong></p>
+        <table>
+          <tr><th>属性</th><th>来源</th><th>说明</th></tr>
+          <tr><td><code>navigator.webdriver</code></td><td>固定 <code>false</code></td><td>最基本的自动化检测点</td></tr>
+          <tr><td><code>navigator.platform</code></td><td><code>profile.platform</code></td><td>与 UA 一致</td></tr>
+          <tr><td><code>navigator.hardwareConcurrency</code></td><td><code>profile.hardwareConcurrency</code></td><td>CPU 核数</td></tr>
+          <tr><td><code>navigator.deviceMemory</code></td><td><code>profile.deviceMemory</code></td><td>设备内存</td></tr>
+          <tr><td><code>navigator.plugins</code></td><td>模拟 5 个插件对象</td><td>空插件数组是自动化特征</td></tr>
+        </table>
+
+        <p style="margin-top:12px"><strong>Screen 属性覆盖</strong></p>
+        <table>
+          <tr><th>属性</th><th>来源</th></tr>
+          <tr><td><code>screen.width / height</code></td><td><code>profile.screenWidth / screenHeight</code></td></tr>
+          <tr><td><code>screen.availWidth / availHeight</code></td><td>同上</td></tr>
+          <tr><td><code>screen.colorDepth / pixelDepth</code></td><td><code>profile.colorDepth</code>（固定 24）</td></tr>
+        </table>
+
+        <p style="margin-top:12px"><strong>Chrome Runtime 模拟</strong></p>
+        <p>构造完整 <code>window.chrome</code> 对象：<code>chrome.app</code>、<code>chrome.runtime</code>（含 <code>getPlatformInfo()</code> 根据 profile.os 动态返回）、<code>chrome.cookies</code>、<code>chrome.storage.local</code>。</p>
+
+        <p style="margin-top:12px"><strong>检测对抗</strong></p>
+        <div class="tag-list">
+          <span class="tag">删除 chromedriver 特征变量</span>
+          <span class="tag">删除 _webDriverEvaluated</span>
+          <span class="tag">修补 Function.prototype.toString</span>
+          <span class="tag">修补 permissions.query</span>
+          <span class="tag">强制 attachShadow open mode</span>
+          <span class="tag">清除自动化 CSS 属性</span>
+          <span class="tag">注入伪造 localStorage</span>
+          <span class="tag">原型链完整性修复</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. 网络代理 -->
+  <div class="section section--proxy">
+    <div class="section-header">
+      <div class="section-icon">🌐</div>
+      <div class="section-title">二、网络代理</div>
+    </div>
+    <div class="section-body">
+      <div class="sub">
+        <div class="sub-title">2.1 住宅代理</div>
+        <p>源码: <code>src/shared/config/playwright.config.ts</code> → <code>getProxyConfig()</code></p>
+        <table>
+          <tr><th>配置项</th><th>值</th></tr>
+          <tr><td>供应商</td><td>Proxyrack 住宅代理（<code>unmetered.residential.proxyrack.net</code>）</td></tr>
+          <tr><td>端口池</td><td>10036-10059，共 24 个端口</td></tr>
+          <tr><td>地理位置绑定</td><td>username 中带 <code>country=${region}</code>，按任务 region 匹配目标国家</td></tr>
+          <tr><td>IP 刷新</td><td><code>refreshMinutes=300</code>，每 5 小时自动轮换 IP</td></tr>
+        </table>
+      </div>
+      <div class="sub">
+        <div class="sub-title">2.2 重试换代理</div>
+        <p>源码: <code>src/core/executor.ts</code> → <code>resolveRetryProxyPort()</code></p>
+        <p>首次尝试使用账号自带代理端口；第 2 次起从 <code>proxyPortList</code> 中随机选取不同端口，绕过单 IP 封锁。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. 账号管理 -->
+  <div class="section section--account">
+    <div class="section-header">
+      <div class="section-icon">👤</div>
+      <div class="section-title">三、账号生命周期管理</div>
+    </div>
+    <div class="section-body">
+      <div class="sub">
+        <div class="sub-title">3.1 账号池状态机</div>
+        <p>源码: <code>src/infrastructure/services/redis/AccountPoolManager.ts</code></p>
+        <p style="margin-bottom:12px">每个账号 4 种状态，通过 Redis Lua 脚本原子操作：</p>
+        <div style="text-align:center;margin:16px 0;font-size:14px;font-weight:600;color:var(--purple)">
+          free &rarr; in_use &rarr; cooldown &rarr; free（循环）&nbsp;&nbsp;|&nbsp;&nbsp;expired（终态）
+        </div>
+        <table>
+          <tr><th>状态</th><th>说明</th></tr>
+          <tr><td><code>free</code></td><td>空闲可用，等待分配</td></tr>
+          <tr><td><code>in_use</code></td><td>正在执行任务</td></tr>
+          <tr><td><code>cooldown</code></td><td>任务完成后的冷却期，防止高频使用同一账号</td></tr>
+          <tr><td><code>expired</code></td><td>登录态失效，需人工重新登录</td></tr>
+        </table>
+      </div>
+      <div class="sub">
+        <div class="sub-title">3.2 冷却机制</div>
+        <p>源码: <code>src/infrastructure/services/RedisServer.ts</code> → <code>setAccountCooldown()</code></p>
+        <p>任务完成后账号进入 cooldown，冷却时间可按 aiPlatform 配置。设置 TTL 标记，到期后自动回收到 free 池，避免同一账号短时间高频请求。</p>
+      </div>
+      <div class="sub">
+        <div class="sub-title">3.3 登录态持久化（storageState）</div>
+        <p>账号的 cookies + localStorage 以 Playwright <code>storageState</code> 格式存储在 Redis。创建上下文时注入避免重新登录；任务成功后回写 Redis 保持 cookie 活跃。账号 key 格式: <code>email:proxyPort</code>。</p>
+      </div>
+      <div class="sub">
+        <div class="sub-title">3.4 登录失效检测与告警</div>
+        <p>源码: <code>src/core/executor.ts</code> → <code>initializePage()</code></p>
+        <p>每次打开目标平台后检查登录状态。失效时标记账号为 <code>expired</code>，发送 SeaTalk 告警，抛出 <code>AccountLoginExpiredError</code> 终止所有重试。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. 浏览器启动参数 -->
+  <div class="section section--browser">
+    <div class="section-header">
+      <div class="section-icon">⚙</div>
+      <div class="section-title">四、浏览器启动参数</div>
+    </div>
+    <div class="section-body">
+      <p>源码: <code>src/shared/config/playwright.config.ts</code> → <code>getPlaywrightConfig()</code></p>
+      <table>
+        <tr><th>参数</th><th>作用</th></tr>
+        <tr><td><code>--disable-blink-features=AutomationControlled</code></td><td>禁用 Blink 引擎的自动化检测特征</td></tr>
+        <tr><td><code>ignoreDefaultArgs: ['--enable-automation']</code></td><td>移除 Playwright 默认的自动化标识</td></tr>
+        <tr><td><code>--disable-extensions</code></td><td>禁用扩展，减少特征</td></tr>
+        <tr><td><code>--start-maximized</code></td><td>非 headless 时最大化窗口，模拟真实用户</td></tr>
+      </table>
+      <div class="sub">
+        <div class="sub-title">上下文级配置</div>
+        <table>
+          <tr><th>配置</th><th>值</th></tr>
+          <tr><td>viewport</td><td>headless: 1920×1080；非 headless: null（跟随窗口）</td></tr>
+          <tr><td>locale</td><td><code>en-US</code></td></tr>
+          <tr><td>timezoneId</td><td>按 region 自动设置（sg → Asia/Singapore 等，共 10 个地区）</td></tr>
+          <tr><td>permissions</td><td><code>clipboard-read</code>, <code>clipboard-write</code></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. 验证码检测 -->
+  <div class="section section--captcha">
+    <div class="section-header">
+      <div class="section-icon">🚫</div>
+      <div class="section-title">五、验证码 / 拦截页检测</div>
+    </div>
+    <div class="section-body">
+      <div class="sub">
+        <div class="sub-title">5.1 Google 验证码检测</div>
+        <p>源码: <code>src/infrastructure/browser/config/google-ai-overview.config.ts</code></p>
+        <table>
+          <tr><th>检测方式</th><th>具体规则</th></tr>
+          <tr><td>URL 匹配</td><td><code>/sorry/</code>、<code>google.com/sorry</code></td></tr>
+          <tr><td>DOM 选择器</td><td><code>form#captcha-form</code>、<code>iframe[src*="recaptcha"]</code>、<code>#captchaimg</code></td></tr>
+        </table>
+        <p>在 <code>open()</code>、<code>performInteraction()</code> 等关键步骤前调用 <code>assertNotCaptchaPage()</code>。</p>
+      </div>
+      <div class="sub">
+        <div class="sub-title">5.2 Cloudflare 挑战检测</div>
+        <p>源码: <code>src/infrastructure/browser/config/chatgpt.config.ts</code></p>
+        <table>
+          <tr><th>检测方式</th><th>具体规则</th></tr>
+          <tr><td>URL 匹配</td><td><code>/cdn-cgi/challenge-platform</code>、<code>__cf_chl</code>、<code>challenges.cloudflare.com</code></td></tr>
+          <tr><td>DOM 选择器</td><td><code>iframe[src*="challenges.cloudflare.com"]</code>、<code>#challenge-running</code>、<code>form#challenge-form</code></td></tr>
+        </table>
+      </div>
+      <div class="sub">
+        <div class="sub-title">5.3 错误分类</div>
+        <p>源码: <code>src/core/errors/classifySamplingFailure.ts</code></p>
+        <p>命中后归类为 <code>browser_block</code>，关键词: <code>cloudflare</code>、<code>验证码</code>、<code>拦截</code>、<code>验证页</code>、<code>异常页面</code>。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. 静态资源缓存 -->
+  <div class="section section--cache">
+    <div class="section-header">
+      <div class="section-icon">📦</div>
+      <div class="section-title">六、静态资源缓存</div>
+    </div>
+    <div class="section-body">
+      <p>源码: <code>src/infrastructure/browser/managers/contextManager.ts</code></p>
+      <p>通过 <code>playwright-network-cache</code> 缓存静态资源，TTL 2 天，覆盖 JS / CSS / 图片 / 字体 / SVG。减少重复请求，降低被识别为爬虫的风险。</p>
+    </div>
+  </div>
+
+  <!-- 7. Kafka 流控 -->
+  <div class="section section--flow">
+    <div class="section-header">
+      <div class="section-icon">🔄</div>
+      <div class="section-title">七、Kafka 消费层流控保护</div>
+    </div>
+    <div class="section-body">
+      <p>源码: <code>src/infrastructure/services/KafkaConsumerService.ts</code></p>
+      <table>
+        <tr><th>机制</th><th>说明</th></tr>
+        <tr><td>最大并发任务数</td><td><code>MAX_CONCURRENT_TASKS = 1</code>，同一时刻只执行一个采样任务</td></tr>
+        <tr><td>账号池为空暂停</td><td>可用账号为 0 时暂停消费，每 5 秒轮询恢复</td></tr>
+        <tr><td>并发超限暂停</td><td>运行中任务数 &gt; 1 时暂停消费，任务完成后自动恢复</td></tr>
+        <tr><td>消息解析失败跳过</td><td>JSON 解析失败或校验不通过直接提交 offset 跳过，避免死循环</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- 8. 重试策略 -->
+  <div class="section section--retry">
+    <div class="section-header">
+      <div class="section-icon">🔁</div>
+      <div class="section-title">八、重试策略中的反爬考量</div>
+    </div>
+    <div class="section-body">
+      <p>源码: <code>src/core/executor.ts</code></p>
+      <table>
+        <tr><th>策略</th><th>说明</th></tr>
+        <tr><td>默认重试 3 次</td><td><code>DEFAULT_RETRY_COUNT = 3</code></td></tr>
+        <tr><td>单次超时 5 分钟</td><td><code>DEFAULT_TIMEOUT_MS = 5 * 60 * 1000</code></td></tr>
+        <tr><td>重试换代理</td><td>第 2 次起随机切换代理端口</td></tr>
+        <tr><td>账号复用</td><td>整个 execute 生命周期复用同一账号，不重复取号</td></tr>
+        <tr><td>不重试错误</td><td><code>AccountLoginExpiredError</code>、<code>NoWebSearchError</code> 立即终止</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- Architecture Flow -->
+  <div class="flow">
+    <h3>架构总览</h3>
+    <div class="flow-step">
+      <div class="flow-num">1</div>
+      <div><strong>账号预占用</strong></div>
+    </div>
+    <div class="flow-detail">Redis 原子操作，free → in_use</div>
+
+    <div class="flow-step">
+      <div class="flow-num">2</div>
+      <div><strong>浏览器上下文创建</strong></div>
+    </div>
+    <div class="flow-detail">动态 DeviceProfile 生成 → 住宅代理注入 → storageState 注入 → 反检测脚本注入 → 静态资源缓存</div>
+
+    <div class="flow-step">
+      <div class="flow-num">3</div>
+      <div><strong>页面操作</strong></div>
+    </div>
+    <div class="flow-detail">验证码/拦截页检测 → 登录状态检查 → AI 交互 + 数据采集</div>
+
+    <div class="flow-step">
+      <div class="flow-num">4</div>
+      <div><strong>结果处理</strong></div>
+    </div>
+    <div class="flow-detail">成功 → storageState 回写 Redis, 账号 → cooldown ｜ 失败 → 错误分类, 重试(换代理) 或 终止</div>
+
+    <div class="flow-step">
+      <div class="flow-num">5</div>
+      <div><strong>账号释放</strong></div>
+    </div>
+    <div class="flow-detail">in_use → cooldown, TTL 后自动 → free</div>
+  </div>
+
+  <div class="footer">
+    Sampling Tool Anti-Scraping · Source Code Reference
+  </div>
+
+</div>
+</body>
+</html>

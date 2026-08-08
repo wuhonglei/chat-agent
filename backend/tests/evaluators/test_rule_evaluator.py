@@ -10,15 +10,21 @@ import pytest
 from app.evaluators import rule_evaluator
 from app.evaluators.rule_evaluator import build_tool_whitelist, evaluate_and_score
 from app.mcp.tool_naming import ToolRoute
-from app.schemas.chat import AssistantResponse, ToolUseBlock
+from app.schemas.chat import AssistantResponse, TextBlock, ToolUseBlock
 
 
 class _FakeSpan:
     def __init__(self) -> None:
         self.scores: list[dict[str, Any]] = []
+        self.metadata_updates: list[dict[str, Any]] = []
 
     def score(self, **kwargs: Any) -> None:
         self.scores.append(kwargs)
+
+    def update(self, **kwargs: Any) -> None:
+        meta = kwargs.get("metadata")
+        if isinstance(meta, dict):
+            self.metadata_updates.append(meta)
 
 
 def _score_by_name(span: _FakeSpan) -> dict[str, dict[str, Any]]:
@@ -67,18 +73,25 @@ def test_valid_answer_true_for_non_empty(mode_servers: None) -> None:
     span = _FakeSpan()
     evaluate_and_score(
         span=span,
-        assistant_response=AssistantResponse(content="你好"),
+        assistant_response=AssistantResponse(
+            content="你好",
+            content_blocks=[TextBlock(id="t1", text="你好")],
+        ),
         agent_mode=0,
         tool_whitelist=set(),
     )
     assert _score_by_name(span)["valid_answer"]["value"] is True
+    assert span.metadata_updates and span.metadata_updates[0]["called_tools"] == []
 
 
 def test_valid_answer_false_for_blank(mode_servers: None) -> None:
     span = _FakeSpan()
     evaluate_and_score(
         span=span,
-        assistant_response=AssistantResponse(content="  \n\t"),
+        assistant_response=AssistantResponse(
+            content="  \n\t",
+            content_blocks=[TextBlock(id="t1", text="  \n\t")],
+        ),
         agent_mode=0,
         tool_whitelist=set(),
     )

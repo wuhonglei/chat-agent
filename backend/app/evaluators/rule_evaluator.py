@@ -96,6 +96,7 @@ def _do_evaluate(
         for block in content_blocks
         if isinstance(block, ToolUseBlock) and block.name
     }
+    _write_called_tools_metadata(span, called_tools)
     whitelist_ok = (not has_unnamed_tool) and called_tools.issubset(tool_whitelist)
     score_observation(
         span,
@@ -104,6 +105,7 @@ def _do_evaluate(
         comment=f"called={called_tools}" if not whitelist_ok else None,
     )
     scores["tool_whitelist_ok"] = whitelist_ok
+    scores["called_tools"] = sorted(called_tools)
 
     # --- tool_call_count ---
     tool_count = count_tool_use_blocks(content_blocks)
@@ -126,3 +128,17 @@ def _do_evaluate(
     scores["guardrail_error_count"] = guardrail_error_count
 
     return scores
+
+
+def _write_called_tools_metadata(span: Any, called_tools: set[str]) -> None:
+    """将 called_tools 写入 Langfuse span metadata，供批量评估风险分层使用。"""
+    if span is None:
+        return
+    try:
+        span.update(metadata={"called_tools": sorted(called_tools)})
+    except Exception as exc:
+        logger.warning(
+            "Failed to write called_tools metadata",
+            error=exc,
+            error_type=type(exc).__name__,
+        )

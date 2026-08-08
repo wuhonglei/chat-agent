@@ -252,6 +252,22 @@ class MessageDbService(DbService):
             conversation=conversation,
         )
 
+    def update_user_message_metadata(
+        self,
+        message_id: str,
+        metadata: dict[str, Any],
+    ) -> None:
+        """更新 user message 的 message_metadata（合并写入）。"""
+        message = self.get_message(message_id)
+        if message is None:
+            return
+        merged = dict(message.message_metadata or {})
+        merged.update(metadata)
+        message.message_metadata = merged
+        db = self._ensure_db()
+        db.add(message)
+        db.commit()
+
     def update_assistant_message(
         self,
         conversation: ConversationDb,
