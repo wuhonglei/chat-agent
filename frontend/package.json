@@ -63,7 +63,7 @@
     "globals": "^17.8.0",
     "postcss": "^8.5.25",
     "tailwindcss": "^4.1.18",
-    "tsx": "^4.23.1",
+    "tsx": "^4.23.8",
     "typescript": "^5.9.3",
     "vite": "npm:@voidzero-dev/vite-plus-core@latest",
     "vite-plugin-svgr": "^5.2.0",
