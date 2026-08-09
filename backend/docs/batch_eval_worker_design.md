@@ -1,6 +1,22 @@
 # 分层采样评估 Worker 方案
 
-> 目标：将"定时批量（凌晨 3 点）"的裁判模型评估设计为独立 worker，与现有规则评估器和 BadCaseItemDb 完整对接
+> 目标：将"定时批量"的裁判模型评估设计为独立 worker，与现有规则评估器和 BadCaseItemDb 完整对接
+
+## 现网实现摘要（以代码为准）
+
+正文仍保留方案推演；运维入口与配置以 `EVAL_OPS.md` 为准。以下差异已在现网落地，**勿按旧方案数字操作**：
+
+| 项 | 方案正文（历史） | 现网代码 |
+|----|------------------|----------|
+| 定时 | 凌晨 3 点 / `0 3 * * *` | `schedule_cron` 默认 `0 17 * * *`，时区 `Asia/Shanghai` |
+| `enabled` 默认 | `False` | `True`（进程仍起；disabled 时跳过 job） |
+| 特殊场景 100% | 含 embedding 聚类、bad_case 相似度 | **方案 A**：点踩 / 快速追问 / 高延迟（>30s） |
+| 风险工具名 | `execute_code`、`shell` 等旧名 | LLM 名：`code_execute_code`、`file_write_file`、`file_edit_file`、`shell_exec`；中风险 `tavily_*` / `context7_*` |
+| Compose | 示意 | 根目录 `docker-compose.yml` 服务 `evaluator` |
+| 手动触发 | 规划 | `uv run python scripts/run_batch_eval.py [--hours] [--dry-run]` |
+| 配置键 | 部分缺失 | 完整见 `EvalWorkerConfig` / `EVAL_WORKER__*`（含 `lookback_hours=24`） |
+
+代码入口：`backend/eval_worker/main.py`、`app/services/eval/batch_eval_service.py`、`app/evaluators/sampler.py`。
 
 ---
 
