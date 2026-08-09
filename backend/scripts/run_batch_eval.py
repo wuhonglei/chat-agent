@@ -23,9 +23,7 @@ async def main() -> None:
     parser.add_argument(
         "--hours", type=int, default=None, help="拉取最近 N 小时的 Trace"
     )
-    parser.add_argument(
-        "--dry-run", action="store_true", help="只采样不调裁判"
-    )
+    parser.add_argument("--dry-run", action="store_true", help="只采样不调裁判")
     args = parser.parse_args()
 
     init_langfuse()
