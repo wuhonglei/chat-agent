@@ -295,7 +295,7 @@ class BatchEvalService:
             trace_id = str(obs.get("trace_id") or "")
             scores = list(scores_by_obs.get(obs_id, []))
             if not scores and trace_id:
-                scores = list(scores_by_trace.get(trace_id, []))
+                scores = list[dict[str, Any]](scores_by_trace.get(trace_id, []))
             traces.append(self._observation_to_trace_dict(obs, scores))
         return traces
 
@@ -406,7 +406,8 @@ class BatchEvalService:
             "input": obs.get("input"),
             "output": obs.get("output"),
             "metadata": clean_meta,
-            "sessionId": obs.get("session_id"),
+            # observations API 常不带 session_id；埋点时 session_id=conversation_id
+            "sessionId": obs.get("session_id") or clean_meta.get("conversation_id"),
             "userId": obs.get("user_id"),
             "latency": obs.get("latency") or 0,
             "timestamp": obs.get("start_time"),
@@ -473,7 +474,10 @@ class BatchEvalService:
         threshold = float(self.cfg.quick_follow_up_threshold_s)
         sessions: dict[str, list[dict[str, Any]]] = {}
         for t in traces:
-            sid = str(t.get("sessionId") or t.get("session_id") or "unknown")
+            sid = str(t.get("sessionId") or t.get("session_id") or "").strip()
+            # 无 session 无法判定同会话追问；归入 unknown 会把无关 turn 误判为 follow-up
+            if not sid:
+                continue
             sessions.setdefault(sid, []).append(t)
 
         follow_ups: set[str] = set()

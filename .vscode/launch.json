@@ -15,7 +15,7 @@
         "0.0.0.0",
         "--port",
         "8000",
-        "--proxy-headers"
+        "--proxy-headers",
       ],
       "cwd": "${workspaceFolder}/backend",
       "jinja": true,
@@ -24,32 +24,25 @@
       "python": "${workspaceFolder}/backend/.venv/bin/python",
       "env": {
         "PYTHONPATH": "${workspaceFolder}/backend",
-        "APP__DEBUG": "1"
+        "APP__DEBUG": "1",
       },
-      "envFile": "${workspaceFolder}/backend/.env"
+      "envFile": "${workspaceFolder}/backend/.env",
     },
     {
       "name": "Backend: Debug FastAPI (no reload)",
       "type": "debugpy",
       "request": "launch",
       "module": "uvicorn",
-      "args": [
-        "app.main:app",
-        "--host",
-        "0.0.0.0",
-        "--port",
-        "8000",
-        "--proxy-headers"
-      ],
+      "args": ["app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"],
       "cwd": "${workspaceFolder}/backend",
       "jinja": true,
       "justMyCode": false,
       "python": "${workspaceFolder}/backend/.venv/bin/python",
       "env": {
         "PYTHONPATH": "${workspaceFolder}/backend",
-        "APP__DEBUG": "1"
+        "APP__DEBUG": "1",
       },
-      "envFile": "${workspaceFolder}/backend/.env"
+      "envFile": "${workspaceFolder}/backend/.env",
     },
     {
       "name": "Backend: Python Current File",
@@ -61,9 +54,9 @@
       "justMyCode": false,
       "python": "${workspaceFolder}/backend/.venv/bin/python",
       "env": {
-        "PYTHONPATH": "${workspaceFolder}/backend"
+        "PYTHONPATH": "${workspaceFolder}/backend",
       },
-      "envFile": "${workspaceFolder}/backend/.env"
+      "envFile": "${workspaceFolder}/backend/.env",
     },
     {
       "name": "Backend: Debug Pytest",
@@ -76,9 +69,9 @@
       "justMyCode": false,
       "python": "${workspaceFolder}/backend/.venv/bin/python",
       "env": {
-        "PYTHONPATH": "${workspaceFolder}/backend"
+        "PYTHONPATH": "${workspaceFolder}/backend",
       },
-      "envFile": "${workspaceFolder}/backend/.env"
+      "envFile": "${workspaceFolder}/backend/.env",
     },
     {
       "name": "Backend: Debug Pytest (Current File)",
@@ -91,9 +84,9 @@
       "justMyCode": false,
       "python": "${workspaceFolder}/backend/.venv/bin/python",
       "env": {
-        "PYTHONPATH": "${workspaceFolder}/backend"
+        "PYTHONPATH": "${workspaceFolder}/backend",
       },
-      "envFile": "${workspaceFolder}/backend/.env"
+      "envFile": "${workspaceFolder}/backend/.env",
     },
     {
       "name": "Backend: Alembic Migrate",
@@ -106,9 +99,59 @@
       "justMyCode": false,
       "python": "${workspaceFolder}/backend/.venv/bin/python",
       "env": {
-        "PYTHONPATH": "${workspaceFolder}/backend"
+        "PYTHONPATH": "${workspaceFolder}/backend",
       },
-      "envFile": "${workspaceFolder}/backend/.env"
-    }
-  ]
+      "envFile": "${workspaceFolder}/backend/.env",
+    },
+    {
+      "name": "Backend: Debug Eval Worker",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "eval_worker.main",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/backend",
+      "justMyCode": false,
+      "python": "${workspaceFolder}/backend/.venv/bin/python",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/backend",
+        "APP__DEBUG": "1",
+        "EVAL_WORKER__ENABLED": "true",
+      },
+      "envFile": "${workspaceFolder}/backend/.env",
+    },
+    {
+      "name": "Backend: Debug Batch Eval (manual)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/backend/scripts/run_batch_eval.py",
+      "args": ["--hours", "24"],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/backend",
+      "justMyCode": false,
+      "python": "${workspaceFolder}/backend/.venv/bin/python",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/backend",
+        "APP__DEBUG": "1",
+        "EVAL_WORKER__ENABLED": "true",
+      },
+      "envFile": "${workspaceFolder}/backend/.env",
+    },
+    {
+      "name": "Backend: Debug Batch Eval (dry-run)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/backend/scripts/run_batch_eval.py",
+      "args": ["--hours", "24", "--dry-run"],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/backend",
+      "justMyCode": false,
+      "python": "${workspaceFolder}/backend/.venv/bin/python",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/backend",
+        "APP__DEBUG": "1",
+        "EVAL_WORKER__ENABLED": "true",
+      },
+      "envFile": "${workspaceFolder}/backend/.env",
+    },
+  ],
 }
