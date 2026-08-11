@@ -5,16 +5,29 @@ from __future__ import annotations
 from typing import Any
 
 from app.mcp.mcp_servers.file_mcp.base import ToolBase, ToolContext, ToolResult
-from app.mcp.mcp_servers.file_mcp.utils import resolve_virtual_path, truncate_content
+from app.mcp.mcp_servers.file_mcp.utils import (
+    non_text_file_reason,
+    resolve_virtual_path,
+    truncate_content,
+)
 from app.utils.logger import logger
 from app.vfs.resolver import PathPermission
 
+READ_FILE_DESCRIPTION = (
+    "Reads a text file from the workspace filesystem (line-based offset/limit). "
+    "Do NOT use for images (png/jpg/jpeg/gif/webp/…) or other binary files "
+    "(pdf/xlsx/docx/pptx/zip/…). Those cannot be read as text; for PDF/Office "
+    "uploads prefer the derived Markdown under uploads/derived/. For images "
+    "already attached in the user message, interpret them directly (vision) "
+    "instead of calling this tool."
+)
+
 
 class ReadFileTool(ToolBase):
-    """Reads a file from the workspace filesystem."""
+    """Reads a text file from the workspace filesystem."""
 
     name = "read_file"
-    description = "Reads a file from the workspace filesystem."
+    description = READ_FILE_DESCRIPTION
 
     async def execute(self, arguments: dict[str, Any], ctx: ToolContext) -> ToolResult:
         """Execute read_file tool."""
@@ -35,6 +48,34 @@ class ReadFileTool(ToolBase):
                 return ToolResult(
                     content=f"Error: {file_path} is not a file",
                     is_error=True,
+                )
+
+            size = physical_path.stat().st_size
+            kind = non_text_file_reason(physical_path)
+            if kind is not None:
+                if kind == "image":
+                    message = (
+                        f"Error: {file_path} is an image ({size} bytes) and cannot be "
+                        "read as text via read_file. If the image is already in the "
+                        "user message, interpret it directly; do not call read_file "
+                        "on image paths."
+                    )
+                else:
+                    message = (
+                        f"Error: {file_path} is a binary file ({size} bytes) and "
+                        "cannot be read as text via read_file. For PDF/Excel/Word/"
+                        "PowerPoint uploads, read the derived Markdown under "
+                        "uploads/derived/ instead."
+                    )
+                return ToolResult(
+                    content=message,
+                    is_error=True,
+                    structured_content={
+                        "path": file_path,
+                        "size": size,
+                        "kind": kind,
+                        "rejected": True,
+                    },
                 )
 
             # Read file content
@@ -74,7 +115,7 @@ class ReadFileTool(ToolBase):
                     "limit": limit,
                     "total_lines": total_lines,
                     "truncated": truncated,
-                    "size": physical_path.stat().st_size,
+                    "size": size,
                 },
             )
 
