@@ -1,3 +1,5 @@
+import RequireAdmin from "@/components/RequireAdmin";
+import AdminBadCasesPage from "@/pages/AdminBadCasesPage";
 import ChatPage from "@/pages/ChatPage";
 import LoginPage from "@/pages/LoginPage";
 import LoginCallback from "@/pages/LoginPage/components/WeChatLogin/LoginCallback";
@@ -17,6 +19,14 @@ export const routes: RouteObject[] = [
   {
     path: "/chat/:conversationId",
     element: <ChatPage />,
+  },
+  {
+    path: "/admin/bad-cases",
+    element: (
+      <RequireAdmin>
+        <AdminBadCasesPage />
+      </RequireAdmin>
+    ),
   },
   {
     path: "/markdown",

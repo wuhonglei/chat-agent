@@ -3,6 +3,8 @@ export interface UserInfo {
   name: string;
   avatar?: string;
   phone: string;
+  /** 用户角色：user / admin */
+  role?: string;
 }
 
 export enum UserProfileItemType {

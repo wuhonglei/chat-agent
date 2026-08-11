@@ -2,19 +2,22 @@ import { authHeader } from "@/constants";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { logout } from "@/store/slices/userSlice";
 import { toLoginPage } from "@/utils/location";
-import { LogoutOutlined, SettingOutlined, UserOutlined } from "@ant-design/icons";
+import { AuditOutlined, LogoutOutlined, SettingOutlined, UserOutlined } from "@ant-design/icons";
 import { ConversationItemType, Conversations, ConversationsProps } from "@ant-design/x";
 import { useMemoizedFn } from "ahooks";
 import { App, Avatar, type MenuProps } from "antd";
 import React, { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import SettingModal from "../modals/SettingModal";
 import MenuTrigger from "./MenuTrigger";
 
 export default function UserAccount() {
   const userDetail = useAppSelector(state => state.user.userDetail);
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const { message } = App.useApp();
   const [open, setOpen] = useState(false);
+  const isAdmin = userDetail?.role === "admin";
 
   const items = useMemo(() => {
     const items: ConversationItemType[] = [
@@ -36,6 +39,15 @@ export default function UserAccount() {
     // oxlint-disable-next-line @typescript-eslint/no-unused-vars
     (_conversation: ConversationItemType) => ({
       items: [
+        ...(isAdmin
+          ? [
+              {
+                label: "Bad Case 复核",
+                key: "bad-cases",
+                icon: <AuditOutlined />,
+              },
+            ]
+          : []),
         {
           label: "设置",
           key: "setting",
@@ -52,7 +64,9 @@ export default function UserAccount() {
       ),
       onClick: async (menuInfo: Parameters<NonNullable<MenuProps["onClick"]>>[0]) => {
         menuInfo.domEvent.stopPropagation();
-        if (menuInfo.key === "setting") {
+        if (menuInfo.key === "bad-cases") {
+          navigate("/admin/bad-cases");
+        } else if (menuInfo.key === "setting") {
           setOpen(true);
         } else if (menuInfo.key === "logout") {
           await dispatch(logout()); // 不论是否成功，都退出登录

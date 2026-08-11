@@ -90,6 +90,39 @@ def is_enabled() -> bool:
     return bool(settings.langfuse.enabled and _langfuse_client is not None)
 
 
+def build_trace_url(trace_id: str | None) -> str | None:
+    """根据配置拼装 Langfuse Trace UI 链接。"""
+    if not trace_id:
+        return None
+    host = (settings.langfuse.host or "").rstrip("/")
+    if not host:
+        return None
+    project_id = (settings.langfuse.project_id or "").strip()
+    if project_id:
+        return f"{host}/project/{project_id}/traces/{trace_id}"
+    return f"{host}/trace/{trace_id}"
+
+
+def ensure_dataset(dataset_name: str, *, description: str | None = None) -> None:
+    """确保 Langfuse dataset 存在（create_dataset 为 upsert）。"""
+    client = get_langfuse()
+    if client is None:
+        raise RuntimeError("Langfuse 客户端不可用")
+    kwargs: dict[str, Any] = {"name": dataset_name}
+    if description is not None:
+        kwargs["description"] = description
+    try:
+        client.create_dataset(**kwargs)
+    except Exception as exc:
+        logger.error(
+            "Failed to ensure Langfuse dataset",
+            dataset_name=dataset_name,
+            error=exc,
+            error_type=type(exc).__name__,
+        )
+        raise
+
+
 def shutdown_langfuse() -> None:
     """优雅关闭 Langfuse，确保缓冲队列刷盘。"""
     global _langfuse_client

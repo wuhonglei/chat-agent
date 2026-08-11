@@ -147,6 +147,14 @@ class LangfuseConfig(BaseModel):
     )
     debug: bool = Field(default=False, description="是否开启 Langfuse SDK 调试日志")
     environment: str = Field(default="dev", description="环境标识，如 dev/prod")
+    project_id: str = Field(
+        default="",
+        description="Langfuse Project ID，用于拼装 Trace UI 链接",
+    )
+    bad_case_dataset_name: str = Field(
+        default="chat-agent-bad-cases",
+        description="Bad Case 推送的固定 Dataset 名称",
+    )
 
 
 class LLMReliabilityConfig(BaseModel):
