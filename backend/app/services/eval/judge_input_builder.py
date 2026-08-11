@@ -14,8 +14,6 @@ from app.core.db import engine
 from app.models.message_db import MessageDb
 from app.utils.logger import logger
 
-REFERENCE_MAX_CHARS = 12_000
-ANSWER_MAX_CHARS = 4_000
 QUERY_TAG_RE = re.compile(r"<query>(.*?)</query>", re.DOTALL | re.IGNORECASE)
 MEMORIES_BLOCK_RE = re.compile(
     r"<user_memories>(.*?)</user_memories>", re.DOTALL | re.IGNORECASE
@@ -166,9 +164,8 @@ def build_reference_xml(
     *,
     attachment_context: str = "",
     tool_contents: list[str] | None = None,
-    max_chars: int = REFERENCE_MAX_CHARS,
 ) -> str:
-    """拼参考资料 XML：attachment_context + tool 返回。"""
+    """拼参考资料 XML：attachment_context + tool 返回（不做截断）。"""
     parts: list[str] = []
     if attachment_context.strip():
         parts.append(
@@ -185,17 +182,8 @@ def build_reference_xml(
         return ""
 
     body_parts = ["<参考资料>"]
-    used = len(body_parts[0]) + len("</参考资料>")
     for i, content in enumerate(parts, 1):
-        chunk = f"<来源_{i}>\n{content}\n</来源_{i}>"
-        if used + len(chunk) + 1 > max_chars:
-            remain = max_chars - used - 32
-            if remain > 200:
-                truncated = content[:remain] + "\n…(truncated)"
-                body_parts.append(f"<来源_{i}>\n{truncated}\n</来源_{i}>")
-            break
-        body_parts.append(chunk)
-        used += len(chunk) + 1
+        body_parts.append(f"<来源_{i}>\n{content}\n</来源_{i}>")
     body_parts.append("</参考资料>")
     return "\n".join(body_parts)
 
@@ -376,7 +364,7 @@ class JudgeInputBuilder:
 
         return JudgeInput(
             query=judge_query,
-            answer=(answer or chat_answer)[:ANSWER_MAX_CHARS],
+            answer=answer or chat_answer,
             reference_xml=reference_xml,
             source_flags=source_flags,
         )
