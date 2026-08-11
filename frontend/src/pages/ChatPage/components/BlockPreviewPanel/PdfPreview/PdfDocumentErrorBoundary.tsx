@@ -3,7 +3,6 @@ import React from "react";
 export interface PdfDocumentErrorBoundaryProps {
   children: React.ReactNode;
   fallback: React.ReactNode;
-  resetKey: string;
   onError: (error: Error) => void;
 }
 
@@ -22,12 +21,6 @@ class PdfDocumentErrorBoundary extends React.Component<PdfDocumentErrorBoundaryP
 
   componentDidCatch(error: Error) {
     this.props.onError(error);
-  }
-
-  componentDidUpdate(prevProps: Readonly<PdfDocumentErrorBoundaryProps>) {
-    if (prevProps.resetKey !== this.props.resetKey && this.state.hasError) {
-      this.setState({ hasError: false });
-    }
   }
 
   render() {
