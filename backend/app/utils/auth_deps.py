@@ -5,10 +5,15 @@
 import jwt
 from fastapi import Depends, HTTPException, Request
 from pydantic import ValidationError
+from sqlmodel import Session
 
+from app.core.db import get_db
 from app.core.jwt import JWTManager, get_jwt_manager
 from app.schemas.auth import AuthTokenPayload
+from app.services.user import UserDbService
 from app.utils.logger import logger
+
+ADMIN_ROLE = "admin"
 
 
 def get_auth_token(authorization: str) -> str:
@@ -122,3 +127,19 @@ async def require_auth(
     """
     # 调用完整的认证流程，但不使用返回值
     await get_auth_token_info(request, jwt_manager)
+
+
+async def require_admin(
+    request: Request,
+    jwt_manager: JWTManager = Depends(get_jwt_manager),
+    db: Session = Depends(get_db),
+) -> AuthTokenPayload:
+    """要求已登录且 users.role == admin，否则 401/403。"""
+    token_info = await get_auth_token_info(request, jwt_manager)
+    user_service = UserDbService(db)
+    user = await user_service.get_or_load_user_detail(token_info.user_id)
+    if user is None:
+        raise HTTPException(status_code=401, detail="用户不存在")
+    if user.role != ADMIN_ROLE:
+        raise HTTPException(status_code=403, detail="需要管理员权限")
+    return token_info

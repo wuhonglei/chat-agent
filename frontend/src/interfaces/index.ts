@@ -3,5 +3,6 @@ export * from "./auth";
 export * from "./chat";
 export * from "./contentBlock";
 export * from "./conversation";
+export * from "./eval";
 export * from "./tooCall";
 export * from "./user";

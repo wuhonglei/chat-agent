@@ -76,6 +76,7 @@ class BadCaseItemResponse(BaseModel):
     rule_scores: dict[str, Any]
     judge_scores: dict[str, Any] | None
     trace_id: str | None
+    langfuse_trace_url: str | None = None
     feedback_reasons: list[str]
     feedback_comment: str | None
     status: BadCaseStatus

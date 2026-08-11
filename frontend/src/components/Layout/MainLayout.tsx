@@ -71,7 +71,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             "flex flex-col border-r",
             styles["aside-container"],
             hideSidebar && "hidden",
-            !collapsed && "px-3"
+            !collapsed && "px-3",
           )}
           style={{
             padding: 0,
@@ -81,13 +81,17 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           }}
           breakpoint="md"
         >
-          <SidebarHeader
-            collapsed={collapsed}
-            onCollapse={handleCollapse}
-            onNewConversation={handleNewConversion}
-            onOpenSearch={handleOpenSearch}
-          />
-          <SidebarContent onAfterActiveChange={handleAfterActiveChange} />
+          {!hideSidebar ? (
+            <>
+              <SidebarHeader
+                collapsed={collapsed}
+                onCollapse={handleCollapse}
+                onNewConversation={handleNewConversion}
+                onOpenSearch={handleOpenSearch}
+              />
+              <SidebarContent onAfterActiveChange={handleAfterActiveChange} />
+            </>
+          ) : null}
         </Sider>
         <Content className="h-full bg-white" ref={contentRef}>
           {children}

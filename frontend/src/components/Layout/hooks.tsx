@@ -134,7 +134,7 @@ export function useSidebarStyles(collapsed: boolean, isSmallScreen: boolean): CS
 
 export function useHideSidebar() {
   const location = useLocation();
-  return useMemo(() => /^\/(login|register)/.test(location.pathname), [location.pathname]);
+  return useMemo(() => /^\/(login|register|admin)/.test(location.pathname), [location.pathname]);
 }
 
 const CONVERSATION_PAGE_LIMIT = 20;
@@ -154,9 +154,7 @@ export function useConversationInfiniteScroll(containerRef: RefObject<HTMLDivEle
         return lastData;
       }
       const cursor = lastData?.nextCursor ?? undefined;
-      const res = await dispatch(
-        loadConversations({ cursor, limit: CONVERSATION_PAGE_LIMIT })
-      ).unwrap();
+      const res = await dispatch(loadConversations({ cursor, limit: CONVERSATION_PAGE_LIMIT })).unwrap();
       return {
         list: res.conversations,
         nextCursor: res.nextCursor,

@@ -62,7 +62,9 @@ cd backend && uv run python scripts/run_batch_eval.py [--hours 24] [--dry-run]
 
 ## 4. Bad Case 复核队列
 
-前缀：`/api/eval`（均需 JWT）。
+前缀：`/api/eval`。**均需 JWT，且 `users.role = admin`**（非 admin 返回 403）。
+
+前端管理页：`/admin/bad-cases`（仅 admin 可见入口与可访问）。
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -70,6 +72,18 @@ cd backend && uv run python scripts/run_batch_eval.py [--hours 24] [--dry-run]
 | GET | `/bad-cases/stats` | 队列统计 |
 | GET | `/bad-cases/{item_id}` | 详情 |
 | PUT | `/bad-cases/{item_id}` | 更新 `status` / `attribution` / `reviewer_notes` / `resolution` |
+| POST | `/bad-cases/{item_id}/add-to-dataset` | 推送到固定 Langfuse Dataset，并置 `resolution=added_to_dataset`、`status=resolved` |
+
+响应中若有 `trace_id`，会附带 `langfuse_trace_url` 供前端跳转 Trace UI。
+
+### Dataset / Trace 相关配置（`LANGFUSE__*`）
+
+| 字段 | 默认 | 说明 |
+|------|------|------|
+| `BAD_CASE_DATASET_NAME` | `chat-agent-bad-cases` | 复核推送的固定 Dataset 名 |
+| `PROJECT_ID` | `""` | 可选；有值时 Trace URL 为 `{host}/project/{id}/traces/{trace_id}`，否则 `{host}/trace/{trace_id}` |
+
+推送使用 `create_dataset_item(id=bad_case.id)` upsert，重复点击不会产生重复条目。
 
 ### 入队来源 `source`
 

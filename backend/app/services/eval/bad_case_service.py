@@ -7,11 +7,14 @@ from typing import Any
 from sqlalchemy import desc, func
 from sqlmodel import Session, select
 
+from app.core.config import settings
+from app.core.observability import build_trace_url, ensure_dataset, get_langfuse
 from app.models.bad_case_item_db import BadCaseItemDb
 from app.schemas.eval import (
     BadCaseAttribution,
     BadCaseItemResponse,
     BadCaseListResponse,
+    BadCaseResolution,
     BadCaseSource,
     BadCaseStatsResponse,
     BadCaseStatus,
@@ -120,7 +123,7 @@ class BadCaseService(DbService):
         items = list(db.exec(stmt).all())
 
         return BadCaseListResponse(
-            items=[self._to_response(i) for i in items],
+            items=[self.to_response(i) for i in items],
             total=total,
             page=page,
             page_size=page_size,
@@ -162,6 +165,60 @@ class BadCaseService(DbService):
 
         db.add(item)
         db.flush()
+        return item
+
+    def add_to_dataset(self, item_id: str) -> BadCaseItemDb:
+        """将 bad case 推送到固定 Langfuse dataset，并标记为已解决。"""
+        db = self._ensure_db()
+        item = db.get(BadCaseItemDb, item_id)
+        if item is None:
+            raise LookupError("bad case 不存在")
+
+        langfuse = get_langfuse()
+        if langfuse is None:
+            raise RuntimeError("Langfuse 客户端不可用")
+
+        dataset_name = settings.langfuse.bad_case_dataset_name
+        ensure_dataset(
+            dataset_name,
+            description="Bad cases from chat-agent review queue",
+        )
+
+        query = item.query or ""
+        langfuse.create_dataset_item(
+            dataset_name=dataset_name,
+            id=item.id,
+            input={
+                "query": query,
+                "messages": ([{"role": "user", "content": query}] if query else []),
+            },
+            expected_output=item.answer or None,
+            metadata={
+                "bad_case_id": item.id,
+                "source": item.source,
+                "message_id": item.message_id,
+                "conversation_id": item.conversation_id,
+                "attribution": item.attribution,
+                "rule_scores": item.rule_scores,
+                "judge_scores": item.judge_scores,
+            },
+            source_trace_id=item.trace_id,
+        )
+
+        now = get_datetime_now()
+        item.resolution = BadCaseResolution.ADDED_TO_DATASET.value
+        item.status = BadCaseStatus.RESOLVED.value
+        if item.resolved_at is None:
+            item.resolved_at = now
+        if item.reviewed_at is None:
+            item.reviewed_at = now
+        db.add(item)
+        db.flush()
+        logger.info(
+            "Bad case added to Langfuse dataset",
+            item_id=item.id,
+            dataset_name=dataset_name,
+        )
         return item
 
     # ── 统计 ──
@@ -256,5 +313,7 @@ class BadCaseService(DbService):
     # ── 内部 ──
 
     @staticmethod
-    def _to_response(item: BadCaseItemDb) -> BadCaseItemResponse:
-        return BadCaseItemResponse.model_validate(item.model_dump(mode="json"))
+    def to_response(item: BadCaseItemDb) -> BadCaseItemResponse:
+        data = item.model_dump(mode="json")
+        data["langfuse_trace_url"] = build_trace_url(item.trace_id)
+        return BadCaseItemResponse.model_validate(data)
