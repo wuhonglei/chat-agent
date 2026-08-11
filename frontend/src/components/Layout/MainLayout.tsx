@@ -71,7 +71,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             "flex flex-col border-r",
             styles["aside-container"],
             hideSidebar && "hidden",
-            !collapsed && "px-3"
+            !collapsed && "px-3",
           )}
           style={{
             padding: 0,
