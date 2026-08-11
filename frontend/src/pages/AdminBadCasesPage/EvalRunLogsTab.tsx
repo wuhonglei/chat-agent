@@ -5,7 +5,7 @@ import { useRequest } from "ahooks";
 import { App, Button, InputNumber, Select, Space, Table, Tag, Typography } from "antd";
 import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
 import dayjs from "dayjs";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 function formatAvg(value: number | null | undefined): string {
   if (value == null || Number.isNaN(value)) return "-";
@@ -35,9 +35,12 @@ const STATUS_COLOR: Record<EvalRunStatus, string> = {
   failed: "error",
 };
 
-function labelOf<T extends string>(options: { label: string; value: T }[], value: T | null | undefined) {
+function labelOf<T extends string>(
+  options: { label: string; value: T }[],
+  value: T | null | undefined,
+) {
   if (!value) return "-";
-  return options.find(o => o.value === value)?.label ?? value;
+  return options.find((o) => o.value === value)?.label ?? value;
 }
 
 function formatBreakdown(breakdown: Record<string, unknown> | undefined): string {
@@ -48,14 +51,14 @@ function formatBreakdown(breakdown: Record<string, unknown> | undefined): string
 }
 
 const EvalRunLogsTab: React.FC = () => {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const [status, setStatus] = useState<EvalRunStatus | undefined>();
   const [runType, setRunType] = useState<EvalRunType | undefined>();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [hours, setHours] = useState<number | null>(null);
   const [triggering, setTriggering] = useState(false);
   const [pollingRunId, setPollingRunId] = useState<string | null>(null);
+  const confirmHoursRef = useRef<number | null>(null);
 
   const {
     data: listData,
@@ -71,14 +74,22 @@ const EvalRunLogsTab: React.FC = () => {
       }),
     {
       refreshDeps: [status, runType, page, pageSize],
-    }
+    },
   );
 
-  const { data: polledRun, cancel: cancelPoll } = useRequest(() => evalAPI.getRunLog(pollingRunId!), {
-    ready: Boolean(pollingRunId),
-    pollingInterval: 2000,
-    refreshDeps: [pollingRunId],
-  });
+  const { data: runningCheck, refresh: refreshRunningCheck } = useRequest(
+    () => evalAPI.listRunLogs({ status: "running", page: 1, pageSize: 1 }),
+    { refreshDeps: [] },
+  );
+
+  const { data: polledRun, cancel: cancelPoll } = useRequest(
+    () => evalAPI.getRunLog(pollingRunId!),
+    {
+      ready: Boolean(pollingRunId),
+      pollingInterval: 2000,
+      refreshDeps: [pollingRunId],
+    },
+  );
 
   useEffect(() => {
     if (!polledRun || !pollingRunId) return;
@@ -87,14 +98,18 @@ const EvalRunLogsTab: React.FC = () => {
     cancelPoll();
     setPollingRunId(null);
     refresh();
+    refreshRunningCheck();
     if (polledRun.status === "success") {
       message.success(`评估完成：采样 ${polledRun.sampledCount}，低分 ${polledRun.lowScoreCount}`);
     } else {
       message.error(polledRun.errorMessage || "评估失败");
     }
-  }, [polledRun, pollingRunId, cancelPoll, refresh, message]);
+  }, [polledRun, pollingRunId, cancelPoll, refresh, refreshRunningCheck, message]);
 
-  const handleTrigger = async () => {
+  const isPolling = Boolean(pollingRunId);
+  const hasRunning = isPolling || (runningCheck?.total ?? 0) > 0;
+
+  const runTrigger = async (hours: number | null) => {
     setTriggering(true);
     try {
       const run = await evalAPI.triggerBatchEval({
@@ -103,12 +118,40 @@ const EvalRunLogsTab: React.FC = () => {
       message.success("批量评估已开始");
       setPage(1);
       refresh();
+      refreshRunningCheck();
       setPollingRunId(run.id);
     } catch {
       // HTTP 错误（含 409「已有评估在运行」）已由 apiClient 拦截器提示
     } finally {
       setTriggering(false);
     }
+  };
+
+  const handleTrigger = () => {
+    if (hasRunning) return;
+    confirmHoursRef.current = null;
+    modal.confirm({
+      title: "确认手动触发评估？",
+      content: (
+        <div>
+          <Typography.Paragraph type="secondary" style={{ marginBottom: 12 }}>
+            将按当前配置启动一次批量评估，请确认回溯时间范围。
+          </Typography.Paragraph>
+          <InputNumber
+            min={1}
+            max={168}
+            placeholder="回溯小时（默认配置）"
+            style={{ width: "100%" }}
+            onChange={(v) => {
+              confirmHoursRef.current = typeof v === "number" ? v : null;
+            }}
+          />
+        </div>
+      ),
+      okText: "开始评估",
+      cancelText: "取消",
+      onOk: () => runTrigger(confirmHoursRef.current),
+    });
   };
 
   const columns: ColumnsType<EvalRunLog> = [
@@ -157,7 +200,9 @@ const EvalRunLogsTab: React.FC = () => {
       width: 220,
       ellipsis: true,
       render: (v: Record<string, unknown>) => (
-        <Typography.Text ellipsis={{ tooltip: formatBreakdown(v) }}>{formatBreakdown(v)}</Typography.Text>
+        <Typography.Text ellipsis={{ tooltip: formatBreakdown(v) }}>
+          {formatBreakdown(v)}
+        </Typography.Text>
       ),
     },
     {
@@ -209,36 +254,23 @@ const EvalRunLogsTab: React.FC = () => {
     pageSize,
     total: listData?.total ?? 0,
     showSizeChanger: true,
-    showTotal: total => `共 ${total} 条`,
+    showTotal: (total) => `共 ${total} 条`,
     onChange: (nextPage, nextSize) => {
       setPage(nextPage);
       setPageSize(nextSize);
     },
   };
 
-  const isPolling = Boolean(pollingRunId);
-
   return (
     <>
       <Space className="mb-3" wrap>
-        <InputNumber
-          min={1}
-          max={168}
-          placeholder="回溯小时（默认配置）"
-          style={{ width: 180 }}
-          value={hours}
-          onChange={v => setHours(typeof v === "number" ? v : null)}
-        />
-        <Button type="primary" icon={<PlayCircleOutlined />} loading={triggering || isPolling} onClick={handleTrigger}>
-          手动触发评估
-        </Button>
         <Select
           allowClear
           placeholder="状态"
           style={{ width: 120 }}
           options={STATUS_OPTIONS}
           value={status}
-          onChange={v => {
+          onChange={(v) => {
             setStatus(v);
             setPage(1);
           }}
@@ -249,13 +281,31 @@ const EvalRunLogsTab: React.FC = () => {
           style={{ width: 120 }}
           options={RUN_TYPE_OPTIONS}
           value={runType}
-          onChange={v => {
+          onChange={(v) => {
             setRunType(v);
             setPage(1);
           }}
         />
-        <Button onClick={() => refresh()}>刷新</Button>
-        {isPolling ? <Typography.Text type="secondary">评估进行中，正在轮询状态…</Typography.Text> : null}
+        <Button
+          onClick={() => {
+            refresh();
+            refreshRunningCheck();
+          }}
+        >
+          刷新
+        </Button>
+        <Button
+          type="primary"
+          icon={<PlayCircleOutlined />}
+          loading={triggering || isPolling}
+          disabled={hasRunning}
+          onClick={handleTrigger}
+        >
+          手动触发评估
+        </Button>
+        {isPolling ? (
+          <Typography.Text type="secondary">评估进行中，正在轮询状态…</Typography.Text>
+        ) : null}
       </Space>
 
       <Table
