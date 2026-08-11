@@ -71,7 +71,8 @@ def _message_content(msg: dict[str, Any]) -> str:
     return str(content)
 
 
-def _normalize_generation_input(raw_input: Any) -> dict[str, Any]:
+def normalize_generation_input(raw_input: Any) -> dict[str, Any]:
+    """规范化 GENERATION input：保留 messages 等，去掉 tools schema。"""
     data = raw_input
     if isinstance(data, str):
         try:
@@ -84,7 +85,8 @@ def _normalize_generation_input(raw_input: Any) -> dict[str, Any]:
     return {k: v for k, v in data.items() if k != "tools"}
 
 
-def _extract_generation_answer(raw_output: Any) -> str:
+def extract_generation_answer(raw_output: Any) -> str:
+    """从 GENERATION output 抽出最终文本回答。"""
     if raw_output is None:
         return ""
     if isinstance(raw_output, str):
@@ -114,6 +116,11 @@ def _extract_generation_answer(raw_output: Any) -> str:
                 return _as_text(message.get("content")).strip()
         return _as_text(content or raw_output.get("text") or "").strip()
     return _as_text(raw_output).strip()
+
+
+# 兼容旧私有名（测试 / 内部调用）
+_normalize_generation_input = normalize_generation_input
+_extract_generation_answer = extract_generation_answer
 
 
 def _xml_inner(pattern: re.Pattern[str], text: str) -> str:
@@ -241,6 +248,7 @@ def _obs_to_dict(obs: Any) -> dict[str, Any]:
         "type": getattr(obs, "type", None),
         "input": getattr(obs, "input", None),
         "output": getattr(obs, "output", None),
+        "metadata": getattr(obs, "metadata", None),
         "start_time": getattr(obs, "start_time", None),
         "startTime": getattr(obs, "startTime", None),
     }
@@ -252,6 +260,47 @@ def _obs_type(obs: dict[str, Any]) -> str:
 
 def _obs_start_time(obs: dict[str, Any]) -> str:
     return str(obs.get("start_time") or obs.get("startTime") or "")
+
+
+def fetch_last_generation(
+    langfuse_client: Any | None,
+    trace_id: str,
+    *,
+    fields: str = "core,io,metadata",
+) -> dict[str, Any] | None:
+    """拉取 trace 下最后一条 type=GENERATION 的 observation（含 IO）。"""
+    if not trace_id or langfuse_client is None:
+        return None
+    api = getattr(langfuse_client, "api", None)
+    observations_api = getattr(api, "observations", None) if api is not None else None
+    if observations_api is None or not hasattr(observations_api, "get_many"):
+        return None
+    try:
+        response = observations_api.get_many(
+            trace_id=trace_id,
+            limit=50,
+            fields=fields,
+        )
+    except Exception as exc:
+        logger.warning(
+            "Failed to fetch generation observations",
+            trace_id=trace_id,
+            error=exc,
+            error_type=type(exc).__name__,
+        )
+        return None
+
+    data = getattr(response, "data", None) or []
+    generations = [
+        _obs_to_dict(item)
+        for item in data
+        if _obs_type(_obs_to_dict(item)) == "GENERATION"
+    ]
+    if not generations:
+        return None
+    # API 通常按 start_time 降序；再保险按时间排序取最后一条
+    generations.sort(key=_obs_start_time, reverse=True)
+    return generations[0]
 
 
 class JudgeInputBuilder:
@@ -283,14 +332,14 @@ class JudgeInputBuilder:
 
         if generation is not None:
             source_flags["last_generation"] = True
-            gen_input = _normalize_generation_input(generation.get("input"))
+            gen_input = normalize_generation_input(generation.get("input"))
             messages = gen_input.get("messages") or []
             if not isinstance(messages, list):
                 messages = []
             query, memories, attachment, tool_contents = parse_generation_messages(
                 messages
             )
-            gen_answer = _extract_generation_answer(generation.get("output"))
+            gen_answer = extract_generation_answer(generation.get("output"))
             if gen_answer:
                 answer = gen_answer
             if not query:
@@ -333,40 +382,7 @@ class JudgeInputBuilder:
         )
 
     def _fetch_last_generation(self, trace_id: str) -> dict[str, Any] | None:
-        if not trace_id or self.langfuse is None:
-            return None
-        api = getattr(self.langfuse, "api", None)
-        observations_api = (
-            getattr(api, "observations", None) if api is not None else None
-        )
-        if observations_api is None or not hasattr(observations_api, "get_many"):
-            return None
-        try:
-            response = observations_api.get_many(
-                trace_id=trace_id,
-                limit=50,
-                fields="core,io",
-            )
-        except Exception as exc:
-            logger.warning(
-                "Failed to fetch generation observations for judge input",
-                trace_id=trace_id,
-                error=exc,
-                error_type=type(exc).__name__,
-            )
-            return None
-
-        data = getattr(response, "data", None) or []
-        generations = [
-            _obs_to_dict(item)
-            for item in data
-            if _obs_type(_obs_to_dict(item)) == "GENERATION"
-        ]
-        if not generations:
-            return None
-        # API 通常按 start_time 降序；再保险按时间排序取最后一条
-        generations.sort(key=_obs_start_time, reverse=True)
-        return generations[0]
+        return fetch_last_generation(self.langfuse, trace_id)
 
     def _db_fallback(self, trace: dict[str, Any]) -> tuple[str, list[str]]:
         """reference 为空时从 messages 抽 tool_result / user_memories。"""

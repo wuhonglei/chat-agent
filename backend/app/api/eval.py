@@ -185,6 +185,23 @@ async def get_run_log(
     return ApiResponse.success(data=service.to_response(item))
 
 
+@router.delete("/run-logs/{run_id}")
+async def delete_run_log(
+    run_id: str,
+    _auth: AuthTokenPayload = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ApiResponse[None]:
+    """删除单条评估运行日志（仅 admin）。运行中不可删。"""
+    service = EvalRunLogService(db)
+    try:
+        deleted = service.delete_run_log(run_id)
+    except RuntimeError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+    if not deleted:
+        raise HTTPException(status_code=404, detail="评估运行日志不存在")
+    return ApiResponse.success(msg="删除成功")
+
+
 async def _run_batch_eval_background(*, run_id: str, hours: int | None) -> None:
     """Fire-and-forget: 后台执行批量评估。"""
     try:

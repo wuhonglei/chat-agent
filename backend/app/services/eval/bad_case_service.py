@@ -26,8 +26,15 @@ from app.schemas.eval import (
     BadCaseUpdateRequest,
 )
 from app.services.base_service.db_service import DbService
+from app.services.eval.judge_input_builder import (
+    extract_generation_answer,
+    fetch_last_generation,
+    normalize_generation_input,
+)
 from app.utils.date import get_datetime_now
 from app.utils.logger import logger
+
+DATASET_ITEM_VERSION = "v1.0"
 
 
 class BadCaseService(DbService):
@@ -173,7 +180,12 @@ class BadCaseService(DbService):
         return item
 
     def add_to_dataset(self, item_id: str) -> BadCaseItemDb:
-        """将 bad case 推送到固定 Langfuse dataset，并标记为已解决。"""
+        """将 bad case 推送到固定 Langfuse dataset，并标记为已解决。
+
+        Dataset item 结构对齐离线评估集（prod_trace）：
+        - input / expected_output：取自 trace 下最后一条 GENERATION observation
+        - metadata：source / user_id / version / trace_id / agent_mode / session_id
+        """
         db = self._ensure_db()
         item = db.get(BadCaseItemDb, item_id)
         if item is None:
@@ -189,26 +201,11 @@ class BadCaseService(DbService):
             description="Bad cases from chat-agent review queue",
         )
 
-        query = item.query or ""
+        payload = self._build_dataset_item_payload(item, langfuse)
         langfuse.create_dataset_item(
             dataset_name=dataset_name,
             id=item.id,
-            input={
-                "query": query,
-                "messages": ([{"role": "user", "content": query}] if query else []),
-            },
-            expected_output=item.answer or None,
-            metadata={
-                "bad_case_id": item.id,
-                "source": item.source,
-                "message_id": item.message_id,
-                "conversation_id": item.conversation_id,
-                "attribution": item.attribution,
-                "rule_scores": item.rule_scores,
-                "judge_scores": item.judge_scores,
-            },
-            source_trace_id=item.trace_id
-            or (new_trace_id(item.message_id) if item.message_id else None),
+            **payload,
         )
 
         now = get_datetime_now()
@@ -224,8 +221,79 @@ class BadCaseService(DbService):
             "Bad case added to Langfuse dataset",
             item_id=item.id,
             dataset_name=dataset_name,
+            from_generation=bool(payload.get("source_observation_id")),
         )
         return item
+
+    @staticmethod
+    def _build_dataset_item_payload(
+        item: BadCaseItemDb,
+        langfuse: Any,
+    ) -> dict[str, Any]:
+        """组装 create_dataset_item 参数，优先 last GENERATION IO。"""
+        trace_id = item.trace_id or (
+            new_trace_id(item.message_id) if item.message_id else None
+        )
+        generation = fetch_last_generation(langfuse, trace_id or "")
+        source_observation_id: str | None = None
+        agent_mode = 0
+        dataset_input: dict[str, Any]
+        expected_output: str | None
+
+        if generation is not None:
+            source_observation_id = str(generation.get("id") or "").strip() or None
+            gen_meta = generation.get("metadata") or {}
+            if isinstance(gen_meta, dict):
+                raw_mode = gen_meta.get("agent_mode")
+                if isinstance(raw_mode, int):
+                    agent_mode = raw_mode
+                elif isinstance(raw_mode, str) and raw_mode.isdigit():
+                    agent_mode = int(raw_mode)
+
+            dataset_input = normalize_generation_input(generation.get("input"))
+            messages = dataset_input.get("messages")
+            if not isinstance(messages, list) or not messages:
+                query = (item.query or "").strip()
+                dataset_input = {
+                    "messages": ([{"role": "user", "content": query}] if query else [])
+                }
+
+            expected_output = (
+                extract_generation_answer(generation.get("output"))
+                or (item.answer or "").strip()
+                or None
+            )
+        else:
+            query = (item.query or "").strip()
+            dataset_input = {
+                "messages": ([{"role": "user", "content": query}] if query else [])
+            }
+            expected_output = (item.answer or "").strip() or None
+
+        judge_scores = item.judge_scores if isinstance(item.judge_scores, dict) else {}
+        metadata: dict[str, Any] = {
+            "source": "prod_trace",
+            "user_id": item.user_id,
+            "version": DATASET_ITEM_VERSION,
+            "trace_id": trace_id,
+            "agent_mode": agent_mode,
+            "session_id": item.conversation_id,
+            # 复核队列溯源字段
+            "bad_case_id": item.id,
+            "bad_case_source": item.source,
+            "message_id": item.message_id,
+            "attribution": item.attribution,
+            "rule_scores": item.rule_scores or {},
+            "judge_scores": judge_scores or None,
+        }
+
+        return {
+            "input": dataset_input,
+            "expected_output": expected_output,
+            "metadata": metadata,
+            "source_trace_id": trace_id,
+            "source_observation_id": source_observation_id,
+        }
 
     # ── 统计 ──
 

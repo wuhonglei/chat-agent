@@ -40,6 +40,10 @@ export const evalAPI = {
     return await apiClient.get(`/eval/run-logs/${runId}`);
   },
 
+  deleteRunLog: async (runId: string): Promise<void> => {
+    await apiClient.delete(`/eval/run-logs/${runId}`);
+  },
+
   triggerBatchEval: async (data?: EvalRunTriggerRequest): Promise<EvalRunLog> => {
     return await apiClient.post("/eval/run-logs/trigger", data ?? {});
   },

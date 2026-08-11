@@ -1,6 +1,6 @@
 import { EvalRunLog, EvalRunScoreSummary, EvalRunStatus, EvalRunType } from "@/interfaces/eval";
 import { evalAPI } from "@/services";
-import { PlayCircleOutlined } from "@ant-design/icons";
+import { DeleteOutlined, PlayCircleOutlined } from "@ant-design/icons";
 import { useRequest } from "ahooks";
 import { App, Button, InputNumber, Select, Space, Table, Tag, Typography } from "antd";
 import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
@@ -154,6 +154,35 @@ const EvalRunLogsTab: React.FC = () => {
     });
   };
 
+  const handleDelete = (record: EvalRunLog) => {
+    if (record.status === "running") {
+      message.warning("评估仍在运行中，无法删除");
+      return;
+    }
+    const startedAt = dayjs(record.startedAt).format("YYYY-MM-DD HH:mm");
+    modal.confirm({
+      title: "确认删除评估历史？",
+      content: `确定删除 ${startedAt} 的「${labelOf(RUN_TYPE_OPTIONS, record.runType)}」评估记录吗？此操作不可恢复。`,
+      okText: "删除",
+      okType: "danger",
+      cancelText: "取消",
+      onOk: async () => {
+        try {
+          await evalAPI.deleteRunLog(record.id);
+          message.success("已删除");
+          if (pollingRunId === record.id) {
+            cancelPoll();
+            setPollingRunId(null);
+          }
+          refresh();
+          refreshRunningCheck();
+        } catch {
+          // HTTP 错误已由 apiClient 拦截器提示
+        }
+      },
+    });
+  };
+
   const columns: ColumnsType<EvalRunLog> = [
     {
       title: "类型",
@@ -247,6 +276,22 @@ const EvalRunLogsTab: React.FC = () => {
           "-"
         ),
     },
+    {
+      title: "操作",
+      key: "action",
+      width: 70,
+      fixed: "right",
+      render: (_: unknown, record: EvalRunLog) => (
+        <Button
+          type="link"
+          danger
+          size="small"
+          disabled={record.status === "running"}
+          icon={<DeleteOutlined />}
+          onClick={() => handleDelete(record)}
+        />
+      ),
+    },
   ];
 
   const pagination: TablePaginationConfig = {
@@ -315,7 +360,7 @@ const EvalRunLogsTab: React.FC = () => {
         columns={columns}
         dataSource={listData?.items ?? []}
         pagination={pagination}
-        scroll={{ x: 1680 }}
+        scroll={{ x: 1750 }}
         locale={{ emptyText: "暂无评估运行记录" }}
       />
     </>

@@ -92,6 +92,13 @@ cd backend && uv run python scripts/run_batch_eval.py [--hours 24] [--dry-run]
 
 推送使用 `create_dataset_item(id=bad_case.id)` upsert，重复点击不会产生重复条目。
 
+Dataset item 结构对齐离线评估集（`prod_trace`）：
+
+- **input**：取自对应 `trace_id` 下最后一条 `type=GENERATION` observation 的 `input`（`messages`，含 system / user / tool；会去掉 `tools` schema）
+- **expected_output**：同上 GENERATION 的最终文本输出
+- **metadata**：`source=prod_trace`、`user_id`、`version`、`trace_id`、`agent_mode`、`session_id`（= conversation_id）；并附带 `bad_case_id` / `bad_case_source` / `judge_scores` 等溯源字段（不含 `annotation`）
+- **source_observation_id**：该 GENERATION 的 observation id；若拉取失败则回退到队列内缓存的 query/answer
+
 ### 入队来源 `source`
 
 | 值 | 触发 |
