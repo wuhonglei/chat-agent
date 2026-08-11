@@ -58,13 +58,15 @@ cd backend && uv run python -m eval_worker.main
 cd backend && uv run python scripts/run_batch_eval.py [--hours 24] [--dry-run]
 ```
 
-依赖：PostgreSQL、Langfuse、`models.scenarios.judge` 可用。运行日志写入 `eval_run_logs` 表；**无** HTTP 查询 API，排障看 worker 日志或直查 DB。
+依赖：PostgreSQL、Langfuse、`models.scenarios.judge` 可用。运行日志写入 `eval_run_logs` 表。
 
-## 4. Bad Case 复核队列
+也可在管理页 **评估历史** Tab 点击「手动触发评估」（见下方 `/run-logs/trigger`）；任务在 API 进程内异步执行，前端按返回的 `id` 轮询状态。若已有 `status=running` 的记录，接口返回 409。
+
+## 4. Bad Case 复核队列与评估运行日志
 
 前缀：`/api/eval`。**均需 JWT，且 `users.role = admin`**（非 admin 返回 403）。
 
-前端管理页：`/admin/bad-cases`（仅 admin 可见入口与可访问）。
+前端管理页：`/admin/bad-cases`（仅 admin 可见入口与可访问；含 Bad Case / 评估历史 Tabs）。
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -72,7 +74,13 @@ cd backend && uv run python scripts/run_batch_eval.py [--hours 24] [--dry-run]
 | GET | `/bad-cases/stats` | 队列统计 |
 | GET | `/bad-cases/{item_id}` | 详情 |
 | PUT | `/bad-cases/{item_id}` | 更新 `status` / `attribution` / `reviewer_notes` / `resolution` |
+| DELETE | `/bad-cases/{item_id}` | 删除单条 bad case |
 | POST | `/bad-cases/{item_id}/add-to-dataset` | 推送到固定 Langfuse Dataset，并置 `resolution=added_to_dataset`、`status=resolved` |
+| GET | `/run-logs` | 分页评估运行日志；可选 `status` / `run_type` |
+| GET | `/run-logs/{run_id}` | 单条运行日志（轮询用） |
+| POST | `/run-logs/trigger` | 手动触发批量评估；可选 body `{ "hours": N }`；立即返回 `running` 日志；已有运行中任务时 409 |
+
+运行结束后会写入 `score_summary`（JSON）：`overall` / `hist` / `by_tier` / `low_score` 等，基于当次采样且裁判成功的样本；`threshold` 快照当前 `judge_low_score_threshold`（correctness/completeness 两侧同值）。
 
 响应中若有 `trace_id`，会附带 `langfuse_trace_url` 供前端跳转 Trace UI。
 
@@ -84,6 +92,13 @@ cd backend && uv run python scripts/run_batch_eval.py [--hours 24] [--dry-run]
 | `PROJECT_ID` | `""` | 可选；有值时 Trace URL 为 `{host}/project/{id}/traces/{trace_id}`，否则 `{host}/trace/{trace_id}` |
 
 推送使用 `create_dataset_item(id=bad_case.id)` upsert，重复点击不会产生重复条目。
+
+Dataset item 结构对齐离线评估集（`prod_trace`）：
+
+- **input**：取自对应 `trace_id` 下最后一条 `type=GENERATION` observation 的 `input`（`messages`，含 system / user / tool；会去掉 `tools` schema）
+- **expected_output**：同上 GENERATION 的最终文本输出
+- **metadata**：`source=prod_trace`、`user_id`、`version`、`trace_id`、`agent_mode`、`session_id`（= conversation_id）；并附带 `bad_case_id` / `bad_case_source` / `judge_scores` 等溯源字段（不含 `annotation`）
+- **source_observation_id**：该 GENERATION 的 observation id；若拉取失败则回退到队列内缓存的 query/answer
 
 ### 入队来源 `source`
 

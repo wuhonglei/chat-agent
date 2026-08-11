@@ -48,6 +48,21 @@ class BadCaseResolution(str, Enum):
     NO_ACTION = "no_action"
 
 
+class EvalRunStatus(str, Enum):
+    """评估运行状态"""
+
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
+
+
+class EvalRunType(str, Enum):
+    """评估运行类型"""
+
+    SCHEDULED = "scheduled"
+    MANUAL = "manual"
+
+
 # ── 请求 ──
 
 
@@ -58,6 +73,12 @@ class BadCaseUpdateRequest(BaseModel):
     attribution: BadCaseAttribution | None = None
     reviewer_notes: str | None = None
     resolution: BadCaseResolution | None = None
+
+
+class EvalRunTriggerRequest(BaseModel):
+    """手动触发批量评估"""
+
+    hours: int | None = None
 
 
 # ── 响应 ──
@@ -122,4 +143,14 @@ class EvalRunLogResponse(BaseModel):
     judge_success: int
     judge_failed: int
     low_score_count: int
+    score_summary: dict[str, Any] | None = None
     error_message: str | None
+
+
+class EvalRunLogListResponse(BaseModel):
+    """评估运行日志列表响应"""
+
+    items: list[EvalRunLogResponse]
+    total: int
+    page: int
+    page_size: int

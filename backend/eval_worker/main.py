@@ -8,32 +8,12 @@ from typing import Any
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from openai import AsyncOpenAI
 
 from app.core.observability import init_langfuse
-from app.services.base_service.model_resolver import resolve_scenario
 from app.services.eval.batch_eval_service import BatchEvalService
+from app.services.eval.judge_llm import judge_llm_caller
 from app.utils.logger import logger
-from app.utils.model import get_model_extra_body
 from eval_worker.config import get_eval_worker_config
-
-
-async def judge_llm_caller(messages: list[dict[str, str]]) -> str:
-    """裁判模型调用器。使用配置中的 judge scenario 模型。"""
-    cfg = get_eval_worker_config()
-    llm_config = resolve_scenario(cfg.judge_model_scenario)
-    client = AsyncOpenAI(
-        api_key=llm_config.api_key,
-        base_url=llm_config.api_base,
-    )
-    response = await client.chat.completions.create(
-        model=llm_config.model_name,
-        messages=messages,  # type: ignore[arg-type]
-        temperature=0.0,
-        max_tokens=1024,
-        extra_body=get_model_extra_body(False),
-    )
-    return response.choices[0].message.content or ""
 
 
 async def run_scheduled_eval() -> None:

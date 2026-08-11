@@ -19,6 +19,7 @@ from app.models.eval_run_log_db import EvalRunLog
 from app.schemas.eval import BadCaseSource
 from app.services.eval.bad_case_service import BadCaseService
 from app.services.eval.judge_input_builder import JudgeInputBuilder
+from app.services.eval.score_summary import build_score_summary
 from app.utils.date import get_datetime_now
 from app.utils.logger import logger
 
@@ -137,6 +138,79 @@ class BatchEvalService:
         self.cfg = settings.eval_worker
         self.judge_input_builder = JudgeInputBuilder(langfuse_client=self.langfuse)
 
+    def create_run_log(self, *, run_type: str = "scheduled") -> EvalRunLog:
+        """创建一条 status=running 的评估运行日志并立即落库。"""
+        now = get_datetime_now()
+        run_log = EvalRunLog(run_type=run_type, started_at=now, status="running")
+        with Session(engine) as db:
+            db.add(run_log)
+            db.commit()
+            db.refresh(run_log)
+            # Detach so callers can safely use the object after session close.
+            return EvalRunLog.model_validate(run_log.model_dump())
+
+    async def execute_run(
+        self,
+        run_id: str,
+        *,
+        hours: int | None = None,
+        dry_run: bool = False,
+    ) -> EvalRunLog:
+        """执行已创建的评估运行并写回终态。"""
+        with Session(engine) as db:
+            run_log = db.get(EvalRunLog, run_id)
+            if run_log is None:
+                raise LookupError(f"eval run log not found: {run_id}")
+            # Detach a working copy so in-memory counters can accumulate
+            # outside the session before the final write-back.
+            working = EvalRunLog.model_validate(run_log.model_dump())
+
+        try:
+            await self._do_run(working, hours=hours, dry_run=dry_run)
+            working.status = "success"
+        except Exception as exc:
+            working.status = "failed"
+            working.error_message = str(exc)[:2000]
+            logger.error(
+                "Batch eval failed",
+                error=exc,
+                error_type=type(exc).__name__,
+            )
+
+        working.finished_at = get_datetime_now()
+        with Session(engine) as db:
+            db_log = db.get(EvalRunLog, run_id)
+            if db_log is not None:
+                db_log.status = working.status
+                db_log.finished_at = working.finished_at
+                db_log.error_message = working.error_message
+                db_log.total_traces = working.total_traces
+                db_log.after_dedup = working.after_dedup
+                db_log.candidate_pool = working.candidate_pool
+                db_log.sampled_count = working.sampled_count
+                db_log.sample_breakdown = working.sample_breakdown
+                db_log.judge_success = working.judge_success
+                db_log.judge_failed = working.judge_failed
+                db_log.low_score_count = working.low_score_count
+                db_log.score_summary = working.score_summary
+                db.add(db_log)
+                db.commit()
+                db.refresh(db_log)
+                working = db_log
+
+        logger.info(
+            "Batch eval finished",
+            run_id=working.id,
+            status=working.status,
+            total_traces=working.total_traces,
+            sampled=working.sampled_count,
+            judge_success=working.judge_success,
+            judge_failed=working.judge_failed,
+            low_scores=working.low_score_count,
+            dry_run=dry_run,
+        )
+        return working
+
     async def run(
         self,
         *,
@@ -144,60 +218,9 @@ class BatchEvalService:
         hours: int | None = None,
         dry_run: bool = False,
     ) -> EvalRunLog:
-        """执行一次完整的批量评估。"""
-        now = get_datetime_now()
-        run_log = EvalRunLog(run_type=run_type, started_at=now, status="running")
-
-        with Session(engine) as db:
-            db.add(run_log)
-            db.commit()
-            db.refresh(run_log)
-            run_id = run_log.id
-
-        try:
-            await self._do_run(run_log, hours=hours, dry_run=dry_run)
-            run_log.status = "success"
-        except Exception as exc:
-            run_log.status = "failed"
-            run_log.error_message = str(exc)[:2000]
-            logger.error(
-                "Batch eval failed",
-                error=exc,
-                error_type=type(exc).__name__,
-            )
-
-        run_log.finished_at = get_datetime_now()
-        with Session(engine) as db:
-            db_log = db.get(EvalRunLog, run_id)
-            if db_log is not None:
-                db_log.status = run_log.status
-                db_log.finished_at = run_log.finished_at
-                db_log.error_message = run_log.error_message
-                db_log.total_traces = run_log.total_traces
-                db_log.after_dedup = run_log.after_dedup
-                db_log.candidate_pool = run_log.candidate_pool
-                db_log.sampled_count = run_log.sampled_count
-                db_log.sample_breakdown = run_log.sample_breakdown
-                db_log.judge_success = run_log.judge_success
-                db_log.judge_failed = run_log.judge_failed
-                db_log.low_score_count = run_log.low_score_count
-                db.add(db_log)
-                db.commit()
-                db.refresh(db_log)
-                run_log = db_log
-
-        logger.info(
-            "Batch eval finished",
-            run_id=run_log.id,
-            status=run_log.status,
-            total_traces=run_log.total_traces,
-            sampled=run_log.sampled_count,
-            judge_success=run_log.judge_success,
-            judge_failed=run_log.judge_failed,
-            low_scores=run_log.low_score_count,
-            dry_run=dry_run,
-        )
-        return run_log
+        """同步执行一次完整的批量评估（脚本 / worker 入口）。"""
+        run_log = self.create_run_log(run_type=run_type)
+        return await self.execute_run(run_log.id, hours=hours, dry_run=dry_run)
 
     async def _do_run(
         self,
@@ -253,6 +276,16 @@ class BatchEvalService:
         judge_results = await self._batch_judge(sample_result.traces)
         run_log.judge_success = sum(1 for _, r in judge_results if r.success)
         run_log.judge_failed = sum(1 for _, r in judge_results if not r.success)
+
+        threshold = int(self.cfg.judge_low_score_threshold)
+        run_log.score_summary = build_score_summary(
+            judge_results,
+            threshold_correctness=threshold,
+            threshold_completeness=threshold,
+            follow_up_trace_ids=follow_ups,
+            thumb_down_message_ids=thumb_down_ids,
+            high_latency_threshold_s=float(self.cfg.high_latency_threshold_s),
+        )
 
         logger.info("Step 5: Writing scores and enqueueing low scores...")
         run_log.low_score_count = await self._write_results(

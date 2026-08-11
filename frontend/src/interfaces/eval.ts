@@ -68,3 +68,84 @@ export interface BadCaseListParams {
   page?: number;
   pageSize?: number;
 }
+
+/** 评估运行状态 */
+export type EvalRunStatus = "running" | "success" | "failed";
+
+/** 评估运行类型 */
+export type EvalRunType = "scheduled" | "manual";
+
+export interface EvalRunScoreTierStats {
+  n: number;
+  avgCorrectness: number | null;
+  avgCompleteness: number | null;
+  lowRate: number;
+}
+
+export interface EvalRunScoreSummary {
+  version: number;
+  n: number;
+  threshold: {
+    correctness: number;
+    completeness: number;
+  };
+  overall: {
+    avgCorrectness: number | null;
+    avgCompleteness: number | null;
+    avgMin: number | null;
+    p50Correctness: number | null;
+    p50Completeness: number | null;
+    lowRate: number;
+  };
+  hist: {
+    correctness: Record<string, number>;
+    completeness: Record<string, number>;
+  };
+  byTier: Record<string, EvalRunScoreTierStats>;
+  lowScore: {
+    count: number;
+    rate: number;
+    byBottleneck: {
+      correctness: number;
+      completeness: number;
+      both: number;
+    };
+    byTier: Record<string, number>;
+  };
+}
+
+export interface EvalRunLog {
+  id: string;
+  runType: string;
+  startedAt: string;
+  finishedAt: string | null;
+  status: EvalRunStatus;
+  totalTraces: number;
+  afterDedup: number;
+  candidatePool: number;
+  sampledCount: number;
+  sampleBreakdown: Record<string, unknown>;
+  judgeSuccess: number;
+  judgeFailed: number;
+  lowScoreCount: number;
+  scoreSummary: EvalRunScoreSummary | null;
+  errorMessage: string | null;
+}
+
+export interface EvalRunLogListResponse {
+  items: EvalRunLog[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface EvalRunLogListParams {
+  status?: EvalRunStatus;
+  runType?: EvalRunType;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface EvalRunTriggerRequest {
+  hours?: number | null;
+}

@@ -9,6 +9,7 @@ from sqlmodel import Session
 
 from app.core.cache import invalidate_conversation_state, invalidate_messages
 from app.core.db import engine, get_db
+from app.core.observability import new_trace_id
 from app.models import ConversationDb, MessageDb
 from app.schemas.auth import AuthTokenPayload
 from app.schemas.chat import MessageFeedback, MessageFeedbackValue
@@ -169,6 +170,8 @@ async def _enqueue_thumb_down_bad_case(
                 answer=answer,
                 feedback_reasons=feedback_reasons,
                 feedback_comment=feedback_comment,
+                # 与 chat-turn 埋点一致：用 assistant message_id 派生确定性 trace_id
+                trace_id=new_trace_id(message_id),
             )
             db.commit()
     except Exception as exc:
