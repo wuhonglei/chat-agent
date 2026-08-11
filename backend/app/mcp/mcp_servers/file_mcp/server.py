@@ -14,7 +14,7 @@ from pydantic import Field
 from app.mcp.mcp_servers.file_mcp.base import ToolContext, to_fastmcp_tool_result
 from app.mcp.mcp_servers.file_mcp.edit_file import EditFileTool
 from app.mcp.mcp_servers.file_mcp.present_files import PresentFilesTool
-from app.mcp.mcp_servers.file_mcp.read_file import ReadFileTool
+from app.mcp.mcp_servers.file_mcp.read_file import READ_FILE_DESCRIPTION, ReadFileTool
 from app.mcp.mcp_servers.file_mcp.search_files import SearchFilesTool
 from app.mcp.mcp_servers.file_mcp.write_file import WriteFileTool
 
@@ -28,10 +28,10 @@ _search_files = SearchFilesTool()
 _present_files = PresentFilesTool()
 
 
-@mcp.tool(name="read_file")
+@mcp.tool(name="read_file", description=READ_FILE_DESCRIPTION)
 async def read_file(
     file_path: str = Field(
-        description="The virtual path to the file to read (e.g. /mnt/user-data/workspace/src/main.py, /mnt/user-data/uploads/report.pdf)"
+        description="The virtual path to the file to read (e.g. /mnt/user-data/workspace/src/main.py, /mnt/user-data/uploads/report.md)"
     ),
     offset: Annotated[
         int,
@@ -49,7 +49,7 @@ async def read_file(
         ),
     ] = 2000,
 ) -> ToolResult:
-    """Reads a file from the workspace filesystem."""
+    """Reads a text file from the workspace filesystem."""
     ctx = ToolContext()
     result = await _read_file.execute(
         {"file_path": file_path, "offset": offset, "limit": limit},
