@@ -394,11 +394,13 @@ class JudgeInputBuilder:
                         select(MessageDb)
                         .where(MessageDb.conversation_id == conversation_id)
                         .where(MessageDb.role == "assistant")
-                        .order_by(desc(MessageDb.created_at))
+                        .order_by(desc(MessageDb.created_at))  # type: ignore[arg-type]
                     ).first()
 
                 if assistant and isinstance(assistant.content_blocks, list):
-                    for block in assistant.content_blocks:
+                    # JSON 列运行时可能非 dict；放宽元素类型以保留守卫
+                    blocks: list[Any] = assistant.content_blocks
+                    for block in blocks:
                         if not isinstance(block, dict):
                             continue
                         if block.get("type") != "tool_result":
