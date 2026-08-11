@@ -1,5 +1,12 @@
 # Agent 效果评估框架
 
+> **文档状态**：早期盘点 / 规划稿。下表中「LLM-as-Judge ❌」「离线回归 pipeline ❌」等行**已过时**。
+>
+> 现网运维请读：
+> - `backend/docs/EVAL_OPS.md` — Eval Worker、Bad Case 队列、`run_eval_gate` / replay
+> - `backend/docs/batch_eval_worker_design.md` — 方案背景（文首有现网差异摘要）
+> - `docs/agent_evaluator/rule_evaluator_design.md` — 实时规则评估器
+
 ## 1. 系统现状
 
 ### 1.1 已有基础设施
@@ -8,13 +15,14 @@
 |------|------|------|
 | **Langfuse** | ✅ 已接入 | Trace 覆盖完整，含 chat-turn → 子 span 嵌套结构 |
 | **Prometheus** | ⚠️ 基础版 | 仅 HTTP 请求指标 + 2 个进程级 Gauge（CPU/RSS） |
-| **Langfuse Score** | ✅ 3 维度 | tool_success / user_feedback / message_status |
+| **Langfuse Score** | ✅ 扩展中 | 含规则分、反馈、以及批量裁判写入的质量分 |
 | **Langfuse Dashboard** | ✅ 2 个 | 工具分析 + 质量监控，共 10 个 widget |
 | **测试集** | ⚠️ 有生产数据 | qa_baseline_100.csv / qa_classification.csv / qa_baseline_20_multi_turn.csv |
-| **Langfuse Evaluator** | ❌ 无 | 所有 score 为离线同步脚本或运行时写入 |
+| **实时规则评估** | ✅ 已接入 | `app/evaluators/rule_evaluator.py`；见 `agent_evaluator/rule_evaluator_design.md` |
+| **LLM-as-Judge 批量** | ✅ 已接入 | `eval_worker` + `BatchEvalService`；见 `EVAL_OPS.md` |
+| **CI 评估门禁** | ✅ 已接入 | `scripts/run_eval_gate.py`（frozen / replay） |
+| **Bad Case 复核队列** | ✅ 已接入 | `/api/eval/bad-cases*` |
 | **RAG 评估框架** | ❌ 无 | RAGAS 等框架未接入 |
-| **LLM-as-Judge** | ❌ 无 | 无自动质量评分 |
-| **离线回归 pipeline** | ❌ 无 | testset_generation.md 已规划但脚本未实现 |
 
 ### 1.2 两种执行模式参数对比
 

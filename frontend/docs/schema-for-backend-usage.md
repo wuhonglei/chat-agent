@@ -12,7 +12,10 @@
 - `removedMessageIds`
 - `regenerateTitle`
 - `thinkMode`
+- `agentMode`（0=关闭，1=开启）
 - `modelID`
+- `clientTurnId`
+- `mentionedBlocks`（可选，@ 引用附件）
 
 请求发出前会在 `src/services/chat.ts` 中通过 `snakecaseKeys` 转为后端蛇形字段，例如：
 
@@ -21,6 +24,10 @@
 - `historyIds` -> `history_ids`
 - `removedMessageIds` -> `removed_message_ids`
 - `modelID` -> `model_id`
+- `agentMode` -> `agent_mode`
+- `clientTurnId` -> `client_turn_id`
+
+后端另支持可选 `memories`（预注入用户记忆、跳过服务端 search）；**前端现网不发送**，仅评估 / replay 等脚本使用。详见 `backend/docs/用户管理.md`。
 
 ## 2. 为什么这里不再记录组件 schema 传输
 
@@ -47,7 +54,9 @@
   "removedMessageIds": [],
   "regenerateTitle": false,
   "thinkMode": true,
-  "modelID": "default"
+  "agentMode": 0,
+  "modelID": "default",
+  "clientTurnId": "turn_..."
 }
 ```
 

@@ -18,13 +18,14 @@
 
 - 创建会话：`POST /api/conversation/register`
 - 会话列表：`GET /api/conversation/list`
+- 会话搜索：`GET /api/conversation/search`
 - 会话详情：`GET /api/conversation/detail/{conversationId}`
 - 更新会话：`PUT /api/conversation/update/{conversationId}`
 - 删除会话：`DELETE /api/conversation/delete/{conversationId}`
 
 消息与流式接口在 `src/services/chat.ts`：
 
-- 会话消息：`GET /api/conversation/{conversationId}/messages`
+- 会话消息：`GET /api/conversation/{conversationId}/messages`（不传 `full_content`，走后端默认省略结构化 tool_result 正文）
 - 删除消息：`DELETE /api/message/delete/{messageId}`
 - 更新助手消息反馈：`PUT /api/message/feedback/{messageId}`
 - 流式聊天：`POST /api/chat/stream`（SSE）
@@ -51,7 +52,27 @@ const nextPage = await conversationAPI.getConversations({
 `hasMore=true` 时继续加载。游标由后端生成，前端不得解析、修改或替换为旧的
 `offset` 参数。
 
-### 2.2 助手消息反馈
+### 2.2 会话搜索（侧栏 / ⌘K）
+
+UI：`SearchModal`（`src/components/Layout/modals/SearchModal.tsx`）。入口在侧栏搜索按钮；快捷键 ⌘K（macOS）/ Ctrl+K（其它），在 `MainLayout` 注册。
+
+```ts
+await conversationAPI.searchConversations({
+  q: keyword,
+  limit: 20,
+  cursor: nextCursor ?? undefined,
+});
+```
+
+行为约定：
+
+- 输入防抖 500ms；每页 `limit=20`，无限滚动用 `nextCursor` / `hasMore`
+- 本地搜索历史：`localStorage` 键 `conversation-search-history:v1`，最多 20 条（仅首页结果写入，避免翻页重复）
+- 结果展示 `matchType`（`title` / `user` / `assistant`）与 `snippet`；点击跳转对应会话
+
+后端契约见 `docs/会话管理.md`「会话搜索」。
+
+### 2.3 助手消息反馈
 
 `chatAPI.updateMessageFeedback(messageId, value, details)` 支持 `like`、
 `dislike` 和 `default`。`details` 可传多选理由与自由文本：
@@ -64,7 +85,7 @@ await chatAPI.updateMessageFeedback(messageId, "dislike", {
 ```
 
 后端对 `like` / `dislike` 采用部分更新语义：省略 `reasons` 或 `comment` 会保留
-已有值；`value="default"` 会同时清空理由与评论。
+已有值；`value="default"` 会同时清空理由与评论。点踩会异步入 Bad Case 队列；取消点踩会 dismiss pending 条目（前端无需额外调用）。
 
 ## 3. SSE 协议与前端处理
 
