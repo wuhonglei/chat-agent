@@ -18,6 +18,7 @@ from app.models.bad_case_item_db import BadCaseItemDb
 from app.models.eval_run_log_db import EvalRunLog
 from app.schemas.eval import BadCaseSource
 from app.services.eval.bad_case_service import BadCaseService
+from app.services.eval.judge_input_builder import JudgeInputBuilder
 from app.utils.date import get_datetime_now
 from app.utils.logger import logger
 
@@ -134,6 +135,7 @@ class BatchEvalService:
             langfuse_client if langfuse_client is not None else get_langfuse()
         )
         self.cfg = settings.eval_worker
+        self.judge_input_builder = JudgeInputBuilder(langfuse_client=self.langfuse)
 
     async def run(
         self,
@@ -508,23 +510,26 @@ class BatchEvalService:
             trace: dict[str, Any],
         ) -> tuple[dict[str, Any], JudgeResult]:
             async with semaphore:
-                meta = _metadata(trace)
-                query = _as_text(trace.get("input", ""))
-                answer = _as_text(trace.get("output", ""))
-                retrieved = _as_text(meta.get("retrieved_contexts", ""))
+                # Langfuse/DB I/O 为同步，放到线程池避免阻塞事件循环
+                judge_input = await asyncio.to_thread(
+                    self.judge_input_builder.build_from_trace, trace
+                )
                 try:
                     result = await asyncio.wait_for(
                         call_judge_model(
-                            query=query,
-                            answer=answer,
-                            retrieved_contexts=retrieved,
+                            query=judge_input.query,
+                            answer=judge_input.answer,
+                            reference_contexts=judge_input.reference_xml,
                             llm_caller=self.llm_caller,
+                            context_sources=judge_input.source_flags,
                         ),
                         timeout=timeout,
                     )
                 except TimeoutError:
                     result = JudgeResult(
-                        success=False, error=f"judge timeout after {timeout}s"
+                        success=False,
+                        error=f"judge timeout after {timeout}s",
+                        context_sources=judge_input.source_flags,
                     )
                 return trace, result
 
@@ -554,8 +559,8 @@ class BatchEvalService:
                 judge_scores = {
                     "correctness": judge_result.correctness,
                     "completeness": judge_result.completeness,
-                    "coverage": judge_result.coverage,
-                    "missing_points": judge_result.missing_points,
+                    "notes": judge_result.notes,
+                    "context_sources": judge_result.context_sources,
                 }
                 rule_scores = {
                     k: v

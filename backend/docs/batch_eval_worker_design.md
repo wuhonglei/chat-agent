@@ -257,10 +257,11 @@ backend/
 │   │   └── eval/
 │   │       ├── __init__.py
 │   │       ├── bad_case_service.py     # 已有: bad case CRUD
-│   │       └── batch_eval_service.py   # 新增: 批量评估编排
+│   │       ├── batch_eval_service.py   # 批量评估编排
+│   │       └── judge_input_builder.py  # 从 last GENERATION / DB 组装裁判输入
 │   │
 │   ├── models/
-│   │   └── eval_run_log_db.py          # 新增: 运行日志模型
+│   │   └── eval_run_log_db.py          # 运行日志模型
 │   │
 │   └── schemas/
 │       └── eval.py                     # 已有, 扩展 RunLog 相关 schema
@@ -278,9 +279,11 @@ backend/
 │       └── xxxx_add_eval_run_logs.py   # 新增迁移
 │
 └── tests/
-    └── evaluators/
-        ├── test_sampler.py             # 采样逻辑单元测试
-        └── test_judge_evaluator.py     # 裁判调用单元测试
+    ├── evaluators/
+    │   ├── test_sampler.py
+    │   └── test_judge_evaluator.py
+    └── services/eval/
+        └── test_judge_input_builder.py
 ```
 
 ---
@@ -499,6 +502,13 @@ def stratified_sample(
 ```
 
 ### 6.2 裁判模型调用 (`app/evaluators/judge_evaluator.py`)
+
+> **实现说明（与下方历史草稿有差异，以代码为准）**
+>
+> - 线上坏例发现 **不** 自动生成 `ground_truth`；无 gold 路径对齐离线 `SYSTEM_STEP2`：有【参考资料/工具返回内容】时以参考资料为事实依据。
+> - 裁判输入由 `JudgeInputBuilder` 组装，**不是** `metadata.retrieved_contexts`（该字段未埋点）。
+> - 上下文来源：同 `trace_id` 下最后一条 `type=GENERATION` 的 `input.messages`（含 `<query>` / `<user_memories>` / `<attachment_context>` / `role=tool`）；IO 缺失时回退 chat-turn I/O，reference 为空时可用 DB `content_blocks.tool_result` 兜底。
+> - `judge_scores` 附带 `context_sources` / `notes` 便于排查。
 
 ```python
 """裁判模型：调用 LLM 对回答质量打分。"""
@@ -886,30 +896,25 @@ class BatchEvalService:
     async def _batch_judge(
         self, traces: list[dict]
     ) -> list[tuple[dict, JudgeResult]]:
-        """并发调用裁判模型，控制 QPS。"""
+        """并发调用裁判模型：先 JudgeInputBuilder 组装上下文，再 call_judge_model。"""
         semaphore = asyncio.Semaphore(JUDGE_CONCURRENCY)
-        results: list[tuple[dict, JudgeResult]] = []
 
         async def _judge_one(trace: dict) -> tuple[dict, JudgeResult]:
             async with semaphore:
-                meta = trace.get("metadata", {}) or {}
-                query = trace.get("input", "")
-                answer = trace.get("output", "")
-
-                # 从 Trace 的检索 span 中提取上下文
-                retrieved = meta.get("retrieved_contexts", "")
-
+                # 从 last GENERATION messages 解析 query/memories/RAG/工具结果
+                judge_input = await asyncio.to_thread(
+                    self.judge_input_builder.build_from_trace, trace
+                )
                 result = await call_judge_model(
-                    query=query if isinstance(query, str) else str(query),
-                    answer=answer if isinstance(answer, str) else str(answer),
-                    retrieved_contexts=retrieved,
+                    query=judge_input.query,
+                    answer=judge_input.answer,
+                    reference_contexts=judge_input.reference_xml,
                     llm_caller=self.llm_caller,
+                    context_sources=judge_input.source_flags,
                 )
                 return trace, result
 
-        tasks = [_judge_one(t) for t in traces]
-        results = await asyncio.gather(*tasks, return_exceptions=False)
-        return results
+        return list(await asyncio.gather(*[_judge_one(t) for t in traces]))
 
     async def _write_results(
         self, results: list[tuple[dict, JudgeResult]]

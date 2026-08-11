@@ -14,6 +14,7 @@ from app.core.observability import init_langfuse
 from app.services.base_service.model_resolver import resolve_scenario
 from app.services.eval.batch_eval_service import BatchEvalService
 from app.utils.logger import logger
+from app.utils.model import get_model_extra_body
 from eval_worker.config import get_eval_worker_config
 
 
@@ -30,6 +31,7 @@ async def judge_llm_caller(messages: list[dict[str, str]]) -> str:
         messages=messages,  # type: ignore[arg-type]
         temperature=0.0,
         max_tokens=1024,
+        extra_body=get_model_extra_body(False),
     )
     return response.choices[0].message.content or ""
 

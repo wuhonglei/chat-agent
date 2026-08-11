@@ -59,7 +59,9 @@ class ToolCallPolicy:
         iteration: int,
     ) -> None:
         hint_messages: list[str] = []
-        web_search_count = len(self._get_web_search_queries())
+        web_search_count = len(
+            self.tool_arguments_history_by_name.get(WEB_SEARCH_LLM, [])
+        )
         if (
             web_search_count >= self.MIN_WEB_SEARCH_FOR_HINT
             and iteration >= self.MIN_ITERATION_FOR_HINT
@@ -184,7 +186,9 @@ class ToolCallPolicy:
     def should_continue(
         self, tool_calls: list[ChatCompletionMessageFunctionToolCall] | None
     ) -> tuple[bool, str | None]:
-        web_search_count = len(self._get_web_search_queries())
+        web_search_count = len(
+            self.tool_arguments_history_by_name.get(WEB_SEARCH_LLM, [])
+        )
         web_pages_extract_count = len(
             self.tool_arguments_history_by_name.get(WEB_PAGES_EXTRACT_LLM, [])
         )

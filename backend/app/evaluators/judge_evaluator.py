@@ -11,45 +11,66 @@ from app.utils.logger import logger
 
 LLMCaller = Callable[[list[dict[str, str]]], Awaitable[str]]
 
-# 裁判 Prompt（无标准答案版本：对比检索内容）
-JUDGE_PROMPT_NO_GOLD = """你是一个回答完整性评估器。
+# 与离线 scripts SYSTEM_STEP2 对齐：有参考资料时以参考资料为事实依据
+JUDGE_SYSTEM_NO_GOLD = """你是一个回答质量评估器。根据用户问题、参考资料、模型回答，打两个分。
 
-【用户问题】{query}
-【检索到的参考内容】{retrieved_contexts}
-【模型回答】{answer}
+## 重要规则
 
-请判断：
-1. 参考内容中与问题相关的关键信息点有哪些？（逐条列出）
-2. 模型回答覆盖了哪些？遗漏了哪些？
-3. 覆盖率 = 已覆盖数 / 总相关要点数
-4. 评分 1-5：
-   - 5: 覆盖率 >= 90%
-   - 4: 覆盖率 >= 70%
-   - 3: 覆盖率 >= 50%
-   - 2: 覆盖率 < 50%
-   - 1: 几乎未利用检索内容
+1. 如果输入中包含【参考资料/工具返回内容】，这些内容是从知识库、搜索引擎、用户附件中获取的真实数据。模型回答是基于这些参考资料生成的。评分时必须以参考资料为事实依据，不要用你自身的知识判断事实性。
+2. 如果参考资料中确认了某个信息（如日期、金额、名称），模型回答中包含该信息就是正确的，不是虚构。
+3. 只有当模型回答中的信息既不在参考资料中，也无法从参考资料推导出来时，才能判定为「虚构」。
+4. **重要**：逐字核对专有名词，不得基于相似性推断。例如「深圳大学图书馆北馆」和「深圳图书馆北馆」是不同场所，地址不同。
+5. 无参考资料时，以常识和逻辑判断正确性；完整性按是否充分回答用户问题判断。
 
-输出 JSON: {{"score": int, "correctness_score": int, "completeness_score": int, "coverage": float, "missing_points": ["..."]}}"""
+## 评分标准
+
+correctness_score（准确性，1-5）：回答中说的内容是否正确
+  5=完全正确 4=基本正确有小瑕疵 3=部分正确有明显错误 2=大部分错误 1=完全错误
+  注意：有参考资料时，以参考资料为准判断正确性；无参考资料时，以常识和逻辑判断。
+
+completeness_score（完整性，1-5）：回答是否覆盖了问题应有的关键信息
+  5=覆盖率>=90% 4=覆盖率>=70% 3=覆盖率>=50% 2=覆盖率<50% 1=几乎未覆盖
+
+输出 JSON：
+{"correctness_score": N, "completeness_score": N, "notes": "扣分原因简述"}"""
 
 
-# 裁判 Prompt（有标准答案版本：用于评估集回归）
-JUDGE_PROMPT_WITH_GOLD = """你是一个回答质量评估器。
+JUDGE_SYSTEM_WITH_GOLD = """你是一个回答质量评估器。根据用户问题、标准要点、模型回答，打两个分。
 
-【用户问题】{query}
-【标准答案要点】{ground_truth}
-【模型回答】{answer}
+## 重要规则
 
-请判断：
-1. 标准答案的要点有哪些？（逐条列出）
-2. 模型回答覆盖了哪些？遗漏了哪些？是否包含错误信息？
-3. 评分 1-5：
-   - 5: 完全正确且覆盖所有要点
-   - 4: 覆盖大部分要点，无错误
-   - 3: 覆盖一半要点，无重大错误
-   - 2: 覆盖不足一半或有明显错误
-   - 1: 几乎未回答或完全错误
+1. 如果输入中包含【参考资料/工具返回内容】，这些内容是从知识库、搜索引擎、用户附件中获取的真实数据。模型回答是基于这些参考资料生成的。评分时必须以参考资料为事实依据，不要用你自身的知识判断事实性。
+2. 如果参考资料中确认了某个信息（如日期、金额、名称），模型回答中包含该信息就是正确的，不是虚构。
+3. 只有当模型回答中的信息既不在参考资料中，也无法从参考资料推导出来时，才能判定为「虚构」。
+4. **重要**：逐字核对专有名词，不得基于相似性推断。例如「深圳大学图书馆北馆」和「深圳图书馆北馆」是不同场所，地址不同。
 
-输出 JSON: {{"score": int, "correctness_score": int, "completeness_score": int, "missing_points": ["..."]}}"""
+## 评分标准
+
+correctness_score（准确性，1-5）：回答中说的内容是否正确
+  5=完全正确 4=基本正确有小瑕疵 3=部分正确有明显错误 2=大部分错误 1=完全错误
+
+completeness_score（完整性，1-5）：回答是否覆盖了标准要点
+  5=覆盖率>=90% 4=覆盖率>=70% 3=覆盖率>=50% 2=覆盖率<50% 1=几乎未覆盖
+
+输出 JSON：
+{"correctness_score": N, "completeness_score": N, "notes": "扣分原因简述"}"""
+
+
+def build_judge_user_prompt(
+    *,
+    query: str,
+    answer: str,
+    reference_contexts: str = "",
+    ground_truth: str = "",
+) -> str:
+    """拼装裁判 user prompt（形状对齐 offline build_judge_input）。"""
+    sections = [f"【用户问题】{query}"]
+    if ground_truth.strip():
+        sections.append(f"【标准要点】\n{ground_truth.strip()}")
+    if reference_contexts.strip():
+        sections.append(f"【参考资料/工具返回内容】\n{reference_contexts.strip()}")
+    sections.append(f"【模型回答】\n{answer}")
+    return "\n\n".join(sections)
 
 
 @dataclass
@@ -58,8 +79,8 @@ class JudgeResult:
 
     correctness: int = 0
     completeness: int = 0
-    coverage: float = 0.0
-    missing_points: list[str] = field(default_factory=list)
+    notes: str = ""
+    context_sources: dict[str, Any] = field(default_factory=dict)
     raw_response: str = ""
     success: bool = True
     error: str | None = None
@@ -68,13 +89,6 @@ class JudgeResult:
 def _as_int(value: Any, default: int = 0) -> int:
     try:
         return int(value)
-    except (TypeError, ValueError):
-        return default
-
-
-def _as_float(value: Any, default: float = 0.0) -> float:
-    try:
-        return float(value)
     except (TypeError, ValueError):
         return default
 
@@ -110,15 +124,12 @@ def _parse_judge_response(raw: str) -> JudgeResult:
     completeness = _as_int(
         data.get("completeness_score", data.get("completeness", score)), score
     )
-    missing = data.get("missing_points") or []
-    if not isinstance(missing, list):
-        missing = [str(missing)]
+    notes = data.get("notes") or data.get("comment") or ""
 
     return JudgeResult(
         correctness=correctness,
         completeness=completeness,
-        coverage=_as_float(data.get("coverage"), 0.0),
-        missing_points=[str(p) for p in missing],
+        notes=str(notes),
     )
 
 
@@ -127,35 +138,51 @@ async def call_judge_model(
     query: str,
     answer: str,
     retrieved_contexts: str = "",
+    reference_contexts: str = "",
     ground_truth: str = "",
     llm_caller: LLMCaller,
+    context_sources: dict[str, Any] | None = None,
 ) -> JudgeResult:
-    """调用裁判模型打分。"""
-    if ground_truth:
-        prompt = JUDGE_PROMPT_WITH_GOLD.format(
+    """调用裁判模型打分。
+
+    Args:
+        query: 用户问题（可含 memories 拼接）
+        answer: 模型回答
+        retrieved_contexts: 参考资料（兼容旧参数名）
+        reference_contexts: 参考资料（优先于 retrieved_contexts）
+        ground_truth: 标准答案要点（可选，有则走 WITH_GOLD）
+        llm_caller: LLM 调用函数
+        context_sources: 上下文来源标记，原样挂到 JudgeResult
+    """
+    refs = (reference_contexts or retrieved_contexts or "").strip()
+
+    if ground_truth.strip():
+        system = JUDGE_SYSTEM_WITH_GOLD
+        user_prompt = build_judge_user_prompt(
             query=query,
-            ground_truth=ground_truth,
-            answer=answer[:2000],
+            answer=answer,
+            reference_contexts=refs,
+            ground_truth=ground_truth.strip(),
         )
     else:
-        prompt = JUDGE_PROMPT_NO_GOLD.format(
+        system = JUDGE_SYSTEM_NO_GOLD
+        user_prompt = build_judge_user_prompt(
             query=query,
-            retrieved_contexts=(retrieved_contexts or "（无检索内容）")[:3000],
-            answer=answer[:2000],
+            answer=answer,
+            reference_contexts=refs or "（无参考资料）",
         )
 
     messages = [
-        {
-            "role": "system",
-            "content": "你是一个严格的回答质量评估器。只输出 JSON，不要输出其他内容。",
-        },
-        {"role": "user", "content": prompt},
+        {"role": "system", "content": system},
+        {"role": "user", "content": user_prompt},
     ]
 
     try:
         raw = await llm_caller(messages)
         result = _parse_judge_response(raw)
         result.raw_response = raw
+        if context_sources:
+            result.context_sources = dict(context_sources)
         return result
     except Exception as exc:
         logger.warning(
@@ -163,4 +190,8 @@ async def call_judge_model(
             error=exc,
             error_type=type(exc).__name__,
         )
-        return JudgeResult(success=False, error=str(exc))
+        return JudgeResult(
+            success=False,
+            error=str(exc),
+            context_sources=dict(context_sources or {}),
+        )
