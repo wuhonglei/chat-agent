@@ -81,13 +81,12 @@ def test_build_judge_query_and_reference_xml() -> None:
     assert "t2" in ref
 
 
-def test_build_reference_xml_truncates() -> None:
-    ref = build_reference_xml(
-        tool_contents=["x" * 20_000],
-        max_chars=500,
-    )
-    assert len(ref) <= 500 + 50  # 允许结尾标签少量余量
-    assert "truncated" in ref
+def test_build_reference_xml_keeps_full_content() -> None:
+    long_content = "x" * 20_000
+    ref = build_reference_xml(tool_contents=[long_content, "t2"])
+    assert long_content in ref
+    assert "t2" in ref
+    assert "truncated" not in ref
 
 
 class _FakeObs:
