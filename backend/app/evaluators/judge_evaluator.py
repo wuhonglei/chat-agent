@@ -11,9 +11,6 @@ from app.utils.logger import logger
 
 LLMCaller = Callable[[list[dict[str, str]]], Awaitable[str]]
 
-REFERENCE_MAX_CHARS = 12_000
-ANSWER_MAX_CHARS = 4_000
-
 # 与离线 scripts SYSTEM_STEP2 对齐：有参考资料时以参考资料为事实依据
 JUDGE_SYSTEM_NO_GOLD = """你是一个回答质量评估器。根据用户问题、参考资料、模型回答，打两个分。
 
@@ -158,23 +155,21 @@ async def call_judge_model(
         context_sources: 上下文来源标记，原样挂到 JudgeResult
     """
     refs = (reference_contexts or retrieved_contexts or "").strip()
-    answer_text = answer[:ANSWER_MAX_CHARS]
-    refs_text = refs[:REFERENCE_MAX_CHARS] if refs else ""
 
     if ground_truth.strip():
         system = JUDGE_SYSTEM_WITH_GOLD
         user_prompt = build_judge_user_prompt(
             query=query,
-            answer=answer_text,
-            reference_contexts=refs_text,
+            answer=answer,
+            reference_contexts=refs,
             ground_truth=ground_truth.strip(),
         )
     else:
         system = JUDGE_SYSTEM_NO_GOLD
         user_prompt = build_judge_user_prompt(
             query=query,
-            answer=answer_text,
-            reference_contexts=refs_text or "（无参考资料）",
+            answer=answer,
+            reference_contexts=refs or "（无参考资料）",
         )
 
     messages = [
