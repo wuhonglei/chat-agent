@@ -102,6 +102,7 @@ fi
 # 差异部署范围（由 webhook 通过环境变量传入；未设置时默认为 1，兼容直接执行本脚本）
 DEPLOY_FRONTEND=${DEPLOY_FRONTEND:-1}
 DEPLOY_BACKEND=${DEPLOY_BACKEND:-1}
+DEPLOY_EVALUATOR=${DEPLOY_EVALUATOR:-0}
 
 # 零停机部署函数
 # 策略：先构建镜像（旧容器继续运行），然后快速切换容器
@@ -393,7 +394,7 @@ if [ "$IS_FIRST_DEPLOY" = true ]; then
     echo "🧹 清理已停止的旧容器..."
 
     # 清理所有项目相关的已停止容器
-    for service in postgres backend frontend; do
+    for service in postgres backend frontend evaluator; do
         stopped_container=$(docker ps -aq -f name="chat-agent-$service" 2>/dev/null)
         if [ -n "$stopped_container" ]; then
             echo "   清理已停止的 $service 容器..."
@@ -421,11 +422,21 @@ if [ "$IS_FIRST_DEPLOY" = true ]; then
     if [ "$DEPLOY_FRONTEND" = "1" ]; then
         first_compose_services+=(frontend)
     fi
+    if [ "$DEPLOY_EVALUATOR" = "1" ]; then
+        # evaluator depends_on postgres + backend
+        if [[ ! " ${first_compose_services[*]} " =~ " postgres " ]]; then
+            first_compose_services+=(postgres)
+        fi
+        if [[ ! " ${first_compose_services[*]} " =~ " backend " ]]; then
+            first_compose_services+=(backend)
+        fi
+        first_compose_services+=(evaluator)
+    fi
 
     if [ ${#first_compose_services[@]} -eq 0 ]; then
-        echo "⚠️  DEPLOY_BACKEND 与 DEPLOY_FRONTEND 均为 0，跳过 postgres / backend / frontend 启动"
+        echo "⚠️  DEPLOY_BACKEND、DEPLOY_FRONTEND 与 DEPLOY_EVALUATOR 均为 0，跳过 postgres / backend / frontend / evaluator 启动"
     else
-        echo "🔨 首次部署：构建并启动服务（范围: backend=$DEPLOY_BACKEND, frontend=$DEPLOY_FRONTEND）..."
+        echo "🔨 首次部署：构建并启动服务（范围: backend=$DEPLOY_BACKEND, frontend=$DEPLOY_FRONTEND, evaluator=$DEPLOY_EVALUATOR）..."
         echo "   服务列表: ${first_compose_services[*]}"
         # --wait + --wait-timeout：depends_on service_healthy 时默认约 60s 会放弃；后端冷启动常超过该时间
         if $DOCKER_COMPOSE_CMD up --help 2>&1 | grep -qF 'wait-timeout'; then
@@ -436,7 +447,7 @@ if [ "$IS_FIRST_DEPLOY" = true ]; then
     fi
 else
     # 更新部署：按 DEPLOY_BACKEND / DEPLOY_FRONTEND 差异更新（postgres 仅首次部署时启动，此处不更新）
-    echo "🔄 开始零停机部署更新（范围: backend=$DEPLOY_BACKEND, frontend=$DEPLOY_FRONTEND）..."
+    echo "🔄 开始零停机部署更新（范围: backend=$DEPLOY_BACKEND, frontend=$DEPLOY_FRONTEND, evaluator=$DEPLOY_EVALUATOR）..."
 
     BACKEND_DEPLOY_SUCCESS=true
     FRONTEND_DEPLOY_SUCCESS=true
@@ -459,13 +470,23 @@ else
         echo "⏭️  跳过 frontend 更新（无相关变更）"
     fi
 
+    EVALUATOR_DEPLOY_SUCCESS=true
+    if [ "$DEPLOY_EVALUATOR" = "1" ]; then
+        if ! zero_downtime_deploy "evaluator" 120; then
+            echo "❌ evaluator 服务更新失败"
+            EVALUATOR_DEPLOY_SUCCESS=false
+        fi
+    else
+        echo "⏭️  跳过 evaluator 更新（无相关变更）"
+    fi
+
     # 如果本次需要更新的服务全部失败，则退出
-    if [ "$BACKEND_DEPLOY_SUCCESS" = false ] && [ "$FRONTEND_DEPLOY_SUCCESS" = false ]; then
+    if [ "$BACKEND_DEPLOY_SUCCESS" = false ] && [ "$FRONTEND_DEPLOY_SUCCESS" = false ] && [ "$EVALUATOR_DEPLOY_SUCCESS" = false ]; then
         echo "❌ 所有待更新服务部署失败，部署中止"
         exit 1
     fi
 
-    if [ "$BACKEND_DEPLOY_SUCCESS" = false ] || [ "$FRONTEND_DEPLOY_SUCCESS" = false ]; then
+    if [ "$BACKEND_DEPLOY_SUCCESS" = false ] || [ "$FRONTEND_DEPLOY_SUCCESS" = false ] || [ "$EVALUATOR_DEPLOY_SUCCESS" = false ]; then
         echo ""
         echo "⚠️  部分服务部署失败，但继续检查整体状态..."
     fi
@@ -519,6 +540,16 @@ if [ "$DEPLOY_FRONTEND" = "1" ]; then
     fi
 fi
 
+if [ "$DEPLOY_EVALUATOR" = "1" ]; then
+    evaluator_container=$(docker ps -q -f name="^/chat-agent-evaluator$" 2>/dev/null)
+    if [ -n "$evaluator_container" ]; then
+        echo "✅ evaluator 服务运行正常"
+    else
+        echo "❌ evaluator 服务健康检查失败"
+        ALL_HEALTHY=false
+    fi
+fi
+
 echo ""
 if [ "$ALL_HEALTHY" = true ]; then
     echo "✅ 部署完成！所有服务运行正常"
@@ -552,7 +583,7 @@ if [ "$CLEANUP_IMAGES" = "true" ] || ([ "$CLEANUP_IMAGES" = "auto" ] && [ "$ALL_
 
     # 获取当前使用的镜像 ID（包括运行中的容器和备份容器）
     used_image_ids=""
-    for service in backend frontend; do
+    for service in backend frontend evaluator; do
         # 运行中的容器
         container_id=$(docker ps -q -f name="^/chat-agent-$service$" 2>/dev/null)
         if [ -n "$container_id" ]; then

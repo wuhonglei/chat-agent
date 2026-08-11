@@ -161,24 +161,25 @@ class EmailNotifier:
             logger.error(f"邮件发送失败：{e}")
             return False
 
-    def _deployed_services_table(self, deploy_frontend=False, deploy_backend=False):
+    def _deployed_services_table(self, deploy_frontend=False, deploy_backend=False, deploy_evaluator=False):
         """生成部署服务列表（用于邮件表格）。"""
         return [
             ('backend', '已更新' if deploy_backend else '未变更（跳过）'),
             ('frontend', '已更新' if deploy_frontend else '未变更（跳过）'),
+            ('evaluator', '已更新' if deploy_evaluator else '未变更（跳过）'),
             ('postgres', '仅首次部署时启动'),
         ]
 
     def send_deploy_success_notification(
         self, repo_path, deploy_script, commit_sha=None,
         commit_message=None, deploy_duration=None, log_file_path=None,
-        deploy_frontend=False, deploy_backend=False
+        deploy_frontend=False, deploy_backend=False, deploy_evaluator=False
     ):
         """发送部署成功通知邮件"""
         subject = "部署成功通知"
         deploy_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         deployed_services_table = self._deployed_services_table(
-            deploy_frontend=deploy_frontend, deploy_backend=deploy_backend
+            deploy_frontend=deploy_frontend, deploy_backend=deploy_backend, deploy_evaluator=deploy_evaluator
         )
         body = success_template.render(
             repo_path=repo_path,
@@ -197,13 +198,13 @@ class EmailNotifier:
     def send_deploy_failed_notification(
         self, repo_path, deploy_script, commit_sha=None,
         commit_message=None, error_message=None, deploy_duration=None, log_file_path=None,
-        deploy_frontend=False, deploy_backend=False
+        deploy_frontend=False, deploy_backend=False, deploy_evaluator=False
     ):
         """发送部署失败通知邮件"""
         subject = "部署失败通知"
         deploy_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         deployed_services_table = self._deployed_services_table(
-            deploy_frontend=deploy_frontend, deploy_backend=deploy_backend
+            deploy_frontend=deploy_frontend, deploy_backend=deploy_backend, deploy_evaluator=deploy_evaluator
         )
         body = failed_template.render(
             repo_path=repo_path,
