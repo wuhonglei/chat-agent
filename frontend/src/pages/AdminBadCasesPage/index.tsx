@@ -286,7 +286,7 @@ const AdminBadCasesPage: React.FC = () => {
         title="编辑 Bad Case"
         open={Boolean(editing)}
         onClose={() => setEditing(null)}
-        width={480}
+        size={480}
         destroyOnHidden
         extra={
           <Space>
