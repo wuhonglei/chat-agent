@@ -100,6 +100,20 @@ async def update_bad_case(
     )
 
 
+@router.delete("/bad-cases/{item_id}")
+async def delete_bad_case(
+    item_id: str,
+    _auth: AuthTokenPayload = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ApiResponse[None]:
+    """删除单条 bad case（仅 admin）"""
+    service = BadCaseService(db)
+    deleted = service.delete_item(item_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="bad case 不存在")
+    return ApiResponse.success(msg="删除成功")
+
+
 @router.post("/bad-cases/{item_id}/add-to-dataset")
 async def add_bad_case_to_dataset(
     item_id: str,

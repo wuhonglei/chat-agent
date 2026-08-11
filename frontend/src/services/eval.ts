@@ -28,6 +28,10 @@ export const evalAPI = {
     return await apiClient.put(`/eval/bad-cases/${itemId}`, data);
   },
 
+  deleteBadCase: async (itemId: string): Promise<void> => {
+    await apiClient.delete(`/eval/bad-cases/${itemId}`);
+  },
+
   addToDataset: async (itemId: string): Promise<BadCaseItem> => {
     return await apiClient.post(`/eval/bad-cases/${itemId}/add-to-dataset`);
   },

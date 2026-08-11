@@ -74,6 +74,7 @@ cd backend && uv run python scripts/run_batch_eval.py [--hours 24] [--dry-run]
 | GET | `/bad-cases/stats` | 队列统计 |
 | GET | `/bad-cases/{item_id}` | 详情 |
 | PUT | `/bad-cases/{item_id}` | 更新 `status` / `attribution` / `reviewer_notes` / `resolution` |
+| DELETE | `/bad-cases/{item_id}` | 删除单条 bad case |
 | POST | `/bad-cases/{item_id}/add-to-dataset` | 推送到固定 Langfuse Dataset，并置 `resolution=added_to_dataset`、`status=resolved` |
 | GET | `/run-logs` | 分页评估运行日志；可选 `status` / `run_type` |
 | GET | `/run-logs/{run_id}` | 单条运行日志（轮询用） |

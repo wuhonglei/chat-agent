@@ -145,6 +145,17 @@ class BadCaseService(DbService):
         """获取单条 bad case。"""
         return self._ensure_db().get(BadCaseItemDb, item_id)
 
+    def delete_item(self, item_id: str) -> bool:
+        """删除单条 bad case。不存在返回 False。"""
+        db = self._ensure_db()
+        item = db.get(BadCaseItemDb, item_id)
+        if not item:
+            return False
+        db.delete(item)
+        db.flush()
+        logger.info("Bad case deleted", item_id=item_id)
+        return True
+
     # ── 更新 ──
 
     def update_item(

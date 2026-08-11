@@ -6,7 +6,7 @@ import {
   BadCaseStatus,
 } from "@/interfaces/eval";
 import { evalAPI } from "@/services";
-import { ExportOutlined, LinkOutlined } from "@ant-design/icons";
+import { DeleteOutlined, ExportOutlined, LinkOutlined } from "@ant-design/icons";
 import { useRequest } from "ahooks";
 import {
   App,
@@ -151,6 +151,30 @@ const BadCasesTab: React.FC = () => {
     });
   };
 
+  const handleDelete = (item: BadCaseItem) => {
+    const preview = item.query?.trim() || "（无问题内容）";
+    modal.confirm({
+      title: "确认删除 Bad Case？",
+      content: `确定删除「${preview.slice(0, 80)}${preview.length > 80 ? "…" : ""}」吗？此操作不可恢复。`,
+      okText: "删除",
+      okType: "danger",
+      cancelText: "取消",
+      onOk: async () => {
+        try {
+          await evalAPI.deleteBadCase(item.id);
+          message.success("已删除");
+          if (editing?.id === item.id) {
+            setEditing(null);
+          }
+          refresh();
+          refreshStats();
+        } catch {
+          // HTTP 错误已由 apiClient 拦截器提示
+        }
+      },
+    });
+  };
+
   const columns: ColumnsType<BadCaseItem> = [
     {
       title: "来源",
@@ -169,7 +193,7 @@ const BadCasesTab: React.FC = () => {
       dataIndex: "query",
       ellipsis: true,
       render: (v: string) => (
-        <Typography.Text ellipsis={{ tooltip: v }} style={{ maxWidth: 320 }}>
+        <Typography.Text ellipsis={{ tooltip: v }} style={{ maxWidth: 200 }}>
           {v || "-"}
         </Typography.Text>
       ),
@@ -195,10 +219,10 @@ const BadCasesTab: React.FC = () => {
     {
       title: "操作",
       key: "action",
-      width: 260,
+      width: 320,
       fixed: "right",
       render: (_: unknown, record: BadCaseItem) => (
-        <Space size="small" wrap>
+        <Space size="small">
           <Button type="link" size="small" onClick={() => openEdit(record)}>
             编辑
           </Button>
@@ -222,6 +246,15 @@ const BadCasesTab: React.FC = () => {
             onClick={() => handleAddToDataset(record)}
           >
             Dataset
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDelete(record)}
+          >
+            删除
           </Button>
         </Space>
       ),
@@ -286,7 +319,7 @@ const BadCasesTab: React.FC = () => {
         columns={columns}
         dataSource={listData?.items ?? []}
         pagination={pagination}
-        scroll={{ x: 1100 }}
+        scroll={{ x: 1160 }}
         locale={{ emptyText: "暂无 Bad Case" }}
       />
 
