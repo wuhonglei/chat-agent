@@ -16,7 +16,7 @@ todos:
     status: completed
   - id: docs-lint
     content: 更新 EVAL_OPS.md；跑 backend lint
-    status: in_progress
+    status: completed
 isProject: false
 ---
 
