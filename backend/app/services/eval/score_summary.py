@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Sequence
 from statistics import median
 from typing import Any
 
@@ -21,7 +22,7 @@ def _round4(value: float) -> float:
     return round(value, 4)
 
 
-def _avg(values: list[int | float]) -> float | None:
+def _avg(values: Sequence[int | float]) -> float | None:
     if not values:
         return None
     return _round4(sum(values) / len(values))
