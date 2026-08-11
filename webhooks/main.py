@@ -54,6 +54,14 @@ BACKEND_DEPLOY_PATHS = [
     "backend/scripts",
     "backend/skills",
 ]
+EVALUATOR_DEPLOY_PATHS = [
+    "backend/eval_worker",
+    "backend/app/evaluators",
+    "backend/app/services/eval",
+    "backend/Dockerfile",
+    "backend/pyproject.toml",
+    "backend/uv.lock",
+]
 
 # 确保日志目录存在
 os.makedirs(LOG_DIR, exist_ok=True)
@@ -82,15 +90,16 @@ def get_deploy_scope(before, after, repo_path):
         repo_path: 仓库目录
 
     Returns:
-        (deploy_frontend: bool, deploy_backend: bool)
-        若 diff 失败或 before/after 无效，则返回 (True, True) 以全量部署。
+        (deploy_frontend: bool, deploy_backend: bool, deploy_evaluator: bool)
+        若 diff 失败或 before/after 无效，则返回 (True, True, True) 以全量部署。
     """
     deploy_frontend = False
     deploy_backend = False
+    deploy_evaluator = False
     try:
         if not before or not after or before == "0" * 40:
             logger.warning("before/after 无效，按全量部署")
-            return True, True
+            return True, True, True
         result = subprocess.run(
             ["git", "diff", "--name-only", before, after],
             cwd=repo_path,
@@ -100,7 +109,7 @@ def get_deploy_scope(before, after, repo_path):
         )
         if result.returncode != 0:
             logger.warning(f"git diff 失败 (code={result.returncode})，按全量部署")
-            return True, True
+            return True, True, True
         changed_files = [
             line.strip() for line in result.stdout.strip().splitlines() if line.strip()
         ]
@@ -114,15 +123,19 @@ def get_deploy_scope(before, after, repo_path):
                 if _path_matches_rule(f, p):
                     deploy_backend = True
                     break
-            if deploy_frontend and deploy_backend:
+            for p in EVALUATOR_DEPLOY_PATHS:
+                if _path_matches_rule(f, p):
+                    deploy_evaluator = True
+                    break
+            if deploy_frontend and deploy_backend and deploy_evaluator:
                 break
-        if not deploy_frontend and not deploy_backend and changed_files:
-            logger.info("变更未命中前后端路径，仅执行状态与健康检查")
-        logger.info(f"部署范围: frontend={deploy_frontend}, backend={deploy_backend}")
+        if not deploy_frontend and not deploy_backend and not deploy_evaluator and changed_files:
+            logger.info("变更未命中前后端及evaluator路径，仅执行状态与健康检查")
+        logger.info(f"部署范围: frontend={deploy_frontend}, backend={deploy_backend}, evaluator={deploy_evaluator}")
     except Exception as e:
         logger.warning(f"计算部署范围异常: {e}，按全量部署")
-        return True, True
-    return deploy_frontend, deploy_backend
+        return True, True, True
+    return deploy_frontend, deploy_backend, deploy_evaluator
 
 
 def run_command(cmd, cwd):
@@ -281,7 +294,7 @@ def async_deploy(
         except Exception as e:
             logger.warning(f"无法创建日志文件 {log_file_path}: {e}")
 
-    deploy_frontend, deploy_backend = False, False
+    deploy_frontend, deploy_backend, deploy_evaluator = False, False, False
     try:
         # 确保在 main 分支上
         if not run_command("git checkout main", REPO_PATH):
@@ -299,11 +312,12 @@ def async_deploy(
             raise Exception("异步部署失败：git log 出错")
 
         # 根据 git diff 计算部署范围并设置环境变量
-        deploy_frontend, deploy_backend = get_deploy_scope(before, after, REPO_PATH)
+        deploy_frontend, deploy_backend, deploy_evaluator = get_deploy_scope(before, after, REPO_PATH)
         os.environ["DEPLOY_FRONTEND"] = "1" if deploy_frontend else "0"
         os.environ["DEPLOY_BACKEND"] = "1" if deploy_backend else "0"
+        os.environ["DEPLOY_EVALUATOR"] = "1" if deploy_evaluator else "0"
         logger.info(
-            f"设置 DEPLOY_FRONTEND={os.environ['DEPLOY_FRONTEND']}, DEPLOY_BACKEND={os.environ['DEPLOY_BACKEND']}"
+            f"设置 DEPLOY_FRONTEND={os.environ['DEPLOY_FRONTEND']}, DEPLOY_BACKEND={os.environ['DEPLOY_BACKEND']}, DEPLOY_EVALUATOR={os.environ['DEPLOY_EVALUATOR']}"
         )
 
         # 执行 deploy.sh（会继承当前进程的 DEPLOY_* 环境变量）
@@ -331,6 +345,7 @@ def async_deploy(
             log_file_path=log_file_path,
             deploy_frontend=deploy_frontend,
             deploy_backend=deploy_backend,
+            deploy_evaluator=deploy_evaluator,
         )
 
     except Exception as e:
@@ -355,6 +370,7 @@ def async_deploy(
             log_file_path=log_file_path,
             deploy_frontend=deploy_frontend,
             deploy_backend=deploy_backend,
+            deploy_evaluator=deploy_evaluator,
         )
     finally:
         # 移除本次部署的日志文件 sink
