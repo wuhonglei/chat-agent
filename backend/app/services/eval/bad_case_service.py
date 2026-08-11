@@ -8,7 +8,12 @@ from sqlalchemy import desc, func
 from sqlmodel import Session, select
 
 from app.core.config import settings
-from app.core.observability import build_trace_url, ensure_dataset, get_langfuse
+from app.core.observability import (
+    build_trace_url,
+    ensure_dataset,
+    get_langfuse,
+    new_trace_id,
+)
 from app.models.bad_case_item_db import BadCaseItemDb
 from app.schemas.eval import (
     BadCaseAttribution,
@@ -202,7 +207,8 @@ class BadCaseService(DbService):
                 "rule_scores": item.rule_scores,
                 "judge_scores": item.judge_scores,
             },
-            source_trace_id=item.trace_id,
+            source_trace_id=item.trace_id
+            or (new_trace_id(item.message_id) if item.message_id else None),
         )
 
         now = get_datetime_now()
@@ -315,5 +321,10 @@ class BadCaseService(DbService):
     @staticmethod
     def to_response(item: BadCaseItemDb) -> BadCaseItemResponse:
         data = item.model_dump(mode="json")
-        data["langfuse_trace_url"] = build_trace_url(item.trace_id)
+        # 历史点踩入队可能未落库 trace_id；有 message_id 时用与 chat-turn 相同规则回推
+        trace_id = item.trace_id or (
+            new_trace_id(item.message_id) if item.message_id else None
+        )
+        data["trace_id"] = trace_id
+        data["langfuse_trace_url"] = build_trace_url(trace_id)
         return BadCaseItemResponse.model_validate(data)
