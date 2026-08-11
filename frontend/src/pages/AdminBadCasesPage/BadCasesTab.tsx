@@ -1,8 +1,27 @@
-import { BadCaseAttribution, BadCaseItem, BadCaseResolution, BadCaseSource, BadCaseStatus } from "@/interfaces/eval";
+import {
+  BadCaseAttribution,
+  BadCaseItem,
+  BadCaseResolution,
+  BadCaseSource,
+  BadCaseStatus,
+} from "@/interfaces/eval";
 import { evalAPI } from "@/services";
 import { ExportOutlined, LinkOutlined } from "@ant-design/icons";
 import { useRequest } from "ahooks";
-import { App, Button, Card, Drawer, Form, Input, Select, Space, Statistic, Table, Tag, Typography } from "antd";
+import {
+  App,
+  Button,
+  Card,
+  Drawer,
+  Form,
+  Input,
+  Select,
+  Space,
+  Statistic,
+  Table,
+  Tag,
+  Typography,
+} from "antd";
 import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
 import dayjs from "dayjs";
 import React, { useState } from "react";
@@ -45,9 +64,12 @@ const STATUS_COLOR: Record<BadCaseStatus, string> = {
   dismissed: "default",
 };
 
-function labelOf<T extends string>(options: { label: string; value: T }[], value: T | null | undefined) {
+function labelOf<T extends string>(
+  options: { label: string; value: T }[],
+  value: T | null | undefined,
+) {
   if (!value) return "-";
-  return options.find(o => o.value === value)?.label ?? value;
+  return options.find((o) => o.value === value)?.label ?? value;
 }
 
 const BadCasesTab: React.FC = () => {
@@ -73,7 +95,7 @@ const BadCasesTab: React.FC = () => {
       }),
     {
       refreshDeps: [status, source, page, pageSize],
-    }
+    },
   );
 
   const { data: stats, refresh: refreshStats } = useRequest(evalAPI.getBadCaseStats);
@@ -211,7 +233,7 @@ const BadCasesTab: React.FC = () => {
     pageSize,
     total: listData?.total ?? 0,
     showSizeChanger: true,
-    showTotal: total => `共 ${total} 条`,
+    showTotal: (total) => `共 ${total} 条`,
     onChange: (nextPage, nextSize) => {
       setPage(nextPage);
       setPageSize(nextSize);
@@ -224,21 +246,21 @@ const BadCasesTab: React.FC = () => {
         <Card size="small">
           <Statistic title="总数" value={stats?.total ?? 0} />
         </Card>
-        {STATUS_OPTIONS.map(opt => (
+        {STATUS_OPTIONS.map((opt) => (
           <Card size="small" key={opt.value}>
             <Statistic title={opt.label} value={stats?.byStatus?.[opt.value] ?? 0} />
           </Card>
         ))}
       </Space>
 
-      <Space className="mb-3" wrap>
+      <Space className="ml-3 mb-3" wrap>
         <Select
           allowClear
           placeholder="状态"
           style={{ width: 140 }}
           options={STATUS_OPTIONS}
           value={status}
-          onChange={v => {
+          onChange={(v) => {
             setStatus(v);
             setPage(1);
           }}
@@ -249,7 +271,7 @@ const BadCasesTab: React.FC = () => {
           style={{ width: 140 }}
           options={SOURCE_OPTIONS}
           value={source}
-          onChange={v => {
+          onChange={(v) => {
             setSource(v);
             setPage(1);
           }}
@@ -277,7 +299,10 @@ const BadCasesTab: React.FC = () => {
         extra={
           <Space>
             {editing ? (
-              <Button disabled={editing.resolution === "added_to_dataset"} onClick={() => handleAddToDataset(editing)}>
+              <Button
+                disabled={editing.resolution === "added_to_dataset"}
+                onClick={() => handleAddToDataset(editing)}
+              >
                 加入 Dataset
               </Button>
             ) : null}
