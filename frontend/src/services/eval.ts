@@ -4,6 +4,10 @@ import {
   BadCaseListResponse,
   BadCaseStatsResponse,
   BadCaseUpdateRequest,
+  EvalRunLog,
+  EvalRunLogListParams,
+  EvalRunLogListResponse,
+  EvalRunTriggerRequest,
 } from "@/interfaces/eval";
 import { apiClient } from "./base";
 
@@ -26,5 +30,17 @@ export const evalAPI = {
 
   addToDataset: async (itemId: string): Promise<BadCaseItem> => {
     return await apiClient.post(`/eval/bad-cases/${itemId}/add-to-dataset`);
+  },
+
+  listRunLogs: async (params?: EvalRunLogListParams): Promise<EvalRunLogListResponse> => {
+    return await apiClient.get("/eval/run-logs", { params });
+  },
+
+  getRunLog: async (runId: string): Promise<EvalRunLog> => {
+    return await apiClient.get(`/eval/run-logs/${runId}`);
+  },
+
+  triggerBatchEval: async (data?: EvalRunTriggerRequest): Promise<EvalRunLog> => {
+    return await apiClient.post("/eval/run-logs/trigger", data ?? {});
   },
 };

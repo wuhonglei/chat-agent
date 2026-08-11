@@ -68,3 +68,44 @@ export interface BadCaseListParams {
   page?: number;
   pageSize?: number;
 }
+
+/** 评估运行状态 */
+export type EvalRunStatus = "running" | "success" | "failed";
+
+/** 评估运行类型 */
+export type EvalRunType = "scheduled" | "manual";
+
+export interface EvalRunLog {
+  id: string;
+  runType: string;
+  startedAt: string;
+  finishedAt: string | null;
+  status: EvalRunStatus;
+  totalTraces: number;
+  afterDedup: number;
+  candidatePool: number;
+  sampledCount: number;
+  sampleBreakdown: Record<string, unknown>;
+  judgeSuccess: number;
+  judgeFailed: number;
+  lowScoreCount: number;
+  errorMessage: string | null;
+}
+
+export interface EvalRunLogListResponse {
+  items: EvalRunLog[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface EvalRunLogListParams {
+  status?: EvalRunStatus;
+  runType?: EvalRunType;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface EvalRunTriggerRequest {
+  hours?: number | null;
+}

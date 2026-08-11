@@ -58,13 +58,15 @@ cd backend && uv run python -m eval_worker.main
 cd backend && uv run python scripts/run_batch_eval.py [--hours 24] [--dry-run]
 ```
 
-依赖：PostgreSQL、Langfuse、`models.scenarios.judge` 可用。运行日志写入 `eval_run_logs` 表；**无** HTTP 查询 API，排障看 worker 日志或直查 DB。
+依赖：PostgreSQL、Langfuse、`models.scenarios.judge` 可用。运行日志写入 `eval_run_logs` 表。
 
-## 4. Bad Case 复核队列
+也可在管理页 **评估历史** Tab 点击「手动触发评估」（见下方 `/run-logs/trigger`）；任务在 API 进程内异步执行，前端按返回的 `id` 轮询状态。若已有 `status=running` 的记录，接口返回 409。
+
+## 4. Bad Case 复核队列与评估运行日志
 
 前缀：`/api/eval`。**均需 JWT，且 `users.role = admin`**（非 admin 返回 403）。
 
-前端管理页：`/admin/bad-cases`（仅 admin 可见入口与可访问）。
+前端管理页：`/admin/bad-cases`（仅 admin 可见入口与可访问；含 Bad Case / 评估历史 Tabs）。
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -73,6 +75,9 @@ cd backend && uv run python scripts/run_batch_eval.py [--hours 24] [--dry-run]
 | GET | `/bad-cases/{item_id}` | 详情 |
 | PUT | `/bad-cases/{item_id}` | 更新 `status` / `attribution` / `reviewer_notes` / `resolution` |
 | POST | `/bad-cases/{item_id}/add-to-dataset` | 推送到固定 Langfuse Dataset，并置 `resolution=added_to_dataset`、`status=resolved` |
+| GET | `/run-logs` | 分页评估运行日志；可选 `status` / `run_type` |
+| GET | `/run-logs/{run_id}` | 单条运行日志（轮询用） |
+| POST | `/run-logs/trigger` | 手动触发批量评估；可选 body `{ "hours": N }`；立即返回 `running` 日志；已有运行中任务时 409 |
 
 响应中若有 `trace_id`，会附带 `langfuse_trace_url` 供前端跳转 Trace UI。
 

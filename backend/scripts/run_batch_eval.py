@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.core.observability import init_langfuse
 from app.services.eval.batch_eval_service import BatchEvalService
-from eval_worker.main import judge_llm_caller
+from app.services.eval.judge_llm import judge_llm_caller
 
 
 async def main() -> None:
