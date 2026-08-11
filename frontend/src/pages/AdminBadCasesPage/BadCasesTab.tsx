@@ -322,6 +322,30 @@ const BadCasesTab: React.FC = () => {
               <strong>回答：</strong>
               {editing.answer || "-"}
             </Typography.Paragraph>
+            {editing.feedbackReasons.length > 0 || editing.feedbackComment ? (
+              <div className="mb-4">
+                <Typography.Paragraph className="mb-2">
+                  <strong>用户反馈原因：</strong>
+                  {editing.feedbackReasons.length > 0 ? (
+                    <Space size={[4, 4]} wrap className="mt-1">
+                      {editing.feedbackReasons.map((reason) => (
+                        <Tag key={reason} color="orange">
+                          {reason}
+                        </Tag>
+                      ))}
+                    </Space>
+                  ) : (
+                    <Typography.Text type="secondary"> 无</Typography.Text>
+                  )}
+                </Typography.Paragraph>
+                {editing.feedbackComment ? (
+                  <Typography.Paragraph type="secondary" className="mb-0">
+                    <strong>用户补充：</strong>
+                    {editing.feedbackComment}
+                  </Typography.Paragraph>
+                ) : null}
+              </div>
+            ) : null}
             {editing.langfuseTraceUrl ? (
               <Button
                 className="mb-4"
