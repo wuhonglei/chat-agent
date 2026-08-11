@@ -143,6 +143,7 @@ class EvalRunLogResponse(BaseModel):
     judge_success: int
     judge_failed: int
     low_score_count: int
+    score_summary: dict[str, Any] | None = None
     error_message: str | None
 
 

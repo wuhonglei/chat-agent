@@ -66,6 +66,14 @@ class EvalRunLog(SQLModel, table=True):
     low_score_count: int = Field(
         default=0, sa_column=Column(Integer, nullable=False, server_default="0")
     )
+    score_summary: dict[str, Any] | None = Field(
+        default=None,
+        sa_type=SQLJSON,
+        description=(
+            "裁判得分汇总: version/n/threshold/overall/hist/by_tier/low_score；"
+            "基于当次采样且裁判成功的样本"
+        ),
+    )
 
     # ── 错误信息 ──
     error_message: str | None = Field(

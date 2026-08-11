@@ -79,6 +79,8 @@ cd backend && uv run python scripts/run_batch_eval.py [--hours 24] [--dry-run]
 | GET | `/run-logs/{run_id}` | 单条运行日志（轮询用） |
 | POST | `/run-logs/trigger` | 手动触发批量评估；可选 body `{ "hours": N }`；立即返回 `running` 日志；已有运行中任务时 409 |
 
+运行结束后会写入 `score_summary`（JSON）：`overall` / `hist` / `by_tier` / `low_score` 等，基于当次采样且裁判成功的样本；`threshold` 快照当前 `judge_low_score_threshold`（correctness/completeness 两侧同值）。
+
 响应中若有 `trace_id`，会附带 `langfuse_trace_url` 供前端跳转 Trace UI。
 
 ### Dataset / Trace 相关配置（`LANGFUSE__*`）

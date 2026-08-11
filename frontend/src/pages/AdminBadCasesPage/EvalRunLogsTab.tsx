@@ -1,4 +1,4 @@
-import { EvalRunLog, EvalRunStatus, EvalRunType } from "@/interfaces/eval";
+import { EvalRunLog, EvalRunScoreSummary, EvalRunStatus, EvalRunType } from "@/interfaces/eval";
 import { evalAPI } from "@/services";
 import { PlayCircleOutlined } from "@ant-design/icons";
 import { useRequest } from "ahooks";
@@ -6,6 +6,17 @@ import { App, Button, InputNumber, Select, Space, Table, Tag, Typography } from 
 import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
 import dayjs from "dayjs";
 import React, { useEffect, useState } from "react";
+
+function formatAvg(value: number | null | undefined): string {
+  if (value == null || Number.isNaN(value)) return "-";
+  return value.toFixed(2);
+}
+
+function formatScoreSummary(summary: EvalRunScoreSummary | null | undefined): string {
+  if (!summary?.overall) return "-";
+  const { avgCorrectness, avgCompleteness, avgMin, lowRate } = summary.overall;
+  return `准 ${formatAvg(avgCorrectness)} / 全 ${formatAvg(avgCompleteness)} / min ${formatAvg(avgMin)} / 低分率 ${(lowRate * 100).toFixed(0)}%`;
+}
 
 const STATUS_OPTIONS: { label: string; value: EvalRunStatus }[] = [
   { label: "运行中", value: "running" },
@@ -160,9 +171,23 @@ const EvalRunLogsTab: React.FC = () => {
       width: 90,
     },
     {
-      title: "低分",
+      title: "低分入队",
       dataIndex: "lowScoreCount",
-      width: 70,
+      width: 90,
+    },
+    {
+      title: "得分汇总",
+      dataIndex: "scoreSummary",
+      width: 280,
+      ellipsis: true,
+      render: (v: EvalRunScoreSummary | null) => {
+        const text = formatScoreSummary(v);
+        return (
+          <Typography.Text ellipsis={{ tooltip: text }} style={{ maxWidth: 260 }}>
+            {text}
+          </Typography.Text>
+        );
+      },
     },
     {
       title: "错误",
@@ -240,7 +265,7 @@ const EvalRunLogsTab: React.FC = () => {
         columns={columns}
         dataSource={listData?.items ?? []}
         pagination={pagination}
-        scroll={{ x: 1400 }}
+        scroll={{ x: 1680 }}
         locale={{ emptyText: "暂无评估运行记录" }}
       />
     </>

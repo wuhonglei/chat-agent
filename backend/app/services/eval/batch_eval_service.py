@@ -19,6 +19,7 @@ from app.models.eval_run_log_db import EvalRunLog
 from app.schemas.eval import BadCaseSource
 from app.services.eval.bad_case_service import BadCaseService
 from app.services.eval.judge_input_builder import JudgeInputBuilder
+from app.services.eval.score_summary import build_score_summary
 from app.utils.date import get_datetime_now
 from app.utils.logger import logger
 
@@ -191,6 +192,7 @@ class BatchEvalService:
                 db_log.judge_success = working.judge_success
                 db_log.judge_failed = working.judge_failed
                 db_log.low_score_count = working.low_score_count
+                db_log.score_summary = working.score_summary
                 db.add(db_log)
                 db.commit()
                 db.refresh(db_log)
@@ -274,6 +276,16 @@ class BatchEvalService:
         judge_results = await self._batch_judge(sample_result.traces)
         run_log.judge_success = sum(1 for _, r in judge_results if r.success)
         run_log.judge_failed = sum(1 for _, r in judge_results if not r.success)
+
+        threshold = int(self.cfg.judge_low_score_threshold)
+        run_log.score_summary = build_score_summary(
+            judge_results,
+            threshold_correctness=threshold,
+            threshold_completeness=threshold,
+            follow_up_trace_ids=follow_ups,
+            thumb_down_message_ids=thumb_down_ids,
+            high_latency_threshold_s=float(self.cfg.high_latency_threshold_s),
+        )
 
         logger.info("Step 5: Writing scores and enqueueing low scores...")
         run_log.low_score_count = await self._write_results(
