@@ -81,13 +81,17 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           }}
           breakpoint="md"
         >
-          <SidebarHeader
-            collapsed={collapsed}
-            onCollapse={handleCollapse}
-            onNewConversation={handleNewConversion}
-            onOpenSearch={handleOpenSearch}
-          />
-          <SidebarContent onAfterActiveChange={handleAfterActiveChange} />
+          {!hideSidebar ? (
+            <>
+              <SidebarHeader
+                collapsed={collapsed}
+                onCollapse={handleCollapse}
+                onNewConversation={handleNewConversion}
+                onOpenSearch={handleOpenSearch}
+              />
+              <SidebarContent onAfterActiveChange={handleAfterActiveChange} />
+            </>
+          ) : null}
         </Sider>
         <Content className="h-full bg-white" ref={contentRef}>
           {children}
