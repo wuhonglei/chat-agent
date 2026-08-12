@@ -172,17 +172,9 @@ zero_downtime_deploy() {
     local old_image_tag=""
     local old_image_id=""
     local backup_container_name=""
-    local compose_project=""
-    local compose_service_label=""
-    local compose_container_number=""
-    local compose_config_hash=""
     if [ -n "$old_container_id" ]; then
         old_image_tag=$(docker inspect "$old_container_id" --format='{{.Config.Image}}' 2>/dev/null || echo "")
         old_image_id=$(docker inspect "$old_container_id" --format='{{.Image}}' 2>/dev/null || echo "")
-        compose_project=$(docker inspect "$old_container_id" --format='{{ index .Config.Labels "com.docker.compose.project" }}' 2>/dev/null || echo "")
-        compose_service_label=$(docker inspect "$old_container_id" --format='{{ index .Config.Labels "com.docker.compose.service" }}' 2>/dev/null || echo "")
-        compose_container_number=$(docker inspect "$old_container_id" --format='{{ index .Config.Labels "com.docker.compose.container-number" }}' 2>/dev/null || echo "")
-        compose_config_hash=$(docker inspect "$old_container_id" --format='{{ index .Config.Labels "com.docker.compose.config-hash" }}' 2>/dev/null || echo "")
         echo "   旧容器 ID: $old_container_id"
     fi
 
@@ -195,14 +187,7 @@ zero_downtime_deploy() {
     if [ -n "$old_container_id" ]; then
         echo "   备份旧容器为: $backup_container_name"
         docker rename "chat-agent-$service" "$backup_container_name" 2>/dev/null || true
-        # 移除 compose 标签，避免 compose 误操作备份容器
-        docker container update \
-            --label-rm com.docker.compose.project \
-            --label-rm com.docker.compose.service \
-            --label-rm com.docker.compose.container-number \
-            --label-rm com.docker.compose.config-hash \
-            --label-rm com.docker.compose.oneoff \
-            "$backup_container_name" > /dev/null 2>&1 || true
+        # 保留 compose 标签 —— 回滚时需要这些标签让 compose 正确管理容器
         docker stop "$backup_container_name" 2>/dev/null || true
     fi
 
@@ -292,20 +277,7 @@ zero_downtime_deploy() {
             echo "   发现备份的旧容器，尝试恢复..."
             # 重命名回原来的名称
             docker rename "$backup_container" "chat-agent-$service" 2>/dev/null || true
-            # 恢复 compose 标签，确保后续 compose 可识别
-            if [ -n "$compose_project" ]; then
-                docker container update --label-add "com.docker.compose.project=$compose_project" "chat-agent-$service" > /dev/null 2>&1 || true
-            fi
-            if [ -n "$compose_service_label" ]; then
-                docker container update --label-add "com.docker.compose.service=$compose_service_label" "chat-agent-$service" > /dev/null 2>&1 || true
-            fi
-            if [ -n "$compose_container_number" ]; then
-                docker container update --label-add "com.docker.compose.container-number=$compose_container_number" "chat-agent-$service" > /dev/null 2>&1 || true
-            fi
-            if [ -n "$compose_config_hash" ]; then
-                docker container update --label-add "com.docker.compose.config-hash=$compose_config_hash" "chat-agent-$service" > /dev/null 2>&1 || true
-            fi
-            # 启动容器
+            # 启动容器（compose 标签已在备份时保留，无需额外恢复）
             docker start "chat-agent-$service" 2>/dev/null && sleep 3
             local rollback_container=$(docker ps -q -f name="^/chat-agent-$service$")
             if [ -n "$rollback_container" ]; then
@@ -319,36 +291,50 @@ zero_downtime_deploy() {
             echo "   尝试使用旧镜像启动容器..."
             # 获取服务配置信息
             local container_name="chat-agent-$service"
-            local network_name="chat-agent-network"
-
-            # 根据服务类型构建启动命令
-            if [ "$service" = "backend" ]; then
-                docker run -d \
-                    --name "$container_name" \
-                    --network "$network_name" \
-                    -p 8000:8000 \
-                    -v "$(pwd)/backend/data:/app/data" \
-                    -v "$(pwd)/backend/logs:/app/logs" \
-                    --env-file .env \
-                    -e DATABASE__HOST=postgres \
-                    --restart unless-stopped \
-                    "$old_image_id" 2>/dev/null && rollback_success=true
-            elif [ "$service" = "frontend" ]; then
-                docker run -d \
-                    --name "$container_name" \
-                    --network "$network_name" \
-                    -p 3000:3000 \
-                    --restart unless-stopped \
-                    "$old_image_id" 2>/dev/null && rollback_success=true
+            # 从旧容器动态获取实际 compose 网络名（带项目前缀）
+            local network_name=""
+            if [ -n "$old_container_id" ]; then
+                network_name=$(docker inspect "$old_container_id" --format='{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}' 2>/dev/null | head -1)
             fi
+            # 兜底：从其他运行中的容器获取网络名
+            if [ -z "$network_name" ]; then
+                network_name=$(docker ps --format '{{.Names}}' | while read cname; do
+                    nw=$(docker inspect "$cname" --format='{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}' 2>/dev/null | grep chat-agent | head -1)
+                    if [ -n "$nw" ]; then echo "$nw"; break; fi
+                done)
+            fi
+            if [ -z "$network_name" ]; then
+                echo "   ⚠️  无法获取 compose 网络名，回滚失败"
+            else
+                # 根据服务类型构建启动命令
+                if [ "$service" = "backend" ]; then
+                    docker run -d \
+                        --name "$container_name" \
+                        --network "$network_name" \
+                        -p 8000:8000 \
+                        -v "$(pwd)/backend/data:/app/data" \
+                        -v "$(pwd)/backend/logs:/app/logs" \
+                        --env-file .env \
+                        -e DATABASE__HOST=postgres \
+                        --restart unless-stopped \
+                        "$old_image_id" 2>/dev/null && rollback_success=true
+                elif [ "$service" = "frontend" ]; then
+                    docker run -d \
+                        --name "$container_name" \
+                        --network "$network_name" \
+                        -p 3000:3000 \
+                        --restart unless-stopped \
+                        "$old_image_id" 2>/dev/null && rollback_success=true
+                fi
 
-            if [ "$rollback_success" = true ]; then
-                sleep 5
-                local rollback_container=$(docker ps -q -f name="^/chat-agent-$service$")
-                if [ -n "$rollback_container" ]; then
-                    echo "✅ 已使用旧镜像启动容器"
-                else
-                    rollback_success=false
+                if [ "$rollback_success" = true ]; then
+                    sleep 5
+                    local rollback_container=$(docker ps -q -f name="^/chat-agent-$service$")
+                    if [ -n "$rollback_container" ]; then
+                        echo "✅ 已使用旧镜像启动容器"
+                    else
+                        rollback_success=false
+                    fi
                 fi
             fi
         fi
