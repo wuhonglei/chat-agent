@@ -1,7 +1,5 @@
 """MCP tool session composed from policy and executor helpers."""
 
-from typing import Any
-
 from openai.types.chat import ChatCompletionMessageFunctionToolCall
 
 from app.agents.tool_call_policy import ToolCallPolicy
@@ -50,17 +48,11 @@ class MCPToolSession:
     def guardrail_halted(self) -> bool:
         return self.executor.guardrail.halted
 
-    def apply_iteration_hints(
-        self,
-        messages: list[dict[str, Any]],
-        tool_guided_user_message: str,
-        iteration: int,
-    ) -> None:
-        self.policy.apply_iteration_hints(
-            messages=messages,
-            tool_guided_user_message=tool_guided_user_message,
-            iteration=iteration,
-        )
+    def collect_iteration_hints(self, iteration: int) -> str | None:
+        return self.policy.collect_iteration_hints(iteration)
+
+    def drain_pending_guardrail_warns(self) -> list[str]:
+        return self.executor.guardrail.drain_pending_warns()
 
     async def execute_tool_calls_parallel(
         self,

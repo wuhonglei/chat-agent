@@ -20,7 +20,6 @@ from app.prompts import get_tool_call_sufficient_info_message
 from app.schemas.llm import ToolMessage
 from app.utils.common import normalize_url
 from app.utils.mcp import has_tool_been_called
-from app.utils.message import update_last_user_message
 from app.utils.vocab import VocabProcessor
 
 
@@ -50,13 +49,8 @@ class ToolCallPolicy:
         self.extracted_urls = set()
         self.tool_arguments_history_by_name.clear()
 
-    def apply_iteration_hints(
-        self,
-        *,
-        messages: list[dict[str, Any]],
-        tool_guided_user_message: str,
-        iteration: int,
-    ) -> None:
+    def collect_iteration_hints(self, iteration: int) -> str | None:
+        """收集本轮尾部 user 用的 iteration hints（不改写已有消息）。"""
         hint_messages: list[str] = []
         web_search_count = len(
             self.tool_arguments_history_by_name.get(WEB_SEARCH_LLM, [])
@@ -81,12 +75,9 @@ class ToolCallPolicy:
                 hint_messages.append(stop_reason_message)
             if iteration >= self.MIN_ITERATION_FOR_HINT:
                 hint_messages.append(get_tool_call_sufficient_info_message())
-        if hint_messages:
-            hints_text = "\n".join(hint_messages)
-            update_last_user_message(
-                messages,
-                new_content=f"{tool_guided_user_message}\n\n注意:\n{hints_text}",
-            )
+        if not hint_messages:
+            return None
+        return "\n".join(hint_messages)
 
     def record_tool_arguments(
         self,

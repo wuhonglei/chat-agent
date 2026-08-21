@@ -494,3 +494,174 @@ async def test_unified_context_guard_disabled_skips() -> None:
     )
     assert action == "ok"
     assert out is base
+
+
+def test_build_round_prompt_messages_appends_trailing_user_only() -> None:
+    history_svc = HistoryContextService(ChatContextConfig(), _calc())
+    agent = ChatSessionAgent(
+        think_mode=False,
+        llm_config=_llm(),
+        mcp_manager=MagicMock(),
+        history_context_service=history_svc,
+        chat_context_config=ChatContextConfig(),
+    )
+    base = [
+        {"role": "system", "content": "sys"},
+        {"role": "user", "content": "original"},
+    ]
+    agent.session_output.tool_round_messages = [
+        ToolUseMessage(
+            role="assistant",
+            content=None,
+            reasoning_content=None,
+            tool_calls=[
+                ChatCompletionMessageFunctionToolCall(
+                    id="c1",
+                    type="function",
+                    function=Function(name="tavily_web_search", arguments="{}"),
+                )
+            ],
+        ),
+        ToolResultMessage(
+            role="tool", tool_call_id="c1", is_error=False, content="result"
+        ),
+    ]
+    trailing = {
+        "role": "user",
+        "content": "注意:\nhint1",
+        "source": {"kind": "plugin", "plugin": "iteration_hints", "form": "notice"},
+    }
+    round1 = agent._build_round_prompt_messages(base, trailing_user=trailing)
+    assert round1[-1] is trailing
+    assert round1[1]["content"] == "original"
+
+    # step2: no previous trailing; only current trailing if provided
+    trailing2 = {
+        "role": "user",
+        "content": "注意:\nhint2",
+        "source": {"kind": "plugin", "plugin": "iteration_hints", "form": "notice"},
+    }
+    round2 = agent._build_round_prompt_messages(base, trailing_user=trailing2)
+    assert round2[-1] is trailing2
+    assert all(m.get("content") != "注意:\nhint1" for m in round2)
+
+
+@pytest.mark.asyncio
+async def test_unified_context_guard_reuses_turn_datetime(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Step 3 重建 user 时复用 turn 级 datetime，不重新取当前时间。"""
+    from app.prompts import prompt_utils
+
+    calls: list[str | None] = []
+    original = prompt_utils.get_user_message_for_tool_calls
+
+    def _tracking(
+        user_message_text: str,
+        kb_context_blocks=None,
+        user_memories=None,
+        window_out_summary=None,
+        attachment_uploads=None,
+        current_datetime=None,
+    ) -> str:
+        calls.append(current_datetime)
+        return original(
+            user_message_text,
+            kb_context_blocks=kb_context_blocks,
+            user_memories=user_memories,
+            window_out_summary=window_out_summary,
+            attachment_uploads=attachment_uploads,
+            current_datetime=current_datetime,
+        )
+
+    monkeypatch.setattr(prompt_utils, "get_user_message_for_tool_calls", _tracking)
+    monkeypatch.setattr(
+        "app.agents.chat_session_agent.get_user_message_for_tool_calls",
+        _tracking,
+    )
+
+    guard = UnifiedContextGuardConfig(
+        buffer_tokens=50,
+        max_output_tokens=50,
+        keep_recent_tool_results=0,
+    )
+    cfg = ChatContextConfig(
+        unified_guard=guard,
+        window_out_summary=WindowOutSummaryConfig(enabled=True),
+    )
+    history_svc = HistoryContextService(cfg, _calc(limit=400))
+
+    async def _fake_summary(**kwargs: Any) -> str:
+        return "summary"
+
+    history_svc.generate_window_out_summary = _fake_summary  # type: ignore[method-assign]
+    history_svc.compress_history_tool_results = lambda h: h  # type: ignore[method-assign]
+
+    # Force split to produce out_of_window
+    def _split(history: list[ChatMessage], remaining: int) -> tuple[list, list]:
+        if len(history) >= 2:
+            return history[-1:], history[:-1]
+        return history, []
+
+    history_svc.split_by_remaining_budget = _split  # type: ignore[method-assign]
+
+    agent = ChatSessionAgent(
+        think_mode=False,
+        llm_config=_llm(limit=400, max_out=50),
+        mcp_manager=MagicMock(),
+        history_context_service=history_svc,
+        chat_context_config=cfg,
+    )
+    agent._system_prompt = "sys"
+    agent._user_message_text = "hello"
+    agent._user_message_content = "hello"
+    agent._turn_datetime = "2026-08-21 12:00:00"
+    agent._window_out_summary = None
+    agent._kb_context_blocks = None
+    agent._user_memories = []
+    agent._attachment_uploads = None
+    agent._working_history = [
+        ChatMessage(
+            id="u0",
+            conversation_id="c",
+            role="user",
+            content_blocks=[TextBlock(id="t0", text="old " * 200)],
+            status="done",
+        ),
+        ChatMessage(
+            id="a0",
+            conversation_id="c",
+            role="assistant",
+            content_blocks=[TextBlock(id="t1", text="ans " * 200)],
+            status="done",
+        ),
+        ChatMessage(
+            id="u1",
+            conversation_id="c",
+            role="user",
+            content_blocks=[TextBlock(id="t2", text="new")],
+            status="done",
+        ),
+    ]
+    # Make token count appear over threshold so Step 3 runs
+    monkeypatch.setattr(
+        agent.token_calculator,
+        "count_messages_tokens",
+        lambda messages: 10_000,
+    )
+    monkeypatch.setattr(
+        agent.token_calculator,
+        "count_message_tokens",
+        lambda message: 10,
+    )
+
+    base = agent._compose_messages(
+        agent._system_prompt, agent._working_history, agent._user_message_content, []
+    )
+    await agent.unified_context_guard(
+        base_prompt_messages=base,
+        conversation_id="conv",
+        allow_stop_tools=True,
+    )
+    assert calls
+    assert all(dt == "2026-08-21 12:00:00" for dt in calls)
