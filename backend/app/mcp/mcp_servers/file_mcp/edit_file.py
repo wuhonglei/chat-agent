@@ -104,6 +104,11 @@ class EditFileTool(ToolBase):
             # Write updated content
             physical_path.write_text(updated_content, encoding="utf-8")
 
+            if is_custom_skill:
+                from app.agent_skills import invalidate_skill_registry
+
+                invalidate_skill_registry()
+
             logger.info(
                 "File edited",
                 file_path=file_path,

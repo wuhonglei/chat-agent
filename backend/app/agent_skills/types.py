@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -20,3 +21,4 @@ class AgentSkillDocument:
 
     manifest: AgentSkillManifest
     body: str
+    source_path: Path | None = None

@@ -38,25 +38,17 @@ system_prompt_for_chat_session_template: Template = Template(
 <skill_system>
 你可以使用 skill 技能，它们为特定任务提供了优化过的工作流程。每个 skill 是一个包含说明、脚本和参考资料的文件夹。当用户请求与某个 skill 的使用场景匹配时使用；对于你能直接回答的简单问题，无需加载 skill。
 
-**渐进式加载流程：**
-1. 当用户问题与某个 skill 的使用场景匹配时，立即调用 `{{ load_skill_tool_name }}` 工具，参数 name 为下方 `<name>` 标签中的技能名称
-2. 阅读并理解该 skill 的工作流程与说明
-3. skill 文档可能引用同目录下的其他资源
-4. 仅在执行过程中需要时再加载所引用的资源
-5. 严格遵循 skill 中的指示
+目录只包含摘要。若用户点名某个 skill，或任务与某条 description 明显匹配，先调用 `{{ load_skill_tool_name }}`，参数 name 为列表中的精确技能名称；加载全部适用 skill 后再按其完整说明执行。未加载前不要根据摘要推断或执行该 skill 的流程。
+skill 文档可能引用同目录资源：按加载结果中的 base directory 解析相对路径，仅在执行需要时再用文件工具读取。
 
 **技能目录：**
 - 内置技能（只读）：`{{ skills_public_prefix.rstrip('/') }}/`
 - 用户自定义技能（可读写）：`{{ skills_custom_prefix.rstrip('/') }}` — find-skills、skill-creator 安装或新建技能时使用；示例：`{{ skills_custom_prefix }}my-skill/SKILL.md`
 
 <available_skills>
-{%- for skill in skill_manifests %}
-    <skill>
-        <name>{{ skill.name }}</name>
-        <description>{{ skill.description }}</description>
-        <location>{{ skill.location }}</location>
-    </skill>
-{%- endfor %}
+{% for line in skill_catalog_lines -%}
+{{ line }}
+{% endfor -%}
 </available_skills>
 
 </skill_system>
