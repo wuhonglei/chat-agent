@@ -111,7 +111,7 @@ gentle_tips_in_web_search_template: Template = Template(
 
 tool_call_sufficient_info_template: Template = Template(
     """
-⚠️ 搜索结果可能已足够回答问题。请检查已调用工具及其结果，足够则直接给出最终回答，停止调用更多工具。
+搜索结果可能已足够回答问题。请检查已调用工具及其结果，足够则直接给出最终回答，停止调用更多工具。
 """.strip()
 )
 

@@ -62,14 +62,14 @@ class ToolCallPolicy:
             and iteration >= self.MIN_ITERATION_FOR_HINT
         ):
             hint_messages.append(
-                "⚠️ 已执行过搜索，请先评估现有搜索结果是否足够回答用户问题。"
+                "已执行过搜索，请先评估现有搜索结果是否足够回答用户问题。"
                 "如果信息已充分，直接给出回答，不要再次调用工具。"
             )
         if has_tool_been_called(
             [(TAVILY_SERVER, WEB_PAGES_EXTRACT_BARE)], self.tool_round_messages
         ) and (len(self.extracted_urls) >= self.EXTRACTED_URLS_HINT_THRESHOLD):
             hint_messages.append(
-                f"⚠️ 已提取 {len(self.extracted_urls)} 个 URL，内容可能已足够，直接回答。"
+                f"已提取 {len(self.extracted_urls)} 个 URL，内容可能已足够，直接回答。"
             )
         should_continue, stop_reason_message = self.should_continue(None)
         if not should_continue:
@@ -208,7 +208,7 @@ class ToolCallPolicy:
                     ):
                         return (
                             False,
-                            f"⚠️ 当前查询与历史查询相似度很高（{similarity:.1%}）。如果之前的搜索结果已足够回答问题，请停止继续调用工具，并直接给出最终回答。",
+                            f"当前查询与历史查询相似度很高（{similarity:.1%}）。如果之前的搜索结果已足够回答问题，请停止继续调用工具，并直接给出最终回答。",
                         )
             for call_info in get_in(
                 [WEB_PAGES_EXTRACT_LLM], tool_arguments_by_name, []
@@ -226,22 +226,22 @@ class ToolCallPolicy:
                     ):
                         return (
                             False,
-                            f"⚠️ 当前 URL 列表中有 {extracted_count} 个 URL 已在之前提取过（重叠率 {overlap_ratio:.1%}）。如果已获得足够信息，请停止继续调用工具，并直接给出最终回答。",
+                            f"当前 URL 列表中有 {extracted_count} 个 URL 已在之前提取过（重叠率 {overlap_ratio:.1%}）。如果已获得足够信息，请停止继续调用工具，并直接给出最终回答。",
                         )
         if web_search_count >= self.MAX_WEB_SEARCH_COUNT:
             return (
                 False,
-                f"⚠️ 已执行 {web_search_count} 次搜索，结果可能已足够，直接回答。",
+                f"已执行 {web_search_count} 次搜索，结果可能已足够，直接回答。",
             )
         if web_pages_extract_count >= self.MAX_WEB_PAGES_EXTRACT_COUNT:
             return (
                 False,
-                f"⚠️ 已执行 {web_pages_extract_count} 次网页提取，内容可能已足够，直接回答。",
+                f"已执行 {web_pages_extract_count} 次网页提取，内容可能已足够，直接回答。",
             )
         if len(self.extracted_urls) >= self.MAX_EXTRACTED_URLS:
             return (
                 False,
-                f"⚠️ 已提取 {len(self.extracted_urls)} 个 URL，内容可能已足够，直接回答。",
+                f"已提取 {len(self.extracted_urls)} 个 URL，内容可能已足够，直接回答。",
             )
         return True, None
 

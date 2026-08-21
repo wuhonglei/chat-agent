@@ -152,12 +152,12 @@ class ToolCallGuardrail:
 
         if exact_count >= self.exact_failure_warn_after:
             self._queue_warn(
-                f"⚠️ 警告：{tool_name} 使用相同参数已连续失败 {exact_count} 次。"
+                f"警告：{tool_name} 使用相同参数已连续失败 {exact_count} 次。"
                 "请更换策略（改参数、换路径或换工具），避免原样重试。"
             )
         if same_count >= self.same_tool_failure_warn_after:
             self._queue_warn(
-                f"⚠️ 警告：工具 {tool_name} 已连续失败 {same_count} 次。"
+                f"警告：工具 {tool_name} 已连续失败 {same_count} 次。"
                 f"{self._recovery_hint(tool_name)}"
             )
         if same_count >= self.same_tool_failure_halt_after:
@@ -184,7 +184,7 @@ class ToolCallGuardrail:
 
         if repeat_count >= self.no_progress_warn_after:
             self._queue_warn(
-                f"⚠️ 警告：{tool_name} 使用相同参数已连续 "
+                f"警告：{tool_name} 使用相同参数已连续 "
                 f"{repeat_count} 次返回相同结果，可能没有进展。"
                 "请更换查询条件或换用其他工具。"
             )
