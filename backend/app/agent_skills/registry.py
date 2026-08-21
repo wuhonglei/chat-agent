@@ -62,6 +62,7 @@ class AgentSkillRegistry:
                 location=location,
             ),
             body=body,
+            source_path=path.resolve(),
         )
 
     @staticmethod
@@ -92,10 +93,24 @@ class AgentSkillRegistry:
         )
 
     def load(self, name: str) -> AgentSkillDocument:
-        document = self._documents.get(name)
-        if document is None:
-            raise ValueError(f"Skill '{name}' not found")
-        return document
+        """Load a skill by name, re-reading SKILL.md from disk when possible."""
+        cached = self._documents.get(name)
+        if cached is None:
+            raise ValueError(f'skill "{name}" is unknown or no longer available')
+
+        source = cached.source_path
+        if source is None or not source.is_file():
+            return cached
+
+        # location = {prefix}/{dir}/SKILL.md → prefix
+        loc = cached.manifest.location.rstrip("/")
+        if loc.endswith("/SKILL.md"):
+            without_file = loc[: -len("/SKILL.md")]
+            location_prefix = without_file.rsplit("/", 1)[0]
+        else:
+            location_prefix = _location_prefix_for_dir(source.parent.parent)
+
+        return self._load_document(source, location_prefix=location_prefix)
 
 
 def _skill_dirs_for_user(user_id: str | None) -> list[str]:
@@ -122,3 +137,8 @@ def _location_prefix_for_dir(skills_dir: str | Path) -> str:
 def get_skill_registry(user_id: str | None = None) -> AgentSkillRegistry:
     """Return a cached registry for *user_id* (``None`` = public skills only)."""
     return AgentSkillRegistry(skills_dirs=_skill_dirs_for_user(user_id))
+
+
+def invalidate_skill_registry() -> None:
+    """Drop cached registries so the next lookup rescans skill directories."""
+    get_skill_registry.cache_clear()

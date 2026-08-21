@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
+from app.agent_skills.render import format_catalog_entries
 from app.agent_skills.types import AgentSkillManifest
 from app.mcp.constants import PRESENT_FILES_LLM, SKILL_MANAGER_SERVER
 from app.mcp.tool_naming import llm_tool_name
@@ -51,15 +52,19 @@ def get_system_prompt_for_chat_session(
     skill_manifests: Sequence[AgentSkillManifest] | None = None,
 ) -> str:
     """Get system prompt for final response generation."""
-    extra = _get_agent_mode_prompt_context() if agent_mode > 0 else {}
+    manifests = list(skill_manifests or [])
+    extra: dict[str, Any] = (
+        dict(_get_agent_mode_prompt_context()) if agent_mode > 0 else {}
+    )
     if agent_mode > 0:
         extra["load_skill_tool_name"] = llm_tool_name(
             SKILL_MANAGER_SERVER, "load_skill"
         )
         extra["present_files_tool_name"] = PRESENT_FILES_LLM
+        extra["skill_catalog_lines"] = format_catalog_entries(manifests)
     return system_prompt_for_chat_session_template.render(
         agent_mode=agent_mode,
-        skill_manifests=skill_manifests or [],
+        skill_manifests=manifests,
         **extra,
     )
 

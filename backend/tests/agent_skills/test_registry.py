@@ -45,7 +45,7 @@ def test_registry_merges_public_and_custom(tmp_path: Path) -> None:
 
 
 def test_registry_public_only_without_user_id(tmp_path: Path) -> None:
-    public_dir = tmp_path / "skills_public"
+    public_dir = tmp_path / "public"
     _write_skill(public_dir / "builtin", "builtin", "built-in skill")
 
     registry = AgentSkillRegistry(skills_dirs=[str(public_dir)])

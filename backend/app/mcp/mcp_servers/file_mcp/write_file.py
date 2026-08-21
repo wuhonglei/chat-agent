@@ -79,6 +79,11 @@ class WriteFileTool(ToolBase):
 
             physical_path.write_text(content, encoding="utf-8")
 
+            if is_custom_skill:
+                from app.agent_skills import invalidate_skill_registry
+
+                invalidate_skill_registry()
+
             written_lines = len(content.splitlines())
 
             logger.info(

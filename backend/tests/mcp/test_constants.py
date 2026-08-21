@@ -6,6 +6,7 @@ from app.mcp.constants import (
     FILE_SERVER,
     SHELL_SERVER,
     SKIP_TOOL_RESULT_COMPACTION_SERVERS,
+    SKILL_MANAGER_SERVER,
     TAVILY_SERVER,
     WEB_PAGES_EXTRACT_BARE,
     WEB_PAGES_EXTRACT_LLM,
@@ -29,3 +30,4 @@ def test_web_pages_extract_llm_name() -> None:
 def test_skip_compaction_servers() -> None:
     assert FILE_SERVER in SKIP_TOOL_RESULT_COMPACTION_SERVERS
     assert SHELL_SERVER in SKIP_TOOL_RESULT_COMPACTION_SERVERS
+    assert SKILL_MANAGER_SERVER in SKIP_TOOL_RESULT_COMPACTION_SERVERS
