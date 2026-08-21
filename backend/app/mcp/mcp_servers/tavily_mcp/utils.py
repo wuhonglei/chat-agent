@@ -1,6 +1,9 @@
 import math
 import re
-from copy import deepcopy
+from typing import Any
+from xml.sax.saxutils import escape as xml_escape
+
+from jinja2 import Environment
 
 from .models import (
     TavilyCrawlResponse,
@@ -66,169 +69,290 @@ def clean_invisible_chars(
     return cleaned_str
 
 
+def _xml_text(value: str) -> str:
+    """Escape short XML text fields (query / title / url / error)."""
+    return xml_escape(value, {"'": "&apos;", '"': "&quot;"})
+
+
+def _xml_cdata(value: str) -> str:
+    """Wrap long body text in CDATA; split any embedded ]]> sequences."""
+    safe = value.replace("]]>", "]]]]><![CDATA[>")
+    return f"<![CDATA[{safe}]]>"
+
+
+def _split_snippets(content: str) -> list[str]:
+    return [chunk.strip() for chunk in content.split("[...]") if chunk.strip()]
+
+
+def _prepare_body(
+    raw: str, *, is_chunked: bool | None, include_body: bool
+) -> dict[str, Any]:
+    if not include_body:
+        return {"content": None, "snippets": None}
+    body = clean_invisible_chars(raw or "")
+    if not body:
+        return {"content": None, "snippets": None}
+    if is_chunked:
+        return {"content": None, "snippets": _split_snippets(body)}
+    return {"content": body, "snippets": None}
+
+
+def _prepare_search_result(
+    result: TavilySearchResultItem,
+    *,
+    include_body: bool,
+    is_chunked: bool | None,
+) -> dict[str, Any]:
+    body = _prepare_body(
+        result.content or "", include_body=include_body, is_chunked=is_chunked
+    )
+    return {
+        "title": clean_invisible_chars(result.title or ""),
+        "url": result.url or "",
+        "score": f"{result.score:.2f}" if result.score is not None else None,
+        **body,
+    }
+
+
+def _prepare_search_query_context(
+    response: TavilySearchResponse, *, include_body: bool
+) -> dict[str, Any]:
+    is_chunked = response.is_chunked
+    high = response.filtered_results or []
+    low = response.ignored_results or []
+    return {
+        "query": response.query,
+        "high_results": [
+            _prepare_search_result(r, include_body=include_body, is_chunked=is_chunked)
+            for r in high
+        ],
+        "ignored_results": [
+            _prepare_search_result(r, include_body=False, is_chunked=is_chunked)
+            for r in low
+        ],
+        "threshold": (
+            f"{response.threshold:.2f}" if response.threshold is not None else None
+        ),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Jinja2 templates (XML for LLM)
+# ---------------------------------------------------------------------------
+
+_JINJA_ENV = Environment(autoescape=False)
+_JINJA_ENV.filters["xml"] = _xml_text
+_JINJA_ENV.filters["cdata"] = _xml_cdata
+
+_BODY_MACRO = """
+{%- macro render_body(item) -%}
+{%- if item.snippets -%}
+{%- for snippet in item.snippets %}
+    <snippet index="{{ loop.index }}">{{ snippet|cdata }}</snippet>
+{%- endfor -%}
+{%- elif item.content %}
+    <content>{{ item.content|cdata }}</content>
+{%- endif -%}
+{%- endmacro -%}
+""".strip()
+
+_SEARCH_QUERY_TEMPLATE = _JINJA_ENV.from_string(
+    _BODY_MACRO
+    + """
+{%- macro render_result(item, index) %}
+    <result index="{{ index }}">
+      <title>{{ item.title|xml }}</title>
+      <url>{{ item.url|xml }}</url>
+{%- if item.score %}
+      <score>{{ item.score }}</score>
+{%- endif -%}
+{{ render_body(item) }}
+    </result>
+{%- endmacro -%}
+
+<search_query>
+  <query>{{ query|xml }}</query>
+{%- if high_results %}
+  <high_relevance_results count="{{ high_results|length }}">
+{%- for item in high_results -%}
+{{ render_result(item, loop.index) }}
+{%- endfor %}
+  </high_relevance_results>
+{%- endif -%}
+{%- if ignored_results %}
+  <ignored_results count="{{ ignored_results|length }}"{% if threshold %} threshold="{{ threshold }}"{% endif %}>
+{%- for item in ignored_results -%}
+{{ render_result(item, loop.index) }}
+{%- endfor %}
+  </ignored_results>
+{%- endif %}
+</search_query>
+""".strip()
+)
+
+_WEB_SEARCH_RESULTS_TEMPLATE = _JINJA_ENV.from_string(
+    """
+<web_search_results>
+{%- for q in search_queries %}
+{{ q }}
+{%- endfor %}
+</web_search_results>
+""".strip()
+)
+
+_EXTRACT_RESULTS_TEMPLATE = _JINJA_ENV.from_string(
+    _BODY_MACRO
+    + """
+<web_extract_results>
+{%- if extracts %}
+  <extracts count="{{ extracts|length }}">
+{%- for item in extracts %}
+    <extract index="{{ loop.index }}">
+      <title>{{ item.title|xml }}</title>
+      <url>{{ item.url|xml }}</url>
+{{ render_body(item) }}
+    </extract>
+{%- endfor %}
+  </extracts>
+{%- else %}
+  <extracts count="0"/>
+{%- endif -%}
+{%- if failed_extracts %}
+  <failed_extracts count="{{ failed_extracts|length }}">
+{%- for item in failed_extracts %}
+    <failed_extract index="{{ loop.index }}">
+      <url>{{ item.url|xml }}</url>
+      <error>{{ item.error|xml }}</error>
+    </failed_extract>
+{%- endfor %}
+  </failed_extracts>
+{%- endif %}
+</web_extract_results>
+""".strip()
+)
+
+_CRAWL_RESULTS_TEMPLATE = _JINJA_ENV.from_string(
+    _BODY_MACRO
+    + """
+<web_crawl_results>
+  <base_url>{{ base_url|xml }}</base_url>
+  <pages count="{{ pages|length }}">
+{%- for item in pages %}
+    <page index="{{ loop.index }}">
+      <url>{{ item.url|xml }}</url>
+{{ render_body(item) }}
+    </page>
+{%- endfor %}
+  </pages>
+</web_crawl_results>
+""".strip()
+)
+
+
 def format_query_search_results(response: TavilySearchResponse) -> tuple[str, str]:
     """
-    将 Tavily Search API 响应格式化为人类可读的文本
-
-    Args:
-        response: TavilySearchResponse 对象
+    将 Tavily Search API 响应格式化为 XML（供 LLM 消费）。
 
     Returns:
-        格式化后的字符串
+        (content, summary)：content 含正文；summary 仅含元数据
     """
-    output = []
-    summary = []
-    query = response.query
-    is_chunked = response.is_chunked
-    filtered_results = response.filtered_results
-    ignored_results = response.ignored_results
-
-    # Format detailed search results
-    results_high = filtered_results or []
-    if results_high:
-        description = (
-            f"执行的搜索查询: {query}\n{len(results_high)} 个高相关性搜索结果如下:"
-        )
-        output.append(description)
-        summary.append(description)
-    # 先输出高相关性结果
-    for index, result in enumerate(results_high, start=1):
-        item_lines: list[str] = [f"\n第 {index} 个搜索结果的详细信息如下:"]
-        item_lines.append(f"标题: {clean_invisible_chars(result.title or '')}")
-        item_lines.append(f"URL: {result.url}")
-        if result.score is not None:
-            item_lines.append(f"相关性分数: {result.score:.2f}")
-        summary.append("\n".join(item_lines))
-        content_s = result.content or ""
-        content = clean_invisible_chars(content_s)
-        if content:
-            if is_chunked:
-                chunks = content.split("[...]")
-                for i, chunk in enumerate(chunks, start=1):
-                    item_lines.append(f"相关内容 {i}: {chunk}")
-            else:
-                item_lines.append(f"网页内容: {content}")
-        output.append("\n".join(item_lines))
-
-    # 再输出低分结果
-    results_low = ignored_results or []
-    if results_low:
-        description = f"执行的搜索查询: {query}\n{len(results_low)} 个结果因相关性分数低于阈值 {response.threshold} 而被忽略（可作为补充信息）:"
-        output.append(description)
-        summary.append(description)
-        for index, result in enumerate(results_low, start=1):
-            low_item_lines: list[str] = [
-                f"\n第 {index} 个被忽略的搜索结果的详细信息如下:"
-            ]
-            low_item_lines.append(f"标题: {clean_invisible_chars(result.title or '')}")
-            low_item_lines.append(f"URL: {result.url}")
-            if result.score is not None:
-                low_item_lines.append(f"相关性分数: {result.score:.2f}")
-            summary.append("\n".join(low_item_lines))
-            output.append("\n".join(low_item_lines))
-
-    return "\n".join(output), "\n".join(summary)
+    content = _SEARCH_QUERY_TEMPLATE.render(
+        **_prepare_search_query_context(response, include_body=True)
+    ).strip()
+    summary = _SEARCH_QUERY_TEMPLATE.render(
+        **_prepare_search_query_context(response, include_body=False)
+    ).strip()
+    return content, summary
 
 
 def format_multiple_query_search_results(
     responses: list[TavilySearchResponse],
 ) -> tuple[str, str]:
-    """
-    将多个Tavily Search API 响应格式化为人类可读的文本
-    """
-    output = []
-    summary = []
+    """将多个 Tavily Search API 响应格式化为 XML。"""
+    content_parts: list[str] = []
+    summary_parts: list[str] = []
     for response in responses:
         output_content, summary_content = format_query_search_results(response)
-        output.append(output_content)
-        summary.append(summary_content)
-    return "\n\n----\n\n".join(output), "\n\n----\n\n".join(summary)
+        content_parts.append(output_content)
+        summary_parts.append(summary_content)
+
+    content = _WEB_SEARCH_RESULTS_TEMPLATE.render(search_queries=content_parts).strip()
+    summary = _WEB_SEARCH_RESULTS_TEMPLATE.render(search_queries=summary_parts).strip()
+    return content, summary
 
 
 def format_extract_results(response: TavilyExtractResponse) -> tuple[str, str]:
     """
-    将 Tavily Extract API 响应格式化为人类可读的文本
-
-    Args:
-        response: TavilyExtractResponse 对象
+    将 Tavily Extract API 响应格式化为 XML。
 
     Returns:
-        格式化后的字符串
+        (content, summary)：content 含正文；summary 仅含元数据
     """
-    output = []
-    summary = []
     is_chunked = response.is_chunked
+    extracts_full: list[dict[str, Any]] = []
+    extracts_meta: list[dict[str, Any]] = []
+    for result in response.results or []:
+        base = {
+            "title": clean_invisible_chars(result.title or ""),
+            "url": result.url or "",
+        }
+        extracts_full.append(
+            {
+                **base,
+                **_prepare_body(
+                    result.raw_content or "",
+                    include_body=True,
+                    is_chunked=is_chunked,
+                ),
+            }
+        )
+        extracts_meta.append({**base, "content": None, "snippets": None})
 
-    # Format successful extraction results
-    if response.results:
-        description = f"{len(response.results)} 个网页提取结果如下:"
-        output.append(description)
-        summary.append(description)
-        for index, result in enumerate(response.results, start=1):
-            item_lines: list[str] = [f"\n第 {index} 个提取结果的详细信息如下:"]
-            item_lines.append(f"标题: {clean_invisible_chars(result.title or '')}")
-            item_lines.append(f"URL: {result.url}")
-            summary.append("\n".join(item_lines))
-            raw_content = clean_invisible_chars(result.raw_content or "")
-            if raw_content:
-                if is_chunked:
-                    chunks = raw_content.split("[...]")
-                    for i, chunk in enumerate(chunks, start=1):
-                        item_lines.append(f"相关内容 {i}: {chunk}")
-                else:
-                    item_lines.append(f"提取内容: {raw_content}")
-            output.append("\n".join(item_lines))
-    else:
-        description = "未提取到任何网页内容"
-        output.append(description)
-        summary.append(description)
+    failed = [
+        {"url": item.url, "error": item.error or ""}
+        for item in (response.failed_results or [])
+    ]
 
-    if response.failed_results:
-        description = f"\n{len(response.failed_results)} 个网页提取失败的URL:"
-        output.append(description)
-        summary.append(description)
-        for index, failed in enumerate(response.failed_results, start=1):
-            failed_lines: list[str] = [f"\n第 {index} 个提取失败的URL的详细信息如下:"]
-            failed_lines.append(f"URL: {failed.url}")
-            failed_lines.append(f"错误: {failed.error or ''}")
-            summary.append("\n".join(failed_lines))
-            output.append("\n".join(failed_lines))
-
-    return "\n".join(output), "\n".join(summary)
+    content = _EXTRACT_RESULTS_TEMPLATE.render(
+        extracts=extracts_full, failed_extracts=failed
+    ).strip()
+    summary = _EXTRACT_RESULTS_TEMPLATE.render(
+        extracts=extracts_meta, failed_extracts=failed
+    ).strip()
+    return content, summary
 
 
 def format_crawl_results(response: TavilyCrawlResponse) -> tuple[str, str]:
     """
-    将 Tavily Crawl API 响应格式化为人类可读的文本
-
-    Args:
-        response: TavilyCrawlResponse 对象
+    将 Tavily Crawl API 响应格式化为 XML。
 
     Returns:
-        格式化后的字符串
+        (content, summary)：content 含正文；summary 仅含元数据
     """
-    output: list[str] = []
     is_chunked = response.is_chunked
+    pages_full: list[dict[str, Any]] = []
+    pages_meta: list[dict[str, Any]] = []
+    for page in response.results:
+        base = {"url": page.url}
+        pages_full.append(
+            {
+                **base,
+                **_prepare_body(
+                    page.raw_content or "",
+                    include_body=True,
+                    is_chunked=is_chunked,
+                ),
+            }
+        )
+        pages_meta.append({**base, "content": None, "snippets": None})
 
-    output.append(f"{len(response.results)} 个网页爬取结果如下:")
-    output.append(f"爬取的基础URL: {response.base_url}")
-    summary = deepcopy(output)
-
-    for index, page in enumerate(response.results, start=1):
-        item_lines: list[str] = [f"\n第 {index} 个爬取结果的详细信息如下:"]
-        item_lines.append(f"爬取的URL: {page.url}")
-        summary.append("\n".join(item_lines))
-        raw_content = clean_invisible_chars(page.raw_content or "")
-        if raw_content:
-            if is_chunked:
-                chunks = raw_content.split("[...]")
-                for i, chunk in enumerate(chunks, start=1):
-                    item_lines.append(f"相关内容 {i}: {chunk}")
-            else:
-                item_lines.append(f"爬取内容: {raw_content}")
-        output.append("\n".join(item_lines))
-
-    return "\n".join(output), "\n".join(summary)
+    content = _CRAWL_RESULTS_TEMPLATE.render(
+        base_url=response.base_url, pages=pages_full
+    ).strip()
+    summary = _CRAWL_RESULTS_TEMPLATE.render(
+        base_url=response.base_url, pages=pages_meta
+    ).strip()
+    return content, summary
 
 
 def filter_search_results_by_score(

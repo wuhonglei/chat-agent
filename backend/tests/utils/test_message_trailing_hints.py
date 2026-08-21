@@ -53,7 +53,7 @@ def test_trailing_hint_iteration_only() -> None:
 
 def test_trailing_hint_guardrail_only() -> None:
     msg = build_trailing_hint_user_message(
-        guardrail_warns=["⚠️ 警告：同参失败", "⚠️ 警告：无进展"]
+        guardrail_warns=["警告：同参失败", "警告：无进展"]
     )
     assert msg is not None
     assert msg["source"]["plugin"] == "tool_guardrail"
@@ -65,7 +65,7 @@ def test_trailing_hint_guardrail_only() -> None:
 def test_trailing_hint_merged_snapshot() -> None:
     msg = build_trailing_hint_user_message(
         iteration_hints="已执行过搜索",
-        guardrail_warns=["⚠️ 警告：连续失败"],
+        guardrail_warns=["警告：连续失败"],
     )
     assert msg is not None
     assert msg["source"]["plugin"] == "agent_hints"

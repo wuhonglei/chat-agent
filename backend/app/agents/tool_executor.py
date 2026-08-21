@@ -284,7 +284,7 @@ class ToolExecutor:
                         role="tool",
                         is_error=False,
                         tool_call_id=tool_call.id,
-                        content="⚠️ 提示：这些 URL 已经在之前的调用中提取过了。请检查历史工具调用结果，如果已获得足够信息，请停止继续调用工具，并直接给出最终回答。",
+                        content="提示：这些 URL 已经在之前的调用中提取过了。请检查历史工具调用结果，如果已获得足够信息，请停止继续调用工具，并直接给出最终回答。",
                     )
                     self._score_tool_success(
                         tool_span,
@@ -770,7 +770,7 @@ class ToolExecutor:
         messages: list[str] = []
         if legacy_filtered_params:
             messages.append(
-                f"⚠️ 警告：以下参数被忽略（工具 {tool_name} 不支持这些参数）："
+                f"警告：以下参数被忽略（工具 {tool_name} 不支持这些参数）："
                 f"{', '.join(legacy_filtered_params)}。"
                 "请勿在后续调用中使用这些参数。"
             )
@@ -781,14 +781,14 @@ class ToolExecutor:
                 removed_params = warning.get("details", {}).get("removed_params", [])
                 if removed_params:
                     messages.append(
-                        f"⚠️ 警告：以下参数被忽略（工具 {tool_name} 不支持这些参数）："
+                        f"警告：以下参数被忽略（工具 {tool_name} 不支持这些参数）："
                         f"{', '.join(removed_params)}。"
                         "请勿在后续调用中使用这些参数。"
                     )
                 continue
             message = warning.get("message")
             if isinstance(message, str) and message:
-                messages.append(f"⚠️ 提示：{message}")
+                messages.append(f"提示：{message}")
         if not messages:
             return ""
         return "\n".join(messages) + "\n\n"
