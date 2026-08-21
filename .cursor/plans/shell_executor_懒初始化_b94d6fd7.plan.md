@@ -217,4 +217,4 @@ result = await executor.execute(...)
 1. Agent 模式调用 `shell`（如 `ls`）不再出现 `Executor not initialized`
 2. 同一 conversation 多次 shell 调用不重复完整 init（日志仅首次或 workspace 切换时打印 `Shell executor initialized`）
 3. `SANDBOX__BACKEND=local` 下简单命令（如 `pwd`）可在 workspace 目录内成功执行
-4. 新增单元测试通过：`uv run pytest app/mcp/mcp_servers/shell_mcp/ -v`
+4. 新增单元测试通过：`cd backend && uv run pytest app/mcp/mcp_servers/shell_mcp/ -v`

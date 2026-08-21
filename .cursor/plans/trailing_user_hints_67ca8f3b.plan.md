@@ -4,22 +4,22 @@ overview: 在前缀缓存计划上，把搜索 iteration hint 和熔断 WARN 都
 todos:
   - id: create-user-message
     content: create_user_message + call_llm_api 投影去掉 source
-    status: pending
+    status: completed
   - id: hints-collect-trailing
     content: collect_iteration_hints + _build_round_prompt_messages 尾部追加
-    status: pending
+    status: completed
   - id: guardrail-warn-queue
     content: WARN 入队 drain 为尾部 user；BLOCK/HALT 仍写 tool
-    status: pending
+    status: completed
   - id: freeze-datetime
     content: turn 级冻结 current_datetime，守卫重建复用
-    status: pending
+    status: completed
   - id: cache-usage-metrics
     content: 解析 usage 缓存字段；空 choices 也读 usage
-    status: pending
+    status: completed
   - id: tests
     content: hints/source/warn 队列/BLOCK/datetime/usage 单测
-    status: pending
+    status: completed
 isProject: false
 ---
 

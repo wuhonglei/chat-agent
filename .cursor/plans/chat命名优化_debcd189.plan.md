@@ -28,10 +28,10 @@ isProject: false
 - 采用低风险分批重命名方式，优先修改调用链清晰、收益高、影响小的标识符。
 
 ## 范围
-- 入口与编排层：[`app/api/chat.py`](`app/api/chat.py`)、[`app/services/chat/chat_service.py`](`app/services/chat/chat_service.py`)、[`app/services/chat/chat_orchestrator.py`](`app/services/chat/chat_orchestrator.py`)
-- Agent 执行层：[`app/agents/chat_session_agent.py`](`app/agents/chat_session_agent.py`)、[`app/agents/chat_session_state.py`](`app/agents/chat_session_state.py`)、[`app/agents/mcp_tool_execution.py`](`app/agents/mcp_tool_execution.py`)、[`app/agents/tool_call_policy.py`](`app/agents/tool_call_policy.py`)
-- 上下文与收尾层：[`app/services/chat/history_context_service.py`](`app/services/chat/history_context_service.py`)、[`app/services/chat/post_process_service.py`](`app/services/chat/post_process_service.py`)
-- 视影响面决定是否扩展到 schema：[`app/schemas/chat.py`](`app/schemas/chat.py`)
+- 入口与编排层：[`backend/app/api/chat.py`](backend/app/api/chat.py)、[`backend/app/services/chat/chat_service.py`](backend/app/services/chat/chat_service.py)、[`backend/app/services/chat/chat_orchestrator.py`](backend/app/services/chat/chat_orchestrator.py)
+- Agent 执行层：[`backend/app/agents/chat_session_agent.py`](backend/app/agents/chat_session_agent.py)、[`backend/app/agents/chat_session_state.py`](backend/app/agents/chat_session_state.py)、[`backend/app/agents/mcp_tool_execution.py`](backend/app/agents/mcp_tool_execution.py)、[`backend/app/agents/tool_call_policy.py`](backend/app/agents/tool_call_policy.py)
+- 上下文与收尾层：[`backend/app/services/chat/history_context_service.py`](backend/app/services/chat/history_context_service.py)、[`backend/app/services/chat/post_process_service.py`](backend/app/services/chat/post_process_service.py)
+- 视影响面决定是否扩展到 schema：[`backend/app/schemas/chat.py`](backend/app/schemas/chat.py)
 
 ## 命名原则
 - `stream_*`：仅用于真正输出 SSE 事件流的函数。
@@ -50,9 +50,9 @@ isProject: false
 ## 分阶段实施
 
 ### 阶段 1：主链路函数重命名
-- 在 [`app/api/chat.py`](`app/api/chat.py`) 中，将 `chat_stream` 调整为 `stream_chat`。
-- 在 [`app/services/chat/chat_service.py`](`app/services/chat/chat_service.py`) 中，将 `stream_response` 调整为 `stream_chat_events`。
-- 在 [`app/services/chat/chat_orchestrator.py`](`app/services/chat/chat_orchestrator.py`) 中：
+- 在 [`backend/app/api/chat.py`](backend/app/api/chat.py) 中，将 `chat_stream` 调整为 `stream_chat`。
+- 在 [`backend/app/services/chat/chat_service.py`](backend/app/services/chat/chat_service.py) 中，将 `stream_response` 调整为 `stream_chat_events`。
+- 在 [`backend/app/services/chat/chat_orchestrator.py`](backend/app/services/chat/chat_orchestrator.py) 中：
   - `stream_response` -> `run_chat_turn`
   - `stream_message` -> `stream_turn_events`
   - `generate_title` -> `generate_title_event`
@@ -60,13 +60,13 @@ isProject: false
 - 同步所有调用点，确保 API 入口到 orchestrator 的调用链在命名上变为“stream -> run -> stream -> collect/persist”。
 
 ### 阶段 2：编排层变量语义统一
-- 在 [`app/api/chat.py`](`app/api/chat.py`) 中：
+- 在 [`backend/app/api/chat.py`](backend/app/api/chat.py) 中：
   - `messages_result` -> `created_messages`
-- 在 [`app/services/chat/chat_service.py`](`app/services/chat/chat_service.py`) 中：
+- 在 [`backend/app/services/chat/chat_service.py`](backend/app/services/chat/chat_service.py) 中：
   - `_search_memories` -> `_search_user_memories`
   - `orchestrator` 字段 -> `chat_orchestrator`
   - SSE 迭代变量 `chunk` -> `event`
-- 在 [`app/services/chat/chat_orchestrator.py`](`app/services/chat/chat_orchestrator.py`) 中：
+- 在 [`backend/app/services/chat/chat_orchestrator.py`](backend/app/services/chat/chat_orchestrator.py) 中：
   - `raw_history` -> `history_messages_from_db`
   - `new_history_messages` -> `prepared_history_messages`
   - `window_out_summary` -> `history_summary_before_window`
@@ -77,7 +77,7 @@ isProject: false
   - `chunk` / `chunk_count` -> `event` / `event_count`
 
 ### 阶段 3：Agent 层命名收敛
-- 在 [`app/agents/chat_session_agent.py`](`app/agents/chat_session_agent.py`) 中：
+- 在 [`backend/app/agents/chat_session_agent.py`](backend/app/agents/chat_session_agent.py) 中：
   - `stream_execute` -> `stream_session_events`
   - `aggregate` -> `session_output`
   - `blocks_aggregator` -> `content_block_aggregator`
@@ -101,17 +101,17 @@ isProject: false
   - `tool_results` -> `tool_result_messages`
 
 ### 阶段 4：状态机与工具策略命名统一
-- 在 [`app/agents/chat_session_state.py`](`app/agents/chat_session_state.py`) 中：
+- 在 [`backend/app/agents/chat_session_state.py`](backend/app/agents/chat_session_state.py) 中：
   - `SessionAggregate` -> `SessionOutput`
   - `RoundExecution` -> `RoundState`
   - `current` -> `current_round`
   - `final_answer_done` -> `is_final_answer_complete`
-- 在 [`app/agents/mcp_tool_execution.py`](`app/agents/mcp_tool_execution.py`) 中：
+- 在 [`backend/app/agents/mcp_tool_execution.py`](backend/app/agents/mcp_tool_execution.py) 中：
   - `get_mcp_server_names` -> `resolve_enabled_mcp_servers`
   - `get_tools_state` -> `get_available_tools`
   - `should_continue_tool_calls` -> `should_continue_rounds`
   - `tool_call_user_message` -> `tool_guided_user_message`
-- 在 [`app/agents/tool_call_policy.py`](`app/agents/tool_call_policy.py`) 中：
+- 在 [`backend/app/agents/tool_call_policy.py`](backend/app/agents/tool_call_policy.py) 中：
   - `tool_call_args_by_name` -> `tool_arguments_history_by_name`
   - `suffix_user_message` -> `hint_messages`
   - `continue_message` -> `stop_reason_message`
@@ -119,18 +119,18 @@ isProject: false
   - `tool_arguments` -> `tool_arguments_by_name`
 
 ### 阶段 5：上下文与 schema 术语评估
-- 在 [`app/services/chat/history_context_service.py`](`app/services/chat/history_context_service.py`) 中，评估并清理上下文准备相关变量名：
+- 在 [`backend/app/services/chat/history_context_service.py`](backend/app/services/chat/history_context_service.py) 中，评估并清理上下文准备相关变量名：
   - `process_history_messages` -> `compress_history_messages`
   - `compressed_in_window` -> `compressed_window_messages`
   - `final_in_window` -> `window_messages_after_truncation`
   - `before_window_summary` -> `stored_summary_before_window`
-- 在 [`app/services/chat/post_process_service.py`](`app/services/chat/post_process_service.py`) 中：
+- 在 [`backend/app/services/chat/post_process_service.py`](backend/app/services/chat/post_process_service.py) 中：
   - `persist_assistant_response` -> `persist_final_assistant_message`
   - `schedule_memory_persist` -> `schedule_memory_write`
   - `update_service` -> `message_service`
   - `conv` -> `conversation`
   - `asst_msg` -> `assistant_message`
-- 最后评估 [`app/schemas/chat.py`](`app/schemas/chat.py`) 中是否需要推进高影响面重命名：
+- 最后评估 [`backend/app/schemas/chat.py`](backend/app/schemas/chat.py) 中是否需要推进高影响面重命名：
   - `CollectedResponse` -> `AssistantResponse`
   - `ChatMessageItemReq` -> `ChatMessageRequestItem`
   - `ChatMessageItem` -> `ChatMessage`

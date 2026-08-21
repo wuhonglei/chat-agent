@@ -27,7 +27,7 @@ isProject: false
 - [`chat_pdf_service.py`](backend/app/services/base_service/chat_pdf_service.py)：`save_chat_pdf` 以内容 SHA-256（`content_hash`）命名文件；`PdfBlock.id` 即为该哈希，可作为 **`file_id`** 与磁盘上的 `{hash}.md` 一一对应。
 - 向量化已有封装：[`embedding_service.py`](backend/app/services/base_service/embedding_service.py) 使用 `DashScopeEmbeddings`，提供 `aembed_documents(texts)`，与工具侧一致。
 - **上传文件分块（独立于工具结果压缩配置）**：与 [`context_compactor.py`](backend/app/utils/context_compactor.py) 同样使用 `MarkdownTextSplitter`，但 **`chunk_size` / `chunk_overlap` 来自应用配置顶层字段 `kb_file_rag`**（见下），**不**读取 `settings.chat_context.tool_result_compression`。
-- **`kb_file_rag` 配置（实现时）**：在 [`app/schemas/config.py`](backend/app/schemas/config.py) 新增 **`KbFileRagConfig`**（`BaseModel`），字段例如：`chunk_size: int = 1000`（字符）、`chunk_overlap: int = 200`。在 [`app/core/config.py`](backend/app/core/config.py) 的 **`Settings`** 上增加顶层字段 **`kb_file_rag: KbFileRagConfig`**，`Field(default_factory=KbFileRagConfig, description="知识库上传文件分块与 RAG 相关配置")`，并从 `app.schemas.config` 引入 `KbFileRagConfig`。环境变量覆盖与其它嵌套配置一致，例如 **`KB_FILE_RAG__CHUNK_SIZE`**、**`KB_FILE_RAG__CHUNK_OVERLAP`**（`env_nested_delimiter="__"` 已存在）。`kb_file_chunk_embedding_service` 内使用 **`settings.kb_file_rag.chunk_size`** 等实例化 `MarkdownTextSplitter`。
+- **`kb_file_rag` 配置（实现时）**：在 [`backend/app/schemas/config.py`](backend/app/schemas/config.py) 新增 **`KbFileRagConfig`**（`BaseModel`），字段例如：`chunk_size: int = 1000`（字符）、`chunk_overlap: int = 200`。在 [`backend/app/core/config.py`](backend/app/core/config.py) 的 **`Settings`** 上增加顶层字段 **`kb_file_rag: KbFileRagConfig`**，`Field(default_factory=KbFileRagConfig, description="知识库上传文件分块与 RAG 相关配置")`，并从 `app.schemas.config` 引入 `KbFileRagConfig`。环境变量覆盖与其它嵌套配置一致，例如 **`KB_FILE_RAG__CHUNK_SIZE`**、**`KB_FILE_RAG__CHUNK_OVERLAP`**（`env_nested_delimiter="__"` 已存在）。`kb_file_chunk_embedding_service` 内使用 **`settings.kb_file_rag.chunk_size`** 等实例化 `MarkdownTextSplitter`。
 - 向量列维度与历史迁移一致：**1024**（见 [`EmbeddingModelConfig.embedding_dimension`](backend/app/schemas/config.py) 及各 migration 中的 `EMBEDDING_DIMENSION = 1024`）；**不再单独建 `embedding_size` 列**，维度由 `vector(1024)` 类型体现；若需在业务上记录模型名或维度，写入 **`metadata`**（见数据表设计）。
 
 ## 数据表设计
@@ -73,14 +73,14 @@ flowchart LR
 
 | 位置 | 工作 |
 |------|------|
-| 新模型 [`app/models/kb_file_chunk_embedding_db.py`](backend/app/models/kb_file_chunk_embedding_db.py) | SQLModel 类名如 `KbFileChunkEmbeddingDb`，`__tablename__ = "kb_file_chunk_embeddings"`；列含 `created_at`、`metadata`（`JSON`）；`embedding_vector` 使用 `pgvector.sqlalchemy.Vector`，维度常量 **1024** 与迁移一致 |
-| [`app/models/__init__.py`](backend/app/models/__init__.py) | `import` 新模型，确保 `create_db_and_tables` 能注册 |
-| [`app/schemas/config.py`](backend/app/schemas/config.py) + [`app/core/config.py`](backend/app/core/config.py) | 定义 `KbFileRagConfig` 与 `Settings.kb_file_rag`（见现状与约定） |
-| 新服务模块（建议）[`app/services/base_service/kb_file_chunk_embedding_service.py`](backend/app/services/base_service/kb_file_chunk_embedding_service.py) | 通用入口如 `async def index_uploaded_text_chunks(...)`（参数含 `user_id`、`file_id`、文本或 `Path`）：`to_thread` 跑 splitter（**`settings.kb_file_rag`**）、embedding、写入 `metadata`（含 `embedding_model`、`source_kind`、`text_format`、`file_name`、`source_token_count`、`original_size_bytes`、`processed_size_bytes` 等）、DB 事务；`save_chat_pdf` 仅作为首批调用方传入 MD 路径 |
+| 新模型 [`backend/app/models/kb_file_chunk_embedding_db.py`](backend/app/models/kb_file_chunk_embedding_db.py) | SQLModel 类名如 `KbFileChunkEmbeddingDb`，`__tablename__ = "kb_file_chunk_embeddings"`；列含 `created_at`、`metadata`（`JSON`）；`embedding_vector` 使用 `pgvector.sqlalchemy.Vector`，维度常量 **1024** 与迁移一致 |
+| [`backend/app/models/__init__.py`](backend/app/models/__init__.py) | `import` 新模型，确保 `create_db_and_tables` 能注册 |
+| [`backend/app/schemas/config.py`](backend/app/schemas/config.py) + [`backend/app/core/config.py`](backend/app/core/config.py) | 定义 `KbFileRagConfig` 与 `Settings.kb_file_rag`（见现状与约定） |
+| 新服务模块（建议）[`backend/app/services/base_service/kb_file_chunk_embedding_service.py`](backend/app/services/base_service/kb_file_chunk_embedding_service.py) | 通用入口如 `async def index_uploaded_text_chunks(...)`（参数含 `user_id`、`file_id`、文本或 `Path`）：`to_thread` 跑 splitter（**`settings.kb_file_rag`**）、embedding、写入 `metadata`（含 `embedding_model`、`source_kind`、`text_format`、`file_name`、`source_token_count`、`original_size_bytes`、`processed_size_bytes` 等）、DB 事务；`save_chat_pdf` 仅作为首批调用方传入 MD 路径 |
 | [`chat_pdf_service.py`](backend/app/services/base_service/chat_pdf_service.py) | 在两处 `return _build_pdf_block(...)` **之前** `await index_...`；**无向量、向量条数不匹配、DB 失败或空全文**时抛 `HTTPException`（如 502），上传接口整体失败（见失败策略） |
 | 新 Alembic revision | `down_revision = "v2w3x4y5z6a7"`（当前链头），`CREATE TABLE` + 索引 + 唯一约束 |
 
-**会话管理**：上传 API [`app/api/file.py`](backend/app/api/file.py) 当前未注入 DB；建议在 `kb_file_chunk_embedding_service` 内使用 `Session(engine)` 短事务（与项目其他不经过 `get_db` 的用法兼容），避免为附件上传整条链路增加 `Depends(get_db)`。
+**会话管理**：上传 API [`backend/app/api/file.py`](backend/app/api/file.py) 当前未注入 DB；建议在 `kb_file_chunk_embedding_service` 内使用 `Session(engine)` 短事务（与项目其他不经过 `get_db` 的用法兼容），避免为附件上传整条链路增加 `Depends(get_db)`。
 
 ## 失败策略（已定）
 
