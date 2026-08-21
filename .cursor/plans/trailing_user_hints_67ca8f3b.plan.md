@@ -36,29 +36,28 @@ flowchart TD
   subgraph round [每轮发给 LLM]
     B[base sys hist user 冻结]
     T[formatted_tool_round]
-    H1["user source=iteration_hints"]
-    H2["user source=tool_guardrail"]
-    B --> T --> H1 --> H2
+    H["trailing user 至多一条"]
+    B --> T --> H
   end
   subgraph persist [落库 / 下轮前缀]
     T2[tool_round 原文不变]
     B2[base user 不变]
   end
-  H1 -.->|仅本轮请求| Drop[不写入 content_blocks]
-  H2 -.->|仅本轮请求| Drop
+  H -.->|仅本轮请求| Drop[不写入 content_blocks]
 ```
 
 ## 组装约定
 
 ```
-round = base + formatted_tool_round + trailing_users
+round = base + formatted_tool_round + optional_trailing_user
 ```
 
-- `collect_iteration_hints(iteration)`（仅 `agent_mode==0`）→ 至多一条 `user`
-- `guardrail.drain_pending_warns()`（所有 agent_mode）→ 至多一条 `user`
-- 两者都有时各一条，**guardrail 在后**（recency：先搜够了，再强调别原样重试）
-- 同一 source 多段文案用 `\n` 拼接（对齐 DeerFlow `join`）
+- `collect_iteration_hints(iteration)`（仅 `agent_mode==0`）与 `guardrail.drain_pending_warns()`（所有 agent_mode）在组装时**合并成至多一条** trailing `user`
+- 两者都有时：正文用 `\n\n` 拼接，**iteration hints 在前、guardrail WARN 在后**（同一条消息内的 recency）；`source.form = snapshot`，`sections` 分别记 `iteration_hints` / `tool_guardrail`（对齐 DeepSeek 多贡献合成一条 user，而不是连续两条 user）
+- 只有一种时：`source.plugin` 为对应名，`form: notice`
+- 同一种多段文案仍 `\n` 拼进该 section
 - **不**写入 assistant `content_blocks`，不进 history；下一 iteration 重新收集（对齐 DeerFlow：hint 不进 checkpoint）
+- 不采用两条连续 `user`：`source` 发给模型前会剥掉，模型只会看到两个相邻 user turn，容易当成用户连续说了两句，而不是一条策略提醒
 
 ### 多 step 组装（对齐 DeerFlow，禁止累积旧 hint）
 
@@ -107,8 +106,9 @@ def create_user_message(content: str, *, source: dict[str, Any]) -> dict[str, An
 
 `source` 对齐 DeepSeek 的 `MessageSourceMap` 子集（不做完整 form union）：
 
-- 搜索 hint：`{"kind": "plugin", "plugin": "iteration_hints", "form": "notice"}`
-- 熔断 WARN：`{"kind": "plugin", "plugin": "tool_guardrail", "form": "notice"}`
+- 仅搜索 hint：`{"kind": "plugin", "plugin": "iteration_hints", "form": "notice"}`
+- 仅熔断 WARN：`{"kind": "plugin", "plugin": "tool_guardrail", "form": "notice"}`
+- 两者都有：一条消息，`{"kind": "plugin", "plugin": "agent_hints", "form": "snapshot", "sections": [{"name": "iteration_hints", "text": "..."}, {"name": "tool_guardrail", "text": "..."}]}`
 
 真人 user（`_compose_messages`）本轮不强制打 `kind: user`，缩小 diff。
 
@@ -123,7 +123,7 @@ def create_user_message(content: str, *, source: dict[str, Any]) -> dict[str, An
 [chat_session_agent.py](backend/app/agents/chat_session_agent.py)：
 
 - 循环里去掉对 `base_prompt_messages` 的 hints 就地修改
-- `_build_round_prompt_messages(base, *, trailing_users=())`：`base + formatted_tool_round + trailing_users`
+- `_build_round_prompt_messages(base, *, trailing_user=None)`：`base + formatted_tool_round + ([trailing_user] if trailing_user else [])`
 - 循环顺序：`unified_context_guard` → 收集 hints/warns → `call_llm_api(round)`
 - `_stream_final_round_events` 同样带上已 drain 的 pending warns（halt 后的收束轮也能看到）；`final_user_message` 仍无调用方，不动
 
@@ -149,7 +149,7 @@ def create_user_message(content: str, *, source: dict[str, Any]) -> dict[str, An
 ## 5. 测试
 
 - `tests/agents/test_tool_call_policy.py`（新建）：收集条件；不修改传入 messages。
-- 组装：有 hint/warn 时 base 最后一条 user 原文不变；尾部 `role=user` 且 `source.plugin` 正确；发给 mock LLM 的 payload **无** `source`。
+- 组装：有 hint/warn 时 base 最后一条 user 原文不变；尾部**至多一条** `user`；两者都有时 `source.form=snapshot` 且正文 hints 在前 WARN 在后；发给 mock LLM 的 payload **无** `source`。
 - 多 step：step1 带 hint1 后，step2 的 round **不含** hint1，只含当前 collect/drain 的 hint2（若有）。
 - `tests/agents/test_tool_guardrails.py`：WARN 不再出现在 `tool.content`；`drain_pending_warns` 有文案；BLOCK/HALT 仍在 tool 上；halt 文案仍在失败结果里。
 - datetime 守卫一条；`tests/utils/test_llm_usage.py` 三种 usage。
