@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+from typing import Any
+
 import pytest
 
 from app.evaluators.judge_evaluator import (
+    EVAL_JUDGE_OBSERVATION_NAME,
     JudgeResult,
     _parse_judge_response,
     build_judge_user_prompt,
@@ -13,9 +17,7 @@ from app.evaluators.judge_evaluator import (
 
 
 def test_parse_plain_json() -> None:
-    raw = (
-        '{"correctness_score": 4, "completeness_score": 3, "notes": "缺一点"}'
-    )
+    raw = '{"correctness_score": 4, "completeness_score": 3, "notes": "缺一点"}'
     result = _parse_judge_response(raw)
     assert result.success is True
     assert result.correctness == 4
@@ -128,3 +130,39 @@ async def test_retrieved_contexts_alias() -> None:
         llm_caller=_caller,
     )
     assert result.success is True
+
+
+@pytest.mark.asyncio
+async def test_call_judge_model_opens_eval_judge_span(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, Any] = {}
+    updated: dict[str, Any] = {}
+
+    class _FakeSpan:
+        def update(self, **kwargs: Any) -> None:
+            updated.update(kwargs)
+
+    @contextmanager
+    def _fake_span(name: str, **kwargs: Any) -> Any:
+        captured["name"] = name
+        captured["kwargs"] = kwargs
+        yield _FakeSpan()
+
+    monkeypatch.setattr(
+        "app.evaluators.judge_evaluator.observation_span",
+        _fake_span,
+    )
+
+    async def _caller(_messages: list[dict[str, str]]) -> str:
+        return '{"correctness_score": 4, "completeness_score": 5, "notes": "ok"}'
+
+    result = await call_judge_model(query="q", answer="a", llm_caller=_caller)
+
+    assert result.success is True
+    assert captured["name"] == EVAL_JUDGE_OBSERVATION_NAME
+    assert captured["kwargs"]["as_type"] == "evaluator"
+    assert captured["kwargs"]["trace_name"] == EVAL_JUDGE_OBSERVATION_NAME
+    assert captured["kwargs"]["metadata"] == {"source": "eval_worker"}
+    assert updated["output"]["correctness"] == 4
+    assert updated["output"]["completeness"] == 5

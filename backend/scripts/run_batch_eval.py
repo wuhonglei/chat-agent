@@ -13,9 +13,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.core.observability import init_langfuse
-from app.services.eval.batch_eval_service import BatchEvalService
-from app.services.eval.judge_llm import judge_llm_caller
+from eval_worker import apply_eval_langfuse_env
+
+apply_eval_langfuse_env()
+
+from app.core.observability import init_langfuse, shutdown_langfuse  # noqa: E402
+from app.services.eval.batch_eval_service import BatchEvalService  # noqa: E402
+from app.services.eval.judge_llm import judge_llm_caller  # noqa: E402
 
 
 async def main() -> None:
@@ -46,6 +50,8 @@ async def main() -> None:
     print(f"Low scores: {run_log.low_score_count}")
     if run_log.error_message:
         print(f"Error: {run_log.error_message}")
+
+    shutdown_langfuse()
 
 
 if __name__ == "__main__":

@@ -19,7 +19,9 @@ class _CacheConfig:
 
 _CACHE_CONFIGS = {
     "models": _CacheConfig(maxsize=1, ttl=300),
-    "health": _CacheConfig(maxsize=1, ttl=5),
+    "health": _CacheConfig(maxsize=8, ttl=5),
+    # LLM 探活单独加长 TTL，避免频繁打上游配额
+    "health_llm": _CacheConfig(maxsize=1, ttl=30),
 }
 _caches: dict[str, TTLCache[str, Any]] = {}
 _lock = RLock()

@@ -72,6 +72,15 @@ function labelOf<T extends string>(
   return options.find((o) => o.value === value)?.label ?? value;
 }
 
+function getJudgeNotes(scores: Record<string, unknown> | null | undefined): string {
+  const notes = scores?.notes;
+  return typeof notes === "string" ? notes.trim() : "";
+}
+
+function formatJudgeScore(value: unknown): string {
+  return typeof value === "number" && Number.isFinite(value) ? String(value) : "-";
+}
+
 const BadCasesTab: React.FC = () => {
   const { message, modal } = App.useApp();
   const [status, setStatus] = useState<BadCaseStatus | undefined>();
@@ -199,6 +208,19 @@ const BadCasesTab: React.FC = () => {
       ),
     },
     {
+      title: "模型评语",
+      key: "judgeNotes",
+      ellipsis: true,
+      render: (_: unknown, record: BadCaseItem) => {
+        const notes = getJudgeNotes(record.judgeScores);
+        return (
+          <Typography.Text ellipsis={{ tooltip: notes || undefined }} style={{ maxWidth: 240 }}>
+            {notes || "-"}
+          </Typography.Text>
+        );
+      },
+    },
+    {
       title: "归因",
       dataIndex: "attribution",
       width: 120,
@@ -319,7 +341,7 @@ const BadCasesTab: React.FC = () => {
         columns={columns}
         dataSource={listData?.items ?? []}
         pagination={pagination}
-        scroll={{ x: 1160 }}
+        scroll={{ x: 1400 }}
         locale={{ emptyText: "暂无 Bad Case" }}
       />
 
@@ -355,6 +377,20 @@ const BadCasesTab: React.FC = () => {
               <strong>回答：</strong>
               {editing.answer || "-"}
             </Typography.Paragraph>
+            {editing.judgeScores ? (
+              <div className="mb-4">
+                <Typography.Paragraph type="secondary" className="mb-2">
+                  <strong>模型评分：</strong>
+                  正确性 {formatJudgeScore(editing.judgeScores.correctness)}
+                  {" / "}
+                  完整性 {formatJudgeScore(editing.judgeScores.completeness)}
+                </Typography.Paragraph>
+                <Typography.Paragraph type="secondary" className="mb-0">
+                  <strong>模型评语：</strong>
+                  {getJudgeNotes(editing.judgeScores) || "-"}
+                </Typography.Paragraph>
+              </div>
+            ) : null}
             {editing.feedbackReasons.length > 0 || editing.feedbackComment ? (
               <div className="mb-4">
                 <Typography.Paragraph className="mb-2">

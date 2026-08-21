@@ -49,7 +49,8 @@
 # Compose（推荐联调）
 docker compose up evaluator
 # 容器命令: uv run python -m eval_worker.main
-# 已注入 EVAL_WORKER__ENABLED=true、DATABASE__HOST=postgres；资源上限 512M / 0.5 CPU
+# 已注入 DATABASE__HOST=postgres、LANGFUSE__ENVIRONMENT=eval_worker、
+# OTEL_SERVICE_NAME=chat-agent-eval-worker；资源上限 512M / 0.5 CPU
 
 # 本机 worker
 cd backend && uv run python -m eval_worker.main
@@ -142,7 +143,10 @@ Replay 拉取消息时使用 `GET /api/conversation/{id}/messages?full_content=t
 ## 6. 常见坑
 
 - cron 默认是 **17:00 Asia/Shanghai**，不是设计稿里的凌晨 3 点。
-- `enabled=false` 不会退出进程，只跳过 job；Compose 里显式写了 `EVAL_WORKER__ENABLED=true`。
+- `enabled=false` 不会退出进程，只跳过 job。
+- Langfuse 上与生产对话区分：Environment 选 `eval_worker`，或 Name / Trace Name = `eval-judge`。
+  生产对话仍是 `prod` + `chat-turn`。管理页「手动触发评估」跑在 API 进程内，Environment 仍是 `prod`/`dev`，但 Name 仍为 `eval-judge`。
+- Compose `evaluator` 注入 `LANGFUSE__ENVIRONMENT=eval_worker`（覆盖 Nacos 的 prod/dev）。
 - 风险分层认的是 **MCP LLM 工具名**（`{server}_{bare}`），不是旧文档里的 `execute_code` / `shell`。
 - 点踩入队与取消 dismiss 均为 fire-and-forget；失败只打 warning，不阻断反馈 API。
 - 门禁 replay 需要本机后端 + 有效 JWT；frozen 模式更适合 CI。

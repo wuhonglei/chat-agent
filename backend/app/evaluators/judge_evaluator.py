@@ -7,9 +7,16 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from app.core.observability import (
+    mark_observation_error,
+    observation_span,
+)
 from app.utils.logger import logger
 
 LLMCaller = Callable[[list[dict[str, str]]], Awaitable[str]]
+
+EVAL_JUDGE_OBSERVATION_NAME = "eval-judge"
+_JUDGE_IO_PREVIEW_CHARS = 500
 
 # 与离线 scripts SYSTEM_STEP2 对齐：有参考资料时以参考资料为事实依据
 JUDGE_SYSTEM_NO_GOLD = """你是一个回答质量评估器。根据用户问题、参考资料、模型回答，打两个分。
@@ -177,21 +184,56 @@ async def call_judge_model(
         {"role": "user", "content": user_prompt},
     ]
 
+    with observation_span(
+        EVAL_JUDGE_OBSERVATION_NAME,
+        as_type="evaluator",
+        input={
+            "query": query[:_JUDGE_IO_PREVIEW_CHARS],
+            "answer": answer[:_JUDGE_IO_PREVIEW_CHARS],
+            "has_reference": bool(refs),
+            "has_ground_truth": bool(ground_truth.strip()),
+        },
+        metadata={"source": "eval_worker"},
+        trace_name=EVAL_JUDGE_OBSERVATION_NAME,
+    ) as span:
+        try:
+            raw = await llm_caller(messages)
+            result = _parse_judge_response(raw)
+            result.raw_response = raw
+            if context_sources:
+                result.context_sources = dict(context_sources)
+            _update_eval_judge_span(span, result)
+            return result
+        except Exception as exc:
+            mark_observation_error(span, exc)
+            logger.warning(
+                "Judge model call failed",
+                error=exc,
+                error_type=type(exc).__name__,
+            )
+            return JudgeResult(
+                success=False,
+                error=str(exc),
+                context_sources=dict(context_sources or {}),
+            )
+
+
+def _update_eval_judge_span(span: Any, result: JudgeResult) -> None:
+    if span is None:
+        return
     try:
-        raw = await llm_caller(messages)
-        result = _parse_judge_response(raw)
-        result.raw_response = raw
-        if context_sources:
-            result.context_sources = dict(context_sources)
-        return result
+        span.update(
+            output={
+                "success": result.success,
+                "correctness": result.correctness,
+                "completeness": result.completeness,
+                "notes": result.notes,
+                "error": result.error,
+            }
+        )
     except Exception as exc:
         logger.warning(
-            "Judge model call failed",
+            "Failed to update eval-judge span",
             error=exc,
             error_type=type(exc).__name__,
-        )
-        return JudgeResult(
-            success=False,
-            error=str(exc),
-            context_sources=dict(context_sources or {}),
         )

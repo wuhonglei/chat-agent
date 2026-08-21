@@ -1,0 +1,110 @@
+# Alerting rules for chat-agent SLO / dependencies.
+# Import into your existing Prometheus platform (with Alertmanager).
+# Adjust job="chat-agent-backend" and chat handler matchers after checking /metrics.
+#
+# Burn-rate windows follow multi-window error budget burning
+# (critical ~14.4x over 1h with 5m confirmation; warning ~6x over 6h with 30m).
+
+groups:
+  - name: chat_agent_slo_alerts
+    rules:
+      - alert: ChatAgentErrorBudgetBurnCritical
+        expr: |
+          (
+            (1 - slo:http_availability:ratio_1h) / (1 - 0.995) > 14.4
+          )
+          and
+          (
+            (1 - slo:http_availability:ratio_5m) / (1 - 0.995) > 14.4
+          )
+        for: 2m
+        labels:
+          severity: critical
+          service: chat-agent
+        annotations:
+          summary: "chat-agent error budget burning fast (critical)"
+          description: "1h and 5m burn rates exceed ~14.4x the 99.5% monthly budget."
+
+      - alert: ChatAgentErrorBudgetBurnWarning
+        expr: |
+          (
+            (1 - slo:http_availability:ratio_6h) / (1 - 0.995) > 6
+          )
+          and
+          (
+            (1 - slo:http_availability:ratio_30m) / (1 - 0.995) > 6
+          )
+        for: 15m
+        labels:
+          severity: warning
+          service: chat-agent
+        annotations:
+          summary: "chat-agent error budget burning (warning)"
+          description: "6h and 30m burn rates exceed ~6x the 99.5% monthly budget."
+
+      - alert: ChatAgentDependencyDown
+        expr: |
+          min by (component) (
+            health_dependency_up{job="chat-agent-backend",component=~"postgres|redis"}
+          ) == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: chat-agent
+        annotations:
+          summary: "chat-agent hard dependency down ({{ $labels.component }})"
+          description: "health_dependency_up for {{ $labels.component }} has been 0 for 2m."
+
+      - alert: ChatAgentLLMUnreachable
+        expr: |
+          min by (component) (
+            health_dependency_up{job="chat-agent-backend",component="llm"}
+          ) == 0
+        for: 5m
+        labels:
+          severity: warning
+          service: chat-agent
+        annotations:
+          summary: "chat-agent LLM probe failing"
+          description: "LLM models.list probe has failed for 5m (service may still be ready)."
+
+      - alert: ChatAgentDBPoolNearExhaustion
+        expr: |
+          max by (pid) (
+            db_pool_checked_out{job="chat-agent-backend"}
+            /
+            clamp_min(
+              db_pool_size{job="chat-agent-backend"}
+              + db_pool_overflow{job="chat-agent-backend"},
+              1
+            )
+          ) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          service: chat-agent
+        annotations:
+          summary: "chat-agent DB pool near exhaustion"
+          description: "Worker pid={{ $labels.pid }} pool utilization > 90% for 5m."
+
+      # Verify handler label values via /metrics before enabling in production.
+      - alert: ChatAgentChatLatencyHigh
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le, handler) (
+              rate(
+                http_request_duration_seconds_bucket{
+                  job="chat-agent-backend",
+                  handler=~"/api/chat.*"
+                }[5m]
+              )
+            )
+          ) > 10
+        for: 10m
+        labels:
+          severity: warning
+          service: chat-agent
+        annotations:
+          summary: "chat-agent chat p95 latency high"
+          description: "p95 latency for {{ $labels.handler }} > 10s for 10m."

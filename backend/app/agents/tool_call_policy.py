@@ -19,7 +19,7 @@ from app.mcp.tool_naming import is_llm_tool
 from app.prompts import get_tool_call_sufficient_info_message
 from app.schemas.llm import ToolMessage
 from app.utils.common import normalize_url
-from app.utils.mcp import count_tool_calls, has_tool_been_called
+from app.utils.mcp import has_tool_been_called
 from app.utils.message import update_last_user_message
 from app.utils.vocab import VocabProcessor
 
@@ -36,7 +36,6 @@ class ToolCallPolicy:
     MAX_WEB_PAGES_EXTRACT_COUNT = 2
     EXTRACTED_URLS_HINT_THRESHOLD = 3
     MAX_EXTRACTED_URLS = 5
-    MAX_TOTAL_TOOL_CALLS = 6
     MIN_ITERATION_FOR_HINT = 1
 
     def __init__(self, tool_round_messages: list[ToolMessage]) -> None:
@@ -192,7 +191,6 @@ class ToolCallPolicy:
         web_pages_extract_count = len(
             self.tool_arguments_history_by_name.get(WEB_PAGES_EXTRACT_LLM, [])
         )
-        total_tool_calls = count_tool_calls(self.tool_round_messages)
         if tool_calls:
             tool_arguments_by_name = self._group_tool_call_arguments_by_name(tool_calls)
             for call_info in get_in([WEB_SEARCH_LLM], tool_arguments_by_name, []):
@@ -242,11 +240,6 @@ class ToolCallPolicy:
             return (
                 False,
                 f"⚠️ 已提取 {len(self.extracted_urls)} 个 URL，内容可能已足够，直接回答。",
-            )
-        if total_tool_calls >= self.MAX_TOTAL_TOOL_CALLS:
-            return (
-                False,
-                f"⚠️ 已执行 {total_tool_calls} 次工具调用，信息可能已足够，直接回答。",
             )
         return True, None
 

@@ -62,6 +62,48 @@ def test_observation_span_yields_span_when_enabled(
     assert started["update"] == {"output": {"dimension": 1024}}
 
 
+def test_observation_span_passes_metadata_and_trace_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    started: dict[str, Any] = {}
+
+    class _FakeSpan:
+        pass
+
+    class _FakeCM:
+        def __enter__(self) -> _FakeSpan:
+            return _FakeSpan()
+
+        def __exit__(self, *args: Any) -> None:
+            return None
+
+    class _FakeClient:
+        def start_as_current_observation(self, **kwargs: Any) -> _FakeCM:
+            started["kwargs"] = kwargs
+            return _FakeCM()
+
+    monkeypatch.setattr(observability, "is_enabled", lambda: True)
+    monkeypatch.setattr(observability, "get_langfuse", lambda: _FakeClient())
+    monkeypatch.setattr(
+        observability,
+        "propagate_attributes",
+        lambda **kwargs: _FakeCM(),
+    )
+
+    with observability.observation_span(
+        "eval-judge",
+        as_type="evaluator",
+        input={"query": "q"},
+        metadata={"source": "eval_worker"},
+        trace_name="eval-judge",
+    ) as span:
+        assert span is not None
+
+    assert started["kwargs"]["name"] == "eval-judge"
+    assert started["kwargs"]["as_type"] == "evaluator"
+    assert started["kwargs"]["metadata"] == {"source": "eval_worker"}
+
+
 def test_observation_span_noop_when_start_raises(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

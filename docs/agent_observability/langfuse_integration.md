@@ -33,7 +33,7 @@ langfuse:
 - `public_key` / `secret_key`: API Key
 - `sample_rate`: 采样率（0~1）
 - `debug`: SDK debug 日志
-- `environment`: 环境标签（如 `dev` / `prod`）
+- `environment`: 环境标签（如 `dev` / `prod`）。评估 Worker 覆盖为 `eval_worker`
 
 ### 1.1 启动与关闭
 
@@ -41,6 +41,9 @@ langfuse:
   不阻断应用启动。
 - 关闭时调用 `shutdown_langfuse()`，会尝试 `flush()` 缓冲队列，避免进程退出丢事件。
 - `init_langfuse()` 会设置 `OTEL_SERVICE_NAME=chat-agent-backend`（仅在环境变量未显式设置时）。
+- 独立 `eval_worker` 进程在导入时 `setdefault`：`LANGFUSE__ENVIRONMENT=eval_worker`、
+  `OTEL_SERVICE_NAME=chat-agent-eval-worker`（Compose `evaluator` 服务同样注入）。
+  裁判调用会创建名为 `eval-judge`、类型 `evaluator` 的 observation。
 - `enabled=false` 时会以 `tracing_enabled=false` 尝试初始化；无论 client 是否创建成功，
   业务侧 `observation_span()` 都会退化为 no-op。
 

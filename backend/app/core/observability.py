@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from typing import Any
 
-from langfuse import Langfuse
+from langfuse import Langfuse, propagate_attributes
 
 from app.core.config import settings
 from app.utils.logger import logger
@@ -156,6 +156,8 @@ def observation_span(
     *,
     as_type: str = "span",
     input: Any = None,
+    metadata: dict[str, Any] | None = None,
+    trace_name: str | None = None,
     trace_context: dict[str, Any] | None = None,
 ) -> Iterator[Any]:
     """开启一个 Langfuse observation，未启用时退化为 no-op（yield None）。
@@ -174,6 +176,8 @@ def observation_span(
     kwargs: dict[str, Any] = {"as_type": as_type, "name": name}
     if input is not None:
         kwargs["input"] = input
+    if metadata is not None:
+        kwargs["metadata"] = metadata
     if trace_context is not None:
         kwargs["trace_context"] = trace_context
 
@@ -191,7 +195,13 @@ def observation_span(
 
     try:
         with cm as span:
-            yield span
+            attr_cm = (
+                propagate_attributes(trace_name=trace_name)
+                if trace_name
+                else nullcontext()
+            )
+            with attr_cm:
+                yield span
     except Exception:
         # 业务异常照常向上抛，由调用方决定是否 mark_observation_error。
         raise
