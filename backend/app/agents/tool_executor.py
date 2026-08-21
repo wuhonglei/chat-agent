@@ -408,7 +408,7 @@ class ToolExecutor:
         call_warnings: list[Any],
         message: ToolResultMessage,
     ) -> tuple[ToolResultMessage, bool, str | None, dict[str, Any]]:
-        """Attach warnings, resolve outcome, append guardrail suffix."""
+        """Attach warnings, resolve outcome; HALT suffix may append to content."""
         content = message.content or ""
         warning_msg = self._build_tool_warning_message(tool_name, call_warnings)
         if warning_msg:
@@ -428,6 +428,7 @@ class ToolExecutor:
             is_error=bool(getattr(result, "is_error", False)),
         )
         message = message.model_copy(update={"is_error": not success})
+        # WARN 入队供尾部 user；仅 HALT 文案写回当条 tool.content
         guardrail_suffix = self.guardrail.record_outcome(
             tool_name=tool_name,
             arguments=arguments,

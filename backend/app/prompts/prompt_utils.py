@@ -80,6 +80,7 @@ def get_user_message_for_tool_calls(
     user_memories: Sequence[MemorySearchItem] | None = None,
     window_out_summary: str | None = None,
     attachment_uploads: list[AttachmentUploadInfo] | None = None,
+    current_datetime: str | None = None,
 ) -> str:
     """Get user message prompt for tool calls.
 
@@ -87,6 +88,7 @@ def get_user_message_for_tool_calls(
     以及可选 created_at（与 user_prompt 模板一致）。
     attachment_uploads: 可选，agent_mode 下注入的上传文件清单，
     由模型用文件工具按需读取。
+    current_datetime: 可选，turn 级冻结的时间字符串；缺省才实时取。
     """
     return user_message_for_tool_call_template.render(
         user_message_text=user_message_text,
@@ -94,7 +96,7 @@ def get_user_message_for_tool_calls(
         user_memories=user_memories,
         window_out_summary=window_out_summary,
         attachment_uploads=attachment_uploads or [],
-        current_datetime=get_current_datetime_str(),
+        current_datetime=current_datetime or get_current_datetime_str(),
     ).strip()
 
 

@@ -29,6 +29,7 @@ from app.services.base_service.llm_error_handling import (
     get_circuit_breaker,
 )
 from app.utils.logger import logger
+from app.utils.message import project_messages_for_provider
 from app.utils.model import get_model_extra_body
 from app.utils.token import TokenCalculator
 
@@ -181,7 +182,7 @@ class LLMService:
         """
         api_params: dict[str, Any] = {
             "model": model,
-            "messages": messages,
+            "messages": project_messages_for_provider(messages),
             "stream": stream,
         }
 

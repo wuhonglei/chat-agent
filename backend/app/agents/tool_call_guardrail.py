@@ -44,6 +44,7 @@ class ToolCallGuardrail:
     _same_tool_failure_counts: dict[str, int] = field(default_factory=dict)
     _no_progress: dict[str, tuple[str, int]] = field(default_factory=dict)
     _no_progress_blocked: set[str] = field(default_factory=set)
+    _pending_warns: list[str] = field(default_factory=list)
 
     def reset(self) -> None:
         self.halted = False
@@ -51,6 +52,18 @@ class ToolCallGuardrail:
         self._same_tool_failure_counts.clear()
         self._no_progress.clear()
         self._no_progress_blocked.clear()
+        self._pending_warns.clear()
+
+    def drain_pending_warns(self) -> list[str]:
+        """取出并清空排队中的 WARN 文案（不含 HALT，HALT 写在 tool.content）。"""
+        warns = list(self._pending_warns)
+        self._pending_warns.clear()
+        return warns
+
+    def _queue_warn(self, message: str) -> None:
+        text = message.strip()
+        if text:
+            self._pending_warns.append(text)
 
     @staticmethod
     def call_signature(tool_name: str, arguments: dict[str, Any]) -> str:
@@ -119,12 +132,17 @@ class ToolCallGuardrail:
         success: bool,
         content: str,
     ) -> str:
-        """Update counters after a real tool call. Returns warning suffix (may be empty)."""
+        """Update counters after a real tool call.
+
+        WARN 文案入队供下一轮尾部 user；HALT 文案仍返回给调用方写入当条
+        ``tool.content``（须占 ``tool_call_id``）。无 WARN/HALT 时返回空串。
+        """
         signature = self.call_signature(tool_name, arguments)
         if success:
             self._exact_failure_counts.pop(signature, None)
             self._same_tool_failure_counts.pop(tool_name, None)
-            return self._record_no_progress(tool_name, signature, content)
+            self._record_no_progress(tool_name, signature, content)
+            return ""
 
         exact_count = self._exact_failure_counts.get(signature, 0) + 1
         same_count = self._same_tool_failure_counts.get(tool_name, 0) + 1
@@ -132,28 +150,26 @@ class ToolCallGuardrail:
         self._same_tool_failure_counts[tool_name] = same_count
         self._no_progress.pop(signature, None)
 
-        warnings: list[str] = []
         if exact_count >= self.exact_failure_warn_after:
-            warnings.append(
+            self._queue_warn(
                 f"⚠️ 警告：{tool_name} 使用相同参数已连续失败 {exact_count} 次。"
                 "请更换策略（改参数、换路径或换工具），避免原样重试。"
             )
         if same_count >= self.same_tool_failure_warn_after:
-            warnings.append(
+            self._queue_warn(
                 f"⚠️ 警告：工具 {tool_name} 已连续失败 {same_count} 次。"
                 f"{self._recovery_hint(tool_name)}"
             )
         if same_count >= self.same_tool_failure_halt_after:
             self.halted = True
-            warnings.append(self._halt_message(tool_name, failure_count=same_count))
+            halt_msg = self._halt_message(tool_name, failure_count=same_count)
+            return "\n\n" + halt_msg
 
-        if not warnings:
-            return ""
-        return "\n\n" + "\n".join(warnings)
+        return ""
 
-    def _record_no_progress(self, tool_name: str, signature: str, content: str) -> str:
+    def _record_no_progress(self, tool_name: str, signature: str, content: str) -> None:
         if not self.is_idempotent(tool_name):
-            return ""
+            return
 
         current_hash = self.result_hash(content)
         previous = self._no_progress.get(signature)
@@ -167,12 +183,11 @@ class ToolCallGuardrail:
             self._no_progress_blocked.add(signature)
 
         if repeat_count >= self.no_progress_warn_after:
-            return (
-                f"\n\n⚠️ 警告：{tool_name} 使用相同参数已连续 "
+            self._queue_warn(
+                f"⚠️ 警告：{tool_name} 使用相同参数已连续 "
                 f"{repeat_count} 次返回相同结果，可能没有进展。"
                 "请更换查询条件或换用其他工具。"
             )
-        return ""
 
     def synthetic_halt_message(self, tool_name: str) -> str:
         return self._halt_message(tool_name, skipped=True)

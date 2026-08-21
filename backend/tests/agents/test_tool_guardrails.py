@@ -58,8 +58,11 @@ def test_exact_failure_warn_and_block() -> None:
             success=False,
             content="Error: not found",
         )
+        # WARN 入队，不写回 tool.content；HALT 才会返回 suffix
+        assert suffix == ""
         if i + 1 >= 2:
-            assert "连续失败" in suffix
+            warns = g.drain_pending_warns()
+            assert any("连续失败" in w for w in warns)
 
     decision = g.before_call(READ_FILE_LLM, args)
     assert decision.kind == GuardrailDecisionKind.BLOCK
@@ -76,6 +79,7 @@ def test_exact_failure_resets_on_success() -> None:
             success=False,
             content="err",
         )
+    g.drain_pending_warns()
     g.record_outcome(
         tool_name=READ_FILE_LLM,
         arguments=args,
@@ -91,12 +95,14 @@ def test_same_tool_halt_and_clear_on_success() -> None:
         same_tool_failure_halt_after=8,
     )
     for i in range(8):
-        g.record_outcome(
+        suffix = g.record_outcome(
             tool_name=SHELL_LLM,
             arguments={"command": f"cmd-{i}"},
             success=False,
             content="err",
         )
+        if i + 1 >= 8:
+            assert "熔断" in suffix
     assert g.halted is True
 
     g2 = ToolCallGuardrail(same_tool_failure_halt_after=8)
@@ -127,8 +133,10 @@ def test_no_progress_blocks_idempotent_only() -> None:
             success=True,
             content="same-content",
         )
+        assert suffix == ""
         if i + 1 >= 3:
-            assert "相同结果" in suffix
+            warns = g.drain_pending_warns()
+            assert any("相同结果" in w for w in warns)
 
     decision = g.before_call(READ_FILE_LLM, args)
     assert decision.kind == GuardrailDecisionKind.BLOCK
@@ -158,7 +166,35 @@ def test_reset_clears_state() -> None:
     g.halted = True
     g.reset()
     assert g.halted is False
+    assert g.drain_pending_warns() == []
     assert g.before_call(READ_FILE_LLM, {"file_path": "a"}).kind == GuardrailDecisionKind.ALLOW
+
+
+def test_warn_not_in_tool_content_halt_is() -> None:
+    g = ToolCallGuardrail(
+        exact_failure_warn_after=1,
+        same_tool_failure_warn_after=1,
+        same_tool_failure_halt_after=2,
+    )
+    suffix1 = g.record_outcome(
+        tool_name=SHELL_LLM,
+        arguments={"command": "a"},
+        success=False,
+        content="err",
+    )
+    assert suffix1 == ""
+    warns = g.drain_pending_warns()
+    assert warns
+    assert all("熔断" not in w for w in warns)
+
+    suffix2 = g.record_outcome(
+        tool_name=SHELL_LLM,
+        arguments={"command": "b"},
+        success=False,
+        content="err",
+    )
+    assert "熔断" in suffix2
+    assert g.halted is True
 
 
 @pytest.mark.asyncio
@@ -259,3 +295,41 @@ async def test_executor_skips_remaining_segment_after_halt(
     assert results[0].is_error is True
     assert "熔断" in (results[0].content or "")
     assert manager.call_tool.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_executor_warn_queued_not_appended_to_tool_content(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        tool_executor_module,
+        "observation_span",
+        lambda *args, **kwargs: _FakeCM(),
+    )
+    manager = MagicMock()
+    manager.call_tool = AsyncMock(return_value=(_FakeResult(), []))
+    manager.format_mcp_result.return_value = "Error: not found"
+    manager.get_server_for_tool.return_value = "file"
+
+    executor = ToolExecutor(cast(Any, manager), "read", "gpt-4o-mini", 131072)
+    executor.guardrail.exact_failure_warn_after = 1
+    monkeypatch.setattr(
+        executor,
+        "_compact_tool_result_if_needed",
+        AsyncMock(side_effect=lambda msg: msg),
+    )
+    monkeypatch.setattr(
+        ToolExecutor,
+        "_resolve_tool_outcome",
+        staticmethod(lambda **kwargs: (False, "execution_error", {})),
+    )
+
+    result = await executor.execute_single_tool(
+        tool_call=_tc(READ_FILE_LLM, '{"file_path":"/missing"}', call_id="c0"),
+        current_iteration=0,
+        extracted_urls=set(),
+        on_arguments_recorded=lambda *a: None,
+    )
+    assert "警告" not in (result.content or "")
+    warns = executor.guardrail.drain_pending_warns()
+    assert any("连续失败" in w for w in warns)

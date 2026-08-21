@@ -44,8 +44,10 @@ from app.services.chat.history_context_service import (
     head_tail_truncate_chars,
     tool_round_compressible_end,
 )
+from app.utils.date import get_current_datetime_str
+from app.utils.llm_usage import log_llm_cache_usage
 from app.utils.logger import logger
-from app.utils.message import update_last_user_message
+from app.utils.message import build_trailing_hint_user_message, update_last_user_message
 from app.utils.multimodal import (
     build_user_content_for_llm,
     extract_user_text_with_attachment_placeholder,
@@ -84,6 +86,8 @@ class ChatSessionAgent(BaseAgent):
         self._kb_context_blocks: list[KbContextBlock] | None = None
         self._user_memories: list[MemorySearchItem] = []
         self._attachment_uploads: list[AttachmentUploadInfo] | None = None
+        self._turn_datetime: str | None = None
+        self._conversation_id: str | None = None
 
     @property
     def tool_round_messages(self) -> list[ToolMessage]:
@@ -149,6 +153,8 @@ class ChatSessionAgent(BaseAgent):
         self._attachment_uploads = attachment_uploads
         self._working_history = list(history_messages)
         self._window_out_summary = history_summary_before_window
+        self._turn_datetime = get_current_datetime_str()
+        self._conversation_id = conversation_id
 
         self._tool_guided_user_message = get_user_message_for_tool_calls(
             self._user_message_text,
@@ -156,6 +162,7 @@ class ChatSessionAgent(BaseAgent):
             user_memories=user_memories,
             window_out_summary=self._window_out_summary,
             attachment_uploads=attachment_uploads,
+            current_datetime=self._turn_datetime,
         )
         self._user_message_content = build_user_content_for_llm(
             chat_request.content_blocks,
@@ -205,13 +212,6 @@ class ChatSessionAgent(BaseAgent):
         )
 
         for iteration in range(max_total_iterations):
-            if chat_request.agent_mode == 0:
-                tool_session.apply_iteration_hints(
-                    messages=base_prompt_messages,
-                    tool_guided_user_message=self._tool_guided_user_message,
-                    iteration=iteration,
-                )
-
             action, base_prompt_messages = await self.unified_context_guard(
                 base_prompt_messages=base_prompt_messages,
                 conversation_id=conversation_id,
@@ -231,8 +231,14 @@ class ChatSessionAgent(BaseAgent):
                     yield sse
                 return
 
+            iteration_hints = tool_session.drain_pending_iteration_hints()
+            trailing_user = build_trailing_hint_user_message(
+                iteration_hints=iteration_hints,
+                guardrail_warns=tool_session.drain_pending_guardrail_warns(),
+            )
             round_prompt_messages = self._build_round_prompt_messages(
-                base_prompt_messages
+                base_prompt_messages,
+                trailing_user=trailing_user,
             )
             round_state = self.state_machine.start_round()
 
@@ -373,6 +379,7 @@ class ChatSessionAgent(BaseAgent):
                 user_memories=self._user_memories,
                 window_out_summary=self._window_out_summary,
                 attachment_uploads=self._attachment_uploads,
+                current_datetime=self._turn_datetime,
             )
             # Preserve multimodal parts from current user message content if list
             if isinstance(self._user_message_content, list):
@@ -489,13 +496,19 @@ class ChatSessionAgent(BaseAgent):
         return list(settings.mcp.normal_mode_servers)
 
     def _build_round_prompt_messages(
-        self, base_messages: list[dict[str, Any]]
+        self,
+        base_messages: list[dict[str, Any]],
+        *,
+        trailing_user: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
         formatted_collected = format_tool_call_messages_for_llm(
             self.session_output.tool_round_messages,
             clear_reasoning_content=False,
         )
-        return base_messages + formatted_collected
+        messages = base_messages + formatted_collected
+        if trailing_user is not None:
+            messages = messages + [trailing_user]
+        return messages
 
     def _sync_session_output(self) -> None:
         self.session_output.content_blocks = list(self.content_block_aggregator.blocks)
@@ -512,9 +525,13 @@ class ChatSessionAgent(BaseAgent):
     ) -> AsyncGenerator[str, None]:
         if final_user_message is not None:
             update_last_user_message(messages, new_content=final_user_message)
+        trailing_user = build_trailing_hint_user_message(
+            iteration_hints=tool_session.drain_pending_iteration_hints(),
+            guardrail_warns=tool_session.drain_pending_guardrail_warns(),
+        )
         round_state = self.state_machine.start_round()
         async for sse in self._stream_tool_round_events(
-            self._build_round_prompt_messages(messages),
+            self._build_round_prompt_messages(messages, trailing_user=trailing_user),
             [],
             tool_session,
             iteration,
@@ -548,8 +565,12 @@ class ChatSessionAgent(BaseAgent):
         accumulated_reasoning = ""
         accumulated_content = ""
         finish_reason: str | None = None
+        stream_usage: Any = None
 
         async for chunk in response:
+            chunk_usage = getattr(chunk, "usage", None)
+            if chunk_usage is not None:
+                stream_usage = chunk_usage
             if not chunk.choices:
                 continue
             first_choice = chunk.choices[0]
@@ -582,6 +603,13 @@ class ChatSessionAgent(BaseAgent):
                     content_delta
                 ):
                     yield build_content_block_event(event)
+
+        log_llm_cache_usage(
+            stream_usage,
+            model=self.model_name,
+            conversation_id=self._conversation_id,
+            iteration=iteration,
+        )
 
         merged_tool_calls = tool_call_acc_to_openai_list(tool_call_deltas_by_index)
         has_tool_calls = bool(merged_tool_calls) or finish_reason == "tool_calls"

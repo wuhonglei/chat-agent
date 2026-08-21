@@ -75,14 +75,14 @@ flowchart TD
 
 ### 1. 收集候选 `file_id`
 
-- 工具函数（[`app/utils/multimodal.py`](backend/app/utils/multimodal.py) 或 `app/utils/kb_attachment_ids.py`）：
+- 工具函数（[`backend/app/utils/multimodal.py`](backend/app/utils/multimodal.py) 或 `backend/app/utils/kb_attachment_ids.py`）：
   - 从 `list[ContentBlock]` 解析：`PdfBlock.id`、`MarkdownBlock.id`、`PdfBlock.markdown.id`（若存在）。
   - 对 [`ChatMessage`](backend/app/schemas/chat.py) 列表：仅 **role=user**，`normalize_content_blocks` 后复用。
 - [`ChatSessionAgent.stream_session_events`](backend/app/agents/chat_session_agent.py)：合并 **当前请求 + history_messages**；集合为空则 **不发起向量查询**。
 
 ### 2. Top-K 检索 + 分数门控（One-Shot）
 
-- 新建例如 [`app/services/chat/kb_rag_context_service.py`](backend/app/services/chat/kb_rag_context_service.py)：
+- 新建例如 [`backend/app/services/chat/kb_rag_context_service.py`](backend/app/services/chat/kb_rag_context_service.py)：
   - [`EmbeddingService.aembed_query`](backend/app/services/base_service/embedding_service.py) 生成查询向量。
   - PostgreSQL + pgvector：`WHERE user_id = :uid AND file_id IN :file_ids`，按 `<=>` 排序 `LIMIT k`。
   - Top-1 转相似度（如 `1 - distance`，注释写明与 pgvector 语义一致）。
@@ -101,7 +101,7 @@ flowchart TD
 
 ### 4. `KbContextBlock` 与 LLM 组装
 
-- 在 [`app/schemas/chat.py`](backend/app/schemas/chat.py) 定义 `KbContextBlock`（如 `type: "kb_context"`、`content: str`）。
+- 在 [`backend/app/schemas/chat.py`](backend/app/schemas/chat.py) 定义 `KbContextBlock`（如 `type: "kb_context"`、`content: str`）。
 - **联合类型**：出于兼容成本考虑，将 **`KbContextBlock` 并入对外 `ContentBlock`**（扩展 `ContentBlock` 联合类型），**不**再单独维护 `ContentBlockForLlm` 等仅 Agent 内部别名，避免两套块列表与校验分叉。
 - **API 安全**：若用户请求可反序列化出 `kb_context`，必须 **剥离或拒绝**，仅服务端构造。
 - [`extract_user_text`](backend/app/schemas/chat.py) **只统计 `TextBlock`**，不得把 `KbContextBlock` 当作 query，以免影响记忆检索与 RAG query。
@@ -136,11 +136,11 @@ flowchart TD
 | 区域 | 文件 |
 |------|------|
 | file_id 收集 | 新建 util 或扩展 [`multimodal.py`](backend/app/utils/multimodal.py) |
-| `KbContextBlock` | [`app/schemas/chat.py`](backend/app/schemas/chat.py) |
-| user 侧渲染 | [`app/utils/multimodal.py`](backend/app/utils/multimodal.py) |
-| 向量检索与组装 | 新建 [`app/services/chat/kb_rag_context_service.py`](app/services/chat/kb_rag_context_service.py) |
-| 配置 | [`app/schemas/config.py`](backend/app/schemas/config.py) |
-| 接入 | [`app/agents/chat_session_agent.py`](backend/app/agents/chat_session_agent.py) |
+| `KbContextBlock` | [`backend/app/schemas/chat.py`](backend/app/schemas/chat.py) |
+| user 侧渲染 | [`backend/app/utils/multimodal.py`](backend/app/utils/multimodal.py) |
+| 向量检索与组装 | 新建 [`backend/app/services/chat/kb_rag_context_service.py`](backend/app/services/chat/kb_rag_context_service.py) |
+| 配置 | [`backend/app/schemas/config.py`](backend/app/schemas/config.py) |
+| 接入 | [`backend/app/agents/chat_session_agent.py`](backend/app/agents/chat_session_agent.py) |
 | System 提示 | [`prompt_utils.py`](backend/app/prompts/prompt_utils.py) **不增加 kb 注入** |
 | DB | **无新表**；[`kb_file_chunk_embeddings`](backend/app/models/kb_file_chunk_embedding_db.py) |
 

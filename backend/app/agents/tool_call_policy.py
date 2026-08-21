@@ -20,7 +20,6 @@ from app.prompts import get_tool_call_sufficient_info_message
 from app.schemas.llm import ToolMessage
 from app.utils.common import normalize_url
 from app.utils.mcp import has_tool_been_called
-from app.utils.message import update_last_user_message
 from app.utils.vocab import VocabProcessor
 
 
@@ -45,18 +44,15 @@ class ToolCallPolicy:
         )
         self.extracted_urls: set[str] = set()
         self.vocab_processor = VocabProcessor()
+        self._pending_iteration_hints: str | None = None
 
     def reset_for_request(self) -> None:
         self.extracted_urls = set()
         self.tool_arguments_history_by_name.clear()
+        self._pending_iteration_hints = None
 
-    def apply_iteration_hints(
-        self,
-        *,
-        messages: list[dict[str, Any]],
-        tool_guided_user_message: str,
-        iteration: int,
-    ) -> None:
+    def collect_iteration_hints(self, iteration: int) -> str | None:
+        """按当前搜索/URL 状态收集 hints（不改写已有消息）。"""
         hint_messages: list[str] = []
         web_search_count = len(
             self.tool_arguments_history_by_name.get(WEB_SEARCH_LLM, [])
@@ -81,12 +77,18 @@ class ToolCallPolicy:
                 hint_messages.append(stop_reason_message)
             if iteration >= self.MIN_ITERATION_FOR_HINT:
                 hint_messages.append(get_tool_call_sufficient_info_message())
-        if hint_messages:
-            hints_text = "\n".join(hint_messages)
-            update_last_user_message(
-                messages,
-                new_content=f"{tool_guided_user_message}\n\n注意:\n{hints_text}",
-            )
+        if not hint_messages:
+            return None
+        return "\n".join(hint_messages)
+
+    def queue_iteration_hints_after_tools(self, *, next_iteration: int) -> None:
+        """工具批次结束后重算并覆盖排队 hint，供下一轮 LLM 尾部消费。"""
+        self._pending_iteration_hints = self.collect_iteration_hints(next_iteration)
+
+    def drain_pending_iteration_hints(self) -> str | None:
+        text = self._pending_iteration_hints
+        self._pending_iteration_hints = None
+        return text
 
     def record_tool_arguments(
         self,
