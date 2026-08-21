@@ -1,6 +1,6 @@
 # Prometheus 指标（当前实现）
 
-**最后核对**：2026-08-02
+**最后核对**：2026-08-21
 
 本文档说明后端如何暴露 Prometheus 指标、多进程（Gunicorn）模式下的目录约定，以及自定义进程 CPU/内存指标。
 
@@ -67,10 +67,30 @@ curl -s http://localhost:8000/metrics | rg 'process_resident_memory_bytes_custom
 3. **自定义 Gauge 为 0 或不更新**：进程可能无 `psutil` 权限（`AccessDenied` 时静默跳过）；确认 collector 线程已启动。
 4. **容器重启后脏数据**：确认 `start.sh` 在启动前 `rm -rf` multiproc 目录。
 
-## 5. 源码索引
+## 5. 健康探活指标
+
+由 `/api/health/ready` 与 `/api/health` 在探活时顺带写入（不另开采集线程）。多 worker 下带 `pid` label，与进程指标一致；scrape 时由 multiprocess collector 聚合。
+
+| 指标名 | 类型 | 标签 | 含义 |
+|--------|------|------|------|
+| `health_dependency_up` | Gauge | `component`, `pid` | 依赖探活是否成功（1/0）；`component` 为 `postgres` / `redis` / `llm` |
+| `health_probe_latency_seconds` | Gauge | `component`, `pid` | 最近一次探活耗时（秒） |
+| `db_pool_size` | Gauge | `pid` | 本 worker SQLAlchemy `pool_size` |
+| `db_pool_checked_out` | Gauge | `pid` | 本 worker 已借出连接数 |
+| `db_pool_overflow` | Gauge | `pid` | 本 worker overflow 连接数 |
+
+实现：`app/core/health_metrics.py`，由 `app/core/health_probes.py` 调用。
+
+HTTP 请求计数与延迟仍使用 `prometheus_fastapi_instrumentator` 默认指标（如 `http_requests_total`、`http_request_duration_seconds`）。SLO / 错误预算 recording 与 alerting 规则见仓库根目录 `deploy/prometheus/` 与 `docs/SLO.md`（`backend/docs/SLO.md`）。
+
+## 6. 源码索引
 
 | 主题 | 路径 |
 |------|------|
 | multiproc 目录初始化、Instrumentator、collector 启动 | `app/main.py` |
 | 自定义进程指标 | `app/core/process_metrics.py` |
+| 健康探活指标 | `app/core/health_metrics.py` |
+| 探活逻辑 | `app/core/health_probes.py` |
+| 健康检查路由 | `app/api/health.py` |
 | 生产启动与目录清理 | `start.sh` |
+| SLO / 告警规则（导入现有 Prometheus 平台） | `deploy/prometheus/`、`backend/docs/SLO.md` |

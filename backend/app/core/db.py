@@ -1,7 +1,10 @@
 import json
+import time
 from collections.abc import Generator
+from typing import Any
 
 from sqlalchemy import text
+from sqlalchemy.pool import QueuePool
 from sqlmodel import Session, SQLModel, create_engine
 
 from app.core.config import settings
@@ -26,6 +29,36 @@ engine = create_engine(
     pool_recycle=300,  # 连接回收时间（秒），避免长时间空闲被服务端关闭
     json_serializer=json_dumps_utf8,
 )
+
+
+def get_pool_stats() -> dict[str, int]:
+    """返回当前进程 SQLAlchemy 连接池快照。"""
+    pool = engine.pool
+    if not isinstance(pool, QueuePool):
+        return {"size": 0, "checkedout": 0, "overflow": 0, "checkedin": 0}
+    return {
+        "size": int(pool.size()),
+        "checkedout": int(pool.checkedout()),
+        "overflow": int(pool.overflow()),
+        "checkedin": int(pool.checkedin()),
+    }
+
+
+def probe_db_sync() -> dict[str, Any]:
+    """同步探测 Postgres（SELECT 1），供 asyncio.to_thread 调用。"""
+    started = time.perf_counter()
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        latency_ms = (time.perf_counter() - started) * 1000.0
+        return {"ok": True, "latency_ms": round(latency_ms, 2), "error": None}
+    except Exception as exc:
+        latency_ms = (time.perf_counter() - started) * 1000.0
+        return {
+            "ok": False,
+            "latency_ms": round(latency_ms, 2),
+            "error": str(exc),
+        }
 
 
 def get_db() -> Generator[Session, None, None]:

@@ -1,0 +1,46 @@
+# Recording rules for chat-agent HTTP availability SLO.
+# Import into your existing Prometheus platform.
+# Adjust job="chat-agent-backend" to match your scrape config.
+#
+# Default SLO: 99.5% monthly availability (~216 minutes error budget / 30d).
+# Internal agent app with many external deps (LLM, MCP); looser than 99.9%.
+
+groups:
+  - name: chat_agent_slo_recording
+    interval: 30s
+    rules:
+      # 5m availability SLI (exclude metrics + health probes)
+      - record: slo:http_availability:ratio_5m
+        expr: |
+          sum(rate(http_requests_total{job="chat-agent-backend",handler!~"/metrics|/api/health.*",status!~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(http_requests_total{job="chat-agent-backend",handler!~"/metrics|/api/health.*"}[5m])), 1e-9)
+
+      - record: slo:http_availability:ratio_30m
+        expr: |
+          sum(rate(http_requests_total{job="chat-agent-backend",handler!~"/metrics|/api/health.*",status!~"5.."}[30m]))
+          /
+          clamp_min(sum(rate(http_requests_total{job="chat-agent-backend",handler!~"/metrics|/api/health.*"}[30m])), 1e-9)
+
+      - record: slo:http_availability:ratio_1h
+        expr: |
+          sum(rate(http_requests_total{job="chat-agent-backend",handler!~"/metrics|/api/health.*",status!~"5.."}[1h]))
+          /
+          clamp_min(sum(rate(http_requests_total{job="chat-agent-backend",handler!~"/metrics|/api/health.*"}[1h])), 1e-9)
+
+      - record: slo:http_availability:ratio_6h
+        expr: |
+          sum(rate(http_requests_total{job="chat-agent-backend",handler!~"/metrics|/api/health.*",status!~"5.."}[6h]))
+          /
+          clamp_min(sum(rate(http_requests_total{job="chat-agent-backend",handler!~"/metrics|/api/health.*"}[6h])), 1e-9)
+
+      - record: slo:http_availability:ratio_30d
+        expr: |
+          sum(rate(http_requests_total{job="chat-agent-backend",handler!~"/metrics|/api/health.*",status!~"5.."}[30d]))
+          /
+          clamp_min(sum(rate(http_requests_total{job="chat-agent-backend",handler!~"/metrics|/api/health.*"}[30d])), 1e-9)
+
+      # Remaining error budget for 99.5% SLO: 1 = full, 0 = exhausted
+      - record: slo:http_error_budget:remaining_30d
+        expr: |
+          (slo:http_availability:ratio_30d - 0.995) / (1 - 0.995)

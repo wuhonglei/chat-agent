@@ -13,16 +13,23 @@ from app.utils.context import set_request_context
 from app.utils.logger import logger
 from app.utils.network import get_audit_client_ip
 
-# 不需要记录日志的路径（通常是健康检查、监控等高频低价值请求）
+# 不需要记录日志的路径（精确匹配；健康检查用前缀）
 SKIP_LOGGING_PATHS = {
-    "/api/health",  # 健康检查
     "/",  # 根路径
 }
+SKIP_LOGGING_PREFIXES = (
+    "/api/health",  # live / ready / deep
+)
 
 
 def should_skip_logging(path: str) -> bool:
     """判断是否应该跳过日志记录"""
-    return path in SKIP_LOGGING_PATHS
+    if path in SKIP_LOGGING_PATHS:
+        return True
+    return any(
+        path == prefix or path.startswith(f"{prefix}/")
+        for prefix in SKIP_LOGGING_PREFIXES
+    )
 
 
 def set_context_var(request: Request) -> None:

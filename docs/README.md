@@ -46,6 +46,7 @@
 - `TOOL_RESULT_AND_CONTEXT.md`：工具结果硬上限、统一上下文守卫、窗口外摘要与配置排障
 - `LLM_RELIABILITY.md`：LLM 建连重试、错误分类与进程级熔断手册
 - `PROMETHEUS_METRICS.md`：`/metrics` 暴露、无 `--preload` 的 Gunicorn multiprocess 约定与自定义进程指标
+- `SLO.md`（`backend/docs/SLO.md`）：HTTP 可用性 SLO、错误预算与导入现有 Prometheus 平台的规则说明（`deploy/prometheus/`）
 - `RETRIEVAL_SYSTEM.md`：当前检索链路说明（基于 MCP 工具与会话流）
 
 ### 规划方案
