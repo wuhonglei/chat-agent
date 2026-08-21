@@ -25,7 +25,7 @@ isProject: false
 
 # 前缀缓存优化（iteration hints + 观测）
 
-对照 [backend/chat-agent-cache-optimization.html](backend/chat-agent-cache-optimization.html) 与线上报告：[docs/token_cache/2026-08-21_cache_hit_report.md](docs/token_cache/2026-08-21_cache_hit_report.md)、[docs/cache_analysis/multi_turn_cache_analysis_after_change.md](docs/cache_analysis/multi_turn_cache_analysis_after_change.md)。
+对照 [backend/chat-agent-cache-optimization.html](backend/chat-agent-cache-optimization.html) 与线上报告：[docs/token_cache/2026-08-21_cache_hit_report.md](docs/token_cache/2026-08-21_cache_hit_report.md)、[docs/token_cache/multi_turn_cache_analysis_after_change.md](docs/token_cache/multi_turn_cache_analysis_after_change.md)。
 
 核心原则：**已发出过的 message 不再改写，只在尾部追加。** 前缀缓存是字节级匹配，中间任何一处变化都会让其后全部失效。
 
