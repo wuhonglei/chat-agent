@@ -28,6 +28,7 @@ class MCPToolSession:
         self.executor = ToolExecutor(
             mcp_manager, user_message, model_name, context_limit
         )
+        self._agent_mode = 0
 
     def reset_for_request(
         self,
@@ -36,6 +37,7 @@ class MCPToolSession:
         conversation_id: str | None = None,
         agent_mode: int = 0,
     ) -> None:
+        self._agent_mode = agent_mode
         self.policy.reset_for_request()
         self.executor.reset_for_request(
             user_message,
@@ -48,23 +50,33 @@ class MCPToolSession:
     def guardrail_halted(self) -> bool:
         return self.executor.guardrail.halted
 
-    def collect_iteration_hints(self, iteration: int) -> str | None:
-        return self.policy.collect_iteration_hints(iteration)
+    def drain_pending_iteration_hints(self) -> str | None:
+        return self.policy.drain_pending_iteration_hints()
 
     def drain_pending_guardrail_warns(self) -> list[str]:
         return self.executor.guardrail.drain_pending_warns()
+
+    def refresh_iteration_hints_after_tools(self, completed_iteration: int) -> None:
+        """工具批次完成后入队 hints（仅 agent_mode==0）；供下一轮尾部 drain。"""
+        if self._agent_mode != 0:
+            return
+        self.policy.queue_iteration_hints_after_tools(
+            next_iteration=completed_iteration + 1
+        )
 
     async def execute_tool_calls_parallel(
         self,
         tool_calls: list[ChatCompletionMessageFunctionToolCall],
         current_iteration: int,
     ) -> list[ToolResultMessage]:
-        return await self.executor.execute_tool_calls_parallel(
+        results = await self.executor.execute_tool_calls_parallel(
             tool_calls=tool_calls,
             current_iteration=current_iteration,
             extracted_urls=self.policy.extracted_urls,
             on_arguments_recorded=self.policy.record_tool_arguments,
         )
+        self.refresh_iteration_hints_after_tools(current_iteration)
+        return results
 
     def build_tool_use_message(
         self,

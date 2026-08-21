@@ -231,11 +231,7 @@ class ChatSessionAgent(BaseAgent):
                     yield sse
                 return
 
-            iteration_hints = (
-                tool_session.collect_iteration_hints(iteration)
-                if chat_request.agent_mode == 0
-                else None
-            )
+            iteration_hints = tool_session.drain_pending_iteration_hints()
             trailing_user = build_trailing_hint_user_message(
                 iteration_hints=iteration_hints,
                 guardrail_warns=tool_session.drain_pending_guardrail_warns(),
@@ -530,6 +526,7 @@ class ChatSessionAgent(BaseAgent):
         if final_user_message is not None:
             update_last_user_message(messages, new_content=final_user_message)
         trailing_user = build_trailing_hint_user_message(
+            iteration_hints=tool_session.drain_pending_iteration_hints(),
             guardrail_warns=tool_session.drain_pending_guardrail_warns(),
         )
         round_state = self.state_machine.start_round()

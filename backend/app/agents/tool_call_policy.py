@@ -44,13 +44,15 @@ class ToolCallPolicy:
         )
         self.extracted_urls: set[str] = set()
         self.vocab_processor = VocabProcessor()
+        self._pending_iteration_hints: str | None = None
 
     def reset_for_request(self) -> None:
         self.extracted_urls = set()
         self.tool_arguments_history_by_name.clear()
+        self._pending_iteration_hints = None
 
     def collect_iteration_hints(self, iteration: int) -> str | None:
-        """收集本轮尾部 user 用的 iteration hints（不改写已有消息）。"""
+        """按当前搜索/URL 状态收集 hints（不改写已有消息）。"""
         hint_messages: list[str] = []
         web_search_count = len(
             self.tool_arguments_history_by_name.get(WEB_SEARCH_LLM, [])
@@ -78,6 +80,15 @@ class ToolCallPolicy:
         if not hint_messages:
             return None
         return "\n".join(hint_messages)
+
+    def queue_iteration_hints_after_tools(self, *, next_iteration: int) -> None:
+        """工具批次结束后重算并覆盖排队 hint，供下一轮 LLM 尾部消费。"""
+        self._pending_iteration_hints = self.collect_iteration_hints(next_iteration)
+
+    def drain_pending_iteration_hints(self) -> str | None:
+        text = self._pending_iteration_hints
+        self._pending_iteration_hints = None
+        return text
 
     def record_tool_arguments(
         self,
