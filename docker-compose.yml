@@ -77,6 +77,10 @@ services:
       dockerfile: Dockerfile
     container_name: chat-agent-evaluator
     command: ["uv", "run", "python", "-m", "eval_worker.main"]
+    environment:
+      DATABASE__HOST: postgres
+      LANGFUSE__ENVIRONMENT: eval_worker
+      OTEL_SERVICE_NAME: chat-agent-eval-worker
     env_file:
       - .env
     depends_on:

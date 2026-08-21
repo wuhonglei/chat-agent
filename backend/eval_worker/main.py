@@ -9,7 +9,7 @@ from typing import Any
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from app.core.observability import init_langfuse
+from app.core.observability import init_langfuse, shutdown_langfuse
 from app.services.eval.batch_eval_service import BatchEvalService
 from app.services.eval.judge_llm import judge_llm_caller
 from app.utils.logger import logger
@@ -90,6 +90,7 @@ async def main() -> None:
 
     await stop_event.wait()
     scheduler.shutdown(wait=False)
+    shutdown_langfuse()
     logger.info("Eval worker stopped")
 
 

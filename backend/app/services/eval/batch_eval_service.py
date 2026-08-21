@@ -11,7 +11,7 @@ from sqlmodel import Session, select
 
 from app.core.config import settings
 from app.core.db import engine
-from app.core.observability import get_langfuse
+from app.core.observability import flush_langfuse, get_langfuse
 from app.evaluators.judge_evaluator import JudgeResult, LLMCaller, call_judge_model
 from app.evaluators.sampler import sample_rates_from_config, stratified_sample
 from app.models.bad_case_item_db import BadCaseItemDb
@@ -198,6 +198,7 @@ class BatchEvalService:
                 db.refresh(db_log)
                 working = db_log
 
+        flush_langfuse()
         logger.info(
             "Batch eval finished",
             run_id=working.id,
