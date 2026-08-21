@@ -102,7 +102,7 @@ fi
 # 差异部署范围（由 webhook 通过环境变量传入；未设置时默认为 1，兼容直接执行本脚本）
 DEPLOY_FRONTEND=${DEPLOY_FRONTEND:-1}
 DEPLOY_BACKEND=${DEPLOY_BACKEND:-1}
-DEPLOY_EVALUATOR=${DEPLOY_EVALUATOR:-0}
+DEPLOY_EVALUATOR=${DEPLOY_EVALUATOR:-1}
 
 # 零停机部署函数
 # 策略：先构建镜像（旧容器继续运行），然后快速切换容器
