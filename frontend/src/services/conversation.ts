@@ -1,4 +1,5 @@
 import {
+  ConversationCompressResponse,
   ConversationDetailResponse,
   ConversationInfo,
   ConversationListResponse,
@@ -44,12 +45,26 @@ export const conversationAPI = {
   },
 
   // 更新对话信息
-  updateConversation: async (conversationId: string, data: UpdateConversationRequest): Promise<ConversationInfo> => {
+  updateConversation: async (
+    conversationId: string,
+    data: UpdateConversationRequest,
+  ): Promise<ConversationInfo> => {
     return await apiClient.put(`/conversation/update/${conversationId}`, data);
   },
 
   // 删除对话
   deleteConversation: async (conversationId: string): Promise<string> => {
     return await apiClient.delete(`/conversation/delete/${conversationId}`);
+  },
+
+  // 手动全量压缩会话上下文
+  compressConversation: async (conversationId: string): Promise<ConversationCompressResponse> => {
+    return await apiClient.post(
+      `/conversation/${conversationId}/compress`,
+      {},
+      {
+        timeout: 120_000,
+      },
+    );
   },
 };

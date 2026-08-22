@@ -350,7 +350,12 @@ class ChatOrchestrator:
                                 conversation_id
                             )
                         )
-                        prepared_history_messages = history_messages_from_db
+                        prepared_history_messages = (
+                            self.history_context_service.filter_summarized_history(
+                                conversation_id,
+                                history_messages_from_db,
+                            )
+                        )
                         logger.info(
                             "Starting stream message generation",
                             conversation_id=conversation_id,

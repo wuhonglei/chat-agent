@@ -43,6 +43,8 @@ class _FakeAgent:
         self.reasoning = ""
         self.content_blocks: list[Any] = []
         self.tool_round_messages: list[Any] = []
+        self.iteration_checkpoint: Any = None
+        self.mcp_manager = None
 
     def _sync_session_output(self) -> None:
         return None
@@ -58,6 +60,7 @@ def _build_orchestrator(*, raise_in_stream: bool) -> tuple[ChatOrchestrator, Any
 
     history_service = MagicMock()
     history_service.get_stored_window_summary = MagicMock(return_value=None)
+    history_service.filter_summarized_history = MagicMock(side_effect=lambda _cid, msgs: msgs)
 
     post_process = MagicMock()
     post_process.persist_final_assistant_message = MagicMock(

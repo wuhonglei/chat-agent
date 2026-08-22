@@ -3,6 +3,7 @@ import { Spin } from "antd";
 import React, { useCallback, useRef } from "react";
 import SimpleBar from "simplebar-react";
 import { useConversationInfiniteScroll, useSidebarContent } from "../hooks";
+import CompressResultModal from "../modals/CompressResultModal";
 import RenameModal from "../modals/RenameModal";
 import UserAccount from "./UserAccount";
 
@@ -22,6 +23,8 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ onAfterActiveChange }) 
     activeKey,
     editConversionInfo,
     setEditConversionInfo,
+    compressResult,
+    setCompressResult,
     handleMenuClick,
     handleEditConversationTitle,
   } = useSidebarContent();
@@ -66,6 +69,11 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ onAfterActiveChange }) 
           onOk={title => handleEditConversationTitle({ id: editConversionInfo.id, title })}
         />
       )}
+      <CompressResultModal
+        open={Boolean(compressResult)}
+        result={compressResult}
+        onClose={() => setCompressResult(null)}
+      />
     </>
   );
 };

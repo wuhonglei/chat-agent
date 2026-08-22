@@ -106,3 +106,12 @@ class ConversationSearchResponse(BaseModel):
     next_cursor: str | None = Field(None, description="下一页游标，末页为 null")
     has_more: bool = Field(..., description="是否还有更多数据")
     limit: int = Field(..., description="本页 limit")
+
+
+class ConversationCompressResponse(BaseModel):
+    """会话手动全量压缩结果"""
+
+    summary: str = Field(..., description="压缩后的摘要正文")
+    tokens_before: int = Field(..., description="压缩前（摘要输入文本）token 数")
+    tokens_after: int = Field(..., description="压缩后摘要 token 数")
+    summarized_message_count: int = Field(..., description="被纳入压缩的消息条数")

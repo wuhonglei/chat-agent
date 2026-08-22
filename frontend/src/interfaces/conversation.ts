@@ -56,3 +56,10 @@ export interface ConversationSearchResponse {
   hasMore: boolean;
   limit: number;
 }
+
+export interface ConversationCompressResponse {
+  summary: string;
+  tokensBefore: number;
+  tokensAfter: number;
+  summarizedMessageCount: number;
+}
