@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from app.agents.tool_call_policy import ToolCallPolicy
-from app.mcp.constants import WEB_SEARCH_LLM
+from app.mcp.constants import WEB_PAGES_EXTRACT_LLM, WEB_SEARCH_LLM
 from app.schemas.llm import ToolResultMessage
 
 
-def test_collect_iteration_hints_none_on_iteration_zero() -> None:
+def test_collect_iteration_hints_none_after_single_web_search() -> None:
     policy = ToolCallPolicy([])
     policy.record_tool_arguments(
         WEB_SEARCH_LLM,
@@ -15,20 +15,7 @@ def test_collect_iteration_hints_none_on_iteration_zero() -> None:
         "c1",
         True,
     )
-    assert policy.collect_iteration_hints(0) is None
-
-
-def test_collect_iteration_hints_after_web_search() -> None:
-    policy = ToolCallPolicy([])
-    policy.record_tool_arguments(
-        WEB_SEARCH_LLM,
-        {"queries": ["q"]},
-        "c1",
-        True,
-    )
-    text = policy.collect_iteration_hints(1)
-    assert text is not None
-    assert "已执行过搜索" in text
+    assert policy.collect_iteration_hints() is None
 
 
 def test_collect_iteration_hints_does_not_mutate_messages() -> None:
@@ -43,7 +30,7 @@ def test_collect_iteration_hints_does_not_mutate_messages() -> None:
         {"role": "system", "content": "sys"},
         {"role": "user", "content": "original user"},
     ]
-    _ = policy.collect_iteration_hints(1)
+    _ = policy.collect_iteration_hints()
     assert messages[-1]["content"] == "original user"
 
 
@@ -56,7 +43,7 @@ def test_collect_iteration_hints_max_search_stop() -> None:
             f"c{i}",
             True,
         )
-    text = policy.collect_iteration_hints(1)
+    text = policy.collect_iteration_hints()
     assert text is not None
     assert "已执行 2 次搜索" in text
     assert "结果可能已足够" in text
@@ -73,7 +60,7 @@ def test_tool_round_with_empty_result_still_tracks() -> None:
             )
         ]
     )
-    assert policy.collect_iteration_hints(0) is None
+    assert policy.collect_iteration_hints() is None
 
 
 def test_queue_after_tools_then_drain() -> None:
@@ -84,11 +71,7 @@ def test_queue_after_tools_then_drain() -> None:
         "c1",
         True,
     )
-    # 第 0 轮工具结束后，按即将到来的第 1 轮入队
-    policy.queue_iteration_hints_after_tools(next_iteration=1)
-    text = policy.drain_pending_iteration_hints()
-    assert text is not None
-    assert "已执行过搜索" in text
+    policy.queue_iteration_hints_after_tools()
     assert policy.drain_pending_iteration_hints() is None
 
 
@@ -100,9 +83,8 @@ def test_queue_overwrites_previous_pending() -> None:
         "c0",
         True,
     )
-    policy.queue_iteration_hints_after_tools(next_iteration=1)
-    first = policy.drain_pending_iteration_hints()
-    assert first is not None
+    policy.queue_iteration_hints_after_tools()
+    assert policy.drain_pending_iteration_hints() is None
 
     policy.record_tool_arguments(
         WEB_SEARCH_LLM,
@@ -110,12 +92,38 @@ def test_queue_overwrites_previous_pending() -> None:
         "c1",
         True,
     )
-    policy.queue_iteration_hints_after_tools(next_iteration=2)
+    policy.queue_iteration_hints_after_tools()
     second = policy.drain_pending_iteration_hints()
     assert second is not None
     assert "已执行 2 次搜索" in second
-    # 不应再残留 first
     assert policy.drain_pending_iteration_hints() is None
+
+
+def test_collect_iteration_hints_max_extract_stop() -> None:
+    policy = ToolCallPolicy([])
+    for i in range(2):
+        policy.record_tool_arguments(
+            WEB_PAGES_EXTRACT_LLM,
+            {"urls": [f"https://example.com/{i}"]},
+            f"c{i}",
+            True,
+        )
+    text = policy.collect_iteration_hints()
+    assert text is not None
+    assert "已执行 2 次网页提取" in text
+
+
+def test_collect_iteration_hints_max_extracted_urls() -> None:
+    policy = ToolCallPolicy([])
+    policy.record_tool_arguments(
+        WEB_PAGES_EXTRACT_LLM,
+        {"urls": [f"https://example.com/{i}" for i in range(5)]},
+        "c1",
+        True,
+    )
+    text = policy.collect_iteration_hints()
+    assert text is not None
+    assert "已提取 5 个 URL" in text
 
 
 def test_reset_clears_pending_hints() -> None:
@@ -126,6 +134,6 @@ def test_reset_clears_pending_hints() -> None:
         "c1",
         True,
     )
-    policy.queue_iteration_hints_after_tools(next_iteration=1)
+    policy.queue_iteration_hints_after_tools()
     policy.reset_for_request()
     assert policy.drain_pending_iteration_hints() is None
