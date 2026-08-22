@@ -81,3 +81,28 @@ def test_trailing_hint_none_when_empty() -> None:
     assert build_trailing_hint_user_message() is None
     assert build_trailing_hint_user_message(iteration_hints="  ") is None
     assert build_trailing_hint_user_message(guardrail_warns=["", "  "]) is None
+
+
+def test_trailing_hint_extra_notice_only() -> None:
+    msg = build_trailing_hint_user_message(
+        extra_notice="已达上限，是否继续？",
+        extra_plugin="iteration_checkpoint",
+    )
+    assert msg is not None
+    assert msg["source"]["plugin"] == "iteration_checkpoint"
+    assert msg["source"]["form"] == "notice"
+    assert "是否继续" in msg["content"]
+
+
+def test_trailing_hint_extra_with_hints_snapshot() -> None:
+    msg = build_trailing_hint_user_message(
+        iteration_hints="已搜过",
+        extra_notice="请继续执行",
+        extra_plugin="continue_task",
+    )
+    assert msg is not None
+    assert msg["source"]["form"] == "snapshot"
+    names = [s["name"] for s in msg["source"]["sections"]]
+    assert names == ["iteration_hints", "continue_task"]
+    assert "已搜过" in msg["content"]
+    assert "请继续执行" in msg["content"]

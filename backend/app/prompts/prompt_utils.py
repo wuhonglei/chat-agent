@@ -19,9 +19,11 @@ from app.prompts.user_prompt import (
     WINDOW_OUT_SUMMARY_MERGE_PROMPT,
     gentle_tips_in_web_search_template,
     tool_call_sufficient_info_template,
+    user_message_for_continue_task_template,
     user_message_for_default_template,
     user_message_for_no_tool_call_template,
     user_message_for_reach_tool_call_limit_template,
+    user_message_for_summarize_task_template,
     user_message_for_tool_call_template,
 )
 from app.schemas.chat import AttachmentUploadInfo, ContentBlock, KbContextBlock
@@ -167,15 +169,32 @@ def get_tool_call_sufficient_info_message() -> str:
     return tool_call_sufficient_info_template.render().strip()
 
 
+def get_iteration_checkpoint_notice(*, iterations_used: int) -> str:
+    """Agent 模式触达轮次上限后的检查点 trailing notice（不含原始 query）。"""
+    return user_message_for_reach_tool_call_limit_template.render(
+        iterations_used=iterations_used,
+    ).strip()
+
+
+def get_continue_task_notice(*, continue_budget: int) -> str:
+    """用户确认续跑后的 trailing notice。"""
+    return user_message_for_continue_task_template.render(
+        continue_budget=continue_budget,
+    ).strip()
+
+
+def get_summarize_task_notice() -> str:
+    """用户选择到此为止后的 trailing notice。"""
+    return user_message_for_summarize_task_template.render().strip()
+
+
 def get_user_message_for_reach_tool_call_limit(
     user_message: str,
     kb_context_blocks: list[dict[str, Any]] | None = None,
 ) -> str:
-    """Get user message for reach tool call limit"""
-    return user_message_for_reach_tool_call_limit_template.render(
-        user_message_text=user_message,
-        kb_context_blocks=kb_context_blocks or [],
-    ).strip()
+    """Deprecated: 保留兼容导出；请改用 get_iteration_checkpoint_notice。"""
+    _ = user_message, kb_context_blocks
+    return get_iteration_checkpoint_notice(iterations_used=0)
 
 
 def get_user_message_for_no_tool_call(

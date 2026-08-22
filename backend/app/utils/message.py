@@ -43,48 +43,71 @@ def build_trailing_hint_user_message(
     *,
     iteration_hints: str | None = None,
     guardrail_warns: list[str] | None = None,
+    extra_notice: str | None = None,
+    extra_plugin: str = "iteration_checkpoint",
 ) -> dict[str, Any] | None:
-    """合并 iteration hints 与熔断 WARN 为至多一条尾部 user。
+    """合并 iteration hints、熔断 WARN、可选 extra notice 为至多一条尾部 user。
 
     - 仅一种：``form=notice``，``plugin`` 为对应名
-    - 两种都有：一条消息，``form=snapshot``，hints 在前、WARN 在后
+    - 多种并存：一条消息，``form=snapshot``，按 hints → warns → extra 顺序
     """
     hints_text = (iteration_hints or "").strip() or None
     warn_parts = [w.strip() for w in (guardrail_warns or []) if w and w.strip()]
     warns_text = "\n\n".join(warn_parts) if warn_parts else None
+    extra_text = (extra_notice or "").strip() or None
 
-    if not hints_text and not warns_text:
+    sections: list[dict[str, str]] = []
+    content_parts: list[str] = []
+    if hints_text:
+        sections.append({"name": "iteration_hints", "text": hints_text})
+        content_parts.append(hints_text)
+    if warns_text:
+        sections.append({"name": "tool_guardrail", "text": warns_text})
+        content_parts.append(warns_text)
+    if extra_text:
+        sections.append({"name": extra_plugin, "text": extra_text})
+        content_parts.append(extra_text)
+
+    if not content_parts:
         return None
 
-    if hints_text and warns_text:
-        content = f"注意:\n{hints_text}\n\n{warns_text}"
-        source: dict[str, Any] = {
-            "kind": "plugin",
-            "plugin": "agent_hints",
-            "form": "snapshot",
-            "sections": [
-                {"name": "iteration_hints", "text": hints_text},
-                {"name": "tool_guardrail", "text": warns_text},
-            ],
-        }
-        return create_user_message(content, source=source)
-
-    if hints_text:
+    if len(sections) == 1:
+        only = sections[0]
+        name = only["name"]
+        text = only["text"]
+        if name == "iteration_hints":
+            content = f"注意:\n{text}"
+            plugin = "iteration_hints"
+        elif name == "tool_guardrail":
+            content = text
+            plugin = "tool_guardrail"
+        else:
+            content = text
+            plugin = name
         return create_user_message(
-            f"注意:\n{hints_text}",
+            content,
             source={
                 "kind": "plugin",
-                "plugin": "iteration_hints",
+                "plugin": plugin,
                 "form": "notice",
             },
         )
 
+    # 多种并存：hints 前缀「注意:」，其余原样
+    merged: list[str] = []
+    if hints_text:
+        merged.append(f"注意:\n{hints_text}")
+    if warns_text:
+        merged.append(warns_text)
+    if extra_text:
+        merged.append(extra_text)
     return create_user_message(
-        warns_text or "",
+        "\n\n".join(merged),
         source={
             "kind": "plugin",
-            "plugin": "tool_guardrail",
-            "form": "notice",
+            "plugin": "agent_hints",
+            "form": "snapshot",
+            "sections": sections,
         },
     )
 

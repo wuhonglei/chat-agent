@@ -83,13 +83,24 @@ user_message_for_tool_call_template: Template = Template(
 """.strip()
 )
 
+# 仅渲染检查点 notice（作为 ephemeral trailing user，不改写原始 query）
 user_message_for_reach_tool_call_limit_template: Template = Template(
-    _USER_MESSAGE_QUERY_SNIPPET
-    + "\n\n"
-    + """
-<tool_call_limit_notice>
-  【系统说明】工具调用已达上限，请仅根据已有对话与工具结果直接作答；信息不足时请说明并给出力所能及的建议，勿再提议调用工具。
-</tool_call_limit_notice>
+    """
+【系统说明】任务已执行 {{ iterations_used }} 轮工具调用，已达本轮上限。
+请向用户简要汇报：已完成的工作、尚未完成的部分，并询问是否继续。
+不要再调用任何工具；不要假装任务已全部完成。
+""".strip()
+)
+
+user_message_for_continue_task_template: Template = Template(
+    """
+【系统说明】用户已确认继续执行。请接着完成剩余工作；本轮还可使用最多 {{ continue_budget }} 轮工具调用。
+""".strip()
+)
+
+user_message_for_summarize_task_template: Template = Template(
+    """
+【系统说明】用户选择到此为止。请仅根据已有对话与工具结果生成总结；勿再调用任何工具。
 """.strip()
 )
 

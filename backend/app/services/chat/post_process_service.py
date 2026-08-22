@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime
+from typing import Any
 
 from app.schemas.chat import (
     AssistantResponse,
@@ -29,6 +30,7 @@ class PostProcessService:
         user_message_id: str,
         assistant_message_id: str,
         assistant_response: AssistantResponse,
+        extra_metadata: dict[str, Any] | None = None,
     ) -> datetime:
         with MessageDbService() as message_service:
             conversation, _, assistant_message = (
@@ -41,6 +43,7 @@ class PostProcessService:
                 assistant_message,
                 assistant_response=assistant_response,
                 status=MessageStatus.DONE,
+                extra_metadata=extra_metadata,
             )
             return assistant_message.updated_at
 

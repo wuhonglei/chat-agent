@@ -28,6 +28,7 @@ import {
   setTempMessages,
   updateMessageModifiedTime,
   updateMessageStatus,
+  updateLastAssistantIterationCheckpoint,
   updateStreamResumeLastEventId,
   updateStreamResumePhase,
 } from "@/store/slices/chatSlice";
@@ -492,6 +493,14 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
         emitter.emit(EventType.WorkspaceTreeRefresh, { workspaceId: conversationId });
         dispatch(updateStreamResumePhase({ conversationId, data: "done" }));
         dispatch(updateMessageStatus({ conversationId, data: MessageStatus.Done }));
+        if (data.iterationCheckpoint) {
+          dispatch(
+            updateLastAssistantIterationCheckpoint({
+              conversationId,
+              data: data.iterationCheckpoint,
+            }),
+          );
+        }
         dispatch(
           updateMessageModifiedTime({
             conversationId,
@@ -529,7 +538,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
 
   const sendMessage = useMemoizedFn(
     async (values: ChatInputFormValues, options?: SendMessageOptions): Promise<void> => {
-      const { index, createdBy, attachmentBlocks, mentionedBlocks } = options || {};
+      const { index, createdBy, attachmentBlocks, mentionedBlocks, taskAction } = options || {};
       const { content, ...requestConfig } = values;
       const normalizedValues: ChatInputFormValues = {
         ...values,
@@ -616,6 +625,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
             removedMessageIds,
             conversationId,
             mentionedBlocks,
+            taskAction,
           },
           handleInitialStreamMessage,
           handleStreamError,

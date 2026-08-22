@@ -28,12 +28,15 @@ class SessionOutput:
     content_blocks: list[ContentBlock] = field(default_factory=list)
     content: str = ""
     reasoning: str = ""
+    # Agent 模式触达轮次上限后的检查点；落库 / done SSE 用
+    iteration_checkpoint: dict[str, int] | None = None
 
     def reset(self) -> None:
         self.tool_round_messages.clear()
         self.content_blocks = []
         self.content = ""
         self.reasoning = ""
+        self.iteration_checkpoint = None
 
 
 @dataclass

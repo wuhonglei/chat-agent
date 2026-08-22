@@ -13,6 +13,8 @@ class MCPToolSession:
 
     MAX_TOTAL_ITERATIONS = 10
     AGENT_MODE_MAX_ITERATIONS = 90
+    # Agent 模式触达上限后续跑的单 turn 预算
+    CONTINUE_BUDGET_ITERATIONS = 50
 
     def __init__(
         self,

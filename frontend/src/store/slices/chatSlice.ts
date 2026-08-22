@@ -253,6 +253,26 @@ const chatSlice = createSlice({
         lastMessage.status = data;
       }
     },
+    updateLastAssistantIterationCheckpoint: (
+      state,
+      action: PayloadAction<
+        ConversationActionPayload<{
+          iterationsUsed: number;
+          continueBudget: number;
+        }>
+      >
+    ) => {
+      const { conversationId, data } = action.payload;
+      const chatState = conversationIdCheck(state, conversationId);
+      const lastMessage = lastMessageCheck(chatState.messages);
+      if (!lastMessage) {
+        return;
+      }
+      lastMessage.messageMetadata = {
+        ...lastMessage.messageMetadata,
+        iterationCheckpoint: data,
+      };
+    },
     updateMessageModifiedTime: (state, action: PayloadAction<ConversationActionPayload<string>>) => {
       const { conversationId, data } = action.payload;
       const chatState = conversationIdCheck(state, conversationId);
@@ -319,6 +339,7 @@ export const {
   appendReasoningToLastMessage,
   appendContentBlockToLastMessage,
   updateMessageStatus,
+  updateLastAssistantIterationCheckpoint,
   updateMessageModifiedTime,
   clearLastMessage,
   resetChatState,

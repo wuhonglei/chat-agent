@@ -30,6 +30,10 @@ export type StreamMessage =
         contentLength: number;
         reasoningLength: number;
         toolCallsLength: number;
+        iterationCheckpoint?: {
+          iterationsUsed: number;
+          continueBudget: number;
+        };
       }
     >
   | StreamEnvelope<
