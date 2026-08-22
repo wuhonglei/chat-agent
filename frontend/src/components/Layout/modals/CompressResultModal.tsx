@@ -23,13 +23,13 @@ export default function CompressResultModal({ open, result, onClose }: Props) {
       {result ? (
         <div className="flex flex-col gap-3">
           <div className="text-sm text-black-secondary">
-            压缩前 {result.tokensBefore} tokens → 压缩后 {result.tokensAfter} tokens
+            压缩前 {result.tokensBefore} tokens → {result.tokensAfter} tokens
             <span className="ml-2 text-black-tertiary">
               （共 {result.summarizedMessageCount} 条消息）
             </span>
           </div>
           <div className="max-h-80 overflow-y-auto rounded-md bg-black/[0.03] p-3">
-            <MarkdownContainer className="w-full text-sm">{result.summary}</MarkdownContainer>
+            <MarkdownContainer className="w-full">{result.summary}</MarkdownContainer>
           </div>
         </div>
       ) : null}
