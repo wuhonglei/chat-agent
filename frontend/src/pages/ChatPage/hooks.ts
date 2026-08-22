@@ -17,7 +17,10 @@ interface UseBlockPreviewHandlersParams {
 interface UseChatMessageHandlersParams {
   form: FormInstance<ChatInputFormValues>;
   conversationId: string;
-  sendMessage: (values: ChatInputFormValues, options: { index: number }) => void;
+  sendMessage: (
+    values: ChatInputFormValues,
+    options?: { index?: number; taskAction?: "continue" | "summarize" }
+  ) => void;
   reSendMessage: (index: number, message: ChatMessageType, values: ChatInputFormValues) => void;
   abortMessage: (conversationId: string) => void;
   deleteMessage: (messageId: string) => void | Promise<void>;
@@ -59,12 +62,28 @@ export const useChatMessageHandlers = ({
     }
   );
 
+  const handleContinueTask = useMemoizedFn(() => {
+    sendMessage(
+      { ...form.getFieldsValue(), content: "请继续执行剩余工作。" },
+      { taskAction: "continue" }
+    );
+  });
+
+  const handleSummarizeTask = useMemoizedFn(() => {
+    sendMessage(
+      { ...form.getFieldsValue(), content: "到此为止，请基于已有内容生成总结。" },
+      { taskAction: "summarize" }
+    );
+  });
+
   return {
     handleEditMessage,
     handleReSend,
     handleAbortMessage,
     handleDeleteMessage,
     handleUpdateMessageFeedback,
+    handleContinueTask,
+    handleSummarizeTask,
   };
 };
 

@@ -20,6 +20,8 @@ interface ChatMessageItemProps {
   ) => Promise<void>;
   onReSend: (index: number, message: ChatMessageType) => void;
   onPreviewBlock: (block: PreviewableBlock) => void;
+  onContinueTask?: () => void;
+  onSummarizeTask?: () => void;
 }
 
 const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
@@ -33,6 +35,8 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   onUpdateMessageFeedback,
   onReSend,
   onPreviewBlock,
+  onContinueTask,
+  onSummarizeTask,
 }) => {
   const isUser = message.role === "user";
   const handleEditMessage = useMemoizedFn((content: string) => {
@@ -65,6 +69,8 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
       onReSend={handleReSend}
       onDeleteMessage={handleDeleteMessage}
       onUpdateMessageFeedback={handleUpdateFeedback}
+      onContinueTask={isLastMessage ? onContinueTask : undefined}
+      onSummarizeTask={isLastMessage ? onSummarizeTask : undefined}
     />
   );
 };

@@ -12,6 +12,7 @@ from app.schemas.chat import (
     ToolUseBlock,
 )
 from app.schemas.config import ChatContextConfig, UnifiedContextGuardConfig
+from app.schemas.conversation import ConversationCompressResponse
 from app.schemas.llm import ToolMessage, ToolResultMessage, ToolUseMessage
 from app.services.conversation import (
     ContextSummaryService,
@@ -28,6 +29,14 @@ _TOOL_ARG_TRUNCATION_SUFFIX = "...[truncated]"
 def _truncated_set_ids(truncated_messages: list[ChatMessage]) -> list[str]:
     """当前截断消息的 id 列表（稳定排序），用于写入 last_summarized_message_ids。"""
     return sorted(m.id for m in truncated_messages)
+
+
+def _union_summarized_ids(*id_lists: list[str]) -> list[str]:
+    """合并已摘要消息 id（稳定排序）。"""
+    merged: set[str] = set()
+    for ids in id_lists:
+        merged.update(ids)
+    return sorted(merged)
 
 
 def _truncate_tool_call_args_json(args: str, head_chars: int = 200) -> str:
@@ -367,7 +376,8 @@ class HistoryContextService:
             last_failure_at = ctx.last_summary_failure_at if ctx else None
 
         last_id_set = set(last_ids)
-        if current_id_set == last_id_set and stored_summary:
+        # 已全部摘要过且无新增：直接复用（手动全量压缩后 working_history 可能为空）
+        if current_id_set <= last_id_set and stored_summary:
             return stored_summary
 
         if failure_count >= guard.anti_thrash_failure_threshold and last_failure_at:
@@ -385,9 +395,9 @@ class HistoryContextService:
         delta_ids = current_id_set - last_id_set
         summary_max_tokens = self.window_out_summary_config.summary_max_tokens
         summary_svc = ContextSummaryService()
-        use_incremental_summary = (
-            last_id_set <= current_id_set and bool(delta_ids) and bool(stored_summary)
-        )
+        # 手动全量压缩后 working_history 已不含旧 ids，last ⊆ current 不再成立；
+        # 只要有 prior + delta 就做增量 merge。
+        use_incremental_summary = bool(delta_ids) and bool(stored_summary)
         messages_to_summarize = out_of_window_messages
         if use_incremental_summary:
             messages_to_summarize = [
@@ -396,7 +406,7 @@ class HistoryContextService:
 
         try:
             summary_to_persist = await summary_svc.summarize_merge(
-                stored_summary,
+                stored_summary if use_incremental_summary else None,
                 messages_to_summarize,
                 max_tokens=summary_max_tokens,
             )
@@ -418,12 +428,112 @@ class HistoryContextService:
         with ConversationContextDbService() as ctx_svc:
             ctx_svc.reset_summary_failure_count(conversation_id)
 
+        # UNION：避免手动全量压缩后的 ids 被自动切窗覆盖成子集
+        union_ids = _union_summarized_ids(last_ids, current_ids)
         persisted = await _persist_window_out_summary(
             conversation_id=conversation_id,
             summary=summary_to_persist,
-            message_ids=current_ids,
+            message_ids=union_ids,
         )
         return persisted or summary_to_persist
+
+    def filter_summarized_history(
+        self,
+        conversation_id: str,
+        messages: list[ChatMessage],
+    ) -> list[ChatMessage]:
+        """排除已写入 last_summarized_message_ids 的消息，不再进入 LLM messages。"""
+        if not messages:
+            return messages
+        with ConversationContextDbService() as ctx_svc:
+            ctx = ctx_svc.get_conversation_context(conversation_id)
+            summarized_ids = (
+                set(ctx.last_summarized_message_ids or []) if ctx else set()
+            )
+        if not summarized_ids:
+            return messages
+        filtered = [msg for msg in messages if msg.id not in summarized_ids]
+        if len(filtered) != len(messages):
+            logger.info(
+                "Filtered summarized history messages",
+                conversation_id=conversation_id,
+                before=len(messages),
+                after=len(filtered),
+            )
+        return filtered
+
+    async def compact_full_conversation(
+        self,
+        conversation_id: str,
+        messages: list[ChatMessage],
+    ) -> ConversationCompressResponse:
+        """手动全量压缩会话问答，写入 summary_before_window 与 last_summarized ids。"""
+        if not messages:
+            raise ValueError("会话没有可压缩的消息")
+
+        current_ids = _truncated_set_ids(messages)
+        current_id_set = set(current_ids)
+        summary_svc = ContextSummaryService()
+        summary_max_tokens = self.window_out_summary_config.summary_max_tokens
+
+        with ConversationContextDbService() as ctx_svc:
+            ctx = ctx_svc.get_conversation_context(conversation_id)
+            stored_summary = (
+                (ctx.summary_before_window or "").strip() if ctx else ""
+            ) or None
+            last_ids: list[str] = (
+                list(ctx.last_summarized_message_ids or []) if ctx else []
+            )
+
+        last_id_set = set(last_ids)
+        source_text = summary_svc.format_conversation_for_summary(messages)
+        tokens_before = summary_svc.token_calculator.count_tokens(source_text)
+
+        # 已全量压缩过：幂等返回，不调 LLM
+        if current_id_set and current_id_set == last_id_set and stored_summary:
+            tokens_after = summary_svc.token_calculator.count_tokens(stored_summary)
+            return ConversationCompressResponse(
+                summary=stored_summary,
+                tokens_before=tokens_before,
+                tokens_after=tokens_after,
+                summarized_message_count=len(messages),
+            )
+
+        delta_ids = current_id_set - last_id_set
+        use_incremental = bool(stored_summary) and bool(delta_ids)
+        messages_to_summarize = messages
+        if use_incremental:
+            messages_to_summarize = [msg for msg in messages if msg.id in delta_ids]
+
+        summary_to_persist = await summary_svc.summarize_merge(
+            stored_summary if use_incremental else None,
+            messages_to_summarize,
+            max_tokens=summary_max_tokens,
+        )
+        if not summary_to_persist:
+            raise RuntimeError("会话压缩失败：摘要为空")
+
+        union_ids = _union_summarized_ids(last_ids, current_ids)
+        persisted = await _persist_window_out_summary(
+            conversation_id=conversation_id,
+            summary=summary_to_persist,
+            message_ids=union_ids,
+        )
+        final_summary = (persisted or summary_to_persist).strip()
+        tokens_after = summary_svc.token_calculator.count_tokens(final_summary)
+        logger.info(
+            "Full conversation compacted",
+            conversation_id=conversation_id,
+            message_count=len(messages),
+            tokens_before=tokens_before,
+            tokens_after=tokens_after,
+        )
+        return ConversationCompressResponse(
+            summary=final_summary,
+            tokens_before=tokens_before,
+            tokens_after=tokens_after,
+            summarized_message_count=len(messages),
+        )
 
     def split_by_remaining_budget(
         self,

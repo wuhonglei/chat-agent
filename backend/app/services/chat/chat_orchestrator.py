@@ -350,7 +350,12 @@ class ChatOrchestrator:
                                 conversation_id
                             )
                         )
-                        prepared_history_messages = history_messages_from_db
+                        prepared_history_messages = (
+                            self.history_context_service.filter_summarized_history(
+                                conversation_id,
+                                history_messages_from_db,
+                            )
+                        )
                         logger.info(
                             "Starting stream message generation",
                             conversation_id=conversation_id,
@@ -381,6 +386,10 @@ class ChatOrchestrator:
 
                         if chat_request.memories is not None:
                             user_memories = chat_request.memories
+                        elif chat_request.task_action is not None:
+                            # continue/summarize 用固定按钮文案，不是新查询；
+                            # 任务上下文已在历史中，跳过记忆检索避免噪声。
+                            user_memories = []
                         else:
                             user_memories = await memory_search(
                                 query=user_message_text,
@@ -534,12 +543,19 @@ class ChatOrchestrator:
                     )
 
                     assistant_response = self.collect_assistant_response()
+                    iteration_checkpoint = self.chat_session_agent.iteration_checkpoint
+                    persist_metadata: dict[str, Any] | None = None
+                    if iteration_checkpoint is not None:
+                        persist_metadata = {
+                            "iteration_checkpoint": iteration_checkpoint,
+                        }
                     assistant_updated_at = (
                         self.post_process_service.persist_final_assistant_message(
                             conversation_id=conversation_id,
                             user_message_id=user_message_id,
                             assistant_message_id=assistant_message_id,
                             assistant_response=assistant_response,
+                            extra_metadata=persist_metadata,
                         )
                     )
                     await invalidate_conversation_state(
@@ -604,7 +620,12 @@ class ChatOrchestrator:
                             assistant_response.content_blocks
                         ),
                         "updated_at": str(assistant_updated_at),
+                        "last_message_updated_at": str(assistant_updated_at),
                     }
+                    if iteration_checkpoint is not None:
+                        done_event_payload["iteration_checkpoint"] = (
+                            iteration_checkpoint
+                        )
                     logger.info(
                         "Sending done message",
                         **done_event_payload,

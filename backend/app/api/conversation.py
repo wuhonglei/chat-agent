@@ -11,9 +11,11 @@ from app.core.cache import (
     invalidate_conversation_list,
     invalidate_conversation_state,
 )
+from app.core.config import settings
 from app.core.db import get_db
 from app.schemas.auth import AuthTokenPayload
 from app.schemas.conversation import (
+    ConversationCompressResponse,
     ConversationInfo,
     ConversationListRequest,
     ConversationListResponse,
@@ -23,10 +25,14 @@ from app.schemas.conversation import (
     UpdateConversationRequest,
 )
 from app.schemas.response import ApiResponse
+from app.services.base_service.model_resolver import resolve_scenario
+from app.services.chat.history_context_service import HistoryContextService
 from app.services.conversation import ConversationDbService
+from app.services.message.message_db import MessageDbService
 from app.utils.auth_deps import get_auth_token_info
 from app.utils.cursor import InvalidCursorError
 from app.utils.logger import logger
+from app.utils.token import TokenCalculator
 from app.vfs.paths import get_paths
 
 router = APIRouter()
@@ -132,7 +138,9 @@ async def search_conversations(
 @router.get("/{conversation_id}/messages")
 async def get_messages(
     conversation_id: str,
-    full_content: bool = Query(False, description="返回完整的 tool_result content（eval 用）"),
+    full_content: bool = Query(
+        False, description="返回完整的 tool_result content（eval 用）"
+    ),
     db: Session = Depends(get_db),
     token_info: AuthTokenPayload = Depends(get_auth_token_info),
 ) -> ApiResponse[dict[str, Any]]:
@@ -170,6 +178,50 @@ async def get_conversation(
         service.conversation_to_dict(conversation)
     )
     return ApiResponse.success(data=conversation_info, msg="获取对话详情成功")
+
+
+@router.post("/{conversation_id}/compress")
+async def compress_conversation(
+    conversation_id: str,
+    db: Session = Depends(get_db),
+    token_info: AuthTokenPayload = Depends(get_auth_token_info),
+) -> ApiResponse[ConversationCompressResponse]:
+    """手动全量压缩会话历史，写入窗口外摘要供后续问答复用。"""
+    service = ConversationDbService(db)
+    conversation = service.get_conversation(conversation_id)
+    if not conversation or conversation.user_id != token_info.user_id:
+        return ApiResponse.error(code=404, msg="会话不存在")
+
+    message_service = MessageDbService(db)
+    if message_service.has_pending_messages(conversation_id):
+        return ApiResponse.error(code=409, msg="对话进行中，无法压缩")
+
+    messages = message_service.get_messages_by_conversation_id(conversation_id)
+    if not messages:
+        return ApiResponse.error(code=400, msg="会话没有可压缩的消息")
+
+    summarization_config = resolve_scenario("summarization")
+    history_svc = HistoryContextService(
+        chat_context_config=settings.chat_context,
+        token_calculator=TokenCalculator(
+            summarization_config.model_name,
+            summarization_config.context_limit,
+        ),
+    )
+    try:
+        result = await history_svc.compact_full_conversation(conversation_id, messages)
+    except ValueError as exc:
+        return ApiResponse.error(code=400, msg=str(exc))
+    except Exception as exc:
+        logger.error(
+            "Conversation compress failed",
+            conversation_id=conversation_id,
+            error=exc,
+            error_type=type(exc).__name__,
+        )
+        return ApiResponse.error(code=500, msg="会话压缩失败，请稍后重试")
+
+    return ApiResponse.success(data=result, msg="会话压缩成功")
 
 
 @router.put("/update/{conversation_id}")

@@ -79,6 +79,13 @@ export const updateConversationInfo = createAsyncThunk(
     return await conversationAPI.updateConversation(data.id, data);
   }
 );
+
+export const compressConversation = createAsyncThunk(
+  "conversation/compressConversation",
+  async (conversationId: string) => {
+    return await conversationAPI.compressConversation(conversationId);
+  }
+);
 // ==================== Slice ====================
 
 const findConversationIndexInListHelper = (state: ConversationState, conversationId: string): number => {

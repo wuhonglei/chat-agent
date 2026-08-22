@@ -48,6 +48,11 @@ export interface SearchSource {
   messageMetadata: SearchSourceMetaData;
 }
 
+export interface IterationCheckpoint {
+  iterationsUsed: number;
+  continueBudget: number;
+}
+
 export interface ChatMessage {
   id: string;
   role: RoleType;
@@ -55,7 +60,9 @@ export interface ChatMessage {
   createdAt: string;
   updatedAt: string;
   status: MessageStatus;
-  messageMetadata: Omit<ChatInputFormValues, "message">;
+  messageMetadata: Omit<ChatInputFormValues, "message"> & {
+    iterationCheckpoint?: IterationCheckpoint;
+  };
   replyTo: string; // role为assistant时，回复到哪个user消息
   feedback?: MessageFeedback;
 }
@@ -101,6 +108,8 @@ export interface ChatRequest extends ChatInputConfig {
   removedMessageIds: string[];
   /** 通过 @ 引用的历史/当前轮附件（不并入 content_blocks） */
   mentionedBlocks?: UserAttachmentBlock[];
+  /** Agent 模式触达轮次上限后的用户选择 */
+  taskAction?: "continue" | "summarize";
 }
 
 export interface ChatModelItem {
@@ -122,6 +131,8 @@ export interface SendMessageOptions {
   attachmentBlocks?: UserAttachmentBlock[];
   /** 通过 @ 引用的附件块，独立于本轮上传的 attachmentBlocks */
   mentionedBlocks?: UserAttachmentBlock[];
+  /** Agent 模式检查点后续跑 / 总结 */
+  taskAction?: "continue" | "summarize";
 }
 
 export type StreamResumePhase = "streaming" | "closed" | "done" | "error";

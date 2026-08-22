@@ -21,29 +21,45 @@ const ChatPage: React.FC = () => {
   const conversationInfo = useConversationInfo(urlConversationId);
   const conversationId = conversationInfo?.id || urlConversationId;
 
-  const { sendMessage, reSendMessage, abortMessage, deleteMessage, updateMessageFeedback } = useChatMessage({
-    conversationId,
-  });
+  const { sendMessage, reSendMessage, abortMessage, deleteMessage, updateMessageFeedback } =
+    useChatMessage({
+      conversationId,
+    });
   const { isStreaming, isLoading, messages } = useChatState(conversationId);
   const hasImageMessage = useHasImageMessage(messages);
   const isSmallScreen = useIsSmallScreen();
   const [form] = Form.useForm<ChatInputFormValues>();
-  const { previewBlock, previewPanelSize, handleOpenBlockPreview, handleCloseBlockPreview, handleSplitterResize } =
-    useBlockPreviewHandlers({ isSmallScreen });
-  const { handleEditMessage, handleReSend, handleAbortMessage, handleDeleteMessage, handleUpdateMessageFeedback } =
-    useChatMessageHandlers({
-      form,
-      conversationId,
-      sendMessage,
-      reSendMessage,
-      abortMessage,
-      deleteMessage,
-      updateMessageFeedback,
-    });
+  const {
+    previewBlock,
+    previewPanelSize,
+    handleOpenBlockPreview,
+    handleCloseBlockPreview,
+    handleSplitterResize,
+  } = useBlockPreviewHandlers({ isSmallScreen });
+  const {
+    handleEditMessage,
+    handleReSend,
+    handleAbortMessage,
+    handleDeleteMessage,
+    handleUpdateMessageFeedback,
+    handleContinueTask,
+    handleSummarizeTask,
+  } = useChatMessageHandlers({
+    form,
+    conversationId,
+    sendMessage,
+    reSendMessage,
+    abortMessage,
+    deleteMessage,
+    updateMessageFeedback,
+  });
 
   useCachedRequest(conversationId, conversationInfo);
 
-  const blockPreviewContextValue = useMemo(() => ({ openPreview: handleOpenBlockPreview }), [handleOpenBlockPreview]);
+  const blockPreviewContextValue = useMemo(
+    () => ({ openPreview: handleOpenBlockPreview }),
+    [handleOpenBlockPreview],
+  );
 
   return (
     <section className="h-full min-h-0">
@@ -61,7 +77,12 @@ const ChatPage: React.FC = () => {
             <section className="h-full min-h-0 flex flex-col">
               <TopHeader conversationInfo={conversationInfo} />
               <main className="flex-1 min-h-0 flex">
-                <div className={classNames("flex-1 min-w-0 flex flex-col h-full bg-white", styles.container)}>
+                <div
+                  className={classNames(
+                    "flex-1 min-w-0 flex flex-col h-full bg-white",
+                    styles.container,
+                  )}
+                >
                   {/* 渲染消息列表 */}
                   <ChatMessageList
                     isLoading={isLoading}
@@ -73,6 +94,8 @@ const ChatPage: React.FC = () => {
                     onPreviewBlock={handleOpenBlockPreview}
                     className={styles["markdown-container"]}
                     onUpdateMessageFeedback={handleUpdateMessageFeedback}
+                    onContinueTask={handleContinueTask}
+                    onSummarizeTask={handleSummarizeTask}
                   />
                   {/* Input area */}
                   <ChatInput
@@ -84,7 +107,9 @@ const ChatPage: React.FC = () => {
                     onStop={handleAbortMessage}
                     className={styles["input-container"]}
                   />
-                  <div className="mx-auto py-1 md:py-1.5 text-black-quaternary text-xs">内容由 AI 生成，请仔细甄别</div>
+                  <div className="mx-auto py-1 md:py-1.5 text-black-quaternary text-xs">
+                    内容由 AI 生成，请仔细甄别
+                  </div>
                 </div>
               </main>
             </section>
@@ -97,7 +122,11 @@ const ChatPage: React.FC = () => {
             size={previewBlock ? previewPanelSize : 0}
           >
             {previewBlock ? (
-              <BlockPreviewPanel width={previewPanelSize} block={previewBlock} onClose={handleCloseBlockPreview} />
+              <BlockPreviewPanel
+                width={previewPanelSize}
+                block={previewBlock}
+                onClose={handleCloseBlockPreview}
+              />
             ) : null}
           </Splitter.Panel>
         </Splitter>

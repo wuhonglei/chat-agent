@@ -120,6 +120,14 @@ class ChatRequest(BaseModel):
         False, description="Whether to regenerate title"
     )
     agent_mode: int = Field(0, description="Agent mode: 0=disabled, 1=enabled")
+    task_action: Literal["continue", "summarize"] | None = Field(
+        default=None,
+        description=(
+            "Agent 模式触达轮次上限后的用户选择："
+            "continue=追加续跑预算；summarize=基于已有内容总结；"
+            "普通模式忽略"
+        ),
+    )
     think_mode: bool = Field(False, description="Whether to use think mode")
     model_id: str = Field(
         default="",

@@ -114,6 +114,33 @@ class MessageDbService(DbService):
 
         return chat_messages
 
+    def get_messages_by_conversation_id(
+        self, conversation_id: str
+    ) -> list[ChatMessage]:
+        """按创建时间正序获取会话全部消息。"""
+        db = self._ensure_db()
+        created_at_column = cast(Any, MessageDb.created_at)
+        messages = db.exec(
+            select(MessageDb)
+            .where(MessageDb.conversation_id == conversation_id)
+            .order_by(created_at_column.asc())
+        ).all()
+        return [
+            ChatMessage.model_validate(message.model_dump(mode="json"))
+            for message in messages
+        ]
+
+    def has_pending_messages(self, conversation_id: str) -> bool:
+        """会话是否存在进行中的助手消息。"""
+        db = self._ensure_db()
+        pending = db.exec(
+            select(MessageDb.id)
+            .where(MessageDb.conversation_id == conversation_id)
+            .where(MessageDb.status == MessageStatus.PENDING.value)
+            .limit(1)
+        ).first()
+        return pending is not None
+
     def _touch_conversation(
         self,
         conversation: ConversationDb,

@@ -8,7 +8,8 @@ import { Bubble } from "@ant-design/x";
 import React from "react";
 import AssistantOperation from "../components/AssistantOperation";
 import ContentBlocksRender from "./ContentBlocksRender";
-import { useAssistantCanDelete } from "./hooks";
+import { useAssistantCanDelete, useIterationCheckpointActions } from "./hooks";
+import IterationCheckpointActions from "./ContentBlocksRender/IterationCheckpointActions";
 
 interface AssistantMessageProps {
   message: ChatMessageType;
@@ -18,6 +19,8 @@ interface AssistantMessageProps {
   onReSend: () => void;
   onDeleteMessage: () => void | Promise<void>;
   onUpdateMessageFeedback: (value: MessageFeedbackValue, details?: MessageFeedbackDetails) => Promise<void>;
+  onContinueTask?: () => void;
+  onSummarizeTask?: () => void;
 }
 
 const AssistantMessage: React.FC<AssistantMessageProps> = ({
@@ -28,11 +31,21 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
   onReSend,
   onDeleteMessage,
   onUpdateMessageFeedback,
+  onContinueTask,
+  onSummarizeTask,
 }) => {
   const canDelete = useAssistantCanDelete({
     isLastMessage,
     isStreaming,
     contentBlocks: message.contentBlocks,
+  });
+  const checkpointActions = useIterationCheckpointActions({
+    checkpoint: message.messageMetadata?.iterationCheckpoint,
+    isLastMessage,
+    isStreaming,
+    messageStatus: message.status,
+    onContinue: onContinueTask,
+    onSummarize: onSummarizeTask,
   });
 
   return (
@@ -47,6 +60,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
         <>
           <ContentBlocksRender contentBlocks={message.contentBlocks} isStreaming={isStreaming} />
           {message.status === MessageStatus.Stopped && <div className="text-gray-400 text-sm mt-2">Output Stopped</div>}
+          {checkpointActions ? <IterationCheckpointActions {...checkpointActions} /> : null}
         </>
       )}
       footer={

@@ -13,6 +13,8 @@ class MCPToolSession:
 
     MAX_TOTAL_ITERATIONS = 10
     AGENT_MODE_MAX_ITERATIONS = 90
+    # Agent 模式触达上限后续跑的单 turn 预算
+    CONTINUE_BUDGET_ITERATIONS = 50
 
     def __init__(
         self,
@@ -56,13 +58,11 @@ class MCPToolSession:
     def drain_pending_guardrail_warns(self) -> list[str]:
         return self.executor.guardrail.drain_pending_warns()
 
-    def refresh_iteration_hints_after_tools(self, completed_iteration: int) -> None:
+    def refresh_iteration_hints_after_tools(self) -> None:
         """工具批次完成后入队 hints（仅 agent_mode==0）；供下一轮尾部 drain。"""
         if self._agent_mode != 0:
             return
-        self.policy.queue_iteration_hints_after_tools(
-            next_iteration=completed_iteration + 1
-        )
+        self.policy.queue_iteration_hints_after_tools()
 
     async def execute_tool_calls_parallel(
         self,
@@ -75,7 +75,7 @@ class MCPToolSession:
             extracted_urls=self.policy.extracted_urls,
             on_arguments_recorded=self.policy.record_tool_arguments,
         )
-        self.refresh_iteration_hints_after_tools(current_iteration)
+        self.refresh_iteration_hints_after_tools()
         return results
 
     def build_tool_use_message(

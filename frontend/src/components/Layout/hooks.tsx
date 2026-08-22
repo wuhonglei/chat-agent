@@ -1,15 +1,23 @@
 import { EventType, useEmitter } from "@/events";
 import { useIsSmallScreen } from "@/hooks";
-import { ConversationInfo, ConversationListResponse, EditConversationInfo, TitleCreatedBy } from "@/interfaces";
+import {
+  ConversationCompressResponse,
+  ConversationInfo,
+  ConversationListResponse,
+  EditConversationInfo,
+  MessageStatus,
+  TitleCreatedBy,
+} from "@/interfaces";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   clearCurrentConversion,
+  compressConversation,
   deleteConversation,
   loadConversations,
   setConversationInfoById,
   updateConversationInfo,
 } from "@/store/slices/conversationSlice";
-import { CommentOutlined, DeleteOutlined, EditOutlined } from "@ant-design/icons";
+import { CommentOutlined, CompressOutlined, DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { ConversationItemType, ConversationsProps } from "@ant-design/x";
 import { useClickAway, useInfiniteScroll, useMemoizedFn } from "ahooks";
 import type { MenuProps } from "antd";
@@ -24,35 +32,65 @@ const getConversationGroup = (lastMessageCreatedAt: string) => {
   return dateGroups.find(group => lastMessageDayjs.isSameOrAfter(group.value))?.label ?? "更早";
 };
 
-export function useConversionsProps(onDelete: (id: string) => void, onRename: (info: EditConversationInfo) => void) {
-  const { conversations } = useAppSelector(state => state.conversation);
+function useConversationBusyMap() {
+  const chatStateMap = useAppSelector(state => state.chat);
+  return useMemo(() => {
+    const busy: Record<string, boolean> = {};
+    for (const [id, chatState] of Object.entries(chatStateMap)) {
+      const hasPending = chatState.messages.some(msg => msg.status === MessageStatus.Pending);
+      busy[id] = chatState.isStreaming || hasPending;
+    }
+    return busy;
+  }, [chatStateMap]);
+}
 
-  const menu: ConversationsProps["menu"] = useMemoizedFn((conversation: ConversationItemType) => ({
-    items: [
-      {
-        label: "重命名",
-        key: "rename",
-        icon: <EditOutlined />,
+export function useConversionsProps(
+  onDelete: (id: string) => void,
+  onRename: (info: EditConversationInfo) => void,
+  onCompress: (id: string) => void
+) {
+  const busyMap = useConversationBusyMap();
+
+  const menu: ConversationsProps["menu"] = useMemoizedFn((conversation: ConversationItemType) => {
+    const conversationId = conversation.id as string;
+    const isBusy = Boolean(busyMap[conversationId]);
+    return {
+      items: [
+        {
+          label: "重命名",
+          key: "rename",
+          icon: <EditOutlined />,
+        },
+        {
+          label: "会话压缩",
+          key: "compress",
+          icon: <CompressOutlined />,
+          disabled: isBusy,
+        },
+        {
+          label: "删除",
+          key: "delete",
+          danger: true,
+          icon: <DeleteOutlined />,
+        },
+      ],
+      onClick: (menuInfo: Parameters<NonNullable<MenuProps["onClick"]>>[0]) => {
+        menuInfo.domEvent.stopPropagation();
+        if (menuInfo.key === "rename") {
+          onRename({
+            id: conversationId,
+            title: conversation.label as string,
+          });
+        } else if (menuInfo.key === "compress") {
+          onCompress(conversationId);
+        } else if (menuInfo.key === "delete") {
+          onDelete(conversationId);
+        }
       },
-      {
-        label: "删除",
-        key: "delete",
-        danger: true,
-        icon: <DeleteOutlined />,
-      },
-    ],
-    onClick: (menuInfo: Parameters<NonNullable<MenuProps["onClick"]>>[0]) => {
-      menuInfo.domEvent.stopPropagation();
-      if (menuInfo.key === "rename") {
-        onRename({
-          id: conversation.id as string,
-          title: conversation.label as string,
-        });
-      } else if (menuInfo.key === "delete") {
-        onDelete(conversation.id!);
-      }
-    },
-  }));
+    };
+  });
+
+  const { conversations } = useAppSelector(state => state.conversation);
 
   const items = useMemo(() => {
     const items: ConversationItemType[] = conversations.map(conversation => ({
@@ -184,6 +222,7 @@ export function useSidebarContent() {
   const dispatch = useAppDispatch();
 
   const [editConversionInfo, setEditConversionInfo] = useState<EditConversationInfo | null>(null);
+  const [compressResult, setCompressResult] = useState<ConversationCompressResponse | null>(null);
 
   const onDeleteConversation = useMemoizedFn(async (id: string) => {
     modal.confirm({
@@ -199,7 +238,25 @@ export function useSidebarContent() {
     });
   });
 
-  const { items, menu, groupable } = useConversionsProps(onDeleteConversation, setEditConversionInfo);
+  const onCompressConversation = useMemoizedFn((id: string) => {
+    modal.confirm({
+      centered: true,
+      title: "压缩该会话？",
+      content: "将把历史问答压缩为摘要供后续模型调用。聊天记录仍会保留在界面中。",
+      okText: "开始压缩",
+      onOk: async () => {
+        const result = await dispatch(compressConversation(id)).unwrap();
+        setCompressResult(result);
+        message.success("压缩成功");
+      },
+    });
+  });
+
+  const { items, menu, groupable } = useConversionsProps(
+    onDeleteConversation,
+    setEditConversionInfo,
+    onCompressConversation
+  );
 
   const handleMenuClick = useMemoizedFn((pathname: string) => {
     if (location.pathname === pathname) return;
@@ -219,6 +276,8 @@ export function useSidebarContent() {
     activeKey: location.pathname,
     editConversionInfo,
     setEditConversionInfo,
+    compressResult,
+    setCompressResult,
     handleMenuClick,
     handleEditConversationTitle,
   };

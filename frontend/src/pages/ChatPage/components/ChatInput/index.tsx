@@ -62,7 +62,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const modelId = Form.useWatch(names.modelId, form);
   const { messages } = useChatState(conversationId ?? "");
   const [attachmentItems, setAttachmentItems] = React.useState<GetProp<AttachmentsProps, "items">>(
-    []
+    [],
   );
   const senderRef = React.useRef<GetRef<typeof Sender>>(null);
   const attachmentsRef = React.useRef<GetRef<typeof Attachments>>(null);
@@ -86,11 +86,11 @@ const ChatInput: React.FC<ChatInputProps> = ({
       if (ignoreAttachmentChangeRef.current) {
         return;
       }
-      const normalizedFileList = fileList.map(file =>
-        withServerAttachmentPreview(file as UploadFile<UserAttachmentBlock>)
+      const normalizedFileList = fileList.map((file) =>
+        withServerAttachmentPreview(file as UploadFile<UserAttachmentBlock>),
       );
       setAttachmentItems(sortAttachmentsByImageFirst(normalizedFileList));
-    }
+    },
   );
 
   const resetAttachments = useMemoizedFn(() => {
@@ -123,7 +123,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
       }
       form.setFieldValue(names.agentMode, lockedAgentMode);
       message.warning("首条消息发送后不可切换 Agent 模式");
-    }
+    },
   );
 
   const handleSend = useMemoizedFn(() => {
@@ -145,7 +145,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
       {
         attachmentBlocks,
         mentionedBlocks: mentionedBlocks.length > 0 ? mentionedBlocks : undefined,
-      }
+      },
     );
     senderRef.current?.clear();
     form.resetFields([names.content]);

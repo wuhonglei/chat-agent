@@ -21,6 +21,9 @@ from app.agents.utils.tool_call_stream import (
 from app.core.config import settings
 from app.mcp.client import MCPClientManager
 from app.prompts.prompt_utils import (
+    get_continue_task_notice,
+    get_iteration_checkpoint_notice,
+    get_summarize_task_notice,
     get_system_prompt_for_chat_session,
     get_user_message_for_tool_calls,
 )
@@ -105,10 +108,32 @@ class ChatSessionAgent(BaseAgent):
     def reasoning(self) -> str:
         return self.session_output.reasoning
 
+    @property
+    def iteration_checkpoint(self) -> dict[str, int] | None:
+        return self.session_output.iteration_checkpoint
+
     def format_sse_message(  # type: ignore[override]
         self, msg_type: str, data: dict[str, Any] | None = None
     ) -> str:
         return super().format_sse_message(msg_type, data)
+
+    @staticmethod
+    def resolve_max_tool_iterations(
+        *,
+        agent_mode: int,
+        task_action: str | None,
+    ) -> int:
+        """解析本 turn 工具轮次预算。
+
+        - agent_mode==0：固定 10（忽略 task_action）
+        - agent_mode>0 + continue：50
+        - agent_mode>0 其它：90
+        """
+        if agent_mode <= 0:
+            return MCPToolSession.MAX_TOTAL_ITERATIONS
+        if task_action == "continue":
+            return MCPToolSession.CONTINUE_BUDGET_ITERATIONS
+        return MCPToolSession.AGENT_MODE_MAX_ITERATIONS
 
     async def stream_session_events(
         self,
@@ -204,12 +229,34 @@ class ChatSessionAgent(BaseAgent):
                 yield sse
             return
 
+        # Agent 模式：用户选择「到此为止」→ 跳过工具循环，基于已有内容总结
+        if chat_request.agent_mode > 0 and chat_request.task_action == "summarize":
+            action, base_prompt_messages = await self.unified_context_guard(
+                base_prompt_messages=base_prompt_messages,
+                conversation_id=conversation_id,
+                allow_stop_tools=False,
+            )
+            async for sse in self._stream_final_round_events(
+                messages=base_prompt_messages,
+                tool_session=tool_session,
+                iteration=0,
+                extra_notice=get_summarize_task_notice(),
+                extra_plugin="summarize_task",
+            ):
+                yield sse
+            return
+
         tools_list = list(tools)
-        max_total_iterations = (
-            tool_session.AGENT_MODE_MAX_ITERATIONS
-            if chat_request.agent_mode > 0
-            else tool_session.MAX_TOTAL_ITERATIONS
+        max_total_iterations = self.resolve_max_tool_iterations(
+            agent_mode=chat_request.agent_mode,
+            task_action=chat_request.task_action,
         )
+        continue_extra_notice: str | None = None
+        continue_extra_plugin = "continue_task"
+        if chat_request.agent_mode > 0 and chat_request.task_action == "continue":
+            continue_extra_notice = get_continue_task_notice(
+                continue_budget=max_total_iterations,
+            )
 
         for iteration in range(max_total_iterations):
             action, base_prompt_messages = await self.unified_context_guard(
@@ -235,7 +282,12 @@ class ChatSessionAgent(BaseAgent):
             trailing_user = build_trailing_hint_user_message(
                 iteration_hints=iteration_hints,
                 guardrail_warns=tool_session.drain_pending_guardrail_warns(),
+                extra_notice=continue_extra_notice if iteration == 0 else None,
+                extra_plugin=continue_extra_plugin,
             )
+            # 续跑 notice 仅注入第一轮
+            if iteration == 0:
+                continue_extra_notice = None
             round_prompt_messages = self._build_round_prompt_messages(
                 base_prompt_messages,
                 trailing_user=trailing_user,
@@ -274,14 +326,37 @@ class ChatSessionAgent(BaseAgent):
                     yield sse
                 return
 
-        logger.info(
-            "Chat session max tool iterations reached, forcing final answer",
-            max_iterations=max_total_iterations,
-        )
+        # 触达轮次上限
         action, base_prompt_messages = await self.unified_context_guard(
             base_prompt_messages=base_prompt_messages,
             conversation_id=conversation_id,
             allow_stop_tools=False,
+        )
+        if chat_request.agent_mode > 0:
+            logger.info(
+                "Chat session max tool iterations reached, "
+                "entering iteration checkpoint",
+                max_iterations=max_total_iterations,
+            )
+            self.session_output.iteration_checkpoint = {
+                "iterations_used": max_total_iterations,
+                "continue_budget": MCPToolSession.CONTINUE_BUDGET_ITERATIONS,
+            }
+            async for sse in self._stream_final_round_events(
+                messages=base_prompt_messages,
+                tool_session=tool_session,
+                iteration=max_total_iterations,
+                extra_notice=get_iteration_checkpoint_notice(
+                    iterations_used=max_total_iterations,
+                ),
+                extra_plugin="iteration_checkpoint",
+            ):
+                yield sse
+            return
+
+        logger.info(
+            "Chat session max tool iterations reached, forcing final answer",
+            max_iterations=max_total_iterations,
         )
         async for sse in self._stream_final_round_events(
             messages=base_prompt_messages,
@@ -522,12 +597,17 @@ class ChatSessionAgent(BaseAgent):
         tool_session: MCPToolSession,
         iteration: int,
         final_user_message: str | None = None,
+        extra_notice: str | None = None,
+        extra_plugin: str = "iteration_checkpoint",
     ) -> AsyncGenerator[str, None]:
         if final_user_message is not None:
             update_last_user_message(messages, new_content=final_user_message)
+        # hints/warns 只服务下一轮工具循环；final 轮空 tools，带上会与终答/检查点指令冲突
+        tool_session.drain_pending_iteration_hints()
+        tool_session.drain_pending_guardrail_warns()
         trailing_user = build_trailing_hint_user_message(
-            iteration_hints=tool_session.drain_pending_iteration_hints(),
-            guardrail_warns=tool_session.drain_pending_guardrail_warns(),
+            extra_notice=extra_notice,
+            extra_plugin=extra_plugin,
         )
         round_state = self.state_machine.start_round()
         async for sse in self._stream_tool_round_events(

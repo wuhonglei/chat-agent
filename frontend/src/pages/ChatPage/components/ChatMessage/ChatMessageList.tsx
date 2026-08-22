@@ -22,6 +22,8 @@ interface ChatMessageListProps {
   ) => Promise<void>;
   onReSend: (index: number, message: ChatMessageType) => void;
   onPreviewBlock: (block: PreviewableBlock) => void;
+  onContinueTask?: () => void;
+  onSummarizeTask?: () => void;
 }
 
 const ChatMessageList: React.FC<ChatMessageListProps> = ({
@@ -34,6 +36,8 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
   onUpdateMessageFeedback,
   onReSend,
   onPreviewBlock,
+  onContinueTask,
+  onSummarizeTask,
 }) => {
   const { messages } = useChatState(conversationId);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -55,6 +59,8 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
           onEditMessage={onEditMessage}
           onDeleteMessage={onDeleteMessage}
           onUpdateMessageFeedback={onUpdateMessageFeedback}
+          onContinueTask={onContinueTask}
+          onSummarizeTask={onSummarizeTask}
           isLastMessage={index === messages.length - 1}
           isLoading={isLoading && index === messages.length - 1}
           isStreaming={isStreaming && index === messages.length - 1}
