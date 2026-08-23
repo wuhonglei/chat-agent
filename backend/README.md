@@ -7,7 +7,7 @@
 - 聊天流式接口：`POST /api/chat/stream`
 - 聊天续流接口：`POST /api/chat/stream/resume`
 - 聊天模型列表：`GET /api/chat/models`
-- 会话管理：创建 / 列表 / 详情 / 更新 / 删除
+- 会话管理：创建 / 激活草稿 / 列表 / 详情 / 更新 / 删除 / 手动压缩
 - 用户认证：短信登录、微信登录、JWT 鉴权
 - MCP 工具：Context7、天气、联网搜索、代码执行、时间
 - 用户能力：用户信息、用户记忆、头像上传
@@ -261,7 +261,7 @@ Last-Event-ID: 12
 - `refresh_conversation`：会话元信息更新
 - `title`：会话标题生成完成
 - `content_block`：内容块流式增量（`append` / `delta` / `tool_delta` / `finalize_round` / `done`）
-- `done`：本轮结束（包含内容长度、推理长度、工具调用次数、更新时间）
+- `done`：本轮结束（内容长度、推理长度、工具调用次数、更新时间；Agent 触达轮次上限时含 `iteration_checkpoint`）
 - `error`：本轮失败
 
 续流缓冲与 `client_turn_id` 幂等缓存均存储在 Redis，可跨 worker 共享；依赖 Redis TTL（活跃默认 2h，close 后默认 30min）。多 worker 部署需保证 Redis 可达。`stop` 通过 Redis meta `status=stopped` 跨 worker 生效（同 worker 仍有本地 task cancel 快路径）。
