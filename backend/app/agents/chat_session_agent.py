@@ -89,9 +89,6 @@ class ChatSessionAgent(BaseAgent):
         self._user_message_text: str = ""
         self._tool_guided_user_message: str = ""
         self._user_message_content: str | list[dict[str, Any]] = ""
-        self._kb_context_blocks: list[KbContextBlock] | None = None
-        self._user_memories: list[MemorySearchItem] = []
-        self._attachment_uploads: list[AttachmentUploadInfo] | None = None
         self._turn_datetime: str | None = None
         self._conversation_id: str | None = None
 
@@ -184,9 +181,6 @@ class ChatSessionAgent(BaseAgent):
         self._user_message_text = extract_user_text_with_attachment_placeholder(
             chat_request.content_blocks
         )
-        self._kb_context_blocks = kb_context_blocks
-        self._user_memories = user_memories
-        self._attachment_uploads = attachment_uploads
         self._working_history = list(history_messages)
         self._turn_datetime = get_current_datetime_str()
         self._conversation_id = conversation_id
