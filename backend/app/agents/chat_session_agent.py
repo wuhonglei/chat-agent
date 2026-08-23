@@ -154,6 +154,7 @@ class ChatSessionAgent(BaseAgent):
         user_id: str,
         kb_context_blocks: list[KbContextBlock] | None = None,
         attachment_uploads: list[AttachmentUploadInfo] | None = None,
+        current_datetime: str | None = None,
     ) -> AsyncGenerator[str, None]:
         self.think_mode = chat_request.think_mode
         self.session_output.reset()

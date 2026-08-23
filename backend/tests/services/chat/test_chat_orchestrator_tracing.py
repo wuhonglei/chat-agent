@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncGenerator
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
@@ -21,6 +21,7 @@ from pydantic import BaseModel
 from app.schemas.chat import ChatRequest, MessageStatus, TextBlock
 from app.services.chat import chat_orchestrator as orchestrator_module
 from app.services.chat.chat_orchestrator import ChatOrchestrator
+from app.utils.date import get_current_datetime_str
 
 
 class _Conv(BaseModel):
@@ -28,10 +29,14 @@ class _Conv(BaseModel):
     user_id: str = "user-1"
 
 
+_USER_CREATED_AT = datetime(2026, 8, 23, 5, 30, 0, tzinfo=timezone.utc)
+
+
 class _Msg(BaseModel):
     id: str
     role: str
     status: str = "pending"
+    created_at: datetime = _USER_CREATED_AT
 
 
 class _FakeAgent:
@@ -50,6 +55,7 @@ class _FakeAgent:
         return None
 
     async def stream_session_events(self, **kwargs: Any) -> AsyncGenerator[str, None]:
+        self.last_stream_kwargs = kwargs
         if self._raise_in_stream:
             raise RuntimeError("llm boom")
         yield "data: chunk\n\n"
@@ -184,3 +190,27 @@ async def test_stream_success_emits_done(
         if call.kwargs.get("status") == MessageStatus.FAILED
     ]
     assert not failed_calls
+
+
+@pytest.mark.asyncio
+async def test_stream_passes_user_message_created_at_as_current_datetime(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """编排层用 user_message.created_at 冻结 <current_datetime>，不取流式开始时刻。"""
+    _patch_common(monkeypatch)
+    orch, _ = _build_orchestrator(raise_in_stream=False)
+
+    async for _ in orch.run_chat_turn(
+        chat_request=_chat_request(),
+        user_message_id="u-1",
+        assistant_message_id="a-1",
+        user_id="user-1",
+        memory_search=AsyncMock(return_value=[]),
+    ):
+        pass
+
+    fake_agent = orch.chat_session_agent
+    assert isinstance(fake_agent, _FakeAgent)
+    assert fake_agent.last_stream_kwargs["current_datetime"] == get_current_datetime_str(
+        _USER_CREATED_AT
+    )

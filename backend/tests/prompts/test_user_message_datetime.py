@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from app.prompts.prompt_utils import get_user_message_for_tool_calls
+from app.utils.date import get_current_datetime_str
 
 
 def test_get_user_message_for_tool_calls_uses_passed_datetime() -> None:
