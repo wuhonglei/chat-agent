@@ -45,6 +45,7 @@ from app.services.chat.history_context_service import HistoryContextService
 from app.services.chat.kb_rag_context_service import KbRagContextService
 from app.services.chat.post_process_service import PostProcessService
 from app.services.message import MessageDbService
+from app.utils.date import get_current_datetime_str
 from app.utils.logger import logger
 from app.utils.multimodal import (
     build_attachment_uploads,
@@ -165,6 +166,7 @@ class ChatOrchestrator:
         history_summary_before_window: str | None,
         history_messages: list[ChatMessage],
         user_id: str,
+        current_datetime: str,
         user_memories: list[MemorySearchItem] | None = None,
         kb_context_blocks: list[KbContextBlock] | None = None,
         attachment_uploads: list[AttachmentUploadInfo] | None = None,
@@ -190,6 +192,7 @@ class ChatOrchestrator:
                 user_id=user_id,
                 kb_context_blocks=kb_context_blocks,
                 attachment_uploads=attachment_uploads,
+                current_datetime=current_datetime,
             ):
                 yield event
             session_duration = get_time_duration(session_start_time)
@@ -325,6 +328,9 @@ class ChatOrchestrator:
                             conversation_id, user_message_id, assistant_message_id
                         )
                     )
+                    # 用 user 消息落库时间冻结 <current_datetime>，避免记忆检索 /
+                    # RAG 等中间步骤把提示词时间相对用户发送时刻往后推。
+                    turn_datetime = get_current_datetime_str(user_message.created_at)
                     logger.debug(
                         "Retrieved conversation and messages",
                         conversation_id=conversation_id,
@@ -456,6 +462,7 @@ class ChatOrchestrator:
                                 user_memories=user_memories,
                                 kb_context_blocks=kb_context_blocks,
                                 attachment_uploads=attachment_uploads,
+                                current_datetime=turn_datetime,
                             ),
                             title_task,
                             conversation_id=conversation_id,
