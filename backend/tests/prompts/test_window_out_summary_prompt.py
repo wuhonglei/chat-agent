@@ -13,7 +13,6 @@ from app.prompts.prompt_utils import (
 from app.schemas.chat import ChatMessage, TextBlock, ToolResultBlock, ToolUseBlock
 from app.services.conversation.context_summary_service import ContextSummaryService
 
-
 REQUIRED_SECTIONS = (
     "## 用户核心需求",
     "## 活跃任务",
@@ -80,11 +79,31 @@ def test_window_out_summary_omitted_from_system_when_empty() -> None:
     assert "<conversation_summary>" not in prompt
 
 
+def test_window_out_summary_is_escaped_in_system_prompt() -> None:
+    prompt = get_system_prompt_for_chat_session(
+        agent_mode=0,
+        window_out_summary="<script>alert(1)</script>",
+    )
+    assert "&lt;script&gt;" in prompt
+    assert "<script>" not in prompt
+
+
 def test_window_out_summary_not_injected_into_user_message() -> None:
     text = get_user_message_for_tool_calls("当前问题")
     assert "<conversation_summary>" not in text
     assert "<window_out_summary>" not in text
     assert "较早轮次的摘要" not in text
+
+
+def test_window_out_summary_coexists_with_skill_system() -> None:
+    prompt = get_system_prompt_for_chat_session(
+        agent_mode=1,
+        skill_manifests=[],
+        window_out_summary="旧摘要",
+    )
+    assert "<conversation_summary>" in prompt
+    assert "旧摘要" in prompt
+    assert "<skill_system>" in prompt
 
 
 @patch(
