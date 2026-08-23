@@ -92,7 +92,8 @@ def get_user_message_for_tool_calls(
     以及可选 created_at（与 user_prompt 模板一致）。
     attachment_uploads: 可选，agent_mode 下注入的上传文件清单，
     由模型用文件工具按需读取。
-    current_datetime: 可选，turn 级冻结的时间字符串；缺省才实时取。
+    current_datetime: 可选，turn 级冻结的时间字符串（通常为 user 消息
+        created_at）；缺省才实时取。
     """
     return user_message_for_tool_call_template.render(
         user_message_text=user_message_text,
