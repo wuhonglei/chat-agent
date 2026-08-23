@@ -547,39 +547,10 @@ def test_build_round_prompt_messages_appends_trailing_user_only() -> None:
 
 
 @pytest.mark.asyncio
-async def test_unified_context_guard_reuses_turn_datetime(
+async def test_unified_context_guard_injects_summary_into_system_prompt(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Step 3 重建 user 时复用 turn 级 datetime，不重新取当前时间。"""
-    from app.prompts import prompt_utils
-
-    calls: list[str | None] = []
-    original = prompt_utils.get_user_message_for_tool_calls
-
-    def _tracking(
-        user_message_text: str,
-        kb_context_blocks=None,
-        user_memories=None,
-        window_out_summary=None,
-        attachment_uploads=None,
-        current_datetime=None,
-    ) -> str:
-        calls.append(current_datetime)
-        return original(
-            user_message_text,
-            kb_context_blocks=kb_context_blocks,
-            user_memories=user_memories,
-            window_out_summary=window_out_summary,
-            attachment_uploads=attachment_uploads,
-            current_datetime=current_datetime,
-        )
-
-    monkeypatch.setattr(prompt_utils, "get_user_message_for_tool_calls", _tracking)
-    monkeypatch.setattr(
-        "app.agents.chat_session_agent.get_user_message_for_tool_calls",
-        _tracking,
-    )
-
+    """Step 3 生成摘要后写入 system prompt，不改写当前 user message。"""
     guard = UnifiedContextGuardConfig(
         buffer_tokens=50,
         max_output_tokens=50,
@@ -597,7 +568,6 @@ async def test_unified_context_guard_reuses_turn_datetime(
     history_svc.generate_window_out_summary = _fake_summary  # type: ignore[method-assign]
     history_svc.compress_history_tool_results = lambda h: h  # type: ignore[method-assign]
 
-    # Force split to produce out_of_window
     def _split(history: list[ChatMessage], remaining: int) -> tuple[list, list]:
         if len(history) >= 2:
             return history[-1:], history[:-1]
@@ -615,11 +585,7 @@ async def test_unified_context_guard_reuses_turn_datetime(
     agent._system_prompt = "sys"
     agent._user_message_text = "hello"
     agent._user_message_content = "hello"
-    agent._turn_datetime = "2026-08-21 12:00:00"
     agent._window_out_summary = None
-    agent._kb_context_blocks = None
-    agent._user_memories = []
-    agent._attachment_uploads = None
     agent._working_history = [
         ChatMessage(
             id="u0",
@@ -643,7 +609,6 @@ async def test_unified_context_guard_reuses_turn_datetime(
             status="done",
         ),
     ]
-    # Make token count appear over threshold so Step 3 runs
     monkeypatch.setattr(
         agent.token_calculator,
         "count_messages_tokens",
@@ -658,10 +623,18 @@ async def test_unified_context_guard_reuses_turn_datetime(
     base = agent._compose_messages(
         agent._system_prompt, agent._working_history, agent._user_message_content, []
     )
-    await agent.unified_context_guard(
+    _, out = await agent.unified_context_guard(
         base_prompt_messages=base,
         conversation_id="conv",
         allow_stop_tools=True,
     )
-    assert calls
-    assert all(dt == "2026-08-21 12:00:00" for dt in calls)
+    assert agent._window_out_summary == "summary"
+    assert "<conversation_summary>" in agent._system_prompt
+    assert "summary" in agent._system_prompt
+    assert agent._user_message_content == "hello"
+    system_msg = next(m for m in out if m.get("role") == "system")
+    assert "较早轮次的摘要" in system_msg["content"]
+    assert "summary" in system_msg["content"]
+    user_contents = [str(m.get("content")) for m in out if m.get("role") == "user"]
+    assert all("<conversation_summary>" not in c for c in user_contents)
+    assert all("<window_out_summary>" not in c for c in user_contents)

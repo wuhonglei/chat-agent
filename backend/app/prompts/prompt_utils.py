@@ -52,8 +52,9 @@ def get_system_prompt_for_chat_session(
     *,
     agent_mode: int = 0,
     skill_manifests: Sequence[AgentSkillManifest] | None = None,
+    window_out_summary: str | None = None,
 ) -> str:
-    """Get system prompt for final response generation."""
+    """Get system prompt for chat session, optionally with window-out summary."""
     manifests = list(skill_manifests or [])
     extra: dict[str, Any] = (
         dict(_get_agent_mode_prompt_context()) if agent_mode > 0 else {}
@@ -64,9 +65,11 @@ def get_system_prompt_for_chat_session(
         )
         extra["present_files_tool_name"] = PRESENT_FILES_LLM
         extra["skill_catalog_lines"] = format_catalog_entries(manifests)
+    summary = (window_out_summary or "").strip() or None
     return system_prompt_for_chat_session_template.render(
         agent_mode=agent_mode,
         skill_manifests=manifests,
+        window_out_summary=summary,
         **extra,
     )
 
@@ -80,7 +83,6 @@ def get_user_message_for_tool_calls(
     user_message_text: str,
     kb_context_blocks: list[KbContextBlock] | None = None,
     user_memories: Sequence[MemorySearchItem] | None = None,
-    window_out_summary: str | None = None,
     attachment_uploads: list[AttachmentUploadInfo] | None = None,
     current_datetime: str | None = None,
 ) -> str:
@@ -96,7 +98,6 @@ def get_user_message_for_tool_calls(
         user_message_text=user_message_text,
         kb_context_blocks=kb_context_blocks or [],
         user_memories=user_memories,
-        window_out_summary=window_out_summary,
         attachment_uploads=attachment_uploads or [],
         current_datetime=current_datetime or get_current_datetime_str(),
     ).strip()

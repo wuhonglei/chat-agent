@@ -6,6 +6,7 @@ from typing import Any, Literal
 from openai.types.chat import ChatCompletionMessageFunctionToolCall
 
 from app.agent_skills import get_skill_registry
+from app.agent_skills.types import AgentSkillManifest
 from app.agents.base import BaseAgent
 from app.agents.chat_session_state import (
     ChatRoundStateMachine,
@@ -83,12 +84,11 @@ class ChatSessionAgent(BaseAgent):
         self._working_history: list[ChatMessage] = []
         self._window_out_summary: str | None = None
         self._system_prompt: str = ""
+        self._agent_mode: int = 0
+        self._skill_manifests: list[AgentSkillManifest] = []
         self._user_message_text: str = ""
         self._tool_guided_user_message: str = ""
         self._user_message_content: str | list[dict[str, Any]] = ""
-        self._kb_context_blocks: list[KbContextBlock] | None = None
-        self._user_memories: list[MemorySearchItem] = []
-        self._attachment_uploads: list[AttachmentUploadInfo] | None = None
         self._turn_datetime: str | None = None
         self._conversation_id: str | None = None
 
@@ -135,6 +135,14 @@ class ChatSessionAgent(BaseAgent):
             return MCPToolSession.CONTINUE_BUDGET_ITERATIONS
         return MCPToolSession.AGENT_MODE_MAX_ITERATIONS
 
+    def _refresh_system_prompt(self) -> None:
+        """Rebuild system prompt, including current window-out summary."""
+        self._system_prompt = get_system_prompt_for_chat_session(
+            agent_mode=self._agent_mode,
+            skill_manifests=self._skill_manifests,
+            window_out_summary=self._window_out_summary,
+        )
+
     async def stream_session_events(
         self,
         *,
@@ -161,10 +169,10 @@ class ChatSessionAgent(BaseAgent):
             if chat_request.agent_mode > 0
             else []
         )
-        self._system_prompt = get_system_prompt_for_chat_session(
-            agent_mode=chat_request.agent_mode,
-            skill_manifests=skill_manifests,
-        )
+        self._agent_mode = chat_request.agent_mode
+        self._skill_manifests = list(skill_manifests)
+        self._window_out_summary = history_summary_before_window
+        self._refresh_system_prompt()
         server_names = self._resolve_request_mcp_servers(chat_request)
         tools = await self.mcp_manager.get_tools_for_llm(
             server_names,
@@ -173,11 +181,7 @@ class ChatSessionAgent(BaseAgent):
         self._user_message_text = extract_user_text_with_attachment_placeholder(
             chat_request.content_blocks
         )
-        self._kb_context_blocks = kb_context_blocks
-        self._user_memories = user_memories
-        self._attachment_uploads = attachment_uploads
         self._working_history = list(history_messages)
-        self._window_out_summary = history_summary_before_window
         self._turn_datetime = get_current_datetime_str()
         self._conversation_id = conversation_id
 
@@ -185,7 +189,6 @@ class ChatSessionAgent(BaseAgent):
             self._user_message_text,
             kb_context_blocks=kb_context_blocks,
             user_memories=user_memories,
-            window_out_summary=self._window_out_summary,
             attachment_uploads=attachment_uploads,
             current_datetime=self._turn_datetime,
         )
@@ -417,7 +420,6 @@ class ChatSessionAgent(BaseAgent):
                 self._user_message_content,
                 [],
             )
-            # refresh user content (summary unchanged) — keep multimodal blocks
             total_tokens = _total_tokens(base_prompt_messages)
             if total_tokens <= threshold:
                 return "ok", base_prompt_messages
@@ -447,29 +449,8 @@ class ChatSessionAgent(BaseAgent):
             )
             if summary is not None:
                 self._window_out_summary = summary
+                self._refresh_system_prompt()
             self._working_history = in_window
-            self._tool_guided_user_message = get_user_message_for_tool_calls(
-                self._user_message_text,
-                kb_context_blocks=self._kb_context_blocks,
-                user_memories=self._user_memories,
-                window_out_summary=self._window_out_summary,
-                attachment_uploads=self._attachment_uploads,
-                current_datetime=self._turn_datetime,
-            )
-            # Preserve multimodal parts from current user message content if list
-            if isinstance(self._user_message_content, list):
-                image_parts = [
-                    p
-                    for p in self._user_message_content
-                    if isinstance(p, dict) and p.get("type") == "image_url"
-                ]
-                self._user_message_content = [
-                    {"type": "text", "text": self._tool_guided_user_message},
-                    *image_parts,
-                ]
-            else:
-                self._user_message_content = self._tool_guided_user_message
-
             base_prompt_messages = self._compose_messages(
                 self._system_prompt,
                 self._working_history,

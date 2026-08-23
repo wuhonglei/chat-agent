@@ -5,12 +5,13 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 from app.prompts.prompt_utils import (
+    get_system_prompt_for_chat_session,
+    get_user_message_for_tool_calls,
     get_window_out_summary_compress_prompt,
     get_window_out_summary_merge_prompt,
 )
 from app.schemas.chat import ChatMessage, TextBlock, ToolResultBlock, ToolUseBlock
 from app.services.conversation.context_summary_service import ContextSummaryService
-
 
 REQUIRED_SECTIONS = (
     "## 用户核心需求",
@@ -60,6 +61,49 @@ def test_compress_prompt_keeps_same_sections() -> None:
     assert "约 500 token" in prompt
     for section in REQUIRED_SECTIONS:
         assert section in prompt
+
+
+def test_window_out_summary_is_injected_into_system_prompt() -> None:
+    prompt = get_system_prompt_for_chat_session(
+        agent_mode=0,
+        window_out_summary="## 用户核心需求\n- 修登录",
+    )
+    assert "<conversation_summary>" in prompt
+    assert "以下是本对话中较早轮次的摘要，供参考：" in prompt
+    assert "## 用户核心需求" in prompt
+    assert "- 修登录" in prompt
+
+
+def test_window_out_summary_omitted_from_system_when_empty() -> None:
+    prompt = get_system_prompt_for_chat_session(agent_mode=0, window_out_summary="  ")
+    assert "<conversation_summary>" not in prompt
+
+
+def test_window_out_summary_is_escaped_in_system_prompt() -> None:
+    prompt = get_system_prompt_for_chat_session(
+        agent_mode=0,
+        window_out_summary="<script>alert(1)</script>",
+    )
+    assert "&lt;script&gt;" in prompt
+    assert "<script>" not in prompt
+
+
+def test_window_out_summary_not_injected_into_user_message() -> None:
+    text = get_user_message_for_tool_calls("当前问题")
+    assert "<conversation_summary>" not in text
+    assert "<window_out_summary>" not in text
+    assert "较早轮次的摘要" not in text
+
+
+def test_window_out_summary_coexists_with_skill_system() -> None:
+    prompt = get_system_prompt_for_chat_session(
+        agent_mode=1,
+        skill_manifests=[],
+        window_out_summary="旧摘要",
+    )
+    assert "<conversation_summary>" in prompt
+    assert "旧摘要" in prompt
+    assert "<skill_system>" in prompt
 
 
 @patch(
