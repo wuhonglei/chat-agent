@@ -183,7 +183,9 @@ class ChatSessionAgent(BaseAgent):
             chat_request.content_blocks
         )
         self._working_history = list(history_messages)
-        self._turn_datetime = get_current_datetime_str()
+        # 优先使用 user_message.created_at（编排层传入），避免记忆检索等
+        # 中间步骤把 <current_datetime> 相对用户发送时刻往后推。
+        self._turn_datetime = current_datetime or get_current_datetime_str()
         self._conversation_id = conversation_id
 
         self._tool_guided_user_message = get_user_message_for_tool_calls(

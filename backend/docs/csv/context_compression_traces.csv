@@ -114,11 +114,11 @@ def should_compress(self, prompt_tokens: int = None) -> bool:
 ```python
 def should_compress(self, prompt_tokens: int) -> bool:
     # 获取当前模型的最大上下文窗口大小
-    max_context = self.config.context_window 
-    
+    max_context = self.config.context_window
+
     # 计算压缩触发阈值（默认为最大窗口的 75%）
-    threshold = max_context * self.config.compression_threshold 
-    
+    threshold = max_context * self.config.compression_threshold
+
     return prompt_tokens >= threshold
 ```
 
@@ -910,7 +910,7 @@ Preferences: {""category"": ""laptop"", ""color"": ""red"", ""price_max"": 1000}
 
 [Current Query]
 Conversation: {User's current multi-turn dialogue}
-Preferences: 
+Preferences:
 ```
 
 ### 3. 合成数据生成级输入输出（Exemplar Generation Module）

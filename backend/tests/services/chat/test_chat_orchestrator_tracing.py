@@ -50,6 +50,7 @@ class _FakeAgent:
         self.tool_round_messages: list[Any] = []
         self.iteration_checkpoint: Any = None
         self.mcp_manager = None
+        self.last_stream_kwargs: dict[str, Any] = {}
 
     def _sync_session_output(self) -> None:
         return None
