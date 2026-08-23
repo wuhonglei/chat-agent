@@ -48,7 +48,7 @@ RETRY_BACKOFF = [5, 15, 30]  # 秒，指数退避
 
 
 # ── 裁判系统提示词 ──────────────────────────────────────────────
-SYSTEM_STEP2 = """你是一个回答质量评估器。根据用户问题、标准要点、模型回答，打两个分。
+SYSTEM_STEP2 = """你是一个回答质量评估器。根据用户问题、标准要点（含权重）、模型回答，打两个分。
 
 ## 重要规则
 
@@ -63,8 +63,12 @@ correctness_score（准确性，1-5）：回答中说的内容是否正确
   5=完全正确 4=基本正确有小瑕疵 3=部分正确有明显错误 2=大部分错误 1=完全错误
   注意：有参考资料时，以参考资料为准判断正确性；无参考资料时，以常识和逻辑判断。
 
-completeness_score（完整性，1-5）：回答是否覆盖了标准要点
-  5=覆盖率>=90% 4=覆盖率>=70% 3=覆盖率>=50% 2=覆盖率<50% 1=几乎未覆盖
+completeness_score（完整性，1-5）：回答是否覆盖了标准要点（按权重计算）
+  评分规则：
+  - 标注为【核心】的要点权重更高，未覆盖核心要点扣分更重
+  - 标注为【补充】的要点权重较低，未覆盖不严重扣分
+  - 简单事实性问题：只要覆盖了核心要点，即使补充要点未覆盖，完整性也应给 4-5 分
+  - 5=核心要点全部覆盖 4=核心要点全部覆盖、补充要点部分覆盖 3=核心要点部分覆盖 2=核心要点大部分未覆盖 1=核心要点几乎未覆盖
 
 scene_tag（场景标签）：qa=知识问答 rag=检索回答 tool=工具调用 chat=闲聊创意
 
@@ -118,13 +122,19 @@ def _build_context_xml(tool_contents: list[str]) -> str:
 
 
 def build_judge_input(
-    query: str, context_xml: str, ground_truth_points: list[str], model_answer: str
+    query: str, context_xml: str, ground_truth_points: list, model_answer: str
 ) -> str:
     sections = [f"【用户问题】{query}"]
     if ground_truth_points:
-        sections.append(
-            "【标准要点】\n" + "\n".join(f"- {p}" for p in ground_truth_points)
-        )
+        formatted_points = []
+        for p in ground_truth_points:
+            if isinstance(p, dict):
+                label = "【核心】" if p.get("weight") == "core" else "【补充】"
+                formatted_points.append(f"- {label}{p['text']}")
+            else:
+                # 兼容旧格式 list[str]
+                formatted_points.append(f"- {p}")
+        sections.append("【标准要点】\n" + "\n".join(formatted_points))
     if context_xml:
         sections.append(f"【参考资料/工具返回内容】\n{context_xml}")
     sections.append(f"【模型回答】\n{model_answer}")

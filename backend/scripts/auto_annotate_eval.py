@@ -79,16 +79,25 @@ def call_llm(api_key: str, system: str, user: str) -> str:
     return resp.json()["choices"][0]["message"]["content"]
 
 
-SYSTEM_STEP1 = """你是一个评估集标注助手。根据用户的问题，列出一个好的回答应该包含的要点。
+SYSTEM_STEP1 = """你是一个评估集标注助手。根据用户的问题，列出一个好的回答应该包含的要点，并标注每个要点的权重。
 
 规则：
 - 每个要点一句话，2-5 个要点
 - 要点是「该覆盖哪些方面」，不是具体答案
+- 权重说明：
+  - core（核心要点）：直接回答用户问题所必需的信息。用户问"房租多少"，金额就是核心。
+  - supplementary（补充要点）：能让回答更完整但非必须的信息。用户问"房租多少"，位置、面积是补充。
+- 简单事实性问题（问时间/地点/金额/名称等）通常只有 1-2 个核心要点
+- 复杂问题（如何做/为什么/对比）核心要点会更多
 - 输出 JSON 数组格式
 
 示例输入：住三亚海棠湾中午如何吃饭
 示例输出：
-["用餐地点分类（酒店内/美食街/周边餐厅）", "各方案的价格区间", "营业时间（中午是否营业）", "交通方式或距离", "是否需要预约"]"""
+[{"text": "用餐地点分类（酒店内/美食街/周边餐厅）", "weight": "core"}, {"text": "各方案的价格区间", "weight": "core"}, {"text": "营业时间（中午是否营业）", "weight": "core"}, {"text": "交通方式或距离", "weight": "supplementary"}, {"text": "是否需要预约", "weight": "supplementary"}]
+
+示例输入：房租一个月多少
+示例输出：
+[{"text": "房租金额及支付方式", "weight": "core"}, {"text": "租房位置和房屋类型", "weight": "supplementary"}, {"text": "房屋面积及房间数量", "weight": "supplementary"}]"""
 
 SYSTEM_STEP2 = """你是一个回答质量评估器。根据用户问题、标准要点、模型回答，打两个分。
 
@@ -128,17 +137,30 @@ def annotate_one(api_key: str, item: dict) -> dict:
             ground_truth_points = json.loads(json_str)
         else:
             ground_truth_points = [
-                p.strip() for p in points_raw.strip().split("\n") if p.strip()
+                {"text": p.strip(), "weight": "core"}
+                for p in points_raw.strip().split("\n")
+                if p.strip()
             ]
     except (json.JSONDecodeError, ValueError):
-        ground_truth_points = [points_raw.strip()]
+        ground_truth_points = [{"text": points_raw.strip(), "weight": "core"}]
+
+    # 兼容旧格式：list[str] → list[dict]
+    ground_truth_points = [
+        p if isinstance(p, dict) else {"text": p, "weight": "core"}
+        for p in ground_truth_points
+    ]
 
     # Step 2: 对比打分（如果有 context，传给裁判作为参照）
     context = item.get("context", "")
     context_section = f"\n\n【参考资料/工具返回内容】\n{context}" if context else ""
+    # 格式化带权重的要点
+    formatted_points = []
+    for p in ground_truth_points:
+        label = "【核心】" if p.get("weight") == "core" else "【补充】"
+        formatted_points.append(f"- {label}{p['text']}")
     score_input = (
         f"【用户问题】{query}\n\n【标准要点】\n"
-        + "\n".join(f"- {p}" for p in ground_truth_points)
+        + "\n".join(formatted_points)
         + context_section
         + f"\n\n【模型回答】\n{answer[:4000]}"
     )
