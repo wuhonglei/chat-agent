@@ -16,3 +16,5 @@ def test_get_user_message_for_tool_calls_defaults_when_omitted() -> None:
     # template always includes a datetime string; just ensure non-empty render
     assert "hi" in text
     assert len(text) > 10
+    assert "<window_out_summary>" not in text
+    assert "<conversation_summary>" not in text
