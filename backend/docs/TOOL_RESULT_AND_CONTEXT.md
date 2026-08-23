@@ -1,6 +1,6 @@
 # 工具结果硬上限与统一上下文守卫
 
-**最后核对**：2026-08-02
+**最后核对**：2026-08-23
 
 对话热路径上的上下文治理：
 
@@ -145,11 +145,33 @@ in_window, out_of_window = split_history_by_token_budget(history, remaining_budg
 
 已删除：`history_window.*`、`tool_round_context_limit_ratio`。
 
-## 5. 相关软压缩（同轮 FAISS）
+## 5. 手动全量压缩与 `last_summarized_message_ids`
+
+侧栏「压缩会话」走 `POST /api/conversation/{id}/compress`（`HistoryContextService.compact_full_conversation`），与守卫 Step 3 **共用** `conversation_contexts`：
+
+| 字段 | 用途 |
+|------|------|
+| `summary_before_window` | 注入后续 prompt 的窗口外摘要 |
+| `last_summarized_message_ids` | 已摘要消息 ID；`filter_summarized_history` 会从 LLM history 剔除 |
+
+意图：用户主动把长会话压成摘要，降低后续 turn 的前缀长度；**不删除** `messages` 行，UI 仍显示完整聊天记录。
+
+行为：
+
+1. 用 `summarization` 场景模型对当前全部消息（或相对已存 ID 的增量）做 `summarize_merge`。
+2. 写入摘要 + UNION 后的消息 ID。
+3. 下一轮 `ChatOrchestrator` 先读摘要，再过滤 history：已摘要 ID 不再进入 `_working_history`。
+4. 守卫 Step 3 若再切窗：只要有 prior + delta 就增量 merge；写入 ID 做 UNION，避免把手动全量结果覆盖成子集。
+5. 当前 ID 集合已全部摘要过且摘要非空 → 幂等返回，不调 LLM。
+6. 存在 `pending` 助手消息 → HTTP 409。
+
+配置仍用 `CHAT_CONTEXT__WINDOW_OUT_SUMMARY__SUMMARY_MAX_TOKENS`（默认 1000）。API 契约与网关超时见 `docs/会话管理.md`。
+
+## 6. 相关软压缩（同轮 FAISS）
 
 `tool_result_compression` 还控制**当轮**超长工具结果的 FAISS/摘要软压缩（`context_compactor`），与 L1 硬上限不同。`file` / `shell` 在跳过列表中。
 
-## 6. 配置示例
+## 7. 配置示例
 
 ```dotenv
 CHAT_CONTEXT__TOOL_RESULT_HARD_LIMIT__MAX_CHARS=30000
@@ -160,14 +182,15 @@ CHAT_CONTEXT__WINDOW_OUT_SUMMARY__ENABLED=true
 CHAT_CONTEXT__WINDOW_OUT_SUMMARY__SUMMARY_MAX_TOKENS=1000
 ```
 
-## 7. 源码索引
+## 8. 源码索引
 
 | 主题 | 路径 |
 |------|------|
 | 硬上限 | `app/utils/tool_result_hard_limit.py` |
 | 统一守卫 | `app/agents/chat_session_agent.py` |
-| 压缩原语 | `app/services/chat/history_context_service.py` |
+| 压缩原语 / 手动全量压缩 | `app/services/chat/history_context_service.py`（`compact_full_conversation`、`filter_summarized_history`） |
+| 压缩 API | `app/api/conversation.py` `POST /{conversation_id}/compress` |
 | token 切窗 | `app/utils/history_truncate.py` |
 | 摘要 | `app/services/conversation/context_summary_service.py` |
 | 配置 | `UnifiedContextGuardConfig`、`ToolResultHardLimitConfig`、`WindowOutSummaryConfig` |
-| 单测 | `tests/agents/test_unified_context_guard.py`、`tests/services/chat/test_history_context_service.py` |
+| 单测 | `tests/agents/test_unified_context_guard.py`、`tests/services/chat/test_history_context_service.py`、`tests/services/chat/test_conversation_compress.py` |
