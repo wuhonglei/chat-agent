@@ -509,7 +509,16 @@ if [ "$need_postgres_check" = true ]; then
 fi
 
 if [ "$need_backend_check" = true ]; then
-    if $DOCKER_COMPOSE_CMD exec -T backend curl -f http://127.0.0.1:8000/ > /dev/null 2>&1; then
+    backend_ok=false
+    for attempt in $(seq 1 12); do
+        if $DOCKER_COMPOSE_CMD exec -T backend curl -f http://127.0.0.1:8000/ > /dev/null 2>&1; then
+            backend_ok=true
+            break
+        fi
+        echo "   后端健康检查重试中... ($attempt/12)"
+        sleep 5
+    done
+    if [ "$backend_ok" = true ]; then
         echo "✅ 后端服务运行正常"
     else
         echo "❌ 后端服务健康检查失败"
