@@ -2,10 +2,29 @@ from datetime import datetime, timezone
 
 import humanize  # noqa: F401
 
+# datetime.weekday(): Monday=0 ... Sunday=6。不用 strftime("%A")，避免依赖系统 locale。
+_WEEKDAY_ZH = (
+    "星期一",
+    "星期二",
+    "星期三",
+    "星期四",
+    "星期五",
+    "星期六",
+    "星期日",
+)
 
-def get_current_datetime_str() -> str:
-    """获取当前日期和时间字符串"""
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+def get_current_datetime_str(dt: datetime | None = None) -> str:
+    """格式化为本地时区日期时间字符串（YYYY-MM-DD HH:MM:SS 星期X）。
+
+    传入 ``dt`` 时按该时刻格式化（aware datetime 会转到本地时区）；
+    缺省则为当前本地时间。用于冻结 turn 级 ``<current_datetime>``。
+    """
+    if dt is None:
+        dt = datetime.now()
+    elif dt.tzinfo is not None:
+        dt = dt.astimezone()
+    return f"{dt.strftime('%Y-%m-%d %H:%M:%S')} {_WEEKDAY_ZH[dt.weekday()]}"
 
 
 def get_current_date() -> str:
