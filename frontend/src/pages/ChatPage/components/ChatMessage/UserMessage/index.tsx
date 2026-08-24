@@ -34,7 +34,10 @@ const UserMessage: React.FC<UserMessageProps> = ({
   const canEdit = isUserMessageContentTextOnly(message.contentBlocks);
 
   return (
-    <section className={classNames("mt-3 w-full flex justify-end", styles.container)}>
+    <section
+      id={`user-message-${message.id}`}
+      className={classNames("mt-3 w-full flex justify-end", styles.container)}
+    >
       <Bubble
         placement="end"
         content={textContent || " "}

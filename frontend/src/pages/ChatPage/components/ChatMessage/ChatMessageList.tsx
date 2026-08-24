@@ -1,5 +1,9 @@
 import { useChatState } from "@/hooks";
-import { ChatMessage as ChatMessageType, MessageFeedbackDetails, MessageFeedbackValue } from "@/interfaces";
+import {
+  ChatMessage as ChatMessageType,
+  MessageFeedbackDetails,
+  MessageFeedbackValue,
+} from "@/interfaces";
 import type { PreviewableBlock } from "@/interfaces/contentBlock";
 import classNames from "classnames";
 import React, { useRef } from "react";
@@ -7,6 +11,7 @@ import SimpleBar from "simplebar-react";
 import ChatMessageItem from "./ChatMessageItem";
 import AutoScroll from "./components/AutoScroll";
 import FloatButtonBottom from "./components/FloatButtonBottom";
+import QuestionTimeline from "./components/QuestionTimeline";
 
 interface ChatMessageListProps {
   conversationId: string;
@@ -18,7 +23,7 @@ interface ChatMessageListProps {
   onUpdateMessageFeedback: (
     messageId: string,
     value: MessageFeedbackValue,
-    details?: MessageFeedbackDetails
+    details?: MessageFeedbackDetails,
   ) => Promise<void>;
   onReSend: (index: number, message: ChatMessageType) => void;
   onPreviewBlock: (block: PreviewableBlock) => void;
@@ -42,33 +47,36 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
   const { messages } = useChatState(conversationId);
   const containerRef = useRef<HTMLDivElement>(null);
   return (
-    <SimpleBar
-      scrollableNodeProps={{
-        ref: containerRef,
-        className: "outline-none",
-      }}
-      className={classNames("flex-1 h-0 px-2 pb-4 relative ", className)}
-    >
-      {messages.map((message, index) => (
-        <ChatMessageItem
-          index={index}
-          key={message.id}
-          message={message}
-          onReSend={onReSend}
-          onPreviewBlock={onPreviewBlock}
-          onEditMessage={onEditMessage}
-          onDeleteMessage={onDeleteMessage}
-          onUpdateMessageFeedback={onUpdateMessageFeedback}
-          onContinueTask={onContinueTask}
-          onSummarizeTask={onSummarizeTask}
-          isLastMessage={index === messages.length - 1}
-          isLoading={isLoading && index === messages.length - 1}
-          isStreaming={isStreaming && index === messages.length - 1}
-        />
-      ))}
-      <AutoScroll messages={messages} isStreaming={isStreaming} containerRef={containerRef} />
-      <FloatButtonBottom visibilityHeight={200} containerRef={containerRef} />
-    </SimpleBar>
+    <div className="relative flex-1 h-0 min-h-0">
+      <SimpleBar
+        scrollableNodeProps={{
+          ref: containerRef,
+          className: "outline-none",
+        }}
+        className={classNames("h-full px-2 pb-4 relative ", className)}
+      >
+        {messages.map((message, index) => (
+          <ChatMessageItem
+            index={index}
+            key={message.id}
+            message={message}
+            onReSend={onReSend}
+            onPreviewBlock={onPreviewBlock}
+            onEditMessage={onEditMessage}
+            onDeleteMessage={onDeleteMessage}
+            onUpdateMessageFeedback={onUpdateMessageFeedback}
+            onContinueTask={onContinueTask}
+            onSummarizeTask={onSummarizeTask}
+            isLastMessage={index === messages.length - 1}
+            isLoading={isLoading && index === messages.length - 1}
+            isStreaming={isStreaming && index === messages.length - 1}
+          />
+        ))}
+        <AutoScroll messages={messages} isStreaming={isStreaming} containerRef={containerRef} />
+        <FloatButtonBottom visibilityHeight={200} containerRef={containerRef} />
+      </SimpleBar>
+      <QuestionTimeline messages={messages} containerRef={containerRef} />
+    </div>
   );
 };
 

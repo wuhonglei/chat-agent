@@ -1,0 +1,135 @@
+.rail {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  max-height: min(60%, 360px);
+  padding: 6px 4px;
+  /* Wider hit area when collapsed so ticks are easy to hover */
+  min-width: 20px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  max-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: transparent;
+  border-radius: 8px;
+  transition:
+    background 0.15s ease,
+    box-shadow 0.15s ease,
+    padding 0.15s ease,
+    max-width 0.2s ease;
+  padding: 4px 0;
+  max-width: 24px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+.list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.list::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 999px;
+}
+
+.list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.rail:hover .list,
+.rail:focus-within .list {
+  max-width: 220px;
+  background: #fff;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0;
+  /* Fixed row height so tick spacing stays stable on hover */
+  height: 28px;
+  flex-shrink: 0;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+
+.label {
+  flex: 1;
+  min-width: 0;
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  line-height: 28px;
+  /* 默认：浅灰 */
+  color: var(--color-black-quaternary, rgba(0, 0, 0, 0.25));
+  padding: 0;
+  opacity: 0;
+  transition:
+    max-width 0.2s ease,
+    opacity 0.15s ease,
+    padding 0.2s ease,
+    color 0.15s ease;
+}
+
+.rail:hover .label,
+.rail:focus-within .label {
+  max-width: 180px;
+  opacity: 1;
+  padding: 0 10px;
+}
+
+/* hover：深色（非激活项） */
+.item:hover .label {
+  color: var(--color-black-primary, rgba(0, 0, 0, 0.85));
+}
+
+/* 激活：主题蓝 */
+.itemActive .label,
+.itemActive:hover .label {
+  color: var(--color-primary, #2356f6);
+}
+
+.tick {
+  flex-shrink: 0;
+  width: 10px;
+  height: 3px;
+  border-radius: 999px;
+  /* 默认：浅灰 */
+  background: var(--color-black-quaternary, rgba(0, 0, 0, 0.25));
+  margin-right: 6px;
+  transition:
+    background 0.15s ease,
+    height 0.15s ease;
+}
+
+/* hover：深色（非激活项） */
+.item:hover .tick {
+  background: var(--color-black-primary, rgba(0, 0, 0, 0.85));
+}
+
+/* 激活：主题蓝，略加粗 */
+.itemActive .tick,
+.itemActive:hover .tick {
+  background: var(--color-primary, #2356f6);
+  height: 4px;
+}
