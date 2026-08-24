@@ -19,23 +19,39 @@
   align-items: stretch;
   max-height: 100%;
   overflow-x: hidden;
-  overflow-y: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: transparent;
   border-radius: 8px;
   transition:
     background 0.15s ease,
     box-shadow 0.15s ease,
-    padding 0.15s ease;
-  padding: 0;
+    padding 0.15s ease,
+    max-width 0.2s ease;
+  padding: 4px 0;
+  max-width: 24px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+.list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.list::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 999px;
+}
+
+.list::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .rail:hover .list,
 .rail:focus-within .list {
   max-width: 220px;
-  overflow-y: auto;
   background: #fff;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-  padding: 4px 0;
 }
 
 .item {
@@ -43,6 +59,9 @@
   align-items: center;
   justify-content: flex-end;
   gap: 0;
+  /* Fixed row height so tick spacing stays stable on hover */
+  height: 28px;
+  flex-shrink: 0;
   padding: 0;
   margin: 0;
   border: none;
@@ -50,16 +69,6 @@
   cursor: pointer;
   text-align: left;
   width: 100%;
-  min-height: 24px;
-}
-
-.item + .item .label {
-  border-top: 1px solid transparent;
-}
-
-.rail:hover .item + .item .label,
-.rail:focus-within .item + .item .label {
-  border-top-color: rgba(0, 0, 0, 0.06);
 }
 
 .label {
@@ -107,7 +116,7 @@
   border-radius: 999px;
   /* 默认：浅灰 */
   background: var(--color-black-quaternary, rgba(0, 0, 0, 0.25));
-  margin-right: 2px;
+  margin-right: 6px;
   transition:
     background 0.15s ease,
     height 0.15s ease;
@@ -123,13 +132,4 @@
 .itemActive:hover .tick {
   background: var(--color-primary, #2356f6);
   height: 4px;
-}
-
-.item + .item {
-  margin-top: 8px;
-}
-
-.rail:hover .item + .item,
-.rail:focus-within .item + .item {
-  margin-top: 0;
 }
