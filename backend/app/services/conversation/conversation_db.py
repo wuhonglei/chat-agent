@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-from sqlalchemy import String, and_, or_
-from sqlalchemy import cast as sa_cast
+from sqlalchemy import and_, or_
 from sqlmodel import Session, select
 
 from app.models import ConversationDb, MessageDb
@@ -218,7 +217,7 @@ class ConversationDbService(DbService):
         title_column = cast(Any, ConversationDb.title)
         role_column = cast(Any, MessageDb.role)
         pattern = f"%{_escape_like_pattern(keyword)}%"
-        content_text = sa_cast(cast(Any, MessageDb.content_blocks), String)
+        content_text = cast(Any, MessageDb.content_text)
 
         message_match_exists = (
             select(MessageDb.id)
@@ -312,7 +311,7 @@ class ConversationDbService(DbService):
             )
 
         db = self._ensure_db()
-        content_text = sa_cast(cast(Any, MessageDb.content_blocks), String)
+        content_text = cast(Any, MessageDb.content_text)
         created_at_column = cast(Any, MessageDb.created_at)
         role_column = cast(Any, MessageDb.role)
         message = db.exec(
