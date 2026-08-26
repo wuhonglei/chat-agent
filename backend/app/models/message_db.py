@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import JSON as SQLJSON
-from sqlalchemy import Column, DateTime, ForeignKey, String
+from sqlalchemy import Column, DateTime, ForeignKey, String, Text
 from sqlmodel import Field, SQLModel
 
 from app.utils.common import gen_uuid
@@ -35,6 +35,11 @@ class MessageDb(SQLModel, table=True):
     role: str  # "user" | "assistant"
     content_blocks: list[dict[str, Any]] | None = Field(
         default=None, sa_type=SQLJSON, description="Message content blocks"
+    )
+    content_text: str | None = Field(
+        default=None,
+        sa_column=Column(Text, nullable=True),
+        description="content_blocks 中 TextBlock 纯文本拼接，供会话搜索",
     )
     created_at: datetime = Field(
         default_factory=lambda: get_datetime_now(),

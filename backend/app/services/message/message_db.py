@@ -15,6 +15,7 @@ from app.schemas.chat import (
     ChatMessage,
     ContentBlock,
     MessageStatus,
+    collect_content_from_block_payloads,
 )
 from app.services.base_service.db_service import DbService
 from app.utils.common import gen_uuid
@@ -192,10 +193,12 @@ class MessageDbService(DbService):
         content_blocks: list[ContentBlock],
         metadata: dict[str, Any] | None = None,
     ) -> MessageDb:
+        block_payloads = [block.model_dump(mode="json") for block in content_blocks]
         message = MessageDb(
             id=message_id,
             role="user",
-            content_blocks=[block.model_dump(mode="json") for block in content_blocks],
+            content_blocks=block_payloads,
+            content_text=collect_content_from_block_payloads(block_payloads) or None,
             conversation_id=conversation.id,
             message_metadata=metadata or {},
             status=MessageStatus.DONE,
@@ -214,6 +217,7 @@ class MessageDbService(DbService):
             id=message_id,
             role="assistant",
             content_blocks=[],
+            content_text=None,
             conversation_id=conversation.id,
             message_metadata=metadata or {},
             status=MessageStatus.PENDING,
@@ -309,6 +313,10 @@ class MessageDbService(DbService):
         assistant_message.content_blocks = [
             block.model_dump(mode="json") for block in assistant_response.content_blocks
         ]
+        assistant_message.content_text = (
+            collect_content_from_block_payloads(assistant_message.content_blocks)
+            or None
+        )
         if extra_metadata:
             merged_metadata = dict(assistant_message.message_metadata or {})
             merged_metadata.update(extra_metadata)

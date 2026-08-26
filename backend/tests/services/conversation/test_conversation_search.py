@@ -79,6 +79,7 @@ def _add_message(
         conversation_id=conversation_id,
         role=role,
         content_blocks=[{"id": f"{message_id}-t", "type": "text", "text": text}],
+        content_text=text,
         status=status,
         created_at=created_at,
         updated_at=created_at,
@@ -114,8 +115,6 @@ def test_search_by_title(db_session: Session) -> None:
 
 
 def test_search_by_user_and_assistant_message(db_session: Session) -> None:
-    # 消息正文用 ASCII 关键词：SQLite JSON 会把中文存成 \\uXXXX，ILIKE 无法直接命中。
-    # 生产环境 PostgreSQL 的 json::text 会保留 Unicode，中文检索正常。
     base = datetime(2026, 7, 14, 12, 0, 0, tzinfo=timezone.utc)
     _add_conversation(
         db_session,
@@ -155,6 +154,33 @@ def test_search_by_user_and_assistant_message(db_session: Session) -> None:
     assert "DigiFinex" in by_id[ID_A].snippet
     assert by_id[ID_B].match_type == ConversationSearchMatchType.ASSISTANT
     assert "DigiFinex" in by_id[ID_B].snippet
+
+
+def test_search_by_chinese_message_content(db_session: Session) -> None:
+    """content_text 冗余列后，中文正文可直接 ILIKE 命中（不依赖 JSON 序列化）。"""
+    base = datetime(2026, 7, 14, 12, 0, 0, tzinfo=timezone.utc)
+    _add_conversation(
+        db_session,
+        conversation_id=ID_A,
+        last_message_created_at=base,
+        title="普通会话",
+    )
+    _add_message(
+        db_session,
+        message_id=MSG_1,
+        conversation_id=ID_A,
+        role="user",
+        text="请帮我调研一下 DigiFinex 公司",
+        created_at=base,
+    )
+
+    service = ConversationDbService(db_session)
+    page = service.search_conversations("user-1", q="调研", limit=20)
+
+    assert len(page.conversations) == 1
+    assert page.conversations[0].id == ID_A
+    assert page.conversations[0].match_type == ConversationSearchMatchType.USER
+    assert "调研" in page.conversations[0].snippet
 
 
 def test_search_prefers_title_over_message(db_session: Session) -> None:
