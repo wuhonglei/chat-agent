@@ -17,12 +17,16 @@ down_revision = "g0a1b2c3d4e5"
 branch_labels = None
 depends_on = None
 
+# 历史数据里偶有 \\u0000；PostgreSQL text 不能含 NUL，->> 会失败。
+# 先在 JSON 文本层去掉该转义，再提取 TextBlock。
 _EXTRACT_CONTENT_TEXT_SQL = """
-SELECT string_agg(value->>'text', '')
+SELECT string_agg(COALESCE(value->>'text', ''), '')
 FROM jsonb_array_elements(
     CASE
         WHEN content_blocks IS NULL THEN '[]'::jsonb
-        WHEN jsonb_typeof(content_blocks::jsonb) = 'array' THEN content_blocks::jsonb
+        WHEN jsonb_typeof(
+            REPLACE(content_blocks::text, E'\\\\u0000', '')::jsonb
+        ) = 'array' THEN REPLACE(content_blocks::text, E'\\\\u0000', '')::jsonb
         ELSE '[]'::jsonb
     END
 ) AS value
@@ -37,20 +41,28 @@ def upgrade() -> None:
     )
 
     op.execute(
-        """
+        r"""
         CREATE OR REPLACE FUNCTION sync_message_content_text() RETURNS trigger AS $$
         DECLARE
+            sanitized jsonb;
             extracted text;
         BEGIN
-            IF NEW.content_blocks IS NULL
-               OR jsonb_typeof(NEW.content_blocks::jsonb) <> 'array' THEN
+            IF NEW.content_blocks IS NULL THEN
                 NEW.content_text := NULL;
                 RETURN NEW;
             END IF;
 
-            SELECT string_agg(value->>'text', '')
+            -- 去掉 JSON 中的 \u0000 转义，避免 ->> 转 text 失败
+            sanitized := REPLACE(NEW.content_blocks::text, E'\\u0000', '')::jsonb;
+
+            IF jsonb_typeof(sanitized) <> 'array' THEN
+                NEW.content_text := NULL;
+                RETURN NEW;
+            END IF;
+
+            SELECT string_agg(COALESCE(value->>'text', ''), '')
             INTO extracted
-            FROM jsonb_array_elements(NEW.content_blocks::jsonb) AS value
+            FROM jsonb_array_elements(sanitized) AS value
             WHERE value->>'type' = 'text';
 
             NEW.content_text := extracted;
