@@ -1,7 +1,10 @@
 services:
   postgres:
-    # 使用 pgvector 官方预构建镜像
-    image: pgvector/pgvector:pg18
+    # pg18 + pgvector + zhparser（自建镜像；勿 docker compose down -v，否则会删 volume 丢数据）
+    build:
+      context: ./docker/postgres
+      dockerfile: Dockerfile
+    image: chat-agent-postgres:pg18-zhparser
     container_name: chat-agent-postgres
     ports:
       - "5432:5432"

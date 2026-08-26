@@ -1,4 +1,8 @@
-"""会话搜索服务测试（SQLite 内存库）。"""
+"""会话搜索服务测试（SQLite 内存库）。
+
+生产 PostgreSQL 对消息正文使用 zhcfg tsvector（plainto_tsquery）；
+本单测走 content_text ILIKE 方言回退，不依赖 zhparser。
+"""
 
 from __future__ import annotations
 
