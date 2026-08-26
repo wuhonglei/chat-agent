@@ -16,7 +16,7 @@ todos:
     status: completed
   - id: tests-docs-verify
     content: 更新搜索测试与 AGENTS 说明；lint/pytest；本地镜像+迁移验证
-    status: in_progress
+    status: completed
 isProject: false
 ---
 

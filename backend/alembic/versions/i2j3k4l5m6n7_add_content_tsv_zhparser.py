@@ -112,6 +112,18 @@ def upgrade() -> None:
             else:
                 raise
 
+    # 确认 parser 已注册（扩展文件装了但未 CREATE EXTENSION 时会在这里失败）
+    conn = op.get_bind()
+    parser_exists = conn.execute(
+        sa.text("SELECT 1 FROM pg_ts_parser WHERE prsname = 'zhparser'")
+    ).scalar()
+    if not parser_exists:
+        raise RuntimeError(
+            "zhparser 扩展未生效（pg_ts_parser 中无 zhparser）。"
+            "请先执行: CREATE EXTENSION zhparser;"
+            "Docker: 使用 chat-agent-postgres:pg18-zhparser 镜像。"
+        )
+
     op.execute(
         """
         DO $$
