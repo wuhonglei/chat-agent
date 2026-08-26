@@ -3,6 +3,7 @@ from typing import Any
 
 from sqlalchemy import JSON as SQLJSON
 from sqlalchemy import Column, DateTime, ForeignKey, String, Text
+from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlmodel import Field, SQLModel
 
 from app.utils.common import gen_uuid
@@ -40,6 +41,14 @@ class MessageDb(SQLModel, table=True):
         default=None,
         sa_column=Column(Text, nullable=True),
         description="content_blocks 中 TextBlock 纯文本拼接，供会话搜索",
+    )
+    content_tsv: Any | None = Field(
+        default=None,
+        sa_column=Column(
+            TSVECTOR().with_variant(Text(), "sqlite"),
+            nullable=True,
+        ),
+        description="content_text 的 zhcfg tsvector，供会话全文搜索",
     )
     created_at: datetime = Field(
         default_factory=lambda: get_datetime_now(),

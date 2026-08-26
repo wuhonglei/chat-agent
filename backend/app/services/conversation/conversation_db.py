@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, func, or_
 from sqlmodel import Session, select
 
 from app.models import ConversationDb, MessageDb
@@ -31,6 +31,7 @@ from app.utils.date import get_datetime_now
 from app.utils.logger import logger
 
 _SNIPPET_CONTEXT_CHARS = 40
+_ZHCFG = "zhcfg"
 
 
 def _escape_like_pattern(value: str) -> str:
@@ -38,19 +39,37 @@ def _escape_like_pattern(value: str) -> str:
     return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
+def _snippet_match_index(text: str, keyword: str) -> tuple[int, int]:
+    """返回 (start_index, match_len)；找不到完整 keyword 时尝试首个空白分词 token。"""
+    lowered = text.lower()
+    key = keyword.lower()
+    idx = lowered.find(key)
+    if idx >= 0:
+        return idx, len(keyword)
+
+    for token in keyword.split():
+        token_key = token.lower()
+        if not token_key:
+            continue
+        token_idx = lowered.find(token_key)
+        if token_idx >= 0:
+            return token_idx, len(token)
+
+    return -1, 0
+
+
 def _build_snippet(text: str, keyword: str) -> str:
     """截取关键词前后约 40 字作为展示片段。"""
     if not text:
         return ""
-    lowered = text.lower()
-    key = keyword.lower()
-    idx = lowered.find(key)
+
+    idx, match_len = _snippet_match_index(text, keyword)
     if idx < 0:
         snippet = text[: _SNIPPET_CONTEXT_CHARS * 2]
         return snippet + ("…" if len(text) > len(snippet) else "")
 
     start = max(0, idx - _SNIPPET_CONTEXT_CHARS)
-    end = min(len(text), idx + len(keyword) + _SNIPPET_CONTEXT_CHARS)
+    end = min(len(text), idx + match_len + _SNIPPET_CONTEXT_CHARS)
     snippet = text[start:end]
     prefix = "…" if start > 0 else ""
     suffix = "…" if end < len(text) else ""
@@ -187,6 +206,16 @@ class ConversationDbService(DbService):
             limit=limit,
         )
 
+    def _message_content_match(self, keyword: str, pattern: str) -> Any:
+        """消息正文匹配谓词：Postgres 走 zhcfg tsvector，其它方言回退 content_text ILIKE。"""
+        db = self._ensure_db()
+        dialect_name = db.get_bind().dialect.name
+        if dialect_name == "postgresql":
+            content_tsv = cast(Any, MessageDb.content_tsv)
+            return content_tsv.op("@@")(func.plainto_tsquery(_ZHCFG, keyword))
+        content_text = cast(Any, MessageDb.content_text)
+        return content_text.ilike(pattern, escape="\\")
+
     def search_conversations(
         self,
         user_id: str,
@@ -197,8 +226,8 @@ class ConversationDbService(DbService):
     ) -> ConversationSearchResponse:
         """按标题与消息正文（user/assistant）搜索会话。
 
-        MVP：ILIKE 模糊匹配；按 conversation 去重；title 命中优先。
-        非法 cursor 会抛出 InvalidCursorError。
+        标题 ILIKE；消息正文 Postgres 用 zhcfg 全文检索，其它方言用 content_text ILIKE。
+        按 conversation 去重；title 命中优先。非法 cursor 会抛出 InvalidCursorError。
         """
         keyword = q.strip()
         if not keyword:
@@ -217,14 +246,14 @@ class ConversationDbService(DbService):
         title_column = cast(Any, ConversationDb.title)
         role_column = cast(Any, MessageDb.role)
         pattern = f"%{_escape_like_pattern(keyword)}%"
-        content_text = cast(Any, MessageDb.content_text)
+        content_match = self._message_content_match(keyword, pattern)
 
         message_match_exists = (
             select(MessageDb.id)
             .where(MessageDb.conversation_id == ConversationDb.id)
             .where(role_column.in_(["user", "assistant"]))
             .where(MessageDb.status == "done")
-            .where(content_text.ilike(pattern, escape="\\"))
+            .where(content_match)
             .exists()
         )
 
@@ -311,7 +340,7 @@ class ConversationDbService(DbService):
             )
 
         db = self._ensure_db()
-        content_text = cast(Any, MessageDb.content_text)
+        content_match = self._message_content_match(keyword, pattern)
         created_at_column = cast(Any, MessageDb.created_at)
         role_column = cast(Any, MessageDb.role)
         message = db.exec(
@@ -319,7 +348,7 @@ class ConversationDbService(DbService):
             .where(MessageDb.conversation_id == conversation.id)
             .where(role_column.in_(["user", "assistant"]))
             .where(MessageDb.status == "done")
-            .where(content_text.ilike(pattern, escape="\\"))
+            .where(content_match)
             .order_by(created_at_column.asc())
             .limit(1)
         ).first()

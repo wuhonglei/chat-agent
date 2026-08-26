@@ -6,16 +6,18 @@
 
 | Service | Port | Start command | Notes |
 |---------|------|---------------|-------|
-| **PostgreSQL** (pgvector) | 5432 | `sudo docker start chat-agent-postgres` | Docker container `chat-agent-postgres`; must be running before backend |
+| **PostgreSQL** (pgvector + zhparser) | 5432 | `docker compose up -d postgres` | 容器 `chat-agent-postgres`；换镜像勿 `down -v` |
 | **Backend** (FastAPI) | 8000 | `cd backend && make dev` | Requires `backend/.env` with all config (see below) |
 | **Frontend** (React/Vite+) | 3000 | `cd frontend && vp dev` | Requires `vp` CLI (`source ~/.vite-plus/env`) |
 
 ### PostgreSQL
 
-- Runs as a Docker container named `chat-agent-postgres` using `pgvector/pgvector:pg18`.
+- Runs as Docker container `chat-agent-postgres`，镜像为自建 `chat-agent-postgres:pg18-zhparser`（`docker/postgres/Dockerfile`：`pgvector/pgvector:pg18` + SCWS + zhparser）。
+- 构建/换镜像（**勿** `docker compose down -v`，会删 `postgres_data` 丢数据）：
+  `docker compose build postgres && docker compose up -d --force-recreate postgres`
 - Credentials: `postgres:postgres`, database `ai_assistant_db`.
-- Start Docker daemon first: `sudo dockerd &>/tmp/dockerd.log &` then `sudo docker start chat-agent-postgres`.
-- The `vector` extension must be enabled: `sudo docker exec chat-agent-postgres psql -U postgres -d ai_assistant_db -c "CREATE EXTENSION IF NOT EXISTS vector;"`.
+- Start Docker daemon first: `sudo dockerd &>/tmp/dockerd.log &` then start/recreate the container as above.
+- Extensions: `vector`（pgvector）与 `zhparser`（会话搜索 `zhcfg`）需可用；迁移会 `CREATE EXTENSION IF NOT EXISTS`。
 
 ### Backend configuration gotchas
 
