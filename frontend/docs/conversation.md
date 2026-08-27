@@ -17,11 +17,13 @@
 前端在 `src/services/conversation.ts` 中统一调用以下接口（通过 `apiClient`，最终前缀为 `/api`）：
 
 - 创建会话：`POST /api/conversation/register`
+- 激活草稿：`PUT /api/conversation/activate/{conversationId}`
 - 会话列表：`GET /api/conversation/list`
 - 会话搜索：`GET /api/conversation/search`
 - 会话详情：`GET /api/conversation/detail/{conversationId}`
 - 更新会话：`PUT /api/conversation/update/{conversationId}`
 - 删除会话：`DELETE /api/conversation/delete/{conversationId}`
+- 手动压缩：`POST /api/conversation/{conversationId}/compress`（前端超时 120s）
 
 消息与流式接口在 `src/services/chat.ts`：
 
@@ -72,7 +74,15 @@ await conversationAPI.searchConversations({
 
 后端契约见 `docs/会话管理.md`「会话搜索」。
 
-### 2.3 助手消息反馈
+### 2.3 草稿会话
+
+欢迎页 `useDraftConversation`：用户先上传附件时 `registerConversation({ isActive: false })`，避免空会话进侧栏；发送首条消息时 `activateConversation` 再跳转 `/chat/:id`。无草稿则直接 `registerConversation({ isActive: true })`。列表/搜索只返回 `is_active=true`。
+
+### 2.4 会话压缩
+
+侧栏菜单确认后 `dispatch(compressConversation(id))`。成功弹出 `CompressResultModal`，展示 `tokensBefore` → `tokensAfter`、`summarizedMessageCount` 与摘要 Markdown。聊天记录仍留在当前会话；压缩只影响后续模型上下文。进行中的对话后端返回 409。
+
+### 2.5 助手消息反馈
 
 `chatAPI.updateMessageFeedback(messageId, value, details)` 支持 `like`、
 `dislike` 和 `default`。`details` 可传多选理由与自由文本：
@@ -124,6 +134,13 @@ data: {"type":"ack","data":{...},"seq":1}
 - `done`
 
 历史文档中的 `mcp_tool_call`、`reasoning`、`content` 顶层事件已不是现网协议。
+
+`done.data.iterationCheckpoint` 出现时，写入最后一条助手消息的 `messageMetadata.iterationCheckpoint`（`iterationsUsed` / `continueBudget`）。`AssistantMessage` 据此渲染「继续执行（追加 N 轮）」与「到此为止，生成总结」：
+
+- 继续：`sendMessage({ content: "请继续执行剩余工作。" }, { taskAction: "continue" })`
+- 总结：`sendMessage({ content: "到此为止，请基于已有内容生成总结。" }, { taskAction: "summarize" })`
+
+检查点只在 Agent 模式触达本 turn 工具轮次上限时出现；刷新页面后仍可读 `messageMetadata`（后端落库）。
 
 ### 3.3 关键约束与坑点
 
