@@ -4,6 +4,10 @@ FROM pgvector/pgvector:pg18
 
 USER root
 
+# 使用阿里云 Debian 镜像源加速（保留官方 PG 源，PG18 国内镜像暂不可用）
+RUN sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources \
+    && sed -i 's|security.debian.org|mirrors.aliyun.com/debian-security|g' /etc/apt/sources.list.d/debian.sources
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         build-essential \
@@ -26,9 +30,9 @@ RUN wget -q http://www.xunsearch.com/scws/down/scws-1.2.3.tar.bz2 \
     && cd /tmp \
     && rm -rf scws-1.2.3 scws-1.2.3.tar.bz2
 
-# zhparser
-RUN git clone --depth 1 https://github.com/amutu/zhparser.git \
-    && cd zhparser \
+# zhparser（源码预下载到 build context，避免 GitHub 克隆超时）
+COPY zhparser/ /tmp/zhparser/
+RUN cd /tmp/zhparser \
     && make \
     && make install \
     && cd /tmp \
