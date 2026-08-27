@@ -14,7 +14,7 @@
 
 - `requirements.md`：当前版本需求范围与功能边界
 - `认证流程.md`：短信/微信登录与 JWT 鉴权流程
-- `会话管理.md`：会话列表/搜索、消息（含 `full_content`）、反馈入 Bad Case、聊天 SSE、断线续流与 Nginx 长连接超时约定
+- `会话管理.md`：会话列表/搜索、草稿激活、手动压缩、消息（含 `full_content`）、反馈入 Bad Case、聊天 SSE、Agent 迭代检查点（`task_action`）、断线续流与 Nginx 超时约定
 - `cache_design.md`：L1/L2 缓存现网范围、fail-open 行为、配置与排障
 - `图表可视化展示.md`：图表渲染相关说明
 - `nginx-cache-analysis.md`：Nginx 缓存分析
@@ -43,7 +43,7 @@
 - `COMPONENT_TOOLS_PRD.md`：组件工具接入说明（已对齐当前字段）
 - `MCP_CONFIG_ANALYSIS.md`：MCP 配置与加载机制、工具命名双轨与唯一 bare 别名回退
 - `VFS_AND_SANDBOX.md`：Agent 模式虚拟文件系统、file/shell MCP（工具 `exec`）、沙箱执行与排障手册
-- `TOOL_RESULT_AND_CONTEXT.md`：工具结果硬上限、统一上下文守卫、窗口外摘要与配置排障
+- `TOOL_RESULT_AND_CONTEXT.md`：工具结果硬上限、统一上下文守卫、窗口外摘要、手动全量压缩与 `last_summarized_message_ids`
 - `LLM_RELIABILITY.md`：LLM 建连重试、错误分类与进程级熔断手册
 - `PROMETHEUS_METRICS.md`：`/metrics` 暴露、无 `--preload` 的 Gunicorn multiprocess 约定与自定义进程指标
 - `SLO.md`（`backend/docs/SLO.md`）：HTTP 可用性 SLO、错误预算与导入现有 Prometheus 平台的规则说明（`deploy/prometheus/`）
@@ -65,8 +65,8 @@
 
 ### 现网实现
 
-- `conversation.md`：会话路由、状态、侧栏搜索（⌘K）与接口说明（对齐 `/api/conversation/*`）
-- `schema-for-backend-usage.md`：前端聊天请求体字段与后端消费说明
+- `conversation.md`：会话路由、草稿激活、侧栏压缩、搜索（⌘K）、检查点续跑与接口说明（对齐 `/api/conversation/*`）
+- `schema-for-backend-usage.md`：前端聊天请求体字段（含 `taskAction`）与后端消费说明
 - `conversion_cache.md`、`scroll-properties-explanation.md`、`aegis-埋点分析.md`
 
 ### 历史文档

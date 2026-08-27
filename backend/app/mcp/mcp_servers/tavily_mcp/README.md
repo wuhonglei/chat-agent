@@ -134,7 +134,33 @@ result = web_site_crawl(
 
 ## Response Format
 
-每个工具返回经 Pydantic 校验的结构化结果（见 `models.py` 中的 `TavilySearchResponse`、`TavilyExtractResponse`、`TavilyCrawlResponse`）。出错时直接抛出原始异常，保留异常类型与堆栈。
+工具内部仍用 Pydantic 模型校验 Tavily API（`models.py` 的 `TavilySearchResponse` / `TavilyExtractResponse` / `TavilyCrawlResponse`）。**返回给 LLM 的 `content` / `summary` 已格式化为 XML**（`utils.py` 的 `format_*_results`），不再把 JSON 原文直接塞进 tool_result。
+
+| 工具 | 根节点 | content | summary |
+|------|--------|---------|---------|
+| `web_search` | `<web_search_results>` 包一层或多层 `<search_query>` | 含正文：`is_chunked` 时用 `<snippet>`，否则 `<content>` CDATA | 同结构，不含 body |
+| `web_pages_extract` | `<web_extract_results>` | `<extracts>` + 可选 `<failed_extracts>` | 仅 title/url/error |
+| `web_site_crawl` | `<web_crawl_results>` | `<base_url>` + `<pages>` | 仅 url，无正文 |
+
+搜索结果按阈值拆成 `<high_relevance_results>` 与 `<ignored_results>`；ignored 条目 **不带正文**（只留 title/url/score）。短字段走 XML escape，长正文走 CDATA（内嵌 `]]>` 会拆段）。出错时仍抛原始异常。
+
+示例（单 query search 的 content）：
+
+```xml
+<search_query>
+  <query>latest AI developments</query>
+  <high_relevance_results count="1">
+    <result index="1">
+      <title>Example</title>
+      <url>https://example.com</url>
+      <score>0.85</score>
+      <content><![CDATA[Body text]]></content>
+    </result>
+  </high_relevance_results>
+</search_query>
+```
+
+多 query 时再用 `<web_search_results>` 包裹各 `<search_query>`。`chunks_per_source` 生效（`is_chunked=true`）时，正文拆成多个 `<snippet index="N">`，而不是单一 `<content>`。
 
 ## API Documentation
 

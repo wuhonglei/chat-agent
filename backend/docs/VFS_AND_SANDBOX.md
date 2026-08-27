@@ -1,6 +1,6 @@
 # VFS 与沙箱执行手册（当前实现）
 
-**最后核对**：2026-07-26
+**最后核对**：2026-08-23
 
 ## 1. 适用范围
 
@@ -13,6 +13,7 @@ MCP 工具和沙箱执行后端。它面向维护后端、MCP 工具或 Agent �
 对应源码：
 
 - 路径布局：`app/vfs/paths.py`
+- 技能目录 / 加载渲染：`app/agent_skills/`、`app/mcp/mcp_servers/skill_manager_mcp/load_skill.py`
 - 虚拟路径解析与权限：`app/vfs/resolver.py`、`app/vfs/mapper.py`
 - File MCP：`app/mcp/mcp_servers/file_mcp/`
 - Shell MCP：`app/mcp/mcp_servers/shell_mcp/`（工具名 `exec`）
@@ -48,6 +49,20 @@ Agent 和 MCP 工具不应暴露磁盘路径，应使用虚拟路径：
 `PathResolver` 会拒绝绝对路径逃逸、`..`、`.git`、`.ssh`、`.aws`、
 `.cursor`、`__pycache__` 和 `.env` 等敏感路径片段。`VirtualPathMapper`
 负责将返回值中的磁盘路径替换回虚拟路径，避免把宿主机目录暴露给前端或 LLM。
+
+### 2.1 Agent 技能目录注入
+
+`agent_mode > 0` 时，`ChatSessionAgent` 通过 `get_skill_registry(user_id).list_manifests()`
+收集内置 + 用户 skill，把**名称与 description 摘要**写入 system prompt 的
+`<available_skills>`（`format_catalog_entries`）。目录不含 SKILL.md 全文。
+
+模型要执行某 skill 时，必须先调 `skill_manager_load_skill`（参数 `name` 为目录中的精确名称）。
+加载结果是 `<skill_content>` XML（`agent_skills/render.py`）：含 base directory 与
+`<skill_instructions>`。相对路径按该 base（通常 `/mnt/skills/public/{name}` 或
+`/mnt/skills/custom/{name}`）解析，再用 file 工具按需读取。`load_skill` 的 L1
+硬上限覆盖为 `0`（跳过单条阈值，见 `TOOL_RESULT_AND_CONTEXT.md`）。
+
+前端 `SkillLoadToolResult` 会解析同一段 XML，在工具块里展示技能说明。
 
 ## 3. File MCP 工具
 
