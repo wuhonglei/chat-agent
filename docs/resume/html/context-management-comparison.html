@@ -279,7 +279,7 @@
                 <tr>
                     <td><strong>chat-agent</strong></td>
                     <td><span class="tag tag-python">Python</span></td>
-                    <td><code>backend/app/utils/context_compactor.py</code> · <code>history_truncate.py</code> · <code>token.py</code> · <code>chat_session_agent.py</code> · <code>tool_executor.py</code></td>
+                    <td><code>backend/app/utils/context_compactor.py</code> · <code>tool_result_hard_limit.py</code> · <code>history_truncate.py</code> · <code>token.py</code> · <code>chat_session_agent.py</code> · <code>tool_executor.py</code></td>
                 </tr>
                 <tr>
                     <td><strong>deer-flow</strong></td>
@@ -423,7 +423,7 @@
                 </tr>
                 <tr>
                     <td><strong>单轮工具结果压缩</strong></td>
-                    <td>FAISS 语义截断</td>
+                    <td>硬上限落盘预览 + FAISS 语义截断（两层）</td>
                     <td>磁盘外部化 + 头尾截断</td>
                     <td>头尾截断 + 摘要替换</td>
                     <td>磁盘持久化 + 预览</td>
@@ -441,7 +441,7 @@
                 </tr>
                 <tr>
                     <td><strong>阈值触发</strong></td>
-                    <td>context_limit - max_output - 13K buffer → 四级渐进降级</td>
+                    <td>硬上限(per-result 30K/turn 80K) + context_limit - max_output - 13K buffer → 四级渐进降级</td>
                     <td>硬停 100% (默认关闭)</td>
                     <td>50% context → 压缩</td>
                     <td>effective_window - 13K → 自动压缩</td>
@@ -468,7 +468,7 @@
                 </tr>
                 <tr>
                     <td><strong>窗口内工具结果</strong></td>
-                    <td>Step 2: summary 优先/2000 token 截断; Step 4: 最近 2 组保护, 旧组 head-tail 500/500 字符截断</td>
+                    <td>写入时(硬上限): per-result 30K→落盘, turn 80K; 写入时(语义): markdown FAISS截断; Step 2: summary/2000 token; Step 4: keep_recent=2→0 升级</td>
                     <td>历史重扫: 超预算重新截断</td>
                     <td>旧工具结果→1行摘要</td>
                     <td>时间触发清除 + 预算持久化</td>
@@ -481,18 +481,53 @@
         <div class="card" id="single-round">
             <h2>🔧 二、单轮调用：工具返回结果过长时的处理</h2>
 
-            <h3>2.1 chat-agent — FAISS 语义截断</h3>
+            <h3>2.1 chat-agent — 三层防护（硬上限落盘 + FAISS 语义截断 + 统一守卫兜底）</h3>
             <div class="highlight-box">
-                <strong>策略：</strong>语义相关性过滤<br>
-                <strong>原理：</strong>将工具结果按 Markdown 切块 → 向量化 → 与用户 query 计算相似度 → 贪心选择 top-K 块直到 token 预算
+                chat-agent 的单轮工具结果压缩采用<strong>三层递进</strong>架构，每层处理不同粒度的问题。
+            </div>
+
+            <h4>Layer 1 — 硬上限落盘预览（Agent 模式）</h4>
+            <pre><code>核心文件: backend/app/utils/tool_result_hard_limit.py
+
+Per-result 阈值:
+  默认 max_chars = 30,000 chars（可按工具覆盖）
+  覆盖: exec=20K, search_files=20K, web_site_crawl=20K, web_pages_extract=25K, load_skill=0(关闭)
+
+Turn budget:
+  turn_budget_chars = 80,000 chars（同轮全部工具结果合计）
+
+操作:
+  超阈值 → 完整内容写入 workspace/.tool-results/{tool_call_id}.txt
+  → 替换为 head(2000) + 省略标记 + tail(1000) + 文件路径提示
+  → 模型可通过 read_file 回读完整原文
+
+Fallback: 落盘失败 → 头尾截断
+豁免: read_file（防 persist↔read 循环）
+非 Agent 模式: 原样放行，由统一上下文守卫兜底</code></pre>
+            <ul>
+                <li><strong>Turn budget:</strong> 同轮工具结果执行完毕后，<code>enforce_turn_budget</code> 按大小降序从最大结果开始强制落盘/截断，直到总 chars ≤ 80K</li>
+                <li><strong>Per-tool overrides:</strong> <code>ToolResultHardLimitConfig.tool_overrides</code> 支持按工具名定制阈值，值为 0 表示关闭该工具单条上限</li>
+            </ul>
+
+            <h4>Layer 2 — FAISS 语义截断（Markdown 工具结果）</h4>
+            <div class="warning-box">
+                <strong>策略：</strong>语义相关性过滤 — 将工具结果按 Markdown 切块 → 向量化 → 与用户 query 计算相似度 → 贪心选择 top-K 块直到 token 预算
             </div>
             <ul>
                 <li>容错阈值: <code>tolerance_tokens = 8000</code>（低于此不压缩）</li>
                 <li>目标阈值: <code>threshold_tokens = 5000</code></li>
                 <li>chunk_size: 1024 字符, overlap 200 字符</li>
                 <li>Fallback: 如果没选中任何 chunk，返回第一个 chunk</li>
+                <li>跳过压缩: <code>SKIP_TOOL_RESULT_COMPACTION_SERVERS</code> = {file, shell, skill_manager}（shell/file 已由 Layer 1 硬上限处理）</li>
             </ul>
-            <p><strong>特点：</strong>唯一使用 <strong>语义相关性</strong> 而非纯机械截断的框架。保留与用户问题最相关的片段，而非简单的头尾。</p>
+
+            <h4>Layer 3 — 统一上下文守卫兜底</h4>
+            <p>非 Agent 模式下不走 Layer 1/2，由 <code>unified_context_guard</code> 的 Step 2/4 统一兜底（见 3.1）。</p>
+
+            <p><strong>特点：</strong>唯一使用 <strong>语义相关性</strong> 而非纯机械截断的框架。同时通过硬上限落盘实现类似 claude-code 的磁盘外部化，模型可通过 read_file 回读完整数据。</p>
+            <div class="highlight-box">
+                <strong>三层架构关系：</strong>Layer 1（硬上限）在工具结果返回时立即触发，Layer 2（FAISS）在同一流程中对 markdown 结果触发，Layer 3（统一守卫）在每轮 LLM 调用前检查总 context。三者分别处理「单结果过大」「markdown 结果相关性过滤」「整体 context 超阈值」，互不依赖。
+            </div>
 
             <h3>2.2 deer-flow — 两级策略（磁盘外部化 + 头尾截断）</h3>
             <pre><code>Tier 1 — 磁盘外部化 (preferred):
@@ -585,8 +620,8 @@ Tier 2 — Fallback 头尾截断:
 
                 <!-- Step 4 -->
                 <polygon points="130,270 390,270 340,330 180,330" fill="url(#funnel4)" opacity="0.95"/>
-                <text x="260" y="295" text-anchor="middle" fill="white" font-size="12" font-weight="bold">Step 4：压缩当前轮工具结果</text>
-                <text x="260" y="312" text-anchor="middle" fill="white" font-size="10">保护最近 2 组，旧组 head-tail 500/500 截断</text>
+                <text x="260" y="295" text-anchor="middle" fill="white" font-size="12" font-weight="bold">Step 4：压缩当前轮工具结果（两阶段）</text>
+                <text x="260" y="312" text-anchor="middle" fill="white" font-size="10">keep_recent=2→0 升级，旧组 head-tail 500/500 截断</text>
 
                 <!-- Stop -->
                 <polygon points="180,355 340,355 310,405 210,405" fill="url(#funnel5)" opacity="0.95"/>
@@ -603,7 +638,7 @@ Tier 2 — Fallback 头尾截断:
 Step 1: 检查 total_tokens <= threshold → 通过，无需操作
 Step 2: 压缩所有历史轮次的工具结果（优先 summary，否则 2000 token 头尾截断）
 Step 3: 按剩余预算切分历史消息窗口（从新到旧累加整轮），窗口外 → LLM 增量摘要
-Step 4: 按大小压缩当前轮次的工具结果（保护最近 2 组，旧组 head-tail 500/500 字符截断）
+Step 4: 按大小压缩当前轮次的工具结果（两阶段升级: keep_recent=2 → keep_recent=0）
 最终: 若仍超阈值 → stop_tools（停止工具调用，切换到最终回答）</code></pre>
             <p><strong>反抖动保护：</strong>3 次连续失败 → 进入 300s 恢复窗口</p>
 
@@ -758,7 +793,7 @@ blockingLimit = effectiveContextWindow - 3,000</code></pre>
             <h3>4.2 窗口外上下文</h3>
             <table>
                 <tr><th>框架</th><th>处理方式</th><th>摘要策略</th><th>持久化</th></tr>
-                <tr><td>chat-agent</td><td>LLM 摘要</td><td>增量合并（只摘要新增部分，合并到已有摘要）</td><td>DB <code>conversation_contexts</code> 表</td></tr>
+                <tr><td>chat-agent</td><td>LLM 摘要</td><td>增量合并 + 摘要自压缩（prior >1.5x 预算时压缩）</td><td>DB <code>conversation_contexts</code> 表</td></tr>
                 <tr><td>deer-flow</td><td>LLM 摘要</td><td>删除全部旧消息，插入 summary + 保留尾部</td><td>无额外持久化</td></tr>
                 <tr><td>hermes-agent</td><td>LLM 摘要</td><td>结构化模板(Goal/Actions/State/Decisions)，迭代更新</td><td>SQLite session 分割</td></tr>
                 <tr><td>claude-code</td><td>LLM 摘要</td><td>9 段结构化摘要 + 转录文件引用</td><td>写入磁盘转录文件</td></tr>
@@ -769,7 +804,7 @@ blockingLimit = effectiveContextWindow - 3,000</code></pre>
             <h3>4.3 窗口内的工具调用结果处理</h3>
             <table>
                 <tr><th>框架</th><th>处理方式</th></tr>
-                <tr><td>chat-agent</td><td>Step 2(历史): ToolUseBlock args>500 chars 则 JSON 感知截断；ToolResultBlock: 优先用 summary，否则 >2000 tokens → head-tail 60/40 截断。Step 4(当前轮): 保留最近 2 组 ToolUse+ToolResult，更早组 head-tail 500/500 chars 截断(最大优先)</td></tr>
+                <tr><td>chat-agent</td><td><strong>写入时(硬上限):</strong> Agent 模式 per-result 30K chars → 落盘预览(head 2K+tail 1K+文件路径)，同轮 turn_budget 80K chars 强制从最大结果开始落盘。<strong>写入时(语义):</strong> markdown 结果 >8K tokens → FAISS 语义截断到 5K。<strong>Step 2(历史):</strong> args>500 chars → JSON 感知截断；summary 优先，否则 >2000 tokens → head-tail 60/40。<strong>Step 4(当前轮):</strong> keep_recent=2 → keep_recent=0 升级</td></tr>
                 <tr><td>deer-flow</td><td>窗口内保留原样；但 wrap_model_call 每次调用前重新扫描，超预算的历史工具结果重新截断</td></tr>
                 <tr><td>hermes-agent</td><td>压缩预处理: 旧工具结果→1行摘要；MD5 去重；图片→占位符</td></tr>
                 <tr><td>claude-code</td><td>时间触发: 60 分钟前的工具结果→[Old tool result content cleared]（保留最近 5 个）；API 层: 180K tokens 触发时清除旧结果</td></tr>
@@ -785,10 +820,12 @@ blockingLimit = effectiveContextWindow - 3,000</code></pre>
                 <div class="framework-card">
                     <h4>🧠 chat-agent</h4>
                     <ul>
+                        <li><strong>三层防护架构</strong>：硬上限落盘(per-result 30K + turn 80K) → FAISS 语义截断 → 统一守卫兜底</li>
                         <li><strong>语义截断</strong>：唯一使用向量相似度筛选工具结果片段</li>
-                        <li><strong>增量摘要</strong>：窗口外摘要支持增量合并</li>
-                        <li><strong>四级渐进降级</strong>：统一守卫，逐级降级</li>
-                        <li><strong>JSON 感知参数截断</strong>：保持 JSON 合法</li>
+                        <li><strong>磁盘外部化</strong>：工具结果落盘到 workspace/.tool-results/，模型可通过 read_file 回读</li>
+                        <li><strong>增量摘要 + 自压缩</strong>：增量合并 + prior_summary 超预算时触发「摘要的摘要」</li>
+                        <li><strong>四级渐进降级</strong>：Step 4 两阶段升级(keep_recent=2→0)</li>
+                        <li><strong>Per-tool 硬上限覆盖</strong>：按工具名定制阈值</li>
                     </ul>
                 </div>
                 <div class="framework-card">
@@ -846,8 +883,8 @@ blockingLimit = effectiveContextWindow - 3,000</code></pre>
             <div class="spectrum">
                 <span class="spectrum-label">简单</span>
                 <div class="spectrum-bar">
-                    <div class="spectrum-item" style="background:#dbeafe;color:#1e40af;">chat-agent</div>
                     <div class="spectrum-item" style="background:#fef3c7;color:#92400e;">opencode</div>
+                    <div class="spectrum-item" style="background:#dbeafe;color:#1e40af;">chat-agent</div>
                     <div class="spectrum-item" style="background:#fce7f3;color:#9d174d;">hermes-agent</div>
                     <div class="spectrum-item" style="background:#d1fae5;color:#065f46;">codex</div>
                     <div class="spectrum-item" style="background:#e0e7ff;color:#3730a3;">deer-flow</div>
@@ -855,12 +892,13 @@ blockingLimit = effectiveContextWindow - 3,000</code></pre>
                 </div>
                 <span class="spectrum-label">复杂</span>
             </div>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">chat-agent 的复杂度因三层防护架构（硬上限 + FAISS + 统一守卫）显著提升，现介于 opencode 和 hermes-agent 之间。</p>
 
             <h3>6.2 可借鉴的设计模式</h3>
             <table>
                 <tr><th>模式</th><th>来源</th><th>适用场景</th></tr>
                 <tr><td>语义截断</td><td>chat-agent</td><td>工具结果很长但只需部分信息时</td></tr>
-                <tr><td>磁盘外部化 + 重取</td><td>deer-flow, claude-code, opencode</td><td>需要保留完整数据但不想占 context</td></tr>
+                <tr><td>磁盘外部化 + 重取</td><td>chat-agent, deer-flow, claude-code, opencode</td><td>需要保留完整数据但不想占 context</td></tr>
                 <tr><td>增量摘要</td><td>chat-agent, opencode</td><td>长对话频繁压缩时减少摘要成本</td></tr>
                 <tr><td>Skill 救援</td><td>deer-flow</td><td>有频繁加载的参考文档场景</td></tr>
                 <tr><td>确定性替换</td><td>claude-code</td><td>依赖 prompt cache 的生产环境</td></tr>
@@ -877,14 +915,30 @@ blockingLimit = effectiveContextWindow - 3,000</code></pre>
         <div class="card" id="improvements">
             <h2>🔨 七、chat-agent 可借鉴的改进方案</h2>
 
-            <div class="danger-box">
-                <strong>❌ 当前缺口：</strong>
+            <h3>7.0 当前能力与缺口总览</h3>
+            <div class="highlight-box">
+                <strong>✅ 已有能力：</strong>
                 <ul>
-                    <li>非 markdown 工具结果（shell/JSON）无压缩，直接穿透</li>
-                    <li>单个工具结果超 context 无兜底，可能 API 报错</li>
-                    <li>长对话增量摘要质量退化，无重压缩机制</li>
-                    <li>无时间触发的自动清理</li>
-                    <li>无 prompt cache 保护</li>
+                    <li><strong>三层防护架构</strong>（硬上限落盘 + FAISS 语义截断 + 统一守卫兜底）</li>
+                    <li><strong>硬上限落盘预览</strong>（Agent 模式 per-result 30K chars → workspace/.tool-results/，模型可 read_file 回读）</li>
+                    <li><strong>同轮 turn budget</strong>（80K chars，按大小降序从最大结果开始落盘/截断）</li>
+                    <li><strong>Per-tool 硬上限覆盖</strong>（exec=20K, search_files=20K, web_pages_extract=25K 等）</li>
+                    <li><strong>FAISS 语义截断</strong>（markdown 工具结果实时压缩，tolerance=8K, target=5K）</li>
+                    <li><strong>tiktoken 精确计数</strong>（cl100k_base，支持本地 BPE 离线回退）</li>
+                    <li><strong>四级渐进式上下文守卫</strong>（统一阈值 = context_limit - max_output - 13K buffer）</li>
+                    <li><strong>Step 4 两阶段升级</strong>（keep_recent=2 → keep_recent=0）</li>
+                    <li><strong>增量 LLM 摘要</strong>（含反抖动保护：3 次失败 → 300s 恢复）</li>
+                    <li><strong>摘要自压缩</strong>（prior_summary 超 1.5x 预算时触发「摘要的摘要」）</li>
+                    <li><strong>JSON 感知参数截断</strong>（>500 chars, 保留 200 chars/叶子）</li>
+                </ul>
+            </div>
+
+            <div class="danger-box">
+                <strong>❌ 存在缺口：</strong>
+                <ul>
+                    <li>长对话增量摘要质量退化，无结构化模板约束</li>
+                    <li>无时间触发的自动清理（老工具结果即使 &lt;2000 tokens 也原样保留）</li>
+                    <li>无 prompt cache 保护（当前用 OpenAI 兼容 API，优先级低）</li>
                 </ul>
             </div>
 
@@ -895,113 +949,82 @@ blockingLimit = effectiveContextWindow - 3,000</code></pre>
                     <th>编号</th>
                     <th>改动</th>
                     <th>借鉴来源</th>
-                    <th>改动量</th>
                     <th>影响</th>
+                    <th>状态</th>
                 </tr>
                 <tr>
                     <td><span class="tag tag-p0">P0</span></td>
                     <td>P0-1</td>
                     <td>非 markdown 工具结果磁盘持久化</td>
                     <td>claude-code</td>
-                    <td>中（半天）</td>
                     <td>防止 50K+ shell 输出撑爆 context</td>
+                    <td><span style="color: var(--success); font-weight: 600;">✅ 已实现</span></td>
                 </tr>
                 <tr>
                     <td><span class="tag tag-p0">P0</span></td>
                     <td>P0-2</td>
                     <td>per-turn 聚合预算兜底</td>
                     <td>hermes-agent</td>
-                    <td>小（2h）</td>
                     <td>防止单结果超 context API 报错</td>
+                    <td><span style="color: var(--success); font-weight: 600;">✅ 已实现</span></td>
+                </tr>
+                <tr>
+                    <td><span class="tag tag-p0">P0</span></td>
+                    <td>P0-3</td>
+                    <td>tool_call 参数 JSON 感知截断</td>
+                    <td>hermes-agent</td>
+                    <td>保持 JSON 合法，减少参数膨胀</td>
+                    <td><span style="color: var(--success); font-weight: 600;">✅ 已实现</span></td>
                 </tr>
                 <tr>
                     <td><span class="tag tag-p1">P1</span></td>
                     <td>P1-1</td>
                     <td>结构化摘要模板 + 摘要压缩</td>
                     <td>claude-code + hermes-agent</td>
-                    <td>中（半天）</td>
                     <td>100+ 轮对话摘要质量维护</td>
+                    <td><span style="color: var(--warning); font-weight: 600;">🔶 摘要压缩已实现，结构化模板待做</span></td>
                 </tr>
                 <tr>
                     <td><span class="tag tag-p1">P1</span></td>
                     <td>P1-2</td>
                     <td>时间触发工具结果清理</td>
                     <td>claude-code</td>
-                    <td>小（1h）</td>
                     <td>老工具结果自动释放 context</td>
+                    <td><span style="color: var(--danger); font-weight: 600;">❌ 未实现</span></td>
                 </tr>
                 <tr>
                     <td><span class="tag tag-p2">P2</span></td>
                     <td>P2-1</td>
                     <td>Prompt Cache 保护</td>
                     <td>claude-code</td>
-                    <td>大</td>
                     <td>降低 API 成本（需 Anthropic）</td>
+                    <td><span style="color: var(--danger); font-weight: 600;">❌ 未实现（优先级低）</span></td>
                 </tr>
                 <tr>
                     <td><span class="tag tag-p2">P2</span></td>
                     <td>P2-2</td>
                     <td>反抖动保护</td>
                     <td>hermes-agent</td>
-                    <td>✅ 已实现</td>
-                    <td>UnifiedContextGuardConfig.anti_thrash_failure_threshold=3</td>
+                    <td>防止阈值附近反复压缩</td>
+                    <td><span style="color: var(--success); font-weight: 600;">✅ 已实现</span></td>
                 </tr>
             </table>
 
             <div class="highlight-box">
-                <strong>建议实施顺序：</strong>P0-1 → P0-2 → P1-2 → P1-1 → P2-1<br>
-                <em>（P0-3 和 P2-2 已实现，从剩余最小改动、最高收益开始）</em>
+                <strong>建议实施顺序：</strong><s>P0-1 → P0-2</s> → P1-2 → P1-1(结构化模板) → P2-1<br>
+                <em>P0 全部完成，摘要自压缩已实现。剩余: P1-2 时间触发清理、P1-1 结构化模板。</em>
             </div>
 
-            <h3>P0-1: 非 markdown 工具结果磁盘持久化</h3>
-            <p>问题：shell / file MCP 被排除在压缩之外，50K 的 shell 输出直接塞进 context。</p>
-            <pre><code>MAX_TOOL_RESULT_CHARS = 30_000
-PREVIEW_CHARS = 2_000
+            <h3>已实现：硬上限落盘预览（P0-1）</h3>
+            <p><code>backend/app/utils/tool_result_hard_limit.py</code> — Agent 模式下，per-result 30K chars 超阈值时完整内容落盘到 <code>workspace/.tool-results/{tool_call_id}.txt</code>，替换为 head(2K) + tail(1K) + 文件路径提示。落盘失败时 fallback 到头尾截断。</p>
 
-def _persist_if_too_large(self, tool_result, tool_call_id):
-    if len(tool_result.content) > MAX_TOOL_RESULT_CHARS:
-        path = f"/tmp/chat-agent-results/{tool_call_id}.txt"
-        write_to_disk(path, tool_result.content)
-        preview = tool_result.content[:PREVIEW_CHARS]
-        tool_result.content = (
-            f"{preview}\n\n"
-            f"[完整输出已保存到 {path}，共 {len(tool_result.content)} 字符，"
-            f"约 {len(tool_result.content) // 4} tokens。"
-            f"需要查看具体内容时可用 read_file 工具读取。]"
-        )</code></pre>
+            <h3>已实现：per-turn 聚合预算（P0-2）</h3>
+            <p><code>enforce_turn_budget</code> — 同轮工具结果执行完毕后，按大小降序从最大的开始强制落盘/截断，直到总 chars ≤ turn_budget_chars(80K)。与 P0-1 共用 <code>apply_hard_limit</code> 函数。</p>
 
-            <h3>P0-2: per-turn 聚合预算兜底</h3>
-            <pre><code>def _enforce_turn_budget(self, tool_round_messages, context_limit):
-    total_chars = sum(len(m.content) for m in tool_round_messages)
-    budget = int(context_limit * 0.5)  # 工具轮最多占 50% context
-    if total_chars > budget:
-        sorted_msgs = sorted(tool_round_messages,
-                           key=lambda m: len(m.content), reverse=True)
-        for msg in sorted_msgs:
-            if total_chars <= budget:
-                break
-            self._persist_if_too_large(msg, msg.tool_call_id)</code></pre>
+            <h3>已实现：摘要自压缩（P1-1 部分）</h3>
+            <p><code>context_summary_service.py</code> 的 <code>_compress_summary</code> — prior_summary 超预算 1.5x 时触发自压缩到 max_tokens // 2，避免 prior_summary 占满输入。</p>
 
-            <h3>P1-1: 结构化摘要模板</h3>
-            <pre><code>## 主要需求
-用户的核心目标和诉求
-
-## 已完成工作
-已经解决的问题和交付的内容
-
-## 进行中
-当前正在处理的任务
-
-## 待处理
-用户提出但尚未完成的需求
-
-## 关键决策
-对话中做出的重要技术/方案决策
-
-## 关键上下文
-后续对话可能需要的背景信息</code></pre>
-
-            <h3>P1-2: 时间触发工具结果清理</h3>
+            <h3>P1-2: 时间触发工具结果清理（待实现）</h3>
             <pre><code>TOOL_RESULT_MAX_AGE_SECONDS = 3600  # 60 分钟
 TOOL_RESULT_KEEP_RECENT = 5
 
