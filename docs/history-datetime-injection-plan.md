@@ -1,5 +1,20 @@
 # 历史消息时间注入方案
 
+> **现网实现摘要（2026-08-30 对照代码）**
+>
+> 已落地的是 **当前轮冻结**，不是本文后半的「给每条历史 user 消息补时间」。
+>
+> | 项 | 现网 |
+> |----|------|
+> | 当前轮 `<current_datetime>` | `ChatOrchestrator` 用 `user_message.created_at` 调用 `get_current_datetime_str`，传入 `stream_session_events`；`ChatSessionAgent` 存 `_turn_datetime`，守卫重建复用已拼好的 `_user_message_content` |
+> | 格式 | `YYYY-MM-DD HH:MM:SS 星期X`（中文星期，不依赖 locale） |
+> | 历史 user 消息 | `format_chat_message_for_llm` **不**追加时间；历史仍是 `content_blocks` 纯文本 |
+> | system prompt | **禁止**写入时间（前缀缓存实验：写入后命中率可掉到 0%） |
+>
+> 验证：`backend/tests/prompts/test_user_message_datetime.py`、`test_chat_orchestrator_tracing.py` 中的 `test_stream_passes_user_message_created_at_as_current_datetime`。
+>
+> 下文「实现方案 / 验证方案」描述的是尚未合入的历史注入，不要当成已上线行为。
+
 ## 背景
 
 ### 现状
