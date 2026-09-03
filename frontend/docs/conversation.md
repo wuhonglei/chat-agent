@@ -71,6 +71,7 @@ await conversationAPI.searchConversations({
 - 输入防抖 500ms；每页 `limit=20`，无限滚动用 `nextCursor` / `hasMore`
 - 本地搜索历史：`localStorage` 键 `conversation-search-history:v1`，最多 20 条（仅首页结果写入，避免翻页重复）
 - 结果展示 `matchType`（`title` / `user` / `assistant`）与 `snippet`；点击跳转对应会话
+- 前端只传 `q` / `limit` / `cursor`。生产正文是 zhparser 全文检索，不是 JSON ILIKE；标题仍是子串。契约与索引见 `docs/会话管理.md`、`docs/CONVERSATION_SEARCH_OPTIMIZATION.md`
 
 后端契约见 `docs/会话管理.md`「会话搜索」。
 
@@ -82,7 +83,18 @@ await conversationAPI.searchConversations({
 
 侧栏菜单确认后 `dispatch(compressConversation(id))`。成功弹出 `CompressResultModal`，展示 `tokensBefore` → `tokensAfter`、`summarizedMessageCount` 与摘要 Markdown。聊天记录仍留在当前会话；压缩只影响后续模型上下文。进行中的对话后端返回 409。
 
-### 2.5 助手消息反馈
+### 2.5 问题导航时间轴
+
+实现：`QuestionTimeline`（`src/pages/ChatPage/components/ChatMessage/components/QuestionTimeline`），挂在 `ChatMessageList` 滚动容器外侧。
+
+- 从当前会话 `messages` 抽出全部 `role=user`，摘要取 TextBlock 拼接后截断 **20** 字；无文本则为「附件」
+- 用户消息 DOM：`id="user-message-{message.id}"`（`UserMessage`）；点击平滑滚到该节点（距容器顶 12px）
+- 当前项：滚动位置 + 80px 阈值内最后一条已越过的用户消息；滚动监听 `passive` + 100ms 节流
+- **不渲染**：小屏（`useIsSmallScreen`）或用户消息少于 2 条
+
+纯前端导航，无额外 API。
+
+### 2.6 助手消息反馈
 
 `chatAPI.updateMessageFeedback(messageId, value, details)` 支持 `like`、
 `dislike` 和 `default`。`details` 可传多选理由与自由文本：

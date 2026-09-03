@@ -17,7 +17,13 @@
   `docker compose build postgres && docker compose up -d --force-recreate postgres`
 - Credentials: `postgres:postgres`, database `ai_assistant_db`.
 - Start Docker daemon first: `sudo dockerd &>/tmp/dockerd.log &` then start/recreate the container as above.
-- Extensions: `vector`（pgvector）与 `zhparser`（会话搜索 `zhcfg`）需可用；迁移会 `CREATE EXTENSION IF NOT EXISTS`。
+- Extensions: `vector`（pgvector）与 `zhparser`（会话搜索 `zhcfg`）需可用；迁移 `i2j3k4l5m6n7` 会 `CREATE EXTENSION IF NOT EXISTS`，扩展文件不存在则失败。搜索实现见 `docs/CONVERSATION_SEARCH_OPTIMIZATION.md`。
+
+### Deploy (`deploy.sh`)
+
+- 首次 `compose up`：若 CLI 支持，使用 `--wait --wait-timeout 300`（默认约 60s，后端冷启动 / 迁移经常不够）。
+- 零停机更新：`zero_downtime_deploy` 对 backend 默认等健康检查最多 120s（容器内 `curl -f http://127.0.0.1:8000/`）。
+- 脚本末尾「最终健康检查」对 backend 再重试最多 12 次、间隔 5s，避免冷启动被误判失败。仅检查本次部署范围内的服务（只更 backend 不会因未起 frontend 失败）。
 
 ### Backend configuration gotchas
 

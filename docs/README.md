@@ -14,7 +14,8 @@
 
 - `requirements.md`：当前版本需求范围与功能边界
 - `认证流程.md`：短信/微信登录与 JWT 鉴权流程
-- `会话管理.md`：会话列表/搜索、草稿激活、手动压缩、消息（含 `full_content`）、反馈入 Bad Case、聊天 SSE、Agent 迭代检查点（`task_action`）、断线续流与 Nginx 超时约定
+- `会话管理.md`：会话列表/搜索（标题 ILIKE + 正文 zhcfg 全文检索）、草稿激活、手动压缩、消息（含 `full_content` / `content_text`）、反馈入 Bad Case、聊天 SSE、`<current_datetime>` 冻结、Agent 迭代检查点（`task_action`）、断线续流与 Nginx 超时约定
+- `CONVERSATION_SEARCH_OPTIMIZATION.md`：会话搜索索引（`content_text` / `content_tsv`）、`plainto_tsquery('zhcfg')`、zhparser 镜像与触发器排障
 - `cache_design.md`：L1/L2 缓存现网范围、fail-open 行为、配置与排障
 - `图表可视化展示.md`：图表渲染相关说明
 - `nginx-cache-analysis.md`：Nginx 缓存分析
@@ -27,6 +28,7 @@
 ### 规划方案
 
 - `conversation-management-requirements.md`：会话管理需求（现网实现 + 规划项混合）
+- `history-datetime-injection-plan.md`：历史 user 消息补时间（未落地）；文首「现网实现摘要」记录当前轮 `created_at` 冻结
 - `phase0-sandbox-and-vfs-plan.md`：Sandbox/VFS 规划与阶段性落地记录；其中 uploads provider 已按当前实现补充为文件系统扫描
 - `agent-mode-switch-plan.md`：Agent 模式开关历史改造计划；开头包含当前实现差异摘要，不作为逐步改造清单执行
 - `agent_evaluation_framework.md`：评估框架早期盘点（部分表格已过时）；现网运维以 `/backend/docs/EVAL_OPS.md` 为准
@@ -65,7 +67,7 @@
 
 ### 现网实现
 
-- `conversation.md`：会话路由、草稿激活、侧栏压缩、搜索（⌘K）、检查点续跑与接口说明（对齐 `/api/conversation/*`）
+- `conversation.md`：会话路由、草稿激活、侧栏压缩、搜索（⌘K）、问题导航时间轴、检查点续跑与接口说明（对齐 `/api/conversation/*`）
 - `schema-for-backend-usage.md`：前端聊天请求体字段（含 `taskAction`）与后端消费说明
 - `conversion_cache.md`、`scroll-properties-explanation.md`、`aegis-埋点分析.md`
 

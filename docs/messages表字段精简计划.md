@@ -1,6 +1,6 @@
 # messages 表字段精简计划（已落地状态）
 
-> 更新日期：2026-04-04  
+> 更新日期：2026-08-30  
 > 适用范围：`backend/app/models/message_db.py` 与 `backend/alembic/versions/*` 当前实现
 
 ## 1. 目的
@@ -36,6 +36,8 @@
 - `conversation_id`
 - `role`
 - `content_blocks`
+- `content_text`
+- `content_tsv`
 - `created_at`
 - `updated_at`
 - `message_metadata`
@@ -46,13 +48,16 @@
 说明：
 
 - `content_blocks` 是消息主体 JSON，替代历史独立的 `content`、`reasoning`、`tool_calls` 列。
+- `content_text` / `content_tsv` 是会话搜索冗余列（TextBlock 纯文本 + `zhcfg` tsvector），不是展示字段；见 `docs/CONVERSATION_SEARCH_OPTIMIZATION.md`。
 - `message_metadata` 与 `reply_to` 仍在模型中保留，属于现网字段，不应按“已废弃”处理。
 - `feedback` 用于助手消息反馈，默认结构为 `{ "value": "default", "updated_at": null }`；用户消息创建时可为 `NULL`。
 
-`feedback` 对应迁移文件：
+对应迁移文件：
 
 - `backend/alembic/versions/u1v2w3x4y5z6_add_feedback_to_messages.py`
 - `backend/alembic/versions/v2w3x4y5z6a7_messages_feedback_nullable.py`
+- `backend/alembic/versions/h1i2j3k4l5m6_add_content_text_to_messages.py`
+- `backend/alembic/versions/i2j3k4l5m6n7_add_content_tsv_zhparser.py`
 
 ## 4. 消息写入与更新约束
 
