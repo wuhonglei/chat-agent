@@ -155,6 +155,7 @@ class ChatSessionAgent(BaseAgent):
         kb_context_blocks: list[KbContextBlock] | None = None,
         attachment_uploads: list[AttachmentUploadInfo] | None = None,
         current_datetime: str | None = None,
+        llm_rendered_text: str | None = None,
     ) -> AsyncGenerator[str, None]:
         self.think_mode = chat_request.think_mode
         self.session_output.reset()
@@ -188,13 +189,17 @@ class ChatSessionAgent(BaseAgent):
         self._turn_datetime = current_datetime or get_current_datetime_str()
         self._conversation_id = conversation_id
 
-        self._tool_guided_user_message = get_user_message_for_tool_calls(
-            self._user_message_text,
-            kb_context_blocks=kb_context_blocks,
-            user_memories=user_memories,
-            attachment_uploads=attachment_uploads,
-            current_datetime=self._turn_datetime,
-        )
+        # 编排层已固化 llm_rendered_text 时直接复用，避免重包导致与落库快照不一致。
+        if llm_rendered_text and llm_rendered_text.strip():
+            self._tool_guided_user_message = llm_rendered_text.strip()
+        else:
+            self._tool_guided_user_message = get_user_message_for_tool_calls(
+                self._user_message_text,
+                kb_context_blocks=kb_context_blocks,
+                user_memories=user_memories,
+                attachment_uploads=attachment_uploads,
+                current_datetime=self._turn_datetime,
+            )
         self._user_message_content = build_user_content_for_llm(
             chat_request.content_blocks,
             leading_text=self._tool_guided_user_message,

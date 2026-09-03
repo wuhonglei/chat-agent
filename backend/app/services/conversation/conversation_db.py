@@ -424,6 +424,12 @@ class ConversationDbService(DbService):
                 chat_message.content_blocks,
                 omit_tool_result_content_and_summary_when_structured=omit_tool_result_content_and_summary_when_structured,
             )
+            # 对外 API 剥离固化 prompt，避免把 memories/RAG 完整文本打到前端。
+            metadata = chat_message_payload.get("message_metadata")
+            if isinstance(metadata, dict) and "llm_rendered_text" in metadata:
+                metadata = dict(metadata)
+                metadata.pop("llm_rendered_text", None)
+                chat_message_payload["message_metadata"] = metadata
             chat_messages.append(chat_message_payload)
         return chat_messages
 

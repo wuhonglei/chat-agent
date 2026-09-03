@@ -215,3 +215,70 @@ async def test_stream_passes_user_message_created_at_as_current_datetime(
     assert fake_agent.last_stream_kwargs["current_datetime"] == get_current_datetime_str(
         _USER_CREATED_AT
     )
+
+
+@pytest.mark.asyncio
+async def test_stream_persists_llm_rendered_text_even_without_memories(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """编排层在首次 LLM 调用前固化 llm_rendered_text；memories 为空也写入。"""
+    message_service, _ = _patch_common(monkeypatch)
+    orch, _ = _build_orchestrator(raise_in_stream=False)
+
+    async for _ in orch.run_chat_turn(
+        chat_request=_chat_request(),
+        user_message_id="u-1",
+        assistant_message_id="a-1",
+        user_id="user-1",
+        memory_search=AsyncMock(return_value=[]),
+    ):
+        pass
+
+    message_service.update_user_message_metadata.assert_called_once()
+    call_args = message_service.update_user_message_metadata.call_args
+    assert call_args.args[0] == "u-1"
+    metadata = call_args.args[1]
+    assert "llm_rendered_text" in metadata
+    assert "<user_message>" in metadata["llm_rendered_text"]
+    assert "<query>hello</query>" in metadata["llm_rendered_text"]
+    assert "<current_datetime>" in metadata["llm_rendered_text"]
+    assert "user_memories" not in metadata
+
+    fake_agent = orch.chat_session_agent
+    assert isinstance(fake_agent, _FakeAgent)
+    assert (
+        fake_agent.last_stream_kwargs["llm_rendered_text"]
+        == metadata["llm_rendered_text"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_stream_persists_user_memories_with_llm_rendered_text(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.schemas.user import MemorySearchItem
+
+    message_service, _ = _patch_common(monkeypatch)
+    orch, _ = _build_orchestrator(raise_in_stream=False)
+    memories = [
+        MemorySearchItem(
+            id="m1",
+            memory="喜欢喝茶",
+            relevance="高",
+        )
+    ]
+
+    async for _ in orch.run_chat_turn(
+        chat_request=_chat_request(),
+        user_message_id="u-1",
+        assistant_message_id="a-1",
+        user_id="user-1",
+        memory_search=AsyncMock(return_value=memories),
+    ):
+        pass
+
+    metadata = message_service.update_user_message_metadata.call_args.args[1]
+    assert "llm_rendered_text" in metadata
+    assert "<user_memories>" in metadata["llm_rendered_text"]
+    assert "喜欢喝茶" in metadata["llm_rendered_text"]
+    assert metadata["user_memories"][0]["memory"] == "喜欢喝茶"
