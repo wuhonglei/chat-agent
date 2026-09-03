@@ -72,6 +72,20 @@ def format_tool_call_messages_for_llm(
     ]
 
 
+def resolve_user_llm_rendered_text(
+    message: ChatMessageWithToolCalls | dict[str, Any],
+) -> str | None:
+    """从 message_metadata 取出固化的 LLM user 文本；无则返回 None。"""
+    message_dict = normalize_to_dict(message)
+    metadata = message_dict.get("message_metadata")
+    if not isinstance(metadata, dict):
+        return None
+    rendered = metadata.get("llm_rendered_text")
+    if isinstance(rendered, str) and rendered.strip():
+        return rendered.strip()
+    return None
+
+
 def format_chat_message_for_llm(
     message: ChatMessageWithToolCalls,
     clear_reasoning_content: bool = True,
@@ -84,7 +98,15 @@ def format_chat_message_for_llm(
     if content_blocks is not None:
         normalized_blocks = normalize_content_blocks(content_blocks)
         role = get("role", message_dict, "")
-        if role == "user" and has_image_block(normalized_blocks):
+        rendered = resolve_user_llm_rendered_text(message_dict)
+        if role == "user" and rendered is not None:
+            # 历史回放优先用当轮固化文本，保证跨 turn 前缀字节级一致。
+            content = build_user_content_for_llm(
+                normalized_blocks,
+                leading_text=rendered,
+                include_text_blocks=False,
+            )
+        elif role == "user" and has_image_block(normalized_blocks):
             content = build_user_content_for_llm(
                 normalized_blocks,
                 include_text_blocks=True,

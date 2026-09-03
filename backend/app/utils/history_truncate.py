@@ -1,11 +1,18 @@
 """历史消息按轮次与 token 预算切分"""
 
+from app.protocols.chat_messages import format_chat_message_for_llm
 from app.schemas.chat import ChatMessage
 from app.utils.token import TokenCalculator
 
 
 def count_chat_message_tokens(msg: ChatMessage, calculator: TokenCalculator) -> int:
-    """单条 ChatMessage 的 token 数（基于 content_blocks 与 tool_calls）。"""
+    """单条 ChatMessage 的 token 数。
+
+    user 消息优先按实际发给 LLM 的文本（含 llm_rendered_text 快照）计；
+    assistant 仍基于 content_blocks dump（含工具块）。
+    """
+    if msg.role == "user":
+        return calculator.count_message_tokens(format_chat_message_for_llm(msg))
     return calculator.count_message_tokens(msg.model_dump(mode="json"))
 
 

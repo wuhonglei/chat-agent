@@ -20,6 +20,7 @@ from app.core.observability import (
     observation_span,
 )
 from app.evaluators.rule_evaluator import build_tool_whitelist, evaluate_and_score
+from app.prompts.prompt_utils import get_user_message_for_tool_calls
 from app.protocols.chat_messages import (
     build_ack_event,
     build_done_event,
@@ -170,6 +171,7 @@ class ChatOrchestrator:
         user_memories: list[MemorySearchItem] | None = None,
         kb_context_blocks: list[KbContextBlock] | None = None,
         attachment_uploads: list[AttachmentUploadInfo] | None = None,
+        llm_rendered_text: str | None = None,
     ) -> AsyncGenerator[str, None]:
         logger.debug("user_memories", user_memories=user_memories)
 
@@ -193,6 +195,7 @@ class ChatOrchestrator:
                 kb_context_blocks=kb_context_blocks,
                 attachment_uploads=attachment_uploads,
                 current_datetime=current_datetime,
+                llm_rendered_text=llm_rendered_text,
             ):
                 yield event
             session_duration = get_time_duration(session_start_time)
@@ -401,16 +404,6 @@ class ChatOrchestrator:
                                 query=user_message_text,
                                 user_id=user_id,
                             )
-                        # 将 user_memories 写入 user message metadata（供 eval replay 提取）
-                        if user_memories:
-                            message_service.update_user_message_metadata(
-                                user_message_id,
-                                {
-                                    "user_memories": [
-                                        m.model_dump() for m in user_memories
-                                    ]
-                                },
-                            )
                         kb_context_blocks = None
                         attachment_uploads: list[AttachmentUploadInfo] | None = None
                         if chat_request.agent_mode > 0:
@@ -444,6 +437,28 @@ class ChatOrchestrator:
                                             "block_count": len(kb_context_blocks or []),
                                         }
                                     )
+
+                        # 固化当轮发给 LLM 的 user 文本，供下一轮历史回放字节级复用。
+                        llm_rendered_text = get_user_message_for_tool_calls(
+                            user_message_text,
+                            kb_context_blocks=kb_context_blocks,
+                            user_memories=user_memories,
+                            attachment_uploads=attachment_uploads,
+                            current_datetime=turn_datetime,
+                        )
+                        metadata_update: dict[str, Any] = {
+                            "llm_rendered_text": llm_rendered_text,
+                        }
+                        if user_memories:
+                            # 保留 user_memories 供 eval replay 提取
+                            metadata_update["user_memories"] = [
+                                m.model_dump() for m in user_memories
+                            ]
+                        message_service.update_user_message_metadata(
+                            user_message_id,
+                            metadata_update,
+                        )
+
                         if chat_request.regenerate_title:
                             title_task = asyncio.create_task(
                                 self.generate_title_event(
@@ -463,6 +478,7 @@ class ChatOrchestrator:
                                 kb_context_blocks=kb_context_blocks,
                                 attachment_uploads=attachment_uploads,
                                 current_datetime=turn_datetime,
+                                llm_rendered_text=llm_rendered_text,
                             ),
                             title_task,
                             conversation_id=conversation_id,
