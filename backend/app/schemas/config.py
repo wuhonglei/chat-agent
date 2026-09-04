@@ -638,7 +638,9 @@ class UnifiedContextGuardConfig(BaseModel):
 class MemoryConfig(BaseModel):
     """Mem0 记忆服务配置（ChatContextConfig 下）。
 
-    base_url 与 api_key 均非空时启用 Mem0 HTTP 调用；请求头携带 X-API-Key。
+    base_url 与 api_key 均非空时启用 Mem0 HTTP 调用。
+    商业版 ``https://api.mem0.ai``（或带 ``/v3`` 后缀）走 Platform v3 路径；
+    其它地址按自建 OSS 路径调用。请求头同时携带 Authorization: Token 与 X-API-Key。
     """
 
     base_url: str = Field(
@@ -646,7 +648,7 @@ class MemoryConfig(BaseModel):
     )
     api_key: str = Field(
         default="",
-        description="Mem0 API 密钥，通过请求头 X-API-Key 发送；留空则禁用记忆 HTTP 调用",
+        description="Mem0 API 密钥；留空则禁用记忆 HTTP 调用",
     )
     search_limit: int = Field(
         default=5,
