@@ -19,6 +19,14 @@ export const ReasoningBlockRender = ({ contentBlock, status }: Props) => {
   });
   const isDoing = isReasoningStatus(status);
   const [expanded, setExpanded] = useState<boolean>(isDoing);
+  const [wasDoing, setWasDoing] = useState(isDoing);
+
+  if (isDoing !== wasDoing) {
+    setWasDoing(isDoing);
+    if (isDoing) {
+      setExpanded(true);
+    }
+  }
 
   const handleExpandChange = useMemoizedFn((expand: boolean) => {
     setExpanded(expand);
@@ -26,7 +34,6 @@ export const ReasoningBlockRender = ({ contentBlock, status }: Props) => {
 
   useEffect(() => {
     if (isDoing) {
-      setExpanded(true);
       return;
     }
     const timer = setTimeout(() => {

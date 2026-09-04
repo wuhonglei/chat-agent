@@ -59,7 +59,11 @@ const CsvTable: React.FC<{ rows: string[][] }> = ({ rows }) => {
   );
 };
 
-const TextFileBlockPreviewPanel: React.FC<TextFileBlockPreviewPanelProps> = ({ width, block, onClose }) => {
+const TextFileBlockPreviewPanel: React.FC<TextFileBlockPreviewPanelProps> = ({
+  width,
+  block,
+  onClose,
+}) => {
   const { url, name } = block;
   const layoutWidth = width > 0 ? width : 0;
   const ext = getExtension(name);
@@ -94,7 +98,12 @@ const TextFileBlockPreviewPanel: React.FC<TextFileBlockPreviewPanelProps> = ({ w
         </div>
         <div className="flex items-center gap-1">
           <Tooltip title="下载文件">
-            <Button type="text" onClick={handleDownload} icon={<DownloadOutlined />} disabled={Boolean(error)} />
+            <Button
+              type="text"
+              onClick={handleDownload}
+              icon={<DownloadOutlined />}
+              disabled={Boolean(error)}
+            />
           </Tooltip>
           <Button type="text" onClick={onClose} icon={<CloseOutlined />} />
         </div>
@@ -117,7 +126,12 @@ const TextFileBlockPreviewPanel: React.FC<TextFileBlockPreviewPanelProps> = ({ w
           </PreviewScrollBody>
         ) : (
           <PreviewScrollBody width={layoutWidth}>
-            <CodeHighlighter header={null} lang={language} maxHeight={null} styles={{ code: { width: "100%" } }}>
+            <CodeHighlighter
+              header={null}
+              lang={language}
+              maxHeight={null}
+              styles={{ code: { width: "100%" } }}
+            >
               {text ?? ""}
             </CodeHighlighter>
           </PreviewScrollBody>

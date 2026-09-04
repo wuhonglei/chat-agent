@@ -63,7 +63,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
       return await workspaceAPI.getWorkspaceFileTree(block.workspaceId, { path: "", depth: 1 });
     },
     {
-      manual: true,
+      refreshDeps: [block.workspaceId],
       onBefore: () => {
         setTreeError(null);
       },
@@ -203,18 +203,6 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
     }
   );
   useEffect(() => {
-    revealedForRef.current = null;
-    revealingRef.current = false;
-    setPreviewMode("files");
-    setSelectedFilePath(null);
-    setSelectedFile(null);
-    setFileError(null);
-    setAppPreviewError(null);
-    setAppPreviewReloadKey(0);
-    refreshTree();
-  }, [block.id, refreshTree]);
-
-  useEffect(() => {
     const targetPath = block.selectedFilePath;
     if (!targetPath || loadingTree) {
       return;
@@ -242,19 +230,6 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
 
     void revealSelectedFile();
   }, [block.id, block.selectedFilePath, loadingTree, loadDirTreeIfNeeded]);
-
-  useEffect(() => {
-    if (!selectedFilePath) {
-      setSelectedFile(null);
-      return;
-    }
-    if (isNonTextFile) {
-      setSelectedFile(null);
-      setFileError(null);
-      return;
-    }
-    void refreshSelectedFile();
-  }, [selectedFilePath, isNonTextFile, refreshSelectedFile]);
 
   useEmitter(EventType.WorkspaceTreeRefresh, payload => {
     if (payload.workspaceId === block.workspaceId) {
@@ -370,12 +345,16 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
     selectedFileTitle,
   ]);
 
+  const textSelectedFile =
+    selectedFilePath && !isNonTextFile && selectedFile?.path === selectedFilePath ? selectedFile : null;
+  const textFileError = selectedFilePath && !isNonTextFile ? fileError : null;
+
   const previewNode = (
     <FilePreviewContent
       width={width}
       loadingFile={loadingFile}
-      fileError={fileError}
-      selectedFile={selectedFile}
+      fileError={textFileError}
+      selectedFile={textSelectedFile}
       excelPreview={excelPreview}
       imagePreview={imagePreview}
       binaryFile={binaryFilePreview}

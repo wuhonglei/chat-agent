@@ -19,23 +19,23 @@ export interface BlockPreviewPanelProps {
 const BlockPreviewPanel: React.FC<BlockPreviewPanelProps> = ({ width, block, onClose }) => {
   switch (block.type) {
     case "pdf":
-      return <PdfBlockPreviewPanel width={width} block={block} onClose={onClose} />;
+      return <PdfBlockPreviewPanel key={block.id} width={width} block={block} onClose={onClose} />;
     case "excel":
-      return <ExcelBlockPreviewPanel width={width} block={block} onClose={onClose} />;
+      return <ExcelBlockPreviewPanel key={block.id} width={width} block={block} onClose={onClose} />;
     case "docx":
-      return <DocxBlockPreviewPanel width={width} block={block} onClose={onClose} />;
+      return <DocxBlockPreviewPanel key={block.id} width={width} block={block} onClose={onClose} />;
     case "pptx":
-      return <PptxBlockPreviewPanel width={width} block={block} onClose={onClose} />;
+      return <PptxBlockPreviewPanel key={block.id} width={width} block={block} onClose={onClose} />;
     case "markdown":
-      return <MarkdownBlockPreviewPanel width={width} block={block} onClose={onClose} />;
+      return <MarkdownBlockPreviewPanel key={block.id} width={width} block={block} onClose={onClose} />;
     case "text_file":
-      return <TextFileBlockPreviewPanel width={width} block={block} onClose={onClose} />;
+      return <TextFileBlockPreviewPanel key={block.id} width={width} block={block} onClose={onClose} />;
     case "html":
-      return <HtmlBlockPreviewPanel width={width} block={block} onClose={onClose} />;
+      return <HtmlBlockPreviewPanel key={block.id} width={width} block={block} onClose={onClose} />;
     case "code_exec":
-      return <CodeExecPreviewPanel width={width} block={block} onClose={onClose} />;
+      return <CodeExecPreviewPanel key={block.id} width={width} block={block} onClose={onClose} />;
     case "project":
-      return <ProjectPreviewPanel width={width} block={block} onClose={onClose} />;
+      return <ProjectPreviewPanel key={block.id} width={width} block={block} onClose={onClose} />;
     default: {
       const _exhaustive: never = block;
       return _exhaustive;

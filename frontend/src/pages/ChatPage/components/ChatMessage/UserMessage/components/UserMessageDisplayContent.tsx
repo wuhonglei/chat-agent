@@ -7,8 +7,13 @@ import {
   type TextBlock,
   type UserAttachmentBlock,
 } from "@/interfaces/contentBlock";
+import { DownOutlined, UpOutlined } from "@ant-design/icons";
 import { FileCard, type FileCardProps } from "@ant-design/x";
-import React, { useMemo } from "react";
+import { Button } from "antd";
+import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
+import styles from "./UserMessageDisplayContent.module.css";
+
+const TEXT_MAX_HEIGHT = 400;
 
 interface AttachmentToFileCardItemOptions {
   isSmallScreen: boolean;
@@ -17,7 +22,7 @@ interface AttachmentToFileCardItemOptions {
 
 function attachmentToFileCardItem(
   block: UserAttachmentBlock,
-  { onPreviewBlock }: AttachmentToFileCardItemOptions
+  { onPreviewBlock }: AttachmentToFileCardItemOptions,
 ): FileCardProps {
   switch (block.type) {
     case "image": {
@@ -142,18 +147,111 @@ export interface UserMessageDisplayContentProps {
   onPreviewBlock?: (block: PreviewableBlock) => void;
 }
 
-const UserMessageDisplayContent: React.FC<UserMessageDisplayContentProps> = ({ contentBlocks, onPreviewBlock }) => {
+interface UserMessageTextProps {
+  texts: TextBlock[];
+  hasAttachments: boolean;
+}
+
+const UserMessageText: React.FC<UserMessageTextProps> = ({ texts, hasAttachments }) => {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [overflowing, setOverflowing] = useState(false);
+
+  useLayoutEffect(() => {
+    if (expanded) {
+      return;
+    }
+    const el = contentRef.current;
+    if (!el) {
+      return;
+    }
+
+    const update = () => {
+      setOverflowing(el.scrollHeight > el.clientHeight + 2);
+    };
+
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+    };
+  }, [expanded, texts]);
+
+  const showExpand = overflowing && !expanded;
+  const showCollapse = expanded;
+
+  return (
+    <div
+      className={styles.textRoot}
+      style={
+        hasAttachments
+          ? {
+              padding: 12,
+              borderRadius: "inherit",
+              backgroundColor: "var(--ant-color-fill-content)",
+            }
+          : undefined
+      }
+    >
+      <div
+        ref={contentRef}
+        className="whitespace-pre-wrap wrap-break-word"
+        style={expanded ? undefined : { maxHeight: TEXT_MAX_HEIGHT, overflow: "hidden" }}
+      >
+        {texts.map((block) => (
+          <span key={block.id}>{block.text}</span>
+        ))}
+      </div>
+      {showExpand ? (
+        <div className={styles.toggleBar}>
+          <Button
+            type="link"
+            size="small"
+            className={styles.toggleBtn}
+            icon={<DownOutlined />}
+            aria-expanded={false}
+            aria-label="展开完整消息"
+            onClick={() => setExpanded(true)}
+          >
+            展开
+          </Button>
+        </div>
+      ) : null}
+      {showCollapse ? (
+        <div className={styles.toggleBar}>
+          <Button
+            type="link"
+            size="small"
+            className={styles.toggleBtn}
+            icon={<UpOutlined />}
+            aria-expanded
+            aria-label="收起消息"
+            onClick={() => setExpanded(false)}
+          >
+            收起
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
+const UserMessageDisplayContent: React.FC<UserMessageDisplayContentProps> = ({
+  contentBlocks,
+  onPreviewBlock,
+}) => {
   const isSmallScreen = useIsSmallScreen();
   const { attachments, texts } = useMemo(() => partitionUserBlocks(contentBlocks), [contentBlocks]);
   const fileCardItems = useMemo(
     () =>
-      attachments.map(block =>
+      attachments.map((block) =>
         attachmentToFileCardItem(block, {
           isSmallScreen,
           onPreviewBlock,
-        })
+        }),
       ),
-    [attachments, isSmallScreen, onPreviewBlock]
+    [attachments, isSmallScreen, onPreviewBlock],
   );
 
   return (
@@ -164,22 +262,11 @@ const UserMessageDisplayContent: React.FC<UserMessageDisplayContentProps> = ({ c
         </div>
       ) : null}
       {texts.length > 0 ? (
-        <div
-          className="whitespace-pre-wrap wrap-break-word"
-          style={
-            fileCardItems.length > 0
-              ? {
-                  padding: 12,
-                  borderRadius: "inherit",
-                  backgroundColor: "var(--ant-color-fill-content)",
-                }
-              : undefined
-          }
-        >
-          {texts.map(block => (
-            <span key={block.id}>{block.text}</span>
-          ))}
-        </div>
+        <UserMessageText
+          key={texts.map((block) => `${block.id}:${block.text}`).join("\n")}
+          texts={texts}
+          hasAttachments={fileCardItems.length > 0}
+        />
       ) : null}
     </div>
   );

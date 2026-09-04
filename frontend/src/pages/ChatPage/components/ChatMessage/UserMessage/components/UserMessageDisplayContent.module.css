@@ -1,0 +1,11 @@
+.toggleBar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.toggleBtn {
+  height: auto;
+  padding-inline: 0;
+  background: transparent;
+}

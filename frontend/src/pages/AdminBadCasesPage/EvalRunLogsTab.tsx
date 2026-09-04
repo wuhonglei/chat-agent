@@ -5,7 +5,7 @@ import { useRequest } from "ahooks";
 import { App, Button, InputNumber, Select, Space, Table, Tag, Typography } from "antd";
 import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
 import dayjs from "dayjs";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 
 function formatAvg(value: number | null | undefined): string {
   if (value == null || Number.isNaN(value)) return "-";
@@ -82,29 +82,28 @@ const EvalRunLogsTab: React.FC = () => {
     { refreshDeps: [] },
   );
 
-  const { data: polledRun, cancel: cancelPoll } = useRequest(
+  const { cancel: cancelPoll } = useRequest(
     () => evalAPI.getRunLog(pollingRunId!),
     {
       ready: Boolean(pollingRunId),
       pollingInterval: 2000,
       refreshDeps: [pollingRunId],
+      onSuccess: run => {
+        if (run.status === "running") {
+          return;
+        }
+        cancelPoll();
+        setPollingRunId(null);
+        refresh();
+        refreshRunningCheck();
+        if (run.status === "success") {
+          message.success(`评估完成：采样 ${run.sampledCount}，低分 ${run.lowScoreCount}`);
+        } else {
+          message.error(run.errorMessage || "评估失败");
+        }
+      },
     },
   );
-
-  useEffect(() => {
-    if (!polledRun || !pollingRunId) return;
-    if (polledRun.status === "running") return;
-
-    cancelPoll();
-    setPollingRunId(null);
-    refresh();
-    refreshRunningCheck();
-    if (polledRun.status === "success") {
-      message.success(`评估完成：采样 ${polledRun.sampledCount}，低分 ${polledRun.lowScoreCount}`);
-    } else {
-      message.error(polledRun.errorMessage || "评估失败");
-    }
-  }, [polledRun, pollingRunId, cancelPoll, refresh, refreshRunningCheck, message]);
 
   const isPolling = Boolean(pollingRunId);
   const hasRunning = isPolling || (runningCheck?.total ?? 0) > 0;

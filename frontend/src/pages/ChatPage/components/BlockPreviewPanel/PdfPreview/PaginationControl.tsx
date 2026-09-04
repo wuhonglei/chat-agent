@@ -1,5 +1,5 @@
 import { InputNumber, Typography } from "antd";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 
 export interface PaginationControlProps {
   numPages: number;
@@ -9,10 +9,12 @@ export interface PaginationControlProps {
 
 const PaginationControl: React.FC<PaginationControlProps> = ({ numPages, pageNumber, onPageNumberChange }) => {
   const [pendingPageNumber, setPendingPageNumber] = useState<number | null>(pageNumber);
+  const [syncedPageNumber, setSyncedPageNumber] = useState(pageNumber);
 
-  useEffect(() => {
+  if (pageNumber !== syncedPageNumber) {
+    setSyncedPageNumber(pageNumber);
     setPendingPageNumber(pageNumber);
-  }, [pageNumber]);
+  }
 
   const commitPendingPageNumber = () => {
     if (numPages <= 0 || pendingPageNumber == null || !Number.isFinite(pendingPageNumber)) {

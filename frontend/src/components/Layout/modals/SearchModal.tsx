@@ -15,7 +15,7 @@ import { CloseOutlined, CommentOutlined, SearchOutlined } from "@ant-design/icon
 import { useDebounceFn, useInfiniteScroll, useMemoizedFn } from "ahooks";
 import { Button, Empty, Input, Modal, Spin, Tag } from "antd";
 import dayjs from "dayjs";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 type Props = {
@@ -156,24 +156,6 @@ const SearchModal: React.FC<Props> = ({ open, onClose }) => {
     }
     debouncedSetKeyword(trimmed);
   });
-
-  const resetState = useMemoizedFn(() => {
-    cancelDebouncedKeyword();
-    composingRef.current = false;
-    setQuery("");
-    setSearchKeyword("");
-    setSearched(false);
-    mutate(undefined);
-    setHistory(getSearchHistory());
-  });
-
-  useEffect(() => {
-    if (open) {
-      setHistory(getSearchHistory());
-    } else {
-      resetState();
-    }
-  }, [open, resetState]);
 
   const handleQueryChange = (value: string, isComposing: boolean) => {
     setQuery(value);
