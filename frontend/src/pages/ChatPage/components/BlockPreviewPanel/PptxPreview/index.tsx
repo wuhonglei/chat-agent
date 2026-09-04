@@ -2,7 +2,7 @@ import type { PptxBlock } from "@/interfaces/contentBlock";
 import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
 import { downloadFileByUrl } from "@/utils";
 import { Button, Spin, Typography } from "antd";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useMarkdownPreviewContent } from "../PdfPreview/hooks";
 import PreviewScrollBody from "../PreviewScrollBody";
 import { usePptxDocumentPreview } from "./hooks";
@@ -38,10 +38,6 @@ const PptxBlockPreviewPanel: React.FC<PptxBlockPreviewPanelProps> = ({ width, bl
     error: markdownError,
     reload: reloadMarkdown,
   } = useMarkdownPreviewContent(markdownUrl, isMarkdownView);
-
-  useEffect(() => {
-    setPreviewMode("document");
-  }, [block.id, pptxUrl]);
 
   const handleDownload = () => {
     if (previewMode === "markdown" && markdownBlock?.url) {

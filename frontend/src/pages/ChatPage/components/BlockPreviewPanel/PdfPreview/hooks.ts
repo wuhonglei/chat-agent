@@ -1,5 +1,5 @@
 import { useRequest } from "ahooks";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 const PDF_LOAD_ERROR_MESSAGE = "PDF 加载失败，请重试";
 
@@ -8,6 +8,15 @@ export const usePdfPreviewState = (pdfUrl: string) => {
   const [hasRenderedFirstPage, setHasRenderedFirstPage] = useState(false);
   const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
+  const [sourceUrl, setSourceUrl] = useState(pdfUrl);
+
+  if (sourceUrl !== pdfUrl) {
+    setSourceUrl(pdfUrl);
+    setNumPages(0);
+    setHasRenderedFirstPage(false);
+    setLoadErrorMessage(null);
+    setReloadToken(0);
+  }
 
   const resetPreviewState = useCallback(() => {
     setNumPages(0);
@@ -37,12 +46,6 @@ export const usePdfPreviewState = (pdfUrl: string) => {
   const markFirstPageAsRendered = useCallback(() => {
     setHasRenderedFirstPage(true);
   }, []);
-
-  useEffect(() => {
-    resetPreviewState();
-    setLoadErrorMessage(null);
-    setReloadToken(0);
-  }, [pdfUrl, resetPreviewState]);
 
   return {
     numPages,

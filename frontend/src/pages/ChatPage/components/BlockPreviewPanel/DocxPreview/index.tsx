@@ -2,7 +2,7 @@ import type { DocxBlock } from "@/interfaces/contentBlock";
 import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
 import { downloadFileByUrl } from "@/utils";
 import { Button, Spin, Typography } from "antd";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useMarkdownPreviewContent } from "../PdfPreview/hooks";
 import PreviewScrollBody from "../PreviewScrollBody";
 import DocxPreviewHeader, { type PreviewMode } from "./DocxPreviewHeader";
@@ -38,10 +38,6 @@ const DocxBlockPreviewPanel: React.FC<DocxBlockPreviewPanelProps> = ({ width, bl
     error: markdownError,
     reload: reloadMarkdown,
   } = useMarkdownPreviewContent(markdownUrl, isMarkdownView);
-
-  useEffect(() => {
-    setPreviewMode("document");
-  }, [block.id, docxUrl]);
 
   const handleDownload = () => {
     if (previewMode === "markdown" && markdownBlock?.url) {

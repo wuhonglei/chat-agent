@@ -2,7 +2,7 @@ import type { ExcelBlock } from "@/interfaces/contentBlock";
 import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
 import { downloadFileByUrl } from "@/utils";
 import { Button, Empty, Spin, Tabs, Typography } from "antd";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import PreviewScrollBody from "../PreviewScrollBody";
 import { useMarkdownPreviewContent } from "../PdfPreview/hooks";
 import ExcelPreviewHeader, { type PreviewMode } from "./ExcelPreviewHeader";
@@ -79,10 +79,6 @@ const ExcelBlockPreviewPanel: React.FC<ExcelBlockPreviewPanelProps> = ({ width, 
     error: markdownError,
     reload: reloadMarkdown,
   } = useMarkdownPreviewContent(markdownUrl, isMarkdownView);
-
-  useEffect(() => {
-    setPreviewMode("table");
-  }, [block.id, excelUrl]);
 
   const tabItems = useMemo(
     () =>

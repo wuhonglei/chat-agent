@@ -1,7 +1,7 @@
 import type { MessageFeedbackValue } from "@/interfaces";
 import { Button, Input, Modal } from "antd";
 import classNames from "classnames";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 const LIKE_REASONS = ["准确理解问题", "完成任务能力强", "有帮助", "文风好"] as const;
 
@@ -47,13 +47,14 @@ type Props = {
 export default function FeedbackDetailModal({ open, type, submitting = false, onCancel, onSubmit }: Props) {
   const [selectedReasons, setSelectedReasons] = useState<string[]>([]);
   const [comment, setComment] = useState("");
+  const sessionKey = `${open}-${type ?? ""}`;
+  const [prevSessionKey, setPrevSessionKey] = useState(sessionKey);
 
-  useEffect(() => {
-    if (open) {
-      setSelectedReasons([]);
-      setComment("");
-    }
-  }, [open, type]);
+  if (sessionKey !== prevSessionKey) {
+    setPrevSessionKey(sessionKey);
+    setSelectedReasons([]);
+    setComment("");
+  }
 
   if (!type) {
     return null;

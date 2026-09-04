@@ -1,7 +1,7 @@
 import type { CodeHighlighterProps } from "@ant-design/x";
 import classNames from "classnames";
-import { isNil } from 'lodash-es';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { isNil } from "lodash-es";
+import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 export const CODE_SCROLL_AREA_CLASS = "chat-code-highlighter-code-area";
 
@@ -16,19 +16,31 @@ type UseCodeFoldOptions = {
   stylesProp?: CodeHighlighterProps["styles"];
 };
 
-export function useCodeFold({ maxHeight, codeContent, classNamesProp, stylesProp }: UseCodeFoldOptions) {
+export function useCodeFold({
+  maxHeight,
+  codeContent,
+  classNamesProp,
+  stylesProp,
+}: UseCodeFoldOptions) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(false);
   const [overflowing, setOverflowing] = useState(false);
+  const maxHeightCss = isNil(maxHeight) ? undefined : toCssLength(maxHeight);
+  const [prevCodeContent, setPrevCodeContent] = useState(codeContent);
+  const [prevMaxHeightCss, setPrevMaxHeightCss] = useState(maxHeightCss);
 
-  const maxHeightCss = isNil( maxHeight) ? undefined : toCssLength(maxHeight);
+  if (codeContent !== prevCodeContent || maxHeightCss !== prevMaxHeightCss) {
+    setPrevCodeContent(codeContent);
+    setPrevMaxHeightCss(maxHeightCss);
+    setExpanded(false);
+  }
 
   const mergedClassNames = useMemo(
     () => ({
       ...classNamesProp,
       code: classNames(CODE_SCROLL_AREA_CLASS, classNamesProp?.code),
     }),
-    [classNamesProp]
+    [classNamesProp],
   );
 
   const mergedStyles = useMemo((): CodeHighlighterProps["styles"] => {
@@ -48,13 +60,10 @@ export function useCodeFold({ maxHeight, codeContent, classNamesProp, stylesProp
     };
   }, [stylesProp, maxHeightCss, expanded]);
 
-  useEffect(() => {
-    setExpanded(false);
-  }, [codeContent, maxHeightCss]);
+  const shouldMeasureOverflow = Boolean(maxHeightCss) && !expanded;
 
   useLayoutEffect(() => {
-    if (!maxHeightCss || expanded) {
-      setOverflowing(false);
+    if (!shouldMeasureOverflow) {
       return;
     }
     const root = rootRef.current;
@@ -72,7 +81,7 @@ export function useCodeFold({ maxHeight, codeContent, classNamesProp, stylesProp
     return () => {
       ro.disconnect();
     };
-  }, [maxHeightCss, expanded, codeContent]);
+  }, [shouldMeasureOverflow, codeContent]);
 
   const showBottomFade = Boolean(maxHeightCss && !expanded && overflowing);
   const canToggle = Boolean((!expanded && overflowing) || expanded);

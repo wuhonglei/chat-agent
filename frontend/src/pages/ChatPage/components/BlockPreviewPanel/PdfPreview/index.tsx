@@ -3,7 +3,7 @@ import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
 import { downloadFileByUrl } from "@/utils";
 import { Button, Spin, Typography } from "antd";
 import PdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?worker";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
@@ -48,10 +48,6 @@ const PdfBlockPreviewPanel: React.FC<PdfBlockPreviewPanelProps> = ({ width, bloc
     error: markdownError,
     reload: reloadMarkdown,
   } = useMarkdownPreviewContent(markdownUrl, isMarkdownView);
-
-  useEffect(() => {
-    setPreviewMode("pdf");
-  }, [block.id, pdfUrl]);
 
   const pageNumbers = useMemo(() => Array.from({ length: numPages }, (_, index) => index + 1), [numPages]);
 
