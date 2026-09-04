@@ -10,7 +10,6 @@ import {
 import { DownOutlined, UpOutlined } from "@ant-design/icons";
 import { FileCard, type FileCardProps } from "@ant-design/x";
 import { Button } from "antd";
-import classNames from "classnames";
 import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
 import styles from "./UserMessageDisplayContent.module.css";
 
@@ -197,7 +196,7 @@ const UserMessageText: React.FC<UserMessageTextProps> = ({ texts, hasAttachments
     >
       <div
         ref={contentRef}
-        className={classNames("whitespace-pre-wrap wrap-break-word", showExpand && styles.clipped)}
+        className="whitespace-pre-wrap wrap-break-word"
         style={expanded ? undefined : { maxHeight: TEXT_MAX_HEIGHT, overflow: "hidden" }}
       >
         {texts.map((block) => (
