@@ -553,7 +553,7 @@ class ToolResultHardLimitConfig(BaseModel):
         ),
     )
     persist_subdir: str = Field(
-        default=".tool-results",
+        default="tool-results",
         description="落盘子目录，相对 conversation workspace/",
     )
     exempt_bare_names: list[str] = Field(

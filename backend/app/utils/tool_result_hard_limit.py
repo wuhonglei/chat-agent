@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import re
 from pathlib import Path
 
 from app.mcp.constants import (
@@ -36,6 +38,10 @@ _KNOWN_MCP_SERVERS = (
 
 _PERSISTED_MARKER = "full output persisted"
 _TRUNCATED_MARKER = "内容已截断"
+_DEFAULT_PERSIST_SUBDIR = "tool-results"
+_PERSIST_STEM_FALLBACK = "tool"
+_PERSIST_MAX_SEQ = 1000
+_PERSIST_SEQ_RE = re.compile(r"^(.+)-(\d+)\.txt$")
 
 
 def extract_bare_tool_name(tool_name: str) -> str:
@@ -176,25 +182,79 @@ def _format_persisted_content(
     return head + middle + tail + footer
 
 
+def _sanitize_persist_stem(tool_name: str) -> str:
+    """Sanitize full LLM tool name for use as a filesystem stem."""
+    cleaned = "".join(c if c.isalnum() or c in "-_" else "_" for c in tool_name).lower()
+    cleaned = cleaned.strip("_-")
+    return cleaned or _PERSIST_STEM_FALLBACK
+
+
+def _next_persist_seq(persist_dir: Path, stem: str) -> int:
+    """Return next sequence number for ``{stem}-N.txt`` under *persist_dir*."""
+    max_seq = 0
+    for path in persist_dir.iterdir():
+        if not path.is_file():
+            continue
+        match = _PERSIST_SEQ_RE.match(path.name)
+        if match is None or match.group(1) != stem:
+            continue
+        max_seq = max(max_seq, int(match.group(2)))
+    return max_seq + 1
+
+
 def _persist_content(
     content: str,
     *,
-    tool_call_id: str,
+    tool_name: str,
     user_id: str,
     conversation_id: str,
     config: ToolResultHardLimitConfig,
 ) -> str:
     paths = get_paths()
     workspace = paths.ensure_sandbox_work_dir(user_id, conversation_id)
-    subdir = (config.persist_subdir or ".tool-results").strip().strip("/")
+    subdir = (config.persist_subdir or _DEFAULT_PERSIST_SUBDIR).strip().strip("/")
     persist_dir = workspace / subdir
     persist_dir.mkdir(parents=True, exist_ok=True)
-    safe_id = "".join(c if c.isalnum() or c in "-_" else "_" for c in tool_call_id)
-    file_name = f"{safe_id}.txt"
-    physical_path: Path = persist_dir / file_name
-    physical_path.write_text(content, encoding="utf-8")
-    virtual_path = f"{vfs_config.workspace_prefix.rstrip('/')}/{subdir}/{file_name}"
-    return virtual_path
+
+    stem = _sanitize_persist_stem(tool_name)
+    seq = _next_persist_seq(persist_dir, stem)
+    encoded = content.encode("utf-8")
+    last_error: OSError | None = None
+
+    for _ in range(_PERSIST_MAX_SEQ):
+        file_name = f"{stem}-{seq}.txt"
+        physical_path = persist_dir / file_name
+        try:
+            fd = os.open(
+                physical_path,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                0o644,
+            )
+        except FileExistsError:
+            seq += 1
+            continue
+        except OSError as exc:
+            last_error = exc
+            break
+        try:
+            with os.fdopen(fd, "wb") as f:
+                f.write(encoded)
+        except OSError as exc:
+            last_error = exc
+            try:
+                physical_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+            break
+        virtual_path = f"{vfs_config.workspace_prefix.rstrip('/')}/{subdir}/{file_name}"
+        return virtual_path
+
+    if last_error is not None:
+        raise last_error
+    raise OSError(
+        f"Unable to allocate persist filename for stem={stem!r} after "
+        f"{_PERSIST_MAX_SEQ} attempts"
+    )
 
 
 def apply_hard_limit(
@@ -242,7 +302,7 @@ def apply_hard_limit(
         try:
             virtual_path = _persist_content(
                 content,
-                tool_call_id=message.tool_call_id,
+                tool_name=tool_name,
                 user_id=user_id or "",
                 conversation_id=conversation_id or "",
                 config=config,
