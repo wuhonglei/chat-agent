@@ -155,6 +155,10 @@ class LangfuseConfig(BaseModel):
         default="chat-agent-bad-cases",
         description="Bad Case 推送的固定 Dataset 名称",
     )
+    report_images: bool = Field(
+        default=False,
+        description="是否允许 base64 图片随 trace 上报（关闭时统一脱敏为 [image omitted]）",
+    )
 
 
 class LLMReliabilityConfig(BaseModel):
