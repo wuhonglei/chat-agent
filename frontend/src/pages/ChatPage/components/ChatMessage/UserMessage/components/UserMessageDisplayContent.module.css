@@ -1,0 +1,20 @@
+.textRoot {
+  position: relative;
+}
+
+.clipped {
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 calc(100% - 20px), transparent);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 calc(100% - 20px), transparent);
+}
+
+.toggleBar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+
+.toggleBtn {
+  height: auto;
+  padding-inline: 0;
+  background: transparent;
+}
