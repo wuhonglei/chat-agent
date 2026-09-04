@@ -85,7 +85,7 @@ def test_agent_mode_0_passthrough_defers_to_guard(
     )
     assert result.content == content
     assert not is_hard_limited(result.content)
-    persist_dir = tmp_path / "u1" / "conversations" / "c1" / "workspace" / ".tool-results"
+    persist_dir = tmp_path / "u1" / "conversations" / "c1" / "workspace" / "tool-results"
     assert not persist_dir.exists()
 
 
@@ -105,7 +105,7 @@ def test_agent_mode_1_persists_to_workspace(tmp_path: Path, monkeypatch: pytest.
     )
     assert "full output persisted" in result.content
     assert f"{len(content)} chars total, 1 lines" in result.content
-    assert "/mnt/user-data/workspace/.tool-results/tc_shell.txt" in result.content
+    assert "/mnt/user-data/workspace/tool-results/shell_exec-1.txt" in result.content
     assert "read_file" in result.content
     physical = (
         tmp_path
@@ -113,11 +113,108 @@ def test_agent_mode_1_persists_to_workspace(tmp_path: Path, monkeypatch: pytest.
         / "conversations"
         / "c1"
         / "workspace"
-        / ".tool-results"
-        / "tc_shell.txt"
+        / "tool-results"
+        / "shell_exec-1.txt"
     )
     assert physical.is_file()
     assert physical.read_text(encoding="utf-8") == content
+
+
+def test_persist_filename_increments_per_full_tool_name(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "app.utils.tool_result_hard_limit.get_paths",
+        lambda: type(get_paths())(base_dir=tmp_path),
+    )
+    cfg = _config(max_chars=10, tool_overrides={})
+    content = "x" * 40
+    first = apply_hard_limit(
+        _msg(content, tool_call_id="c1"),
+        tool_name="tavily_web_search",
+        agent_mode=1,
+        user_id="u1",
+        conversation_id="c1",
+        config=cfg,
+    )
+    second = apply_hard_limit(
+        _msg(content, tool_call_id="c2"),
+        tool_name="tavily_web_search",
+        agent_mode=1,
+        user_id="u1",
+        conversation_id="c1",
+        config=cfg,
+    )
+    other = apply_hard_limit(
+        _msg(content, tool_call_id="c3"),
+        tool_name="tavily_web_pages_extract",
+        agent_mode=1,
+        user_id="u1",
+        conversation_id="c1",
+        config=cfg,
+    )
+    assert "/mnt/user-data/workspace/tool-results/tavily_web_search-1.txt" in first.content
+    assert "/mnt/user-data/workspace/tool-results/tavily_web_search-2.txt" in second.content
+    assert (
+        "/mnt/user-data/workspace/tool-results/tavily_web_pages_extract-1.txt"
+        in other.content
+    )
+    persist_dir = tmp_path / "u1" / "conversations" / "c1" / "workspace" / "tool-results"
+    assert (persist_dir / "tavily_web_search-1.txt").is_file()
+    assert (persist_dir / "tavily_web_search-2.txt").is_file()
+    assert (persist_dir / "tavily_web_pages_extract-1.txt").is_file()
+
+
+def test_sanitize_persist_stem_strips_unsafe_chars(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "app.utils.tool_result_hard_limit.get_paths",
+        lambda: type(get_paths())(base_dir=tmp_path),
+    )
+    result = apply_hard_limit(
+        _msg("x" * 40, tool_call_id="c1"),
+        tool_name="Weird/Tool Name!",
+        agent_mode=1,
+        user_id="u1",
+        conversation_id="c1",
+        config=_config(max_chars=10, tool_overrides={}),
+    )
+    assert "/mnt/user-data/workspace/tool-results/weird_tool_name-1.txt" in result.content
+    physical = (
+        tmp_path
+        / "u1"
+        / "conversations"
+        / "c1"
+        / "workspace"
+        / "tool-results"
+        / "weird_tool_name-1.txt"
+    )
+    assert physical.is_file()
+
+
+def test_persist_skips_occupied_seq_on_excl_conflict(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "app.utils.tool_result_hard_limit.get_paths",
+        lambda: type(get_paths())(base_dir=tmp_path),
+    )
+    persist_dir = tmp_path / "u1" / "conversations" / "c1" / "workspace" / "tool-results"
+    persist_dir.mkdir(parents=True)
+    (persist_dir / "shell_exec-1.txt").write_text("occupied", encoding="utf-8")
+
+    result = apply_hard_limit(
+        _msg("x" * 40, tool_call_id="c1"),
+        tool_name="shell_exec",
+        agent_mode=1,
+        user_id="u1",
+        conversation_id="c1",
+        config=_config(max_chars=10, tool_overrides={}),
+    )
+    assert "/mnt/user-data/workspace/tool-results/shell_exec-2.txt" in result.content
+    assert (persist_dir / "shell_exec-2.txt").read_text(encoding="utf-8") == "x" * 40
+    assert (persist_dir / "shell_exec-1.txt").read_text(encoding="utf-8") == "occupied"
 
 
 def test_tool_overrides_trigger_earlier_for_exec(
@@ -195,7 +292,7 @@ def test_read_file_fully_exempt_passthrough(
     )
     assert result.content == content
     assert not is_hard_limited(result.content)
-    persist_dir = tmp_path / "u1" / "conversations" / "c1" / "workspace" / ".tool-results"
+    persist_dir = tmp_path / "u1" / "conversations" / "c1" / "workspace" / "tool-results"
     assert not persist_dir.exists()
 
 

@@ -16,9 +16,11 @@ _langfuse_client: Langfuse | None = None
 
 
 def _mask_data(*, data: Any, **kwargs: Any) -> Any:
-    """递归清洗事件负载，移除 data URL 图片。
+    """递归清洗事件负载，按配置移除或保留 data URL 图片。
 
     Langfuse MaskFunction 协议要求关键字参数 ``data``（见 langfuse.types.MaskFunction）。
+    ``langfuse.report_images`` 开启时原样放行 base64 图片（Langfuse UI 可渲染），
+    关闭时整体替换为 ``[image omitted]``。
     """
     _ = kwargs
     if isinstance(data, dict):
@@ -28,6 +30,8 @@ def _mask_data(*, data: Any, **kwargs: Any) -> Any:
     if isinstance(data, str):
         lower = data.lower()
         if lower.startswith("data:image/") and ";base64," in lower:
+            if settings.langfuse.report_images:
+                return data
             return "[image omitted]"
     return data
 
@@ -63,9 +67,18 @@ def init_langfuse() -> None:
         try:
             _langfuse_client = Langfuse(**kwargs)
         except TypeError:
-            # 兼容不支持 mask 参数的 SDK 版本
+            # 兼容不支持 mask 参数的 SDK 版本：降级重建客户端。
+            # 若此时允许上报图片，则 mask 缺失不会造成泄露（图片本就应放行）；
+            # 若 report_images=False（默认），mask 缺失意味着图片会原样上报，
+            # 为避免静默泄露，用强制脱敏的 mask 重试仍不可行（SDK 不支持），
+            # 只能记录告警提示升级 SDK。
             kwargs.pop("mask", None)
             _langfuse_client = Langfuse(**kwargs)
+            if not settings.langfuse.report_images:
+                logger.warning(
+                    "Langfuse SDK does not support mask; image masking unavailable "
+                    "until SDK upgrade",
+                )
         logger.info(
             "Langfuse initialized",
             enabled=tracing_enabled,

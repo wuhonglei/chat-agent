@@ -66,9 +66,13 @@ context_threshold = context_limit - reserved_output - buffer_tokens
 落盘路径：
 
 ```text
-物理：data/user_data/{user_id}/conversations/{conversation_id}/workspace/{persist_subdir}/{tool_call_id}.txt
-虚拟：/mnt/user-data/workspace/{persist_subdir}/{tool_call_id}.txt
+物理：data/user_data/{user_id}/conversations/{conversation_id}/workspace/{persist_subdir}/{tool_name}-{n}.txt
+虚拟：/mnt/user-data/workspace/{persist_subdir}/{tool_name}-{n}.txt
 ```
+
+文件名使用 LLM 可见的完整工具名（如 `tavily_web_search`、`shell_exec`）加递增序号，
+不再使用 `tool_call_id`。同名工具各自独立计数；并发落盘用独占创建避免覆盖。
+旧会话中的 `.tool-results/call_....txt` 不迁移，VFS 仍可读。
 
 ### 2.4 默认配置
 
@@ -80,7 +84,7 @@ context_threshold = context_limit - reserved_output - buffer_tokens
 | `max_chars` | `30000` | 单条默认上限（字符）；仅 Agent |
 | `turn_budget_chars` | `80000` | 同轮全部 tool content 合计上限；仅 Agent；`0` 关闭 |
 | `preview_head_chars` / `preview_tail_chars` | `2000` / `1000` | Agent 落盘预览与截断回退头尾 |
-| `persist_subdir` | `.tool-results` | 相对 workspace |
+| `persist_subdir` | `tool-results` | 相对 workspace（非隐藏目录，便于 search_files 发现） |
 | `exempt_bare_names` | `["read_file"]` | 全量豁免，防 persist↔read 循环 |
 | `tool_overrides` | 见下 | 覆盖单条阈值 |
 

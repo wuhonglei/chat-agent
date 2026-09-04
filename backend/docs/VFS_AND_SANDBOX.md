@@ -197,4 +197,4 @@ RAG 上下文注入；Agent 模式则把上传文件作为 `/mnt/user-data/uploa
 - 需要让 LLM 直接操作文件时，应使用 Agent 模式；
 - 需要给用户展示最终结果时，应写入 `outputs/` 并调用 `present_files`；
 - 不要把 `uploads/` 当作可写工作目录，派生文件应写到 `workspace/` 或 `outputs/`；
-- 硬上限落盘文件默认在 `workspace/.tool-results/`，可用 `read_file` 分页回读。
+- 硬上限落盘文件默认在 `workspace/tool-results/`（如 `tavily_web_search-1.txt`），可用 `read_file` 分页回读。
