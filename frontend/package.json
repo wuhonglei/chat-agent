@@ -13,7 +13,7 @@
     "generate:project-preview-icons": "vp exec node scripts/generate-project-preview-file-icons.mjs"
   },
   "dependencies": {
-    "@ant-design/icons": "^6.3.2",
+    "@ant-design/icons": "^6.3.4",
     "@ant-design/x": "^2.9.0",
     "@ant-design/x-markdown": "^2.9.0",
     "@microsoft/fetch-event-source": "^2.0.1",
