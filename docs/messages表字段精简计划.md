@@ -50,6 +50,9 @@
 - `content_blocks` 是消息主体 JSON，替代历史独立的 `content`、`reasoning`、`tool_calls` 列。
 - `content_text` / `content_tsv` 是会话搜索冗余列（TextBlock 纯文本 + `zhcfg` tsvector），不是展示字段；见 `docs/CONVERSATION_SEARCH_OPTIMIZATION.md`。
 - `message_metadata` 与 `reply_to` 仍在模型中保留，属于现网字段，不应按“已废弃”处理。
+  用户消息 metadata 现含 `llm_rendered_text`（当轮发给 LLM 的完整 user 文本）与可选
+  `user_memories`。该字段**不是**独立列，无需迁移；列表 API 会剥离
+  `llm_rendered_text`，历史回放路径保留。见 `docs/会话管理.md`。
 - `feedback` 用于助手消息反馈，默认结构为 `{ "value": "default", "updated_at": null }`；用户消息创建时可为 `NULL`。
 
 对应迁移文件：
