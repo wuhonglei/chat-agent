@@ -27,7 +27,7 @@
 
 消息与流式接口在 `src/services/chat.ts`：
 
-- 会话消息：`GET /api/conversation/{conversationId}/messages`（不传 `full_content`，走后端默认省略结构化 tool_result 正文）
+- 会话消息：`GET /api/conversation/{conversationId}/messages`（不传 `full_content`，走后端默认省略结构化 tool_result 正文；响应会剥离 `messageMetadata.llmRenderedText`，前端不要依赖该字段）
 - 删除消息：`DELETE /api/message/delete/{messageId}`
 - 更新助手消息反馈：`PUT /api/message/feedback/{messageId}`
 - 流式聊天：`POST /api/chat/stream`（SSE）
@@ -94,7 +94,11 @@ await conversationAPI.searchConversations({
 
 纯前端导航，无额外 API。
 
-### 2.6 助手消息反馈
+### 2.6 用户消息展开 / 收起
+
+实现：`UserMessageDisplayContent`。文本区默认 `max-height: 400px`；内容溢出时显示「展开」，点开后显示「收起」。只影响聊天页展示，不改请求体或后端存储。
+
+### 2.7 助手消息反馈
 
 `chatAPI.updateMessageFeedback(messageId, value, details)` 支持 `like`、
 `dislike` 和 `default`。`details` 可传多选理由与自由文本：

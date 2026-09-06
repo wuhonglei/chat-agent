@@ -24,6 +24,7 @@ langfuse:
   sample_rate: 1.0
   debug: false
   environment: "dev"
+  report_images: false
 ```
 
 字段说明：
@@ -34,6 +35,7 @@ langfuse:
 - `sample_rate`: 采样率（0~1）
 - `debug`: SDK debug 日志
 - `environment`: 环境标签（如 `dev` / `prod`）。评估 Worker 覆盖为 `eval_worker`
+- `report_images`: 是否把 `data:image/...;base64,...` 原样写入 trace。默认 `false`（脱敏为 `[image omitted]`）。本地可用 `LANGFUSE__REPORT_IMAGES=true` 覆盖
 
 ### 1.1 启动与关闭
 
@@ -126,7 +128,17 @@ trace，避免与 `chat-turn` 共用 trace ID 时产生第二条 root observatio
 
 多模态消息中图片会以内联 `data:image/...;base64,...` 传给模型。
 
-为避免 trace 膨胀，Langfuse mask 会将这类字符串替换为 `[image omitted]`。
+`init_langfuse()` 会把 `_mask_data` 注册为 Langfuse mask：
+
+- `langfuse.report_images=false`（默认）：以 `data:image/` 开头且含 `;base64,` 的字符串整体替换为 `[image omitted]`
+- `langfuse.report_images=true`：原样放行，Langfuse UI 可渲染图片
+
+若 SDK 不支持 `mask=` 参数，会降级重建客户端。此时若 `report_images=false`，
+图片会**静默原样上报**，启动日志会打 warning，提示升级 SDK。不要在旧 SDK 上
+依赖默认脱敏。
+
+排障：trace 里突然出现超大 base64，先查 `report_images` 是否被 Nacos / 环境变量打开，
+再查启动日志是否有 `image masking unavailable`。
 
 ## 6. Score 同步脚本
 
