@@ -2,7 +2,7 @@
 用户信息
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
 
 from app.core.cache import invalidate_user
@@ -61,6 +61,17 @@ async def get_memories(
     """查询用户记忆列表（Mem0 GET /memories 映射为新结构）"""
     memory_service = MemoryService(settings.chat_context.memory_config)
     raw_list = await memory_service.get_memories(token_info.user_id)
+    return ApiResponse.success(data=MemoryListResponse(memories=raw_list))
+
+
+@router.get("/memories/search")
+async def search_memories(
+    q: str = Query(..., min_length=1, max_length=200, description="搜索关键词"),
+    token_info: AuthTokenPayload = Depends(get_auth_token_info),
+) -> ApiResponse[MemoryListResponse]:
+    """按 query 搜索用户记忆（Mem0 search 映射为列表结构）"""
+    memory_service = MemoryService(settings.chat_context.memory_config)
+    raw_list = await memory_service.search(q, token_info.user_id)
     return ApiResponse.success(data=MemoryListResponse(memories=raw_list))
 
 
