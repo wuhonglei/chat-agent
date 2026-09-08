@@ -22,10 +22,11 @@ depends_on = None
 _INDEX_NAME = "idx_messages_content_tsv"
 
 # Step 1 触发器（仅 content_text），供 downgrade 恢复
-_SYNC_CONTENT_TEXT_ONLY = r"""
-CREATE OR REPLACE FUNCTION sync_message_content_text() RETURNS trigger AS $$
+_SYNC_CONTENT_TEXT_ONLY = """
+CREATE OR REPLACE FUNCTION sync_message_content_text() RETURNS trigger AS $fn$
 DECLARE
-    sanitized jsonb;
+    sanitized text;
+    parsed jsonb;
     extracted text;
 BEGIN
     IF NEW.content_blocks IS NULL THEN
@@ -33,28 +34,36 @@ BEGIN
         RETURN NEW;
     END IF;
 
-    sanitized := REPLACE(NEW.content_blocks::text, E'\\u0000', '')::jsonb;
+    sanitized := replace(NEW.content_blocks::text, '\\u0000', '');
 
-    IF jsonb_typeof(sanitized) <> 'array' THEN
+    BEGIN
+        parsed := sanitized::jsonb;
+    EXCEPTION WHEN others THEN
+        NEW.content_text := NULL;
+        RETURN NEW;
+    END;
+
+    IF jsonb_typeof(parsed) <> 'array' THEN
         NEW.content_text := NULL;
         RETURN NEW;
     END IF;
 
     SELECT string_agg(COALESCE(value->>'text', ''), '')
     INTO extracted
-    FROM jsonb_array_elements(sanitized) AS value
+    FROM jsonb_array_elements(parsed) AS value
     WHERE value->>'type' = 'text';
 
     NEW.content_text := extracted;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$fn$ LANGUAGE plpgsql;
 """
 
-_SYNC_CONTENT_TEXT_AND_TSV = r"""
-CREATE OR REPLACE FUNCTION sync_message_content_text() RETURNS trigger AS $$
+_SYNC_CONTENT_TEXT_AND_TSV = """
+CREATE OR REPLACE FUNCTION sync_message_content_text() RETURNS trigger AS $fn$
 DECLARE
-    sanitized jsonb;
+    sanitized text;
+    parsed jsonb;
     extracted text;
 BEGIN
     IF NEW.content_blocks IS NULL THEN
@@ -63,10 +72,17 @@ BEGIN
         RETURN NEW;
     END IF;
 
-    -- 去掉 JSON 中的 \u0000 转义，避免 ->> 转 text 失败
-    sanitized := REPLACE(NEW.content_blocks::text, E'\\u0000', '')::jsonb;
+    sanitized := replace(NEW.content_blocks::text, '\\u0000', '');
 
-    IF jsonb_typeof(sanitized) <> 'array' THEN
+    BEGIN
+        parsed := sanitized::jsonb;
+    EXCEPTION WHEN others THEN
+        NEW.content_text := NULL;
+        NEW.content_tsv := NULL;
+        RETURN NEW;
+    END;
+
+    IF jsonb_typeof(parsed) <> 'array' THEN
         NEW.content_text := NULL;
         NEW.content_tsv := NULL;
         RETURN NEW;
@@ -74,7 +90,7 @@ BEGIN
 
     SELECT string_agg(COALESCE(value->>'text', ''), '')
     INTO extracted
-    FROM jsonb_array_elements(sanitized) AS value
+    FROM jsonb_array_elements(parsed) AS value
     WHERE value->>'type' = 'text';
 
     NEW.content_text := extracted;
@@ -87,7 +103,7 @@ BEGIN
 
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$fn$ LANGUAGE plpgsql;
 """
 
 
@@ -112,7 +128,7 @@ def upgrade() -> None:
             else:
                 raise
 
-    # 确认 parser 已注册（扩展文件装了但未 CREATE EXTENSION 时会在这里失败）
+    # 确认 parser 已注册
     conn = op.get_bind()
     parser_exists = conn.execute(
         sa.text("SELECT 1 FROM pg_ts_parser WHERE prsname = 'zhparser'")
@@ -126,7 +142,7 @@ def upgrade() -> None:
 
     op.execute(
         """
-        DO $$
+        DO $do$
         BEGIN
             IF NOT EXISTS (
                 SELECT 1 FROM pg_ts_config WHERE cfgname = 'zhcfg'
@@ -134,13 +150,13 @@ def upgrade() -> None:
                 CREATE TEXT SEARCH CONFIGURATION zhcfg (PARSER = zhparser);
             END IF;
         END
-        $$;
+        $do$;
         """
     )
 
     op.execute(
         """
-        DO $$
+        DO $do$
         BEGIN
             IF NOT EXISTS (
                 SELECT 1
@@ -152,7 +168,7 @@ def upgrade() -> None:
                     ADD MAPPING FOR n,v,a,i,e,l WITH simple;
             END IF;
         END
-        $$;
+        $do$;
         """
     )
 
