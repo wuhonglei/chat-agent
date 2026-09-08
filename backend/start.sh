@@ -56,8 +56,8 @@ echo "=========================================="
 echo "Starting application server..."
 echo "=========================================="
 
-# Gunicorn workers = 2 * CPU 核数（验证码已迁移到 Redis，可安全多 worker）
-WORKERS=$(( $(nproc) * 2 ))
+# Gunicorn workers = CPU 核数（7.3GB 内存机器，减少内存占用）
+WORKERS=$(nproc)
 
 # 启动 Gunicorn 应用服务器
 # 注意：不使用 --preload，因为 gRPC 客户端（Nacos）在 fork 后会导致 SIGSEGV

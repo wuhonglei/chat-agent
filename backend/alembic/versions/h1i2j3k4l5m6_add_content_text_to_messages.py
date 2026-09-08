@@ -17,22 +17,6 @@ down_revision = "g0a1b2c3d4e5"
 branch_labels = None
 depends_on = None
 
-# 历史数据里偶有 \\u0000；PostgreSQL text 不能含 NUL，->> 会失败。
-# 先在 JSON 文本层去掉该转义，再提取 TextBlock。
-_EXTRACT_CONTENT_TEXT_SQL = """
-SELECT string_agg(COALESCE(value->>'text', ''), '')
-FROM jsonb_array_elements(
-    CASE
-        WHEN content_blocks IS NULL THEN '[]'::jsonb
-        WHEN jsonb_typeof(
-            REPLACE(content_blocks::text, E'\\\\u0000', '')::jsonb
-        ) = 'array' THEN REPLACE(content_blocks::text, E'\\\\u0000', '')::jsonb
-        ELSE '[]'::jsonb
-    END
-) AS value
-WHERE value->>'type' = 'text'
-"""
-
 
 def upgrade() -> None:
     op.add_column(
@@ -40,11 +24,14 @@ def upgrade() -> None:
         sa.Column("content_text", sa.Text(), nullable=True),
     )
 
+    # 触发器：INSERT/UPDATE content_blocks 时自动同步 content_text
+    # PG18 json 不允许 \\u0000，用 replace 去掉后转 jsonb；异常兜底设 NULL
     op.execute(
-        r"""
-        CREATE OR REPLACE FUNCTION sync_message_content_text() RETURNS trigger AS $$
+        """
+        CREATE OR REPLACE FUNCTION sync_message_content_text() RETURNS trigger AS $fn$
         DECLARE
-            sanitized jsonb;
+            sanitized text;
+            parsed jsonb;
             extracted text;
         BEGIN
             IF NEW.content_blocks IS NULL THEN
@@ -52,23 +39,29 @@ def upgrade() -> None:
                 RETURN NEW;
             END IF;
 
-            -- 去掉 JSON 中的 \u0000 转义，避免 ->> 转 text 失败
-            sanitized := REPLACE(NEW.content_blocks::text, E'\\u0000', '')::jsonb;
+            sanitized := replace(NEW.content_blocks::text, '\\u0000', '');
 
-            IF jsonb_typeof(sanitized) <> 'array' THEN
+            BEGIN
+                parsed := sanitized::jsonb;
+            EXCEPTION WHEN others THEN
+                NEW.content_text := NULL;
+                RETURN NEW;
+            END;
+
+            IF jsonb_typeof(parsed) <> 'array' THEN
                 NEW.content_text := NULL;
                 RETURN NEW;
             END IF;
 
             SELECT string_agg(COALESCE(value->>'text', ''), '')
             INTO extracted
-            FROM jsonb_array_elements(sanitized) AS value
+            FROM jsonb_array_elements(parsed) AS value
             WHERE value->>'type' = 'text';
 
             NEW.content_text := extracted;
             RETURN NEW;
         END;
-        $$ LANGUAGE plpgsql;
+        $fn$ LANGUAGE plpgsql;
         """
     )
 
@@ -81,11 +74,40 @@ def upgrade() -> None:
         """
     )
 
+    # 回填历史数据：逐行处理，捕获单行异常避免整批失败
     op.execute(
-        f"""
-        UPDATE messages
-        SET content_text = ({_EXTRACT_CONTENT_TEXT_SQL})
-        WHERE content_blocks IS NOT NULL;
+        """
+        DO $do$
+        DECLARE
+            r messages%ROWTYPE;
+            sanitized text;
+            parsed jsonb;
+            extracted text;
+            err_count int := 0;
+        BEGIN
+            FOR r IN SELECT * FROM messages WHERE content_blocks IS NOT NULL
+            LOOP
+                BEGIN
+                    sanitized := replace(r.content_blocks::text, '\\u0000', '');
+                    parsed := sanitized::jsonb;
+
+                    IF jsonb_typeof(parsed) = 'array' THEN
+                        SELECT string_agg(COALESCE(value->>'text', ''), '')
+                        INTO extracted
+                        FROM jsonb_array_elements(parsed) AS value
+                        WHERE value->>'type' = 'text';
+                    ELSE
+                        extracted := NULL;
+                    END IF;
+
+                    UPDATE messages SET content_text = extracted WHERE id = r.id;
+                EXCEPTION WHEN others THEN
+                    err_count := err_count + 1;
+                    UPDATE messages SET content_text = NULL WHERE id = r.id;
+                END;
+            END LOOP;
+            RAISE NOTICE 'content_text backfill done, skipped % bad rows', err_count;
+        END $do$;
         """
     )
 
