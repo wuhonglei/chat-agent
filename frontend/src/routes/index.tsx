@@ -4,6 +4,7 @@ import ChatPage from "@/pages/ChatPage";
 import LoginPage from "@/pages/LoginPage";
 import LoginCallback from "@/pages/LoginPage/components/WeChatLogin/LoginCallback";
 import MarkdownPage from "@/pages/MarkdownPage";
+import MemoriesPage from "@/pages/MemoriesPage";
 import WelcomePage from "@/pages/WelcomePage";
 import { Navigate, RouteObject } from "react-router-dom";
 
@@ -19,6 +20,10 @@ export const routes: RouteObject[] = [
   {
     path: "/chat/:conversationId",
     element: <ChatPage />,
+  },
+  {
+    path: "/memories",
+    element: <MemoriesPage />,
   },
   {
     path: "/admin/bad-cases",

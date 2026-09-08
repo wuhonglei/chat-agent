@@ -200,3 +200,54 @@ async def test_platform_delete_uses_v1_trailing_slash(
     await _platform().delete_memory("abc-id")
     assert seen[0].method == "DELETE"
     assert str(seen[0].url) == "https://api.mem0.ai/v1/memories/abc-id/"
+
+
+def test_parse_memory_items_governance_fields() -> None:
+    payload = {
+        "id": "12d4a00a-4183-47e6-8a8d-4c290d66ea43",
+        "memory": "pattern text",
+        "hash": "f7c8294ad04047976fa1a54a79eb912c",
+        "metadata": None,
+        "created_at": "2026-09-08T10:19:03.082200+00:00",
+        "updated_at": "2026-09-08T10:19:03.082200+00:00",
+        "user_id": "808e0b14-c5ca-4dc1-a495-92ef681eddef",
+        "role": "user",
+        "governance_status": "active",
+        "synthesized_from": ["e8821d1a-7c08-47a7-9d0b-d2454e775589"],
+        "memory_kind": "pattern",
+        "governance_pass_id": "pass-20260908T101131-437de1fa",
+        "governance_timestamp": "2026-09-08T10:19:02.974161+00:00",
+        "synthesis_evidence_hash": "0c2500e5e54f0dc5bce810cf91f13fe61cc48904",
+        "text_lemmatized": "ignored extra",
+    }
+    items = MemoryService._parse_memory_items([payload])
+    assert len(items) == 1
+    item = items[0]
+    assert item.memory_kind == "pattern"
+    assert item.governance_status == "active"
+    assert item.synthesized_from == ["e8821d1a-7c08-47a7-9d0b-d2454e775589"]
+    assert item.role == "user"
+    assert not hasattr(item, "text_lemmatized")
+
+
+def test_parse_memory_items_merged_and_superseded_links() -> None:
+    items = MemoryService._parse_memory_items(
+        [
+            {
+                "id": "old",
+                "memory": "old fact",
+                "created_at": "2026-01-01T00:00:00Z",
+                "governance_status": "merged",
+                "merged_into": "canonical",
+            },
+            {
+                "id": "stale",
+                "memory": "stale fact",
+                "created_at": "2026-01-02T00:00:00Z",
+                "governance_status": "superseded",
+                "superseded_by": "newer",
+            },
+        ]
+    )
+    assert items[0].merged_into == "canonical"
+    assert items[1].superseded_by == "newer"

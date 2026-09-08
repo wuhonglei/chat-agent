@@ -2,7 +2,7 @@ import { authHeader } from "@/constants";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { logout } from "@/store/slices/userSlice";
 import { toLoginPage } from "@/utils/location";
-import { AuditOutlined, LogoutOutlined, SettingOutlined, UserOutlined } from "@ant-design/icons";
+import { AuditOutlined, DatabaseOutlined, LogoutOutlined, SettingOutlined, UserOutlined } from "@ant-design/icons";
 import { ConversationItemType, Conversations, ConversationsProps } from "@ant-design/x";
 import { useMemoizedFn } from "ahooks";
 import { App, Avatar, type MenuProps } from "antd";
@@ -49,6 +49,11 @@ export default function UserAccount() {
             ]
           : []),
         {
+          label: "记忆管理",
+          key: "memories",
+          icon: <DatabaseOutlined />,
+        },
+        {
           label: "设置",
           key: "setting",
           icon: <SettingOutlined />,
@@ -66,6 +71,8 @@ export default function UserAccount() {
         menuInfo.domEvent.stopPropagation();
         if (menuInfo.key === "bad-cases") {
           navigate("/admin/bad-cases");
+        } else if (menuInfo.key === "memories") {
+          navigate("/memories");
         } else if (menuInfo.key === "setting") {
           setOpen(true);
         } else if (menuInfo.key === "logout") {

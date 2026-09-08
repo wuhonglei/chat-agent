@@ -265,4 +265,8 @@ class MemoryService:
             items = data["results"]
         else:
             return []
-        return [MemoryListItem(**item) for item in items if isinstance(item, dict)]
+        return [
+            MemoryListItem.model_validate(item)
+            for item in items
+            if isinstance(item, dict)
+        ]
