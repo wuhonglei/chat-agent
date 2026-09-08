@@ -1,5 +1,7 @@
 # 方案 A（llm_rendered_text 固化）缓存命中率对比报告
 
+> **现网契约**（写入时机、API 剥离、回放回退）见 `docs/会话管理.md`「`llm_rendered_text`」。
+>
 > 优化内容: 当轮增强后的 tool_guided_user_message（含 memories / RAG / attachment / datetime）
 > 持久化到 `message_metadata.llm_rendered_text`，历史回放优先使用固化文本（fallback 裸文本）。
 > 目的: 消除跨 turn 前缀断裂 —— 第 N 轮发送的 user message 在第 N+1 轮逐字复现，前缀缓存可续到对话尾。

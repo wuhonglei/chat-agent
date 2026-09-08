@@ -1,6 +1,6 @@
 # 工具结果硬上限与统一上下文守卫
 
-**最后核对**：2026-08-23
+**最后核对**：2026-09-06
 
 对话热路径上的上下文治理：
 
@@ -71,8 +71,9 @@ context_threshold = context_limit - reserved_output - buffer_tokens
 ```
 
 文件名使用 LLM 可见的完整工具名（如 `tavily_web_search`、`shell_exec`）加递增序号，
-不再使用 `tool_call_id`。同名工具各自独立计数；并发落盘用独占创建避免覆盖。
-旧会话中的 `.tool-results/call_....txt` 不迁移，VFS 仍可读。
+不再使用 `tool_call_id`。stem 会小写，并把非 `[A-Za-z0-9_-]` 字符换成 `_`
+（空 stem 回退 `tool`）。同名工具各自独立计数；并发落盘用独占创建（`O_CREAT|O_EXCL`）
+避免覆盖，序号最多试 1000 次。旧会话中的 `.tool-results/call_....txt` 不迁移，VFS 仍可读。
 
 ### 2.4 默认配置
 
