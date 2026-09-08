@@ -44,6 +44,26 @@ def test_get_user_message_for_tool_calls_includes_governance_status() -> None:
     assert "<relevance>高</relevance>" in text
 
 
+def test_get_user_message_for_tool_calls_omits_active_governance_status() -> None:
+    text = get_user_message_for_tool_calls(
+        "hi",
+        user_memories=[
+            MemorySearchItem(
+                id="m1",
+                memory="喜欢喝茶",
+                hash=None,
+                created_at=None,
+                metadata=None,
+                relevance="高",
+                governance_status="active",
+            )
+        ],
+        current_datetime="2099-01-02 03:04:05",
+    )
+    assert "<governance_status>" not in text
+    assert "喜欢喝茶" in text
+
+
 def test_get_current_datetime_str_formats_aware_datetime_in_local_tz() -> None:
     utc = datetime(2026, 8, 23, 5, 30, 0, tzinfo=timezone.utc)
     formatted = get_current_datetime_str(utc)

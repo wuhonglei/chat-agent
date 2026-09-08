@@ -268,6 +268,7 @@ async def test_stream_persists_user_memories_with_llm_rendered_text(
             created_at=None,
             metadata=None,
             relevance="高",
+            governance_status="active",
         )
     ]
 
