@@ -30,6 +30,10 @@ export const profileAPI = {
   getMemories: async (): Promise<MemoryListResponse> => {
     return await apiClient.get("/user/memories");
   },
+  /** 按 query 搜索用户记忆 */
+  searchMemories: async (q: string): Promise<MemoryListResponse> => {
+    return await apiClient.get("/user/memories/search", { params: { q } });
+  },
   /** 删除单条用户记忆 */
   deleteMemory: async (itemId: string): Promise<void> => {
     return await apiClient.delete(`/user/memories/${itemId}`);
