@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from app.prompts.prompt_utils import get_user_message_for_tool_calls
+from app.schemas.user import MemorySearchItem
 from app.utils.date import get_current_datetime_str
 
 
@@ -21,6 +22,26 @@ def test_get_user_message_for_tool_calls_defaults_when_omitted() -> None:
     assert len(text) > 10
     assert "<window_out_summary>" not in text
     assert "<conversation_summary>" not in text
+
+
+def test_get_user_message_for_tool_calls_includes_governance_status() -> None:
+    text = get_user_message_for_tool_calls(
+        "hi",
+        user_memories=[
+            MemorySearchItem(
+                id="m1",
+                memory="喜欢喝茶",
+                hash=None,
+                created_at=None,
+                metadata=None,
+                relevance="高",
+                governance_status="superseded",
+            )
+        ],
+        current_datetime="2099-01-02 03:04:05",
+    )
+    assert "<governance_status>superseded</governance_status>" in text
+    assert "<relevance>高</relevance>" in text
 
 
 def test_get_current_datetime_str_formats_aware_datetime_in_local_tz() -> None:

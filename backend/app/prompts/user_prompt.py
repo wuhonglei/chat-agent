@@ -71,6 +71,7 @@ user_message_for_tool_call_template: Template = Template(
       <created_at>{{ memory.created_at|e }}</created_at>
       {%- endif %}
       <relevance>{{ memory.relevance|e }}</relevance>
+      <governance_status>{{ memory.governance_status|e }}</governance_status>
     </memory_item>
   {%- endfor %}
   </user_memories>
