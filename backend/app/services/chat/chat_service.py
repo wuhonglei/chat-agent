@@ -5,6 +5,7 @@ from typing import Literal
 
 from app.agents import ChatSessionAgent, TitleGenerationAgent
 from app.core.config import settings
+from app.core.observability import observation_span
 from app.mcp.client import MCPClientManager
 from app.schemas.chat import ChatRequest
 from app.schemas.config import ChatContextConfig, LLMConfig
@@ -15,6 +16,7 @@ from app.services.chat.chat_orchestrator import ChatOrchestrator
 from app.services.chat.history_context_service import HistoryContextService
 from app.services.chat.kb_rag_context_service import KbRagContextService
 from app.services.chat.post_process_service import PostProcessService
+from app.services.user.memory_retrieval_decision import classify_memory_need
 from app.services.user.memory_service import MemoryService
 from app.utils.date import get_relative_time_diff
 from app.utils.token import TokenCalculator
@@ -75,33 +77,25 @@ class ChatService:
             return "中"
         return "低"
 
-    @staticmethod
-    def _is_simple_ack_query(query: str) -> bool:
-        normalized_query = query.strip().lower()
-        if not normalized_query:
-            return True
-
-        normalized_query = normalized_query.strip("，。！？、,.!?~～…")
-        simple_ack_phrases = {
-            "好",
-            "好的",
-            "ok",
-            "okay",
-            "继续",
-            "确认",
-            "可以",
-            "收到",
-            "行",
-            "没问题",
-            "明白",
-        }
-        return normalized_query in simple_ack_phrases
-
     async def _search_user_memories(
         self, *, query: str, user_id: str
     ) -> list[MemorySearchItem]:
-        if self._is_simple_ack_query(query):
-            return []
+        if self.memory_config.retrieval_decision_enabled:
+            with observation_span(
+                "memory-retrieval-decision",
+                input={"query": query},
+            ) as span:
+                needed, reason = classify_memory_need(query)
+                if span is not None:
+                    span.update(
+                        output={
+                            "needed": needed,
+                            "reason": reason,
+                        }
+                    )
+                if not needed:
+                    return []
+
         searched_memories: list[MemoryListItem] = await self.memory_service.search(
             query=query,
             user_id=user_id,
