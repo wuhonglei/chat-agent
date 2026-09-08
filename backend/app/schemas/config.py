@@ -658,6 +658,10 @@ class MemoryConfig(BaseModel):
         default=0.1,
         description="搜索记忆阈值",
     )
+    retrieval_decision_enabled: bool = Field(
+        default=True,
+        description="是否启用问答前记忆检索规则闸门；关闭则跳过规则直接 search",
+    )
 
 
 class ChatContextConfig(BaseModel):

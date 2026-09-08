@@ -1,4 +1,4 @@
-import { SendSmsResponse, UserInfo, UserProfileList, VerifySmsRequest, WeChatLoginInitResponse } from "@/interfaces";
+import { MemoryListResponse, SendSmsResponse, UserInfo, VerifySmsRequest, WeChatLoginInitResponse } from "@/interfaces";
 import { apiClient } from "./base";
 
 export const userAPI = {
@@ -26,11 +26,11 @@ export const userAPI = {
 };
 
 export const profileAPI = {
-  /** 查询用户画像列表（事实 + 偏好） */
-  getMemories: async (): Promise<UserProfileList> => {
+  /** 查询用户记忆列表 */
+  getMemories: async (): Promise<MemoryListResponse> => {
     return await apiClient.get("/user/memories");
   },
-  /** 删除用户画像单条 */
+  /** 删除单条用户记忆 */
   deleteMemory: async (itemId: string): Promise<void> => {
     return await apiClient.delete(`/user/memories/${itemId}`);
   },
