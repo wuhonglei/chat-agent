@@ -67,10 +67,13 @@ class MemorySearchItem(BaseModel):
 
     id: str = Field(..., description="记忆 ID")
     memory: str = Field("", description="记忆内容")
-    hash: str | None = Field(None, description="hash")
-    created_at: str | None = Field(None, description="创建时间（相对时间）")
-    metadata: dict[str, Any] | None = Field(None, description="元数据")
+    hash: str | None = Field(default=None, description="hash")
+    created_at: str | None = Field(default=None, description="创建时间（相对时间）")
+    metadata: dict[str, Any] | None = Field(default=None, description="元数据")
     relevance: Literal["高", "中", "低"] = Field(..., description="相关度等级")
+    governance_status: MemoryGovernanceStatus = Field(
+        "active", description="治理状态；缺省视为 active"
+    )
 
 
 class MemoryListResponse(BaseModel):

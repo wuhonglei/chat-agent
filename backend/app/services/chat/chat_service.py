@@ -9,7 +9,7 @@ from app.core.observability import observation_span
 from app.mcp.client import MCPClientManager
 from app.schemas.chat import ChatRequest
 from app.schemas.config import ChatContextConfig, LLMConfig
-from app.schemas.user import MemoryListItem, MemorySearchItem
+from app.schemas.user import MemoryGovernanceStatus, MemoryListItem, MemorySearchItem
 from app.services.base_service.embedding_service import EmbeddingService
 from app.services.base_service.model_resolver import resolve_scenario
 from app.services.chat.chat_orchestrator import ChatOrchestrator
@@ -77,6 +77,12 @@ class ChatService:
             return "中"
         return "低"
 
+    @staticmethod
+    def _governance_status(status: object) -> MemoryGovernanceStatus:
+        if status in ("active", "merged", "superseded", "archived"):
+            return status
+        return "active"
+
     async def _search_user_memories(
         self, *, query: str, user_id: str
     ) -> list[MemorySearchItem]:
@@ -109,6 +115,7 @@ class ChatService:
                 metadata=memory.metadata,
                 created_at=get_relative_time_diff(memory.created_at),
                 relevance=self._score_to_relevance(memory.score),
+                governance_status=self._governance_status(memory.governance_status),
             )
             for memory in searched_memories
         ]

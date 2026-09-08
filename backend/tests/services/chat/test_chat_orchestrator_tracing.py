@@ -264,7 +264,11 @@ async def test_stream_persists_user_memories_with_llm_rendered_text(
         MemorySearchItem(
             id="m1",
             memory="喜欢喝茶",
+            hash=None,
+            created_at=None,
+            metadata=None,
             relevance="高",
+            governance_status="active",
         )
     ]
 

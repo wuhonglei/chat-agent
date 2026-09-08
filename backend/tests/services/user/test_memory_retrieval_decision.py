@@ -107,6 +107,7 @@ async def test_search_calls_mem0_when_rules_say_yes(
     memory.metadata = None
     memory.created_at = "2026-01-01T00:00:00Z"
     memory.score = 0.9
+    memory.governance_status = "active"
     search_mock = AsyncMock(return_value=[memory])
     monkeypatch.setattr(service.memory_service, "search", search_mock)
 
@@ -117,6 +118,7 @@ async def test_search_calls_mem0_when_rules_say_yes(
 
     assert len(result) == 1
     assert result[0].memory == "喜欢喝茶"
+    assert result[0].governance_status == "active"
     search_mock.assert_awaited_once()
 
 
