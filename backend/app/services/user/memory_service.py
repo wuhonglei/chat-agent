@@ -14,6 +14,7 @@ from app.utils.logger import logger
 
 _PLATFORM_LIST_PAGE_SIZE = 100
 _PLATFORM_LIST_MAX_PAGES = 20
+_OSS_LIST_TOP_K = 1000
 
 
 class MemoryService:
@@ -194,10 +195,13 @@ class MemoryService:
         return res
 
     async def _get_memories_oss(self, user_id: str) -> list[MemoryListItem]:
+        """OSS 列表：server 端参数名为 top_k（上限 1000），不传则默认 20 条。"""
         url = self._list_url()
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             resp = await client.get(
-                url, params={"user_id": user_id}, headers=self._headers()
+                url,
+                params={"user_id": user_id, "top_k": _OSS_LIST_TOP_K},
+                headers=self._headers(),
             )
             resp.raise_for_status()
             data = resp.json()
