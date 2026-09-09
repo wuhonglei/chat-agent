@@ -96,11 +96,19 @@ function lookupMemoriesByIds(
   });
 }
 
-function MemoryText({ text, type }: { text: string; type?: "secondary" }) {
+function MemoryText({
+  text,
+  type,
+  ellipsis = true,
+}: {
+  text: string;
+  type?: "secondary";
+  ellipsis?: boolean;
+}) {
   return (
     <Typography.Paragraph
       type={type}
-      ellipsis={{ rows: 2, tooltip: text }}
+      ellipsis={ellipsis ? { rows: 2, tooltip: text } : false}
       className="mb-0 leading-5"
       style={{ whiteSpace: "normal" }}
     >
@@ -475,7 +483,11 @@ export default function DataManage() {
                 {relatedRows.map((row) => (
                   <div key={row.id} className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <MemoryText text={row.memory} type={row.missing ? "secondary" : undefined} />
+                      <MemoryText
+                        text={row.memory}
+                        type={row.missing ? "secondary" : undefined}
+                        ellipsis={false}
+                      />
                     </div>
                     {row.missing ? (
                       <Typography.Text type="secondary">—</Typography.Text>
