@@ -8,15 +8,14 @@ import {
 import { profileAPI } from "@/services";
 import { isPlainEnter } from "@/utils/chat";
 import { DeleteOutlined, SearchOutlined } from "@ant-design/icons";
-import { useDebounceFn, useRequest } from "ahooks";
-import { App, Button, DatePicker, Input, Modal, Select, Space, Spin, Table, Tag, Typography } from "antd";
+import { useRequest } from "ahooks";
+import { App, Button, DatePicker, Input, Modal, Select, Spin, Table, Tag, Typography } from "antd";
 import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
 import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
 import { trim } from "lodash-es";
 import { useEffect, useRef, useState } from "react";
 
-const SEARCH_DEBOUNCE_MS = 500;
 const SEARCH_QUERY_MAX_LENGTH = 200;
 
 const GOVERNANCE_STATUS_FILTER_OPTIONS: { value: MemoryGovernanceStatus; label: string }[] = [
@@ -162,7 +161,9 @@ function GovernanceStatusTag({
   );
 }
 
-function createdRangeToIso(range: CreatedRange): Pick<MemoryListParams, "createdFrom" | "createdTo"> {
+function createdRangeToIso(
+  range: CreatedRange,
+): Pick<MemoryListParams, "createdFrom" | "createdTo"> {
   if (!range) {
     return {};
   }
@@ -204,77 +205,57 @@ function fetchMemories(
 
 function useMemoryList() {
   const [query, setQuery] = useState("");
-  const [searchKeyword, setSearchKeyword] = useState("");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
   const [governanceStatus, setGovernanceStatus] = useState<MemoryGovernanceStatus | undefined>();
   const [memoryKind, setMemoryKind] = useState<MemoryKindQuery | undefined>();
   const [createdRange, setCreatedRange] = useState<CreatedRange>(null);
-  const composingRef = useRef(false);
+  const [appliedKeyword, setAppliedKeyword] = useState("");
+  const [appliedStatus, setAppliedStatus] = useState<MemoryGovernanceStatus | undefined>();
+  const [appliedKind, setAppliedKind] = useState<MemoryKindQuery | undefined>();
+  const [appliedRange, setAppliedRange] = useState<CreatedRange>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   const { data, loading, run } = useRequest(fetchMemories, {
     manual: true,
   });
 
-  const { run: debouncedSetKeyword, cancel: cancelDebouncedKeyword } = useDebounceFn(
-    (keyword: string) => {
-      setSearchKeyword(keyword);
-      setPage(1);
-    },
-    { wait: SEARCH_DEBOUNCE_MS },
-  );
-
-  const isSearching = Boolean(trim(searchKeyword));
-  const hasFilters = Boolean(governanceStatus || memoryKind || createdRange);
+  const isSearching = Boolean(trim(appliedKeyword));
+  const hasFilters = Boolean(appliedStatus || appliedKind || appliedRange);
   const isFiltered = isSearching || hasFilters;
 
   useEffect(() => {
     if (isSearching) {
-      run(searchKeyword, 1, pageSize, governanceStatus, memoryKind, createdRange);
+      run(appliedKeyword, 1, pageSize, appliedStatus, appliedKind, appliedRange);
     }
-  }, [run, isSearching, searchKeyword, pageSize, governanceStatus, memoryKind, createdRange]);
+  }, [run, isSearching, appliedKeyword, pageSize, appliedStatus, appliedKind, appliedRange]);
 
   useEffect(() => {
     if (!isSearching) {
-      run(searchKeyword, page, pageSize, governanceStatus, memoryKind, createdRange);
+      run(appliedKeyword, page, pageSize, appliedStatus, appliedKind, appliedRange);
     }
-  }, [run, isSearching, searchKeyword, page, pageSize, governanceStatus, memoryKind, createdRange]);
+  }, [run, isSearching, appliedKeyword, page, pageSize, appliedStatus, appliedKind, appliedRange]);
 
-  const triggerSearch = (value: string, options?: { immediate?: boolean }) => {
-    const trimmed = trim(value).slice(0, SEARCH_QUERY_MAX_LENGTH);
-    if (!trimmed) {
-      cancelDebouncedKeyword();
-      setSearchKeyword("");
-      setPage(1);
-      return;
-    }
-    if (options?.immediate) {
-      cancelDebouncedKeyword();
-      setSearchKeyword(trimmed);
-      setPage(1);
-      return;
-    }
-    debouncedSetKeyword(trimmed);
-  };
-
-  const handleQueryChange = (value: string, isComposing: boolean) => {
-    setQuery(value);
-    if (composingRef.current || isComposing) {
-      return;
-    }
-    triggerSearch(value);
-  };
-
-  const resetToFirstPage = () => {
+  const submitSearch = () => {
+    setAppliedKeyword(trim(query).slice(0, SEARCH_QUERY_MAX_LENGTH));
+    setAppliedStatus(governanceStatus);
+    setAppliedKind(memoryKind);
+    setAppliedRange(createdRange);
     setPage(1);
   };
 
   return {
     data,
     loading,
-    refresh: () => run(searchKeyword, isSearching ? 1 : page, pageSize, governanceStatus, memoryKind, createdRange),
+    refresh: () =>
+      run(
+        appliedKeyword,
+        isSearching ? 1 : page,
+        pageSize,
+        appliedStatus,
+        appliedKind,
+        appliedRange,
+      ),
     query,
-    searchKeyword,
     page,
     pageSize,
     isSearching,
@@ -282,23 +263,13 @@ function useMemoryList() {
     governanceStatus,
     memoryKind,
     createdRange,
+    setQuery,
     setPage,
     setPageSize,
-    setGovernanceStatus: (value: MemoryGovernanceStatus | undefined) => {
-      setGovernanceStatus(value);
-      resetToFirstPage();
-    },
-    setMemoryKind: (value: MemoryKindQuery | undefined) => {
-      setMemoryKind(value);
-      resetToFirstPage();
-    },
-    setCreatedRange: (value: CreatedRange) => {
-      setCreatedRange(value);
-      resetToFirstPage();
-    },
-    composingRef,
-    handleQueryChange,
-    triggerSearch,
+    setGovernanceStatus,
+    setMemoryKind,
+    setCreatedRange,
+    submitSearch,
   };
 }
 
@@ -339,14 +310,13 @@ export default function DataManage() {
     governanceStatus,
     memoryKind,
     createdRange,
+    setQuery,
     setPage,
     setPageSize,
     setGovernanceStatus,
     setMemoryKind,
     setCreatedRange,
-    composingRef,
-    handleQueryChange,
-    triggerSearch,
+    submitSearch,
   } = useMemoryList();
   const [relatedOpen, setRelatedOpen] = useState(false);
   const [relatedConfig, setRelatedConfig] = useState<RelatedMemoriesModalConfig | null>(null);
@@ -532,33 +502,25 @@ export default function DataManage() {
 
   return (
     <div className="flex flex-col gap-3">
-      <Input
-        allowClear
-        maxLength={SEARCH_QUERY_MAX_LENGTH}
-        prefix={<SearchOutlined className="text-gray-400" />}
-        placeholder="搜索记忆"
-        value={query}
-        onChange={(e) => {
-          const isComposing = Boolean((e.nativeEvent as InputEvent).isComposing);
-          handleQueryChange(e.target.value, isComposing);
-        }}
-        onCompositionStart={() => {
-          composingRef.current = true;
-        }}
-        onCompositionEnd={(e) => {
-          composingRef.current = false;
-          triggerSearch(e.currentTarget.value);
-        }}
-        onPressEnter={(e) => {
-          if (!isPlainEnter(e)) return;
-          triggerSearch(query, { immediate: true });
-        }}
-      />
-      <Space wrap>
+      <div className="flex items-center gap-2">
+        <Input
+          allowClear
+          maxLength={SEARCH_QUERY_MAX_LENGTH}
+          prefix={<SearchOutlined className="text-gray-400" />}
+          placeholder="搜索记忆"
+          className="min-w-36 flex-1"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onPressEnter={(e) => {
+            if (!isPlainEnter(e)) return;
+            submitSearch();
+          }}
+        />
         <Select
           allowClear
           placeholder="状态"
-          style={{ width: 140 }}
+          className="shrink-0"
+          style={{ width: 110 }}
           options={GOVERNANCE_STATUS_FILTER_OPTIONS}
           value={governanceStatus}
           onChange={(value) => setGovernanceStatus(value)}
@@ -566,20 +528,26 @@ export default function DataManage() {
         <Select
           allowClear
           placeholder="类型"
-          style={{ width: 140 }}
+          className="shrink-0"
+          style={{ width: 110 }}
           options={MEMORY_KIND_FILTER_OPTIONS}
           value={memoryKind}
           onChange={(value) => setMemoryKind(value)}
         />
         <DatePicker.RangePicker
           allowClear
+          className="shrink-0"
+          style={{ width: 220 }}
           placeholder={["开始日期", "结束日期"]}
           value={createdRange}
           onChange={(dates) => {
             setCreatedRange(dates?.[0] && dates[1] ? [dates[0], dates[1]] : null);
           }}
         />
-      </Space>
+        <Button type="primary" className="shrink-0" icon={<SearchOutlined />} onClick={submitSearch}>
+          搜索
+        </Button>
+      </div>
       <Table
         size="small"
         rowKey="id"
