@@ -3,7 +3,7 @@ import { profileAPI } from "@/services";
 import { isPlainEnter } from "@/utils/chat";
 import { DeleteOutlined, SearchOutlined } from "@ant-design/icons";
 import { useDebounceFn, useRequest } from "ahooks";
-import { App, Button, Input, Table, Tag, Typography } from "antd";
+import { App, Button, Input, Modal, Table, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import dayjs from "dayjs";
 import { trim } from "lodash-es";
@@ -54,6 +54,39 @@ function memoryKindLabel(kind: MemoryKind | null | undefined): string {
       return _exhaustive;
     }
   }
+}
+
+type SourceMemoryRow = {
+  id: string;
+  memory: string;
+  governanceStatus: MemoryGovernanceStatus | null;
+  missing: boolean;
+};
+
+function lookupSourceMemories(ids: string[], memories: MemoryListItem[]): SourceMemoryRow[] {
+  const byId = new Map(memories.map((item) => [item.id, item]));
+  return ids.map((id) => {
+    const found = byId.get(id);
+    if (!found) {
+      return {
+        id,
+        memory: "来源记忆不存在或已删除",
+        governanceStatus: null,
+        missing: true,
+      };
+    }
+    return {
+      id: found.id,
+      memory: found.memory,
+      governanceStatus: found.governanceStatus ?? null,
+      missing: false,
+    };
+  });
+}
+
+function GovernanceStatusTag({ status }: { status: MemoryGovernanceStatus | null | undefined }) {
+  const resolved = resolveGovernanceStatus(status);
+  return <Tag color={GOVERNANCE_STATUS_COLOR[resolved]}>{governanceStatusLabel(resolved)}</Tag>;
 }
 
 function fetchMemories(keyword: string) {
@@ -119,9 +152,35 @@ function useMemoryList() {
   };
 }
 
+const SOURCE_MEMORY_COLUMNS: ColumnsType<SourceMemoryRow> = [
+  {
+    title: "记忆",
+    dataIndex: "memory",
+    key: "memory",
+    ellipsis: true,
+    render: (v: string, record) =>
+      record.missing ? (
+        <Typography.Text type="secondary">{v}</Typography.Text>
+      ) : (
+        <Typography.Text ellipsis={{ tooltip: v }}>{v}</Typography.Text>
+      ),
+  },
+  {
+    title: "状态",
+    dataIndex: "governanceStatus",
+    key: "governanceStatus",
+    width: 80,
+    render: (_: SourceMemoryRow["governanceStatus"], record) =>
+      record.missing ? (
+        <Typography.Text type="secondary">—</Typography.Text>
+      ) : (
+        <GovernanceStatusTag status={record.governanceStatus} />
+      ),
+  },
+];
+
 export default function DataManage() {
-  const { message } = App.useApp();
-  const { modal } = App.useApp();
+  const { message, modal } = App.useApp();
   const {
     data,
     loading,
@@ -132,6 +191,11 @@ export default function DataManage() {
     handleQueryChange,
     triggerSearch,
   } = useMemoryList();
+  const [sourceOpen, setSourceOpen] = useState(false);
+  const [sourcePattern, setSourcePattern] = useState<MemoryListItem | null>(null);
+  const [sourceRows, setSourceRows] = useState<SourceMemoryRow[]>([]);
+  const [sourceLoading, setSourceLoading] = useState(false);
+  const sourceRequestIdRef = useRef(0);
 
   const _handleDelete = async (item: MemoryListItem) => {
     try {
@@ -154,6 +218,47 @@ export default function DataManage() {
     });
   };
 
+  const handleCloseSourceMemories = () => {
+    sourceRequestIdRef.current += 1;
+    setSourceOpen(false);
+    setSourcePattern(null);
+    setSourceRows([]);
+    setSourceLoading(false);
+  };
+
+  const handleShowSourceMemories = async (item: MemoryListItem) => {
+    const requestId = ++sourceRequestIdRef.current;
+    const ids = item.synthesizedFrom ?? [];
+    const current = data?.memories ?? [];
+    const initialRows = lookupSourceMemories(ids, current);
+
+    setSourcePattern(item);
+    setSourceRows(initialRows);
+    setSourceOpen(true);
+
+    if (ids.length === 0 || !initialRows.some((row) => row.missing)) {
+      return;
+    }
+
+    setSourceLoading(true);
+    try {
+      const full = await profileAPI.getMemories();
+      if (requestId !== sourceRequestIdRef.current) {
+        return;
+      }
+      setSourceRows(lookupSourceMemories(ids, full.memories ?? []));
+    } catch {
+      if (requestId !== sourceRequestIdRef.current) {
+        return;
+      }
+      message.error("加载来源记忆失败");
+    } finally {
+      if (requestId === sourceRequestIdRef.current) {
+        setSourceLoading(false);
+      }
+    }
+  };
+
   const columns: ColumnsType<MemoryListItem> = [
     {
       title: "记忆",
@@ -167,19 +272,26 @@ export default function DataManage() {
       dataIndex: "governanceStatus",
       key: "governanceStatus",
       width: 80,
-      render: (v: MemoryListItem["governanceStatus"]) => {
-        const status = resolveGovernanceStatus(v);
-        return <Tag color={GOVERNANCE_STATUS_COLOR[status]}>{governanceStatusLabel(status)}</Tag>;
-      },
+      render: (v: MemoryListItem["governanceStatus"]) => <GovernanceStatusTag status={v} />,
     },
     {
       title: "类型",
       dataIndex: "memoryKind",
       key: "memoryKind",
       width: 72,
-      render: (v: MemoryListItem["memoryKind"]) => (
-        <Tag color={v === "pattern" ? "purple" : "default"}>{memoryKindLabel(v)}</Tag>
-      ),
+      render: (v: MemoryListItem["memoryKind"], record) => {
+        const isPattern = v === "pattern";
+        return (
+          <Tag
+            color={isPattern ? "purple" : "default"}
+            className={isPattern ? "cursor-pointer" : undefined}
+            title={isPattern ? "查看来源记忆" : undefined}
+            onClick={isPattern ? () => handleShowSourceMemories(record) : undefined}
+          >
+            {memoryKindLabel(v)}
+          </Tag>
+        );
+      },
     },
     {
       width: 100,
@@ -246,6 +358,34 @@ export default function DataManage() {
         locale={{ emptyText: isSearching ? "未找到相关记忆" : "暂无数据" }}
         scroll={{ x: "min-content" }}
       />
+      <Modal
+        centered
+        destroyOnHidden
+        open={sourceOpen}
+        title="来源记忆"
+        footer={null}
+        width="min(720px, calc(100vw - 32px))"
+        onCancel={handleCloseSourceMemories}
+      >
+        {sourcePattern ? (
+          <Typography.Paragraph
+            type="secondary"
+            className="mb-3"
+            ellipsis={{ rows: 2, tooltip: sourcePattern.memory }}
+          >
+            模式：{sourcePattern.memory}
+          </Typography.Paragraph>
+        ) : null}
+        <Table
+          size="small"
+          rowKey="id"
+          loading={sourceLoading}
+          pagination={false}
+          columns={SOURCE_MEMORY_COLUMNS}
+          dataSource={sourceRows}
+          locale={{ emptyText: "暂无来源记忆" }}
+        />
+      </Modal>
     </div>
   );
 }
