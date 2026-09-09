@@ -420,6 +420,16 @@ export default function DataManage() {
     });
   };
 
+  const handleShowMergedIntoMemory = (item: MemoryListItem) => {
+    void handleShowRelatedMemories(item.mergedInto ? [item.mergedInto] : [], {
+      title: "合并后的记忆",
+      summaryText: item.memory,
+      emptyText: "暂无合并后的记忆",
+      missingText: "合并后的记忆不存在或已删除",
+      layout: "detail",
+    });
+  };
+
   const columns: ColumnsType<MemoryListItem> = [
     {
       title: "记忆",
@@ -433,15 +443,34 @@ export default function DataManage() {
       key: "governanceStatus",
       width: 80,
       render: (v: MemoryListItem["governanceStatus"], record) => {
-        const isSuperseded = resolveGovernanceStatus(v) === "superseded";
-        return (
-          <GovernanceStatusTag
-            status={v}
-            clickable={isSuperseded}
-            title={isSuperseded ? "查看新记忆" : undefined}
-            onClick={isSuperseded ? () => handleShowSuccessorMemory(record) : undefined}
-          />
-        );
+        const status = resolveGovernanceStatus(v);
+        switch (status) {
+          case "superseded":
+            return (
+              <GovernanceStatusTag
+                status={v}
+                clickable
+                title="查看新记忆"
+                onClick={() => handleShowSuccessorMemory(record)}
+              />
+            );
+          case "merged":
+            return (
+              <GovernanceStatusTag
+                status={v}
+                clickable
+                title="查看合并后的记忆"
+                onClick={() => handleShowMergedIntoMemory(record)}
+              />
+            );
+          case "active":
+          case "archived":
+            return <GovernanceStatusTag status={v} />;
+          default: {
+            const _exhaustive: never = status;
+            return _exhaustive;
+          }
+        }
       },
     },
     {
