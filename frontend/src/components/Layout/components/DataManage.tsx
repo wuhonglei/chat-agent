@@ -3,7 +3,7 @@ import { profileAPI } from "@/services";
 import { isPlainEnter } from "@/utils/chat";
 import { DeleteOutlined, SearchOutlined } from "@ant-design/icons";
 import { useDebounceFn, useRequest } from "ahooks";
-import { App, Button, Input, Modal, Table, Tag, Typography } from "antd";
+import { App, Button, Input, Modal, Spin, Table, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import dayjs from "dayjs";
 import { trim } from "lodash-es";
@@ -69,6 +69,7 @@ type RelatedMemoriesModalConfig = {
   summaryText: string;
   emptyText: string;
   missingText: string;
+  layout: "table" | "detail";
 };
 
 function lookupMemoriesByIds(
@@ -319,6 +320,7 @@ export default function DataManage() {
       summaryText: item.memory,
       emptyText: "暂无来源记忆",
       missingText: "来源记忆不存在或已删除",
+      layout: "table",
     });
   };
 
@@ -329,6 +331,7 @@ export default function DataManage() {
       summaryText: item.memory,
       emptyText: "暂无新记忆",
       missingText: "新记忆不存在或已删除",
+      layout: "detail",
     });
   };
 
@@ -459,16 +462,39 @@ export default function DataManage() {
             {relatedConfig.summaryLabel}：{relatedConfig.summaryText}
           </Typography.Paragraph>
         ) : null}
-        <Table
-          size="small"
-          rowKey="id"
-          loading={relatedLoading}
-          tableLayout="fixed"
-          pagination={false}
-          columns={RELATED_MEMORY_COLUMNS}
-          dataSource={relatedRows}
-          locale={{ emptyText: relatedConfig?.emptyText }}
-        />
+        {relatedConfig?.layout === "table" ? (
+          <Table
+            size="small"
+            rowKey="id"
+            loading={relatedLoading}
+            tableLayout="fixed"
+            pagination={false}
+            columns={RELATED_MEMORY_COLUMNS}
+            dataSource={relatedRows}
+            locale={{ emptyText: relatedConfig.emptyText }}
+          />
+        ) : (
+          <Spin spinning={relatedLoading}>
+            {relatedRows.length === 0 ? (
+              <Typography.Text type="secondary">{relatedConfig?.emptyText}</Typography.Text>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {relatedRows.map((row) => (
+                  <div key={row.id} className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <MemoryText text={row.memory} type={row.missing ? "secondary" : undefined} />
+                    </div>
+                    {row.missing ? (
+                      <Typography.Text type="secondary">—</Typography.Text>
+                    ) : (
+                      <GovernanceStatusTag status={row.governanceStatus} />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Spin>
+        )}
       </Modal>
     </div>
   );
