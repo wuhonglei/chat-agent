@@ -17,6 +17,7 @@ from app.sandbox.docker_availability import is_docker_daemon_available
 from app.sandbox.docker_executor import DockerSandboxExecutor
 from app.sandbox.executor import ExecutionRequest, ExecutionResult, SandboxExecutor
 from app.sandbox.local_executor import LocalSandboxExecutor
+from app.sandbox.local_vfs_shim.vfs_map import VFS_MAPPINGS_ENV, serialize_mappings
 from app.utils.logger import logger
 from app.vfs.config import vfs_config
 from app.vfs.paths import get_paths
@@ -120,7 +121,8 @@ class ShellExecutor:
         """Build per-user shell environment variables.
 
         Docker uses the virtual skills-custom path (container bind mount).
-        Local uses the resolved host path so mkdir/cp in scripts work on the host.
+        Local uses the resolved host path so mkdir/cp in scripts work on the host,
+        and injects VFS mappings so Python ``open("/mnt/user-data/...")`` works.
         """
         if not self._user_id:
             return None
@@ -131,10 +133,11 @@ class ShellExecutor:
             if not self._conversation_id:
                 return None
             mappings = build_path_mappings(self._user_id, self._conversation_id)
+            env = {VFS_MAPPINGS_ENV: serialize_mappings(mappings)}
             physical = mappings.get(skills_custom_virtual)
-            if physical is None:
-                return None
-            return {"USER_SKILLS_DIR": physical}
+            if physical is not None:
+                env["USER_SKILLS_DIR"] = physical
+            return env
 
         return {"USER_SKILLS_DIR": skills_custom_virtual}
 

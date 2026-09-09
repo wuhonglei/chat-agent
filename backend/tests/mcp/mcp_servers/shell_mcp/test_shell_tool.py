@@ -10,6 +10,7 @@ import pytest
 from app.mcp.mcp_servers.shell_mcp.executor import ShellExecutor
 from app.mcp.mcp_servers.shell_mcp.shell import ShellTool
 from app.sandbox.executor import ExecutionResult
+from app.sandbox.local_vfs_shim.vfs_map import VFS_MAPPINGS_ENV
 from app.schemas.config import SandboxConfig
 from app.vfs.config import vfs_config
 
@@ -278,6 +279,8 @@ async def test_shell_executor_local_sets_user_skills_dir_env(
     request = call_args[0][0]
     assert request.env is not None
     assert request.env["USER_SKILLS_DIR"] == expected_skills_dir
+    assert VFS_MAPPINGS_ENV in request.env
+    assert vfs_config.workspace_prefix.rstrip("/") in request.env[VFS_MAPPINGS_ENV]
 
 
 @pytest.mark.asyncio
