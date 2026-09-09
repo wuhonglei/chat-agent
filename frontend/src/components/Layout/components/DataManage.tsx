@@ -96,6 +96,25 @@ function lookupMemoriesByIds(
   });
 }
 
+function MemoryText({
+  text,
+  type,
+}: {
+  text: string;
+  type?: "secondary";
+}) {
+  return (
+    <Typography.Paragraph
+      type={type}
+      ellipsis={{ rows: 2, tooltip: text }}
+      className="mb-0 leading-5"
+      style={{ whiteSpace: "normal" }}
+    >
+      {text}
+    </Typography.Paragraph>
+  );
+}
+
 function GovernanceStatusTag({
   status,
   clickable = false,
@@ -188,13 +207,7 @@ const RELATED_MEMORY_COLUMNS: ColumnsType<RelatedMemoryRow> = [
     title: "记忆",
     dataIndex: "memory",
     key: "memory",
-    ellipsis: true,
-    render: (v: string, record) =>
-      record.missing ? (
-        <Typography.Text type="secondary">{v}</Typography.Text>
-      ) : (
-        <Typography.Text ellipsis={{ tooltip: v }}>{v}</Typography.Text>
-      ),
+    render: (v: string, record) => <MemoryText text={v} type={record.missing ? "secondary" : undefined} />,
   },
   {
     title: "状态",
@@ -324,8 +337,7 @@ export default function DataManage() {
       title: "记忆",
       dataIndex: "memory",
       key: "memory",
-      ellipsis: true,
-      render: (v: string) => <Typography.Text ellipsis={{ tooltip: v }}>{v}</Typography.Text>,
+      render: (v: string) => <MemoryText text={v} />,
     },
     {
       title: "状态",
@@ -426,6 +438,7 @@ export default function DataManage() {
         }}
         dataSource={data?.memories ?? []}
         locale={{ emptyText: isSearching ? "未找到相关记忆" : "暂无数据" }}
+        tableLayout="fixed"
         scroll={{ x: "min-content" }}
       />
       <Modal
@@ -450,6 +463,7 @@ export default function DataManage() {
           size="small"
           rowKey="id"
           loading={relatedLoading}
+          tableLayout="fixed"
           pagination={false}
           columns={RELATED_MEMORY_COLUMNS}
           dataSource={relatedRows}
