@@ -121,7 +121,14 @@ async def search_memories(
         created_from=created_from,
         created_to=created_to,
     )
-    return ApiResponse.success(data=MemoryListResponse(memories=raw_list))
+    return ApiResponse.success(
+        data=MemoryListResponse(
+            memories=raw_list,
+            total=len(raw_list),
+            page=1,
+            page_size=len(raw_list) or _MANAGEMENT_SEARCH_LIMIT,
+        )
+    )
 
 
 @router.get("/memories/{memory_id}")

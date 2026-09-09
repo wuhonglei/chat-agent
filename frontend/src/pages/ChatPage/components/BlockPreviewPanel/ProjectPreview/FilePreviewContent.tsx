@@ -1,13 +1,28 @@
 import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
 import Editor from "@monaco-editor/react";
 import { DownloadOutlined } from "@ant-design/icons";
-import { Alert, Button, Empty, Spin, Typography } from "antd";
-import React from "react";
+import { Alert, Button, Empty, Segmented, Spin, Typography } from "antd";
+import React, { useState } from "react";
 import PreviewScrollBody from "../PreviewScrollBody";
 import WorkspaceExcelPreview from "./WorkspaceExcelPreview";
 import WorkspaceImagePreview from "./WorkspaceImagePreview";
 import type { ExcelSheet } from "./hooks";
-import { getMonacoLanguage, isMarkdownPath } from "./utils";
+import { getMonacoLanguage, isHtmlPath, isMarkdownPath } from "./utils";
+
+type HtmlViewMode = "preview" | "source";
+
+const HTML_IFRAME_SANDBOX =
+  "allow-scripts allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-downloads allow-presentation";
+
+const SOURCE_EDITOR_OPTIONS = {
+  readOnly: true,
+  minimap: { enabled: false },
+  wordWrap: "on" as const,
+  scrollBeyondLastLine: false,
+  automaticLayout: true,
+  renderLineHighlight: "none" as const,
+  padding: { top: 12, bottom: 12 },
+};
 
 export type SelectedFile = {
   path: string;
@@ -40,6 +55,52 @@ export interface FilePreviewContentProps {
     onDownload: () => void;
   } | null;
 }
+
+const FileSourceEditor: React.FC<{ file: SelectedFile }> = ({ file }) => {
+  return (
+    <div className="min-h-0 flex-1 overflow-hidden">
+      <Editor
+        height="100%"
+        language={getMonacoLanguage(file.language)}
+        value={file.content}
+        options={SOURCE_EDITOR_OPTIONS}
+      />
+    </div>
+  );
+};
+
+const HtmlFilePreview: React.FC<{ file: SelectedFile }> = ({ file }) => {
+  const [viewMode, setViewMode] = useState<HtmlViewMode>("preview");
+
+  return (
+    <div className="h-full min-h-0 flex flex-col">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-(--ant-color-border-secondary) px-3 py-2">
+        <Typography.Text type="secondary" className="min-w-0 truncate">
+          {file.title}
+        </Typography.Text>
+        <Segmented<HtmlViewMode>
+          size="small"
+          value={viewMode}
+          onChange={setViewMode}
+          options={[
+            { label: "预览", value: "preview" },
+            { label: "源码", value: "source" },
+          ]}
+        />
+      </div>
+      {viewMode === "preview" ? (
+        <iframe
+          title={file.title}
+          srcDoc={file.content}
+          sandbox={HTML_IFRAME_SANDBOX}
+          className="h-full min-h-0 w-full flex-1 border-0 bg-white"
+        />
+      ) : (
+        <FileSourceEditor file={file} />
+      )}
+    </div>
+  );
+};
 
 const FilePreviewContent: React.FC<FilePreviewContentProps> = ({
   width,
@@ -104,6 +165,10 @@ const FilePreviewContent: React.FC<FilePreviewContentProps> = ({
     return <Empty description="请选择左侧文件查看内容" className="mt-12" />;
   }
 
+  if (isHtmlPath(selectedFile.path)) {
+    return <HtmlFilePreview key={selectedFile.path} file={selectedFile} />;
+  }
+
   const layoutWidth = width > 0 ? width : 0;
   const isMarkdown = isMarkdownPath(selectedFile.path);
 
@@ -119,22 +184,7 @@ const FilePreviewContent: React.FC<FilePreviewContentProps> = ({
           </PreviewScrollBody>
         </div>
       ) : (
-        <div className="min-h-0 flex-1 overflow-hidden">
-          <Editor
-            height="100%"
-            language={getMonacoLanguage(selectedFile.language)}
-            value={selectedFile.content}
-            options={{
-              readOnly: true,
-              minimap: { enabled: false },
-              wordWrap: "on",
-              scrollBeyondLastLine: false,
-              automaticLayout: true,
-              renderLineHighlight: "none",
-              padding: { top: 12, bottom: 12 },
-            }}
-          />
-        </div>
+        <FileSourceEditor file={selectedFile} />
       )}
     </div>
   );

@@ -430,27 +430,28 @@ class MemoryService:
 
     @staticmethod
     def _parse_list_count(data: object, fallback: int) -> int:
-        if isinstance(data, dict) and isinstance(data.get("count"), int):
-            return data["count"]
+        if isinstance(data, dict):
+            count = data.get("count")
+            if isinstance(count, int):
+                return count
         return fallback
 
     @staticmethod
     def _parse_memory_item(data: object) -> MemoryListItem | None:
-        if isinstance(data, dict):
-            nested = data.get("memory")
-            if isinstance(nested, dict):
-                data = nested
-            elif isinstance(data.get("results"), list):
-                items = MemoryService._parse_memory_items(data)
-                return items[0] if items else None
-        elif isinstance(data, list):
+        if isinstance(data, list):
+            items = MemoryService._parse_memory_items(data)
+            return items[0] if items else None
+        if not isinstance(data, dict):
+            return None
+        nested = data.get("memory")
+        if isinstance(nested, dict):
+            payload = nested
+        elif isinstance(data.get("results"), list):
             items = MemoryService._parse_memory_items(data)
             return items[0] if items else None
         else:
-            return None
-        if not isinstance(data, dict):
-            return None
+            payload = data
         try:
-            return MemoryListItem.model_validate(data)
+            return MemoryListItem.model_validate(payload)
         except ValidationError:
             return None

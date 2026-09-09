@@ -129,6 +129,24 @@ def test_validate_allows_cd_skills(mappings: dict[str, str]) -> None:
     )
 
 
+def test_validate_allows_dot_slash_relative_script(
+    mappings: dict[str, str],
+) -> None:
+    """`./scripts/foo.js` must not be scanned as the absolute path `/scripts/foo.js`."""
+    skills_public = vfs_config.skills_public_prefix.rstrip("/")
+    validate_local_command_paths(
+        f"cd {skills_public}/chart-visualization && node ./scripts/generate.js",
+        mappings,
+    )
+
+
+def test_validate_rejects_host_scripts_absolute_path(
+    mappings: dict[str, str],
+) -> None:
+    with pytest.raises(LocalCommandPathError, match="Unsafe absolute paths"):
+        validate_local_command_paths("node /scripts/generate.js", mappings)
+
+
 def test_validate_allows_js_import_alias_in_command(
     mappings: dict[str, str],
 ) -> None:

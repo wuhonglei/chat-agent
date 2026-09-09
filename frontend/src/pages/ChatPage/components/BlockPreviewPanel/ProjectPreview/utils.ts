@@ -119,6 +119,13 @@ export function isMarkdownPath(path: string): boolean {
   return getLanguageFromPath(path) === "markdown";
 }
 
+const HTML_EXTENSIONS = new Set(["html", "htm", "xhtml"]);
+
+export function isHtmlPath(path: string): boolean {
+  const ext = path.split(".").pop()?.toLowerCase();
+  return Boolean(ext && HTML_EXTENSIONS.has(ext));
+}
+
 const EXCEL_EXTENSIONS = new Set(["xlsx", "xls"]);
 
 const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp", "ico"]);
