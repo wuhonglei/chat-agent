@@ -65,7 +65,6 @@ type RelatedMemoryRow = {
 
 type RelatedMemoriesModalConfig = {
   title: string;
-  summaryLabel: string;
   summaryText: string;
   emptyText: string;
   missingText: string;
@@ -97,13 +96,7 @@ function lookupMemoriesByIds(
   });
 }
 
-function MemoryText({
-  text,
-  type,
-}: {
-  text: string;
-  type?: "secondary";
-}) {
+function MemoryText({ text, type }: { text: string; type?: "secondary" }) {
   return (
     <Typography.Paragraph
       type={type}
@@ -208,7 +201,9 @@ const RELATED_MEMORY_COLUMNS: ColumnsType<RelatedMemoryRow> = [
     title: "记忆",
     dataIndex: "memory",
     key: "memory",
-    render: (v: string, record) => <MemoryText text={v} type={record.missing ? "secondary" : undefined} />,
+    render: (v: string, record) => (
+      <MemoryText text={v} type={record.missing ? "secondary" : undefined} />
+    ),
   },
   {
     title: "状态",
@@ -316,7 +311,6 @@ export default function DataManage() {
   const handleShowSourceMemories = (item: MemoryListItem) => {
     void handleShowRelatedMemories(item.synthesizedFrom ?? [], {
       title: "来源记忆",
-      summaryLabel: "模式",
       summaryText: item.memory,
       emptyText: "暂无来源记忆",
       missingText: "来源记忆不存在或已删除",
@@ -327,7 +321,6 @@ export default function DataManage() {
   const handleShowSuccessorMemory = (item: MemoryListItem) => {
     void handleShowRelatedMemories(item.supersededBy ? [item.supersededBy] : [], {
       title: "新记忆",
-      summaryLabel: "原记忆",
       summaryText: item.memory,
       emptyText: "暂无新记忆",
       missingText: "新记忆不存在或已删除",
@@ -459,7 +452,7 @@ export default function DataManage() {
             className="mb-3"
             ellipsis={{ rows: 2, tooltip: relatedConfig.summaryText }}
           >
-            {relatedConfig.summaryLabel}：{relatedConfig.summaryText}
+            {relatedConfig.summaryText}
           </Typography.Paragraph>
         ) : null}
         {relatedConfig?.layout === "table" ? (
