@@ -118,8 +118,7 @@ def apply_path_patches(mappings: dict[str, str] | None = None) -> bool:
 
     builtins.open = patched_open
 
-    names = dict.fromkeys(_PATH_FIRST_OS_FUNCS)
-    for name in names:
+    for name in _PATH_FIRST_OS_FUNCS:
         original = getattr(os, name, None)
         if original is None:
             continue

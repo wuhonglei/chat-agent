@@ -22,9 +22,7 @@ def test_rewrite_virtual_path_longest_prefix_wins() -> None:
         "/mnt/user-data": "/host/conv",
         "/mnt/user-data/workspace": "/host/conv/workspace",
     }
-    result = rewrite_virtual_path(
-        "/mnt/user-data/workspace/ai-hot-chart.png", mappings
-    )
+    result = rewrite_virtual_path("/mnt/user-data/workspace/ai-hot-chart.png", mappings)
     assert result == "/host/conv/workspace/ai-hot-chart.png"
 
 
