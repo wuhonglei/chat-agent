@@ -80,3 +80,6 @@ class MemoryListResponse(BaseModel):
     """用户记忆列表响应（Mem0 GET /memories 映射）"""
 
     memories: list[MemoryListItem] = Field(default_factory=list, description="记忆列表")
+    total: int = Field(0, description="符合条件的记忆总数")
+    page: int = Field(1, description="当前页（从 1 开始）")
+    page_size: int = Field(20, description="每页条数")

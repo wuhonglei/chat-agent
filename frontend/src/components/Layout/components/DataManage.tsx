@@ -4,7 +4,7 @@ import { isPlainEnter } from "@/utils/chat";
 import { DeleteOutlined, SearchOutlined } from "@ant-design/icons";
 import { useDebounceFn, useRequest } from "ahooks";
 import { App, Button, Input, Modal, Spin, Table, Tag, Typography } from "antd";
-import type { ColumnsType } from "antd/es/table";
+import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
 import dayjs from "dayjs";
 import { trim } from "lodash-es";
 import { useEffect, useRef, useState } from "react";
@@ -141,10 +141,10 @@ function GovernanceStatusTag({
   );
 }
 
-function fetchMemories(keyword: string) {
+function fetchMemories(keyword: string, page: number, pageSize: number) {
   const q = trim(keyword);
   if (!q) {
-    return profileAPI.getMemories();
+    return profileAPI.getMemories({ page, pageSize });
   }
   return profileAPI.searchMemories(q);
 }
@@ -152,6 +152,8 @@ function fetchMemories(keyword: string) {
 function useMemoryList() {
   const [query, setQuery] = useState("");
   const [searchKeyword, setSearchKeyword] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const composingRef = useRef(false);
 
   const { data, loading, run } = useRequest(fetchMemories, {
@@ -161,24 +163,37 @@ function useMemoryList() {
   const { run: debouncedSetKeyword, cancel: cancelDebouncedKeyword } = useDebounceFn(
     (keyword: string) => {
       setSearchKeyword(keyword);
+      setPage(1);
     },
     { wait: SEARCH_DEBOUNCE_MS },
   );
 
+  const isSearching = Boolean(trim(searchKeyword));
+
   useEffect(() => {
-    run(searchKeyword);
-  }, [run, searchKeyword]);
+    if (isSearching) {
+      run(searchKeyword, 1, pageSize);
+    }
+  }, [run, isSearching, searchKeyword, pageSize]);
+
+  useEffect(() => {
+    if (!isSearching) {
+      run(searchKeyword, page, pageSize);
+    }
+  }, [run, isSearching, searchKeyword, page, pageSize]);
 
   const triggerSearch = (value: string, options?: { immediate?: boolean }) => {
     const trimmed = trim(value).slice(0, SEARCH_QUERY_MAX_LENGTH);
     if (!trimmed) {
       cancelDebouncedKeyword();
       setSearchKeyword("");
+      setPage(1);
       return;
     }
     if (options?.immediate) {
       cancelDebouncedKeyword();
       setSearchKeyword(trimmed);
+      setPage(1);
       return;
     }
     debouncedSetKeyword(trimmed);
@@ -195,9 +210,14 @@ function useMemoryList() {
   return {
     data,
     loading,
-    refresh: () => run(searchKeyword),
+    refresh: () => run(searchKeyword, page, pageSize),
     query,
     searchKeyword,
+    page,
+    pageSize,
+    isSearching,
+    setPage,
+    setPageSize,
     composingRef,
     handleQueryChange,
     triggerSearch,
@@ -234,7 +254,11 @@ export default function DataManage() {
     loading,
     refresh,
     query,
-    searchKeyword,
+    page,
+    pageSize,
+    isSearching,
+    setPage,
+    setPageSize,
     composingRef,
     handleQueryChange,
     triggerSearch,
@@ -249,6 +273,11 @@ export default function DataManage() {
     try {
       await profileAPI.deleteMemory(item.id);
       message.success("已删除");
+      const currentCount = data?.memories?.length ?? 0;
+      if (!isSearching && currentCount <= 1 && page > 1) {
+        setPage(page - 1);
+        return;
+      }
       refresh();
     } catch {
       message.error("删除失败");
@@ -404,7 +433,17 @@ export default function DataManage() {
     },
   ];
 
-  const isSearching = Boolean(trim(searchKeyword));
+  const pagination: TablePaginationConfig = {
+    current: page,
+    pageSize,
+    total: isSearching ? (data?.memories?.length ?? 0) : (data?.total ?? 0),
+    showSizeChanger: true,
+    showTotal: (total) => `共 ${total} 条`,
+    onChange: (nextPage, nextSize) => {
+      setPage(nextPage);
+      setPageSize(nextSize);
+    },
+  };
 
   return (
     <div className="flex flex-col gap-3">
@@ -435,11 +474,7 @@ export default function DataManage() {
         rowKey="id"
         loading={loading}
         columns={columns}
-        pagination={{
-          pageSize: 20,
-          showSizeChanger: true,
-          showTotal: (total) => `共 ${total} 条`,
-        }}
+        pagination={pagination}
         dataSource={data?.memories ?? []}
         locale={{ emptyText: isSearching ? "未找到相关记忆" : "暂无数据" }}
         tableLayout="fixed"

@@ -58,11 +58,15 @@ async def update_user_info(
 @router.get("/memories")
 async def get_memories(
     token_info: AuthTokenPayload = Depends(get_auth_token_info),
+    page: int = Query(1, ge=1, description="页码，从 1 开始"),
+    page_size: int = Query(20, ge=1, le=100, description="每页条数"),
 ) -> ApiResponse[MemoryListResponse]:
     """查询用户记忆列表（Mem0 GET /memories 映射为新结构）"""
     memory_service = MemoryService(settings.chat_context.memory_config)
-    raw_list = await memory_service.get_memories(token_info.user_id)
-    return ApiResponse.success(data=MemoryListResponse(memories=raw_list))
+    data = await memory_service.get_memories(
+        token_info.user_id, page=page, page_size=page_size
+    )
+    return ApiResponse.success(data=data)
 
 
 @router.get("/memories/search")

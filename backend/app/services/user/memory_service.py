@@ -10,12 +10,8 @@ from pydantic import ValidationError
 
 from app.core.observability import mark_observation_error, observation_span
 from app.schemas.config import MemoryConfig
-from app.schemas.user import MemoryListItem
+from app.schemas.user import MemoryListItem, MemoryListResponse
 from app.utils.logger import logger
-
-_PLATFORM_LIST_PAGE_SIZE = 100
-_PLATFORM_LIST_MAX_PAGES = 20
-_OSS_LIST_TOP_K = 1000
 
 
 class MemoryService:
@@ -175,28 +171,40 @@ class MemoryService:
                 )
             return r
 
-    async def get_memories(self, user_id: str) -> list[MemoryListItem]:
-        """获取用户记忆列表。
+    async def get_memories(
+        self, user_id: str, page: int = 1, page_size: int = 20
+    ) -> MemoryListResponse:
+        """获取用户记忆列表（服务端分页）。
 
-        Platform：``POST /v3/memories/``（filters 放 body，分页 envelope）。
-        OSS：``GET /memories?user_id=``。
+        Platform：``POST /v3/memories/?page=&page_size=``（filters 放 body）。
+        OSS：``GET /memories?user_id=&page=&page_size=``。
         """
         if not self._mem0_enabled():
-            return []
+            return MemoryListResponse(
+                memories=[], total=0, page=page, page_size=page_size
+            )
         try:
             if self._is_platform():
-                res = await self._get_memories_platform(user_id)
+                items, total = await self._get_memories_platform(
+                    user_id, page=page, page_size=page_size
+                )
             else:
-                res = await self._get_memories_oss(user_id)
+                items, total = await self._get_memories_oss(
+                    user_id, page=page, page_size=page_size
+                )
         except httpx.HTTPError as e:
             logger.warning(
                 "Mem0 get_memories failed",
                 user_id=user_id,
                 error=e,
             )
-            return []
-        res.sort(key=lambda x: x.created_at, reverse=True)
-        return res
+            return MemoryListResponse(
+                memories=[], total=0, page=page, page_size=page_size
+            )
+        items.sort(key=lambda x: x.created_at, reverse=True)
+        return MemoryListResponse(
+            memories=items, total=total, page=page, page_size=page_size
+        )
 
     async def get_memory(self, memory_id: str) -> MemoryListItem | None:
         """按 id 查询单条记忆。
@@ -224,36 +232,43 @@ class MemoryService:
             raise
         return self._parse_memory_item(data)
 
-    async def _get_memories_oss(self, user_id: str) -> list[MemoryListItem]:
-        """OSS 列表：server 端参数名为 top_k（上限 1000），不传则默认 20 条。"""
+    async def _get_memories_oss(
+        self, user_id: str, page: int = 1, page_size: int = 20
+    ) -> tuple[list[MemoryListItem], int]:
+        """OSS 列表：``page`` / ``page_size``，总数取 envelope ``count``。"""
         url = self._list_url()
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             resp = await client.get(
                 url,
-                params={"user_id": user_id, "top_k": _OSS_LIST_TOP_K},
+                params={
+                    "user_id": user_id,
+                    "page": page,
+                    "page_size": page_size,
+                },
                 headers=self._headers(),
             )
             resp.raise_for_status()
             data = resp.json()
-        return self._parse_memory_items(data)
+        items = self._parse_memory_items(data)
+        total = self._parse_list_count(data, fallback=len(items))
+        return items, total
 
-    async def _get_memories_platform(self, user_id: str) -> list[MemoryListItem]:
+    async def _get_memories_platform(
+        self, user_id: str, page: int = 1, page_size: int = 20
+    ) -> tuple[list[MemoryListItem], int]:
         url = self._list_url()
-        collected: list[MemoryListItem] = []
         async with httpx.AsyncClient(timeout=self._timeout) as client:
-            for page in range(1, _PLATFORM_LIST_MAX_PAGES + 1):
-                resp = await client.post(
-                    url,
-                    params={"page": page, "page_size": _PLATFORM_LIST_PAGE_SIZE},
-                    json={"filters": {"user_id": user_id}},
-                    headers=self._headers(),
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                collected.extend(self._parse_memory_items(data))
-                if not (isinstance(data, dict) and data.get("next")):
-                    break
-        return collected
+            resp = await client.post(
+                url,
+                params={"page": page, "page_size": page_size},
+                json={"filters": {"user_id": user_id}},
+                headers=self._headers(),
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        items = self._parse_memory_items(data)
+        total = self._parse_list_count(data, fallback=len(items))
+        return items, total
 
     async def delete_memory(self, memory_id: str) -> None:
         """删除单条记忆：Platform ``DELETE /v1/memories/{id}/``，OSS ``DELETE /memories/{id}``。"""
@@ -304,6 +319,12 @@ class MemoryService:
             for item in items
             if isinstance(item, dict)
         ]
+
+    @staticmethod
+    def _parse_list_count(data: object, fallback: int) -> int:
+        if isinstance(data, dict) and isinstance(data.get("count"), int):
+            return data["count"]
+        return fallback
 
     @staticmethod
     def _parse_memory_item(data: object) -> MemoryListItem | None:

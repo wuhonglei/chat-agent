@@ -39,4 +39,12 @@ export interface MemoryListItem {
 /** 用户记忆列表 */
 export interface MemoryListResponse {
   memories: MemoryListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface MemoryListParams {
+  page?: number;
+  pageSize?: number;
 }

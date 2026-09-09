@@ -126,38 +126,23 @@ async def test_platform_search_posts_to_v3_search(
 
 
 @pytest.mark.asyncio
-async def test_platform_list_posts_filters_and_paginates(
+async def test_platform_list_posts_single_page(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    pages: list[int] = []
+    seen: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
         assert request.method == "POST"
         assert request.url.path == "/v3/memories/"
-        page = int(request.url.params["page"])
-        pages.append(page)
+        assert request.url.params["page"] == "2"
+        assert request.url.params["page_size"] == "20"
         body = json.loads(request.content)
         assert body == {"filters": {"user_id": "u1"}}
-        if page == 1:
-            return httpx.Response(
-                200,
-                json={
-                    "count": 2,
-                    "next": "https://api.mem0.ai/v3/memories/?page=2",
-                    "previous": None,
-                    "results": [
-                        {
-                            "id": "m1",
-                            "memory": "first",
-                            "created_at": "2026-01-02T00:00:00Z",
-                        }
-                    ],
-                },
-            )
         return httpx.Response(
             200,
             json={
-                "count": 2,
+                "count": 41,
                 "next": None,
                 "previous": "https://api.mem0.ai/v3/memories/?page=1",
                 "results": [
@@ -171,9 +156,49 @@ async def test_platform_list_posts_filters_and_paginates(
         )
 
     _install_transport(monkeypatch, handler)
-    items = await _platform().get_memories("u1")
-    assert pages == [1, 2]
-    assert [i.id for i in items] == ["m1", "m2"]
+    payload = await _platform().get_memories("u1", page=2, page_size=20)
+    assert len(seen) == 1
+    assert payload.total == 41
+    assert payload.page == 2
+    assert payload.page_size == 20
+    assert [i.id for i in payload.memories] == ["m2"]
+
+
+@pytest.mark.asyncio
+async def test_oss_list_forwards_page_and_count(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        assert request.method == "GET"
+        assert request.url.path == "/memories"
+        assert request.url.params["user_id"] == "u1"
+        assert request.url.params["page"] == "3"
+        assert request.url.params["page_size"] == "10"
+        assert "top_k" not in request.url.params
+        return httpx.Response(
+            200,
+            json={
+                "count": 25,
+                "results": [
+                    {
+                        "id": "m-oss",
+                        "memory": "oss fact",
+                        "created_at": "2026-01-01T00:00:00Z",
+                    }
+                ],
+            },
+        )
+
+    _install_transport(monkeypatch, handler)
+    payload = await _oss().get_memories("u1", page=3, page_size=10)
+    assert len(seen) == 1
+    assert payload.total == 25
+    assert payload.page == 3
+    assert payload.page_size == 10
+    assert payload.memories[0].id == "m-oss"
 
 
 @pytest.mark.asyncio
