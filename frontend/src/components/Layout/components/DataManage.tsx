@@ -89,6 +89,7 @@ type RelatedMemoriesModalConfig = {
   emptyText: string;
   missingText: string;
   layout: "table" | "detail";
+  summaryEllipsis?: boolean;
 };
 
 function lookupMemoriesByIds(
@@ -427,6 +428,7 @@ export default function DataManage() {
       emptyText: "暂无合并后的记忆",
       missingText: "合并后的记忆不存在或已删除",
       layout: "detail",
+      summaryEllipsis: false,
     });
   };
 
@@ -606,16 +608,17 @@ export default function DataManage() {
         title={relatedConfig?.title}
         footer={null}
         width="min(720px, calc(100vw - 32px))"
+        styles={{ body: { maxHeight: "70vh", overflowY: "auto" } }}
         onCancel={handleCloseRelatedMemories}
       >
         {relatedConfig ? (
-          <Typography.Paragraph
-            type="secondary"
-            className="mb-3"
-            ellipsis={{ rows: 2, tooltip: relatedConfig.summaryText }}
-          >
-            {relatedConfig.summaryText}
-          </Typography.Paragraph>
+          <div className="mb-3">
+            <MemoryText
+              text={relatedConfig.summaryText}
+              type="secondary"
+              ellipsis={relatedConfig.summaryEllipsis !== false}
+            />
+          </div>
         ) : null}
         {relatedConfig?.layout === "table" ? (
           <Table
