@@ -502,13 +502,13 @@ export default function DataManage() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
         <Input
           allowClear
           maxLength={SEARCH_QUERY_MAX_LENGTH}
           prefix={<SearchOutlined className="text-gray-400" />}
           placeholder="搜索记忆"
-          className="min-w-36 flex-1"
+          className="w-full min-w-0 sm:min-w-40 sm:flex-1"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onPressEnter={(e) => {
@@ -516,35 +516,46 @@ export default function DataManage() {
             submitSearch();
           }}
         />
-        <Select
-          allowClear
-          placeholder="状态"
-          className="shrink-0"
-          style={{ width: 110 }}
-          options={GOVERNANCE_STATUS_FILTER_OPTIONS}
-          value={governanceStatus}
-          onChange={(value) => setGovernanceStatus(value)}
-        />
-        <Select
-          allowClear
-          placeholder="类型"
-          className="shrink-0"
-          style={{ width: 110 }}
-          options={MEMORY_KIND_FILTER_OPTIONS}
-          value={memoryKind}
-          onChange={(value) => setMemoryKind(value)}
-        />
-        <DatePicker.RangePicker
-          allowClear
-          className="shrink-0"
-          style={{ width: 220 }}
-          placeholder={["开始日期", "结束日期"]}
-          value={createdRange}
-          onChange={(dates) => {
-            setCreatedRange(dates?.[0] && dates[1] ? [dates[0], dates[1]] : null);
-          }}
-        />
-        <Button type="primary" className="shrink-0" icon={<SearchOutlined />} onClick={submitSearch}>
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:shrink-0">
+          <div className="min-w-0 sm:w-[110px]">
+            <Select
+              allowClear
+              placeholder="状态"
+              style={{ width: "100%" }}
+              options={GOVERNANCE_STATUS_FILTER_OPTIONS}
+              value={governanceStatus}
+              onChange={(value) => setGovernanceStatus(value)}
+            />
+          </div>
+          <div className="min-w-0 sm:w-[110px]">
+            <Select
+              allowClear
+              placeholder="类型"
+              style={{ width: "100%" }}
+              options={MEMORY_KIND_FILTER_OPTIONS}
+              value={memoryKind}
+              onChange={(value) => setMemoryKind(value)}
+            />
+          </div>
+        </div>
+        <div className="w-full min-w-0 sm:w-[220px] sm:shrink-0">
+          <DatePicker.RangePicker
+            allowClear
+            inputReadOnly
+            style={{ width: "100%" }}
+            placeholder={["开始日期", "结束日期"]}
+            value={createdRange}
+            onChange={(dates) => {
+              setCreatedRange(dates?.[0] && dates[1] ? [dates[0], dates[1]] : null);
+            }}
+          />
+        </div>
+        <Button
+          type="primary"
+          className="w-full sm:w-auto sm:shrink-0"
+          icon={<SearchOutlined />}
+          onClick={submitSearch}
+        >
           搜索
         </Button>
       </div>
