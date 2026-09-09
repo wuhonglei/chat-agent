@@ -12,10 +12,11 @@ from app.vfs.paths import SKILLS_PUBLIC_DIR, VIRTUAL_PATH_PREFIX, get_paths
 
 PathMappings = dict[str, str]
 
-# Absolute paths outside quotes/heredocs. Exclude @/ (JS/TS import aliases) and //
-# (line comments / protocol-relative). Quoted strings and heredoc bodies are skipped
-# in validate_local_command_paths; single-line quoted path args are checked separately.
-_ABSOLUTE_PATH_PATTERN = re.compile(r"(?<![:\w@])(?<!:/)(/(?!/)[^\s\"'`;&|<>()]+)")
+# Absolute paths outside quotes/heredocs. Exclude @/ (JS/TS import aliases), ./
+# (relative paths), and // (line comments / protocol-relative). Quoted strings and
+# heredoc bodies are skipped in validate_local_command_paths; single-line quoted
+# path args are checked separately.
+_ABSOLUTE_PATH_PATTERN = re.compile(r"(?<![:\w@.])(?<!:/)(/(?!/)[^\s\"'`;&|<>()]+)")
 _HEREDOC_OP_PATTERN = re.compile(r"<<-?")
 _FILE_URL_PATTERN = re.compile(r"\bfile://\S+", re.IGNORECASE)
 _URL_WITH_SCHEME_PATTERN = re.compile(r"^[a-z][a-z0-9+.-]*://", re.IGNORECASE)

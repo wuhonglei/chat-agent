@@ -10,6 +10,7 @@ from pathlib import Path
 
 from app.core.config import settings
 from app.sandbox.executor import ExecutionRequest, ExecutionResult, SandboxExecutor
+from app.sandbox.local_vfs_shim.vfs_map import SHIM_DIR, VFS_MAPPINGS_ENV
 from app.utils.logger import logger
 
 
@@ -40,17 +41,26 @@ class LocalSandboxExecutor(SandboxExecutor):
         timeout_sec = min(request.timeout / 1000, 600)  # max 600s
 
         try:
+            env = {
+                **os.environ,
+                "TMPDIR": "/tmp",
+                **(request.env or {}),
+            }
+            if env.get(VFS_MAPPINGS_ENV):
+                shim = str(SHIM_DIR)
+                parts = [p for p in env.get("PYTHONPATH", "").split(os.pathsep) if p]
+                if shim not in parts:
+                    env["PYTHONPATH"] = (
+                        os.pathsep.join([shim, *parts]) if parts else shim
+                    )
+
             # Create process with session ID for process group management
             process = await asyncio.create_subprocess_shell(
                 request.command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=request.cwd,
-                env={
-                    **os.environ,
-                    "TMPDIR": "/tmp",
-                    **(request.env or {}),
-                },
+                env=env,
                 preexec_fn=os.setsid,  # Create new process group
             )
 

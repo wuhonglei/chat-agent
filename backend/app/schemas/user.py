@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 # 与 mem0 `governance_filters` 对齐：缺省 status 视为 active，缺省 kind 为普通记忆。
 MemoryGovernanceStatus = Literal["active", "merged", "superseded", "archived"]
 MemoryKind = Literal["pattern"]
+MemoryKindQuery = Literal["ordinary", "pattern"]
 MemoryRole = Literal["user", "assistant"]
 
 
@@ -80,3 +81,6 @@ class MemoryListResponse(BaseModel):
     """用户记忆列表响应（Mem0 GET /memories 映射）"""
 
     memories: list[MemoryListItem] = Field(default_factory=list, description="记忆列表")
+    total: int = Field(0, description="符合条件的记忆总数")
+    page: int = Field(1, description="当前页（从 1 开始）")
+    page_size: int = Field(20, description="每页条数")

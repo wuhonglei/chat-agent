@@ -51,6 +51,7 @@ def test_platform_urls_use_v3_add_search_and_v1_delete() -> None:
     assert svc._list_url() == "https://api.mem0.ai/v3/memories/"
     assert svc._delete_url("abc") == "https://api.mem0.ai/v1/memories/abc/"
     assert svc._delete_url() == "https://api.mem0.ai/v1/memories/"
+    assert svc._get_url("abc") == "https://api.mem0.ai/v1/memories/abc/"
 
 
 def test_oss_urls_keep_legacy_paths() -> None:
@@ -60,12 +61,11 @@ def test_oss_urls_keep_legacy_paths() -> None:
     assert svc._list_url() == "http://127.0.0.1:8888/memories"
     assert svc._delete_url("abc") == "http://127.0.0.1:8888/memories/abc"
     assert svc._delete_url() == "http://127.0.0.1:8888/memories"
+    assert svc._get_url("abc") == "http://127.0.0.1:8888/memories/abc"
 
 
 def test_platform_host_without_v3_suffix_still_detected() -> None:
-    svc = MemoryService(
-        MemoryConfig(base_url="https://api.mem0.ai", api_key="m0-test")
-    )
+    svc = MemoryService(MemoryConfig(base_url="https://api.mem0.ai", api_key="m0-test"))
     assert svc._is_platform()
     assert svc._add_url() == "https://api.mem0.ai/v3/memories/add/"
 
@@ -124,38 +124,23 @@ async def test_platform_search_posts_to_v3_search(
 
 
 @pytest.mark.asyncio
-async def test_platform_list_posts_filters_and_paginates(
+async def test_platform_list_posts_single_page(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    pages: list[int] = []
+    seen: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
         assert request.method == "POST"
         assert request.url.path == "/v3/memories/"
-        page = int(request.url.params["page"])
-        pages.append(page)
+        assert request.url.params["page"] == "2"
+        assert request.url.params["page_size"] == "20"
         body = json.loads(request.content)
         assert body == {"filters": {"user_id": "u1"}}
-        if page == 1:
-            return httpx.Response(
-                200,
-                json={
-                    "count": 2,
-                    "next": "https://api.mem0.ai/v3/memories/?page=2",
-                    "previous": None,
-                    "results": [
-                        {
-                            "id": "m1",
-                            "memory": "first",
-                            "created_at": "2026-01-02T00:00:00Z",
-                        }
-                    ],
-                },
-            )
         return httpx.Response(
             200,
             json={
-                "count": 2,
+                "count": 41,
                 "next": None,
                 "previous": "https://api.mem0.ai/v3/memories/?page=1",
                 "results": [
@@ -169,9 +154,49 @@ async def test_platform_list_posts_filters_and_paginates(
         )
 
     _install_transport(monkeypatch, handler)
-    items = await _platform().get_memories("u1")
-    assert pages == [1, 2]
-    assert [i.id for i in items] == ["m1", "m2"]
+    payload = await _platform().get_memories("u1", page=2, page_size=20)
+    assert len(seen) == 1
+    assert payload.total == 41
+    assert payload.page == 2
+    assert payload.page_size == 20
+    assert [i.id for i in payload.memories] == ["m2"]
+
+
+@pytest.mark.asyncio
+async def test_oss_list_forwards_page_and_count(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        assert request.method == "GET"
+        assert request.url.path == "/memories"
+        assert request.url.params["user_id"] == "u1"
+        assert request.url.params["page"] == "3"
+        assert request.url.params["page_size"] == "10"
+        assert "top_k" not in request.url.params
+        return httpx.Response(
+            200,
+            json={
+                "count": 25,
+                "results": [
+                    {
+                        "id": "m-oss",
+                        "memory": "oss fact",
+                        "created_at": "2026-01-01T00:00:00Z",
+                    }
+                ],
+            },
+        )
+
+    _install_transport(monkeypatch, handler)
+    payload = await _oss().get_memories("u1", page=3, page_size=10)
+    assert len(seen) == 1
+    assert payload.total == 25
+    assert payload.page == 3
+    assert payload.page_size == 10
+    assert payload.memories[0].id == "m-oss"
 
 
 @pytest.mark.asyncio
@@ -200,6 +225,95 @@ async def test_platform_delete_uses_v1_trailing_slash(
     await _platform().delete_memory("abc-id")
     assert seen[0].method == "DELETE"
     assert str(seen[0].url) == "https://api.mem0.ai/v1/memories/abc-id/"
+
+
+@pytest.mark.asyncio
+async def test_platform_get_memory_uses_v1_trailing_slash(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert str(request.url) == "https://api.mem0.ai/v1/memories/abc-id/"
+        return httpx.Response(
+            200,
+            json={
+                "id": "abc-id",
+                "memory": "User prefers tea",
+                "created_at": "2026-01-15T10:30:00Z",
+                "user_id": "u1",
+                "governance_status": "active",
+            },
+        )
+
+    _install_transport(monkeypatch, handler)
+    item = await _platform().get_memory("abc-id")
+    assert item is not None
+    assert item.id == "abc-id"
+    assert item.memory == "User prefers tea"
+    assert item.user_id == "u1"
+
+
+@pytest.mark.asyncio
+async def test_oss_get_memory_uses_legacy_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen = _install_transport(
+        monkeypatch,
+        lambda request: httpx.Response(
+            200,
+            json={
+                "id": "m-oss",
+                "memory": "oss fact",
+                "created_at": "2026-01-01T00:00:00Z",
+            },
+        ),
+    )
+    item = await _oss().get_memory("m-oss")
+    assert seen[0].method == "GET"
+    assert str(seen[0].url) == "http://127.0.0.1:8888/memories/m-oss"
+    assert item is not None
+    assert item.memory == "oss fact"
+
+
+@pytest.mark.asyncio
+async def test_get_memory_returns_none_on_404(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _install_transport(
+        monkeypatch,
+        lambda request: httpx.Response(404, json={"error": "Memory not found"}),
+    )
+    item = await _platform().get_memory("missing-id")
+    assert item is None
+
+
+def test_parse_memory_item_single_object() -> None:
+    item = MemoryService._parse_memory_item(
+        {
+            "id": "m1",
+            "memory": "single",
+            "created_at": "2026-01-01T00:00:00Z",
+            "superseded_by": "newer",
+        }
+    )
+    assert item is not None
+    assert item.id == "m1"
+    assert item.superseded_by == "newer"
+
+
+def test_parse_memory_item_nested_memory_object() -> None:
+    item = MemoryService._parse_memory_item(
+        {
+            "memory": {
+                "id": "m2",
+                "memory": "nested",
+                "created_at": "2026-01-01T00:00:00Z",
+            }
+        }
+    )
+    assert item is not None
+    assert item.id == "m2"
+    assert item.memory == "nested"
 
 
 def test_parse_memory_items_governance_fields() -> None:
@@ -251,3 +365,167 @@ def test_parse_memory_items_merged_and_superseded_links() -> None:
     )
     assert items[0].merged_into == "canonical"
     assert items[1].superseded_by == "newer"
+
+
+def test_build_filters_user_id_only() -> None:
+    assert MemoryService._build_filters("u1") == {"user_id": "u1"}
+
+
+def test_build_filters_active_omits_status_clause() -> None:
+    assert MemoryService._build_filters("u1", governance_status="active") == {
+        "user_id": "u1"
+    }
+    assert MemoryService._visibility_flags("active") == {"latest_only": True}
+
+
+def test_build_filters_ordinary_and_created_range() -> None:
+    assert MemoryService._build_filters(
+        "u1",
+        memory_kind="ordinary",
+        created_from="2026-01-01T00:00:00+08:00",
+        created_to="2026-01-31T23:59:59+08:00",
+    ) == {
+        "AND": [
+            {"user_id": "u1"},
+            {"memory_kind": {"ne": "pattern"}},
+            {
+                "created_at": {
+                    "gte": "2026-01-01T00:00:00+08:00",
+                    "lte": "2026-01-31T23:59:59+08:00",
+                }
+            },
+        ]
+    }
+
+
+@pytest.mark.asyncio
+async def test_oss_search_forwards_and_filters(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert str(request.url).endswith("/search")
+        body = json.loads(request.content)
+        assert body["filters"] == {
+            "AND": [
+                {"user_id": "u1"},
+                {"memory_kind": {"ne": "pattern"}},
+                {
+                    "created_at": {
+                        "gte": "2026-01-01T00:00:00Z",
+                        "lte": "2026-01-31T23:59:59Z",
+                    }
+                },
+            ]
+        }
+        assert body["latest_only"] is True
+        assert body["top_k"] == 50
+        return httpx.Response(200, json={"results": []})
+
+    _install_transport(monkeypatch, handler)
+    items = await _oss().search(
+        "diet",
+        user_id="u1",
+        limit=50,
+        governance_status="active",
+        memory_kind="ordinary",
+        created_from="2026-01-01T00:00:00Z",
+        created_to="2026-01-31T23:59:59Z",
+    )
+    assert items == []
+
+
+@pytest.mark.asyncio
+async def test_platform_search_forwards_and_filters(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        assert body["filters"] == {
+            "AND": [
+                {"user_id": "u1"},
+                {"governance_status": "merged"},
+                {"memory_kind": "pattern"},
+            ]
+        }
+        assert body["include_merged"] is True
+        assert body["top_k"] == 50
+        return httpx.Response(200, json={"results": []})
+
+    _install_transport(monkeypatch, handler)
+    items = await _platform().search(
+        "diet",
+        user_id="u1",
+        limit=50,
+        governance_status="merged",
+        memory_kind="pattern",
+    )
+    assert items == []
+
+
+@pytest.mark.asyncio
+async def test_oss_list_forwards_filter_query(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert request.url.params["user_id"] == "u1"
+        assert request.url.params["governance_status"] == "archived"
+        assert request.url.params["memory_kind"] == "ordinary"
+        assert request.url.params["created_from"] == "2026-01-01T00:00:00Z"
+        assert request.url.params["created_to"] == "2026-01-31T23:59:59Z"
+        assert request.url.params["include_merged"] == "true"
+        return httpx.Response(200, json={"count": 0, "results": []})
+
+    _install_transport(monkeypatch, handler)
+    payload = await _oss().get_memories(
+        "u1",
+        page=1,
+        page_size=20,
+        governance_status="archived",
+        memory_kind="ordinary",
+        created_from="2026-01-01T00:00:00Z",
+        created_to="2026-01-31T23:59:59Z",
+    )
+    assert payload.total == 0
+
+
+@pytest.mark.asyncio
+async def test_oss_list_active_uses_latest_only_without_status(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert "governance_status" not in request.url.params
+        assert request.url.params["latest_only"] == "true"
+        return httpx.Response(200, json={"count": 0, "results": []})
+
+    _install_transport(monkeypatch, handler)
+    payload = await _oss().get_memories("u1", governance_status="active")
+    assert payload.total == 0
+
+
+@pytest.mark.asyncio
+async def test_platform_list_forwards_and_filters(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        body = json.loads(request.content)
+        assert body["filters"] == {
+            "AND": [
+                {"user_id": "u1"},
+                {"governance_status": "superseded"},
+            ]
+        }
+        assert "include_merged" not in body
+        assert "latest_only" not in body
+        return httpx.Response(200, json={"count": 0, "results": []})
+
+    _install_transport(monkeypatch, handler)
+    payload = await _platform().get_memories(
+        "u1",
+        page=1,
+        page_size=20,
+        governance_status="superseded",
+    )
+    assert payload.total == 0

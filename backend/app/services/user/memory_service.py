@@ -1,4 +1,4 @@
-"""Mem0 记忆服务：封装 Mem0 REST API（写入、搜索、列表、删除）"""
+"""Mem0 记忆服务：封装 Mem0 REST API（写入、搜索、列表、按 id 查询、删除）"""
 
 from __future__ import annotations
 
@@ -6,15 +6,17 @@ from typing import Any
 from urllib.parse import urlparse
 
 import httpx
+from pydantic import ValidationError
 
 from app.core.observability import mark_observation_error, observation_span
 from app.schemas.config import MemoryConfig
-from app.schemas.user import MemoryListItem
+from app.schemas.user import (
+    MemoryGovernanceStatus,
+    MemoryKindQuery,
+    MemoryListItem,
+    MemoryListResponse,
+)
 from app.utils.logger import logger
-
-_PLATFORM_LIST_PAGE_SIZE = 100
-_PLATFORM_LIST_MAX_PAGES = 20
-_OSS_LIST_TOP_K = 1000
 
 
 class MemoryService:
@@ -81,6 +83,9 @@ class MemoryService:
             return f"{self._base_url()}/memories/{memory_id}"
         return f"{self._base_url()}/memories"
 
+    def _get_url(self, memory_id: str) -> str:
+        return self._delete_url(memory_id)
+
     async def add_memories(
         self,
         messages: list[dict[str, str]],
@@ -115,12 +120,55 @@ class MemoryService:
                 error=e,
             )
 
+    @staticmethod
+    def _visibility_flags(
+        governance_status: MemoryGovernanceStatus | None,
+    ) -> dict[str, bool]:
+        flags: dict[str, bool] = {}
+        if governance_status == "active":
+            flags["latest_only"] = True
+        elif governance_status in ("merged", "archived"):
+            flags["include_merged"] = True
+        return flags
+
+    @staticmethod
+    def _build_filters(
+        user_id: str,
+        *,
+        governance_status: MemoryGovernanceStatus | None = None,
+        memory_kind: MemoryKindQuery | None = None,
+        created_from: str | None = None,
+        created_to: str | None = None,
+    ) -> dict[str, Any]:
+        """Build Mem0 search/list filters. Extra conditions use AND."""
+        extra: list[dict[str, Any]] = []
+        if governance_status is not None and governance_status != "active":
+            extra.append({"governance_status": governance_status})
+        if memory_kind == "pattern":
+            extra.append({"memory_kind": "pattern"})
+        elif memory_kind == "ordinary":
+            extra.append({"memory_kind": {"ne": "pattern"}})
+        if created_from is not None or created_to is not None:
+            created: dict[str, str] = {}
+            if created_from is not None:
+                created["gte"] = created_from
+            if created_to is not None:
+                created["lte"] = created_to
+            extra.append({"created_at": created})
+        if not extra:
+            return {"user_id": user_id}
+        return {"AND": [{"user_id": user_id}, *extra]}
+
     async def search(
         self,
         query: str,
         user_id: str,
         threshold: float | None = None,
         limit: int | None = None,
+        governance_status: MemoryGovernanceStatus | None = None,
+        memory_kind: MemoryKindQuery | None = None,
+        created_from: str | None = None,
+        created_to: str | None = None,
     ) -> list[MemoryListItem]:
         """搜索记忆：Platform ``POST /v3/memories/search/``，OSS ``POST /search``。"""
         if not self._mem0_enabled():
@@ -129,9 +177,16 @@ class MemoryService:
         limit = limit if limit is not None else self.config.search_limit
         body: dict[str, Any] = {
             "query": query,
-            "filters": {"user_id": user_id},
+            "filters": self._build_filters(
+                user_id,
+                governance_status=governance_status,
+                memory_kind=memory_kind,
+                created_from=created_from,
+                created_to=created_to,
+            ),
             "top_k": limit,
         }
+        body.update(self._visibility_flags(governance_status))
         if threshold is not None:
             body["threshold"] = threshold
         with observation_span(
@@ -171,59 +226,157 @@ class MemoryService:
                 )
             return r
 
-    async def get_memories(self, user_id: str) -> list[MemoryListItem]:
-        """获取用户记忆列表。
+    async def get_memories(
+        self,
+        user_id: str,
+        page: int = 1,
+        page_size: int = 20,
+        governance_status: MemoryGovernanceStatus | None = None,
+        memory_kind: MemoryKindQuery | None = None,
+        created_from: str | None = None,
+        created_to: str | None = None,
+    ) -> MemoryListResponse:
+        """获取用户记忆列表（服务端分页）。
 
-        Platform：``POST /v3/memories/``（filters 放 body，分页 envelope）。
-        OSS：``GET /memories?user_id=``。
+        Platform：``POST /v3/memories/?page=&page_size=``（filters 放 body）。
+        OSS：``GET /memories?user_id=&page=&page_size=``。
         """
         if not self._mem0_enabled():
-            return []
+            return MemoryListResponse(
+                memories=[], total=0, page=page, page_size=page_size
+            )
         try:
             if self._is_platform():
-                res = await self._get_memories_platform(user_id)
+                items, total = await self._get_memories_platform(
+                    user_id,
+                    page=page,
+                    page_size=page_size,
+                    governance_status=governance_status,
+                    memory_kind=memory_kind,
+                    created_from=created_from,
+                    created_to=created_to,
+                )
             else:
-                res = await self._get_memories_oss(user_id)
+                items, total = await self._get_memories_oss(
+                    user_id,
+                    page=page,
+                    page_size=page_size,
+                    governance_status=governance_status,
+                    memory_kind=memory_kind,
+                    created_from=created_from,
+                    created_to=created_to,
+                )
         except httpx.HTTPError as e:
             logger.warning(
                 "Mem0 get_memories failed",
                 user_id=user_id,
                 error=e,
             )
-            return []
-        res.sort(key=lambda x: x.created_at, reverse=True)
-        return res
+            return MemoryListResponse(
+                memories=[], total=0, page=page, page_size=page_size
+            )
+        items.sort(key=lambda x: x.created_at, reverse=True)
+        return MemoryListResponse(
+            memories=items, total=total, page=page, page_size=page_size
+        )
 
-    async def _get_memories_oss(self, user_id: str) -> list[MemoryListItem]:
-        """OSS 列表：server 端参数名为 top_k（上限 1000），不传则默认 20 条。"""
+    async def get_memory(self, memory_id: str) -> MemoryListItem | None:
+        """按 id 查询单条记忆。
+
+        Platform：``GET /v1/memories/{id}/``。
+        OSS：``GET /memories/{id}``。
+        不存在时返回 ``None``。
+        """
+        if not self._mem0_enabled():
+            return None
+        url = self._get_url(memory_id)
+        try:
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                resp = await client.get(url, headers=self._headers())
+                if resp.status_code == 404:
+                    return None
+                resp.raise_for_status()
+                data = resp.json()
+        except httpx.HTTPError as e:
+            logger.warning(
+                "Mem0 get_memory failed",
+                memory_id=memory_id,
+                error=e,
+            )
+            raise
+        return self._parse_memory_item(data)
+
+    async def _get_memories_oss(
+        self,
+        user_id: str,
+        page: int = 1,
+        page_size: int = 20,
+        governance_status: MemoryGovernanceStatus | None = None,
+        memory_kind: MemoryKindQuery | None = None,
+        created_from: str | None = None,
+        created_to: str | None = None,
+    ) -> tuple[list[MemoryListItem], int]:
+        """OSS 列表：``page`` / ``page_size``，总数取 envelope ``count``。"""
         url = self._list_url()
+        params: dict[str, Any] = {
+            "user_id": user_id,
+            "page": page,
+            "page_size": page_size,
+        }
+        if governance_status is not None and governance_status != "active":
+            params["governance_status"] = governance_status
+        if memory_kind is not None:
+            params["memory_kind"] = memory_kind
+        if created_from is not None:
+            params["created_from"] = created_from
+        if created_to is not None:
+            params["created_to"] = created_to
+        params.update(self._visibility_flags(governance_status))
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             resp = await client.get(
                 url,
-                params={"user_id": user_id, "top_k": _OSS_LIST_TOP_K},
+                params=params,
                 headers=self._headers(),
             )
             resp.raise_for_status()
             data = resp.json()
-        return self._parse_memory_items(data)
+        items = self._parse_memory_items(data)
+        total = self._parse_list_count(data, fallback=len(items))
+        return items, total
 
-    async def _get_memories_platform(self, user_id: str) -> list[MemoryListItem]:
+    async def _get_memories_platform(
+        self,
+        user_id: str,
+        page: int = 1,
+        page_size: int = 20,
+        governance_status: MemoryGovernanceStatus | None = None,
+        memory_kind: MemoryKindQuery | None = None,
+        created_from: str | None = None,
+        created_to: str | None = None,
+    ) -> tuple[list[MemoryListItem], int]:
         url = self._list_url()
-        collected: list[MemoryListItem] = []
+        body: dict[str, Any] = {
+            "filters": self._build_filters(
+                user_id,
+                governance_status=governance_status,
+                memory_kind=memory_kind,
+                created_from=created_from,
+                created_to=created_to,
+            )
+        }
+        body.update(self._visibility_flags(governance_status))
         async with httpx.AsyncClient(timeout=self._timeout) as client:
-            for page in range(1, _PLATFORM_LIST_MAX_PAGES + 1):
-                resp = await client.post(
-                    url,
-                    params={"page": page, "page_size": _PLATFORM_LIST_PAGE_SIZE},
-                    json={"filters": {"user_id": user_id}},
-                    headers=self._headers(),
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                collected.extend(self._parse_memory_items(data))
-                if not (isinstance(data, dict) and data.get("next")):
-                    break
-        return collected
+            resp = await client.post(
+                url,
+                params={"page": page, "page_size": page_size},
+                json=body,
+                headers=self._headers(),
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        items = self._parse_memory_items(data)
+        total = self._parse_list_count(data, fallback=len(items))
+        return items, total
 
     async def delete_memory(self, memory_id: str) -> None:
         """删除单条记忆：Platform ``DELETE /v1/memories/{id}/``，OSS ``DELETE /memories/{id}``。"""
@@ -274,3 +427,31 @@ class MemoryService:
             for item in items
             if isinstance(item, dict)
         ]
+
+    @staticmethod
+    def _parse_list_count(data: object, fallback: int) -> int:
+        if isinstance(data, dict):
+            count = data.get("count")
+            if isinstance(count, int):
+                return count
+        return fallback
+
+    @staticmethod
+    def _parse_memory_item(data: object) -> MemoryListItem | None:
+        if isinstance(data, list):
+            items = MemoryService._parse_memory_items(data)
+            return items[0] if items else None
+        if not isinstance(data, dict):
+            return None
+        nested = data.get("memory")
+        if isinstance(nested, dict):
+            payload = nested
+        elif isinstance(data.get("results"), list):
+            items = MemoryService._parse_memory_items(data)
+            return items[0] if items else None
+        else:
+            payload = data
+        try:
+            return MemoryListItem.model_validate(payload)
+        except ValidationError:
+            return None

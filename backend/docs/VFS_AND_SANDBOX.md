@@ -134,6 +134,11 @@ Shell MCP 自身还限制命令长度和输出展示：
 2. 将虚拟路径替换成宿主机物理路径；
 3. 执行后把 stdout/stderr 中的物理路径再替换回虚拟路径。
 
+命令字符串里的虚拟路径会被替换，但 **Python 脚本内部** 的
+`open("/mnt/user-data/workspace/...")` 不会（宿主机通常没有 `/mnt`）。
+local 模式会注入 `CHAT_AGENT_VFS_MAPPINGS`，并通过 `app/sandbox/local_vfs_shim`
+的 `sitecustomize` 在 Python 进程里把这些路径映射到物理目录。
+
 路径扫描实现在 `shell_mcp/virtual_paths.py`：会跳过引号串与 **heredoc 正文**
 （`<<` / `<<-`，不含 `<<<`），避免把 heredoc 内嵌路径或注释里的 `//`、JS/TS 的
 `@/` 导入别名误判为宿主机绝对路径。
