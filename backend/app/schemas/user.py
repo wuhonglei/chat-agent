@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 # 与 mem0 `governance_filters` 对齐：缺省 status 视为 active，缺省 kind 为普通记忆。
 MemoryGovernanceStatus = Literal["active", "merged", "superseded", "archived"]
 MemoryKind = Literal["pattern"]
+MemoryKindQuery = Literal["ordinary", "pattern"]
 MemoryRole = Literal["user", "assistant"]
 
 

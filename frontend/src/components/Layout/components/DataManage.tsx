@@ -1,16 +1,37 @@
-import { MemoryGovernanceStatus, MemoryKind, MemoryListItem } from "@/interfaces";
+import {
+  MemoryGovernanceStatus,
+  MemoryKind,
+  MemoryKindQuery,
+  MemoryListItem,
+  MemoryListParams,
+} from "@/interfaces";
 import { profileAPI } from "@/services";
 import { isPlainEnter } from "@/utils/chat";
 import { DeleteOutlined, SearchOutlined } from "@ant-design/icons";
 import { useDebounceFn, useRequest } from "ahooks";
-import { App, Button, Input, Modal, Spin, Table, Tag, Typography } from "antd";
+import { App, Button, DatePicker, Input, Modal, Select, Space, Spin, Table, Tag, Typography } from "antd";
 import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
+import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
 import { trim } from "lodash-es";
 import { useEffect, useRef, useState } from "react";
 
 const SEARCH_DEBOUNCE_MS = 500;
 const SEARCH_QUERY_MAX_LENGTH = 200;
+
+const GOVERNANCE_STATUS_FILTER_OPTIONS: { value: MemoryGovernanceStatus; label: string }[] = [
+  { value: "active", label: "生效" },
+  { value: "merged", label: "已合并" },
+  { value: "superseded", label: "已取代" },
+  { value: "archived", label: "已归档" },
+];
+
+const MEMORY_KIND_FILTER_OPTIONS: { value: MemoryKindQuery; label: string }[] = [
+  { value: "ordinary", label: "普通" },
+  { value: "pattern", label: "模式" },
+];
+
+type CreatedRange = [Dayjs, Dayjs] | null;
 
 const GOVERNANCE_STATUS_COLOR: Record<MemoryGovernanceStatus, string> = {
   active: "success",
@@ -141,12 +162,44 @@ function GovernanceStatusTag({
   );
 }
 
-function fetchMemories(keyword: string, page: number, pageSize: number) {
+function createdRangeToIso(range: CreatedRange): Pick<MemoryListParams, "createdFrom" | "createdTo"> {
+  if (!range) {
+    return {};
+  }
+  return {
+    createdFrom: range[0].startOf("day").toISOString(),
+    createdTo: range[1].endOf("day").toISOString(),
+  };
+}
+
+function memoryFilterParams(
+  governanceStatus?: MemoryGovernanceStatus,
+  memoryKind?: MemoryKindQuery,
+  createdRange?: CreatedRange,
+): Pick<MemoryListParams, "governanceStatus" | "memoryKind" | "createdFrom" | "createdTo"> {
+  const { createdFrom, createdTo } = createdRangeToIso(createdRange ?? null);
+  return {
+    ...(governanceStatus ? { governanceStatus } : {}),
+    ...(memoryKind ? { memoryKind } : {}),
+    ...(createdFrom ? { createdFrom } : {}),
+    ...(createdTo ? { createdTo } : {}),
+  };
+}
+
+function fetchMemories(
+  keyword: string,
+  page: number,
+  pageSize: number,
+  governanceStatus?: MemoryGovernanceStatus,
+  memoryKind?: MemoryKindQuery,
+  createdRange?: CreatedRange,
+) {
+  const filters = memoryFilterParams(governanceStatus, memoryKind, createdRange);
   const q = trim(keyword);
   if (!q) {
-    return profileAPI.getMemories({ page, pageSize });
+    return profileAPI.getMemories({ page, pageSize, ...filters });
   }
-  return profileAPI.searchMemories(q);
+  return profileAPI.searchMemories({ q, ...filters });
 }
 
 function useMemoryList() {
@@ -154,6 +207,9 @@ function useMemoryList() {
   const [searchKeyword, setSearchKeyword] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [governanceStatus, setGovernanceStatus] = useState<MemoryGovernanceStatus | undefined>();
+  const [memoryKind, setMemoryKind] = useState<MemoryKindQuery | undefined>();
+  const [createdRange, setCreatedRange] = useState<CreatedRange>(null);
   const composingRef = useRef(false);
 
   const { data, loading, run } = useRequest(fetchMemories, {
@@ -169,18 +225,20 @@ function useMemoryList() {
   );
 
   const isSearching = Boolean(trim(searchKeyword));
+  const hasFilters = Boolean(governanceStatus || memoryKind || createdRange);
+  const isFiltered = isSearching || hasFilters;
 
   useEffect(() => {
     if (isSearching) {
-      run(searchKeyword, 1, pageSize);
+      run(searchKeyword, 1, pageSize, governanceStatus, memoryKind, createdRange);
     }
-  }, [run, isSearching, searchKeyword, pageSize]);
+  }, [run, isSearching, searchKeyword, pageSize, governanceStatus, memoryKind, createdRange]);
 
   useEffect(() => {
     if (!isSearching) {
-      run(searchKeyword, page, pageSize);
+      run(searchKeyword, page, pageSize, governanceStatus, memoryKind, createdRange);
     }
-  }, [run, isSearching, searchKeyword, page, pageSize]);
+  }, [run, isSearching, searchKeyword, page, pageSize, governanceStatus, memoryKind, createdRange]);
 
   const triggerSearch = (value: string, options?: { immediate?: boolean }) => {
     const trimmed = trim(value).slice(0, SEARCH_QUERY_MAX_LENGTH);
@@ -207,17 +265,37 @@ function useMemoryList() {
     triggerSearch(value);
   };
 
+  const resetToFirstPage = () => {
+    setPage(1);
+  };
+
   return {
     data,
     loading,
-    refresh: () => run(searchKeyword, page, pageSize),
+    refresh: () => run(searchKeyword, isSearching ? 1 : page, pageSize, governanceStatus, memoryKind, createdRange),
     query,
     searchKeyword,
     page,
     pageSize,
     isSearching,
+    isFiltered,
+    governanceStatus,
+    memoryKind,
+    createdRange,
     setPage,
     setPageSize,
+    setGovernanceStatus: (value: MemoryGovernanceStatus | undefined) => {
+      setGovernanceStatus(value);
+      resetToFirstPage();
+    },
+    setMemoryKind: (value: MemoryKindQuery | undefined) => {
+      setMemoryKind(value);
+      resetToFirstPage();
+    },
+    setCreatedRange: (value: CreatedRange) => {
+      setCreatedRange(value);
+      resetToFirstPage();
+    },
     composingRef,
     handleQueryChange,
     triggerSearch,
@@ -257,8 +335,15 @@ export default function DataManage() {
     page,
     pageSize,
     isSearching,
+    isFiltered,
+    governanceStatus,
+    memoryKind,
+    createdRange,
     setPage,
     setPageSize,
+    setGovernanceStatus,
+    setMemoryKind,
+    setCreatedRange,
     composingRef,
     handleQueryChange,
     triggerSearch,
@@ -469,6 +554,32 @@ export default function DataManage() {
           triggerSearch(query, { immediate: true });
         }}
       />
+      <Space wrap>
+        <Select
+          allowClear
+          placeholder="状态"
+          style={{ width: 140 }}
+          options={GOVERNANCE_STATUS_FILTER_OPTIONS}
+          value={governanceStatus}
+          onChange={(value) => setGovernanceStatus(value)}
+        />
+        <Select
+          allowClear
+          placeholder="类型"
+          style={{ width: 140 }}
+          options={MEMORY_KIND_FILTER_OPTIONS}
+          value={memoryKind}
+          onChange={(value) => setMemoryKind(value)}
+        />
+        <DatePicker.RangePicker
+          allowClear
+          placeholder={["开始日期", "结束日期"]}
+          value={createdRange}
+          onChange={(dates) => {
+            setCreatedRange(dates?.[0] && dates[1] ? [dates[0], dates[1]] : null);
+          }}
+        />
+      </Space>
       <Table
         size="small"
         rowKey="id"
@@ -476,7 +587,7 @@ export default function DataManage() {
         columns={columns}
         pagination={pagination}
         dataSource={data?.memories ?? []}
-        locale={{ emptyText: isSearching ? "未找到相关记忆" : "暂无数据" }}
+        locale={{ emptyText: isFiltered ? "未找到相关记忆" : "暂无数据" }}
         tableLayout="fixed"
         scroll={{ x: "min-content" }}
       />

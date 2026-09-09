@@ -12,6 +12,8 @@ from app.models import UserDb
 from app.schemas.auth import AuthTokenPayload
 from app.schemas.response import ApiResponse
 from app.schemas.user import (
+    MemoryGovernanceStatus,
+    MemoryKindQuery,
     MemoryListItem,
     MemoryListResponse,
     UpdateUserInfo,
@@ -55,16 +57,43 @@ async def update_user_info(
     return ApiResponse.success(data=user)
 
 
+_MANAGEMENT_SEARCH_LIMIT = 50
+
+
+def _reject_inverted_created_range(
+    created_from: str | None, created_to: str | None
+) -> None:
+    if (
+        created_from is not None
+        and created_to is not None
+        and created_from > created_to
+    ):
+        raise HTTPException(status_code=400, detail="created_from 不能晚于 created_to")
+
+
 @router.get("/memories")
 async def get_memories(
     token_info: AuthTokenPayload = Depends(get_auth_token_info),
     page: int = Query(1, ge=1, description="页码，从 1 开始"),
     page_size: int = Query(20, ge=1, le=100, description="每页条数"),
+    governance_status: MemoryGovernanceStatus | None = Query(
+        None, description="治理状态"
+    ),
+    memory_kind: MemoryKindQuery | None = Query(None, description="记忆类型"),
+    created_from: str | None = Query(None, description="创建时间起始(ISO 8601)"),
+    created_to: str | None = Query(None, description="创建时间结束(ISO 8601)"),
 ) -> ApiResponse[MemoryListResponse]:
     """查询用户记忆列表（Mem0 GET /memories 映射为新结构）"""
+    _reject_inverted_created_range(created_from, created_to)
     memory_service = MemoryService(settings.chat_context.memory_config)
     data = await memory_service.get_memories(
-        token_info.user_id, page=page, page_size=page_size
+        token_info.user_id,
+        page=page,
+        page_size=page_size,
+        governance_status=governance_status,
+        memory_kind=memory_kind,
+        created_from=created_from,
+        created_to=created_to,
     )
     return ApiResponse.success(data=data)
 
@@ -73,10 +102,25 @@ async def get_memories(
 async def search_memories(
     q: str = Query(..., min_length=1, max_length=200, description="搜索关键词"),
     token_info: AuthTokenPayload = Depends(get_auth_token_info),
+    governance_status: MemoryGovernanceStatus | None = Query(
+        None, description="治理状态"
+    ),
+    memory_kind: MemoryKindQuery | None = Query(None, description="记忆类型"),
+    created_from: str | None = Query(None, description="创建时间起始(ISO 8601)"),
+    created_to: str | None = Query(None, description="创建时间结束(ISO 8601)"),
 ) -> ApiResponse[MemoryListResponse]:
     """按 query 搜索用户记忆（Mem0 search 映射为列表结构）"""
+    _reject_inverted_created_range(created_from, created_to)
     memory_service = MemoryService(settings.chat_context.memory_config)
-    raw_list = await memory_service.search(q, token_info.user_id)
+    raw_list = await memory_service.search(
+        q,
+        token_info.user_id,
+        limit=_MANAGEMENT_SEARCH_LIMIT,
+        governance_status=governance_status,
+        memory_kind=memory_kind,
+        created_from=created_from,
+        created_to=created_to,
+    )
     return ApiResponse.success(data=MemoryListResponse(memories=raw_list))
 
 
@@ -91,7 +135,9 @@ async def get_memory(
         item = await memory_service.get_memory(memory_id)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"查询记忆失败: {e}") from e
-    if item is None or (item.user_id is not None and item.user_id != token_info.user_id):
+    if item is None or (
+        item.user_id is not None and item.user_id != token_info.user_id
+    ):
         raise HTTPException(status_code=404, detail="记忆不存在")
     return ApiResponse.success(data=item)
 

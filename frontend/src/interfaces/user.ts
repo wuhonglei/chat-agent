@@ -13,6 +13,9 @@ export type MemoryGovernanceStatus = "active" | "merged" | "superseded" | "archi
 /** 与 mem0 memory_kind 对齐；pattern 为治理合成，缺省为普通记忆 */
 export type MemoryKind = "pattern";
 
+/** 筛选用记忆类型；ordinary 仅作查询值，不写入记忆 */
+export type MemoryKindQuery = "ordinary" | "pattern";
+
 export type MemoryRole = "user" | "assistant";
 
 /** 用户记忆单条（axios 会把后端 snake_case 转成 camelCase） */
@@ -47,4 +50,16 @@ export interface MemoryListResponse {
 export interface MemoryListParams {
   page?: number;
   pageSize?: number;
+  governanceStatus?: MemoryGovernanceStatus;
+  memoryKind?: MemoryKindQuery;
+  createdFrom?: string;
+  createdTo?: string;
+}
+
+export interface MemorySearchParams {
+  q: string;
+  governanceStatus?: MemoryGovernanceStatus;
+  memoryKind?: MemoryKindQuery;
+  createdFrom?: string;
+  createdTo?: string;
 }
