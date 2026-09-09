@@ -56,21 +56,33 @@ function memoryKindLabel(kind: MemoryKind | null | undefined): string {
   }
 }
 
-type SourceMemoryRow = {
+type RelatedMemoryRow = {
   id: string;
   memory: string;
   governanceStatus: MemoryGovernanceStatus | null;
   missing: boolean;
 };
 
-function lookupSourceMemories(ids: string[], memories: MemoryListItem[]): SourceMemoryRow[] {
+type RelatedMemoriesModalConfig = {
+  title: string;
+  summaryLabel: string;
+  summaryText: string;
+  emptyText: string;
+  missingText: string;
+};
+
+function lookupMemoriesByIds(
+  ids: string[],
+  memories: MemoryListItem[],
+  missingText: string,
+): RelatedMemoryRow[] {
   const byId = new Map(memories.map((item) => [item.id, item]));
   return ids.map((id) => {
     const found = byId.get(id);
     if (!found) {
       return {
         id,
-        memory: "来源记忆不存在或已删除",
+        memory: missingText,
         governanceStatus: null,
         missing: true,
       };
@@ -84,9 +96,28 @@ function lookupSourceMemories(ids: string[], memories: MemoryListItem[]): Source
   });
 }
 
-function GovernanceStatusTag({ status }: { status: MemoryGovernanceStatus | null | undefined }) {
+function GovernanceStatusTag({
+  status,
+  clickable = false,
+  title,
+  onClick,
+}: {
+  status: MemoryGovernanceStatus | null | undefined;
+  clickable?: boolean;
+  title?: string;
+  onClick?: () => void;
+}) {
   const resolved = resolveGovernanceStatus(status);
-  return <Tag color={GOVERNANCE_STATUS_COLOR[resolved]}>{governanceStatusLabel(resolved)}</Tag>;
+  return (
+    <Tag
+      color={GOVERNANCE_STATUS_COLOR[resolved]}
+      className={clickable ? "cursor-pointer" : undefined}
+      title={title}
+      onClick={onClick}
+    >
+      {governanceStatusLabel(resolved)}
+    </Tag>
+  );
 }
 
 function fetchMemories(keyword: string) {
@@ -152,7 +183,7 @@ function useMemoryList() {
   };
 }
 
-const SOURCE_MEMORY_COLUMNS: ColumnsType<SourceMemoryRow> = [
+const RELATED_MEMORY_COLUMNS: ColumnsType<RelatedMemoryRow> = [
   {
     title: "记忆",
     dataIndex: "memory",
@@ -170,7 +201,7 @@ const SOURCE_MEMORY_COLUMNS: ColumnsType<SourceMemoryRow> = [
     dataIndex: "governanceStatus",
     key: "governanceStatus",
     width: 80,
-    render: (_: SourceMemoryRow["governanceStatus"], record) =>
+    render: (_: RelatedMemoryRow["governanceStatus"], record) =>
       record.missing ? (
         <Typography.Text type="secondary">—</Typography.Text>
       ) : (
@@ -191,11 +222,11 @@ export default function DataManage() {
     handleQueryChange,
     triggerSearch,
   } = useMemoryList();
-  const [sourceOpen, setSourceOpen] = useState(false);
-  const [sourcePattern, setSourcePattern] = useState<MemoryListItem | null>(null);
-  const [sourceRows, setSourceRows] = useState<SourceMemoryRow[]>([]);
-  const [sourceLoading, setSourceLoading] = useState(false);
-  const sourceRequestIdRef = useRef(0);
+  const [relatedOpen, setRelatedOpen] = useState(false);
+  const [relatedConfig, setRelatedConfig] = useState<RelatedMemoriesModalConfig | null>(null);
+  const [relatedRows, setRelatedRows] = useState<RelatedMemoryRow[]>([]);
+  const [relatedLoading, setRelatedLoading] = useState(false);
+  const relatedRequestIdRef = useRef(0);
 
   const _handleDelete = async (item: MemoryListItem) => {
     try {
@@ -218,45 +249,74 @@ export default function DataManage() {
     });
   };
 
-  const handleCloseSourceMemories = () => {
-    sourceRequestIdRef.current += 1;
-    setSourceOpen(false);
-    setSourcePattern(null);
-    setSourceRows([]);
-    setSourceLoading(false);
+  const handleCloseRelatedMemories = () => {
+    relatedRequestIdRef.current += 1;
+    setRelatedOpen(false);
+    setRelatedConfig(null);
+    setRelatedRows([]);
+    setRelatedLoading(false);
   };
 
-  const handleShowSourceMemories = async (item: MemoryListItem) => {
-    const requestId = ++sourceRequestIdRef.current;
-    const ids = item.synthesizedFrom ?? [];
+  const handleShowRelatedMemories = async (ids: string[], config: RelatedMemoriesModalConfig) => {
+    const requestId = ++relatedRequestIdRef.current;
     const current = data?.memories ?? [];
-    const initialRows = lookupSourceMemories(ids, current);
+    const initialRows = lookupMemoriesByIds(ids, current, config.missingText);
 
-    setSourcePattern(item);
-    setSourceRows(initialRows);
-    setSourceOpen(true);
+    setRelatedConfig(config);
+    setRelatedRows(initialRows);
+    setRelatedOpen(true);
 
     if (ids.length === 0 || !initialRows.some((row) => row.missing)) {
       return;
     }
 
-    setSourceLoading(true);
+    setRelatedLoading(true);
     try {
-      const full = await profileAPI.getMemories();
-      if (requestId !== sourceRequestIdRef.current) {
+      const missingIds = initialRows.filter((row) => row.missing).map((row) => row.id);
+      const fetched = await Promise.all(
+        missingIds.map(async (id) => {
+          try {
+            return await profileAPI.getMemory(id);
+          } catch {
+            return null;
+          }
+        }),
+      );
+      if (requestId !== relatedRequestIdRef.current) {
         return;
       }
-      setSourceRows(lookupSourceMemories(ids, full.memories ?? []));
+      const extra = fetched.filter((item): item is MemoryListItem => item != null);
+      setRelatedRows(lookupMemoriesByIds(ids, [...current, ...extra], config.missingText));
     } catch {
-      if (requestId !== sourceRequestIdRef.current) {
+      if (requestId !== relatedRequestIdRef.current) {
         return;
       }
-      message.error("加载来源记忆失败");
+      message.error("加载关联记忆失败");
     } finally {
-      if (requestId === sourceRequestIdRef.current) {
-        setSourceLoading(false);
+      if (requestId === relatedRequestIdRef.current) {
+        setRelatedLoading(false);
       }
     }
+  };
+
+  const handleShowSourceMemories = (item: MemoryListItem) => {
+    void handleShowRelatedMemories(item.synthesizedFrom ?? [], {
+      title: "来源记忆",
+      summaryLabel: "模式",
+      summaryText: item.memory,
+      emptyText: "暂无来源记忆",
+      missingText: "来源记忆不存在或已删除",
+    });
+  };
+
+  const handleShowSuccessorMemory = (item: MemoryListItem) => {
+    void handleShowRelatedMemories(item.supersededBy ? [item.supersededBy] : [], {
+      title: "新记忆",
+      summaryLabel: "原记忆",
+      summaryText: item.memory,
+      emptyText: "暂无新记忆",
+      missingText: "新记忆不存在或已删除",
+    });
   };
 
   const columns: ColumnsType<MemoryListItem> = [
@@ -272,7 +332,17 @@ export default function DataManage() {
       dataIndex: "governanceStatus",
       key: "governanceStatus",
       width: 80,
-      render: (v: MemoryListItem["governanceStatus"]) => <GovernanceStatusTag status={v} />,
+      render: (v: MemoryListItem["governanceStatus"], record) => {
+        const isSuperseded = resolveGovernanceStatus(v) === "superseded";
+        return (
+          <GovernanceStatusTag
+            status={v}
+            clickable={isSuperseded}
+            title={isSuperseded ? "查看新记忆" : undefined}
+            onClick={isSuperseded ? () => handleShowSuccessorMemory(record) : undefined}
+          />
+        );
+      },
     },
     {
       title: "类型",
@@ -361,29 +431,29 @@ export default function DataManage() {
       <Modal
         centered
         destroyOnHidden
-        open={sourceOpen}
-        title="来源记忆"
+        open={relatedOpen}
+        title={relatedConfig?.title}
         footer={null}
         width="min(720px, calc(100vw - 32px))"
-        onCancel={handleCloseSourceMemories}
+        onCancel={handleCloseRelatedMemories}
       >
-        {sourcePattern ? (
+        {relatedConfig ? (
           <Typography.Paragraph
             type="secondary"
             className="mb-3"
-            ellipsis={{ rows: 2, tooltip: sourcePattern.memory }}
+            ellipsis={{ rows: 2, tooltip: relatedConfig.summaryText }}
           >
-            模式：{sourcePattern.memory}
+            {relatedConfig.summaryLabel}：{relatedConfig.summaryText}
           </Typography.Paragraph>
         ) : null}
         <Table
           size="small"
           rowKey="id"
-          loading={sourceLoading}
+          loading={relatedLoading}
           pagination={false}
-          columns={SOURCE_MEMORY_COLUMNS}
-          dataSource={sourceRows}
-          locale={{ emptyText: "暂无来源记忆" }}
+          columns={RELATED_MEMORY_COLUMNS}
+          dataSource={relatedRows}
+          locale={{ emptyText: relatedConfig?.emptyText }}
         />
       </Modal>
     </div>

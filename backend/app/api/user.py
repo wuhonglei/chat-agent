@@ -12,6 +12,7 @@ from app.models import UserDb
 from app.schemas.auth import AuthTokenPayload
 from app.schemas.response import ApiResponse
 from app.schemas.user import (
+    MemoryListItem,
     MemoryListResponse,
     UpdateUserInfo,
 )
@@ -73,6 +74,22 @@ async def search_memories(
     memory_service = MemoryService(settings.chat_context.memory_config)
     raw_list = await memory_service.search(q, token_info.user_id)
     return ApiResponse.success(data=MemoryListResponse(memories=raw_list))
+
+
+@router.get("/memories/{memory_id}")
+async def get_memory(
+    memory_id: str,
+    token_info: AuthTokenPayload = Depends(get_auth_token_info),
+) -> ApiResponse[MemoryListItem]:
+    """按 id 查询单条用户记忆（Mem0 GET /memories/{memory_id}）"""
+    memory_service = MemoryService(settings.chat_context.memory_config)
+    try:
+        item = await memory_service.get_memory(memory_id)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"查询记忆失败: {e}") from e
+    if item is None or (item.user_id is not None and item.user_id != token_info.user_id):
+        raise HTTPException(status_code=404, detail="记忆不存在")
+    return ApiResponse.success(data=item)
 
 
 @router.delete("/memories/{memory_id}")

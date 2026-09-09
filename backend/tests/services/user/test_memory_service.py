@@ -51,6 +51,7 @@ def test_platform_urls_use_v3_add_search_and_v1_delete() -> None:
     assert svc._list_url() == "https://api.mem0.ai/v3/memories/"
     assert svc._delete_url("abc") == "https://api.mem0.ai/v1/memories/abc/"
     assert svc._delete_url() == "https://api.mem0.ai/v1/memories/"
+    assert svc._get_url("abc") == "https://api.mem0.ai/v1/memories/abc/"
 
 
 def test_oss_urls_keep_legacy_paths() -> None:
@@ -60,6 +61,7 @@ def test_oss_urls_keep_legacy_paths() -> None:
     assert svc._list_url() == "http://127.0.0.1:8888/memories"
     assert svc._delete_url("abc") == "http://127.0.0.1:8888/memories/abc"
     assert svc._delete_url() == "http://127.0.0.1:8888/memories"
+    assert svc._get_url("abc") == "http://127.0.0.1:8888/memories/abc"
 
 
 def test_platform_host_without_v3_suffix_still_detected() -> None:
@@ -200,6 +202,95 @@ async def test_platform_delete_uses_v1_trailing_slash(
     await _platform().delete_memory("abc-id")
     assert seen[0].method == "DELETE"
     assert str(seen[0].url) == "https://api.mem0.ai/v1/memories/abc-id/"
+
+
+@pytest.mark.asyncio
+async def test_platform_get_memory_uses_v1_trailing_slash(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert str(request.url) == "https://api.mem0.ai/v1/memories/abc-id/"
+        return httpx.Response(
+            200,
+            json={
+                "id": "abc-id",
+                "memory": "User prefers tea",
+                "created_at": "2026-01-15T10:30:00Z",
+                "user_id": "u1",
+                "governance_status": "active",
+            },
+        )
+
+    _install_transport(monkeypatch, handler)
+    item = await _platform().get_memory("abc-id")
+    assert item is not None
+    assert item.id == "abc-id"
+    assert item.memory == "User prefers tea"
+    assert item.user_id == "u1"
+
+
+@pytest.mark.asyncio
+async def test_oss_get_memory_uses_legacy_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen = _install_transport(
+        monkeypatch,
+        lambda request: httpx.Response(
+            200,
+            json={
+                "id": "m-oss",
+                "memory": "oss fact",
+                "created_at": "2026-01-01T00:00:00Z",
+            },
+        ),
+    )
+    item = await _oss().get_memory("m-oss")
+    assert seen[0].method == "GET"
+    assert str(seen[0].url) == "http://127.0.0.1:8888/memories/m-oss"
+    assert item is not None
+    assert item.memory == "oss fact"
+
+
+@pytest.mark.asyncio
+async def test_get_memory_returns_none_on_404(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _install_transport(
+        monkeypatch,
+        lambda request: httpx.Response(404, json={"error": "Memory not found"}),
+    )
+    item = await _platform().get_memory("missing-id")
+    assert item is None
+
+
+def test_parse_memory_item_single_object() -> None:
+    item = MemoryService._parse_memory_item(
+        {
+            "id": "m1",
+            "memory": "single",
+            "created_at": "2026-01-01T00:00:00Z",
+            "superseded_by": "newer",
+        }
+    )
+    assert item is not None
+    assert item.id == "m1"
+    assert item.superseded_by == "newer"
+
+
+def test_parse_memory_item_nested_memory_object() -> None:
+    item = MemoryService._parse_memory_item(
+        {
+            "memory": {
+                "id": "m2",
+                "memory": "nested",
+                "created_at": "2026-01-01T00:00:00Z",
+            }
+        }
+    )
+    assert item is not None
+    assert item.id == "m2"
+    assert item.memory == "nested"
 
 
 def test_parse_memory_items_governance_fields() -> None:

@@ -1,4 +1,4 @@
-"""Mem0 记忆服务：封装 Mem0 REST API（写入、搜索、列表、删除）"""
+"""Mem0 记忆服务：封装 Mem0 REST API（写入、搜索、列表、按 id 查询、删除）"""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 import httpx
+from pydantic import ValidationError
 
 from app.core.observability import mark_observation_error, observation_span
 from app.schemas.config import MemoryConfig
@@ -80,6 +81,9 @@ class MemoryService:
         if memory_id is not None:
             return f"{self._base_url()}/memories/{memory_id}"
         return f"{self._base_url()}/memories"
+
+    def _get_url(self, memory_id: str) -> str:
+        return self._delete_url(memory_id)
 
     async def add_memories(
         self,
@@ -194,6 +198,32 @@ class MemoryService:
         res.sort(key=lambda x: x.created_at, reverse=True)
         return res
 
+    async def get_memory(self, memory_id: str) -> MemoryListItem | None:
+        """按 id 查询单条记忆。
+
+        Platform：``GET /v1/memories/{id}/``。
+        OSS：``GET /memories/{id}``。
+        不存在时返回 ``None``。
+        """
+        if not self._mem0_enabled():
+            return None
+        url = self._get_url(memory_id)
+        try:
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                resp = await client.get(url, headers=self._headers())
+                if resp.status_code == 404:
+                    return None
+                resp.raise_for_status()
+                data = resp.json()
+        except httpx.HTTPError as e:
+            logger.warning(
+                "Mem0 get_memory failed",
+                memory_id=memory_id,
+                error=e,
+            )
+            raise
+        return self._parse_memory_item(data)
+
     async def _get_memories_oss(self, user_id: str) -> list[MemoryListItem]:
         """OSS 列表：server 端参数名为 top_k（上限 1000），不传则默认 20 条。"""
         url = self._list_url()
@@ -274,3 +304,24 @@ class MemoryService:
             for item in items
             if isinstance(item, dict)
         ]
+
+    @staticmethod
+    def _parse_memory_item(data: object) -> MemoryListItem | None:
+        if isinstance(data, dict):
+            nested = data.get("memory")
+            if isinstance(nested, dict):
+                data = nested
+            elif isinstance(data.get("results"), list):
+                items = MemoryService._parse_memory_items(data)
+                return items[0] if items else None
+        elif isinstance(data, list):
+            items = MemoryService._parse_memory_items(data)
+            return items[0] if items else None
+        else:
+            return None
+        if not isinstance(data, dict):
+            return None
+        try:
+            return MemoryListItem.model_validate(data)
+        except ValidationError:
+            return None
