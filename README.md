@@ -64,11 +64,11 @@
 
 ## 快速开始（Docker Compose）
 
-1. 准备环境变量：
-
-```bash
-cp docker-compose.env.example .env
-```
+1. 准备仓库根目录 `.env`（`docker-compose.yml` 通过 `env_file` 读取）。仓库已不再附带
+`docker-compose.env.example`。至少提供 Postgres 变量 `PG_DB` / `PG_USER_NAME` /
+`PG_PASSWORD`；后端其余配置用环境变量（`DATABASE__*`、`CHAT_CONTEXT__*` 等）或 Nacos
+覆盖。Nacos 本地模板见 `backend/.env.example`。`deploy.sh` 在缺少 `.env` 时仍会尝试复制
+已删除的示例文件，因此部署前必须先有根目录 `.env`。
 
 2. 启动服务：
 
@@ -110,7 +110,7 @@ vp dev
 - 聊天：`POST /api/chat/stream`、`POST /api/chat/stream/resume`、`GET /api/chat/models`
 - 会话：`/api/conversation/*`
 - 认证：`/api/auth/*`
-- 用户：`/api/user/*`
+- 用户：`/api/user/*`（含 `/api/user/memories` 分页列表与 `/api/user/memories/search`）
 - 消息：`DELETE /api/message/delete/{message_id}`、`PUT /api/message/feedback/{message_id}`
 - 头像：`POST /api/avatars/upload`、`GET /api/avatars/{filename}`
 - 文件：`POST /api/file/upload`、`GET /api/file/preview/{user_id}/{storage_key}`
@@ -126,7 +126,6 @@ vp dev
 ├── docs/                    # 业务与架构文档
 ├── webhooks/                # GitHub tag 触发部署的 Webhook 服务
 ├── docker-compose.yml
-├── docker-compose.env.example
 └── deploy.sh
 ```
 

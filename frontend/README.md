@@ -18,7 +18,7 @@
 ```text
 frontend/
 ├── src/
-│   ├── pages/                 # ChatPage / WelcomePage / LoginPage / MarkdownPage
+│   ├── pages/                 # ChatPage / WelcomePage / MemoriesPage / LoginPage / MarkdownPage
 │   ├── routes/                # 路由配置
 │   ├── services/              # API 调用层
 │   ├── store/                 # Redux store 与中间件
@@ -42,6 +42,7 @@ frontend/
 - `/`：重定向到 `/chat`
 - `/chat`：新会话欢迎页
 - `/chat/:conversationId`：会话详情页
+- `/memories`：用户记忆管理（分页 / 搜索 / 治理状态筛选）
 - `/login`：登录页
 - `/login/wechat/callback`：微信登录回调
 - `/markdown`：Markdown 展示页

@@ -382,7 +382,7 @@ docker run -d \
 **启动流程**：
 1. 等待数据库连接可用（最多 60 秒）
 2. 执行数据库迁移 `alembic upgrade head`
-3. 启动 Gunicorn（workers = CPU 核心数 * 2）
+3. 启动 Gunicorn（workers = CPU 核数，`start.sh` 使用 `nproc`；不使用 `--preload`）
 
 ## 常用命令速查
 

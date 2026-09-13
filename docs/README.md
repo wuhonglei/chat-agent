@@ -14,7 +14,8 @@
 
 - `requirements.md`：当前版本需求范围与功能边界
 - `认证流程.md`：短信/微信登录与 JWT 鉴权流程
-- `会话管理.md`：会话列表/搜索（标题 ILIKE + 正文 zhcfg 全文检索）、草稿激活、手动压缩、消息（含 `full_content` / `content_text` / `llm_rendered_text` 固化与 API 剥离）、反馈入 Bad Case、聊天 SSE、`<current_datetime>` 冻结、Agent 迭代检查点（`task_action`）、断线续流与 Nginx 超时约定
+- `会话管理.md`：会话列表/搜索（标题 ILIKE + 正文 zhcfg 全文检索）、草稿激活、手动压缩、消息（含 `full_content` / `content_text` / `llm_rendered_text` 固化与 API 剥离）、反馈入 Bad Case、聊天 SSE、`<current_datetime>` 冻结、Agent 迭代检查点（`task_action`，续跑跳过 Mem0）、断线续流与 Nginx 超时约定
+- `mem0/README.md`：Mem0 产品语义分析与治理方案稿；**现网 HTTP / 管理页契约以** `backend/docs/用户管理.md` **为准**
 - `CONVERSATION_SEARCH_OPTIMIZATION.md`：会话搜索索引（`content_text` / `content_tsv`）、`plainto_tsquery('zhcfg')`、zhparser 镜像与触发器排障
 - `cache_design.md`：L1/L2 缓存现网范围、fail-open 行为、配置与排障
 - `图表可视化展示.md`：图表渲染相关说明
@@ -40,11 +41,11 @@
 
 - `logging_guide.md`：结构化日志使用指南
 - `type_checking_guide.md`：类型检查说明
-- `用户管理.md`：用户模块、短信 Redis 鉴权与 Mem0 记忆集成（Platform v3 / 自建 OSS 路径分流、默认 `search_limit` / `search_threshold`）
+- `用户管理.md`：用户模块、短信 Redis 鉴权与 Mem0 记忆集成（Platform v3 / 自建 OSS 分流、管理页分页/筛选、治理字段、检索规则闸门）
 - `EVAL_OPS.md`：评估 Worker、Bad Case 复核队列、CI 门禁 / replay 运维手册
 - `COMPONENT_TOOLS_PRD.md`：组件工具接入说明（已对齐当前字段）
 - `MCP_CONFIG_ANALYSIS.md`：MCP 配置与加载机制、工具命名双轨与唯一 bare 别名回退
-- `VFS_AND_SANDBOX.md`：Agent 模式虚拟文件系统、file/shell MCP（工具 `exec`）、沙箱执行与排障手册
+- `VFS_AND_SANDBOX.md`：Agent 模式虚拟文件系统、file/shell MCP（工具 `exec`）、local `CHAT_AGENT_VFS_MAPPINGS` / `local_vfs_shim`、沙箱执行与排障手册
 - `TOOL_RESULT_AND_CONTEXT.md`：工具结果硬上限、统一上下文守卫、窗口外摘要、手动全量压缩与 `last_summarized_message_ids`
 - `LLM_RELIABILITY.md`：LLM 建连重试、错误分类与进程级熔断手册
 - `PROMETHEUS_METRICS.md`：`/metrics` 暴露、无 `--preload` 的 Gunicorn multiprocess 约定与自定义进程指标
@@ -67,7 +68,7 @@
 
 ### 现网实现
 
-- `conversation.md`：会话路由、草稿激活、侧栏压缩、搜索（⌘K）、问题导航时间轴、检查点续跑与接口说明（对齐 `/api/conversation/*`）
+- `conversation.md`：会话路由、草稿激活、侧栏压缩、搜索（⌘K）、问题导航时间轴、检查点续跑、`/memories` 记忆管理页与接口说明（对齐 `/api/conversation/*`、`/api/user/memories*`）
 - `schema-for-backend-usage.md`：前端聊天请求体字段（含 `taskAction`）与后端消费说明
 - `conversion_cache.md`、`scroll-properties-explanation.md`、`aegis-埋点分析.md`
 
