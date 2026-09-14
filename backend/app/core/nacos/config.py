@@ -91,7 +91,7 @@ def _patch_sdk_v3_login() -> None:
         raise NacosException(SERVER_ERROR, "get access token failed")
 
     get_access_token_v3._v3_patched = True  # type: ignore[attr-defined]
-    AuthClient.get_access_token = get_access_token_v3  # type: ignore[assignment]
+    AuthClient.get_access_token = get_access_token_v3
 
 
 _patch_sdk_v3_login()
