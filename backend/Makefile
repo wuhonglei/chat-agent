@@ -1,4 +1,4 @@
-.PHONY: format lint check install dev start stop clean help migrate eval-gate
+.PHONY: format lint check install dev start stop clean help migrate eval-gate nacos-tunnel
 
 # Default target
 help:
@@ -18,8 +18,19 @@ help:
 install:
 	uv sync --extra dev --group dev
 
+# Ensure SSH tunnel to Nacos (1.12.53.9) is up; idempotent
+nacos-tunnel:
+	@if lsof -tiTCP:8848 -sTCP:LISTEN >/dev/null 2>&1; then \
+		echo "nacos tunnel already up (localhost:8848)"; \
+	else \
+		echo "starting nacos ssh tunnel..."; \
+		ssh -f -N -L 8848:127.0.0.1:8848 -L 9848:127.0.0.1:9848 ubuntu@1.12.53.9; \
+		sleep 1; \
+		lsof -tiTCP:8848 -sTCP:LISTEN >/dev/null 2>&1 && echo "tunnel up" || (echo "tunnel FAILED"; exit 1); \
+	fi
+
 # Start the application (python -m uvicorn avoids picking up a global/Homebrew uvicorn on PATH)
-dev:
+dev: nacos-tunnel
 	APP__DEBUG=1 uv run python -m uvicorn app.main:app --reload --reload-dir app --host 0.0.0.0 --port 8000 --proxy-headers
 
 # Start the application
