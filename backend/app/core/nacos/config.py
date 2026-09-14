@@ -30,6 +30,73 @@ from app.utils.logger import logger
 _BACKEND_ROOT = Path(__file__).resolve().parents[3]
 
 
+def _patch_sdk_v3_login() -> None:
+    """将 SDK 的登录接口从 v1（密码放 URL 参数，会被服务端 access_log 记录）
+    替换为 v3（密码放请求体），凭据不再落盘到 Nacos 日志。
+
+    幂等：SDK 3.0.x 与 3.2.0 的 AuthClient.get_access_token 均走
+    POST /nacos/v1/auth/users/login?username=...&password=...，此处整体覆写。
+    """
+    import json
+    import time
+
+    from v2.nacos.common.nacos_exception import SERVER_ERROR, NacosException
+    from v2.nacos.transport.auth_client import AuthClient
+
+    if getattr(AuthClient.get_access_token, "_v3_patched", False):
+        return
+
+    async def get_access_token_v3(self, force_refresh=False):  # type: ignore[no-untyped-def]
+        current_time = time.time()
+        if (
+            self.access_token
+            and not force_refresh
+            and self.token_expired_time > current_time
+        ):
+            return self.access_token
+
+        body = {"username": self.username, "password": self.password}
+        server_list = self.get_server_list()
+        # SDK 3.0.x 无 build_context_prefix()，context path 固定为 /nacos（Constants.WEB_CONTEXT）
+        ctx_prefix = getattr(self.client_config, "context_path", "") or ""
+        if not ctx_prefix:
+            from v2.nacos.common.constants import Constants
+
+            ctx_prefix = Constants.WEB_CONTEXT
+
+        for server_address in server_list:
+            url = server_address + ctx_prefix + "/v3/auth/user/login"
+            resp, error = await self.http_agent.request(
+                url,
+                "POST",
+                {"Content-Type": "application/x-www-form-urlencoded"},
+                None,
+                body,
+            )
+            if not resp or error:
+                self.logger.warning(
+                    f"[get-access-token] request {url} failed, error: {error}"
+                )
+                continue
+
+            response_data = json.loads(resp.decode("UTF-8"))
+            self.access_token = response_data.get("accessToken")
+            self.token_ttl = response_data.get("tokenTtl", 18000)
+            self.token_expired_time = current_time + self.token_ttl - 10
+            self.logger.info(
+                f"[get-access-token] v3 login ok, TTL: {self.token_ttl}, "
+                f"force_refresh: {force_refresh}"
+            )
+            return self.access_token
+        raise NacosException(SERVER_ERROR, "get access token failed")
+
+    get_access_token_v3._v3_patched = True  # type: ignore[attr-defined]
+    AuthClient.get_access_token = get_access_token_v3  # type: ignore[assignment]
+
+
+_patch_sdk_v3_login()
+
+
 def _resolve_under_backend(path_str: str) -> Path:
     p = Path(path_str)
     return p if p.is_absolute() else (_BACKEND_ROOT / p).resolve()
