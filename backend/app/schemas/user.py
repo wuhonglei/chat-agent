@@ -7,6 +7,14 @@ from pydantic import BaseModel, ConfigDict, Field
 MemoryGovernanceStatus = Literal["active", "merged", "superseded", "archived"]
 MemoryKind = Literal["pattern"]
 MemoryKindQuery = Literal["ordinary", "pattern"]
+MemoryCategory = Literal[
+    "personal_core",
+    "preferences",
+    "interests",
+    "state",
+    "knowledge",
+    "misc",
+]
 MemoryRole = Literal["user", "assistant"]
 
 

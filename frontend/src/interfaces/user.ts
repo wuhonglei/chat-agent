@@ -62,6 +62,7 @@ export interface MemoryListParams {
   pageSize?: number;
   governanceStatus?: MemoryGovernanceStatus;
   memoryKind?: MemoryKindQuery;
+  category?: MemoryCategory;
   createdFrom?: string;
   createdTo?: string;
 }
@@ -70,6 +71,7 @@ export interface MemorySearchParams {
   q: string;
   governanceStatus?: MemoryGovernanceStatus;
   memoryKind?: MemoryKindQuery;
+  category?: MemoryCategory;
   createdFrom?: string;
   createdTo?: string;
 }

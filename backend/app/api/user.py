@@ -12,6 +12,7 @@ from app.models import UserDb
 from app.schemas.auth import AuthTokenPayload
 from app.schemas.response import ApiResponse
 from app.schemas.user import (
+    MemoryCategory,
     MemoryGovernanceStatus,
     MemoryKindQuery,
     MemoryListItem,
@@ -80,6 +81,7 @@ async def get_memories(
         None, description="治理状态"
     ),
     memory_kind: MemoryKindQuery | None = Query(None, description="记忆类型"),
+    category: MemoryCategory | None = Query(None, description="记忆类别"),
     created_from: str | None = Query(None, description="创建时间起始(ISO 8601)"),
     created_to: str | None = Query(None, description="创建时间结束(ISO 8601)"),
 ) -> ApiResponse[MemoryListResponse]:
@@ -92,6 +94,7 @@ async def get_memories(
         page_size=page_size,
         governance_status=governance_status,
         memory_kind=memory_kind,
+        category=category,
         created_from=created_from,
         created_to=created_to,
     )
@@ -106,6 +109,7 @@ async def search_memories(
         None, description="治理状态"
     ),
     memory_kind: MemoryKindQuery | None = Query(None, description="记忆类型"),
+    category: MemoryCategory | None = Query(None, description="记忆类别"),
     created_from: str | None = Query(None, description="创建时间起始(ISO 8601)"),
     created_to: str | None = Query(None, description="创建时间结束(ISO 8601)"),
 ) -> ApiResponse[MemoryListResponse]:
@@ -118,6 +122,7 @@ async def search_memories(
         limit=_MANAGEMENT_SEARCH_LIMIT,
         governance_status=governance_status,
         memory_kind=memory_kind,
+        category=category,
         created_from=created_from,
         created_to=created_to,
     )
