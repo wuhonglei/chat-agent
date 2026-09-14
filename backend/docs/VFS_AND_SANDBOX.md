@@ -1,6 +1,6 @@
 # VFS 与沙箱执行手册（当前实现）
 
-**最后核对**：2026-08-23
+**最后核对**：2026-09-13
 
 ## 1. 适用范围
 
@@ -134,10 +134,9 @@ Shell MCP 自身还限制命令长度和输出展示：
 2. 将虚拟路径替换成宿主机物理路径；
 3. 执行后把 stdout/stderr 中的物理路径再替换回虚拟路径。
 
-命令字符串里的虚拟路径会被替换，但 **Python 脚本内部** 的
+命令字符串里的虚拟路径会被 `virtual_paths` 替换，但 **Python 脚本内部** 的
 `open("/mnt/user-data/workspace/...")` 不会（宿主机通常没有 `/mnt`）。
-local 模式会注入 `CHAT_AGENT_VFS_MAPPINGS`，并通过 `app/sandbox/local_vfs_shim`
-的 `sitecustomize` 在 Python 进程里把这些路径映射到物理目录。
+local 模式因此注入进程内路径 shim，见 4.2.1。
 
 路径扫描实现在 `shell_mcp/virtual_paths.py`：会跳过引号串与 **heredoc 正文**
 （`<<` / `<<-`，不含 `<<<`），避免把 heredoc 内嵌路径或注释里的 `//`、JS/TS 的
@@ -150,6 +149,51 @@ python /mnt/user-data/workspace/scripts/analyze.py /mnt/user-data/uploads/data.c
 ```
 
 不要让 Agent 直接引用 `backend/data/user_data/...` 的物理路径。
+
+#### 4.2.1 local_vfs_shim（脚本内 `/mnt` 映射）
+
+意图：命令行里的虚拟路径已被替换，但脚本内部仍可能写死 `/mnt/user-data/...`。
+shim 让这些路径在本机 Python 进程里落到会话物理目录。
+
+注入链路：
+
+1. `ShellExecutor._build_shell_env`（仅 `backend=local`）调用
+   `build_path_mappings(user_id, conversation_id)`，把 JSON 写入
+   `CHAT_AGENT_VFS_MAPPINGS`（最长虚拟前缀优先，避免
+   `/mnt/user-data` 抢先于 `/mnt/user-data/workspace`）。
+2. 同时把 custom skills 物理目录写入 `USER_SKILLS_DIR`。
+3. `LocalSandboxExecutor` 若看到该环境变量，把
+   `app/sandbox/local_vfs_shim/` 插到 `PYTHONPATH` 最前。
+4. 子进程加载 `sitecustomize.py` → `vfs_map.apply_path_patches()`。
+5. 补丁失败时 **静默跳过**（不阻断命令），脚本会按原路径打开并可能
+   `FileNotFoundError`。
+
+当前映射键（虚拟 → 物理）：
+
+| 虚拟前缀 | 物理目录 |
+|---|---|
+| `/mnt/user-data/workspace` | 会话 `workspace/` |
+| `/mnt/user-data/uploads` | 会话 `uploads/` |
+| `/mnt/user-data/outputs` | 会话 `outputs/` |
+| `/mnt/skills/custom` | 用户 `skills/` |
+| `/mnt/skills/public` | `backend/skills/public/` |
+| `/mnt/skills` | `backend/skills/` |
+| `/mnt/user-data` | 会话根目录（仅当 workspace/uploads/outputs 同属该根时） |
+
+补丁范围（`vfs_map.py`）：`builtins.open`、`os.open`，以及常见单路径
+`os` 调用（`stat` / `listdir` / `mkdir` / `remove` 等）和双路径
+（`rename` / `replace` / `link` / `symlink`）。
+
+约束与坑：
+
+- **只对 local 后端生效**。Docker 容器内这些前缀本身就是挂载点，不注入 shim。
+- 未带 `user_id` + `conversation_id` 时 `_build_shell_env` 返回 `None`，不会注入。
+- 不改写无关路径（`/tmp`、相对路径、fd 整数）。
+- 不覆盖 `pathlib` 里绕过 `os`/`open` 的实现、原生扩展、或其它解释器
+  （Node / bash `cat /mnt/...` 仍只靠命令字符串替换）。
+- 排障：在失败命令的环境里打印 `CHAT_AGENT_VFS_MAPPINGS` 与
+  `PYTHONPATH` 是否含 `local_vfs_shim`；单测见
+  `backend/tests/sandbox/test_local_vfs_shim.py`。
 
 ### 4.3 docker 后端
 
@@ -188,7 +232,9 @@ local 后端还会阻断常见路径逃逸：
 3. `agent_mode` 是否大于 0，否则默认不会暴露 `file`/`shell`（工具 `exec`）；
 4. Docker 后端是否能连接 daemon；
 5. 产物是否写入 `/mnt/user-data/outputs/` 后再调用 `present_files`；
-6. heredoc/`<<EOF` 场景若路径校验异常，核对 `virtual_paths.py` 是否把正文误扫为绝对路径。
+6. heredoc/`<<EOF` 场景若路径校验异常，核对 `virtual_paths.py` 是否把正文误扫为绝对路径；
+7. local 下 Python 脚本 `FileNotFoundError: /mnt/user-data/...`：核对 4.2.1，确认
+   `CHAT_AGENT_VFS_MAPPINGS` 已注入且 `PYTHONPATH` 含 `local_vfs_shim`。
 
 ## 6. 与附件 RAG 的关系
 

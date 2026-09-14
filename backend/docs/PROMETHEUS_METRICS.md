@@ -1,6 +1,6 @@
 # Prometheus 指标（当前实现）
 
-**最后核对**：2026-08-21
+**最后核对**：2026-09-13
 
 本文档说明后端如何暴露 Prometheus 指标、多进程（Gunicorn）模式下的目录约定，以及自定义进程 CPU/内存指标。
 
@@ -24,7 +24,7 @@ rm -rf "$PROMETHEUS_MULTIPROC_DIR"
 mkdir -p "$PROMETHEUS_MULTIPROC_DIR"
 ```
 
-workers 数：`WORKERS=$(( $(nproc) * 2 ))`。启动命令**不使用** `--preload`：
+workers 数：`WORKERS=$(nproc)`（等于 CPU 核数，不再 `* 2`，以降低常驻内存）。启动命令**不使用** `--preload`：
 
 ```bash
 gunicorn app.main:app -w $WORKERS -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
