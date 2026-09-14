@@ -110,6 +110,8 @@ export interface ChatRequest extends ChatInputConfig {
   mentionedBlocks?: UserAttachmentBlock[];
   /** Agent 模式触达轮次上限后的用户选择 */
   taskAction?: "continue" | "summarize";
+  /** 浏览器首选语言（BCP 47），无法从 query 推断时作为回复语言 */
+  language: string;
 }
 
 export interface ChatModelItem {

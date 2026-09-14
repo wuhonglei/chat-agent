@@ -33,3 +33,15 @@ def test_agent_mode_0_omits_skill_system() -> None:
     prompt = get_system_prompt_for_chat_session(agent_mode=0, skill_manifests=[])
     assert "<skill_system>" not in prompt
     assert "<available_skills>" not in prompt
+
+
+def test_system_prompt_includes_language_when_provided() -> None:
+    prompt = get_system_prompt_for_chat_session(agent_mode=0, language="en-US")
+    assert "en-US" in prompt
+    assert "请优先使用用户 query 所使用的语言作答" in prompt
+    assert prompt.index("请优先使用用户 query") < prompt.index("</instructions>")
+
+
+def test_system_prompt_omits_language_when_missing() -> None:
+    prompt = get_system_prompt_for_chat_session(agent_mode=0)
+    assert "请优先使用用户 query 所使用的语言作答" not in prompt

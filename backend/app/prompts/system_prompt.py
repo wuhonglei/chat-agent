@@ -40,6 +40,10 @@ system_prompt_for_chat_session_template: Template = Template(
 - 用户需要据此行动且错误成本高的事实性问题
 
 判断依据：如果答错了用户会白跑一趟或浪费时间，就必须搜索确认。
+{%- if language %}
+
+请优先使用用户 query 所使用的语言作答；若无法从 query 推断语言，则使用 {{ language|e }} 作答。
+{%- endif %}
 </instructions>
 {%- if window_out_summary %}
 

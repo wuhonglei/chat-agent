@@ -626,6 +626,7 @@ export const useChatMessage = (options: UseChatMessageOptions) => {
             conversationId,
             mentionedBlocks,
             taskAction,
+            language: navigator.language || "zh-CN",
           },
           handleInitialStreamMessage,
           handleStreamError,
