@@ -36,7 +36,7 @@ class UpdateUserInfo(BaseModel):
 class MemoryListItem(BaseModel):
     """Mem0 记忆单条（与 OSS get/search 提升到顶层的字段对齐）。"""
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="allow")
 
     id: str = Field(..., description="记忆 ID")
     memory: str = Field("", description="记忆内容")
@@ -52,6 +52,9 @@ class MemoryListItem(BaseModel):
     )
     memory_kind: MemoryKind | None = Field(
         None, description="记忆类型；pattern 为治理合成，缺省为普通记忆"
+    )
+    category: str | None = Field(
+        None, description="记忆类别；与 mem0 六类分类对齐，缺省视为 misc"
     )
     synthesized_from: list[str] | None = Field(
         None, description="合成该条记忆的来源 ID"

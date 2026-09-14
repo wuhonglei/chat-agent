@@ -30,6 +30,29 @@ const MEMORY_KIND_FILTER_OPTIONS: { value: MemoryKindQuery; label: string }[] = 
   { value: "pattern", label: "模式" },
 ];
 
+/** 与 mem0/memory/categories.py 的六类对齐 */
+const MEMORY_CATEGORY_LABELS: Record<string, string> = {
+  personal_core: "个人核心",
+  preferences: "偏好",
+  interests: "兴趣",
+  state: "状态",
+  knowledge: "知识",
+  misc: "其他",
+};
+
+const MEMORY_CATEGORY_COLORS: Record<string, string> = {
+  personal_core: "geekblue",
+  preferences: "cyan",
+  interests: "purple",
+  state: "orange",
+  knowledge: "green",
+  misc: "default",
+};
+
+function categoryLabel(category: string): string {
+  return MEMORY_CATEGORY_LABELS[category] ?? category;
+}
+
 type CreatedRange = [Dayjs, Dayjs] | null;
 
 const GOVERNANCE_STATUS_COLOR: Record<MemoryGovernanceStatus, string> = {
@@ -493,6 +516,18 @@ export default function DataManage() {
           </Tag>
         );
       },
+    },
+    {
+      title: "类别",
+      dataIndex: "category",
+      key: "category",
+      width: 90,
+      render: (v: MemoryListItem["category"]) =>
+        v ? (
+          <Tag color={MEMORY_CATEGORY_COLORS[v] ?? "default"}>{categoryLabel(v)}</Tag>
+        ) : (
+          <Typography.Text type="secondary">—</Typography.Text>
+        ),
     },
     {
       width: 100,

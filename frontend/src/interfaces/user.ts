@@ -16,6 +16,15 @@ export type MemoryKind = "pattern";
 /** 筛选用记忆类型；ordinary 仅作查询值，不写入记忆 */
 export type MemoryKindQuery = "ordinary" | "pattern";
 
+/** 与 mem0 memory payload.category 对齐（mem0/memory/categories.py 六类） */
+export type MemoryCategory =
+  | "personal_core"
+  | "preferences"
+  | "interests"
+  | "state"
+  | "knowledge"
+  | "misc";
+
 export type MemoryRole = "user" | "assistant";
 
 /** 用户记忆单条（axios 会把后端 snake_case 转成 camelCase） */
@@ -31,6 +40,7 @@ export interface MemoryListItem {
   score?: number | null;
   governanceStatus?: MemoryGovernanceStatus | null;
   memoryKind?: MemoryKind | null;
+  category?: MemoryCategory | string | null;
   synthesizedFrom?: string[] | null;
   governancePassId?: string | null;
   governanceTimestamp?: string | null;
