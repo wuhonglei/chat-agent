@@ -7,7 +7,16 @@ import {
 } from "@/interfaces";
 import { profileAPI } from "@/services";
 import { isPlainEnter } from "@/utils/chat";
-import { DeleteOutlined, SearchOutlined } from "@ant-design/icons";
+import {
+  BookOutlined,
+  DeleteOutlined,
+  FieldTimeOutlined,
+  HeartOutlined,
+  SearchOutlined,
+  StarOutlined,
+  TagOutlined,
+  UserOutlined,
+} from "@ant-design/icons";
 import { useRequest } from "ahooks";
 import { App, Button, DatePicker, Input, Modal, Select, Spin, Table, Tag, Typography } from "antd";
 import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
@@ -47,6 +56,15 @@ const MEMORY_CATEGORY_COLORS: Record<string, string> = {
   state: "orange",
   knowledge: "green",
   misc: "default",
+};
+
+const MEMORY_CATEGORY_ICONS: Record<string, React.ReactNode> = {
+  personal_core: <UserOutlined />,
+  preferences: <HeartOutlined />,
+  interests: <StarOutlined />,
+  state: <FieldTimeOutlined />,
+  knowledge: <BookOutlined />,
+  misc: <TagOutlined />,
 };
 
 function categoryLabel(category: string): string {
@@ -524,7 +542,9 @@ export default function DataManage() {
       width: 90,
       render: (v: MemoryListItem["category"]) =>
         v ? (
-          <Tag color={MEMORY_CATEGORY_COLORS[v] ?? "default"}>{categoryLabel(v)}</Tag>
+          <Tag color={MEMORY_CATEGORY_COLORS[v] ?? "default"} icon={MEMORY_CATEGORY_ICONS[v]}>
+            {categoryLabel(v)}
+          </Tag>
         ) : (
           <Typography.Text type="secondary">—</Typography.Text>
         ),
