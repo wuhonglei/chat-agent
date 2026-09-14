@@ -398,6 +398,15 @@ def test_build_filters_ordinary_and_created_range() -> None:
     }
 
 
+def test_build_filters_category() -> None:
+    assert MemoryService._build_filters("u1", category="state") == {
+        "AND": [
+            {"user_id": "u1"},
+            {"category": "state"},
+        ]
+    }
+
+
 @pytest.mark.asyncio
 async def test_oss_search_forwards_and_filters(
     monkeypatch: pytest.MonkeyPatch,
@@ -410,6 +419,7 @@ async def test_oss_search_forwards_and_filters(
             "AND": [
                 {"user_id": "u1"},
                 {"memory_kind": {"ne": "pattern"}},
+                {"category": "state"},
                 {
                     "created_at": {
                         "gte": "2026-01-01T00:00:00Z",
@@ -429,6 +439,7 @@ async def test_oss_search_forwards_and_filters(
         limit=50,
         governance_status="active",
         memory_kind="ordinary",
+        category="state",
         created_from="2026-01-01T00:00:00Z",
         created_to="2026-01-31T23:59:59Z",
     )
@@ -472,6 +483,7 @@ async def test_oss_list_forwards_filter_query(
         assert request.url.params["user_id"] == "u1"
         assert request.url.params["governance_status"] == "archived"
         assert request.url.params["memory_kind"] == "ordinary"
+        assert request.url.params["category"] == "state"
         assert request.url.params["created_from"] == "2026-01-01T00:00:00Z"
         assert request.url.params["created_to"] == "2026-01-31T23:59:59Z"
         assert request.url.params["include_merged"] == "true"
@@ -484,6 +496,7 @@ async def test_oss_list_forwards_filter_query(
         page_size=20,
         governance_status="archived",
         memory_kind="ordinary",
+        category="state",
         created_from="2026-01-01T00:00:00Z",
         created_to="2026-01-31T23:59:59Z",
     )

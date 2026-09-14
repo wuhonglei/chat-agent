@@ -1,4 +1,5 @@
 import {
+  MemoryCategory,
   MemoryGovernanceStatus,
   MemoryKind,
   MemoryKindQuery,
@@ -6,31 +7,54 @@ import {
   MemoryListParams,
 } from "@/interfaces";
 import { profileAPI } from "@/services";
-import { isPlainEnter } from "@/utils/chat";
-import { DeleteOutlined, SearchOutlined } from "@ant-design/icons";
+import {
+  BookOutlined,
+  DeleteOutlined,
+  FieldTimeOutlined,
+  HeartOutlined,
+  StarOutlined,
+  TagOutlined,
+  UserOutlined,
+} from "@ant-design/icons";
 import { useRequest } from "ahooks";
-import { App, Button, DatePicker, Input, Modal, Select, Spin, Table, Tag, Typography } from "antd";
+import { App, Button, Modal, Spin, Table, Tag, Typography } from "antd";
 import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
-import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
 import { trim } from "lodash-es";
 import { useEffect, useRef, useState } from "react";
+import SearchFilter, { type CreatedRange, type SearchFilterValues } from "./SearchFilter";
 
-const SEARCH_QUERY_MAX_LENGTH = 200;
+/** 与 mem0/memory/categories.py 的六类对齐 */
+const MEMORY_CATEGORY_LABELS: Record<MemoryCategory, string> = {
+  personal_core: "个人核心",
+  preferences: "偏好",
+  interests: "兴趣",
+  state: "状态",
+  knowledge: "知识",
+  misc: "其他",
+};
 
-const GOVERNANCE_STATUS_FILTER_OPTIONS: { value: MemoryGovernanceStatus; label: string }[] = [
-  { value: "active", label: "生效" },
-  { value: "merged", label: "已合并" },
-  { value: "superseded", label: "已取代" },
-  { value: "archived", label: "已归档" },
-];
+const MEMORY_CATEGORY_COLORS: Record<string, string> = {
+  personal_core: "geekblue",
+  preferences: "cyan",
+  interests: "purple",
+  state: "orange",
+  knowledge: "green",
+  misc: "default",
+};
 
-const MEMORY_KIND_FILTER_OPTIONS: { value: MemoryKindQuery; label: string }[] = [
-  { value: "ordinary", label: "普通" },
-  { value: "pattern", label: "模式" },
-];
+const MEMORY_CATEGORY_ICONS: Record<string, React.ReactNode> = {
+  personal_core: <UserOutlined />,
+  preferences: <HeartOutlined />,
+  interests: <StarOutlined />,
+  state: <FieldTimeOutlined />,
+  knowledge: <BookOutlined />,
+  misc: <TagOutlined />,
+};
 
-type CreatedRange = [Dayjs, Dayjs] | null;
+function categoryLabel(category: string): string {
+  return MEMORY_CATEGORY_LABELS[category as MemoryCategory] ?? category;
+}
 
 const GOVERNANCE_STATUS_COLOR: Record<MemoryGovernanceStatus, string> = {
   active: "success",
@@ -89,6 +113,7 @@ type RelatedMemoriesModalConfig = {
   emptyText: string;
   missingText: string;
   layout: "table" | "detail";
+  summaryEllipsis?: boolean;
 };
 
 function lookupMemoriesByIds(
@@ -176,12 +201,17 @@ function createdRangeToIso(
 function memoryFilterParams(
   governanceStatus?: MemoryGovernanceStatus,
   memoryKind?: MemoryKindQuery,
+  category?: MemoryCategory,
   createdRange?: CreatedRange,
-): Pick<MemoryListParams, "governanceStatus" | "memoryKind" | "createdFrom" | "createdTo"> {
+): Pick<
+  MemoryListParams,
+  "governanceStatus" | "memoryKind" | "category" | "createdFrom" | "createdTo"
+> {
   const { createdFrom, createdTo } = createdRangeToIso(createdRange ?? null);
   return {
     ...(governanceStatus ? { governanceStatus } : {}),
     ...(memoryKind ? { memoryKind } : {}),
+    ...(category ? { category } : {}),
     ...(createdFrom ? { createdFrom } : {}),
     ...(createdTo ? { createdTo } : {}),
   };
@@ -193,9 +223,10 @@ function fetchMemories(
   pageSize: number,
   governanceStatus?: MemoryGovernanceStatus,
   memoryKind?: MemoryKindQuery,
+  category?: MemoryCategory,
   createdRange?: CreatedRange,
 ) {
-  const filters = memoryFilterParams(governanceStatus, memoryKind, createdRange);
+  const filters = memoryFilterParams(governanceStatus, memoryKind, category, createdRange);
   const q = trim(keyword);
   if (!q) {
     return profileAPI.getMemories({ page, pageSize, ...filters });
@@ -204,13 +235,10 @@ function fetchMemories(
 }
 
 function useMemoryList() {
-  const [query, setQuery] = useState("");
-  const [governanceStatus, setGovernanceStatus] = useState<MemoryGovernanceStatus | undefined>();
-  const [memoryKind, setMemoryKind] = useState<MemoryKindQuery | undefined>();
-  const [createdRange, setCreatedRange] = useState<CreatedRange>(null);
   const [appliedKeyword, setAppliedKeyword] = useState("");
   const [appliedStatus, setAppliedStatus] = useState<MemoryGovernanceStatus | undefined>();
   const [appliedKind, setAppliedKind] = useState<MemoryKindQuery | undefined>();
+  const [appliedCategory, setAppliedCategory] = useState<MemoryCategory | undefined>();
   const [appliedRange, setAppliedRange] = useState<CreatedRange>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -220,26 +248,54 @@ function useMemoryList() {
   });
 
   const isSearching = Boolean(trim(appliedKeyword));
-  const hasFilters = Boolean(appliedStatus || appliedKind || appliedRange);
+  const hasFilters = Boolean(appliedStatus || appliedKind || appliedCategory || appliedRange);
   const isFiltered = isSearching || hasFilters;
 
   useEffect(() => {
     if (isSearching) {
-      run(appliedKeyword, 1, pageSize, appliedStatus, appliedKind, appliedRange);
+      run(appliedKeyword, 1, pageSize, appliedStatus, appliedKind, appliedCategory, appliedRange);
     }
-  }, [run, isSearching, appliedKeyword, pageSize, appliedStatus, appliedKind, appliedRange]);
+  }, [
+    run,
+    isSearching,
+    appliedKeyword,
+    pageSize,
+    appliedStatus,
+    appliedKind,
+    appliedCategory,
+    appliedRange,
+  ]);
 
   useEffect(() => {
     if (!isSearching) {
-      run(appliedKeyword, page, pageSize, appliedStatus, appliedKind, appliedRange);
+      run(
+        appliedKeyword,
+        page,
+        pageSize,
+        appliedStatus,
+        appliedKind,
+        appliedCategory,
+        appliedRange,
+      );
     }
-  }, [run, isSearching, appliedKeyword, page, pageSize, appliedStatus, appliedKind, appliedRange]);
+  }, [
+    run,
+    isSearching,
+    appliedKeyword,
+    page,
+    pageSize,
+    appliedStatus,
+    appliedKind,
+    appliedCategory,
+    appliedRange,
+  ]);
 
-  const submitSearch = () => {
-    setAppliedKeyword(trim(query).slice(0, SEARCH_QUERY_MAX_LENGTH));
-    setAppliedStatus(governanceStatus);
-    setAppliedKind(memoryKind);
-    setAppliedRange(createdRange);
+  const submitSearch = (values: SearchFilterValues) => {
+    setAppliedKeyword(values.query ?? "");
+    setAppliedStatus(values.governanceStatus);
+    setAppliedKind(values.memoryKind);
+    setAppliedCategory(values.category);
+    setAppliedRange(values.createdRange ?? null);
     setPage(1);
   };
 
@@ -253,22 +309,15 @@ function useMemoryList() {
         pageSize,
         appliedStatus,
         appliedKind,
+        appliedCategory,
         appliedRange,
       ),
-    query,
     page,
     pageSize,
     isSearching,
     isFiltered,
-    governanceStatus,
-    memoryKind,
-    createdRange,
-    setQuery,
     setPage,
     setPageSize,
-    setGovernanceStatus,
-    setMemoryKind,
-    setCreatedRange,
     submitSearch,
   };
 }
@@ -302,20 +351,12 @@ export default function DataManage() {
     data,
     loading,
     refresh,
-    query,
     page,
     pageSize,
     isSearching,
     isFiltered,
-    governanceStatus,
-    memoryKind,
-    createdRange,
-    setQuery,
     setPage,
     setPageSize,
-    setGovernanceStatus,
-    setMemoryKind,
-    setCreatedRange,
     submitSearch,
   } = useMemoryList();
   const [relatedOpen, setRelatedOpen] = useState(false);
@@ -427,6 +468,7 @@ export default function DataManage() {
       emptyText: "暂无合并后的记忆",
       missingText: "合并后的记忆不存在或已删除",
       layout: "detail",
+      summaryEllipsis: false,
     });
   };
 
@@ -493,6 +535,20 @@ export default function DataManage() {
       },
     },
     {
+      title: "类别",
+      dataIndex: "category",
+      key: "category",
+      width: 90,
+      render: (v: MemoryListItem["category"]) =>
+        v ? (
+          <Tag color={MEMORY_CATEGORY_COLORS[v] ?? "default"} icon={MEMORY_CATEGORY_ICONS[v]}>
+            {categoryLabel(v)}
+          </Tag>
+        ) : (
+          <Typography.Text type="secondary">—</Typography.Text>
+        ),
+    },
+    {
       width: 100,
       title: "创建时间",
       key: "createdAt",
@@ -531,63 +587,7 @@ export default function DataManage() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-        <Input
-          allowClear
-          maxLength={SEARCH_QUERY_MAX_LENGTH}
-          prefix={<SearchOutlined className="text-gray-400" />}
-          placeholder="搜索记忆"
-          className="w-full min-w-0 sm:min-w-40 sm:flex-1"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onPressEnter={(e) => {
-            if (!isPlainEnter(e)) return;
-            submitSearch();
-          }}
-        />
-        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:shrink-0">
-          <div className="min-w-0 sm:w-[110px]">
-            <Select
-              allowClear
-              placeholder="状态"
-              style={{ width: "100%" }}
-              options={GOVERNANCE_STATUS_FILTER_OPTIONS}
-              value={governanceStatus}
-              onChange={(value) => setGovernanceStatus(value)}
-            />
-          </div>
-          <div className="min-w-0 sm:w-[110px]">
-            <Select
-              allowClear
-              placeholder="类型"
-              style={{ width: "100%" }}
-              options={MEMORY_KIND_FILTER_OPTIONS}
-              value={memoryKind}
-              onChange={(value) => setMemoryKind(value)}
-            />
-          </div>
-        </div>
-        <div className="w-full min-w-0 sm:w-[220px] sm:shrink-0">
-          <DatePicker.RangePicker
-            allowClear
-            inputReadOnly
-            style={{ width: "100%" }}
-            placeholder={["开始日期", "结束日期"]}
-            value={createdRange}
-            onChange={(dates) => {
-              setCreatedRange(dates?.[0] && dates[1] ? [dates[0], dates[1]] : null);
-            }}
-          />
-        </div>
-        <Button
-          type="primary"
-          className="w-full sm:w-auto sm:shrink-0"
-          icon={<SearchOutlined />}
-          onClick={submitSearch}
-        >
-          搜索
-        </Button>
-      </div>
+      <SearchFilter onSearch={submitSearch} />
       <Table
         size="small"
         rowKey="id"
@@ -606,16 +606,17 @@ export default function DataManage() {
         title={relatedConfig?.title}
         footer={null}
         width="min(720px, calc(100vw - 32px))"
+        styles={{ body: { maxHeight: "70vh", overflowY: "auto" } }}
         onCancel={handleCloseRelatedMemories}
       >
         {relatedConfig ? (
-          <Typography.Paragraph
-            type="secondary"
-            className="mb-3"
-            ellipsis={{ rows: 2, tooltip: relatedConfig.summaryText }}
-          >
-            {relatedConfig.summaryText}
-          </Typography.Paragraph>
+          <div className="mb-3">
+            <MemoryText
+              text={relatedConfig.summaryText}
+              type="secondary"
+              ellipsis={relatedConfig.summaryEllipsis !== false}
+            />
+          </div>
         ) : null}
         {relatedConfig?.layout === "table" ? (
           <Table

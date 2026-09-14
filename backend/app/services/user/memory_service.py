@@ -11,6 +11,7 @@ from pydantic import ValidationError
 from app.core.observability import mark_observation_error, observation_span
 from app.schemas.config import MemoryConfig
 from app.schemas.user import (
+    MemoryCategory,
     MemoryGovernanceStatus,
     MemoryKindQuery,
     MemoryListItem,
@@ -137,6 +138,7 @@ class MemoryService:
         *,
         governance_status: MemoryGovernanceStatus | None = None,
         memory_kind: MemoryKindQuery | None = None,
+        category: MemoryCategory | None = None,
         created_from: str | None = None,
         created_to: str | None = None,
     ) -> dict[str, Any]:
@@ -148,6 +150,8 @@ class MemoryService:
             extra.append({"memory_kind": "pattern"})
         elif memory_kind == "ordinary":
             extra.append({"memory_kind": {"ne": "pattern"}})
+        if category is not None:
+            extra.append({"category": category})
         if created_from is not None or created_to is not None:
             created: dict[str, str] = {}
             if created_from is not None:
@@ -167,6 +171,7 @@ class MemoryService:
         limit: int | None = None,
         governance_status: MemoryGovernanceStatus | None = None,
         memory_kind: MemoryKindQuery | None = None,
+        category: MemoryCategory | None = None,
         created_from: str | None = None,
         created_to: str | None = None,
     ) -> list[MemoryListItem]:
@@ -181,6 +186,7 @@ class MemoryService:
                 user_id,
                 governance_status=governance_status,
                 memory_kind=memory_kind,
+                category=category,
                 created_from=created_from,
                 created_to=created_to,
             ),
@@ -233,6 +239,7 @@ class MemoryService:
         page_size: int = 20,
         governance_status: MemoryGovernanceStatus | None = None,
         memory_kind: MemoryKindQuery | None = None,
+        category: MemoryCategory | None = None,
         created_from: str | None = None,
         created_to: str | None = None,
     ) -> MemoryListResponse:
@@ -253,6 +260,7 @@ class MemoryService:
                     page_size=page_size,
                     governance_status=governance_status,
                     memory_kind=memory_kind,
+                    category=category,
                     created_from=created_from,
                     created_to=created_to,
                 )
@@ -263,6 +271,7 @@ class MemoryService:
                     page_size=page_size,
                     governance_status=governance_status,
                     memory_kind=memory_kind,
+                    category=category,
                     created_from=created_from,
                     created_to=created_to,
                 )
@@ -313,6 +322,7 @@ class MemoryService:
         page_size: int = 20,
         governance_status: MemoryGovernanceStatus | None = None,
         memory_kind: MemoryKindQuery | None = None,
+        category: MemoryCategory | None = None,
         created_from: str | None = None,
         created_to: str | None = None,
     ) -> tuple[list[MemoryListItem], int]:
@@ -327,6 +337,8 @@ class MemoryService:
             params["governance_status"] = governance_status
         if memory_kind is not None:
             params["memory_kind"] = memory_kind
+        if category is not None:
+            params["category"] = category
         if created_from is not None:
             params["created_from"] = created_from
         if created_to is not None:
@@ -351,6 +363,7 @@ class MemoryService:
         page_size: int = 20,
         governance_status: MemoryGovernanceStatus | None = None,
         memory_kind: MemoryKindQuery | None = None,
+        category: MemoryCategory | None = None,
         created_from: str | None = None,
         created_to: str | None = None,
     ) -> tuple[list[MemoryListItem], int]:
@@ -360,6 +373,7 @@ class MemoryService:
                 user_id,
                 governance_status=governance_status,
                 memory_kind=memory_kind,
+                category=category,
                 created_from=created_from,
                 created_to=created_to,
             )
