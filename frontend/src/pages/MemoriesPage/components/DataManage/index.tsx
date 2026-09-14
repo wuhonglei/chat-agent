@@ -7,38 +7,22 @@ import {
   MemoryListParams,
 } from "@/interfaces";
 import { profileAPI } from "@/services";
-import { isPlainEnter } from "@/utils/chat";
 import {
   BookOutlined,
   DeleteOutlined,
   FieldTimeOutlined,
   HeartOutlined,
-  SearchOutlined,
   StarOutlined,
   TagOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import { useRequest } from "ahooks";
-import { App, Button, DatePicker, Input, Modal, Select, Spin, Table, Tag, Typography } from "antd";
+import { App, Button, Modal, Spin, Table, Tag, Typography } from "antd";
 import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
-import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
 import { trim } from "lodash-es";
 import { useEffect, useRef, useState } from "react";
-
-const SEARCH_QUERY_MAX_LENGTH = 200;
-
-const GOVERNANCE_STATUS_FILTER_OPTIONS: { value: MemoryGovernanceStatus; label: string }[] = [
-  { value: "active", label: "生效" },
-  { value: "merged", label: "已合并" },
-  { value: "superseded", label: "已取代" },
-  { value: "archived", label: "已归档" },
-];
-
-const MEMORY_KIND_FILTER_OPTIONS: { value: MemoryKindQuery; label: string }[] = [
-  { value: "ordinary", label: "普通" },
-  { value: "pattern", label: "模式" },
-];
+import SearchFilter, { type CreatedRange, type SearchFilterValues } from "./SearchFilter";
 
 /** 与 mem0/memory/categories.py 的六类对齐 */
 const MEMORY_CATEGORY_LABELS: Record<MemoryCategory, string> = {
@@ -49,10 +33,6 @@ const MEMORY_CATEGORY_LABELS: Record<MemoryCategory, string> = {
   knowledge: "知识",
   misc: "其他",
 };
-
-const MEMORY_CATEGORY_FILTER_OPTIONS: { value: MemoryCategory; label: string }[] = (
-  Object.entries(MEMORY_CATEGORY_LABELS) as [MemoryCategory, string][]
-).map(([value, label]) => ({ value, label }));
 
 const MEMORY_CATEGORY_COLORS: Record<string, string> = {
   personal_core: "geekblue",
@@ -75,8 +55,6 @@ const MEMORY_CATEGORY_ICONS: Record<string, React.ReactNode> = {
 function categoryLabel(category: string): string {
   return MEMORY_CATEGORY_LABELS[category as MemoryCategory] ?? category;
 }
-
-type CreatedRange = [Dayjs, Dayjs] | null;
 
 const GOVERNANCE_STATUS_COLOR: Record<MemoryGovernanceStatus, string> = {
   active: "success",
@@ -257,11 +235,6 @@ function fetchMemories(
 }
 
 function useMemoryList() {
-  const [query, setQuery] = useState("");
-  const [governanceStatus, setGovernanceStatus] = useState<MemoryGovernanceStatus | undefined>();
-  const [memoryKind, setMemoryKind] = useState<MemoryKindQuery | undefined>();
-  const [category, setCategory] = useState<MemoryCategory | undefined>();
-  const [createdRange, setCreatedRange] = useState<CreatedRange>(null);
   const [appliedKeyword, setAppliedKeyword] = useState("");
   const [appliedStatus, setAppliedStatus] = useState<MemoryGovernanceStatus | undefined>();
   const [appliedKind, setAppliedKind] = useState<MemoryKindQuery | undefined>();
@@ -317,12 +290,12 @@ function useMemoryList() {
     appliedRange,
   ]);
 
-  const submitSearch = () => {
-    setAppliedKeyword(trim(query).slice(0, SEARCH_QUERY_MAX_LENGTH));
-    setAppliedStatus(governanceStatus);
-    setAppliedKind(memoryKind);
-    setAppliedCategory(category);
-    setAppliedRange(createdRange);
+  const submitSearch = (values: SearchFilterValues) => {
+    setAppliedKeyword(values.query ?? "");
+    setAppliedStatus(values.governanceStatus);
+    setAppliedKind(values.memoryKind);
+    setAppliedCategory(values.category);
+    setAppliedRange(values.createdRange ?? null);
     setPage(1);
   };
 
@@ -339,22 +312,12 @@ function useMemoryList() {
         appliedCategory,
         appliedRange,
       ),
-    query,
     page,
     pageSize,
     isSearching,
     isFiltered,
-    governanceStatus,
-    memoryKind,
-    category,
-    createdRange,
-    setQuery,
     setPage,
     setPageSize,
-    setGovernanceStatus,
-    setMemoryKind,
-    setCategory,
-    setCreatedRange,
     submitSearch,
   };
 }
@@ -388,22 +351,12 @@ export default function DataManage() {
     data,
     loading,
     refresh,
-    query,
     page,
     pageSize,
     isSearching,
     isFiltered,
-    governanceStatus,
-    memoryKind,
-    category,
-    createdRange,
-    setQuery,
     setPage,
     setPageSize,
-    setGovernanceStatus,
-    setMemoryKind,
-    setCategory,
-    setCreatedRange,
     submitSearch,
   } = useMemoryList();
   const [relatedOpen, setRelatedOpen] = useState(false);
@@ -634,73 +587,7 @@ export default function DataManage() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-        <Input
-          allowClear
-          maxLength={SEARCH_QUERY_MAX_LENGTH}
-          prefix={<SearchOutlined className="text-gray-400" />}
-          placeholder="搜索记忆"
-          className="w-full min-w-0 sm:min-w-40 sm:flex-1"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onPressEnter={(e) => {
-            if (!isPlainEnter(e)) return;
-            submitSearch();
-          }}
-        />
-        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:shrink-0">
-          <div className="min-w-0 sm:w-[110px]">
-            <Select
-              allowClear
-              placeholder="状态"
-              style={{ width: "100%" }}
-              options={GOVERNANCE_STATUS_FILTER_OPTIONS}
-              value={governanceStatus}
-              onChange={(value) => setGovernanceStatus(value)}
-            />
-          </div>
-          <div className="min-w-0 sm:w-[110px]">
-            <Select
-              allowClear
-              placeholder="类型"
-              style={{ width: "100%" }}
-              options={MEMORY_KIND_FILTER_OPTIONS}
-              value={memoryKind}
-              onChange={(value) => setMemoryKind(value)}
-            />
-          </div>
-          <div className="min-w-0 sm:w-[130px]">
-            <Select
-              allowClear
-              placeholder="类别"
-              style={{ width: "100%" }}
-              options={MEMORY_CATEGORY_FILTER_OPTIONS}
-              value={category}
-              onChange={(value) => setCategory(value)}
-            />
-          </div>
-        </div>
-        <div className="w-full min-w-0 sm:w-[220px] sm:shrink-0">
-          <DatePicker.RangePicker
-            allowClear
-            inputReadOnly
-            style={{ width: "100%" }}
-            placeholder={["开始日期", "结束日期"]}
-            value={createdRange}
-            onChange={(dates) => {
-              setCreatedRange(dates?.[0] && dates[1] ? [dates[0], dates[1]] : null);
-            }}
-          />
-        </div>
-        <Button
-          type="primary"
-          className="w-full sm:w-auto sm:shrink-0"
-          icon={<SearchOutlined />}
-          onClick={submitSearch}
-        >
-          搜索
-        </Button>
-      </div>
+      <SearchFilter onSearch={submitSearch} />
       <Table
         size="small"
         rowKey="id"

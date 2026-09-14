@@ -1,4 +1,4 @@
-import DataManage from "@/components/Layout/components/DataManage";
+import DataManage from "./components/DataManage";
 import { ArrowLeftOutlined } from "@ant-design/icons";
 import { Button, Typography } from "antd";
 import { Link } from "react-router-dom";
