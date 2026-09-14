@@ -86,6 +86,7 @@ class ChatSessionAgent(BaseAgent):
         self._system_prompt: str = ""
         self._agent_mode: int = 0
         self._skill_manifests: list[AgentSkillManifest] = []
+        self._language: str | None = None
         self._user_message_text: str = ""
         self._tool_guided_user_message: str = ""
         self._user_message_content: str | list[dict[str, Any]] = ""
@@ -141,6 +142,7 @@ class ChatSessionAgent(BaseAgent):
             agent_mode=self._agent_mode,
             skill_manifests=self._skill_manifests,
             window_out_summary=self._window_out_summary,
+            language=self._language,
         )
 
     async def stream_session_events(
@@ -174,6 +176,7 @@ class ChatSessionAgent(BaseAgent):
         self._agent_mode = chat_request.agent_mode
         self._skill_manifests = list(skill_manifests)
         self._window_out_summary = history_summary_before_window
+        self._language = chat_request.language
         self._refresh_system_prompt()
         server_names = self._resolve_request_mcp_servers(chat_request)
         tools = await self.mcp_manager.get_tools_for_llm(

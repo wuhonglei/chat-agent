@@ -146,6 +146,10 @@ class ChatRequest(BaseModel):
         default=None,
         description="预注入的用户记忆；提供时跳过服务端 memory_search",
     )
+    language: str | None = Field(
+        default=None,
+        description="浏览器首选语言（BCP 47）；无法从 query 推断时作为回复语言",
+    )
 
     @field_validator("content_blocks", mode="before")
     @classmethod

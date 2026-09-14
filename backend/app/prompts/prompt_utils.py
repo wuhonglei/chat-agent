@@ -53,6 +53,7 @@ def get_system_prompt_for_chat_session(
     agent_mode: int = 0,
     skill_manifests: Sequence[AgentSkillManifest] | None = None,
     window_out_summary: str | None = None,
+    language: str | None = None,
 ) -> str:
     """Get system prompt for chat session, optionally with window-out summary."""
     manifests = list(skill_manifests or [])
@@ -70,6 +71,7 @@ def get_system_prompt_for_chat_session(
         agent_mode=agent_mode,
         skill_manifests=manifests,
         window_out_summary=summary,
+        language=language,
         **extra,
     )
 
