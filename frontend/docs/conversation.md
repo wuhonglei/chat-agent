@@ -9,6 +9,8 @@
 - `/`：重定向到 `/chat`
 - `/chat`：欢迎页（空聊天页）
 - `/chat/:conversationId`：具体会话页
+- `/memories`：记忆管理页（账号菜单进入，见第 7 节）
+- `/admin/bad-cases`：Bad Case 复核（需 `role=admin`）
 - `/login`、`/login/wechat/callback`：登录相关页面
 - `/markdown`：Markdown 示例页
 
@@ -209,3 +211,20 @@ sequenceDiagram
 - 当前实现不再使用 `mcp_tool_call` / `reasoning` / `content` 顶层 SSE 事件，统一使用 `content_block`；
 - 当前文档不再将 ChromaDB、Redis 作为前端会话能力依赖；
 - 当前推荐的开发命令统一使用 `vp`（例如 `vp dev`、`vp build`）。
+
+## 7. 记忆管理页（`/memories`）
+
+实现：`src/pages/MemoriesPage` 包一层 `DataManage`；接口在 `profileAPI`
+（`src/services/user.ts`）。后端契约见 `backend/docs/用户管理.md` 2.2。
+
+- 入口：账号下拉「记忆管理」→ `navigate("/memories")`
+- 空关键词：`GET /api/user/memories`，`page` / `pageSize`（默认 20）服务端分页
+- 有关键词：回车后 `GET /api/user/memories/search?q=`（最长 200），**不再翻页**，表格总数取当次命中条数
+- 筛选（状态 / 类型 / 创建日期）与关键词一样，点「搜索」或回车才生效，不是输入即搜
+- 状态标签：`生效` / `已合并` / `已取代` / `已归档`（缺省按生效）
+- 类型标签：`普通` / `模式`（`pattern`）；模式可点开来源记忆
+- 关联记忆：当前页命中则直接展示，缺失再 `GET /api/user/memories/{id}`；已删显示占位文案
+- 删除走确认框，`DELETE /api/user/memories/{id}`；列表最后一条删空时若 `page>1` 会回退一页
+
+`apiClient` 会把响应蛇形字段转成 camelCase（`governanceStatus`、`synthesizedFrom` 等）。
+聊天预注入 `ChatRequest.memories` **现网前端不发送**，见 `schema-for-backend-usage.md`。

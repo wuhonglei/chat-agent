@@ -2,6 +2,9 @@
 
 基于 Mem0 Python SDK 源码的记忆系统架构分析。
 
+> **现网实现请先读** `backend/docs/用户管理.md`（本仓库 HTTP 分流、管理页分页/筛选、检索闸门、prompt 注入）。
+> 本节与 `dream-memory-governance-implementation-plan-v2.md` 是产品语义 / 方案稿，**不等于** chat-agent 已落地的后台治理任务。
+
 ## 版本对比
 
 | 维度 | [v1.x](mem0-v1-memory-logic.md) | [v2](mem0-v2-memory-logic.md) |
