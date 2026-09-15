@@ -33,7 +33,7 @@ export function getDefaultHtmlViewMode(
 
 /** 将会话内 app-dist HTML 映射到已发布站点上的对应 URL。 */
 export function getPublishedHtmlPreviewUrl(
-  filePath: string | undefined,
+  filePath: string | null | undefined,
   siteUrl: string | null | undefined,
 ): string | null {
   if (!filePath || !siteUrl || !isHtmlPath(filePath) || !isSiteDistPath(filePath)) {

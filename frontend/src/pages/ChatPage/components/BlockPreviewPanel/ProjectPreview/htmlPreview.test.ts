@@ -52,6 +52,7 @@ describe("getPublishedHtmlPreviewUrl", () => {
 
   it("returns null when site is unpublished or path is not html in app-dist", () => {
     expect(getPublishedHtmlPreviewUrl("outputs/app-dist/index.html", undefined)).toBeNull();
+    expect(getPublishedHtmlPreviewUrl(null, siteUrl)).toBeNull();
     expect(getPublishedHtmlPreviewUrl("workspace/index.html", siteUrl)).toBeNull();
     expect(getPublishedHtmlPreviewUrl("outputs/app-dist/main.js", siteUrl)).toBeNull();
   });
