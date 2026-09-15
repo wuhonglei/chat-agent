@@ -227,13 +227,19 @@ def test_publish_reuses_slug_and_increments_version(
     assert first.site.slug == "my-resume-site"
     assert first.site.version == 1
     current = patched_paths.site_current_link("my-resume-site")
-    assert current.resolve() == patched_paths.site_version_dir("my-resume-site", 1).resolve()
+    assert (
+        current.resolve()
+        == patched_paths.site_version_dir("my-resume-site", 1).resolve()
+    )
 
     second = service.publish(user_id=user_id, conversation_id=conversation_id)
     assert second.site.slug == "my-resume-site"
     assert second.site.version == 2
     assert patched_paths.site_version_dir("my-resume-site", 1).exists()
-    assert current.resolve() == patched_paths.site_version_dir("my-resume-site", 2).resolve()
+    assert (
+        current.resolve()
+        == patched_paths.site_version_dir("my-resume-site", 2).resolve()
+    )
 
 
 def test_requested_slug_conflict_is_409(patched_paths: Paths) -> None:
@@ -400,7 +406,9 @@ def test_copy_snapshot_skips_symlinks(patched_paths: Paths) -> None:
     (dist / "link.txt").symlink_to(leaked)
 
     db = _FakeDb()
-    db.conversations[conversation_id] = SimpleNamespace(title="site-ok", user_id=user_id)
+    db.conversations[conversation_id] = SimpleNamespace(
+        title="site-ok", user_id=user_id
+    )
     service = SitePublishService(db, paths=patched_paths)  # type: ignore[arg-type]
     _bind_lookups(service, db)
     result = service.publish(user_id=user_id, conversation_id=conversation_id)
