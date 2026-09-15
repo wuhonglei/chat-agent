@@ -20,15 +20,18 @@ export function isDirectoryNode(node: WorkspaceTreeNode): boolean {
 
 /** 过滤掉空目录（nodeType 为 dir 且没有可见子项），用于根目录展示 */
 export function filterEmptyDirectories(nodes: WorkspaceTreeNode[]): WorkspaceTreeNode[] {
-  return nodes.filter(node => !(node.nodeType === "dir" && !node.hasChildren));
+  return nodes.filter((node) => !(node.nodeType === "dir" && !node.hasChildren));
 }
 
 export function isPlaceholderPath(path: string): boolean {
   return path.split("/").includes(DIRECTORY_PLACEHOLDER_SEGMENT);
 }
 
-export function normalizeTreeNodes(nodes: WorkspaceTreeNode[], parentFullPath = ""): WorkspaceTreeNode[] {
-  return nodes.map(node => {
+export function normalizeTreeNodes(
+  nodes: WorkspaceTreeNode[],
+  parentFullPath = "",
+): WorkspaceTreeNode[] {
+  return nodes.map((node) => {
     const fullPath = node.path;
     const displayPath = toDisplayPath(fullPath, parentFullPath);
     if (node.nodeType === "dir") {
@@ -68,9 +71,9 @@ export function normalizeTreeNodes(nodes: WorkspaceTreeNode[], parentFullPath = 
 export function replaceDirectoryChildren(
   nodes: WorkspaceTreeNode[],
   targetPath: string,
-  nextChildren: WorkspaceTreeNode[]
+  nextChildren: WorkspaceTreeNode[],
 ): WorkspaceTreeNode[] {
-  return nodes.map(node => {
+  return nodes.map((node) => {
     if ((node.fullPath || node.path) === targetPath) {
       return { ...node, children: nextChildren };
     }
@@ -84,7 +87,10 @@ export function replaceDirectoryChildren(
   });
 }
 
-export function findNodeByPath(nodes: WorkspaceTreeNode[], targetPath: string): WorkspaceTreeNode | undefined {
+export function findNodeByPath(
+  nodes: WorkspaceTreeNode[],
+  targetPath: string,
+): WorkspaceTreeNode | undefined {
   for (const node of nodes) {
     if ((node.fullPath || node.path) === targetPath) {
       return node;
