@@ -7,12 +7,14 @@ import PreviewScrollBody from "../PreviewScrollBody";
 import WorkspaceExcelPreview from "./WorkspaceExcelPreview";
 import WorkspaceImagePreview from "./WorkspaceImagePreview";
 import type { ExcelSheet } from "./hooks";
+import { getDefaultHtmlViewMode, type HtmlViewMode } from "./htmlPreview";
 import { getMonacoLanguage, isHtmlPath, isMarkdownPath } from "./utils";
-
-type HtmlViewMode = "preview" | "source";
 
 const HTML_IFRAME_SANDBOX =
   "allow-scripts allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-downloads allow-presentation";
+
+const PUBLISHED_HTML_IFRAME_SANDBOX =
+  "allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-downloads allow-pointer-lock allow-presentation allow-top-navigation-by-user-activation";
 
 const SOURCE_EDITOR_OPTIONS = {
   readOnly: true,
@@ -54,6 +56,8 @@ export interface FilePreviewContentProps {
     downloading: boolean;
     onDownload: () => void;
   } | null;
+  /** 已发布站点上对应当前 HTML 的公网 URL；有则预览走 iframe src，而不是 srcDoc。 */
+  publishedPreviewUrl?: string | null;
 }
 
 const FileSourceEditor: React.FC<{ file: SelectedFile }> = ({ file }) => {
@@ -69,8 +73,29 @@ const FileSourceEditor: React.FC<{ file: SelectedFile }> = ({ file }) => {
   );
 };
 
-const HtmlFilePreview: React.FC<{ file: SelectedFile }> = ({ file }) => {
-  const [viewMode, setViewMode] = useState<HtmlViewMode>("preview");
+const HtmlFilePreview: React.FC<{
+  file: SelectedFile;
+  publishedPreviewUrl?: string | null;
+}> = ({ file, publishedPreviewUrl }) => {
+  const defaultViewMode = getDefaultHtmlViewMode(file.content, publishedPreviewUrl);
+  const [userViewMode, setUserViewMode] = useState<HtmlViewMode | null>(null);
+  const viewMode = userViewMode ?? defaultViewMode;
+
+  const previewFrame = publishedPreviewUrl ? (
+    <iframe
+      title={file.title}
+      src={publishedPreviewUrl}
+      sandbox={PUBLISHED_HTML_IFRAME_SANDBOX}
+      className="h-full min-h-0 w-full flex-1 border-0 bg-white"
+    />
+  ) : (
+    <iframe
+      title={file.title}
+      srcDoc={file.content}
+      sandbox={HTML_IFRAME_SANDBOX}
+      className="h-full min-h-0 w-full flex-1 border-0 bg-white"
+    />
+  );
 
   return (
     <div className="h-full min-h-0 flex flex-col">
@@ -81,23 +106,14 @@ const HtmlFilePreview: React.FC<{ file: SelectedFile }> = ({ file }) => {
         <Segmented<HtmlViewMode>
           size="small"
           value={viewMode}
-          onChange={setViewMode}
+          onChange={setUserViewMode}
           options={[
             { label: "预览", value: "preview" },
             { label: "源码", value: "source" },
           ]}
         />
       </div>
-      {viewMode === "preview" ? (
-        <iframe
-          title={file.title}
-          srcDoc={file.content}
-          sandbox={HTML_IFRAME_SANDBOX}
-          className="h-full min-h-0 w-full flex-1 border-0 bg-white"
-        />
-      ) : (
-        <FileSourceEditor file={file} />
-      )}
+      {viewMode === "preview" ? previewFrame : <FileSourceEditor file={file} />}
     </div>
   );
 };
@@ -110,6 +126,7 @@ const FilePreviewContent: React.FC<FilePreviewContentProps> = ({
   excelPreview,
   imagePreview,
   binaryFile,
+  publishedPreviewUrl,
 }) => {
   if (excelPreview) {
     return (
@@ -166,7 +183,13 @@ const FilePreviewContent: React.FC<FilePreviewContentProps> = ({
   }
 
   if (isHtmlPath(selectedFile.path)) {
-    return <HtmlFilePreview key={selectedFile.path} file={selectedFile} />;
+    return (
+      <HtmlFilePreview
+        key={selectedFile.path}
+        file={selectedFile}
+        publishedPreviewUrl={publishedPreviewUrl}
+      />
+    );
   }
 
   const layoutWidth = width > 0 ? width : 0;
