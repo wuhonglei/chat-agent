@@ -34,10 +34,12 @@ import {
   isImagePath,
   isNonTextWorkspaceFile,
   isPlaceholderPath,
-  isSiteDistPath,
+  isPublishableSitePath,
   normalizeTreeNodes,
   outputsTreeHasAppDist,
+  outputsTreeHasIndexHtml,
   replaceDirectoryChildren,
+  resolvePublishSource,
   toPathSegments,
 } from "./utils";
 
@@ -266,27 +268,41 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
     conversationSite != null && conversationSite.unpublishedAt != null ? conversationSite : null;
 
   const hasOutputsDir = treeData.some((node) => (node.fullPath || node.path) === SITE_OUTPUTS_DIR);
-  const { data: hasAppDistDir, refresh: refreshAppDistDir } = useRequest(
+  const { data: outputsLayout, refresh: refreshOutputsLayout } = useRequest(
     async () => {
       const res = await workspaceAPI.getWorkspaceFileTree(block.workspaceId, {
         path: SITE_OUTPUTS_DIR,
         depth: 1,
       });
-      return outputsTreeHasAppDist(res.treeData || []);
+      const nodes = res.treeData || [];
+      return {
+        hasAppDist: outputsTreeHasAppDist(nodes),
+        hasOutputsIndex: outputsTreeHasIndexHtml(nodes),
+      };
     },
     {
       ready: hasOutputsDir,
       refreshDeps: [block.workspaceId, hasOutputsDir],
     },
   );
+  const hasAppDistDir = outputsLayout?.hasAppDist === true;
+  const hasOutputsIndexHtml = outputsLayout?.hasOutputsIndex === true;
+  const publishSource = resolvePublishSource({
+    hasAppDist: hasAppDistDir,
+    hasOutputsIndex: hasOutputsIndexHtml,
+  });
   const showSiteUi =
-    conversationSite != null || hasAppDistDir === true || isSiteDistPath(block.selectedFilePath);
+    conversationSite != null ||
+    hasAppDistDir ||
+    hasOutputsIndexHtml ||
+    isPublishableSitePath(block.selectedFilePath);
   const activePreviewMode: PreviewMode = showSiteUi ? previewMode : "files";
 
   const { run: runPublish, loading: publishing } = useRequest(
     async (slug?: string) => {
       return await sitesAPI.publish({
         conversationId: block.workspaceId,
+        source: publishSource,
         slug,
       });
     },
@@ -308,7 +324,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
 
   const { run: runRepublish, loading: republishing } = useRequest(
     async (slug: string) => {
-      return await sitesAPI.republish(slug);
+      return await sitesAPI.republish(slug, { source: publishSource });
     },
     {
       manual: true,
@@ -364,7 +380,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
   useEmitter(EventType.WorkspaceTreeRefresh, (payload) => {
     if (payload.workspaceId === block.workspaceId) {
       refreshTree();
-      refreshAppDistDir();
+      refreshOutputsLayout();
     }
   });
 
@@ -548,7 +564,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
             type="info"
             showIcon
             message="发布后可通过域名预览"
-            description="把当前会话的 outputs/app-dist 发布到子域名后，多页路由、图片和字体才能正常加载。"
+            description="把当前会话的静态站点（outputs/app-dist 或 outputs/index.html）发布到子域名后，多页路由、图片和字体才能正常加载。"
           />
           <Button type="primary" icon={<CloudUploadOutlined />} onClick={handleOpenPublish}>
             {unpublishedSite ? "重新上线" : "发布站点"}
@@ -590,8 +606,8 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
       return;
     }
     refreshTree();
-    refreshAppDistDir();
-  }, [activePreviewMode, refreshAppDistDir, refreshSite, refreshTree]);
+    refreshOutputsLayout();
+  }, [activePreviewMode, refreshOutputsLayout, refreshSite, refreshTree]);
 
   const handleOpenAppPreviewInNewPage = useCallback(() => {
     if (!liveSite) {
@@ -765,7 +781,8 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
         onOk={() => void handleConfirmPublish()}
       >
         <p className="mb-3 text-(--ant-color-text-secondary)">
-          将当前会话的 <code>outputs/app-dist</code> 发布到子域名。留空 slug 则由服务端生成。
+          将当前会话的静态站点（<code>outputs/app-dist</code> 或 <code>outputs/index.html</code>
+          ）发布到子域名。留空 slug 则由服务端生成。
         </p>
         <Form form={publishForm} layout="vertical">
           <Form.Item

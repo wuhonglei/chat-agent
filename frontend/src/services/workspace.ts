@@ -1,4 +1,3 @@
-import { authHeader } from "@/constants/authHeader";
 import axios from "axios";
 import { addRequestHeaders, apiClient } from "./base";
 
@@ -79,23 +78,12 @@ export const workspaceAPI = {
       throw extractWorkspaceFileError(error);
     }
   },
-  getWorkspacePreviewContent: async (workspaceId: string): Promise<string> => {
-    const response = await axios.get<string>(workspaceAPI.getWorkspacePreviewContentUrl(workspaceId), {
-      responseType: "text",
-      headers: { Accept: "text/html" },
-    });
-    return response.data;
-  },
   downloadWorkspaceZip: async (workspaceId: string): Promise<Blob> => {
     const response = await axios.get<Blob>(workspaceAPI.getWorkspaceDownloadUrl(workspaceId), {
       responseType: "blob",
       headers: addRequestHeaders({ Accept: "application/zip" }),
     });
     return response.data;
-  },
-  getWorkspacePreviewContentUrl: (workspaceId: string): string => {
-    const userId = authHeader.getUserId();
-    return `/api/user_data/${encodeURIComponent(userId)}/${encodeURIComponent(workspaceId)}/preview-content`;
   },
   getWorkspaceDownloadUrl: (workspaceId: string): string => {
     return `/api/user_data/${encodeURIComponent(workspaceId)}/download`;

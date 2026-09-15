@@ -32,6 +32,7 @@ RESERVED_SLUGS = frozenset(
 SLUG_PATTERN = re.compile(r"^[a-z0-9-]{3,40}$")
 _NANOID_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789"
 DEFAULT_ENTRY = "index.html"
+_INDEX_FILENAMES = frozenset({"index.html", "index.htm"})
 SiteVisibility = Literal["unlisted", "public"]
 
 
@@ -454,7 +455,28 @@ class SitePublishService(DbService):
     def _resolve_source_dir(
         self, user_id: str, conversation_id: str, source: str
     ) -> Path:
-        filepath = (source or "").strip().rstrip("/") or DEFAULT_SITE_SOURCE
+        filepath = (source or "").strip().rstrip("/")
+        if not filepath:
+            filepath = DEFAULT_SITE_SOURCE.rstrip("/")
+        try:
+            return self._resolve_existing_site_dir(user_id, conversation_id, filepath)
+        except SitePublishError as exc:
+            if (
+                filepath != DEFAULT_SITE_SOURCE.rstrip("/")
+                or "does not exist" not in exc.message
+            ):
+                raise
+            outputs_root = vfs_config.outputs_prefix.rstrip("/")
+            try:
+                return self._resolve_existing_site_dir(
+                    user_id, conversation_id, outputs_root
+                )
+            except SitePublishError:
+                raise exc from None
+
+    def _resolve_existing_site_dir(
+        self, user_id: str, conversation_id: str, filepath: str
+    ) -> Path:
         outputs_prefix = vfs_config.outputs_prefix.rstrip("/")
         if filepath != outputs_prefix and not filepath.startswith(f"{outputs_prefix}/"):
             raise SitePublishError(
@@ -472,6 +494,13 @@ class SitePublishService(DbService):
             raise SitePublishError(str(exc), status_code=400) from exc
         if not actual.exists():
             raise SitePublishError(f"Path does not exist: {filepath}", status_code=400)
+        if actual.is_file():
+            if actual.name.lower() not in _INDEX_FILENAMES:
+                raise SitePublishError(
+                    "source 必须是已存在的目录，或指向 index.html",
+                    status_code=400,
+                )
+            actual = actual.parent
         if not actual.is_dir():
             raise SitePublishError("source 必须是已存在的目录", status_code=400)
         entry = actual / DEFAULT_ENTRY

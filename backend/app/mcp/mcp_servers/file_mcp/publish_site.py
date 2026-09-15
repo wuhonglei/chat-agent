@@ -8,11 +8,12 @@ from app.mcp.mcp_servers.file_mcp.base import ToolBase, ToolContext, ToolResult
 from app.schemas.sites import DEFAULT_SITE_SOURCE
 from app.utils.logger import logger
 
-PUBLISH_SITE_DESCRIPTION = """Publish the built static site under /mnt/user-data/outputs/ so the user can open it on a public URL.
+PUBLISH_SITE_DESCRIPTION = """Publish the static site under /mnt/user-data/outputs/ so the user can open it on a public URL.
 
 When to use:
 - Only when the user explicitly asks to publish, share externally, or get a public/domain URL
 - After the production build has been copied to /mnt/user-data/outputs/app-dist/
+- Or after a simple page has been written to /mnt/user-data/outputs/index.html
 
 When NOT to use:
 - For in-session preview only
@@ -23,6 +24,7 @@ Notes:
 - Do not call /api/sites/me and do not construct {slug}.apps... yourself
 - Tell the user the returned url verbatim; do not retry just to change the slug
 - Repeating the call for the same conversation reuses the slug and increments version
+- source: SPA use /mnt/user-data/outputs/app-dist; a single HTML page may use /mnt/user-data/outputs or /mnt/user-data/outputs/index.html. Omit source to let the server pick (app-dist if present, else outputs/index.html).
 """
 
 

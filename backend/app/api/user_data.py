@@ -2,25 +2,21 @@
 
 from __future__ import annotations
 
-import base64
 import io
 import mimetypes
 import os
-import re
 import zipfile
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 
 from app.schemas.auth import AuthTokenPayload
 from app.schemas.response import ApiResponse
 from app.utils.auth_deps import get_auth_token_info
-from app.utils.logger import logger
 from app.utils.workspace import resolve_conversation_path
 
 router = APIRouter()
@@ -37,28 +33,9 @@ _HEAVY_DIR_NAMES = {
     ".DS_Store",
 }
 
-_PREVIEW_ENTRY_CANDIDATES = (
-    "outputs/app-dist/index.html",
-    "workspace/dist/index.html",
-    "workspace/build/index.html",
-    "dist/index.html",
-    "build/index.html",
-)
-_PREVIEW_ASSET_PATTERN = re.compile(
-    r'(?P<prefix>\b(?:src|href)\s*=\s*["\'])(?P<path>/assets/[^"\']+)(?P<suffix>["\'])'
-)
-
 
 def _iso_from_timestamp(ts: float) -> str:
     return datetime.fromtimestamp(ts, tz=UTC).isoformat()
-
-
-def _is_probably_binary(path: Path) -> bool:
-    with path.open("rb") as f:
-        chunk = f.read(4096)
-    if not chunk:
-        return False
-    return b"\x00" in chunk
 
 
 def _is_ignored_dir(name: str, *, include_ignored: bool) -> bool:
@@ -112,47 +89,6 @@ def _build_tree_data(
             }
         )
     return nodes
-
-
-def _resolve_preview_entry(conversation_root: Path) -> tuple[str, Path] | None:
-    conversation_root = conversation_root.resolve()
-    for relative_path in _PREVIEW_ENTRY_CANDIDATES:
-        candidate = (conversation_root / relative_path).resolve()
-        if not candidate.is_relative_to(conversation_root):
-            continue
-        if candidate.is_file():
-            return relative_path, candidate
-    return None
-
-
-def _inline_preview_assets(html_content: str, entry_file: Path) -> str:
-    if "/assets/" not in html_content:
-        return html_content
-
-    dist_root = entry_file.parent.resolve()
-    cache: dict[str, str] = {}
-
-    def _replace(match: re.Match[str]) -> str:
-        prefix = match.group("prefix")
-        raw_path = match.group("path")
-        suffix = match.group("suffix")
-        if raw_path in cache:
-            return f"{prefix}{cache[raw_path]}{suffix}"
-
-        parsed_path = urlsplit(raw_path).path.lstrip("/")
-        asset_file = (dist_root / parsed_path).resolve()
-        if not asset_file.is_relative_to(dist_root) or not asset_file.is_file():
-            return match.group(0)
-
-        mime_type = (
-            mimetypes.guess_type(asset_file.name)[0] or "application/octet-stream"
-        )
-        encoded = base64.b64encode(asset_file.read_bytes()).decode("ascii")
-        data_uri = f"data:{mime_type};base64,{encoded}"
-        cache[raw_path] = data_uri
-        return f"{prefix}{data_uri}{suffix}"
-
-    return _PREVIEW_ASSET_PATTERN.sub(_replace, html_content)
 
 
 def _iter_conversation_files(
@@ -266,37 +202,4 @@ async def download_workspace(
         zip_buffer,
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
-
-
-@router.get("/{user_id}/{conversation_id}/preview-content")
-async def get_workspace_preview_content(
-    user_id: str,
-    conversation_id: str,
-) -> HTMLResponse:
-    try:
-        conversation_root, _ = resolve_conversation_path(user_id, conversation_id, "")
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-
-    logger.info(f"conversation_root: {conversation_root}")
-    entry = _resolve_preview_entry(conversation_root)
-    logger.info(f"entry: {entry}")
-    if entry is None:
-        raise HTTPException(
-            status_code=404,
-            detail="未找到可预览入口文件，请先构建项目",
-        )
-
-    path, target = entry
-    if _is_probably_binary(target):
-        raise HTTPException(status_code=400, detail="预览入口文件不可为二进制内容")
-
-    content = target.read_text(encoding="utf-8", errors="replace")
-    content = _inline_preview_assets(content, target)
-    return HTMLResponse(
-        content=content,
-        headers={
-            "X-Workspace-Preview-Path": path,
-        },
     )

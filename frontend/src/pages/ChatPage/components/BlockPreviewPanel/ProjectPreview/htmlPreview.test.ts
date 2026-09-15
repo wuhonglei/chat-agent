@@ -50,7 +50,7 @@ describe("getDefaultHtmlViewMode", () => {
 describe("getPublishedHtmlPreviewUrl", () => {
   const siteUrl = "https://resume-site.apps.wuhonglei.cn";
 
-  it("returns null when site is unpublished or path is not html in app-dist", () => {
+  it("returns null when site is unpublished or path is not a publishable html", () => {
     expect(getPublishedHtmlPreviewUrl("outputs/app-dist/index.html", undefined)).toBeNull();
     expect(getPublishedHtmlPreviewUrl(null, siteUrl)).toBeNull();
     expect(getPublishedHtmlPreviewUrl("workspace/index.html", siteUrl)).toBeNull();
@@ -71,5 +71,14 @@ describe("getPublishedHtmlPreviewUrl", () => {
     expect(getPublishedHtmlPreviewUrl("outputs/app-dist/blog/index.html", siteUrl)).toBe(
       `${siteUrl}/blog/`,
     );
+  });
+
+  it("maps outputs root html to the published site", () => {
+    expect(getPublishedHtmlPreviewUrl("outputs/index.html", siteUrl)).toBe(`${siteUrl}/`);
+    expect(getPublishedHtmlPreviewUrl("/mnt/user-data/outputs/index.html", `${siteUrl}/`)).toBe(
+      `${siteUrl}/`,
+    );
+    expect(getPublishedHtmlPreviewUrl("outputs/about.html", siteUrl)).toBe(`${siteUrl}/about.html`);
+    expect(getPublishedHtmlPreviewUrl("outputs/blog/index.html", siteUrl)).toBe(`${siteUrl}/blog/`);
   });
 });

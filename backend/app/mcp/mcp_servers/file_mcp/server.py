@@ -210,8 +210,10 @@ async def publish_site(
     source: str = Field(
         default="/mnt/user-data/outputs/app-dist",
         description=(
-            "Virtual directory under /mnt/user-data/outputs/ containing the built "
-            "static site (must include index.html). Do not pass a slug."
+            "Virtual path under /mnt/user-data/outputs/: SPA directory "
+            "(/mnt/user-data/outputs/app-dist) or a simple page "
+            "(/mnt/user-data/outputs or .../outputs/index.html). "
+            "Must resolve to a directory that contains index.html. Do not pass a slug."
         ),
     ),
     visibility: Literal["unlisted", "public"] = Field(

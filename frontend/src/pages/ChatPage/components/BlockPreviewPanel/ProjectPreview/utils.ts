@@ -3,12 +3,24 @@ import type { WorkspaceTreeNode } from "@/services";
 import {
   SITE_DIST_DIR,
   SITE_OUTPUTS_DIR,
+  SITE_OUTPUTS_INDEX,
   isHtmlPath,
+  isPublishableSitePath,
   isSiteDistPath,
+  resolvePublishSource,
   toWorkspaceRelativePath,
 } from "./sitePaths";
 
-export { SITE_DIST_DIR, SITE_OUTPUTS_DIR, isHtmlPath, isSiteDistPath, toWorkspaceRelativePath };
+export {
+  SITE_DIST_DIR,
+  SITE_OUTPUTS_DIR,
+  SITE_OUTPUTS_INDEX,
+  isHtmlPath,
+  isPublishableSitePath,
+  isSiteDistPath,
+  resolvePublishSource,
+  toWorkspaceRelativePath,
+};
 
 const DIRECTORY_PLACEHOLDER_SEGMENT = "__directory_placeholder__";
 
@@ -139,6 +151,14 @@ export function outputsTreeHasAppDist(nodes: WorkspaceTreeNode[]): boolean {
   return nodes.some((node) => {
     const path = node.fullPath || node.path;
     return path === SITE_DIST_DIR && node.nodeType === "dir";
+  });
+}
+
+/** outputs 目录的 depth=1 列表里是否已有根级 index.html。 */
+export function outputsTreeHasIndexHtml(nodes: WorkspaceTreeNode[]): boolean {
+  return nodes.some((node) => {
+    const path = node.fullPath || node.path;
+    return path === SITE_OUTPUTS_INDEX && node.nodeType === "file";
   });
 }
 

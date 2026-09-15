@@ -126,6 +126,8 @@ Call `publish_site` only when the user explicitly wants a public URL, external s
 }
 ```
 
+If the deliverable is a simple page at `outputs/index.html` instead of a Vite build, pass `"source": "/mnt/user-data/outputs"` (or `/mnt/user-data/outputs/index.html`). Omit `source` to let the server pick `app-dist` when it exists, otherwise `outputs/index.html`.
+
 Rules:
 
 - Do not pass a `slug`. The server generates or reuses one for this conversation.
