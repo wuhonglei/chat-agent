@@ -264,6 +264,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
   const unpublishedSite =
     conversationSite != null && conversationSite.unpublishedAt != null ? conversationSite : null;
 
+  const hasOutputsDir = treeData.some((node) => (node.fullPath || node.path) === SITE_OUTPUTS_DIR);
   const { data: hasAppDistDir, refresh: refreshAppDistDir } = useRequest(
     async () => {
       const res = await workspaceAPI.getWorkspaceFileTree(block.workspaceId, {
@@ -273,17 +274,13 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
       return outputsTreeHasAppDist(res.treeData || []);
     },
     {
-      refreshDeps: [block.workspaceId],
+      ready: hasOutputsDir,
+      refreshDeps: [block.workspaceId, hasOutputsDir],
     },
   );
   const showSiteUi =
     conversationSite != null || hasAppDistDir === true || isSiteDistPath(block.selectedFilePath);
-
-  useEffect(() => {
-    if (!showSiteUi && previewMode === "app") {
-      setPreviewMode("files");
-    }
-  }, [previewMode, showSiteUi]);
+  const activePreviewMode: PreviewMode = showSiteUi ? previewMode : "files";
 
   const { run: runPublish, loading: publishing } = useRequest(
     async (slug?: string) => {
@@ -583,7 +580,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
   ]);
 
   const handleRefresh = useCallback(() => {
-    if (previewMode === "app") {
+    if (activePreviewMode === "app") {
       setAppPreviewError(null);
       setAppPreviewReloadKey((prev) => prev + 1);
       void refreshSite();
@@ -591,7 +588,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
     }
     refreshTree();
     refreshAppDistDir();
-  }, [previewMode, refreshAppDistDir, refreshSite, refreshTree]);
+  }, [activePreviewMode, refreshAppDistDir, refreshSite, refreshTree]);
 
   const handleOpenAppPreviewInNewPage = useCallback(() => {
     if (!liveSite) {
@@ -641,7 +638,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
           {showSiteUi ? (
             <Segmented<PreviewMode>
               size="small"
-              value={previewMode}
+              value={activePreviewMode}
               onChange={setPreviewMode}
               options={[
                 { label: "文件预览", value: "files" },
@@ -693,7 +690,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
               </Tooltip>
             )
           ) : null}
-          {previewMode === "files" ? (
+          {activePreviewMode === "files" ? (
             <Tooltip title="下载项目（zip）">
               <Button
                 type="text"
@@ -704,7 +701,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
               />
             </Tooltip>
           ) : null}
-          {previewMode === "app" && liveSite ? (
+          {activePreviewMode === "app" && liveSite ? (
             <Tooltip title="在新页面打开">
               <Button
                 type="text"
@@ -717,13 +714,13 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
             type="text"
             onClick={handleRefresh}
             icon={<ReloadOutlined />}
-            loading={previewMode === "app" ? loadingSite : loadingTree}
+            loading={activePreviewMode === "app" ? loadingSite : loadingTree}
           />
           <Button type="text" onClick={onClose} icon={<CloseOutlined />} />
         </div>
       </header>
       <div className="flex-1 min-h-0 overflow-hidden">
-        {previewMode === "app" ? (
+        {activePreviewMode === "app" ? (
           appPreviewNode
         ) : loadingTree ? (
           <div className="h-full w-full flex items-center justify-center">

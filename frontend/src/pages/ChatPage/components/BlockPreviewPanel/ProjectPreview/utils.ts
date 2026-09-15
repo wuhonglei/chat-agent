@@ -130,9 +130,6 @@ export function isHtmlPath(path: string): boolean {
 export const SITE_OUTPUTS_DIR = "outputs";
 export const SITE_DIST_DIR = `${SITE_OUTPUTS_DIR}/app-dist`;
 
-/** 发布站点要求的入口文件。 */
-export const SITE_ENTRY_PATH = `${SITE_DIST_DIR}/index.html`;
-
 const USER_DATA_VIRTUAL_PREFIX = "/mnt/user-data/";
 
 /** 将会话相对路径或 present_files 虚拟路径规范为会话相对路径。 */
