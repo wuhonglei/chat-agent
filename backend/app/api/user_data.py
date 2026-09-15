@@ -38,6 +38,7 @@ _HEAVY_DIR_NAMES = {
 }
 
 _PREVIEW_ENTRY_CANDIDATES = (
+    "outputs/app-dist/index.html",
     "workspace/dist/index.html",
     "workspace/build/index.html",
     "dist/index.html",

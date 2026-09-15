@@ -294,6 +294,35 @@ class StorageConfig(BaseModel):
     avatar_dir: str = "./data/avatars"
 
 
+class SitesConfig(BaseModel):
+    """用户静态站发布配置（``{slug}.{public_base_domain}``）"""
+
+    public_base_domain: str = Field(
+        default="apps.wuhonglei.cn",
+        description="发布域名（不含 slug 前缀）",
+    )
+    max_size_bytes: int = Field(
+        default=50 * 1024 * 1024,
+        gt=0,
+        description="单站快照体积上限（字节）",
+    )
+    max_sites_per_user: int = Field(
+        default=20,
+        gt=0,
+        description="单用户同时处于上线状态的站点数上限",
+    )
+    default_ttl_days: int = Field(
+        default=30,
+        gt=0,
+        description="发布/再发布后的默认有效期（天）",
+    )
+    expire_interval_seconds: int = Field(
+        default=3600,
+        ge=0,
+        description="过期巡检间隔（秒）；0 表示不启动后台任务",
+    )
+
+
 class JWTConfig(BaseModel):
     """JWT 安全配置"""
 

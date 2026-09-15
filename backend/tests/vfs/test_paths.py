@@ -80,3 +80,11 @@ def test_ensure_user_skills_dir(paths: Paths) -> None:
     root = paths.ensure_user_skills_dir("user-1")
     assert root.is_dir()
     assert root == paths.user_skills_dir("user-1").resolve()
+
+
+def test_site_dir_helpers(paths: Paths, tmp_path: Path) -> None:
+    site_paths = Paths(base_dir=tmp_path / "user_data", sites_root=tmp_path / "sites")
+    assert site_paths.site_version_dir("resume-site", 2) == tmp_path / "sites" / "resume-site" / "2"
+    assert site_paths.site_current_link("resume-site") == tmp_path / "sites" / "resume-site" / "current"
+    with pytest.raises(ValueError, match="invalid slug"):
+        site_paths.validate_slug("x")

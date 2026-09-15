@@ -29,6 +29,7 @@ from app.services.base_service.model_resolver import resolve_scenario
 from app.services.chat.history_context_service import HistoryContextService
 from app.services.conversation import ConversationDbService
 from app.services.message.message_db import MessageDbService
+from app.services.site_publish_service import SitePublishService
 from app.utils.auth_deps import get_auth_token_info
 from app.utils.cursor import InvalidCursorError
 from app.utils.logger import logger
@@ -270,6 +271,10 @@ async def delete_conversation(
     conversation = service.get_conversation(conversation_id)
     if not conversation or conversation.user_id != token_info.user_id:
         return ApiResponse.error(code=404, msg="会话不存在")
+    SitePublishService(db).purge_for_conversation(
+        user_id=token_info.user_id,
+        conversation_id=conversation.id,
+    )
     _delete_conversation_workspace(conversation.user_id, conversation.id)
     service.delete_conversation(conversation)
     deleted_id = conversation.id

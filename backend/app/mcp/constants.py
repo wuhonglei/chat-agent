@@ -21,6 +21,7 @@ WRITE_FILE_BARE = "write_file"
 EDIT_FILE_BARE = "edit_file"
 SEARCH_FILES_BARE = "search_files"
 PRESENT_FILES_BARE = "present_files"
+PUBLISH_SITE_BARE = "publish_site"
 
 # --- Shell / code bare tools ---
 SHELL_BARE = "exec"
@@ -41,6 +42,7 @@ WRITE_FILE_LLM = llm_tool_name(FILE_SERVER, WRITE_FILE_BARE)
 EDIT_FILE_LLM = llm_tool_name(FILE_SERVER, EDIT_FILE_BARE)
 SEARCH_FILES_LLM = llm_tool_name(FILE_SERVER, SEARCH_FILES_BARE)
 PRESENT_FILES_LLM = llm_tool_name(FILE_SERVER, PRESENT_FILES_BARE)
+PUBLISH_SITE_LLM = llm_tool_name(FILE_SERVER, PUBLISH_SITE_BARE)
 SHELL_LLM = llm_tool_name(SHELL_SERVER, SHELL_BARE)
 EXECUTE_CODE_LLM = llm_tool_name(CODE_SERVER, EXECUTE_CODE_BARE)
 LIST_RUNTIMES_LLM = llm_tool_name(CODE_SERVER, LIST_RUNTIMES_BARE)
@@ -79,6 +81,7 @@ MUTATING_LLM_TOOLS = frozenset(
         WRITE_FILE_LLM,
         EDIT_FILE_LLM,
         PRESENT_FILES_LLM,
+        PUBLISH_SITE_LLM,
         SHELL_LLM,
         EXECUTE_CODE_LLM,
     }

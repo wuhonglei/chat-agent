@@ -116,6 +116,23 @@ Rules:
 - For a static site, presenting `index.html` is enough; the UI exposes file browsing and zip download.
 - Briefly describe what was built (pages, features) in your reply after presenting.
 
+**Step C — publish a public URL (`publish_site` tool, only if asked)**
+
+Call `publish_site` only when the user explicitly wants a public URL, external share, or domain access. Do not publish just because the build succeeded.
+
+```json
+{
+  "source": "/mnt/user-data/outputs/app-dist"
+}
+```
+
+Rules:
+
+- Do not pass a `slug`. The server generates or reuses one for this conversation.
+- Do not call `/api/sites/me` and do not invent `{slug}.apps...` URLs.
+- Tell the user the returned `url` verbatim. Do not retry just to change the slug.
+- Repeating `publish_site` in the same conversation reuses the slug and publishes a new version.
+
 ## Debugging
 
 1. Fix source files in `workspace/app/src/`

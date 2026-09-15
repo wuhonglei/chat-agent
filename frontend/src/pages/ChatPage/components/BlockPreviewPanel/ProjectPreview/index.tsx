@@ -1,12 +1,21 @@
 import { EventType, useEmitter } from "@/events";
 import type { ProjectBlock } from "@/interfaces/contentBlock";
-import type { WorkspaceTreeNode } from "@/services";
-import { workspaceAPI } from "@/services";
+import type { PublishedSite, WorkspaceTreeNode } from "@/services";
+import { sitesAPI, workspaceAPI } from "@/services";
 import { downloadFileByUrl } from "@/utils/file";
-import { CloseOutlined, DownloadOutlined, ExportOutlined, ReloadOutlined } from "@ant-design/icons";
+import { getMessageInstance } from "@/utils/message";
+import {
+  CloseOutlined,
+  CloudUploadOutlined,
+  CopyOutlined,
+  DisconnectOutlined,
+  DownloadOutlined,
+  ExportOutlined,
+  ReloadOutlined,
+} from "@ant-design/icons";
 import { Folder } from "@ant-design/x";
 import { useRequest } from "ahooks";
-import { Alert, Button, Segmented, Spin, Tooltip } from "antd";
+import { Alert, Button, Form, Input, Modal, Segmented, Space, Spin, Tooltip } from "antd";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SelectedFile } from "./FilePreviewContent";
 import FilePreviewContent from "./FilePreviewContent";
@@ -36,8 +45,38 @@ export interface ProjectPreviewPanelProps {
 
 type PreviewMode = "files" | "app";
 
+const SLUG_PATTERN = /^[a-z0-9-]{3,40}$/;
+
+interface SlugInputProps {
+  id?: string;
+  value?: string;
+  onChange?: React.ChangeEventHandler<HTMLInputElement>;
+  status?: "" | "error" | "warning";
+}
+
+const SlugInput: React.FC<SlugInputProps> = ({ id, value, onChange, status }) => (
+  <Space.Compact block>
+    <Space.Addon>https://</Space.Addon>
+    <Input
+      id={id}
+      className="flex-1"
+      placeholder="resume-site"
+      value={value}
+      onChange={onChange}
+      status={status}
+    />
+    <Space.Addon>.apps.wuhonglei.cn</Space.Addon>
+  </Space.Compact>
+);
+
+function isLiveSite(site: PublishedSite | null): site is PublishedSite {
+  return site != null && site.unpublishedAt == null;
+}
+
 const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block, onClose }) => {
   const [previewMode, setPreviewMode] = useState<PreviewMode>("files");
+  const [publishOpen, setPublishOpen] = useState(false);
+  const [publishForm] = Form.useForm<{ slug?: string }>();
 
   const [treeError, setTreeError] = useState<string | null>(null);
   const [treeData, setTreeData] = useState<WorkspaceTreeNode[]>([]);
@@ -55,7 +94,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
 
   const folderSelectedFile = useMemo(
     () => (selectedFilePath ? toPathSegments(selectedFilePath) : undefined),
-    [selectedFilePath]
+    [selectedFilePath],
   );
 
   const { run: runLoadRootTree, loading: loadingTree } = useRequest(
@@ -67,14 +106,14 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
       onBefore: () => {
         setTreeError(null);
       },
-      onSuccess: res => {
+      onSuccess: (res) => {
         setTreeData(normalizeTreeNodes(filterEmptyDirectories(res.treeData || [])));
         setLoadedDirPaths(new Set([""]));
       },
-      onError: error => {
+      onError: (error) => {
         setTreeError(error instanceof Error ? error.message : "文件树加载失败");
       },
-    }
+    },
   );
 
   const { runAsync: runLoadDirTree } = useRequest(
@@ -86,19 +125,21 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
     },
     {
       manual: true,
-      onError: error => {
+      onError: (error) => {
         setTreeError(error instanceof Error ? error.message : "子目录加载失败");
       },
       onSuccess: (res, params) => {
         const dirPath = params[0] || "";
-        setTreeData(prev => replaceDirectoryChildren(prev, dirPath, normalizeTreeNodes(res.treeData || [], dirPath)));
-        setLoadedDirPaths(prev => {
+        setTreeData((prev) =>
+          replaceDirectoryChildren(prev, dirPath, normalizeTreeNodes(res.treeData || [], dirPath)),
+        );
+        setLoadedDirPaths((prev) => {
           const next = new Set(prev);
           next.add(dirPath);
           return next;
         });
       },
-    }
+    },
   );
 
   const refreshTree = useCallback(() => {
@@ -120,7 +161,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
         loadingDirPathsRef.current.delete(dirPath);
       }
     },
-    [loadedDirPaths, runLoadDirTree]
+    [loadedDirPaths, runLoadDirTree],
   );
 
   const isExcelFile = selectedFilePath ? isExcelPath(selectedFilePath) : false;
@@ -143,7 +184,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
       onBefore: () => {
         setFileError(null);
       },
-      onSuccess: res => {
+      onSuccess: (res) => {
         setSelectedFile({
           path: res.path,
           title: res.path.split("/").pop() || res.path,
@@ -151,10 +192,10 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
           language: getLanguageFromPath(res.path),
         });
       },
-      onError: error => {
+      onError: (error) => {
         setFileError(getRequestErrorMessage(error, "文件内容加载失败"));
       },
-    }
+    },
   );
 
   const {
@@ -182,7 +223,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
         URL.revokeObjectURL(downloadUrl);
       }
     },
-    { manual: true }
+    { manual: true },
   );
 
   const { run: runDownloadWorkspaceZip, loading: loadingWorkspaceZip } = useRequest(
@@ -197,10 +238,77 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
     },
     {
       manual: true,
-      onError: error => {
+      onError: (error) => {
         setTreeError(error instanceof Error ? error.message : "下载失败，请稍后重试");
       },
-    }
+    },
+  );
+
+  const {
+    data: conversationSite,
+    loading: loadingSite,
+    refresh: refreshSite,
+  } = useRequest(
+    async () => {
+      const sites = await sitesAPI.listMine();
+      return sites.find((item) => item.conversationId === block.workspaceId) ?? null;
+    },
+    {
+      refreshDeps: [block.workspaceId],
+    },
+  );
+  const liveSite = isLiveSite(conversationSite ?? null) ? conversationSite : null;
+  const unpublishedSite =
+    conversationSite != null && conversationSite.unpublishedAt != null ? conversationSite : null;
+
+  const { run: runPublish, loading: publishing } = useRequest(
+    async (slug?: string) => {
+      return await sitesAPI.publish({
+        conversationId: block.workspaceId,
+        slug,
+      });
+    },
+    {
+      manual: true,
+      onSuccess: (site) => {
+        setPublishOpen(false);
+        publishForm.resetFields();
+        void refreshSite();
+        getMessageInstance().success(`已发布：${site.url}`);
+        setPreviewMode("app");
+      },
+      onError: (error) => {
+        const msg = getRequestErrorMessage(error, "发布失败");
+        publishForm.setFields([{ name: "slug", errors: [msg] }]);
+      },
+    },
+  );
+
+  const { run: runRepublish, loading: republishing } = useRequest(
+    async (slug: string) => {
+      return await sitesAPI.republish(slug);
+    },
+    {
+      manual: true,
+      onSuccess: (site) => {
+        void refreshSite();
+        setAppPreviewReloadKey((prev) => prev + 1);
+        getMessageInstance().success(`已重新发布：${site.url}`);
+      },
+    },
+  );
+
+  const { run: runUnpublish, loading: unpublishing } = useRequest(
+    async (slug: string) => {
+      return await sitesAPI.unpublish(slug);
+    },
+    {
+      manual: true,
+      onSuccess: () => {
+        void refreshSite();
+        getMessageInstance().success("站点已下线");
+      },
+    },
   );
   useEffect(() => {
     const targetPath = block.selectedFilePath;
@@ -231,7 +339,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
     void revealSelectedFile();
   }, [block.id, block.selectedFilePath, loadingTree, loadDirTreeIfNeeded]);
 
-  useEmitter(EventType.WorkspaceTreeRefresh, payload => {
+  useEmitter(EventType.WorkspaceTreeRefresh, (payload) => {
     if (payload.workspaceId === block.workspaceId) {
       refreshTree();
     }
@@ -244,7 +352,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
         void loadDirTreeIfNeeded(path);
       }
     },
-    [loadDirTreeIfNeeded]
+    [loadDirTreeIfNeeded],
   );
 
   const handleFolderClick = useCallback(
@@ -252,7 +360,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
       setFileError(null);
       const alreadyExpanded = expandedPaths.includes(folderPath);
       if (alreadyExpanded) {
-        setExpandedPaths(prev => prev.filter(path => path !== folderPath));
+        setExpandedPaths((prev) => prev.filter((path) => path !== folderPath));
         return;
       }
 
@@ -261,9 +369,9 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
       } catch {
         return;
       }
-      setExpandedPaths(prev => (prev.includes(folderPath) ? prev : [...prev, folderPath]));
+      setExpandedPaths((prev) => (prev.includes(folderPath) ? prev : [...prev, folderPath]));
     },
-    [expandedPaths, loadDirTreeIfNeeded]
+    [expandedPaths, loadDirTreeIfNeeded],
   );
 
   const handleFileClick = useCallback(
@@ -294,7 +402,14 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
       }
       setSelectedFilePath(filePath);
     },
-    [handleFolderClick, refreshSelectedFile, reloadExcelFile, reloadImageFile, selectedFilePath, treeData]
+    [
+      handleFolderClick,
+      refreshSelectedFile,
+      reloadExcelFile,
+      reloadImageFile,
+      selectedFilePath,
+      treeData,
+    ],
   );
 
   const selectedFileTitle = selectedFilePath?.split("/").pop() || selectedFilePath || "";
@@ -309,7 +424,14 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
       loading: loadingExcelFile,
       error: excelFileError,
     };
-  }, [excelFileError, excelSheets, isExcelFile, loadingExcelFile, selectedFilePath, selectedFileTitle]);
+  }, [
+    excelFileError,
+    excelSheets,
+    isExcelFile,
+    loadingExcelFile,
+    selectedFilePath,
+    selectedFileTitle,
+  ]);
 
   const imagePreview = useMemo(() => {
     if (!selectedFilePath || !isImageFile) {
@@ -321,7 +443,14 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
       loading: loadingImageFile,
       error: imageFileError,
     };
-  }, [imageFileError, imagePreviewUrl, isImageFile, loadingImageFile, selectedFilePath, selectedFileTitle]);
+  }, [
+    imageFileError,
+    imagePreviewUrl,
+    isImageFile,
+    loadingImageFile,
+    selectedFilePath,
+    selectedFileTitle,
+  ]);
 
   const binaryFilePreview = useMemo(() => {
     if (!selectedFilePath || !isNonTextFile || isExcelFile || isImageFile) {
@@ -346,7 +475,9 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
   ]);
 
   const textSelectedFile =
-    selectedFilePath && !isNonTextFile && selectedFile?.path === selectedFilePath ? selectedFile : null;
+    selectedFilePath && !isNonTextFile && selectedFile?.path === selectedFilePath
+      ? selectedFile
+      : null;
   const textFileError = selectedFilePath && !isNonTextFile ? fileError : null;
 
   const previewNode = (
@@ -361,6 +492,15 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
     />
   );
 
+  const handleOpenPublish = useCallback(() => {
+    if (unpublishedSite) {
+      runPublish();
+      return;
+    }
+    publishForm.resetFields();
+    setPublishOpen(true);
+  }, [publishForm, runPublish, unpublishedSite]);
+
   const appPreviewNode = useMemo(() => {
     if (appPreviewError) {
       return (
@@ -369,8 +509,29 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
         </div>
       );
     }
-    const previewBaseUrl = workspaceAPI.getWorkspacePreviewContentUrl(block.workspaceId);
-    const previewUrl = `${previewBaseUrl}${previewBaseUrl.includes("?") ? "&" : "?"}t=${appPreviewReloadKey}`;
+    if (loadingSite) {
+      return (
+        <div className="h-full w-full flex items-center justify-center">
+          <Spin />
+        </div>
+      );
+    }
+    if (!liveSite) {
+      return (
+        <div className="h-full min-h-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
+          <Alert
+            type="info"
+            showIcon
+            message="发布后可通过域名预览"
+            description="把当前会话的 outputs/app-dist 发布到子域名后，多页路由、图片和字体才能正常加载。"
+          />
+          <Button type="primary" icon={<CloudUploadOutlined />} onClick={handleOpenPublish}>
+            {unpublishedSite ? "重新上线" : "发布站点"}
+          </Button>
+        </div>
+      );
+    }
+    const previewUrl = `${liveSite.url}${liveSite.url.includes("?") ? "&" : "?"}t=${appPreviewReloadKey}`;
     return (
       <div className="h-full min-h-0 flex flex-col bg-white">
         <iframe
@@ -381,36 +542,75 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
             setAppPreviewError(null);
           }}
           onError={() => {
-            setAppPreviewError("运行预览加载失败，请确认构建产物是否已生成");
+            setAppPreviewError("运行预览加载失败，请确认站点是否仍在线");
           }}
           className="h-full min-h-0 w-full flex-1 border-0"
         />
       </div>
     );
-  }, [appPreviewError, appPreviewReloadKey, block.workspaceId]);
+  }, [
+    appPreviewError,
+    appPreviewReloadKey,
+    handleOpenPublish,
+    liveSite,
+    loadingSite,
+    unpublishedSite,
+  ]);
 
   const handleRefresh = useCallback(() => {
     if (previewMode === "app") {
       setAppPreviewError(null);
-      setAppPreviewReloadKey(prev => prev + 1);
+      setAppPreviewReloadKey((prev) => prev + 1);
+      void refreshSite();
       return;
     }
     refreshTree();
-  }, [previewMode, refreshTree]);
+  }, [previewMode, refreshSite, refreshTree]);
 
   const handleOpenAppPreviewInNewPage = useCallback(() => {
-    const previewUrl = workspaceAPI.getWorkspacePreviewContentUrl(block.workspaceId);
-    window.open(previewUrl, "_blank", "noopener,noreferrer");
-  }, [block.workspaceId]);
+    if (!liveSite) {
+      return;
+    }
+    window.open(liveSite.url, "_blank", "noopener,noreferrer");
+  }, [liveSite]);
+
+  const handleCopySiteUrl = useCallback(async () => {
+    if (!liveSite) {
+      return;
+    }
+    await navigator.clipboard.writeText(liveSite.url);
+    getMessageInstance().success("链接已复制");
+  }, [liveSite]);
+
+  const handleConfirmPublish = useCallback(async () => {
+    const values = await publishForm.validateFields();
+    const slug = values.slug?.trim();
+    runPublish(slug || undefined);
+  }, [publishForm, runPublish]);
+
+  const handleUnpublish = useCallback(() => {
+    if (!liveSite) {
+      return;
+    }
+    Modal.confirm({
+      title: "下线该站点？",
+      content: "下线后公网链接立即 404，同会话再次发布会复用原 slug。",
+      okText: "下线",
+      okButtonProps: { danger: true },
+      onOk: () => runUnpublish(liveSite.slug),
+    });
+  }, [liveSite, runUnpublish]);
 
   const handleDownloadWorkspaceZip = useCallback(() => {
     setTreeError(null);
     runDownloadWorkspaceZip();
   }, [runDownloadWorkspaceZip]);
 
+  const siteBusy = publishing || republishing || unpublishing || loadingSite;
+
   return (
     <section className="h-full min-h-0 flex flex-col border-l border-(--ant-color-border-secondary) bg-(--ant-color-bg-layout)">
-      <header className="flex h-[60px] shrink-0 items-center justify-between gap-2 border-b border-(--ant-color-border-secondary) bg-(--ant-color-bg-container) px-3">
+      <header className="flex h-15 shrink-0 items-center justify-between gap-2 border-b border-(--ant-color-border-secondary) bg-(--ant-color-bg-container) px-3">
         <div className="min-w-0 flex items-center gap-2">
           <Segmented<PreviewMode>
             size="small"
@@ -418,14 +618,51 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
             onChange={setPreviewMode}
             options={[
               { label: "文件预览", value: "files" },
-              // {
-              //   label: <Tooltip title="项目构建完成后才支持运行预览">运行预览</Tooltip>,
-              //   value: "app",
-              // },
+              { label: "运行预览", value: "app" },
             ]}
           />
         </div>
         <div className="flex items-center gap-1">
+          {liveSite ? (
+            <>
+              <Tooltip title="复制公网链接">
+                <Button
+                  type="text"
+                  icon={<CopyOutlined />}
+                  onClick={() => void handleCopySiteUrl()}
+                />
+              </Tooltip>
+              <Tooltip title="重新发布当前产物">
+                <Button
+                  type="text"
+                  icon={<CloudUploadOutlined />}
+                  loading={republishing}
+                  disabled={siteBusy}
+                  onClick={() => runRepublish(liveSite.slug)}
+                />
+              </Tooltip>
+              <Tooltip title="下线">
+                <Button
+                  type="text"
+                  danger
+                  icon={<DisconnectOutlined />}
+                  loading={unpublishing}
+                  disabled={siteBusy}
+                  onClick={handleUnpublish}
+                />
+              </Tooltip>
+            </>
+          ) : (
+            <Tooltip title={unpublishedSite ? "重新上线" : "发布到域名"}>
+              <Button
+                type="text"
+                icon={<CloudUploadOutlined />}
+                loading={publishing}
+                disabled={siteBusy}
+                onClick={handleOpenPublish}
+              />
+            </Tooltip>
+          )}
           {previewMode === "files" ? (
             <Tooltip title="下载项目（zip）">
               <Button
@@ -437,16 +674,20 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
               />
             </Tooltip>
           ) : null}
-          {previewMode === "app" ? (
+          {previewMode === "app" && liveSite ? (
             <Tooltip title="在新页面打开">
-              <Button type="text" icon={<ExportOutlined />} onClick={handleOpenAppPreviewInNewPage} />
+              <Button
+                type="text"
+                icon={<ExportOutlined />}
+                onClick={handleOpenAppPreviewInNewPage}
+              />
             </Tooltip>
           ) : null}
           <Button
             type="text"
             onClick={handleRefresh}
             icon={<ReloadOutlined />}
-            loading={previewMode === "app" ? false : loadingTree}
+            loading={previewMode === "app" ? loadingSite : loadingTree}
           />
           <Button type="text" onClick={onClose} icon={<CloseOutlined />} />
         </div>
@@ -473,10 +714,10 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
             selectedFile={folderSelectedFile}
             expandedPaths={expandedPaths}
             onExpandedPathsChange={handleExpandedPathsChange}
-            onFileClick={filePath => {
+            onFileClick={(filePath) => {
               handleFileClick(filePath);
             }}
-            onFolderClick={folderPath => {
+            onFolderClick={(folderPath) => {
               void handleFolderClick(folderPath);
             }}
             previewRender={previewNode}
@@ -484,6 +725,41 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
           />
         )}
       </div>
+      <Modal
+        centered
+        open={publishOpen}
+        title="发布站点"
+        okText="发布"
+        confirmLoading={publishing}
+        onCancel={() => setPublishOpen(false)}
+        onOk={() => void handleConfirmPublish()}
+      >
+        <p className="mb-3 text-(--ant-color-text-secondary)">
+          将当前会话的 <code>outputs/app-dist</code> 发布到子域名。留空 slug 则由服务端生成。
+        </p>
+        <Form form={publishForm} layout="vertical">
+          <Form.Item
+            name="slug"
+            label="自定义链接（可选）"
+            extra="3–40 位小写字母、数字和连字符，例如 resume-site"
+            rules={[
+              {
+                validator: async (_, value: string | undefined) => {
+                  const slug = value?.trim();
+                  if (!slug) {
+                    return;
+                  }
+                  if (!SLUG_PATTERN.test(slug)) {
+                    throw new Error("slug 仅允许 3–40 位小写字母、数字和连字符");
+                  }
+                },
+              },
+            ]}
+          >
+            <SlugInput />
+          </Form.Item>
+        </Form>
+      </Modal>
     </section>
   );
 };

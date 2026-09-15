@@ -187,9 +187,21 @@ export function isNonTextWorkspaceFile(path: string): boolean {
   return Boolean(ext && NON_TEXT_WORKSPACE_EXTENSIONS.has(ext));
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 export function getRequestErrorMessage(error: unknown, fallback: string): string {
-  if (error && typeof error === "object" && "msg" in error && typeof error.msg === "string") {
+  if (isRecord(error) && typeof error.msg === "string") {
     return error.msg;
+  }
+  if (
+    isRecord(error) &&
+    isRecord(error.response) &&
+    isRecord(error.response.data) &&
+    typeof error.response.data.msg === "string"
+  ) {
+    return error.response.data.msg;
   }
   if (error instanceof Error) {
     return error.message;

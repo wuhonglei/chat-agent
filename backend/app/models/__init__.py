@@ -7,6 +7,7 @@ from app.models.conversation_db import ConversationDb
 from app.models.eval_run_log_db import EvalRunLog
 from app.models.kb_file_chunk_embedding_db import KbFileChunkEmbeddingDb
 from app.models.message_db import MessageDb
+from app.models.published_site import PublishedSite
 from app.models.user import UserDb
 
 __all__ = [
@@ -17,4 +18,5 @@ __all__ = [
     "KbFileChunkEmbeddingDb",
     "BadCaseItemDb",
     "EvalRunLog",
+    "PublishedSite",
 ]
