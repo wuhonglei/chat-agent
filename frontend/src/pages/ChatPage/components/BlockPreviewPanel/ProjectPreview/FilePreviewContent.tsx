@@ -8,7 +8,8 @@ import WorkspaceExcelPreview from "./WorkspaceExcelPreview";
 import WorkspaceImagePreview from "./WorkspaceImagePreview";
 import type { ExcelSheet } from "./hooks";
 import { getDefaultHtmlViewMode, type HtmlViewMode } from "./htmlPreview";
-import { getMonacoLanguage, isHtmlPath, isMarkdownPath } from "./utils";
+import { isHtmlPath } from "./sitePaths";
+import { getMonacoLanguage, isMarkdownPath } from "./utils";
 
 const HTML_IFRAME_SANDBOX =
   "allow-scripts allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-downloads allow-presentation";
