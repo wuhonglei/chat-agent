@@ -160,7 +160,8 @@ class LoggerWrapper:
         context = get_log_context()
         extra = {**context, **kwargs}
         if error:
-            _loguru_logger.opt(depth=1).bind(**extra).error(message, exc_info=error)
+            extra["error"] = error
+            _loguru_logger.opt(depth=1, exception=error).bind(**extra).error(message)
         else:
             _loguru_logger.opt(depth=1).bind(**extra).error(message)
 

@@ -6,7 +6,6 @@ from typing import Any
 
 from app.mcp.mcp_servers.file_mcp.base import ToolBase, ToolContext, ToolResult
 from app.schemas.sites import DEFAULT_SITE_SOURCE
-from app.services.site_publish_service import SitePublishError, SitePublishService
 from app.utils.logger import logger
 
 PUBLISH_SITE_DESCRIPTION = """Publish the built static site under /mnt/user-data/outputs/ so the user can open it on a public URL.
@@ -37,15 +36,27 @@ class PublishSiteTool(ToolBase):
         source = arguments.get("source") or DEFAULT_SITE_SOURCE
         visibility = arguments.get("visibility") or "unlisted"
         if not isinstance(source, str) or not source.strip():
-            return ToolResult(content="Error: source must be a non-empty string", is_error=True)
+            return ToolResult(
+                content="Error: source must be a non-empty string", is_error=True
+            )
         if not isinstance(visibility, str):
-            return ToolResult(content="Error: visibility must be a string", is_error=True)
+            return ToolResult(
+                content="Error: visibility must be a string", is_error=True
+            )
 
         if not ctx.user_id or not ctx.conversation_id:
             return ToolResult(
                 content="Error: missing user or conversation context",
                 is_error=True,
             )
+
+        # Circular import: MCP registry may load this module while
+        # app.models.conversation_db is still initializing
+        # (conversation_db → schemas.conversation → schemas.chat → app.mcp).
+        from app.services.site_publish_service import (  # noqa: I001
+            SitePublishError,
+            SitePublishService,
+        )
 
         try:
             with SitePublishService() as service:

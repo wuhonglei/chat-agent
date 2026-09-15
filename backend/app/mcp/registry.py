@@ -55,7 +55,7 @@ class MCPRegistry:
             try:
                 self._register(name, entry)
             except Exception as exc:
-                logger.error(
+                logger.exception(
                     "Failed to register MCP Server",
                     server_name=name,
                     transport=entry.transport,
