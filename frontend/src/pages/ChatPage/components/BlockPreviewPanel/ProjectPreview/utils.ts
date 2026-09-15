@@ -20,15 +20,18 @@ export function isDirectoryNode(node: WorkspaceTreeNode): boolean {
 
 /** 过滤掉空目录（nodeType 为 dir 且没有可见子项），用于根目录展示 */
 export function filterEmptyDirectories(nodes: WorkspaceTreeNode[]): WorkspaceTreeNode[] {
-  return nodes.filter(node => !(node.nodeType === "dir" && !node.hasChildren));
+  return nodes.filter((node) => !(node.nodeType === "dir" && !node.hasChildren));
 }
 
 export function isPlaceholderPath(path: string): boolean {
   return path.split("/").includes(DIRECTORY_PLACEHOLDER_SEGMENT);
 }
 
-export function normalizeTreeNodes(nodes: WorkspaceTreeNode[], parentFullPath = ""): WorkspaceTreeNode[] {
-  return nodes.map(node => {
+export function normalizeTreeNodes(
+  nodes: WorkspaceTreeNode[],
+  parentFullPath = "",
+): WorkspaceTreeNode[] {
+  return nodes.map((node) => {
     const fullPath = node.path;
     const displayPath = toDisplayPath(fullPath, parentFullPath);
     if (node.nodeType === "dir") {
@@ -68,9 +71,9 @@ export function normalizeTreeNodes(nodes: WorkspaceTreeNode[], parentFullPath = 
 export function replaceDirectoryChildren(
   nodes: WorkspaceTreeNode[],
   targetPath: string,
-  nextChildren: WorkspaceTreeNode[]
+  nextChildren: WorkspaceTreeNode[],
 ): WorkspaceTreeNode[] {
-  return nodes.map(node => {
+  return nodes.map((node) => {
     if ((node.fullPath || node.path) === targetPath) {
       return { ...node, children: nextChildren };
     }
@@ -84,7 +87,10 @@ export function replaceDirectoryChildren(
   });
 }
 
-export function findNodeByPath(nodes: WorkspaceTreeNode[], targetPath: string): WorkspaceTreeNode | undefined {
+export function findNodeByPath(
+  nodes: WorkspaceTreeNode[],
+  targetPath: string,
+): WorkspaceTreeNode | undefined {
   for (const node of nodes) {
     if ((node.fullPath || node.path) === targetPath) {
       return node;
@@ -124,6 +130,37 @@ const HTML_EXTENSIONS = new Set(["html", "htm", "xhtml"]);
 export function isHtmlPath(path: string): boolean {
   const ext = path.split(".").pop()?.toLowerCase();
   return Boolean(ext && HTML_EXTENSIONS.has(ext));
+}
+
+/** 发布站点的静态产物目录（会话相对路径）。 */
+export const SITE_OUTPUTS_DIR = "outputs";
+export const SITE_DIST_DIR = `${SITE_OUTPUTS_DIR}/app-dist`;
+
+const USER_DATA_VIRTUAL_PREFIX = "/mnt/user-data/";
+
+/** 将会话相对路径或 present_files 虚拟路径规范为会话相对路径。 */
+export function toWorkspaceRelativePath(path: string): string {
+  if (path.startsWith(USER_DATA_VIRTUAL_PREFIX)) {
+    return path.slice(USER_DATA_VIRTUAL_PREFIX.length);
+  }
+  return path.replace(/^\/+/, "");
+}
+
+/** 路径是否落在可发布的 app-dist 产物下（含入口 index.html）。 */
+export function isSiteDistPath(path: string | undefined): boolean {
+  if (!path) {
+    return false;
+  }
+  const relative = toWorkspaceRelativePath(path);
+  return relative === SITE_DIST_DIR || relative.startsWith(`${SITE_DIST_DIR}/`);
+}
+
+/** outputs 目录的 depth=1 列表里是否已有 app-dist。 */
+export function outputsTreeHasAppDist(nodes: WorkspaceTreeNode[]): boolean {
+  return nodes.some((node) => {
+    const path = node.fullPath || node.path;
+    return path === SITE_DIST_DIR && node.nodeType === "dir";
+  });
 }
 
 const EXCEL_EXTENSIONS = new Set(["xlsx", "xls"]);
@@ -187,9 +224,21 @@ export function isNonTextWorkspaceFile(path: string): boolean {
   return Boolean(ext && NON_TEXT_WORKSPACE_EXTENSIONS.has(ext));
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 export function getRequestErrorMessage(error: unknown, fallback: string): string {
-  if (error && typeof error === "object" && "msg" in error && typeof error.msg === "string") {
+  if (isRecord(error) && typeof error.msg === "string") {
     return error.msg;
+  }
+  if (
+    isRecord(error) &&
+    isRecord(error.response) &&
+    isRecord(error.response.data) &&
+    typeof error.response.data.msg === "string"
+  ) {
+    return error.response.data.msg;
   }
   if (error instanceof Error) {
     return error.message;

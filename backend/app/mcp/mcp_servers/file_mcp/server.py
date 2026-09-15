@@ -14,6 +14,10 @@ from pydantic import Field
 from app.mcp.mcp_servers.file_mcp.base import ToolContext, to_fastmcp_tool_result
 from app.mcp.mcp_servers.file_mcp.edit_file import EditFileTool
 from app.mcp.mcp_servers.file_mcp.present_files import PresentFilesTool
+from app.mcp.mcp_servers.file_mcp.publish_site import (
+    PUBLISH_SITE_DESCRIPTION,
+    PublishSiteTool,
+)
 from app.mcp.mcp_servers.file_mcp.read_file import READ_FILE_DESCRIPTION, ReadFileTool
 from app.mcp.mcp_servers.file_mcp.search_files import SearchFilesTool
 from app.mcp.mcp_servers.file_mcp.write_file import WriteFileTool
@@ -26,6 +30,7 @@ _write_file = WriteFileTool()
 _edit_file = EditFileTool()
 _search_files = SearchFilesTool()
 _present_files = PresentFilesTool()
+_publish_site = PublishSiteTool()
 
 
 @mcp.tool(name="read_file", description=READ_FILE_DESCRIPTION)
@@ -179,7 +184,7 @@ async def present_files(
         min_length=1,
     ),
 ) -> ToolResult:
-    """Make files visible to the user for viewing and rendering in the client interface.
+    """Register final deliverables under /mnt/user-data/outputs/ so the client renders a workspace preview entry point for them.
 
     When to use:
     - After creating deliverables that should be shown to the user
@@ -192,7 +197,35 @@ async def present_files(
     Notes:
     - Call this after copying final deliverables to /mnt/user-data/outputs/
     - Only virtual paths under /mnt/user-data/outputs/ are accepted
+    - Only files are accepted; directories (e.g. a built site) must be presented
+      file by file, or its entry file only
     """
     ctx = ToolContext()
     result = await _present_files.execute({"filepaths": filepaths}, ctx)
+    return to_fastmcp_tool_result(result)
+
+
+@mcp.tool(name="publish_site", description=PUBLISH_SITE_DESCRIPTION)
+async def publish_site(
+    source: str = Field(
+        default="/mnt/user-data/outputs/app-dist",
+        description=(
+            "Virtual directory under /mnt/user-data/outputs/ containing the built "
+            "static site (must include index.html). Do not pass a slug."
+        ),
+    ),
+    visibility: Literal["unlisted", "public"] = Field(
+        default="unlisted",
+        description="unlisted: reachable by URL; public: same serving, reserved for later indexing policy",
+    ),
+) -> ToolResult:
+    """Publish the built static site so the user can open a public URL.
+
+    Do not guess or pass a slug. Return the tool's url to the user verbatim.
+    """
+    ctx = ToolContext()
+    result = await _publish_site.execute(
+        {"source": source, "visibility": visibility},
+        ctx,
+    )
     return to_fastmcp_tool_result(result)

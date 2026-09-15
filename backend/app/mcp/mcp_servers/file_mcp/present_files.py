@@ -42,7 +42,11 @@ class PresentFilesTool(ToolBase):
     """Presents output files to the user as deliverable artifacts."""
 
     name = "present_files"
-    description = "Make files visible to the user for viewing and download in the client interface."
+    description = (
+        "Register final deliverables under /mnt/user-data/outputs/ so the client "
+        "renders a workspace preview entry point for them. Only files (not "
+        "directories) that already exist under outputs/ are accepted."
+    )
 
     async def execute(self, arguments: dict[str, Any], ctx: ToolContext) -> ToolResult:
         """Execute present_files tool."""
@@ -71,7 +75,4 @@ class PresentFilesTool(ToolBase):
 
         logger.info("Files presented", presented_paths=normalized)
         paths_str = ", ".join(normalized)
-        return ToolResult(
-            content=f"Successfully presented files: {paths_str}",
-            structured_content={"presented_paths": normalized},
-        )
+        return ToolResult(content=f"Successfully presented files: {paths_str}")

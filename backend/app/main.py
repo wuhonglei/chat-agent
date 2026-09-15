@@ -31,6 +31,7 @@ from app.api import (  # noqa: E402
     health,
     message,
     models,
+    sites,
     user,
     user_data,
 )
@@ -46,6 +47,7 @@ from app.middleware.exception_handler import (  # noqa: E402
     http_exception_handler,
     validation_exception_handler,
 )
+from app.services.site_expire_loop import run_site_expire_loop  # noqa: E402
 from app.utils.logger import logger, setup_logger  # noqa: E402
 
 # 忽略 nacos 库中的 SSL DeprecationWarning
@@ -86,9 +88,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # 初始化 Redis 连接池
     app.state.redis = await init_redis()
 
+    expire_stop = asyncio.Event()
+    expire_task = asyncio.create_task(run_site_expire_loop(expire_stop))
+
     logger.info("Application startup complete")
 
     yield
+    expire_stop.set()
+    expire_task.cancel()
+    try:
+        await expire_task
+    except asyncio.CancelledError:
+        pass
     # 刷新 Langfuse 队列，避免进程退出丢事件
     shutdown_langfuse()
     await close_redis()
@@ -151,6 +162,7 @@ app.include_router(
     prefix="/api/user_data",
     tags=["user_data"],
 )
+app.include_router(sites.router, prefix="/api/sites", tags=["sites"])
 app.include_router(eval.router, prefix="/api/eval", tags=["eval"])
 
 

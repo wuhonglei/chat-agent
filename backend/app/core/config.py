@@ -30,6 +30,7 @@ from app.schemas.config import (
     RedisConfig,
     SandboxConfig,
     SecurityConfig,
+    SitesConfig,
     SmsConfig,
     StorageConfig,
     WechatConfig,
@@ -77,6 +78,10 @@ class Settings(BaseSettings):
     sandbox: SandboxConfig = Field(
         default_factory=SandboxConfig,
         description="Shell 沙箱执行配置",
+    )
+    sites: SitesConfig = Field(
+        default_factory=SitesConfig,
+        description="用户静态站发布配置",
     )
     wechat: WechatConfig = Field(description="微信配置")
     langfuse: LangfuseConfig = Field(

@@ -33,7 +33,7 @@ class VirtualPathMapper:
         workspace_root = paths.sandbox_work_dir(
             ctx.user_id, ctx.conversation_id
         ).resolve()
-        if str(physical_resolved).startswith(str(workspace_root)):
+        if physical_resolved.is_relative_to(workspace_root):
             relative = physical_resolved.relative_to(workspace_root)
             if str(relative) == ".":
                 return vfs_config.workspace_prefix.rstrip("/")
@@ -42,7 +42,7 @@ class VirtualPathMapper:
         uploads_root = paths.sandbox_uploads_dir(
             ctx.user_id, ctx.conversation_id
         ).resolve()
-        if str(physical_resolved).startswith(str(uploads_root)):
+        if physical_resolved.is_relative_to(uploads_root):
             relative = physical_resolved.relative_to(uploads_root)
             if str(relative) == ".":
                 return vfs_config.uploads_prefix.rstrip("/")
@@ -51,28 +51,28 @@ class VirtualPathMapper:
         outputs_root = paths.sandbox_outputs_dir(
             ctx.user_id, ctx.conversation_id
         ).resolve()
-        if str(physical_resolved).startswith(str(outputs_root)):
+        if physical_resolved.is_relative_to(outputs_root):
             relative = physical_resolved.relative_to(outputs_root)
             if str(relative) == ".":
                 return vfs_config.outputs_prefix.rstrip("/")
             return f"{vfs_config.outputs_prefix}{relative.as_posix()}"
 
         user_skills_root = paths.user_skills_dir(ctx.user_id).resolve()
-        if str(physical_resolved).startswith(str(user_skills_root)):
+        if physical_resolved.is_relative_to(user_skills_root):
             relative = physical_resolved.relative_to(user_skills_root)
             if str(relative) == ".":
                 return vfs_config.skills_custom_prefix.rstrip("/")
             return f"{vfs_config.skills_custom_prefix}{relative.as_posix()}"
 
         skills_public_root = SKILLS_PUBLIC_DIR.resolve()
-        if str(physical_resolved).startswith(str(skills_public_root)):
+        if physical_resolved.is_relative_to(skills_public_root):
             relative = physical_resolved.relative_to(skills_public_root)
             if str(relative) == ".":
                 return vfs_config.skills_public_prefix.rstrip("/")
             return f"{vfs_config.skills_public_prefix}{relative.as_posix()}"
 
         skills_root = SKILLS_ROOT.resolve()
-        if str(physical_resolved).startswith(str(skills_root)):
+        if physical_resolved.is_relative_to(skills_root):
             relative = physical_resolved.relative_to(skills_root)
             if str(relative) == ".":
                 return vfs_config.skills_prefix.rstrip("/")

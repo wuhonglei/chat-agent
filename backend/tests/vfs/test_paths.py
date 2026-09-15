@@ -44,6 +44,25 @@ def test_resolve_user_data_virtual_path_rejects_traversal(paths: Paths) -> None:
         )
 
 
+def test_resolve_user_data_virtual_path_rejects_sibling_with_shared_prefix(
+    paths: Paths,
+) -> None:
+    """软链指向同级目录（workspace_backup）时不能靠字符串前缀放行。"""
+    paths.ensure_conversation_dirs("user-1", "conv-1")
+    work_dir = paths.sandbox_work_dir("user-1", "conv-1")
+    sibling = paths.conversation_dir("user-1", "conv-1") / "workspace_backup"
+    sibling.mkdir()
+    (sibling / "secret.txt").write_text("secret", encoding="utf-8")
+    (work_dir / "leak").symlink_to(sibling)
+
+    with pytest.raises(ValueError, match="path traversal"):
+        paths.resolve_user_data_virtual_path(
+            f"{vfs_config.workspace_prefix}leak/secret.txt",
+            "user-1",
+            "conv-1",
+        )
+
+
 def test_validate_conversation_id_rejects_unsafe(paths: Paths) -> None:
     with pytest.raises(ValueError, match="invalid conversation_id"):
         paths.validate_conversation_id("../bad")
@@ -61,3 +80,11 @@ def test_ensure_user_skills_dir(paths: Paths) -> None:
     root = paths.ensure_user_skills_dir("user-1")
     assert root.is_dir()
     assert root == paths.user_skills_dir("user-1").resolve()
+
+
+def test_site_dir_helpers(paths: Paths, tmp_path: Path) -> None:
+    site_paths = Paths(base_dir=tmp_path / "user_data", sites_root=tmp_path / "sites")
+    assert site_paths.site_version_dir("resume-site", 2) == tmp_path / "sites" / "resume-site" / "2"
+    assert site_paths.site_current_link("resume-site") == tmp_path / "sites" / "resume-site" / "current"
+    with pytest.raises(ValueError, match="invalid slug"):
+        site_paths.validate_slug("x")

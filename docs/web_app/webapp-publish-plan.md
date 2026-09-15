@@ -272,7 +272,7 @@ unpublished_at  timestamptz  NULL
 - `try_files $uri $uri/ /index.html;`（SPA 刷新不 404）
 - `sendfile on; gzip on; autoindex off;`
 - `/assets/`（Vite hash）→ `Cache-Control: public, max-age=31536000, immutable`；`index.html` → `no-cache`
-- 拒绝 `.` 开头路径；`.svg` 单独加 `Content-Security-Policy: default-src 'none'`
+- 拒绝 `.` 开头路径（**返回 404 而不是 403**：403 等于确认文件存在，对外网关统一用 404 不暴露存在性）；`.svg` 单独加 `Content-Security-Policy: default-src 'none'`
 
 体积挂载 **只挂 `backend/data/sites`**，不要挂整个 `backend/data`（里面有 `user_data`）。
 
@@ -284,12 +284,16 @@ sites:
     context: ./deploy/sites
     dockerfile: Dockerfile
   container_name: chat-agent-sites
+  # NPM 在另一台机器（10.0.0.6），必须把端口发布到宿主机；容器内仍是 80。
+  # 宿主机安全组需放行「TCP 8080 / 来源 10.0.0.6」——未放行时是静默丢包，
+  # NPM 侧表现为请求挂死而不是 502（实测踩过）。
+  ports:
+    - "8080:80"
   volumes:
     - ./backend/data/sites:/app/data/sites:ro
   networks:
     - chat-agent-network
   restart: unless-stopped
-  # 不对外暴露端口，仅由 NPM 经内网访问
   healthcheck:
     test: ["CMD-SHELL", "pidof nginx || exit 1"]
     interval: 15s
@@ -323,7 +327,7 @@ sites:
 | 项     | 要求                                                                      |
 | ----- | ----------------------------------------------------------------------- |
 | 跨用户越权 | nginx 只挂 `data/sites`；slug 由 `^[a-z0-9-]{3,40}$` 捕获，对不上直接 404。发布接口的 `site_root` 仍由服务端生成，不接受调用方路径 |
-| 目录遍历  | `root` 钉在 `/app/data/sites/$slug/current`；拒绝 `.` 开头文件；`autoindex off`   |
+| 目录遍历  | `root` 钉在 `/app/data/sites/$slug/current`；拒绝 `.` 开头文件（404，非 403）；`autoindex off`   |
 | 隔离    | 用户 HTML 与聊天域同 site，故**永不用 Cookie 鉴权**；如需 Cookie，改用独立 registrable domain。站点流量不进 backend、不进 frontend nginx |
 | 内容类型  | `Content-Type` 只按扩展名推断，不信用户；`.svg` 单独加 `CSP: default-src 'none'`        |
 | 私密站   | 第 1 / 2 期不做。以后 `private_signed` 用 HMAC 签名 URL（`?k=HMAC(slug,exp)`）+ nginx `auth_request` 打 backend，仍不必单独 gateway |

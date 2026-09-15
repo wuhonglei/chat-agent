@@ -33,9 +33,10 @@ async def test_present_files_success(ctx: ToolContext, outputs_report_path: str)
     result = await tool.execute({"filepaths": [outputs_report_path]}, ctx)
 
     assert not result.is_error
-    assert result.structured_content is not None
-    assert result.structured_content["presented_paths"] == [outputs_report_path]
     assert "Successfully presented files" in result.content
+    assert outputs_report_path in result.content
+    # 交付物路径只通过 content 回传：前端从工具结果与参数两侧都不依赖结构化载荷
+    assert result.structured_content is None
 
 
 @pytest.mark.asyncio

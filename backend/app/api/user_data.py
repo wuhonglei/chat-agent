@@ -38,6 +38,7 @@ _HEAVY_DIR_NAMES = {
 }
 
 _PREVIEW_ENTRY_CANDIDATES = (
+    "outputs/app-dist/index.html",
     "workspace/dist/index.html",
     "workspace/build/index.html",
     "dist/index.html",
@@ -114,9 +115,10 @@ def _build_tree_data(
 
 
 def _resolve_preview_entry(conversation_root: Path) -> tuple[str, Path] | None:
+    conversation_root = conversation_root.resolve()
     for relative_path in _PREVIEW_ENTRY_CANDIDATES:
         candidate = (conversation_root / relative_path).resolve()
-        if not str(candidate).startswith(str(conversation_root)):
+        if not candidate.is_relative_to(conversation_root):
             continue
         if candidate.is_file():
             return relative_path, candidate

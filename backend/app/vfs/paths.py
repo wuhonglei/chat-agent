@@ -7,25 +7,57 @@ from pathlib import Path
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 USER_DATA_ROOT = BACKEND_ROOT / "data" / "user_data"
+SITES_ROOT = BACKEND_ROOT / "data" / "sites"
 SKILLS_ROOT = BACKEND_ROOT / "skills"
 SKILLS_PUBLIC_DIR = SKILLS_ROOT / "public"
 SKILLS_CUSTOM_SEGMENT = "custom"
 VIRTUAL_PATH_PREFIX = "/mnt/user-data"
 
 _SAFE_ID_RE = re.compile(r"^[A-Za-z0-9_\-]+$")
+_SLUG_RE = re.compile(r"^[a-z0-9-]{3,40}$")
 
 
 class Paths:
     """Host paths under ``data/user_data`` and conversation-scoped sandbox dirs."""
 
-    def __init__(self, base_dir: Path | None = None) -> None:
+    def __init__(
+        self,
+        base_dir: Path | None = None,
+        sites_root: Path | None = None,
+    ) -> None:
         self._base_dir = Path(base_dir).resolve() if base_dir is not None else None
+        self._sites_root = (
+            Path(sites_root).resolve() if sites_root is not None else None
+        )
 
     @property
     def base_dir(self) -> Path:
         if self._base_dir is not None:
             return self._base_dir
         return USER_DATA_ROOT
+
+    @property
+    def sites_root(self) -> Path:
+        if self._sites_root is not None:
+            return self._sites_root
+        return SITES_ROOT
+
+    def validate_slug(self, slug: str) -> str:
+        normalized = (slug or "").strip()
+        if not normalized or not _SLUG_RE.fullmatch(normalized):
+            raise ValueError("invalid slug")
+        return normalized
+
+    def site_dir(self, slug: str) -> Path:
+        return self.sites_root / self.validate_slug(slug)
+
+    def site_version_dir(self, slug: str, version: int) -> Path:
+        if version < 1:
+            raise ValueError("invalid version")
+        return self.site_dir(slug) / str(version)
+
+    def site_current_link(self, slug: str) -> Path:
+        return self.site_dir(slug) / "current"
 
     def validate_user_id(self, user_id: str) -> str:
         return self._validate_id(user_id, label="user_id")
@@ -125,7 +157,7 @@ class Paths:
                 if not relative:
                     return base, kind
                 physical = (base / relative).resolve()
-                if not str(physical).startswith(str(base)):
+                if not physical.is_relative_to(base):
                     raise ValueError("path traversal detected")
                 return physical, kind
         raise ValueError(
