@@ -103,6 +103,8 @@ fi
 DEPLOY_FRONTEND=${DEPLOY_FRONTEND:-1}
 DEPLOY_BACKEND=${DEPLOY_BACKEND:-1}
 DEPLOY_EVALUATOR=${DEPLOY_EVALUATOR:-1}
+# 静态站网关：默认跟随整包部署（漏了会出现「后端更新了但站点容器还是旧镜像」）
+DEPLOY_SITES=${DEPLOY_SITES:-1}
 
 # 零停机部署函数
 # 策略：先构建镜像（旧容器继续运行），然后快速切换容器
@@ -227,6 +229,12 @@ zero_downtime_deploy() {
             elif [ "$service" = "postgres" ]; then
                 # 数据库健康检查
                 if docker exec "$new_container_id" pg_isready -U ${PG_USER_NAME:-postgres} > /dev/null 2>&1; then
+                    is_healthy=true
+                    break
+                fi
+            elif [ "$service" = "sites" ]; then
+                # 静态站网关：无 Host 的 HTTP 探活必然 404，只能检查 nginx 进程
+                if docker exec "$new_container_id" pidof nginx > /dev/null 2>&1; then
                     is_healthy=true
                     break
                 fi
@@ -380,7 +388,7 @@ if [ "$IS_FIRST_DEPLOY" = true ]; then
     echo "🧹 清理已停止的旧容器..."
 
     # 清理所有项目相关的已停止容器
-    for service in postgres backend frontend evaluator; do
+    for service in postgres backend frontend evaluator sites; do
         stopped_container=$(docker ps -aq -f name="chat-agent-$service" 2>/dev/null)
         if [ -n "$stopped_container" ]; then
             echo "   清理已停止的 $service 容器..."
@@ -418,11 +426,14 @@ if [ "$IS_FIRST_DEPLOY" = true ]; then
         fi
         first_compose_services+=(evaluator)
     fi
+    if [ "$DEPLOY_SITES" = "1" ]; then
+        first_compose_services+=(sites)
+    fi
 
     if [ ${#first_compose_services[@]} -eq 0 ]; then
-        echo "⚠️  DEPLOY_BACKEND、DEPLOY_FRONTEND 与 DEPLOY_EVALUATOR 均为 0，跳过 postgres / backend / frontend / evaluator 启动"
+        echo "⚠️  DEPLOY_BACKEND、DEPLOY_FRONTEND、DEPLOY_EVALUATOR 与 DEPLOY_SITES 均为 0，跳过所有服务启动"
     else
-        echo "🔨 首次部署：构建并启动服务（范围: backend=$DEPLOY_BACKEND, frontend=$DEPLOY_FRONTEND, evaluator=$DEPLOY_EVALUATOR）..."
+        echo "🔨 首次部署：构建并启动服务（范围: backend=$DEPLOY_BACKEND, frontend=$DEPLOY_FRONTEND, evaluator=$DEPLOY_EVALUATOR, sites=$DEPLOY_SITES）..."
         echo "   服务列表: ${first_compose_services[*]}"
         # --wait + --wait-timeout：depends_on service_healthy 时默认约 60s 会放弃；后端冷启动常超过该时间
         if $DOCKER_COMPOSE_CMD up --help 2>&1 | grep -qF 'wait-timeout'; then
@@ -433,7 +444,7 @@ if [ "$IS_FIRST_DEPLOY" = true ]; then
     fi
 else
     # 更新部署：按 DEPLOY_BACKEND / DEPLOY_FRONTEND 差异更新（postgres 仅首次部署时启动，此处不更新）
-    echo "🔄 开始零停机部署更新（范围: backend=$DEPLOY_BACKEND, frontend=$DEPLOY_FRONTEND, evaluator=$DEPLOY_EVALUATOR）..."
+    echo "🔄 开始零停机部署更新（范围: backend=$DEPLOY_BACKEND, frontend=$DEPLOY_FRONTEND, evaluator=$DEPLOY_EVALUATOR, sites=$DEPLOY_SITES）..."
 
     BACKEND_DEPLOY_SUCCESS=true
     FRONTEND_DEPLOY_SUCCESS=true
@@ -466,13 +477,23 @@ else
         echo "⏭️  跳过 evaluator 更新（无相关变更）"
     fi
 
+    SITES_DEPLOY_SUCCESS=true
+    if [ "$DEPLOY_SITES" = "1" ]; then
+        if ! zero_downtime_deploy "sites" 60; then
+            echo "❌ sites 服务更新失败"
+            SITES_DEPLOY_SUCCESS=false
+        fi
+    else
+        echo "⏭️  跳过 sites 更新（无相关变更）"
+    fi
+
     # 如果本次需要更新的服务全部失败，则退出
-    if [ "$BACKEND_DEPLOY_SUCCESS" = false ] && [ "$FRONTEND_DEPLOY_SUCCESS" = false ] && [ "$EVALUATOR_DEPLOY_SUCCESS" = false ]; then
+    if [ "$BACKEND_DEPLOY_SUCCESS" = false ] && [ "$FRONTEND_DEPLOY_SUCCESS" = false ] && [ "$EVALUATOR_DEPLOY_SUCCESS" = false ] && [ "$SITES_DEPLOY_SUCCESS" = false ]; then
         echo "❌ 所有待更新服务部署失败，部署中止"
         exit 1
     fi
 
-    if [ "$BACKEND_DEPLOY_SUCCESS" = false ] || [ "$FRONTEND_DEPLOY_SUCCESS" = false ] || [ "$EVALUATOR_DEPLOY_SUCCESS" = false ]; then
+    if [ "$BACKEND_DEPLOY_SUCCESS" = false ] || [ "$FRONTEND_DEPLOY_SUCCESS" = false ] || [ "$EVALUATOR_DEPLOY_SUCCESS" = false ] || [ "$SITES_DEPLOY_SUCCESS" = false ]; then
         echo ""
         echo "⚠️  部分服务部署失败，但继续检查整体状态..."
     fi
@@ -545,6 +566,17 @@ if [ "$DEPLOY_EVALUATOR" = "1" ]; then
     fi
 fi
 
+if [ "$DEPLOY_SITES" = "1" ]; then
+    # 无 Host 的 HTTP 探活必然 404，只检查容器在跑且 nginx 进程存在
+    sites_container=$(docker ps -q -f name="^/chat-agent-sites$" 2>/dev/null)
+    if [ -n "$sites_container" ] && docker exec "$sites_container" pidof nginx > /dev/null 2>&1; then
+        echo "✅ sites 静态站网关运行正常"
+    else
+        echo "❌ sites 静态站网关健康检查失败"
+        ALL_HEALTHY=false
+    fi
+fi
+
 echo ""
 if [ "$ALL_HEALTHY" = true ]; then
     echo "✅ 部署完成！所有服务运行正常"
@@ -578,7 +610,7 @@ if [ "$CLEANUP_IMAGES" = "true" ] || ([ "$CLEANUP_IMAGES" = "auto" ] && [ "$ALL_
 
     # 获取当前使用的镜像 ID（包括运行中的容器和备份容器）
     used_image_ids=""
-    for service in backend frontend evaluator; do
+    for service in backend frontend evaluator sites; do
         # 运行中的容器
         container_id=$(docker ps -q -f name="^/chat-agent-$service$" 2>/dev/null)
         if [ -n "$container_id" ]; then
