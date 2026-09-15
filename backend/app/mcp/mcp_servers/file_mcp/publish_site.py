@@ -56,6 +56,7 @@ class PublishSiteTool(ToolBase):
         from app.services.site_publish_service import (  # noqa: I001
             SitePublishError,
             SitePublishService,
+            to_site_data,
         )
 
         try:
@@ -67,6 +68,9 @@ class PublishSiteTool(ToolBase):
                     visibility=visibility,  # type: ignore[arg-type]
                     allow_requested_slug=False,
                 )
+                # Snapshot before DbService.__exit__ commits and expires the ORM row.
+                data = to_site_data(result.site, file_count=result.file_count)
+                url = result.url
         except SitePublishError as exc:
             logger.warning(
                 "publish_site failed",
@@ -80,18 +84,18 @@ class PublishSiteTool(ToolBase):
             return ToolResult(content=f"Error: {exc}", is_error=True)
 
         payload = {
-            "slug": result.site.slug,
-            "version": result.site.version,
-            "url": result.url,
-            "entry": result.site.entry,
-            "file_count": result.file_count,
-            "size_bytes": result.site.size_bytes,
+            "slug": data.slug,
+            "version": data.version,
+            "url": url,
+            "entry": data.entry,
+            "file_count": data.file_count,
+            "size_bytes": data.size_bytes,
         }
         logger.info("Site published via MCP", **payload)
         return ToolResult(
             content=(
                 "Published successfully. Tell the user this url verbatim and do not "
-                f"invent a different domain: {result.url}"
+                f"invent a different domain: {url}"
             ),
             structured_content=payload,
         )

@@ -10,11 +10,15 @@ from types import SimpleNamespace
 
 import pytest
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm.exc import DetachedInstanceError
 
 from app.mcp.constants import MUTATING_LLM_TOOLS, PUBLISH_SITE_LLM
+from app.mcp.mcp_servers.file_mcp.base import ToolContext
+from app.mcp.mcp_servers.file_mcp.publish_site import PublishSiteTool
 from app.mcp.mcp_servers.file_mcp.server import publish_site as publish_site_mcp
 from app.models.published_site import PublishedSite
 from app.services.site_publish_service import (
+    PublishResult,
     SitePublishError,
     SitePublishService,
     generate_candidate_slug,
@@ -23,6 +27,7 @@ from app.services.site_publish_service import (
     unlink_current,
     validate_requested_slug,
 )
+from app.utils.context import set_request_context
 from app.utils.date import get_datetime_now
 from app.vfs.config import vfs_config
 from app.vfs.paths import Paths
@@ -402,3 +407,72 @@ def test_copy_snapshot_skips_symlinks(patched_paths: Paths) -> None:
     snapshot = patched_paths.site_version_dir(result.site.slug, 1)
     assert not (snapshot / "link.txt").exists()
     assert (snapshot / "index.html").is_file()
+
+
+class _DetachingSite:
+    """Mimics expire_on_commit: attributes work until the session closes."""
+
+    def __init__(self) -> None:
+        self._detached = False
+        self.slug = "dev"
+        self.version = 2
+        self.entry = "index.html"
+        self.size_bytes = 42
+        self.visibility = "unlisted"
+        self.expires_at = None
+        self.conversation_id = "conv-1"
+        self.unpublished_at = None
+
+    def detach(self) -> None:
+        self._detached = True
+
+    def __getattribute__(self, name: str) -> object:
+        if name in {"_detached", "detach"}:
+            return object.__getattribute__(self, name)
+        if object.__getattribute__(self, "_detached"):
+            raise DetachedInstanceError(
+                "Instance is not bound to a Session; attribute refresh "
+                "operation cannot proceed"
+            )
+        return object.__getattribute__(self, name)
+
+
+@pytest.mark.asyncio
+async def test_publish_site_tool_snapshots_before_session_close(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    site = _DetachingSite()
+    result = PublishResult(
+        site=site,  # type: ignore[arg-type]
+        file_count=3,
+        url="https://dev.example.com",
+    )
+
+    class _Service:
+        def __enter__(self) -> _Service:
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            site.detach()
+
+        def publish(self, **kwargs: object) -> PublishResult:
+            return result
+
+    monkeypatch.setattr(
+        "app.services.site_publish_service.SitePublishService",
+        lambda: _Service(),
+    )
+    set_request_context(user_id="user-1", conversation_id="conv-1")
+
+    tool_result = await PublishSiteTool().execute({}, ToolContext())
+
+    assert tool_result.is_error is False
+    assert tool_result.structured_content == {
+        "slug": "dev",
+        "version": 2,
+        "url": "https://dev.example.com",
+        "entry": "index.html",
+        "file_count": 3,
+        "size_bytes": 42,
+    }
+    assert "https://dev.example.com" in tool_result.content
