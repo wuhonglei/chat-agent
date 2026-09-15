@@ -218,10 +218,9 @@ class SitePublishService(DbService):
         site = self._require_owned_site(user_id, slug)
         if visibility is not None:
             self._validate_visibility(visibility)
-        raw_visibility = visibility or site.visibility
-        next_visibility: SiteVisibility = (
-            raw_visibility if raw_visibility in ("unlisted", "public") else "unlisted"
-        )
+            next_visibility = visibility
+        else:
+            next_visibility = self._coerce_visibility(site.visibility)
         source_dir = self._resolve_source_dir(user_id, site.conversation_id, source)
         return self._snapshot_and_activate(
             site,
@@ -310,16 +309,10 @@ class SitePublishService(DbService):
                 shutil.rmtree(
                     self._paths.site_version_dir(site.slug, 1), ignore_errors=True
                 )
-                raw_visibility = site.visibility
-                next_visibility: SiteVisibility = (
-                    raw_visibility
-                    if raw_visibility in ("unlisted", "public")
-                    else "unlisted"
-                )
                 return self._snapshot_and_activate(
                     existing,
                     source_dir=source_dir,
-                    visibility=next_visibility,
+                    visibility=self._coerce_visibility(site.visibility),
                 )
             collision = self.session.get(PublishedSite, site.slug)
             if collision is not None:
@@ -495,3 +488,9 @@ class SitePublishService(DbService):
             raise SitePublishError(
                 "visibility 仅支持 unlisted 或 public", status_code=400
             )
+
+    @staticmethod
+    def _coerce_visibility(visibility: str) -> SiteVisibility:
+        if visibility == "public":
+            return "public"
+        return "unlisted"
