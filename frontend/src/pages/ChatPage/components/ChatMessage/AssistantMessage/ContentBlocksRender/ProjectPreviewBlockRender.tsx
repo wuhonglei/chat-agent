@@ -1,6 +1,10 @@
-import { toWorkspaceRelativePath } from "@/pages/ChatPage/components/BlockPreviewPanel/ProjectPreview/utils";
+import {
+  isHtmlPath,
+  toWorkspaceRelativePath,
+} from "@/pages/ChatPage/components/BlockPreviewPanel/ProjectPreview/utils";
 import { useBlockPreview } from "@/pages/ChatPage/context/useBlockPreview";
 import { Button } from "antd";
+import { findLast } from "lodash-es";
 import React from "react";
 import { useParams } from "react-router-dom";
 
@@ -22,13 +26,13 @@ const ProjectPreviewBlockRender: React.FC<Props> = ({ filepaths }) => {
   }
 
   const handleOpenPreview = () => {
-    const lastFilepath = filepaths.at(-1);
+    const preferredFilepath = findLast(filepaths, isHtmlPath) ?? filepaths.at(-1);
     blockPreview.openPreview({
       id: createProjectPreviewBlockId(),
       type: "project",
       workspaceId: conversationId,
       title: "工作目录预览",
-      selectedFilePath: lastFilepath ? toWorkspaceRelativePath(lastFilepath) : undefined,
+      selectedFilePath: preferredFilepath ? toWorkspaceRelativePath(preferredFilepath) : undefined,
     });
   };
 
