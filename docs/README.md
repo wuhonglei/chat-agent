@@ -35,6 +35,12 @@
 - `agent_evaluation_framework.md`：评估框架早期盘点（部分表格已过时）；现网运维以 `/backend/docs/EVAL_OPS.md` 为准
 - `agent_evaluator/agent_evaluation_plan.md`：四维评估体系规划稿
 
+## Web 建站文档（`/docs/web_app`）
+
+### 规划方案
+
+- `webapp-publish-plan.md`：Web 建站产物发布（自定义子域名访问）方案；含快照发布、`published_sites` 表、`publish_site` 工具、纯 nginx `sites` 容器与 DNS/TLS 前置，未落地（文首「现状」为代码级事实，带绝对路径与行号）
+
 ## 后端文档（`/backend/docs`）
 
 ### 现网实现

@@ -74,6 +74,28 @@ services:
       - chat-agent-network
     restart: unless-stopped
 
+  # 纯 nginx 静态站网关：Host -> slug -> backend/data/sites/{slug}/current
+  # 必须把 8080 发布到宿主机（NPM 在另一台机器上经内网 10.0.24.3:8080 反代），
+  # 容器内仍是 80；只挂 data/sites，绝不挂整个 backend/data
+  sites:
+    build:
+      context: ./deploy/sites
+      dockerfile: Dockerfile
+    container_name: chat-agent-sites
+    ports:
+      - "8080:80"
+    volumes:
+      - ./backend/data/sites:/app/data/sites:ro
+    networks:
+      - chat-agent-network
+    restart: unless-stopped
+    healthcheck:
+      # 无 Host 的探活会打到 default_server（404），不能用「必须 200」的 HTTP check
+      test: ["CMD-SHELL", "pidof nginx || exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+
   evaluator:
     build:
       context: ./backend
