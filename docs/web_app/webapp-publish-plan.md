@@ -51,15 +51,23 @@ backend/data/sites/{slug}/current -> 1/     # 原子切换（ln -sfn）
 
 **不要用** `cp -al` **硬链接做快照**：Agent 用 write_file 截断写同一 inode 时会把"已发布版本"一起改掉。用 `cp -r`（或 reflink，注意 ext4 不支持）。
 
-### 2.3 文件服务不放进 backend
+### 2.3 文件服务不放进 backend，也不再套一层 gateway
 
-FastAPI 的 `StaticFiles` 没有 `sendfile`/gzip/range 优势，且把用户站点流量引到主 API 容器上放大风险。采用 nginx 官方推荐的「应用决定、内核发送」模式：
+FastAPI 的 `StaticFiles` 没有 `sendfile`/gzip/range 优势，且把用户站点流量引到主 API 容器上放大风险。用户 HTML 也不要进现有 `frontend` nginx（那是 `chat.wuhonglei.cn` 的 server）。
+
+默认可见性是 `unlisted`（知道 URL 就能打开）。发布已切 `current` 软链，下线摘掉这条链。对这种站点，**「注册表里有没有」≈「`data/sites/{slug}/current` 在不在」**，每请求再查 DB/Redis 只是多一跳。`X-Accel-Redirect` 的价值是「应用先鉴权、内核再 sendfile」；应用若只确认目录存在，鉴权这步可以省掉。
+
+因此第 1 / 2 期只要一个 **纯 nginx 容器** `sites`：
 
 ```
-sites-gateway（小服务，只解析 + 鉴权）
-    → 返回 X-Accel-Redirect: /__sites/{slug}/{version}/...
-nginx 内部 location → alias 到 backend/data/sites（read-only）→ sendfile 吐字节
+NPM（TLS，Host 保留）
+    → sites nginx
+         server_name 正则抽出 slug
+         root /app/data/sites/$slug/current
+         try_files SPA 回退；sendfile + gzip 吐字节
 ```
+
+不要把 root 直接配进 NPM GUI：配置不进 git，还要把 `data/sites` 挂进 NPM 容器。`private_signed` HMAC 以后用 nginx `auth_request` 打 backend 一个小接口，仍不必单独起 Python gateway。
 
 
 
@@ -78,7 +86,7 @@ nginx 内部 location → alias 到 backend/data/sites（read-only）→ sendfil
 
 稳定身份是 `(user_id, conversation_id)`，不是 DNS label。因此：
 
-- **MCP `publish_site` 入参不含 `slug`**（schema 层硬约束；可选字段模型仍会编）。
+- **MCP** `publish_site` **入参不含** `slug`（schema 层硬约束；可选字段模型仍会编）。
 - **同一 conversation 复用已有 slug**，重复发布只升 `version`。
 - **新站由服务端生成并在事务内保证全局唯一**；冲突时内部加后缀，不把 409 抛给模型。
 - **自定义 slug 只走 REST**，给第 3 期前端「自定义链接」；用户在对话里口头指定域名作为后续增强，第 2 期不做。
@@ -96,25 +104,22 @@ nginx 内部 location → alias 到 backend/data/sites（read-only）→ sendfil
               NPM / openresty（通配 server_name + 通配证书）
                             │  proxy_pass（Host 保留）
                             ▼
-                    sites-gateway:8080
+                    sites:8080（纯 nginx，无 gateway）
         ┌─────────────────────────────────────────────┐
-        │ 1. Host → slug（去后缀）                    │
-        │ 2. Redis/DB 查注册表（TTL 60s）             │
-        │ 3. 可见性校验（public / unlisted / signed） │
-        │ 4. 定位文件；SPA 路由回退 entry             │
-        │ 5. 返回 X-Accel-Redirect（不吐字节）        │
-        └───────────────┬─────────────────────────────┘
-                        │ 内部 location /__sites/
-                        ▼
-              nginx（含于同一容器）
-              root: /app/data/sites（ro，sendfile+gzip）
+        │ 1. server_name 正则 → slug（非法 Host → 404） │
+        │ 2. root = /app/data/sites/$slug/current     │
+        │ 3. try_files SPA 回退；无 current → 404      │
+        │ 4. sendfile + gzip 吐字节                    │
+        └─────────────────────────────────────────────┘
                         ▲
-                        │ 只读挂载
-        backend/data/sites/{slug}/{version}/  ← 发布时快照
+                        │ 只读挂载（仅 sites，不挂 user_data）
+        backend/data/sites/{slug}/current -> {version}/
                         ▲
-                        │ 复制
+                        │ 复制 + ln -sfn
         backend/data/user_data/{uid}/conversations/{cid}/outputs/app-dist/
 ```
+
+对外是否可访问由 **`current` 软链** 表达，不经过 backend、不查 Redis。每个页面的静态请求因此不打 Postgres。
 
 发布触发链：
 
@@ -124,9 +129,11 @@ Agent: pnpm build → cp dist/. outputs/app-dist/
      → 校验 outputs 路径
      → 解析 slug：本 conversation 已有站点则复用，否则服务端生成并保证全局唯一
      → cp -r 快照到 data/sites/{slug}/{v}/
-     → 写 published_sites 行 → 切 current 软链 → 失效 Redis
+     → 写 published_sites 行 → ln -sfn 切 current
      → 返回 https://{slug}.apps.wuhonglei.cn
 ```
+
+下线：写 `unpublished_at` **并摘掉 `current`**，nginx 立刻 404（不必等缓存 TTL）。版本目录可留着便于回滚，由 TTL/配额任务稍后清。
 
 ---
 
@@ -157,20 +164,20 @@ updated_at      timestamptz  NOT NULL
 unpublished_at  timestamptz  NULL
 ```
 
-`site_root` **必须由服务端从 slug 查表得到，绝不接受调用方传入的路径** —— 这是防跨用户越权的唯一关口。
-下线是软删除（写 `unpublished_at`）；再发布仍复用该行的 slug，URL 保持稳定。
+`site_root` 由发布服务根据 slug 生成，**永不接受调用方传入的路径**（防止发布接口把快照写到 `user_data/`）。公网读取不走这列：nginx 只认 `data/sites/{slug}/current`，关口是 **Host 正则 + 独立 root**。
+下线写 `unpublished_at` 并摘掉 `current`；再发布仍复用该行的 slug，URL 保持稳定。
 
 ### 4.2 API（`/api/sites`）
 
 新增路由文件：`/Users/apple/Desktop/code/chat-agent/backend/app/api/sites.py`，在 `/Users/apple/Desktop/code/chat-agent/backend/app/main.py:149` 附近注册（`prefix="/api/sites"`）。
 
 
-| 方法     | 路径                            | 说明                                                                                          |
-| ------ | ----------------------------- | ------------------------------------------------------------------------------------------- |
+| 方法     | 路径                            | 说明                                                                                                                                                              |
+| ------ | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | POST   | `/api/sites`                  | 发布：`{conversation_id, source: "/mnt/user-data/outputs/app-dist", slug?, visibility?}`。`slug` 仅前端自定义链接时传入；省略则服务端生成。本 conversation 已有站点时忽略传入 slug，复用原值并 republish |
-| POST   | `/api/sites/{slug}/republish` | 重新发布（version+1，切 current）                                                                   |
-| GET    | `/api/sites/me`               | 当前用户站点列表（给前端展示，**不是** Agent 查重入口）                                                          |
-| DELETE | `/api/sites/{slug}`           | 下线（写 `unpublished_at` + 失效缓存）                                                               |
+| POST   | `/api/sites/{slug}/republish` | 重新发布（version+1，切 current）                                                                                                                                       |
+| GET    | `/api/sites/me`               | 当前用户站点列表（给前端展示，**不是** Agent 查重入口）                                                                                                                               |
+| DELETE | `/api/sites/{slug}`           | 下线（写 `unpublished_at` + 摘掉 `current` 软链，nginx 立刻 404）                                                                                                           |
 
 
 请求/响应示例（发布）：
@@ -230,14 +237,15 @@ unpublished_at  timestamptz  NULL
 1. `webapp-building` **skill 加 Step C**
   `/Users/apple/Desktop/code/chat-agent/backend/skills/public/webapp-building/SKILL.md`
    在 Step B（`present_files`）之后补行为约定，**不写 DNS/slug 手册**：
-   - 仅当用户明确要求公开访问 / 外部分享时调用 `publish_site`（`source` 固定为 `/mnt/user-data/outputs/app-dist`）。
-   - 不要传 `slug`，不要调用 `/api/sites/me`，不要自行拼接 `{slug}.apps.wuhonglei.cn`。
-   - 把工具返回的 `url` 原样告诉用户；不要为了换 slug 重试。
+  - 仅当用户明确要求公开访问 / 外部分享时调用 `publish_site`（`source` 固定为 `/mnt/user-data/outputs/app-dist`）。
+  - 不要传 `slug`，不要调用 `/api/sites/me`，不要自行拼接 `{slug}.apps.wuhonglei.cn`。
+  - 把工具返回的 `url` 原样告诉用户；不要为了换 slug 重试。
 2. **后端服务** `backend/app/services/site_publish_service.py`
   - 路径校验：复用 `present_files.py:20-38` 的「虚拟路径前缀 + `resolve_virtual_path`」套路，只接受 `/mnt/user-data/outputs/` 下已存在目录。
   - slug：按 4.4 生成或复用；MCP 路径永不读调用方传入的 slug。
-  - 快照：`cp -r` 到 `data/sites/{slug}/{version}/`，随后 `ln -sfn` 切 current。
+  - 快照：`cp -r` 到 `data/sites/{slug}/{version}/`，随后 `ln -sfn` 切 current（nginx 只读这条软链）。
   - 事务与幂等：先落目录再写库；同一 conversation 重复发布走 republish（version+1），保留旧版本便于回滚。
+  - 下线必须摘 `current`，不能只改 DB（否则 nginx 仍会对外服务）。
 3. **前端（第 3 期）**
   - `/Users/apple/Desktop/code/chat-agent/frontend/src/pages/ChatPage/components/BlockPreviewPanel/ProjectPreview/index.tsx` 加「发布 / 复制链接 / 下线」入口，调用风格对齐 `frontend/src/services/workspace.ts`。
   - 发布表单可让用户填写自定义 slug，走 `POST /api/sites` 的 `slug?`；非法或被占时展示 400/409，**不要**静默改名。
@@ -252,14 +260,21 @@ unpublished_at  timestamptz  NULL
 
 
 
-### 6.1 新容器 `sites`
+### 6.1 新容器 `sites`（纯 nginx，无 gateway.py）
 
-目录：`/Users/apple/Desktop/code/chat-agent/deploy/sites/`（`Dockerfile`、`gateway.py`、`nginx.conf`、`entrypoint.sh`）
+目录：`/Users/apple/Desktop/code/chat-agent/deploy/sites/`（`Dockerfile`、`nginx.conf`）
 
-- 约 100-150 行 FastAPI（或 Go），职责只有 5 步：解析 Host → 查注册表 → 可见性校验 → 定位文件/SPA 回退 → 返回 `X-Accel-Redirect`。
-- 内部 nginx：`location ^~ /__sites/ { internal; alias /app/data/sites/; }`，配 `sendfile on; gzip on;`。
-- 缓存头：`/assets/*`（带 hash）→ `Cache-Control: public, max-age=31536000, immutable`；`index.html` → `no-cache`。
-- 未命中 → 404 定制页；`autoindex off`；拒绝 `.` 开头文件的访问。
+官方 `nginx:alpine` 即可，不要再放 FastAPI/Go。职责：
+
+- `default_server` 对不上正则的 Host 一律 404，绝不 fallback 到某个站。
+- `server_name ~^(?<slug>[a-z0-9-]{3,40})\.apps\.wuhonglei\.cn$;`
+- `root /app/data/sites/$slug/current;`（软链不存在 → 404）
+- `try_files $uri $uri/ /index.html;`（SPA 刷新不 404）
+- `sendfile on; gzip on; autoindex off;`
+- `/assets/`（Vite hash）→ `Cache-Control: public, max-age=31536000, immutable`；`index.html` → `no-cache`
+- 拒绝 `.` 开头路径；`.svg` 单独加 `Content-Security-Policy: default-src 'none'`
+
+体积挂载 **只挂 `backend/data/sites`**，不要挂整个 `backend/data`（里面有 `user_data`）。
 
 `/Users/apple/Desktop/code/chat-agent/docker-compose.yml` 新增：
 
@@ -270,14 +285,21 @@ sites:
     dockerfile: Dockerfile
   container_name: chat-agent-sites
   volumes:
-    - ./backend/data:/app/data:ro
+    - ./backend/data/sites:/app/data/sites:ro
   networks:
     - chat-agent-network
   restart: unless-stopped
   # 不对外暴露端口，仅由 NPM 经内网访问
+  healthcheck:
+    test: ["CMD-SHELL", "pidof nginx || exit 1"]
+    interval: 15s
+    timeout: 3s
+    retries: 3
 ```
 
-同时把 `sites` 纳入 `/Users/apple/Desktop/code/chat-agent/deploy.sh` 的服务范围与健康检查（脚本按服务名分范围，漏了会部署不到）。
+无 Host 的探活会打到 `default_server`（404），不要用「必须 200」的 HTTP check。同时把 `sites` 纳入 `/Users/apple/Desktop/code/chat-agent/deploy.sh` 的服务范围与健康检查（脚本按服务名分范围，漏了会部署不到）。
+
+不要把这层配进 NPM Advanced 当静态 root，也不要复用 `frontend/nginx.conf`。
 
 ### 6.2 DNS + TLS + NPM
 
@@ -300,11 +322,12 @@ sites:
 
 | 项     | 要求                                                                      |
 | ----- | ----------------------------------------------------------------------- |
-| 跨用户越权 | `site_root` 只从库取；Host 解析失败直接 404，绝不拼用户输入成路径                             |
-| 目录遍历  | 内部 location 限定 `/app/data/sites`；拒绝 `.` 开头文件；`autoindex off`            |
-| 隔离    | 用户 HTML 与聊天域同 site，故**永不用 Cookie 鉴权**；如需 Cookie，改用独立 registrable domain |
+| 跨用户越权 | nginx 只挂 `data/sites`；slug 由 `^[a-z0-9-]{3,40}$` 捕获，对不上直接 404。发布接口的 `site_root` 仍由服务端生成，不接受调用方路径 |
+| 目录遍历  | `root` 钉在 `/app/data/sites/$slug/current`；拒绝 `.` 开头文件；`autoindex off`   |
+| 隔离    | 用户 HTML 与聊天域同 site，故**永不用 Cookie 鉴权**；如需 Cookie，改用独立 registrable domain。站点流量不进 backend、不进 frontend nginx |
 | 内容类型  | `Content-Type` 只按扩展名推断，不信用户；`.svg` 单独加 `CSP: default-src 'none'`        |
-| 私密站   | `private_signed` 用 HMAC 签名 URL（`?k=HMAC(slug,exp)`），不做服务端会话             |
+| 私密站   | 第 1 / 2 期不做。以后 `private_signed` 用 HMAC 签名 URL（`?k=HMAC(slug,exp)`）+ nginx `auth_request` 打 backend，仍不必单独 gateway |
+| 下线    | 必须摘 `current`；只写 `unpublished_at` 的话 nginx 会继续提供服务                     |
 | 资源治理  | 单用户站数上限、单站体积上限、默认 TTL（如 30 天，可续期）、一键下线、`noindex`                        |
 | 滥用    | 用户内容挂自有域名存在钓鱼/品牌风险，上线即带 TTL + 下线接口 + 巡查手段                               |
 
@@ -319,9 +342,9 @@ sites:
 
 ### 第 1 期（约 2-3 天）：链路先通，不碰后端代码
 
-- [ ] DNSPod 泛解析 + 通配证书 + NPM Proxy Host 就位
-- [ ] `deploy/sites/` 容器（gateway + nginx）落地，手工把现有 `outputs/app-dist` 拷进 `data/sites/{slug}/1/` 验证
-- [ ] 验收：`curl -I https://{slug}.apps.wuhonglei.cn/` 返回 200、`content-type: text/html`、assets 命中 long-cache；刷新子路由不 404（SPA 回退生效）；证书链有效（不是 NPM 自签回落）
+- [ ] DNSPod 泛解析 + 通配证书 + NPM Proxy Host 就位（转发 `sites:8080`，Host 保留）
+- [ ] `deploy/sites/` **纯 nginx** 容器落地（无 `gateway.py`），手工把现有 `outputs/app-dist` 拷进 `data/sites/{slug}/1/` 并 `ln -sfn 1 current` 验证
+- [ ] 验收：`curl -I https://{slug}.apps.wuhonglei.cn/` 返回 200、`content-type: text/html`、assets 命中 long-cache；刷新子路由不 404（SPA 回退生效）；证书链有效（不是 NPM 自签回落）；摘掉 `current` 后立刻 404；非法 Host / 过长 slug 404
 
 
 
@@ -331,7 +354,7 @@ sites:
 - [ ] `publish_site` MCP 工具 + `file_mcp/server.py` 注册（schema **无** `slug` 参数）
 - [ ] `site_publish_service` 实现 4.4 生成规则（标题 slugify / 保留字 / 冲突加后缀）
 - [ ] `webapp-building` skill 加 Step C（只写调用时机与「原样回报 url」，不写 slug 规则）
-- [ ] 验收：agent 不传 slug 仍拿到合法可访问 URL；同一 conversation 再发布复用 slug 且 version+1、旧版本仍在；并发占用时服务端加后缀而不是把 409 抛给模型；`DELETE` 后立刻 404；再发布仍复用原 slug
+- [ ] 验收：agent 不传 slug 仍拿到合法可访问 URL；同一 conversation 再发布复用 slug 且 version+1、旧版本仍在；并发占用时服务端加后缀而不是把 409 抛给模型；`DELETE` 摘掉 `current` 后立刻 404（不依赖 Redis）；再发布仍复用原 slug
 
 
 
@@ -349,16 +372,18 @@ sites:
 ## 九、坑清单（按踩中概率排序）
 
 1. **软链切换非原子**：必须新版本目录写完后 `ln -sfn`，否则中间态 404。
-2. **别把** `data/user_data` **整个挂成 nginx 静态 root**：路径含 `user_id`，Host 解析一旦写错就是跨用户泄露。快照根独立为 `data/sites/`。
-3. **硬链接快照会被就地改写**（见 2.2），会静默污染"已发布版本"。
-4. **通配证书签发失败时 NPM 回落到自签**，浏览器告警。部署后必须 `curl -I` 校验证书链。
-5. **SPA 刷新 404**：无扩展名且文件不存在时回退 entry，返回 200 而不是 404。
-6. `.svg` **内嵌 XSS**：单独设 `CSP: default-src 'none'`。
-7. **Content-Type 靠扩展名**，别信用户声明的类型。
-8. **deploy.sh 服务范围**：新容器不加进脚本，部署时会漏。
-9. **快照与 outputs 双份占用磁盘**：`size_bytes` 入表，配额按快照计；下线时同时清理目录。
-10. **不要把 slug 规则写进 SKILL.md**，也不要给 MCP 工具加可选 `slug` 字段——模型会填。查重、保留字、加后缀全部留在服务端。
-11. **`GET /api/sites/me` 不能当冲突检查**：只含当前用户站点，防不了全局主键冲突，且 Agent 调不到这条 REST。
+2. **只挂 `data/sites`，不要挂整个 `backend/data`**：`user_data` 路径含 `user_id`，Host 解析一旦写错就是跨用户泄露。nginx `root` 钉在 `$slug/current`。
+3. **不要把站点静态配进 `frontend/nginx.conf` 或 NPM Advanced**：前者和聊天域混 server，后者配置不进 git。
+4. **下线必须摘 `current`**：只写 `unpublished_at` 时 nginx 仍会对外服务，没有 Redis TTL 可等。
+5. **硬链接快照会被就地改写**（见 2.2），会静默污染"已发布版本"。
+6. **通配证书签发失败时 NPM 回落到自签**，浏览器告警。部署后必须 `curl -I` 校验证书链。
+7. **SPA 刷新 404**：无扩展名且文件不存在时回退 entry，返回 200 而不是 404。
+8. `.svg` **内嵌 XSS**：单独设 `CSP: default-src 'none'`。
+9. **Content-Type 靠扩展名**，别信用户声明的类型。
+10. **deploy.sh 服务范围**：新容器不加进脚本，部署时会漏。
+11. **快照与 outputs 双份占用磁盘**：`size_bytes` 入表，配额按快照计；下线时同时清理目录。
+12. **不要把 slug 规则写进 SKILL.md**，也不要给 MCP 工具加可选 `slug` 字段——模型会填。查重、保留字、加后缀全部留在服务端。
+13. `GET /api/sites/me` **不能当冲突检查**：只含当前用户站点，防不了全局主键冲突，且 Agent 调不到这条 REST。
 
 ---
 
@@ -367,12 +392,13 @@ sites:
 ## 十、待决项
 
 
-| #   | 问题         | 选项                                                      | 倾向                            |
-| --- | ---------- | ------------------------------------------------------- | ----------------------------- |
-| 1   | 发布域        | `*.apps.wuhonglei.cn`（省事） / 独立 registrable domain（隔离干净） | 先用子域，Cookie 方案出现前不换           |
-| 2   | 默认可见性      | `public` / `unlisted`                                   | `unlisted`（不 index，URL 已知可访问） |
-| 3   | 治理策略       | 永久公开 / TTL + 配额                                         | 至少要有 TTL 与一键下线                |
-| 4   | 对话内自定义 slug | 第 2 期 MCP 不接收 / 第 3 期仅前端 REST / 以后 MCP 可选覆盖            | 第 2 期不接收；自定义名只走前端             |
+| #   | 问题          | 选项                                                      | 倾向                            |
+| --- | ----------- | ------------------------------------------------------- | ----------------------------- |
+| 1   | 发布域         | `*.apps.wuhonglei.cn`（省事） / 独立 registrable domain（隔离干净） | 先用子域，Cookie 方案出现前不换           |
+| 2   | 默认可见性       | `public` / `unlisted`                                   | `unlisted`（不 index，URL 已知可访问） |
+| 3   | 治理策略        | 永久公开 / TTL + 配额                                         | 至少要有 TTL 与一键下线                |
+| 4   | 对话内自定义 slug | 第 2 期 MCP 不接收 / 第 3 期仅前端 REST / 以后 MCP 可选覆盖             | 第 2 期不接收；自定义名只走前端             |
+| 5   | 私密站          | 不做 / nginx `auth_request` + HMAC / 独立 gateway                 | 第 1 / 2 期不做；需要时用 `auth_request`  |
 
 
 ---
@@ -396,6 +422,7 @@ sites:
 - 会话内预览（含 base64 内联）：`/Users/apple/Desktop/code/chat-agent/backend/app/api/user_data.py`
 - 交付物登记：`/Users/apple/Desktop/code/chat-agent/backend/app/mcp/mcp_servers/file_mcp/present_files.py`
 - 前端容器内 nginx（`/api` 反代规则）：`/Users/apple/Desktop/code/chat-agent/frontend/nginx.conf`
+- 站点静态出口（计划中）：`/Users/apple/Desktop/code/chat-agent/deploy/sites/`
 - 编排与部署：`/Users/apple/Desktop/code/chat-agent/docker-compose.yml`、`/Users/apple/Desktop/code/chat-agent/deploy.sh`
 - VFS 与沙箱运维手册：`/Users/apple/Desktop/code/chat-agent/backend/docs/VFS_AND_SANDBOX.md`
 

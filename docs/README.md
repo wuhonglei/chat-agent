@@ -39,7 +39,7 @@
 
 ### 规划方案
 
-- `webapp-publish-plan.md`：Web 建站产物发布（自定义子域名访问）方案；含快照发布、`published_sites` 表、`publish_site` 工具、sites 网关容器与 DNS/TLS 前置，未落地（文首「现状」为代码级事实，带绝对路径与行号）
+- `webapp-publish-plan.md`：Web 建站产物发布（自定义子域名访问）方案；含快照发布、`published_sites` 表、`publish_site` 工具、纯 nginx `sites` 容器与 DNS/TLS 前置，未落地（文首「现状」为代码级事实，带绝对路径与行号）
 
 ## 后端文档（`/backend/docs`）
 
