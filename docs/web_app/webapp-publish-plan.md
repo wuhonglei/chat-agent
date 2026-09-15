@@ -7,17 +7,19 @@
 
 ## 一、现状（代码级事实）
 
-| 环节 | 现状 | 源码位置 |
-|------|------|----------|
-| 建站流程 | React + TS + Vite + shadcn/ui，`pnpm run build` 后 `cp dist/. → outputs/app-dist/`，再调 `present_files` | `/Users/apple/Desktop/code/chat-agent/backend/skills/public/webapp-building/SKILL.md` |
-| 产物落盘 | `backend/data/user_data/{user_id}/conversations/{conversation_id}/outputs/app-dist/` | `/Users/apple/Desktop/code/chat-agent/backend/app/vfs/paths.py:60-61` |
-| 容器可见性 | backend 把 `./backend/data` 挂到 `/app/data`，产物在宿主机 bind mount 上，任意新容器可只读挂载 | `/Users/apple/Desktop/code/chat-agent/docker-compose.yml:45` |
-| 会话内预览 | 把 `index.html` 中 `src|href="/assets/..."` 正则替换成 base64 data URI 后返回 HTML，前端 iframe 渲染 | `/Users/apple/Desktop/code/chat-agent/backend/app/api/user_data.py:126-153` |
-| 预览入口候选 | 只有 `workspace/dist/index.html`、`workspace/build/index.html`、`dist/index.html`、`build/index.html`，**不含 `outputs/app-dist/index.html`** | `/Users/apple/Desktop/code/chat-agent/backend/app/api/user_data.py:40-45` |
-| 交付物登记 | `present_files` 只接受 `/mnt/user-data/outputs/` 下已存在的**文件**（目录被拒） | `/Users/apple/Desktop/code/chat-agent/backend/app/mcp/mcp_servers/file_mcp/present_files.py:20-38` |
-| 前端调用 | `/api/user_data/{user_id}/{conversation_id}/preview-content`、`.../file`、`.../download` | `/Users/apple/Desktop/code/chat-agent/frontend/src/services/workspace.ts:54-101` |
-| 反向代理 | 生产入口为 openresty（nginx-proxy-manager），`curl -I https://chat.wuhonglei.cn/` 返回 `server: openresty` + `x-served-by: chat.wuhonglei.cn` | 线上实测 |
-| 鉴权形态 | **无 Cookie**，前端持 Bearer token（`app/utils/auth_deps.py:40`） | 同左 |
+
+| 环节     | 现状                                                                                                                                    | 源码位置                                                                                               |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| 建站流程   | React + TS + Vite + shadcn/ui，`pnpm run build` 后 `cp dist/. → outputs/app-dist/`，再调 `present_files`                                   | `/Users/apple/Desktop/code/chat-agent/backend/skills/public/webapp-building/SKILL.md`              |
+| 产物落盘   | `backend/data/user_data/{user_id}/conversations/{conversation_id}/outputs/app-dist/`                                                  | `/Users/apple/Desktop/code/chat-agent/backend/app/vfs/paths.py:60-61`                              |
+| 容器可见性  | backend 把 `./backend/data` 挂到 `/app/data`，产物在宿主机 bind mount 上，任意新容器可只读挂载                                                              | `/Users/apple/Desktop/code/chat-agent/docker-compose.yml:45`                                       |
+| 会话内预览  | 把 `index.html` 中 `src                                                                                                                 | href="/assets/..."` 正则替换成 base64 data URI 后返回 HTML，前端 iframe 渲染                                    |
+| 预览入口候选 | 只有 `workspace/dist/index.html`、`workspace/build/index.html`、`dist/index.html`、`build/index.html`，**不含** `outputs/app-dist/index.html` | `/Users/apple/Desktop/code/chat-agent/backend/app/api/user_data.py:40-45`                          |
+| 交付物登记  | `present_files` 只接受 `/mnt/user-data/outputs/` 下已存在的**文件**（目录被拒）                                                                       | `/Users/apple/Desktop/code/chat-agent/backend/app/mcp/mcp_servers/file_mcp/present_files.py:20-38` |
+| 前端调用   | `/api/user_data/{user_id}/{conversation_id}/preview-content`、`.../file`、`.../download`                                                | `/Users/apple/Desktop/code/chat-agent/frontend/src/services/workspace.ts:54-101`                   |
+| 反向代理   | 生产入口为 openresty（nginx-proxy-manager），`curl -I https://chat.wuhonglei.cn/` 返回 `server: openresty` + `x-served-by: chat.wuhonglei.cn`   | 线上实测                                                                                               |
+| 鉴权形态   | **无 Cookie**，前端持 Bearer token（`app/utils/auth_deps.py:40`）                                                                            | 同左                                                                                                 |
+
 
 现状带来的三个缺口：
 
@@ -27,7 +29,11 @@
 
 ---
 
+
+
 ## 二、关键决策与理由
+
+
 
 ### 2.1 用子域名，不用路径前缀
 
@@ -43,7 +49,7 @@ backend/data/sites/{slug}/{version}/        # 每次发布新建目录
 backend/data/sites/{slug}/current -> 1/     # 原子切换（ln -sfn）
 ```
 
-**不要用 `cp -al` 硬链接做快照**：Agent 用 write_file 截断写同一 inode 时会把"已发布版本"一起改掉。用 `cp -r`（或 reflink，注意 ext4 不支持）。
+**不要用** `cp -al` **硬链接做快照**：Agent 用 write_file 截断写同一 inode 时会把"已发布版本"一起改掉。用 `cp -r`（或 reflink，注意 ext4 不支持）。
 
 ### 2.3 文件服务不放进 backend
 
@@ -55,12 +61,31 @@ sites-gateway（小服务，只解析 + 鉴权）
 nginx 内部 location → alias 到 backend/data/sites（read-only）→ sendfile 吐字节
 ```
 
+
+
 ### 2.4 发布域与聊天域隔离
 
 `{slug}.apps.wuhonglei.cn` 与 `chat.wuhonglei.cn` 属同一 registrable domain（同 site）。当前无 Cookie、鉴权走 Bearer，跨 origin 读不到 localStorage，CSRF 也不成立，所以风险低。但一旦将来加 Cookie 鉴权（尤其是域级 `.wuhonglei.cn`），用户上传的 HTML 就能带着 Cookie 打 `/api`。
 结论：承诺「永不用 Cookie 鉴权」可以同域；要更干净就换独立 registrable domain（如 `wuhonglei-apps.com`），这是 GitHub Pages / Claude Artifacts 的做法。**默认走同域子域，独立域作为可选项。**
 
+### 2.5 slug 由服务端生成，不让模型填
+
+公开 URL 一旦进 DNS，就不该依赖模型即兴起名。把字符集、保留字、`GET /api/sites/me` 写进 skill 防不住幻觉，而且这条查重路径本身是错的：
+
+- Agent 只有 MCP 工具，调不到 REST `/api/sites/me`。
+- `/me` 只返回当前用户站点，`slug` 却是全站主键，看不到别人的占用。
+- 409 会再烧掉一轮工具调用，模型改名后仍可能撞车或踩保留字。
+
+稳定身份是 `(user_id, conversation_id)`，不是 DNS label。因此：
+
+- **MCP `publish_site` 入参不含 `slug`**（schema 层硬约束；可选字段模型仍会编）。
+- **同一 conversation 复用已有 slug**，重复发布只升 `version`。
+- **新站由服务端生成并在事务内保证全局唯一**；冲突时内部加后缀，不把 409 抛给模型。
+- **自定义 slug 只走 REST**，给第 3 期前端「自定义链接」；用户在对话里口头指定域名作为后续增强，第 2 期不做。
+
 ---
+
+
 
 ## 三、总体架构
 
@@ -95,15 +120,21 @@ nginx 内部 location → alias 到 backend/data/sites（read-only）→ sendfil
 
 ```
 Agent: pnpm build → cp dist/. outputs/app-dist/
-     → publish_site（新 MCP 工具）
-     → 校验 outputs 路径 → cp -r 快照到 data/sites/{slug}/{v}/
+     → publish_site（source + visibility，无 slug）
+     → 校验 outputs 路径
+     → 解析 slug：本 conversation 已有站点则复用，否则服务端生成并保证全局唯一
+     → cp -r 快照到 data/sites/{slug}/{v}/
      → 写 published_sites 行 → 切 current 软链 → 失效 Redis
      → 返回 https://{slug}.apps.wuhonglei.cn
 ```
 
 ---
 
+
+
 ## 四、数据模型与接口契约
+
+
 
 ### 4.1 新表 `published_sites`
 
@@ -113,7 +144,7 @@ Agent: pnpm build → cp dist/. outputs/app-dist/
 ```sql
 slug            varchar(64)  PRIMARY KEY      -- DNS label 合法字符：小写字母/数字/连字符
 user_id         varchar(36)  NOT NULL
-conversation_id varchar(36)  NOT NULL
+conversation_id varchar(36)  NOT NULL UNIQUE  -- 一会话一站；重复发布升 version，不换 slug
 message_id      varchar(36)  NULL              -- 溯源：哪条消息触发的发布
 site_root       text         NOT NULL          -- 快照绝对路径，服务端生成，永不接受用户输入
 version         int          NOT NULL DEFAULT 1
@@ -126,23 +157,31 @@ updated_at      timestamptz  NOT NULL
 unpublished_at  timestamptz  NULL
 ```
 
-**`site_root` 必须由服务端从 slug 查表得到，绝不接受调用方传入的路径** —— 这是防跨用户越权的唯一关口。
+`site_root` **必须由服务端从 slug 查表得到，绝不接受调用方传入的路径** —— 这是防跨用户越权的唯一关口。
+下线是软删除（写 `unpublished_at`）；再发布仍复用该行的 slug，URL 保持稳定。
 
 ### 4.2 API（`/api/sites`）
 
 新增路由文件：`/Users/apple/Desktop/code/chat-agent/backend/app/api/sites.py`，在 `/Users/apple/Desktop/code/chat-agent/backend/app/main.py:149` 附近注册（`prefix="/api/sites"`）。
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/api/sites` | 发布：`{conversation_id, source: "/mnt/user-data/outputs/app-dist", slug?, visibility?}` |
-| POST | `/api/sites/{slug}/republish` | 重新发布（version+1，切 current） |
-| GET | `/api/sites/me` | 当前用户站点列表 |
-| DELETE | `/api/sites/{slug}` | 下线（写 `unpublished_at` + 失效缓存） |
+
+| 方法     | 路径                            | 说明                                                                                          |
+| ------ | ----------------------------- | ------------------------------------------------------------------------------------------- |
+| POST   | `/api/sites`                  | 发布：`{conversation_id, source: "/mnt/user-data/outputs/app-dist", slug?, visibility?}`。`slug` 仅前端自定义链接时传入；省略则服务端生成。本 conversation 已有站点时忽略传入 slug，复用原值并 republish |
+| POST   | `/api/sites/{slug}/republish` | 重新发布（version+1，切 current）                                                                   |
+| GET    | `/api/sites/me`               | 当前用户站点列表（给前端展示，**不是** Agent 查重入口）                                                          |
+| DELETE | `/api/sites/{slug}`           | 下线（写 `unpublished_at` + 失效缓存）                                                               |
+
 
 请求/响应示例（发布）：
 
 ```json
-// POST /api/sites
+// POST /api/sites（Agent / 默认：不传 slug）
+{"conversation_id": "2c004935-9cfb-4889-9df1-c2ebd8e1b52b",
+ "source": "/mnt/user-data/outputs/app-dist",
+ "visibility": "unlisted"}
+
+// POST /api/sites（第 3 期前端自定义链接）
 {"conversation_id": "2c004935-9cfb-4889-9df1-c2ebd8e1b52b",
  "source": "/mnt/user-data/outputs/app-dist",
  "slug": "resume-site",
@@ -150,48 +189,68 @@ unpublished_at  timestamptz  NULL
 
 // 200
 {"code": 0, "msg": "发布成功",
- "data": {"slug": "resume-site", "version": 3, "url": "https://resume-site.apps.wuhonglei.cn",
+ "data": {"slug": "resume-site", "version": 1, "url": "https://resume-site.apps.wuhonglei.cn",
           "visibility": "unlisted", "size_bytes": 1048576, "expires_at": null}}
 ```
 
-错误：slug 非法 → 400；slug 被占 → 409；source 不存在或非 outputs 下 → 400；超配额 → 413。
+错误：调用方传入的 slug 非法 → 400；传入 slug 被其他站点占用 → 409（不自动改名，避免用户拿到非所要的 URL）；source 不存在或非 outputs 下 → 400；超配额 → 413。服务端自动生成路径遇占用则内部加后缀，不返回 409。
 
 ### 4.3 发布 MCP 工具 `publish_site`
 
 位置：`/Users/apple/Desktop/code/chat-agent/backend/app/mcp/mcp_servers/file_mcp/publish_site.py`（按 `present_files.py` 的 `ToolBase` 写法），在 `file_mcp/server.py` 注册。
 
 ```json
-// 入参
-{"source": "/mnt/user-data/outputs/app-dist", "slug": "resume-site", "visibility": "unlisted"}
+// 入参（无 slug）
+{"source": "/mnt/user-data/outputs/app-dist", "visibility": "unlisted"}
 
 // 返回（ToolResult.structured_content）
-{"slug": "resume-site", "version": 3, "url": "https://resume-site.apps.wuhonglei.cn",
+{"slug": "resume-site", "version": 1, "url": "https://resume-site.apps.wuhonglei.cn",
  "entry": "index.html", "file_count": 14, "size_bytes": 1048576}
 ```
 
 用显式工具而不是「present_files 时自动发布」：发布产生公开资源，要让 LLM 显式调用并向用户报 URL，避免用户没要求就把产物挂上公网。
+工具描述写清：不要猜测或传入 slug；把返回的 `url` 原样告知用户，不要自行拼接域名。
+
+### 4.4 slug 生成规则（只在服务端）
+
+实现位置：`site_publish_service.py`，不写进 skill。
+
+1. 本 `conversation_id` 已有行（含已下线）→ 复用其 `slug`，走 republish / 重新上线。
+2. 否则用会话标题 slugify：小写 ASCII、数字、连字符，压缩连续 `-`，截断到 3–40 字符。
+3. 标题为空、纯中文/非 ASCII 导致结果过短、或命中保留字 → 回退 `site-{nanoid(6)}`。
+4. 保留字（不可作 DNS label）：`www` / `api` / `admin` / `chat` / `static` / `apps` / `mail` / `ftp`。
+5. 与已有主键冲突：`{base}-2`、`{base}-3`…；加后缀后仍冲突或超长则改用 `site-{nanoid(6)}`。查重与插入在同一事务内完成，避免 TOCTOU。
 
 ---
+
+
 
 ## 五、发布链路改动清单
 
-1. **`webapp-building` skill 加 Step C**
-   `/Users/apple/Desktop/code/chat-agent/backend/skills/public/webapp-building/SKILL.md`
-   在 Step B（present_files）之后补：调 `publish_site`，并写清 slug 规则（小写字母/数字/连字符，3-40 字符；保留字 `www`/`api`/`admin`/`chat`/`static`；先查 `GET /api/sites/me` 避免冲突）。
-
+1. `webapp-building` **skill 加 Step C**
+  `/Users/apple/Desktop/code/chat-agent/backend/skills/public/webapp-building/SKILL.md`
+   在 Step B（`present_files`）之后补行为约定，**不写 DNS/slug 手册**：
+   - 仅当用户明确要求公开访问 / 外部分享时调用 `publish_site`（`source` 固定为 `/mnt/user-data/outputs/app-dist`）。
+   - 不要传 `slug`，不要调用 `/api/sites/me`，不要自行拼接 `{slug}.apps.wuhonglei.cn`。
+   - 把工具返回的 `url` 原样告诉用户；不要为了换 slug 重试。
 2. **后端服务** `backend/app/services/site_publish_service.py`
-   - 路径校验：复用 `present_files.py:20-38` 的「虚拟路径前缀 + `resolve_virtual_path`」套路，只接受 `/mnt/user-data/outputs/` 下已存在目录。
-   - 快照：`cp -r` 到 `data/sites/{slug}/{version}/`，随后 `ln -sfn` 切 current。
-   - 事务与幂等：先落目录再写库；同一 conversation 重复发布走 republish（version+1），保留旧版本便于回滚。
-
+  - 路径校验：复用 `present_files.py:20-38` 的「虚拟路径前缀 + `resolve_virtual_path`」套路，只接受 `/mnt/user-data/outputs/` 下已存在目录。
+  - slug：按 4.4 生成或复用；MCP 路径永不读调用方传入的 slug。
+  - 快照：`cp -r` 到 `data/sites/{slug}/{version}/`，随后 `ln -sfn` 切 current。
+  - 事务与幂等：先落目录再写库；同一 conversation 重复发布走 republish（version+1），保留旧版本便于回滚。
 3. **前端（第 3 期）**
-   - `/Users/apple/Desktop/code/chat-agent/frontend/src/pages/ChatPage/components/BlockPreviewPanel/ProjectPreview/index.tsx` 加「发布 / 复制链接 / 下线」入口，调用风格对齐 `frontend/src/services/workspace.ts`。
-   - 预览改走 `iframe src=https://{slug}.apps.wuhonglei.cn/`，替换 base64 内联路径。
-   - 顺带修 `/Users/apple/Desktop/code/chat-agent/backend/app/api/user_data.py:40-45`，把 `outputs/app-dist/index.html` 加入预览入口候选。
+  - `/Users/apple/Desktop/code/chat-agent/frontend/src/pages/ChatPage/components/BlockPreviewPanel/ProjectPreview/index.tsx` 加「发布 / 复制链接 / 下线」入口，调用风格对齐 `frontend/src/services/workspace.ts`。
+  - 发布表单可让用户填写自定义 slug，走 `POST /api/sites` 的 `slug?`；非法或被占时展示 400/409，**不要**静默改名。
+  - 预览改走 `iframe src=https://{slug}.apps.wuhonglei.cn/`，替换 base64 内联路径。
+  - 顺带修 `/Users/apple/Desktop/code/chat-agent/backend/app/api/user_data.py:40-45`，把 `outputs/app-dist/index.html` 加入预览入口候选。
 
 ---
 
+
+
 ## 六、服务层落地
+
+
 
 ### 6.1 新容器 `sites`
 
@@ -224,31 +283,39 @@ sites:
 
 1. **DNS**：DNSPod（`NS` 为 `bread/rabbit.dnspod.net`）加 `*.apps` A 记录指向服务器。DNSPod 支持泛解析。
 2. **证书**：Let's Encrypt 泛域名必须 DNS-01 验证，DNSPod 需要 API Token。两种可行路径：
-   - 宿主机 `acme.sh` + `dns_dp` 签发 `*.apps.wuhonglei.cn`，导入 NPM；
-   - NPM 的 DNS challenge 插件（需自备 DNSPod 校验脚本）。
+  - 宿主机 `acme.sh` + `dns_dp` 签发 `*.apps.wuhonglei.cn`，导入 NPM；
+  - NPM 的 DNS challenge 插件（需自备 DNSPod 校验脚本）。
 3. **NPM**：新建 Proxy Host
-   - Domain：`*.apps.wuhonglei.cn`
-   - Forward：`sites:8080`
-   - 启用 HSTS；Advanced 追加 `add_header X-Robots-Tag noindex;`
-   - 可选：`Content-Security-Policy: sandbox allow-scripts allow-same-origin allow-forms`（会让页面成 opaque origin，站内 localStorage 失效，先不开）
+  - Domain：`*.apps.wuhonglei.cn`
+  - Forward：`sites:8080`
+  - 启用 HSTS；Advanced 追加 `add_header X-Robots-Tag noindex;`
+  - 可选：`Content-Security-Policy: sandbox allow-scripts allow-same-origin allow-forms`（会让页面成 opaque origin，站内 localStorage 失效，先不开）
 
 ---
+
+
 
 ## 七、安全与治理
 
-| 项 | 要求 |
-|----|------|
-| 跨用户越权 | `site_root` 只从库取；Host 解析失败直接 404，绝不拼用户输入成路径 |
-| 目录遍历 | 内部 location 限定 `/app/data/sites`；拒绝 `.` 开头文件；`autoindex off` |
-| 隔离 | 用户 HTML 与聊天域同 site，故**永不用 Cookie 鉴权**；如需 Cookie，改用独立 registrable domain |
-| 内容类型 | `Content-Type` 只按扩展名推断，不信用户；`.svg` 单独加 `CSP: default-src 'none'` |
-| 私密站 | `private_signed` 用 HMAC 签名 URL（`?k=HMAC(slug,exp)`），不做服务端会话 |
-| 资源治理 | 单用户站数上限、单站体积上限、默认 TTL（如 30 天，可续期）、一键下线、`noindex` |
-| 滥用 | 用户内容挂自有域名存在钓鱼/品牌风险，上线即带 TTL + 下线接口 + 巡查手段 |
+
+| 项     | 要求                                                                      |
+| ----- | ----------------------------------------------------------------------- |
+| 跨用户越权 | `site_root` 只从库取；Host 解析失败直接 404，绝不拼用户输入成路径                             |
+| 目录遍历  | 内部 location 限定 `/app/data/sites`；拒绝 `.` 开头文件；`autoindex off`            |
+| 隔离    | 用户 HTML 与聊天域同 site，故**永不用 Cookie 鉴权**；如需 Cookie，改用独立 registrable domain |
+| 内容类型  | `Content-Type` 只按扩展名推断，不信用户；`.svg` 单独加 `CSP: default-src 'none'`        |
+| 私密站   | `private_signed` 用 HMAC 签名 URL（`?k=HMAC(slug,exp)`），不做服务端会话             |
+| 资源治理  | 单用户站数上限、单站体积上限、默认 TTL（如 30 天，可续期）、一键下线、`noindex`                        |
+| 滥用    | 用户内容挂自有域名存在钓鱼/品牌风险，上线即带 TTL + 下线接口 + 巡查手段                               |
+
 
 ---
 
+
+
 ## 八、分期与验收
+
+
 
 ### 第 1 期（约 2-3 天）：链路先通，不碰后端代码
 
@@ -256,53 +323,71 @@ sites:
 - [ ] `deploy/sites/` 容器（gateway + nginx）落地，手工把现有 `outputs/app-dist` 拷进 `data/sites/{slug}/1/` 验证
 - [ ] 验收：`curl -I https://{slug}.apps.wuhonglei.cn/` 返回 200、`content-type: text/html`、assets 命中 long-cache；刷新子路由不 404（SPA 回退生效）；证书链有效（不是 NPM 自签回落）
 
+
+
 ### 第 2 期（约 2-3 天）：发布闭环，Agent 能交付公网 URL
 
-- [ ] `published_sites` 表 + 迁移 + `/api/sites` 四个接口
-- [ ] `publish_site` MCP 工具 + `file_mcp/server.py` 注册
-- [ ] `webapp-building` skill 加 Step C
-- [ ] 验收：agent 在对话里完成建站后调用 `publish_site`，用户拿到可访问 URL；重复发布 version+1 且旧版本仍在；`DELETE` 后立刻 404，`include_merged` 语义不涉及（那是 mem0）
+- [ ] `published_sites` 表 + 迁移 + `/api/sites` 四个接口（含 `conversation_id` UNIQUE）
+- [ ] `publish_site` MCP 工具 + `file_mcp/server.py` 注册（schema **无** `slug` 参数）
+- [ ] `site_publish_service` 实现 4.4 生成规则（标题 slugify / 保留字 / 冲突加后缀）
+- [ ] `webapp-building` skill 加 Step C（只写调用时机与「原样回报 url」，不写 slug 规则）
+- [ ] 验收：agent 不传 slug 仍拿到合法可访问 URL；同一 conversation 再发布复用 slug 且 version+1、旧版本仍在；并发占用时服务端加后缀而不是把 409 抛给模型；`DELETE` 后立刻 404；再发布仍复用原 slug
+
+
 
 ### 第 3 期（约 2 天）：前端体验与既有缺口
 
-- [ ] ProjectPreview 加发布/复制链接/下线入口
+- [ ] ProjectPreview 加发布/复制链接/下线入口；自定义 slug 走 REST，冲突展示 409
 - [ ] 预览改 iframe 直连，替换 base64 内联
 - [ ] `user_data.py:40-45` 补 `outputs/app-dist/index.html` 入口候选
-- [ ] 验收：多页站点、相对路径图片、字体在预览面板里全部可用（当前必坏）
+- [ ] 验收：多页站点、相对路径图片、字体在预览面板里全部可用（当前必坏）；用户填写已被占用的 slug 时看到明确错误而不是被改成别的子域
 
 ---
+
+
 
 ## 九、坑清单（按踩中概率排序）
 
 1. **软链切换非原子**：必须新版本目录写完后 `ln -sfn`，否则中间态 404。
-2. **别把 `data/user_data` 整个挂成 nginx 静态 root**：路径含 `user_id`，Host 解析一旦写错就是跨用户泄露。快照根独立为 `data/sites/`。
+2. **别把** `data/user_data` **整个挂成 nginx 静态 root**：路径含 `user_id`，Host 解析一旦写错就是跨用户泄露。快照根独立为 `data/sites/`。
 3. **硬链接快照会被就地改写**（见 2.2），会静默污染"已发布版本"。
 4. **通配证书签发失败时 NPM 回落到自签**，浏览器告警。部署后必须 `curl -I` 校验证书链。
 5. **SPA 刷新 404**：无扩展名且文件不存在时回退 entry，返回 200 而不是 404。
-6. **`.svg` 内嵌 XSS**：单独设 `CSP: default-src 'none'`。
+6. `.svg` **内嵌 XSS**：单独设 `CSP: default-src 'none'`。
 7. **Content-Type 靠扩展名**，别信用户声明的类型。
 8. **deploy.sh 服务范围**：新容器不加进脚本，部署时会漏。
 9. **快照与 outputs 双份占用磁盘**：`size_bytes` 入表，配额按快照计；下线时同时清理目录。
+10. **不要把 slug 规则写进 SKILL.md**，也不要给 MCP 工具加可选 `slug` 字段——模型会填。查重、保留字、加后缀全部留在服务端。
+11. **`GET /api/sites/me` 不能当冲突检查**：只含当前用户站点，防不了全局主键冲突，且 Agent 调不到这条 REST。
 
 ---
+
+
 
 ## 十、待决项
 
-| # | 问题 | 选项 | 倾向 |
-|---|------|------|------|
-| 1 | 发布域 | `*.apps.wuhonglei.cn`（省事） / 独立 registrable domain（隔离干净） | 先用子域，Cookie 方案出现前不换 |
-| 2 | 默认可见性 | `public` / `unlisted` | `unlisted`（不 index，URL 已知可访问） |
-| 3 | 治理策略 | 永久公开 / TTL + 配额 | 至少要有 TTL 与一键下线 |
+
+| #   | 问题         | 选项                                                      | 倾向                            |
+| --- | ---------- | ------------------------------------------------------- | ----------------------------- |
+| 1   | 发布域        | `*.apps.wuhonglei.cn`（省事） / 独立 registrable domain（隔离干净） | 先用子域，Cookie 方案出现前不换           |
+| 2   | 默认可见性      | `public` / `unlisted`                                   | `unlisted`（不 index，URL 已知可访问） |
+| 3   | 治理策略       | 永久公开 / TTL + 配额                                         | 至少要有 TTL 与一键下线                |
+| 4   | 对话内自定义 slug | 第 2 期 MCP 不接收 / 第 3 期仅前端 REST / 以后 MCP 可选覆盖            | 第 2 期不接收；自定义名只走前端             |
+
 
 ---
 
+
+
 ## 附录 A：相关既有变更
 
-- **`backend/skills/public/vercel-deploy-claimable` 已删除**（commit `eede1bac`，删除前内容可用 `git show eede1bac^:backend/skills/public/vercel-deploy-claimable/scripts/deploy.sh` 查）。
-  理由：上游 claimable deploy 接口已废弃（`POST https://claude-skills-deploy.vercel.com/api/deploy` 现返回「请改用 Vercel CLI」的说明，不再返回 `previewUrl`），脚本在删除前 `deploy.sh:232` 处 `grep -o '"previewUrl":"[^"]*"'` 必然取空并 `exit 1`（第 236 行）；且 `SKILL.md:23` 指向的 `/mnt/skills/custom/vercel-deploy/scripts/deploy.sh` 与实际位置（`skills/public/vercel-deploy-claimable/`）不符，照文档执行必然 No such file。
-  能力缺口：Vercel 能托管需要服务端运行时的应用（Next.js SSR、API routes），本方案只托管静态产物。当前 skill 模板产出为 Vite SPA 静态站，主链路不受影响；若将来要交付 SSR/带后端应用，需另设运行时档位。
+- `backend/skills/public/vercel-deploy-claimable` **已删除**（commit `eede1bac`，删除前内容可用 `git show eede1bac^:backend/skills/public/vercel-deploy-claimable/scripts/deploy.sh` 查）。
+理由：上游 claimable deploy 接口已废弃（`POST https://claude-skills-deploy.vercel.com/api/deploy` 现返回「请改用 Vercel CLI」的说明，不再返回 `previewUrl`），脚本在删除前 `deploy.sh:232` 处 `grep -o '"previewUrl":"[^"]*"'` 必然取空并 `exit 1`（第 236 行）；且 `SKILL.md:23` 指向的 `/mnt/skills/custom/vercel-deploy/scripts/deploy.sh` 与实际位置（`skills/public/vercel-deploy-claimable/`）不符，照文档执行必然 No such file。
+能力缺口：Vercel 能托管需要服务端运行时的应用（Next.js SSR、API routes），本方案只托管静态产物。当前 skill 模板产出为 Vite SPA 静态站，主链路不受影响；若将来要交付 SSR/带后端应用，需另设运行时档位。
 - **mem0 线上库仍有断言该 skill 存在的记忆**，会在「网页设计 skill 推荐」类提问时被召回。清理脚本：`/Users/apple/Desktop/code/chat-agent/backend/scripts/archive_stale_skill_memories.py`（默认 dry-run）。
-- **评测语料 `backend/data/eval_set/v1.0/` 保持不变**：`eval_samples*.json` 是历史 trace 快照，`answer` 字段挂着裁判对原文的评分，`memories[].memory` 是当时 mem0 的返回原文；回改会让分数与文本脱钩，且 `calibration_report.json` 表明 v1.0 是冻结基线。需要干净语料应切 v1.1 重采样。
+- **评测语料** `backend/data/eval_set/v1.0/` **保持不变**：`eval_samples*.json` 是历史 trace 快照，`answer` 字段挂着裁判对原文的评分，`memories[].memory` 是当时 mem0 的返回原文；回改会让分数与文本脱钩，且 `calibration_report.json` 表明 v1.0 是冻结基线。需要干净语料应切 v1.1 重采样。
+
+
 
 ## 附录 B：源码索引
 
@@ -313,3 +398,4 @@ sites:
 - 前端容器内 nginx（`/api` 反代规则）：`/Users/apple/Desktop/code/chat-agent/frontend/nginx.conf`
 - 编排与部署：`/Users/apple/Desktop/code/chat-agent/docker-compose.yml`、`/Users/apple/Desktop/code/chat-agent/deploy.sh`
 - VFS 与沙箱运维手册：`/Users/apple/Desktop/code/chat-agent/backend/docs/VFS_AND_SANDBOX.md`
+
