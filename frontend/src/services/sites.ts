@@ -20,8 +20,6 @@ export interface PublishSitePayload {
   visibility?: "unlisted" | "public";
 }
 
-const DEFAULT_SITE_SOURCE = "/mnt/user-data/outputs/app-dist";
-
 export const sitesAPI = {
   listMine: async (): Promise<PublishedSite[]> => {
     return await apiClient.get("/sites/me");
@@ -29,9 +27,11 @@ export const sitesAPI = {
   publish: async (payload: PublishSitePayload): Promise<PublishedSite> => {
     const body: Record<string, unknown> = {
       conversationId: payload.conversationId,
-      source: payload.source || DEFAULT_SITE_SOURCE,
       visibility: payload.visibility || "unlisted",
     };
+    if (payload.source) {
+      body.source = payload.source;
+    }
     if (payload.slug) {
       body.slug = payload.slug;
     }
@@ -41,10 +41,14 @@ export const sitesAPI = {
     slug: string,
     payload?: Pick<PublishSitePayload, "source" | "visibility">
   ): Promise<PublishedSite> => {
-    return await apiClient.post(`/sites/${encodeURIComponent(slug)}/republish`, {
-      source: payload?.source || DEFAULT_SITE_SOURCE,
-      visibility: payload?.visibility,
-    });
+    const body: Record<string, unknown> = {};
+    if (payload?.source) {
+      body.source = payload.source;
+    }
+    if (payload?.visibility) {
+      body.visibility = payload.visibility;
+    }
+    return await apiClient.post(`/sites/${encodeURIComponent(slug)}/republish`, body);
   },
   unpublish: async (slug: string): Promise<PublishedSite> => {
     return await apiClient.delete(`/sites/${encodeURIComponent(slug)}`);

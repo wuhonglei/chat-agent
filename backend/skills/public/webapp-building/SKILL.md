@@ -1,6 +1,6 @@
 ---
 name: webapp-building
-description: Tools for building modern React webapps with TypeScript, Tailwind CSS and shadcn/ui. Best suited for applications with complex UI components and state management.
+description: Tools for building modern React webapps with TypeScript, Tailwind CSS and shadcn/ui. Best suited for applications with complex UI components and state management. Layout is desktop-first; pages must still work on phones.
 ---
 
 # WebApp Building
@@ -21,7 +21,7 @@ description: Tools for building modern React webapps with TypeScript, Tailwind C
 ## Workflow
 
 1. Run `init-webapp.sh` — scaffold project in `/mnt/user-data/workspace/app/`
-2. Edit source under `src/`
+2. Edit source under `src/` (desktop-first layout; phone-compatible, see below)
 3. `pnpm run build` in the workspace project
 4. Copy `dist/` to `/mnt/user-data/outputs/app-dist/`, then call `present_files`
 
@@ -53,6 +53,7 @@ This creates a fully configured project with:
 
 - React + TypeScript (Vite)
 - Tailwind CSS 3.4.19 with shadcn/ui theming
+- Viewport meta + `useIsMobile` (768px) for phone compatibility
 - Path aliases (`@/`) configured
 - 40+ shadcn/ui components pre-installed
 - Radix UI dependencies included
@@ -72,6 +73,32 @@ Dev server (optional):
 ```bash
 cd /mnt/user-data/workspace/app && pnpm run dev
 ```
+
+### Layout: desktop-first, phone-compatible
+
+**PC is the primary experience.** Design and ship the desktop layout as the source of truth. Phone support is required compatibility — the same site must remain usable on a narrow screen, not a separate mobile product.
+
+Do not ship a stretched mobile page on desktop, and do not hide core desktop features just to simplify the phone view.
+
+**Desktop (≥ 768px / `md`) — default**
+
+- Canonical layout: multi-column, sidebar, hover affordances, generous spacing.
+- Unprefixed Tailwind classes describe this layout (`grid-cols-3`, `flex-row`, fixed sidebar).
+
+**Phone (< 768px) — compatible**
+
+- Same information architecture: stack, wrap, or collapse — do not invent a different app.
+- Use `max-md:` (and `max-sm:` if needed) for phone overrides. Example: `grid-cols-3 max-md:grid-cols-1`.
+- No horizontal overflow (`overflow-x-hidden` on the page shell if needed); images/media `max-w-full h-auto`.
+- Collapse sidebar / dense nav with `useIsMobile` + Sheet (`src/hooks/use-mobile.ts`, `src/components/ui/sidebar.tsx`).
+- Essential actions must work without hover; tap targets ≥ 44px.
+- Keep the viewport tag in `index.html`: `width=device-width, initial-scale=1.0`.
+
+**Do not**
+
+- Switch to a mobile-first visual (single-column stretched to 1440px, huge type, app-bar-only chrome) unless the user asked for a mobile app.
+- Rely on hover-only for primary actions.
+- Use a second breakpoint strategy; 768px matches `useIsMobile`.
 
 ### 3. Build
 
@@ -125,6 +152,8 @@ Call `publish_site` only when the user explicitly wants a public URL, external s
   "source": "/mnt/user-data/outputs/app-dist"
 }
 ```
+
+If the deliverable is a simple page at `outputs/index.html` instead of a Vite build, pass `"source": "/mnt/user-data/outputs"` (or `/mnt/user-data/outputs/index.html`). Omit `source` to let the server pick `app-dist` when it exists, otherwise `outputs/index.html`.
 
 Rules:
 

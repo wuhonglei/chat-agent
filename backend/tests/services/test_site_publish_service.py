@@ -94,6 +94,30 @@ def _seed_app_dist(paths: Paths, user_id: str, conversation_id: str) -> Path:
     return dist
 
 
+def _seed_outputs_index(
+    paths: Paths, user_id: str, conversation_id: str, *, extra: str | None = None
+) -> Path:
+    paths.ensure_conversation_dirs(user_id, conversation_id)
+    outputs = paths.sandbox_outputs_dir(user_id, conversation_id)
+    outputs.mkdir(parents=True, exist_ok=True)
+    (outputs / "index.html").write_text("<html>plain</html>", encoding="utf-8")
+    if extra:
+        (outputs / extra).write_text("asset", encoding="utf-8")
+    return outputs
+
+
+def _bind_service(
+    patched_paths: Paths, user_id: str, conversation_id: str
+) -> SitePublishService:
+    db = _FakeDb()
+    db.conversations[conversation_id] = SimpleNamespace(
+        title="My Resume Site", user_id=user_id
+    )
+    service = SitePublishService(db, paths=patched_paths)  # type: ignore[arg-type]
+    _bind_lookups(service, db)
+    return service
+
+
 def test_slugify_title_ascii_and_reserved() -> None:
     assert slugify_title("My Resume Site!") == "my-resume-site"
     assert slugify_title("简历") == ""
@@ -163,12 +187,14 @@ def test_publish_rejects_workspace_source(patched_paths: Paths) -> None:
         )
 
 
-def test_publish_rejects_file_and_missing_source(patched_paths: Paths) -> None:
+def test_publish_rejects_non_index_file_and_missing_source(
+    patched_paths: Paths,
+) -> None:
     user_id = "user-1"
     conversation_id = "conv-1"
-    patched_paths.ensure_conversation_dirs(user_id, conversation_id)
-    outputs = patched_paths.sandbox_outputs_dir(user_id, conversation_id)
-    (outputs / "index.html").write_text("<html></html>", encoding="utf-8")
+    outputs = _seed_outputs_index(
+        patched_paths, user_id, conversation_id, extra="notes.txt"
+    )
     db = _FakeDb()
     db.conversations[conversation_id] = SimpleNamespace(title="Hello", user_id=user_id)
     service = SitePublishService(db, paths=patched_paths)  # type: ignore[arg-type]
@@ -178,7 +204,7 @@ def test_publish_rejects_file_and_missing_source(patched_paths: Paths) -> None:
         service.publish(
             user_id=user_id,
             conversation_id=conversation_id,
-            source=f"{vfs_config.outputs_prefix}index.html",
+            source=f"{vfs_config.outputs_prefix}notes.txt",
         )
     with pytest.raises(SitePublishError, match="does not exist"):
         service.publish(
@@ -186,6 +212,67 @@ def test_publish_rejects_file_and_missing_source(patched_paths: Paths) -> None:
             conversation_id=conversation_id,
             source=f"{vfs_config.outputs_prefix}missing-app",
         )
+    assert outputs.is_dir()
+
+
+def test_publish_outputs_index_html(patched_paths: Paths) -> None:
+    user_id = "user-1"
+    conversation_id = "conv-1"
+    _seed_outputs_index(patched_paths, user_id, conversation_id, extra="style.css")
+    service = _bind_service(patched_paths, user_id, conversation_id)
+
+    result = service.publish(
+        user_id=user_id,
+        conversation_id=conversation_id,
+        source=f"{vfs_config.outputs_prefix.rstrip('/')}",
+    )
+    snapshot = patched_paths.site_version_dir(result.site.slug, 1)
+    assert (snapshot / "index.html").read_text(encoding="utf-8") == "<html>plain</html>"
+    assert (snapshot / "style.css").is_file()
+    assert result.file_count == 2
+
+
+def test_publish_index_html_file_path(patched_paths: Paths) -> None:
+    user_id = "user-1"
+    conversation_id = "conv-1"
+    _seed_outputs_index(patched_paths, user_id, conversation_id)
+    service = _bind_service(patched_paths, user_id, conversation_id)
+
+    result = service.publish(
+        user_id=user_id,
+        conversation_id=conversation_id,
+        source=f"{vfs_config.outputs_prefix}index.html",
+    )
+    snapshot = patched_paths.site_version_dir(result.site.slug, 1)
+    assert (snapshot / "index.html").is_file()
+
+
+def test_publish_default_source_falls_back_to_outputs_index(
+    patched_paths: Paths,
+) -> None:
+    user_id = "user-1"
+    conversation_id = "conv-1"
+    _seed_outputs_index(patched_paths, user_id, conversation_id)
+    service = _bind_service(patched_paths, user_id, conversation_id)
+
+    result = service.publish(user_id=user_id, conversation_id=conversation_id)
+    snapshot = patched_paths.site_version_dir(result.site.slug, 1)
+    assert (snapshot / "index.html").read_text(encoding="utf-8") == "<html>plain</html>"
+
+
+def test_publish_prefers_app_dist_when_both_layouts_exist(
+    patched_paths: Paths,
+) -> None:
+    user_id = "user-1"
+    conversation_id = "conv-1"
+    _seed_outputs_index(patched_paths, user_id, conversation_id)
+    _seed_app_dist(patched_paths, user_id, conversation_id)
+    service = _bind_service(patched_paths, user_id, conversation_id)
+
+    result = service.publish(user_id=user_id, conversation_id=conversation_id)
+    snapshot = patched_paths.site_version_dir(result.site.slug, 1)
+    assert (snapshot / "index.html").read_text(encoding="utf-8") == "<html>ok</html>"
+    assert (snapshot / "assets" / "index.js").is_file()
 
 
 def test_auto_slug_appends_suffix_on_conflict(patched_paths: Paths) -> None:
