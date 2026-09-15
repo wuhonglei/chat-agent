@@ -125,7 +125,7 @@ class Paths:
                 if not relative:
                     return base, kind
                 physical = (base / relative).resolve()
-                if not str(physical).startswith(str(base)):
+                if not physical.is_relative_to(base):
                     raise ValueError("path traversal detected")
                 return physical, kind
         raise ValueError(

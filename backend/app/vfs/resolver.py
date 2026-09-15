@@ -37,7 +37,7 @@ def resolve_relative_under_root(root: Path, relative_path: str) -> tuple[Path, P
             raise ValueError("forbidden path")
 
     target = (root / Path(*normalized_parts)).resolve()
-    if not str(target).startswith(str(root)):
+    if not target.is_relative_to(root):
         raise ValueError("path escapes workspace")
     return root, target
 
@@ -139,7 +139,7 @@ class PathResolver:
 
         physical_path = (base_dir / relative_part).resolve()
 
-        if not str(physical_path).startswith(str(base_dir)):
+        if not physical_path.is_relative_to(base_dir):
             raise ValueError("Path traversal detected: path escapes root directory")
 
         return physical_path, permission

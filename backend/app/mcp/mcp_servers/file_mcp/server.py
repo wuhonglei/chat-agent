@@ -179,7 +179,7 @@ async def present_files(
         min_length=1,
     ),
 ) -> ToolResult:
-    """Make files visible to the user for viewing and rendering in the client interface.
+    """Register final deliverables under /mnt/user-data/outputs/ so the client renders a workspace preview entry point for them.
 
     When to use:
     - After creating deliverables that should be shown to the user
@@ -192,6 +192,8 @@ async def present_files(
     Notes:
     - Call this after copying final deliverables to /mnt/user-data/outputs/
     - Only virtual paths under /mnt/user-data/outputs/ are accepted
+    - Only files are accepted; directories (e.g. a built site) must be presented
+      file by file, or its entry file only
     """
     ctx = ToolContext()
     result = await _present_files.execute({"filepaths": filepaths}, ctx)
