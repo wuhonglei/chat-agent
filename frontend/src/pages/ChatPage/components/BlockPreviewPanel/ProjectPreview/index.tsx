@@ -22,6 +22,7 @@ import FilePreviewContent from "./FilePreviewContent";
 import { PROJECT_PREVIEW_DIRECTORY_ICONS } from "./file_icons";
 import { useWorkspaceExcelWorkbook, useWorkspaceImagePreview } from "./hooks";
 import {
+  SITE_OUTPUTS_DIR,
   filterEmptyDirectories,
   findNodeByPath,
   getAncestorDirPaths,
@@ -32,7 +33,9 @@ import {
   isImagePath,
   isNonTextWorkspaceFile,
   isPlaceholderPath,
+  isSiteDistPath,
   normalizeTreeNodes,
+  outputsTreeHasAppDist,
   replaceDirectoryChildren,
   toPathSegments,
 } from "./utils";
@@ -261,6 +264,27 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
   const unpublishedSite =
     conversationSite != null && conversationSite.unpublishedAt != null ? conversationSite : null;
 
+  const { data: hasAppDistDir, refresh: refreshAppDistDir } = useRequest(
+    async () => {
+      const res = await workspaceAPI.getWorkspaceFileTree(block.workspaceId, {
+        path: SITE_OUTPUTS_DIR,
+        depth: 1,
+      });
+      return outputsTreeHasAppDist(res.treeData || []);
+    },
+    {
+      refreshDeps: [block.workspaceId],
+    },
+  );
+  const showSiteUi =
+    conversationSite != null || hasAppDistDir === true || isSiteDistPath(block.selectedFilePath);
+
+  useEffect(() => {
+    if (!showSiteUi && previewMode === "app") {
+      setPreviewMode("files");
+    }
+  }, [previewMode, showSiteUi]);
+
   const { run: runPublish, loading: publishing } = useRequest(
     async (slug?: string) => {
       return await sitesAPI.publish({
@@ -342,6 +366,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
   useEmitter(EventType.WorkspaceTreeRefresh, (payload) => {
     if (payload.workspaceId === block.workspaceId) {
       refreshTree();
+      refreshAppDistDir();
     }
   });
 
@@ -565,7 +590,8 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
       return;
     }
     refreshTree();
-  }, [previewMode, refreshSite, refreshTree]);
+    refreshAppDistDir();
+  }, [previewMode, refreshAppDistDir, refreshSite, refreshTree]);
 
   const handleOpenAppPreviewInNewPage = useCallback(() => {
     if (!liveSite) {
@@ -612,57 +638,61 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
     <section className="h-full min-h-0 flex flex-col border-l border-(--ant-color-border-secondary) bg-(--ant-color-bg-layout)">
       <header className="flex h-15 shrink-0 items-center justify-between gap-2 border-b border-(--ant-color-border-secondary) bg-(--ant-color-bg-container) px-3">
         <div className="min-w-0 flex items-center gap-2">
-          <Segmented<PreviewMode>
-            size="small"
-            value={previewMode}
-            onChange={setPreviewMode}
-            options={[
-              { label: "文件预览", value: "files" },
-              { label: "运行预览", value: "app" },
-            ]}
-          />
+          {showSiteUi ? (
+            <Segmented<PreviewMode>
+              size="small"
+              value={previewMode}
+              onChange={setPreviewMode}
+              options={[
+                { label: "文件预览", value: "files" },
+                { label: "运行预览", value: "app" },
+              ]}
+            />
+          ) : null}
         </div>
         <div className="flex items-center gap-1">
-          {liveSite ? (
-            <>
-              <Tooltip title="复制公网链接">
-                <Button
-                  type="text"
-                  icon={<CopyOutlined />}
-                  onClick={() => void handleCopySiteUrl()}
-                />
-              </Tooltip>
-              <Tooltip title="重新发布当前产物">
+          {showSiteUi ? (
+            liveSite ? (
+              <>
+                <Tooltip title="复制公网链接">
+                  <Button
+                    type="text"
+                    icon={<CopyOutlined />}
+                    onClick={() => void handleCopySiteUrl()}
+                  />
+                </Tooltip>
+                <Tooltip title="重新发布当前产物">
+                  <Button
+                    type="text"
+                    icon={<CloudUploadOutlined />}
+                    loading={republishing}
+                    disabled={siteBusy}
+                    onClick={() => runRepublish(liveSite.slug)}
+                  />
+                </Tooltip>
+                <Tooltip title="下线">
+                  <Button
+                    type="text"
+                    danger
+                    icon={<DisconnectOutlined />}
+                    loading={unpublishing}
+                    disabled={siteBusy}
+                    onClick={handleUnpublish}
+                  />
+                </Tooltip>
+              </>
+            ) : (
+              <Tooltip title={unpublishedSite ? "重新上线" : "发布到域名"}>
                 <Button
                   type="text"
                   icon={<CloudUploadOutlined />}
-                  loading={republishing}
+                  loading={publishing}
                   disabled={siteBusy}
-                  onClick={() => runRepublish(liveSite.slug)}
+                  onClick={handleOpenPublish}
                 />
               </Tooltip>
-              <Tooltip title="下线">
-                <Button
-                  type="text"
-                  danger
-                  icon={<DisconnectOutlined />}
-                  loading={unpublishing}
-                  disabled={siteBusy}
-                  onClick={handleUnpublish}
-                />
-              </Tooltip>
-            </>
-          ) : (
-            <Tooltip title={unpublishedSite ? "重新上线" : "发布到域名"}>
-              <Button
-                type="text"
-                icon={<CloudUploadOutlined />}
-                loading={publishing}
-                disabled={siteBusy}
-                onClick={handleOpenPublish}
-              />
-            </Tooltip>
-          )}
+            )
+          ) : null}
           {previewMode === "files" ? (
             <Tooltip title="下载项目（zip）">
               <Button

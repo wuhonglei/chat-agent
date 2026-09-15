@@ -1,20 +1,11 @@
+import { toWorkspaceRelativePath } from "@/pages/ChatPage/components/BlockPreviewPanel/ProjectPreview/utils";
 import { useBlockPreview } from "@/pages/ChatPage/context/useBlockPreview";
 import { Button } from "antd";
 import React from "react";
 import { useParams } from "react-router-dom";
 
-const VIRTUAL_PATH_PREFIX = "/mnt/user-data/";
-
 function createProjectPreviewBlockId() {
   return `cb_project_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-}
-
-/** 将 present_files 的虚拟路径转换为会话相对路径（与文件树/文件内容接口一致）。 */
-function toWorkspaceRelativePath(virtualPath: string): string {
-  if (virtualPath.startsWith(VIRTUAL_PATH_PREFIX)) {
-    return virtualPath.slice(VIRTUAL_PATH_PREFIX.length);
-  }
-  return virtualPath.replace(/^\/+/, "");
 }
 
 type Props = {
