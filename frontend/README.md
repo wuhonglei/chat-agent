@@ -42,7 +42,7 @@ frontend/
 - `/`：重定向到 `/chat`
 - `/chat`：新会话欢迎页
 - `/chat/:conversationId`：会话详情页
-- `/memories`：用户记忆管理（分页 / 搜索 / 治理状态筛选）
+- `/memories`：用户记忆管理（分页 / 搜索 / 治理状态 / 类型 / **类别** / 创建日期筛选）
 - `/login`：登录页
 - `/login/wechat/callback`：微信登录回调
 - `/markdown`：Markdown 展示页
@@ -57,6 +57,7 @@ frontend/
 - 认证：`/api/auth/*`
 - 健康检查：`/api/health*`
 - 头像：`POST /api/avatars/upload`；文件：`POST /api/file/upload`
+- 静态站：`GET /api/sites/me`、`POST /api/sites/`、`POST /api/sites/{slug}/republish`、`DELETE /api/sites/{slug}`（`src/services/sites.ts`）
 
 ## Chat 内容块与附件（当前实现）
 
@@ -94,8 +95,8 @@ frontend/
 - Excel：右侧预览默认使用 SheetJS 渲染多 sheet 表格；若后端返回派生 Markdown，可在表格 / Markdown 间切换
 - Markdown：作为独立 `MarkdownBlock` 打开右侧预览；PDF / Excel 转写出的 Markdown 也复用同一块结构
 - 纯文本 / 代码文件：`.csv` / `.tsv` 以表格预览，其它文本/代码通过 `CodeHighlighter` 按扩展名高亮
-- HTML：在代码块头部点击“预览”后，使用侧栏 iframe 的 `srcDoc` 预览；当前 iframe 未设置 `sandbox`
-- 工作区项目：`ProjectPreview` 支持浏览 agent 工作区文件，工作区内 Excel 预览与聊天 Excel 附件预览分离
+- HTML：代码块头部「预览」用侧栏 iframe `srcDoc`（当前未设 `sandbox`）。工作区 HTML：已发布则 iframe 走站点公网 URL；未发布且行数 ≥ 50 默认预览，否则源码
+- 工作区项目：`ProjectPreview` 浏览 agent 工作区。存在 `outputs/app-dist` 或 `outputs/index.html` 时提供「文件 / 运行」与发布 / 复制链接 / 下线；自定义 slug 走 REST，占用展示 409，不静默改名。`workspaceId` 即 `conversation_id`
 
 `PreviewableBlock` 当前覆盖 `pdf | excel | markdown | text_file | html | code_exec | project`，入口为 `src/pages/ChatPage/components/BlockPreviewPanel/index.tsx`。
 
@@ -203,4 +204,5 @@ docker run -d -p 3000:3000 --name chat-agent-frontend chat-agent-frontend
 ## 说明
 
 - 不要直接使用 `npm`/`pnpm` 命令管理依赖或启动开发服务，统一使用 `vp`。
+- `@tailwindcss/vite` 等插件的 `vite` 必须 alias 到 `vite-plus-core`（见 `package.json` overrides）；版本漂移会导致构建失败。
 - 若需了解前端专题文档，请查看 `frontend/docs/` 和根索引 `docs/README.md`。

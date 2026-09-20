@@ -17,6 +17,7 @@
 - `clientTurnId`
 - `mentionedBlocks`（可选，@ 引用附件）
 - `taskAction`（可选，`"continue"` | `"summarize"`；Agent 检查点后续跑 / 总结）
+- `language`（浏览器首选语言，BCP 47；`navigator.language || "zh-CN"`）
 
 请求发出前会在 `src/services/chat.ts` 中通过 `snakecaseKeys` 转为后端蛇形字段，例如：
 
@@ -28,8 +29,9 @@
 - `agentMode` -> `agent_mode`
 - `clientTurnId` -> `client_turn_id`
 - `taskAction` -> `task_action`
+- `language` -> `language`（已是蛇形，无需转换）
 
-后端另支持可选 `memories`（预注入用户记忆、跳过服务端 search）；**前端现网不发送**，仅评估 / replay 等脚本使用。`task_action` 为 `continue` / `summarize` 时后端也会跳过记忆检索。详见 `backend/docs/用户管理.md`、`docs/会话管理.md`。
+后端另支持可选 `memories`（预注入用户记忆、跳过服务端 search）；**前端现网不发送**，仅评估 / replay 等脚本使用。`task_action` 为 `continue` / `summarize` 时后端也会跳过记忆检索。`language` 只作为 system 回退语言（query 语言优先）；续流请求不带该字段。详见 `backend/docs/用户管理.md`、`docs/会话管理.md`。
 
 ## 2. 为什么这里不再记录组件 schema 传输
 
@@ -59,7 +61,8 @@
   "agentMode": 1,
   "modelID": "default",
   "clientTurnId": "turn_...",
-  "taskAction": "continue"
+  "taskAction": "continue",
+  "language": "zh-CN"
 }
 ```
 
@@ -71,3 +74,4 @@
 - 调试抓包时看到后端字段名与前端 TS 类型不一致是正常现象（snake_case 转换导致）。
 - `taskAction` 仅 `agentMode > 0` 时生效；普通模式即使带上也会被忽略，工具预算仍是 10 轮。
 - 检查点续跑/总结应带固定按钮文案；不要把 `taskAction` 用在用户新输入的普通一轮上（后端会跳过记忆检索）。
+- `language` 是回退值，不是强制输出语言；后端优先跟 query 语言。

@@ -11,6 +11,7 @@
 - 用户认证：短信登录、微信登录、JWT 鉴权
 - MCP 工具：Context7、天气、联网搜索、代码执行、时间
 - 用户能力：用户信息、用户记忆、头像上传
+- 静态站发布：`/api/sites` + MCP `publish_site`（快照到 `data/sites/{slug}`，由 `sites` nginx 按 Host 提供）
 
 ## 技术栈
 
@@ -63,6 +64,8 @@ cp .env.example .env
 > 可选：若使用 Nacos，按 `.env` 配置连接信息；若本地直连数据库，建议设置 `DATABASE__HOST=localhost`。
 >
 > Nacos gRPC 相关环境变量（可选）：`NACOS_GRPC_TIMEOUT_MS`（默认 5000）、`NACOS_GRPC_PORT_OFFSET`（默认 1000）、`NACOS_GRPC_KEEPALIVE_MS`（默认 180000，过短易触发 `too_many_pings`）。生产启动见 `start.sh`：**不要**对 Gunicorn 使用 `--preload`（与 Nacos gRPC 不兼容）。
+>
+> **本地开发隧道**：`make dev` 会先跑 `nacos-tunnel`（`Makefile`），把本机 `8848` / `9848` SSH 转到远程 Nacos。已有进程监听 8848 则跳过。只需隧道时执行 `make nacos-tunnel`。SDK 登录已打补丁走 v3（密码在请求体，不进 URL / Nacos access_log）。完全离线可设 `NACOS_SKIP_LOAD=1`，但 `.env` 必须自备全部必填配置。
 
 ### 3) 启动开发服务
 
@@ -107,6 +110,7 @@ make test
 - 消息：`/api/message/delete/{message_id}`、`/api/message/feedback/{message_id}`
 - 用户：`/api/user/*`
 - 文件：`/api/file/*`
+- 静态站：`POST /api/sites/`、`POST /api/sites/{slug}/republish`、`GET /api/sites/me`、`DELETE /api/sites/{slug}`
 - 健康：`/api/health/*`
 - 代码执行：`/api/code/*`
 
@@ -276,9 +280,20 @@ Last-Event-ID: 12
 
 模型配置采用 `models.providers`（按供应商聚合）+ `models.scenarios`（场景选模）两层结构，必须包含 `text_generation` / `title_generation` / `summarization` 场景。聊天请求 `model_id` 为空或无法解析时回退 `text_generation` 的默认模型；当请求携带图片块且所选模型 `image_support=false` 时，`POST /api/chat/stream` 会返回 `400 当前模型不支持图片输入`。
 
+## 静态站发布（近期落地）
+
+Agent 把 Vite SPA 拷到 `outputs/app-dist/`（或单页 `outputs/index.html`）后，可发布到 `{slug}.apps.wuhonglei.cn`。
+
+- REST：`/api/sites`（见上）；MCP：`publish_site`（**无 slug 参数**，服务端按会话标题生成或复用）
+- 快照目录：`backend/data/sites/{slug}/{version}/`，`current` 相对软链指向当前版本；nginx 容器 `sites` 只读挂这一棵树
+- 删除会话会 purge 对应站点（否则 FK 失败，且公网 URL 成孤儿站）
+- 配额默认：单站 50MB、每用户同时上线 20 站、TTL 30 天（`settings.sites`）
+
+运维与排障见 `docs/web_app/webapp-publish-plan.md` 文首「现网实现摘要」。
+
 ## Docker 运行
 
-通常从项目根目录使用 `docker compose` 启动（同时拉起 postgres / backend / frontend）。
+通常从项目根目录使用 `docker compose` 启动（postgres / backend / frontend / **sites** / evaluator）。`sites` 映射宿主机 `8080→80`，健康检查是 `pidof nginx`（无 Host 的 HTTP 探活会打到 default_server 404）。
 
 ```bash
 docker compose up -d --build

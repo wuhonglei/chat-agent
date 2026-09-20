@@ -1,11 +1,78 @@
-# Web 建站产物发布方案（自定义域名访问）
+# Web 建站产物发布（自定义域名访问）
 
-> 目标：Agent 完成 web 建站（build 产物落到 outputs 目录）后，用户可通过自定义域名（子域名优先）访问站点。
-> 状态：方案评审完成，尚未实施。落地分 3 期，第 1 期不触碰后端代码。
+> 目标：Agent 完成 web 建站（产物落到 `outputs`）后，用户可通过 `{slug}.apps.wuhonglei.cn` 访问站点。
+> 状态：**第 1–3 期代码已落地**（`#358`–`#366`）。下文「现网实现摘要」以源码为准；其后各节保留设计理由，不再当待办清单。
+> 线上 DNS / 通配证书 / NPM 属部署前置，本仓库无法从源码证明证书已签发。
 
 ---
 
-## 一、现状（代码级事实）
+## 现网实现摘要
+
+核对：`backend/app/services/site_publish_service.py`、`backend/app/api/sites.py`、`backend/app/mcp/mcp_servers/file_mcp/publish_site.py`、`deploy/sites/nginx.conf`、`frontend/src/pages/ChatPage/components/BlockPreviewPanel/ProjectPreview/`。
+
+### 意图
+
+发布的是 **outputs 快照**，不是会话可写目录。nginx 只认 `data/sites/{slug}/current` 软链：有链就能打开，摘链立刻 404。静态流量不进 backend、不查 Postgres/Redis。
+
+### 发布入口
+
+| 入口 | 路径 / 工具 | slug | source 默认 |
+|------|-------------|------|-------------|
+| MCP（Agent） | `file_publish_site`（bare `publish_site`） | **禁止传入**；`allow_requested_slug=False` | `/mnt/user-data/outputs/app-dist`；目录不存在则回退 `outputs/`（须有 `index.html`） |
+| REST | `POST /api/sites/` | 可传自定义 slug（仅前端）；非法 400、占用 409，**不静默改名** | 同上；前端按树优先 `app-dist`，否则 `outputs` |
+| 再发布 | `POST /api/sites/{slug}/republish` | 路径中的 slug | 可改 source / visibility |
+| 列表 | `GET /api/sites/me` | — | 当前用户全部站点（含已下线）；**不是** Agent 查重 API |
+| 下线 | `DELETE /api/sites/{slug}` | — | 写 `unpublished_at` **并摘 `current`** |
+
+同一 `conversation_id` 一站：已有行（含已下线）则复用 slug、`version+1`。删会话会先 `purge_for_conversation`（摘链 + `rmtree data/sites/{slug}` + 删行），再删 conversation（`conversation_id` 有 FK）。
+
+### source 约束
+
+- 必须落在 `/mnt/user-data/outputs/` 下，经 `PathResolver` 转物理路径；`is_relative_to` 防遍历。
+- 目录或 `index.html` / `index.htm` 文件均可；文件会取其父目录。
+- 目录内必须有 `index.html`。
+- 快照只拷普通文件：跳过 `.` 开头目录/文件，**不跟随符号链接**（避免硬链接污染，也避免链出 outputs）。
+
+### slug 与配额（`SitesConfig` 默认）
+
+- 服务端生成：会话标题 ASCII slugify → 过短 / 保留字则 `site-{nanoid(6)}`；冲突 `{base}-2`…，超长或超过 20 次后缀则再回退 nanoid。
+- 合法：`^[a-z0-9-]{3,40}$`。保留字：`www` / `api` / `admin` / `chat` / `static` / `apps` / `mail` / `ftp`。
+- `public_base_domain` 默认 `apps.wuhonglei.cn` → URL `https://{slug}.apps.wuhonglei.cn`
+- 单站快照 ≤ **50MB**（413）；每用户同时上线 ≤ **20** 站（413，只计 `unpublished_at IS NULL`）
+- 默认 TTL **30** 天；再发布会重置 `expires_at`。`expire_interval_seconds` 默认 3600；`0` 关闭。lifespan 里 `run_site_expire_loop` 到期只摘链 + 写 `unpublished_at`，**不删版本目录**。
+
+`visibility` 仅 `unlisted` | `public`。nginx **不读**该字段，两者现网同等可访问；`public` 留给以后的索引策略。`private_signed` **未实现**。
+
+### 静态网关 `sites`
+
+- 镜像：`deploy/sites/`（官方 nginx，无 Python gateway）
+- compose：`8080:80`，**只读**挂 `./backend/data/sites`（不要挂整个 `backend/data`）
+- `server_name "~^(?<slug>[a-z0-9-]{3,40})\.apps\.wuhonglei\.cn$"`（量词必须加引号；nginx 1.31 会把裸 `{` 当块起始）
+- 对不上正则 / 无 Host → `default_server` **404**。探活用 `pidof nginx`，不要要求 HTTP 200。
+- `/assets/` 长期缓存且缺失不回退 HTML；`index.html` `no-cache`；其它路径 SPA `try_files`；`.` 开头路径 **404 不是 403**；`.svg` 加 `CSP: default-src 'none'`
+- `deploy.sh` 已纳入 `sites`；零停机等 60s，最终健康检查看容器内 `pidof nginx`
+
+### 前端 ProjectPreview
+
+实现：`frontend/src/services/sites.ts`、`ProjectPreview/index.tsx`、`sitePaths.ts`、`htmlPreview.ts`。
+
+- 打开面板时 `GET /api/sites/me`，按 `block.workspaceId`（即 conversation id）匹配。
+- 存在 `outputs/app-dist`、`outputs/index.html`、已发布记录、或当前选中可发布路径时，显示「文件 / 运行」与发布工具栏。
+- 发布弹窗可填自定义 slug（预览 `https://{slug}.apps.wuhonglei.cn`）；400/409 展示在表单上，不改名。
+- 已上线：复制链接、重新发布、下线。运行预览 iframe 走站点公网 URL（`getPublishedHtmlPreviewUrl`），不再做 base64 内联。
+- 未发布 HTML：行数 ≥ 50 时默认 `srcDoc` 预览，否则源码。
+
+### 迁移与排障
+
+- 表：`published_sites`（PK `slug`，`conversation_id` UNIQUE）。迁移 `j3k4l5m6n7o8_add_published_sites`。
+- 下线后公网仍 200：只改了 DB、没摘 `current`。
+- MCP 报 source 不存在：先确认 `outputs/app-dist/index.html` 或 `outputs/index.html` 已落盘，且调用的是 `publish_site` 而不是自己拼域名。
+- 超长 Host 命中 default_server：验收时边界内 slug 必须真有 `current`，否则「404」可能只是目录不存在。
+- Vercel claimable skill **已删除**（`eede1bac`）。陈旧 mem0 记忆用 `backend/scripts/archive_stale_skill_memories.py`（默认 dry-run）归档；不要改冻结评测集 `eval_set/v1.0/`。
+
+---
+
+## 一、方案起草时的代码事实（历史对照）
 
 
 | 环节     | 现状                                                                                                                                    | 源码位置                                                                                               |
@@ -344,30 +411,23 @@ sites:
 
 
 
-### 第 1 期（约 2-3 天）：链路先通，不碰后端代码
+### 第 1 期：链路先通
 
-- [ ] DNSPod 泛解析 + 通配证书 + NPM Proxy Host 就位（转发 `sites:8080`，Host 保留）
-- [ ] `deploy/sites/` **纯 nginx** 容器落地（无 `gateway.py`），手工把现有 `outputs/app-dist` 拷进 `data/sites/{slug}/1/` 并 `ln -sfn 1 current` 验证
-- [ ] 验收：`curl -I https://{slug}.apps.wuhonglei.cn/` 返回 200、`content-type: text/html`、assets 命中 long-cache；刷新子路由不 404（SPA 回退生效）；证书链有效（不是 NPM 自签回落）；摘掉 `current` 后立刻 404；非法 Host / 过长 slug 404
+- [x] `deploy/sites/` 纯 nginx 容器 + compose `sites:8080` + `deploy.sh` 健康检查（`pidof nginx`）
+- [ ] DNSPod 泛解析 + 通配证书 + NPM Proxy Host（**线上前置，不在本仓库**；部署后需 `curl -I` 校验证书链）
 
+### 第 2 期：发布闭环
 
+- [x] `published_sites` 表 + 迁移 `j3k4l5m6n7o8` + `/api/sites` 四个接口
+- [x] `publish_site` MCP（schema **无** `slug`）+ `webapp-building` Step C
+- [x] slug 服务端生成 / 保留字 / 冲突加后缀；删会话同步 purge
+- [x] 单页 HTML：`source` 可为 `outputs` 或 `outputs/index.html`，缺省 `app-dist` 不存在时回退
 
-### 第 2 期（约 2-3 天）：发布闭环，Agent 能交付公网 URL
+### 第 3 期：前端体验
 
-- [ ] `published_sites` 表 + 迁移 + `/api/sites` 四个接口（含 `conversation_id` UNIQUE）
-- [ ] `publish_site` MCP 工具 + `file_mcp/server.py` 注册（schema **无** `slug` 参数）
-- [ ] `site_publish_service` 实现 4.4 生成规则（标题 slugify / 保留字 / 冲突加后缀）
-- [ ] `webapp-building` skill 加 Step C（只写调用时机与「原样回报 url」，不写 slug 规则）
-- [ ] 验收：agent 不传 slug 仍拿到合法可访问 URL；同一 conversation 再发布复用 slug 且 version+1、旧版本仍在；并发占用时服务端加后缀而不是把 409 抛给模型；`DELETE` 摘掉 `current` 后立刻 404（不依赖 Redis）；再发布仍复用原 slug
-
-
-
-### 第 3 期（约 2 天）：前端体验与既有缺口
-
-- [ ] ProjectPreview 加发布/复制链接/下线入口；自定义 slug 走 REST，冲突展示 409
-- [ ] 预览改 iframe 直连，替换 base64 内联
-- [ ] `user_data.py:40-45` 补 `outputs/app-dist/index.html` 入口候选
-- [ ] 验收：多页站点、相对路径图片、字体在预览面板里全部可用（当前必坏）；用户填写已被占用的 slug 时看到明确错误而不是被改成别的子域
+- [x] ProjectPreview 发布 / 复制 / 下线；自定义 slug 走 REST，409 明示
+- [x] 已发布站点 iframe 直连公网 URL（不再 base64 内联）
+- [x] 会话预览改为文件系统扫描（`user_data.py` 不再维护硬编码入口候选列表）
 
 ---
 
@@ -428,7 +488,10 @@ sites:
 - 会话内预览（含 base64 内联）：`/Users/apple/Desktop/code/chat-agent/backend/app/api/user_data.py`
 - 交付物登记：`/Users/apple/Desktop/code/chat-agent/backend/app/mcp/mcp_servers/file_mcp/present_files.py`
 - 前端容器内 nginx（`/api` 反代规则）：`/Users/apple/Desktop/code/chat-agent/frontend/nginx.conf`
-- 站点静态出口（计划中）：`/Users/apple/Desktop/code/chat-agent/deploy/sites/`
+- 站点静态出口：`deploy/sites/`（`Dockerfile`、`nginx.conf`）
+- 发布服务 / REST / MCP：`backend/app/services/site_publish_service.py`、`backend/app/api/sites.py`、`backend/app/mcp/mcp_servers/file_mcp/publish_site.py`
+- 过期巡检：`backend/app/services/site_expire_loop.py`（`app/main.py` lifespan）
+- 前端：`frontend/src/services/sites.ts`、`frontend/src/pages/ChatPage/components/BlockPreviewPanel/ProjectPreview/`
 - 编排与部署：`/Users/apple/Desktop/code/chat-agent/docker-compose.yml`、`/Users/apple/Desktop/code/chat-agent/deploy.sh`
 - VFS 与沙箱运维手册：`/Users/apple/Desktop/code/chat-agent/backend/docs/VFS_AND_SANDBOX.md`
 
