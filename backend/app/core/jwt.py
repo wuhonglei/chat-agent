@@ -83,7 +83,7 @@ class JWTManager:
         """获取 payload 并设置过期时间"""
         now = get_unix_timestamp()
         expiration = (
-            now + 35 * 25 * 3600
+            now + 35 * 24 * 3600
         )  # 35 天后过期，过期后 refresh_token 也过期，必须重新登录
         payload = {
             **payload_data,

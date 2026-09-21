@@ -3,7 +3,8 @@
 基于 Mem0 Python SDK 源码的记忆系统架构分析。
 
 > **现网实现请先读** `backend/docs/用户管理.md`（本仓库 HTTP 分流、管理页分页/筛选、检索闸门、prompt 注入）。
-> 本节与 `dream-memory-governance-implementation-plan-v2.md` 是产品语义 / 方案稿，**不等于** chat-agent 已落地的后台治理任务。
+> 本节与 `dream-memory-governance-implementation-plan-v2.md` 是产品语义 / 方案稿；定时触发已落地为独立 Worker
+> （`enabled` 默认 `true`：04:00 日跑近 30 天有聊天的用户 + 周日 04:00 周扫沉睡用户），见 `backend/docs/MEMORY_GOVERNANCE_WORKER.md`。
 
 ## 版本对比
 
