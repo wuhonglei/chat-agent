@@ -1,6 +1,6 @@
 # Alerting rules for chat-agent SLO / dependencies.
 # Import into your existing Prometheus platform (with Alertmanager).
-# Adjust job="chat-agent-backend" and chat handler matchers after checking /metrics.
+# Adjust job="chat-agent" and chat handler matchers after checking /metrics.
 #
 # Burn-rate windows follow multi-window error budget burning
 # (critical ~14.4x over 1h with 5m confirmation; warning ~6x over 6h with 30m).
@@ -42,10 +42,16 @@ groups:
           summary: "chat-agent error budget burning (warning)"
           description: "6h and 30m burn rates exceed ~6x the 99.5% monthly budget."
 
+      # ⚠️ 这三条（Dependency / LLM / DB pool）依赖 health_dependency_up、db_pool_* 系列，
+      # 而它们只在 /api/health/ready 或 /api/health **被请求时**才由 health_probes.py 写出
+      # （见 app/core/health_metrics.py + app/core/health_probes.py）。线上没人调这个端点，
+      # 所以 2026-09-22 之前这些序列根本不存在、规则永远不会触发（实测 /metrics 里 0 条）。
+      # 现在应用机 cron 每分钟 curl 一次 http://127.0.0.1:8000/api/health/ready 续命；
+      # 若把这行 cron 删了，这三条规则会静默复活成「永不触发」。
       - alert: ChatAgentDependencyDown
         expr: |
           min by (component) (
-            health_dependency_up{job="chat-agent-backend",component=~"postgres|redis"}
+            health_dependency_up{job="chat-agent",component=~"postgres|redis"}
           ) == 0
         for: 2m
         labels:
@@ -58,7 +64,7 @@ groups:
       - alert: ChatAgentLLMUnreachable
         expr: |
           min by (component) (
-            health_dependency_up{job="chat-agent-backend",component="llm"}
+            health_dependency_up{job="chat-agent",component="llm"}
           ) == 0
         for: 5m
         labels:
@@ -71,11 +77,11 @@ groups:
       - alert: ChatAgentDBPoolNearExhaustion
         expr: |
           max by (pid) (
-            db_pool_checked_out{job="chat-agent-backend"}
+            db_pool_checked_out{job="chat-agent"}
             /
             clamp_min(
-              db_pool_size{job="chat-agent-backend"}
-              + db_pool_overflow{job="chat-agent-backend"},
+              db_pool_size{job="chat-agent"}
+              + db_pool_overflow{job="chat-agent"},
               1
             )
           ) > 0.9
@@ -95,7 +101,7 @@ groups:
             sum by (le, handler) (
               rate(
                 http_request_duration_seconds_bucket{
-                  job="chat-agent-backend",
+                  job="chat-agent",
                   handler=~"/api/chat.*"
                 }[5m]
               )
