@@ -1,9 +1,13 @@
 # 日志采集片段：合并进宿主机 /home/ubuntu/promtail/config/promtail-config.yaml
 #
-# 现状（2026-09-22 实测）：promtail 用「每容器一个 job + Docker name 过滤」，
-# 只声明了 chat-agent-postgres / chat-agent-backend / chat-agent-frontend，
-# 因此 Loki 里 container 标签的取值只有这三个 —— memory-governance / evaluator /
-# sites 的日志**没有进 Loki**（mg 10:09 的启动行在 Loki 里查不到）。
+# 状态：**2026-09-22 已合并到应用机** /home/ubuntu/promtail/config/promtail-config.yaml
+#      （备份 promtail-config.yaml.bak.20260922162559，新增 job 名 chat_agent_workers）。
+#      重启 promtail 后 Loki 的 container 标签已从 3 个变成 6 个，实测近 24h 日志行数：
+#      memory-governance 10 / evaluator 10 / sites 19。
+#
+# 改动前的现状：promtail 用「每容器一个 job + Docker name 过滤」，只声明了
+# chat-agent-postgres / chat-agent-backend / chat-agent-frontend，因此 Loki 里 container
+# 标签的取值只有这三个 —— memory-governance / evaluator / sites 的日志**没有进 Loki**。
 #
 # 下面这个 job 一次补齐三个容器（Docker 的 name 过滤支持多值，命中任一即采集）；
 # 同样写法也可以拆成三个 job_name，与既有风格保持一致。改完重启 promtail 生效。

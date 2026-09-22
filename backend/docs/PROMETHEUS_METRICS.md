@@ -110,7 +110,7 @@ memory-governance 默认 `9464`，`0` = 关闭），compose 里已发布到宿�
    不伪装成健康；`enabled`/`sweep_enabled` 为 0 时才抑制 staleness 告警。
 2. 进程启动时把心跳写成**启动时间**，给新部署一个调度周期内的宽限期；「跑了但一直失败」
    由 `result="failed"` 覆盖；「反复重启」不在心跳覆盖范围内，由 `up{}` 或容器级
-   （cadvisor）指标覆盖。
+   `docker_container_*`（node-exporter textfile 采集，见 `deploy/monitoring/README.md`）覆盖。
 3. 单元计数**只在非 0 时建序列**，所以别写 `increase(...{outcome="x"}) == 0`
    （序列不存在 → 空向量 → 规则永不触发），用 `unless` 表达「没有成功」。
 4. 不用 multiprocess 模式：worker 是单进程，沿用 backend 的 `PROMETHEUS_MULTIPROC_DIR`

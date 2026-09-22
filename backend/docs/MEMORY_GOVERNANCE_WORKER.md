@@ -158,7 +158,8 @@ compose 里发布 `9464:9464`），埋点在 `memory_worker/metrics.py` + 共用
 
 - **只有 `result="ok"` 推进心跳**；「没配置 / Mem0 不支持 / 主动关闭」只计数，不伪装成健康。
 - 进程启动时把心跳写成启动时间，给新部署一个调度周期内的宽限期；「跑了但一直失败」由
-  `result="failed"` 覆盖；「反复重启」由 `up{}` 或容器级（cadvisor）指标覆盖。
+  `result="failed"` 覆盖；「反复重启」由 `up{}` 或容器级 `docker_container_*`
+  （node-exporter textfile 采集，见 `deploy/monitoring/README.md`）覆盖。
 - 单元计数只在非 0 时建序列，所以告警表达式不能用 `increase(...{outcome="x"}) == 0`
   （序列不存在时返回空向量，规则永不触发），要用 `unless` 表达「没有成功」。
 
