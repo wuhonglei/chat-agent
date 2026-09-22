@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import signal
-from typing import Any
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -12,6 +11,7 @@ from apscheduler.triggers.cron import CronTrigger
 from app.core.observability import init_langfuse, shutdown_langfuse
 from app.services.eval.batch_eval_service import BatchEvalService
 from app.services.eval.judge_llm import judge_llm_caller
+from app.utils.cron import parse_cron_5field
 from app.utils.logger import logger
 from eval_worker.config import get_eval_worker_config
 
@@ -28,21 +28,6 @@ async def run_scheduled_eval() -> None:
     )
 
 
-def _parse_cron(cron: str) -> dict[str, Any]:
-    """解析标准 5 段 cron: minute hour day month day_of_week。"""
-    parts = cron.strip().split()
-    if len(parts) != 5:
-        raise ValueError(f"Invalid cron expression: {cron}")
-    minute, hour, day, month, day_of_week = parts
-    return {
-        "minute": minute,
-        "hour": hour,
-        "day": day,
-        "month": month,
-        "day_of_week": day_of_week,
-    }
-
-
 async def main() -> None:
     """Worker 主循环。"""
     cfg = get_eval_worker_config()
@@ -55,7 +40,7 @@ async def main() -> None:
     init_langfuse()
 
     scheduler = AsyncIOScheduler(timezone="Asia/Shanghai")
-    cron_kwargs = _parse_cron(cfg.schedule_cron)
+    cron_kwargs = parse_cron_5field(cfg.schedule_cron)
 
     async def _job() -> None:
         if not get_eval_worker_config().enabled:

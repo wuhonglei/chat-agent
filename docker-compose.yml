@@ -122,6 +122,37 @@ services:
           memory: 512M
           cpus: "0.5"
 
+  # 记忆治理 worker：按用户 fan-out 调用 Mem0 OSS POST /dream（见 backend/docs/MEMORY_GOVERNANCE_WORKER.md）
+  # 04:00 日跑近 30 天有聊天的用户 + 周日 04:00 周扫沉睡用户；与 evaluator 分开部署
+  # （治理域 / 调度单元不同）；enabled 默认 true，可用
+  # MEMORY_GOVERNANCE_WORKER__ENABLED=false 关闭（关闭后容器仍在跑，只是跳过 job）
+  memory-governance:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: chat-agent-memory-governance
+    command: ["uv", "run", "python", "-m", "memory_worker.main"]
+    environment:
+      DATABASE__HOST: postgres
+      LANGFUSE__ENVIRONMENT: memory_worker
+      OTEL_SERVICE_NAME: chat-agent-memory-governance
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      backend:
+        # backend 负责迁移，保证 users 等表已就绪
+        condition: service_healthy
+    networks:
+      - chat-agent-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+
 networks:
   chat-agent-network:
     driver: bridge

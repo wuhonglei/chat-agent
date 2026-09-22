@@ -781,3 +781,105 @@ class EvalWorkerConfig(BaseModel):
         default=30.0, description="高延迟特殊采样阈值（秒）"
     )
     lookback_hours: int = Field(default=24, description="拉取最近 N 小时的 Trace")
+
+
+class MemoryGovernanceWorkerConfig(BaseModel):
+    """记忆治理 Worker 配置（按用户 fan-out 调用 Mem0 ``POST /dream``）。
+
+    与评估 Worker 分开部署：治理域 / 调度单元与评估不同，共用进程会互相拖累。
+    默认开启：日跑治理「近 ``activity_within_days`` 天有聊天记录」的用户，
+    周跑（``sweep_cron``）扫描 Mem0 全量记忆列表，补治理沉睡用户的存量碎片。
+    Mem0 侧必须支持 ``POST /dream``，且 ``chat_context.memory_config.base_url`` /
+    ``api_key`` 已配置。
+    """
+
+    enabled: bool = Field(
+        default=True,
+        description="是否启用记忆治理 worker；关闭时调度器仍启动但跳过任务",
+    )
+    schedule_cron: str = Field(
+        default="0 4 * * *",
+        description="日跑 cron 表达式（5 段；时区 Asia/Shanghai）",
+    )
+    sweep_enabled: bool = Field(
+        default=True,
+        description="是否启用周扫（长尾：近 N 天无聊天但有记忆的用户）",
+    )
+    sweep_cron: str = Field(
+        default="0 4 * * sun",
+        description=(
+            "周扫 cron 表达式（5 段；时区 Asia/Shanghai；默认周日 04:00）。"
+            "注意 APScheduler 的 day_of_week 是 0=周一，与 POSIX cron 的 0=周日不同，"
+            "所以这里用 sun 而不是 0"
+        ),
+    )
+    run_on_startup: bool = Field(
+        default=False,
+        description="启动时立即跑一次日跑（联调验证用，生产保持关闭）",
+    )
+    consolidate: bool = Field(
+        default=True, description="Dream pass 参数：执行 consolidate（merge/supersede）"
+    )
+    synthesize: bool = Field(
+        default=True, description="Dream pass 参数：执行 synthesis（模式记忆提炼）"
+    )
+    force: bool = Field(
+        default=False, description="Dream pass 参数：绕过 synthesis 的最小记忆条数阈值"
+    )
+    activity_within_days: int = Field(
+        default=30,
+        ge=0,
+        description=(
+            "活跃窗口（天）：治理对象 = 近 N 天有聊天记录的用户"
+            "（对话消息会写记忆，与治理目的对齐）；0 表示不按活跃度过滤。"
+            "不用 users.last_login_at 作信号：那是会话续期时间，不是记忆变化时间"
+        ),
+    )
+    min_memories: int = Field(
+        default=10,
+        ge=0,
+        description=(
+            "记忆条数低于该值的用户跳过治理（0=不过滤）；"
+            "为个位数记忆跑全量 consolidate/synthesis 是纯浪费"
+        ),
+    )
+    skip_if_governed: bool = Field(
+        default=True,
+        description=(
+            "水位去重：上次 Dream pass 时间不早于「该用户最后一条消息时间」时跳过"
+            "（周扫用户按 min_pass_interval_days 兜底）"
+        ),
+    )
+    min_pass_interval_days: int = Field(
+        default=7,
+        ge=0,
+        description="同一用户两次治理之间的最小间隔（天），用于沉睡用户避免重复付费",
+    )
+    max_users_per_run: int = Field(
+        default=500,
+        ge=1,
+        description="单次运行最多处理的用户数（按最后活跃时间倒序截断）",
+    )
+    sweep_max_pages: int = Field(
+        default=50,
+        ge=1,
+        description="周扫最多翻页数（每页 sweep_page_size 条记忆），用于限制扫描成本",
+    )
+    sweep_page_size: int = Field(
+        default=1000,
+        ge=1,
+        le=1000,
+        description="周扫每页拉取的记忆条数（Mem0 上限 1000）",
+    )
+    concurrency: int = Field(
+        default=2, ge=1, le=16, description="并发调用 Mem0 /dream 的用户数"
+    )
+    request_timeout_s: float = Field(
+        default=300.0, gt=0, description="单个用户 Dream pass 的 HTTP 超时（秒）"
+    )
+    retry_attempts: int = Field(
+        default=2, ge=1, le=5, description="单个用户治理失败后的总尝试次数"
+    )
+    retry_backoff_s: float = Field(
+        default=5.0, ge=0, description="失败重试的基础退避秒数（按指数增长）"
+    )

@@ -25,6 +25,7 @@ from app.schemas.config import (
     LangfuseConfig,
     LLMReliabilityConfig,
     MCPConfig,
+    MemoryGovernanceWorkerConfig,
     MinerUConfig,
     ModelsConfig,
     RedisConfig,
@@ -95,6 +96,10 @@ class Settings(BaseSettings):
     eval_worker: EvalWorkerConfig = Field(
         default_factory=EvalWorkerConfig,
         description="分层采样评估 Worker 配置",
+    )
+    memory_governance_worker: MemoryGovernanceWorkerConfig = Field(
+        default_factory=MemoryGovernanceWorkerConfig,
+        description="记忆治理 Worker 配置（Mem0 Dream pass 定时触发）",
     )
 
     model_config = SettingsConfigDict(
