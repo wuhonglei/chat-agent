@@ -105,6 +105,9 @@ DEPLOY_BACKEND=${DEPLOY_BACKEND:-1}
 DEPLOY_EVALUATOR=${DEPLOY_EVALUATOR:-1}
 # 静态站网关：默认跟随整包部署（漏了会出现「后端更新了但站点容器还是旧镜像」）
 DEPLOY_SITES=${DEPLOY_SITES:-1}
+# 记忆治理 worker：与 backend 共用同一份代码树（app/ + memory_worker/），backend 变更时一并重建，
+# 否则它会长期跑旧镜像里的旧代码（调度进程不会被 backend 的镜像更新带起来）
+DEPLOY_MEMORY_GOVERNANCE=${DEPLOY_MEMORY_GOVERNANCE:-$DEPLOY_BACKEND}
 
 # 零停机部署函数
 # 策略：先构建镜像（旧容器继续运行），然后快速切换容器
@@ -235,6 +238,13 @@ zero_downtime_deploy() {
             elif [ "$service" = "sites" ]; then
                 # 静态站网关：无 Host 的 HTTP 探活必然 404，只能检查 nginx 进程
                 if docker exec "$new_container_id" pidof nginx > /dev/null 2>&1; then
+                    is_healthy=true
+                    break
+                fi
+            elif [ "$service" = "memory-governance" ]; then
+                # 常驻定时 worker：没有 HTTP 端口，用启动日志确认 APScheduler 已经起来
+                # （配置/导入出错时进程会直接退出，容器停在 Restarting，日志里不会有这一行）
+                if docker logs "$new_container_id" 2>&1 | grep -q "Memory governance worker started"; then
                     is_healthy=true
                     break
                 fi
@@ -388,7 +398,7 @@ if [ "$IS_FIRST_DEPLOY" = true ]; then
     echo "🧹 清理已停止的旧容器..."
 
     # 清理所有项目相关的已停止容器
-    for service in postgres backend frontend evaluator sites; do
+    for service in postgres backend frontend evaluator sites memory-governance; do
         stopped_container=$(docker ps -aq -f name="chat-agent-$service" 2>/dev/null)
         if [ -n "$stopped_container" ]; then
             echo "   清理已停止的 $service 容器..."
@@ -429,11 +439,21 @@ if [ "$IS_FIRST_DEPLOY" = true ]; then
     if [ "$DEPLOY_SITES" = "1" ]; then
         first_compose_services+=(sites)
     fi
+    if [ "$DEPLOY_MEMORY_GOVERNANCE" = "1" ]; then
+        # memory-governance depends_on postgres + backend（backend 负责迁移，保证表已就绪）
+        if [[ ! " ${first_compose_services[*]} " =~ " postgres " ]]; then
+            first_compose_services+=(postgres)
+        fi
+        if [[ ! " ${first_compose_services[*]} " =~ " backend " ]]; then
+            first_compose_services+=(backend)
+        fi
+        first_compose_services+=(memory-governance)
+    fi
 
     if [ ${#first_compose_services[@]} -eq 0 ]; then
-        echo "⚠️  DEPLOY_BACKEND、DEPLOY_FRONTEND、DEPLOY_EVALUATOR 与 DEPLOY_SITES 均为 0，跳过所有服务启动"
+        echo "⚠️  DEPLOY_BACKEND、DEPLOY_FRONTEND、DEPLOY_EVALUATOR、DEPLOY_SITES 与 DEPLOY_MEMORY_GOVERNANCE 均为 0，跳过所有服务启动"
     else
-        echo "🔨 首次部署：构建并启动服务（范围: backend=$DEPLOY_BACKEND, frontend=$DEPLOY_FRONTEND, evaluator=$DEPLOY_EVALUATOR, sites=$DEPLOY_SITES）..."
+        echo "🔨 首次部署：构建并启动服务（范围: backend=$DEPLOY_BACKEND, frontend=$DEPLOY_FRONTEND, evaluator=$DEPLOY_EVALUATOR, sites=$DEPLOY_SITES, memory_governance=$DEPLOY_MEMORY_GOVERNANCE）..."
         echo "   服务列表: ${first_compose_services[*]}"
         # --wait + --wait-timeout：depends_on service_healthy 时默认约 60s 会放弃；后端冷启动常超过该时间
         if $DOCKER_COMPOSE_CMD up --help 2>&1 | grep -qF 'wait-timeout'; then
@@ -487,13 +507,23 @@ else
         echo "⏭️  跳过 sites 更新（无相关变更）"
     fi
 
+    MEMORY_GOVERNANCE_DEPLOY_SUCCESS=true
+    if [ "$DEPLOY_MEMORY_GOVERNANCE" = "1" ]; then
+        if ! zero_downtime_deploy "memory-governance" 120; then
+            echo "❌ 记忆治理 worker 更新失败"
+            MEMORY_GOVERNANCE_DEPLOY_SUCCESS=false
+        fi
+    else
+        echo "⏭️  跳过 memory-governance 更新（无相关变更）"
+    fi
+
     # 如果本次需要更新的服务全部失败，则退出
-    if [ "$BACKEND_DEPLOY_SUCCESS" = false ] && [ "$FRONTEND_DEPLOY_SUCCESS" = false ] && [ "$EVALUATOR_DEPLOY_SUCCESS" = false ] && [ "$SITES_DEPLOY_SUCCESS" = false ]; then
+    if [ "$BACKEND_DEPLOY_SUCCESS" = false ] && [ "$FRONTEND_DEPLOY_SUCCESS" = false ] && [ "$EVALUATOR_DEPLOY_SUCCESS" = false ] && [ "$SITES_DEPLOY_SUCCESS" = false ] && [ "$MEMORY_GOVERNANCE_DEPLOY_SUCCESS" = false ]; then
         echo "❌ 所有待更新服务部署失败，部署中止"
         exit 1
     fi
 
-    if [ "$BACKEND_DEPLOY_SUCCESS" = false ] || [ "$FRONTEND_DEPLOY_SUCCESS" = false ] || [ "$EVALUATOR_DEPLOY_SUCCESS" = false ] || [ "$SITES_DEPLOY_SUCCESS" = false ]; then
+    if [ "$BACKEND_DEPLOY_SUCCESS" = false ] || [ "$FRONTEND_DEPLOY_SUCCESS" = false ] || [ "$EVALUATOR_DEPLOY_SUCCESS" = false ] || [ "$SITES_DEPLOY_SUCCESS" = false ] || [ "$MEMORY_GOVERNANCE_DEPLOY_SUCCESS" = false ]; then
         echo ""
         echo "⚠️  部分服务部署失败，但继续检查整体状态..."
     fi
@@ -577,6 +607,16 @@ if [ "$DEPLOY_SITES" = "1" ]; then
     fi
 fi
 
+if [ "$DEPLOY_MEMORY_GOVERNANCE" = "1" ]; then
+    mg_container=$(docker ps -q -f name="^/chat-agent-memory-governance$" 2>/dev/null)
+    if [ -n "$mg_container" ] && docker logs "$mg_container" 2>&1 | grep -q "Memory governance worker started"; then
+        echo "✅ memory-governance worker 运行正常（调度已启动）"
+    else
+        echo "❌ memory-governance worker 健康检查失败"
+        ALL_HEALTHY=false
+    fi
+fi
+
 echo ""
 if [ "$ALL_HEALTHY" = true ]; then
     echo "✅ 部署完成！所有服务运行正常"
@@ -610,7 +650,7 @@ if [ "$CLEANUP_IMAGES" = "true" ] || ([ "$CLEANUP_IMAGES" = "auto" ] && [ "$ALL_
 
     # 获取当前使用的镜像 ID（包括运行中的容器和备份容器）
     used_image_ids=""
-    for service in backend frontend evaluator sites; do
+    for service in backend frontend evaluator sites memory-governance; do
         # 运行中的容器
         container_id=$(docker ps -q -f name="^/chat-agent-$service$" 2>/dev/null)
         if [ -n "$container_id" ]; then

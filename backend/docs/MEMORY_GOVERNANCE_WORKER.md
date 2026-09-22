@@ -188,12 +188,15 @@ curl -X POST "$MEM0_BASE_URL/dream" \
 - **周扫候选来自 Mem0 存储而不是 chat-agent 用户表**：不带标识符的列表会返回**所有**有记忆的
   user_id（实测含 `hermes-test-verify-r1r2` 这类非 chat-agent 用户）。当前行为是照单全收，
   如需只治理 chat-agent 用户，可在 `collect_sweep_users` 里用 `users.id` 做交集过滤。
-- **部署脚本未接入（默认开启后需注意）**：`deploy.sh` 的服务列表与
-  `webhooks/main.py` 的变更路径判定目前只覆盖 backend / frontend / evaluator / sites；
-  新服务不在其中就没有首启与零停机更新（首启需手动
-  `docker compose up -d memory-governance`）。因为 `enabled` 默认已是 `true`，一旦容器
-  被拉起就会开始按用户打 Mem0；反过来，若没人启动容器，配置里开着也不会执行——
-  上线时要同时确认这三点：容器在跑、`memory_config.base_url`/`api_key` 已配、
+- **部署链路已接入**：`docker-compose.yml` 的 `memory-governance`、`deploy.sh`（`DEPLOY_MEMORY_GOVERNANCE`
+  环境变量、首次部署服务列表、零停机更新、最终健康检查、镜像清理名单）与 `webhooks/main.py`
+  （`MEMORY_GOVERNANCE_DEPLOY_PATHS` + 「backend 要重建就带上它」的推导）已同步。语义：
+  worker 跑的是与 backend 同一份代码树（`app/**` + `memory_worker/**`），所以**backend 变更必然重建它**，
+  另外 `backend/memory_worker`、`backend/app/services/memory_governance`、`docker-compose.yml`
+  单独变更也会触发（`deploy.sh` 直接执行时 `DEPLOY_MEMORY_GOVERNANCE` 默认跟随 `DEPLOY_BACKEND`）。
+  健康检查用启动日志行 `Memory governance worker started`（该 worker 没有 HTTP 端口；配置/导入出错时
+  进程直接退出、容器停在 Restarting，不会打这行）。因为 `enabled` 默认已是 `true`，容器一旦被拉起
+  就会开始按用户打 Mem0——上线时仍要确认三点：容器在跑、`memory_config.base_url`/`api_key` 已配、
   Mem0 侧 `POST /dream` 可访问。
 - **cron 字段语义**：日跑/周扫都用 APScheduler 的 `CronTrigger`，其 `day_of_week`
   是 0=周一（与 POSIX cron 的 0=周日不同），所以周扫默认写成 `0 4 * * sun`。
