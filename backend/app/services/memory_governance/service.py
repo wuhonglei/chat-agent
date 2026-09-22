@@ -58,7 +58,7 @@ class GovernanceClient(Protocol):
         force: bool = False,
     ) -> dict[str, Any]: ...
 
-    async def last_pass_at(self, user_id: str) -> datetime | None: ...
+    async def last_full_pass_at(self, user_id: str) -> datetime | None: ...
 
     async def memory_count(self, user_id: str) -> int | None: ...
 
@@ -299,10 +299,14 @@ class MemoryGovernanceService:
         return report
 
     async def _skip_reason(self, activity: UserActivity) -> str | None:
-        """两道省钱闸门：水位去重 + 最小记忆量。返回跳过原因，``None`` 表示可治理。"""
+        """两道省钱闸门：水位去重 + 最小记忆量。返回跳过原因，``None`` 表示可治理。
+
+        水位只看**全量** pass（``source != "on_add"``）：写记忆触发的 on_add
+        consolidate 只做 merge/supersede，不代表 synthesis 已跑过。
+        """
         user_id = activity.user_id
         if self.config.skip_if_governed:
-            last_pass = await self._client.last_pass_at(user_id)
+            last_pass = await self._client.last_full_pass_at(user_id)
             if last_pass is not None:
                 if activity.last_active_at is not None:
                     if last_pass >= activity.last_active_at:

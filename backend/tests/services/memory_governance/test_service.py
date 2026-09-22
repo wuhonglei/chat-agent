@@ -77,7 +77,7 @@ class FakeGovernanceClient:
             raise pending.pop(0)
         return {"pass_id": f"pass-{user_id}", "stats": {"merged": 1}}
 
-    async def last_pass_at(self, user_id: str) -> datetime | None:
+    async def last_full_pass_at(self, user_id: str) -> datetime | None:
         return self._last_pass.get(user_id)
 
     async def memory_count(self, user_id: str) -> int | None:

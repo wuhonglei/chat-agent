@@ -74,6 +74,7 @@ async def test_run_pass_posts_user_scoped_payload(
             "consolidate": True,
             "synthesize": True,
             "force": False,
+            "source": "scheduler",
         }
         return httpx.Response(
             200, json={"pass_id": "pass-1", "stats": {"merged": 2}, "actions": []}
@@ -157,45 +158,133 @@ def test_parse_mem0_datetime_handles_z_and_naive() -> None:
 
 
 @pytest.mark.asyncio
-async def test_last_pass_at_reads_latest_pass(
+async def test_last_full_pass_at_single_row_request(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """新版服务：``limit=1`` + ``source=manual,scheduler``，一次请求就是答案。"""
+
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "GET"
         assert str(request.url).startswith("http://127.0.0.1:8888/dream?")
         assert request.url.params["user_id"] == "u1"
-        assert request.url.params["limit"] == "1"
+        assert request.url.params["source"] == "manual,scheduler"  # 下推到服务端 SQL
+        assert request.url.params["limit"] == "1"  # 只要最新一条
         return httpx.Response(
             200,
             json={
                 "results": [
-                    {"pass_id": "pass-9", "created_at": "2026-09-16T22:00:00+00:00"},
-                    {"pass_id": "pass-8", "created_at": "2026-09-15T22:00:00+00:00"},
+                    {
+                        "pass_id": "pass-worker",
+                        "source": "scheduler",  # 本 Worker 自己打的标签，同样算已治理
+                        "created_at": "2026-09-17T22:00:00+00:00",
+                    }
                 ]
             },
         )
 
-    _install_transport(monkeypatch, handler)
-    last = await _oss().last_pass_at("u1")
-    assert last is not None and last.day == 16
+    seen = _install_transport(monkeypatch, handler)
+    last = await _oss().last_full_pass_at("u1")
+    assert last is not None and last.day == 17
+    assert len(seen) == 1  # 不再多拉一页回来自己筛
 
 
 @pytest.mark.asyncio
-async def test_last_pass_at_returns_none_when_no_pass_or_error(
+async def test_last_full_pass_at_accepts_worker_tagged_pass_without_manual(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """只有本 Worker 自己跑的 pass（source=scheduler）时也要认，别把自己当没治理过。"""
+    _install_transport(
+        monkeypatch,
+        lambda request: httpx.Response(
+            200,
+            json={
+                "results": [
+                    {
+                        "pass_id": "pass-worker",
+                        "source": "SCHEDULER",
+                        "created_at": "2026-09-18T09:00:00+00:00",
+                    }
+                ]
+            },
+        ),
+    )
+    last = await _oss().last_full_pass_at("u1")
+    assert last is not None and last.day == 18
+
+
+@pytest.mark.asyncio
+async def test_last_full_pass_at_is_fail_open_on_unexpected_source(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """空列表 / 服务端异常返回 on_add → None 放行（绝不能把 on_add 认成已治理而永久跳过）。"""
+    state: dict[str, Any] = {"payload": {"results": []}}
+    seen = _install_transport(
+        monkeypatch, lambda request: httpx.Response(200, json=state["payload"])
+    )
+
+    assert await _oss().last_full_pass_at("u1") is None  # 该用户没有任何全量 pass
+    assert len(seen) == 1
+
+    state["payload"] = {
+        "results": [{"source": "on_add", "created_at": "2026-09-20T22:00:00+00:00"}]
+    }
+    assert await _oss().last_full_pass_at("u1") is None  # 不该把 on_add 当成已治理
+    assert len(seen) == 2  # 每个用户仍只发一次请求，没有额外深扫
+
+
+@pytest.mark.asyncio
+async def test_last_full_pass_at_tolerates_odd_rows(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """脏行继续往下扫：非 dict、缺 source、时间解析失败都要跳过，直到找到可用的 manual。"""
+    _install_transport(
+        monkeypatch,
+        lambda request: httpx.Response(
+            200,
+            json={
+                "results": [
+                    "not-a-dict",
+                    {
+                        "pass_id": "p1",
+                        "created_at": "2026-09-19T10:00:00+00:00",
+                    },  # 缺 source
+                    {
+                        "pass_id": "p2",
+                        "source": "manual",
+                        "created_at": "bad-date",
+                    },  # 时间坏掉
+                    {
+                        "pass_id": "p3",
+                        "source": "manual",
+                        "created_at": "2026-09-18T10:00:00+00:00",
+                    },
+                ]
+            },
+        ),
+    )
+    last = await _oss().last_full_pass_at("u1")
+    assert last is not None and last.day == 18
+
+
+@pytest.mark.asyncio
+async def test_last_full_pass_at_returns_none_when_no_pass_or_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     state: dict[str, Any] = {"resp": httpx.Response(200, json={"results": []})}
     _install_transport(monkeypatch, lambda request: state["resp"])
 
-    assert await _oss().last_pass_at("u1") is None
+    assert await _oss().last_full_pass_at("u1") is None
 
     state["resp"] = httpx.Response(500, text="nope")
-    assert await _oss().last_pass_at("u1") is None
+    assert await _oss().last_full_pass_at("u1") is None
+
+    state["resp"] = httpx.Response(200, json={"results": "weird"})
+    assert await _oss().last_full_pass_at("u1") is None
 
     # Platform / 未配置时不发请求，直接不做水位判断
-    assert await _platform().last_pass_at("u1") is None
+    assert await _platform().last_full_pass_at("u1") is None
     assert (
-        await DreamClient(MemoryConfig(base_url="", api_key="")).last_pass_at("u1")
+        await DreamClient(MemoryConfig(base_url="", api_key="")).last_full_pass_at("u1")
         is None
     )
 

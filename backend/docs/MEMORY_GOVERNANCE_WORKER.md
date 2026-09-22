@@ -49,7 +49,7 @@ APScheduler(CronTrigger, Asia/Shanghai)
 
 | 用途 | 请求 | 说明 |
 |------|------|------|
-| pass 水位 | `GET /dream?user_id=<id>&limit=1` | 取最近一次 pass 的 `created_at`；失败/为空则不拦截 |
+| pass 水位 | `GET /dream?user_id=<id>&source=manual,scheduler&limit=1` | 服务端按 `source` 过滤 + `created_at` 倒序，`limit=1` 即**最近一次全量 pass** 的 `created_at`；客户端仍逐行核对 `source`（失败方向安全：宁可放行多花一次 pass，也不把 on_add 当已治理而永久跳过）。读失败/为空/全是 on_add 则不拦截 |
 | 最小记忆量 | `GET /memories?user_id=<id>&page=1&page_size=1` | 读响应里的 `count`（admin 分页语义），拿不到则不拦截 |
 | 周扫候选 | `GET /memories?page=<n>&page_size=1000`（不带标识符） | admin 全量列表，提取 `user_id`；分页上限 1000 |
 
@@ -68,9 +68,20 @@ Mem0 一次 pass 的审计（`pass_id` / `stats` / `actions`）由 Mem0 侧的
    `max_users_per_run`。
 2. **周扫补长尾**（`sweep_cron`，周日 04:00）：从 Mem0 的 admin 记忆列表发现「有记忆但
    近期没聊天」的用户，让沉睡用户的存量碎片一周收一次，不会永久漏掉。
-3. **水位去重**（`skip_if_governed=true`）：跳过「上次 pass 时间 ≥ 该用户最后一条消息时间」
-   的用户——没有新记忆写入就不重跑全量 pass。周扫用户没有可靠的最后活动时间，
+3. **水位去重**（`skip_if_governed=true`）：跳过「**最近一次全量 pass** 时间 ≥ 该用户最后一条
+   消息时间」的用户——没有新记忆写入就不重跑全量 pass。周扫用户没有可靠的最后活动时间，
    退化用 `min_pass_interval_days`（默认 7 天）兜底。
+   - 「全量 pass」= `POST /dream` 落库的记录（默认 `source="manual"`，本 Worker 传
+     `source="scheduler"`；mem0 侧 `normalize_pass_source` 做小写/限长归一）；
+     **`source="on_add"` 的轻量 consolidate 不算**（只 merge/supersede，不做 synthesis）。
+     写记忆触发的 on_add 时间戳总是最新，若把它当水位，活跃用户会被
+     永久跳过（实测 dev：两位用户的历史 pass 全是/大多是 on_add，其中一位累计 733 条记忆）；
+     只认 `manual` 也不行——本 Worker 自己跑的 pass 会被自己无视，每次都被判定「没治理过」。
+   - 只取 `limit=1` 就够了：服务端已按 `source` 过滤并按 `created_at` 倒序，第一行就是最近一次
+     全量 pass（此前要多拉 200 行回来本地筛，是因为过滤能力还没上线）。客户端仍逐行核对
+     `source`，但那不是为兼容旧服务，而是**失败方向安全**：万一拿到 on_add（服务端异常/代理
+     吞掉参数），宁可返回 `None` 放行（多花一次 pass 的钱），也不要把 on_add 认成「已治理」
+     而永久跳过该用户。扫不到 → `None` → 不拦截。
 4. **最小记忆量门槛**（`min_memories`，默认 10）：`count` 低于阈值直接跳过；
    为 3 条记忆跑全量 consolidate + synthesis 是纯浪费。读数拿不到（None）时不拦截，
    避免因 Mem0 波动误伤。
