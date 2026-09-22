@@ -83,7 +83,44 @@ curl -s http://localhost:8000/metrics | rg 'process_resident_memory_bytes_custom
 
 HTTP 请求计数与延迟仍使用 `prometheus_fastapi_instrumentator` 默认指标（如 `http_requests_total`、`http_request_duration_seconds`）。SLO / 错误预算 recording 与 alerting 规则见仓库根目录 `deploy/prometheus/` 与 `docs/SLO.md`（`backend/docs/SLO.md`）。
 
-## 6. 源码索引
+## 6. 常驻 worker 指标（`eval_worker` / `memory_worker`）
+
+这两个 worker 与 backend 同镜像、不同 command（`uv run python -m eval_worker.main` /
+`memory_worker.main`），**没有常驻 HTTP 端口**：指标由 `prometheus_client` 用独立
+registry 另起一个监听暴露，端口来自各自配置的 `metrics_port`（evaluator 默认 `9465`、
+memory-governance 默认 `9464`，`0` = 关闭），compose 里已发布到宿主机供内网抓取。
+
+共用骨架 `app/core/worker_metrics.py`，每个 worker 的映射在 `eval_worker/metrics.py`
+与 `memory_worker/metrics.py`，指标名以 worker 前缀区分：
+
+| 指标（`{prefix}_…`） | 类型 | 标签 | 含义 |
+|--------|------|------|------|
+| `{prefix}_enabled` | Gauge | — | 配置是否启用（1/0），用于抑制「主动关闭」时的告警 |
+| `{prefix}_runs_total` | Counter | `mode`, `result` | 运行次数；`result` ∈ `ok` / `failed` / `disabled` / `not_configured` / `unsupported` |
+| `{prefix}_last_success_timestamp_seconds` | Gauge | `mode` | **心跳**：最近一次成功运行的 Unix 时间戳 |
+| `{prefix}_run_duration_seconds` | Gauge | `mode` | 最近一次运行耗时 |
+| `{prefix}_units_total` | Counter | `mode`, `outcome` | 处理单元数（治理=用户 `scanned/succeeded/skipped/failed`；评估=`traces/sampled/judge_success/judge_failed/low_score`） |
+
+`prefix` 分别为 `memory_governance`、`evaluator`；`mode` 为 `daily` / `sweep`
+（评估 worker 固定 `scheduled`）。另有 `memory_governance_sweep_enabled`。
+
+语义约定（与 HTTP 指标不同，排查时按这个顺序看）：
+
+1. **只有 `result="ok"` 推进心跳**——「配置缺失 / 后端不支持 / 主动关闭」只计数，
+   不伪装成健康；`enabled`/`sweep_enabled` 为 0 时才抑制 staleness 告警。
+2. 进程启动时把心跳写成**启动时间**，给新部署一个调度周期内的宽限期；「跑了但一直失败」
+   由 `result="failed"` 覆盖；「反复重启」不在心跳覆盖范围内，由 `up{}` 或容器级
+   `docker_container_*`（node-exporter textfile 采集，见 `deploy/monitoring/README.md`）覆盖。
+3. 单元计数**只在非 0 时建序列**，所以别写 `increase(...{outcome="x"}) == 0`
+   （序列不存在 → 空向量 → 规则永不触发），用 `unless` 表达「没有成功」。
+4. 不用 multiprocess 模式：worker 是单进程，沿用 backend 的 `PROMETHEUS_MULTIPROC_DIR`
+   反而会把指标混进 backend 的聚合目录。
+
+告警规则见 `deploy/prometheus/alerting_rules.yml` 的 `chat_agent_worker_alerts` 组，
+抓取配置片段见 `deploy/prometheus/scrape-config.snippet.yml`，任务编排细节见
+[MEMORY_GOVERNANCE_WORKER.md](./MEMORY_GOVERNANCE_WORKER.md)。
+
+## 7. 源码索引
 
 | 主题 | 路径 |
 |------|------|
@@ -92,5 +129,8 @@ HTTP 请求计数与延迟仍使用 `prometheus_fastapi_instrumentator` 默认�
 | 健康探活指标 | `app/core/health_metrics.py` |
 | 探活逻辑 | `app/core/health_probes.py` |
 | 健康检查路由 | `app/api/health.py` |
+| worker 指标骨架（心跳 / 运行结局 / 监听） | `app/core/worker_metrics.py` |
+| 记忆治理 worker 埋点 | `memory_worker/metrics.py`、`memory_worker/main.py` |
+| 评估 worker 埋点 | `eval_worker/metrics.py`、`eval_worker/main.py` |
 | 生产启动与目录清理 | `start.sh` |
 | SLO / 告警规则（导入现有 Prometheus 平台） | `deploy/prometheus/`、`backend/docs/SLO.md` |

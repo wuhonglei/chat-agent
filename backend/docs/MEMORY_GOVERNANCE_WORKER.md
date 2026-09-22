@@ -121,6 +121,7 @@ Mem0 一次 pass 的审计（`pass_id` / `stats` / `actions`）由 Mem0 侧的
 | `request_timeout_s` | `300` | 单用户 pass 的 HTTP 超时（秒） |
 | `retry_attempts` | `2` | 单用户失败后的总尝试次数（1-5） |
 | `retry_backoff_s` | `5` | 退避基数（秒，指数增长） |
+| `metrics_port` | `9464` | Prometheus 指标监听端口（宿主发布 `9464:9464`）；`0`=关闭 |
 
 环境变量写法（`__` 嵌套分隔符）：
 
@@ -132,10 +133,39 @@ MEMORY_GOVERNANCE_WORKER__MIN_MEMORIES=10
 MEMORY_GOVERNANCE_WORKER__CONCURRENCY=2
 ```
 
-运行报告（`DreamRunReport`）字段：`mode`（daily/sweep）、`scanned_users`、`succeeded`、
-`skipped`、`failed`、`failures`；每个用户一条 `UserDreamOutcome`，含
+运行报告（`DreamRunReport`）字段：`mode`（daily/sweep）、`scanned_users`、`skip_reason`
+（整轮被跳过的原因：`disabled` / `not_configured` / `platform`；`None` = 这轮真的跑了）、
+`succeeded`、`skipped`、`failed`、`failures`；每个用户一条 `UserDreamOutcome`，含
 `status`（ok/skipped/failed）、`reason`（跳过原因，如 `governed_after_last_message`、
 `below_min_memories:3<10`）、`attempts`、`pass_id`、`stats`。
+
+## 指标与告警
+
+worker 没有常驻 HTTP 端口，指标由 `prometheus_client` 另起一个监听暴露（默认 `9464`，
+compose 里发布 `9464:9464`），埋点在 `memory_worker/metrics.py` + 共用骨架
+`app/core/worker_metrics.py`：
+
+| 指标 | 类型 | 说明 |
+|------|------|------|
+| `memory_governance_enabled` | gauge | 配置是否启用（抑制「主动关闭」时的告警） |
+| `memory_governance_sweep_enabled` | gauge | 周扫是否启用 |
+| `memory_governance_runs_total{mode,result}` | counter | 每次运行的结局：`ok` / `failed` / `disabled` / `not_configured` / `unsupported` |
+| `memory_governance_last_success_timestamp_seconds{mode}` | gauge | **心跳**：最近一次成功运行的 Unix 时间戳 |
+| `memory_governance_run_duration_seconds{mode}` | gauge | 最近一次运行耗时 |
+| `memory_governance_units_total{mode,outcome}` | counter | 处理的用户数：`scanned` / `succeeded` / `skipped` / `failed`（只在非 0 时建序列） |
+
+语义要点：
+
+- **只有 `result="ok"` 推进心跳**；「没配置 / Mem0 不支持 / 主动关闭」只计数，不伪装成健康。
+- 进程启动时把心跳写成启动时间，给新部署一个调度周期内的宽限期；「跑了但一直失败」由
+  `result="failed"` 覆盖；「反复重启」由 `up{}` 或容器级 `docker_container_*`
+  （node-exporter textfile 采集，见 `deploy/monitoring/README.md`）覆盖。
+- 单元计数只在非 0 时建序列，所以告警表达式不能用 `increase(...{outcome="x"}) == 0`
+  （序列不存在时返回空向量，规则永不触发），要用 `unless` 表达「没有成功」。
+
+告警规则在 `deploy/prometheus/alerting_rules.yml` 的 `chat_agent_worker_alerts` 组
+（日常 staleness、整轮失败、单用户失败、选了人但一个都没治理），抓取配置见
+`deploy/prometheus/scrape-config.snippet.yml`。排查顺序：`up` → 心跳 → 失败计数 → 日志。
 
 ## 本地验证
 
@@ -206,8 +236,11 @@ curl -X POST "$MEM0_BASE_URL/dream" \
   容器在跑、`memory_config.base_url`/`api_key` 已配、Mem0 侧 `POST /dream` 可访问。
 - **cron 字段语义**：日跑/周扫都用 APScheduler 的 `CronTrigger`，其 `day_of_week`
   是 0=周一（与 POSIX cron 的 0=周日不同），所以周扫默认写成 `0 4 * * sun`。
-- **观测/告警未接**：目前只有结构化日志；后续可加 Prometheus 指标（success/failure/
-  duration）与失败告警，必要时把治理 pass 结果落库做长期趋势。
+- **观测/告警已接（2026-09-22）**：worker 暴露 Prometheus 指标（心跳 / 运行结局 / 用户数，
+  见本文「指标与告警」节），告警规则在 `deploy/prometheus/alerting_rules.yml` 的
+  `chat_agent_worker_alerts` 组。线上还差三步（运维侧）：Prometheus 加 scrape job
+  （`deploy/prometheus/scrape-config.snippet.yml`）、导入规则文件、配 Alertmanager
+  或改用 Grafana 托管告警（实测线上 Prometheus 当时 **0 条规则、无 Alertmanager**）。
 - **现网 Mem0 侧现状**：`MEM0_DREAM_ON_ADD=true`（写记忆后同步做轻量 merge/supersede）
   已开启；全量 `POST /dream` 此前只能手动 curl，且 Mem0 自身不带调度器
   （其文档明确要求由 cron 或调用方触发）。

@@ -1,0 +1,39 @@
+# 日志采集片段：合并进宿主机 /home/ubuntu/promtail/config/promtail-config.yaml
+#
+# 状态：**2026-09-22 已合并到应用机** /home/ubuntu/promtail/config/promtail-config.yaml
+#      （备份 promtail-config.yaml.bak.20260922162559，新增 job 名 chat_agent_workers）。
+#      重启 promtail 后 Loki 的 container 标签已从 3 个变成 6 个，实测近 24h 日志行数：
+#      memory-governance 10 / evaluator 10 / sites 19。
+#
+# 改动前的现状：promtail 用「每容器一个 job + Docker name 过滤」，只声明了
+# chat-agent-postgres / chat-agent-backend / chat-agent-frontend，因此 Loki 里 container
+# 标签的取值只有这三个 —— memory-governance / evaluator / sites 的日志**没有进 Loki**。
+#
+# 下面这个 job 一次补齐三个容器（Docker 的 name 过滤支持多值，命中任一即采集）；
+# 同样写法也可以拆成三个 job_name，与既有风格保持一致。改完重启 promtail 生效。
+#
+# 注意：
+#   - 三个容器的日志都走 stdout（json-file driver），沿用 pipeline_stages: docker 即可解析；
+#   - sites（nginx）的访问日志要先进 stdout，容器内 /var/log/app/backend 是空挂载，
+#     不要指望文件采集；
+#   - Chromium/大对象日志可能超过 Loki 单条上限（实测 postgres 触发过 400:
+#     "max entry size 262144 bytes exceeded"），必要时在 pipeline 里截断。
+
+  - job_name: chat_agent_workers
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 10s
+        filters:
+          - name: name
+            values:
+              - "chat-agent-memory-governance"
+              - "chat-agent-evaluator"
+              - "chat-agent-sites"
+    relabel_configs:
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+      - source_labels: ['__meta_docker_container_id']
+        target_label: 'container_id'
+    pipeline_stages:
+      - docker: {}

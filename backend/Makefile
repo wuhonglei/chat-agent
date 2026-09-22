@@ -62,13 +62,13 @@ format:
 	uv run ruff check --fix app/
 	uv run ruff format app/
 
-# Linting
+# Linting（含两个常驻 worker 包：它们与 backend 同镜像，同样要过 lint/type check）
 lint:
-	uv run ruff check app/
+	uv run ruff check app/ memory_worker/ eval_worker/
 
 # Type checking
 check:
-	uv run mypy app/
+	uv run mypy app/ memory_worker/ eval_worker/
 
 # Run tests
 test:

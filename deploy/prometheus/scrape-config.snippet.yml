@@ -1,0 +1,66 @@
+# 线上 Prometheus 抓取配置（2026-09-22 已实际部署）
+#
+# 部署位置：服务机 1.12.53.9 的 /root/prometheus/prometheus.yml，容器里是
+# /etc/prometheus/prometheus.yml。改动后生效方式：
+#   curl -X POST http://127.0.0.1:9090/-/reload     # 容器已带 --web.enable-lifecycle
+#   docker restart prometheus                       # 兜底
+#
+# 改动前的现网事实：只有下面第一个 job，且**一条规则都没被加载**、**没有 Alertmanager**。
+# 现在补齐了 rule_files（挂 /etc/prometheus/rules/）、alerting（同机 Alertmanager 容器）、
+# 两个 worker 指标 job、一个 node-exporter job。
+#
+# 两个 worker 没有常驻 HTTP 端口，指标由 prometheus_client 另起监听暴露：
+#   - chat-agent-memory-governance → 9464（memory_governance_worker.metrics_port）
+#   - chat-agent-evaluator         → 9465（eval_worker.metrics_port）
+# 端口已在 docker-compose.yml 发布到宿主机，Prometheus 从内网抓 10.0.24.3:<port>。
+#
+# ⚠️ 端口可达性（2026-09-22 实测）：从服务机到应用机的 8000/5432 通，**9100/9464/9465 被安全组
+# 挡住**（应用机本地 ufw inactive、宿主 iptables 只有 YunJing 的源 IP 黑名单，不是主机侧拦截）。
+# 需要在腾讯云控制台给应用机安全组放行：来源 = 服务机内网 IP，端口 9100/9464/9465。
+# 放行之前 node / 两个 worker job 的 target 一定是 down——这是预期的，不是配置写错。
+#
+# 指标名与埋点位置见 backend/app/core/worker_metrics.py、
+# backend/memory_worker/metrics.py、backend/eval_worker/metrics.py；
+# 告警规则见 alerting_rules.yml 的 chat_agent_worker_alerts 组。
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - 172.17.0.1:9093 # 同机 Alertmanager，发布在 docker0 网关地址上
+
+scrape_configs:
+  - job_name: chat-agent
+    metrics_path: /metrics
+    scrape_interval: 15s
+    static_configs:
+      - targets: ["10.0.24.3:8000"]
+
+  # 记忆治理 worker：心跳 + 运行结局 + 处理用户数
+  - job_name: chat-agent-memory-governance
+    metrics_path: /metrics
+    # 调度是每天/每周一次，15s 抓取只是为了及时发现进程挂掉，用 30s 足够
+    scrape_interval: 30s
+    static_configs:
+      - targets: ["10.0.24.3:9464"]
+
+  # 评估 worker：心跳 + 运行结局 + 样本/裁判计数
+  - job_name: chat-agent-evaluator
+    metrics_path: /metrics
+    scrape_interval: 30s
+    static_configs:
+      - targets: ["10.0.24.3:9465"]
+
+  # 主机 + 容器指标（node-exporter + textfile collector，见 deploy/monitoring/README.md）
+  - job_name: node
+    metrics_path: /metrics
+    scrape_interval: 30s
+    static_configs:
+      - targets: ["10.0.24.3:9100"]

@@ -1,0 +1,84 @@
+# 容器级告警规则（node-exporter textfile collector + node-exporter 主机指标）
+#
+# 指标来源（2026-09-22 实际部署形态，见 deploy/monitoring/README.md）：
+#   1) node-exporter 跑在应用机，:9100，开 textfile collector
+#   2) 应用机 cron 每分钟跑 deploy/monitoring/collect_container_metrics.py，用 docker CLI
+#      写出 docker_container_{up,restart_count,start_time_seconds,memory_working_set_bytes,
+#      memory_limit_bytes,cpu_percent} 到 textfile 目录
+#   3) node-exporter 同时提供 node_filesystem_*（主机磁盘）
+#
+# 为什么不是 cadvisor：应用机是 kernel 6.8 + cgroup v2 + containerd，cadvisor v0.45（gcr.io 境内
+# 不可达，Docker Hub 只剩这个版本）只能枚举 cgroup，无法把 /system.slice/docker-<id>.scope 映射回
+# 容器，日志持续 `failed getting container info ...: unknown container`，`container_*` 系列
+# **没有 name 标签**（实测 0 条）→ 按容器的告警全部写不出来。textfile 方案无外部依赖、可自证。
+#
+# Prometheus 需要两个 job：job="node"（应用机 :9100）。见 scrape-config.snippet.yml。
+#
+# 覆盖的真实故障（2026-09-22 实例）：
+#   - chat-agent-memory-governance 因镜像漏 COPY 启动即崩，restart 循环 16 次，全程无人知晓
+#   - 同机 langfuse-clickhouse-1 持续 360% CPU / 1.265GiB（limit 1.5GiB）逼近上限
+groups:
+  - name: chat_agent_container_alerts
+    rules:
+      - alert: ChatAgentContainerRestarting
+        expr: |
+          increase(docker_container_restart_count{name=~"chat-agent-.*"}[15m]) > 1
+        for: 5m
+        labels:
+          severity: critical
+          service: chat-agent
+        annotations:
+          summary: "chat-agent 容器反复重启（{{ $labels.name }}）"
+          description: "15 分钟内重启超过 1 次；先看 `docker logs --tail 50`——启动即崩多是镜像缺文件/依赖（如 Dockerfile 漏 COPY）。"
+
+      - alert: ChatAgentContainerDown
+        expr: |
+          docker_container_up{name=~"chat-agent-.*"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          service: chat-agent
+        annotations:
+          summary: "chat-agent 容器未在运行（{{ $labels.name }}）"
+          description: "采集脚本对「期望存在但不存在」的容器也写 up=0，所以这条同时覆盖「被删掉」和「停了」。排除 promtail / postgres 之类的计划内停用后按需静默。"
+
+      - alert: ChatAgentContainerMemoryNearLimit
+        expr: |
+          docker_container_memory_working_set_bytes{name=~"chat-agent-.*"}
+          /
+          clamp_min(docker_container_memory_limit_bytes{name=~"chat-agent-.*"}, 1)
+          > 0.9
+          and
+          docker_container_memory_limit_bytes{name=~"chat-agent-.*"} > 0
+        for: 10m
+        labels:
+          severity: warning
+          service: chat-agent
+        annotations:
+          summary: "chat-agent 容器内存逼近上限（{{ $labels.name }}）"
+          description: "工作集超过 limit 的 90% 持续 10 分钟，下一步就是 OOMKill。"
+
+      - alert: LangfuseClickHouseCPUHigh
+        expr: |
+          docker_container_cpu_percent{name="langfuse-clickhouse-1"} > 200
+        for: 15m
+        labels:
+          severity: warning
+          service: langfuse
+        annotations:
+          summary: "Langfuse ClickHouse 持续高 CPU"
+          description: "实测该容器长期 360% CPU（4 核机器），既拖慢同机 chat-agent，也说明数据增长/查询有问题。"
+
+      - alert: ChatAgentHostDiskLow
+        expr: |
+          node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}
+          /
+          node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}
+          < 0.15
+        for: 15m
+        labels:
+          severity: warning
+          service: chat-agent
+        annotations:
+          summary: "chat-agent 主机根分区剩余不足 15%"
+          description: "磁盘满会同时打死 postgres 和所有容器日志；该机 178G 盘的主要增长源是 Langfuse ClickHouse。"

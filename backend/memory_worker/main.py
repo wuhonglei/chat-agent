@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import signal
+import time
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -19,6 +20,7 @@ from app.core.observability import init_langfuse, shutdown_langfuse
 from app.services.memory_governance.service import MemoryGovernanceService, RunMode
 from app.utils.cron import parse_cron_5field
 from app.utils.logger import logger
+from memory_worker import metrics
 from memory_worker.config import get_memory_governance_config
 
 TIMEZONE = "Asia/Shanghai"
@@ -31,13 +33,17 @@ async def run_scheduled_governance(mode: RunMode = "daily") -> None:
     不应把 Worker 进程打挂（容器 restart 策略会变成重启风暴）。
     """
     logger.info("=== Scheduled memory governance started ===", mode=mode)
+    started = time.perf_counter()
     try:
         report = await MemoryGovernanceService().run(mode=mode)
     except Exception as e:
         logger.error(
             "Scheduled memory governance failed", mode=mode, error=e, exc_info=True
         )
+        metrics.record_failure(mode, duration_s=time.perf_counter() - started)
         return
+    duration_s = time.perf_counter() - started
+    metrics.record_report(report, duration_s=duration_s)
     logger.info("=== Scheduled memory governance finished ===", **report.to_dict())
 
 
@@ -50,6 +56,12 @@ async def main() -> None:
             "(memory_governance_worker.enabled=false); "
             "scheduler will still start but jobs are skipped unless enabled"
         )
+    metrics.set_flags(enabled=cfg.enabled, sweep_enabled=cfg.sweep_enabled)
+    metrics.mark_process_start()
+    if metrics.start_server(cfg.metrics_port):
+        logger.info(
+            "Memory governance metrics endpoint listening", port=cfg.metrics_port
+        )
 
     init_langfuse()
 
@@ -57,13 +69,16 @@ async def main() -> None:
 
     async def _job(mode: RunMode) -> None:
         current = get_memory_governance_config()
+        metrics.set_flags(enabled=current.enabled, sweep_enabled=current.sweep_enabled)
         if not current.enabled:
             logger.info(
                 "Memory governance worker disabled, skip scheduled run", mode=mode
             )
+            metrics.record_result(mode, "disabled")
             return
         if mode == "sweep" and not current.sweep_enabled:
             logger.info("Memory governance sweep disabled, skip scheduled run")
+            metrics.record_result(mode, "disabled")
             return
         await run_scheduled_governance(mode)
 

@@ -108,6 +108,10 @@ services:
       OTEL_SERVICE_NAME: chat-agent-eval-worker
     env_file:
       - .env
+    ports:
+      # 指标端口（eval_worker.metrics_port 默认 9465）：进程没有 HTTP 端口，
+      # 由 prometheus_client 另起监听；Prometheus 从内网抓 10.0.24.3:9465
+      - "9465:9465"
     depends_on:
       postgres:
         condition: service_healthy
@@ -138,6 +142,10 @@ services:
       OTEL_SERVICE_NAME: chat-agent-memory-governance
     env_file:
       - .env
+    ports:
+      # 指标端口（memory_governance_worker.metrics_port 默认 9464）：进程没有 HTTP
+      # 端口，由 prometheus_client 另起监听；Prometheus 从内网抓 10.0.24.3:9464
+      - "9464:9464"
     depends_on:
       postgres:
         condition: service_healthy
