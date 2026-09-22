@@ -509,7 +509,9 @@ else
 
     MEMORY_GOVERNANCE_DEPLOY_SUCCESS=true
     if [ "$DEPLOY_MEMORY_GOVERNANCE" = "1" ]; then
-        if ! zero_downtime_deploy "memory-governance" 120; then
+        # 300s：容器内 `uv run` 首次会在 /app 重新建 .venv（实测 ~93s 装 202 个包），
+        # 加上 Nacos 配置拉取与 Langfuse 初始化，冷启动接近 2 分钟，120s 会误判失败
+        if ! zero_downtime_deploy "memory-governance" 300; then
             echo "❌ 记忆治理 worker 更新失败"
             MEMORY_GOVERNANCE_DEPLOY_SUCCESS=false
         fi

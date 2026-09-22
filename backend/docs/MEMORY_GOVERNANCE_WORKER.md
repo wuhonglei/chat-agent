@@ -195,9 +195,15 @@ curl -X POST "$MEM0_BASE_URL/dream" \
   另外 `backend/memory_worker`、`backend/app/services/memory_governance`、`docker-compose.yml`
   单独变更也会触发（`deploy.sh` 直接执行时 `DEPLOY_MEMORY_GOVERNANCE` 默认跟随 `DEPLOY_BACKEND`）。
   健康检查用启动日志行 `Memory governance worker started`（该 worker 没有 HTTP 端口；配置/导入出错时
-  进程直接退出、容器停在 Restarting，不会打这行）。因为 `enabled` 默认已是 `true`，容器一旦被拉起
-  就会开始按用户打 Mem0——上线时仍要确认三点：容器在跑、`memory_config.base_url`/`api_key` 已配、
-  Mem0 侧 `POST /dream` 可访问。
+  进程直接退出、容器停在 Restarting，不会打这行），等待上限 300s —— 容器内 `uv run` 首次会在 `/app`
+  重建 `.venv`（实测装 202 个包约 93s），冷启动接近 2 分钟。
+- **`backend/Dockerfile` 必须 `COPY memory_worker ./memory_worker`**（2026-09-22 实际踩到）：
+  漏掉这一行时镜像里没有该包，容器起来后立刻 `ModuleNotFoundError: No module named 'memory_worker'`
+  并进入 restart 循环（`docker ps` 显示 `Restarting`，`RestartCount` 持续增长，日志里只有 uv 建 venv
+  与报错）。验证方式：`docker run --rm --entrypoint ls <image> /app` 应能看到 `memory_worker`
+  与 `eval_worker` 并列。
+- 因为 `enabled` 默认已是 `true`，容器一旦被拉起就会开始按用户打 Mem0——上线时仍要确认三点：
+  容器在跑、`memory_config.base_url`/`api_key` 已配、Mem0 侧 `POST /dream` 可访问。
 - **cron 字段语义**：日跑/周扫都用 APScheduler 的 `CronTrigger`，其 `day_of_week`
   是 0=周一（与 POSIX cron 的 0=周日不同），所以周扫默认写成 `0 4 * * sun`。
 - **观测/告警未接**：目前只有结构化日志；后续可加 Prometheus 指标（success/failure/

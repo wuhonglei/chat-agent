@@ -64,6 +64,7 @@ COPY alembic ./alembic
 COPY scripts ./scripts
 COPY app ./app
 COPY eval_worker ./eval_worker
+COPY memory_worker ./memory_worker
 COPY skills ./skills
 
 # Copy startup script
