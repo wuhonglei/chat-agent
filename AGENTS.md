@@ -9,6 +9,7 @@
 | **PostgreSQL** (pgvector + zhparser) | 5432 | `docker compose up -d postgres` | 容器 `chat-agent-postgres`；换镜像勿 `down -v` |
 | **Backend** (FastAPI) | 8000 | `cd backend && make dev` | Requires `backend/.env` with all config (see below) |
 | **Frontend** (React/Vite+) | 3000 | `cd frontend && vp dev` | Requires `vp` CLI (`source ~/.vite-plus/env`) |
+| **Sites** (nginx 静态站) | 8080 | `docker compose up -d sites` | 容器 `chat-agent-sites`；只读挂 `backend/data/sites`；无 Host 探活会 404，健康检查用 `pidof nginx` |
 
 ### PostgreSQL
 
@@ -23,7 +24,7 @@
 
 - 首次 `compose up`：若 CLI 支持，使用 `--wait --wait-timeout 300`（默认约 60s，后端冷启动 / 迁移经常不够）。
 - 零停机更新：`zero_downtime_deploy` 对 backend 默认等健康检查最多 120s（容器内 `curl -f http://127.0.0.1:8000/`）。
-- 脚本末尾「最终健康检查」对 backend 再重试最多 12 次、间隔 5s，避免冷启动被误判失败。仅检查本次部署范围内的服务（只更 backend 不会因未起 frontend 失败）。
+- 脚本末尾「最终健康检查」对 backend 再重试最多 12 次、间隔 5s，避免冷启动被误判失败。仅检查本次部署范围内的服务（只更 backend 不会因未起 frontend 失败）。`sites` 看容器内 `pidof nginx`（不要对无 Host 的 HTTP 探活要求 200）。
 
 ### Backend configuration gotchas
 
@@ -31,6 +32,7 @@
 - JWT keys must use `\n` for line breaks within a double-quoted `.env` value, e.g. `SECURITY__JWT__PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIE..."`.
 - The initial Alembic migration (`6fc87d2a678f`) assumes tables already exist (it only alters columns). For a fresh DB, first let the app create tables via `SQLModel.metadata.create_all` (i.e. start the backend once or run `uv run python -c "import app.models; from app.core.db import create_db_and_tables; create_db_and_tables()"`), then stamp: `uv run alembic stamp head`.
 - Set `DATABASE__HOST=localhost` as an env var when running locally (the Nacos config may return a remote host).
+- `cd backend && make dev` 会先执行 `nacos-tunnel`（本机 `8848`/`9848` SSH 转到远程 Nacos；已监听则跳过）。完全离线设 `NACOS_SKIP_LOAD=1` 并在 `.env` 自备全部配置。
 
 ### Frontend
 
@@ -50,7 +52,7 @@ conversations/{conversation_id}/
   outputs/     # Final deliverables
 ```
 
-Agent virtual paths (not disk directory names): `/mnt/user-data/workspace/`, `/mnt/user-data/uploads/`, `/mnt/user-data/outputs/`, `/mnt/skills/public/` (built-in, read-only), `/mnt/skills/custom/` (per-user, read-write). Path helpers live in `app/vfs/paths.py`; operational details for VFS, file/shell MCP, and sandbox backends live in `backend/docs/VFS_AND_SANDBOX.md`. Alembic revision `b4c5d6e7f8a9` migrates v3 `workspaces/{conv}` and `uploads/{conv}` into the layout above.
+Agent virtual paths (not disk directory names): `/mnt/user-data/workspace/`, `/mnt/user-data/uploads/`, `/mnt/user-data/outputs/`, `/mnt/skills/public/` (built-in, read-only), `/mnt/skills/custom/` (per-user, read-write). Published static sites are **not** under `user_data`：`backend/data/sites/{slug}/{version}/` + `current` symlink（见 `docs/web_app/webapp-publish-plan.md`）。Path helpers live in `app/vfs/paths.py`; operational details for VFS, file/shell MCP, and sandbox backends live in `backend/docs/VFS_AND_SANDBOX.md`. Alembic revision `b4c5d6e7f8a9` migrates v3 `workspaces/{conv}` and `uploads/{conv}` into the layout above.
 
 ### Running tests
 

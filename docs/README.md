@@ -14,7 +14,7 @@
 
 - `requirements.md`：当前版本需求范围与功能边界
 - `认证流程.md`：短信/微信登录与 JWT 鉴权流程
-- `会话管理.md`：会话列表/搜索（标题 ILIKE + 正文 zhcfg 全文检索）、草稿激活、手动压缩、消息（含 `full_content` / `content_text` / `llm_rendered_text` 固化与 API 剥离）、反馈入 Bad Case、聊天 SSE、`<current_datetime>` 冻结、Agent 迭代检查点（`task_action`，续跑跳过 Mem0）、断线续流与 Nginx 超时约定
+- `会话管理.md`：会话列表/搜索（标题 ILIKE + 正文 zhcfg 全文检索）、草稿激活、手动压缩、消息（含 `full_content` / `content_text` / `llm_rendered_text` 固化与 API 剥离）、反馈入 Bad Case、聊天 SSE、`language`（浏览器首选语言回退）、`<current_datetime>` 冻结、Agent 迭代检查点（`task_action`，续跑跳过 Mem0）、删会话同步 purge 已发布站点、断线续流与 Nginx 超时约定
 - `mem0/README.md`：Mem0 产品语义分析与治理方案稿；**现网 HTTP / 管理页契约以** `backend/docs/用户管理.md` **为准**
 - `CONVERSATION_SEARCH_OPTIMIZATION.md`：会话搜索索引（`content_text` / `content_tsv`）、`plainto_tsquery('zhcfg')`、zhparser 镜像与触发器排障
 - `cache_design.md`：L1/L2 缓存现网范围、fail-open 行为、配置与排障
@@ -23,8 +23,8 @@
 - `messages表字段精简计划.md`：消息表现网字段、已下线字段与排障核验
 - `agent_observability/langfuse_integration.md`：Langfuse 自托管接入、trace 约定、`report_images` 脱敏、score 同步脚本与排障手册
 - `agent_evaluator/rule_evaluator_design.md`：实时规则评估器指标与告警（含现网对接说明）
-- `/backend/README.md`：聊天附件链路（图片/PDF/Excel/Markdown/文本文件）、v4 上传存储、普通模式 RAG 与 Agent 模式文件读取、代码执行 API、聊天 SSE 事件约定
-- `/frontend/README.md`：Chat 内容块/附件约束、侧栏预览矩阵、文件 diff 展示、SSE 事件约定
+- `/backend/README.md`：聊天附件链路、v4 上传存储、静态站发布（`/api/sites` + `publish_site`）、Nacos 开发隧道、代码执行 API、聊天 SSE
+- `/frontend/README.md`：Chat 内容块/附件约束、侧栏预览与站点发布、文件 diff、SSE 事件约定
 
 ### 规划方案
 
@@ -37,9 +37,9 @@
 
 ## Web 建站文档（`/docs/web_app`）
 
-### 规划方案
+### 现网实现
 
-- `webapp-publish-plan.md`：Web 建站产物发布（自定义子域名访问）方案；含快照发布、`published_sites` 表、`publish_site` 工具、纯 nginx `sites` 容器与 DNS/TLS 前置，未落地（文首「现状」为代码级事实，带绝对路径与行号）
+- `webapp-publish-plan.md`：静态站发布现网手册（文首「现网实现摘要」）；`publish_site` MCP / `/api/sites`、快照 + `current` 软链、`sites` nginx、ProjectPreview 发布/预览。其后各节是设计理由，不是待办。DNS/TLS/NPM 属线上前置
 
 ## 后端文档（`/backend/docs`）
 
@@ -47,12 +47,12 @@
 
 - `logging_guide.md`：结构化日志使用指南
 - `type_checking_guide.md`：类型检查说明
-- `用户管理.md`：用户模块、短信 Redis 鉴权与 Mem0 记忆集成（Platform v3 / 自建 OSS 分流、管理页分页/筛选、治理字段、检索规则闸门）
+- `用户管理.md`：用户模块、短信 Redis 鉴权与 Mem0 记忆集成（Platform v3 / 自建 OSS 分流、管理页分页/筛选含 `category`、治理字段、检索规则闸门）
 - `EVAL_OPS.md`：评估 Worker、Bad Case 复核队列、CI 门禁 / replay 运维手册
 - `MEMORY_GOVERNANCE_WORKER.md`：记忆治理 Worker（`memory_worker.main`）配置、选人规则、本地验证与未完成项；对应 compose 服务 `memory-governance`（`enabled` 默认 `true`，04:00 日跑聊天活跃用户 + 周日 04:00 周扫沉睡用户）
 - `COMPONENT_TOOLS_PRD.md`：组件工具接入说明（已对齐当前字段）
 - `MCP_CONFIG_ANALYSIS.md`：MCP 配置与加载机制、工具命名双轨与唯一 bare 别名回退
-- `VFS_AND_SANDBOX.md`：Agent 模式虚拟文件系统、file/shell MCP（工具 `exec`）、local `CHAT_AGENT_VFS_MAPPINGS` / `local_vfs_shim`、沙箱执行与排障手册
+- `VFS_AND_SANDBOX.md`：Agent 模式虚拟文件系统、file/shell MCP（工具 `exec`，命令长度上限 50000）、`publish_site`、独立 `data/sites` 快照根、local `CHAT_AGENT_VFS_MAPPINGS` / `local_vfs_shim`、沙箱执行与排障手册
 - `TOOL_RESULT_AND_CONTEXT.md`：工具结果硬上限、统一上下文守卫、窗口外摘要、手动全量压缩与 `last_summarized_message_ids`
 - `LLM_RELIABILITY.md`：LLM 建连重试、错误分类与进程级熔断手册
 - `PROMETHEUS_METRICS.md`：`/metrics` 暴露、无 `--preload` 的 Gunicorn multiprocess 约定与自定义进程指标
@@ -75,8 +75,8 @@
 
 ### 现网实现
 
-- `conversation.md`：会话路由、草稿激活、侧栏压缩、搜索（⌘K）、问题导航时间轴、检查点续跑、`/memories` 记忆管理页与接口说明（对齐 `/api/conversation/*`、`/api/user/memories*`）
-- `schema-for-backend-usage.md`：前端聊天请求体字段（含 `taskAction`）与后端消费说明
+- `conversation.md`：会话路由、草稿激活、侧栏压缩、搜索（⌘K）、问题导航时间轴、检查点续跑、ProjectPreview 站点发布、`/memories` 记忆管理页（含类别筛选）
+- `schema-for-backend-usage.md`：前端聊天请求体字段（含 `taskAction`、`language`）与后端消费说明
 - `conversion_cache.md`、`scroll-properties-explanation.md`、`aegis-埋点分析.md`
 
 ### 历史文档

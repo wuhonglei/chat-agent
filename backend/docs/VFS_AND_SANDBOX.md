@@ -1,6 +1,6 @@
 # VFS 与沙箱执行手册（当前实现）
 
-**最后核对**：2026-09-13
+**最后核对**：2026-09-20
 
 ## 1. 适用范围
 
@@ -15,7 +15,8 @@ MCP 工具和沙箱执行后端。它面向维护后端、MCP 工具或 Agent �
 - 路径布局：`app/vfs/paths.py`
 - 技能目录 / 加载渲染：`app/agent_skills/`、`app/mcp/mcp_servers/skill_manager_mcp/load_skill.py`
 - 虚拟路径解析与权限：`app/vfs/resolver.py`、`app/vfs/mapper.py`
-- File MCP：`app/mcp/mcp_servers/file_mcp/`
+- File MCP：`app/mcp/mcp_servers/file_mcp/`（含 `present_files`、`publish_site`）
+- 已发布站点快照（**不在** `user_data`）：`backend/data/sites/{slug}/{version}/` + `current` 软链；路径助手 `Paths.site_*`
 - Shell MCP：`app/mcp/mcp_servers/shell_mcp/`（工具名 `exec`）
 - 沙箱执行器：`app/sandbox/`
 - 配置：`app/schemas/config.py` 的 `MCPConfig`、`SandboxConfig`
@@ -75,7 +76,8 @@ Agent 和 MCP 工具不应暴露磁盘路径，应使用虚拟路径：
 | `write_file` | 写入或追加文件 | 只能写 `/workspace/`、`/outputs/`、`/skills/custom/`；单次内容默认最多 100000 字符 |
 | `edit_file` | 精确字符串替换 | 默认要求 `old_string` 唯一；多处替换需显式 `replace_all=true` |
 | `search_files` | 用 ripgrep 搜索内容或文件名 | 默认搜索当前会话 `workspace`；返回路径会转换为虚拟路径 |
-| `present_files` | 将产物标记为可展示给用户 | 只接受 `/mnt/user-data/outputs/` 下已存在的文件 |
+| `present_files` | 将产物标记为可展示给用户 | 只接受 `/mnt/user-data/outputs/` 下已存在的**文件**（目录被拒） |
+| `publish_site` | 把 outputs 快照发布到 `{slug}.{public_base_domain}` | schema **无 slug**；`source` 须在 outputs 下且含 `index.html`；LLM 名 `file_publish_site`。契约见 `docs/web_app/webapp-publish-plan.md` |
 
 写入 `workspace` 或 `outputs` 会走工作区配额检查；当前总量上限定义在
 `app/utils/workspace.py`（`MAX_WORKSPACE_BYTES = 2000 * 1024 * 1024`）。
@@ -97,6 +99,17 @@ Agent 和 MCP 工具不应暴露磁盘路径，应使用虚拟路径：
   "filepaths": ["/mnt/user-data/outputs/report.md"]
 }
 ```
+
+用户明确要求公网 URL 时再调 `publish_site`（不要在 `present_files` 后自动发布）：
+
+```json
+{
+  "source": "/mnt/user-data/outputs/app-dist",
+  "visibility": "unlisted"
+}
+```
+
+单页 HTML 可用 `"/mnt/user-data/outputs"` 或 `"/mnt/user-data/outputs/index.html"`。省略 `source` 时先找 `app-dist`，不存在再回退 `outputs/`。快照写到独立的 `data/sites/{slug}/`，不走 VFS 映射、不计入会话 workspace 配额。
 
 ## 4. Shell MCP（工具 `exec`）与沙箱后端
 
@@ -122,7 +135,7 @@ Shell MCP 自身还限制命令长度和输出展示：
 
 - 默认超时：30000 ms
 - 最大超时：600000 ms
-- 最大命令长度：10000 字符
+- 最大命令长度：50000 字符（`ShellMCPConfig.max_command_chars`，超长在 audit 层拒绝）
 - 最大展示输出：50000 字符
 
 ### 4.2 local 后端

@@ -24,7 +24,7 @@
 - 会话搜索：`GET /api/conversation/search`
 - 会话详情：`GET /api/conversation/detail/{conversationId}`
 - 更新会话：`PUT /api/conversation/update/{conversationId}`
-- 删除会话：`DELETE /api/conversation/delete/{conversationId}`
+- 删除会话：`DELETE /api/conversation/delete/{conversationId}`（后端会先 purge 该会话已发布站点，再删 conversation）
 - 手动压缩：`POST /api/conversation/{conversationId}/compress`（前端超时 120s）
 
 消息与流式接口在 `src/services/chat.ts`：
@@ -32,8 +32,8 @@
 - 会话消息：`GET /api/conversation/{conversationId}/messages`（不传 `full_content`，走后端默认省略结构化 tool_result 正文；响应会剥离 `messageMetadata.llmRenderedText`，前端不要依赖该字段）
 - 删除消息：`DELETE /api/message/delete/{messageId}`
 - 更新助手消息反馈：`PUT /api/message/feedback/{messageId}`
-- 流式聊天：`POST /api/chat/stream`（SSE）
-- 断线续流：`POST /api/chat/stream/resume`（SSE）
+- 流式聊天：`POST /api/chat/stream`（SSE；请求带 `language: navigator.language || "zh-CN"`）
+- 断线续流：`POST /api/chat/stream/resume`（SSE；不带 `language`）
 - 停止流式聊天：`POST /api/chat/stream/stop`
 - 模型列表：`GET /api/chat/models`
 
@@ -220,11 +220,23 @@ sequenceDiagram
 - 入口：账号下拉「记忆管理」→ `navigate("/memories")`
 - 空关键词：`GET /api/user/memories`，`page` / `pageSize`（默认 20）服务端分页
 - 有关键词：回车后 `GET /api/user/memories/search?q=`（最长 200），**不再翻页**，表格总数取当次命中条数
-- 筛选（状态 / 类型 / 创建日期）与关键词一样，点「搜索」或回车才生效，不是输入即搜
+- 筛选（状态 / 类型 / **类别** / 创建日期）与关键词一样，点「搜索」或回车才生效，不是输入即搜
 - 状态标签：`生效` / `已合并` / `已取代` / `已归档`（缺省按生效）
 - 类型标签：`普通` / `模式`（`pattern`）；模式可点开来源记忆
+- 类别标签：`个人核心` / `偏好` / `兴趣` / `状态` / `知识` / `其他`（对应 `personal_core` … `misc`；缺省视为 `misc`）。聊天检索不传 `category`
 - 关联记忆：当前页命中则直接展示，缺失再 `GET /api/user/memories/{id}`；已删显示占位文案
 - 删除走确认框，`DELETE /api/user/memories/{id}`；列表最后一条删空时若 `page>1` 会回退一页
 
 `apiClient` 会把响应蛇形字段转成 camelCase（`governanceStatus`、`synthesizedFrom` 等）。
 聊天预注入 `ChatRequest.memories` **现网前端不发送**，见 `schema-for-backend-usage.md`。
+
+## 8. 工作区预览与静态站发布
+
+实现：`ProjectPreview`（`src/pages/ChatPage/components/BlockPreviewPanel/ProjectPreview/`）、`src/services/sites.ts`。后端契约见 `docs/web_app/webapp-publish-plan.md`。
+
+- 打开面板时 `GET /api/sites/me`，用 `block.workspaceId`（conversation id）匹配本会话站点
+- 存在 `outputs/app-dist`、`outputs/index.html`、已发布记录或当前选中可发布路径时，显示「文件 / 运行」与发布工具栏
+- 发布：`POST /api/sites/`，可填自定义 slug；非法 400、占用 409，错误展示在表单上，**不静默改名**
+- 已上线：复制 `site.url`、`POST /api/sites/{slug}/republish`、`DELETE /api/sites/{slug}`
+- 运行预览：已发布 HTML iframe 走公网 URL（`getPublishedHtmlPreviewUrl`）；未发布且行数 ≥ 50 用 `srcDoc`
+- 删除会话由后端 purge 站点；前端不必先调 unpublish
