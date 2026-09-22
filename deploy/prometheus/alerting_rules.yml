@@ -124,8 +124,8 @@ groups:
   # *_last_success_timestamp_seconds；进程启动时会先把心跳写成启动时间，给新部署一个
   # 调度周期内的宽限期。配置主动关闭时用 *_enabled == 0 抑制告警。
   # 进程反复重启（containerd restart loop）不在这组规则覆盖范围内：心跳每次启动都会
-  # 重置为启动时间，那种情况由容器级指标（cadvisor 的 container_start_time_seconds）
-  # 或 up{} 持续为 0 来抓。
+  # 重置为启动时间，那种情况由容器级指标（docker_container_restart_count，见
+  # deploy/monitoring/README.md）或 up{} 持续为 0 来抓。
   - name: chat_agent_worker_alerts
     rules:
       - alert: ChatAgentWorkerDown
