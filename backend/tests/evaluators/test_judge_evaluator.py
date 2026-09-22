@@ -103,6 +103,46 @@ async def test_call_judge_model_with_gold() -> None:
 
 
 @pytest.mark.asyncio
+async def test_call_judge_model_with_images_builds_multimodal_content() -> None:
+    captured: list[list[dict[str, Any]]] = []
+
+    async def _caller(messages: list[dict[str, Any]]) -> str:
+        captured.append(messages)
+        return '{"correctness_score": 5, "completeness_score": 5, "notes": "对"}'
+
+    result = await call_judge_model(
+        query="这是什么",
+        answer="一张户口簿照片",
+        llm_caller=_caller,
+        images=["data:image/jpeg;base64,IMG1", "data:image/png;base64,IMG2"],
+    )
+    assert result.success is True
+    user_content = captured[0][1]["content"]
+    assert isinstance(user_content, list)
+    assert user_content[0]["type"] == "text"
+    assert "【用户图片】用户问题附带 2 张图片" in user_content[0]["text"]
+    image_parts = [p for p in user_content if p["type"] == "image_url"]
+    assert [p["image_url"]["url"] for p in image_parts] == [
+        "data:image/jpeg;base64,IMG1",
+        "data:image/png;base64,IMG2",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_call_judge_model_without_images_keeps_string_content() -> None:
+    captured: list[list[dict[str, Any]]] = []
+
+    async def _caller(messages: list[dict[str, Any]]) -> str:
+        captured.append(messages)
+        return '{"correctness_score": 4, "completeness_score": 4}'
+
+    result = await call_judge_model(query="q", answer="a", llm_caller=_caller)
+    assert result.success is True
+    assert isinstance(captured[0][1]["content"], str)
+    assert "【用户图片】" not in captured[0][1]["content"]
+
+
+@pytest.mark.asyncio
 async def test_call_judge_model_failure() -> None:
     async def _caller(_messages: list[dict[str, str]]) -> str:
         raise RuntimeError("boom")
