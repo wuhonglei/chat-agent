@@ -149,7 +149,11 @@ mcp:
 
 相关单测：`tests/mcp/test_gateway_tool_names.py`、`tests/mcp/test_tool_naming.py`。
 
-历史消息需运行 `backend/scripts/backfill_tool_use_block_names.py` 迁移。
+历史消息的补全原本依赖一次性脚本 `backend/scripts/backfill_tool_use_block_names.py`（补全
+`server_name` / `mcp_tool_name`）。该脚本从未纳入版本库、现已不存在，对应的单测
+`tests/mcp/test_backfill_tool_names.py` 也已删除——它按路径加载该脚本，缺文件时会在 pytest
+**收集阶段**直接 `FileNotFoundError`（会让整个 `uv run pytest` 中断）。如需重新迁移历史消息，
+按上面的字段约定重写该脚本。
 
 ## 5. 与历史方案差异
 
