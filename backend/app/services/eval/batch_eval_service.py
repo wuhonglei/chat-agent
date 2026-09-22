@@ -557,6 +557,7 @@ class BatchEvalService:
                             llm_caller=self.llm_caller,
                             context_sources=judge_input.source_flags,
                             images=judge_input.images,
+                            dialogue_history=judge_input.dialogue_history,
                         ),
                         timeout=timeout,
                     )

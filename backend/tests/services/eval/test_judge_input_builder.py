@@ -58,12 +58,71 @@ def test_parse_generation_messages_uses_last_structured_user() -> None:
         {"role": "tool", "content": "tool result A"},
         {"role": "tool", "content": "tool result B"},
     ]
-    query, memories, attachment, tools, images = parse_generation_messages(messages)
+    query, memories, attachment, tools, images, dialogue_history = (
+        parse_generation_messages(messages)
+    )
     assert query == "当前问题"
     assert memories == ["m1"]
     assert attachment == "rag"
     assert tools == ["tool result A", "tool result B"]
     assert images == []
+    # 历史轮 user/assistant 进 dialogue_history，本轮消息不进
+    assert "<dialogue_history>" in dialogue_history
+    assert "历史问题" in dialogue_history
+    assert "旧回答" in dialogue_history
+    assert "当前问题" not in dialogue_history
+    assert "tool result A" not in dialogue_history
+
+
+def test_parse_generation_messages_history_tools_excluded_from_reference() -> None:
+    """历史轮工具返回不混入本轮参考资料（以胜出消息为界）。"""
+    messages = [
+        {
+            "role": "user",
+            "content": "<user_message><query>历史问题</query></user_message>",
+        },
+        {"role": "assistant", "content": None, "tool_calls": [{"id": "h1"}]},
+        {"role": "tool", "content": "hist-tool-result"},
+        {"role": "assistant", "content": "历史回答"},
+        {
+            "role": "user",
+            "content": "<user_message><query>本轮问题</query></user_message>",
+        },
+        {"role": "assistant", "content": None, "tool_calls": [{"id": "c1"}]},
+        {"role": "tool", "content": "cur-tool-result"},
+    ]
+    query, _, _, tools, _, dialogue_history = parse_generation_messages(messages)
+    assert query == "本轮问题"
+    assert tools == ["cur-tool-result"]
+    assert "hist-tool-result" not in dialogue_history
+    assert "历史回答" in dialogue_history
+
+
+def test_parse_generation_messages_history_images_annotated() -> None:
+    """历史轮图片不带入本轮，但在历史文本中标注存在图片。"""
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "<user_message><query>看看这张图</query></user_message>"},
+                {
+                    "type": "image_url",
+                    "image_url": {"url": "data:image/png;base64,OLDIMAGE"},
+                },
+            ],
+        },
+        {"role": "assistant", "content": "这是一张猫的照片"},
+        {
+            "role": "user",
+            "content": "<user_message><query>它是什么颜色</query></user_message>",
+        },
+    ]
+    query, _, _, _, images, dialogue_history = parse_generation_messages(messages)
+    assert query == "它是什么颜色"
+    assert images == []  # 历史图不进本轮图片输入
+    assert "看看这张图" in dialogue_history
+    assert "[该消息附带 1 张图片，未随评估提供]" in dialogue_history
+    assert "这是一张猫的照片" in dialogue_history
 
 
 def test_parse_generation_messages_keeps_winner_images() -> None:
@@ -96,7 +155,7 @@ def test_parse_generation_messages_keeps_winner_images() -> None:
             ],
         },
     ]
-    query, _, _, _, images = parse_generation_messages(messages)
+    query, _, _, _, images, _ = parse_generation_messages(messages)
     assert query == "这是什么"
     assert images == [
         "@@@langfuseMedia:type=image/jpeg|id=QFKfQFDG8qvj6r03Ci0MDe|source=base64_data_uri@@@"
@@ -113,7 +172,7 @@ def test_parse_generation_messages_image_only_falls_back_to_last_images() -> Non
             ],
         },
     ]
-    query, _, _, _, images = parse_generation_messages(messages)
+    query, _, _, _, images, _ = parse_generation_messages(messages)
     assert query == ""
     assert images == ["data:image/png;base64,ONLY"]
 
@@ -215,6 +274,8 @@ def test_builder_from_last_generation() -> None:
     assert result.images == []
     assert result.source_flags["image_count"] == 0
     assert result.source_flags["image_failed"] == 0
+    assert result.dialogue_history == ""
+    assert result.source_flags["history_turns"] == 0
 
 
 def test_builder_resolves_images_from_generation(
