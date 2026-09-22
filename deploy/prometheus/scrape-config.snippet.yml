@@ -1,0 +1,41 @@
+# 抓取配置片段：合并进运维侧 Prometheus 的 scrape_configs。
+#
+# 现状（2026-09-22 实测线上 Prometheus /api/v1/status/config）：
+#   只有 1 个 job：
+#     - job_name: chat-agent
+#       metrics_path: /metrics
+#       scrape_interval: 15s
+#       targets: ["10.0.24.3:8000"]
+#
+# 两个 worker 没有常驻 HTTP 端口，指标由 prometheus_client 另起监听暴露：
+#   - chat-agent-memory-governance → 9464（memory_governance_worker.metrics_port）
+#   - chat-agent-evaluator         → 9465（eval_worker.metrics_port）
+# 端口已在 docker-compose.yml 里发布到宿主机，Prometheus 从内网抓 10.0.24.3:<port>。
+# 若 Prometheus 不在同一内网，需要在安全组/防火墙放通这两个端口（它们不面向公网，
+# 与 3000/8000/8080 的公网放行规则无关）。
+#
+# 指标名与埋点位置见 backend/app/core/worker_metrics.py、
+# backend/memory_worker/metrics.py、backend/eval_worker/metrics.py；
+# 告警规则见 alerting_rules.yml 的 chat_agent_worker_alerts 组。
+
+scrape_configs:
+  - job_name: chat-agent
+    metrics_path: /metrics
+    scrape_interval: 15s
+    static_configs:
+      - targets: ["10.0.24.3:8000"]
+
+  # 记忆治理 worker：心跳 + 运行结局 + 处理用户数
+  - job_name: chat-agent-memory-governance
+    metrics_path: /metrics
+    # 调度是每天/每周一次，15s 抓取只是为了及时发现进程挂掉，用 30s 足够
+    scrape_interval: 30s
+    static_configs:
+      - targets: ["10.0.24.3:9464"]
+
+  # 评估 worker：心跳 + 运行结局 + 样本/裁判计数
+  - job_name: chat-agent-evaluator
+    metrics_path: /metrics
+    scrape_interval: 30s
+    static_configs:
+      - targets: ["10.0.24.3:9465"]

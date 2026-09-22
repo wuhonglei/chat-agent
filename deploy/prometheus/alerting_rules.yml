@@ -108,3 +108,125 @@ groups:
         annotations:
           summary: "chat-agent chat p95 latency high"
           description: "p95 latency for {{ $labels.handler }} > 10s for 10m."
+
+  # 常驻 worker（memory-governance / evaluator）：没有 HTTP 流量，故障模式是
+  # 「该跑的没跑」或「跑了但失败」，所以判据是心跳 staleness 与失败计数，而不是 rate()。
+  # 前置条件：
+  #   1) worker 侧 metrics_port 已开启（docker-compose.yml 里 9464 / 9465）
+  #   2) Prometheus 已加 job chat-agent-memory-governance / chat-agent-evaluator
+  # 心跳语义（见 app/core/worker_metrics.py）：只有 result="ok" 才推进
+  # *_last_success_timestamp_seconds；进程启动时会先把心跳写成启动时间，给新部署一个
+  # 调度周期内的宽限期。配置主动关闭时用 *_enabled == 0 抑制告警。
+  # 进程反复重启（containerd restart loop）不在这组规则覆盖范围内：心跳每次启动都会
+  # 重置为启动时间，那种情况由容器级指标（cadvisor 的 container_start_time_seconds）
+  # 或 up{} 持续为 0 来抓。
+  - name: chat_agent_worker_alerts
+    rules:
+      - alert: ChatAgentWorkerDown
+        expr: up{job=~"chat-agent-(memory-governance|evaluator)"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          service: chat-agent
+        annotations:
+          summary: "chat-agent {{ $labels.job }} is down"
+          description: "Metrics endpoint of {{ $labels.job }} has been unreachable for 5m (container stopped or stuck restarting)."
+
+      - alert: ChatAgentMemoryGovernanceStale
+        expr: |
+          (
+            time() - max(memory_governance_last_success_timestamp_seconds{mode="daily"})
+          ) > 26 * 3600
+          unless on()
+          memory_governance_enabled == 0
+        for: 15m
+        labels:
+          severity: critical
+          service: chat-agent
+        annotations:
+          summary: "chat-agent memory governance daily pass stale"
+          description: "No successful daily pass (result=ok) for 26h; daily run is scheduled 04:00. Suppressed when the worker is intentionally disabled."
+
+      - alert: ChatAgentMemoryGovernanceSweepStale
+        expr: |
+          (
+            time() - max(memory_governance_last_success_timestamp_seconds{mode="sweep"})
+          ) > 8 * 86400
+          unless on()
+          (memory_governance_enabled == 0 or memory_governance_sweep_enabled == 0)
+        for: 30m
+        labels:
+          severity: warning
+          service: chat-agent
+        annotations:
+          summary: "chat-agent memory governance weekly sweep stale"
+          description: "No successful weekly sweep for 8d (sweep is scheduled Sunday 04:00). Suppressed when worker or sweep is disabled."
+
+      - alert: ChatAgentMemoryGovernanceRunFailed
+        expr: |
+          increase(memory_governance_runs_total{result="failed"}[6h]) > 0
+          unless on()
+          memory_governance_enabled == 0
+        for: 5m
+        labels:
+          severity: warning
+          service: chat-agent
+        annotations:
+          summary: "chat-agent memory governance run failed"
+          description: "A whole governance run raised (DB / Mem0 unavailable) within the last 6h."
+
+      - alert: ChatAgentMemoryGovernanceUsersFailed
+        expr: increase(memory_governance_units_total{outcome="failed"}[6h]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: chat-agent
+        annotations:
+          summary: "chat-agent memory governance per-user failures"
+          description: "{{ $value | printf \"%.0f\" }} user Dream pass(es) failed within 6h (Mem0 errors / quota)."
+
+      # 注：单元计数只在非 0 时建序列，所以这里用「unless 右侧存在」表达
+      # 「有扫描但没人被治理」，而不是 increase(...{outcome="succeeded"}) == 0
+      # —— 后者在序列不存在时返回空向量，规则永远不会触发。
+      - alert: ChatAgentMemoryGovernanceNothingGoverned
+        expr: |
+          (increase(memory_governance_units_total{outcome="scanned"}[48h]) > 0)
+          unless on()
+          (increase(memory_governance_units_total{outcome="succeeded"}[48h]) > 0)
+          unless on()
+          memory_governance_enabled == 0
+        for: 1h
+        labels:
+          severity: warning
+          service: chat-agent
+        annotations:
+          summary: "chat-agent memory governance selects users but governs none"
+          description: "Over 48h every scanned user was skipped (watermark / min_memories gates) — check whether the gates have become too tight."
+
+      - alert: ChatAgentEvalWorkerStale
+        expr: |
+          (
+            time() - max(evaluator_last_success_timestamp_seconds{mode="scheduled"})
+          ) > 26 * 3600
+          unless on()
+          evaluator_enabled == 0
+        for: 15m
+        labels:
+          severity: warning
+          service: chat-agent
+        annotations:
+          summary: "chat-agent scheduled eval stale"
+          description: "No successful scheduled eval for 26h (scheduled 17:00); the quality signal has silently stopped."
+
+      - alert: ChatAgentEvalWorkerRunFailed
+        expr: |
+          increase(evaluator_runs_total{result="failed"}[26h]) > 0
+          unless on()
+          evaluator_enabled == 0
+        for: 5m
+        labels:
+          severity: warning
+          service: chat-agent
+        annotations:
+          summary: "chat-agent scheduled eval failed"
+          description: "A scheduled eval run ended with status != success (see eval_run_logs.error_message)."

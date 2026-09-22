@@ -124,6 +124,10 @@ class DreamRunReport:
     finished_at: datetime | None = None
     scanned_users: int = 0
     outcomes: list[UserDreamOutcome] = field(default_factory=list)
+    # 整轮被跳过的原因：disabled / not_configured / platform；None 表示这轮真的跑了
+    # （即使 scanned_users == 0：没有候选用户属于正常结果，不该被当成「跳过」）。
+    # 用于指标打标，避免把「没配置」伪装成健康运行。
+    skip_reason: str | None = None
 
     @property
     def succeeded(self) -> int:
@@ -154,6 +158,7 @@ class DreamRunReport:
             "finished_at": self.finished_at.isoformat() if self.finished_at else None,
             "duration_ms": self.duration_ms,
             "scanned_users": self.scanned_users,
+            "skip_reason": self.skip_reason,
             "succeeded": self.succeeded,
             "skipped": self.skipped,
             "failed": self.failed,
@@ -255,16 +260,19 @@ class MemoryGovernanceService:
         report = DreamRunReport(started_at=get_datetime_now(), mode=mode)
         if not self.config.enabled:
             logger.info("Memory governance worker disabled, skip run", mode=mode)
+            report.skip_reason = "disabled"
             return report.finish()
         if not self._client.enabled():
             logger.error(
                 "memory_config.base_url / api_key 未配置，跳过记忆治理", mode=mode
             )
+            report.skip_reason = "not_configured"
             return report.finish()
         if self._client.is_platform():
             logger.error(
                 "Mem0 Platform 不支持外部触发 Dream pass，跳过记忆治理", mode=mode
             )
+            report.skip_reason = "platform"
             return report.finish()
 
         if users is not None:

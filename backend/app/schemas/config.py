@@ -781,6 +781,15 @@ class EvalWorkerConfig(BaseModel):
         default=30.0, description="高延迟特殊采样阈值（秒）"
     )
     lookback_hours: int = Field(default=24, description="拉取最近 N 小时的 Trace")
+    metrics_port: int = Field(
+        default=9465,
+        ge=0,
+        le=65535,
+        description=(
+            "Prometheus 指标监听端口（0=关闭）。worker 无常驻 HTTP 端口，"
+            "指标由 prometheus_client 另起的一个监听暴露"
+        ),
+    )
 
 
 class MemoryGovernanceWorkerConfig(BaseModel):
@@ -882,4 +891,13 @@ class MemoryGovernanceWorkerConfig(BaseModel):
     )
     retry_backoff_s: float = Field(
         default=5.0, ge=0, description="失败重试的基础退避秒数（按指数增长）"
+    )
+    metrics_port: int = Field(
+        default=9464,
+        ge=0,
+        le=65535,
+        description=(
+            "Prometheus 指标监听端口（0=关闭）。worker 无常驻 HTTP 端口，"
+            "指标由 prometheus_client 另起的一个监听暴露"
+        ),
     )

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import signal
+import time
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -13,14 +14,23 @@ from app.services.eval.batch_eval_service import BatchEvalService
 from app.services.eval.judge_llm import judge_llm_caller
 from app.utils.cron import parse_cron_5field
 from app.utils.logger import logger
+from eval_worker import metrics
 from eval_worker.config import get_eval_worker_config
 
 
 async def run_scheduled_eval() -> None:
     """定时评估任务。"""
     logger.info("=== Scheduled batch eval started ===")
-    service = BatchEvalService(llm_caller=judge_llm_caller)
-    run_log = await service.run(run_type="scheduled")
+    started = time.perf_counter()
+    try:
+        service = BatchEvalService(llm_caller=judge_llm_caller)
+        run_log = await service.run(run_type="scheduled")
+    except Exception as e:
+        logger.error("=== Scheduled batch eval raised ===", error=e, exc_info=True)
+        metrics.record_failure(duration_s=time.perf_counter() - started)
+        return
+    duration_s = time.perf_counter() - started
+    metrics.record_run_log(run_log, duration_s=duration_s)
     logger.info(
         "=== Scheduled batch eval finished ===",
         run_id=run_log.id,
@@ -36,6 +46,10 @@ async def main() -> None:
             "Eval worker is disabled (eval_worker.enabled=false); "
             "scheduler will still start but jobs are skipped unless enabled"
         )
+    metrics.set_flags(enabled=cfg.enabled)
+    metrics.mark_process_start()
+    if metrics.start_server(cfg.metrics_port):
+        logger.info("Evaluator metrics endpoint listening", port=cfg.metrics_port)
 
     init_langfuse()
 
@@ -43,8 +57,11 @@ async def main() -> None:
     cron_kwargs = parse_cron_5field(cfg.schedule_cron)
 
     async def _job() -> None:
-        if not get_eval_worker_config().enabled:
+        current = get_eval_worker_config()
+        metrics.set_flags(enabled=current.enabled)
+        if not current.enabled:
             logger.info("Eval worker disabled, skip scheduled run")
+            metrics.record_result("disabled")
             return
         await run_scheduled_eval()
 

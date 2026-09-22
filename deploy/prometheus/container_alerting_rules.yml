@@ -1,0 +1,68 @@
+# 容器级告警规则（cadvisor + node-exporter）
+#
+# 前置条件（当前线上尚未部署，属于已知缺口）：
+#   1) 宿主机跑 node-exporter（主机磁盘 / 内存 / CPU）
+#   2) 宿主机跑 cadvisor（每个容器的 restart 次数、CPU、内存）
+#   3) Prometheus 已加对应 job（下面按 job="cadvisor" / job="node" 举例）
+#
+# 为什么单独一个文件：这些规则不依赖应用埋点，只依赖容器/主机指标；缺 exporter 时
+# 导入它们只会得到一堆永远不触发的规则，所以和 alerting_rules.yml（应用指标）分开维护。
+#
+# 覆盖的真实故障（2026-09-22 实例）：
+#   - chat-agent-memory-governance 因镜像漏 COPY 启动即崩，restart 循环 16 次，全程无人
+#     知晓（当时没有任何容器级指标）
+#   - 同机 langfuse-clickhouse-1 持续 360% CPU / 1.265GiB（limit 1.5GiB）逼近上限
+groups:
+  - name: chat_agent_container_alerts
+    rules:
+      - alert: ChatAgentContainerRestarting
+        expr: |
+          changes(container_start_time_seconds{name=~"chat-agent-.*"}[15m]) > 1
+        for: 5m
+        labels:
+          severity: critical
+          service: chat-agent
+        annotations:
+          summary: "chat-agent container restarting ({{ $labels.name }})"
+          description: "More than one container start in 15m (cadvisor); check `docker logs` for a crash-on-startup cause."
+
+      - alert: ChatAgentContainerGone
+        expr: |
+          time() - container_last_seen{name=~"chat-agent-.*"} > 300
+        for: 5m
+        labels:
+          severity: critical
+          service: chat-agent
+        annotations:
+          summary: "chat-agent container missing ({{ $labels.name }})"
+          description: "No cadvisor samples for 5m: removed, never started, or invisible to cadvisor."
+
+      - alert: ChatAgentContainerMemoryNearLimit
+        expr: |
+          container_memory_working_set_bytes{name=~"chat-agent-.*"}
+          /
+          clamp_min(container_spec_memory_limit_bytes{name=~"chat-agent-.*"}, 1)
+          > 0.9
+          and
+          container_spec_memory_limit_bytes{name=~"chat-agent-.*"} > 0
+        for: 10m
+        labels:
+          severity: warning
+          service: chat-agent
+        annotations:
+          summary: "chat-agent container memory near limit ({{ $labels.name }})"
+          description: "Working set above 90% of the container limit for 10m; OOMKill is next."
+
+      - alert: ChatAgentHostDiskLow
+        expr: |
+          node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}
+          /
+          node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}
+          < 0.15
+        for: 15m
+        labels:
+          severity: warning
+          service: chat-agent
+        annotations:
+          summary: "chat-agent host root filesystem below 15% free"
+          description: "A full disk takes down postgres and all container logging at once; Langfuse ClickHouse is the main growth source on the 178G volume."
