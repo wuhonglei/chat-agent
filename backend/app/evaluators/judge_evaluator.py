@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -13,7 +13,7 @@ from app.core.observability import (
 )
 from app.utils.logger import logger
 
-LLMCaller = Callable[[list[dict[str, str]]], Awaitable[str]]
+LLMCaller = Callable[[list[dict[str, Any]]], Awaitable[str]]
 
 EVAL_JUDGE_OBSERVATION_NAME = "eval-judge"
 _JUDGE_IO_PREVIEW_CHARS = 500
@@ -28,6 +28,8 @@ JUDGE_SYSTEM_NO_GOLD = """你是一个回答质量评估器。根据用户问题
 3. 只有当模型回答中的信息既不在参考资料中，也无法从参考资料推导出来时，才能判定为「虚构」。
 4. **重要**：逐字核对专有名词，不得基于相似性推断。例如「深圳大学图书馆北馆」和「深圳图书馆北馆」是不同场所，地址不同。
 5. 无参考资料时，以常识和逻辑判断正确性；完整性按是否充分回答用户问题判断。
+6. 输入附带图片时，图片是用户问题的一部分（例如「这是什么」指的就是图片内容）。必须结合图片内容评估：回答对图片内容的描述与图片实际内容一致即为正确，不要因为信息不在参考资料中就判为虚构。
+7. 输入包含【历史对话】时，历史仅用于理解用户意图与指代（如「它」指历史中的对象、「继续」指历史动作），不作为评判事实性的依据。回答的事实性仍以参考资料、图片内容或常识判断；回答需要依赖历史才能理解时，不应因「缺少背景说明」扣完整性分。
 
 ## 评分标准
 
@@ -50,6 +52,8 @@ JUDGE_SYSTEM_WITH_GOLD = """你是一个回答质量评估器。根据用户问�
 2. 如果参考资料中确认了某个信息（如日期、金额、名称），模型回答中包含该信息就是正确的，不是虚构。
 3. 只有当模型回答中的信息既不在参考资料中，也无法从参考资料推导出来时，才能判定为「虚构」。
 4. **重要**：逐字核对专有名词，不得基于相似性推断。例如「深圳大学图书馆北馆」和「深圳图书馆北馆」是不同场所，地址不同。
+5. 输入附带图片时，图片是用户问题的一部分（例如「这是什么」指的就是图片内容）。必须结合图片内容评估：回答对图片内容的描述与图片实际内容一致即为正确，不要因为信息不在参考资料中就判为虚构。
+6. 输入包含【历史对话】时，历史仅用于理解用户意图与指代（如「它」指历史中的对象、「继续」指历史动作），不作为评判事实性的依据。回答的事实性仍以参考资料、图片内容或常识判断；回答需要依赖历史才能理解时，不应因「缺少背景说明」扣完整性分。
 
 ## 评分标准
 
@@ -73,9 +77,20 @@ def build_judge_user_prompt(
     answer: str,
     reference_contexts: str = "",
     ground_truth: str = "",
+    image_count: int = 0,
+    dialogue_history: str = "",
 ) -> str:
     """拼装裁判 user prompt（形状对齐 offline build_judge_input）。"""
     sections = [f"【用户问题】{query}"]
+    if image_count > 0:
+        sections.append(
+            f"【用户图片】用户问题附带 {image_count} 张图片（见本消息的图片输入）。"
+            "图片内容是问题的一部分，评分时必须结合图片内容判断回答是否正确、完整。"
+        )
+    if dialogue_history.strip():
+        sections.append(
+            "【历史对话（仅供理解上下文，不作为事实依据）】\n" + dialogue_history.strip()
+        )
     if ground_truth.strip():
         sections.append(f"【标准要点】\n{ground_truth.strip()}")
     if reference_contexts.strip():
@@ -153,6 +168,8 @@ async def call_judge_model(
     ground_truth: str = "",
     llm_caller: LLMCaller,
     context_sources: dict[str, Any] | None = None,
+    images: Sequence[str] | None = None,
+    dialogue_history: str = "",
 ) -> JudgeResult:
     """调用裁判模型打分。
 
@@ -164,8 +181,12 @@ async def call_judge_model(
         ground_truth: 标准答案要点（可选，有则走 WITH_GOLD）
         llm_caller: LLM 调用函数
         context_sources: 上下文来源标记，原样挂到 JudgeResult
+        images: 用户图片（data URI / URL），随 user 消息以多模态块传给裁判模型
+        dialogue_history: 历史对话文本，仅供裁判理解指代，不作为事实依据
     """
     refs = (reference_contexts or retrieved_contexts or "").strip()
+    image_list = [img for img in (images or []) if img]
+    image_count = len(image_list)
 
     if ground_truth.strip():
         system = JUDGE_SYSTEM_WITH_GOLD
@@ -174,6 +195,8 @@ async def call_judge_model(
             answer=answer,
             reference_contexts=refs,
             ground_truth=ground_truth.strip(),
+            image_count=image_count,
+            dialogue_history=dialogue_history,
         )
     else:
         system = JUDGE_SYSTEM_NO_GOLD
@@ -181,11 +204,21 @@ async def call_judge_model(
             query=query,
             answer=answer,
             reference_contexts=refs or "（无参考资料）",
+            image_count=image_count,
+            dialogue_history=dialogue_history,
         )
 
-    messages = [
+    user_content: str | list[dict[str, Any]] = user_prompt
+    if image_list:
+        parts: list[dict[str, Any]] = [{"type": "text", "text": user_prompt}]
+        parts.extend(
+            {"type": "image_url", "image_url": {"url": img}} for img in image_list
+        )
+        user_content = parts
+
+    messages: list[dict[str, Any]] = [
         {"role": "system", "content": system},
-        {"role": "user", "content": user_prompt},
+        {"role": "user", "content": user_content},
     ]
 
     with observation_span(
@@ -196,6 +229,7 @@ async def call_judge_model(
             "answer": answer[:_JUDGE_IO_PREVIEW_CHARS],
             "has_reference": bool(refs),
             "has_ground_truth": bool(ground_truth.strip()),
+            "image_count": image_count,
         },
         metadata={"source": "eval_worker"},
         trace_name=EVAL_JUDGE_OBSERVATION_NAME,

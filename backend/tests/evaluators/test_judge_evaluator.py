@@ -47,11 +47,21 @@ def test_build_judge_user_prompt_shape() -> None:
         answer="a",
         reference_contexts="<参考资料>ctx</参考资料>",
         ground_truth="- point",
+        dialogue_history="<dialogue_history>hist</dialogue_history>",
     )
     assert "【用户问题】q" in prompt
+    assert "【历史对话（仅供理解上下文，不作为事实依据）】" in prompt
+    assert "<dialogue_history>hist</dialogue_history>" in prompt
     assert "【标准要点】" in prompt
     assert "【参考资料/工具返回内容】" in prompt
     assert "【模型回答】" in prompt
+    # 历史段位于参考资料之前
+    assert prompt.index("【历史对话") < prompt.index("【参考资料/工具返回内容】")
+
+
+def test_build_judge_user_prompt_without_history_omits_section() -> None:
+    prompt = build_judge_user_prompt(query="q", answer="a")
+    assert "【历史对话" not in prompt
 
 
 @pytest.mark.asyncio
@@ -100,6 +110,75 @@ async def test_call_judge_model_with_gold() -> None:
     user = captured[0][1]["content"]
     assert "【标准要点】" in user
     assert "要点1" in user
+
+
+@pytest.mark.asyncio
+async def test_call_judge_model_with_images_builds_multimodal_content() -> None:
+    captured: list[list[dict[str, Any]]] = []
+
+    async def _caller(messages: list[dict[str, Any]]) -> str:
+        captured.append(messages)
+        return '{"correctness_score": 5, "completeness_score": 5, "notes": "对"}'
+
+    result = await call_judge_model(
+        query="这是什么",
+        answer="一张户口簿照片",
+        llm_caller=_caller,
+        images=["data:image/jpeg;base64,IMG1", "data:image/png;base64,IMG2"],
+    )
+    assert result.success is True
+    user_content = captured[0][1]["content"]
+    assert isinstance(user_content, list)
+    assert user_content[0]["type"] == "text"
+    assert "【用户图片】用户问题附带 2 张图片" in user_content[0]["text"]
+    image_parts = [p for p in user_content if p["type"] == "image_url"]
+    assert [p["image_url"]["url"] for p in image_parts] == [
+        "data:image/jpeg;base64,IMG1",
+        "data:image/png;base64,IMG2",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_call_judge_model_without_images_keeps_string_content() -> None:
+    captured: list[list[dict[str, Any]]] = []
+
+    async def _caller(messages: list[dict[str, Any]]) -> str:
+        captured.append(messages)
+        return '{"correctness_score": 4, "completeness_score": 4}'
+
+    result = await call_judge_model(query="q", answer="a", llm_caller=_caller)
+    assert result.success is True
+    assert isinstance(captured[0][1]["content"], str)
+    assert "【用户图片】" not in captured[0][1]["content"]
+
+
+@pytest.mark.asyncio
+async def test_call_judge_model_with_dialogue_history() -> None:
+    captured: list[list[dict[str, Any]]] = []
+
+    async def _caller(messages: list[dict[str, Any]]) -> str:
+        captured.append(messages)
+        return '{"correctness_score": 4, "completeness_score": 5, "notes": "ok"}'
+
+    history = (
+        "<dialogue_history>\n"
+        '<hist_turn index="1" role="user">看看这张图</hist_turn>\n'
+        '<hist_turn index="2" role="assistant">这是一张猫的照片</hist_turn>\n'
+        "</dialogue_history>"
+    )
+    result = await call_judge_model(
+        query="它是什么颜色",
+        answer="橘色",
+        llm_caller=_caller,
+        dialogue_history=history,
+    )
+    assert result.success is True
+    user = captured[0][1]["content"]
+    assert isinstance(user, str)
+    assert "【历史对话（仅供理解上下文，不作为事实依据）】" in user
+    assert "这是一张猫的照片" in user
+    system = captured[0][0]["content"]
+    assert "不作为评判事实性的依据" in system
 
 
 @pytest.mark.asyncio

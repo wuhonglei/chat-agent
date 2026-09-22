@@ -12,6 +12,7 @@ from sqlmodel import Session, select
 
 from app.core.db import engine
 from app.models.message_db import MessageDb
+from app.services.eval.trace_media import resolve_image_refs
 from app.utils.logger import logger
 
 QUERY_TAG_RE = re.compile(r"<query>(.*?)</query>", re.DOTALL | re.IGNORECASE)
@@ -26,6 +27,9 @@ ATTACHMENT_CONTEXT_RE = re.compile(
     r"<attachment_context>(.*?)</attachment_context>", re.DOTALL | re.IGNORECASE
 )
 
+# 历史单轮文本上限：对话长时避免裁判 prompt 无界膨胀
+HISTORY_TURN_MAX_CHARS = 1500
+
 
 @dataclass
 class JudgeInput:
@@ -34,7 +38,9 @@ class JudgeInput:
     query: str
     answer: str
     reference_xml: str = ""
+    dialogue_history: str = ""
     source_flags: dict[str, Any] = field(default_factory=dict)
+    images: list[str] = field(default_factory=list)
 
 
 def _as_text(value: Any) -> str:
@@ -67,6 +73,28 @@ def _message_content(msg: dict[str, Any]) -> str:
     if content is None:
         return ""
     return str(content)
+
+
+def extract_message_images(msg: dict[str, Any]) -> list[str]:
+    """从消息 content 多模态块中抽取图片引用（data URI 或 langfuseMedia 标记）。"""
+    content = msg.get("content")
+    if not isinstance(content, list):
+        return []
+    refs: list[str] = []
+    for item in content:
+        if not isinstance(item, dict):
+            continue
+        item_type = str(item.get("type") or "")
+        payload: Any = None
+        if item_type in ("image_url", "input_image", "image"):
+            payload = item.get("image_url") or item.get("image")
+        elif "image_url" in item or "image" in item:
+            payload = item.get("image_url") or item.get("image")
+        if isinstance(payload, dict):
+            payload = payload.get("url")
+        if isinstance(payload, str) and payload.strip():
+            refs.append(payload.strip())
+    return refs
 
 
 def normalize_generation_input(raw_input: Any) -> dict[str, Any]:
@@ -160,6 +188,17 @@ def build_judge_query(query: str, memories: list[str]) -> str:
     return f"{query}\n\n{suffix}"
 
 
+def format_dialogue_history(turns: list[tuple[str, str]]) -> str:
+    """把历史轮 (role, text) 列表拼成 <dialogue_history> XML（仅供裁判理解上下文）。"""
+    if not turns:
+        return ""
+    lines = ["<dialogue_history>"]
+    for i, (role, text) in enumerate(turns, 1):
+        lines.append(f'<hist_turn index="{i}" role="{role}">{text}</hist_turn>')
+    lines.append("</dialogue_history>")
+    return "\n".join(lines)
+
+
 def build_reference_xml(
     *,
     attachment_context: str = "",
@@ -190,17 +229,34 @@ def build_reference_xml(
 
 def parse_generation_messages(
     messages: list[Any],
-) -> tuple[str, list[str], str, list[str]]:
-    """从 GENERATION messages 解析 query / memories / attachment / tool contents。"""
+) -> tuple[str, list[str], str, list[str], list[str], str]:
+    """从 GENERATION messages 解析 query / memories / attachment / tool contents / images / 历史。
+
+    以「胜出的 user 消息」（即提供 query 的那条，通常是本轮）为界：
+    - images 取胜出消息上的图片引用；若没有任何 user 消息胜出（如图片单独成块、无文本），
+      回退到最后一条带图 user 消息；
+    - tool_contents 只收胜出消息【之后】的 tool 返回（本轮工具），历史轮工具结果不混入；
+    - dialogue_history 汇总胜出消息【之前】的 user/assistant 文本，仅供裁判理解指代，
+      不作为事实依据。
+    """
     query = ""
     memories: list[str] = []
     attachment = ""
     tool_contents: list[str] = []
+    images: list[str] = []
+    images_from_winner = False
+    last_user_images: list[str] = []
+    winner_idx = -1
+    history_candidates: list[tuple[int, str, str]] = []
+    tool_candidates: list[tuple[int, str]] = []
 
-    for msg in messages:
+    for idx, msg in enumerate(messages):
         if not isinstance(msg, dict):
             continue
         role = str(msg.get("role") or "")
+        msg_images = extract_message_images(msg) if role == "user" else []
+        if msg_images:
+            last_user_images = msg_images
         content = _message_content(msg)
         if not content.strip():
             continue
@@ -215,13 +271,51 @@ def parse_generation_messages(
                     memories = parsed_memories
                 if parsed_attachment:
                     attachment = parsed_attachment
+                images = msg_images
+                images_from_winner = True
+                winner_idx = idx
             elif "<query>" not in content.lower() and not query:
                 # 非 XML 的纯文本 user：仅在尚未有 query 时作为弱回退
                 query = content.strip()
+                images = msg_images
+                images_from_winner = True
+                winner_idx = idx
+            # 历史轮 user：优先取 <query> 内文（回放文本是整段 XML，直接拼太吵）
+            history_text = parsed_query or content.strip()
+            history_candidates.append((idx, "user", _format_history_turn(history_text, msg_images)))
+        elif role == "assistant":
+            history_candidates.append(
+                (idx, "assistant", _format_history_turn(content.strip(), []))
+            )
         elif role == "tool":
-            tool_contents.append(content.strip())
+            tool_candidates.append((idx, content.strip()))
 
-    return query, memories, attachment, tool_contents
+    if not images_from_winner:
+        images = last_user_images
+
+    if winner_idx >= 0:
+        # 以最终胜出消息（本轮）为界：之后的工具返回属于本轮，之前的属于历史轮
+        tool_contents = [text for idx, text in tool_candidates if idx > winner_idx]
+        history_turns = [
+            (role, text) for idx, role, text in history_candidates if idx < winner_idx
+        ]
+    else:
+        # 无胜出消息时保持旧行为：工具返回全收、无历史
+        tool_contents = [text for _, text in tool_candidates]
+        history_turns = []
+    dialogue_history = format_dialogue_history(history_turns)
+
+    return query, memories, attachment, tool_contents, images, dialogue_history
+
+
+def _format_history_turn(text: str, images: list[str]) -> str:
+    """历史单轮文本：截断超长内容，并标注未随评估提供的图片。"""
+    if len(text) > HISTORY_TURN_MAX_CHARS:
+        text = text[: HISTORY_TURN_MAX_CHARS - 8] + "…[截断]"
+    if images:
+        note = f"[该消息附带 {len(images)} 张图片，未随评估提供]"
+        text = f"{text}\n{note}" if text else note
+    return text
 
 
 def _obs_to_dict(obs: Any) -> dict[str, Any]:
@@ -308,6 +402,8 @@ class JudgeInputBuilder:
             "has_memories": False,
             "has_attachment_context": False,
             "tool_count": 0,
+            "image_count": 0,
+            "image_failed": 0,
         }
 
         generation = self._fetch_last_generation(str(trace.get("id") or ""))
@@ -317,6 +413,8 @@ class JudgeInputBuilder:
         memories: list[str] = []
         attachment = ""
         tool_contents: list[str] = []
+        image_refs: list[str] = []
+        dialogue_history = ""
 
         if generation is not None:
             source_flags["last_generation"] = True
@@ -324,8 +422,8 @@ class JudgeInputBuilder:
             messages = gen_input.get("messages") or []
             if not isinstance(messages, list):
                 messages = []
-            query, memories, attachment, tool_contents = parse_generation_messages(
-                messages
+            query, memories, attachment, tool_contents, image_refs, dialogue_history = (
+                parse_generation_messages(messages)
             )
             gen_answer = extract_generation_answer(generation.get("output"))
             if gen_answer:
@@ -362,11 +460,18 @@ class JudgeInputBuilder:
         if not judge_query and not answer:
             source_flags["chat_turn_only"] = True
 
+        images = resolve_image_refs(image_refs)
+        source_flags["image_count"] = len(images)
+        source_flags["image_failed"] = max(0, len(image_refs) - len(images))
+        source_flags["history_turns"] = dialogue_history.count("<hist_turn")
+
         return JudgeInput(
             query=judge_query,
             answer=answer or chat_answer,
             reference_xml=reference_xml,
+            dialogue_history=dialogue_history,
             source_flags=source_flags,
+            images=images,
         )
 
     def _fetch_last_generation(self, trace_id: str) -> dict[str, Any] | None:
