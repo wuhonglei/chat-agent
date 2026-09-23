@@ -17,6 +17,9 @@
 # 用法（在仓库里执行）：
 #   PROM_SSH=ubuntu@1.12.53.9 bash deploy/prometheus/apply.sh
 #   需要免密 ssh（或导出 SSHPASS 走 sshpass -e）；目标机需有 `sudo -n` 权限。
+#
+# 安全闸门：第 0 步会比对本地 HEAD 与 origin HEAD，本地落后就中止——在落后的 checkout 里
+# 同步会把已被修掉的旧规则推回线上（比「没生效」更糟）。确实要强推用 FORCE_SYNC=1。
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -31,6 +34,37 @@ if [ -n "${SSHPASS:-}" ]; then
     -o PubkeyAuthentication=no -o NumberOfPasswordPrompts=1 -o ConnectTimeout=10)
 else
   SSH=(ssh -o ConnectTimeout=10)
+fi
+
+echo "==> 0/4 确认规则源版本不落后于 origin（防止把旧规则推回线上）"
+if [ "${FORCE_SYNC:-}" = "1" ]; then
+  echo "    FORCE_SYNC=1，跳过版本比对"
+elif git -C "$REPO_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+  branch="$(git -C "$REPO_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+  if [ -z "$branch" ] || [ "$branch" = "HEAD" ]; then
+    ref="HEAD"
+  else
+    ref="refs/heads/$branch"
+  fi
+  local_head="$(git -C "$REPO_DIR" rev-parse HEAD 2>/dev/null || true)"
+  if command -v timeout >/dev/null 2>&1; then
+    remote_head="$(GIT_TERMINAL_PROMPT=0 timeout 20 git -C "$REPO_DIR" ls-remote origin "$ref" 2>/dev/null | awk '{print $1}' || true)"
+  else
+    remote_head="$(GIT_TERMINAL_PROMPT=0 git -C "$REPO_DIR" ls-remote origin "$ref" 2>/dev/null | awk '{print $1}' || true)"
+  fi
+  if [ -z "$local_head" ] || [ -z "$remote_head" ]; then
+    echo "    ⏭️  跳过比对：拿不到本地 HEAD 或 origin/$branch 的 HEAD（离线 / 无权限 / 该分支还没推到 origin）"
+  elif [ "$local_head" = "$remote_head" ]; then
+    echo "    ✅ 本地 ${local_head:0:7} 与 origin/$branch 一致"
+  elif git -C "$REPO_DIR" merge-base --is-ancestor "$local_head" "$remote_head" 2>/dev/null; then
+    echo "    ❌ 本地 ${local_head:0:7} 落后于 origin/$branch ${remote_head:0:7}：先 git pull 再同步，"
+    echo "       否则会把已被修掉的旧规则推回线上（确实要强推：FORCE_SYNC=1）"
+    exit 1
+  else
+    echo "    ⚠️  本地 ${local_head:0:7} 不在 origin/$branch 历史里（有未推送的本地提交），照常同步"
+  fi
+else
+  echo "    ⏭️  跳过比对：$REPO_DIR 不是 git 仓库（沙箱 / 打包产物环境）"
 fi
 
 echo "==> 1/4 传输规则文件 → $PROM_SSH:/tmp"
