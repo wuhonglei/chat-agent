@@ -6,35 +6,11 @@ import os
 import re
 from pathlib import Path
 
-from app.mcp.constants import (
-    CODE_SERVER,
-    CONTEXT7_SERVER,
-    FILE_SERVER,
-    SHELL_SERVER,
-    SKILL_MANAGER_SERVER,
-    TAVILY_SERVER,
-    TIME_SERVER,
-    WEATHER_SERVER,
-    ZREAD_SERVER,
-)
-from app.mcp.tool_naming import bare_tool_name
 from app.schemas.config import ToolResultHardLimitConfig
 from app.schemas.llm import ToolResultMessage
 from app.utils.logger import logger
 from app.vfs.config import vfs_config
 from app.vfs.paths import get_paths
-
-_KNOWN_MCP_SERVERS = (
-    TAVILY_SERVER,
-    FILE_SERVER,
-    SKILL_MANAGER_SERVER,
-    SHELL_SERVER,
-    CODE_SERVER,
-    WEATHER_SERVER,
-    TIME_SERVER,
-    CONTEXT7_SERVER,
-    ZREAD_SERVER,
-)
 
 _PERSISTED_MARKER = "full output persisted"
 _TRUNCATED_MARKER = "内容已截断"
@@ -44,20 +20,12 @@ _PERSIST_MAX_SEQ = 1000
 _PERSIST_SEQ_RE = re.compile(r"^(.+)-(\d+)\.txt$")
 
 
-def extract_bare_tool_name(tool_name: str) -> str:
-    """Resolve bare MCP tool name from an LLM-visible tool name."""
-    return bare_tool_name(tool_name, _KNOWN_MCP_SERVERS)
-
-
 def resolve_max_chars(tool_name: str, config: ToolResultHardLimitConfig) -> int | None:
-    """Return effective per-tool char threshold; None means Layer-2 skip."""
-    bare = extract_bare_tool_name(tool_name)
-    if tool_name in config.tool_overrides:
-        value = config.tool_overrides[tool_name]
-    elif bare in config.tool_overrides:
-        value = config.tool_overrides[bare]
-    else:
-        value = config.max_chars
+    """Return effective per-tool char threshold; None means Layer-2 skip.
+
+    ``tool_overrides`` keys are exact LLM names (``{server}_{bare}``).
+    """
+    value = config.tool_overrides.get(tool_name, config.max_chars)
     if value == 0:
         return None
     return value
@@ -69,10 +37,11 @@ def is_hard_limited(content: str) -> bool:
 
 
 def _is_budget_exempt(tool_name: str, config: ToolResultHardLimitConfig) -> bool:
-    """Whether tool is fully exempt from hard limit (including force / turn budget)."""
-    bare = extract_bare_tool_name(tool_name)
-    exempt = set(config.exempt_bare_names)
-    return bare in exempt or tool_name in exempt
+    """Whether the LLM tool name is fully exempt (including force / turn budget).
+
+    Only an exact ``{server}_{bare}`` name in ``exempt_tool_names`` matches.
+    """
+    return tool_name in config.exempt_tool_names
 
 
 def _count_lines(content: str) -> int:

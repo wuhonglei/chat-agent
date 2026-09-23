@@ -10,7 +10,6 @@ from app.utils.tool_result_hard_limit import (
     _allocate_head_tail,
     apply_hard_limit,
     enforce_turn_budget,
-    extract_bare_tool_name,
     is_hard_limited,
     resolve_max_chars,
 )
@@ -33,28 +32,22 @@ def _config(**overrides: object) -> ToolResultHardLimitConfig:
         preview_head_chars=10,
         preview_tail_chars=5,
         turn_budget_chars=150,
-        tool_overrides={"exec": 50, "web_pages_extract": 80},
-        exempt_bare_names=["read_file"],
+        tool_overrides={"shell_exec": 50, "tavily_web_pages_extract": 80},
+        exempt_tool_names=["file_read_file"],
     )
     return base.model_copy(update=overrides)
 
 
-def test_extract_bare_tool_name() -> None:
-    assert extract_bare_tool_name("shell_exec") == "exec"
-    assert extract_bare_tool_name("file_read_file") == "read_file"
-    assert extract_bare_tool_name("tavily_web_search") == "web_search"
-
-
-def test_resolve_max_chars_llm_and_bare_keys() -> None:
-    cfg = _config(tool_overrides={"exec": 50, "shell_exec": 40})
+def test_resolve_max_chars_matches_full_tool_name_only() -> None:
+    cfg = _config(tool_overrides={"shell_exec": 40, "exec": 50})
     assert resolve_max_chars("shell_exec", cfg) == 40
     cfg2 = _config(tool_overrides={"exec": 50})
-    assert resolve_max_chars("shell_exec", cfg2) == 50
+    assert resolve_max_chars("shell_exec", cfg2) == 100
     assert resolve_max_chars("tavily_web_search", cfg2) == 100
 
 
 def test_resolve_max_chars_zero_disables_layer2() -> None:
-    cfg = _config(tool_overrides={"exec": 0})
+    cfg = _config(tool_overrides={"shell_exec": 0})
     assert resolve_max_chars("shell_exec", cfg) is None
 
 
@@ -225,7 +218,7 @@ def test_tool_overrides_trigger_earlier_for_exec(
         "app.utils.tool_result_hard_limit.get_paths",
         lambda: type(get_paths())(base_dir=tmp_path),
     )
-    cfg = _config(max_chars=200, tool_overrides={"exec": 30})
+    cfg = _config(max_chars=200, tool_overrides={"shell_exec": 30})
     content = "a" * 50
     # Non-agent always passthrough regardless of overrides.
     untouched = apply_hard_limit(
@@ -251,7 +244,7 @@ def test_tool_overrides_trigger_earlier_for_exec(
 
 
 def test_override_zero_skips_layer2_unless_force() -> None:
-    cfg = _config(max_chars=10, tool_overrides={"exec": 0})
+    cfg = _config(max_chars=10, tool_overrides={"shell_exec": 0})
     content = "b" * 50
     skipped = apply_hard_limit(
         _msg(content),
@@ -312,6 +305,31 @@ def test_read_file_exempt_ignores_force() -> None:
     assert not is_hard_limited(result.content)
 
 
+def test_bare_name_is_not_exempt() -> None:
+    content = "R" * 200
+    listed_as_bare = apply_hard_limit(
+        _msg(content),
+        tool_name="file_read_file",
+        agent_mode=1,
+        user_id=None,
+        conversation_id=None,
+        config=_config(max_chars=50, exempt_tool_names=["read_file"]),
+        force=True,
+    )
+    assert is_hard_limited(listed_as_bare.content)
+
+    called_as_bare = apply_hard_limit(
+        _msg(content),
+        tool_name="read_file",
+        agent_mode=1,
+        user_id=None,
+        conversation_id=None,
+        config=_config(max_chars=50),
+        force=True,
+    )
+    assert is_hard_limited(called_as_bare.content)
+
+
 def test_turn_budget_noop_in_non_agent() -> None:
     cfg = _config(
         max_chars=10_000,
@@ -343,7 +361,7 @@ def test_turn_budget_skips_exempt_read_file() -> None:
         turn_budget_chars=80,
         preview_head_chars=8,
         preview_tail_chars=4,
-        exempt_bare_names=["read_file"],
+        exempt_tool_names=["file_read_file"],
     )
     read_content = "R" * 100
     other_content = "b" * 60

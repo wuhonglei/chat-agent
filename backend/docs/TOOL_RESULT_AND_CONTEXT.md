@@ -56,7 +56,7 @@ context_threshold = context_limit - reserved_output - buffer_tokens
 | 条件 | 行为 |
 |------|------|
 | `enabled=false` | 原样返回 |
-| bare 名在 `exempt_bare_names`（默认 `read_file`） | 完全跳过，含同轮 `force` |
+| LLM 名在 `exempt_tool_names`（默认 `file_read_file`） | 完全跳过，含同轮 `force`；bare 名不匹配 |
 | `tool_overrides[tool]=0` | 跳过单条阈值；同轮预算仍可 `force` |
 | `agent_mode <= 0` | 原样返回（含同轮 turn budget）；由统一守卫兜底 |
 | `agent_mode > 0` 且有 `user_id`/`conversation_id` | 超阈值 → 写入 workspace，返回 `preview_head/tail` 预览 + 虚拟路径 |
@@ -86,14 +86,14 @@ context_threshold = context_limit - reserved_output - buffer_tokens
 | `turn_budget_chars` | `80000` | 同轮全部 tool content 合计上限；仅 Agent；`0` 关闭 |
 | `preview_head_chars` / `preview_tail_chars` | `2000` / `1000` | Agent 落盘预览与截断回退头尾 |
 | `persist_subdir` | `tool-results` | 相对 workspace（非隐藏目录，便于 search_files 发现） |
-| `exempt_bare_names` | `["read_file"]` | 全量豁免，防 persist↔read 循环 |
+| `exempt_tool_names` | `["file_read_file"]` | 按 `{server}_{bare}` 精确匹配的全量豁免，防 persist↔read 循环 |
 | `tool_overrides` | 见下 | 覆盖单条阈值 |
 
-默认 `tool_overrides`：`exec`/`search_files`/`web_site_crawl` 20000，`web_pages_extract` 25000，`load_skill` 0。
+默认 `tool_overrides`（键为 `{server}_{bare}`）：`shell_exec`/`file_search_files`/`tavily_web_site_crawl` 20000，`tavily_web_pages_extract` 25000，`tavily_web_search` 50000，`skill_manager_load_skill` 0。bare 名不匹配。
 
 ### 2.5 与 `read_file` 的配合
 
-`read_file` 默认在豁免列表。体积由工具自身 `limit` 控制。
+`file_read_file` 默认在豁免列表。只匹配完整 LLM 名，`read_file` 不会豁免。体积由工具自身 `limit` 控制。
 
 ## 3. 统一上下文守卫
 

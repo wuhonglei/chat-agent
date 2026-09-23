@@ -582,11 +582,12 @@ class ToolResultCompressionConfig(BaseModel):
 
 def _default_tool_result_hard_limit_overrides() -> dict[str, int]:
     return {
-        "exec": 20_000,
-        "search_files": 20_000,
-        "web_site_crawl": 20_000,
-        "web_pages_extract": 25_000,
-        "load_skill": 0,
+        "shell_exec": 20_000,
+        "file_search_files": 20_000,
+        "tavily_web_search": 50_000,
+        "tavily_web_site_crawl": 20_000,
+        "tavily_web_pages_extract": 25_000,
+        "skill_manager_load_skill": 0,
     }
 
 
@@ -624,19 +625,20 @@ class ToolResultHardLimitConfig(BaseModel):
         default="tool-results",
         description="落盘子目录，相对 conversation workspace/",
     )
-    exempt_bare_names: list[str] = Field(
-        default_factory=lambda: ["read_file"],
+    exempt_tool_names: list[str] = Field(
+        default_factory=lambda: ["file_read_file"],
         description=(
-            "完全跳过硬上限的工具 bare 名（含同轮 force）；"
-            "用于防 persist↔read 循环；体积由工具自身限制（如 read_file 的 limit）"
+            "完全跳过硬上限的 LLM 工具名（{server}_{bare}，含同轮 force）；"
+            "只做完整名精确匹配，bare 名不豁免。"
+            "用于防 persist↔read 循环；体积由工具自身限制（如 file_read_file 的 limit）"
         ),
     )
     tool_overrides: dict[str, int] = Field(
         default_factory=_default_tool_result_hard_limit_overrides,
         description=(
-            "按工具覆盖 max_chars；键可为 LLM 名或 bare 名；"
+            "按 LLM 工具名 {server}_{bare} 覆盖 max_chars，精确匹配，bare 名不生效；"
             "值为 0 表示关闭该工具的单条硬上限（同轮预算仍可强制处理；"
-            "与 exempt_bare_names 的完全豁免不同）"
+            "与 exempt_tool_names 的完全豁免不同）"
         ),
     )
 
