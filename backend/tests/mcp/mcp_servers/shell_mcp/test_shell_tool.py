@@ -283,6 +283,86 @@ async def test_shell_executor_local_sets_user_skills_dir_env(
     assert vfs_config.workspace_prefix.rstrip("/") in request.env[VFS_MAPPINGS_ENV]
 
 
+class _DashscopeProvider:
+    def __init__(self, api_key: str) -> None:
+        self.api_key = api_key
+
+
+@pytest.mark.asyncio
+async def test_shell_executor_injects_rotated_dashscope_api_key(tmp_path: Path) -> None:
+    executor = ShellExecutor()
+    mock_backend = MagicMock()
+    mock_backend.execute = AsyncMock(
+        return_value=ExecutionResult(stdout="ok", return_code=0)
+    )
+
+    provider = _DashscopeProvider("  sk-from-nacos  ")
+    mock_settings = MagicMock()
+    mock_settings.sandbox = SandboxConfig(backend="local", timeout=30000)
+    mock_settings.models.providers = {"dashscope": provider}
+    with patch("app.mcp.mcp_servers.shell_mcp.executor.settings", mock_settings):
+        await executor.initialize(tmp_path)
+        executor._executor = mock_backend
+        executor._initialized = True
+        executor._workspace_path = tmp_path.resolve()
+        executor._effective_backend = "local"
+
+        await executor.execute(command="pwd")
+        provider.api_key = "sk-rotated"
+        await executor.execute(command="pwd")
+
+    assert mock_backend.execute.await_count == 2
+    first = mock_backend.execute.await_args_list[0][0][0]
+    second = mock_backend.execute.await_args_list[1][0][0]
+    assert first.env is not None
+    assert first.env["DASHSCOPE_API_KEY"] == "sk-from-nacos"
+    assert second.env is not None
+    assert second.env["DASHSCOPE_API_KEY"] == "sk-rotated"
+
+
+@pytest.mark.asyncio
+async def test_shell_executor_blank_dashscope_api_key_is_not_injected(
+    tmp_path: Path,
+) -> None:
+    from app.vfs.paths import Paths
+
+    paths = Paths(base_dir=tmp_path / "user_data")
+    user_id = "user-1"
+    conversation_id = "conv-1"
+    paths.ensure_conversation_dirs(user_id, conversation_id)
+    paths.ensure_user_skills_dir(user_id)
+    workspace = paths.ensure_sandbox_work_dir(user_id, conversation_id)
+
+    executor = ShellExecutor()
+    mock_backend = MagicMock()
+    mock_backend.execute = AsyncMock(
+        return_value=ExecutionResult(stdout="", return_code=0)
+    )
+
+    mock_settings = MagicMock()
+    mock_settings.sandbox = SandboxConfig(backend="local", timeout=30000)
+    mock_settings.models.providers = {"dashscope": _DashscopeProvider("   ")}
+    with (
+        patch("app.mcp.mcp_servers.shell_mcp.executor.settings", mock_settings),
+        patch(
+            "app.mcp.mcp_servers.shell_mcp.virtual_paths.get_paths", return_value=paths
+        ),
+        patch("app.vfs.paths.get_paths", return_value=paths),
+    ):
+        await executor.initialize(
+            workspace, user_id=user_id, conversation_id=conversation_id
+        )
+        executor._executor = mock_backend
+        await executor.execute(command="echo ok")
+
+    call_args = mock_backend.execute.await_args
+    assert call_args is not None
+    request = call_args[0][0]
+    assert request.env is not None
+    assert "DASHSCOPE_API_KEY" not in request.env
+    assert "USER_SKILLS_DIR" in request.env
+
+
 @pytest.mark.asyncio
 async def test_shell_executor_local_blocks_unsafe_host_path(tmp_path: Path) -> None:
     from app.vfs.paths import Paths
