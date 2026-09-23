@@ -700,6 +700,30 @@ elif [ "$CLEANUP_IMAGES" = "false" ]; then
     echo "ℹ️  跳过镜像清理（CLEANUP_IMAGES=false）"
 fi
 
+# ==================== 同步监控规则到 Prometheus ====================
+# deploy/prometheus/ 下的规则文件只是源码：Prometheus 没有配置文件监视（不同于 promtail 的
+# watchConfig），改完必须显式同步 + 重载才生效。这一步做四件事：
+#   传文件 → promtool 校验 → POST /-/reload → 复查线上运行态（规则数 / targets / Alertmanager）
+# 需要应用机到监控机的免密 ssh（~/.ssh/config 里的 Host 别名，默认 monitoring）。
+# 跳过或改目标机：SYNC_MONITORING_RULES=false / PROM_SSH=user@host。
+# 失败不拦部署：规则同步失败只提示，回滚/健康检查结果不受影响。
+if [ "${SYNC_MONITORING_RULES:-auto}" != "false" ]; then
+    echo ""
+    echo "📊 同步监控规则到 Prometheus..."
+    DEPLOY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    RULES_APPLY="$DEPLOY_DIR/deploy/prometheus/apply.sh"
+    MON_TARGET="${PROM_SSH:-monitoring}"
+    if [ ! -f "$RULES_APPLY" ]; then
+        echo "   ⏭️  跳过：$RULES_APPLY 不存在"
+    elif ! ssh -o BatchMode=yes -o ConnectTimeout=5 "$MON_TARGET" true >/dev/null 2>&1; then
+        echo "   ⏭️  跳过：免密 ssh 到 $MON_TARGET 不通（检查 ~/.ssh/config 与监控机 authorized_keys）"
+    elif PROM_SSH="$MON_TARGET" bash "$RULES_APPLY"; then
+        echo "   ✅ 监控规则已同步并重载"
+    else
+        echo "   ⚠️  规则同步失败（不影响本次部署）"
+    fi
+fi
+
 echo ""
 echo "📋 常用命令："
 echo "  查看日志: $DOCKER_COMPOSE_CMD logs -f"
