@@ -127,6 +127,7 @@
 <a href="#附录-a-子-agent-系统提示词-草案" class="toc-h2">附录 A：子 agent 系统提示词（草案）</a>
 <a href="#附录-b-与五框架设计决策对照" class="toc-h2">附录 B：与五框架设计决策对照</a>
 <a href="#附录-c-子-agent-与-agent-skills-五框架现状" class="toc-h2">附录 C：子 agent 与 agent skills（五框架现状）</a>
+<a href="#附录-d-父级提示中的子-agent-创建引导-五框架现状" class="toc-h2">附录 D：父级提示中的子 agent 创建引导（五框架现状）</a>
   </nav>
   <div class="overlay" id="overlay"></div>
   <main>
@@ -786,6 +787,12 @@ Schema — no prose, no code fence:
 <td>5/5 框架均允许；kimi / ZCode / claude-code 的清单联动注入</td>
 <td>hermes 连 <code>skill_manage</code>（写）都开放——不取；只给工具不给清单（hermes 现状）——不取</td>
 </tr>
+<tr>
+<td>父级子 agent 引导提示词</td>
+<td>写在 <code>delegate_task</code> 工具描述（使用时机 + 防重复 + 防递归 + 可用子场景目录）</td>
+<td>ZCode / kimi / hermes 的工具描述模式；claude-code 的防重复措辞</td>
+<td>codex 模式注入四件套——留作「主动委派」开关的实现参考</td>
+</tr>
 </tbody>
 </table></div>
 <h2 id="附录-c-子-agent-与-agent-skills-五框架现状">附录 C：子 agent 与 agent skills（五框架现状）</h2>
@@ -835,6 +842,60 @@ Schema — no prose, no code fence:
 </tbody>
 </table></div>
 <p><strong>本方案取舍</strong>（§4.4 第 5 层 / §4.5）：允许（5/5 共性）+ <strong>清单必注入</strong>（kimi / ZCode / claude-code 共性，且是 <code>load_skill</code> 可用的前提）+ 只读 <code>load_skill</code>（比 hermes 连 <code>skill_manage</code> 写都开放更保守）+ <code>excluded_tools</code> 可按需关（kimi / ZCode 的 profile 可控思想）。</p>
+<h2 id="附录-d-父级提示中的子-agent-创建引导-五框架现状">附录 D：父级提示中的子 agent 创建引导（五框架现状）</h2>
+<blockquote>
+<p>调研问题：各框架是否在 parent 的提示上下文中注入「引导创建子 agent」的文案？形态谱系：<strong>系统提示专段</strong>（claude-code）→ <strong>运行时注入片段 + 模式开关</strong>（codex，最完整）→ <strong>工具描述承载</strong>（ZCode / kimi-code / hermes-agent）。</p>
+</blockquote>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>框架</th>
+<th>有无</th>
+<th>形态与注入位置</th>
+<th>内容要点</th>
+<th>证据</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>claude-code</td>
+<td>有</td>
+<td><strong>系统提示专段</strong> <code>getAgentToolSection()</code></td>
+<td>何时用（任务匹配 agent description / 并行 / 保护主上下文）；防重复（"avoid duplicating work that subagents are already doing"）；fork 态另有引导（"Calling Agent without a subagent_type creates a fork... <strong>If you ARE the fork</strong> — execute directly; do not re-delegate"）</td>
+<td><code>/Users/apple/Desktop/code/claude-code/src/constants/prompts.ts:316-321</code></td>
+</tr>
+<tr>
+<td>codex</td>
+<td>有（最完整）</td>
+<td><strong>运行时注入的 model message 四件套</strong>（root 用法 / subagent 用法 / explicit 限制 / proactive 鼓励，TOML 可整段覆盖）+ <code>spawn_agent</code> 工具描述礼仪文本</td>
+<td>root 提示："You are <code>/root</code>... You can spawn sub-agents... Child agents can also spawn their own sub-agents... fork_turns"；模式开关两态：proactive（"If at any point you can parallelize work by delegating... you should do so"）vs explicit-only（"Any earlier instruction enabling proactive multi-agent delegation no longer applies. Do not spawn sub-agents unless..."——切换时<strong>覆盖式撤销</strong>旧指令）</td>
+<td><code>/Users/apple/Desktop/code/codex/codex-rs/prompts/src/model_messages/multi_agent.rs:8-52</code>（<code>:8</code> root、<code>:31</code> subagent、<code>:46</code> explicit、<code>:48</code> proactive）、<code>/Users/apple/Desktop/code/codex/codex-rs/core/src/tools/handlers/multi_agents_spec.rs:86,128</code></td>
+</tr>
+<tr>
+<td>ZCode</td>
+<td>有（工具描述承载）</td>
+<td>Agent/Task <strong>工具描述</strong>，含动态 agent 目录</td>
+<td>使用时机（"Reach for this when the task matches an available agent type, when you have independent work to run in parallel..."）；防重复（"Once you've delegated a search, don't also run it yourself"）；目录："Available agent types and the tools they have access to:"</td>
+<td><code>/Users/apple/Desktop/code/ZCode/apps/zcode-cli/packages/core/src/tool/handlers/agent.ts:98-111</code>、<code>/Users/apple/Desktop/code/ZCode/apps/zcode-cli/packages/core/src/subagent/profile.ts:132-140</code></td>
+</tr>
+<tr>
+<td>kimi-code</td>
+<td>有（工具描述承载）</td>
+<td>Agent / AgentSwarm <strong>工具描述</strong>，动态拼装</td>
+<td><code>AGENT_DESCRIPTION_BASE</code> + 前后台行为说明 + fork 免责声明 + "Available agent types (pass via subagent_type)" 目录 + 可选模型行；系统提示无父级专段（"You are now running as a subagent..." 是<strong>子级</strong>身份提示）</td>
+<td><code>/Users/apple/Desktop/code/kimi-code/packages/agent-core-v2/src/agent/tools/agent/agentTool.ts:152-197</code>、<code>/Users/apple/Desktop/code/kimi-code/packages/agent-core-v2/src/app/agentProfileCatalog/profile-shared.ts:15</code></td>
+</tr>
+<tr>
+<td>hermes-agent</td>
+<td>无系统提示专段（仅工具描述）</td>
+<td><code>delegate_task</code> 工具描述自带 USE FOR / DO NOT USE FOR 清单式引导；提示模板与 prompt_builder 无父级委派引导段</td>
+<td>何时用/何时不用逐条列出（reasoning 子任务 / 上下文淹没 / 独立并行 vs 单工具调用 / 需用户交互 / 耐久工作）；kanban worker 提示词另有负面约束（"Do not call <code>delegate_task</code> as a board substitute"）</td>
+<td><code>/Users/apple/.hermes/hermes-agent/tools/delegate_tool.py:575-576</code>、<code>/Users/apple/.hermes/hermes-agent/agent/prompt_builder.py:341</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>共性内容</strong>（无论载体形态）：① 何时委托（任务匹配子场景 / 可并行 / 保护主上下文）；② 防重复劳动（claude-code、ZCode 明文「委派了就别自己再做」）；③ 防递归（claude-code 的 fork 禁再委派 / codex 子级提示中的递归语义）。</p>
+<p><strong>本方案取舍</strong>（§4.3 <code>delegate_task</code> 工具描述）：引导写在 <code>delegate_task</code> 的 MCP 工具 <strong>description</strong>（含可用子场景目录 = 各 <code>task.description</code> 列表 + 何时用 / 防重复 / 防递归各一句），不进父系统提示正文——ZCode / kimi / hermes 三家的工具描述模式已验证够用；若后续要支持「主动委派」模式开关，参考 codex 的覆盖式模式文案（proactive / explicit-only 两态 + "no longer applies" 撤销机制）。</p>
   </main>
 </div>
 <script>
