@@ -77,7 +77,7 @@ def generate_image(
 
     response = MultiModalConversation.call(
         api_key=api_key,
-        model="qwen-image-2.0",
+        model="qwen-image-3.0-pro",
         messages=[{"role": "user", "content": content_parts}],
         result_format="message",
         stream=False,

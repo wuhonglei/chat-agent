@@ -27,6 +27,33 @@ class SandboxBackendError(RuntimeError):
     """Configured sandbox backend is not available."""
 
 
+_DASHSCOPE_PROVIDER = "dashscope"
+_DASHSCOPE_API_KEY_ENV = "DASHSCOPE_API_KEY"
+
+
+def dashscope_api_key_from_settings() -> str | None:
+    """Return the current DashScope key from Settings, or None.
+
+    Nacos reload swaps the Settings instance behind ``settings``. Call this at
+    execution time so a rotated ``models.providers.dashscope.api_key`` is used
+    on the next shell command. Empty or non-string values are ignored so a
+    missing provider does not overwrite ``DASHSCOPE_API_KEY`` already in the
+    process environment.
+    """
+    models = getattr(settings, "models", None)
+    providers = getattr(models, "providers", None)
+    if not isinstance(providers, dict):
+        return None
+    provider = providers.get(_DASHSCOPE_PROVIDER)
+    if provider is None:
+        return None
+    raw = getattr(provider, "api_key", None)
+    if not isinstance(raw, str):
+        return None
+    key = raw.strip()
+    return key or None
+
+
 class ShellExecutor:
     """Wrapper around SandboxExecutor for shell MCP integration."""
 
@@ -118,28 +145,33 @@ class ShellExecutor:
         return self._workspace_mount_prefix()
 
     def _build_shell_env(self) -> dict[str, str] | None:
-        """Build per-user shell environment variables.
+        """Build the environment passed to one shell command.
+
+        Includes per-user paths and the live DashScope key. Returns None when
+        there is nothing to set, so the local backend keeps the process env.
 
         Docker uses the virtual skills-custom path (container bind mount).
         Local uses the resolved host path so mkdir/cp in scripts work on the host,
         and injects VFS mappings so Python ``open("/mnt/user-data/...")`` works.
         """
-        if not self._user_id:
-            return None
-
+        env: dict[str, str] = {}
         skills_custom_virtual = vfs_config.skills_custom_prefix.rstrip("/")
 
         if self._effective_backend == "local":
-            if not self._conversation_id:
-                return None
-            mappings = build_path_mappings(self._user_id, self._conversation_id)
-            env = {VFS_MAPPINGS_ENV: serialize_mappings(mappings)}
-            physical = mappings.get(skills_custom_virtual)
-            if physical is not None:
-                env["USER_SKILLS_DIR"] = physical
-            return env
+            if self._user_id and self._conversation_id:
+                mappings = build_path_mappings(self._user_id, self._conversation_id)
+                env[VFS_MAPPINGS_ENV] = serialize_mappings(mappings)
+                physical = mappings.get(skills_custom_virtual)
+                if physical is not None:
+                    env["USER_SKILLS_DIR"] = physical
+        elif self._user_id:
+            env["USER_SKILLS_DIR"] = skills_custom_virtual
 
-        return {"USER_SKILLS_DIR": skills_custom_virtual}
+        api_key = dashscope_api_key_from_settings()
+        if api_key:
+            env[_DASHSCOPE_API_KEY_ENV] = api_key
+
+        return env or None
 
     def _adapt_command_for_backend(self, command: str) -> str:
         """Drop redundant workspace cd/mkdir; cwd is already the workspace root."""

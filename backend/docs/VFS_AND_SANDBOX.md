@@ -200,7 +200,7 @@ shim 让这些路径在本机 Python 进程里落到会话物理目录。
 约束与坑：
 
 - **只对 local 后端生效**。Docker 容器内这些前缀本身就是挂载点，不注入 shim。
-- 未带 `user_id` + `conversation_id` 时 `_build_shell_env` 返回 `None`，不会注入。
+- 未带 `user_id` + `conversation_id` 时不写入 `CHAT_AGENT_VFS_MAPPINGS`，local_vfs_shim 不会注入。
 - 不改写无关路径（`/tmp`、相对路径、fd 整数）。
 - 不覆盖 `pathlib` 里绕过 `os`/`open` 的实现、原生扩展、或其它解释器
   （Node / bash `cat /mnt/...` 仍只靠命令字符串替换）。

@@ -56,7 +56,7 @@ Fallback:
 ```
 
 - Turn budget: 同轮工具结果执行完毕后，`enforce_turn_budget` 按大小排序从最大的开始强制落盘/截断，直到总 chars ≤ 80K
-- Per-tool overrides: `ToolResultHardLimitConfig.tool_overrides` 支持按 LLM 名或 bare 名覆盖阈值，值为 0 表示关闭该工具单条上限
+- Per-tool overrides: `ToolResultHardLimitConfig.tool_overrides` 按 LLM 名 `{server}_{bare}` 精确覆盖阈值，值为 0 表示关闭该工具单条上限
 
 **Layer 2 — FAISS 语义截断（Markdown 工具结果）**
 
@@ -536,7 +536,7 @@ Agent 模式下，per-result 30K chars 超阈值时完整内容落盘到 `worksp
 
 `SKIP_TOOL_RESULT_COMPACTION_SERVERS` = `{file, shell, skill_manager}` 的 FAISS 压缩仍被跳过，但 shell/file 结果已由硬上限层处理，不再穿透。
 
-配置项: `ToolResultHardLimitConfig`（`backend/app/schemas/config.py`），含 per-tool overrides、turn_budget_chars、exempt_bare_names 等。
+配置项: `ToolResultHardLimitConfig`（`backend/app/schemas/config.py`），含 per-tool overrides、turn_budget_chars、exempt_tool_names 等。
 
 #### P0-2: 单工具结果超 context 兜底 → 借鉴 hermes-agent 预检查
 
