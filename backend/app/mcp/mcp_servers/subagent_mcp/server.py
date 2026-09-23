@@ -5,7 +5,7 @@ Subagent MCP Service
 
 from __future__ import annotations
 
-from fastmcp import FastMCP
+from fastmcp import Context, FastMCP
 from fastmcp.tools.tool import ToolResult
 from pydantic import Field
 
@@ -13,6 +13,13 @@ from app.mcp.mcp_servers.file_mcp.base import to_fastmcp_tool_result
 from app.mcp.mcp_servers.subagent_mcp.delegate_task import (
     DELEGATE_TASK_DESCRIPTION,
     execute_delegate_task,
+)
+from app.services.subagent.context import (
+    activate_published_turn,
+    clear_server_task_delegation,
+    delegation_token_from_meta,
+    get_turn_delegation,
+    isolate_turn_delegation,
 )
 
 mcp = FastMCP(name="Subagent MCP Service")
@@ -33,7 +40,18 @@ async def delegate_task(
             "constraints, or known errors. Do not paste the whole conversation."
         ),
     ),
+    ctx: Context | None = None,
 ) -> ToolResult:
     """Delegate one self-contained task and return only the final report."""
-    result = await execute_delegate_task(goal=goal, context=context)
-    return to_fastmcp_tool_result(result)
+    request_context = ctx.request_context if ctx is not None else None
+    token = delegation_token_from_meta(
+        request_context.meta if request_context is not None else None
+    )
+    try:
+        activated = token is not None and activate_published_turn(token)
+        if not activated and get_turn_delegation() is None:
+            isolate_turn_delegation()
+        result = await execute_delegate_task(goal=goal, context=context)
+        return to_fastmcp_tool_result(result)
+    finally:
+        clear_server_task_delegation()

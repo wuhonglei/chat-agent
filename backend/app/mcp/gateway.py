@@ -13,6 +13,11 @@ from app.mcp.constants import DELEGATE_TASK_ROUTE
 from app.mcp.errors import ToolArgumentValidationError
 from app.mcp.registry import MCPRegistry
 from app.mcp.tool_naming import ToolRoute, llm_tool_name
+from app.services.subagent.context import (
+    DELEGATION_TOKEN_META_KEY,
+    publish_turn_delegation,
+    release_published_turn,
+)
 from app.services.subagent.timeouts import DELEGATE_GATEWAY_GRACE_SECONDS
 from app.utils.logger import logger
 
@@ -84,26 +89,39 @@ class MCPToolGateway:
         )
         if warnings:
             logger.warning("Tool warnings", tool_name=tool_name, warnings=warnings)
+        # 会话任务在 connect 时拷贝 contextvars。delegate_task 把当轮快照放进
+        # 请求 meta，由工具在会话任务里装回去。
+        delegation_token = (
+            publish_turn_delegation() if route == DELEGATE_TASK_ROUTE else None
+        )
+        call_kwargs: dict[str, Any] = {
+            "timeout": timeout,
+            "raise_on_error": False,
+        }
+        if delegation_token is not None:
+            call_kwargs["meta"] = {DELEGATION_TOKEN_META_KEY: delegation_token}
         try:
-            async with client:
-                result = await client.call_tool(
-                    mcp_tool_name, args, timeout=timeout, raise_on_error=False
+            try:
+                async with client:
+                    result = await client.call_tool(mcp_tool_name, args, **call_kwargs)
+                logger.info(
+                    "Tool executed",
+                    tool_name=tool_name,
+                    mcp_tool_name=mcp_tool_name,
+                    server_name=server_name,
                 )
-            logger.info(
-                "Tool executed",
-                tool_name=tool_name,
-                mcp_tool_name=mcp_tool_name,
-                server_name=server_name,
-            )
-            return result, warnings
-        except Exception:
-            logger.error(
-                "Tool failed",
-                tool_name=tool_name,
-                mcp_tool_name=mcp_tool_name,
-                server_name=server_name,
-            )
-            raise
+                return result, warnings
+            except Exception:
+                logger.error(
+                    "Tool failed",
+                    tool_name=tool_name,
+                    mcp_tool_name=mcp_tool_name,
+                    server_name=server_name,
+                )
+                raise
+        finally:
+            if delegation_token is not None:
+                release_published_turn(delegation_token)
 
     @staticmethod
     def _call_timeout_seconds(route: ToolRoute) -> int:
