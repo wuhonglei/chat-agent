@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.mcp.tool_naming import llm_tool_name
+from app.mcp.tool_naming import ToolRoute, llm_tool_name
 
 # --- MCP server keys (= mcp_servers config keys) ---
 TAVILY_SERVER = "tavily"
@@ -14,6 +14,7 @@ WEATHER_SERVER = "weather"
 TIME_SERVER = "time"
 CONTEXT7_SERVER = "context7"
 ZREAD_SERVER = "zread"
+SUBAGENT_SERVER = "subagent"
 
 # --- File MCP bare tools ---
 READ_FILE_BARE = "read_file"
@@ -46,6 +47,13 @@ PUBLISH_SITE_LLM = llm_tool_name(FILE_SERVER, PUBLISH_SITE_BARE)
 SHELL_LLM = llm_tool_name(SHELL_SERVER, SHELL_BARE)
 EXECUTE_CODE_LLM = llm_tool_name(CODE_SERVER, EXECUTE_CODE_BARE)
 LIST_RUNTIMES_LLM = llm_tool_name(CODE_SERVER, LIST_RUNTIMES_BARE)
+
+DELEGATE_TASK_BARE = "delegate_task"
+DELEGATE_TASK_LLM = llm_tool_name(SUBAGENT_SERVER, DELEGATE_TASK_BARE)
+DELEGATE_TASK_ROUTE = ToolRoute(
+    server_name=SUBAGENT_SERVER,
+    mcp_tool_name=DELEGATE_TASK_BARE,
+)
 
 # Path-scoped file tools for parallel batch planning
 PATH_SCOPED_FILE_BARE_TOOLS = frozenset(

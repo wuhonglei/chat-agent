@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from contextvars import ContextVar
-from dataclasses import asdict, dataclass, fields
+from dataclasses import dataclass, field, fields
 from typing import Any
 
 
@@ -20,10 +20,18 @@ class RequestContext:
     client_id: str | None = None
     client_ip: str | None = None
     conversation_id: str | None = None
+    # 子任务委派快照。标题流会在新任务里恢复 async generator，新任务看不到
+    # 上一段的 ContextVar.set，但会共享这份请求对象。不进日志、不可被
+    # set_request_context 覆盖。
+    _turn_delegation: Any = field(default=None, repr=False, compare=False)
 
     def to_log_dict(self) -> dict[str, Any]:
-        """返回非 None 字段，用于日志绑定"""
-        return {k: v for k, v in asdict(self).items() if v is not None}
+        """返回非 None 的公开字段，用于日志绑定"""
+        return {
+            item.name: getattr(self, item.name)
+            for item in fields(self)
+            if not item.name.startswith("_") and getattr(self, item.name) is not None
+        }
 
 
 request_context_var: ContextVar[RequestContext | None] = ContextVar(
@@ -41,7 +49,7 @@ def set_request_context(**kwargs: str | None) -> RequestContext:
         更新后的 RequestContext
     """
     ctx = request_context_var.get() or RequestContext()
-    valid_keys = {f.name for f in fields(ctx)}
+    valid_keys = {f.name for f in fields(ctx) if not f.name.startswith("_")}
     for key, value in kwargs.items():
         if value is not None and key in valid_keys:
             setattr(ctx, key, value)

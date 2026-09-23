@@ -261,6 +261,9 @@ class MCPConfig(BaseModel):
             "shell": MCPServerEntry(
                 module="app.mcp.mcp_servers.shell_mcp.server",
             ),
+            "subagent": MCPServerEntry(
+                module="app.mcp.mcp_servers.subagent_mcp.server",
+            ),
         },
         description="MCP Server 接入配置（server_name -> MCPServerEntry）",
     )
@@ -285,6 +288,42 @@ class MCPConfig(BaseModel):
             "zread",
         ],
         description="Agent 模式（agent_mode>0）下暴露给 LLM 的 MCP Server 名称列表",
+    )
+
+
+def _default_subagent_excluded_tools() -> list[str]:
+    return ["subagent_*", "file_present_files"]
+
+
+class SubagentConfig(BaseModel):
+    """子 agent 委派配置。server 是否注册由 ``mcp.mcp_servers.subagent`` 决定。"""
+
+    excluded_tools: list[str] = Field(
+        default_factory=_default_subagent_excluded_tools,
+        description=(
+            "子 agent 工具排除清单，只减不加。"
+            "规范名 {server}_{bare}，或 {server}_* 按 server 整组排除。"
+            "默认排除委派与交付工具，可改配置放开"
+        ),
+    )
+    max_tasks_per_call: int = Field(
+        default=4,
+        ge=1,
+        description="单次 delegate_task 任务数上限（Phase 1 固定为 1 个任务）",
+    )
+    max_iterations: int = Field(
+        default=10,
+        ge=1,
+        description="子 agent 工具轮次预算",
+    )
+    timeout_seconds: int = Field(
+        default=600,
+        gt=0,
+        description="每个子 agent 的墙钟超时（秒）",
+    )
+    scenario: str = Field(
+        default="subagent_execution",
+        description="子 agent 模型场景；未配置时回落父对话模型",
     )
 
 

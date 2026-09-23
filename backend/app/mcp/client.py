@@ -9,6 +9,7 @@ from typing import Any
 
 from app.core.config import settings
 from app.mcp.connection_pool import MCPConnectionPool
+from app.mcp.constants import DELEGATE_TASK_ROUTE
 from app.mcp.gateway import MCPToolGateway
 from app.mcp.registry import MCPRegistry
 from app.mcp.tool_naming import ToolRoute
@@ -43,6 +44,7 @@ class MCPClientManager:
     async def initialize(self) -> None:
         await self.pool.initialize()
         self.gateway.rebuild_tool_index()
+        self._validate_subagent_excluded_tools()
 
     async def reload_async(self) -> None:
         """Tear down connections and rebuild from current ``settings.mcp``."""
@@ -57,6 +59,7 @@ class MCPClientManager:
             self.registry.reload_from_config()
             await self.pool.initialize()
             self.gateway.rebuild_tool_index()
+            self._validate_subagent_excluded_tools()
             logger.info(
                 "MCP manager reload complete",
                 active_servers=sorted(self.pool.clients),
@@ -73,9 +76,24 @@ class MCPClientManager:
         async with self._reload_lock:
             return await self.pool.list_tools(server_names)
 
+    def _is_delegate_task(self, tool_name: str) -> bool:
+        return self.get_tool_route(tool_name) == DELEGATE_TASK_ROUTE
+
+    def _validate_subagent_excluded_tools(self) -> None:
+        from app.services.subagent.tool_filter import validate_excluded_tools
+
+        validate_excluded_tools(
+            get_tool_route=self.get_tool_route,
+            registered_servers=set(self.registry.get_servers()),
+        )
+
     async def call_tool(
         self, tool_name: str, arguments: dict[str, Any] | None = None
     ) -> tuple[Any, list[dict[str, Any]]]:
+        # delegate_task 会嵌套调用其它 MCP 工具。若在整段执行期间占住 reload 锁，
+        # 同批工具会一直排队，子调用也会在同一把锁上死锁。
+        if self._is_delegate_task(tool_name):
+            return await self.gateway.call_tool(tool_name, arguments)
         async with self._reload_lock:
             return await self.gateway.call_tool(tool_name, arguments)
 

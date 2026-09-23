@@ -46,6 +46,7 @@ from app.services.chat.history_context_service import HistoryContextService
 from app.services.chat.kb_rag_context_service import KbRagContextService
 from app.services.chat.post_process_service import PostProcessService
 from app.services.message import MessageDbService
+from app.services.subagent.context import consume_subagent_runs
 from app.utils.date import get_current_datetime_str
 from app.utils.logger import logger
 from app.utils.multimodal import (
@@ -495,6 +496,7 @@ class ChatOrchestrator:
                             assistant_message,
                             assistant_response=assistant_response,
                             status=MessageStatus.STOPPED,
+                            extra_metadata=self._assistant_persist_metadata(),
                         )
                         await invalidate_conversation_state(
                             conversation_id,
@@ -528,6 +530,7 @@ class ChatOrchestrator:
                             assistant_message,
                             assistant_response=assistant_response,
                             status=MessageStatus.FAILED,
+                            extra_metadata=self._assistant_persist_metadata(),
                         )
                         await invalidate_conversation_state(
                             conversation_id,
@@ -567,11 +570,7 @@ class ChatOrchestrator:
 
                     assistant_response = self.collect_assistant_response()
                     iteration_checkpoint = self.chat_session_agent.iteration_checkpoint
-                    persist_metadata: dict[str, Any] | None = None
-                    if iteration_checkpoint is not None:
-                        persist_metadata = {
-                            "iteration_checkpoint": iteration_checkpoint,
-                        }
+                    persist_metadata = self._assistant_persist_metadata()
                     assistant_updated_at = (
                         self.post_process_service.persist_final_assistant_message(
                             conversation_id=conversation_id,
@@ -689,6 +688,16 @@ class ChatOrchestrator:
             yield build_error_event(
                 {"content": str(exc), "conversation_id": conversation_id}
             )
+
+    def _assistant_persist_metadata(self) -> dict[str, Any] | None:
+        metadata: dict[str, Any] = {}
+        checkpoint = self.chat_session_agent.iteration_checkpoint
+        if checkpoint is not None:
+            metadata["iteration_checkpoint"] = checkpoint
+        runs = consume_subagent_runs()
+        if runs:
+            metadata["subagent_runs"] = runs
+        return metadata or None
 
     def collect_assistant_response(self) -> AssistantResponse:
         return AssistantResponse(
