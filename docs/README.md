@@ -41,6 +41,16 @@
 
 - `webapp-publish-plan.md`：静态站发布现网手册（文首「现网实现摘要」）；`publish_site` MCP / `/api/sites`、快照 + `current` 软链、`sites` nginx、ProjectPreview 发布/预览。其后各节是设计理由，不是待办。DNS/TLS/NPM 属线上前置
 
+## 多 Agent 文档（`/docs/multiple_agent`）
+
+### 调研分析
+
+- `multi-agent-comparison.md`（+ 同名 `.html`，含 5 张 SVG 图）：ZCode / kimi-code / codex / hermes-agent / claude-code 五框架多 agent（子 agent）实现对比——创建时机 / 上下文管理 / 输入输出 / 系统提示词 / 工具范围 / 运行方式六维度 + 设计光谱与可借鉴模式；`notes/` 目录为逐框架源码级分析（path:line 证据）
+
+### 规划方案
+
+- `subagent-system-design.md`：chat-agent 子 Agent 系统设计方案（**未落地**）——`delegate_task` MCP 工具 + 零上下文子 `ChatSessionAgent` + 摘要制回传，**仅 Agent 模式生效**、子工具面继承 `mcp.agent_mode_servers` + `excluded_tools` 排除制 + 代码级硬剔除禁递归，六维度设计与现有代码集成点、配置、风险、Phase 0-3 落地计划；含 3 张 SVG 图
+
 ## 后端文档（`/backend/docs`）
 
 ### 现网实现

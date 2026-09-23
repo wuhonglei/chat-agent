@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>多 Agent（子 agent）实现方案对比：ZCode / kimi-code / codex / hermes-agent / claude-code</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #ffffff; --text: #1f2328; --muted: #57606a; --border: #d8dee4;
+    --accent: #0969da; --accent-soft: #f0f4ff; --code-bg: #f5f7fa;
+    --header-h: 56px; --sidebar-w: 280px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: calc(var(--header-h) + 16px); }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "Noto Sans SC", "Inter", -apple-system, sans-serif;
+    font-size: 15px; line-height: 1.75;
+  }
+  header.topbar {
+    position: fixed; top: 0; left: 0; right: 0; height: var(--header-h); z-index: 9999;
+    display: flex; align-items: center; gap: 12px; padding: 0 20px;
+    background: rgba(255,255,255,0.85); backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  header.topbar .hamburger {
+    display: none; background: none; border: 1px solid var(--border); border-radius: 6px;
+    font-size: 18px; line-height: 1; padding: 6px 9px; cursor: pointer; color: var(--text);
+  }
+  header.topbar .title { font-weight: 700; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  header.topbar .subtitle { color: var(--muted); font-size: 13px; white-space: nowrap; }
+  .layout { display: flex; max-width: 1400px; margin: 0 auto; padding-top: var(--header-h); }
+  nav.sidebar {
+    width: var(--sidebar-w); flex: 0 0 var(--sidebar-w); position: sticky;
+    top: var(--header-h); align-self: flex-start;
+    height: calc(100vh - var(--header-h)); overflow-y: auto; overscroll-behavior: contain;
+    padding: 20px 12px 40px 20px; border-right: 1px solid var(--border);
+  }
+  nav.sidebar .toc-title { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 10px 6px; }
+  nav.sidebar a {
+    display: block; padding: 5px 8px; border-radius: 6px; color: var(--muted);
+    text-decoration: none; font-size: 13.5px; line-height: 1.5; border-left: 2px solid transparent;
+  }
+  nav.sidebar a.toc-h3 { padding-left: 22px; font-size: 12.5px; }
+  nav.sidebar a:hover { background: var(--accent-soft); color: var(--text); }
+  nav.sidebar a.active { color: var(--accent); border-left-color: var(--accent); background: var(--accent-soft); font-weight: 500; }
+  main {
+    flex: 1; min-width: 0; padding: 28px 40px 100px;
+  }
+  main h1 { font-size: 26px; line-height: 1.4; margin: 8px 0 18px; border-bottom: 1px solid var(--border); padding-bottom: 14px; }
+  main h2 { font-size: 21px; margin: 40px 0 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  main h3 { font-size: 17px; margin: 28px 0 10px; }
+  main p { margin: 10px 0; }
+  main a { color: var(--accent); text-decoration: none; }
+  main a:hover { text-decoration: underline; }
+  main ul, main ol { padding-left: 24px; margin: 10px 0; }
+  main li { margin: 5px 0; }
+  main blockquote {
+    margin: 14px 0; padding: 10px 18px; border-left: 4px solid var(--accent);
+    background: var(--accent-soft); color: var(--muted); border-radius: 0 8px 8px 0;
+  }
+  main blockquote p { margin: 6px 0; }
+  code {
+    font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 0.88em;
+    background: var(--code-bg); color: #c7254e; padding: 2px 5px; border-radius: 4px;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px 16px; overflow-x: auto; margin: 14px 0;
+  }
+  pre code { background: none; color: var(--text); padding: 0; font-size: 13px; line-height: 1.6; }
+  .table-wrapper { overflow-x: auto; overflow-y: hidden; margin: 16px 0; border: 1px solid var(--border); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 13.5px; }
+  table th, table td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; vertical-align: top; }
+  table thead th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  table tbody tr:nth-child(even) { background: #fafbfc; }
+  table tbody tr:hover { background: #f0f6ff; }
+  table code { white-space: nowrap; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+  .diagram {
+    overflow: auto; background: #fafbfc; border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px; margin: 18px 0 6px;
+  }
+  .diagram-caption { color: var(--muted); font-size: 13px; margin: 6px 2px 22px; }
+  strong { font-weight: 600; }
+  .overlay { display: none; }
+  @media (max-width: 900px) {
+    header.topbar .hamburger { display: block; }
+    header.topbar .subtitle { display: none; }
+    nav.sidebar {
+      position: fixed; top: var(--header-h); left: 0; bottom: 0; z-index: 9998;
+      background: var(--bg); transform: translateX(-100%); transition: transform 0.2s ease;
+    }
+    nav.sidebar.open { transform: translateX(0); }
+    .overlay.show { display: block; position: fixed; inset: var(--header-h) 0 0 0; background: rgba(0,0,0,0.25); z-index: 9997; }
+    main { padding: 20px 18px 80px; }
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <button class="hamburger" id="hamburger" aria-label="目录">☰</button>
+  <div class="title">多 Agent 实现方案对比</div>
+  <div class="subtitle">ZCode · kimi-code · codex · hermes-agent · claude-code</div>
+</header>
+<div class="layout">
+  <nav class="sidebar" id="sidebar">
+    <p class="toc-title">目录</p>
+    <a href="#0-一句话画像" class="toc-h2">0. 一句话画像</a>
+<a href="#1-总览矩阵" class="toc-h2">1. 总览矩阵</a>
+<a href="#2-逐维度深挖" class="toc-h2">2. 逐维度深挖</a>
+<a href="#2-1-创建子-agent-的时机" class="toc-h3">2.1 创建子 agent 的时机</a>
+<a href="#2-2-子-agent-的上下文管理" class="toc-h3">2.2 子 agent 的上下文管理</a>
+<a href="#2-3-子-agent-的输入输出内容" class="toc-h3">2.3 子 agent 的输入输出内容</a>
+<a href="#2-4-子-agent-的系统提示词" class="toc-h3">2.4 子 agent 的系统提示词</a>
+<a href="#2-5-子-agent-的工具范围" class="toc-h3">2.5 子 agent 的工具范围</a>
+<a href="#2-6-子-agent-的运行方式-同步-异步" class="toc-h3">2.6 子 agent 的运行方式（同步/异步）</a>
+<a href="#3-设计光谱" class="toc-h2">3. 设计光谱</a>
+<a href="#4-可借鉴模式-对-chat-agent-类-agent-产品的启示" class="toc-h2">4. 可借鉴模式（对 chat-agent 类 Agent 产品的启示)</a>
+<a href="#5-附录" class="toc-h2">5. 附录</a>
+  </nav>
+  <div class="overlay" id="overlay"></div>
+  <main>
+<h1 id="多-agent-子-agent-实现方案对比-zcode-kimi-code-codex-hermes-agent-cl">多 Agent（子 agent）实现方案对比：ZCode / kimi-code / codex / hermes-agent / claude-code</h1>
+<blockquote>
+<p>对比维度：① 创建子 agent 的时机 ② 子 agent 上下文管理 ③ 输入输出内容 ④ 系统提示词 ⑤ 工具范围 ⑥ 运行方式（同步/异步）
+证据均为源码 path:line（行号以 2026-09-22 代码为准）。逐框架完整分析（含代码摘录与全部文件清单）见 <code>notes/</code> 目录：
+<code>/Users/apple/Desktop/code/chat-agent/docs/multiple_agent/notes/{zcode,kimi-code,codex,hermes-agent,claude-code}.md</code>
+证据性质：claude-code 仓库为 npm sourcemap 泄露源码（无官方多 agent 文档，全部为源码证据）；其余四家为完整开源仓库。</p>
+</blockquote>
+<hr />
+<h2 id="0-一句话画像">0. 一句话画像</h2>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>框架</th>
+<th>语言</th>
+<th>子 agent 入口</th>
+<th>一句话画像</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ZCode</td>
+<td>TS</td>
+<td><code>Agent</code>（别名 <code>Task</code>）+ <code>CreateWorkflow</code></td>
+<td>零上下文一次性子运行时 + profile 白名单，深度硬限 1 层，另有脚本化 workflow 第二路径</td>
+</tr>
+<tr>
+<td>kimi-code</td>
+<td>TS</td>
+<td><code>Agent</code> / <code>AgentSwarm</code> / <code>TowerSpawn</code></td>
+<td>零上下文（可实验性 fork）同进程子 loop，profile 白名单，swarm 批量扇出 128</td>
+</tr>
+<tr>
+<td>codex</td>
+<td>Rust</td>
+<td><code>spawn_agent</code>（+<code>wait_agent</code> 等协作工具族）</td>
+<td>真正的多 agent 团队：子=完整线程，邮箱消息通信，默认带历史 fork，全工具继承，可递归（V2）</td>
+</tr>
+<tr>
+<td>hermes-agent</td>
+<td>Python</td>
+<td><code>delegate_task</code>（spawn/批量/控制面三合一）</td>
+<td>顶层强制异步的批量委派，继承父工具集做减法，摘要制回传 + JSON Schema 输出契约</td>
+</tr>
+<tr>
+<td>claude-code</td>
+<td>TS</td>
+<td><code>Agent</code>（旧名 <code>Task</code>）</td>
+<td>零上下文 worker（实验性 fork/teammate），工具池独立重建 + 白名单/黑名单，默认禁递归</td>
+</tr>
+</tbody>
+</table></div>
+<div class="diagram"><svg viewBox="0 0 820 660" style="width:100%;max-width:820px;height:auto;" fill="none">
+<defs><marker id="arr1" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#64748b"/></marker><marker id="arr1p" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#7c3aed"/></marker></defs>
+<rect x="330" y="14" width="160" height="40" rx="20" fill="#f1f5f9" stroke="#64748b" stroke-width="2"/>
+<text x="410" y="39" font-family="Noto Sans SC, sans-serif" font-size="13" font-weight="600" fill="#334155" text-anchor="middle">用户任务输入</text>
+<line x1="410" y1="54" x2="410" y2="84" stroke="#64748b" stroke-width="2" marker-end="url(#arr1)"/>
+<rect x="40" y="88" width="740" height="150" rx="16" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+<text x="58" y="112" font-family="Noto Sans SC, sans-serif" font-size="12.5" font-weight="600" fill="#1d4ed8">父 Agent（模型决策：是否 / 如何派生）</text>
+<rect x="80" y="128" width="200" height="44" rx="22" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+<text x="180" y="155" font-family="Noto Sans SC, sans-serif" font-size="12.5" font-weight="600" fill="#92400e" text-anchor="middle">派生决策（工具调用）</text>
+<line x1="282" y1="150" x2="316" y2="150" stroke="#64748b" stroke-width="2" marker-end="url(#arr1)"/>
+<rect x="320" y="128" width="160" height="44" rx="22" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+<text x="400" y="155" font-family="Noto Sans SC, sans-serif" font-size="12.5" font-weight="600" fill="#991b1b" text-anchor="middle">闸门校验</text>
+<line x1="482" y1="150" x2="516" y2="150" stroke="#64748b" stroke-width="2" marker-end="url(#arr1)"/>
+<rect x="520" y="128" width="220" height="44" rx="22" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+<text x="630" y="155" font-family="Noto Sans SC, sans-serif" font-size="12.5" font-weight="600" fill="#5b21b6" text-anchor="middle">构建子任务输入</text>
+<text x="70" y="218" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#64748b">入口工具：ZCode / claude-code「Agent(Task)」· kimi「Agent / AgentSwarm / TowerSpawn」· codex「spawn_agent」· hermes「delegate_task」</text>
+<line x1="630" y1="174" x2="630" y2="284" stroke="#64748b" stroke-width="2" marker-end="url(#arr1)"/>
+<rect x="40" y="288" width="740" height="190" rx="16" fill="#ecfdf5" stroke="#059669" stroke-width="2"/>
+<text x="58" y="312" font-family="Noto Sans SC, sans-serif" font-size="12.5" font-weight="600" fill="#065f46">子 Agent 运行时（独立会话 / 线程 / 上下文）</text>
+<rect x="70" y="330" width="210" height="40" rx="20" fill="#d1fae5" stroke="#059669" stroke-width="2"/>
+<text x="175" y="355" font-family="Noto Sans SC, sans-serif" font-size="12" font-weight="600" fill="#065f46" text-anchor="middle">上下文注入（零继承/fork）</text>
+<rect x="310" y="330" width="190" height="40" rx="20" fill="#d1fae5" stroke="#059669" stroke-width="2"/>
+<text x="405" y="355" font-family="Noto Sans SC, sans-serif" font-size="12" font-weight="600" fill="#065f46" text-anchor="middle">系统提示（定制/继承）</text>
+<rect x="530" y="330" width="220" height="40" rx="20" fill="#d1fae5" stroke="#059669" stroke-width="2"/>
+<text x="640" y="355" font-family="Noto Sans SC, sans-serif" font-size="12" font-weight="600" fill="#065f46" text-anchor="middle">工具面（白名单/减法/全继承）</text>
+<line x1="175" y1="372" x2="330" y2="406" stroke="#64748b" stroke-width="2" marker-end="url(#arr1)"/>
+<line x1="405" y1="372" x2="410" y2="404" stroke="#64748b" stroke-width="2" marker-end="url(#arr1)"/>
+<line x1="640" y1="372" x2="492" y2="406" stroke="#64748b" stroke-width="2" marker-end="url(#arr1)"/>
+<rect x="280" y="408" width="260" height="44" rx="22" fill="#d1fae5" stroke="#059669" stroke-width="2"/>
+<text x="410" y="435" font-family="Noto Sans SC, sans-serif" font-size="12.5" font-weight="600" fill="#065f46" text-anchor="middle">子 agent 工具循环（maxTurns/预算）</text>
+<path d="M410 452 L410 486 L265 486 L265 514" stroke="#64748b" stroke-width="2" marker-end="url(#arr1)"/>
+<path d="M410 486 L615 486 L615 514" stroke="#64748b" stroke-width="2" marker-end="url(#arr1)"/>
+<rect x="120" y="518" width="290" height="44" rx="22" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+<text x="265" y="545" font-family="Noto Sans SC, sans-serif" font-size="12.5" font-weight="600" fill="#1d4ed8" text-anchor="middle">同步：tool_result（原文/摘要裁剪）</text>
+<rect x="470" y="518" width="290" height="44" rx="22" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+<text x="615" y="545" font-family="Noto Sans SC, sans-serif" font-size="12.5" font-weight="600" fill="#5b21b6" text-anchor="middle">异步：通知注入父的下一 turn</text>
+<path d="M762 540 L794 540 L794 140 L784 140" stroke="#7c3aed" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arr1p)"/>
+<text x="775" y="330" font-family="Noto Sans SC, sans-serif" font-size="10.5" fill="#7c3aed" text-anchor="middle" transform="rotate(-90 775 330)">结果进入父上下文</text>
+<line x1="250" y1="620" x2="295" y2="620" stroke="#64748b" stroke-width="2" marker-end="url(#arr1)"/>
+<text x="305" y="625" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#475569">控制流（同步调用）</text>
+<line x1="470" y1="620" x2="515" y2="620" stroke="#7c3aed" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arr1p)"/>
+<text x="525" y="625" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#475569">异步通知 / 反馈回传</text>
+</svg></div>
+<p class="diagram-caption">图 1：子 agent 通用生命周期架构（五框架共享骨架：派生决策 → 闸门 → 构造三要素 → 运行 → 回传/通知）</p>
+
+<hr />
+<h2 id="1-总览矩阵">1. 总览矩阵</h2>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>维度</th>
+<th>ZCode</th>
+<th>kimi-code</th>
+<th>codex</th>
+<th>hermes-agent</th>
+<th>claude-code</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>① 创建时机</td>
+<td>模型调 <code>Agent</code>/<code>Task</code> 工具；workflow 走 <code>CreateWorkflow</code>；<code>SendMessage</code> 续跑</td>
+<td>模型调 <code>Agent</code>/<code>AgentSwarm</code>/<code>TowerSpawn</code>；<code>Agent(resume)</code> 续跑</td>
+<td>模型调 <code>spawn_agent</code>（MultiAgentMode 门控：默认 ExplicitRequestOnly，Ultra 档 Proactive）；内部 4 类隐式派生（review/guardian/compact/记忆合并）</td>
+<td>模型调 <code>delegate_task</code>；另有 <code>/review</code>、插件 API 两个非模型入口；cron 不派生</td>
+<td>模型调 <code>Agent</code>/<code>Task</code>；fork 实验省略 <code>subagent_type</code> 隐式 fork；<code>name+team_name</code> 走 teammate</td>
+</tr>
+<tr>
+<td>② 上下文</td>
+<td>全新会话（<code>subagent_&lt;agentId&gt;</code>），零历史；继承 cwd/env/AGENTS.md/模型/MCP 快照/Skill</td>
+<td>默认零历史；实验 <code>fork:true</code> 拷父全历史+免责注记；继承权限模式/用户工具/cwd/模型</td>
+<td><strong>默认 <code>fork_turns=all</code> 带全历史</strong>（可 <code>N</code>/<code>none</code>）；继承 base+developer 指令/cwd/审批沙箱快照/MCP/skills</td>
+<td>全新会话，零历史；<code>skip_memory</code>/<code>skip_context_files</code>，但补注入工作区 AGENTS.md（跳过 SOUL.md）；可选 worktree</td>
+<td>默认零历史（仅 1 条 user prompt）；fork 实验继承全历史+父系统提示（byte-identical）；共享 CLAUDE.md/gitStatus</td>
+</tr>
+<tr>
+<td>② 结果回传</td>
+<td>最后 assistant 文本<strong>原样</strong>，120KB 上限（artifact+head 预览）</td>
+<td>最后 assistant 文本<strong>原样</strong>（summary）</td>
+<td>最终消息<strong>原样</strong>（FINAL_ANSWER），仅错误文本截 ~900 token</td>
+<td><strong>摘要制</strong>：final_response 按预算裁剪（默认 24000 字符，超限 75%头+25%尾+spill 文件+read_file 指针）</td>
+<td>最后 assistant text 块<strong>原样</strong>，100K 字符上限</td>
+</tr>
+<tr>
+<td>③ 输入</td>
+<td><code>description</code>/<code>prompt</code>/<code>subagent_type</code>/<code>run_in_background</code>（刻意不暴露 model，无附件）</td>
+<td>+<code>resume</code>/<code>fork</code>/<code>model</code>；Swarm 有 <code>prompt_template</code>+<code>items[]</code>；无附件</td>
+<td><code>message</code>/<code>task_name</code>/<code>agent_type</code>/<code>model</code>/<code>reasoning_effort</code>/<code>fork_turns</code>；V1 有 <code>items</code> 结构化附件（text/image_url/path…）</td>
+<td><code>tasks=[{goal,context,output_schema,images≤8,group}]</code> + <code>action/subagent_id/message</code> 控制面</td>
+<td><code>description</code>/<code>prompt</code>/<code>subagent_type</code>/<code>model</code>/<code>run_in_background</code> + <code>name/team_name/mode/isolation/cwd</code></td>
+</tr>
+<tr>
+<td>③ 输出</td>
+<td>结构化 <code>AgentCompletedOutput</code> / <code>AgentBackgroundedOutput</code>（含 usage），3 个落盘 artifact</td>
+<td>schema <code>{result,usage}</code>，父看到格式化文本（agent_id/status/<code>[summary]</code>/resume_hint）；Swarm 为 XML</td>
+<td><code>spawn_agent</code> 返回 <code>{task_name,nickname}</code>；结果本体走 FINAL_ANSWER 消息；<code>wait_agent</code> 返回 <code>{message,timed_out}</code></td>
+<td>JSON <code>{results:[entry…]}</code>（status/summary/tokens/tool_trace/schema_valid…）；后台先给 dispatch handle</td>
+<td>结构化 union：<code>completed</code>（content 文本+usage）/ <code>async_launched</code>（outputFile）/ teammate_spawned</td>
+</tr>
+<tr>
+<td>④ 系统提示词</td>
+<td>代码模板拼装 4 层（profile 模板+公共 Notes+环境块+可选记忆），自定义 profile=markdown 正文</td>
+<td>共享模板 <code>system.md</code> + <code>TASK_AGENT_ROLE_PREFIX</code>（"父只能看到你最后一条消息，勿问最终用户"）+ coder/explore 角色</td>
+<td><strong>无独立系统提示</strong>：继承父 base instructions；专属提示=developer 角色 usage hint（<code>&lt;multi_agent_role&gt;</code>，可配置覆盖）；内部子 agent（review/guardian）整体替换提示</td>
+<td><code>ephemeral_system_prompt</code> 现场拼装："focused subagent"+CONTEXT+WORKSPACE+完成指令；goal 作首条 user 消息；orchestrator 追加派生授权块</td>
+<td>内置 TS 常量（general-purpose/Explore/Plan/verification/guide）；自定义 <code>.claude/agents/*.md</code> 正文即提示；fork worker 固定 boilerplate</td>
+</tr>
+<tr>
+<td>⑤ 工具范围</td>
+<td>profile 白名单（general-purpose=<code>*</code> 展开父面、Explore=只读 7 工具）；强制禁 plan 工具；<strong>结构性禁递归（深度 1）</strong>；Explore 独立 yolo 权限</td>
+<td>profile 白名单（coder 有写无派生、explore 只读）；<code>withoutDelegatingTargets</code> 防递归 → <strong>实际 2 层</strong>；无沙箱差异</td>
+<td><strong>全工具继承</strong>（"same tools as you"）；V1 深度限 1（<code>agent_max_depth</code>），V2 可递归；内部 delegate 禁 Collab 防递归</td>
+<td>继承父集做减法：禁 <code>{delegate_task,clarify,memory,send_message,cronjob_manage}</code> + 剔 delegation/kanban；默认深度 1，orchestrator 按深度拿回 delegate_task</td>
+<td>工具池<strong>独立重建</strong>（不受父限制影响）→ 白名单/黑名单过滤；全局禁 TaskOutput/Plan/AskUserQuestion/TaskStop，<strong>默认禁 Agent（防递归）</strong>，ant 内部可嵌套</td>
+</tr>
+<tr>
+<td>⑥ 运行方式</td>
+<td>默认同步阻塞；<code>run_in_background</code> 异步；可 120s 级 <code>autoBackgroundMs</code> 自动转后台</td>
+<td>默认同步阻塞（waitForForegroundRelease）；<code>run_in_background</code> 异步；后台需 Task 管理工具在位</td>
+<td><strong>spawn 异步非阻塞</strong>（投递 NEW_TASK 即返回）；<code>wait_agent</code> 是唯一阻塞点（默认 30s，上限 1h）；邮箱消息通信</td>
+<td><strong>顶层强制后台异步</strong>；orchestrator 再派生强制同步；无消费者/池满自动降级同步</td>
+<td>默认同步阻塞；<code>run_in_background</code>/<code>background:true</code> 异步；120s 自动转后台；fork 开启时强制全异步</td>
+</tr>
+<tr>
+<td>⑥ 并发/超时</td>
+<td>无专门上限（工具调度 DEFAULT_MAX_CONCURRENCY=10）；600s 空闲看门狗；maxTurns 缺省 4</td>
+<td>Swarm≤128（启动节流 5 个后每 700ms）；后台任务受 maxRunningTasks；超时默认 2h</td>
+<td>V2 并发 4 槽（含 root）/ V1 总线程 6；无运行超时（wait 超时 10s~1h）</td>
+<td><code>max_concurrent_children</code> 默认 10，池满拒绝不排队；无墙钟超时（心跳陈旧 450s/工具内 1200s 判死）</td>
+<td>无专门上限（工具并发 CLAUDE_CODE_MAX_TOOL_USE_CONCURRENCY=10）；无时间超时（maxTurns + TaskOutput 等 30~600s）</td>
+</tr>
+<tr>
+<td>⑥ 结果通知</td>
+<td>后台完成注入 <code>&lt;task-notification&gt;</code> XML（120k 截断）+ 会话事件</td>
+<td>合成 user 消息 <code>&lt;notification&gt;</code> XML 自动入后续 turn</td>
+<td>FINAL_ANSWER 以 <code>trigger_turn=false</code> 投父邮箱（不打断父 turn）+ SubAgentActivity 事件</td>
+<td><code>type="async_delegation"</code> 事件入 completion_queue，<strong>回合之间</strong>作为新消息回父</td>
+<td><code>&lt;task-notification&gt;</code> XML 以 user-role 排队消息注入下一轮</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h2 id="2-逐维度深挖">2. 逐维度深挖</h2>
+<h3 id="2-1-创建子-agent-的时机">2.1 创建子 agent 的时机</h3>
+<div class="diagram"><svg viewBox="0 0 820 530" style="width:100%;max-width:820px;height:auto;" fill="none">
+<defs><marker id="arr2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#64748b"/></marker></defs>
+<rect x="60" y="30" width="250" height="44" rx="22" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+<text x="185" y="58" font-family="Noto Sans SC, sans-serif" font-size="12.5" font-weight="600" fill="#1d4ed8" text-anchor="middle">模型决定派生（显式工具调用）</text>
+<line x1="312" y1="52" x2="346" y2="52" stroke="#64748b" stroke-width="2" marker-end="url(#arr2)"/>
+<rect x="350" y="30" width="250" height="44" rx="22" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+<text x="475" y="58" font-family="Noto Sans SC, sans-serif" font-size="12.5" font-weight="600" fill="#991b1b" text-anchor="middle">闸门：深度 / pause / 配额 / 模式</text>
+<line x1="602" y1="52" x2="636" y2="52" stroke="#64748b" stroke-width="2" marker-end="url(#arr2)"/>
+<rect x="640" y="30" width="150" height="44" rx="22" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+<text x="715" y="58" font-family="Noto Sans SC, sans-serif" font-size="12.5" font-weight="600" fill="#5b21b6" text-anchor="middle">构建子请求</text>
+<path d="M715 74 L715 120 L285 120 L285 166" stroke="#64748b" stroke-width="2" marker-end="url(#arr2)"/>
+<path d="M715 120 L615 120 L615 166" stroke="#64748b" stroke-width="2" marker-end="url(#arr2)"/>
+<rect x="145" y="170" width="280" height="56" rx="22" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+<text x="285" y="194" font-family="Noto Sans SC, sans-serif" font-size="12.5" font-weight="600" fill="#92400e" text-anchor="middle">同步阻塞：await 子完成</text>
+<text x="285" y="214" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#92400e" text-anchor="middle">结果 = tool_result 直接回传</text>
+<rect x="475" y="170" width="280" height="56" rx="22" fill="#d1fae5" stroke="#059669" stroke-width="2"/>
+<text x="615" y="194" font-family="Noto Sans SC, sans-serif" font-size="12.5" font-weight="600" fill="#065f46" text-anchor="middle">异步后台：立即返回 handle</text>
+<text x="615" y="214" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#065f46" text-anchor="middle">子 agent 独立后台运行</text>
+<path d="M285 226 L285 280 L440 280 L440 306" stroke="#64748b" stroke-width="2" marker-end="url(#arr2)"/>
+<path d="M615 226 L615 280 L448 280" stroke="#64748b" stroke-width="2"/>
+<rect x="320" y="310" width="240" height="44" rx="22" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+<text x="440" y="338" font-family="Noto Sans SC, sans-serif" font-size="12.5" font-weight="600" fill="#1d4ed8" text-anchor="middle">子 agent 运行完成</text>
+<line x1="440" y1="354" x2="440" y2="394" stroke="#64748b" stroke-width="2" marker-end="url(#arr2)"/>
+<rect x="120" y="398" width="600" height="44" rx="22" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+<text x="420" y="426" font-family="Noto Sans SC, sans-serif" font-size="12.5" font-weight="600" fill="#5b21b6" text-anchor="middle">通知回父：tool_result · 通知注入下一 turn · 邮箱 FINAL_ANSWER</text>
+<text x="60" y="482" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#64748b">注：另有内部隐式派生（codex review / guardian / compact / 记忆合并、hermes /review）不经模型工具调用，直接复用同一子运行设施</text>
+<line x1="250" y1="510" x2="295" y2="510" stroke="#64748b" stroke-width="2" marker-end="url(#arr2)"/>
+<text x="305" y="515" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#475569">控制流（左：同步路径 / 右：异步路径）</text>
+</svg></div>
+<p class="diagram-caption">图 2：创建子 agent 的时机与执行分支（闸门内容：ZCode 结构性禁递归 · hermes pause/深度/oneshot 预算 · codex MultiAgentMode 门控）</p>
+
+<p><strong>共性</strong>：五家全部是<strong>模型显式工具调用触发</strong>，没有一家有"框架自动拆分任务/上下文过长自动派生"的隐式调度器。派生时机的引导都写在工具描述和系统提示里，由模型自行决策。</p>
+<ul>
+<li>入口工具命名：ZCode <code>Agent</code>（兼容别名 <code>Task</code>，<code>/Users/apple/Desktop/code/ZCode/apps/zcode-cli/packages/core/src/tool/compat.ts:1-4</code>）；claude-code 同款命名（<code>/Users/apple/Desktop/code/claude-code/src/tools/AgentTool/constants.ts:1-3</code>）；kimi-code <code>Agent</code>+<code>AgentSwarm</code>+<code>TowerSpawn</code>（<code>.../agent/tools/agent/agentTool.ts:106-108</code>）；codex <code>spawn_agent</code>（V2 注册在 <code>collaboration</code> 命名空间，<code>/Users/apple/Desktop/code/codex/codex-rs/core/src/config/mod.rs:256</code>）；hermes <code>delegate_task</code>（<code>/Users/apple/.hermes/hermes-agent/tools/delegate_tool.py:736-750</code>）。</li>
+</ul>
+<p><strong>差异点</strong>：</p>
+<ol>
+<li><strong>触发门控最严的是 codex</strong>：有显式的 MultiAgentMode 策略——默认 <code>ExplicitRequestOnly</code>（"用户明确要求并行/委派才可派生，'要深度/要彻底'不算授权"，<code>/Users/apple/Desktop/code/codex/codex-rs/core/src/tools/handlers/multi_agents_spec.rs:706-707</code>），推理档位 <code>Ultra</code> 才切 <code>Proactive</code>（<code>/Users/apple/Desktop/code/codex/codex-rs/core/src/session/multi_agents.rs:92-108</code>）。其余四家只靠工具描述的"When to use"软引导。</li>
+<li><strong>批量扇出是一等公民的只有 kimi-code</strong>（<code>AgentSwarm</code>，单次最多 128 个，<code>{{item}}</code> 模板，<code>/Users/apple/Desktop/code/kimi-code/packages/agent-core-v2/src/features/swarm/tools/agent-swarm/agent-swarm.ts:7</code>）和 hermes（<code>tasks=[...]</code> 批量数组即并行扇出）。ZCode/claude-code/codex 靠"一条消息多个工具调用"并行。</li>
+<li><strong>隐式派生只存在于内部管道</strong>，不面向模型：codex 的 review/guardian(auto_review 审批)/compact/记忆合并 4 类内部子 agent（<code>run_codex_thread_one_shot</code>，<code>/Users/apple/Desktop/code/codex/codex-rs/core/src/codex_delegate.rs</code>；SubAgentSource 枚举 <code>/Users/apple/Desktop/code/codex/codex-rs/cli/src/doctor/thread_inventory.rs:677-683</code>）；hermes 的 <code>/review</code>（<code>/Users/apple/.hermes/hermes-agent/agent/review_engine.py:170-171</code>）与插件 API <code>subagent_lifecycle.launch()</code>。claude-code 唯一"半隐式"是 FORK_SUBAGENT 实验（省略 <code>subagent_type</code> 即 fork，<code>/Users/apple/Desktop/code/claude-code/src/tools/AgentTool/forkSubagent.ts:22-27</code>）。</li>
+<li><strong>续跑（resume）是共同能力但形态不同</strong>：ZCode <code>SendMessage</code> 以后台拉起同一 child session（<code>runner.ts:955</code>）；kimi <code>Agent(resume="&lt;agent_id&gt;")</code> 重建 agent scope 续跑、禁止同一子并发（<code>agentTool.ts:405-460</code>）；claude-code <code>SendMessage</code> 续接（完整上下文保留，<code>resumeAgent.ts</code>）；codex <code>followup_task</code>（触发 idle 子的新 turn）/<code>resume_agent</code>；hermes 同工具 <code>action=steer</code>（中途改道）。</li>
+<li><strong>批量前质量闸门是 hermes 独有</strong>：goal 拒绝 <code>TODO</code>/模板占位符/多任务下 &lt;10 字符（<code>/Users/apple/.hermes/hermes-agent/tools/delegate_tool_tasks.py:36-65</code>），其余四家对 prompt 内容不设质量校验。</li>
+</ol>
+<h3 id="2-2-子-agent-的上下文管理">2.2 子 agent 的上下文管理</h3>
+<div class="diagram"><svg viewBox="0 0 860 520" style="width:100%;max-width:860px;height:auto;" fill="none">
+<defs><marker id="arr3" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#64748b"/></marker><marker id="arr3g" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#059669"/></marker></defs>
+<rect x="25" y="30" width="255" height="250" rx="16" fill="#f8fafc" stroke="#94a3b8" stroke-width="2"/>
+<text x="152" y="60" font-family="Noto Sans SC, sans-serif" font-size="13" font-weight="700" fill="#334155" text-anchor="middle">零继承（全新会话）</text>
+<text x="152" y="92" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#475569" text-anchor="middle">ZCode · hermes-agent</text>
+<text x="152" y="114" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#475569" text-anchor="middle">kimi-code（默认）</text>
+<text x="152" y="136" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#475569" text-anchor="middle">claude-code（默认）</text>
+<line x1="55" y1="152" x2="250" y2="152" stroke="#cbd5e1" stroke-width="1"/>
+<text x="152" y="180" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#64748b" text-anchor="middle">子只见 prompt 一条</text>
+<text x="152" y="202" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#64748b" text-anchor="middle">prompt 必须自包含</text>
+<text x="152" y="224" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#64748b" text-anchor="middle">不带父历史 / 父系统提示</text>
+<text x="152" y="256" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#94a3b8" text-anchor="middle">继承：cwd / AGENTS.md / 模型 / 权限</text>
+<rect x="300" y="30" width="255" height="250" rx="16" fill="#f8fafc" stroke="#94a3b8" stroke-width="2"/>
+<text x="427" y="60" font-family="Noto Sans SC, sans-serif" font-size="13" font-weight="700" fill="#334155" text-anchor="middle">可选 fork（参数 / 实验）</text>
+<text x="427" y="92" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#475569" text-anchor="middle">kimi fork:true（实验 flag）</text>
+<text x="427" y="114" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#475569" text-anchor="middle">claude-code FORK_SUBAGENT</text>
+<text x="427" y="136" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#475569" text-anchor="middle">codex fork_turns=N（最近 N 轮）</text>
+<line x1="330" y1="152" x2="525" y2="152" stroke="#cbd5e1" stroke-width="1"/>
+<text x="427" y="180" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#64748b" text-anchor="middle">拷贝父历史快照进子上下文</text>
+<text x="427" y="202" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#64748b" text-anchor="middle">加免责注记（kimi）</text>
+<text x="427" y="224" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#64748b" text-anchor="middle">提示清洗防污染（codex）</text>
+<text x="427" y="256" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#94a3b8" text-anchor="middle">claude-code fork 连系统提示一并继承</text>
+<rect x="575" y="30" width="260" height="250" rx="16" fill="#f8fafc" stroke="#94a3b8" stroke-width="2"/>
+<text x="705" y="60" font-family="Noto Sans SC, sans-serif" font-size="13" font-weight="700" fill="#334155" text-anchor="middle">默认全继承</text>
+<text x="705" y="92" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#475569" text-anchor="middle">codex（fork_turns=all 默认）</text>
+<line x1="605" y1="152" x2="805" y2="152" stroke="#cbd5e1" stroke-width="1"/>
+<text x="705" y="180" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#64748b" text-anchor="middle">全历史 fork（可 N / none）</text>
+<text x="705" y="202" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#64748b" text-anchor="middle">+ base / developer 指令</text>
+<text x="705" y="224" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#64748b" text-anchor="middle">+ 审批 / 沙箱 / MCP 快照</text>
+<text x="705" y="256" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#94a3b8" text-anchor="middle">剥离父 usage hint 后重建子提示</text>
+<line x1="152" y1="282" x2="152" y2="326" stroke="#64748b" stroke-width="2" marker-end="url(#arr3)"/>
+<line x1="427" y1="282" x2="427" y2="326" stroke="#64748b" stroke-width="2" marker-end="url(#arr3)"/>
+<line x1="705" y1="282" x2="705" y2="326" stroke="#64748b" stroke-width="2" marker-end="url(#arr3)"/>
+<rect x="25" y="330" width="810" height="38" rx="19" fill="#f1f5f9" stroke="#64748b" stroke-width="2"/>
+<text x="430" y="355" font-family="Noto Sans SC, sans-serif" font-size="12.5" font-weight="600" fill="#334155" text-anchor="middle">结果回传父 agent</text>
+<path d="M330 368 L330 406 L235 406 L235 416" stroke="#64748b" stroke-width="2" marker-end="url(#arr3)"/>
+<path d="M530 368 L530 406 L625 406 L625 416" stroke="#64748b" stroke-width="2" marker-end="url(#arr3)"/>
+<rect x="60" y="420" width="350" height="56" rx="22" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+<text x="235" y="444" font-family="Noto Sans SC, sans-serif" font-size="12.5" font-weight="600" fill="#1d4ed8" text-anchor="middle">原文派：最后 assistant 消息原样</text>
+<text x="235" y="464" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#1d4ed8" text-anchor="middle">ZCode 120KB · claude-code 100K · kimi · codex</text>
+<rect x="450" y="420" width="350" height="56" rx="22" fill="#d1fae5" stroke="#059669" stroke-width="2"/>
+<text x="625" y="444" font-family="Noto Sans SC, sans-serif" font-size="12.5" font-weight="600" fill="#065f46" text-anchor="middle">摘要派：预算裁剪 + spill（hermes）</text>
+<text x="625" y="464" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#065f46" text-anchor="middle">24000 字符 · 75%头/25%尾 · read_file 指针</text>
+<line x1="560" y1="500" x2="605" y2="500" stroke="#059669" stroke-width="2" stroke-dasharray="5 3" marker-end="url(#arr3g)"/>
+<text x="615" y="505" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#475569">虚线＝不传递 / 实线＝传递（含结果回传）</text>
+</svg></div>
+<p class="diagram-caption">图 3：三种上下文继承模式与两种结果回传通道</p>
+
+<p><strong>两大流派</strong>：</p>
+<ul>
+<li><strong>零上下文派（4/5）</strong>：子 agent 全新会话，只见 prompt 一条，必须自包含。ZCode（<code>childSessionId = subagent_&lt;agentId&gt;</code>，<code>/Users/apple/Desktop/code/ZCode/apps/zcode-cli/packages/core/src/subagent/runner.ts:806</code>；工具描述明说 "A new Agent call starts fresh"）；claude-code（<code>promptMessages = [createUserMessage({content: prompt})]</code>，<code>AgentTool.tsx:538-540</code>；"it starts with zero context... Brief the agent like a smart colleague who just walked into the room"，<code>prompt.ts:103</code>）；kimi 默认零上下文（"The subagent starts with zero context"，<code>agent.md:4</code>）；hermes（fresh conversation + <code>skip_memory=True, skip_context_files=True</code>，<code>/Users/apple/.hermes/hermes-agent/tools/delegate_tool.py:236-248</code>）。</li>
+<li><strong>历史继承派（codex，以及三家的实验性 fork）</strong>：codex 默认 <code>fork_turns=all</code> 复制父全历史（<code>/Users/apple/Desktop/code/codex/codex-rs/core/src/tools/handlers/multi_agents_v2/spawn.rs:290-315</code>），可选最近 N 轮或 <code>none</code>；fork 时清洗父级 usage hint、替换 developer 指令片段防父子提示互相污染（<code>/Users/apple/Desktop/code/codex/codex-rs/core/src/agent/control/spawn.rs:963-996</code>）。kimi <code>fork:true</code>（实验 flag）拷父全历史 + 注入 FORK_CONTEXT_NOTICE "这不是你自己的历史，只作参考"（<code>spawn.ts:13-14</code>）；claude-code fork 继承全历史 + 父系统提示（byte-identical 以复用 prompt cache，<code>AgentTool.tsx:483-512</code>）。</li>
+</ul>
+<p><strong>继承/隔离清单对比</strong>：</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>项</th>
+<th>ZCode</th>
+<th>kimi-code</th>
+<th>codex</th>
+<th>hermes-agent</th>
+<th>claude-code</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>对话历史</td>
+<td>不继承</td>
+<td>默认不继承（fork 例外）</td>
+<td><strong>默认继承（all）</strong></td>
+<td>不继承</td>
+<td>不继承（fork 例外）</td>
+</tr>
+<tr>
+<td>系统提示</td>
+<td>自建（profile 模板）</td>
+<td>自建（system.md+角色）</td>
+<td><strong>继承父 base instructions</strong></td>
+<td>自建（goal+context 拼装）</td>
+<td>自建（内置/自定义）；fork 继承父</td>
+</tr>
+<tr>
+<td>项目约定（AGENTS.md/CLAUDE.md）</td>
+<td>注入（injectAgentsMd 可关）</td>
+<td>经 promptPrefix（explore 带 git 上下文）</td>
+<td>并入 base instructions 一起继承</td>
+<td>按主 agent 同规则补注入（跳过 SOUL.md）</td>
+<td>userContext 共享同源（Explore/Plan 主动省略）</td>
+</tr>
+<tr>
+<td>cwd</td>
+<td>继承</td>
+<td>继承（会话 cwd）</td>
+<td>继承（turn cwd）</td>
+<td>继承+可选 git worktree 隔离</td>
+<td>继承/<code>cwd</code> 参数/<code>isolation:"worktree"</code></td>
+</tr>
+<tr>
+<td>模型/凭证</td>
+<td>继承父 Model（不可覆盖，刻意）</td>
+<td>继承，可用 secondary model 池覆盖</td>
+<td>继承，可 model/reasoning_effort 覆盖</td>
+<td>继承或 delegation.* 配置覆盖</td>
+<td>继承或 <code>model</code> 覆盖（sonnet/opus/haiku）</td>
+</tr>
+<tr>
+<td>权限/审批</td>
+<td>Explore 独立 yolo；其余继承父权限服务</td>
+<td>权限模式镜像父</td>
+<td>审批策略+沙箱+权限快照继承</td>
+<td>同父；Kanban 身份 env 擦除</td>
+<td>父 session 级 allow rules 清空防泄漏（<code>runAgent.ts:465-479</code>）</td>
+</tr>
+<tr>
+<td>记忆</td>
+<td>profile 级独立持久记忆（非父子共享）</td>
+<td>各自独立</td>
+<td><strong>对子会话禁用</strong>（<code>/Users/apple/Desktop/code/codex/codex-rs/memories/README.md:33-35</code>）</td>
+<td>不读写 MEMORY.md（skip_memory）</td>
+<td>可选 agent 持久记忆（user/project/local）</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>结果回传是差异最大的一维</strong>——"原文派" vs "摘要派"：</p>
+<ul>
+<li>原文派（子的最后一条 assistant 消息原样，不改写）：ZCode 120KB 上限（<code>MAX_AGENT_MODEL_BYTES = 120_000</code>，超限 artifact+head 预览，<code>/Users/apple/Desktop/code/ZCode/apps/zcode-cli/packages/core/src/tool/handlers/agent.ts:21</code>）；claude-code 100K 字符（<code>maxResultSizeChars: 100_000</code>，<code>AgentTool.tsx:229</code>）；kimi（<code>latestAssistantText</code>，<code>runAgentTurn.ts:73</code>）；codex（FINAL_ANSWER = 最终消息原文，仅错误文本截 ~900 token，<code>/Users/apple/Desktop/code/codex/codex-rs/core/src/session_prefix.rs:24-35</code>）。</li>
+<li>摘要派（只有 hermes）：父只拿 <code>final_response</code>，且按预算裁剪——默认 24000 字符（<code>DEFAULT_MAX_SUMMARY_CHARS</code>，<code>/Users/apple/.hermes/hermes-agent/tools/delegate_tool_results.py:160</code>），超限 75%头+25%尾 + 全文 spill 到磁盘 + <code>read_file offset=</code> 指针（<code>delegate_tool_results.py:187-223</code>）；子的中间工具调用/推理<strong>永远不进父上下文</strong>，只回传脱敏 <code>tool_trace</code> 元数据（<code>delegate_tool_child_run.py:521-551</code>）。</li>
+<li>中间过程可见性：ZCode 把子的工具/权限事件镜像到父 timeline（raw 正文不进，<code>tool-event-mirror.ts:19-25</code>）；hermes 后台任务有实时 transcript 文件可查但不进上下文；其余主要靠 UI 侧事件流。</li>
+</ul>
+<h3 id="2-3-子-agent-的输入输出内容">2.3 子 agent 的输入输出内容</h3>
+<p><strong>输入</strong>（模型面 schema）：</p>
+<ul>
+<li>共同骨架：<code>description</code>（3-5 词短描述，UI 用）+ <code>prompt</code>（任务全文，唯一任务载体）。文件路径/命令都要求写进 prompt 文本——<strong>五家全部没有真正的附件上传字段</strong>（唯 codex V1 有 <code>items</code> 结构化附件支持 text/image_url/audio_url/path/name，<code>/Users/apple/Desktop/code/codex/codex-rs/core/src/tools/handlers/multi_agents_spec.rs:560-583</code>；hermes 有 <code>images≤8</code> 的本地路径/URL 列表，<code>/Users/apple/.hermes/hermes-agent/tools/delegate_tool_tasks.py:124-147</code>）。</li>
+<li>控制字段差异：ZCode 刻意<strong>不暴露 model</strong>（<code>contracts/src/tools/agent.ts:25-26</code> 注释）；kimi/claude-code/codex 均可覆盖 model；codex 需要 <code>task_name</code>（构成 <code>/root/...</code> 任务路径树）；hermes 输入是<strong>批量数组</strong> <code>tasks=[{goal,context,output_schema,images,group}]</code>，且独有：</li>
+<li><code>context</code> 与 <code>goal</code> 分离（goal=任务、context=该子专属背景）；</li>
+<li><code>output_schema</code>（JSON Schema 输出契约，注入 "OUTPUT CONTRACT" 块，父用 jsonschema 校验，失败仅一次有界重试，<code>/Users/apple/.hermes/hermes-agent/tools/delegation_output_schema.py:45-57,109-115</code>）。</li>
+<li>自定义补充：kimi profile 可配 <code>promptPrefix</code> 自动前置（explore 前置 git 上下文，<code>profiles.ts:110-125</code>）。</li>
+</ul>
+<p><strong>输出</strong>（回传父的形态）：</p>
+<ul>
+<li>结构化 output schema：ZCode <code>AgentCompletedOutput{status,agentId,content:[text],totalToolUseCount,totalDurationMs,totalTokens,usage}</code> / <code>AgentBackgroundedOutput{async_launched,outputFile}</code>（<code>contracts/src/tools/agent.ts:44-70</code>）；claude-code 同款 union（<code>agentToolUtils.ts:227-258</code>）。</li>
+<li>文本格式化：kimi <code>agent_id/actual_subagent_type/status/stop_reason + [summary] + resume_hint</code>（<code>agentTool.ts:756-773</code>），Swarm 输出 <code>&lt;agent_swarm_result&gt;</code> XML。</li>
+<li>JSON 结果条目：hermes <code>{results:[{task_index,status,summary,exit_reason,truncated,tokens,tool_trace,cost_usd,schema_valid,…}], total_duration_seconds}</code>（<code>delegate_tool_child_run.py:553-650</code>）；后台先返回 dispatch handle（<code>{status:"dispatched", subagent_ids, live_transcripts}</code>），完成后整包作为新消息再入会话。</li>
+<li>消息协议型：codex <code>spawn_agent</code> 只返回 <code>{task_name,nickname}</code>（默认 hide metadata 只给 task_name），<strong>结果本体走邮箱消息</strong> <code>Message Type: FINAL_ANSWER\nTask name:…\nSender:…\nPayload:…</code>（<code>/Users/apple/Desktop/code/codex/codex-rs/core/src/context/inter_agent_completion_message.rs:40-45</code>）。</li>
+<li>落盘 artifact：ZCode 每个 agent 写 <code>metadata.json</code>/<code>output.txt</code>/<code>task.output</code>（<code>runner.ts:808-815</code>）；hermes 全文 spill + 实时 transcript（<code>cache/delegation/live/&lt;id&gt;/task-&lt;n&gt;.log</code>）；claude-code/kimi 后台任务写输出文件，通知带指针。</li>
+</ul>
+<h3 id="2-4-子-agent-的系统提示词">2.4 子 agent 的系统提示词</h3>
+<p>三种构造哲学：</p>
+<ol>
+<li><strong>专属轻提示（ZCode / kimi / claude-code / hermes）</strong>：给子一套独立的短系统提示，不给父的完整系统提示。</li>
+<li>ZCode 4 层拼装：profile 模板（general-purpose <code>/Users/apple/Desktop/code/ZCode/apps/zcode-cli/packages/core/src/subagent/general-purpose.ts:7-24</code> "You are an agent for ZCode CLI... respond with a concise report"；Explore <code>explore.ts:20-68</code> "READ-ONLY MODE - NO FILE MODIFICATIONS"）+ 公共 Notes（绝对路径、"Do NOT Write report .md files... the parent agent reads your text output"，<code>system-prompt.ts:10-19</code>）+ 环境块 + 可选记忆模板（<code>context-builder.ts:106-163</code>）。</li>
+<li>kimi：共享模板 <code>system.md</code> + 子 agent 专属 <code>TASK_AGENT_ROLE_PREFIX</code>（<code>/Users/apple/Desktop/code/kimi-code/packages/agent-core-v2/src/app/agentProfileCatalog/profile-shared.ts:14-18</code>）："You are now running as a subagent. All the user messages are sent by the main agent. The main agent cannot see your context, it can only see your last message... Do not directly ask the end user questions."；coder 角色再要求"最终消息就是全部交接"（<code>profiles.ts:82-88</code>）。</li>
+<li>claude-code：内置类型是 TS 常量（<code>/Users/apple/Desktop/code/claude-code/src/tools/AgentTool/built-in/</code>：general-purpose / Explore 只读 / Plan 架构 / verification 对抗验证收 <code>VERDICT: PASS|FAIL|PARTIAL</code> / claude-code-guide），自定义 <code>.claude/agents/*.md</code> 正文即系统提示（<code>loadAgentsDir.ts:713-732</code>）；fork worker 固定 boilerplate："You are a forked worker process. You are NOT the main agent... Do NOT spawn sub-agents"（<code>forkSubagent.ts:171-198</code>）。</li>
+<li>hermes：<code>_build_child_system_prompt</code>（<code>/Users/apple/.hermes/hermes-agent/tools/delegate_tool_progress.py:178-217</code>）="You are a focused subagent working on a specific delegated task." + CONTEXT + WORKSPACE PATH + 完成指令（"Your response is returned to the parent agent as a summary, and overlong summaries crowd out the parent's context window"）；goal 特意放首条 user 消息而不进系统提示；orchestrator 追加 "Subagent Spawning" 授权块 + 深度真值注记（"You are at depth N... max_spawn_depth=X"，防止模型臆造嵌套能力）。</li>
+<li><strong>继承+增补（codex 独有）</strong>：协作子 agent <strong>没有独立系统提示</strong>，继承父 base instructions（含 AGENTS.md）+ developer instructions；专属内容只是一段 developer 角色 usage hint（<code>DEFAULT_MULTI_AGENT_V2_SUBAGENT_USAGE_HINT_TEXT</code>，<code>/Users/apple/Desktop/code/codex/codex-rs/prompts/src/model_messages/multi_agent.rs:27-45</code>："You are an agent in a team of agents... When you provide a response in the final channel, that content is immediately delivered back to your parent agent."），包 <code>&lt;multi_agent_role&gt;</code> 注入，可被模型目录或 <code>subagent_usage_hint_text</code> 配置覆盖。理念：<strong>多 agent 团队成员能力同构</strong>（"All agents... are equally intelligent and capable, and have access to the same set of tools"）。</li>
+<li><strong>整体替换（各框架的内部专用子 agent）</strong>：codex review 用 <code>/Users/apple/Desktop/code/codex/codex-rs/prompts/templates/review/rubric.md</code>、guardian 用 <code>prompts/templates/guardian/policy.md</code>。</li>
+</ol>
+<p><strong>共性内容</strong>：① 明确"你服务于调用方而非最终用户"（kimi 最直白）；② 最终消息=唯一回传物，要求精炼/交接完整；③ 环境事实（cwd/平台/只读约束）。<strong>差异</strong>：ZCode/claude-code 用"concise report"导向（父负责转述），kimi coder 用"完整技术交接"导向（改了什么/为何/验证/未尽事项），hermes 用"summary + 预算感知"导向。</p>
+<h3 id="2-5-子-agent-的工具范围">2.5 子 agent 的工具范围</h3>
+<div class="diagram"><svg viewBox="0 0 840 500" style="width:100%;max-width:840px;height:auto;" fill="none">
+<defs><marker id="arr4" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#94a3b8"/></marker></defs>
+<rect x="25" y="30" width="255" height="130" rx="16" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+<text x="152" y="58" font-family="Noto Sans SC, sans-serif" font-size="13" font-weight="700" fill="#1d4ed8" text-anchor="middle">白名单制（声明 / 重建）</text>
+<text x="152" y="86" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#475569" text-anchor="middle">ZCode：通配 * 展开父面 / Explore 只读 7 工具</text>
+<text x="152" y="110" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#475569" text-anchor="middle">kimi：profile 工具表（coder 有写无派生）</text>
+<text x="152" y="134" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#475569" text-anchor="middle">claude-code：工具池独立重建再过滤</text>
+<rect x="305" y="30" width="230" height="130" rx="16" fill="#ecfdf5" stroke="#059669" stroke-width="2"/>
+<text x="420" y="58" font-family="Noto Sans SC, sans-serif" font-size="13" font-weight="700" fill="#065f46" text-anchor="middle">继承减法（hermes）</text>
+<text x="420" y="86" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#475569" text-anchor="middle">父工具集原样继承</text>
+<text x="420" y="110" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#475569" text-anchor="middle">减 5 禁用工具（含 delegate_task）</text>
+<text x="420" y="134" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#475569" text-anchor="middle">剔 delegation / kanban 整套</text>
+<rect x="560" y="30" width="255" height="130" rx="16" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+<text x="687" y="58" font-family="Noto Sans SC, sans-serif" font-size="13" font-weight="700" fill="#5b21b6" text-anchor="middle">全继承（codex）</text>
+<text x="687" y="86" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#475569" text-anchor="middle">same tools as you（同套工具）</text>
+<text x="687" y="110" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#475569" text-anchor="middle">MCP / skills / plugins 同源继承</text>
+<text x="687" y="134" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#475569" text-anchor="middle">靠深度 / 并发约束而非裁剪</text>
+<text x="420" y="230" font-family="Noto Sans SC, sans-serif" font-size="13" font-weight="700" fill="#334155" text-anchor="middle">防递归深度谱系（硬约束 → 软约束）</text>
+<line x1="80" y1="320" x2="780" y2="320" stroke="#94a3b8" stroke-width="2" marker-end="url(#arr4)"/>
+<circle cx="130" cy="320" r="7" fill="#dc2626"/>
+<circle cx="280" cy="320" r="7" fill="#d97706"/>
+<circle cx="430" cy="320" r="7" fill="#059669"/>
+<circle cx="580" cy="320" r="7" fill="#2563eb"/>
+<circle cx="730" cy="320" r="7" fill="#7c3aed"/>
+<text x="130" y="300" font-family="Noto Sans SC, sans-serif" font-size="11.5" font-weight="600" fill="#334155" text-anchor="middle">结构性 1 层</text>
+<text x="280" y="300" font-family="Noto Sans SC, sans-serif" font-size="11.5" font-weight="600" fill="#334155" text-anchor="middle">默认 1 层</text>
+<text x="430" y="300" font-family="Noto Sans SC, sans-serif" font-size="11.5" font-weight="600" fill="#334155" text-anchor="middle">结构性 2 层</text>
+<text x="580" y="300" font-family="Noto Sans SC, sans-serif" font-size="11.5" font-weight="600" fill="#334155" text-anchor="middle">V1 ＝ 1 层</text>
+<text x="730" y="300" font-family="Noto Sans SC, sans-serif" font-size="11.5" font-weight="600" fill="#334155" text-anchor="middle">V2 可递归</text>
+<text x="130" y="352" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#64748b" text-anchor="middle">ZCode</text>
+<text x="130" y="370" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#64748b" text-anchor="middle">（子无派生端口）</text>
+<text x="280" y="352" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#64748b" text-anchor="middle">claude-code / hermes</text>
+<text x="280" y="370" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#64748b" text-anchor="middle">（禁 Agent / delegate_task）</text>
+<text x="430" y="352" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#64748b" text-anchor="middle">kimi</text>
+<text x="430" y="370" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#64748b" text-anchor="middle">（类型级剔除可派生目标）</text>
+<text x="580" y="352" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#64748b" text-anchor="middle">codex V1</text>
+<text x="580" y="370" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#64748b" text-anchor="middle">（超限拒绝派生）</text>
+<text x="730" y="352" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#64748b" text-anchor="middle">codex V2</text>
+<text x="730" y="370" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#64748b" text-anchor="middle">（4 并发槽约束）</text>
+<text x="420" y="440" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#475569" text-anchor="middle">圆点＝各家深度限制方案；轴向＝从结构硬约束到纯运行时约束</text>
+</svg></div>
+<p class="diagram-caption">图 4：工具授予三模型与防递归深度谱系</p>
+
+<p>三种授予模型：</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>模型</th>
+<th>框架</th>
+<th>细节</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>白名单声明制</strong></td>
+<td>ZCode / kimi / claude-code</td>
+<td>agent profile 声明 <code>tools</code>（支持 <code>*</code>）/<code>disallowedTools</code>。ZCode：general-purpose <code>["*"]</code> 展开为父工具面（剔除 Agent/Task），Explore 固定 7 只读工具（<code>explore-tools.ts:4-12</code>，注释明言"只读语义靠 prompt 约束，Bash 是唯一副作用入口"）；kimi：coder 有读写/Bash/mcp 无派生工具、explore 仅只读（<code>profiles.ts:46-80</code>）；claude-code：工具池<strong>独立重建</strong>（<code>assembleToolPool</code>，"Workers always get their tools from their own permission mode, so they aren't affected by the parent's tool restrictions"，<code>AgentTool.tsx:568-577</code>），再按 tools/disallowedTools 过滤，后台 agent 另有更窄白名单 <code>ASYNC_AGENT_ALLOWED_TOOLS</code>（<code>/Users/apple/Desktop/code/claude-code/src/constants/tools.ts:55-71</code>）</td>
+</tr>
+<tr>
+<td><strong>继承减法制</strong></td>
+<td>hermes-agent</td>
+<td>父工具集原样继承（<code>toolsets=None, # always inherit</code>，<code>delegate_tool.py:390-391</code>），减去 <code>DELEGATE_BLOCKED_TOOLS = {delegate_task, clarify, memory, send_message, cronjob_manage}</code>（<code>/Users/apple/.hermes/hermes-agent/tools/delegate_tool_toolsets.py:14-22</code>）+ 整套剔除 delegation/kanban；"Children never gain tools the parent lacks"</td>
+</tr>
+<tr>
+<td><strong>全继承制</strong></td>
+<td>codex</td>
+<td>"The spawned agent will have the same tools as you"（<code>multi_agents_spec.rs:763</code>）；MCP/skills/plugins/exec policy 同源继承，靠深度/并发约束而非工具裁剪</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>防递归（深度）设计谱系</strong>——从硬到软：</p>
+<ol>
+<li>ZCode <strong>结构性关闭</strong>：child runtime <code>subagents: {enabled: false}</code> → SubagentPort 不存在 → 调 Agent 报错（<code>/Users/apple/Desktop/code/ZCode/apps/zcode-cli/packages/core/src/runtime/methods/subagent.ts:284-287</code>）。深度固定 <strong>1</strong>。</li>
+<li>claude-code <strong>默认禁用</strong> <code>Agent</code> 工具（"Blocked to prevent recursion"），仅 <code>USER_TYPE==='ant'</code> 放开嵌套且无显式深度上限；fork 子孙再 fork 调用时被拒（<code>AgentTool.tsx:332-334</code>）。默认深度 <strong>1</strong>。</li>
+<li>kimi <strong>结构性 2 层</strong>：内置子 profile 无派生工具 + <code>withoutDelegatingTargets</code> 在 planSpawn 时剔除"自己还能派生"的目标类型（<code>/Users/apple/Desktop/code/kimi-code/packages/agent-core-v2/src/app/agentProfileCatalog/profile-shared.ts:75-94</code>）。无全局深度常量。</li>
+<li>hermes <strong>默认 1 可配</strong>：<code>MAX_DEPTH = 1  # flat by default</code>（<code>/Users/apple/.hermes/hermes-agent/tools/delegate_tool_config.py:21</code>），<code>max_spawn_depth</code> 可调高无硬顶；role 由深度派生（depth 未满的子自动成 orchestrator 拿回 delegate_task），模型不可选。</li>
+<li>codex <strong>版本分裂</strong>：V1 <code>agent_max_depth</code> 默认 1，超限直接报 "Agent depth limit reached. Solve the task yourself."（<code>/Users/apple/Desktop/code/codex/codex-rs/core/src/config/mod.rs:261</code>）；<strong>V2 明确允许子再生子</strong>（"those sub-agents can spawn their own sub-agents"，spawn 处理器无深度检查），靠并发槽约束；内部 delegate 则禁 Collab/MultiAgentV2 防递归。</li>
+</ol>
+<p><strong>沙箱/权限差异</strong>：ZCode Explore 独立 PermissionService+yolo、项目级 profile 禁 frontmatter 提权（<code>profile.ts:183-185</code>）；claude-code 子 agent 不继承父 session allow rules（防泄漏）；hermes 可选 git worktree 文件系统隔离 + Kanban 身份擦除（<code>agent/delegation_context.py:102-118</code>）；kimi 明言 "The environment is not a sandbox"，explore 只读仅 prompt-enforced；codex 协作子与父共享审批/沙箱快照，但内部 delegate 强制 <code>approval_policy=never</code>（<code>codex_delegate.rs:63-68</code>）。</p>
+<h3 id="2-6-子-agent-的运行方式-同步-异步">2.6 子 agent 的运行方式（同步/异步）</h3>
+<div class="diagram"><svg viewBox="0 0 840 620" style="width:100%;max-width:840px;height:auto;" fill="none">
+<defs><marker id="arr5" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#64748b"/></marker><marker id="arr5p" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#7c3aed"/></marker></defs>
+<rect x="25" y="30" width="385" height="520" rx="16" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+<text x="217" y="58" font-family="Noto Sans SC, sans-serif" font-size="12.5" font-weight="700" fill="#1d4ed8" text-anchor="middle">同步模式（ZCode / kimi / claude-code 默认）</text>
+<rect x="68" y="80" width="300" height="40" rx="20" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+<text x="218" y="105" font-family="Noto Sans SC, sans-serif" font-size="12" font-weight="600" fill="#1d4ed8" text-anchor="middle">父 turn 内调用派生工具</text>
+<line x1="218" y1="120" x2="218" y2="156" stroke="#64748b" stroke-width="2" marker-end="url(#arr5)"/>
+<rect x="68" y="160" width="300" height="40" rx="20" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+<text x="218" y="185" font-family="Noto Sans SC, sans-serif" font-size="12" font-weight="600" fill="#92400e" text-anchor="middle">阻塞 await 子 agent 运行</text>
+<line x1="218" y1="200" x2="218" y2="236" stroke="#64748b" stroke-width="2" marker-end="url(#arr5)"/>
+<rect x="58" y="240" width="320" height="40" rx="20" fill="#d1fae5" stroke="#059669" stroke-width="2"/>
+<text x="218" y="265" font-family="Noto Sans SC, sans-serif" font-size="12" font-weight="600" fill="#065f46" text-anchor="middle">子完成 → tool_result（原文/摘要）</text>
+<line x1="218" y1="280" x2="218" y2="316" stroke="#64748b" stroke-width="2" marker-end="url(#arr5)"/>
+<rect x="68" y="320" width="300" height="40" rx="20" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+<text x="218" y="345" font-family="Noto Sans SC, sans-serif" font-size="12" font-weight="600" fill="#1d4ed8" text-anchor="middle">父 turn 继续（上下文连续）</text>
+<text x="55" y="410" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#64748b">· claude-code：120s 自动转后台</text>
+<text x="55" y="432" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#64748b">· ZCode：autoBackgroundMs 可转后台</text>
+<text x="55" y="454" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#64748b">· kimi：run_in_background 可选异步</text>
+<text x="55" y="476" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#64748b">· 卡死治理：看门狗 / 2h 超时 / maxTurns</text>
+<rect x="430" y="30" width="385" height="520" rx="16" fill="#f5f3ff" stroke="#7c3aed" stroke-width="2"/>
+<text x="622" y="58" font-family="Noto Sans SC, sans-serif" font-size="12.5" font-weight="700" fill="#5b21b6" text-anchor="middle">异步模式（hermes 强制 / codex 天生）</text>
+<rect x="468" y="80" width="300" height="40" rx="20" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+<text x="618" y="105" font-family="Noto Sans SC, sans-serif" font-size="12" font-weight="600" fill="#5b21b6" text-anchor="middle">调用即返回 handle / task_name</text>
+<line x1="618" y1="120" x2="618" y2="156" stroke="#7c3aed" stroke-width="2" marker-end="url(#arr5p)"/>
+<rect x="468" y="160" width="300" height="40" rx="20" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+<text x="618" y="185" font-family="Noto Sans SC, sans-serif" font-size="12" font-weight="600" fill="#5b21b6" text-anchor="middle">父 turn 继续（不阻塞）</text>
+<line x1="618" y1="200" x2="618" y2="236" stroke="#7c3aed" stroke-width="2" marker-end="url(#arr5p)"/>
+<rect x="458" y="240" width="320" height="40" rx="20" fill="#d1fae5" stroke="#059669" stroke-width="2"/>
+<text x="618" y="265" font-family="Noto Sans SC, sans-serif" font-size="12" font-weight="600" fill="#065f46" text-anchor="middle">子 agent 后台独立运行</text>
+<line x1="618" y1="280" x2="618" y2="316" stroke="#7c3aed" stroke-width="2" marker-end="url(#arr5p)"/>
+<rect x="468" y="320" width="300" height="40" rx="20" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+<text x="618" y="345" font-family="Noto Sans SC, sans-serif" font-size="12" font-weight="600" fill="#5b21b6" text-anchor="middle">完成 → 通知事件（不打断当前 turn）</text>
+<line x1="618" y1="360" x2="618" y2="396" stroke="#7c3aed" stroke-width="2" marker-end="url(#arr5p)"/>
+<rect x="458" y="400" width="320" height="40" rx="20" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+<text x="618" y="425" font-family="Noto Sans SC, sans-serif" font-size="12" font-weight="600" fill="#5b21b6" text-anchor="middle">注入父的下一 turn（新消息/邮箱）</text>
+<text x="460" y="480" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#64748b">· hermes：completion_queue 回合间投递</text>
+<text x="460" y="502" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#64748b">· codex：邮箱 trigger_turn=false + wait_agent</text>
+<text x="460" y="524" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#64748b">· 控制面：steer / stop / SendMessage 续接</text>
+<line x1="250" y1="585" x2="295" y2="585" stroke="#64748b" stroke-width="2" marker-end="url(#arr5)"/>
+<text x="305" y="590" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#475569">同步控制流</text>
+<line x1="450" y1="585" x2="495" y2="585" stroke="#7c3aed" stroke-width="2" marker-end="url(#arr5p)"/>
+<text x="505" y="590" font-family="Noto Sans SC, sans-serif" font-size="11.5" fill="#475569">异步事件流（结果延迟送达）</text>
+</svg></div>
+<p class="diagram-caption">图 5：同步 vs 异步运行方式与结果送达通道</p>
+
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th></th>
+<th>默认形态</th>
+<th>转后台机制</th>
+<th>并发上限</th>
+<th>超时</th>
+<th>回父通知</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ZCode</td>
+<td>同步阻塞（await 子运行时）</td>
+<td><code>run_in_background</code> / profile <code>background</code> / <code>autoBackgroundMs</code> 自动转</td>
+<td>无专门上限；工具调度 10（<code>scheduler.ts:48</code>）</td>
+<td>工具级 <code>timeout:none</code> + 600s 空闲看门狗（<code>DEFAULT_MODEL_STREAM_IDLE_TIMEOUT_MS=600_000</code>）；maxTurns 缺省 4</td>
+<td><code>&lt;task-notification&gt;</code> XML 注入父命令队列（120k 截断，<code>notification.ts:144-158</code>）+ SubagentStopped/BackgroundTaskCompleted 事件</td>
+</tr>
+<tr>
+<td>kimi-code</td>
+<td>同步阻塞（<code>waitForForegroundRelease</code>，<code>agentTool.ts:566-578</code>）</td>
+<td><code>run_in_background</code>（需 TaskList/TaskOutput/TaskStop 在位，<code>agentTool.ts:143-146</code>）</td>
+<td>Swarm 128，启动节流（5 个后每 700ms，<code>agentRunBatch.ts:39-40</code>）；后台总数受 maxRunningTasks，超限 <code>TASK_LIMIT_EXCEEDED</code></td>
+<td>默认 2h（<code>DEFAULT_SUBAGENT_TIMEOUT_MS</code>，<code>configSection.ts:50</code>）+ maxSteps/max_tokens</td>
+<td>合成 user 消息 <code>&lt;notification&gt;</code> XML 自动入后续 turn（"you do not need to poll"，<code>taskService.ts:1112-1118</code>）</td>
+</tr>
+<tr>
+<td>codex</td>
+<td><strong>异步非阻塞</strong>（spawn 投递 NEW_TASK 即返回，子在自己线程循环跑，<code>spawn.rs:802-836</code>）</td>
+<td>天生后台；<code>wait_agent</code> 为唯一阻塞点（默认 30s/最小 10s/最大 1h，<code>config/mod.rs:253-255</code>）</td>
+<td>V2 并发 4 槽含 root（<code>DEFAULT_MULTI_AGENT_V2_MAX_CONCURRENT_THREADS_PER_SESSION=4</code>）；V1 总线程 6（<code>DEFAULT_AGENT_MAX_THREADS=Some(6)</code>，超限 <code>AgentLimitReached</code>）；V2 有空闲逐出/恢复 residency</td>
+<td>无运行超时</td>
+<td>FINAL_ANSWER 以 <code>trigger_turn=false</code> 投父邮箱（<strong>不打断父的 turn</strong>，<code>completion.rs:88-113</code>）+ <code>&lt;subagent_notification&gt;</code>/SubAgentActivity</td>
+</tr>
+<tr>
+<td>hermes-agent</td>
+<td><strong>顶层强制异步</strong>（<code>background=not (depth&gt;0)</code>，schema 的 background 参数被故意忽略，<code>run_agent.py:1350-1357</code>）；orchestrator 再派生强制同步</td>
+<td>天生后台；one-shot/cron/池满自动<strong>降级同步</strong>并附 note（<code>delegate_tool_dispatch.py:240-274,451-456</code>）</td>
+<td><code>max_concurrent_children</code> 默认 10（<code>delegate_tool_config.py:17</code>）；<strong>池满拒绝不排队</strong>（<code>async_delegation.py:561-565</code>）；oneshot 会话总量默认 2</td>
+<td>默认无墙钟超时（<code>DEFAULT_CHILD_TIMEOUT=None</code>）；心跳陈旧判定：空闲 450s / 同一工具内 1200s 判死（<code>delegate_tool.py:72-78</code>）；可选 <code>child_timeout_seconds</code> 无进展预算（80% 处 steer 预警）</td>
+<td><code>type="async_delegation"</code> 事件入 completion_queue，<strong>回合之间</strong>作为新消息回父（<code>async_delegation.py:2-8</code>）；<code>action=list/steer/stop</code> 同步控制面</td>
+</tr>
+<tr>
+<td>claude-code</td>
+<td>同步阻塞</td>
+<td><code>run_in_background</code> / <code>background:true</code> / 120s 自动转后台（<code>AgentTool.tsx:70-77</code>）；fork 开启时强制全异步；后台 agent 独立 AbortController（ESC 不杀，<code>AgentTool.tsx:686-698</code>）</td>
+<td>无专门上限；工具并发默认 10（<code>toolOrchestration.ts:8-12</code>）；<code>isConcurrencySafe=true</code> 鼓励并行</td>
+<td>无时间超时；maxTurns（frontmatter）+ TaskOutput 等待 30s~600s</td>
+<td><code>&lt;task-notification&gt;</code> XML 以 user-role 排队消息注入（"They look like user messages but are not"，<code>coordinatorMode.ts:144</code>）；TaskStop kill 时回传部分结果</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>关键差异</strong>：</p>
+<ol>
+<li><strong>"谁决定异步"</strong>：ZCode/kimi/claude-code 是<strong>模型可选</strong>（run_in_background 参数）；codex 是<strong>天生异步</strong>（协作语义决定）；hermes 是<strong>框架强制</strong>（模型无从选择，防阻塞父 turn）。</li>
+<li><strong>通知注入语义</strong>：codex 的 <code>trigger_turn=false</code> 最克制（父不被打断、下次活动时读取）；ZCode/claude-code 的 <code>&lt;task-notification&gt;</code> 与 kimi 的 <code>&lt;notification&gt;</code> 都是"下一 turn 自动出现在对话里"；hermes 走完成队列在回合间投递（与去重/崩溃恢复共用一套机制）。</li>
+<li><strong>卡死治理哲学不同</strong>：ZCode 用空闲看门狗（600s）硬杀；kimi 用 2h 硬超时；hermes 显式放弃墙钟超时（"legitimate heavy work was being killed mid-task"，<code>delegate_tool_config.py:24-27</code>），改用心跳陈旧判定；codex/claude-code 干脆没有时间维度限制，只有轮次限制。</li>
+<li><strong>双向通信</strong>：ZCode 有 <code>SendMessage</code>（父→子）+ <code>RespondToCoordinator</code>（子→父主动汇报）；codex 有完整邮箱（<code>send_message</code> 不触发 turn / <code>followup_task</code> 触发 turn / <code>send_input</code>）；hermes 有 <code>steer</code>（追加到子下一个工具结果，不打断当前工具）；kimi/claude-code 只有 resume 续跑。</li>
+</ol>
+<hr />
+<h2 id="3-设计光谱">3. 设计光谱</h2>
+<p><strong>上下文继承</strong>：全零继承（ZCode ≈ hermes ≈ claude-code 默认 ≈ kimi 默认）←——→ 全继承（codex 默认 fork_turns=all ≈ claude-code/kimi fork 实验）
+<strong>结果回传</strong>：原文（claude-code 100K / ZCode 120KB / kimi / codex）←——→ 摘要+预算+spill（hermes 独有）
+<strong>工具授予</strong>：白名单重建（claude-code）←——→ 白名单声明（ZCode/kimi）←——→ 继承减法（hermes）←——→ 全继承（codex）
+<strong>运行模型</strong>：同步阻塞默认（ZCode/kimi/claude-code）←——→ 强制/天生异步（hermes/codex）
+<strong>递归深度</strong>：结构性 1（ZCode）/ 默认 1（claude-code/hermes）/ 结构性 2（kimi）/ V1=1、V2 无限（codex）
+<strong>角色能力同构性</strong>：异构（ZCode/kimi/claude-code 的 Explore/Plan/verification 专职裁剪）←——→ 同构（codex "equally intelligent... same tools"；hermes 仅 leaf/orchestrator 之分）</p>
+<h2 id="4-可借鉴模式-对-chat-agent-类-agent-产品的启示">4. 可借鉴模式（对 chat-agent 类 Agent 产品的启示)</h2>
+<ol>
+<li><strong>"最终消息=唯一交付物"必须写进提示词并配预算</strong>：五家都把"父只看到你最后一条消息"显式写进子的提示（kimi <code>TASK_AGENT_ROLE_PREFIX</code> 最完整）；hermes 进一步在提示里做预算教育（"overlong summaries crowd out the parent's context window"）+ 机械裁剪（75/25 + spill + read_file 指针），提示词与机制双保险。</li>
+<li><strong>防递归用结构而非嘱咐</strong>：ZCode 直接不给子 agent 装 SubagentPort、kimi 用 <code>withoutDelegatingTargets</code> 类型级剔除，都比"提示词里写不许再派生"（claude-code fork worker）可靠。深度/角色由框架按深度派生（hermes）优于交给模型选择。</li>
+<li><strong>fork 时的提示清洗</strong>：codex fork 历史时剥离父级 usage hint、替换 developer 指令片段（<code>spawn.rs:963-996</code>）；kimi fork 加"这不是你的历史"免责注记——继承历史就必须防提示污染与身份混淆。</li>
+<li><strong>结构化输出契约</strong>（hermes <code>output_schema</code> + OUTPUT CONTRACT + 一次有界重试）是把子 agent 从"文本劳工"变"可组合组件"的关键，五家中仅此一家。</li>
+<li><strong>卡死治理选"心跳陈旧"而非墙钟超时</strong>（hermes），或至少像 kimi 一样给软性大超时（2h）+ resume 续跑兜底；硬短超时（如 ZCode 600s 空闲）对长工具任务有误杀风险。</li>
+<li><strong>通知不打断父 turn</strong>（codex <code>trigger_turn=false</code> / hermes 回合间投递）比"下一轮自动注入 user 消息"（ZCode/claude-code/kimi）对父上下文更友好，但需要显式等待/读取机制配合。</li>
+<li><strong>后台任务的"拒绝不排队"</strong>（hermes <code>async_delegation.py:561-565</code>）+ 满则同步降级，防止失控模型无限堆积后台工作——比 kimi 的排队节流更保守可控。</li>
+</ol>
+<h2 id="5-附录">5. 附录</h2>
+<ul>
+<li>逐框架完整报告（含全部代码摘录、证据链与关键文件清单）：</li>
+<li><code>/Users/apple/Desktop/code/chat-agent/docs/multiple_agent/notes/zcode.md</code></li>
+<li><code>/Users/apple/Desktop/code/chat-agent/docs/multiple_agent/notes/kimi-code.md</code></li>
+<li><code>/Users/apple/Desktop/code/chat-agent/docs/multiple_agent/notes/codex.md</code></li>
+<li><code>/Users/apple/Desktop/code/chat-agent/docs/multiple_agent/notes/hermes-agent.md</code></li>
+<li><code>/Users/apple/Desktop/code/chat-agent/docs/multiple_agent/notes/claude-code.md</code></li>
+<li>分析基准日期：2026-09-22（行号以当日代码为准）。</li>
+<li>常量抽查已复核：<code>MAX_AGENT_MODEL_BYTES = 120_000</code>、<code>MAX_AGENT_SWARM_SUBAGENTS = 128</code>、<code>DEFAULT_SUBAGENT_TIMEOUT_MS = 2h</code>、<code>DEFAULT_AGENT_MAX_DEPTH = 1</code>、<code>DEFAULT_MULTI_AGENT_V2_MAX_CONCURRENT_THREADS_PER_SESSION = 4</code>、<code>DEFAULT_AGENT_MAX_THREADS = 6</code>、<code>DELEGATE_BLOCKED_TOOLS</code>、<code>DEFAULT_MAX_SUMMARY_CHARS = 24000</code>、<code>MAX_DEPTH = 1</code>、<code>ALL_AGENT_DISALLOWED_TOOLS</code>、<code>maxResultSizeChars: 100_000</code> 均与源码一致。</li>
+</ul>
+  </main>
+</div>
+<script>
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('overlay');
+  document.getElementById('hamburger').addEventListener('click', () => {
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('show');
+  });
+  overlay.addEventListener('click', () => {
+    sidebar.classList.remove('open');
+    overlay.classList.remove('show');
+  });
+  sidebar.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+    if (window.innerWidth <= 900) { sidebar.classList.remove('open'); overlay.classList.remove('show'); }
+  }));
+  // Scrollspy
+  const tocLinks = Array.from(sidebar.querySelectorAll('a'));
+  const targets = tocLinks.map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  function updateActive() {
+    let current = targets[0];
+    for (const t of targets) {
+      if (t.getBoundingClientRect().top <= 90) current = t; else break;
+    }
+    tocLinks.forEach(a => a.classList.toggle('active', current && a.getAttribute('href') === '#' + current.id));
+  }
+  window.addEventListener('scroll', updateActive, { passive: true });
+  updateActive();
+</script>
+</body>
+</html>

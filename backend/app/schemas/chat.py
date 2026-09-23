@@ -114,10 +114,10 @@ class ChatRequest(BaseModel):
     conversation_id: str = Field(..., description="Conversation ID")
     history_ids: list[str] = Field(default_factory=list, description="Chat history IDs")
     removed_message_ids: list[str] | None = Field(
-        None, description="Message IDs to be removed"
+        default=None, description="Message IDs to be removed"
     )
     regenerate_title: bool | None = Field(
-        False, description="Whether to regenerate title"
+        default=False, description="Whether to regenerate title"
     )
     agent_mode: int = Field(0, description="Agent mode: 0=disabled, 1=enabled")
     task_action: Literal["continue", "summarize"] | None = Field(

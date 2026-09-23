@@ -7,10 +7,13 @@ from typing import Any
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError, ValidationError
 
+from app.core.config import settings
 from app.mcp.connection_pool import MCPConnectionPool
+from app.mcp.constants import DELEGATE_TASK_ROUTE
 from app.mcp.errors import ToolArgumentValidationError
 from app.mcp.registry import MCPRegistry
 from app.mcp.tool_naming import ToolRoute, llm_tool_name
+from app.services.subagent.timeouts import DELEGATE_GATEWAY_GRACE_SECONDS
 from app.utils.logger import logger
 
 _SCHEMA_COMPOSITION_KEYS = frozenset(("oneOf", "allOf", "anyOf", "$ref"))
@@ -70,7 +73,7 @@ class MCPToolGateway:
         self._validate_against_schema(tool_name, args, schema)
         warnings = self._build_warnings(tool_name, removed, mode)
 
-        timeout = self.TOOL_CALL_TIMEOUT_SECONDS
+        timeout = self._call_timeout_seconds(route)
         logger.info(
             "Calling tool",
             tool_name=tool_name,
@@ -101,6 +104,14 @@ class MCPToolGateway:
                 server_name=server_name,
             )
             raise
+
+    @staticmethod
+    def _call_timeout_seconds(route: ToolRoute) -> int:
+        if route == DELEGATE_TASK_ROUTE:
+            return (
+                int(settings.subagent.timeout_seconds) + DELEGATE_GATEWAY_GRACE_SECONDS
+            )
+        return MCPToolGateway.TOOL_CALL_TIMEOUT_SECONDS
 
     # ------------------------------------------------------------------
     # Argument helpers

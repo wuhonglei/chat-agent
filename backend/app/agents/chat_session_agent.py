@@ -48,6 +48,12 @@ from app.services.chat.history_context_service import (
     head_tail_truncate_chars,
     tool_round_compressible_end,
 )
+from app.services.subagent.context import (
+    TurnDelegationContext,
+    ensure_subagent_run_buffer,
+    set_turn_delegation,
+)
+from app.services.subagent.tool_filter import filter_llm_tools
 from app.utils.date import get_current_datetime_str
 from app.utils.llm_usage import log_llm_cache_usage
 from app.utils.logger import logger
@@ -59,6 +65,13 @@ from app.utils.multimodal import (
 from app.utils.time import get_current_time, get_time_duration
 
 GuardAction = Literal["ok", "stop_tools"]
+
+
+def resolve_request_mcp_server_names(*, agent_mode: int) -> list[str]:
+    """Server list for this turn, taken from the mode lists in MCP config."""
+    if agent_mode > 0:
+        return list(settings.mcp.agent_mode_servers)
+    return list(settings.mcp.normal_mode_servers)
 
 
 class ChatSessionAgent(BaseAgent):
@@ -92,6 +105,7 @@ class ChatSessionAgent(BaseAgent):
         self._user_message_content: str | list[dict[str, Any]] = ""
         self._turn_datetime: str | None = None
         self._conversation_id: str | None = None
+        self._system_prompt_override: str | None = None
 
     @property
     def tool_round_messages(self) -> list[ToolMessage]:
@@ -138,6 +152,9 @@ class ChatSessionAgent(BaseAgent):
 
     def _refresh_system_prompt(self) -> None:
         """Rebuild system prompt, including current window-out summary."""
+        if self._system_prompt_override is not None:
+            self._system_prompt = self._system_prompt_override
+            return
         self._system_prompt = get_system_prompt_for_chat_session(
             agent_mode=self._agent_mode,
             skill_manifests=self._skill_manifests,
@@ -158,9 +175,15 @@ class ChatSessionAgent(BaseAgent):
         attachment_uploads: list[AttachmentUploadInfo] | None = None,
         current_datetime: str | None = None,
         llm_rendered_text: str | None = None,
+        system_prompt_override: str | None = None,
+        max_tool_iterations: int | None = None,
+        mcp_server_names: list[str] | None = None,
+        excluded_tools: list[str] | None = None,
     ) -> AsyncGenerator[str, None]:
         self.think_mode = chat_request.think_mode
+        self._system_prompt_override = system_prompt_override
         self.session_output.reset()
+        ensure_subagent_run_buffer()
         self.content_block_aggregator = ContentBlocksAggregator()
         self.content_block_aggregator.set_tool_name_resolver(
             self.mcp_manager.get_tool_route
@@ -170,7 +193,7 @@ class ChatSessionAgent(BaseAgent):
 
         skill_manifests = (
             get_skill_registry(user_id).list_manifests()
-            if chat_request.agent_mode > 0
+            if system_prompt_override is None and chat_request.agent_mode > 0
             else []
         )
         self._agent_mode = chat_request.agent_mode
@@ -178,10 +201,30 @@ class ChatSessionAgent(BaseAgent):
         self._window_out_summary = history_summary_before_window
         self._language = chat_request.language
         self._refresh_system_prompt()
-        server_names = self._resolve_request_mcp_servers(chat_request)
+        if mcp_server_names is not None:
+            server_names = list(mcp_server_names)
+        else:
+            server_names = resolve_request_mcp_server_names(
+                agent_mode=chat_request.agent_mode
+            )
+        set_turn_delegation(
+            TurnDelegationContext(
+                llm_config=self.model_config,
+                agent_mode=chat_request.agent_mode,
+                language=chat_request.language,
+                think_mode=chat_request.think_mode,
+                mcp_server_names=list(server_names),
+            )
+        )
         tools = await self.mcp_manager.get_tools_for_llm(
             server_names,
         )
+        if excluded_tools:
+            tools = filter_llm_tools(
+                tools,
+                excluded_tools,
+                self.mcp_manager.get_tool_route,
+            )
 
         self._user_message_text = extract_user_text_with_attachment_placeholder(
             chat_request.content_blocks
@@ -261,10 +304,13 @@ class ChatSessionAgent(BaseAgent):
             return
 
         tools_list = list(tools)
-        max_total_iterations = self.resolve_max_tool_iterations(
-            agent_mode=chat_request.agent_mode,
-            task_action=chat_request.task_action,
-        )
+        if max_tool_iterations is not None:
+            max_total_iterations = max_tool_iterations
+        else:
+            max_total_iterations = self.resolve_max_tool_iterations(
+                agent_mode=chat_request.agent_mode,
+                task_action=chat_request.task_action,
+            )
         continue_extra_notice: str | None = None
         continue_extra_plugin = "continue_task"
         if chat_request.agent_mode > 0 and chat_request.task_action == "continue":
@@ -346,7 +392,7 @@ class ChatSessionAgent(BaseAgent):
             conversation_id=conversation_id,
             allow_stop_tools=False,
         )
-        if chat_request.agent_mode > 0:
+        if chat_request.agent_mode > 0 and self._system_prompt_override is None:
             logger.info(
                 "Chat session max tool iterations reached, "
                 "entering iteration checkpoint",
@@ -558,9 +604,7 @@ class ChatSessionAgent(BaseAgent):
     def _resolve_request_mcp_servers(
         self, chat_request: ChatRequest
     ) -> list[str] | None:
-        if chat_request.agent_mode > 0:
-            return list(settings.mcp.agent_mode_servers)
-        return list(settings.mcp.normal_mode_servers)
+        return resolve_request_mcp_server_names(agent_mode=chat_request.agent_mode)
 
     def _build_round_prompt_messages(
         self,
@@ -581,6 +625,20 @@ class ChatSessionAgent(BaseAgent):
         self.session_output.content_blocks = list(self.content_block_aggregator.blocks)
         self.session_output.content = self.content_block_aggregator.get_content()
         self.session_output.reasoning = self.content_block_aggregator.get_reasoning()
+
+    def _accumulate_llm_usage(self, usage: Any) -> None:
+        if usage is None:
+            return
+        if isinstance(usage, dict):
+            prompt_tokens = usage.get("prompt_tokens")
+            completion_tokens = usage.get("completion_tokens")
+        else:
+            prompt_tokens = getattr(usage, "prompt_tokens", None)
+            completion_tokens = getattr(usage, "completion_tokens", None)
+        if isinstance(prompt_tokens, int):
+            self.session_output.input_tokens += prompt_tokens
+        if isinstance(completion_tokens, int):
+            self.session_output.output_tokens += completion_tokens
 
     async def _stream_final_round_events(
         self,
@@ -682,6 +740,7 @@ class ChatSessionAgent(BaseAgent):
             conversation_id=self._conversation_id,
             iteration=iteration,
         )
+        self._accumulate_llm_usage(stream_usage)
 
         merged_tool_calls = tool_call_acc_to_openai_list(tool_call_deltas_by_index)
         has_tool_calls = bool(merged_tool_calls) or finish_reason == "tool_calls"

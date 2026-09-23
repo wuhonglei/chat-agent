@@ -27,14 +27,17 @@ from app.core.observability import (
 from app.mcp.client import MCPClientManager
 from app.mcp.constants import (
     CODE_SERVER,
+    DELEGATE_TASK_LLM,
+    DELEGATE_TASK_ROUTE,
     SHELL_SERVER,
     SKIP_TOOL_RESULT_COMPACTION_SERVERS,
     TAVILY_SERVER,
     WEB_PAGES_EXTRACT_BARE,
 )
 from app.mcp.errors import ToolArgumentValidationError
-from app.mcp.tool_naming import is_llm_tool
+from app.mcp.tool_naming import ToolRoute, is_llm_tool
 from app.schemas.llm import ToolResultMessage
+from app.services.subagent.timeouts import DELEGATE_EXECUTOR_GRACE_SECONDS
 from app.utils.common import normalize_url
 from app.utils.context import set_request_context
 from app.utils.context_compactor import CompactionResult, ContextCompactor
@@ -87,6 +90,21 @@ class ToolExecutor:
         # Set contextvars for tools to access
         set_request_context(user_id=user_id, conversation_id=conversation_id)
 
+    def _is_delegate_task(self, tool_name: str) -> bool:
+        getter = getattr(self.mcp_manager, "get_tool_route", None)
+        if callable(getter):
+            route = getter(tool_name)
+            if isinstance(route, ToolRoute):
+                return route == DELEGATE_TASK_ROUTE
+        return tool_name == DELEGATE_TASK_LLM
+
+    def timeout_seconds_for_tool(self, tool_name: str) -> float:
+        if self._is_delegate_task(tool_name):
+            return float(settings.subagent.timeout_seconds) + float(
+                DELEGATE_EXECUTOR_GRACE_SECONDS
+            )
+        return float(self.OVERALL_TIMEOUT_SECONDS)
+
     async def execute_tool_calls_parallel(
         self,
         *,
@@ -96,63 +114,101 @@ class ToolExecutor:
         on_arguments_recorded: Callable[[str, dict[str, Any], str, bool], None],
     ) -> list[ToolResultMessage]:
         active_calls = [tc for tc in tool_calls if tc is not None]
-        segments = plan_tool_batch_segments(active_calls)
+        delegate_calls = [
+            tc for tc in active_calls if self._is_delegate_task(tc.function.name)
+        ]
+        normal_calls = [
+            tc for tc in active_calls if not self._is_delegate_task(tc.function.name)
+        ]
         results_by_id: dict[str, ToolResultMessage] = {}
-        timeout_content = (
-            f"⏱️ 工具调用整体超时（超过 {self.OVERALL_TIMEOUT_SECONDS} 秒）"
-        )
 
-        async def _run_all_segments() -> None:
+        def _timeout_message(tool_call: ChatCompletionMessageFunctionToolCall) -> None:
+            timeout = self.timeout_seconds_for_tool(tool_call.function.name)
+            results_by_id[tool_call.id] = ToolResultMessage(
+                role="tool",
+                is_error=True,
+                error_source="timeout",
+                content=f"⏱️ 工具调用超时（超过 {timeout:g} 秒）",
+                tool_call_id=tool_call.id,
+            )
+
+        def _halt_message(tool_call: ChatCompletionMessageFunctionToolCall) -> None:
+            results_by_id[tool_call.id] = ToolResultMessage(
+                role="tool",
+                is_error=True,
+                error_source="guardrail_halt",
+                content=self.guardrail.synthetic_halt_message(tool_call.function.name),
+                tool_call_id=tool_call.id,
+            )
+
+        async def _run_call(
+            tool_call: ChatCompletionMessageFunctionToolCall,
+        ) -> ToolResultMessage:
+            return await self.execute_single_tool(
+                tool_call=tool_call,
+                current_iteration=current_iteration,
+                extracted_urls=extracted_urls,
+                on_arguments_recorded=on_arguments_recorded,
+            )
+
+        async def _run_normal_segments() -> None:
+            segments = plan_tool_batch_segments(normal_calls)
             for segment in segments:
                 if self.guardrail.halted:
                     for tool_call in segment:
-                        results_by_id[tool_call.id] = ToolResultMessage(
-                            role="tool",
-                            is_error=True,
-                            error_source="guardrail_halt",
-                            content=self.guardrail.synthetic_halt_message(
-                                tool_call.function.name
-                            ),
-                            tool_call_id=tool_call.id,
-                        )
+                        _halt_message(tool_call)
                     continue
-
                 tasks = [
-                    asyncio.ensure_future(
-                        self.execute_single_tool(
-                            tool_call=tool_call,
-                            current_iteration=current_iteration,
-                            extracted_urls=extracted_urls,
-                            on_arguments_recorded=on_arguments_recorded,
-                        )
-                    )
-                    for tool_call in segment
+                    asyncio.ensure_future(_run_call(tool_call)) for tool_call in segment
                 ]
                 segment_results = list(await asyncio.gather(*tasks))
                 for tool_call, result in zip(segment, segment_results, strict=True):
                     results_by_id[tool_call.id] = result
 
-        try:
-            await asyncio.wait_for(
-                _run_all_segments(),
-                timeout=self.OVERALL_TIMEOUT_SECONDS,
-            )
-        except asyncio.TimeoutError:
-            logger.warning(
-                "Parallel tool execution overall timeout",
-                timeout=self.OVERALL_TIMEOUT_SECONDS,
-                total_calls=len(active_calls),
-                iteration=current_iteration + 1,
-            )
-            for tool_call in active_calls:
-                if tool_call.id not in results_by_id:
-                    results_by_id[tool_call.id] = ToolResultMessage(
-                        role="tool",
-                        is_error=True,
-                        error_source="timeout",
-                        content=timeout_content,
-                        tool_call_id=tool_call.id,
-                    )
+        async def _run_normals() -> None:
+            if not normal_calls:
+                return
+            try:
+                await asyncio.wait_for(
+                    _run_normal_segments(),
+                    timeout=self.OVERALL_TIMEOUT_SECONDS,
+                )
+            except TimeoutError:
+                logger.warning(
+                    "Parallel tool execution overall timeout",
+                    timeout=self.OVERALL_TIMEOUT_SECONDS,
+                    total_calls=len(normal_calls),
+                    iteration=current_iteration + 1,
+                )
+                for tool_call in normal_calls:
+                    if tool_call.id not in results_by_id:
+                        _timeout_message(tool_call)
+
+        async def _run_one_delegate(
+            tool_call: ChatCompletionMessageFunctionToolCall,
+        ) -> None:
+            if self.guardrail.halted:
+                _halt_message(tool_call)
+                return
+            timeout = self.timeout_seconds_for_tool(tool_call.function.name)
+            try:
+                results_by_id[tool_call.id] = await asyncio.wait_for(
+                    _run_call(tool_call),
+                    timeout=timeout,
+                )
+            except TimeoutError:
+                logger.warning(
+                    "Delegate task execution timeout",
+                    timeout=timeout,
+                    tool_name=tool_call.function.name,
+                    iteration=current_iteration + 1,
+                )
+                _timeout_message(tool_call)
+
+        await asyncio.gather(
+            _run_normals(),
+            *(_run_one_delegate(tool_call) for tool_call in delegate_calls),
+        )
 
         ordered = [results_by_id[tc.id] for tc in active_calls]
         tool_name_by_call_id = {

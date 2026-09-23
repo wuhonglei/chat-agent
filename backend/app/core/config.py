@@ -34,6 +34,7 @@ from app.schemas.config import (
     SitesConfig,
     SmsConfig,
     StorageConfig,
+    SubagentConfig,
     WechatConfig,
 )
 from app.utils.logger import logger
@@ -49,6 +50,10 @@ class Settings(BaseSettings):
     )
     embedding_model: EmbeddingModelConfig = Field(description="Embedding 模型 API 配置")
     mcp: MCPConfig = Field(description="MCP 工具配置")
+    subagent: SubagentConfig = Field(
+        default_factory=SubagentConfig,
+        description="子 agent 委派配置",
+    )
     storage: StorageConfig = Field(
         default_factory=StorageConfig,
         description="存储配置（头像本地目录）",

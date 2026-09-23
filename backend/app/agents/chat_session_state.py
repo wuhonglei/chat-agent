@@ -30,6 +30,8 @@ class SessionOutput:
     reasoning: str = ""
     # Agent 模式触达轮次上限后的检查点；落库 / done SSE 用
     iteration_checkpoint: dict[str, int] | None = None
+    input_tokens: int = 0
+    output_tokens: int = 0
 
     def reset(self) -> None:
         self.tool_round_messages.clear()
@@ -37,6 +39,8 @@ class SessionOutput:
         self.content = ""
         self.reasoning = ""
         self.iteration_checkpoint = None
+        self.input_tokens = 0
+        self.output_tokens = 0
 
 
 @dataclass
