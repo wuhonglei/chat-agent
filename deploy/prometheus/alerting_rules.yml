@@ -4,6 +4,10 @@
 #
 # Burn-rate windows follow multi-window error budget burning
 # (critical ~14.4x over 1h with 5m confirmation; warning ~6x over 6h with 30m).
+#
+# ⚠️ 两条燃烧率告警都带「绝对错误数下限」（2026-09-23 加）：内部服务 QPS 只有 0.1~0.2，
+# 安静窗口里哪怕只有 1 个 5xx，比率也能算成 0% 可用性、燃烧率 200 倍 → 直接 critical。
+# 低流量服务只靠比率阈值必然抖，所以要求窗口内真的有一定数量的 5xx 才算数。
 
 groups:
   - name: chat_agent_slo_alerts
@@ -11,36 +15,44 @@ groups:
       - alert: ChatAgentErrorBudgetBurnCritical
         expr: |
           (
-            (1 - slo:http_availability:ratio_1h) / (1 - 0.995) > 14.4
+            (
+              (1 - slo:http_availability:ratio_1h) / (1 - 0.995) > 14.4
+            )
+            and
+            (
+              (1 - slo:http_availability:ratio_5m) / (1 - 0.995) > 14.4
+            )
           )
           and
-          (
-            (1 - slo:http_availability:ratio_5m) / (1 - 0.995) > 14.4
-          )
+          sum(increase(http_requests_total{job="chat-agent",handler!~"/metrics|/api/health.*",status=~"5.."}[1h])) >= 5
         for: 2m
         labels:
           severity: critical
           service: chat-agent
         annotations:
           summary: "chat-agent error budget burning fast (critical)"
-          description: "1h and 5m burn rates exceed ~14.4x the 99.5% monthly budget."
+          description: "1h 与 5m 燃烧率都超过 99.5% 月度预算的 ~14.4 倍，且 1h 内至少 5 个 5xx（避免低流量下单个错误就 paging）。"
 
       - alert: ChatAgentErrorBudgetBurnWarning
         expr: |
           (
-            (1 - slo:http_availability:ratio_6h) / (1 - 0.995) > 6
+            (
+              (1 - slo:http_availability:ratio_6h) / (1 - 0.995) > 6
+            )
+            and
+            (
+              (1 - slo:http_availability:ratio_30m) / (1 - 0.995) > 6
+            )
           )
           and
-          (
-            (1 - slo:http_availability:ratio_30m) / (1 - 0.995) > 6
-          )
+          sum(increase(http_requests_total{job="chat-agent",handler!~"/metrics|/api/health.*",status=~"5.."}[6h])) >= 10
         for: 15m
         labels:
           severity: warning
           service: chat-agent
         annotations:
           summary: "chat-agent error budget burning (warning)"
-          description: "6h and 30m burn rates exceed ~6x the 99.5% monthly budget."
+          description: "6h 与 30m 燃烧率都超过 ~6 倍，且 6h 内至少 10 个 5xx。"
 
       # ⚠️ 这三条（Dependency / LLM / DB pool）依赖 health_dependency_up、db_pool_* 系列，
       # 而它们只在 /api/health/ready 或 /api/health **被请求时**才由 health_probes.py 写出

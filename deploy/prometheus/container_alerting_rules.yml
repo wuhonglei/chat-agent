@@ -34,7 +34,10 @@ groups:
       - alert: ChatAgentContainerDown
         expr: |
           docker_container_up{name=~"chat-agent-.*"} == 0
-        for: 5m
+        # 部署（deploy.sh --force-recreate）会让容器短暂缺席，实测一次部署约 10 分钟、
+        # 单容器缺席可达数分钟；2026-09-22 16:33 就因此发过一封 ChatAgentContainerDown。
+        # 5m 会把每次部署都变成告警，所以放到 10m。
+        for: 10m
         labels:
           severity: critical
           service: chat-agent

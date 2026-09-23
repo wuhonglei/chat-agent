@@ -1,9 +1,17 @@
 # Recording rules for chat-agent HTTP availability SLO.
 # Import into your existing Prometheus platform.
-# Adjust job="chat-agent" to match your scrape config.
+# 注意：job 名与线上 scrape job 一致，是 `chat-agent`（不是 chat-agent-backend）。
 #
 # Default SLO: 99.5% monthly availability (~216 minutes error budget / 30d).
 # Internal agent app with many external deps (LLM, MCP); looser than 99.9%.
+#
+# ⚠️ 不要把分母写成 `clamp_min(sum(rate(...)), 1e-9)`（2026-09-23 实测踩过）：
+# 内部服务 QPS 只有 0.1~0.2，某个 5 分钟窗口里没有业务请求时，`rate()` 全为 0，
+# 分子分母都是 0 → clamp_min 把分母抬成 1e-9 → 比值算出 **0**（可用性看起来 0%）
+# → 燃烧率 200 倍 → 立刻 FIRING，下一分钟有流量了又 RESOLVED。
+# 当天 8 小时里这种「假警报」发了 4 轮，而 24h 内真实 5xx = 0。
+# 正确做法：去掉 clamp_min，让 0/0 = NaN —— NaN 与阈值比较恒为 false，规则自然不会响；
+# 面板上显示为空档，比显示「可用性 0%」诚实得多。
 
 groups:
   - name: chat_agent_slo_recording
@@ -14,33 +22,34 @@ groups:
         expr: |
           sum(rate(http_requests_total{job="chat-agent",handler!~"/metrics|/api/health.*",status!~"5.."}[5m]))
           /
-          clamp_min(sum(rate(http_requests_total{job="chat-agent",handler!~"/metrics|/api/health.*"}[5m])), 1e-9)
+          sum(rate(http_requests_total{job="chat-agent",handler!~"/metrics|/api/health.*"}[5m]))
 
       - record: slo:http_availability:ratio_30m
         expr: |
           sum(rate(http_requests_total{job="chat-agent",handler!~"/metrics|/api/health.*",status!~"5.."}[30m]))
           /
-          clamp_min(sum(rate(http_requests_total{job="chat-agent",handler!~"/metrics|/api/health.*"}[30m])), 1e-9)
+          sum(rate(http_requests_total{job="chat-agent",handler!~"/metrics|/api/health.*"}[30m]))
 
       - record: slo:http_availability:ratio_1h
         expr: |
           sum(rate(http_requests_total{job="chat-agent",handler!~"/metrics|/api/health.*",status!~"5.."}[1h]))
           /
-          clamp_min(sum(rate(http_requests_total{job="chat-agent",handler!~"/metrics|/api/health.*"}[1h])), 1e-9)
+          sum(rate(http_requests_total{job="chat-agent",handler!~"/metrics|/api/health.*"}[1h]))
 
       - record: slo:http_availability:ratio_6h
         expr: |
           sum(rate(http_requests_total{job="chat-agent",handler!~"/metrics|/api/health.*",status!~"5.."}[6h]))
           /
-          clamp_min(sum(rate(http_requests_total{job="chat-agent",handler!~"/metrics|/api/health.*"}[6h])), 1e-9)
+          sum(rate(http_requests_total{job="chat-agent",handler!~"/metrics|/api/health.*"}[6h]))
 
       - record: slo:http_availability:ratio_30d
         expr: |
           sum(rate(http_requests_total{job="chat-agent",handler!~"/metrics|/api/health.*",status!~"5.."}[30d]))
           /
-          clamp_min(sum(rate(http_requests_total{job="chat-agent",handler!~"/metrics|/api/health.*"}[30d])), 1e-9)
+          sum(rate(http_requests_total{job="chat-agent",handler!~"/metrics|/api/health.*"}[30d]))
 
       # Remaining error budget for 99.5% SLO: 1 = full, 0 = exhausted
+      # 窗口内没有业务请求时 ratio 是 NaN，这里同样会是 NaN（表示「不适用」而不是「用光了」）。
       - record: slo:http_error_budget:remaining_30d
         expr: |
           (slo:http_availability:ratio_30d - 0.995) / (1 - 0.995)
