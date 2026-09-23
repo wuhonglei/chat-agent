@@ -106,6 +106,7 @@ def test_agent_mode_1_persists_to_workspace(tmp_path: Path, monkeypatch: pytest.
     assert "full output persisted" in result.content
     assert f"{len(content)} chars total, 1 lines" in result.content
     assert "/mnt/user-data/workspace/tool-results/shell_exec-1.txt" in result.content
+    assert "共 1 行" in result.content
     assert "read_file" in result.content
     physical = (
         tmp_path

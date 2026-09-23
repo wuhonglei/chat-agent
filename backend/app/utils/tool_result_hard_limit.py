@@ -174,7 +174,7 @@ def _format_persisted_content(
         f"{_PERSISTED_MARKER}] ...\n\n"
     )
     footer = (
-        f"\n\n[完整输出已保存到 {virtual_path}]\n"
+        f"\n\n[完整输出已保存到 {virtual_path}，共 {total_lines} 行]\n"
         "需要更多细节时请用 read_file 读取该路径（可用 offset/limit）。"
     )
     if not tail:
