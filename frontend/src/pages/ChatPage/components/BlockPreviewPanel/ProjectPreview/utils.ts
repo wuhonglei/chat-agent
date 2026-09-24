@@ -213,6 +213,10 @@ export function isImagePath(path: string): boolean {
   return Boolean(ext && IMAGE_EXTENSIONS.has(ext));
 }
 
+export function isSvgPath(path: string): boolean {
+  return path.split(".").pop()?.toLowerCase() === "svg";
+}
+
 export function getImageMimeType(path: string): string {
   const ext = path.split(".").pop()?.toLowerCase();
   return (ext && IMAGE_MIME_BY_EXT[ext]) || "application/octet-stream";

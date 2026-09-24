@@ -1,6 +1,6 @@
 import { Empty, Spin, Tabs, Typography } from "antd";
 import React, { useMemo } from "react";
-import type { ExcelSheet } from "./hooks";
+import type { ExcelSheet } from "../hooks";
 
 const SheetTable: React.FC<{ sheet: ExcelSheet }> = ({ sheet }) => {
   if (sheet.rows.length === 0) {
