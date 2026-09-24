@@ -1,6 +1,6 @@
 ---
 name: design-doc-mermaid
-description: Create Mermaid diagrams (flowchart, sequence, class, ER, state, C4, architecture) from text or source code. Default for GitHub wiki. Use when asked to create a diagram, generate mermaid, document architecture, or convert code to diagram. PlantUML is only for leftover types. Confluence needs PNG/SVG as well as the fence.
+description: Create Mermaid diagrams (flowchart, sequence, class, ER, state, C4, architecture) from text or source code. Default for GitHub wiki. Use when asked to create a diagram, generate mermaid, document architecture, or convert code to diagram. PlantUML is only for leftover types. Default output is a mermaid fence or .mmd only. Do not render PNG or SVG unless the user asks, or the target is Confluence, Notion, Word, or PDF.
 ---
 
 # Mermaid Architect - Hierarchical Diagram and Documentation Skill
@@ -31,7 +31,7 @@ Mermaid diagram and documentation system with specialized guides and code-to-dia
 1. **User makes a request** → Skill analyzes intent
 2. **Skill determines diagram/document type** → Loads appropriate guide(s)
 3. **AI reads specialized guide** → Generates diagram/document using templates
-4. **Result delivered** → With validation and export options
+4. **Result delivered** → Fenced `mermaid` block or `.mmd` file. Do not export PNG/SVG unless the user asks, or the target is Confluence, Notion, Word, or PDF.
 
 **User Intent Analysis:**
 
@@ -59,19 +59,20 @@ flowchart TD
     Unicode --> Generate
     Scripts --> Execute[Execute Script]
 
-    Generate --> Validate{Validate?}
-    Validate -->|Yes| RunValidation[Run mmdc validation]
-    Validate -->|No| Output
-    RunValidation --> Output[Output Result]
+    Generate --> Output[Output fence or .mmd]
+    Output --> Image{PNG or SVG requested?}
+    Image -->|Yes| Render[Render with mmdc]
+    Image -->|No| Done[Done]
+    Render --> Done
     Execute --> Output
 
     classDef decision fill:#FFD700,stroke:#333,stroke-width:2px,color:black
     classDef guide fill:#90EE90,stroke:#333,stroke-width:2px,color:darkgreen
     classDef action fill:#87CEEB,stroke:#333,stroke-width:2px,color:darkblue
 
-    class Analyze,Validate decision
+    class Analyze,Image decision
     class Activity,Deploy,Arch,Sequence,WikiGuide,CodeToDiag,DesignDoc,Unicode,Scripts guide
-    class Generate,Execute,RunValidation,Output action
+    class Generate,Execute,Output,Render,Done action
 ```
 
 ## Available Guides and Resources
@@ -130,7 +131,7 @@ Default for WikiTicket and GitHub wiki is this skill, including `classDiagram`, 
 |--------|---------|-----------|
 | `extract_mermaid.py` | Extract diagrams from Markdown, validate syntax, replace with images | "extract diagrams", "validate mermaid", "find all diagrams" |
 | `mermaid_to_image.py` | Convert .mmd to PNG/SVG, batch conversion, custom themes | "convert to image", "render diagram", "create PNG" |
-| `resilient_diagram.py` | Full workflow: save .mmd, generate image, validate, error recovery | "generate diagram", "create diagram with validation", "resilient diagram" |
+| `resilient_diagram.py` | Save `.mmd`, then render PNG/SVG only when an image is requested | "convert to image", "create PNG", "render SVG", "resilient diagram" |
 
 
 ## GitHub wiki, WikiTicket, and Confluence
@@ -159,37 +160,41 @@ Common request patterns and guide selection. See [When to Use What](#when-to-use
 
 ## Resilient Workflow
 
-**CRITICAL:** This is the recommended approach for ALL diagram generation. It ensures validation, error recovery, and consistent file organization.
+**Default:** write a fenced `mermaid` block, or save only the `.mmd` source. Do not run `mmdc`, `scripts/resilient_diagram.py`, or `scripts/mermaid_to_image.py`, and do not write PNG or SVG.
 
-**Full Guide:** `references/guides/resilient-workflow.md`
+**Render PNG or SVG only when:**
+
+- the user explicitly asks to convert, render, export, or create a PNG/SVG, or
+- the target is Confluence, Notion, Word, or PDF.
+
+`references/guides/resilient-workflow.md` describes image export. Load it only for those cases. Its steps that always generate an image do not apply to the default path.
 
 ### Workflow Overview
 
 ```mermaid
 flowchart LR
-    A[1. Identify Type] --> B[2. Save .mmd + Image]
-    B --> C{3. Valid?}
-    C -->|Yes| D[4. Add to Markdown]
-    C -->|No| E[5. Error Recovery]
-    E --> F{Fix Found?}
-    F -->|Yes| A
-    F -->|No| G[Search External]
-    G --> A
+    A[1. Identify Type] --> B[2. Write fence or .mmd]
+    B --> C{3. Image requested?}
+    C -->|No| D[4. Add fence to Markdown]
+    C -->|Yes| E[5. Render PNG or SVG]
+    E --> F{6. Valid?}
+    F -->|Yes| G[7. Add image reference]
+    F -->|No| H[8. Error Recovery]
+    H --> A
 
     classDef step fill:#90EE90,stroke:#333,color:darkgreen
     classDef decision fill:#FFD700,stroke:#333,color:black
-    class A,B,D,E,G step
+    class A,B,D,E,G,H step
     class C,F decision
 ```
 
 ### Key Principle
 
-**NEVER add a diagram to markdown until it passes validation.** This prevents broken diagrams in documentation.
+Ship the Mermaid source. Add an image reference only after a requested render succeeds.
 
-### Using the Script (Recommended)
+### Image Export (only when requested)
 
 ```bash
-# Generate with full error recovery
 python scripts/resilient_diagram.py \
     --code "flowchart TD; A-->B" \
     --markdown-file design_doc \
@@ -199,7 +204,7 @@ python scripts/resilient_diagram.py \
     --json
 ```
 
-**Output:** Both `.mmd` and `.png` files in `./diagrams/` directory.
+**Output when exporting:** `.mmd` plus `.png` or `.svg` in `./diagrams/`.
 
 ### File Naming Convention
 
@@ -208,11 +213,11 @@ python scripts/resilient_diagram.py \
 ./diagrams/<markdown_file>_<num>_<type>_<title>.png
 ```
 
-**Example:** `./diagrams/api_design_01_sequence_auth_flow.png`
+PNG or SVG exists only after an explicit export. Example: `./diagrams/api_design_01_sequence_auth_flow.png`.
 
 ### Error Recovery Priority
 
-When validation fails, the workflow automatically:
+When a requested render fails:
 
 1. **Check troubleshooting guide** - `references/guides/troubleshooting.md` (28 documented errors)
 2. **Search with perplexity** - `perplexity_ask` MCP for syntax questions
@@ -222,37 +227,26 @@ When validation fails, the workflow automatically:
 
 ### Manual Fallback Steps
 
-If the script is unavailable:
-
 1. **Identify diagram type** from first line (flowchart, sequence, etc.)
 2. **Load reference guide** from `references/guides/diagrams/`
-3. **Save to** `./diagrams/<markdown_file>_<num>_<type>_<title>.mmd`
-4. **Validate:** `mmdc -i file.mmd -o file.png -b transparent`
-5. **On error:** Search `references/guides/troubleshooting.md` for matching error
-6. **If not found:** Use search tools in priority order above
-7. **Add reference:** `![Description](./diagrams/filename.png)`
+3. **Write** a fenced `mermaid` block, or save `./diagrams/<markdown_file>_<num>_<type>_<title>.mmd`
+4. **Stop here** unless an image was requested
+5. **If an image was requested:** `mmdc -i file.mmd -o file.png -b transparent`
+6. **On error:** Search `references/guides/troubleshooting.md` for matching error
+7. **If not found:** Use search tools in priority order above
+8. **After a successful render:** `![Description](./diagrams/filename.png)`
 
-### Pattern 6: Resilient Diagram Generation
+### Pattern 6: Add a Diagram to a Design Doc
 
 **User:** "Create a sequence diagram and add it to the design doc"
 
 **Skill Actions:**
 1. Identify intent: **diagram generation** + **markdown integration**
-2. Load workflow guide: `references/guides/resilient-workflow.md`
-3. Identify diagram type: **sequence**
-4. Load diagram guide: `references/guides/diagrams/sequence-diagrams.md`
-5. Generate Mermaid code using templates
-6. Execute resilient workflow:
-   ```bash
-   python scripts/resilient_diagram.py \
-       --code "[generated code]" \
-       --markdown-file design_doc \
-       --diagram-num 1 \
-       --title "api_sequence" \
-       --json
-   ```
-7. If validation fails → Apply troubleshooting fix → Retry
-8. On success → Add `![API Sequence](./diagrams/design_doc_01_sequence_api_sequence.png)` to markdown
+2. Identify diagram type: **sequence**
+3. Load diagram guide: `references/guides/diagrams/sequence-diagrams.md`
+4. Generate Mermaid code using templates
+5. Add a fenced `mermaid` block to the markdown. Do not render PNG or SVG.
+6. Render an image only if the user asked for PNG/SVG, or the target is Confluence, Notion, Word, or PDF. Then run `scripts/resilient_diagram.py` and add `![API Sequence](./diagrams/design_doc_01_sequence_api_sequence.png)`.
 
 ## Unicode Semantic Symbols
 
@@ -457,8 +451,8 @@ design-doc-mermaid/
 2. **Load appropriate guide(s)** → Read only what's needed (token efficient)
 3. **Apply templates and patterns** → Use examples from guides
 4. **Generate output** → Create diagram or document
-5. **Validate** (optional) → Use scripts to verify
-6. **Convert** (optional) → Export to images if needed
+5. **Validate** (only if asked) → Use scripts to verify syntax
+6. **Do not convert** to PNG/SVG unless the user explicitly asks, or the target is Confluence, Notion, Word, or PDF
 
 ## When to Use What
 
@@ -478,7 +472,7 @@ design-doc-mermaid/
 | "syntax error", "diagram won't render", "troubleshoot" | `references/guides/troubleshooting.md` |
 | "extract diagrams" | `scripts/extract_mermaid.py` |
 | "convert to image", "PNG", "SVG" | `scripts/mermaid_to_image.py` |
-| "create diagram", "generate diagram", "add diagram to markdown" | `scripts/resilient_diagram.py` + `references/guides/resilient-workflow.md` |
+| "create diagram", "generate diagram", "add diagram to markdown" | Matching diagram guide. Write a fenced `mermaid` block or `.mmd`. Do not render PNG/SVG. |
 | "design document", "full docs" | `assets/*-design-template.md` + diagram guides |
 
 ## Best Practices
@@ -486,7 +480,7 @@ design-doc-mermaid/
 1. **Single Responsibility**: One diagram = One concept
 2. **Unicode Enhancement**: Always use semantic symbols for clarity
 3. **High Contrast**: Never skip the `color:` property in styles
-4. **Validate Early**: Use scripts to catch syntax errors
+4. **Validate on request**: Use scripts to catch syntax errors. Do not export PNG/SVG unless asked.
 5. **Template Reuse**: Leverage existing templates and examples
 6. **Load On-Demand**: Only read guides needed for the specific request
 7. **Token Efficiency**: Use hierarchical loading instead of reading everything
