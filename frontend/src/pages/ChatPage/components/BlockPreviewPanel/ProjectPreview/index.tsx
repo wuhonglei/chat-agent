@@ -17,10 +17,10 @@ import { Folder } from "@ant-design/x";
 import { useRequest } from "ahooks";
 import { Alert, Button, Form, Input, Modal, Segmented, Space, Spin, Tooltip } from "antd";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { SelectedFile } from "./FilePreviewContent";
-import FilePreviewContent from "./FilePreviewContent";
+import type { SelectedFile } from "./components/FilePreviewContent";
+import FilePreviewContent from "./components/FilePreviewContent";
 import { PROJECT_PREVIEW_DIRECTORY_ICONS } from "./file_icons";
-import { getPublishedHtmlPreviewUrl } from "./htmlPreview";
+import { getPublishedHtmlPreviewUrl } from "./utils/htmlPreview";
 import { useWorkspaceExcelWorkbook, useWorkspaceImagePreview } from "./hooks";
 import {
   SITE_OUTPUTS_DIR,

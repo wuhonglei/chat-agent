@@ -2,14 +2,14 @@ import MarkdownContainer from "@/pages/ChatPage/components/MarkdownContainer";
 import Editor from "@monaco-editor/react";
 import { DownloadOutlined } from "@ant-design/icons";
 import { Alert, Button, Empty, Segmented, Spin, Typography } from "antd";
-import React, { useState } from "react";
-import PreviewScrollBody from "../PreviewScrollBody";
+import React, { useMemo, useState } from "react";
+import PreviewScrollBody from "../../PreviewScrollBody";
+import type { ExcelSheet } from "../hooks";
+import { getDefaultHtmlViewMode, type HtmlViewMode } from "../utils/htmlPreview";
+import { isHtmlPath } from "../utils/sitePaths";
+import { getMonacoLanguage, isMarkdownPath, isSvgPath } from "../utils";
 import WorkspaceExcelPreview from "./WorkspaceExcelPreview";
 import WorkspaceImagePreview from "./WorkspaceImagePreview";
-import type { ExcelSheet } from "./hooks";
-import { getDefaultHtmlViewMode, type HtmlViewMode } from "./htmlPreview";
-import { isHtmlPath } from "./sitePaths";
-import { getMonacoLanguage, isMarkdownPath } from "./utils";
 
 const HTML_IFRAME_SANDBOX =
   "allow-scripts allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-downloads allow-presentation";
@@ -119,6 +119,46 @@ const HtmlFilePreview: React.FC<{
   );
 };
 
+function toSvgDataUrl(content: string): string {
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(content)}`;
+}
+
+const SvgFilePreview: React.FC<{ file: SelectedFile }> = ({ file }) => {
+  const [userViewMode, setUserViewMode] = useState<HtmlViewMode | null>(null);
+  const viewMode = userViewMode ?? "preview";
+  const previewUrl = useMemo(() => toSvgDataUrl(file.content), [file.content]);
+
+  return (
+    <div className="h-full min-h-0 flex flex-col">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-(--ant-color-border-secondary) px-3 py-2">
+        <Typography.Text type="secondary" className="min-w-0 truncate">
+          {file.title}
+        </Typography.Text>
+        <Segmented<HtmlViewMode>
+          size="small"
+          value={viewMode}
+          onChange={setUserViewMode}
+          options={[
+            { label: "预览", value: "preview" },
+            { label: "源码", value: "source" },
+          ]}
+        />
+      </div>
+      {viewMode === "preview" ? (
+        <div className="min-h-0 flex flex-1 items-center justify-center overflow-auto bg-(--ant-color-fill-quaternary) p-4">
+          {file.content.trim() ? (
+            <img src={previewUrl} alt={file.title} className="max-h-full max-w-full object-contain" />
+          ) : (
+            <Empty description="暂无可预览内容" />
+          )}
+        </div>
+      ) : (
+        <FileSourceEditor file={file} />
+      )}
+    </div>
+  );
+};
+
 const FilePreviewContent: React.FC<FilePreviewContentProps> = ({
   width,
   loadingFile,
@@ -191,6 +231,10 @@ const FilePreviewContent: React.FC<FilePreviewContentProps> = ({
         publishedPreviewUrl={publishedPreviewUrl}
       />
     );
+  }
+
+  if (isSvgPath(selectedFile.path)) {
+    return <SvgFilePreview key={selectedFile.path} file={selectedFile} />;
   }
 
   const layoutWidth = width > 0 ? width : 0;
