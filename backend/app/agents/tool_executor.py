@@ -99,8 +99,8 @@ class ToolExecutor:
     def timeout_seconds_for_tool(self, tool_name: str) -> float:
         """Executor wait budget for delegate tasks.
 
-        Ordinary tools are not capped as a batch. Each call is limited by the
-        MCP gateway timeout.
+        Ordinary tools are not capped here. Shell exec also skips the MCP
+        gateway call timeout and uses the command timeout only.
         """
         if not self._is_delegate_task(tool_name):
             raise ValueError(f"{tool_name} is not a delegate task")
