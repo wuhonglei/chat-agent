@@ -5,6 +5,7 @@ import { CloseOutlined, DownloadOutlined } from "@ant-design/icons";
 import { Button, Spin, Tooltip, Typography } from "antd";
 import { useRequest } from "ahooks";
 import React from "react";
+import FullscreenPreviewButton from "../FullscreenPreviewButton";
 import PreviewScrollBody from "../PreviewScrollBody";
 
 export interface MarkdownBlockPreviewPanelProps {
@@ -52,6 +53,7 @@ const MarkdownBlockPreviewPanel: React.FC<MarkdownBlockPreviewPanelProps> = ({ w
           <Tooltip title="下载 Markdown">
             <Button type="text" onClick={handleDownload} icon={<DownloadOutlined />} disabled={Boolean(errorMessage)} />
           </Tooltip>
+          <FullscreenPreviewButton />
           <Button type="text" onClick={onClose} icon={<CloseOutlined />} />
         </div>
       </header>

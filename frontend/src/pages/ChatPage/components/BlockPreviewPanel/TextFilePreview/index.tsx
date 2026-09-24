@@ -5,6 +5,7 @@ import { downloadFileByUrl } from "@/utils";
 import { CloseOutlined, DownloadOutlined } from "@ant-design/icons";
 import { Button, Empty, Spin, Tooltip, Typography } from "antd";
 import React, { useMemo } from "react";
+import FullscreenPreviewButton from "../FullscreenPreviewButton";
 import PreviewScrollBody from "../PreviewScrollBody";
 import { parseDelimitedToRows, useTextFileContent } from "./hooks";
 
@@ -105,6 +106,7 @@ const TextFileBlockPreviewPanel: React.FC<TextFileBlockPreviewPanelProps> = ({
               disabled={Boolean(error)}
             />
           </Tooltip>
+          <FullscreenPreviewButton />
           <Button type="text" onClick={onClose} icon={<CloseOutlined />} />
         </div>
       </header>

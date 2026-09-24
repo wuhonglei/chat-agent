@@ -20,3 +20,7 @@
 .splitter div:global(.ant-splitter-bar[aria-valuenow="100"]) {
   overflow: hidden;
 }
+
+.splitterFullscreen :global(.ant-splitter-bar) {
+  display: none;
+}

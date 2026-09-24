@@ -32,6 +32,7 @@ const ChatPage: React.FC = () => {
   const {
     previewBlock,
     previewPanelSize,
+    previewFullscreen,
     handleOpenBlockPreview,
     handleCloseBlockPreview,
     handleSplitterResize,
@@ -70,10 +71,10 @@ const ChatPage: React.FC = () => {
             root: { height: "100%", width: "100%" },
           }}
           classNames={{
-            root: styles["splitter"],
+            root: classNames(styles.splitter, previewFullscreen && styles.splitterFullscreen),
           }}
         >
-          <Splitter.Panel>
+          <Splitter.Panel size={previewFullscreen ? 0 : undefined} min={previewFullscreen ? 0 : undefined}>
             <section className="h-full min-h-0 flex flex-col">
               <TopHeader conversationInfo={conversationInfo} />
               <main className="flex-1 min-h-0 flex">
@@ -116,10 +117,10 @@ const ChatPage: React.FC = () => {
           </Splitter.Panel>
           <Splitter.Panel
             className="shadow-xl"
-            min={previewBlock ? "20%" : 0}
+            min={previewBlock ? (previewFullscreen ? 0 : "20%") : 0}
             max={previewBlock ? "100%" : 0}
-            resizable={Boolean(previewBlock)}
-            size={previewBlock ? previewPanelSize : 0}
+            resizable={Boolean(previewBlock) && !previewFullscreen}
+            size={previewBlock ? (previewFullscreen ? "100%" : previewPanelSize) : 0}
           >
             {previewBlock ? (
               <BlockPreviewPanel

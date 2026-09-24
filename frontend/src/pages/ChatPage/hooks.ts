@@ -1,4 +1,4 @@
-import { emitter, EventType } from "@/events";
+import { emitPreviewFullscreen, emitter, EventType, getPreviewFullscreen, useEmitter } from "@/events";
 import {
   ChatInputFormValues,
   ChatMessage as ChatMessageType,
@@ -8,7 +8,7 @@ import {
 import type { PreviewableBlock } from "@/interfaces/contentBlock";
 import { useMemoizedFn } from "ahooks";
 import type { FormInstance } from "antd";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 interface UseBlockPreviewHandlersParams {
   isSmallScreen: boolean;
@@ -98,6 +98,29 @@ function getDefaultPreviewPanelWidthPx(isSmallScreen: boolean): number {
 export const useBlockPreviewHandlers = ({ isSmallScreen }: UseBlockPreviewHandlersParams) => {
   const [previewBlock, setPreviewBlock] = useState<PreviewableBlock | null>(null);
   const [previewPanelSize, setPreviewPanelSize] = useState(0);
+  const [previewFullscreen, setPreviewFullscreen] = useState(getPreviewFullscreen);
+  const previewSizeBeforeFullscreenRef = useRef<number | null>(null);
+
+  useEmitter(EventType.ChangePreviewFullscreen, fullscreen => {
+    setPreviewFullscreen(fullscreen);
+    if (fullscreen) {
+      previewSizeBeforeFullscreenRef.current = previewPanelSize;
+      return;
+    }
+    const previousSize = previewSizeBeforeFullscreenRef.current;
+    previewSizeBeforeFullscreenRef.current = null;
+    if (previousSize != null && previousSize > 0) {
+      setPreviewPanelSize(previousSize);
+    }
+  });
+
+  useEffect(() => {
+    return () => {
+      if (getPreviewFullscreen()) {
+        emitPreviewFullscreen(false);
+      }
+    };
+  }, []);
 
   const handleOpenBlockPreview = useMemoizedFn((block: PreviewableBlock) => {
     emitter.emit(EventType.ChangeSidebarCollapse, true);
@@ -106,6 +129,9 @@ export const useBlockPreviewHandlers = ({ isSmallScreen }: UseBlockPreviewHandle
   });
 
   const handleCloseBlockPreview = useMemoizedFn(() => {
+    if (getPreviewFullscreen()) {
+      emitPreviewFullscreen(false);
+    }
     if (!isSmallScreen) {
       emitter.emit(EventType.ChangeSidebarCollapse, false);
     }
@@ -114,7 +140,7 @@ export const useBlockPreviewHandlers = ({ isSmallScreen }: UseBlockPreviewHandle
   });
 
   const handleSplitterResize = useMemoizedFn((sizes: number[]) => {
-    if (!previewBlock) {
+    if (!previewBlock || previewFullscreen) {
       return;
     }
     const nextPreviewPanelSize = sizes[1];
@@ -126,6 +152,7 @@ export const useBlockPreviewHandlers = ({ isSmallScreen }: UseBlockPreviewHandle
   return {
     previewBlock,
     previewPanelSize,
+    previewFullscreen,
     handleOpenBlockPreview,
     handleCloseBlockPreview,
     handleSplitterResize,

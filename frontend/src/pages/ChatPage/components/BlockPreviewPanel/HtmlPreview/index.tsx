@@ -3,6 +3,7 @@ import { downloadHtmlContent } from "@/utils";
 import { CloseOutlined, DownloadOutlined } from "@ant-design/icons";
 import { Button, Tooltip, Typography } from "antd";
 import React from "react";
+import FullscreenPreviewButton from "../FullscreenPreviewButton";
 
 export interface HtmlBlockPreviewPanelProps {
   width: number;
@@ -28,6 +29,7 @@ const HtmlBlockPreviewPanel: React.FC<HtmlBlockPreviewPanelProps> = ({ block, on
               disabled={!block.content.trim()}
             />
           </Tooltip>
+          <FullscreenPreviewButton />
           <Button type="text" onClick={onClose} icon={<CloseOutlined />} />
         </div>
       </header>

@@ -291,6 +291,7 @@ export function useMainLayoutSidebar() {
   const [collapsed, setCollapsed] = useState(isSmallScreen);
   const siderBarRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const sidebarCollapsedBeforeFullscreenRef = useRef<boolean | null>(null);
 
   useClickAway(event => {
     const isContentClick = contentRef.current?.contains(event.target as Node);
@@ -299,6 +300,19 @@ export function useMainLayoutSidebar() {
 
   useEmitter(EventType.ChangeSidebarCollapse, nextCollapsed => {
     setCollapsed(nextCollapsed);
+  });
+
+  useEmitter(EventType.ChangePreviewFullscreen, fullscreen => {
+    if (fullscreen) {
+      sidebarCollapsedBeforeFullscreenRef.current = collapsed;
+      setCollapsed(true);
+      return;
+    }
+    const previous = sidebarCollapsedBeforeFullscreenRef.current;
+    sidebarCollapsedBeforeFullscreenRef.current = null;
+    if (previous !== null) {
+      setCollapsed(previous);
+    }
   });
 
   const handleCollapse = useMemoizedFn(() => setCollapsed(prev => !prev));
