@@ -250,16 +250,15 @@ def test_resolve_servers_follows_mode_lists(monkeypatch: Any) -> None:
     assert resolve_request_mcp_server_names(agent_mode=1) == ["file"]
 
 
-def test_delegate_timeout_is_separate_from_batch_timeout() -> None:
+def test_delegate_timeout_uses_subagent_budget() -> None:
     executor = ToolExecutor(
         cast(Any, object()),
         "message",
         "gpt-4o-mini",
         131072,
     )
-    assert executor.timeout_seconds_for_tool("file_read_file") == float(
-        ToolExecutor.OVERALL_TIMEOUT_SECONDS
-    )
+    with pytest.raises(ValueError, match="not a delegate task"):
+        executor.timeout_seconds_for_tool("file_read_file")
     assert executor.timeout_seconds_for_tool("subagent_delegate_task") == float(
         settings.subagent.timeout_seconds
     ) + float(DELEGATE_EXECUTOR_GRACE_SECONDS)
@@ -294,7 +293,6 @@ async def _run_delegate_beside_slow_tool(
         )
 
     executor.execute_single_tool = execute_single_tool  # type: ignore[method-assign]
-    executor.OVERALL_TIMEOUT_SECONDS = 0.05  # type: ignore[misc]
 
     def tool_call(name: str, call_id: str) -> ChatCompletionMessageFunctionToolCall:
         return ChatCompletionMessageFunctionToolCall(
@@ -315,7 +313,7 @@ async def _run_delegate_beside_slow_tool(
 
 
 @pytest.mark.asyncio
-async def test_delegate_is_not_cancelled_by_batch_timeout(
+async def test_slow_normal_tool_does_not_cancel_delegate(
     monkeypatch: Any,
 ) -> None:
     monkeypatch.setattr(settings.subagent, "timeout_seconds", 1)
@@ -333,8 +331,8 @@ async def test_delegate_is_not_cancelled_by_batch_timeout(
     results = await _run_delegate_beside_slow_tool(executor)
     by_id = {result.tool_call_id: result for result in results}
     assert by_id["delegate"].content == "delegated"
-    assert by_id["normal"].is_error
-    assert "超时" in by_id["normal"].content
+    assert by_id["normal"].content == "normal-finished"
+    assert not by_id["normal"].is_error
 
 
 def _parent_llm() -> LLMConfig:

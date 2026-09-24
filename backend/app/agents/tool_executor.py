@@ -50,8 +50,6 @@ from app.utils.tool_result_hard_limit import apply_hard_limit, enforce_turn_budg
 class ToolExecutor:
     """Execute MCP tools and compact their results."""
 
-    OVERALL_TIMEOUT_SECONDS = 90
-
     def __init__(
         self,
         mcp_manager: MCPClientManager,
@@ -99,11 +97,16 @@ class ToolExecutor:
         return tool_name == DELEGATE_TASK_LLM
 
     def timeout_seconds_for_tool(self, tool_name: str) -> float:
-        if self._is_delegate_task(tool_name):
-            return float(settings.subagent.timeout_seconds) + float(
-                DELEGATE_EXECUTOR_GRACE_SECONDS
-            )
-        return float(self.OVERALL_TIMEOUT_SECONDS)
+        """Executor wait budget for delegate tasks.
+
+        Ordinary tools are not capped as a batch. Each call is limited by the
+        MCP gateway timeout.
+        """
+        if not self._is_delegate_task(tool_name):
+            raise ValueError(f"{tool_name} is not a delegate task")
+        return float(settings.subagent.timeout_seconds) + float(
+            DELEGATE_EXECUTOR_GRACE_SECONDS
+        )
 
     async def execute_tool_calls_parallel(
         self,
@@ -168,21 +171,7 @@ class ToolExecutor:
         async def _run_normals() -> None:
             if not normal_calls:
                 return
-            try:
-                await asyncio.wait_for(
-                    _run_normal_segments(),
-                    timeout=self.OVERALL_TIMEOUT_SECONDS,
-                )
-            except TimeoutError:
-                logger.warning(
-                    "Parallel tool execution overall timeout",
-                    timeout=self.OVERALL_TIMEOUT_SECONDS,
-                    total_calls=len(normal_calls),
-                    iteration=current_iteration + 1,
-                )
-                for tool_call in normal_calls:
-                    if tool_call.id not in results_by_id:
-                        _timeout_message(tool_call)
+            await _run_normal_segments()
 
         async def _run_one_delegate(
             tool_call: ChatCompletionMessageFunctionToolCall,
