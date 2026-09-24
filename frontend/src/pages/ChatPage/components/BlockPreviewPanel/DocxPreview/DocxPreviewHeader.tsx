@@ -1,6 +1,7 @@
 import { CloseOutlined, DownloadOutlined } from "@ant-design/icons";
 import { Button, Segmented, Tooltip, Typography } from "antd";
 import React from "react";
+import FullscreenPreviewButton from "../FullscreenPreviewButton";
 
 export type PreviewMode = "document" | "markdown";
 
@@ -45,6 +46,7 @@ const DocxPreviewHeader: React.FC<DocxPreviewHeaderProps> = ({
         <Tooltip title={downloadTitle}>
           <Button type="text" onClick={onDownload} icon={<DownloadOutlined />} disabled={downloadDisabled} />
         </Tooltip>
+        <FullscreenPreviewButton />
         <Button type="text" onClick={onClose} icon={<CloseOutlined />} />
       </div>
     </header>

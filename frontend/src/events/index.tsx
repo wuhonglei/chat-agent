@@ -4,16 +4,29 @@ import { useEffect } from "react";
 export enum EventType {
   ChangeConversion = "changeConversion", // 切换对话
   ChangeSidebarCollapse = "changeSidebarCollapse", // 切换侧边栏折叠状态
+  ChangePreviewFullscreen = "changePreviewFullscreen", // 内容块预览全屏
   WorkspaceTreeRefresh = "workspaceTreeRefresh", // 刷新工作区文件树
 }
 
 type Events = {
   [EventType.ChangeConversion]: void;
   [EventType.ChangeSidebarCollapse]: boolean;
+  [EventType.ChangePreviewFullscreen]: boolean;
   [EventType.WorkspaceTreeRefresh]: { workspaceId: string };
 };
 
 export const emitter: Emitter<Events> = mitt<Events>();
+
+let previewFullscreen = false;
+
+export function getPreviewFullscreen(): boolean {
+  return previewFullscreen;
+}
+
+export function emitPreviewFullscreen(next: boolean): void {
+  previewFullscreen = next;
+  emitter.emit(EventType.ChangePreviewFullscreen, next);
+}
 
 /**
  * 使用全局 emitter 订阅指定事件，并在组件卸载或依赖变更时自动注销。

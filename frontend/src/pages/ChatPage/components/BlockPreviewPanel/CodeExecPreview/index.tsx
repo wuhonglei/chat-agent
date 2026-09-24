@@ -2,6 +2,7 @@ import type { CodeExecBlock, CodeExecStage } from "@/interfaces/contentBlock";
 import { CloseOutlined } from "@ant-design/icons";
 import { Button, Divider, Tag, Typography } from "antd";
 import React from "react";
+import FullscreenPreviewButton from "../FullscreenPreviewButton";
 
 export interface CodeExecPreviewPanelProps {
   width: number;
@@ -37,7 +38,10 @@ const CodeExecPreviewPanel: React.FC<CodeExecPreviewPanelProps> = ({ block, onCl
           <Tag>{language}</Tag>
           <Tag>{version}</Tag>
         </div>
-        <Button type="text" onClick={onClose} icon={<CloseOutlined />} />
+        <div className="flex items-center gap-1">
+          <FullscreenPreviewButton />
+          <Button type="text" onClick={onClose} icon={<CloseOutlined />} />
+        </div>
       </header>
       <div className="min-h-0 flex-1 overflow-auto p-4">
         <Typography.Title level={5}>控制台</Typography.Title>

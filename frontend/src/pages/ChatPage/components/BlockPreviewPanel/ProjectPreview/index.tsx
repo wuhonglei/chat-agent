@@ -17,6 +17,7 @@ import { Folder } from "@ant-design/x";
 import { useRequest } from "ahooks";
 import { Alert, Button, Form, Input, Modal, Segmented, Space, Spin, Tooltip } from "antd";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import FullscreenPreviewButton from "../FullscreenPreviewButton";
 import type { SelectedFile } from "./components/FilePreviewContent";
 import FilePreviewContent from "./components/FilePreviewContent";
 import { PROJECT_PREVIEW_DIRECTORY_ICONS } from "./file_icons";
@@ -735,6 +736,7 @@ const ProjectPreviewPanel: React.FC<ProjectPreviewPanelProps> = ({ width, block,
             icon={<ReloadOutlined />}
             loading={activePreviewMode === "app" ? loadingSite : loadingTree}
           />
+          <FullscreenPreviewButton />
           <Button type="text" onClick={onClose} icon={<CloseOutlined />} />
         </div>
       </header>

@@ -217,6 +217,13 @@ export function isSvgPath(path: string): boolean {
   return path.split(".").pop()?.toLowerCase() === "svg";
 }
 
+const MERMAID_EXTENSIONS = new Set(["mmd", "mermaid"]);
+
+export function isMermaidPath(path: string): boolean {
+  const ext = path.split(".").pop()?.toLowerCase();
+  return Boolean(ext && MERMAID_EXTENSIONS.has(ext));
+}
+
 export function getImageMimeType(path: string): string {
   const ext = path.split(".").pop()?.toLowerCase();
   return (ext && IMAGE_MIME_BY_EXT[ext]) || "application/octet-stream";
