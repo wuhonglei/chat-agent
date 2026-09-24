@@ -586,7 +586,7 @@ def _default_tool_result_hard_limit_overrides() -> dict[str, int]:
         "file_search_files": 20_000,
         "tavily_web_search": 50_000,
         "tavily_web_site_crawl": 20_000,
-        "tavily_web_pages_extract": 25_000,
+        "tavily_web_pages_extract": 45_000,
         "skill_manager_load_skill": 0,
     }
 
