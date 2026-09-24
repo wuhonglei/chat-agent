@@ -5,6 +5,7 @@ import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { useLanguage } from "../hooks";
 import CodeHighlighter from "./CodeHighlighter";
 import InlineCode from "./InlineCode";
+import SvgBlock from "./SvgBlock";
 import { useCodeBlockHeader } from "./hooks";
 
 interface CustomCodeBlockProps {
@@ -22,6 +23,10 @@ const CustomCodeBlock = memo(({ inline, className, children }: CustomCodeBlockPr
 
   if (inline || !language) {
     return <InlineCode>{code}</InlineCode>;
+  }
+
+  if (language === "svg") {
+    return <SvgBlock code={code} />;
   }
 
   if (language === "mermaid") {
