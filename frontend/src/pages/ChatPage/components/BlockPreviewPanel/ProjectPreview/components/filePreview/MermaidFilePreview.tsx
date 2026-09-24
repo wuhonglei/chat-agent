@@ -38,12 +38,13 @@ const MermaidDiagram: React.FC<{ source: string }> = ({ source }) => {
         container.innerHTML = svg;
         const svgEl = container.querySelector("svg");
         if (svgEl) {
-          const { width, height } = svgEl.viewBox.baseVal;
-          if (width > 0 && height > 0) {
-            svgEl.setAttribute("width", String(width));
-            svgEl.setAttribute("height", String(height));
-          }
-          svgEl.style.maxWidth = "none";
+          const { width } = svgEl.viewBox.baseVal;
+          svgEl.removeAttribute("height");
+          svgEl.setAttribute("width", "100%");
+          svgEl.style.display = "block";
+          svgEl.style.width = "100%";
+          svgEl.style.height = "auto";
+          svgEl.style.maxWidth = width > 0 ? `${width}px` : "100%";
           svgEl.style.maxHeight = "none";
         }
         setStatus("ready");
@@ -63,14 +64,14 @@ const MermaidDiagram: React.FC<{ source: string }> = ({ source }) => {
   }, [source]);
 
   return (
-    <div className="relative min-h-0 flex-1 overflow-auto bg-(--ant-color-fill-quaternary)">
+    <div className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto bg-(--ant-color-fill-quaternary)">
       {status === "loading" ? (
         <div className="absolute inset-0 z-10 flex items-center justify-center">
           <Spin />
         </div>
       ) : null}
       {status === "error" ? <Alert type="error" showIcon message={error} className="m-4" /> : null}
-      <div ref={containerRef} className={status === "ready" ? "inline-block p-4" : "hidden"} />
+      <div ref={containerRef} className={status === "ready" ? "block w-full p-4" : "hidden"} />
     </div>
   );
 };
