@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 import httpx
 from pydantic import ValidationError
 
+from app.core.mem0_metrics import Mem0Result, record_mem0_request
 from app.core.observability import mark_observation_error, observation_span
 from app.schemas.config import MemoryConfig
 from app.schemas.user import (
@@ -110,16 +111,19 @@ class MemoryService:
             body["run_id"] = run_id
         if metadata is not None:
             body["metadata"] = metadata
+        result: Mem0Result = "ok"
         try:
             async with httpx.AsyncClient(timeout=self._timeout) as client:
                 resp = await client.post(url, json=body, headers=self._headers())
                 resp.raise_for_status()
         except httpx.HTTPError as e:
+            result = "timeout" if isinstance(e, httpx.TimeoutException) else "error"
             logger.warning(
                 "Mem0 add_memories failed",
                 user_id=user_id,
                 error=e,
             )
+        record_mem0_request("add", result)
 
     @staticmethod
     def _visibility_flags(

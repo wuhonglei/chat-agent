@@ -7,6 +7,7 @@ from typing import Any
 
 import httpx
 import pytest
+from prometheus_client import REGISTRY
 
 from app.schemas.config import MemoryConfig
 from app.services.user.memory_service import MemoryService
@@ -542,3 +543,71 @@ async def test_platform_list_forwards_and_filters(
         governance_status="superseded",
     )
     assert payload.total == 0
+
+
+def _mem0_add_count(result: str) -> float:
+    value = REGISTRY.get_sample_value(
+        "mem0_requests_total",
+        {"operation": "add", "result": result},
+    )
+    return value or 0.0
+
+
+@pytest.mark.asyncio
+async def test_add_memories_counts_ok(monkeypatch: pytest.MonkeyPatch) -> None:
+    _install_transport(
+        monkeypatch,
+        lambda request: httpx.Response(200, json={"ok": True}),
+    )
+    before = _mem0_add_count("ok")
+    await _platform().add_memories(
+        [{"role": "user", "content": "hi"}],
+        user_id="u1",
+    )
+    assert _mem0_add_count("ok") == before + 1
+
+
+@pytest.mark.asyncio
+async def test_add_memories_counts_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("timed out", request=request)
+
+    _install_transport(monkeypatch, handler)
+    before = _mem0_add_count("timeout")
+    await _platform().add_memories(
+        [{"role": "user", "content": "hi"}],
+        user_id="u1",
+    )
+    assert _mem0_add_count("timeout") == before + 1
+
+
+@pytest.mark.asyncio
+async def test_add_memories_counts_http_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    _install_transport(
+        monkeypatch,
+        lambda request: httpx.Response(500, json={"detail": "nope"}),
+    )
+    before = _mem0_add_count("error")
+    await _platform().add_memories(
+        [{"role": "user", "content": "hi"}],
+        user_id="u1",
+    )
+    assert _mem0_add_count("error") == before + 1
+
+
+@pytest.mark.asyncio
+async def test_add_memories_disabled_does_not_count() -> None:
+    before = (
+        _mem0_add_count("ok"),
+        _mem0_add_count("timeout"),
+        _mem0_add_count("error"),
+    )
+    await MemoryService(MemoryConfig(base_url="", api_key="")).add_memories(
+        [{"role": "user", "content": "hi"}],
+        user_id="u1",
+    )
+    assert (
+        _mem0_add_count("ok"),
+        _mem0_add_count("timeout"),
+        _mem0_add_count("error"),
+    ) == before

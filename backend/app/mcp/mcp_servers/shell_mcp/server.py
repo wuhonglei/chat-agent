@@ -38,10 +38,14 @@ async def shell(
         BeforeValidator(_coerce_timeout),
         Field(
             ge=1,
-            le=60000,
-            description="Optional timeout for command execution (in milliseconds, max: 60000)",
+            le=300000,
+            description=(
+                "Command timeout in milliseconds. Keep the default for ordinary "
+                "commands; raise it only for installs, builds, or other long-running "
+                "work. Maximum 300000 (5 minutes)."
+            ),
         ),
-    ] = 30000,
+    ] = 60000,
 ) -> ToolResult:
     """Execute shell commands in a sandboxed environment with proper security measures."""
     ctx = ToolContext()

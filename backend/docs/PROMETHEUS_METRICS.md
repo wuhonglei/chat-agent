@@ -1,6 +1,6 @@
 # Prometheus 指标（当前实现）
 
-**最后核对**：2026-09-13
+**最后核对**：2026-09-24
 
 本文档说明后端如何暴露 Prometheus 指标、多进程（Gunicorn）模式下的目录约定，以及自定义进程 CPU/内存指标。
 
@@ -83,7 +83,19 @@ curl -s http://localhost:8000/metrics | rg 'process_resident_memory_bytes_custom
 
 HTTP 请求计数与延迟仍使用 `prometheus_fastapi_instrumentator` 默认指标（如 `http_requests_total`、`http_request_duration_seconds`）。SLO / 错误预算 recording 与 alerting 规则见仓库根目录 `deploy/prometheus/` 与 `docs/SLO.md`（`backend/docs/SLO.md`）。
 
-## 6. 常驻 worker 指标（`eval_worker` / `memory_worker`）
+## 6. Mem0 出站调用
+
+聊天后处理里的记忆写入是 fire-and-forget：失败只打 warning，聊天请求仍然成功，因此不会体现在 `http_requests_total` 上。`memory_governance_*` 属于治理 worker，也不覆盖这条路径。
+
+| 指标名 | 类型 | 标签 | 含义 |
+|--------|------|------|------|
+| `mem0_requests_total` | Counter | `operation`, `result` | 实际发出的 Mem0 HTTP 调用。`operation` 目前为 `add`；`result` ∈ `ok` / `timeout` / `error` |
+
+未配置 Mem0（`base_url` 或 `api_key` 为空）时直接返回，不计数。`user_id` 等不要做标签。
+
+实现：`app/core/mem0_metrics.py`，由 `MemoryService.add_memories` 调用。
+
+## 7. 常驻 worker 指标（`eval_worker` / `memory_worker`）
 
 这两个 worker 与 backend 同镜像、不同 command（`uv run python -m eval_worker.main` /
 `memory_worker.main`），**没有常驻 HTTP 端口**：指标由 `prometheus_client` 用独立
@@ -120,13 +132,14 @@ memory-governance 默认 `9464`，`0` = 关闭），compose 里已发布到宿�
 抓取配置片段见 `deploy/prometheus/scrape-config.snippet.yml`，任务编排细节见
 [MEMORY_GOVERNANCE_WORKER.md](./MEMORY_GOVERNANCE_WORKER.md)。
 
-## 7. 源码索引
+## 8. 源码索引
 
 | 主题 | 路径 |
 |------|------|
 | multiproc 目录初始化、Instrumentator、collector 启动 | `app/main.py` |
 | 自定义进程指标 | `app/core/process_metrics.py` |
 | 健康探活指标 | `app/core/health_metrics.py` |
+| Mem0 出站调用 | `app/core/mem0_metrics.py`、`app/services/user/memory_service.py` |
 | 探活逻辑 | `app/core/health_probes.py` |
 | 健康检查路由 | `app/api/health.py` |
 | worker 指标骨架（心跳 / 运行结局 / 监听） | `app/core/worker_metrics.py` |

@@ -9,7 +9,7 @@ from jsonschema.exceptions import SchemaError, ValidationError
 
 from app.core.config import settings
 from app.mcp.connection_pool import MCPConnectionPool
-from app.mcp.constants import DELEGATE_TASK_ROUTE
+from app.mcp.constants import DELEGATE_TASK_ROUTE, SHELL_BARE, SHELL_SERVER
 from app.mcp.errors import ToolArgumentValidationError
 from app.mcp.registry import MCPRegistry
 from app.mcp.tool_naming import ToolRoute, llm_tool_name
@@ -124,11 +124,14 @@ class MCPToolGateway:
                 release_published_turn(delegation_token)
 
     @staticmethod
-    def _call_timeout_seconds(route: ToolRoute) -> int:
+    def _call_timeout_seconds(route: ToolRoute) -> int | None:
         if route == DELEGATE_TASK_ROUTE:
             return (
                 int(settings.subagent.timeout_seconds) + DELEGATE_GATEWAY_GRACE_SECONDS
             )
+        # shell exec 只受命令参数 timeout 约束，不再套网关调用超时。
+        if route.server_name == SHELL_SERVER and route.mcp_tool_name == SHELL_BARE:
+            return None
         return MCPToolGateway.TOOL_CALL_TIMEOUT_SECONDS
 
     # ------------------------------------------------------------------

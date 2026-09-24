@@ -55,9 +55,9 @@ ls ~/.claude/skills/design-doc-mermaid
 
 **Diagram Management:**
 - Extract Mermaid diagrams from Markdown files
-- Validate diagram syntax with mermaid-cli
-- Convert diagrams to PNG/SVG images
-- Batch process entire directories
+- Write fenced mermaid blocks or `.mmd` files by default
+- Validate diagram syntax with mermaid-cli when asked
+- Convert to PNG/SVG only when explicitly requested, or when the target is Confluence, Notion, Word, or PDF
 
 ## Quick Start
 
@@ -215,7 +215,10 @@ echo "graph TD; A-->B" | python scripts/mermaid_to_image.py - output.png
 - Claude Code skill system (automatic)
 - Guides and templates (included in this skill)
 
-### For Validation & Image Conversion
+### For Image Export (only when requested)
+
+Diagram generation does not need mermaid-cli. Install it only to render PNG or SVG:
+
 ```bash
 # Install mermaid-cli globally
 npm install -g @mermaid-js/mermaid-cli
