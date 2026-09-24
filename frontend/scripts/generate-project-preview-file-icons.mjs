@@ -46,6 +46,8 @@ const EXTRA_EXTENSION_KEYS = [
   "gz",
   "tgz",
   "bz2",
+  "mmd",
+  "mermaid",
 ];
 
 const KEY_ICON_OVERRIDES = {

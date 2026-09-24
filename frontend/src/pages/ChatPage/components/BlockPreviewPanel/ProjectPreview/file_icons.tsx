@@ -26,6 +26,7 @@ import icon_less from "./material_icons/less.svg?react";
 import icon_log from "./material_icons/log.svg?react";
 import icon_markdown from "./material_icons/markdown.svg?react";
 import icon_mdx from "./material_icons/mdx.svg?react";
+import icon_mermaid from "./material_icons/mermaid.svg?react";
 import icon_npm from "./material_icons/npm.svg?react";
 import icon_objective_c from "./material_icons/objective-c.svg?react";
 import icon_objective_cpp from "./material_icons/objective-cpp.svg?react";
@@ -59,9 +60,9 @@ import icon_zip from "./material_icons/zip.svg?react";
 const FOLDER_ICON = <FolderOutlined style={{ color: "#faad14" }} />;
 const TEXT_ICON = <FileTextOutlined style={{ color: "#666" }} />;
 const SVG_ICON_STYLE: React.CSSProperties = { width: 14, height: 14, objectFit: "contain" };
-const makeSvgIcon = (IconComponent: React.ComponentType<React.SVGProps<SVGSVGElement>>): ReactNode => (
-  <IconComponent style={SVG_ICON_STYLE} />
-);
+const makeSvgIcon = (
+  IconComponent: React.ComponentType<React.SVGProps<SVGSVGElement>>,
+): ReactNode => <IconComponent style={SVG_ICON_STYLE} />;
 
 export const PROJECT_PREVIEW_DIRECTORY_ICONS = {
   directory: FOLDER_ICON,
@@ -114,8 +115,10 @@ export const PROJECT_PREVIEW_DIRECTORY_ICONS = {
   markdown: makeSvgIcon(icon_markdown),
   md: makeSvgIcon(icon_markdown),
   mdx: makeSvgIcon(icon_mdx),
+  mermaid: makeSvgIcon(icon_mermaid),
   mjs: makeSvgIcon(icon_javascript),
   mm: makeSvgIcon(icon_objective_cpp),
+  mmd: makeSvgIcon(icon_mermaid),
   mts: makeSvgIcon(icon_typescript),
   npmrc: makeSvgIcon(icon_npm),
   pdf: makeSvgIcon(icon_pdf),
