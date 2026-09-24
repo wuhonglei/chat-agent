@@ -56,7 +56,7 @@ Do not mix STE100 and Google style in one document.
 3. Prefer `flowchart TD`, `sequenceDiagram`, `classDiagram`, `erDiagram`, `stateDiagram-v2`.
 4. Quote reserved words in node ids (`end`, `default`).
 5. Every `classDef` must set `color:`. Light fill needs dark text.
-6. Validate with `scripts/resilient_diagram.py` or `mmdc` before commit.
+6. Ship the fenced Mermaid block. Do not run `mmdc`, `npx @mermaid-js/mermaid-cli`, or `scripts/resilient_diagram.py` unless the user asked for PNG/SVG, or the page target is Confluence.
 7. Keep a `.mmd` source under `docs/diagrams/` for recovery.
 8. Wiki: embed the fenced Mermaid block so GitHub renders it.
 9. Confluence: also render PNG or SVG and upload. Do not ship a mermaid fence as the only Confluence view.

@@ -4,7 +4,11 @@
 **Last Updated:** 2025-01-15
 **Purpose:** Complete workflow for reliable Mermaid diagram generation with error recovery
 
-This guide documents the resilient workflow for generating Mermaid diagrams. It ensures diagrams are validated before being added to markdown files, and provides systematic error recovery when validation fails.
+This guide documents Mermaid diagram generation and optional image export.
+
+**Default output:** a fenced `mermaid` block or a `.mmd` file. Do not run `mmdc`, `npx @mermaid-js/mermaid-cli`, `npx -y @mermaid-js/mermaid-cli`, `scripts/mermaid_to_image.py`, or `scripts/resilient_diagram.py`. Do not write `.png` or `.svg`.
+
+Image commands later in this file apply only when the user explicitly asks for PNG/SVG, or the target is Confluence, Notion, Word, or PDF. Drawing a flowchart is not that request.
 
 ---
 
@@ -23,13 +27,13 @@ This guide documents the resilient workflow for generating Mermaid diagrams. It 
 
 ## Overview
 
-The resilient workflow ensures diagrams are generated correctly by:
+The workflow ensures diagrams are generated correctly by:
 
 - **Detecting diagram type** for appropriate reference guide loading
 - **Following consistent file naming** for organized output
-- **Validating before finalizing** using mmdc CLI
-- **Recovering from errors** using troubleshooting guide and external search
-- **Only adding validated diagrams** to markdown files
+- **Writing a fenced `mermaid` block or `.mmd` source** as the default deliverable
+- **Rendering PNG/SVG only when an image was explicitly requested**
+- **Recovering from errors** using troubleshooting guide and external search when a requested render fails
 
 ### Workflow Diagram
 
@@ -38,11 +42,13 @@ flowchart TD
     Start([User Request]) --> Type[Step 1: Identify Diagram Type]
     Type --> Reference[Load Type-Specific Reference Guide]
     Reference --> Generate[Step 2: Generate Diagram Code]
-    Generate --> Save[Step 3: Save .mmd + Image Files]
-    Save --> Validate[Step 4: Validate with mmdc]
+    Generate --> Save[Step 3: Write fence or .mmd]
+    Save --> Image{Image requested?}
+    Image -->|No| AddFence[Step 5: Add fence to Markdown]
+    Image -->|Yes| Validate[Step 4: Render with mmdc]
     Validate --> Success{Valid?}
 
-    Success -->|Yes| AddRef[Step 5: Add Image Reference to Markdown]
+    Success -->|Yes| AddRef[Add image reference]
     Success -->|No| Troubleshoot[Check Troubleshooting Guide]
 
     Troubleshoot --> Found{Fix Found?}
@@ -54,7 +60,8 @@ flowchart TD
     SearchResult -->|Yes| Apply
     SearchResult -->|No| Manual[Request Human Review]
 
-    AddRef --> Complete([Done])
+    AddFence --> Complete([Done])
+    AddRef --> Complete
     Manual --> Complete
 
     classDef start fill:#4ECDC4,stroke:#0B7285,color:#000
@@ -64,13 +71,13 @@ flowchart TD
     classDef error fill:#E63946,stroke:#9D0208,color:#fff
 
     class Start,Complete start
-    class Type,Reference,Generate,Save,Validate,AddRef,Apply,Troubleshoot,Search process
-    class Success,Found,SearchResult decision
+    class Type,Reference,Generate,Save,Validate,AddFence,AddRef,Apply,Troubleshoot,Search process
+    class Image,Success,Found,SearchResult decision
 ```
 
 ### Key Principle
 
-**NEVER add a diagram to a markdown file until it has been validated.** The workflow ensures all diagrams pass validation before being embedded, preventing broken diagrams in documentation.
+Ship the Mermaid source. Add an image reference only after a requested render succeeds. Do not treat `mmdc` or `npx @mermaid-js/mermaid-cli` as a required validation step.
 
 ---
 
@@ -107,19 +114,20 @@ Write the Mermaid diagram code following the patterns in the loaded reference gu
 
 ### Step 3: Save Files
 
-**IMPORTANT:** Save both the .mmd source file AND generate the image file BEFORE adding to markdown.
+**Default:** write a fenced `mermaid` block in the markdown, or save only the `.mmd` source. Do not generate a PNG or SVG.
 
 **Output Directory:** `./diagrams/` (relative to markdown file location)
 
 **Generated Files:**
 ```
 ./diagrams/<base_filename>.mmd    # Mermaid source code
-./diagrams/<base_filename>.png    # Rendered image (or .svg)
 ```
 
-### Step 4: Validate with mmdc
+`.png` or `.svg` is created only in Step 4, and only when an image was requested.
 
-Run the Mermaid CLI to validate and render the diagram:
+### Step 4: Render an image (only when requested)
+
+Skip this step unless the user explicitly asked for PNG/SVG, or the target is Confluence, Notion, Word, or PDF.
 
 ```bash
 mmdc -i diagram.mmd -o diagram.png -b transparent
@@ -130,7 +138,7 @@ mmdc -i diagram.mmd -o diagram.png -b transparent
 - Output file exists
 - Output file size > 0 bytes
 
-**If validation fails:** Proceed to error recovery (Step 4a).
+**If rendering fails:** Proceed to error recovery (Step 4a).
 
 ### Step 4a: Error Recovery
 
@@ -151,7 +159,9 @@ If troubleshooting guide doesn't have a match:
 
 ### Step 5: Add to Markdown
 
-**Only after successful validation**, add the image reference to the markdown file:
+**Default:** add the fenced `mermaid` block to the markdown file. Do not replace it with an image.
+
+Add an image reference only after a requested render succeeds:
 
 ```markdown
 ![Diagram Description](./diagrams/filename.png)
@@ -203,14 +213,17 @@ Optionally include a link to the source:
 **Output files:**
 ```
 ./diagrams/api_design_doc_01_sequence_user_authenticatio.mmd
-./diagrams/api_design_doc_01_sequence_user_authenticatio.png
 ```
+
+The `.png` beside it is created only when an image export was requested.
 
 ---
 
 ## Using the Script
 
-### Automated Workflow (Recommended)
+Run `scripts/resilient_diagram.py` only when the user explicitly asked for PNG/SVG, or the target is Confluence, Notion, Word, or PDF. Do not run it to create or check a normal flowchart.
+
+### Automated Workflow (image export only)
 
 The `resilient_diagram.py` script automates the entire workflow:
 
@@ -480,7 +493,11 @@ flowchart TD
 EOF
 ```
 
-### Step 5: Validate and Render
+### Step 5: Stop, unless an image was requested
+
+The `.mmd` file or fenced block is the deliverable. Do not run `mmdc` or `npx -y @mermaid-js/mermaid-cli`.
+
+Only when the user explicitly asked for PNG/SVG, or the target is Confluence, Notion, Word, or PDF:
 
 ```bash
 mmdc -i "./diagrams/${FILENAME}" -o "./diagrams/${FILENAME%.mmd}.png" -b transparent
@@ -508,7 +525,7 @@ If no match found:
 
 ### Step 7: Add to Markdown
 
-Only after validation succeeds:
+Default: paste the fenced `mermaid` block into the markdown. After a requested render succeeds:
 
 ```markdown
 ![Description](./diagrams/filename.png)
@@ -538,16 +555,8 @@ Only after validation succeeds:
        D-->>A: User data
        A-->>U: JWT token
    ```
-4. **Save files:**
-   - `./diagrams/auth_doc_01_sequence_user_login.mmd`
-   - `./diagrams/auth_doc_01_sequence_user_login.png`
-5. **Validate:** `mmdc -i ... -o ...` → Success
-6. **Add to markdown:**
-   ```markdown
-   ## Login Flow
-
-   ![User Login Sequence](./diagrams/auth_doc_01_sequence_user_login.png)
-   ```
+4. **Save source:** `./diagrams/auth_doc_01_sequence_user_login.mmd`
+5. **Add the fenced block to markdown.** Do not run `mmdc`. Render `./diagrams/auth_doc_01_sequence_user_login.png` only if an image was requested.
 
 ### Example 2: Handling Validation Error
 
@@ -595,10 +604,10 @@ flowchart TD
 ```
 1. IDENTIFY → Detect diagram type, load reference guide
 2. GENERATE → Write Mermaid code using guide patterns
-3. SAVE     → Create ./diagrams/<name>.mmd
-4. VALIDATE → Run mmdc, check exit code
-5. RECOVER  → If failed: troubleshooting.md → search tools
-6. ADD      → Only after validation: ![](./diagrams/name.png)
+3. SAVE     → Create ./diagrams/<name>.mmd or a fenced mermaid block
+4. RENDER   → Only if PNG/SVG was requested: run mmdc
+5. RECOVER  → If a requested render failed: troubleshooting.md → search tools
+6. ADD      → Default: fenced mermaid block. Image reference only after a requested render
 ```
 
 ### File Naming
@@ -617,7 +626,9 @@ flowchart TD
 4. WebSearch tool
 ```
 
-### Validation Command
+### Image Export Command
+
+Run only when the user explicitly asked for PNG/SVG, or the target is Confluence, Notion, Word, or PDF. Do not use this to "validate" a normal diagram:
 
 ```bash
 mmdc -i input.mmd -o output.png -b transparent

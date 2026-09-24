@@ -7,6 +7,17 @@ description: Create Mermaid diagrams (flowchart, sequence, class, ER, state, C4,
 
 Mermaid diagram and documentation system with specialized guides and code-to-diagram capabilities.
 
+**Default output:** a fenced `mermaid` block or a `.mmd` file. Drawing a flowchart is not a request for an image.
+
+Do not run any of these unless the user explicitly asks for PNG/SVG, or the target is Confluence, Notion, Word, or PDF:
+
+- `mmdc`
+- `npx @mermaid-js/mermaid-cli` and `npx -y @mermaid-js/mermaid-cli`
+- `scripts/mermaid_to_image.py`
+- `scripts/resilient_diagram.py`
+
+Do not write `.png` or `.svg` from `.mmd` files.
+
 ## Table of Contents
 
 - [Decision Tree](#decision-tree)
@@ -160,7 +171,7 @@ Common request patterns and guide selection. See [When to Use What](#when-to-use
 
 ## Resilient Workflow
 
-**Default:** write a fenced `mermaid` block, or save only the `.mmd` source. Do not run `mmdc`, `scripts/resilient_diagram.py`, or `scripts/mermaid_to_image.py`, and do not write PNG or SVG.
+**Default:** write a fenced `mermaid` block, or save only the `.mmd` source. Do not run `mmdc`, `npx -y @mermaid-js/mermaid-cli`, `scripts/resilient_diagram.py`, or `scripts/mermaid_to_image.py`, and do not write PNG or SVG. A shell loop over `*.mmd` that writes `.png` is image export.
 
 **Render PNG or SVG only when:**
 
