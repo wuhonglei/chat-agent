@@ -89,7 +89,7 @@ context_threshold = context_limit - reserved_output - buffer_tokens
 | `exempt_tool_names` | `["file_read_file"]` | 按 `{server}_{bare}` 精确匹配的全量豁免，防 persist↔read 循环 |
 | `tool_overrides` | 见下 | 覆盖单条阈值 |
 
-默认 `tool_overrides`（键为 `{server}_{bare}`）：`shell_exec`/`file_search_files`/`tavily_web_site_crawl` 20000，`tavily_web_pages_extract` 25000，`tavily_web_search` 50000，`skill_manager_load_skill` 0。bare 名不匹配。
+默认 `tool_overrides`（键为 `{server}_{bare}`）：`shell_exec`/`file_search_files`/`tavily_web_site_crawl` 20000，`tavily_web_pages_extract` 45000，`tavily_web_search` 50000，`skill_manager_load_skill` 0。bare 名不匹配。
 
 ### 2.5 与 `read_file` 的配合
 

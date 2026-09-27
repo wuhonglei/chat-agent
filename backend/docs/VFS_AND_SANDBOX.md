@@ -117,7 +117,7 @@ Agent 和 MCP 工具不应暴露磁盘路径，应使用虚拟路径：
 每个 `(user_id, conversation_id)` 会懒创建一个会话级 `ShellExecutor`，工作目录固定为
 当前会话 workspace。
 
-超长命令输出还会受工具结果硬上限约束（默认 `exec` 单条 20000 字符，见
+超长命令输出还会受工具结果硬上限约束（LLM 名 `shell_exec` 单条 20000 字符，见
 `TOOL_RESULT_AND_CONTEXT.md`），与下方 `SANDBOX__OUTPUT_LIMIT` 是不同层。
 
 ### 4.1 配置
@@ -127,16 +127,27 @@ Agent 和 MCP 工具不应暴露磁盘路径，应使用虚拟路径：
 | 配置 | 默认值 | 说明 |
 |---|---:|---|
 | `SANDBOX__BACKEND` | `local` | `local` 或 `docker` |
-| `SANDBOX__TIMEOUT` | `600000` | 单次命令最大超时，毫秒 |
-| `SANDBOX__NETWORK_ENABLED` | `false` | Docker 后端是否允许网络 |
+| `SANDBOX__TIMEOUT` | `600000` | executor 入参再夹一次，毫秒；不是 LLM 可见上限 |
+| `SANDBOX__NETWORK_ENABLED` | `false` | 只约束 Docker 后端；`local` 走宿主机网络 |
 | `SANDBOX__OUTPUT_LIMIT` | `50000` | executor 层输出截断上限 |
 
-Shell MCP 自身还限制命令长度和输出展示：
+命令超时分四层，后一层看不到被前一层拒绝的值：
 
-- 默认超时：30000 ms
-- 最大超时：600000 ms
+| 层 | 默认 | 上限 | 代码 |
+|---|---:|---:|---|
+| LLM 工具参数 `timeout` | `60000` ms | schema `le=300000`（5 分钟）；数字字符串会先转成 int | `shell_mcp/server.py` |
+| `ShellTool.execute` | 参数缺省时才用 `30000` | `ShellMCPConfig.max_timeout_ms` 默认 `600000` | 工具路径总会传入 timeout，这层 30000 通常走不到 |
+| `ShellExecutor` | — | `min(timeout, SANDBOX__TIMEOUT)` | `shell_mcp/executor.py` |
+| local / docker 进程等待 | — | `min(请求秒数, 600)` | `local_executor.py` / `docker_executor.py` |
+
+因此模型能设的有效范围是 **1–300000 ms，默认 60 秒**。网关对 `shell` + `exec` 的 `call_tool` 超时是 `None`，不再套 `MCPToolGateway.TOOL_CALL_TIMEOUT_SECONDS`（其它工具仍是 60 秒）。
+
+其它 Shell 限制：
+
 - 最大命令长度：50000 字符（`ShellMCPConfig.max_command_chars`，超长在 audit 层拒绝）
 - 最大展示输出：50000 字符
+
+每次执行都会按当前 `settings` 组环境变量。`models.providers.dashscope.api_key` 非空时写入 `DASHSCOPE_API_KEY`，供 `image-generation` 脚本（`generate.py`，模型 `qwen-image-3.0-pro`）读取。Nacos 换密钥后，**下一条**命令用新值；空密钥不会把变量写成空串。`local` 后端先继承进程环境再覆盖；Docker 后端只带沙箱自己的环境，没有这份密钥就没有 `DASHSCOPE_API_KEY`。Docker 且 `network_enabled=false` 时，生图的出站 HTTPS 会被关掉。
 
 ### 4.2 local 后端
 

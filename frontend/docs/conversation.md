@@ -240,3 +240,16 @@ sequenceDiagram
 - 已上线：复制 `site.url`、`POST /api/sites/{slug}/republish`、`DELETE /api/sites/{slug}`
 - 运行预览：已发布 HTML iframe 走公网 URL（`getPublishedHtmlPreviewUrl`）；未发布且行数 ≥ 50 用 `srcDoc`
 - 删除会话由后端 purge 站点；前端不必先调 unpublish
+
+工作区文件预览按扩展名分流（`ProjectPreview/utils/index.ts`、`FilePreviewContent.tsx`），与聊天附件预览不是同一条路径：
+
+| 扩展名 | 展示 |
+|---|---|
+| `.xlsx` / `.xls` | SheetJS 多 sheet 表格 |
+| `.png` `.jpg` `.jpeg` `.gif` `.webp` `.ico` | 图片；加载失败文案「图片加载失败」 |
+| `.svg` | 预览 / 源码切换；预览是 SVG data URL |
+| `.mmd` / `.mermaid` | `mermaid` 渲染 SVG（`securityLevel: "strict"`）；语法无效显示错误，可切源码 |
+| `.html` | 见上面的运行预览规则 |
+| 其它文本 | 源码高亮；已知二进制扩展名走二进制占位，不按文本打开 |
+
+侧栏标题栏有全屏按钮（`FullscreenPreviewButton`），切换 `ChangePreviewFullscreen`，不新开路由。

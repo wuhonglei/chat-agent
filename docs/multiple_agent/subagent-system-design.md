@@ -1,8 +1,75 @@
 # chat-agent 子 Agent 系统设计方案
 
-> **状态：规划方案（未落地）**。设计基准 2026-09-22，所有源码行号以当日代码为准。
-> 横向方法论依据：同目录 `/Users/apple/Desktop/code/chat-agent/docs/multiple_agent/multi-agent-comparison.md`（ZCode / kimi-code / codex / hermes-agent / claude-code 五框架对比）。
-> 本文引用的路径一律为绝对路径；行号均已 `grep -n` 核实。
+> **状态：同步委派已落地，默认不暴露。** 文首「现网实现摘要」以源码为准。其后各节是 2026-09-22 的设计理由与分阶段计划，其中 `enabled`、摘要截断 / spill、`output_schema`、`tasks[]` 批量参数、请求内异步都还没有对应实现。
+> 横向方法论依据：同目录 `multi-agent-comparison.md`。
+
+## 现网实现摘要
+
+核对：`backend/app/mcp/mcp_servers/subagent_mcp/`、`backend/app/services/subagent/`、`backend/app/prompts/subagent_prompt.py`、`backend/app/schemas/config.py` 的 `SubagentConfig`、`backend/app/mcp/gateway.py`、`backend/app/agents/tool_executor.py`。
+
+### 意图
+
+父 agent 把自包含子任务交给一次性地、看不到本轮历史的子 `ChatSessionAgent`。父上下文只收到最终报告文本；子任务的工具调用留在子循环里，并记进当轮 assistant 的 `message_metadata.subagent_runs`。
+
+### 如何打开
+
+| 项 | 现网 |
+|---|---|
+| Server | `mcp.mcp_servers.subagent` 默认注册，模块 `app.mcp.mcp_servers.subagent_mcp.server` |
+| 工具 | bare `delegate_task`，LLM 名 `subagent_delegate_task` |
+| 暴露 | **不在**默认 `agent_mode_servers` / `normal_mode_servers`。要给父模型用，把 `subagent` 加进 `mcp.agent_mode_servers`（Nacos 或 `MCP__AGENT_MODE_SERVERS`） |
+| 总开关 | 没有 `subagent.enabled`。不在模式列表里就等于关闭 |
+
+普通模式列表里即使误加 `subagent`，代码也不会在启动时拒绝。
+
+### 调用约定
+
+一次调用一个 `goal`，可选 `context`。多个互不依赖的任务靠父模型在同一轮并行发起多次工具调用；没有 `tasks[]` 参数。
+
+`goal` 为空，或正文含子串 `TODO`，直接返回错误，不启动子循环。
+
+子 agent：
+
+- 历史为空，系统提示用 `build_subagent_system_prompt`，`goal` 是第一条 user 消息。
+- 工具面继承父轮的 `mcp_server_names`，再减去 `subagent.excluded_tools`。
+- 默认排除 `subagent_*` 与 `file_present_files`。递归委派靠这条排除，不是另一套不可配置的硬编码。拿掉 `subagent_*` 且父轮服务器列表含 `subagent` 时，子级能再看到 `delegate_task`。
+- 与父共享同一 `conversation_id` 和会话 VFS。
+- 模型走 `models.scenarios.subagent_execution`；场景未配置或解析失败时用父模型。
+- 技能清单仅在子工具面仍有 `skill_manager_load_skill` 时注入。
+
+回传给父模型的 `content` 是最终报告原文，或失败/超时的错误字符串。没有 `summary_max_chars`，也不写 spill 文件。
+
+### 超时（三层，单位秒）
+
+`subagent.timeout_seconds` 默认 `600`。
+
+| 层 | 预算 | 超时后 |
+|---|---:|---|
+| `SubagentService` | `timeout_seconds` | 工具结果 `status` 语义为超时，文案「子任务超过 N 秒」 |
+| MCP 网关 `call_tool` | `timeout_seconds + 30` | 让服务层先写出超时结果，避免网关更早取消 |
+| `ToolExecutor.wait_for` | `timeout_seconds + 45` | 兜底；文案「工具调用超时」 |
+
+普通工具不再套执行器级总超时。`shell_exec` 的网关调用超时为 `None`，只受命令参数 `timeout` 约束（见 `VFS_AND_SANDBOX.md`）。
+
+### 配置（`SUBAGENT__*`）
+
+| 字段 | 默认 | 约束 |
+|---|---:|---|
+| `excluded_tools` | `subagent_*`, `file_present_files` | 规范名 `{server}_{bare}`，或 `{server}_*`。bare 名 / 别名在工具索引建好后会让进程拒绝启动；未知名字只打 warning |
+| `max_tasks_per_call` | `4` | 代码只在 `< 1` 时拒绝本次调用，**不**统计同轮并行次数 |
+| `max_iterations` | `10` | 子循环工具轮次上限 |
+| `timeout_seconds` | `600` | 见上表 |
+| `scenario` | `subagent_execution` | 缺场景则回落父模型 |
+
+### 审计与观测
+
+当轮 assistant `message_metadata.subagent_runs[]`：`task_id`、`goal_digest`（`sha256:` + 目标全文哈希，不存原文）、`status`、`iterations`、`duration_seconds`、`tokens`、`tool_trace`（工具名、结果字节数、是否成功）。没有 `summary_truncated` / `spill_path`。
+
+Langfuse 子 span 名 `subagent-task`，input 只带 `goal` 前 200 字符。日志字段：`subagent_task_id`、`parent_conversation_id`。进程内运行，日志随 backend 采集。
+
+### 尚未实现
+
+`output_schema`、摘要预算与 spill、Phase 2 的批量参数、Phase 3 的请求结束后异步与下轮注入。设计正文里的验收表不要当成操作步骤。
 
 ---
 
@@ -348,6 +415,8 @@ Phase 1 **不加表**：审计写入当轮 assistant 消息 `MessageDb.message_m
 - **Metrics**（可选）：`subagent_runs_total{status}` / `subagent_duration_seconds`，挂现有 `/metrics`；不新增告警（现网 alerting rules 未加载，见 `chat-agent-internals` 监控小节）。
 
 ## 7. 配置项
+
+> 下表是设计稿。现网字段、默认值和「没有 `enabled`」以文首摘要为准。
 
 ```yaml
 subagent:
