@@ -76,7 +76,8 @@ backend/
 │   │       ├── code_exec_mcp/        # 代码执行沙箱
 │   │       ├── skill_manager_mcp/    # Skill 管理
 │   │       ├── time_mcp/             # 时间服务
-│   │       └── context7_mcp/         # Context7 文档
+│   │       ├── context7_mcp/         # Context7 文档
+│   │       └── vision_mcp/           # 图片分析 vision_analyze
 │   ├── vfs/              # 虚拟路径映射（workspace / uploads / outputs / skills）
 │   ├── sandbox/          # 本地 / Docker 执行后端
 │   ├── protocols/        # SSE / 聊天协议事件构建
@@ -286,8 +287,7 @@ class Settings(BaseSettings):
 ```
 
 模型解析：通过 `app/services/base_service/model_resolver.py` 的 `resolve_model_ref("provider/model")` /
-`resolve_scenario("text_generation"|"title_generation"|"summarization")` 将配置解析为运行时 `LLMConfig`
-（含 `context_limit`，供 `TokenCalculator`）。
+`resolve_scenario("text_generation"|"title_generation"|"summarization"|"vision")` 将配置解析为运行时 `LLMConfig`（含 `context_limit`，供 `TokenCalculator`）。`vision` 为启动必填场景，引用的模型必须具备 `image` 能力，供 `vision_analyze` 使用。
 
 ## API 设计规范
 
