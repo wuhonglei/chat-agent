@@ -1,3 +1,8 @@
+.attachmentList :global(.ant-file-card-list) :global(.ant-file-card-image) {
+  width: 256px;
+  height: 256px;
+}
+
 .toggleBar {
   display: flex;
   justify-content: flex-end;

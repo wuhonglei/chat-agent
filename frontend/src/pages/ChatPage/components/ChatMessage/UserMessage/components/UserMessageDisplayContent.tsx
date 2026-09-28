@@ -37,8 +37,14 @@ function attachmentToFileCardItem(
           fallback: image404,
           styles: {
             root: {
-              display: "flex",
-              alignItems: "center",
+              width: "100%",
+              height: "100%",
+              overflow: "hidden",
+            },
+            image: {
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
             },
           },
         },
@@ -257,7 +263,7 @@ const UserMessageDisplayContent: React.FC<UserMessageDisplayContentProps> = ({
   return (
     <div className="flex w-full flex-col items-end gap-2" style={{ borderRadius: "inherit" }}>
       {fileCardItems.length > 0 ? (
-        <div className="max-w-full">
+        <div className={`max-w-full ${styles.attachmentList}`}>
           <FileCard.List items={fileCardItems} overflow="wrap" style={{ padding: 0 }} />
         </div>
       ) : null}
