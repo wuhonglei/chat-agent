@@ -21,6 +21,7 @@ from app.schemas.conversation import (
     ConversationListResponse,
     ConversationSearchRequest,
     ConversationSearchResponse,
+    PinConversationRequest,
     RegisterConversationRequest,
     UpdateConversationRequest,
 )
@@ -241,6 +242,27 @@ async def update_conversation(
     db.commit()
     await invalidate_conversation(conversation_id, token_info.user_id)
     return ApiResponse.success(data=conversation_info, msg="更新对话成功")
+
+
+@router.put("/pin/{conversation_id}")
+async def pin_conversation(
+    conversation_id: str,
+    request: PinConversationRequest,
+    db: Session = Depends(get_db),
+    token_info: AuthTokenPayload = Depends(get_auth_token_info),
+) -> ApiResponse[ConversationInfo]:
+    """置顶或取消置顶。再次置顶会刷新 pinned_at，排到置顶组最前。"""
+    service = ConversationDbService(db)
+    conversation = service.get_conversation(conversation_id)
+    if not conversation or conversation.user_id != token_info.user_id:
+        return ApiResponse.error(code=404, msg="会话不存在")
+    conversation_info = service.pin_conversation(conversation, request.pinned)
+    db.commit()
+    await invalidate_conversation(conversation_id, token_info.user_id)
+    return ApiResponse.success(
+        data=conversation_info,
+        msg="已置顶" if request.pinned else "已取消置顶",
+    )
 
 
 @router.put("/activate/{conversation_id}")

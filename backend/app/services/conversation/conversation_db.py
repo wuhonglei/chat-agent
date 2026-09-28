@@ -145,7 +145,9 @@ class ConversationDbService(DbService):
     ) -> ConversationListResponse:
         """游标分页获取用户的对话列表。
 
-        按 (last_message_created_at DESC, id DESC) keyset 分页。
+        首页（无 cursor）先返回全部已置顶会话（pinned_at DESC），再接一页未置顶会话。
+        后续页只返回未置顶会话。未置顶按 (last_message_created_at DESC, id DESC) keyset 分页。
+        has_more / next_cursor 只针对未置顶页，首页条数可以大于 limit。
         非法 cursor 会抛出 InvalidCursorError。
         """
         db = self._ensure_db()
@@ -153,11 +155,29 @@ class ConversationDbService(DbService):
             Any, ConversationDb.last_message_created_at
         )
         id_column = cast(Any, ConversationDb.id)
+        pinned_at_column = cast(Any, ConversationDb.pinned_at)
+
+        pinned_list: list[ConversationInfo] = []
+        if not cursor:
+            pinned_rows = list(
+                db.exec(
+                    select(ConversationDb)
+                    .where(ConversationDb.user_id == user_id)
+                    .where(ConversationDb.is_active)
+                    .where(pinned_at_column.is_not(None))
+                    .order_by(pinned_at_column.desc(), id_column.desc())
+                ).all()
+            )
+            pinned_list = [
+                ConversationInfo.model_validate(self.conversation_to_dict(conv))
+                for conv in pinned_rows
+            ]
 
         data_stmt = (
             select(ConversationDb)
             .where(ConversationDb.user_id == user_id)
             .where(ConversationDb.is_active)
+            .where(pinned_at_column.is_(None))
         )
         if cursor:
             cursor_values = decode_conversation_cursor(cursor)
@@ -181,10 +201,11 @@ class ConversationDbService(DbService):
         conversations = list(db.exec(data_stmt).all())
         has_more = len(conversations) > limit
         page_rows = conversations[:limit]
-        conversation_list = [
+        unpinned_list = [
             ConversationInfo.model_validate(self.conversation_to_dict(conv))
             for conv in page_rows
         ]
+        conversation_list = pinned_list + unpinned_list
 
         next_cursor: str | None = None
         if has_more and page_rows:
@@ -197,6 +218,7 @@ class ConversationDbService(DbService):
             "Found conversations (cursor paginated)",
             limit=limit,
             returned=len(conversation_list),
+            pinned=len(pinned_list),
             has_more=has_more,
         )
         return ConversationListResponse(
@@ -432,6 +454,16 @@ class ConversationDbService(DbService):
                 chat_message_payload["message_metadata"] = metadata
             chat_messages.append(chat_message_payload)
         return chat_messages
+
+    def pin_conversation(
+        self, conversation: ConversationDb, pinned: bool
+    ) -> ConversationInfo:
+        """置顶或取消置顶。再次置顶会刷新 pinned_at，从而排到最前。"""
+        conversation.pinned_at = get_datetime_now() if pinned else None
+        conversation_info = ConversationInfo.model_validate(
+            self.conversation_to_dict(conversation)
+        )
+        return conversation_info
 
     def update_conversation(
         self, conversation: ConversationDb, request: UpdateConversationRequest

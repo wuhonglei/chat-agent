@@ -1,4 +1,8 @@
-import { ConversationInfo, CreateConversationRequest, UpdateConversationRequest } from "@/interfaces";
+import {
+  ConversationInfo,
+  CreateConversationRequest,
+  UpdateConversationRequest,
+} from "@/interfaces";
 import { conversationAPI } from "@/services";
 import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { uniqBy } from "lodash-es";
@@ -33,21 +37,21 @@ export const registerConversation = createAsyncThunk(
   "conversation/registerConversation",
   async (params?: CreateConversationRequest) => {
     return await conversationAPI.registerConversation(params);
-  }
+  },
 );
 
 export const activateConversation = createAsyncThunk(
   "conversation/activateConversation",
   async (conversationId: string) => {
     return await conversationAPI.activateConversation(conversationId);
-  }
+  },
 );
 
 export const deleteConversation = createAsyncThunk(
   "conversation/deleteConversation",
   async (conversationId: string) => {
     return await conversationAPI.deleteConversation(conversationId);
-  }
+  },
 );
 
 /**
@@ -57,7 +61,7 @@ export const loadConversations = createAsyncThunk(
   "conversation/loadConversations",
   async (params?: { limit?: number; cursor?: string | null }) => {
     return await conversationAPI.getConversations(params);
-  }
+  },
 );
 
 /**
@@ -67,7 +71,7 @@ export const getConversationDetail = createAsyncThunk(
   "conversation/getConversationDetail",
   async (conversationId: string) => {
     return await conversationAPI.getConversation(conversationId);
-  }
+  },
 );
 
 /**
@@ -77,23 +81,36 @@ export const updateConversationInfo = createAsyncThunk(
   "conversation/updateConversationInfo",
   async (data: UpdateConversationRequest) => {
     return await conversationAPI.updateConversation(data.id, data);
-  }
+  },
+);
+
+export const pinConversation = createAsyncThunk(
+  "conversation/pinConversation",
+  async (data: { id: string; pinned: boolean }) => {
+    return await conversationAPI.pinConversation(data.id, data.pinned);
+  },
 );
 
 export const compressConversation = createAsyncThunk(
   "conversation/compressConversation",
   async (conversationId: string) => {
     return await conversationAPI.compressConversation(conversationId);
-  }
+  },
 );
 // ==================== Slice ====================
 
-const findConversationIndexInListHelper = (state: ConversationState, conversationId: string): number => {
-  return state.conversations.findIndex(conv => conv.id === conversationId);
+const findConversationIndexInListHelper = (
+  state: ConversationState,
+  conversationId: string,
+): number => {
+  return state.conversations.findIndex((conv) => conv.id === conversationId);
 };
 
 // 辅助函数：更新列表中的对话信息
-const updateConversationInListHelper = (state: ConversationState, conversation: ConversationInfo): number => {
+const updateConversationInListHelper = (
+  state: ConversationState,
+  conversation: ConversationInfo,
+): number => {
   const index = findConversationIndexInListHelper(state, conversation.id);
   if (index !== -1) {
     state.conversations[index] = conversation;
@@ -102,7 +119,10 @@ const updateConversationInListHelper = (state: ConversationState, conversation: 
   return index;
 };
 
-const removeConversationFromListHelper = (state: ConversationState, conversationId: string): number => {
+const removeConversationFromListHelper = (
+  state: ConversationState,
+  conversationId: string,
+): number => {
   const index = findConversationIndexInListHelper(state, conversationId);
   if (index !== -1) {
     state.conversations.splice(index, 1);
@@ -114,7 +134,10 @@ const removeConversationFromListHelper = (state: ConversationState, conversation
 /**
  * 添加对话到列表最前面
  */
-const prependConversationToListHelper = (state: ConversationState, conversation: ConversationInfo): number => {
+const prependConversationToListHelper = (
+  state: ConversationState,
+  conversation: ConversationInfo,
+): number => {
   state.conversations.unshift(conversation);
   return 0;
 };
@@ -122,11 +145,17 @@ const prependConversationToListHelper = (state: ConversationState, conversation:
 /**
  * 设置当前对话信息
  */
-const setCurrentConversationHelper = (state: ConversationState, conversation: ConversationInfo | null): void => {
+const setCurrentConversationHelper = (
+  state: ConversationState,
+  conversation: ConversationInfo | null,
+): void => {
   state.conversationInfo = conversation;
 };
 
-const publishConversationHelper = (state: ConversationState, conversation: ConversationInfo): void => {
+const publishConversationHelper = (
+  state: ConversationState,
+  conversation: ConversationInfo,
+): void => {
   removeConversationFromListHelper(state, conversation.id);
   prependConversationToListHelper(state, conversation);
   setCurrentConversationHelper(state, conversation);
@@ -143,7 +172,7 @@ const conversationSlice = createSlice({
 
     setConversationInfoById: (state, action: PayloadAction<string>) => {
       const id = action.payload;
-      const conversation = state.conversations.find(conv => conv.id === id);
+      const conversation = state.conversations.find((conv) => conv.id === id);
       if (conversation) {
         setCurrentConversationHelper(state, conversation);
       } else if (state.conversationInfo?.id !== id) {
@@ -166,7 +195,7 @@ const conversationSlice = createSlice({
       action: PayloadAction<{
         conversationId: string;
         lastMessageUpdatedAt: string;
-      }>
+      }>,
     ) => {
       const { conversationId, lastMessageUpdatedAt } = action.payload;
       const index = findConversationIndexInListHelper(state, conversationId);
@@ -195,11 +224,11 @@ const conversationSlice = createSlice({
     },
 
     // 清除当前会话
-    clearCurrentConversion: state => {
+    clearCurrentConversion: (state) => {
       setCurrentConversationHelper(state, null);
     },
   },
-  extraReducers: builder => {
+  extraReducers: (builder) => {
     // registerConversation
     builder.addCase(registerConversation.fulfilled, (state, action) => {
       publishConversationHelper(state, action.payload);
@@ -232,6 +261,14 @@ const conversationSlice = createSlice({
       // 更新列表中的对话信息（复用辅助函数）
       updateConversationInListHelper(state, conversation);
       // 更新当前对话信息
+      if (state.conversationInfo?.id === conversation.id) {
+        setCurrentConversationHelper(state, conversation);
+      }
+    });
+
+    builder.addCase(pinConversation.fulfilled, (state, action) => {
+      const conversation = action.payload;
+      updateConversationInListHelper(state, conversation);
       if (state.conversationInfo?.id === conversation.id) {
         setCurrentConversationHelper(state, conversation);
       }

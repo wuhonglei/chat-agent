@@ -52,6 +52,10 @@ export const conversationAPI = {
     return await apiClient.put(`/conversation/update/${conversationId}`, data);
   },
 
+  pinConversation: async (conversationId: string, pinned: boolean): Promise<ConversationInfo> => {
+    return await apiClient.put(`/conversation/pin/${conversationId}`, { pinned });
+  },
+
   // 删除对话
   deleteConversation: async (conversationId: string): Promise<string> => {
     return await apiClient.delete(`/conversation/delete/${conversationId}`);

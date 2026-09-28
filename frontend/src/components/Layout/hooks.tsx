@@ -14,30 +14,40 @@ import {
   compressConversation,
   deleteConversation,
   loadConversations,
+  pinConversation,
   setConversationInfoById,
   updateConversationInfo,
 } from "@/store/slices/conversationSlice";
-import { CommentOutlined, CompressOutlined, DeleteOutlined, EditOutlined } from "@ant-design/icons";
+import {
+  CommentOutlined,
+  CompressOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  PushpinOutlined,
+} from "@ant-design/icons";
 import { ConversationItemType, ConversationsProps } from "@ant-design/x";
 import { useClickAway, useInfiniteScroll, useMemoizedFn } from "ahooks";
 import type { MenuProps } from "antd";
 import { App } from "antd";
 import dayjs from "dayjs";
+import { orderBy } from "lodash-es";
 import { CSSProperties, RefObject, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { dateGroups } from "./constant";
 
+const PINNED_GROUP = "置顶";
+
 const getConversationGroup = (lastMessageCreatedAt: string) => {
   const lastMessageDayjs = dayjs(lastMessageCreatedAt);
-  return dateGroups.find(group => lastMessageDayjs.isSameOrAfter(group.value))?.label ?? "更早";
+  return dateGroups.find((group) => lastMessageDayjs.isSameOrAfter(group.value))?.label ?? "更早";
 };
 
 function useConversationBusyMap() {
-  const chatStateMap = useAppSelector(state => state.chat);
+  const chatStateMap = useAppSelector((state) => state.chat);
   return useMemo(() => {
     const busy: Record<string, boolean> = {};
     for (const [id, chatState] of Object.entries(chatStateMap)) {
-      const hasPending = chatState.messages.some(msg => msg.status === MessageStatus.Pending);
+      const hasPending = chatState.messages.some((msg) => msg.status === MessageStatus.Pending);
       busy[id] = chatState.isStreaming || hasPending;
     }
     return busy;
@@ -47,15 +57,23 @@ function useConversationBusyMap() {
 export function useConversionsProps(
   onDelete: (id: string) => void,
   onRename: (info: EditConversationInfo) => void,
-  onCompress: (id: string) => void
+  onCompress: (id: string) => void,
+  onPin: (id: string, pinned: boolean) => void,
 ) {
   const busyMap = useConversationBusyMap();
+  const { conversations } = useAppSelector((state) => state.conversation);
 
   const menu: ConversationsProps["menu"] = useMemoizedFn((conversation: ConversationItemType) => {
     const conversationId = conversation.id as string;
     const isBusy = Boolean(busyMap[conversationId]);
+    const isPinned = Boolean(conversations.find((item) => item.id === conversationId)?.pinnedAt);
     return {
       items: [
+        {
+          label: isPinned ? "取消置顶" : "置顶",
+          key: "pin",
+          icon: <PushpinOutlined />,
+        },
         {
           label: "重命名",
           key: "rename",
@@ -76,7 +94,9 @@ export function useConversionsProps(
       ],
       onClick: (menuInfo: Parameters<NonNullable<MenuProps["onClick"]>>[0]) => {
         menuInfo.domEvent.stopPropagation();
-        if (menuInfo.key === "rename") {
+        if (menuInfo.key === "pin") {
+          onPin(conversationId, !isPinned);
+        } else if (menuInfo.key === "rename") {
           onRename({
             id: conversationId,
             title: conversation.label as string,
@@ -90,17 +110,29 @@ export function useConversionsProps(
     };
   });
 
-  const { conversations } = useAppSelector(state => state.conversation);
-
   const items = useMemo(() => {
-    const items: ConversationItemType[] = conversations.map(conversation => ({
+    const toItem = (conversation: ConversationInfo, group: string): ConversationItemType => ({
       id: conversation.id,
       key: `/chat/${conversation.id}`,
       label: conversation.title,
-      // 今天、昨天、7 天内、30 天内、更早
-      group: getConversationGroup(conversation.lastMessageCreatedAt),
-    }));
-    return items;
+      group,
+    });
+    const pinned = orderBy(
+      conversations.filter((conversation) => conversation.pinnedAt),
+      [(conversation) => dayjs(conversation.pinnedAt).valueOf(), "id"],
+      ["desc", "desc"],
+    );
+    const unpinned = orderBy(
+      conversations.filter((conversation) => !conversation.pinnedAt),
+      [(conversation) => dayjs(conversation.lastMessageCreatedAt).valueOf(), "id"],
+      ["desc", "desc"],
+    );
+    return [
+      ...pinned.map((conversation) => toItem(conversation, PINNED_GROUP)),
+      ...unpinned.map((conversation) =>
+        toItem(conversation, getConversationGroup(conversation.lastMessageCreatedAt)),
+      ),
+    ];
   }, [conversations]);
 
   const groupable: ConversationsProps["groupable"] = useMemo(
@@ -114,7 +146,7 @@ export function useConversionsProps(
         );
       },
     }),
-    []
+    [],
   );
 
   return {
@@ -130,8 +162,8 @@ export function useConversionsProps(
 export function useConversionInfo() {
   const dispatch = useAppDispatch();
   const location = useLocation();
-  const conversationsLoaded = useAppSelector(state => state.conversation.conversationsLoaded);
-  const conversationInfo = useAppSelector(state => state.conversation.conversationInfo);
+  const conversationsLoaded = useAppSelector((state) => state.conversation.conversationsLoaded);
+  const conversationInfo = useAppSelector((state) => state.conversation.conversationInfo);
 
   // 监听路由
   useEffect(() => {
@@ -180,7 +212,7 @@ const CONVERSATION_PAGE_LIMIT = 20;
 /** 对话列表无限滚动：游标分页，首页不传 cursor，后续传 nextCursor */
 export function useConversationInfiniteScroll(containerRef: RefObject<HTMLDivElement | null>) {
   const dispatch = useAppDispatch();
-  const conversations = useAppSelector(state => state.conversation.conversations);
+  const conversations = useAppSelector((state) => state.conversation.conversations);
 
   const { loadingMore, noMore } = useInfiniteScroll<
     Omit<ConversationListResponse, "conversations"> & {
@@ -192,7 +224,9 @@ export function useConversationInfiniteScroll(containerRef: RefObject<HTMLDivEle
         return lastData;
       }
       const cursor = lastData?.nextCursor ?? undefined;
-      const res = await dispatch(loadConversations({ cursor, limit: CONVERSATION_PAGE_LIMIT })).unwrap();
+      const res = await dispatch(
+        loadConversations({ cursor, limit: CONVERSATION_PAGE_LIMIT }),
+      ).unwrap();
       return {
         list: res.conversations,
         nextCursor: res.nextCursor,
@@ -202,10 +236,10 @@ export function useConversationInfiniteScroll(containerRef: RefObject<HTMLDivEle
     },
     {
       target: () => containerRef.current ?? undefined,
-      isNoMore: scrollData => !scrollData?.hasMore,
+      isNoMore: (scrollData) => !scrollData?.hasMore,
       threshold: 5,
       reloadDeps: [],
-    }
+    },
   );
 
   return {
@@ -238,6 +272,11 @@ export function useSidebarContent() {
     });
   });
 
+  const onPinConversation = useMemoizedFn(async (id: string, pinned: boolean) => {
+    await dispatch(pinConversation({ id, pinned })).unwrap();
+    message.success(pinned ? "已置顶" : "已取消置顶");
+  });
+
   const onCompressConversation = useMemoizedFn((id: string) => {
     modal.confirm({
       centered: true,
@@ -255,7 +294,8 @@ export function useSidebarContent() {
   const { items, menu, groupable } = useConversionsProps(
     onDeleteConversation,
     setEditConversionInfo,
-    onCompressConversation
+    onCompressConversation,
+    onPinConversation,
   );
 
   const handleMenuClick = useMemoizedFn((pathname: string) => {
@@ -293,16 +333,16 @@ export function useMainLayoutSidebar() {
   const contentRef = useRef<HTMLDivElement>(null);
   const sidebarCollapsedBeforeFullscreenRef = useRef<boolean | null>(null);
 
-  useClickAway(event => {
+  useClickAway((event) => {
     const isContentClick = contentRef.current?.contains(event.target as Node);
     if (isSmallScreen && isContentClick && !collapsed) setCollapsed(true);
   }, siderBarRef);
 
-  useEmitter(EventType.ChangeSidebarCollapse, nextCollapsed => {
+  useEmitter(EventType.ChangeSidebarCollapse, (nextCollapsed) => {
     setCollapsed(nextCollapsed);
   });
 
-  useEmitter(EventType.ChangePreviewFullscreen, fullscreen => {
+  useEmitter(EventType.ChangePreviewFullscreen, (fullscreen) => {
     if (fullscreen) {
       sidebarCollapsedBeforeFullscreenRef.current = collapsed;
       setCollapsed(true);
@@ -315,7 +355,7 @@ export function useMainLayoutSidebar() {
     }
   });
 
-  const handleCollapse = useMemoizedFn(() => setCollapsed(prev => !prev));
+  const handleCollapse = useMemoizedFn(() => setCollapsed((prev) => !prev));
 
   const handleNewConversion = useMemoizedFn(() => {
     navigate("/chat");
