@@ -23,6 +23,7 @@ class ConversationInfo(BaseModel):
     created_by: CreatedBy = Field(..., description="Conversation created by")
     created_at: str = Field(..., description="Creation timestamp (ISO format)")
     updated_at: str = Field(..., description="Update timestamp (ISO format)")
+    pinned_at: str | None = Field(None, description="置顶时间（ISO），空表示未置顶")
 
     # 允许额外字段
     model_config = ConfigDict(extra="allow")
@@ -67,6 +68,12 @@ class UpdateConversationRequest(BaseModel):
     id: str = Field(..., description="Conversation ID")
     title: str = Field(..., description="New conversation title")
     created_by: CreatedBy = Field(..., description="Conversation created by")
+
+
+class PinConversationRequest(BaseModel):
+    """置顶或取消置顶"""
+
+    pinned: bool = Field(..., description="true 置顶，false 取消置顶")
 
 
 class ConversationSearchMatchType(str, Enum):

@@ -13,6 +13,7 @@ export interface ConversationInfo {
   updatedAt: string;
   lastMessageCreatedAt: string;
   lastMessageUpdatedAt: string;
+  pinnedAt: string | null;
 }
 
 export interface EditConversationInfo {
