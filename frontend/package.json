@@ -24,7 +24,7 @@
     "antd": "^6.6.4",
     "antd-img-crop": "^4.30.0",
     "axios": "^1.20.0",
-    "camelcase-keys": "^10.0.2",
+    "camelcase-keys": "^10.0.3",
     "classnames": "^2.5.1",
     "dayjs": "^1.11.23",
     "dexie": "^4.4.6",
