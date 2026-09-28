@@ -26,6 +26,7 @@ RUN apt-get update && \
     gnupg \
     fontconfig \
     fonts-noto-cjk \
+    libcairo2 \
     && mkdir -p /etc/apt/keyrings \
     && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
     && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" > /etc/apt/sources.list.d/nodesource.list \
@@ -59,6 +60,13 @@ COPY uv.lock .
 RUN uv export --format requirements.txt --all-packages > /tmp/requirements.txt && \
     uv pip install --system -r /tmp/requirements.txt --index-url https://mirrors.aliyun.com/pypi/simple/ && \
     rm /tmp/requirements.txt
+
+# SVG→PNG 渲染链（cairosvg 依赖上面 apt 安装的 libcairo2）
+RUN pip install --no-cache-dir --index-url https://mirrors.aliyun.com/pypi/simple/ cairosvg
+
+# fontconfig 兜底：SVG 字体栈中的 Inter / PingFang SC / Microsoft YaHei 等在容器内不存在，
+# 无兜底时回退到 DejaVu（无 CJK 字形）→ 豆腐块。local.conf 将这些名字 alias 到 Noto CJK。
+COPY fonts/local.conf /etc/fonts/local.conf
 
 # Copy application code
 COPY alembic.ini .
