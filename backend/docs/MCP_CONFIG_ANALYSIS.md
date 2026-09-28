@@ -22,6 +22,7 @@
 | `file` | fastmcp | `app.mcp.mcp_servers.file_mcp.server` | 文件操作（含 `present_files`、`publish_site`） |
 | `skill_manager` | fastmcp | `app.mcp.mcp_servers.skill_manager_mcp.server` | Agent Skill 加载 |
 | `shell` | fastmcp | `app.mcp.mcp_servers.shell_mcp.server` | Shell 命令执行（工具 bare 名 `exec`，LLM 侧多为 `shell_exec`） |
+| `subagent` | fastmcp | `app.mcp.mcp_servers.subagent_mcp.server` | 子任务委派（bare `delegate_task`，LLM 名 `subagent_delegate_task`）。默认已注册，但**不在**模式列表里，父模型默认看不到 |
 | `context7` | http | `url` + `headers`（见 `mcp.mcp_servers`） | Context7 文档检索 |
 
 说明：`normal_mode_servers` / `agent_mode_servers` 默认列表含 `zread`，但内置 `mcp_servers` **不含** `zread` entry。未在 Nacos/环境配置中补充 `zread` 时，该名称只会出现在模式列表里，不会建立连接或暴露工具。
@@ -111,7 +112,7 @@ mcp:
 | 模式 | 默认 Server 列表 | 说明 |
 |---|---|---|
 | 普通对话（`agent_mode=0`） | `time`、`weather`、`tavily`、`code`、`context7`、`zread` | 面向问答与轻量工具调用 |
-| Agent 模式（`agent_mode>0`） | `file`、`skill_manager`、`shell`、`tavily`、`context7`、`zread` | 面向文件读写、技能管理与沙箱命令执行 |
+| Agent 模式（`agent_mode>0`） | `file`、`skill_manager`、`shell`、`tavily`、`context7`、`zread` | 面向文件读写、技能管理与沙箱命令执行。`subagent` 需另行加入本列表才暴露 `subagent_delegate_task` |
 
 这些列表只控制 LLM 可见工具集合；Server 是否真正可用仍取决于
 `mcp.mcp_servers` 中是否配置并启用对应项。Agent 模式的虚拟文件系统、`file`

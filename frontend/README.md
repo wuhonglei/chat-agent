@@ -97,6 +97,7 @@ frontend/
 - 纯文本 / 代码文件：`.csv` / `.tsv` 以表格预览，其它文本/代码通过 `CodeHighlighter` 按扩展名高亮
 - HTML：代码块头部「预览」用侧栏 iframe `srcDoc`（当前未设 `sandbox`）。工作区 HTML：已发布则 iframe 走站点公网 URL；未发布且行数 ≥ 50 默认预览，否则源码
 - 工作区项目：`ProjectPreview` 浏览 agent 工作区。存在 `outputs/app-dist` 或 `outputs/index.html` 时提供「文件 / 运行」与发布 / 复制链接 / 下线；自定义 slug 走 REST，占用展示 409，不静默改名。`workspaceId` 即 `conversation_id`
+- 工作区文件（与上面的聊天附件预览分开）：`.xlsx`/`.xls` 表格，`.png`/`.jpg`/`.jpeg`/`.gif`/`.webp`/`.ico` 图片，`.svg` 与 `.mmd`/`.mermaid` 可在预览和源码间切换。侧栏可全屏，不新开路由。细节见 `frontend/docs/conversation.md` 第 8 节
 
 `PreviewableBlock` 当前覆盖 `pdf | excel | markdown | text_file | html | code_exec | project`，入口为 `src/pages/ChatPage/components/BlockPreviewPanel/index.tsx`。
 
