@@ -17,9 +17,8 @@ READ_FILE_DESCRIPTION = (
     "Reads a text file from the workspace filesystem (line-based offset/limit). "
     "Do NOT use for images (png/jpg/jpeg/gif/webp/…) or other binary files "
     "(pdf/xlsx/docx/pptx/zip/…). Those cannot be read as text; for PDF/Office "
-    "uploads prefer the derived Markdown under uploads/derived/. For images "
-    "already attached in the user message, interpret them directly (vision) "
-    "instead of calling this tool."
+    "uploads prefer the derived Markdown under uploads/derived/. For images, "
+    "call vision_analyze with the virtual path and a question."
 )
 
 
@@ -56,9 +55,8 @@ class ReadFileTool(ToolBase):
                 if kind == "image":
                     message = (
                         f"Error: {file_path} is an image ({size} bytes) and cannot be "
-                        "read as text via read_file. If the image is already in the "
-                        "user message, interpret it directly; do not call read_file "
-                        "on image paths."
+                        "read as text via read_file. Call vision_analyze with this "
+                        "path and a question instead."
                     )
                 else:
                     message = (

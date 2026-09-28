@@ -264,6 +264,9 @@ class MCPConfig(BaseModel):
             "subagent": MCPServerEntry(
                 module="app.mcp.mcp_servers.subagent_mcp.server",
             ),
+            "vision": MCPServerEntry(
+                module="app.mcp.mcp_servers.vision_mcp.server",
+            ),
         },
         description="MCP Server 接入配置（server_name -> MCPServerEntry）",
     )
@@ -275,6 +278,7 @@ class MCPConfig(BaseModel):
             "code",
             "context7",
             "zread",
+            "vision",
         ],
         description="普通对话（agent_mode=0）下暴露给 LLM 的 MCP Server 名称列表",
     )
@@ -286,6 +290,7 @@ class MCPConfig(BaseModel):
             "tavily",
             "context7",
             "zread",
+            "vision",
         ],
         description="Agent 模式（agent_mode>0）下暴露给 LLM 的 MCP Server 名称列表",
     )

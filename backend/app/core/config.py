@@ -39,6 +39,47 @@ from app.schemas.config import (
 )
 from app.utils.logger import logger
 
+_REQUIRED_SCENARIOS = (
+    "text_generation",
+    "title_generation",
+    "summarization",
+    "vision",
+)
+
+
+def validate_models_config(models: ModelsConfig) -> None:
+    """启动时校验场景引用；``vision`` 必须存在且模型支持图片输入。"""
+    for scenario_name in _REQUIRED_SCENARIOS:
+        if scenario_name not in models.scenarios:
+            raise ValueError(f"models.scenarios 必须包含 '{scenario_name}'")
+
+    for scenario_name, scenario in models.scenarios.items():
+        refs = [scenario.default_model, *scenario.alternatives]
+        for ref in refs:
+            provider_name, _, model_key = ref.partition("/")
+            if not provider_name or not model_key:
+                raise ValueError(
+                    f"models.scenarios.{scenario_name} 模型引用非法: {ref!r}，"
+                    "应为 'provider/model_name'"
+                )
+            provider = models.providers.get(provider_name)
+            if provider is None:
+                raise ValueError(
+                    f"models.scenarios.{scenario_name} 引用了不存在的 provider: "
+                    f"{provider_name!r}（ref={ref!r}）"
+                )
+            meta = provider.models.get(model_key)
+            if meta is None:
+                raise ValueError(
+                    f"models.scenarios.{scenario_name} 引用了 provider "
+                    f"{provider_name!r} 下不存在的模型: {model_key!r}（ref={ref!r}）"
+                )
+            if scenario_name == "vision" and "image" not in meta.capabilities:
+                raise ValueError(
+                    "models.scenarios.vision 引用的模型必须支持图片输入"
+                    f"（capabilities 含 image）: {ref!r}"
+                )
+
 
 class Settings(BaseSettings):
     """Application settings - 使用层级结构匹配 YAML 配置"""
@@ -116,31 +157,7 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_models(self) -> "Settings":
         models = self.models
-        required_scenarios = ("text_generation", "title_generation", "summarization")
-        for scenario_name in required_scenarios:
-            if scenario_name not in models.scenarios:
-                raise ValueError(f"models.scenarios 必须包含 '{scenario_name}'")
-
-        for scenario_name, scenario in models.scenarios.items():
-            refs = [scenario.default_model, *scenario.alternatives]
-            for ref in refs:
-                provider_name, _, model_key = ref.partition("/")
-                if not provider_name or not model_key:
-                    raise ValueError(
-                        f"models.scenarios.{scenario_name} 模型引用非法: {ref!r}，"
-                        "应为 'provider/model_name'"
-                    )
-                provider = models.providers.get(provider_name)
-                if provider is None:
-                    raise ValueError(
-                        f"models.scenarios.{scenario_name} 引用了不存在的 provider: "
-                        f"{provider_name!r}（ref={ref!r}）"
-                    )
-                if model_key not in provider.models:
-                    raise ValueError(
-                        f"models.scenarios.{scenario_name} 引用了 provider "
-                        f"{provider_name!r} 下不存在的模型: {model_key!r}（ref={ref!r}）"
-                    )
+        validate_models_config(models)
         return self
 
     @classmethod

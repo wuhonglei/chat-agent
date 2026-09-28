@@ -15,6 +15,7 @@ TIME_SERVER = "time"
 CONTEXT7_SERVER = "context7"
 ZREAD_SERVER = "zread"
 SUBAGENT_SERVER = "subagent"
+VISION_SERVER = "vision"
 
 # --- File MCP bare tools ---
 READ_FILE_BARE = "read_file"
@@ -47,6 +48,9 @@ PUBLISH_SITE_LLM = llm_tool_name(FILE_SERVER, PUBLISH_SITE_BARE)
 SHELL_LLM = llm_tool_name(SHELL_SERVER, SHELL_BARE)
 EXECUTE_CODE_LLM = llm_tool_name(CODE_SERVER, EXECUTE_CODE_BARE)
 LIST_RUNTIMES_LLM = llm_tool_name(CODE_SERVER, LIST_RUNTIMES_BARE)
+
+VISION_ANALYZE_BARE = "analyze"
+VISION_ANALYZE_LLM = llm_tool_name(VISION_SERVER, VISION_ANALYZE_BARE)
 
 DELEGATE_TASK_BARE = "delegate_task"
 DELEGATE_TASK_LLM = llm_tool_name(SUBAGENT_SERVER, DELEGATE_TASK_BARE)
@@ -81,6 +85,7 @@ IDEMPOTENT_LLM_TOOLS = frozenset(
         llm_tool_name(WEATHER_SERVER, "get_weather_daily_forecast"),
         llm_tool_name(WEATHER_SERVER, "get_weather_alerts"),
         llm_tool_name(SKILL_MANAGER_SERVER, "load_skill"),
+        VISION_ANALYZE_LLM,
     }
 )
 
