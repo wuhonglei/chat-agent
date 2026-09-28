@@ -272,6 +272,10 @@ class TokenCalculator:
         """
         return int(self.get_max_context_tokens() * threshold_ratio)
 
+    def _encode(self, text: str) -> list[int]:
+        """将文本编码为 token ids，字面量特殊 token 按普通文本处理。"""
+        return self.encoding.encode(text, disallowed_special=())
+
     def count_tokens(self, text: str | None) -> int:
         """
         计算文本的 token 数量
@@ -282,7 +286,7 @@ class TokenCalculator:
         Returns:
             token 数量
         """
-        return len(self.encoding.encode(text or ""))
+        return len(self._encode(text or ""))
 
     def count_message_tokens(self, message: dict[str, Any] | BaseModel) -> int:
         total_tokens = 0
@@ -386,7 +390,7 @@ class TokenCalculator:
         """将文本截断到不超过 max_tokens（按 token 从前往后保留）。"""
         if not text or max_tokens <= 0:
             return ""
-        token_ids = self.encoding.encode(text)
+        token_ids = self._encode(text)
         if len(token_ids) <= max_tokens:
             return text
         return self.encoding.decode(token_ids[:max_tokens])
@@ -395,13 +399,13 @@ class TokenCalculator:
         """将文本截断到不超过 max_tokens，保留头部约 60% 与尾部约 40%。"""
         if not text or max_tokens <= 0:
             return ""
-        token_ids = self.encoding.encode(text)
+        token_ids = self._encode(text)
         original_token_count = len(token_ids)
         if original_token_count <= max_tokens:
             return text
 
         marker = f"\n…[中间已省略，共 {original_token_count} tokens]…\n"
-        marker_token_count = len(self.encoding.encode(marker))
+        marker_token_count = len(self._encode(marker))
         remaining = max_tokens - marker_token_count
         if remaining <= 1:
             return self.truncate_text_to_tokens(text, max_tokens)
