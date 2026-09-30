@@ -390,12 +390,15 @@ def build_user_content_for_llm(
     if text:
         parts.append({"type": "text", "text": text})
 
-    for block in normalized_blocks:
-        if not isinstance(block, ImageBlock):
-            continue
+    image_blocks = [b for b in normalized_blocks if isinstance(b, ImageBlock)]
+    total = len(image_blocks)
+    for index, block in enumerate(image_blocks, start=1):
         image_url = _build_image_data_url(block)
         if not image_url:
             continue
+        label = _image_part_label(block, index, total)
+        if label:
+            parts.append({"type": "text", "text": label})
         parts.append(
             {
                 "type": "image_url",
@@ -406,6 +409,32 @@ def build_user_content_for_llm(
     if not parts:
         return text
     return parts
+
+
+def _image_part_label(block: ImageBlock, index: int, total: int) -> str | None:
+    """图片 part 的虚拟路径标注（多图按出现顺序编号）。
+
+    路径由 storage_key 决定、与预览 URL 解析结果一致，保证同一消息重复
+    组装（当轮 / 历史回放）字节级一致。拿不到路径时：多图退化为纯编号
+    （至少保住顺序语义），单图不加标注。
+    """
+    virtual_path = _storage_key_to_virtual_path(block.storage_key)
+    if virtual_path is None:
+        virtual_path = _storage_key_to_virtual_path(
+            _storage_key_from_preview_url(block.url)
+        )
+    if virtual_path is not None:
+        return f"[图片 {index}/{total}：{virtual_path}]"
+    return f"[图片 {index}/{total}]" if total > 1 else None
+
+
+def _storage_key_from_preview_url(url: str) -> str | None:
+    parsed = urlparse(url)
+    for pattern in _IMAGE_PREVIEW_PATH_PATTERNS:
+        match = pattern.match(parsed.path)
+        if match:
+            return unquote(match.group(2))
+    return None
 
 
 def _build_text_content(

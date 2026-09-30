@@ -20,6 +20,9 @@ from app.vfs.resolver import PathPermission
 
 VISION_ANALYZE_DESCRIPTION = (
     "Analyze one image and answer a question about it. "
+    "Only for images NOT already present as image content in the conversation: "
+    "if the image is already attached to a message, analyze it directly with "
+    "your own vision instead of calling this tool. "
     "image_url is required and must be exactly one of: an http or https URL, "
     "a virtual file path (for example /mnt/user-data/uploads/photo.png, or a "
     "path under workspace, outputs, or skills), or a "
