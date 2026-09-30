@@ -32,9 +32,15 @@ from app.mcp.constants import (
     SHELL_SERVER,
     SKIP_TOOL_RESULT_COMPACTION_SERVERS,
     TAVILY_SERVER,
+    VISION_SERVER,
     WEB_PAGES_EXTRACT_BARE,
 )
 from app.mcp.errors import ToolArgumentValidationError
+from app.mcp.mcp_servers.vision_mcp.analyze import (
+    ask_vision_model,
+    build_vision_llm_content,
+    is_vision_passthrough,
+)
 from app.mcp.tool_naming import ToolRoute, is_llm_tool
 from app.schemas.llm import ToolResultMessage
 from app.services.subagent.timeouts import DELEGATE_EXECUTOR_GRACE_SECONDS
@@ -56,8 +62,10 @@ class ToolExecutor:
         user_message: str,
         model_name: str,
         context_limit: int,
+        image_support: bool = False,
     ) -> None:
         self.mcp_manager = mcp_manager
+        self.image_support = image_support
         self.current_user_message = user_message
         self.current_user_id: str | None = None
         self.current_conversation_id: str | None = None
@@ -251,6 +259,11 @@ class ToolExecutor:
                     arguments=arguments,
                     current_iteration=current_iteration,
                 )
+                message = await self._resolve_vision_passthrough(
+                    server_name=server_name,
+                    result=result,
+                    message=message,
+                )
                 message = await self._soft_shape_tool_result(
                     tool_name=tool_name,
                     tool_call_id=tool_call.id,
@@ -407,6 +420,33 @@ class ToolExecutor:
         server_name = self.mcp_manager.get_server_for_tool(tool_name)
         return result, call_warnings, message, server_name
 
+    async def _resolve_vision_passthrough(
+        self,
+        *,
+        server_name: str | None,
+        result: Any,
+        message: ToolResultMessage,
+    ) -> ToolResultMessage:
+        """Route a loaded image to the main model or the vision fallback model."""
+        structured = getattr(result, "structured_content", None)
+        if server_name != VISION_SERVER or not is_vision_passthrough(structured):
+            return message
+        data_url = str(structured["data_url"])
+        question = structured.get("question")
+        question_text = question if isinstance(question, str) else ""
+        if self.image_support:
+            return message.model_copy(
+                update={
+                    "llm_content": build_vision_llm_content(data_url, question_text),
+                }
+            )
+        answer = (await ask_vision_model(question_text, data_url)).strip()
+        if not answer:
+            raise ValueError("Error: vision model returned empty content")
+        return message.model_copy(
+            update={"content": answer, "is_error": False, "llm_content": None}
+        )
+
     async def _soft_shape_tool_result(
         self,
         *,
@@ -417,6 +457,13 @@ class ToolExecutor:
         message: ToolResultMessage,
     ) -> ToolResultMessage:
         """Soft compaction (skip / Tavily / FAISS) and shell display shaping."""
+        if message.llm_content:
+            logger.info(
+                "Skipping tool result compaction for vision passthrough",
+                tool_name=tool_name,
+                tool_call_id=tool_call_id,
+            )
+            return message
         skip_compaction = server_name in SKIP_TOOL_RESULT_COMPACTION_SERVERS
         if skip_compaction:
             logger.info(
@@ -459,6 +506,7 @@ class ToolExecutor:
         if warning_msg:
             content = warning_msg + content
             message.content = content
+            message = _affix_llm_content_text(message, prefix=warning_msg)
             logger.info(
                 "Added tool warnings to tool result",
                 tool_name=tool_name,
@@ -483,6 +531,7 @@ class ToolExecutor:
         if guardrail_suffix:
             content = content + guardrail_suffix
             message = message.model_copy(update={"content": content})
+            message = _affix_llm_content_text(message, suffix=guardrail_suffix)
         return message, success, error_type, outcome_meta
 
     def _record_tool_success_observation(
@@ -837,3 +886,31 @@ class ToolExecutor:
         if not messages:
             return ""
         return "\n".join(messages) + "\n\n"
+
+
+def _affix_llm_content_text(
+    message: ToolResultMessage,
+    *,
+    prefix: str = "",
+    suffix: str = "",
+) -> ToolResultMessage:
+    """Keep warning or halt text visible when the wire content is multimodal."""
+    parts = message.llm_content
+    if not parts or (not prefix and not suffix):
+        return message
+    updated: list[dict[str, Any]] = []
+    affixed = False
+    for part in parts:
+        if (
+            not affixed
+            and isinstance(part, dict)
+            and part.get("type") == "text"
+            and isinstance(part.get("text"), str)
+        ):
+            updated.append({**part, "text": f"{prefix}{part['text']}{suffix}"})
+            affixed = True
+            continue
+        updated.append(part)
+    if not affixed:
+        updated.insert(0, {"type": "text", "text": f"{prefix}{suffix}"})
+    return message.model_copy(update={"llm_content": updated})
