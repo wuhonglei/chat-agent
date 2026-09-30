@@ -23,12 +23,17 @@ class MCPToolSession:
         model_name: str,
         context_limit: int,
         tool_round_messages: list[ToolMessage],
+        image_support: bool = False,
     ):
         self.mcp_manager = mcp_manager
         self.tool_round_messages = tool_round_messages
         self.policy = ToolCallPolicy(tool_round_messages)
         self.executor = ToolExecutor(
-            mcp_manager, user_message, model_name, context_limit
+            mcp_manager,
+            user_message,
+            model_name,
+            context_limit,
+            image_support=image_support,
         )
         self._agent_mode = 0
 

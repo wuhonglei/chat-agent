@@ -10,7 +10,6 @@ from app.agent_skills.types import AgentSkillManifest
 from app.mcp.constants import (
     PRESENT_FILES_LLM,
     SKILL_MANAGER_SERVER,
-    VISION_ANALYZE_LLM,
 )
 from app.mcp.tool_naming import llm_tool_name
 from app.prompts.system_prompt import (
@@ -69,7 +68,6 @@ def get_system_prompt_for_chat_session(
             SKILL_MANAGER_SERVER, "load_skill"
         )
         extra["present_files_tool_name"] = PRESENT_FILES_LLM
-        extra["vision_analyze_tool_name"] = VISION_ANALYZE_LLM
         extra["skill_catalog_lines"] = format_catalog_entries(manifests)
     summary = (window_out_summary or "").strip() or None
     return system_prompt_for_chat_session_template.render(

@@ -30,13 +30,42 @@ def create_user_message(content: str, *, source: dict[str, Any]) -> dict[str, An
 def project_messages_for_provider(
     messages: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """投影为 provider 允许的字段，去掉 ``source`` 等内部元数据。"""
+    """投影为 provider 允许的字段，去掉 ``source`` 等内部元数据。
+
+    带 ``llm_content`` 的 tool 消息改写成 OpenAI ``image_url`` content list。
+    用户消息里已经是 list 的 content 原样通过。
+    """
     projected: list[dict[str, Any]] = []
     for message in messages:
-        projected.append(
-            {key: message[key] for key in _PROVIDER_MESSAGE_KEYS if key in message}
-        )
+        item = {key: message[key] for key in _PROVIDER_MESSAGE_KEYS if key in message}
+        llm_content = message.get("llm_content")
+        if isinstance(llm_content, list) and llm_content:
+            parts = _project_tool_multimodal_content(llm_content)
+            if parts:
+                item["content"] = parts
+        projected.append(item)
     return projected
+
+
+def _project_tool_multimodal_content(
+    parts: list[Any],
+) -> list[dict[str, Any]]:
+    """Keep only OpenAI chat text and image_url parts."""
+    projected_parts: list[dict[str, Any]] = []
+    for part in parts:
+        if not isinstance(part, dict):
+            continue
+        part_type = part.get("type")
+        if part_type == "text" and isinstance(part.get("text"), str):
+            projected_parts.append({"type": "text", "text": part["text"]})
+            continue
+        if part_type != "image_url":
+            continue
+        image_url = part.get("image_url")
+        url = image_url.get("url") if isinstance(image_url, dict) else image_url
+        if isinstance(url, str) and url:
+            projected_parts.append({"type": "image_url", "image_url": {"url": url}})
+    return projected_parts
 
 
 def build_trailing_hint_user_message(

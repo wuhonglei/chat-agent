@@ -83,7 +83,6 @@ skill 文档可能引用同目录资源：按加载结果中的 base directory �
 **文件管理：**
 - 所有临时工作均在 `{{ workspace_prefix.rstrip('/') }}` 中进行
 - 最终交付物必须复制到 `{{ outputs_prefix.rstrip('/') }}`，完成后调用 `{{ present_files_tool_name }}` 工具将其文件呈现给用户
-- 分析上传目录、工作区或输出目录中的图片时，调用 `{{ vision_analyze_tool_name }}`，传入虚拟路径和问题。不要对图片使用 read_file
 </working_directory>
 {%- endif %}
 """.strip()

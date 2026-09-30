@@ -6,7 +6,7 @@ import asyncio
 import base64
 import ipaddress
 import socket
-from typing import Any
+from typing import Any, TypeGuard
 from urllib.parse import urljoin, urlparse
 
 import httpx
@@ -14,15 +14,15 @@ import httpx
 from app.mcp.mcp_servers.file_mcp.base import ToolBase, ToolContext, ToolResult
 from app.mcp.mcp_servers.file_mcp.utils import resolve_virtual_path
 from app.services.base_service.llm_service import LLMService
-from app.services.base_service.model_resolver import (
-    ModelResolverError,
-    resolve_scenario,
-)
+from app.services.base_service.model_resolver import resolve_scenario
 from app.utils.logger import logger
 from app.vfs.resolver import PathPermission
 
 VISION_ANALYZE_DESCRIPTION = (
     "Analyze one image and answer a question about it. "
+    "Only for images NOT already present as image content in the conversation: "
+    "if the image is already attached to a message, analyze it directly with "
+    "your own vision instead of calling this tool. "
     "image_url is required and must be exactly one of: an http or https URL, "
     "a virtual file path (for example /mnt/user-data/uploads/photo.png, or a "
     "path under workspace, outputs, or skills), or a "
@@ -34,6 +34,12 @@ VISION_ANALYZE_DESCRIPTION = (
 _VISION_SYSTEM_PROMPT = (
     "你是图片分析助手。只根据给定图片和用户问题回答，"
     "不要编造图中不存在的内容。看不清或无法判断时直接说明。"
+)
+
+VISION_PASSTHROUGH_KIND = "vision_passthrough"
+
+_VISION_GUIDANCE_PREFIX = (
+    "下面是图片。请直接根据图片回答，不要编造图中不存在的内容。问题："
 )
 
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
@@ -72,8 +78,7 @@ class VisionAnalyzeTool(ToolBase):
                 user_id=ctx.user_id,
                 conversation_id=ctx.conversation_id,
             )
-            answer = await _ask_vision_model(question, data_url)
-        except (OSError, ValueError, ModelResolverError) as exc:
+        except (OSError, ValueError) as exc:
             logger.warning(
                 "vision_analyze failed",
                 source=_source_kind(image_url),
@@ -88,18 +93,15 @@ class VisionAnalyzeTool(ToolBase):
             )
             return ToolResult(content=f"Error: {exc}", is_error=True)
 
-        if not answer:
-            return ToolResult(
-                content="Error: vision model returned empty content",
-                is_error=True,
-            )
-
         logger.info(
-            "vision_analyze completed",
+            "vision_analyze loaded image",
             source=_source_kind(image_url),
-            answer_chars=len(answer),
+            data_url_chars=len(data_url),
         )
-        return ToolResult(content=answer)
+        return ToolResult(
+            content=vision_passthrough_stub(question),
+            structured_content=build_vision_passthrough_content(data_url, question),
+        )
 
 
 async def load_image_data_url(
@@ -303,7 +305,41 @@ async def _read_limited(response: httpx.Response) -> bytes:
     return b"".join(chunks)
 
 
-async def _ask_vision_model(question: str, data_url: str) -> str:
+def vision_passthrough_stub(question: str) -> str:
+    """Short text persisted and shown for a vision passthrough result."""
+    return f"图片已交给当前模型直接查看。问题：{question}"
+
+
+def build_vision_passthrough_content(data_url: str, question: str) -> dict[str, str]:
+    """Structured payload carrying pixels across the MCP text boundary."""
+    return {
+        "kind": VISION_PASSTHROUGH_KIND,
+        "data_url": data_url,
+        "question": question,
+    }
+
+
+def is_vision_passthrough(
+    structured_content: Any,
+) -> TypeGuard[dict[str, Any]]:
+    """Whether an MCP structured payload is a loaded image awaiting routing."""
+    if not isinstance(structured_content, dict):
+        return False
+    if structured_content.get("kind") != VISION_PASSTHROUGH_KIND:
+        return False
+    data_url = structured_content.get("data_url")
+    return isinstance(data_url, str) and bool(data_url)
+
+
+def build_vision_llm_content(data_url: str, question: str) -> list[dict[str, Any]]:
+    """OpenAI-style tool content: guidance text plus the image."""
+    return [
+        {"type": "text", "text": f"{_VISION_GUIDANCE_PREFIX}{question}"},
+        {"type": "image_url", "image_url": {"url": data_url}},
+    ]
+
+
+async def ask_vision_model(question: str, data_url: str) -> str:
     llm_config = resolve_scenario("vision")
     service = LLMService(llm_config, think_mode=False)
     messages: list[dict[str, Any]] = [

@@ -44,20 +44,40 @@ def format_tool_use_message(
 def format_tool_result_message(
     message: ToolResultMessage | dict[str, Any],
 ) -> dict[str, Any]:
-    message = normalize_to_dict(message)
-    return {
-        "role": get("role", message),
-        "tool_call_id": get("tool_call_id", message),
-        "content": get("content", message, ""),
+    llm_content = _tool_result_llm_content(message)
+    message_dict = normalize_to_dict(message)
+    payload: dict[str, Any] = {
+        "role": get("role", message_dict),
+        "tool_call_id": get("tool_call_id", message_dict),
+        "content": get("content", message_dict, ""),
     }
+    if llm_content:
+        payload["llm_content"] = llm_content
+    return payload
+
+
+def _tool_result_llm_content(
+    message: ToolResultMessage | dict[str, Any],
+) -> list[dict[str, Any]] | None:
+    """Read ephemeral multimodal parts before model_dump drops excluded fields."""
+    raw: Any = (
+        message.llm_content
+        if isinstance(message, ToolResultMessage)
+        else message.get("llm_content")
+    )
+    if not isinstance(raw, list) or not raw:
+        return None
+    return raw
 
 
 def format_tool_call_message_for_llm(
     message: ToolMessage | dict[str, Any],
     clear_reasoning_content: bool = False,
 ) -> dict[str, Any]:
-    message = normalize_to_dict(message)
-    if get("role", message) == "assistant":
+    # 先按原始对象分流。normalize 会丢掉 ToolResultMessage.llm_content（exclude=True）。
+    if isinstance(message, ToolUseMessage) or (
+        isinstance(message, dict) and message.get("role") == "assistant"
+    ):
         return format_tool_use_message(message, clear_reasoning_content)
     return format_tool_result_message(message)
 

@@ -57,7 +57,11 @@ from app.services.subagent.tool_filter import filter_llm_tools
 from app.utils.date import get_current_datetime_str
 from app.utils.llm_usage import log_llm_cache_usage
 from app.utils.logger import logger
-from app.utils.message import build_trailing_hint_user_message, update_last_user_message
+from app.utils.message import (
+    build_trailing_hint_user_message,
+    project_messages_for_provider,
+    update_last_user_message,
+)
 from app.utils.multimodal import (
     build_user_content_for_llm,
     extract_user_text_with_attachment_placeholder,
@@ -264,6 +268,7 @@ class ChatSessionAgent(BaseAgent):
             self.model_config.model_name,
             self.model_config.context_limit,
             self.tool_round_messages,
+            image_support=self.model_config.image_support,
         )
         tool_session.reset_for_request(
             self._user_message_text,
@@ -450,7 +455,7 @@ class ChatSessionAgent(BaseAgent):
         )
 
         def _total_tokens(base: list[dict[str, Any]]) -> int:
-            return self.token_calculator.count_messages_tokens(
+            return self._count_provider_prompt_tokens(
                 self._build_round_prompt_messages(base)
             )
 
@@ -488,7 +493,7 @@ class ChatSessionAgent(BaseAgent):
         user_tokens = self.token_calculator.count_message_tokens(
             {"role": "user", "content": self._user_message_content}
         )
-        tool_round_tokens = self.token_calculator.count_messages_tokens(
+        tool_round_tokens = self._count_provider_prompt_tokens(
             format_tool_call_messages_for_llm(
                 self.session_output.tool_round_messages,
                 clear_reasoning_content=False,
@@ -566,7 +571,7 @@ class ChatSessionAgent(BaseAgent):
         messages = self.session_output.tool_round_messages
         compressible_end = tool_round_compressible_end(messages, keep_recent)
         if compressible_end <= 0:
-            return self.token_calculator.count_messages_tokens(
+            return self._count_provider_prompt_tokens(
                 self._build_round_prompt_messages(base_prompt_messages)
             )
 
@@ -583,7 +588,7 @@ class ChatSessionAgent(BaseAgent):
             reverse=True,
         )
 
-        total_tokens = self.token_calculator.count_messages_tokens(
+        total_tokens = self._count_provider_prompt_tokens(
             self._build_round_prompt_messages(base_prompt_messages)
         )
         for idx in candidates:
@@ -594,7 +599,7 @@ class ChatSessionAgent(BaseAgent):
             if truncated == msg.content:
                 continue
             msg.content = truncated
-            total_tokens = self.token_calculator.count_messages_tokens(
+            total_tokens = self._count_provider_prompt_tokens(
                 self._build_round_prompt_messages(base_prompt_messages)
             )
             if total_tokens <= threshold:
@@ -620,6 +625,12 @@ class ChatSessionAgent(BaseAgent):
         if trailing_user is not None:
             messages = messages + [trailing_user]
         return messages
+
+    def _count_provider_prompt_tokens(self, messages: list[dict[str, Any]]) -> int:
+        """Count tokens on the provider wire form, including vision image parts."""
+        return self.token_calculator.count_messages_tokens(
+            project_messages_for_provider(messages)
+        )
 
     def _sync_session_output(self) -> None:
         self.session_output.content_blocks = list(self.content_block_aggregator.blocks)

@@ -1,4 +1,4 @@
-"""Tests for vision_analyze image loading and model call."""
+"""Tests for vision_analyze image loading and passthrough payload."""
 
 from __future__ import annotations
 
@@ -12,9 +12,12 @@ import pytest
 
 from app.mcp.mcp_servers.file_mcp.base import ToolContext
 from app.mcp.mcp_servers.vision_mcp.analyze import (
+    VISION_PASSTHROUGH_KIND,
     VisionAnalyzeTool,
+    ask_vision_model,
     fetch_remote_image,
     load_image_data_url,
+    vision_passthrough_stub,
 )
 from app.schemas.config import LLMConfig
 from app.utils.context import set_request_context
@@ -55,52 +58,26 @@ def _completion(text: str) -> SimpleNamespace:
     )
 
 
-async def _run(
-    monkeypatch: pytest.MonkeyPatch,
-    arguments: dict[str, Any],
-    ctx: ToolContext,
-    *,
-    answer: str = "图中是一只猫",
-) -> tuple[Any, list[dict[str, Any]]]:
-    captured: list[dict[str, Any]] = []
-
-    def fake_resolve(name: str) -> LLMConfig:
-        assert name == "vision"
-        return _llm_config()
-
-    class _FakeService:
-        def __init__(self, config: LLMConfig, think_mode: bool = False) -> None:
-            assert config.model_name == "vision-test"
-            assert think_mode is False
-            self.extra_body = {"enable_thinking": False}
-
-        async def call_llm_api(
-            self,
-            model: str,
-            messages: list[dict[str, Any]],
-            stream: bool,
-            **kwargs: Any,
-        ) -> SimpleNamespace:
-            captured.append(
-                {"model": model, "messages": messages, "stream": stream, **kwargs}
-            )
-            return _completion(answer)
+def _forbid_vision_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fail_resolve(name: str) -> LLMConfig:
+        raise AssertionError(f"vision model should not be called ({name})")
 
     monkeypatch.setattr(
         "app.mcp.mcp_servers.vision_mcp.analyze.resolve_scenario",
-        fake_resolve,
+        fail_resolve,
     )
-    monkeypatch.setattr(
-        "app.mcp.mcp_servers.vision_mcp.analyze.LLMService",
-        _FakeService,
-    )
-    result = await VisionAnalyzeTool().execute(arguments, ctx)
-    return result, captured
 
 
-def _image_part(captured: list[dict[str, Any]]) -> str:
-    content = captured[0]["messages"][1]["content"]
-    return str(content[1]["image_url"]["url"])
+def _assert_passthrough(result: Any, *, question: str, data_url_prefix: str) -> str:
+    assert result.is_error is False
+    assert result.content == vision_passthrough_stub(question)
+    assert "base64" not in result.content
+    payload = result.structured_content
+    assert payload["kind"] == VISION_PASSTHROUGH_KIND
+    assert payload["question"] == question
+    data_url = str(payload["data_url"])
+    assert data_url.startswith(data_url_prefix)
+    return data_url
 
 
 @pytest.mark.asyncio
@@ -111,17 +88,17 @@ async def test_virtual_path_sends_png_and_question(
     image_path.write_bytes(PNG)
     virtual = f"{vfs_config.uploads_prefix}shot.png"
 
-    result, captured = await _run(
-        monkeypatch,
+    _forbid_vision_model(monkeypatch)
+    result = await VisionAnalyzeTool().execute(
         {"image_url": virtual, "question": "这是什么？"},
         ctx,
     )
 
-    assert result.is_error is False
-    assert result.content == "图中是一只猫"
-    assert captured[0]["stream"] is False
-    assert captured[0]["messages"][1]["content"][0]["text"] == "这是什么？"
-    assert _image_part(captured).startswith("data:image/png;base64,")
+    _assert_passthrough(
+        result,
+        question="这是什么？",
+        data_url_prefix="data:image/png;base64,",
+    )
 
 
 @pytest.mark.asyncio
@@ -131,14 +108,18 @@ async def test_data_url_is_forwarded(
     encoded = base64.b64encode(JPEG).decode("ascii")
     data_url = f"data:image/jpeg;base64,{encoded}"
 
-    result, captured = await _run(
-        monkeypatch,
+    _forbid_vision_model(monkeypatch)
+    result = await VisionAnalyzeTool().execute(
         {"image_url": data_url, "question": "描述颜色"},
         ctx,
     )
 
-    assert result.is_error is False
-    assert _image_part(captured) == data_url
+    forwarded = _assert_passthrough(
+        result,
+        question="描述颜色",
+        data_url_prefix="data:image/jpeg;base64,",
+    )
+    assert forwarded == data_url
 
 
 @pytest.mark.asyncio
@@ -156,8 +137,8 @@ async def test_http_url_uses_downloaded_bytes(
         "app.mcp.mcp_servers.vision_mcp.analyze.fetch_remote_image",
         fake_fetch,
     )
-    result, captured = await _run(
-        monkeypatch,
+    _forbid_vision_model(monkeypatch)
+    result = await VisionAnalyzeTool().execute(
         {
             "image_url": "https://cdn.example/cat.png",
             "question": "有几只动物？",
@@ -165,15 +146,21 @@ async def test_http_url_uses_downloaded_bytes(
         ctx,
     )
 
-    assert result.is_error is False
-    assert _image_part(captured) == expected
+    forwarded = _assert_passthrough(
+        result,
+        question="有几只动物？",
+        data_url_prefix="data:image/png;base64,",
+    )
+    assert forwarded == expected
 
 
 @pytest.mark.asyncio
 async def test_missing_params(ctx: ToolContext) -> None:
     tool = VisionAnalyzeTool()
     missing_url = await tool.execute({"question": "hi"}, ctx)
-    missing_question = await tool.execute({"image_url": "data:image/png;base64,AA=="}, ctx)
+    missing_question = await tool.execute(
+        {"image_url": "data:image/png;base64,AA=="}, ctx
+    )
     assert missing_url.is_error
     assert "image_url" in missing_url.content
     assert missing_question.is_error
@@ -261,6 +248,52 @@ async def test_fetch_public_png() -> None:
         data_url = await fetch_remote_image("https://1.1.1.1/cat.png", client=client)
 
     assert data_url == f"data:image/png;base64,{base64.b64encode(PNG).decode('ascii')}"
+
+
+@pytest.mark.asyncio
+async def test_ask_vision_model_sends_image(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: list[dict[str, Any]] = []
+
+    def fake_resolve(name: str) -> LLMConfig:
+        assert name == "vision"
+        return _llm_config()
+
+    class _FakeService:
+        def __init__(self, config: LLMConfig, think_mode: bool = False) -> None:
+            assert config.model_name == "vision-test"
+            assert think_mode is False
+            self.extra_body = {"enable_thinking": False}
+
+        async def call_llm_api(
+            self,
+            model: str,
+            messages: list[dict[str, Any]],
+            stream: bool,
+            **kwargs: Any,
+        ) -> SimpleNamespace:
+            captured.append(
+                {"model": model, "messages": messages, "stream": stream, **kwargs}
+            )
+            return _completion("图中是一只猫")
+
+    monkeypatch.setattr(
+        "app.mcp.mcp_servers.vision_mcp.analyze.resolve_scenario",
+        fake_resolve,
+    )
+    monkeypatch.setattr(
+        "app.mcp.mcp_servers.vision_mcp.analyze.LLMService",
+        _FakeService,
+    )
+    data_url = f"data:image/png;base64,{base64.b64encode(PNG).decode('ascii')}"
+    answer = await ask_vision_model("这是什么？", data_url)
+
+    assert answer == "图中是一只猫"
+    assert captured[0]["stream"] is False
+    content = captured[0]["messages"][1]["content"]
+    assert content[0]["text"] == "这是什么？"
+    assert content[1]["image_url"]["url"] == data_url
 
 
 @pytest.mark.asyncio

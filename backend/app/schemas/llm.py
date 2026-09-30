@@ -27,6 +27,11 @@ class ToolResultMessage(BaseModel):
     summary: str | None = Field(
         default=None, description="单个工具结果摘要, 如果为空则默认使用 content 内容值"
     )
+    llm_content: list[dict[str, Any]] | None = Field(
+        default=None,
+        exclude=True,
+        description="当轮发给模型的多模态 content；不落库，历史重放只用 content 字符串",
+    )
 
 
 ToolMessage: TypeAlias = ToolUseMessage | ToolResultMessage
