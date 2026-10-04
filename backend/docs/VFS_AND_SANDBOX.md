@@ -72,7 +72,7 @@ Agent 和 MCP 工具不应暴露磁盘路径，应使用虚拟路径：
 
 | 工具 | 行为 | 关键约束 |
 |---|---|---|
-| `read_file` | 读取虚拟路径文件，支持 `offset`/`limit` 分页 | 只能读已存在文件；默认 `limit=2000` 行且上限 2000；**豁免**工具结果硬上限（见上下文文档） |
+| `read_file` | 读取虚拟路径文本文件，支持 `offset`/`limit` 分页 | 只能读已存在文件；默认 `limit=2000` 行且上限 2000；**豁免**工具结果硬上限（见上下文文档）。扩展名 png/jpg/jpeg/gif/webp/bmp/ico/tif/tiff/heic/heif/avif 以及图片魔数会被拒绝；其中只有 png/jpeg/gif/webp 能交给 `vision_analyze`（见 `MCP_CONFIG_ANALYSIS.md`）。PDF/Office 优先读 `uploads/derived/` 下的 Markdown |
 | `write_file` | 写入或追加文件 | 只能写 `/workspace/`、`/outputs/`、`/skills/custom/`；单次内容默认最多 100000 字符 |
 | `edit_file` | 精确字符串替换 | 默认要求 `old_string` 唯一；多处替换需显式 `replace_all=true` |
 | `search_files` | 用 ripgrep 搜索内容或文件名 | 默认搜索当前会话 `workspace`；返回路径会转换为虚拟路径 |
@@ -273,3 +273,4 @@ RAG 上下文注入；Agent 模式则把上传文件作为 `/mnt/user-data/uploa
 - 需要给用户展示最终结果时，应写入 `outputs/` 并调用 `present_files`；
 - 不要把 `uploads/` 当作可写工作目录，派生文件应写到 `workspace/` 或 `outputs/`；
 - 硬上限落盘文件默认在 `workspace/tool-results/`（如 `tavily_web_search-1.txt`），可用 `read_file` 分页回读。
+- `uploads/`、`workspace/`、`outputs/` 里的图片不要用 `read_file`。需要模型看图时调用 `vision_analyze`，传入虚拟路径和问题。用户消息里已经附带的图片会作为 user 消息的图片 part 直接进主模型（主模型支持图片时），不必再调工具。
