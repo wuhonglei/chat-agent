@@ -24,6 +24,7 @@
 - 会话搜索：`GET /api/conversation/search`
 - 会话详情：`GET /api/conversation/detail/{conversationId}`
 - 更新会话：`PUT /api/conversation/update/{conversationId}`
+- 置顶 / 取消置顶：`PUT /api/conversation/pin/{conversationId}`，body `{ pinned: boolean }`
 - 删除会话：`DELETE /api/conversation/delete/{conversationId}`（后端会先 purge 该会话已发布站点，再删 conversation）
 - 手动压缩：`POST /api/conversation/{conversationId}/compress`（前端超时 120s）
 
@@ -55,6 +56,8 @@ const nextPage = await conversationAPI.getConversations({
 追加并按会话 ID 去重；侧栏通过 `useConversationInfiniteScroll` 在
 `hasMore=true` 时继续加载。游标由后端生成，前端不得解析、修改或替换为旧的
 `offset` 参数。
+
+首页响应会先放全部已置顶会话，再接一页未置顶会话，因此 `conversations.length` 可以大于 `limit`。`hasMore` / `nextCursor` 只针对未置顶页。契约见 `docs/会话管理.md`「置顶」。
 
 ### 2.2 会话搜索（侧栏 / ⌘K）
 
@@ -100,7 +103,22 @@ await conversationAPI.searchConversations({
 
 实现：`UserMessageDisplayContent`。文本区默认 `max-height: 400px`；内容溢出时显示「展开」，点开后显示「收起」。只影响聊天页展示，不改请求体或后端存储。
 
-### 2.7 助手消息反馈
+### 2.7 会话置顶
+
+侧栏菜单「置顶 / 取消置顶」调用 `dispatch(pinConversation({ id, pinned }))`（`src/components/Layout/hooks.tsx`），对应 `conversationAPI.pinConversation`。成功后 Redux 用返回的 `ConversationInfo` 原地更新列表项和当前会话，不整表重拉。进行中的会话可以置顶；同一菜单里的「会话压缩」在 busy 时禁用，置顶不禁用。
+
+分组在 `useConversionsProps`：
+
+- `pinnedAt` 非空：归入「置顶」，按 `pinnedAt`、`id` 降序
+- 其余：仍按 `lastMessageCreatedAt` 落入今天 / 更早等日期组
+
+再次置顶会刷新 `pinnedAt`，该项回到置顶组最前。滚动加载只追加未置顶页，并用会话 ID 去重。
+
+### 2.8 图片与模型选择
+
+输入区已有图片附件，或当前会话消息里已有图片时（`hasImageContext`），模型下拉会禁用 `imageSupport=false` 的项。图片上传按钮另受当前模型 `imageSupport` 约束（`useModelImageSupport`；列表里找不到该 `modelId` 时按支持处理）。后端在本轮请求带图片块且所选模型不支持图片时返回 `400 当前模型不支持图片输入`。图片如何进模型见 `backend/docs/MCP_CONFIG_ANALYSIS.md`「图片分析」。
+
+### 2.9 助手消息反馈
 
 `chatAPI.updateMessageFeedback(messageId, value, details)` 支持 `like`、
 `dislike` 和 `default`。`details` 可传多选理由与自由文本：

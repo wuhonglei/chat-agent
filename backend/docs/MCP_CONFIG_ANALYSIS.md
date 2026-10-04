@@ -23,6 +23,7 @@
 | `skill_manager` | fastmcp | `app.mcp.mcp_servers.skill_manager_mcp.server` | Agent Skill 加载 |
 | `shell` | fastmcp | `app.mcp.mcp_servers.shell_mcp.server` | Shell 命令执行（工具 bare 名 `exec`，LLM 侧多为 `shell_exec`） |
 | `subagent` | fastmcp | `app.mcp.mcp_servers.subagent_mcp.server` | 子任务委派（bare `delegate_task`，LLM 名 `subagent_delegate_task`）。默认已注册，但**不在**模式列表里，父模型默认看不到 |
+| `vision` | fastmcp | `app.mcp.mcp_servers.vision_mcp.server` | 图片分析（bare `analyze`，LLM 名 `vision_analyze`）。默认同时进入普通对话与 Agent 模式 |
 | `context7` | http | `url` + `headers`（见 `mcp.mcp_servers`） | Context7 文档检索 |
 
 说明：`normal_mode_servers` / `agent_mode_servers` 默认列表含 `zread`，但内置 `mcp_servers` **不含** `zread` entry。未在 Nacos/环境配置中补充 `zread` 时，该名称只会出现在模式列表里，不会建立连接或暴露工具。
@@ -111,8 +112,8 @@ mcp:
 
 | 模式 | 默认 Server 列表 | 说明 |
 |---|---|---|
-| 普通对话（`agent_mode=0`） | `time`、`weather`、`tavily`、`code`、`context7`、`zread` | 面向问答与轻量工具调用 |
-| Agent 模式（`agent_mode>0`） | `file`、`skill_manager`、`shell`、`tavily`、`context7`、`zread` | 面向文件读写、技能管理与沙箱命令执行。`subagent` 需另行加入本列表才暴露 `subagent_delegate_task` |
+| 普通对话（`agent_mode=0`） | `time`、`weather`、`tavily`、`code`、`context7`、`zread`、`vision` | 面向问答与轻量工具调用 |
+| Agent 模式（`agent_mode>0`） | `file`、`skill_manager`、`shell`、`tavily`、`context7`、`zread`、`vision` | 面向文件读写、技能管理与沙箱命令执行。`subagent` 需另行加入本列表才暴露 `subagent_delegate_task` |
 
 这些列表只控制 LLM 可见工具集合；Server 是否真正可用仍取决于
 `mcp.mcp_servers` 中是否配置并启用对应项。Agent 模式的虚拟文件系统、`file`
@@ -149,6 +150,44 @@ mcp:
 用途：技能/提示词可写短名；流式 enrich 与持久化仍会通过 `resolve_tool_use_fields` 写成规范 LLM 名，避免历史消息里留下歧义短名。
 
 相关单测：`tests/mcp/test_gateway_tool_names.py`、`tests/mcp/test_tool_naming.py`。
+
+### 4.5 图片分析（`vision_analyze`）
+
+LLM 可见名是 `vision_analyze`（server `vision`，bare `analyze`）。工具本身**不调模型**：校验并读图后返回短文本，像素放在 MCP `structured_content` 里，由 `ToolExecutor._resolve_vision_passthrough` 按当前会话模型是否支持图片分流。
+
+| 参数 | 约束 |
+|------|------|
+| `image_url` | 必填。三选一：`http`/`https` URL、虚拟路径（如 `/mnt/user-data/uploads/photo.png`）、`data:image/(png\|jpeg\|gif\|webp);base64,...` |
+| `question` | 必填 |
+
+取图约束（`app/mcp/mcp_servers/vision_mcp/analyze.py`）：
+
+- 体积上限 10MiB（`Content-Length` 与实际读取都检查）；空文件拒绝。
+- 只认 PNG / JPEG / GIF / WebP 魔数，不看响应的 `Content-Type`。data URL 声明的 MIME 必须与魔数一致。
+- 远程图：超时 15s，最多 3 次重定向，每一跳都重新做地址检查。URL 不得带用户名或密码。
+- 地址检查拒绝回环、私网、链路本地、保留、多播、未指定地址，以及 CGNAT `100.64.0.0/10`。主机名会先解析再判断。
+- 虚拟路径走 `resolve_virtual_path(..., READ_ONLY)`，与 file MCP 同一套 VFS。
+
+分流（`image_support` 来自当前聊天模型 `capabilities` 是否含 `image`，不是 `vision` 场景）：
+
+| 当前模型 | 当轮发给模型的内容 | 落库 / SSE / 历史重放 |
+|----------|--------------------|------------------------|
+| `image_support=true` | `llm_content`：引导句「下面是图片。请直接根据图片回答……问题：{question}」加一张 `image_url` | `content` 固定为「图片已交给当前模型直接查看。问题：{question}」 |
+| `image_support=false` | 调用 `resolve_scenario("vision")`（`ask_vision_model`），把回答写进 `content` | 同一段回答文本；`llm_content` 为空 |
+
+`ToolResultMessage.llm_content` 标记了 `exclude=True`，不进数据库，历史重放也不会把这张工具图再发给模型。`project_messages_for_provider` 只在当轮把 `llm_content` 投影成 OpenAI `image_url` content list。挂了 `llm_content` 时跳过工具结果压缩。像素 token 按 data URL 解码后的宽高估算：`ceil(高/28) * ceil(宽/28) + 2`（`TokenCalculator`）；解不出尺寸时退回把 URL 当文本计 token。
+
+`vision` 场景仍是启动必填项：`default_model` 与 `alternatives` 引用的模型都必须带 `image` 能力，否则进程起不来。仓库里 `resolve_scenario("vision")` 的调用点只有 `ask_vision_model`（主模型不支持图片时的兜底）。标题生成走 `title_generation` 场景，用户消息里的图片由 `build_title_user_message_for_llm` 直接附在标题请求上，不经过这个工具。
+
+和用户消息里的图片是两条路：
+
+- 用户气泡里的图片由 `build_user_content_for_llm` 变成 user 消息的 `image_url` part，历史每轮从 `content_blocks` 重读字节，不经 `vision_analyze`。
+- 能解析出虚拟路径时，每张图（含单图）前面有文本标注 `[图片 {序号}/{总数}：{虚拟路径}]`。路径来自 `storage_key`（`{uploads_prefix}` 接 key 去掉第一段会话 id），同一条消息重复组装保持一致。拿不到路径时，多图退化为 `[图片 i/n]`，单图不加标注。
+- 本轮请求的 `content_blocks` 含图片且所选模型 `image_support=false` 时，`POST /api/chat/stream` 返回 `400 当前模型不支持图片输入`。前端在输入区或历史消息已有图片时禁用这类模型。
+- Agent 模式的 `read_file` 按扩展名拒绝图片（含 bmp/ico/tif/heic/heif/avif），错误文案指向 `vision_analyze`。该工具实际只接受 png/jpeg/gif/webp。工具描述要求：消息里已经是图片内容的，用模型自己的视觉看，不要再调这个工具。系统提示词目前不写这条规则。
+- SSE 与落库的 `tool_result` 只有 `content` 字符串，没有 data URL。主模型直传时这段字符串是短桩；兜底时是视觉模型的回答文本。
+
+相关单测：`tests/mcp/mcp_servers/vision_mcp/test_analyze.py`、`tests/agents/test_vision_passthrough.py`。
 
 历史消息的补全原本依赖一次性脚本 `backend/scripts/backfill_tool_use_block_names.py`（补全
 `server_name` / `mcp_tool_name`）。该脚本从未纳入版本库、现已不存在，对应的单测

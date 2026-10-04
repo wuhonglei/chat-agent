@@ -278,7 +278,7 @@ Last-Event-ID: 12
 - `title` / `description`：前端展示文案
 - `image_support`：是否支持图片输入（由模型 `capabilities` 是否含 `image` 推导）
 
-模型配置采用 `models.providers`（按供应商聚合）+ `models.scenarios`（场景选模）两层结构，必须包含 `text_generation` / `title_generation` / `summarization` / `vision` 场景。`vision` 用于图片分析工具 `vision_analyze`，其 `default_model` 与 `alternatives` 对应模型的 `capabilities` 必须包含 `image`，否则进程无法启动。聊天请求 `model_id` 为空或无法解析时回退 `text_generation` 的默认模型；当请求携带图片块且所选模型 `image_support=false` 时，`POST /api/chat/stream` 会返回 `400 当前模型不支持图片输入`。
+模型配置采用 `models.providers`（按供应商聚合）+ `models.scenarios`（场景选模）两层结构，必须包含 `text_generation` / `title_generation` / `summarization` / `vision` 场景。`vision` 场景引用的模型必须具备 `image` 能力，否则进程无法启动；它只在主模型**不支持图片**时给 `vision_analyze` 兜底。主模型 `image_support=true` 时，该工具只把已校验图片挂进当轮 tool 消息，不调用 `vision` 场景。聊天请求 `model_id` 为空或无法解析时回退 `text_generation` 的默认模型；当请求携带图片块且所选模型 `image_support=false` 时，`POST /api/chat/stream` 会返回 `400 当前模型不支持图片输入`。取图、SSRF 与历史不回放像素的约定见 `docs/MCP_CONFIG_ANALYSIS.md`「图片分析」。
 
 ## 静态站发布（近期落地）
 

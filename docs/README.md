@@ -14,7 +14,7 @@
 
 - `requirements.md`：当前版本需求范围与功能边界
 - `认证流程.md`：短信/微信登录与 JWT 鉴权流程
-- `会话管理.md`：会话列表/搜索（标题 ILIKE + 正文 zhcfg 全文检索）、草稿激活、手动压缩、消息（含 `full_content` / `content_text` / `llm_rendered_text` 固化与 API 剥离）、反馈入 Bad Case、聊天 SSE、`language`（浏览器首选语言回退）、`<current_datetime>` 冻结、Agent 迭代检查点（`task_action`，续跑跳过 Mem0）、删会话同步 purge 已发布站点、断线续流与 Nginx 超时约定
+- `会话管理.md`：会话列表/搜索（标题 ILIKE + 正文 zhcfg 全文检索）、置顶（`pinned_at`，首页全量置顶 + 未置顶游标）、草稿激活、手动压缩、消息（含 `full_content` / `content_text` / `llm_rendered_text` 固化与 API 剥离）、反馈入 Bad Case、聊天 SSE、`language`（浏览器首选语言回退）、`<current_datetime>` 冻结、Agent 迭代检查点（`task_action`，续跑跳过 Mem0）、删会话同步 purge 已发布站点、断线续流与 Nginx 超时约定
 - `mem0/README.md`：Mem0 产品语义分析与治理方案稿；**现网 HTTP / 管理页契约以** `backend/docs/用户管理.md` **为准**
 - `CONVERSATION_SEARCH_OPTIMIZATION.md`：会话搜索索引（`content_text` / `content_tsv`）、`plainto_tsquery('zhcfg')`、zhparser 镜像与触发器排障
 - `cache_design.md`：L1/L2 缓存现网范围、fail-open 行为、配置与排障
@@ -61,8 +61,8 @@
 - `EVAL_OPS.md`：评估 Worker、Bad Case 复核队列、CI 门禁 / replay 运维手册
 - `MEMORY_GOVERNANCE_WORKER.md`：记忆治理 Worker（`memory_worker.main`）配置、选人规则、本地验证与未完成项；对应 compose 服务 `memory-governance`（`enabled` 默认 `true`，04:00 日跑聊天活跃用户 + 周日 04:00 周扫沉睡用户）
 - `COMPONENT_TOOLS_PRD.md`：组件工具接入说明（已对齐当前字段）
-- `MCP_CONFIG_ANALYSIS.md`：MCP 配置与加载机制、工具命名双轨与唯一 bare 别名回退；`subagent` 默认注册但不进模式列表
-- `VFS_AND_SANDBOX.md`：Agent 模式虚拟文件系统、file/shell MCP（工具 `exec`，命令长度上限 50000；`shell_exec` 默认 60s、schema 上限 5 分钟，网关不再套 60s）、`publish_site`、独立 `data/sites` 快照根、local `CHAT_AGENT_VFS_MAPPINGS` / `local_vfs_shim`、生图密钥注入、沙箱执行与排障手册
+- `MCP_CONFIG_ANALYSIS.md`：MCP 配置与加载机制、工具命名双轨与唯一 bare 别名回退；`subagent` 默认注册但不进模式列表；`vision_analyze` 取图与主模型直传 / `vision` 场景兜底
+- `VFS_AND_SANDBOX.md`：Agent 模式虚拟文件系统、file/shell MCP（工具 `exec`，命令长度上限 50000；`shell_exec` 默认 60s、schema 上限 5 分钟，网关不再套 60s；`read_file` 拒绝图片）、`publish_site`、独立 `data/sites` 快照根、local `CHAT_AGENT_VFS_MAPPINGS` / `local_vfs_shim`、生图密钥注入、沙箱执行与排障手册
 - `TOOL_RESULT_AND_CONTEXT.md`：工具结果硬上限、统一上下文守卫、窗口外摘要、手动全量压缩与 `last_summarized_message_ids`
 - `LLM_RELIABILITY.md`：LLM 建连重试、错误分类与进程级熔断手册
 - `PROMETHEUS_METRICS.md`：`/metrics` 暴露、无 `--preload` 的 Gunicorn multiprocess 约定与自定义进程指标
@@ -85,7 +85,7 @@
 
 ### 现网实现
 
-- `conversation.md`：会话路由、草稿激活、侧栏压缩、搜索（⌘K）、问题导航时间轴、检查点续跑、ProjectPreview 站点发布与工作区文件预览（Excel / 图片 / SVG / Mermaid）、`/memories` 记忆管理页（含类别筛选）
+- `conversation.md`：会话路由、草稿激活、侧栏置顶与压缩、搜索（⌘K）、问题导航时间轴、图片上下文下的模型禁用、检查点续跑、ProjectPreview 站点发布与工作区文件预览（Excel / 图片 / SVG / Mermaid）、`/memories` 记忆管理页（含类别筛选）
 - `schema-for-backend-usage.md`：前端聊天请求体字段（含 `taskAction`、`language`）与后端消费说明
 - `conversion_cache.md`、`scroll-properties-explanation.md`、`aegis-埋点分析.md`
 
