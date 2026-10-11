@@ -233,6 +233,32 @@ shim 让这些路径在本机 Python 进程里落到会话物理目录。
 内存、PID 和 `/tmp` tmpfs 限制。若配置为 `docker` 但 Docker daemon 不可用，
 请求会直接失败并提示启动 Docker 或改用 `SANDBOX__BACKEND=local`，不会自动回退。
 
+### 4.4 后端镜像内的 SVG 字体与 cairosvg
+
+这套依赖只装在 `backend/Dockerfile` 打出的后端镜像里。应用代码不 `import cairosvg`，`pyproject.toml` / `uv.lock` 也不声明它。
+
+| 镜像内容 | 作用 |
+|---|---|
+| `fontconfig`、`fonts-noto-cjk` | 提供 CJK 字形 |
+| `libcairo2`，以及镜像构建时单独 `pip install cairosvg` | SVG→PNG 的 cairo 绑定；不进 lockfile |
+| `COPY fonts/local.conf /etc/fonts/local.conf` | 把常见字体名指到已安装的 Noto CJK |
+
+生成的 SVG 常写本机才有的字体名。容器里没有这些名字时，fontconfig 会落到 DejaVu（无 CJK 字形），中文变成豆腐块。`backend/fonts/local.conf` 用 `binding="strong"` **prepend**：
+
+- → `Noto Sans CJK SC`：`PingFang SC` / `PingFang HK` / `PingFang TC`、`Microsoft YaHei`、`Microsoft YaHei UI`、`Hiragino Sans GB`、`Heiti SC`、`STHeiti`、`SimHei`、`SimSun`、`Source Han Sans SC`、`Source Han Sans CN`、`Noto Sans SC`
+- → `Noto Sans Mono CJK SC`：`Consolas`、`Monaco`、`Menlo`、`SFMono-Regular`、`ui-monospace`、`Cascadia Code`、`JetBrains Mono`
+- generic：`sans-serif` → `Noto Sans CJK SC`，`serif` → `Noto Serif CJK SC`，`monospace` → `Noto Sans Mono CJK SC`
+
+文件末尾对**任意**字体请求再 append 上述三套 Noto。注释里的 `Inter` 没有单独一条 alias，靠这次 append 在字体缺失时仍能落到 CJK。
+
+约束：
+
+- 默认 `SANDBOX__BACKEND=local` 时，Shell 跟后端进程在同一环境。生产容器里能用到这些字体和 `cairosvg`。`make dev` 在开发机上跑，不会自动加载仓库里的 `local.conf`。
+- `SANDBOX__BACKEND=docker` 用 `SANDBOX__IMAGE`（默认 `ubuntu:22.04`），镜像里没有这套字体，也没有 `cairosvg`。
+- 聊天侧栏的 SVG / Mermaid 预览在浏览器里画，不读 `/etc/fonts/local.conf`。
+
+排障：容器内中文豆腐块时，在容器里执行 `fc-list : family | grep -i "Noto Sans CJK"`，并确认 `/etc/fonts/local.conf` 是镜像 COPY 进去的。改 `fonts/local.conf` 后要重建后端镜像。豆腐块缺的是字体配置；把 `cairosvg` 加进业务依赖解决不了。
+
 ## 5. 命令审计与常见阻断
 
 Shell MCP 会先执行命令审计：
@@ -259,6 +285,7 @@ local 后端还会阻断常见路径逃逸：
 6. heredoc/`<<EOF` 场景若路径校验异常，核对 `virtual_paths.py` 是否把正文误扫为绝对路径；
 7. local 下 Python 脚本 `FileNotFoundError: /mnt/user-data/...`：核对 4.2.1，确认
    `CHAT_AGENT_VFS_MAPPINGS` 已注入且 `PYTHONPATH` 含 `local_vfs_shim`。
+8. 容器内 SVG / PNG 中文是豆腐块：核对 4.4，不要到浏览器预览里查字体。
 
 ## 6. 与附件 RAG 的关系
 

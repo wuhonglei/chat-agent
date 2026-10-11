@@ -295,6 +295,8 @@ Agent 把 Vite SPA 拷到 `outputs/app-dist/`（或单页 `outputs/index.html`�
 
 通常从项目根目录使用 `docker compose` 启动（postgres / backend / frontend / **sites** / evaluator）。`sites` 映射宿主机 `8080→80`，健康检查是 `pidof nginx`（无 Host 的 HTTP 探活会打到 default_server 404）。
 
+后端镜像额外安装 `fontconfig`、`fonts-noto-cjk`、`libcairo2`，把 `backend/fonts/local.conf` 拷到 `/etc/fonts/local.conf`，并单独 `pip install cairosvg`（不在 `uv.lock`，应用代码也不引用）。这只影响镜像内进程的 SVG 字体回退；默认 local 沙箱走这套环境，Docker 沙箱镜像（默认 `ubuntu:22.04`）和浏览器预览都不走它。细节见 `backend/docs/VFS_AND_SANDBOX.md` 第 4.4 节。
+
 ```bash
 docker compose up -d --build
 ```
