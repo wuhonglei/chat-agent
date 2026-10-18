@@ -140,6 +140,12 @@ trace，避免与 `chat-turn` 共用 trace ID 时产生第二条 root observatio
 排障：trace 里突然出现超大 base64，先查 `report_images` 是否被 Nacos / 环境变量打开，
 再查启动日志是否有 `image masking unavailable`。
 
+批量评估的裁判只从最后一条 GENERATION 取图（见 `backend/docs/EVAL_OPS.md` §2.1）。
+`report_images=false` 时 data URI 变成 `[image omitted]`，裁判解析失败并跳过该图，评分仍继续，但看不到画面。
+若 Langfuse 把图片换成 `@@@langfuseMedia:type=…|id=…|…@@@`，裁判会用同一对 public/secret key
+调 `GET /api/public/media/{id}` 再拉签名 URL，拼回 data URI（单图 20MiB，超时 30s）。
+历史轮图片不会重放，只在历史文本里注明张数。
+
 ## 6. Score 同步脚本
 
 后端脚本用于把数据库中的助手消息状态和用户反馈补写到 Langfuse Score。运行前需确认：
