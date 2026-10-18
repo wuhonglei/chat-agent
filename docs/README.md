@@ -58,7 +58,7 @@
 - `logging_guide.md`：结构化日志使用指南
 - `type_checking_guide.md`：类型检查说明
 - `用户管理.md`：用户模块、短信 Redis 鉴权与 Mem0 记忆集成（Platform v3 / 自建 OSS 分流、管理页分页/筛选含 `category`、治理字段、检索规则闸门）
-- `EVAL_OPS.md`：评估 Worker、Bad Case 复核队列、CI 门禁 / replay 运维手册
+- `EVAL_OPS.md`：评估 Worker、Bad Case 复核队列、CI 门禁 / replay 运维手册；§2.1 为线上裁判的历史对话与图片（门禁脚本不走这条）
 - `MEMORY_GOVERNANCE_WORKER.md`：记忆治理 Worker（`memory_worker.main`）配置、选人规则、本地验证与未完成项；对应 compose 服务 `memory-governance`（`enabled` 默认 `true`，04:00 日跑聊天活跃用户 + 周日 04:00 周扫沉睡用户）
 - `COMPONENT_TOOLS_PRD.md`：组件工具接入说明（已对齐当前字段）
 - `MCP_CONFIG_ANALYSIS.md`：MCP 配置与加载机制、工具命名双轨与唯一 bare 别名回退；`subagent` 默认注册但不进模式列表

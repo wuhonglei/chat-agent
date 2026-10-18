@@ -43,6 +43,40 @@
 
 设计稿中的 embedding 聚类 / bad_case 相似度 100% 采样 **尚未实现**。
 
+### 2.1 线上裁判看到的历史与图片
+
+只覆盖批量评估：`BatchEvalService._batch_judge` → `JudgeInputBuilder.build_from_trace` → `call_judge_model`。Worker 定时跑和管理页「手动触发评估」走同一条。CI 门禁 `scripts/run_eval_gate.py` / `scripts/run_judge_eval.py` 仍是冻结数据集上的纯文本 prompt，**不**组装历史，也**不**传图片。
+
+输入来自该 trace 最后一条 `type=GENERATION` 的 `input.messages`（`observations.get_many`，`limit=50`，再按 `start_time` 取最新）。拉不到 generation 时只用 trace 的 input/output 文本：没有历史、没有图片。参考资料仍为空时（含已经拉到 generation、但没抽出工具/附件的情况），DB 兜底只补 assistant 的 `tool_result` 和 user 的 `user_memories`，不补图片和历史。
+
+以「胜出的 user 消息」为界：最后一条带 `<query>`、memories 或 attachment 的 user。在此之前若还没有 query，第一条不含 `<query>` 的纯文本 user 只作弱回退，后面的结构化 user 会盖掉它。
+
+| 片段 | 规则 |
+|------|------|
+| 历史 | 胜出消息**之前**的 user / assistant 文本，包进 `<dialogue_history><hist_turn index role>`。本轮 user 不进入历史 |
+| 参考资料 | 只收胜出消息**之后**的 tool 返回。历史轮工具结果不混入，也不截断 |
+| 本轮图片 | 只取胜出 user 消息上的图片块。没有胜出消息时，回退到最后一条带图的 user |
+| 历史图片 | **不**随裁判请求发送。该轮文本末尾加 `[该消息附带 N 张图片，未随评估提供]` |
+
+单轮历史超过 `HISTORY_TURN_MAX_CHARS`（1500）时截断，并追加 `…[截断]`。系统提示约定：历史只用于理解指代（「它」「继续」），不作为事实依据；图片是问题的一部分，描述与画面一致即不算虚构。
+
+图片引用由 `resolve_image_refs`（`app/services/eval/trace_media.py`）还原后再放进 user 消息：
+
+| 引用形态 | 处理 |
+|----------|------|
+| `data:image/...;base64,...` | 原样放行 |
+| `http://` / `https://` | 原样交给裁判模型，本进程不下载 |
+| `@@@langfuseMedia:type=…\|id=…\|…@@@` | Basic Auth（`public_key` / `secret_key`）`GET {host}/api/public/media/{id}`，再 GET 签名 URL，拼回 data URI |
+| `[image omitted]` 及其它字符串 | 丢弃 |
+
+媒体取回超时 30s，单图上限 20MiB（元数据 `contentLength` 与实际字节都查）。进程内按 `media_id` 缓存，最多 64 条，满了整表清空。解析失败的图跳过，评分继续。有成功图片时，user content 变成一段文本加若干 `image_url` 块；没有图片时仍是纯字符串。
+
+`judge_llm_caller` 使用 `models.scenarios` 里 `judge_model_scenario`（默认 `judge`），`temperature=0`，`max_tokens=1024`。启动校验**不**要求存在 `judge` 场景，也**不**检查该模型 `capabilities` 含 `image`（只有 `vision` 会强制）。模型不支持图片时，带图的那条调用失败并计入 `judge_failed`，不会静默丢掉图片改打文本分。
+
+默认 `langfuse.report_images=false` 时，上报前的 data URI 会被换成 `[image omitted]`（见 `docs/agent_observability/langfuse_integration.md` §5）。这种 trace 的裁判看不到像素。要让裁判看到图，generation IO 里必须仍是 data URI（`LANGFUSE__REPORT_IMAGES=true`），或 Langfuse 已换成上面的 media 标记。
+
+低分入队和点踩补分会把 `judge_scores.context_sources` 写入 bad case，其中 `image_count`、`image_failed`（引用数减成功数）、`history_turns`（`<hist_turn` 个数）可用来核对。Langfuse 上只追加数值 score `judge_correctness` / `judge_completeness`。`eval-judge` observation 的 input 含 `image_count`，query / answer 各预览 500 字。
+
 ## 3. 启停与手动触发
 
 ```bash
@@ -150,3 +184,6 @@ Replay 拉取消息时使用 `GET /api/conversation/{id}/messages?full_content=t
 - 风险分层认的是 **MCP LLM 工具名**（`{server}_{bare}`），不是旧文档里的 `execute_code` / `shell`。
 - 点踩入队与取消 dismiss 均为 fire-and-forget；失败只打 warning，不阻断反馈 API。
 - 门禁 replay 需要本机后端 + 有效 JWT；frozen 模式更适合 CI。
+- 线上裁判「看不到用户图」时，先看最后一条 GENERATION 里是 `[image omitted]`、media 标记，还是 data URI。默认脱敏不会把像素留给评估。历史轮的图只有文字注记。
+- `models.scenarios.judge` 未做启动期图片能力校验。文本模型遇到带图样本会让该条裁判失败，而不是降级成纯文本打分。
+- CI 门禁与 `run_judge_eval.py` 不走 `JudgeInputBuilder`，不能用来验证历史 / 图片评分。
