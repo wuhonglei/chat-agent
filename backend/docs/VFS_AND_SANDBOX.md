@@ -1,6 +1,6 @@
 # VFS 与沙箱执行手册（当前实现）
 
-**最后核对**：2026-09-20
+**最后核对**：2026-11-01
 
 ## 1. 适用范围
 
@@ -25,7 +25,9 @@ MCP 工具和沙箱执行后端。它面向维护后端、MCP 工具或 Agent �
 ## 2. 磁盘目录与虚拟路径
 
 用户数据统一放在 `backend/data/user_data/{user_id}/` 下。会话级数据按
-`conversation_id` 隔离：
+`conversation_id` 隔离。侧栏文件树不走下面的虚拟路径，而是
+`GET /api/user_data/{conversation_id}/...`，根是整个会话目录。契约见
+`frontend/docs/conversation.md` §8.1。
 
 ```text
 backend/data/user_data/{user_id}/
@@ -79,9 +81,11 @@ Agent 和 MCP 工具不应暴露磁盘路径，应使用虚拟路径：
 | `present_files` | 将产物标记为可展示给用户 | 只接受 `/mnt/user-data/outputs/` 下已存在的**文件**（目录被拒） |
 | `publish_site` | 把 outputs 快照发布到 `{slug}.{public_base_domain}` | schema **无 slug**；`source` 须在 outputs 下且含 `index.html`；LLM 名 `file_publish_site`。契约见 `docs/web_app/webapp-publish-plan.md` |
 
-写入 `workspace` 或 `outputs` 会走工作区配额检查；当前总量上限定义在
-`app/utils/workspace.py`（`MAX_WORKSPACE_BYTES = 2000 * 1024 * 1024`）。
-`skills/custom` 用于持久化用户 skill，不计入会话 workspace 配额。
+`write_file` / `edit_file` 在写入 `workspace/` 或 `outputs/` 前调用
+`ensure_write_quota`。统计根是 `sandbox_work_dir`，只累加 `workspace/` 里已有文件，
+上限 `MAX_WORKSPACE_BYTES = 2000 * 1024 * 1024`（约 2 GiB，`app/utils/workspace.py`）。
+已存在的 `outputs/` 不在这次扫描里；本次准备写入的字节会计入比较。
+`skills/custom` 不调用该检查。
 
 ### 示例
 
