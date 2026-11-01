@@ -241,6 +241,39 @@ sequenceDiagram
 - 运行预览：已发布 HTML iframe 走公网 URL（`getPublishedHtmlPreviewUrl`）；未发布且行数 ≥ 50 用 `srcDoc`
 - 删除会话由后端 purge 站点；前端不必先调 unpublish
 
+### 8.1 会话目录只读接口
+
+侧栏文件树、单文件预览和打包下载都读 `GET /api/user_data/{conversation_id}/...`（`app/api/user_data.py`，`src/services/workspace.ts`）。这是登录用户自己的会话目录，不是 Agent 虚拟路径。
+
+根目录是 `data/user_data/{user_id}/conversations/{conversation_id}/`，所以树的第一层是 `workspace/`、`uploads/`、`outputs/`。用户自定义 skill 在 `data/user_data/{user_id}/skills/`，不在这棵树里。`user_id` 只来自 JWT，路径里不能换别人。`user_id` 与 `conversation_id` 都必须匹配 `^[A-Za-z0-9_\-]+$`，否则 400。接口不查 `conversations` 表；列出根目录或下载时，目录不存在会先创建再返回。
+
+| 方法 | 作用 | 成功体 |
+|---|---|---|
+| `GET /files` | 一层目录 | `ApiResponse`，`data.treeData` |
+| `GET /file?path=` | 读单个已存在文件 | 原始字节（`FileResponse`），不是 `ApiResponse` |
+| `GET /download` | 把会话目录打成 zip | `application/zip`，文件名 `{conversation_id}.zip` |
+
+三个接口都要 `Authorization: Bearer`。没有令牌时 401，`msg` 为 `缺少认证令牌`。业务错误同样是 `{code, msg, data}`（全局异常处理器）。
+
+`/files` 查询参数：
+
+- `path`：相对会话根的目录，默认 `""`。绝对路径、`..`、以及片段 `.git` / `.ssh` / `.aws` / `.cursor` / `__pycache__` / `.env`（大小写不敏感）返回 400。
+- `depth`：只允许 `1`。其它值在参数校验阶段 422，客户端应按 `path` 逐级展开。
+- `include_ignored`：默认 `false`。为 false 时，列目录会跳过名为 `node_modules`、`.next`、`.git`、`.turbo`、`.cache`、`.local`、`Library`、`.vite-plus`、`.DS_Store` 的**子目录**。同名文件（例如 `.DS_Store`）仍会出现。开关只影响「要不要列出这个名字」，不拒绝 `path`。因此 `path=node_modules` 在目录存在时仍返回 200，里面的包文件也会列出来。`.git` 例外：它同时在路径黑名单里，作为 `path` 一律 400。
+
+目录节点带 `nodeType=dir`、相对会话根的 `path`、`hasChildren`，`children` 固定为空数组。文件节点没有 `children`。同层先目录、再按文件名小写排序。`updatedAt` 是会话根目录的 mtime（UTC ISO），不是 `path` 指向的子目录。`hasChildren` 在忽略目录被跳过之后计算：一个里面只剩 `node_modules` 的目录会被当成空目录。
+
+前端只在加载根目录时丢掉 `hasChildren=false` 的目录（`filterEmptyDirectories`）。展开子目录不再做这层过滤。文件树走 `apiClient`，查询参数会转成 snake_case，响应字段会转成 camelCase（`treeData`、`hasChildren`）。
+
+`/file` 与 `/download` 的成功响应不是 JSON，所以前端用裸 `axios`，不走 `apiClient` 的拆包。失败时仍是 JSON，预览侧用 `extractWorkspaceFileError` 读 `msg`。`/file` 缺少 `path`、目标不是文件，分别是 422 和 404（`文件不存在`）。MIME 用标准库按文件名猜测，猜不到就是 `application/octet-stream`。服务端不对这次读取做体积截断。
+
+`/download` 打包会话根下全部文件，包含 `uploads/` 与 `outputs/`，不只是 `workspace/`。默认在遍历时剪掉上面那些重目录，所以 zip 里没有 `node_modules` 的内容（和「直接把 `path` 指到该目录再列文件」不同）。一个文件都没有时，zip 里只有 `README.txt`（内容 `Workspace is empty.\n`）。当前下载按钮不传 `include_ignored`。
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "http://localhost:8000/api/user_data/${CONV_ID}/files?path=workspace&depth=1"
+```
+
 工作区文件预览按扩展名分流（`ProjectPreview/utils/index.ts`、`FilePreviewContent.tsx`），与聊天附件预览不是同一条路径：
 
 | 扩展名 | 展示 |
