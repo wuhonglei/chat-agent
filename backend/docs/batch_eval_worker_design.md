@@ -15,6 +15,7 @@
 | Compose | 示意 | 根目录 `docker-compose.yml` 服务 `evaluator` |
 | 手动触发 | 规划 | `uv run python scripts/run_batch_eval.py [--hours] [--dry-run]` |
 | 配置键 | 部分缺失 | 完整见 `EvalWorkerConfig` / `EVAL_WORKER__*`（含 `lookback_hours=24`） |
+| 裁判上下文 | 方案未写历史 / 图片 | 批量评估会带胜出轮之前的文本历史，以及胜出轮图片。约束与 `report_images` 见 `EVAL_OPS.md` §2.1。CI 门禁仍是纯文本 |
 
 代码入口：`backend/eval_worker/main.py`、`app/services/eval/batch_eval_service.py`、`app/evaluators/sampler.py`。
 
