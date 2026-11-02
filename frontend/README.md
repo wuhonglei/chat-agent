@@ -69,6 +69,8 @@ frontend/
 - `image`：图片附件块
 - `pdf`：PDF 附件块
 - `excel`：Excel 附件块（`.xlsx`）
+- `docx`：Word 附件块（`.docx`）
+- `pptx`：PowerPoint 附件块（`.pptx`）
 - `markdown`：Markdown 附件块
 - `text_file`：纯文本 / 代码附件块
 
@@ -78,28 +80,31 @@ frontend/
 
 `ChatInput` 当前约束（`src/pages/ChatPage/components/ChatInput/util.ts`）：
 
-- 支持类型：图片（JPEG/PNG/GIF/WebP）、PDF、Excel（`.xlsx`）、Markdown（`.md` / `.markdown` / `text/markdown`）和纯文本 / 代码文件
+- 支持类型：图片（JPEG/PNG/GIF/WebP）、PDF、Excel（`.xlsx`）、Word（`.docx`）、PowerPoint（`.pptx`）、Markdown（`.md` / `.markdown` / `text/markdown`）和纯文本 / 代码文件
 - 纯文本 / 代码扩展名由 `TEXT_FILE_ACCEPT` 维护，覆盖 `.csv`、`.tsv`、`.txt`、`.log`、`.py`、`.js`、`.ts`、`.tsx`、`.vue`、`.sql`、`.go` 等常见格式
 - 单文件大小：不超过 `10MB`
 - 单次消息附件数量：最多 `5` 个
 - 上传接口：`POST /api/file/upload`（`src/services/file.ts`）
-- 上传超时：`180000ms`（3 分钟）
-- 当当前模型不支持图片输入时，点击打开文件选择器的 accept 会收窄为 PDF 与 Excel（`CHAT_ATTACHMENT_ACCEPT_PDF_ONLY`）；粘贴/拖拽路径会额外拦截图片
+- 上传超时：`300000ms`（5 分钟，覆盖 MinerU 轮询）
+- 当前模型不支持图片时，两条入口不一致：
+  - 点击附件按钮走 `openAttachmentPicker`，`accept` 换成 `CHAT_ATTACHMENT_ACCEPT_PDF_ONLY`（PDF、`.xlsx`、`.docx`、`.pptx`）。常量名虽带 PDF_ONLY，但不含 Markdown / 纯文本，也不只剩 PDF
+  - 粘贴与拖到页面仍用完整 `CHAT_ATTACHMENT_ACCEPT`，再由 `beforeUpload` / `onPasteFile` 拒绝图片并提示切换模型；Markdown 与文本/代码文件可以继续传
 
 ### 附件预览行为
 
-- 图片：在用户消息中以 `FileCard` 图片卡片展示
-- PDF：
-  - 小屏设备点击后直接下载
-  - 非小屏优先在右侧 `BlockPreviewPanel` 打开 PDF 预览
-- Excel：右侧预览默认使用 SheetJS 渲染多 sheet 表格；若后端返回派生 Markdown，可在表格 / Markdown 间切换
-- Markdown：作为独立 `MarkdownBlock` 打开右侧预览；PDF / Excel 转写出的 Markdown 也复用同一块结构
+- 图片：在用户消息中以 `FileCard` 图片卡片展示。图片卡固定 `256×256`，`object-fit: contain`；加载失败用内置 404 图。图片不进侧栏预览
+- PDF / Excel / Word / PowerPoint / Markdown / 纯文本：聊天页点击后打开右侧 `BlockPreviewPanel`。只有没传入 `onPreviewBlock` 时才 `window.open` 新标签。小屏（body 宽度 ≤ 768px）侧栏默认占满视口（至少 280px），不会改成直接下载
+- PDF：`react-pdf` 渲染；若块上有 `markdown.url`，可在 PDF / Markdown 间切换
+- Excel：默认 SheetJS 多 sheet 表格；有派生 Markdown 时可切到 Markdown
+- Word：动态加载 `docx-preview` 的 `renderAsync`（分页、忽略版心宽度）；有派生 Markdown 时可在文档 / Markdown 间切换
+- PowerPoint：动态加载 `pptx-preview`，`mode: "slide"`，宽度跟侧栏、高度为宽度的 9/16；有派生 Markdown 时可切换
+- Markdown：作为独立 `MarkdownBlock` 打开右侧预览。PDF / Excel / Word / PowerPoint 转写出的 Markdown 复用同一套 Markdown 视图，不是单独的块类型
 - 纯文本 / 代码文件：`.csv` / `.tsv` 以表格预览，其它文本/代码通过 `CodeHighlighter` 按扩展名高亮
 - HTML：代码块头部「预览」用侧栏 iframe `srcDoc`（当前未设 `sandbox`）。工作区 HTML：已发布则 iframe 走站点公网 URL；未发布且行数 ≥ 50 默认预览，否则源码
 - 工作区项目：`ProjectPreview` 浏览 agent 工作区。存在 `outputs/app-dist` 或 `outputs/index.html` 时提供「文件 / 运行」与发布 / 复制链接 / 下线；自定义 slug 走 REST，占用展示 409，不静默改名。`workspaceId` 即 `conversation_id`
-- 工作区文件（与上面的聊天附件预览分开）：`.xlsx`/`.xls` 表格，`.png`/`.jpg`/`.jpeg`/`.gif`/`.webp`/`.ico` 图片，`.svg` 与 `.mmd`/`.mermaid` 可在预览和源码间切换。侧栏可全屏，不新开路由。细节见 `frontend/docs/conversation.md` 第 8 节
+- 工作区文件（与上面的聊天附件预览分开）：`.xlsx`/`.xls` 表格，`.png`/`.jpg`/`.jpeg`/`.gif`/`.webp`/`.ico` 图片，`.svg` 与 `.mmd`/`.mermaid` 可在预览和源码间切换。工作区里的 `.pdf` / `.docx` / `.pptx` 属于二进制占位，不会套用聊天附件的 PDF / Word / PPT 预览。侧栏可全屏，不新开路由。细节见 `frontend/docs/conversation.md` 第 8 节
 
-`PreviewableBlock` 当前覆盖 `pdf | excel | markdown | text_file | html | code_exec | project`，入口为 `src/pages/ChatPage/components/BlockPreviewPanel/index.tsx`。
+`PreviewableBlock` 当前覆盖 `pdf | excel | docx | pptx | markdown | text_file | html | code_exec | project`，入口为 `src/pages/ChatPage/components/BlockPreviewPanel/index.tsx`。
 
 ### 文件工具结果展示
 

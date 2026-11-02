@@ -134,7 +134,7 @@ make test
 {conversation_id}/derived/{stem}.md
 ```
 
-真实落盘位置位于 `data/user_data/{user_id}/conversations/{conversation_id}/uploads/`，其中 `derived/` 保存 PDF / Excel 转出的 Markdown。
+真实落盘位置位于 `data/user_data/{user_id}/conversations/{conversation_id}/uploads/`，其中 `derived/` 保存 PDF、Excel、Word、PowerPoint 转出的 Markdown。
 
 ### 2) 文件类型与限制
 
@@ -186,12 +186,12 @@ make test
 - `token_size > short_doc_max_tokens`：若 DB 尚无向量则按需分块 embedding，再对该附件做 Top-K 检索
 - 历史消息中的附件不参与本轮 RAG；`agent_mode>0` 改为注入 `attachment_uploads` 清单，由文件工具按需读取
 
-### 6) 常见排障
+### 6) 普通模式 RAG 与 Agent 附件清单
 
 - `agent_mode=0`：后端从当前轮附件（若有）或历史用户消息附件收集 `content_id`，通过 `KbRagContextService` 构建 `<attachment_context>`。
-- `agent_mode>0`：后端跳过附件 RAG，改为在用户提示词中注入 `<attachment_uploads>` 清单，包含 `name`、`type`、`virtual_path`、`size`、`uploaded_this_turn`。PDF / Excel 还会附带派生 Markdown 的 `virtual_path`，模型可用 file MCP 按需读取 `/mnt/user-data/uploads/...`。
+- `agent_mode>0`：后端跳过附件 RAG，改为在用户提示词中注入 `<attachment_uploads>` 清单，包含 `name`、`type`、`virtual_path`、`file_size`、`uploaded_this_turn`。PDF / Excel / Word / PowerPoint 还会附带派生 Markdown 的 `virtual_path`。`read_file` 会拒绝这些原件（`.pdf` / `.xlsx` / `.docx` / `.pptx`），应改读 `uploads/derived/` 下的 Markdown。
 
-### 6) 常见排障
+### 7) 常见排障
 
 - `400 仅支持 ...` / `不支持的文本文件类型`：文件类型不在允许列表
 - `400 ...不能超过 10MB`：超出大小限制
