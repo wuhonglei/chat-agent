@@ -1,6 +1,6 @@
 # VFS 与沙箱执行手册（当前实现）
 
-**最后核对**：2026-11-01
+**最后核对**：2026-11-08
 
 ## 1. 适用范围
 
@@ -66,6 +66,38 @@ Agent 和 MCP 工具不应暴露磁盘路径，应使用虚拟路径：
 硬上限覆盖为 `0`（跳过单条阈值，见 `TOOL_RESULT_AND_CONTEXT.md`）。
 
 前端 `SkillLoadToolResult` 会解析同一段 XML，在工具块里展示技能说明。
+
+### 2.2 内置技能 `diagram-design`
+
+目录：`backend/skills/public/diagram-design/`（MIT，上游 cathrynlavery/diagram-design，frontmatter `version` 为 `2.6`）。`SKILL.md` 的 `name` 与目录名都是 `diagram-design`。正文约 3.0 万字符；frontmatter `description` 约 850 字符，写入 `<available_skills>` 时只做空白折叠，不截断（`format_catalog_entries`）。
+
+何时出现在模型上下文：
+
+- 只有 `agent_mode > 0` 才会注入技能目录。默认 `agent_mode_servers` 包含 `skill_manager`。默认 `normal_mode_servers` 不含它，普通对话没有 `skill_manager_load_skill`。
+- 服务端没有单独开关，也不会在 `diagram-design` 与 `design-doc-mermaid` 之间做路由。两条都在目录里时，模型只看到各自的名称和 description。
+- 用户技能目录 `data/user_data/{user_id}/skills/` 在内置目录之后扫描。frontmatter `name` 相同的用户技能覆盖这条内置记录。
+- 注册表按 `user_id` 做 `lru_cache`。`load_skill` 会重读已缓存路径上的 `SKILL.md` 正文。新增技能目录，或要让目录摘要跟上 frontmatter 修改，需要进程重启，或调用 `invalidate_skill_registry()`。`write_file` / `edit_file` 只在写入用户自定义技能时清这层缓存。
+
+交付与预览：
+
+- 技能正文要求产物是单文件 HTML：内联 SVG，CSS 写在文件内；默认放行的外部资源是 Google Fonts 样式表。默认色仍是 paper `#f5f5f5`、ink `#2d3142`、accent `#bf4520` 时，技能文本要求先问用户。这是提示词里的门禁，服务端不检查色值。
+- 可写位置是 `workspace/`、`outputs/`、`skills/custom/`。助手消息里的预览卡片来自成功的 `file_present_files`（参数 `filepaths`），且路径必须已经在 `/mnt/user-data/outputs/` 下。写在 `workspace/` 的 HTML 仍会出现在侧栏文件树。
+- 侧栏把 `.html` 交给 `HtmlFilePreview`（`frontend/docs/conversation.md` §8）。未发布且不少于 50 行时用 `srcDoc`。这是浏览器绘图，不读 §4.4 的 fontconfig，也不调用 `cairosvg`。
+
+脚本在 `/mnt/skills/public/diagram-design/scripts/`。public 技能只读挂载。local Shell 允许这个虚拟前缀（`shell_mcp/virtual_paths.py` 的 `_is_allowed_absolute_path`）。脚本要落盘时，输出路径放在 `workspace/` 或 `outputs/`。`export_svg.py` 省略输出路径时，写到源文件旁边；源文件若在 public 技能目录里，这次写入会失败。
+
+| 脚本 | 依赖 | 行为 |
+|---|---|---|
+| `self_check.py` | 标准库 | 检查可访问 SVG、单文件约束、viewBox、动效结构。本仓库里的自检入口 |
+| `export_svg.py` | 标准库 | 抽出独立 SVG。`--system-fonts` 去掉 Google Fonts `@import` |
+| `export_png.py` | `playwright` 与 Chromium | 打开 HTML，只截第一块 `<svg>`。`pyproject.toml`、`uv.lock`、`backend/Dockerfile` 都没有 Playwright |
+| `drawio_extract.py` / `mermaid_extract.py` / `excalidraw_extract.py` | 标准库 | 从 draw.io、Mermaid、Excalidraw 打摘要，不负责画图 |
+
+技能正文提到的 `scripts/verify-geometry.py`、`verify-motion.py` 和 `lint-skin.py` 是上游仓库的门禁，当前目录里没有这些文件。
+
+`export_png.py` 在导入时就需要 `playwright`。默认 Docker 沙箱 `network_enabled=false`。脚本若已能打开页面，`networkidle` 等待超时（默认 15 秒）后会 `window.stop()`，用回退字体截图，并向 stderr 打印 webfont warning。当前镜像没有 Playwright，命令会停在 import。这条 PNG 链路和 §4.4 的 `cairosvg` 相互独立。
+
+`skill_manager_load_skill` 的单条硬上限覆盖是 `0`，因此跳过单条阈值。同轮合计仍受 `turn_budget_chars`（默认 80000）约束；超出时从最大的工具结果开始强制压缩，这次加载也可能被落成预览。单次正文本身低于该默认预算。之后按需读取的 `references/`、`assets/` 走 `file_read_file`，该工具在豁免名单里。详见 `TOOL_RESULT_AND_CONTEXT.md`。
 
 ## 3. File MCP 工具
 
@@ -260,6 +292,7 @@ shim 让这些路径在本机 Python 进程里落到会话物理目录。
 - 默认 `SANDBOX__BACKEND=local` 时，Shell 跟后端进程在同一环境。生产容器里能用到这些字体和 `cairosvg`。`make dev` 在开发机上跑，不会自动加载仓库里的 `local.conf`。
 - `SANDBOX__BACKEND=docker` 用 `SANDBOX__IMAGE`（默认 `ubuntu:22.04`），镜像里没有这套字体，也没有 `cairosvg`。
 - 聊天侧栏的 SVG / Mermaid 预览在浏览器里画，不读 `/etc/fonts/local.conf`。
+- `diagram-design` 的 PNG 脚本是 `scripts/export_png.py`（Playwright 截图）。它不调用镜像里的 `cairosvg`。见 §2.2。
 
 排障：容器内中文豆腐块时，在容器里执行 `fc-list : family | grep -i "Noto Sans CJK"`，并确认 `/etc/fonts/local.conf` 是镜像 COPY 进去的。改 `fonts/local.conf` 后要重建后端镜像。豆腐块缺的是字体配置；把 `cairosvg` 加进业务依赖解决不了。
 
