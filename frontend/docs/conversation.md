@@ -257,6 +257,7 @@ sequenceDiagram
 - 发布：`POST /api/sites/`，可填自定义 slug；非法 400、占用 409，错误展示在表单上，**不静默改名**
 - 已上线：复制 `site.url`、`POST /api/sites/{slug}/republish`、`DELETE /api/sites/{slug}`
 - 运行预览：已发布 HTML iframe 走公网 URL（`getPublishedHtmlPreviewUrl`）；未发布且行数 ≥ 50 用 `srcDoc`
+- 内置技能 `diagram-design` 的交付物走同一条 HTML 预览：单文件、内联 SVG。未发布 iframe 的 sandbox 是 `allow-scripts allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-downloads allow-presentation`（无 `allow-same-origin`）。字体来自页面里的 Google Fonts 样式表，由浏览器加载。助手消息里直接打开预览卡片时，路径要在 `outputs/` 下，且该轮 `present_files` 成功。加载、脚本和导出见 `backend/docs/VFS_AND_SANDBOX.md` §2.2
 - 删除会话由后端 purge 站点；前端不必先调 unpublish
 
 ### 8.1 会话目录只读接口
