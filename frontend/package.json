@@ -35,7 +35,7 @@
     "mitt": "^3.0.1",
     "partial-json": "^0.1.7",
     "pptx-preview": "^1.0.7",
-    "react": "^19.2.8",
+    "react": "^19.3.1",
     "react-dom": "^19.3.0",
     "react-error-boundary": "^6.1.6",
     "react-pdf": "^11.0.0",
