@@ -23,7 +23,7 @@
     "ahooks": "^3.10.0",
     "antd": "^6.7.0",
     "antd-img-crop": "^4.30.0",
-    "axios": "^1.20.0",
+    "axios": "^1.21.1",
     "camelcase-keys": "^10.0.3",
     "classnames": "^2.5.1",
     "dayjs": "^1.11.23",
