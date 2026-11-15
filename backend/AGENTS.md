@@ -16,7 +16,7 @@ Chat Agent 后端是 AI 对话平台的服务端，基于 FastAPI，提供流式
 ## 技术栈
 
 - **框架**：FastAPI + Uvicorn
-- **语言**：Python 3.10+
+- **语言**：`requires-python >=3.10`；CI quality 为 Python 3.12；镜像 `python:3.15-slim`（见 `backend/README.md`）
 - **数据库**：PostgreSQL + SQLModel + Alembic（迁移）；本地镜像含 pgvector + zhparser（会话全文搜索 `zhcfg`）
 - **缓存**：Redis（会话/状态等）+ 本地缓存
 - **LLM**：DeepSeek API / OpenAI 兼容 API

@@ -1,4 +1,5 @@
-# Python 3.12：依赖 wheel 成熟稳定，与本地/CI 常用运行时一致
+# 部署镜像是 Python 3.15-slim。
+# 语言下限见 pyproject.toml requires-python >=3.10；Backend CI quality 使用 Python 3.12。
 FROM python:3.15-slim
 
 # Set working directory
