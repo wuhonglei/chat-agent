@@ -33,11 +33,13 @@
 - The initial Alembic migration (`6fc87d2a678f`) assumes tables already exist (it only alters columns). For a fresh DB, first let the app create tables via `SQLModel.metadata.create_all` (i.e. start the backend once or run `uv run python -c "import app.models; from app.core.db import create_db_and_tables; create_db_and_tables()"`), then stamp: `uv run alembic stamp head`.
 - Set `DATABASE__HOST=localhost` as an env var when running locally (the Nacos config may return a remote host).
 - `cd backend && make dev` 会先执行 `nacos-tunnel`（本机 `8848`/`9848` SSH 转到远程 Nacos；已监听则跳过）。完全离线设 `NACOS_SKIP_LOAD=1` 并在 `.env` 自备全部配置。
+- Python 三处版本不同：`pyproject.toml` `requires-python >=3.10`，Backend CI quality 使用 3.12，`backend/Dockerfile` 为 `python:3.15-slim`。quality 只在 `backend/app/**` 或该 workflow 变更时运行。
 
 ### Frontend
 
 - Uses **Vite+** CLI (`vp`). Source the env before using: `source ~/.vite-plus/env`.
 - Do **not** use `npm`/`pnpm` directly; always use `vp install`, `vp dev`, `vp lint .`, `vp build`.
+- Keep Vite+ lockstep: `vite-plus` stays `^0.3.3`, and `vite` / `@tailwindcss/vite`'s `vite` stay overridden to `npm:@voidzero-dev/vite-plus-core@0.3.3`. Do not bump `vite-plus` alone — 1.x depends on vitest 5 and core 1.x, while `@voidzero-dev/vite-plus-test@latest` is still `0.1.24` (checked 2026-11-15) and `vp install` ERESOLVEs. Frontend CI skips `package.json`-only diffs (filter is `frontend/src/**`). Details: `frontend/README.md`.
 - Dev server proxies `/api` to `http://localhost:8000` (see `vite.config.ts`).
 
 ### User data layout (v4)

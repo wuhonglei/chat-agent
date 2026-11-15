@@ -23,8 +23,8 @@
 - `messages表字段精简计划.md`：消息表现网字段、已下线字段与排障核验
 - `agent_observability/langfuse_integration.md`：Langfuse 自托管接入、trace 约定、`report_images` 脱敏、score 同步脚本与排障手册
 - `agent_evaluator/rule_evaluator_design.md`：实时规则评估器指标与告警（含现网对接说明）
-- `/backend/README.md`：聊天附件链路、v4 上传存储、静态站发布（`/api/sites` + `publish_site`）、Nacos 开发隧道、代码执行 API、聊天 SSE
-- `/frontend/README.md`：Chat 内容块/附件约束、侧栏预览与站点发布、文件 diff、SSE 事件约定
+- `/backend/README.md`：聊天附件链路、v4 上传存储、静态站发布（`/api/sites` + `publish_site`）、Nacos 开发隧道、代码执行 API、聊天 SSE、Python 版本（下限 `>=3.10` / CI 3.12 / 镜像 3.15）
+- `/frontend/README.md`：Chat 内容块/附件约束、侧栏预览与站点发布、文件 diff、SSE 事件约定、Vite+ 锁步（`vite-plus@0.3.3`）与 Frontend CI 路径过滤
 
 ### 规划方案
 

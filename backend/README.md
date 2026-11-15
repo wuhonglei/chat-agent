@@ -15,7 +15,7 @@
 
 ## 技术栈
 
-- Python 3.10+
+- Python：`pyproject.toml` 的 `requires-python` 是 `>=3.10`。Backend CI 的 quality 作业使用 Python 3.12（`.github/workflows/backend-ci.yml` 里 `setup-uv` 的 `python-version`）。部署镜像是 `python:3.15-slim`（`backend/Dockerfile`）。三处版本各自独立；要用 3.12+ 或 3.14+ 标准库时，先确认 CI 与镜像都覆盖到。
 - FastAPI + Uvicorn
 - SQLModel + Alembic
 - PostgreSQL（pgvector）
@@ -294,6 +294,8 @@ Agent 把 Vite SPA 拷到 `outputs/app-dist/`（或单页 `outputs/index.html`�
 ## Docker 运行
 
 通常从项目根目录使用 `docker compose` 启动（postgres / backend / frontend / **sites** / evaluator）。`sites` 映射宿主机 `8080→80`，健康检查是 `pidof nginx`（无 Host 的 HTTP 探活会打到 default_server 404）。
+
+后端镜像 `FROM python:3.15-slim`。CI quality 只在变更命中 `backend/app/**` 或 `backend-ci.yml` 时运行，因此只改 Dockerfile 或 `pyproject.toml` 的 PR 会跳过 ruff / mypy，`pr-gate` 仍通过。这类改动需要本地用目标解释器跑 `uv run ruff check app/` 与 `uv run mypy app/`。
 
 后端镜像额外安装 `fontconfig`、`fonts-noto-cjk`、`libcairo2`，把 `backend/fonts/local.conf` 拷到 `/etc/fonts/local.conf`，并单独 `pip install cairosvg`（不在 `uv.lock`，应用代码也不引用）。这只影响镜像内进程的 SVG 字体回退；默认 local 沙箱走这套环境，Docker 沙箱镜像（默认 `ubuntu:22.04`）和浏览器预览都不走它。细节见 `backend/docs/VFS_AND_SANDBOX.md` 第 4.4 节。
 

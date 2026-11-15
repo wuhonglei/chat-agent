@@ -158,7 +158,7 @@ frontend/
 
 ### 前置要求
 
-- Node.js（建议与 Vite+ 兼容版本）
+- Node.js：CI 使用 24（`.github/workflows/frontend-ci.yml`）。镜像构建用 `node:26-bookworm-slim`（`frontend/Dockerfile`：Alpine/musl 上可选包 `@voidzero-dev/vite-plus-linux-x64-musl` 经常在 `npm ci` 时漏装，glibc 绑定更稳）。当前锁定的 `vite-plus@0.3.3` 声明 engines 为 `^20.19.0 || ^22.18.0 || >=24.11.0`。
 - 已安装 Vite+ CLI
 
 ### 环境准备
@@ -209,6 +209,11 @@ docker run -d -p 3000:3000 --name chat-agent-frontend chat-agent-frontend
 
 ## 说明
 
-- 不要直接使用 `npm`/`pnpm` 命令管理依赖或启动开发服务，统一使用 `vp`。
-- `@tailwindcss/vite` 等插件的 `vite` 必须 alias 到 `vite-plus-core`（见 `package.json` overrides）；版本漂移会导致构建失败。
-- 若需了解前端专题文档，请查看 `frontend/docs/` 和根索引 `docs/README.md`。
+- 本地安装、启动、lint、构建用 `vp`：`vp install`、`vp dev`、`vp lint .`、`vp build`。Frontend CI 的 quality / build 作业执行的是 `npm ci` 和 `npm run`，只存在于那条工作流里。
+- Vite+ 按套件锁步，升级 `vite-plus` 时要连同 `overrides` 里的 core 一起改，并确认测试包有匹配主版本：
+  - `vite-plus` 保持 `^0.3.3`（lock 为 `0.3.3`）。该版本依赖 `vitest@4.1.11` 和 `npm:@voidzero-dev/vite-plus-core@0.3.3`。
+  - `package.json` 的 `overrides` 把直接依赖 `vite`，以及 `@tailwindcss/vite` 所依赖的 `vite`，钉在 `npm:@voidzero-dev/vite-plus-core@0.3.3`。lock 里 `node_modules/vite` 的包名就是这个 core。
+  - `vitest` 的声明和 override 都是 `npm:@voidzero-dev/vite-plus-test@latest`。截至 2026-11-15，该包最新版仍是 `0.1.24`（依赖 `vite-plus-core@0.1.24`），没有 1.x 发布。当前 lock 的 `node_modules/vitest` 解析到上游 `vitest@4.1.0`（tarball `vitest-4.1.0.tgz`），条目里没有 alias 包名。测试从 `vite-plus/test` 导入。
+  - 注册表上的最新 `vite-plus` 已是 `1.6.0`（依赖 `vitest@5.1.0` 与 `vite-plus-core@1.6.0`；engines 为 `^22.18.0 || ^24.11.0 || >=26.0.0`）。2026-11-03 只把 `vite-plus` 升到 `^1.2.0`（依赖 `vitest@5.0.4` 与 core `1.2.0`）时，`vp install` 报 npm `ERESOLVE`，随后退回 `^0.3.3`（`9068d822`）。
+- Frontend CI 的 paths filter 只包含 `frontend/src/**` 和 `.github/workflows/frontend-ci.yml`。只改 `package.json` 或 lockfile 时，quality 与 build 被跳过，`pr-gate` 仍通过。依赖升级要在本地跑 `vp install`、`vp lint .`、`vp build`。
+- 专题文档见 `frontend/docs/` 和根索引 `docs/README.md`。
