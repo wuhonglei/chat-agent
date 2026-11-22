@@ -1,11 +1,12 @@
 # 工具结果硬上限与统一上下文守卫
 
-**最后核对**：2026-09-06
+**最后核对**：2026-11-22
 
 对话热路径上的上下文治理：
 
 1. **L1 硬上限**：工具刚返回时按字符截断/落盘
 2. **统一上下文守卫**：每次 LLM 调用前检查总 prompt，按需分级降级
+3. **请求级熔断**：同一轮用户请求内，重复失败或无进展会警告、阻断或结束工具循环（§8）。阈值写死在代码里，不走 `chat_context` 配置。
 
 ## 1. 分层总览
 
@@ -187,7 +188,52 @@ CHAT_CONTEXT__WINDOW_OUT_SUMMARY__ENABLED=true
 CHAT_CONTEXT__WINDOW_OUT_SUMMARY__SUMMARY_MAX_TOKENS=1000
 ```
 
-## 8. 源码索引
+## 8. 工具调用熔断（guardrail）
+
+`ToolCallGuardrail` 挂在 `ToolExecutor` 上。每个用户请求开始时 `reset_for_request` 清零；不跨轮、不跨 worker。子 agent 是另一个 `ChatSessionAgent`（`app/services/subagent/service.py`），计数与父级无关。
+
+参数签名是 `SHA256(工具名 + 排序后的 JSON)`（`sort_keys`，非 JSON 值用 `str`）。键顺序不影响签名。`tavily_web_pages_extract` 先去掉本轮已抓过的 URL，签名用过滤后的参数；若 URL 全部重复，直接返回提示且**不**记成功/失败。
+
+### 8.1 三条规则
+
+默认阈值（`ToolCallGuardrail` 字段，无环境变量）：
+
+| 规则 | 何时计数 | WARN（入队，不写进 tool 正文） | 真正动手 |
+|------|----------|--------------------------------|----------|
+| 相同参数失败 | 该签名连续失败。该签名一旦成功就清零 | 第 2 次失败起 | 计数已到 5 时，下一次相同调用不执行，`error_source=guardrail_block` |
+| 同一工具失败 | 同一 LLM 工具名的连续失败，参数可以不同。该工具任一成功即清零 | 第 3 次失败起 | 第 8 次**已执行**的失败把熔断句追加到该条 `tool.content`，并置 `halted` |
+| 无进展 | 只对幂等工具。相同签名且结果正文 SHA256 相同的**成功**次数。该签名一旦失败，连续相同结果清零 | 第 3 次相同成功起 | 计数已到 5 时，下一次相同调用不执行，`error_source=guardrail_block` |
+
+`before_call` 的顺序是：相同参数阻断 → 同工具熔断 → 无进展阻断。被阻断的调用不会 `record_outcome`，因此**不会**把同工具失败次数往上加。只拿同一组参数反复失败时，工具实际只会执行 5 次，第 6 次被阻断，到不了 8 次熔断。熔断需要这个工具名下真正执行满 8 次失败；实务上就是换参数，避开「相同参数先被阻断」。
+
+同工具熔断之后，本批尚未开跑的调用不再执行，合成 `error_source=guardrail_halt`（正文是「本次调用未执行」）。触发熔断的那一次仍保留工具自己的 `error_source`（异常路径为 `tool_error`），只是正文末尾多了熔断句。
+
+批次按 `plan_tool_batch_segments` 分段：段内并行，段间串行。`halted` 在**下一段**开始前检查；同一段里已经发出的调用仍会跑完。`subagent_delegate_task` 与普通工具并行启动，也只在开跑前看 `halted`。委托超时是 `error_source=timeout`，不记入失败次数。
+
+### 8.2 幂等工具
+
+无进展只看 `IDEMPOTENT_LLM_TOOLS`（`app/mcp/constants.py`）。名字在 `MUTATING_LLM_TOOLS` 里的一律不算幂等。两份集合都没有的工具（例如 `subagent_delegate_task`）仍走前两条失败规则，但不做无进展检测。
+
+幂等：`file_read_file`、`file_search_files`、`tavily_web_search`、`tavily_web_pages_extract`、`tavily_web_site_crawl`、`code_list_runtimes`、`time_get_current_time`、`weather_search_city`、`weather_get_current_weather`、`weather_get_weather_hourly_forecast`、`weather_get_weather_daily_forecast`、`weather_get_weather_alerts`、`skill_manager_load_skill`、`vision_analyze`。
+
+有副作用（无进展豁免）：`file_write_file`、`file_edit_file`、`file_present_files`、`file_publish_site`、`shell_exec`、`code_execute_code`。
+
+一次失败可以同时入队两条 WARN（相同参数、同工具各一条）。同工具 WARN 和熔断句会按工具名前缀附加恢复提示：`shell_` 建议先 `pwd && ls -la` 或改用文件工具；`file_` 提醒路径要在 `/mnt/user-data/` 下。其余工具只要求换参数或换工具。相同参数失败的 WARN 没有这段前缀提示。
+
+### 8.3 模型看见什么
+
+WARN 在**下一轮**工具循环开头由 `drain_pending_warns` 取出，经 `build_trailing_hint_user_message` 合成至多一条尾部 `user`：
+
+- 只有熔断警告：`source.plugin=tool_guardrail`，`form=notice`，正文就是警告，没有「注意:」前缀。
+- 与迭代提示或续跑 notice 并存：合成一条，`plugin=agent_hints`，`form=snapshot`；顺序是迭代提示（带「注意:」）→ 熔断警告 → 其他 notice。
+
+这条 `user` 只拼进当次 LLM 请求（`_build_round_prompt_messages`），不进入 `tool_round_messages`，因此不落库，再下一轮也不会重放。
+
+`halted` 后 `ChatSessionAgent` 走 `_stream_final_round_events`（无 tools）。该出口会**丢掉**尚未注入的 WARN，避免和终答指令抢同一条尾部 `user`。模型仍能看到工具结果上的熔断句。上下文守卫 `stop_tools` 和轮次上限走同一出口，同样丢弃未注入的 WARN。
+
+实时规则分 `tool_loop_detected`（`rule_evaluator.py`）只数 `error_source` 为 `guardrail_block` 或 `guardrail_halt` 的工具块。只有熔断句、没有后续被跳过调用时，这次熔断**不会**单独把该分数打成 true。
+
+## 9. 源码索引
 
 | 主题 | 路径 |
 |------|------|
@@ -199,3 +245,5 @@ CHAT_CONTEXT__WINDOW_OUT_SUMMARY__SUMMARY_MAX_TOKENS=1000
 | 摘要 | `app/services/conversation/context_summary_service.py` |
 | 配置 | `UnifiedContextGuardConfig`、`ToolResultHardLimitConfig`、`WindowOutSummaryConfig` |
 | 单测 | `tests/agents/test_unified_context_guard.py`、`tests/services/chat/test_history_context_service.py`、`tests/services/chat/test_conversation_compress.py` |
+| 熔断 | `app/agents/tool_call_guardrail.py`、`app/agents/tool_executor.py`、`app/utils/message.py`（`build_trailing_hint_user_message`） |
+| 熔断单测 | `tests/agents/test_tool_guardrails.py` |

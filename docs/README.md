@@ -63,7 +63,7 @@
 - `COMPONENT_TOOLS_PRD.md`：组件工具接入说明（已对齐当前字段）
 - `MCP_CONFIG_ANALYSIS.md`：MCP 配置与加载机制、工具命名双轨与唯一 bare 别名回退；`subagent` 默认注册但不进模式列表；`vision_analyze` 取图与主模型直传 / `vision` 场景兜底
 - `VFS_AND_SANDBOX.md`：Agent 模式虚拟文件系统、file/shell MCP（工具 `exec`，命令长度上限 50000；`shell_exec` 默认 60s、schema 上限 5 分钟，网关不再套 60s；`read_file` 拒绝图片）、`publish_site`、独立 `data/sites` 快照根、local `CHAT_AGENT_VFS_MAPPINGS` / `local_vfs_shim`、生图密钥注入、后端镜像 SVG 字体（`fonts/local.conf` + `cairosvg`）、内置技能 `diagram-design`（§2.2：加载、outputs 预览、导出脚本）、沙箱执行与排障手册
-- `TOOL_RESULT_AND_CONTEXT.md`：工具结果硬上限、统一上下文守卫、窗口外摘要、手动全量压缩与 `last_summarized_message_ids`
+- `TOOL_RESULT_AND_CONTEXT.md`：工具结果硬上限、统一上下文守卫、窗口外摘要、手动全量压缩与 `last_summarized_message_ids`；§8 为请求级工具熔断（相同参数阻断 / 同工具 8 次失败停工具循环 / 幂等工具无进展）
 - `LLM_RELIABILITY.md`：LLM 建连重试、错误分类与进程级熔断手册
 - `PROMETHEUS_METRICS.md`：`/metrics` 暴露、无 `--preload` 的 Gunicorn multiprocess 约定与自定义进程指标
 - `SLO.md`（`backend/docs/SLO.md`）：HTTP 可用性 SLO、错误预算与导入现有 Prometheus 平台的规则说明（`deploy/prometheus/`）
